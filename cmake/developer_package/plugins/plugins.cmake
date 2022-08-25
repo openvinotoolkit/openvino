@@ -104,29 +104,12 @@ function(ie_add_plugin)
         endif()
 
         add_dependencies(ov_plugins ${IE_PLUGIN_NAME})
-        if(TARGET openvino_gapi_preproc)
-            if(BUILD_SHARED_LIBS)
-                add_dependencies(${IE_PLUGIN_NAME} openvino_gapi_preproc)
-            else()
-                target_link_libraries(${IE_PLUGIN_NAME} PRIVATE openvino_gapi_preproc)
-            endif()
-        endif()
 
         # fake dependencies to build in the following order:
-        # IE -> IE readers -> IE inference plugins -> IE-based apps
+        # OV -> OV frontends -> OV inference plugins -> OV-based apps
         if(BUILD_SHARED_LIBS)
-            if(TARGET openvino_ir_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} openvino_ir_frontend)
-            endif()
-            if(TARGET openvino_onnx_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} openvino_onnx_frontend)
-            endif()
-            if(TARGET openvino_paddle_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} openvino_paddle_frontend)
-            endif()
-            if(TARGET openvino_tensorflow_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} openvino_tensorflow_frontend)
-            endif()
+            add_dependencies(${IE_PLUGIN_NAME} ov_frontends)
+
             # TODO: remove with legacy CNNNLayer API / IR v7
             if(TARGET inference_engine_ir_v7_reader)
                 add_dependencies(${IE_PLUGIN_NAME} inference_engine_ir_v7_reader)

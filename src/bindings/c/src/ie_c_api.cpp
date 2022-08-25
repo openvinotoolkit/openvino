@@ -196,7 +196,7 @@ std::map<IE::ColorFormat, colorformat_e> colorformat_map = {{IE::ColorFormat::RA
 /**
  *@brief convert the config type data to map type data.
  */
-std::map<std::string, std::string> config2Map(const ie_config_t* config) {
+inline std::map<std::string, std::string> config2Map(const ie_config_t* config) {
     std::map<std::string, std::string> m;
     const ie_config_t* tmp = config;
     while (tmp && tmp->name && tmp->value) {
@@ -206,7 +206,7 @@ std::map<std::string, std::string> config2Map(const ie_config_t* config) {
     return m;
 }
 
-std::map<std::string, IE::Parameter> config2ParamMap(const ie_config_t* config) {
+inline std::map<std::string, IE::Parameter> config2ParamMap(const ie_config_t* config) {
     std::map<std::string, IE::Parameter> param_map;
     const ie_config_t* tmp = config;
 
@@ -221,7 +221,7 @@ std::map<std::string, IE::Parameter> config2ParamMap(const ie_config_t* config) 
 /**
  *@brief convert the parameter.
  */
-void parameter2IEparam(const IE::Parameter param, ie_param_t* ie_param) {
+inline void parameter2IEparam(const IE::Parameter param, ie_param_t* ie_param) {
     if (param.is<std::string>()) {
         std::unique_ptr<char> params_temp(new char[param.as<std::string>().length() + 1]);
         ie_param->params = params_temp.release();

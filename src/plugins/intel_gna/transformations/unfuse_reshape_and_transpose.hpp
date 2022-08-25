@@ -6,7 +6,9 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace pass {
 
 /**
  * @brief Replace 2d->4d reshape to pair of 2 reshapes (before Convolution)
@@ -69,4 +71,6 @@ public:
     Unfuse4dto2dReshapeAndTranspose();
 };
 
-}  // namespace GNAPluginNS
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov
