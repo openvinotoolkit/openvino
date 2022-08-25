@@ -525,6 +525,12 @@ TEST_P(IEClassNetworkTestP, SetAffinityWithKSO) {
 }
 
 TEST_P(IEClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
+    if (target_device.find(CommonTestUtils::DEVICE_HETERO) != std::string::npos ||
+        target_device.find(CommonTestUtils::DEVICE_MULTI) != std::string::npos ||
+        target_device.find(CommonTestUtils::DEVICE_AUTO) != std::string::npos ||
+        target_device.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos) {
+        GTEST_SKIP() << "Not applicable case for device: " << target_device;
+    }
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::QueryNetworkResult res;
     ASSERT_NO_THROW(res = ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO, {{"TARGET_FALLBACK",  target_device}}));
@@ -532,6 +538,12 @@ TEST_P(IEClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
 }
 
 TEST_P(IEClassNetworkTestP, QueryNetworkMultiThrows) {
+    if (target_device.find(CommonTestUtils::DEVICE_HETERO) != std::string::npos ||
+        target_device.find(CommonTestUtils::DEVICE_MULTI) != std::string::npos ||
+        target_device.find(CommonTestUtils::DEVICE_AUTO) != std::string::npos ||
+        target_device.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos) {
+        GTEST_SKIP() << "Not applicable case for device: " << target_device;
+    }
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     ASSERT_THROW(ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_MULTI), InferenceEngine::Exception);
 }
@@ -925,11 +937,23 @@ TEST_P(IEClassNetworkTestP, LoadNetworkActualNoThrow) {
 }
 
 TEST_P(IEClassNetworkTestP, LoadNetworkActualHeteroDeviceNoThrow) {
+    if (target_device.find(CommonTestUtils::DEVICE_HETERO) != std::string::npos ||
+        target_device.find(CommonTestUtils::DEVICE_MULTI) != std::string::npos ||
+        target_device.find(CommonTestUtils::DEVICE_AUTO) != std::string::npos ||
+        target_device.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos) {
+        GTEST_SKIP() << "Not applicable case for device: " << target_device;
+    }
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") +  target_device));
 }
 
 TEST_P(IEClassNetworkTestP, LoadNetworkActualHeteroDevice2NoThrow) {
+    if (target_device.find(CommonTestUtils::DEVICE_HETERO) != std::string::npos ||
+        target_device.find(CommonTestUtils::DEVICE_MULTI) != std::string::npos ||
+        target_device.find(CommonTestUtils::DEVICE_AUTO) != std::string::npos ||
+        target_device.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos) {
+        GTEST_SKIP() << "Not applicable case for device: " << target_device;
+    }
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO, {{"TARGET_FALLBACK",  target_device}}));
 }
