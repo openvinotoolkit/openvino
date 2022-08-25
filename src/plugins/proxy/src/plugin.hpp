@@ -42,6 +42,7 @@ private:
     std::vector<std::string> get_primary_devices() const;
     std::string get_primary_device(size_t idx) const;
 
+    bool has_property(const std::string& property_name, const std::string& conf_name = "") const;
     std::string get_property(const std::string& property_name, const std::string& conf_name = "") const;
 
     std::vector<std::string> device_order;

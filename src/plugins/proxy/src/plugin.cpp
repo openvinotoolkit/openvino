@@ -60,7 +60,7 @@ std::string ov::proxy::restore_order(const std::string& original_order) {
     }
     for (const auto& dev : dev_order) {
         if (!result.empty())
-            result += ",";
+            result += " ";
         result += dev;
     }
     return result;
@@ -71,6 +71,21 @@ ov::proxy::Plugin::Plugin() {
     configs[""] = {};
 }
 ov::proxy::Plugin::~Plugin() = default;
+
+bool ov::proxy::Plugin::has_property(const std::string& property, const std::string& config_name) const {
+    std::lock_guard<std::mutex> lock(plugin_mutex);
+    auto name = config_name;
+    // If device specific config wasn't found or property in config wasn't found  use global config
+    auto it = configs.find(name);
+    if (it == configs.end() || it->second.find(property) == it->second.end())
+        name = "";
+
+    it = configs.find(name);
+    if (it->second.find(property) != it->second.end())
+        return true;
+
+    return false;
+}
 
 std::string ov::proxy::Plugin::get_property(const std::string& property, const std::string& config_name) const {
     std::lock_guard<std::mutex> lock(plugin_mutex);
@@ -172,7 +187,7 @@ void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& conf
         // Main device is needed in case if we don't have alias and would like to be able change fallback order per
         // device
         if (alias_for.empty() && config_name.empty())
-            alias_for.insert(split(it->second)[0]);
+            alias_for.insert(split(it->second, " ")[0]);
     }
     for (const auto& it : config) {
         // Skip proxy properties
@@ -225,7 +240,7 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetConfig(
         return std::to_string(device_id);
 
     if (name == ov::device::priorities) {
-        return split(get_property(name, config_name));
+        return split(get_property(name, config_name), " ");
     }
 
     return GetCore()->GetConfig(get_primary_device(device_id), name);
@@ -234,7 +249,9 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetConfig(
 InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
     const std::string& name,
     const std::map<std::string, InferenceEngine::Parameter>& options) const {
-    std::string device_name = get_primary_device(get_device_from_config(options));
+    auto device_id = get_device_from_config(options);
+    std::string device_name = get_primary_device(device_id);
+    const std::string device_id_str = is_device_in_config(options) ? std::to_string(device_id) : "";
 
     if (name == ov::supported_properties) {
         const static std::unordered_set<std::string> property_names = {ov::supported_properties.name(),
@@ -287,6 +304,8 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
         return decltype(ov::available_devices)::value_type(availableDevices);
     }
 
+    if (has_property(name, device_id_str))
+        return get_property(name, device_id_str);
     return GetCore()->GetMetric(device_name, name, options);
 }
 InferenceEngine::IExecutableNetworkInternal::Ptr ov::proxy::Plugin::ImportNetwork(
@@ -322,7 +341,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
             // Add fallback devices use device_id for individual fallback property
             auto fallback = get_property(ov::device::priorities.name(), device_id);
             if (!fallback.empty()) {
-                for (const auto& fallback_dev : split(fallback)) {
+                for (const auto& fallback_dev : split(fallback, " ")) {
                     devices.emplace_back(fallback_dev);
                 }
             }
@@ -380,7 +399,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
             std::vector<std::string> real_fallback_order;
             auto device = all_highlevel_devices[i];
             // In case of aliases use the proxy system of enumeration devices
-            const auto fallback_order = split(get_property(ov::device::priorities.name(), std::to_string(i)));
+            const auto fallback_order = split(get_property(ov::device::priorities.name(), std::to_string(i)), " ");
 
             bool found_primary_device = false;
             bool use_hetero_mode = device.no_uuid ? true : false;
@@ -437,7 +456,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
             std::string new_fallback;
             for (const auto& dev : real_fallback_order) {
                 if (!new_fallback.empty())
-                    new_fallback += ",";
+                    new_fallback += " ";
                 new_fallback += dev;
             }
             std::lock_guard<std::mutex> lock(plugin_mutex);
