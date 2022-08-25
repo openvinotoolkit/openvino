@@ -46,11 +46,13 @@ if [ -f /etc/lsb-release ]; then
             shellcheck \
             patchelf \
             lintian \
+            gzip \
             `# openvino` \
             libtbb-dev \
             libpugixml-dev \
             `# python` \
             python3-pip \
+            python3-venv \
             python3-enchant \
             python3-setuptools \
             libpython3-dev \
