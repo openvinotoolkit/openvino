@@ -221,7 +221,7 @@ jobs:
     displayName: 'OV Core UT'
     continueOnError: false
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ONNXFrontend.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_onnx_frontend_test --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ONNXFrontend.xml
     displayName: 'ONNX Frontend Test'
     continueOnError: false
 
