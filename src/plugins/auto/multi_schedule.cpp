@@ -29,7 +29,7 @@ void MultiSchedule::init(const ScheduleContext::Ptr& sContext) {
 
 Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInferRequest** workerInferRequest) {
     Pipeline pipeline;
-    if (_passthroughExeNet) {
+    if (_passthroughExeNet || _multiSContext->_bindBuffer) {
         struct RequestExecutor : ITaskExecutor {
             explicit RequestExecutor(InferenceEngine::SoIInferRequestInternal& inferRequest) : _inferRequest(inferRequest) {
                 _inferRequest->SetCallback([this](std::exception_ptr exceptionPtr) mutable {
