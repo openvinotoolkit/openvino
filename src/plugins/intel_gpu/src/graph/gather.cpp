@@ -65,15 +65,15 @@ layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_para
 }
 
 template<typename ShapeType>
-std::vector<layout> gather_inst::calc_output_layouts(gather_node const& node, const kernel_impl_params& impl_param) {
-    auto desc = node.get_primitive();
+std::vector<layout> gather_inst::calc_output_layouts(gather_node const& /*node*/, const kernel_impl_params& impl_param) {
+    auto desc = impl_param.typed_desc<gather>();
 
     auto input0_layout = impl_param.get_input_layout(0);
     auto input1_layout = impl_param.get_input_layout(1);
 
     auto output_type = input0_layout.data_type;
-    if (node.has_fused_primitives()) {
-        output_type = node.get_fused_output_layout().data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
     }
 
     ov::op::v8::Gather op;
