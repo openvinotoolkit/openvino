@@ -484,7 +484,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         _LogTag = "AUTO";
         LOG_INFO_TAG("CUMULATIVE Call MULTI PERFORMACE_HINT set to THROUGHPUT");
     }
-    if (priorities == fullConfig.end() || priorities->second.empty()) {
+    if (priorities->second.empty()) {
         IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
     } else {  // for use case -d MULTI:xPU or -d AUTO:xPU
         metaDevices = ParseMetaDevices(priorities->second, fullConfig);
@@ -587,7 +587,7 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
     queryconfig.UpdateFromMap(config, GetName());
     auto fullConfig = queryconfig._keyConfigMap;
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
-    if (priorities == fullConfig.end()) {
+    if (priorities->second.empty()) {
         IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() <<  " device";
     }
     auto metaDevices = ParseMetaDevices(priorities->second, fullConfig);
@@ -762,7 +762,7 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
     std::string allDevices;
     auto deviceList = GetCore()->GetAvailableDevices();
     auto deviceListConfig = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
-    if (deviceListConfig == config.end() || deviceListConfig->second.empty()) {
+    if (deviceListConfig->second.empty()) {
         for (auto&& device : deviceList) {
             allDevices += device;
             allDevices += ((device == deviceList[deviceList.size()-1]) ? "" : ",");
@@ -876,8 +876,6 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
                                                 InferenceEngine::CNNNetwork network) {
     if (metaDevices.empty()) {
         IE_THROW(NotFound) << "No available device to filter " << GetName() <<  " plugin";
-    } else if (metaDevices.size() == 1) {
-        return metaDevices;
     }
 
     std::vector<DeviceInformation> filterDevice;
@@ -892,17 +890,20 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
         }
         return false;
     };
-    if (model->is_dynamic() || isStateful()) {
-        for (auto& iter : metaDevices) {
-            if (iter.deviceName.find("CPU") != std::string::npos) {
-                filterDevice.push_back(iter);
-                break;
-            }
-        }
-        if (filterDevice.size() == 0)
-            IE_THROW(NotFound) << "No available device for dynamic shape network !";
+
+    // Check if CPU is in candidate list
+    auto cpuiter = std::find_if(metaDevices.begin(), metaDevices.end(), [](const DeviceInformation& deviceInfo) {
+        return deviceInfo.deviceName.find("CPU") != std::string::npos;
+    });
+
+    // If CPU is in candidate list, load dynamic network to CPU first
+    if ((model->is_dynamic() || isStateful()) && cpuiter != metaDevices.end()) {
+        filterDevice.push_back(*cpuiter);
         return filterDevice;
     }
+
+    // If CPU is not in candidate list, continue to run selection logic regardless of whether the input network is a
+    // dynamic network or not
     return metaDevices;
 }
 std::string MultiDeviceInferencePlugin::GetLogTag() const noexcept {

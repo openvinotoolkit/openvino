@@ -9,6 +9,7 @@
 #include <cpp/ie_cnn_network.h>
 #include <ie_algorithm.hpp>
 #include <legacy/ie_layers.h>
+#include "gna_lib_ver_selector.hpp"
 
 namespace GNAPluginNS {
 namespace GNALimitations {
@@ -37,6 +38,19 @@ constexpr uint32_t transposeMaxSize = 65528;
 constexpr uint32_t kMaxLayersCountGNA1_0 = 1023;
 constexpr uint32_t kMaxLayersCountGNA2_0 = 4096;
 constexpr uint32_t kMaxLayersCountGNA3_X = 8192;
+
+// Currently split layer only supports 2 bytes in int16 and int8 mode.
+// In fp32 mode this is not necessary but is useful for testing
+constexpr uint32_t bytesPerSplitElement = 2;
+
+// Currently crop layer only supports 2 bytes in int16 and int8 mode.
+// In fp32 mode this is not necessary but is useful for testing
+constexpr uint32_t bytesPerCropElement = 2;
+
+inline bool isCropAffinedOffset(size_t numberOfElements) {
+    const auto cropOffset = numberOfElements*bytesPerCropElement;
+    return (ALIGN64(cropOffset) != cropOffset);
+}
 
 inline bool IsTranspose2d(const std::vector<size_t>& shape) {
     return std::count_if(std::begin(shape), std::end(shape), [](size_t dim) { return dim != 1; }) == 2;

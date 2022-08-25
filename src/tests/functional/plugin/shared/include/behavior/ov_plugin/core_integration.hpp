@@ -140,7 +140,7 @@ inline bool supportsAvaliableDevices(ov::Core& ie, const std::string& target_dev
            std::find(std::begin(supported_properties), std::end(supported_properties), ov::available_devices);
 }
 
-bool supportsDeviceID(ov::Core& ie, const std::string& target_device) {
+inline bool supportsDeviceID(ov::Core& ie, const std::string& target_device) {
     auto supported_properties =
             ie.get_property(target_device, ov::supported_properties);
     return supported_properties.end() !=
@@ -594,9 +594,17 @@ TEST_P(OVClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
     ASSERT_LT(0, res.size());
 }
 
-TEST_P(OVClassNetworkTestP, QueryNetworkMultiThrows) {
+TEST_P(OVClassNetworkTestP, DISABLED_QueryNetworkMultiThrows) {
     ov::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.query_model(actualNetwork, CommonTestUtils::DEVICE_MULTI), ov::Exception);
+    try {
+        ie.query_model(actualNetwork, CommonTestUtils::DEVICE_MULTI);
+    } catch (ov::Exception& error) {
+        EXPECT_PRED_FORMAT2(testing::IsSubstring,
+                            std::string("KEY_MULTI_DEVICE_PRIORITIES key is not set for"),
+                            error.what());
+    } catch (...) {
+        FAIL() << "query_model failed for unexpected reson.";
+    }
 }
 
 TEST(OVClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
@@ -940,6 +948,19 @@ using OVClassNetworkTestP = OVClassBaseTestP;
 TEST_P(OVClassNetworkTestP, LoadNetworkActualNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, target_device));
+}
+
+TEST_P(OVClassNetworkTestP, LoadNetworkMultiWithoutSettingDevicePrioritiesThrows) {
+    ov::Core ie = createCoreWithTemplate();
+    try {
+        ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_MULTI);
+    } catch (ov::Exception& error) {
+        EXPECT_PRED_FORMAT2(testing::IsSubstring,
+                            std::string("KEY_MULTI_DEVICE_PRIORITIES key is not set for"),
+                            error.what());
+    } catch (...) {
+        FAIL() << "compile_model failed for unexpected reson.";
+    }
 }
 
 TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDeviceNoThrow) {

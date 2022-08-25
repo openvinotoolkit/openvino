@@ -38,7 +38,7 @@ void RunTest(const std::shared_ptr<ngraph::Function>& func,
     {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::PWLApproximation>(max_error_percent);
+        m.register_pass<ov::intel_gna::pass::PWLApproximation>(max_error_percent);
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
     }
@@ -106,7 +106,7 @@ TEST(GnaPwlTest, Power) {
         RunTest(
             pwl_test::CreateActivationFunction<ngraph::opset8::Power>({1, 32}, exp),
             pwl_test::CreateActivationFunction<ngraph::opset8::Power>({1, 32}, exp),
-            GNAPluginNS::details::are_floats_equal(std::fmod(exp, 1.0), 0.0) ? -16 : 0,
+            ov::intel_gna::pass::details::are_floats_equal(std::fmod(exp, 1.0), 0.0) ? -16 : 0,
             16);
     }
 }
