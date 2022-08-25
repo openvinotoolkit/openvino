@@ -415,13 +415,6 @@ InferRequest::InferRequest(const std::vector<std::shared_ptr<const ov::Node>>& i
 // ----------------------------------------------------------------------------------------- //
 // ---------------------------- internal pipeline stages ----------------------------------- //
 // ----------------------------------------------------------------------------------------- //
-void InferRequest::preprocess_notify() {
-    m_graph->wait(Graph::Stage::PREPROC);
-    m_graph->notify(Graph::Stage::PREPROC);
-}
-
-void InferRequest::preprocess() {}
-
 void InferRequest::enqueue_notify() {
     m_graph->wait(Graph::Stage::EXECUTE);
     enqueue();
@@ -804,7 +797,6 @@ void InferRequest::InferImpl() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::InferImpl");
     setup_stream_graph();
     std::lock_guard<std::mutex> lk(m_graph->get_mutex());
-    preprocess();
     enqueue();
     wait();
 }

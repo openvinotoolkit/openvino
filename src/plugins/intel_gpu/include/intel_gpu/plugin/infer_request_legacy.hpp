@@ -15,7 +15,7 @@
 namespace ov {
 namespace intel_gpu {
 
-struct buf_into {
+struct buf_info {
     size_t buf_offset;
     size_t buf_size;
 };
@@ -81,8 +81,8 @@ private:
     std::shared_ptr<Graph> m_graph;
 
     // dynamic batch stuff
-    std::map<std::string, std::vector<buf_into>> batchInputs;
-    std::map<std::string, std::vector<buf_into>> batchOutputs;
+    std::map<std::string, std::vector<buf_info>> batchInputs;
+    std::map<std::string, std::vector<buf_info>> batchOutputs;
     InferenceEngine::IStreamsExecutor* streamExecutor = nullptr;
 
     void prepare_input(const cldnn::primitive_id &inputName, InferenceEngine::Blob::Ptr &inputBlob,
@@ -93,10 +93,10 @@ private:
                                                 std::shared_ptr<InferenceEngine::IAllocator> alloc = nullptr);
     InferenceEngine::Blob::Ptr create_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout);
 
-    void copy_output_data(cldnn::memory::ptr outputMemory, InferenceEngine::Blob::Ptr bptr, buf_into* bi = nullptr);
+    void copy_output_data(cldnn::memory::ptr outputMemory, InferenceEngine::Blob::Ptr bptr, buf_info* bi = nullptr);
     void copy_input_data(std::shared_ptr<cldnn::network> network, const cldnn::primitive_id &inputName,
                          const cldnn::layout& inputLayout, const InferenceEngine::Blob &inputBlob,
-                         buf_into* bi = nullptr);
+                         buf_info* bi = nullptr);
 
     InferenceEngine::Blob::Ptr create_shared_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout, void* usm_host_mem);
     void allocate_inputs();

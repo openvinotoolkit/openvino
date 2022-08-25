@@ -52,7 +52,7 @@ void convertAndCopy(const InferenceEngine::Blob* src, dst_t* dst) {
 }
 
 template<typename src_dt, typename dst_dt>
-void copyResultToOutputBlob(cldnn::memory::ptr src, Blob::Ptr dst, ov::intel_gpu::buf_into* bi, cldnn::stream& stream) {
+void copyResultToOutputBlob(cldnn::memory::ptr src, Blob::Ptr dst, ov::intel_gpu::buf_info* bi, cldnn::stream& stream) {
     size_t n = (bi == nullptr) ? dst->size() : bi->buf_size;
     size_t offset = (bi == nullptr) ? 0 : bi->buf_offset;
 
@@ -563,7 +563,7 @@ void InferRequestLegacy::SetBatch(int new_batch) {
             sz[batch_idx] = 1;
 
         size_t single_batch = std::accumulate(std::begin(sz), std::end(sz), (size_t)1, std::multiplies<size_t>());
-        std::vector<buf_into> in_buf;
+        std::vector<buf_info> in_buf;
 
         size_t offset = 0;
         size_t bsz = single_batch;
@@ -572,7 +572,7 @@ void InferRequestLegacy::SetBatch(int new_batch) {
         for (unsigned nb = 0; nb < m_graph->GetNetworksCount(); nb++) {
             unsigned int mask = 1 << nb;
 
-            buf_into ib = { offset, bsz };
+            buf_info ib = { offset, bsz };
             in_buf.push_back(ib);
 
             if (new_batch & mask)
@@ -590,7 +590,7 @@ void InferRequestLegacy::SetBatch(int new_batch) {
         if (batch_idx >= 0)
             sz[batch_idx] = 1;
         size_t single_batch = std::accumulate(std::begin(sz), std::end(sz), (size_t)1, std::multiplies<size_t>());
-        std::vector<buf_into> out_buf;
+        std::vector<buf_info> out_buf;
 
         size_t offset = 0;
         size_t bsz = single_batch;
@@ -598,7 +598,7 @@ void InferRequestLegacy::SetBatch(int new_batch) {
         for (uint32_t nb = 0; nb < m_graph->GetNetworksCount(); nb++) {
             uint32_t mask = 1 << nb;
 
-            buf_into ob = { offset, bsz };
+            buf_info ob = { offset, bsz };
             out_buf.push_back(ob);
 
             if (new_batch & mask)
@@ -929,7 +929,7 @@ Blob::Ptr InferRequestLegacy::create_shared_device_blob(const InferenceEngine::T
     return blob;
 }
 
-void InferRequestLegacy::copy_output_data(cldnn::memory::ptr src, Blob::Ptr dst, buf_into* bi) {
+void InferRequestLegacy::copy_output_data(cldnn::memory::ptr src, Blob::Ptr dst, buf_info* bi) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequestLegacy::copy_output_data");
     auto& stream = m_graph->GetNetwork()->get_stream();
     switch (dst->getTensorDesc().getPrecision()) {
@@ -951,7 +951,7 @@ void InferRequestLegacy::copy_output_data(cldnn::memory::ptr src, Blob::Ptr dst,
 void InferRequestLegacy::copy_input_data(std::shared_ptr<cldnn::network> network,
                                         const cldnn::primitive_id &inputName,
                                         const cldnn::layout& inputLayout,
-                                        const Blob &inputBlob, buf_into* bi) {
+                                        const Blob &inputBlob, buf_info* bi) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequestLegacy::copy_input_data");
 
     size_t offset = (bi == nullptr) ? 0 : bi->buf_offset;

@@ -124,7 +124,7 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
     bool is_legacy = false;
     if (this->_plugin && _plugin->IsNewAPI()) {
         internalRequest = CreateInferRequestImpl(_parameters, _results);
-        if (m_graphs.front()->GetMaxDynamicBatchSize() > 1)
+        if (std::dynamic_pointer_cast<InferRequestLegacy>(internalRequest))
             is_legacy = true;
     }
     if (!internalRequest) {

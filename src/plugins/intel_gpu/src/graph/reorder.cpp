@@ -163,7 +163,10 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
         // TODO Shouldn't transform be called every time ifmt != ofmt?
         return layout(odt, ofmt, input_layout.get_tensor().transform(ofmt, 1), op);
     } else {
-        return layout(input_layout.get_partial_shape(), odt, ofmt, op);
+        if (input_layout.is_static())
+            return layout(odt, ofmt, input_layout.get_tensor(), op);
+        else
+            return layout(input_layout.get_partial_shape(), odt, ofmt, op);
     }
 }
 

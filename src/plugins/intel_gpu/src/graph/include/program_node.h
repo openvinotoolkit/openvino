@@ -257,7 +257,6 @@ public:
     void set_output(bool out) { output = out; }
     bool is_output() const { return output; }
 
-    void invalidate_users() const;
     bool is_valid_output_layout() const { return valid_output_layout; }
 
     uint8_t mark(uint8_t val = 1) {
@@ -456,6 +455,8 @@ protected:
 
     std::vector<fused_activation_params> fused_activations;
     std::vector<fused_primitive_desc> fused_prims;
+
+    void invalidate_users() const;
 
 private:
 #ifdef ENABLE_ONEDNN_FOR_GPU
