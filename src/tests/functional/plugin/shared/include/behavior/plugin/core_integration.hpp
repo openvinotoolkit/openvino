@@ -101,14 +101,14 @@ using IEClassSeveralDevicesTestLoadNetwork = IEClassSeveralDevicesTest;
 using IEClassSeveralDevicesTestQueryNetwork = IEClassSeveralDevicesTest;
 using IEClassSeveralDevicesTestDefaultCore = IEClassSeveralDevicesTest;
 
-bool supportsAvaliableDevices(InferenceEngine::Core &ie, const std::string &target_device) {
-    auto supportedMetricKeys = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
-    return supportedMetricKeys.end() != std::find(std::begin(supportedMetricKeys),
-                                                  std::end(supportedMetricKeys),
-                                                  METRIC_KEY(AVAILABLE_DEVICES));
+inline bool supportsAvaliableDevices(InferenceEngine::Core& ie, const std::string& target_device) {
+    auto supportedMetricKeys =
+        ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
+    return supportedMetricKeys.end() !=
+           std::find(std::begin(supportedMetricKeys), std::end(supportedMetricKeys), METRIC_KEY(AVAILABLE_DEVICES));
 }
 
-bool supportsDeviceID(InferenceEngine::Core &ie, const std::string &target_device) {
+inline bool supportsDeviceID(InferenceEngine::Core &ie, const std::string &target_device) {
     auto supportedConfigKeys = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
     return supportedConfigKeys.end() != std::find(std::begin(supportedConfigKeys),
                                                   std::end(supportedConfigKeys),
@@ -525,12 +525,6 @@ TEST_P(IEClassNetworkTestP, SetAffinityWithKSO) {
 }
 
 TEST_P(IEClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
-    if (target_device.find(CommonTestUtils::DEVICE_HETERO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_MULTI) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_AUTO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos) {
-        GTEST_SKIP() << "Not applicable case for device: " << target_device;
-    }
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::QueryNetworkResult res;
     ASSERT_NO_THROW(res = ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO, {{"TARGET_FALLBACK",  target_device}}));
@@ -538,12 +532,6 @@ TEST_P(IEClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
 }
 
 TEST_P(IEClassNetworkTestP, QueryNetworkMultiThrows) {
-    if (target_device.find(CommonTestUtils::DEVICE_HETERO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_MULTI) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_AUTO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos) {
-        GTEST_SKIP() << "Not applicable case for device: " << target_device;
-    }
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     ASSERT_THROW(ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_MULTI), InferenceEngine::Exception);
 }
@@ -937,23 +925,11 @@ TEST_P(IEClassNetworkTestP, LoadNetworkActualNoThrow) {
 }
 
 TEST_P(IEClassNetworkTestP, LoadNetworkActualHeteroDeviceNoThrow) {
-    if (target_device.find(CommonTestUtils::DEVICE_HETERO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_MULTI) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_AUTO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos) {
-        GTEST_SKIP() << "Not applicable case for device: " << target_device;
-    }
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") +  target_device));
 }
 
 TEST_P(IEClassNetworkTestP, LoadNetworkActualHeteroDevice2NoThrow) {
-    if (target_device.find(CommonTestUtils::DEVICE_HETERO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_MULTI) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_AUTO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos) {
-        GTEST_SKIP() << "Not applicable case for device: " << target_device;
-    }
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO, {{"TARGET_FALLBACK",  target_device}}));
 }
@@ -1038,6 +1014,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROWithDeviceIDNoThrow) {
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkWithDeviceIDNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
+
     if (supportsDeviceID(ie, target_device)) {
         auto deviceIDs = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
         if (deviceIDs.empty())

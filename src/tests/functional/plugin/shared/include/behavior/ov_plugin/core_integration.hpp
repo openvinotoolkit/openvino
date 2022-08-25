@@ -140,7 +140,7 @@ inline bool supportsAvaliableDevices(ov::Core& ie, const std::string& target_dev
            std::find(std::begin(supported_properties), std::end(supported_properties), ov::available_devices);
 }
 
-bool supportsDeviceID(ov::Core& ie, const std::string& target_device) {
+inline bool supportsDeviceID(ov::Core& ie, const std::string& target_device) {
     auto supported_properties =
             ie.get_property(target_device, ov::supported_properties);
     return supported_properties.end() !=
@@ -461,12 +461,6 @@ TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {
 //
 
 TEST_P(OVClassNetworkTestP, QueryNetworkActualThrows) {
-    if (target_device.find(CommonTestUtils::DEVICE_HETERO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_MULTI) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_AUTO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos) {
-        GTEST_SKIP() << "Not applicable scenario for device: " << target_device;
-    }
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.query_model(actualNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device));
 }
@@ -593,12 +587,6 @@ TEST_P(OVClassNetworkTestP, SetAffinityWithKSO) {
 }
 
 TEST_P(OVClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
-    if (target_device.find(CommonTestUtils::DEVICE_HETERO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_MULTI) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_AUTO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos) {
-        GTEST_SKIP() << "Not applicable scenario for device: " << target_device;
-    }
     ov::Core ie = createCoreWithTemplate();
     ov::SupportedOpsMap res;
     OV_ASSERT_NO_THROW(
@@ -607,12 +595,6 @@ TEST_P(OVClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
 }
 
 TEST_P(OVClassNetworkTestP, QueryNetworkMultiThrows) {
-    if (target_device.find(CommonTestUtils::DEVICE_HETERO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_MULTI) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_AUTO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos) {
-        GTEST_SKIP() << "Not applicable scenario for device: " << target_device;
-    }
     ov::Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.query_model(actualNetwork, CommonTestUtils::DEVICE_MULTI), ov::Exception);
 }
@@ -822,12 +804,6 @@ TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroThrow) {
 }
 
 TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroWithDeviceThrow) {
-    if (target_device.find(CommonTestUtils::DEVICE_HETERO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_MULTI) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_AUTO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos) {
-        GTEST_SKIP() << "Not applicable scenario for device: " << target_device;
-    }
     ov::Core ie = createCoreWithTemplate();
 
     ASSERT_THROW(ie.get_property(CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device,
@@ -893,12 +869,6 @@ TEST_P(OVClassGetAvailableDevices, GetAvailableDevicesNoThrow) {
 // QueryNetwork with HETERO on particular device
 //
 TEST_P(OVClassQueryNetworkTest, QueryNetworkHETEROWithDeviceIDNoThrow) {
-    if (target_device.find(CommonTestUtils::DEVICE_HETERO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_MULTI) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_AUTO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos) {
-        GTEST_SKIP() << "Not applicable scenario for device: " << target_device;
-    }
     ov::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, target_device)) {
@@ -949,12 +919,6 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkWithInvalidDeviceIDThrows) {
 }
 
 TEST_P(OVClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
-    if (target_device.find(CommonTestUtils::DEVICE_HETERO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_MULTI) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_AUTO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos) {
-        GTEST_SKIP() << "Not applicable scenario for device: " << target_device;
-    }
     ov::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, target_device)) {
@@ -979,34 +943,16 @@ TEST_P(OVClassNetworkTestP, LoadNetworkActualNoThrow) {
 }
 
 TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDeviceNoThrow) {
-    if (target_device.find(CommonTestUtils::DEVICE_HETERO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_MULTI) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_AUTO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos) {
-        GTEST_SKIP() << "Not applicable scenario for device: " << target_device;
-    }
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device));
 }
 
 TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDevice2NoThrow) {
-    if (target_device.find(CommonTestUtils::DEVICE_HETERO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_MULTI) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_AUTO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos) {
-        GTEST_SKIP() << "Not applicable scenario for device: " << target_device;
-    }
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_HETERO, ov::device::priorities(target_device)));
 }
 
 TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDeviceUsingDevicePropertiesNoThrow) {
-    if (target_device.find(CommonTestUtils::DEVICE_HETERO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_MULTI) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_AUTO) != std::string::npos ||
-        target_device.find(CommonTestUtils::DEVICE_BATCH) != std::string::npos) {
-        GTEST_SKIP() << "Not applicable scenario for device: " << target_device;
-    }
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork,
         CommonTestUtils::DEVICE_HETERO,
