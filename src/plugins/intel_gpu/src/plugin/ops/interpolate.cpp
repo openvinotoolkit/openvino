@@ -43,7 +43,7 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
         ov::normalize_axes(op.get(), inputRank, axes);
     } else {
         for (size_t i = 0; i < inputRank; ++i) {
-            ov::normalize_axis(op.get(), i, inputRank);
+            axes.push_back(ov::normalize_axis(op.get(), i, inputRank));
         }
     }
 

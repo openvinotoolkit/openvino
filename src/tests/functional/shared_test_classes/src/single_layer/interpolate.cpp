@@ -81,16 +81,25 @@ void InterpolateLayerTest::SetUp() {
     auto scales_const = ngraph::opset3::Constant(ngraph::element::Type_t::f32, {scales.size()}, scales);
     auto scalesInput = std::make_shared<ngraph::opset3::Constant>(scales_const);
 
-    auto axesConst = ngraph::opset3::Constant(ngraph::element::Type_t::i64, {axes.size()}, axes);
-    auto axesInput = std::make_shared<ngraph::opset3::Constant>(axesConst);
-
     ngraph::op::v4::Interpolate::InterpolateAttrs interpolateAttributes{mode, shapeCalcMode, padBegin,
         padEnd, coordinateTransformMode, nearestMode, antialias, cubeCoef};
-    auto interpolate = std::make_shared<ngraph::op::v4::Interpolate>(params[0],
-                                                                     sizesInput,
-                                                                     scalesInput,
-                                                                     axesInput,
-                                                                     interpolateAttributes);
+
+    std::shared_ptr<ngraph::op::v4::Interpolate> interpolate;
+    if (axes.empty()) {
+        interpolate = std::make_shared<ngraph::op::v4::Interpolate>(params[0],
+                                                                    sizesInput,
+                                                                    scalesInput,
+                                                                    interpolateAttributes);
+    } else {
+        auto axesConst = ngraph::opset3::Constant(ngraph::element::Type_t::i64, {axes.size()}, axes);
+        auto axesInput = std::make_shared<ngraph::opset3::Constant>(axesConst);
+
+        interpolate = std::make_shared<ngraph::op::v4::Interpolate>(params[0],
+                                                                    sizesInput,
+                                                                    scalesInput,
+                                                                    axesInput,
+                                                                    interpolateAttributes);
+    }
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(interpolate)};
     function = std::make_shared<ngraph::Function>(results, params, "interpolate");
 }
