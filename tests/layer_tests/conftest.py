@@ -56,7 +56,7 @@ def pytest_addoption(parser):
     """Specify command-line options for all plugins"""
     parser.addoption(
         "--ir_version",
-        required=True,
+        default=11,
         action="store",
         help="Version of IR to generate by Model Optimizer")
     parser.addoption(
