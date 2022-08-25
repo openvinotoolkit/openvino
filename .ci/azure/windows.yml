@@ -145,7 +145,8 @@ jobs:
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
-        -S $(REPO_DIR) -B $(BUILD_DIR)
+        -S $(REPO_DIR) ^
+        -B $(BUILD_DIR)
     displayName: 'CMake'
 
   - script: dir $(REPO_DIR)\temp\ /s

@@ -131,14 +131,14 @@ function(ov_create_virtualenv)
         )
     set(oneValueOptionalArgs
         DEPENDENT_TARGET           # dependency target
+        VIRTUALENV_PYTHON_EXECUTABLE
+        MESSAGE_MODE               # Set the type of message: { FATAL_ERROR | WARNING | ... }
+        WARNING_MESSAGE            # callback message
         )
     set(oneValueRequiredArgs
         REQUIREMENTS_FILE          # File with requirement-specifiers to check
         VIRTUALENV_NAME            # tag / id of virtual env
         RESULT_VAR                 # Result varibale to set return code {ON | OFF}
-        MESSAGE_MODE               # Set the type of message: { FATAL_ERROR | WARNING | ... }
-        WARNING_MESSAGE            # callback message
-        VIRTUALENV_PYTHON_EXECUTABLE
         )
     set(multiValueArgs)
 
@@ -157,9 +157,9 @@ function(ov_create_virtualenv)
     # check whether the environment is already created
     # 0. check whether requirements are already satisfied in the global site-packages
     ov_check_pip_packages(REQUIREMENTS_FILE "${ARG_REQUIREMENTS_FILE}"
-                            RESULT_VAR requirements_satisfied
-                            # silent mode
-                            MESSAGE_MODE TRACE)
+                          RESULT_VAR requirements_satisfied
+                          # silent mode
+                          MESSAGE_MODE TRACE)
 
     if(requirements_satisfied)
         set(${ARG_RESULT_VAR} ON PARENT_SCOPE)
