@@ -90,6 +90,7 @@ public:
         CLDNN_ERROR_BOOL(arg.id(), "Best_kernel.empty()", best_kernels.empty(), "Cannot find a proper kernel with this arguments");
 
         auto reduce = new reduce_impl(arg, best_kernels[0]);
+        reduce->can_reuse_memory = best_kernels[0].can_reuse_memory;
 
         return reduce;
     }

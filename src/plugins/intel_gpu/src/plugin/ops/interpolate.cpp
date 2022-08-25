@@ -24,7 +24,8 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
 
     auto attrs = op->get_attrs();
     auto inputRank = op->get_input_shape(0).size();
-    auto outTensor = tensor_from_dims(op->get_output_shape(0));
+    auto outShape = op->get_output_shape(0);
+    auto outputPattern = std::vector<int64_t>(outShape.begin(), outShape.end());
 
     auto scales_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(SCALES_INDEX));
     if (!scales_constant) {
@@ -42,7 +43,7 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
         ov::normalize_axes(op.get(), inputRank, axes);
     } else {
         for (size_t i = 0; i < inputRank; ++i) {
-            ov::normalize_axis(op.get(), i, inputRank);
+            axes.push_back(ov::normalize_axis(op.get(), i, inputRank));
         }
     }
 
@@ -76,7 +77,7 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
 
     auto resamplePrim = cldnn::resample(layerName,
                                         inputPrimitives[0],
-                                        outTensor,
+                                        outputPattern,
                                         scales,
                                         axes,
                                         attrs.pads_begin,

@@ -15,7 +15,7 @@
 #include "layers/gna_split_layer.hpp"
 #include "layers/gna_convolution_layer.hpp"
 
-using namespace GNAPluginNS;
+using namespace ov::intel_gna::pass;
 
 // Don't split when convolution is 2D and is not mappable to 1D
 static bool shouldSplitCnn(const ngraph::Output<ngraph::Node>& node) {
@@ -31,8 +31,8 @@ static bool shouldSplitCnn(const ngraph::Output<ngraph::Node>& node) {
         auto kW = filters.at(3);
         auto sH = convolution->get_strides().at(0);
         auto sW = convolution->get_strides().at(1);
-        if (GNAConvolutionLayer::isConv2D(height, width, in_channels, kH, kW) &&
-            !GNAConvolutionLayer::isMappableFrom2DTo1D(height, width, in_channels, kH, kW, sH, sW)) {
+        if (GNAPluginNS::GNAConvolutionLayer::isConv2D(height, width, in_channels, kH, kW) &&
+            !GNAPluginNS::GNAConvolutionLayer::isMappableFrom2DTo1D(height, width, in_channels, kH, kW, sH, sW)) {
             return false;
         }
     }
@@ -52,13 +52,13 @@ static bool Convert(std::shared_ptr<ngraph::Node> conv,
                     std::shared_ptr<ngraph::Node> fq) {
     auto input_size = std::accumulate(std::begin(conv->get_input_shape(0)),
         std::end(conv->get_input_shape(0)), 1, std::multiplies<size_t>());
-    if (input_size <= GNALimitations::bufferMaxSize) {
+    if (input_size <= GNAPluginNS::GNALimitations::bufferMaxSize) {
         return false;
     }
     auto& input = conv->get_input_shape(0);
     uint32_t width = input.back();
     uint32_t in_channels = input.at(1);
-    auto split_sizes = GetAlignedSplitSizes(width, GNALimitations::bufferMaxSize / in_channels);
+    auto split_sizes = GNAPluginNS::GetAlignedSplitSizes(width, GNAPluginNS::GNALimitations::bufferMaxSize / in_channels);
     IE_ASSERT(split_sizes.size() > 1);
     std::vector<int64_t> split_sizes_casted(split_sizes.size());
     std::transform(std::begin(split_sizes), std::end(split_sizes), std::begin(split_sizes_casted), [](uint32_t size) {
