@@ -2034,6 +2034,15 @@ std::vector<float> FakeQuantize::simplifyToScale(dnnl::memory::data_type outData
         }
     }
 
+    if (outDataType == memory::data_type::f32 && !fqScales.empty()) {
+        outScale = fqScales;
+        if (outScale.size() == 1 && Shape::UNDEFINED_DIM != OC) {
+            outScale.resize(OC);
+            for (size_t k = 0; k < OC; k++)
+                outScale[k] = outScale[0];
+        }
+    }
+
     return outScale;
 }
 
