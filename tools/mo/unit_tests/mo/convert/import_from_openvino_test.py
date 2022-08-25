@@ -3,14 +3,13 @@
 
 import os
 import tempfile
-import unittest
 
 from generator import generator, generate
 from openvino.runtime import serialize
 
 from openvino.tools.mo import InputCutInfo, LayoutMap
-from utils import create_onnx_model, save_to_onnx
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
+from utils import create_onnx_model, save_to_onnx
 
 
 @generator
