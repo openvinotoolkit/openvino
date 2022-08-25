@@ -89,7 +89,7 @@ function(ov_check_python_build_conditions)
         set(python_debug OFF)
     endif()
 
-    if(PYTHONLIBS_FOUND AND ov_python_req_FOUND AND NOT python_debug)
+    if(PYTHONLIBS_FOUND AND ov_python_req_FOUND AND ie_python_req_FOUND AND NOT python_debug)
         set(ENABLE_PYTHON_DEFAULT ON PARENT_SCOPE)
     else()
         set(ENABLE_PYTHON_DEFAULT OFF PARENT_SCOPE)

@@ -111,14 +111,7 @@ jobs:
       python -m pip install --no-warn-script-location --upgrade pip
       rem For running Python API tests
       python -m pip install --no-warn-script-location -r $(REPO_DIR)\src\bindings\python\src\compatibility\openvino\requirements-dev.txt
-      python -m pip install --no-warn-script-location -r $(REPO_DIR)\src\bindings\python\wheel\requirements-dev.txt
       python -m pip install --no-warn-script-location -r $(REPO_DIR)\src\bindings\python\requirements.txt
-      rem For running Paddle frontend unit tests
-      python -m pip install --no-warn-script-location -r $(REPO_DIR)\src\core\tests\frontend\paddle\requirements_dev.txt
-      rem For running TensorFlow frontend unit tests
-      python -m pip install --no-warn-script-location -r $(REPO_DIR)\src\frontends\tensorflow\tests\requirements_dev.txt
-      rem For running ONNX frontend unit tests
-      python -m pip install --no-warn-script-location -r $(REPO_DIR)\src\core\tests\requirements_test_onnx.txt
       rem For MO unit tests
       python -m pip install --no-warn-script-location -r $(REPO_DIR)\tools\mo\requirements.txt
       python -m pip install --no-warn-script-location -r $(REPO_DIR)\tools\mo\requirements_dev.txt
@@ -227,7 +220,7 @@ jobs:
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
-    continueOnError: true
+    continueOnError: false
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\onnx_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ONNX.xml
     displayName: 'ONNX Frontend UT'
