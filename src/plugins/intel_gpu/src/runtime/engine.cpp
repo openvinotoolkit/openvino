@@ -93,7 +93,7 @@ bool engine::supports_allocation(allocation_type type) const {
     return _device->get_mem_caps().support_allocation_type(type);
 }
 
-allocation_type engine::get_lockable_preffered_memory_allocation_type(bool is_image_layout) const {
+allocation_type engine::get_lockable_preferred_memory_allocation_type(bool is_image_layout) const {
     if (!use_unified_shared_memory() || is_image_layout)
         return get_default_allocation_type();
 
@@ -119,7 +119,7 @@ memory::ptr engine::attach_memory(const layout& layout, void* ptr) {
 }
 
 memory::ptr engine::allocate_memory(const layout& layout, bool reset) {
-    allocation_type type = get_lockable_preffered_memory_allocation_type(layout.format.is_image_2d());
+    allocation_type type = get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
     return allocate_memory(layout, type, reset);
 }
 
