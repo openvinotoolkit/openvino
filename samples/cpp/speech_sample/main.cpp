@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
             const auto& gnaLibraryVersion = core.get_property("GNA", ov::intel_gna::library_full_version);
             slog::info << "Detected GNA Library: " << gnaLibraryVersion << slog::endl;
         } catch (std::exception& e) {
-            slog::info << "Can not detect GNA Library version, exception: " << e.what() << slog::endl;
+            slog::info << "Cannot detect GNA Library version, exception: " << e.what() << slog::endl;
         }
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
         uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0 || !FLAGS_bs) ? 1 : (uint32_t)FLAGS_bs;
