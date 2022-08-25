@@ -15,7 +15,7 @@ ov_status_e ov_partial_shape_create(ov_partial_shape_t** partial_shape_obj, ov_r
         if (rank->object.is_dynamic()) {
             partial_shape->rank = rank->object;
         } else {
-            if (rank->object.get_length() != dims->object.size()) {
+            if (static_cast<size_t>(rank->object.get_length()) != dims->object.size()) {
                 return ov_status_e::INVALID_C_PARAM;
             }
             partial_shape->rank = rank->object;
@@ -44,7 +44,7 @@ const char* ov_partial_shape_to_string(ov_partial_shape_t* partial_shape) {
 
     // static rank
     auto rank = partial_shape->rank.get_length();
-    if (rank != partial_shape->dims.size()) {
+    if (static_cast<size_t>(rank) != partial_shape->dims.size()) {
         return str_to_char_array("rank error");
     }
     std::string str = std::string("{");

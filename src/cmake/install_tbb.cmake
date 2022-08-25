@@ -7,10 +7,41 @@ include(cmake/ie_parallel.cmake)
 # pre-find TBB: need to provide TBB_IMPORTED_TARGETS used for installation
 ov_find_package_tbb()
 
-if(TBB_FOUND AND TBB_VERSION VERSION_GREATER_EQUAL 2021)
-    message(STATUS "Static tbbbind_2_5 package usage is disabled, since oneTBB (ver. ${TBB_VERSION}) is used")
+# check whether TBB has TBBBind 2.5 with hwloc 2.5 or higher which is required
+# to detect hybrid cores
+function(_ov_detect_dynamic_tbbbind_2_5 var)
+    if(NOT TBB_FOUND)
+        return()
+    endif()
+
+    # try to select proper library directory
+    get_target_property(_tbb_lib_location TBB::tbb IMPORTED_LOCATION_RELEASE)
+    get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
+
+    # unset for cases if user specified different TBB_DIR / TBBROOT
+    unset(_ov_tbbbind_2_5 CACHE)
+
+    find_library(_ov_tbbbind_2_5
+                 NAMES tbbbind_2_5
+                 HINTS "${_tbb_libs_dir}"
+                 "Path to TBBBind 2.5 library"
+                 NO_DEFAULT_PATH)
+
+    if(_ov_tbbbind_2_5)
+        set(${var} ON PARENT_SCOPE)
+    endif()
+endfunction()
+
+_ov_detect_dynamic_tbbbind_2_5(_ov_dynamic_tbbbind_2_5_found)
+
+if(_ov_dynamic_tbbbind_2_5_found)
+    message(STATUS "Static tbbbind_2_5 package usage is disabled, since oneTBB (ver. ${TBB_VERSION}) provides dynamic TBBBind 2.5")
     set(ENABLE_TBBBIND_2_5 OFF)
 elseif(ENABLE_TBBBIND_2_5)
+    if(TBB_VERSION VERSION_GREATER_EQUAL 2021)
+        message(STATUS "oneTBB (ver. ${TBB_VERSION}) is used, but dynamic TBBBind 2.5 is not found. Use custom static TBBBind 2.5")
+    endif()
+
     # download and find a prebuilt version of TBBBind_2_5
     ov_download_tbbbind_2_5()
     find_package(TBBBIND_2_5 QUIET)
@@ -22,8 +53,12 @@ elseif(ENABLE_TBBBIND_2_5)
         if(NOT BUILD_SHARED_LIBS)
             set(install_tbbbind ON)
         endif()
+    else()
+        message(STATUS "Prebuilt static tbbbind_2_5 package is not available for current platform (${CMAKE_SYSTEM_NAME})")
     endif()
 endif()
+
+unset(_ov_dynamic_tbbbind_2_5_found)
 
 # install TBB
 
