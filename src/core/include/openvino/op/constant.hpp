@@ -505,7 +505,8 @@ private:
                                           Type != element::Type_t::i4,
                                       bool>::type = true>
     void fill_data(const T& value) {
-        OPENVINO_ASSERT(sizeof(T) <= sizeof(StorageDataType));
+        OPENVINO_ASSERT(!std::numeric_limits<T>::is_signed || std::numeric_limits<StorageDataType>::lowest() <= value);
+        OPENVINO_ASSERT(value <= std::numeric_limits<StorageDataType>::max());
         const auto size = shape_size(m_shape);
         const auto v = static_cast<StorageDataType>(value);
         std::fill_n(get_data_ptr_nc<Type>(), size, v);
