@@ -217,7 +217,7 @@ void StridedSlice::getSupportedDescriptors() {
 void StridedSlice::addHiddenDims(const size_t nSrcDims, int ellipsisPos1) {
     // all masks and input parameters are for planar layouts. So if we use blocked or per channel layout and
     // there is ellipsis should to add default values in hidden dimensions to know real order of mask or parameter values
-    size_t afterDims = attrs.ellipsisMask.size() - ellipsisPos1 - 1;
+    size_t afterDims =  attrs.begin.size() - ellipsisPos1 - 1;
     size_t ellipsisPos2 = nSrcDims - afterDims - 1;
 
     auto addHiddenDims = [&](std::vector<int>& data, const int bit = 0) {
