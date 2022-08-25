@@ -22,7 +22,7 @@ const std::vector<ov::AnyMap> auto_batch_inproperties = {
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin, OVPropertiesIncorrectTests,
                         ::testing::Combine(
-                                ::testing::ValuesIn(return_all_possible_device_combination(false)),
+                                ::testing::ValuesIn(return_all_possible_device_combination()),
                                 ::testing::ValuesIn(inproperties)),
                         OVPropertiesIncorrectTests::getTestCaseName);
 

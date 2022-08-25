@@ -89,7 +89,7 @@ inline std::vector<std::pair<std::string, std::string>> generate_pairs_plugin_na
     std::vector<std::pair<std::string, std::string>> res;
     for (const auto& device : return_all_possible_device_combination()) {
         std::string real_device = device.substr(0, device.find(':'));
-        res.push_back(std::make_pair(get_plugin_lib_name_by_device(ov::test::conformance::targetDevice),
+        res.push_back(std::make_pair(get_plugin_lib_name_by_device(real_device),
                                      real_device));
     }
     return res;
