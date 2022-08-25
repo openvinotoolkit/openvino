@@ -87,9 +87,9 @@ bool ov::proxy::Plugin::has_property(const std::string& property, const std::str
     return false;
 }
 
-std::string ov::proxy::Plugin::get_property(const std::string& property, const std::string& config_name) const {
+ov::Any ov::proxy::Plugin::get_property(const std::string& property, const std::string& config_name) const {
     std::lock_guard<std::mutex> lock(plugin_mutex);
-    std::string result;
+    ov::Any result;
     auto name = config_name;
     // If device specific config wasn't found or property in config wasn't found  use global config
     auto it = configs.find(name);
@@ -117,6 +117,29 @@ InferenceEngine::QueryNetworkResult ov::proxy::Plugin::QueryNetwork(
             it.second += "." + std::to_string(dev_id);
     }
     return res;
+}
+
+void ov::proxy::Plugin::SetProperties(const ov::AnyMap& config) {
+    // Cannot change config from different threads
+    std::lock_guard<std::mutex> lock(plugin_mutex);
+    // Empty config_name means means global config for all devices
+    std::string config_name = is_device_in_config(config) ? std::to_string(get_device_from_config(config)) : "";
+
+    auto it = config.find(ov::device::priorities.name());
+    if (it != config.end()) {
+        configs[config_name][ov::device::priorities.name()] = it->second;
+        // Main device is needed in case if we don't have alias and would like to be able change fallback order per
+        // device
+        if (alias_for.empty() && config_name.empty())
+            alias_for.insert(split(it->second, " ")[0]);
+    }
+    for (const auto& it : config) {
+        // Skip proxy properties
+        if (ov::device::id.name() == it.first || it.first == ov::device::priorities.name() ||
+            it.first == "DEVICES_PRIORITY" || it.first == "ALIAS_FOR")
+            continue;
+        configs[config_name][it.first] = it.second;
+    }
 }
 
 void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& config) {
@@ -223,7 +246,11 @@ InferenceEngine::IExecutableNetworkInternal::Ptr ov::proxy::Plugin::LoadExeNetwo
     if (it != device_config.end())
         device_config.erase(it);
 
-    return std::make_shared<ov::proxy::CompiledModel>(GetCore()->LoadNetwork(network, dev_name, device_config));
+    std::map<std::string, std::string> result_config;
+    for (auto&& value : device_config) {
+        result_config.emplace(value.first, value.second.as<std::string>());
+    }
+    return std::make_shared<ov::proxy::CompiledModel>(GetCore()->LoadNetwork(network, dev_name, result_config));
 }
 
 void ov::proxy::Plugin::AddExtension(const std::shared_ptr<InferenceEngine::IExtension>& extension) {

@@ -20,6 +20,7 @@ public:
     ~Plugin();
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
+    void SetProperties(const ov::AnyMap& config) override;
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                      const std::map<std::string, std::string>& config) const override;
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
@@ -43,12 +44,12 @@ private:
     std::string get_primary_device(size_t idx) const;
 
     bool has_property(const std::string& property_name, const std::string& conf_name = "") const;
-    std::string get_property(const std::string& property_name, const std::string& conf_name = "") const;
+    ov::Any get_property(const std::string& property_name, const std::string& conf_name = "") const;
 
     std::vector<std::string> device_order;
     std::unordered_set<std::string> alias_for;
     // Update per device config in get_hidden_devices
-    mutable std::unordered_map<std::string, std::map<std::string, std::string>> configs;
+    mutable std::unordered_map<std::string, ov::AnyMap> configs;
     mutable std::mutex plugin_mutex;
 };
 

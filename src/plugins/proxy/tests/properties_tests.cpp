@@ -25,6 +25,7 @@ TEST_F(ProxyTests, get_property_on_default_device) {
         if (property == ov::num_streams) {
             EXPECT_EQ("0", get_string_value(core.get_property(dev_name, property)));
             core.set_property(dev_name, ov::num_streams(2));
+            EXPECT_TRUE(core.get_property(dev_name, property).is<int32_t>());
             EXPECT_EQ("2", get_string_value(core.get_property(dev_name, property)));
         } else if (property == ov::device::uuid) {
             EXPECT_EQ("000102030405060708090a0b0c0d0e0f", get_string_value(core.get_property(dev_name, property)));
@@ -51,6 +52,7 @@ TEST_F(ProxyTests, get_property_on_mixed_device) {
         if (property == ov::num_streams) {
             EXPECT_EQ("0", get_string_value(core.get_property(dev_name, property)));
             core.set_property(dev_name, ov::num_streams(2));
+            EXPECT_TRUE(core.get_property(dev_name, property).is<int32_t>());
             EXPECT_EQ("2", get_string_value(core.get_property(dev_name, property)));
         } else if (property == ov::device::uuid) {
             EXPECT_EQ("00020406080a0c0e10121416181a1c1e", get_string_value(core.get_property(dev_name, property)));
@@ -77,6 +79,7 @@ TEST_F(ProxyTests, get_property_on_specified_device) {
         if (property == ov::enable_profiling) {
             EXPECT_EQ("NO", get_string_value(core.get_property(dev_name, property)));
             core.set_property(dev_name, ov::enable_profiling(true));
+            EXPECT_TRUE(core.get_property(dev_name, property).is<bool>());
             EXPECT_EQ("YES", get_string_value(core.get_property(dev_name, property)));
         } else if (property == ov::device::uuid) {
             EXPECT_EQ("0004080c1014181c2024282c3034383c", get_string_value(core.get_property(dev_name, property)));
