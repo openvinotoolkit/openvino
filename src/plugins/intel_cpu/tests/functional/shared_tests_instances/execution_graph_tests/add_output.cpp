@@ -9,7 +9,7 @@
 
 using namespace ngraph;
 
-InferenceEngine::CNNNetwork getTargetNetwork() {
+inline InferenceEngine::CNNNetwork getTargetNetwork() {
     ngraph::Shape shape = {1, 200};
     ngraph::element::Type type = ngraph::element::f32;
 
