@@ -75,11 +75,17 @@ OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
     filter = make_transpose(filter, {3, 2, 0, 1});
     convert_nhwc_to_nchw(is_nhwc, out_backprop, ov::Rank(4));
 
-    // input_sizes is 1D tensor that contains a shape of output tensor and
-    // always in the form [batch, height, width, channels]
-    auto ss_begin = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
-    auto ss_end = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{3});
+    // initially think that output shape defined for NCHW layout
+    auto ss_begin = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{2});
+    auto ss_end = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{4});
     auto ss_strides = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+
+    // change range of indices for spatial dimensions in case NHWC layout
+    if (is_nhwc) {
+        ss_begin = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+        ss_end = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{3});
+    }
+
     auto spatial_shape = make_shared<StridedSlice>(input_sizes,
                                                    ss_begin,
                                                    ss_end,
