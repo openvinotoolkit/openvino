@@ -58,6 +58,17 @@ void ov::op::internal::AUGRUCell::validate_and_infer_types() {
     const auto& b_pshape = get_input_partial_shape(4);
     const auto& a_pshape = get_input_partial_shape(5);
 
+    NODE_VALIDATION_CHECK(this, m_clip == 0.f, "AUGRUCell doesn't support clip other than 0.");
+    NODE_VALIDATION_CHECK(this,
+                          m_activations.size() == 2 && m_activations[0] == "sigmoid" && m_activations[1] == "tanh",
+                          "AUGRUCell supports only sigmoid for f and tanh for g activation functions.");
+    NODE_VALIDATION_CHECK(this,
+                          m_activations_alpha.empty() && m_activations_beta.empty(),
+                          "AUGRUCell doesn't support activations_alpha and activations_beta.");
+    NODE_VALIDATION_CHECK(this,
+                          m_linear_before_reset == false,
+                          "AUGRUCell supports only linear_before_reset equals false.");
+
     validate_input_rank_dimension({x_pshape, ht_pshape, w_pshape, r_pshape, b_pshape});
 
     // `A` input shape validation // [batch_size, 1]
@@ -123,9 +134,7 @@ void ov::op::internal::AUGRUCell::validate_and_infer_types() {
     }
 
     // Mark inputs which are relevant to output parameters
-    set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);
-    set_input_is_relevant_to_shape(3);
 
     // Set output size, type and shape
     set_output_size(1);

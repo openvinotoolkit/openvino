@@ -58,6 +58,20 @@ void ov::op::internal::AUGRUSequence::validate_and_infer_types() {
     auto b_pshape = get_input_partial_shape(5);
     auto a_pshape = get_input_partial_shape(6);
 
+    NODE_VALIDATION_CHECK(this, m_clip == 0.f, "AUGRUSequence doesn't support clip other than 0.");
+    NODE_VALIDATION_CHECK(this,
+                          m_activations.size() == 2 && m_activations[0] == "sigmoid" && m_activations[1] == "tanh",
+                          "AUGRUSequence supports only sigmoid for f and tanh for g activation functions.");
+    NODE_VALIDATION_CHECK(this,
+                          m_activations_alpha.empty() && m_activations_beta.empty(),
+                          "AUGRUSequence doesn't support activations_alpha and activations_beta.");
+    NODE_VALIDATION_CHECK(this,
+                          m_direction == op::RecurrentSequenceDirection::FORWARD,
+                          "AUGRUSequence supports only forward direction.");
+    NODE_VALIDATION_CHECK(this,
+                          m_linear_before_reset == false,
+                          "AUGRUSequence supports only linear_before_reset equals false.");
+
     ngraph::op::util::validate_seq_input_rank_dimension(
         {x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape, a_pshape});
 
@@ -149,9 +163,8 @@ void ov::op::internal::AUGRUSequence::validate_and_infer_types() {
     }
 
     // Mark inputs which are relevant to output parameters
-    for (size_t i = 0; i <= 6; ++i) {
-        set_input_is_relevant_to_shape(i);
-    }
+    set_input_is_relevant_to_shape(0);
+    set_input_is_relevant_to_shape(1);
 
     // Set output size, type and shape
     set_output_size(2);

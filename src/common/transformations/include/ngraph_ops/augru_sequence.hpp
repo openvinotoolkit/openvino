@@ -6,10 +6,10 @@
 
 #include <memory>
 #include <string>
-#include <transformations_visibility.hpp>
 #include <vector>
 
 #include "openvino/op/util/rnn_cell_base.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace op {

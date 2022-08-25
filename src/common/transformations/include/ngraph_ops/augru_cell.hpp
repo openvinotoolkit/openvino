@@ -6,11 +6,11 @@
 
 #include <memory>
 #include <string>
-#include <transformations_visibility.hpp>
 #include <vector>
 
 #include "openvino/op/util/activation_functions.hpp"
 #include "openvino/op/util/rnn_cell_base.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace op {
@@ -31,7 +31,7 @@ public:
               const Output<Node>& R,
               const Output<Node>& B,
               const Output<Node>& A,
-              std::size_t hidden_size);
+              size_t hidden_size);
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;

@@ -5,6 +5,7 @@
 #include "ngraph_ops/augru_cell.hpp"
 
 #include "gtest/gtest.h"
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "util/type_prop.hpp"
 
@@ -235,4 +236,115 @@ TEST(type_prop, augru_cell_invalid_input_dynamic_rank) {
     A = make_shared<opset9::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
     auto augru_a = make_shared<op::internal::AUGRUCell>(X, H_t, W, R, B, A, hidden_size);
     EXPECT_TRUE(check_dynamic_gru(augru_a));
+}
+
+namespace {
+struct NotSupportedArguments {
+    float clip = 0;
+    vector<string> activations = {"sigmoid", "tanh"};
+    vector<float> activations_alpha, activations_beta;
+    bool linear_before_reset = false;
+};
+
+class AttributeVisitorMock : public AttributeVisitor {
+public:
+    AttributeVisitorMock(const NotSupportedArguments& args) : m_args{args} {}
+    void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {}
+
+    void on_adapter(const std::string& name, ValueAccessor<double>& adapter) override {
+        if ("clip" == name) {
+            adapter.set(m_args.clip);
+        }
+    }
+
+    void on_adapter(const std::string& name, ValueAccessor<vector<string>>& adapter) override {
+        if ("activations" == name) {
+            adapter.set(m_args.activations);
+        }
+    }
+
+    void on_adapter(const std::string& name, ValueAccessor<vector<float>>& adapter) override {
+        if ("activations_alpha" == name) {
+            adapter.set(m_args.activations_alpha);
+        }
+        if ("activations_beta" == name) {
+            adapter.set(m_args.activations_beta);
+        }
+    }
+
+    void on_adapter(const std::string& name, ValueAccessor<bool>& adapter) override {
+        if ("linear_before_reset" == name) {
+            adapter.set(m_args.linear_before_reset);
+        }
+    }
+
+private:
+    NotSupportedArguments m_args;
+};
+}  // namespace
+
+TEST(type_prop, augru_not_supported_attributes) {
+    const size_t batch_size = 2;
+    const size_t input_size = 3;
+    const size_t hidden_size = 3;
+    const size_t gates_count = 3;
+
+    const auto X = make_shared<opset9::Parameter>(element::f32, Shape{batch_size, input_size});
+    const auto H_t = make_shared<opset9::Parameter>(element::f32, Shape{batch_size, hidden_size});
+    const auto W = make_shared<opset9::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
+    const auto R = make_shared<opset9::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
+    const auto B = make_shared<opset9::Parameter>(element::f32, Shape{gates_count * hidden_size});
+    const auto A = make_shared<opset9::Parameter>(element::f32, Shape{batch_size, 1});
+
+    const auto augru_cell = make_shared<op::internal::AUGRUCell>(X, H_t, W, R, B, A, hidden_size);
+
+    NotSupportedArguments args;
+    args.clip = 2.f;
+    AttributeVisitorMock visitor(args);
+    augru_cell->visit_attributes(visitor);
+
+    try {
+        augru_cell->validate_and_infer_types();
+        FAIL() << "AUGRUCell node was created with invalid data.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("AUGRUCell doesn't support clip other than 0."));
+    }
+
+    args = NotSupportedArguments();
+    args.activations = {"relu", "tanh"};
+    visitor = AttributeVisitorMock(args);
+    augru_cell->visit_attributes(visitor);
+
+    try {
+        augru_cell->validate_and_infer_types();
+        FAIL() << "AUGRUCell node was created with invalid data.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("AUGRUCell supports only sigmoid for f and tanh for g activation functions."));
+    }
+
+    args = NotSupportedArguments();
+    args.activations_beta = {1, 2};
+    visitor = AttributeVisitorMock(args);
+    augru_cell->visit_attributes(visitor);
+
+    try {
+        augru_cell->validate_and_infer_types();
+        FAIL() << "AUGRUCell node was created with invalid data.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("AUGRUCell doesn't support activations_alpha and activations_beta."));
+    }
+
+    args = NotSupportedArguments();
+    args.linear_before_reset = true;
+    visitor = AttributeVisitorMock(args);
+    augru_cell->visit_attributes(visitor);
+
+    try {
+        augru_cell->validate_and_infer_types();
+        FAIL() << "AUGRUCell node was created with invalid data.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("AUGRUCell supports only linear_before_reset equals false."));
+    }
 }

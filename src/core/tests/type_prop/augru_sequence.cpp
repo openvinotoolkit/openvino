@@ -5,6 +5,7 @@
 #include "ngraph_ops/augru_sequence.hpp"
 
 #include "gtest/gtest.h"
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "util/type_prop.hpp"
 
@@ -222,5 +223,133 @@ TEST(type_prop, augru_sequence_invalid_attention_gate) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Dimension `seq_length` must be the same for `X` and `A` inputs."));
+    }
+}
+
+namespace {
+struct NotSupportedArguments {
+    float clip = 0;
+    vector<string> activations = {"sigmoid", "tanh"};
+    vector<float> activations_alpha, activations_beta;
+    string direction = "forward";
+    bool linear_before_reset = false;
+};
+
+class AttributeVisitorMock : public AttributeVisitor {
+public:
+    AttributeVisitorMock(const NotSupportedArguments& args) : m_args{args} {}
+    void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {}
+
+    void on_adapter(const std::string& name, ValueAccessor<double>& adapter) override {
+        if ("clip" == name) {
+            adapter.set(m_args.clip);
+        }
+    }
+
+    void on_adapter(const std::string& name, ValueAccessor<vector<string>>& adapter) override {
+        if ("activations" == name) {
+            adapter.set(m_args.activations);
+        }
+    }
+
+    void on_adapter(const std::string& name, ValueAccessor<vector<float>>& adapter) override {
+        if ("activations_alpha" == name) {
+            adapter.set(m_args.activations_alpha);
+        }
+        if ("activations_beta" == name) {
+            adapter.set(m_args.activations_beta);
+        }
+    }
+
+    void on_adapter(const std::string& name, ValueAccessor<string>& adapter) override {
+        if ("direction" == name) {
+            adapter.set(m_args.direction);
+        }
+    }
+
+    void on_adapter(const std::string& name, ValueAccessor<bool>& adapter) override {
+        if ("linear_before_reset" == name) {
+            adapter.set(m_args.linear_before_reset);
+        }
+    }
+
+private:
+    NotSupportedArguments m_args;
+};
+}  // namespace
+
+TEST(type_prop, augru_sequence_not_supported_attributes) {
+    augru_sequence_parameters params;
+
+    params.batch_size = 8;
+    params.num_directions = 1;
+    params.seq_length = 6;
+    params.input_size = 4;
+    params.hidden_size = 128;
+    params.et = element::f32;
+    auto augru_sequence = augru_seq_init(params);
+
+    NotSupportedArguments args;
+    args.clip = 2.f;
+    AttributeVisitorMock visitor(args);
+    augru_sequence->visit_attributes(visitor);
+
+    try {
+        augru_sequence->validate_and_infer_types();
+        FAIL() << "AUGRUSequence node was created with invalid data.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("AUGRUSequence doesn't support clip other than 0."));
+    }
+
+    args = NotSupportedArguments();
+    args.activations = {"relu", "tanh"};
+    visitor = AttributeVisitorMock(args);
+    augru_sequence->visit_attributes(visitor);
+
+    try {
+        augru_sequence->validate_and_infer_types();
+        FAIL() << "AUGRUSequence node was created with invalid data.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("AUGRUSequence supports only sigmoid for f and tanh for g activation functions."));
+    }
+
+    args = NotSupportedArguments();
+    args.activations_beta = {1, 2};
+    visitor = AttributeVisitorMock(args);
+    augru_sequence->visit_attributes(visitor);
+
+    try {
+        augru_sequence->validate_and_infer_types();
+        FAIL() << "AUGRUSequence node was created with invalid data.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("AUGRUSequence doesn't support activations_alpha and activations_beta."));
+    }
+
+    args = NotSupportedArguments();
+    args.direction = "reverse";
+    visitor = AttributeVisitorMock(args);
+    augru_sequence->visit_attributes(visitor);
+
+    try {
+        augru_sequence->validate_and_infer_types();
+        FAIL() << "AUGRUSequence node was created with invalid data.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("AUGRUSequence supports only forward direction."));
+    }
+
+    args = NotSupportedArguments();
+    args.linear_before_reset = true;
+    visitor = AttributeVisitorMock(args);
+    augru_sequence->visit_attributes(visitor);
+
+    try {
+        augru_sequence->validate_and_infer_types();
+        FAIL() << "AUGRUSequence node was created with invalid data.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("AUGRUSequence supports only linear_before_reset equals false."));
     }
 }
