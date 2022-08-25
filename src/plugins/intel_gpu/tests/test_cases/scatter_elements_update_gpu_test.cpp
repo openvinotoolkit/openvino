@@ -107,7 +107,9 @@ template<typename T>
 using ScatterElementsUpdateParamsWithFormat = std::tuple<
     ScatterElementsUpdateParams<T>,
     format::type,     // source (plain) layout
-    format::type      // target (blocked) layout
+    format::type,     // target (blocked) data layout
+    format::type,     // target (blocked) indices layout
+    format::type      // target (blocked) updates layout
 >;
 
 const std::vector<format::type> formats2D{
@@ -230,13 +232,17 @@ struct PrintToStringParamName {
         std::stringstream buf;
         ScatterElementsUpdateParams<T> p;
         format::type plain_format;
-        format::type target_format;
-        std::tie(p, plain_format, target_format) = param.param;
+        format::type target_data_format;
+        format::type target_indices_format;
+        format::type target_updates_format;
+        std::tie(p, plain_format, target_data_format, target_indices_format, target_updates_format) = param.param;
         buf << "_axis=" << p.axis
             << "_data=" << p.data_tensor.to_string()
             << "_indices=" << p.indices_tensor.to_string()
             << "_plainFormat=" << fmt_to_str(plain_format)
-            << "_targetFormat=" << fmt_to_str(target_format);
+            << "_targetDataFormat=" << fmt_to_str(target_data_format)
+            << "_targetIndicesFormat=" << fmt_to_str(target_indices_format)
+            << "_targetUpdatesFormat=" << fmt_to_str(target_updates_format);
         return buf.str();
     }
 };
@@ -250,9 +256,17 @@ public:
         const auto data_type = type_to_data_type<T>::value;
         ScatterElementsUpdateParams<T> params;
         format::type plain_format;
-        format::type target_format;
+        format::type target_data_format;
+        format::type target_indices_format;
+        format::type target_updates_format;
 
-        std::tie(params, plain_format, target_format) = this->GetParam();
+        std::tie(params, plain_format, target_data_format, target_indices_format, target_updates_format) = this->GetParam();
+        if (target_indices_format == format::any) {
+            target_indices_format = target_data_format;
+        }
+        if (target_updates_format == format::any) {
+            target_updates_format = target_data_format;
+        }
 
         auto& engine = get_test_engine();
         const auto data = engine.allocate_memory({data_type, plain_format, params.data_tensor});
@@ -267,9 +281,9 @@ public:
         topology.add(input_layout("Data", data->get_layout()));
         topology.add(input_layout("Indices", indices->get_layout()));
         topology.add(input_layout("Updates", updates->get_layout()));
-        topology.add(reorder("DataReordered", "Data", target_format, data_type));
-        topology.add(reorder("IndicesReordered", "Indices", target_format, data_type));
-        topology.add(reorder("UpdatesReordered", "Updates", target_format, data_type));
+        topology.add(reorder("DataReordered", "Data", target_data_format, data_type));
+        topology.add(reorder("IndicesReordered", "Indices", target_indices_format, data_type));
+        topology.add(reorder("UpdatesReordered", "Updates", target_updates_format, data_type));
         topology.add(
             scatter_elements_update("ScatterEelementsUpdate", "DataReordered", "IndicesReordered",
                                     "UpdatesReordered", params.axis)
@@ -290,7 +304,7 @@ public:
         ASSERT_EQ(params.expected.size(), output_ptr.size());
         for (uint32_t i = 0; i < output_ptr.size(); i++) {
             EXPECT_NEAR(output_ptr[i], params.expected[i], getError<T>())
-                << "format=" << fmt_to_str(target_format) << ", i=" << i;
+                                << "format=" << fmt_to_str(target_data_format) << ", i=" << i;
         }
     }
 };
@@ -317,7 +331,9 @@ INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_f32_2d,
                          ::testing::Combine(
                                  ::testing::ValuesIn(generateScatterElementsUpdateParams2D<float>()),
                                  ::testing::Values(format::bfyx),
-                                 ::testing::ValuesIn(formats2D)
+                                 ::testing::ValuesIn(formats2D),
+                                 ::testing::Values(format::any),
+                                 ::testing::Values(format::any)
                          ),
                          PrintToStringParamName());
 
@@ -326,7 +342,9 @@ INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_f16_2d,
                          ::testing::Combine(
                                  ::testing::ValuesIn(generateScatterElementsUpdateParams2D<half_t>()),
                                  ::testing::Values(format::bfyx),
-                                 ::testing::ValuesIn(formats2D)
+                                 ::testing::ValuesIn(formats2D),
+                                 ::testing::Values(format::any),
+                                 ::testing::Values(format::any)
                          ),
                          PrintToStringParamName());
 
@@ -335,7 +353,9 @@ INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_i32_2d,
                          ::testing::Combine(
                                  ::testing::ValuesIn(generateScatterElementsUpdateParams2D<int32_t>()),
                                  ::testing::Values(format::bfyx),
-                                 ::testing::ValuesIn(formats2D)
+                                 ::testing::ValuesIn(formats2D),
+                                 ::testing::Values(format::any),
+                                 ::testing::Values(format::any)
                          ),
                          PrintToStringParamName());
 
@@ -344,7 +364,9 @@ INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_f32_3d,
                          ::testing::Combine(
                                  ::testing::ValuesIn(generateScatterElementsUpdateParams3D<float>()),
                                  ::testing::Values(format::bfzyx),
-                                 ::testing::ValuesIn(formats3D)
+                                 ::testing::ValuesIn(formats3D),
+                                 ::testing::Values(format::any),
+                                 ::testing::Values(format::any)
                          ),
                          PrintToStringParamName());
 
@@ -353,7 +375,19 @@ INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_f32_4d,
                          ::testing::Combine(
                                  ::testing::ValuesIn(generateScatterElementsUpdateParams4D<float>()),
                                  ::testing::Values(format::bfwzyx),
+                                 ::testing::ValuesIn(formats4D),
+                                 ::testing::ValuesIn(formats4D),
                                  ::testing::ValuesIn(formats4D)
                          ),
                          PrintToStringParamName());
 
+INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_mixed_inputs,
+                         scatter_elements_update_gpu_formats_test_f32,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateScatterElementsUpdateParams2D<float>()),
+                                 ::testing::Values(format::bfyx),
+                                 ::testing::ValuesIn({format::b_fs_yx_fsv16, format::b_fs_yx_fsv32}),
+                                 ::testing::ValuesIn({format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv32_fsv16}),
+                                 ::testing::ValuesIn({format::bs_fs_yx_bsv32_fsv32, format::bfyx})
+                         ),
+                         PrintToStringParamName());
