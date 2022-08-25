@@ -5,6 +5,7 @@
 #include "input_model.hpp"
 
 #include <fstream>
+#include <iterator>
 #include <queue>
 
 #include "openvino/frontend/exception.hpp"
@@ -13,8 +14,6 @@
 #include "openvino/opsets/opset7.hpp"
 #include "place.hpp"
 #include "utils.hpp"
-
-using namespace google;
 
 namespace ov {
 namespace frontend {

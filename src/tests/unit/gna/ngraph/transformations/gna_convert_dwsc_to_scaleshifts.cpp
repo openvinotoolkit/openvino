@@ -346,7 +346,7 @@ void execute_test(modelType model, std::shared_ptr<ngraph::Function> function, s
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
 
-    manager.register_pass<GNAPluginNS::ConvertDWSCToScaleShifts>();
+    manager.register_pass<ov::intel_gna::pass::ConvertDWSCToScaleShifts>();
     manager.run_passes(function);
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
