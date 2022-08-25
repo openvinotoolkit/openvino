@@ -34,8 +34,7 @@ static void CreateDepthToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v
     auto depthToSpacePrim = cldnn::depth_to_space(layerName,
                                                   inputPrimitives[0],
                                                   blockSize,
-                                                  mode,
-                                                  op->get_friendly_name());
+                                                  mode);
 
     p.add_primitive(*op, depthToSpacePrim);
 }

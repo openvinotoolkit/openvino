@@ -29,8 +29,7 @@ static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v5::G
                                       input_rank,
                                       indices_rank,
                                       batch_dims,
-                                      true,
-                                      op->get_friendly_name());
+                                      true);
 
     p.add_primitive(*op, primitive);
 }
@@ -53,8 +52,7 @@ static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v8::G
                                       input_rank,
                                       indices_rank,
                                       batch_dims,
-                                      false,
-                                      op->get_friendly_name());
+                                      false);
 
     p.add_primitive(*op, primitive);
 }

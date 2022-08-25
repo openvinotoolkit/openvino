@@ -33,8 +33,7 @@ static void CreateGatherTreeOp(Program& p, const std::shared_ptr<ngraph::op::v1:
                                                  targetFormat,
                                                  cldnn::data_types::i32,
                                                  std::vector<float>(),
-                                                 cldnn::reorder_mean_mode::subtract,
-                                                 op->get_friendly_name());
+                                                 cldnn::reorder_mean_mode::subtract);
             p.add_primitive(*op, preprocessPrim);
             reorderedInputs[portIndex] = reorderPrimName;
         } else {
@@ -46,8 +45,7 @@ static void CreateGatherTreeOp(Program& p, const std::shared_ptr<ngraph::op::v1:
                                              reorderedInputs[0],
                                              reorderedInputs[1],
                                              reorderedInputs[2],
-                                             reorderedInputs[3],
-                                             op->get_friendly_name());
+                                             reorderedInputs[3]);
 
     p.add_primitive(*op, gatherTreePrim);
 }

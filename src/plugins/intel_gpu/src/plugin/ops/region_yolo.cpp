@@ -29,8 +29,7 @@ static void CreateRegionYoloOp(Program& p, const std::shared_ptr<ngraph::op::v0:
                                          classes,
                                          num,
                                          mask_size,
-                                         do_softmax,
-                                         op->get_friendly_name());
+                                         do_softmax);
 
     p.add_primitive(*op, regionPrim);
 }

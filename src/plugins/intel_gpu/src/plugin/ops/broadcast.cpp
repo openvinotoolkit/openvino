@@ -38,8 +38,7 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
                                               targetFormat,
                                               targetDatatype,
                                               std::vector<float>(),
-                                              cldnn::reorder_mean_mode::subtract,
-                                              op->get_friendly_name());
+                                              cldnn::reorder_mean_mode::subtract);
             p.add_primitive(*op, reorderPrim);
 
             inputPrimitive = reorderName;
@@ -72,7 +71,7 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
 
         auto targetShape = tensor_from_dims(inputShape);
 
-        auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitive, targetShape, op->get_friendly_name());
+        auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitive, targetShape);
         p.add_primitive(*op, reshapePrim);
 
         inputPrimitive = reshapeName;
@@ -97,8 +96,7 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
                                           inputPrimitive,
                                           outputShape,
                                           axis_mapping,
-                                          mode,
-                                          op->get_friendly_name());
+                                          mode);
 
     p.add_primitive(*op, broadcastPrim);
 }

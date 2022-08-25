@@ -29,7 +29,7 @@ void createDft(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::dft_k
     const uint8_t data_rank = out_shape.size();
     ov::normalize_axes(op.get(), data_rank - 1, axes);
 
-    const cldnn::dft prim(layer_name, inputs.front(), std::move(axes), out_shape, kind, op_friendly_name);
+    const cldnn::dft prim(layer_name, inputs.front(), std::move(axes), out_shape, kind);
 
     p.add_primitive(*op, prim);
 }

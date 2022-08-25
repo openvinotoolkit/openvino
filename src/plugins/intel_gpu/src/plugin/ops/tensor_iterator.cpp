@@ -27,11 +27,11 @@ namespace ov {
 namespace intel_gpu {
 
 template<class DATA_TYPE>
-static DATA_TYPE CreateScalarData(Program &p, const cldnn::primitive_id& id, int64_t num, const cldnn::primitive_id& ext_prim_id) {
+static DATA_TYPE CreateScalarData(Program &p, const cldnn::primitive_id& id, int64_t num) {
     auto mem = p.GetEngine().allocate_memory({ cldnn::data_types::i64, cldnn::format::bfyx, { 1, 1, 1, 1 } });
     cldnn::mem_lock<int64_t> ptr{mem, p.GetEngine().get_program_stream()};
     *ptr.begin() = num;
-    return {id, mem, ext_prim_id};
+    return {id, mem};
 }
 
 static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::shared_ptr<ngraph::Node>& op,
@@ -42,7 +42,7 @@ static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::sha
     const auto tensor = tensor_from_dims(op->get_output_shape(output_idx));
     cldnn::layout output_layout = cldnn::layout(precision, format, tensor);
     auto mem = p.GetEngine().allocate_memory(output_layout);
-    auto md = cldnn::mutable_data(id, {input}, mem, op->get_friendly_name()); // cldnn::data cannot set dependency
+    auto md = cldnn::mutable_data(id, {input}, mem); // cldnn::data cannot set dependency
     return md;
 }
 
@@ -113,17 +113,17 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
         throw std::runtime_error("tensor iterator's num_iteration cannot be negative");
     }
     {
-        cldnn::data trip_count = CreateScalarData<cldnn::data>(p, trip_count_id, num_iterations, op->get_friendly_name());
+        cldnn::data trip_count = CreateScalarData<cldnn::data>(p, trip_count_id, num_iterations);
         p.add_primitive(*op, trip_count);
     }
     const cldnn::primitive_id execution_condition_id = layerName + "_initialExecutionCondition";
     {
-        cldnn::mutable_data execution_condition = CreateScalarData<cldnn::mutable_data>(p, execution_condition_id, 1, op->get_friendly_name());
+        cldnn::mutable_data execution_condition = CreateScalarData<cldnn::mutable_data>(p, execution_condition_id, 1);
         p.add_primitive(*op, execution_condition);
     }
     const cldnn::primitive_id num_iteration_id = layerName + "_numIteration";
     {
-        cldnn::mutable_data num_iteration = CreateScalarData<cldnn::mutable_data>(p, num_iteration_id, 0, op->get_friendly_name());
+        cldnn::mutable_data num_iteration = CreateScalarData<cldnn::mutable_data>(p, num_iteration_id, 0);
         p.add_primitive(*op, num_iteration);
     }
 
@@ -134,7 +134,7 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
         // Add additional mutable_data for multiple outputs
         // primitive ID should be <TI primitive ID>.<output_idx> if output_idx > 0
         // otherwise primitive ID should be equals to TI primitive ID
-        const std::string layerNameWithIndex = layerName + "." + std::to_string(output_idx);
+        const std::string layerNameWithIndex = layerName + ".out" + std::to_string(output_idx);
         std::string external_id;
         if (output_idx > 0) {
             cldnn::mutable_data output_data = CreateAdditionalOutputData(p, op, layerNameWithIndex, layerName, output_idx);
@@ -173,8 +173,7 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
         back_edges,             /* back edge mapping */
         num_iterations,         /* max iteration, i.e. length of iteration axis */
         "",
-        "",
-        op->get_friendly_name());
+        "");
 
     p.add_primitive(*op, loopPrimitive);
 }

@@ -46,8 +46,7 @@ static void CreateSpaceToBatchOp(Program& p, const std::shared_ptr<ngraph::op::v
                                                   inputs[0],          // block_shape
                                                   inputs[1],          // crops_begin
                                                   inputs[2],          // crops_end
-                                                  out_size,
-                                                  op->get_friendly_name());
+                                                  out_size);
 
     p.add_primitive(*op, batchToSpacePrim);
 }

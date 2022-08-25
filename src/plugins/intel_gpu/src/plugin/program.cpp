@@ -7,8 +7,10 @@
 #include "ngraph_ops/nms_ie_internal.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "intel_gpu/plugin/itt.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/primitives/data.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -375,8 +377,6 @@ bool Program::IsOpSupported(const InferenceEngine::CNNNetwork& network, const st
 
 void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::shared_ptr<ngraph::Node>& op) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::CreateSingleLayerPrimitive");
-    InitProfileInfo(op->get_friendly_name(), op->get_type_name());
-
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->verbose >= 2) {
         GPU_DEBUG_COUT << "Process " << "op::v" << op->get_type_info().version << "::" << op->get_type_name() << " operation "
@@ -418,7 +418,7 @@ std::vector<cldnn::primitive_id> Program::GetInputPrimitiveIDs(const std::shared
         auto prevOp = op->get_input_node_ptr(i);
         std::string prevName = layer_type_name_ID(prevOp);
         if (prevOp->get_output_size() > 1) {
-            prevName += "." + std::to_string(op->get_input_source_output(i).get_index());
+            prevName += ".out" + std::to_string(op->get_input_source_output(i).get_index());
         }
 
         if (!queryMode) {
@@ -433,26 +433,14 @@ std::vector<cldnn::primitive_id> Program::GetInputPrimitiveIDs(const std::shared
     return inputPrimitives;
 }
 
-void Program::InitProfileInfo(const std::string& layerName,
-                              const std::string& layerType,
-                              bool isCPU,
-                              InferenceEngine::InferenceEngineProfileInfo::LayerStatus status, std::string parentId) {
-    std::string layer_type_lower = layerType;
-    for (auto& c : layer_type_lower)
-        c = tolower(c);
-
-    std::string name = layerName;
-    if (name.find(layer_type_lower + ":") != std::string::npos) {
-        name = layerName.substr(layerName.find(":") + 1, layerName.length());
-    }
-
-    perfMap[layer_type_lower + ":" + name].first = name;
-    auto& perfEntry = perfMap[layer_type_lower + ":" + name].second;
-    perfEntry.layerType = layerType;
-    perfEntry.status = status;
+void Program::init_profile_info(const cldnn::primitive& prim) {
+    perfMap[prim.id].first = prim.id;
+    auto& perfEntry = perfMap[prim.id].second;
+    perfEntry.layerType = prim.origin_op_type_name;
+    perfEntry.status = InferenceEngine::InferenceEngineProfileInfo::LayerStatus::EXECUTED;
     perfEntry.cpu_uSec = perfEntry.realTime_uSec = 0;
-    perfEntry.isCPU = isCPU;
-    perfEntry.parentPrimitive = parentId;
+    perfEntry.isCPU = false;
+    perfEntry.parentPrimitive = prim.origin_op_name;
 }
 
 void Program::AddVariableStateInfo(const std::string& variable_id, const cldnn::layout& layout) {
@@ -469,18 +457,28 @@ void Program::add_primitive(const ngraph::Node& op, std::shared_ptr<cldnn::primi
     prim->origin_op_name = op.get_friendly_name();
     prim->origin_op_type_name = op.get_type_name();
 
+    bool should_profile = prim->type != cldnn::mutable_data::type_id() &&
+                          prim->type != cldnn::data::type_id();
+
+    auto prim_id = prim->id;
     auto id = layer_type_name_ID(&op);
-    primitive_ids[id] = prim->id;
-    if (id != prim->id) {
-        InitProfileInfo(prim->id, prim->type_string(), false, InferenceEngine::InferenceEngineProfileInfo::EXECUTED, id);
-        primitive_ids[prim->id] = prim->id;
+    primitive_ids[id] = prim_id;
+
+    bool multi_output_case = ends_with(prim_id, ".out0") && prim_id.length() > 5 && prim_id.substr(0, prim_id.length() - 5) == id;
+    if (id != prim_id) {
+        primitive_ids[prim_id] = prim_id;
+
+        if (!multi_output_case)
+            prim->origin_op_type_name = prim->type_string();
+    }
+
+    if (this->m_config.useProfiling && should_profile) {
+        profiling_ids.push_back(prim_id);
+        init_profile_info(*prim);
     }
 
     for (auto& alias : aliases) {
-        primitive_ids[alias] = prim->id;
-    }
-    if (this->m_config.useProfiling) {
-        profiling_ids.push_back(prim->id);
+        primitive_ids[alias] = prim_id;
     }
 
     m_topology->add_primitive(prim);

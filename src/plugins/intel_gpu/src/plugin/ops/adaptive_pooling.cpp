@@ -18,12 +18,10 @@ static void CreateAdaptiveAvgPoolOp(Program& p, const std::shared_ptr<ngraph::op
 
     const auto input_primitives = p.GetInputPrimitiveIDs(op);
     const auto layer_name = layer_type_name_ID(op);
-    const auto op_friendly_name = op->get_friendly_name();
 
     const cldnn::adaptive_pooling poolPrim{layer_name,
                                            input_primitives[0],
-                                           tensor_from_dims(op->get_output_shape(0)),
-                                           op_friendly_name};
+                                           tensor_from_dims(op->get_output_shape(0))};
     p.add_primitive(*op, poolPrim);
 }
 
@@ -33,8 +31,7 @@ static void CreateAdaptiveMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op
 
     auto input_primitives = p.GetInputPrimitiveIDs(op);
     const auto layer_type_name = layer_type_name_ID(op);
-    const auto layer_name = layer_type_name + ".0";
-    const auto op_friendly_name = op->get_friendly_name();
+    const auto layer_name = layer_type_name + ".out0";
 
     const auto indices_precision = op->get_output_element_type(1);
     const auto indices_shape = op->get_output_shape(1);
@@ -44,7 +41,7 @@ static void CreateAdaptiveMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op
     const auto indices_memory = p.GetEngine().allocate_memory(indices_layout);
 
     const cldnn::primitive_id indices_id_w = layer_type_name + "_md_write";
-    const cldnn::mutable_data indices_mutable_prim_w{indices_id_w, indices_memory, op_friendly_name};
+    const cldnn::mutable_data indices_mutable_prim_w{indices_id_w, indices_memory};
     p.add_primitive(*op, indices_mutable_prim_w);
 
     input_primitives.push_back(indices_id_w);
@@ -53,12 +50,11 @@ static void CreateAdaptiveMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op
                                            input_primitives[0],
                                            tensor_from_dims(op->get_output_shape(0)),
                                            input_primitives.back(),
-                                           DataTypeFromPrecision(op->get_index_element_type()),
-                                           op_friendly_name};
+                                           DataTypeFromPrecision(op->get_index_element_type())};
     p.add_primitive(*op, poolPrim);
 
-    const cldnn::primitive_id indices_id_r = layer_type_name + ".1";
-    const cldnn::mutable_data indices_mutable_prim_r{indices_id_r, {layer_name}, indices_memory, op_friendly_name};
+    const cldnn::primitive_id indices_id_r = layer_type_name + ".out1";
+    const cldnn::mutable_data indices_mutable_prim_r{indices_id_r, {layer_name}, indices_memory};
     p.add_primitive(*op, indices_mutable_prim_r);
 }
 

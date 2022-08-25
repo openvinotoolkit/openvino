@@ -56,8 +56,7 @@ static void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::
                                       cldnn::format::bfyx,
                                       DataTypeFromPrecision(precision),
                                       std::vector<float>(),
-                                      cldnn::reorder_mean_mode::none,
-                                      op->get_friendly_name());
+                                      cldnn::reorder_mean_mode::none);
         p.add_primitive(*op, reorder_prim);
         return;
     }
@@ -71,8 +70,7 @@ static void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::
 
     auto permutePrim = cldnn::permute(layerName,
                                       inputPrimitives[0],
-                                      order,
-                                      op->get_friendly_name());
+                                      order);
 
     p.add_primitive(*op, permutePrim);
 }

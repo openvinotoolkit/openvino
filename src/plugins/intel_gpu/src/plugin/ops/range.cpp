@@ -22,7 +22,7 @@ static void CreateRangeOp(Program &p, const std::shared_ptr<ngraph::op::v4::Rang
     cldnn::tensor outTensor { cldnn::spatial(outShape[0]) };
     auto outDataType = DataTypeFromPrecision(op->get_output_element_type(0));
     cldnn::layout outLayout { outDataType, cldnn::format::bfyx, outTensor };
-    cldnn::range prim { layer_type_name_ID(op), p.GetInputPrimitiveIDs(op), outLayout, op->get_friendly_name() };
+    cldnn::range prim { layer_type_name_ID(op), p.GetInputPrimitiveIDs(op), outLayout };
     p.add_primitive(*op, prim);
 }
 

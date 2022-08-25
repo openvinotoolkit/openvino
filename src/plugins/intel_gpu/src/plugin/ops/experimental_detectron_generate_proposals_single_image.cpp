@@ -25,10 +25,8 @@ static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
 
     const auto& attrs = op->get_attrs();
 
-    const auto op_friendly_name = op->get_friendly_name();
-
     const auto layer_type_name = layer_type_name_ID(op);
-    const auto layer_name = layer_type_name + ".0";
+    const auto layer_name = layer_type_name + ".out0";
 
     const auto mutable_precision = op->get_output_element_type(1);
     const auto output_shape = op->get_output_shape(1);
@@ -38,19 +36,18 @@ static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
     cldnn::memory::ptr shared_memory{p.GetEngine().allocate_memory(mutable_layout)};
 
     const auto mutable_id_w = layer_type_name + "_md_write";
-    const cldnn::mutable_data mutable_prim_w{mutable_id_w, shared_memory, op_friendly_name};
+    const cldnn::mutable_data mutable_prim_w{mutable_id_w, shared_memory};
     p.add_primitive(*op, mutable_prim_w);
     inputs.push_back(mutable_id_w);
 
     const cldnn::experimental_detectron_generate_proposals_single_image prim{layer_name,
                              inputs[0], inputs[1], inputs[2], inputs[3], inputs.back(),
-                             attrs.min_size, attrs.nms_threshold, attrs.pre_nms_count, attrs.post_nms_count,
-                             op_friendly_name};
+                             attrs.min_size, attrs.nms_threshold, attrs.pre_nms_count, attrs.post_nms_count};
 
     p.add_primitive(*op, prim);
 
-    const auto mutable_id_r = layer_type_name + ".1";
-    const cldnn::mutable_data mutable_prim_r{mutable_id_r, {layer_name}, shared_memory, op_friendly_name};
+    const auto mutable_id_r = layer_type_name + ".out1";
+    const cldnn::mutable_data mutable_prim_r{mutable_id_r, {layer_name}, shared_memory};
     p.add_primitive(*op, mutable_prim_r);
 }
 

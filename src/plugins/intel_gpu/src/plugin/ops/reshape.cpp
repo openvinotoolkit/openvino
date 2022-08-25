@@ -44,15 +44,13 @@ static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node
                                             reshapeInputId,
                                             outputLayout,
                                             std::vector<float>(),
-                                            cldnn::reorder_mean_mode::subtract,
-                                            op->get_friendly_name()));
+                                            cldnn::reorder_mean_mode::subtract));
         reshapeInputId = reorderId;
     }
 
     auto reshapePrim = cldnn::reshape(layerName,
                                       reshapeInputId,
-                                      outTensor,
-                                      op->get_friendly_name());
+                                      outTensor);
 
     p.add_primitive(*op, reshapePrim);
 }

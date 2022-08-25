@@ -52,8 +52,7 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
                                                   targetFormat,
                                                   targetDatatype,
                                                   std::vector<float>(),
-                                                  cldnn::reorder_mean_mode::subtract,
-                                                  op->get_friendly_name());
+                                                  cldnn::reorder_mean_mode::subtract);
 
                 p.add_primitive(*op, reorderPrim);
                 inputPrimitives[i] = reorderName;
@@ -66,7 +65,7 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
 
             auto targetShape = tensor_from_dims(inputShape);
 
-            auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, op->get_friendly_name());
+            auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
             p.add_primitive(*op, reshapePrim);
 
             inputPrimitives[i] = reshapeName;
@@ -78,8 +77,7 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
                                       inputPrimitives,
                                       mode,
                                       {},
-                                      out_dt,
-                                      op->get_friendly_name());
+                                      out_dt);
 
     p.add_primitive(*op, eltwisePrim);
 }

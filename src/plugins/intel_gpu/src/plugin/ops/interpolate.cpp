@@ -87,8 +87,7 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
                                         interpolateMode,
                                         attrs.shape_calculation_mode,
                                         attrs.coordinate_transformation_mode,
-                                        attrs.nearest_mode,
-                                        op->get_friendly_name());
+                                        attrs.nearest_mode);
 
     p.add_primitive(*op, resamplePrim);
 }

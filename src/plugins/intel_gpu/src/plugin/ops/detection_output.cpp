@@ -76,8 +76,7 @@ static void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op
                                                  input_height,
                                                  decrease_label_id,
                                                  clip_before_nms,
-                                                 clip_after_nms,
-                                                 op->get_friendly_name());
+                                                 clip_after_nms);
 
     p.add_primitive(*op, detectionPrim);
 }

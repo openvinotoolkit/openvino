@@ -28,8 +28,7 @@ static void CreateScatterElementsUpdateOp(Program& p, const std::shared_ptr<ngra
                                                     inputPrimitives[0],
                                                     inputPrimitives[1],
                                                     inputPrimitives[2],
-                                                    axis,
-                                                    op->get_friendly_name());
+                                                    axis);
 
     p.add_primitive(*op, primitive);
 }

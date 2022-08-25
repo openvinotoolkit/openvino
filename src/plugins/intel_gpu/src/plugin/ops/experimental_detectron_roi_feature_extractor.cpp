@@ -15,7 +15,7 @@ namespace intel_gpu {
 
 static void CreateExperimentalDetectronROIFeatureExtractorOp(Program& p, const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronROIFeatureExtractor>& op) {
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
-    std::string layerName = layer_type_name_ID(op) + ".0";
+    std::string layerName = layer_type_name_ID(op) + ".out0";
 
     cldnn::layout mutableLayout = cldnn::layout(
         DataTypeFromPrecision(op->get_output_element_type(1)),
@@ -26,8 +26,7 @@ static void CreateExperimentalDetectronROIFeatureExtractorOp(Program& p, const s
 
     cldnn::primitive_id experimental_detectron_mutable_id_w = layer_type_name_ID(op) + "_md_write";
     cldnn::mutable_data experimenta_detectron_mutable_prim(experimental_detectron_mutable_id_w,
-                                                           shared_memory,
-                                                           op->get_friendly_name());
+                                                           shared_memory);
     p.add_primitive(*op, experimenta_detectron_mutable_prim);
     inputPrimitives.push_back(experimental_detectron_mutable_id_w);
 
@@ -41,11 +40,10 @@ static void CreateExperimentalDetectronROIFeatureExtractorOp(Program& p, const s
                                                                                   operation_attributes.aligned);
     p.add_primitive(*op, experimentalDetectronPrim);
 
-    cldnn::primitive_id experimental_detectron_mutable_id_r = layer_type_name_ID(op) + ".1";
+    cldnn::primitive_id experimental_detectron_mutable_id_r = layer_type_name_ID(op) + ".out1";
     cldnn::mutable_data experimental_detectron_mutable_prim_r(experimental_detectron_mutable_id_r,
                                                               {layerName},
-                                                              shared_memory,
-                                                              op->get_friendly_name());
+                                                              shared_memory);
     p.add_primitive(*op, experimental_detectron_mutable_prim_r);
 }
 

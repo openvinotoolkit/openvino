@@ -25,8 +25,7 @@ static void CreateCommonMVNOp(Program& p, const std::shared_ptr<ngraph::Node>& o
                               normalize_variance,
                               eps,
                               eps_inside_sqrt,
-                              across_channels,
-                              op->get_friendly_name());
+                              across_channels);
 
     p.add_primitive(*op, mvnPrim);
 }

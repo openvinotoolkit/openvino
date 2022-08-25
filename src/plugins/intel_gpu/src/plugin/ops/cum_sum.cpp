@@ -35,8 +35,7 @@ static void CreateCumSumOp(Program& p, const std::shared_ptr<ngraph::op::v0::Cum
                                     inputPrimitives[0],
                                     axis,
                                     exclusive,
-                                    reverse,
-                                    op->get_friendly_name());
+                                    reverse);
 
     p.add_primitive(*op, primitive);
 }

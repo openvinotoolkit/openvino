@@ -23,8 +23,7 @@ static void CreateScatterNDUpdateOp(Program& p, const std::shared_ptr<ngraph::op
                                               inputPrimitives[0],
                                               inputPrimitives[1],
                                               inputPrimitives[2],
-                                              indices_rank,
-                                              op->get_friendly_name());
+                                              indices_rank);
 
     p.add_primitive(*op, primitive);
 }

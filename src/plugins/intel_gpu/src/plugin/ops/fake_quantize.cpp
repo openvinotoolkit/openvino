@@ -32,8 +32,7 @@ static void CreateFakeQuantizeOp(Program& p, const std::shared_ptr<ngraph::op::v
                                             output_low_id,
                                             output_high_id,
                                             levels,
-                                            dt,
-                                            op->get_friendly_name());
+                                            dt);
 
     p.add_primitive(*op, quantizationPrim);
 }

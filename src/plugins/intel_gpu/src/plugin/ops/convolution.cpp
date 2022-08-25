@@ -53,8 +53,7 @@ static void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::o
                                        dilations,
                                        tensor_from_dims(outDims),
                                        DataTypeFromPrecision(outPrecision),
-                                       weights_have_group_dim,
-                                       op->get_friendly_name());
+                                       weights_have_group_dim);
 
     p.add_primitive(*op, convPrim);
 }
@@ -89,8 +88,7 @@ static void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1
                                        dilations,
                                        tensor_from_dims(outDims),
                                        DataTypeFromPrecision(outPrecision),
-                                       weights_have_group_dim,
-                                       op->get_friendly_name());
+                                       weights_have_group_dim);
 
     p.add_primitive(*op, convPrim);
 }
@@ -124,8 +122,7 @@ static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ng
         std::swap(permute_order[1], permute_order[0]);
         auto permutePrim = cldnn::permute(permuteName,
                                           weightsName,
-                                          permute_order,
-                                          op->get_friendly_name());
+                                          permute_order);
 
         p.add_primitive(*op, permutePrim);
 
@@ -150,8 +147,7 @@ static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ng
                                            strides,
                                            pads_begin,
                                            tensor_from_dims(op->get_output_tensor(0).get_shape()),
-                                           weights_have_group_dim,
-                                           op->get_friendly_name());
+                                           weights_have_group_dim);
 
     p.add_primitive(*op, deconvPrim);
 }
@@ -186,8 +182,7 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
         std::swap(permute_order[2], permute_order[1]);
         auto permutePrim = cldnn::permute(permuteName,
                                           weightsName,
-                                          permute_order,
-                                          op->get_friendly_name());
+                                          permute_order);
 
         p.add_primitive(*op, permutePrim);
 
@@ -212,8 +207,7 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
                                            strides,
                                            pads_begin,
                                            tensor_from_dims(op->get_output_tensor(0).get_shape()),
-                                           weights_have_group_dim,
-                                           op->get_friendly_name());
+                                           weights_have_group_dim);
 
     p.add_primitive(*op, deconvPrim);
 }
@@ -262,16 +256,14 @@ static void DeformableConvolutionImpl(Program& p,
                                                           dilations,
                                                           tensor_from_dims(outDims),
                                                           kernel,
-                                                          bilinearInterpolationPad,
-                                                          op->get_friendly_name());
+                                                          bilinearInterpolationPad);
         p.add_primitive(*op, defConvPrimInterp);
         auto defConvPrim = cldnn::deformable_conv(defConvLayerNameConv,
                                                   defConvLayerNameInterp,
                                                   weights,
                                                   {},
                                                   groups,
-                                                  tensor_from_dims(outDims),
-                                                  op->get_friendly_name());
+                                                  tensor_from_dims(outDims));
         p.add_primitive(*op, defConvPrim);
     } else {
         auto convPrim = cldnn::convolution(layerName,
@@ -284,8 +276,7 @@ static void DeformableConvolutionImpl(Program& p,
                                            padding,
                                            dilations,
                                            tensor_from_dims(outDims),
-                                           bilinearInterpolationPad,
-                                           op->get_friendly_name());
+                                           bilinearInterpolationPad);
 
         p.add_primitive(*op, convPrim);
     }
@@ -354,8 +345,7 @@ static void CreateBinaryConvolutionOp(Program& p, const std::shared_ptr<ngraph::
                                               tensor_from_dims(outDims),
                                               1,
                                               op->get_pad_value(),
-                                              calc_precision,
-                                              op->get_friendly_name());
+                                              calc_precision);
 
     p.add_primitive(*op, convPrim);
 }

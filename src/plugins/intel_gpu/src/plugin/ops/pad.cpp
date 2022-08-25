@@ -42,8 +42,7 @@ static void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& 
                                   pads_begin,
                                   pads_end,
                                   op->get_pad_mode(),
-                                  pad_value,
-                                  op->get_friendly_name());
+                                  pad_value);
 
     p.add_primitive(*op, tilePrim);
 }

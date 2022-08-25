@@ -64,8 +64,7 @@ static void CreateOneHotOp(Program& p, const std::shared_ptr<ngraph::op::v1::One
                                      axis,
                                      depth,
                                      on_value,
-                                     off_value,
-                                     op->get_friendly_name());
+                                     off_value);
 
     p.add_primitive(*op, oneHotPrim);
 }

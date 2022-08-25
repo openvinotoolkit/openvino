@@ -25,10 +25,8 @@ static void CreateExperimentalDetectronDetectionOutputOp(
 
     const auto& attrs = op->get_attrs();
 
-    const auto op_friendly_name = op->get_friendly_name();
-
     const auto layer_type_name = layer_type_name_ID(op);
-    const auto layer_name = layer_type_name + ".0";
+    const auto layer_name = layer_type_name + ".out0";
 
     const auto mutable_precision1 = op->get_output_element_type(1);
     const auto output_shape1 = op->get_output_shape(1);
@@ -38,7 +36,7 @@ static void CreateExperimentalDetectronDetectionOutputOp(
     cldnn::memory::ptr shared_memory1{p.GetEngine().allocate_memory(mutable_layout1)};
 
     const auto mutable_id_w1 = layer_type_name + "_md_write.1";
-    const cldnn::mutable_data mutable_prim_w{mutable_id_w1, shared_memory1, op_friendly_name};
+    const cldnn::mutable_data mutable_prim_w{mutable_id_w1, shared_memory1};
     p.add_primitive(*op, mutable_prim_w);
     inputs.push_back(mutable_id_w1);
 
@@ -50,7 +48,7 @@ static void CreateExperimentalDetectronDetectionOutputOp(
     cldnn::memory::ptr shared_memory2{p.GetEngine().allocate_memory(mutable_layout2)};
 
     const auto mutable_id_w2 = layer_type_name + "_md_write.2";
-    const cldnn::mutable_data mutable_prim_w2{mutable_id_w2, shared_memory2, op_friendly_name};
+    const cldnn::mutable_data mutable_prim_w2{mutable_id_w2, shared_memory2};
     p.add_primitive(*op, mutable_prim_w2);
     inputs.push_back(mutable_id_w2);
 
@@ -73,17 +71,16 @@ static void CreateExperimentalDetectronDetectionOutputOp(
                                                               static_cast<int>(attrs.max_detections_per_image),
                                                               attrs.class_agnostic_box_regression,
                                                               attrs.max_delta_log_wh,
-                                                              attrs.deltas_weights,
-                                                              op_friendly_name};
+                                                              attrs.deltas_weights};
 
     p.add_primitive(*op, prim);
 
-    const auto mutable_id_r1 = layer_type_name + ".1";
-    const cldnn::mutable_data mutable_prim_r1{mutable_id_r1, {layer_name}, shared_memory1, op_friendly_name};
+    const auto mutable_id_r1 = layer_type_name + ".out1";
+    const cldnn::mutable_data mutable_prim_r1{mutable_id_r1, {layer_name}, shared_memory1};
     p.add_primitive(*op, mutable_prim_r1);
 
-    const auto mutable_id_r2 = layer_type_name + ".2";
-    const cldnn::mutable_data mutable_prim_r2{mutable_id_r2, {layer_name}, shared_memory2, op_friendly_name};
+    const auto mutable_id_r2 = layer_type_name + ".out2";
+    const cldnn::mutable_data mutable_prim_r2{mutable_id_r2, {layer_name}, shared_memory2};
     p.add_primitive(*op, mutable_prim_r2);
 }
 

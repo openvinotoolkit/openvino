@@ -32,8 +32,7 @@ static void CreateGatherElementsOp(Program& p, const std::shared_ptr<ngraph::op:
                                             inputPrimitives[1],
                                             outLayout,
                                             tensor_from_dims(op->get_output_shape(0)),
-                                            axis,
-                                            op->get_friendly_name());
+                                            axis);
 
     p.add_primitive(*op, primitive);
 }

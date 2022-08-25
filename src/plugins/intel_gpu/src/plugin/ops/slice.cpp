@@ -21,8 +21,7 @@ static void CreateSliceOp(Program& p, const std::shared_ptr<ngraph::op::v8::Slic
     auto input_primitives = p.GetInputPrimitiveIDs(op);
     auto output_shape = tensor_from_dims(op->get_output_shape(0));
     auto slice_prim = cldnn::slice(layer_type_name_ID(op),
-            input_primitives, output_shape,
-            op->get_friendly_name());
+            input_primitives, output_shape);
     p.add_primitive(*op, slice_prim);
 }
 

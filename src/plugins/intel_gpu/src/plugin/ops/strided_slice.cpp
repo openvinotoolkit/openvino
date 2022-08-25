@@ -196,7 +196,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
         if (!new_axis_mask.empty()) {
             auto targetShape = tensor_from_dims(reshape_pattern);
             auto reshapeInName = op->get_friendly_name() + "/Reshape_before";
-            auto reshapePrim = cldnn::reshape(reshapeInName, inputPrimitives[0], targetShape, op->get_friendly_name());
+            auto reshapePrim = cldnn::reshape(reshapeInName, inputPrimitives[0], targetShape);
             p.add_primitive(*op, reshapePrim);
             inPrimitive = reshapeInName;
         }
@@ -221,7 +221,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
         cldnn::tensor offSize = tensor_from_dims(offset, 0);
 
 
-        auto cropPrim = cldnn::crop(layerName, inPrimitive, refSize, offSize, op->get_friendly_name());
+        auto cropPrim = cldnn::crop(layerName, inPrimitive, refSize, offSize);
         p.add_primitive(*op, cropPrim);
         auto last_layer_primitive = layerName;
 
@@ -229,7 +229,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
         if (!shrink_axis_mask.empty()) {
             auto targetShape = tensor_from_dims(output_shape);
             auto reshapeOutName = op->get_friendly_name() + "/Crop";
-            auto reshapePrim = cldnn::reshape(reshapeOutName, layerName, targetShape, op->get_friendly_name());
+            auto reshapePrim = cldnn::reshape(reshapeOutName, layerName, targetShape);
             p.add_primitive(*op, reshapePrim);
             last_layer_primitive = reshapeOutName;
         }
@@ -250,8 +250,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
                                                  op->get_new_axis_mask(),
                                                  op->get_shrink_axis_mask(),
                                                  op->get_ellipsis_mask(),
-                                                 output_shape,
-                                                 op->get_friendly_name());
+                                                 output_shape);
 
     p.add_primitive(*op, stridedSlicePrim);
 }

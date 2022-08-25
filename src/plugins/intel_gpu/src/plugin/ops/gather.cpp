@@ -35,8 +35,7 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
                                                  targetFormat,
                                                  cldnn::data_types::i32,
                                                  std::vector<float>(),
-                                                 cldnn::reorder_mean_mode::subtract,
-                                                 op->get_friendly_name());
+                                                 cldnn::reorder_mean_mode::subtract);
             p.add_primitive(*op, preprocessPrim);
             reorderedInputs[portIndex] = reorderPrimName;
         } else {
@@ -50,8 +49,7 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
                                     axis,
                                     op->get_output_shape(0),
                                     batch_dim,
-                                    support_neg_ind,
-                                    op->get_friendly_name());
+                                    support_neg_ind);
 
     p.add_primitive(*op, gatherPrim);
 }

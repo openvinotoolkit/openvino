@@ -39,7 +39,7 @@ static void CreateTileOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tile>
 
         auto targetShape = tensor_from_dims(inputDims);
 
-        auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[0], targetShape, op->get_friendly_name());
+        auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[0], targetShape);
 
         p.add_primitive(*op, reshapePrim);
 
@@ -48,8 +48,7 @@ static void CreateTileOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tile>
 
     auto tilePrim = cldnn::tile(layerName,
                                 inputPrimitives[0],
-                                repeats,
-                                op->get_friendly_name());
+                                repeats);
 
     p.add_primitive(*op, tilePrim);
 }

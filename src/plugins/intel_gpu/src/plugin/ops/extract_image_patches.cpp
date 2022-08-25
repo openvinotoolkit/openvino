@@ -39,8 +39,7 @@ static void CreateExtractImagePatchesOp(Program& p, const std::shared_ptr<ngraph
                                                                 strides,
                                                                 rates,
                                                                 auto_pad,
-                                                                tensor_from_dims(op->get_output_shape(0)),
-                                                                op->get_friendly_name());
+                                                                tensor_from_dims(op->get_output_shape(0)));
 
     p.add_primitive(*op, extractImagePatchesPrim);
 }

@@ -62,7 +62,7 @@ void CreateRollOp(Program& p, const std::shared_ptr<ngraph::op::v7::Roll>& op) {
         }
     }
 
-    const cldnn::roll roll_prim(layer_name, inputs.front(), {format, shift}, op_friendly_name);
+    const cldnn::roll roll_prim(layer_name, inputs.front(), {format, shift});
     p.add_primitive(*op, roll_prim);
 }
 

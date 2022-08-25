@@ -43,12 +43,11 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
 
         cldnn::primitive_id argmax_mutable_id_w = layer_type_name_ID(op) + "_md_write";
         auto argmax_mutable_prim = cldnn::mutable_data(argmax_mutable_id_w,
-                                                       shared_memory,
-                                                       op->get_friendly_name());
+                                                       shared_memory);
         p.add_primitive(*op, argmax_mutable_prim);
         inputPrimitives.push_back(argmax_mutable_id_w);
 
-        std::string ArgMaxLayerName = layerName + ".0";
+        std::string ArgMaxLayerName = layerName + ".out0";
         auto argmaxPrim = cldnn::arg_max_min(ArgMaxLayerName,
                                              inputPrimitives,
                                              mode,
@@ -56,17 +55,15 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
                                              chosen_axis,
                                              stype,
                                              true,
-                                             op->get_friendly_name(),
                                              cldnn::padding({0, 0, 0, 0}, 0),
                                              DataTypeFromPrecision(op->get_output_element_type(0)));
 
         p.add_primitive(*op, argmaxPrim);
 
-        cldnn::primitive_id argmax_mutable_id_r = layerName + ".1";
+        cldnn::primitive_id argmax_mutable_id_r = layerName + ".out1";
         auto argmax_mutable_prim_r = cldnn::mutable_data(argmax_mutable_id_r,
                                                          { ArgMaxLayerName },
-                                                         shared_memory,
-                                                         op->get_friendly_name());
+                                                         shared_memory);
         p.add_primitive(*op, argmax_mutable_prim_r);
     } else if (op->get_output_size() == 1) {
         auto argmaxPrim = cldnn::arg_max_min(layerName,
@@ -76,7 +73,6 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
                                              chosen_axis,
                                              stype,
                                              true,
-                                             op->get_friendly_name(),
                                              cldnn::padding({0, 0, 0, 0}, 0),
                                              DataTypeFromPrecision(op->get_output_element_type(0)));
 

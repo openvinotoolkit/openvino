@@ -89,8 +89,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             auto permuteName = op->get_friendly_name() + "/transpose_b";
             auto permutePrim = cldnn::permute(permuteName,
                                               weightsName,
-                                              transpose_order,
-                                              op->get_friendly_name());
+                                              transpose_order);
             p.add_primitive(*op, permutePrim);
             weightsName = permuteName;
         }
@@ -107,8 +106,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             auto permuteName = op->get_friendly_name() + "/transpose_a";
             auto permutePrim = cldnn::permute(permuteName,
                                               inputName,
-                                              transpose_order,
-                                              op->get_friendly_name());
+                                              transpose_order);
             p.add_primitive(*op, permutePrim);
             inputName = permuteName;
         }
@@ -125,8 +123,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             auto reshapeInName = op->get_friendly_name() + suffix;
             auto reshapeInPrim = cldnn::reshape(reshapeInName,
                                                 inputName,
-                                                tensor_from_dims(reshapeSize),
-                                                op->get_friendly_name());
+                                                tensor_from_dims(reshapeSize));
             p.add_primitive(*op, reshapeInPrim);
             return reshapeInName;
         };
@@ -145,7 +142,6 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                                              weightsName,
                                              "",
                                              DataTypeFromPrecision(op->get_output_element_type(0)),
-                                             op->get_friendly_name(),
                                              cldnn::padding(),
                                              input_rank);
 
@@ -173,14 +169,13 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                                             layerName,
                                             outputLayout,
                                             std::vector<float>(),
-                                            cldnn::reorder_mean_mode::subtract,
-                                            op->get_friendly_name());
+                                            cldnn::reorder_mean_mode::subtract);
                 p.add_primitive(*op, reorder_prim);
                 lastLayerName = reorderId;
             }
 
             // add reshape
-            auto outReshapePrim = cldnn::reshape(outReshapeName, lastLayerName, outTensor, op->get_friendly_name());
+            auto outReshapePrim = cldnn::reshape(outReshapeName, lastLayerName, outTensor);
 
             p.add_primitive(*op, outReshapePrim);
 
@@ -217,8 +212,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                                                   targetFormat,
                                                   targetDatatype,
                                                   std::vector<float>(),
-                                                  cldnn::reorder_mean_mode::subtract,
-                                                  op->get_friendly_name());
+                                                  cldnn::reorder_mean_mode::subtract);
 
                 p.add_primitive(*op, reorderPrim);
 
@@ -256,7 +250,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
                 auto targetShape = gemmSpecificTensor(inputDims);
 
-                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, op->get_friendly_name());
+                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
 
                 p.add_primitive(*op, reshapePrim);
 
@@ -276,8 +270,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                                     transA,
                                     transB,
                                     alpha,
-                                    beta,
-                                    op->get_friendly_name());
+                                    beta);
 
         p.add_primitive(*op, gemmPrim);
 
@@ -287,7 +280,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
         if (outDimsN < 4) {
             auto outputShape = tensor_from_dims(outDims);
             auto outReshapeName = layerName + "_cldnn_out_reshape";
-            auto outReshapePrim = cldnn::reshape(outReshapeName, layerName, outputShape, op->get_friendly_name());
+            auto outReshapePrim = cldnn::reshape(outReshapeName, layerName, outputShape);
 
             p.add_primitive(*op, outReshapePrim);
 

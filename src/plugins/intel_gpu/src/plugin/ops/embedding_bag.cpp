@@ -52,8 +52,7 @@ static void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngr
                                                  targetFormat,
                                                  cldnn::data_types::i32,
                                                  std::vector<float>(),
-                                                 cldnn::reorder_mean_mode::subtract,
-                                                 op->get_friendly_name());
+                                                 cldnn::reorder_mean_mode::subtract);
             p.add_primitive(*op, preprocessPrim);
             reorderedInputs[portIndex] = (reorderPrimName);
         } else {
@@ -65,8 +64,7 @@ static void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngr
                                                  reorderedInputs,
                                                  cldnn::embedding_bag::offsets_sum,
                                                  tensor_from_dims(op->get_output_shape(0)),
-                                                 defaultIndex,
-                                                 op->get_friendly_name());
+                                                 defaultIndex);
 
     p.add_primitive(*op, embeddingBagPrim);
 }
@@ -91,8 +89,7 @@ static void CreateEmbeddingBagPackedSumOp(Program& p, const std::shared_ptr<ngra
                                                  targetFormat,
                                                  cldnn::data_types::i32,
                                                  std::vector<float>(),
-                                                 cldnn::reorder_mean_mode::subtract,
-                                                 op->get_friendly_name());
+                                                 cldnn::reorder_mean_mode::subtract);
             p.add_primitive(*op, preprocessPrim);
             reorderedInputs[portIndex] = (reorderPrimName);
         } else {
@@ -104,8 +101,7 @@ static void CreateEmbeddingBagPackedSumOp(Program& p, const std::shared_ptr<ngra
                                                  reorderedInputs,
                                                  cldnn::embedding_bag::packed_sum,
                                                  tensor_from_dims(op->get_output_shape(0)),
-                                                 -1,
-                                                 op->get_friendly_name());
+                                                 -1);
 
     p.add_primitive(*op, embeddingBagPrim);
 }
@@ -148,8 +144,7 @@ static void CreateEmbeddingSegmentsSumOp(Program& p, const std::shared_ptr<ngrap
                                                  targetFormat,
                                                  cldnn::data_types::i32,
                                                  std::vector<float>(),
-                                                 cldnn::reorder_mean_mode::subtract,
-                                                 op->get_friendly_name());
+                                                 cldnn::reorder_mean_mode::subtract);
             p.add_primitive(*op, preprocessPrim);
             reorderedInputs[portIndex] = (reorderPrimName);
         } else {
@@ -161,8 +156,7 @@ static void CreateEmbeddingSegmentsSumOp(Program& p, const std::shared_ptr<ngrap
                                                  reorderedInputs,
                                                  cldnn::embedding_bag::segments_sum,
                                                  tensor_from_dims(op->get_output_shape(0)),
-                                                 defaultIndex,
-                                                 op->get_friendly_name());
+                                                 defaultIndex);
 
     p.add_primitive(*op, embeddingBagPrim);
 }

@@ -46,8 +46,7 @@ void CreateROIAlignOp(Program& p, const std::shared_ptr<ngraph::op::v3::ROIAlign
                                            op->get_sampling_ratio(),
                                            op->get_spatial_scale(),
                                            from(op->get_mode()),
-                                           cldnn::roi_align::AlignedMode::asymmetric,
-                                           op->get_friendly_name());
+                                           cldnn::roi_align::AlignedMode::asymmetric);
     p.add_primitive(*op, roi_align_prim);
 }
 
@@ -60,8 +59,7 @@ void CreateROIAlignOp(Program& p, const std::shared_ptr<ngraph::op::v9::ROIAlign
                                            op->get_sampling_ratio(),
                                            op->get_spatial_scale(),
                                            from(op->get_mode()),
-                                           from(op->get_aligned_mode()),
-                                           op->get_friendly_name());
+                                           from(op->get_aligned_mode()));
     p.add_primitive(*op, roi_align_prim);
 }
 

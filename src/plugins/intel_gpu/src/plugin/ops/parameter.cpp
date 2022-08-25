@@ -214,7 +214,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                 std::string batched_name = inputName + "_" + std::to_string(i);
                 p.inputLayouts.insert({ inputInfo->name() + "_" + std::to_string(i), networkInputLayout });
                 inputs.emplace_back(batched_name);
-                p.add_primitive(*op, cldnn::input_layout(batched_name, networkInputLayout, inputInfo->name()));
+                p.add_primitive(*op, cldnn::input_layout(batched_name, networkInputLayout));
             }
             p.primitive_ids[inputName] = inputName;
         } else {
@@ -222,7 +222,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                                             TensorValue(inputDims[2]), TensorValue(inputDims[1]) });
 
             p.inputLayouts.insert({ inputInfo->name(), networkInputLayout });
-            p.add_primitive(*op, cldnn::input_layout(inputName, networkInputLayout, inputInfo->name()));
+            p.add_primitive(*op, cldnn::input_layout(inputName, networkInputLayout));
         }
     } else {
         if (ColorFormat::NV12 == preProcess.getColorFormat() && p.GetConfig().nv12_two_inputs) {
@@ -246,8 +246,8 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                                        cldnn::format::nv12, { 1, 1, width, height });
                 cldnn::layout uv_layout(DataTypeFromPrecision(ip),
                                         cldnn::format::nv12, { 1, 2, width / 2, height / 2 });
-                auto inputY = cldnn::input_layout(y_name, y_layout, inputInfo->name());
-                auto inputUV = cldnn::input_layout(uv_name, uv_layout, inputInfo->name());
+                auto inputY = cldnn::input_layout(y_name, y_layout);
+                auto inputUV = cldnn::input_layout(uv_name, uv_layout);
 
                 p.add_primitive(*op, inputY);
                 p.inputLayouts.insert({ inputInfo->name() + "_Y" + std::to_string(i), y_layout });
@@ -261,8 +261,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                                                         uv_name,
                                                         networkInputLayout,
                                                         meanValues,
-                                                        cldnn::reorder_mean_mode::subtract,
-                                                        inputInfo->name()), {inputName});
+                                                        cldnn::reorder_mean_mode::subtract), {inputName});
                     break;
                 }
                 case MEAN_IMAGE: {
@@ -271,8 +270,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                                                         uv_name,
                                                         networkInputLayout,
                                                         meanBlobID,
-                                                        cldnn::reorder_mean_mode::subtract,
-                                                        inputInfo->name()), {inputName});
+                                                        cldnn::reorder_mean_mode::subtract), {inputName});
                     break;
                 }
                 default: IE_THROW(Unexpected) << "Invalid mean variant in input " + inputName;
@@ -284,7 +282,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
 
             if (inputDims[0] > 1) {
                 auto concatPrimID = "concat:" + inputName + Program::m_preProcessTag;
-                p.add_primitive(*op, cldnn::concatenation(concatPrimID, reorders, 0, op->get_friendly_name()));
+                p.add_primitive(*op, cldnn::concatenation(concatPrimID, reorders, 0));
             }
         } else {
             auto preprocessPrimID = "reorder:" + inputName + Program::m_preProcessTag;
@@ -292,7 +290,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
             inputLayout.data_type = DataTypeFromPrecision(ip);
             p.inputLayouts.insert({ inputInfo->name(), inputLayout });
 
-            p.add_primitive(*op, cldnn::input_layout(inputName, inputLayout, inputInfo->name()));
+            p.add_primitive(*op, cldnn::input_layout(inputName, inputLayout));
 
             switch (preProcess.getMeanVariant()) {
             case NONE:
@@ -301,8 +299,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                                                     inputName,
                                                     networkInputLayout,
                                                     meanValues,
-                                                    cldnn::reorder_mean_mode::subtract,
-                                                    op->get_friendly_name()), {inputName});
+                                                    cldnn::reorder_mean_mode::subtract), {inputName});
                 break;
             }
             case MEAN_IMAGE: {
@@ -310,8 +307,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                                                     inputName,
                                                     networkInputLayout,
                                                     meanBlobID,
-                                                    cldnn::reorder_mean_mode::subtract,
-                                                    op->get_friendly_name()), {inputName});
+                                                    cldnn::reorder_mean_mode::subtract), {inputName});
                 break;
             }
             default: IE_THROW() << "Invalid mean variant in input " << inputName;

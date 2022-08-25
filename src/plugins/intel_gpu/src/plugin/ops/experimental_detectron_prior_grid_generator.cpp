@@ -39,8 +39,7 @@ static void CreateExperimentalDetectronPriorGridGeneratorOp(
                                                             featmap_shape[2],
                                                             featmap_shape[3],
                                                             image_shape[2],
-                                                            image_shape[3],
-                                                            op->get_friendly_name()};
+                                                            image_shape[3]};
     p.add_primitive(*op, prim);
 }
 }  // namespace

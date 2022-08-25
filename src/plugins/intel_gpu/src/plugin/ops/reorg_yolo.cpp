@@ -21,8 +21,7 @@ static void CreateReorgYoloOp(Program& p, const std::shared_ptr<ngraph::op::v0::
 
     auto reorgPrim = cldnn::reorg_yolo(layerName,
                                        inputPrimitives[0],
-                                       stride,
-                                       op->get_friendly_name());
+                                       stride);
 
     p.add_primitive(*op, reorgPrim);
 }

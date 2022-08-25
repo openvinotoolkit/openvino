@@ -49,18 +49,16 @@ static void CreateCommonConvertColorOp(Program& p, const std::shared_ptr<ngraph:
                                                       from_color,
                                                       to_color,
                                                       memory_type,
-                                                      out_layout,
-                                                      op->get_friendly_name()));
+                                                      out_layout));
         }
-        p.add_primitive(*op, cldnn::concatenation(layerName, convert_color_names, 0, op->get_friendly_name()));
+        p.add_primitive(*op, cldnn::concatenation(layerName, convert_color_names, 0));
     } else {
         p.add_primitive(*op, cldnn::convert_color(layerName,
                                                   inputPrimitives,
                                                   from_color,
                                                   to_color,
                                                   memory_type,
-                                                  out_layout,
-                                                  op->get_friendly_name()));
+                                                  out_layout));
     }
 }
 

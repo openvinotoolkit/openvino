@@ -131,12 +131,7 @@ public:
                          std::map<std::string, std::pair<int64_t, int64_t>>& batch_dim);
 
     // Profiling utils
-    void InitProfileInfo(const std::string& layerName,
-                         const std::string& layerType,
-                         bool isCPU = false,
-                         InferenceEngine::InferenceEngineProfileInfo::LayerStatus status
-                         = InferenceEngine::InferenceEngineProfileInfo::EXECUTED,
-                         std::string parentId = "");
+    void init_profile_info(const cldnn::primitive& prim);
 
     // Graph construction helpers
     std::vector<cldnn::primitive_id> GetInputPrimitiveIDs(const std::shared_ptr<ngraph::Node>& op) const;
@@ -204,6 +199,12 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& node, 
 bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node);
 
 void validate_inputs_count(const std::shared_ptr<ngraph::Node>& op, std::vector<size_t> possible_inputs_count);
+
+inline bool ends_with(const std::string& value, const std::string& suffix) {
+    if (suffix.size() > value.size())
+        return false;
+    return std::equal(suffix.rbegin(), suffix.rend(), value.rbegin());
+}
 
 }  // namespace intel_gpu
 }  // namespace ov

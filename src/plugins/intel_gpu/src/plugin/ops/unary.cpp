@@ -50,7 +50,7 @@ void CreateUnaryEltwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
                           cldnn::activation_func func, cldnn::activation_additional_params params) {
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
-    auto activationPrimitive = cldnn::activation(layerName, inputs[0], func, params, op->get_friendly_name());
+    auto activationPrimitive = cldnn::activation(layerName, inputs[0], func, params);
     p.add_primitive(*op, activationPrimitive);
 }
 
@@ -89,8 +89,7 @@ static void CreatePReluOp(Program& p, const std::shared_ptr<ngraph::op::v0::PRel
         auto activationPrimitive = cldnn::activation(layerName,
                                                      inputs[0],
                                                      inputs[1],
-                                                     cldnn::activation_func::relu_negative_slope,
-                                                     op->get_friendly_name());
+                                                     cldnn::activation_func::relu_negative_slope);
         p.add_primitive(*op, activationPrimitive);
     }
 }

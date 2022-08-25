@@ -228,7 +228,7 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
         } else {
             std::memcpy(&buf[0], &data[0], bufSize);
         }
-        p.add_primitive(*op, cldnn::data(initialconstPrimID, mem, op->get_friendly_name()));
+        p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
         p.blobMemCache[std::make_pair(data, newDims)] = initialconstPrimID;
         constPrimID = initialconstPrimID;
     }

@@ -58,8 +58,7 @@ static void CreateDeformablePSROIPoolingOp(Program& p, const std::shared_ptr<ngr
                                                group_size,
                                                output_dim,
                                                spatial_bins_x,
-                                               spatial_bins_y,
-                                               op->get_friendly_name());
+                                               spatial_bins_y);
     p.add_primitive(*op, psROIPoolingPrim);
 }
 
@@ -86,8 +85,7 @@ static void CreatePSROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v
                                                spatial_scale,
                                                output_dim,
                                                spatial_bins_x,
-                                               spatial_bins_y,
-                                               op->get_friendly_name());
+                                               spatial_bins_y);
     p.add_primitive(*op, psROIPoolingPrim);
 }
 
@@ -114,8 +112,7 @@ static void CreateROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v0:
                                              spatial_scale,
                                              0,
                                              1,
-                                             1,
-                                             op->get_friendly_name());
+                                             1);
 
     p.add_primitive(*op, roiPoolingPrim);
 }

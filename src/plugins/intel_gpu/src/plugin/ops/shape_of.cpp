@@ -20,8 +20,7 @@ static void CreateShapeOfOpCommon(Program& p, const std::shared_ptr<ngraph::Node
     auto primitive = cldnn::shape_of(layerName,
                                      inputPrimitives[0],
                                      op->get_output_partial_shape(0).rank().get_length(),
-                                     DataTypeFromPrecision(op->get_output_element_type(0)),
-                                     op->get_friendly_name());
+                                     DataTypeFromPrecision(op->get_output_element_type(0)));
 
     p.add_primitive(*op, primitive);
 }

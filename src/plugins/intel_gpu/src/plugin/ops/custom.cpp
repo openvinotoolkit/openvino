@@ -148,8 +148,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
                         param.format,
                         DataTypeFromPrecision(op->get_input_element_type(param.portIndex)),
                         std::vector<float>(),
-                        cldnn::reorder_mean_mode::subtract,
-                        op->get_friendly_name());
+                        cldnn::reorder_mean_mode::subtract);
 
                     p.add_primitive(*op, preprocessPrim);
                     reorderedInputs[param.portIndex] = (reorderPrimName);
@@ -232,8 +231,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
                                                   customLayer->CompilerOptions(),
                                                   outputLayout,
                                                   gws,
-                                                  lws,
-                                                  op->get_friendly_name());
+                                                  lws);
 
     auto prevLayerName = genericLayerName;
     if (outputLayout.format != cldnn::format::any) {
@@ -244,8 +242,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
                                             cldnn::format::get_default_format(op->get_output_shape(0).size()),
                                             customPrim.output_layout.data_type,
                                             std::vector<float>(),
-                                            cldnn::reorder_mean_mode::subtract,
-                                            op->get_friendly_name()));
+                                            cldnn::reorder_mean_mode::subtract));
         prevLayerName = reorderPrimName;
     }
     p.add_primitive(*op, customPrim);

@@ -27,7 +27,7 @@ static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>&
     bool is_single_out_split = op->get_output_size() == 1;
 
     for (size_t i = 0; i < op->get_output_size(); i++) {
-        std::string outLayerName = layerName + (is_single_out_split ? "" : "." + std::to_string(i));
+        std::string outLayerName = layerName + (is_single_out_split ? "" : ".out" + std::to_string(i));
         const auto outLayerDims = op->get_output_shape(i);
         NGRAPH_SUPPRESS_DEPRECATED_START
         if (outLayerDims.size() != start_offset.size()) {
@@ -45,7 +45,7 @@ static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>&
         auto outTensor = tensor_from_dims(outLayerDims, 1);
         auto offsetTensor = tensor_from_dims(start_offset, 0);
 
-        auto cropPrim = cldnn::crop(outLayerName, inputPrimitives[0], outTensor, offsetTensor, op->get_friendly_name());
+        auto cropPrim = cldnn::crop(outLayerName, inputPrimitives[0], outTensor, offsetTensor);
         p.add_primitive(*op, cropPrim);
 
         for (size_t i = 0; i < input_shape.size(); i++) {

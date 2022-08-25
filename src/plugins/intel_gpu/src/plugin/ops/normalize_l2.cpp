@@ -46,14 +46,13 @@ static void CreateNormalizeL2Op(Program& p, const std::shared_ptr<ngraph::op::v0
 
     std::memcpy(&buf[0], scale->get_data_ptr(), bufSize);
     auto scalesName = layerName + "_cldnn_input_scales";
-    p.add_primitive(*op, cldnn::data(scalesName, mem, op->get_friendly_name()));
+    p.add_primitive(*op, cldnn::data(scalesName, mem));
 
     auto normPrim = cldnn::normalize(layerName,
                                      inputPrimitives[0],
                                      scalesName,
                                      across_spatial,
-                                     eps,
-                                     op->get_friendly_name());
+                                     eps);
 
     p.add_primitive(*op, normPrim);
 }

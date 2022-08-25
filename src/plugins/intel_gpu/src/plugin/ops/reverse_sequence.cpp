@@ -23,8 +23,7 @@ static void CreateReverseSequenceOp(Program& p, const std::shared_ptr<ngraph::op
                                                        inputPrimitives[0],
                                                        inputPrimitives[1],
                                                        seq_axis,
-                                                       batch_axis,
-                                                       op->get_friendly_name());
+                                                       batch_axis);
 
     p.add_primitive(*op, reverseSequencePrim);
 }

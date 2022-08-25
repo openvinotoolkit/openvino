@@ -68,8 +68,7 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
                                             FormatFromLayout(outputlayout),
                                             DataTypeFromPrecision(precision),
                                             std::vector<float>(),
-                                            cldnn::reorder_mean_mode::subtract,
-                                            op->get_friendly_name());
+                                            cldnn::reorder_mean_mode::subtract);
     p.add_primitive(*op, reorder_primitive, {originalOutName});
     p.outputDims[originalOutName] = outputDesc.getDims();
     p.prevPrimitiveIDs[outLayerName] = {originalOutName};

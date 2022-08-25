@@ -48,8 +48,7 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
                                                   targetFormat,
                                                   targetDatatype,
                                                   std::vector<float>(),
-                                                  cldnn::reorder_mean_mode::subtract,
-                                                  op->get_friendly_name());
+                                                  cldnn::reorder_mean_mode::subtract);
 
                 p.add_primitive(*op, reorderPrim);
 
@@ -65,7 +64,7 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
 
                 auto targetShape = tensor_from_dims(input_shape);
 
-                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, op->get_friendly_name());
+                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
 
                 p.add_primitive(*op, reshapePrim);
 
@@ -80,7 +79,6 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
                                     inputPrimitives[0],
                                     inputPrimitives[1],
                                     inputPrimitives[2],
-                                    op->get_friendly_name(),
                                     cldnn::padding(),
                                     bc_string);
 
