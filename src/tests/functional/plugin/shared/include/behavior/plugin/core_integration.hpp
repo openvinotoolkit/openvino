@@ -101,14 +101,14 @@ using IEClassSeveralDevicesTestLoadNetwork = IEClassSeveralDevicesTest;
 using IEClassSeveralDevicesTestQueryNetwork = IEClassSeveralDevicesTest;
 using IEClassSeveralDevicesTestDefaultCore = IEClassSeveralDevicesTest;
 
-bool supportsAvaliableDevices(InferenceEngine::Core &ie, const std::string &target_device) {
-    auto supportedMetricKeys = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
-    return supportedMetricKeys.end() != std::find(std::begin(supportedMetricKeys),
-                                                  std::end(supportedMetricKeys),
-                                                  METRIC_KEY(AVAILABLE_DEVICES));
+inline bool supportsAvaliableDevices(InferenceEngine::Core& ie, const std::string& target_device) {
+    auto supportedMetricKeys =
+        ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
+    return supportedMetricKeys.end() !=
+           std::find(std::begin(supportedMetricKeys), std::end(supportedMetricKeys), METRIC_KEY(AVAILABLE_DEVICES));
 }
 
-bool supportsDeviceID(InferenceEngine::Core &ie, const std::string &target_device) {
+inline bool supportsDeviceID(InferenceEngine::Core &ie, const std::string &target_device) {
     auto supportedConfigKeys = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
     return supportedConfigKeys.end() != std::find(std::begin(supportedConfigKeys),
                                                   std::end(supportedConfigKeys),
@@ -533,7 +533,15 @@ TEST_P(IEClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
 
 TEST_P(IEClassNetworkTestP, DISABLED_QueryNetworkMultiThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_THROW(ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_MULTI), InferenceEngine::Exception);
+    try {
+        ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_MULTI);
+    } catch (InferenceEngine::Exception& error) {
+        EXPECT_PRED_FORMAT2(testing::IsSubstring,
+                            std::string("KEY_MULTI_DEVICE_PRIORITIES key is not set for"),
+                            error.what());
+    } catch (...) {
+        FAIL() << "QueryNetwork failed for unexpected reson.";
+    }
 }
 
 TEST(IEClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
@@ -922,6 +930,20 @@ TEST_P(IEClassNetworkTestP, LoadNetworkActualNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork,  target_device));
+}
+
+TEST_P(IEClassNetworkTestP, LoadNetworkMultiWithoutSettingDevicePrioritiesThrows) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
+    try {
+        ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_MULTI);
+    } catch (InferenceEngine::Exception& error) {
+        EXPECT_PRED_FORMAT2(testing::IsSubstring,
+                            std::string("KEY_MULTI_DEVICE_PRIORITIES key is not set for"),
+                            error.what());
+    } catch (...) {
+        FAIL() << "LoadNetowrk failed for unexpected reson.";
+    }
 }
 
 TEST_P(IEClassNetworkTestP, LoadNetworkActualHeteroDeviceNoThrow) {
