@@ -372,9 +372,9 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
     }
 }
 
-static format get_target_output_format(const std::map<program_node*, format::type>& fmt_map, program_node *node) {
+static format get_target_output_format(layout_optimizer& lo, const std::map<program_node*, format::type>& fmt_map, program_node *node) {
     // 1. Check required_output
-    if (node->is_type<convolution>()) {
+    if (lo.get_optimization_attributes().use_onednn_impls && node->is_type<convolution>()) {
         auto &conv = node->as<convolution>();
         auto ret = conv.get_required_output();
         if (ret != format::any)
@@ -389,9 +389,9 @@ static format get_target_output_format(const std::map<program_node*, format::typ
     return node->get_output_layout().format;
 }
 
-static format get_target_input0_format(const std::map<program_node*, format::type>& fmt_map, program_node *node) {
+static format get_target_input0_format(layout_optimizer& lo, const std::map<program_node*, format::type>& fmt_map, program_node *node) {
     // 1. Check required_input
-    if (node->is_type<convolution>()) {
+    if (lo.get_optimization_attributes().use_onednn_impls && node->is_type<convolution>()) {
         auto &conv = node->as<convolution>();
         auto ret = conv.get_required_input0();
         if (ret != format::any)
@@ -427,8 +427,8 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
 
         auto in_layout = travel_direction_wrapper<dir>::first(node, next)->get_output_layout();
         auto out_layout = in_layout;
-        in_layout.format = get_target_output_format(fmt_map, travel_direction_wrapper<dir>::first(node, next));
-        auto target_input0_format = get_target_input0_format(fmt_map, travel_direction_wrapper<dir>::second(node, next));
+        in_layout.format = get_target_output_format(lo, fmt_map, travel_direction_wrapper<dir>::first(node, next));
+        auto target_input0_format = get_target_input0_format(lo, fmt_map, travel_direction_wrapper<dir>::second(node, next));
 
         // If the dimensions are different, use the original dimension. For example: bfzyx -> bfyz
         // It is to conserve the size on z-axis.
@@ -436,21 +436,14 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
             out_layout.format.dimension() == target_input0_format.dimension())
             out_layout.format = target_input0_format;
 
-        // When the input is fed into different convolutions, create separate cache entry
-        bool needs_split_reorder = false;
-        bool use_onednn_impls = lo.get_optimization_attributes().use_onednn_impls;
-        if (node->is_type<convolution>() && use_onednn_impls)
-            needs_split_reorder = lo.needs_onednn_small_ic_to_blocked(out_layout.format, in_layout, node->as<convolution>());
-        // XXX: find the pattern and simplify
-
         auto reorder_pair = rf.get_reorder(travel_direction_wrapper<dir>::first(node, next)->id(),
                                            in_layout,
-                                           out_layout, needs_split_reorder);
+                                           out_layout);
         auto reorder = reorder_pair.first;
 
         if (reorder) {
             auto& reorder_node = p.get_or_create(reorder);
-            // std::cout << __func__ << "" << node->id() << "(" << ") --> " << next->id() << "(" << "): " << reorder_node.id() << " ## " << fmt_to_str(in_layout.format) << " --> " << fmt_to_str(out_layout.format) << std::endl;
+            // XXX std::cout << __func__ << "" << node->id() << "(" << ") --> " << next->id() << "(" << "): " << reorder_node.id() << " ## " << fmt_to_str(in_layout.format) << " --> " << fmt_to_str(out_layout.format) << std::endl;
             p.add_intermediate(reorder_node,
                                *travel_direction_wrapper<dir>::second(node, next),
                                *travel_direction_wrapper<dir>::first(node, next),

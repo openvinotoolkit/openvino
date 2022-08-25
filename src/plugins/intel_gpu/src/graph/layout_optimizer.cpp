@@ -84,13 +84,11 @@ static size_t get_post_ops_count(const program_node& node) {
 
 std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
                                                                        const layout& in_layout,
-                                                                       const layout& out_layout,
-                                                                       bool needs_split_reorder
-) {
+                                                                       const layout& out_layout) {
     if (in_layout == out_layout)
         return std::make_pair(nullptr, true);
 
-    cache_key ckey{ src_id, out_layout, needs_split_reorder };
+    cache_key ckey{ src_id, out_layout };
     auto itr = _cached_reorders.find(ckey);
     if (itr != _cached_reorders.end())
         return std::make_pair(itr->second, true);

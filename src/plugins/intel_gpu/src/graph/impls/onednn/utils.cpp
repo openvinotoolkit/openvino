@@ -155,6 +155,7 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
         case dnnl::memory::format_tag::ABcde8a4b: return cldnn::format::bs_fs_zyx_bsv8_fsv4;
         case dnnl::memory::format_tag::ABcde8a2b: return cldnn::format::bs_fs_zyx_bsv8_fsv2;
         case dnnl::memory::format_tag::cdBa2b: return cldnn::format::b_fs_yx_fsv2;  // This happens axis sizes are 1. (dlens fp16)
+        case dnnl::memory::format_tag::acdeb: return cldnn::format::bzyxf;
         default: throw std::invalid_argument("[clDNN] Unsupported onednn layout");
     }
 }

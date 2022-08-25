@@ -50,8 +50,7 @@ public:
     // (no need to add it to 'ouputs' etc.) for pair.first == nullptr, pair.second == true
     std::pair<std::shared_ptr<reorder>, bool> get_reorder(primitive_id src_id,
                                                           const layout& in_layout,
-                                                          const layout& out_layout,
-                                                          bool needs_split_reorder = false);
+                                                          const layout& out_layout);
 
     std::vector<std::pair<std::shared_ptr<primitive>, bool>> get_weights_reorder(
         primitive_id input_id,
