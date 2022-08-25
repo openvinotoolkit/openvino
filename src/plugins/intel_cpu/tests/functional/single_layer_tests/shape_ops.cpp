@@ -20,7 +20,7 @@ enum class shapeNodeType {
     Unsqueeze
 };
 
-std::ostream& operator<<(std::ostream & os, shapeNodeType type) {
+inline std::ostream& operator<<(std::ostream& os, shapeNodeType type) {
     switch (type) {
         case shapeNodeType::Reshape:
             os << "Reshape";

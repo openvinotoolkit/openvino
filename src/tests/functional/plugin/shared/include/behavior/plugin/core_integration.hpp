@@ -101,14 +101,14 @@ using IEClassSeveralDevicesTestLoadNetwork = IEClassSeveralDevicesTest;
 using IEClassSeveralDevicesTestQueryNetwork = IEClassSeveralDevicesTest;
 using IEClassSeveralDevicesTestDefaultCore = IEClassSeveralDevicesTest;
 
-bool supportsAvaliableDevices(InferenceEngine::Core &ie, const std::string &target_device) {
-    auto supportedMetricKeys = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
-    return supportedMetricKeys.end() != std::find(std::begin(supportedMetricKeys),
-                                                  std::end(supportedMetricKeys),
-                                                  METRIC_KEY(AVAILABLE_DEVICES));
+inline bool supportsAvaliableDevices(InferenceEngine::Core& ie, const std::string& target_device) {
+    auto supportedMetricKeys =
+        ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
+    return supportedMetricKeys.end() !=
+           std::find(std::begin(supportedMetricKeys), std::end(supportedMetricKeys), METRIC_KEY(AVAILABLE_DEVICES));
 }
 
-bool supportsDeviceID(InferenceEngine::Core &ie, const std::string &target_device) {
+inline bool supportsDeviceID(InferenceEngine::Core &ie, const std::string &target_device) {
     auto supportedConfigKeys = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
     return supportedConfigKeys.end() != std::find(std::begin(supportedConfigKeys),
                                                   std::end(supportedConfigKeys),
