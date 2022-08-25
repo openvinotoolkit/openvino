@@ -229,7 +229,7 @@ void ov::util::iterate_files(const std::string& path,
     std::vector<std::string> files;
     std::vector<std::string> dirs;
 #ifdef _WIN32
-#   ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     std::wstring pathw = string_to_wstring(path);
     std::wstring file_match = path_join({pathw, L"*"});
     WIN32_FIND_DATAW data;
@@ -254,7 +254,7 @@ void ov::util::iterate_files(const std::string& path,
         } while (FindNextFileW(hFind, &data));
         FindClose(hFind);
     }
-#   else
+#    else
     std::string file_match = path_join({path, "*"});
     WIN32_FIND_DATAA data;
     HANDLE hFind = FindFirstFileA(file_match.c_str(), &data);
@@ -276,7 +276,7 @@ void ov::util::iterate_files(const std::string& path,
         } while (FindNextFileA(hFind, &data));
         FindClose(hFind);
     }
-#   endif
+#    endif
 #else
     iterate_files_worker(
         path,
