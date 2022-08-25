@@ -210,13 +210,13 @@ Set up the OpenVINO™ environment in order to add a module path to `PYTHONPATH`
 
 Build the Python wheel package:
 
-    cd "%OPENVINO_BASEDIR%/openvino/bindings/python"
+    cd "%OPENVINO_BASEDIR%/openvino/src/bindings/python"
     python setup.py bdist_wheel
 
 The final wheel should be located in the `bindings\python\dist` directory.
 
-    dir openvino\bindings\python\dist\
-    10/09/2020  04:06 PM         4,010,943 openvino-0.0.0.dev0-cp38-cp38-win_amd64.whl
+    dir openvino/src/bindings/python/dist/
+    10/09/2020  04:06 PM         4,010,943 openvino-0.0.0.dev0-cp<version>-cp<version>-win_amd64.whl
 
 ## Run Tests
 
@@ -230,7 +230,7 @@ You may wish to use a virutualenv for your installation.
 
 ### Install the Wheel and Other Requirements
 
-    (venv) $ cd "${OPENVINO_BASEDIR}/openvino/bindings/python"
+    (venv) $ cd "${OPENVINO_BASEDIR}/openvino/src/bindings/python"
     (venv) $ pip3 install -r requirements.txt
     (venv) $ pip3 install -r requirements_test.txt
     (venv) $ pip3 install dist/openvino-0.0.0.dev0-cp38-cp38-linux_x86_64.whl
