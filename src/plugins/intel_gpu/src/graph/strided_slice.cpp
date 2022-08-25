@@ -33,7 +33,7 @@ layout strided_slice_inst::calc_output_layout(strided_slice_node const& node, ke
 }
 
 template<typename ShapeType>
-std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node const& node, const kernel_impl_params& impl_param) {
+std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<strided_slice>();
     auto input0_layout = impl_param.get_input_layout(0);
 
@@ -63,9 +63,9 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     auto mem2 = constant_mem.at(2);
     auto mem3 = constant_mem.at(3);
 
-    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock1(mem1, node.get_program().get_stream());
-    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock2(mem2, node.get_program().get_stream());
-    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock3(mem3, node.get_program().get_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock1(mem1, impl_param.prog.get_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock2(mem2, impl_param.prog.get_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock3(mem3, impl_param.prog.get_stream());
 
     auto tensor1 = make_host_tensor(mem1->get_layout(), lock1.data());
     auto tensor2 = make_host_tensor(mem2->get_layout(), lock2.data());
