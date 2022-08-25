@@ -205,6 +205,7 @@ private:
     bool _reset_arguments;
 
     std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
+    std::vector<shared_mem_type> _in_out_shared_mem_types;
     std::vector<std::shared_ptr<primitive_inst>> _inputs;
     std::vector<std::shared_ptr<primitive_inst>> _outputs;
     std::list<std::shared_ptr<primitive_inst>> _exec_order;
