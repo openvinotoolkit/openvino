@@ -47,6 +47,40 @@ layout permute_inst::calc_output_layout(permute_node const& node, kernel_impl_pa
     return layout(input_layout.data_type, input_layout.format, output_size, op);
 }
 
+template<typename ShapeType>
+std::vector<layout> permute_inst::calc_output_layouts(permute_node const& /*node*/, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<permute>();
+    auto input_layout = impl_param.get_input_layout();
+
+    auto output_type = input_layout.data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
+    }
+
+    ShapeType input_shape = input_layout.get<ShapeType>();
+    ShapeType output_shape;
+    ov::Rank input_rank = input_shape.rank();
+
+    if (input_rank.is_dynamic()) {
+        output_shape = ShapeType::dynamic(desc->permute_order.size());
+        return { layout{output_shape, output_type, input_layout.format} };
+    }
+
+    int64_t input_static_rank = input_rank.get_length();
+    auto permute_order = desc->permute_order;
+    if (permute_order.empty()) {
+        for (int64_t i = 1; i <= input_static_rank; ++i) {
+            permute_order.emplace_back(input_static_rank - i);
+        }
+    }
+
+    for (int64_t i = 0; i < input_static_rank; ++i) {
+        output_shape.push_back(input_shape[permute_order[i]]);
+    }
+
+    return { layout{output_shape, output_type, input_layout.format, desc->output_padding} };
+}
+
 std::string permute_inst::to_string(permute_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
