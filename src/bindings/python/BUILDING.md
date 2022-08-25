@@ -134,7 +134,6 @@ pip3 install openvino-0.0.0-cp<version>-cp<version>-linux_x86_64.whl
 #### Second method - using setup.py file
 You can build the Python wheel running the following command:
 
-
 ```bash
 cd ${OV_WORKSPACE}/openvino/src/bindings/python/wheel
 python3 setup.py bdist_wheel
