@@ -4,7 +4,7 @@
 
 file(GLOB local_modules "${CMAKE_CURRENT_SOURCE_DIR}/*")
 foreach(module_path IN LISTS local_modules)
-    if(NOT IS_DIRECTORY ${module_path}) # Skip files
+    if(NOT IS_DIRECTORY ${module_path} OR NOT EXISTS "${module_path}/CMakeLists.txt") # Skip files and folders without cmake
         continue()
     endif()
     add_subdirectory(${module_path})
