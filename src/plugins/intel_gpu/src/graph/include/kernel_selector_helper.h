@@ -161,7 +161,7 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
 
     set_params(arg, params);
 
-    // TODO (taylor) : currently it is assumed that all output layouts are same. Need to deal with mulitple outputs with different layout
+    // TODO(taylor) : currently it is assumed that all output layouts are same. Need to deal with mulitple outputs with different layout
     const auto& input_node = arg.input();
     const auto& input_layout = input_node.get_output_layout(arg.input_dep_idx());
     const auto& output_layout = arg.get_output_layout(0);

@@ -889,14 +889,18 @@ void network::allocate_primitive_instance(program_node const& node) {
         return;
 
     auto inst = node.type()->create_instance(*this, node);
-#if 0 // TODO(taylor)
+
     std::function<bool(const program_node&)> is_mutable_input = [&is_mutable_input](const program_node& node) {
         for (auto& dep : node.get_dependencies()) {
-                if (dep->is_type<input_layout>() || dep->is_type<mutable_data>()) {
+                if (dep.first->is_type<input_layout>()
+#if 0 // TODO(taylor) 
+                    || dep.first->is_type<mutable_data>()
+#endif
+                ) {
                     return true;
             }
-            if (dep->can_be_optimized()) {
-                if (is_mutable_input(*dep)) {
+            if (dep.first->can_be_optimized()) {
+                if (is_mutable_input(*dep.first)) {
                     return true;
                 }
             }
@@ -907,7 +911,7 @@ void network::allocate_primitive_instance(program_node const& node) {
     if (is_mutable_input(node)) {
         inst->set_mutable_input(true);
     }
-#endif
+
     _primitives[node.id()] = inst;
     if (node.is_input())
         _inputs.push_back(inst);

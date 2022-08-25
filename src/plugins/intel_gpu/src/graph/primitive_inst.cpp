@@ -6,8 +6,9 @@
 #include "data_inst.h"
 #if 0 // TODO(taylor)
 #include "mutable_data_inst.h"
-#include "generic_layer_inst.h"
 #endif
+#include "generic_layer_inst.h"
+
 #include "input_layout_inst.h"
 #include "arg_max_min_inst.h"
 #if 0 // TODO(taylor)
@@ -343,11 +344,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
         dep_pids.insert(d.pid);
     }
 
-#if 0 // TODO(taylor)
     if (is_internal && (_node.can_be_optimized() || _node.is_type<generic_layer>())) {
-#else
-    if (is_internal && (_node.can_be_optimized())) {
-#endif
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
             GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
         }
@@ -357,13 +354,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
                 dep_pids,
                 alloc_type,
                 false);
-#if 0 // TODO(taylor)
     } else if (is_internal && _node.is_output() && _node.is_type<generic_layer>() &&
             _engine.supports_allocation(allocation_type::usm_device) && usm_device_allocatable) {
-#else
-    } else if (is_internal && _node.is_output() &&
-            _engine.supports_allocation(allocation_type::usm_device) && usm_device_allocatable) {
-#endif
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
             GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
         }

@@ -152,7 +152,7 @@ struct primitive_info {
     primitive_info(const primitive_id& original_id,
                    const std::string& type_id,
                    const std::vector<input_info>& dependencies,
-                   const std::vector<primitive_id>& users, // TODO (taylor) multiple output
+                   const std::vector<primitive_id>& users, // TODO(taylor) multiple output
                    const std::vector<primitive_id>& fused_ids,
                    const std::vector<layout>& output_layouts,
                    const std::vector<std::string>& layout_strs,

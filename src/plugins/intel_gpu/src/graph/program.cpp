@@ -318,11 +318,11 @@ bool program::analyze_output_size_handling_need() {
 // create new nodes for a program based on the set of nodes
 // method created to be used by propagate_constants to build sub program from constant nodes
 void program::prepare_nodes(std::set<std::shared_ptr<program_node>> const& nodes) {
-    //TODO
+    // TODO(taylor)
     for (const auto& itr : nodes) {
         if (itr.get()->is_type<data>()) {
             get_or_create(std::make_shared<input_layout>(itr.get()->id(),
-                                                         itr.get()->as<data>().get_primitive()->mems[0]->get_layout())); // TODO
+                                                         itr.get()->as<data>().get_primitive()->mems[0]->get_layout())); // TODO(taylor)
         } else {
             get_or_create(itr->desc);
         }
@@ -378,7 +378,7 @@ void program::add_node_dependencies(program_node* node) {
         try {
             auto dep_node = nodes_map.at(dep.pid);
             node->dependencies.push_back({dep_node.get(), dep.idx});
-            // TODO (taylor) refactor this
+            // TODO(taylor) refactor this
             dep_node->idx_users[dep.idx].push_back(node);
             dep_node->users_idx[node] = dep.idx;
             dep_node->users.push_back(node);
@@ -650,7 +650,7 @@ void program::transfer_memory_to_device() {
                         GPU_DEBUG_COUT << "[" << data_node.id() << ": constant]" << std::endl;
                     }
                     const_cast<memory::ptr&>(data_node.get_primitive()->mems[i]).reset();
-                    // TODO: Do we need finish call here? Maybe call it in network::execute() ?
+                    // TODO(taylor): Do we need finish call here? Maybe call it in network::execute() ?
                     get_stream().finish();
                 }
             }
