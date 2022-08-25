@@ -1881,6 +1881,8 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
 
     bool safe_load = conf.boundary_check == FusedOpsConfiguration::BoundaryCheck::ENABLED;
 
+    // Fsv16 Eltwise whcih requires f axis broadcast such as input[1,1,z,1,1], output[b,f,z,y,x] need to use LT unligned read.
+    // In this case, intel_sub_group_block_read() introduces increasing index in feature block.
     bool f_axis_broadcast = ((input_tensor.Feature().v != prim_output.Feature().v) && (input_tensor.Feature().v == 1) && (vec_size == 1));
     // Change JitLoad to ignore LT_ALIGNED_READ LoadType if this input tensor has a planar format(SimpleLayout)
     if (desc.GetType() == KernelType::ELTWISE && input_tensor.SimpleLayout() && input_tensor.GetLayout() != orig_output_layout &&
