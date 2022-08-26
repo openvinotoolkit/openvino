@@ -233,7 +233,7 @@ macro(ov_cpack_settings)
     set(CPACK_COMPONENT_SAMPLES_DEPENDS "core_dev")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_NAME "openvino-samples-${cpack_name_ver}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_SUGGESTS "${samples_build_deps_suggest}, ${all_plugins_suggest}")
-    set(CPACK_DEBIAN_SAMPLES_PACKAGE_DEPENDS "libgflags-dev, nlohmann-json3-dev, zlib1g-dev")
+    set(CPACK_DEBIAN_SAMPLES_PACKAGE_DEPENDS "libgflags-dev, nlohmann-json3-dev")
     # can be skipped with --no-install-recommends
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_RECOMMENDS "${samples_build_deps}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_ARCHITECTURE "all")

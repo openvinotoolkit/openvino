@@ -57,7 +57,6 @@ if [ -f /etc/lsb-release ]; then
             `# samples` \
             pkg-config \
             libgflags-dev \
-            zlib1g-dev \
             `# hddl` \
             libudev1 \
             libusb-1.0-0 \
@@ -113,7 +112,6 @@ elif [ -f /etc/redhat-release ]; then
             patchelf \
             pkg-config \
             gflags-devel.i686 \
-            zlib-devel.i686 \
             glibc-static \
             glibc-devel \
             libstdc++-static \
@@ -167,7 +165,6 @@ elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
             git \
             pkg-config \
             libgflags-dev \
-            zlib1g-dev \
             nlohmann-json-dev \
             unzip \
             libusb-1.0-0-dev

@@ -102,7 +102,7 @@ if [ "$os" == "ubuntu18.04" ] ; then
     pkgs_core=(libtbb2 libpugixml1v5)
     pkgs_opencv_req=(libgtk-3-0 libgl1)
     pkgs_python=(python3 libpython3.6 python3-venv python3-pip)
-    pkgs_dev=(cmake pkg-config libgflags-dev zlib1g-dev nlohmann-json-dev g++ gcc libc6-dev make curl sudo)
+    pkgs_dev=(cmake pkg-config libgflags-dev nlohmann-json-dev g++ gcc libc6-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_cl_compiler=(libtinfo5)
     pkgs_opencv_opt=(
@@ -124,7 +124,7 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubu
     pkgs_core=(libtbb2 libpugixml1v5)
     pkgs_opencv_req=(libgtk-3-0 libgl1)
     pkgs_python=(python3 python3-venv python3-pip)
-    pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json3-dev make curl sudo)
+    pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev nlohmann-json3-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_cl_compiler=(libtinfo5)
     pkgs_opencv_opt=(
@@ -154,7 +154,7 @@ elif [ "$os" == "rhel8" ] ; then
     pkgs_core=(libtbb2 libpugixml1v5)
     pkgs_opencv_req=(gtk3)
     pkgs_python=(python38 python38-pip)
-    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config zlib-devel.i686 curl sudo)
+    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config curl sudo)
     pkgs_myriad=()
     pkgs_opencv_opt=(
         https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libcdio-2.0.0-3.el8.x86_64.rpm

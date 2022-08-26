@@ -120,27 +120,6 @@ if(NOT TARGET gflags)
     endif()
 endif()
 
-if(NOT TARGET zlib::zlib)
-    if(NOT CMAKE_CROSSCOMPILING)
-        find_host_package(PkgConfig QUIET)
-        if(PkgConfig_FOUND)
-            pkg_search_module(zlib QUIET
-                              IMPORTED_TARGET
-                              zlib)
-            if(zlib_FOUND)
-                set_target_properties(PkgConfig::zlib PROPERTIES IMPORTED_GLOBAL ON)
-                add_library(zlib::zlib ALIAS PkgConfig::zlib)
-            endif()
-        endif()
-    endif()
-
-    if(zlib_FOUND)
-        message(STATUS "zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
-    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib")
-        add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
-    endif()
-endif()
-
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy")
     add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
 endif()
