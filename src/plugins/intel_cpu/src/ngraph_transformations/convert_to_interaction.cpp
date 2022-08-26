@@ -44,15 +44,6 @@ ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
         auto concat_node = pattern_map.at(concat_m).get_node_shared_ptr();
         auto dense_feature_node = concat_node->input_value(0).get_node_shared_ptr();
         auto final_concat_node = pattern_map.at(final_concat_m).get_node_shared_ptr();
-        auto get_consumers = [](std::shared_ptr<Node>& node) {
-            auto inputs = node->output(0).get_target_inputs();
-            std::vector<std::shared_ptr<Node>> consumers;
-            for (auto& input : inputs) {
-                consumers.push_back(input.get_node()->shared_from_this());
-            }
-            return consumers;
-        };
-
         std::vector<std::shared_ptr<Node>> features_node;
 
         for (size_t i = 0; i < features_m.size(); i++) {
