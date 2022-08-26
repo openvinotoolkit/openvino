@@ -42,7 +42,7 @@ size_t jit_convert_emitter::get_inputs_num() const { return 1; }
 
 void jit_convert_emitter::emit_data() const {
     jit_emitter::emit_data();
-    if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core) && !!emu_vcvtneps2bf16)
+    if (emu_vcvtneps2bf16)
         emu_vcvtneps2bf16->emit_data();
 }
 
@@ -94,7 +94,9 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t> &in_vec_
 
     // For Truncation behavior we can just move data from src to dst if we want convert i8 -> u8 or u8 -> i8
     if ((input_type == output_type) || is_i8_and_u8_case()) {
-        h->uni_vmovups(vmm_dst, vmm_src);
+        if (vmm_src != vmm_dst) {
+            h->uni_vmovups(vmm_dst, vmm_src);
+        }
         return;
     }
 

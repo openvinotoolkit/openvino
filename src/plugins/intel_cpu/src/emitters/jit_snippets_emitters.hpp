@@ -11,8 +11,6 @@
 #include "jit_emitter.hpp"
 #include "jit_load_store_emitters.hpp"
 
-#include "snippets_transformations/op/store_convert.hpp"
-
 using namespace Xbyak;
 using ngraph::snippets::AllocatedEmitter;
 

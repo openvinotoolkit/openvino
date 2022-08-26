@@ -13,8 +13,7 @@ namespace pass {
 
 /**
  * @interface FuseLoadConvert
- * @brief Fuse Load and ConvertSaturation into one op LoadConvertSaturation
- *        Fuse Load and ConvertTruncation into one op LoadConvertTruncation
+ * @brief Fuse Load and ConvertSaturation/ConvertTruncation into one op LoadConvert with the corresponding mode
  * @ingroup snippets
  */
 class FuseLoadConvert: public ngraph::pass::MatcherPass {
@@ -25,8 +24,7 @@ public:
 
 /**
  * @interface FuseStoreConvert
- * @brief Fuse Store and ConvertSaturation into one op StoreConvertSaturation
- *        Fuse Store and ConvertTruncation into one op StoreConvertTruncation
+ * @brief Fuse Store and ConvertSaturation/ConvertTruncation into one op StoreConvert with the corresponding mode
  * @ingroup snippets
  */
 class FuseStoreConvert: public ngraph::pass::MatcherPass {

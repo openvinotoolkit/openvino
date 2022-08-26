@@ -7,6 +7,7 @@
 #include <cpu/x64/jit_generator.hpp>
 
 #include "jit_snippets_emitters.hpp"
+#include "snippets_transformations/op/load_store_convert.hpp"
 
 using namespace Xbyak;
 
@@ -412,8 +413,7 @@ void BroadcastMoveEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << host_isa_;
-        assert(!"unsupported isa");
+        IE_THROW() << "BroadcastMove emitter doesn't support " << host_isa_;
     }
 }
 
@@ -457,8 +457,7 @@ void ScalarEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << host_isa_;
-        assert(!"unsupported isa");
+        IE_THROW() << "Scalar emitter doesn't support " << host_isa_;
     }
 }
 
@@ -499,8 +498,7 @@ void StoreEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << host_isa_;
-        assert(!"unsupported isa");
+        IE_THROW() << "Store emitter doesn't support " << host_isa_;
     }
 }
 
@@ -539,8 +537,7 @@ void LoadEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << host_isa_;
-        assert(!"unsupported isa");
+        IE_THROW() << "Load emitter doesn't support " << host_isa_;
     }
 }
 
@@ -577,8 +574,7 @@ void BroadcastLoadEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << host_isa_;
-        assert(!"unsupported isa");
+        IE_THROW() << "BroadcastLoad emitter doesn't support " << host_isa_;
     }
 }
 
@@ -601,9 +597,6 @@ void BroadcastLoadEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
 
 LoadConvertEmitter::LoadConvertEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n) {
-    if (n->get_output_element_type(0) != ov::element::f32)
-        IE_THROW() << "LoadConvertEmitter supports only f32 output type but gets: " << n->get_output_element_type(0);
-
     count = ov::as_type_ptr<ngraph::snippets::op::Load>(n)->get_count();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
     load_emitter.reset(new jit_load_emitter(h, isa, src_prc, dst_prc, count));
@@ -621,8 +614,7 @@ void LoadConvertEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << host_isa_;
-        assert(!"unsupported isa");
+        IE_THROW() << "LoadConvert emitter doesn't support " << host_isa_;
     }
 }
 
@@ -639,17 +631,11 @@ void LoadConvertEmitter::emit_data() const {
 
 StoreConvertEmitter::StoreConvertEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                                          const std::shared_ptr<ov::Node>& n) : MemoryEmitter(h, isa, n) {
-    if (n->get_input_element_type(0) != ov::element::f32)
-        IE_THROW() << "StoreConvertEmitter supports only f32 input type but gets: " << n->get_input_element_type(0);
-
     count = ov::as_type_ptr<ngraph::snippets::op::Store>(n)->get_count();
     in_out_type_ = emitter_in_out_map::vec_to_gpr;
 
-    if (ov::is_type<ov::intel_cpu::StoreConvertTruncation>(n)) {
-        store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count, arithmetic_mode::truncation));
-    } else if (ov::is_type<ov::intel_cpu::StoreConvertSaturation>(n)) {
-        store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count, arithmetic_mode::saturation));
-    }
+    const auto mode = ov::as_type_ptr<ov::intel_cpu::StoreConvert>(n)->get_arithmetic_mode();
+    store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count, mode));
 }
 
 void StoreConvertEmitter::emit_impl(const std::vector<size_t>& in,
@@ -664,8 +650,7 @@ void StoreConvertEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << host_isa_;
-        assert(!"unsupported isa");
+        IE_THROW() << "StoreConvert emitter doesn't support " << host_isa_;
     }
 }
 
