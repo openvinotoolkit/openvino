@@ -151,7 +151,7 @@ void snippets::op::Subgraph::fill_empty_output_names(const Output<Node>& target_
 ///             * None: all inputs have the same layout
 ///             * Planar + blocked: some inputs have blocked, and some have planar layouts, e.g. <N, C, H, W, c> + <N, C, H, W>
 ///         Also there is precision aligning inside body of subgraph during canonicalization
-Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes, const ov::element::Type exec_type) {
+Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::canonicalize")
     NODE_VALIDATION_CHECK(this, inputShapes.size() == m_body->get_parameters().size(),
@@ -243,15 +243,17 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
 
     // We should insert Converts after Parameters and Constant and before Results
     // to align precision inside Subgraph body that is supported by Plugin
-    align_element_types(outputShapes, inputShapes, exec_type);
+    align_element_types(outputShapes, inputShapes);
 
     exec_domain = outPShape.get_shape();
     return exec_domain;
 }
 
 void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outputShapes,
-                                                 const BlockedShapeVector& inputShapes,
-                                                 const ov::element::Type exec_type) {
+                                                 const BlockedShapeVector& inputShapes) {
+    // TODO: At the moment snippets support execution in only one element type
+    const auto execution_element_type = ov::element::f32;
+
     ngraph::pass::Manager p_manager;
     p_manager.register_pass<snippets::pass::TransformConvertToConvertTruncation>();
     p_manager.run_passes(m_body);
@@ -269,7 +271,7 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
         }
         if (auto existing_convert_t = ngraph::as_type_ptr<ngraph::snippets::op::ConvertTruncation>(first_convert)) {
             const auto original_input_element_type = existing_convert_t->get_input_element_type(0);
-            if (original_input_element_type != exec_type) {
+            if (original_input_element_type != execution_element_type) {
                 const auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
                         existing_convert_t->get_input_node_shared_ptr(0), original_input_element_type);
                 existing_convert_t->set_argument(0, convert);
@@ -289,8 +291,8 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
     //        element type of Scalars before inference
     //      - eliminate redundant Convert that could have been inserted
     ngraph::pass::Manager manager;
-    manager.register_pass<snippets::pass::InsertConvertOnInputs>(exec_type);
-    manager.register_pass<snippets::pass::ResetTypeRelaxedNodePrecision>(exec_type);
+    manager.register_pass<snippets::pass::InsertConvertOnInputs>(execution_element_type);
+    manager.register_pass<snippets::pass::ResetTypeRelaxedNodePrecision>(execution_element_type);
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::EliminateConvert>();
     manager.run_passes(m_body);
@@ -342,18 +344,16 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
 
 snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes,
                                                     const BlockedShapeVector& input_shapes,
-                                                    const ov::element::Type exec_type,
                                                     const void* compile_params) {
-    canonicalize(output_shapes, input_shapes, exec_type);
+    canonicalize(output_shapes, input_shapes);
     return generate(compile_params);
 }
 
 snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes,
                                                     const BlockedShapeVector& input_shapes,
                                                     ngraph::pass::Manager& opt,
-                                                    const ov::element::Type exec_type,
                                                     const void* compile_params) {
-    canonicalize(output_shapes, input_shapes, exec_type);
+    canonicalize(output_shapes, input_shapes);
     return generate(opt, compile_params);
 }
 

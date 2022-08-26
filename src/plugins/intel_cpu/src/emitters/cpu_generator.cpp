@@ -142,7 +142,3 @@ code ov::intel_cpu::CPUTargetMachine::get_snippet() const {
 
 ov::intel_cpu::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa_) : Generator(std::make_shared<CPUTargetMachine>(isa_)) {
 }
-
-ov::element::Type ov::intel_cpu::CPUGenerator::CPUGenerator::get_supported_exec_precision() const {
-    return ov::element::f32;
-}

@@ -300,8 +300,7 @@ void Snippet::define_schedule() {
     for (size_t i = 0; i < outputShapes.size(); i++)
         output_blocked_shapes.push_back(edgeToBlockedShape(getChildEdgesAtPort(i)[0]));
 
-    const auto supported_exec_type = snippet->get_generator()->get_supported_exec_precision();
-    exec_domain = snippet->canonicalize(output_blocked_shapes, input_blocked_shapes, supported_exec_type);
+    exec_domain = snippet->canonicalize(output_blocked_shapes, input_blocked_shapes);
 
     // initialize by maximum output dimension. Dimensions of outputs should be broadcastable
     tensorRank = std::max(static_cast<size_t>(rank6D), exec_domain.size());

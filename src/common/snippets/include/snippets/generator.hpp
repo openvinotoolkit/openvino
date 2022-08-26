@@ -125,12 +125,6 @@ public:
      */
     std::shared_ptr<const TargetMachine> get_target_machine() const { return target; }
 
-    /**
-     * @brief gets supported element type for execution
-     * @return element type
-     */
-    virtual element::Type get_supported_exec_precision() const = 0;
-
 protected:
     std::shared_ptr<TargetMachine> target;
 };
