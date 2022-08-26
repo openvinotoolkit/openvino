@@ -59,7 +59,7 @@ class StatisticGraphBuilder:
                     add_output_node, op_name = getattr(self, f'insert_{type_stat}')(model_graph,
                                                                                     node,
                                                                                     type_stat,
-                                                                                    node_name,
+                                                                                    node_name, # name with port
                                                                                     **stat.kwargs)
                     if add_output_node:
                         if node_name not in nodes_names_map[model_graph.name] and model_graph == node.graph:
@@ -110,7 +110,7 @@ class StatisticGraphBuilder:
         if out_port is not None:
             node_name = f'{node_name[0]}.{out_port}'
         reduce_op = create_op_node_with_second_input(node.graph, insert_op, int64_array(axis_const),
-                                                     dict(name=f'{type_stat}_{node_name}'))
+                                                     dict(name=f'{type_stat}_{node_name.split("|")[-1]}'))
         reduce_op['fullname'] = reset_node_fullname(node.fullname, reduce_op.name)
         if node.graph != model_graph:
             Op.create_data_node(reduce_op.graph, reduce_op, {'shape': [1]})
@@ -142,10 +142,10 @@ class StatisticGraphBuilder:
         out_port = self.get_out_port(node_name)
         if out_port is not None:
             node_name = f'{node_name[0]}.{out_port}'
-        abs_node = Abs(node.graph, {"name": f'abs_{node_name}'}). \
+        abs_node = Abs(node.graph, {"name": f'abs_{node_name.split("|")[-1]}'}). \
                     create_node_with_data([node.out_node(out_port if out_port else 0)]).in_node(0)
         max_op = create_op_node_with_second_input(node.graph, ReduceMax, int64_array(axis_const),
-                                                  dict(name=f'{type_stat}_{node_name}'))
+                                                  dict(name=f'{type_stat}_{node_name.split("|")[-1]}'))
 
         if node.graph != model_graph:
             Op.create_data_node(max_op.graph, max_op, {'shape': [1]})
