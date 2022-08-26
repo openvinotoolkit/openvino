@@ -18,7 +18,7 @@ using namespace ov::opset9;
 
 ov::Input<ov::Node> get_outer_input_of_ti_by_parameter(const shared_ptr<Parameter>& parameter,
                                                        const shared_ptr<TensorIterator>& ti) {
-    const auto& body = ti->get_body(); // body is not nullptr -- we checked earlier
+    const auto& body = ti->get_body();  // body is not nullptr -- we checked earlier
     int64_t parameter_index = ti->get_body()->get_parameter_index(parameter);
     for (const auto& input_descriptor : ti->get_input_descriptions())
         if (input_descriptor->m_body_parameter_index == parameter_index)
