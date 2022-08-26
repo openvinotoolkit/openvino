@@ -55,6 +55,7 @@ OP_CONVERTER(logical_or);
 OP_CONVERTER(logical_xor);
 OP_CONVERTER(matmul);
 OP_CONVERTER(matmul_v2);
+OP_CONVERTER(mul);
 OP_CONVERTER(matrix_nms);
 OP_CONVERTER(meshgrid);
 OP_CONVERTER(multiclass_nms);
@@ -151,6 +152,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"max_pool2d_with_index", op::pool2d},
             {"matrix_nms", op::matrix_nms},
             {"meshgrid", op::meshgrid},
+            {"mul", op::mul},
             {"multiclass_nms3", op::multiclass_nms},
             {"nearest_interp_v2", op::nearest_interp_v2},
             {"nearest_interp", op::nearest_interp_v2},
