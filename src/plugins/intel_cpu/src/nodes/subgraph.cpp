@@ -100,7 +100,13 @@ void Snippet::initSupportedPrimitiveDescriptors() {
     // Todo: Snippets currently don't support per-channel broadcasting of Blocked descriptors because
     //  canonicalization can't distinguish between <N, C, H, W, c> and <N, C, D, H, W> cases.
     //  See snippets::op::Subgraph::canonicalize for details.
-    const bool isBlockedApplicable = dnnl::impl::utils::one_of(ndims,  4, 5) && dimRanksAreEqual;
+    bool isBlockedApplicable = dnnl::impl::utils::one_of(ndims,  4, 5) && dimRanksAreEqual;
+
+    for (const auto& inShape : inputShapes) {
+        if (isDynamic && inShape.getRank() != 1)
+            isBlockedApplicable = isBlockedApplicable && inShape.getMinDims()[1] != Shape::UNDEFINED_DIM && inShape.getMinDims()[1] > 1;
+    }
+
     enum LayoutType {
         Planar,
         ChannelsFirst,
