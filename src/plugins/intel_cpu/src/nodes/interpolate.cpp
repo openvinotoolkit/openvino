@@ -1377,7 +1377,6 @@ private:
         int sizeOW = jcp_.OW * diaOW;
 
         bool save_weights = false;
-        int blk_size = getBlockSize(isa);
         if (jcp_.C > vector_step) {
             int diaTotal = diaOW;
             if (jcp_.spatial_dim_size > 1) {
@@ -4079,10 +4078,6 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t *in_
     float ax = antialias ? fx : 1.0f;
     float ay = antialias ? fy : 1.0f;
     float az = antialias ? fz : 1.0f;
-
-    int rx = (fx > 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / ax));
-    int ry = (fy > 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / ay));
-    int rz = (fz > 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / az));
 
     int diaOD = static_cast<int>(std::ceil(2 / az));
     int diaOH = static_cast<int>(std::ceil(2 / ay));
