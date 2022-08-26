@@ -17,6 +17,34 @@ void BinderMultiSchedule::init(const ScheduleContext::Ptr& sContext) {
 BinderMultiSchedule::~BinderMultiSchedule() {
 }
 
+Pipeline BinderMultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInferRequest** workerInferRequest) {
+    Pipeline pipeline;
+    struct RequestExecutor : ITaskExecutor {
+        explicit RequestExecutor(InferenceEngine::SoIInferRequestInternal& inferRequest) : _inferRequest(inferRequest) {
+            _inferRequest->SetCallback([this](std::exception_ptr exceptionPtr) mutable {
+                _exceptionPtr = exceptionPtr;
+                auto capturedTask = std::move(_task);
+                capturedTask();
+            });
+        }
+        void run(InferenceEngine::Task task) override {
+            _task = std::move(task);
+            _inferRequest->StartAsync();
+        };
+        InferenceEngine::SoIInferRequestInternal& _inferRequest;
+        std::exception_ptr _exceptionPtr;
+        InferenceEngine::Task _task;
+    };
+    auto requestExecutor =
+        std::make_shared<RequestExecutor>(std::static_pointer_cast<MultiDeviceInferRequest>(syncInferRequest)->GetSharedRequest());
+    pipeline.emplace_back(requestExecutor, [requestExecutor] {
+        if (nullptr != requestExecutor->_exceptionPtr) {
+            std::rethrow_exception(requestExecutor->_exceptionPtr);
+        }
+    });
+    return pipeline;
+}
+
 IInferPtr BinderMultiSchedule::CreateInferRequestImpl(
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {

@@ -22,6 +22,7 @@ public:
     IE::IInferRequestInternal::Ptr CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                                           const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
     void init(const ScheduleContext::Ptr& sContext) override;
+    Pipeline GetPipeline(const IInferPtr& syncRequestImpl, WorkerInferRequest** WorkerInferRequest) override;
     virtual ~BinderMultiSchedule();
 };
 }  // namespace MultiDevicePlugin
