@@ -139,3 +139,6 @@ NGRAPH_OP(IRDFT, op::v9)
 NGRAPH_OP(ROIAlign, op::v9)
 NGRAPH_OP(SoftSign, op::v9)
 NGRAPH_OP(MulticlassNms, op::v9)
+
+NGRAPH_OP(AUGRUCell, ov::op::internal)
+NGRAPH_OP(AUGRUSequence, ov::op::internal)
