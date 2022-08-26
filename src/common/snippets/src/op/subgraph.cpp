@@ -336,24 +336,28 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     const size_t count = m_generator->get_target_machine()->get_lanes();
     const auto & params = m_body->get_parameters();
 
-    bool inputs_has_dynamic_dims = std::any_of(params.begin(), params.end(),
-                                          [](const shared_ptr<ngraph::op::Parameter>& p){
-                                                 return p->get_output_partial_shape(0).is_dynamic();
-                                             });
+    bool inputs_has_dynamic_last_dims = std::any_of(params.begin(), params.end(),
+                                                    [](const shared_ptr<ngraph::op::Parameter>& p){
+                                                        return p->get_partial_shape().rbegin()->is_dynamic();
+                                                    });
     ngraph::pass::Manager manager;
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
     manager.register_pass<snippets::pass::InsertLoad>(count);
     manager.register_pass<snippets::pass::InsertStore>(count);
     // todo: presently dynamic pipeline is activated even if the last two dimension are static
-    //  In general, we can use static kernels in this case, but several parameters (src and dst memory pointers for ex)
+    //  In general, we can use static kernels in this case, but several parameters (src and dst memory pointers for example)
     //  should be passed as run-time args, so it's a mixed regime: kernel is shape-aware, but some additional runtime args are required
-    if (!inputs_has_dynamic_dims) {
+    // Presently Broadcasting is organized in the following way:
+    // * ALL last dims are static => broadcasting is handled via MoveBroadcast and pointer arithmetics (even for dynamic upper dims)
+    // * AT LEAST ONE one dim is dynamic => broadcasting is handled dynamically inside the TileScheduler based on runtime
+    //   info, since we can't tell if the `1` dim should be broadcasted beforehand
+    if (!inputs_has_dynamic_last_dims) {
         manager.register_pass<snippets::pass::InsertMoveBroadcast>();
         manager.register_pass<snippets::pass::LoadMoveBroadcastToBroadcastLoad>();
         // Note that, BrodacastMove is typically inserted right after the Load. Such cases are typical for
         // simple subgraphs where one of the ngraph::op's inputs is broadcasted to match the larger one. However, BroadcastMove
-        // could also be inserted after the ngraph::op, if the op input don't need broadcasting, but the the output does
+        // could also be inserted after the ngraph::op, if the op input don't need broadcasting, but the output does
         // (for example, to match the larger output of a child node). In such cases, Loads (and Stores) should be replaced
         // with ScalarLoads (ScalarStores) to avoid invalid read in vector Tile. Graph example:
         // Parameter_0    Parameter_1        Parameter_2
