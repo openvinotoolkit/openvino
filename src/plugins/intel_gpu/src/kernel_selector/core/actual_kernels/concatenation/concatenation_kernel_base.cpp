@@ -93,7 +93,6 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
     KernelData kd = KernelData::Default<concatenation_params>(params, orgParams.inputs.size());
 
     uint32_t lastOffset = 0;
-    const auto concatChannelIndex = GetConcatChannelIndex(orgParams);
     size_t ifm_offset = 0;
     for (size_t i = 0; i < orgParams.inputs.size(); i++) {
         const auto& input = orgParams.inputs[i];
@@ -122,7 +121,7 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
         s.v.u32 = lastOffset;
         kernel.params.scalars.push_back(s);
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
-
+        auto concatChannelIndex = DataTensor::Channelndex(orgParams.inputs[i].GetLayout(), GetConcatChannel(orgParams));
         lastOffset += (uint32_t)input.GetDims()[concatChannelIndex].v;
     }
 

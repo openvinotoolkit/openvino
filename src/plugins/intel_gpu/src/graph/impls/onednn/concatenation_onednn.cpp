@@ -83,6 +83,11 @@ attach_concatenation_onednn::attach_concatenation_onednn() {
         std::make_tuple(data_types::u8, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),
 
+        std::make_tuple(data_types::f32, format::byxf),
+        std::make_tuple(data_types::f16, format::byxf),
+        std::make_tuple(data_types::u8, format::byxf),
+        std::make_tuple(data_types::i8, format::byxf),
+
         std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),

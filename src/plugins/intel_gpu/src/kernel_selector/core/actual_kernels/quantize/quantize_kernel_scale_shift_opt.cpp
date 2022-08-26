@@ -63,7 +63,8 @@ CommonDispatchData QuantizeKernelScaleShift::SetDefault(const quantize_params& p
         dispatchData.lws[2] = params.engineInfo.maxWorkGroupSize / feature_size;
     } else {
         dispatchData.gws = GetTensorFriendlyWorkGroups(output);
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+        auto out_layout = params.outputs[0].GetLayout();
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, out_layout, out_layout);
     }
 
     return dispatchData;
