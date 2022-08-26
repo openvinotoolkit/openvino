@@ -92,8 +92,6 @@ def rename_ov_lib(files_to_rename: list, lib_dir: Path):
     for pair in files_to_rename:
         current_lib_path = os.path.join(lib_dir, pair[0])
         new_lib_path = os.path.join(lib_dir, pair[1])
-        logging.info('Renaming library from {} to {}'.format(current_lib_path, new_lib_path))
-        if os.path.exists(new_lib_path):
-            logging.info("One of the lib is already renamed: {}".format(new_lib_path))
-            continue
-        os.replace(current_lib_path, new_lib_path)
+        if os.path.exists(current_lib_path):
+            logging.info('Renaming library from {} to {}'.format(current_lib_path, new_lib_path))
+            os.replace(current_lib_path, new_lib_path)
