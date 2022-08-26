@@ -40,10 +40,8 @@ ov::op::PadType ov::frontend::tensorflow::convert_tf_padding(const ov::frontend:
     auto op_type = node.get_op_type();
 
     TENSORFLOW_OP_VALIDATION(node,
-                             op_type == "Conv2D" || op_type == "Conv2DBackpropInput" || op_type == "Conv3D" ||
-                                 op_type == "Conv3DBackpropInputV2" || op_type == "MaxPool" || op_type == "MaxPoolV2" ||
-                                 op_type == "MaxPool3D",
-                             "The convert_conv_tf_padding routine supports only convolutional operations.");
+                             supported_ops.count(op_type),
+                             "Conversion of padding mode for " + op_type + " is not supported.");
     TENSORFLOW_OP_VALIDATION(
         node,
         tf_padding == "VALID" || tf_padding == "SAME" || tf_padding == "EXPLICIT",
