@@ -14,6 +14,7 @@
 #include <sstream>
 #include <utils/onnx_internal.hpp>
 
+#include "legacy_op_extension.hpp"
 #include "onnx_common/onnx_model_validator.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "ops_bridge.hpp"
@@ -165,5 +166,10 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_extensions.conversions.push_back(onnx_conv_ext);
     } else if (auto progress_reporter = std::dynamic_pointer_cast<ProgressReporterExtension>(extension)) {
         m_extensions.progress_reporter = progress_reporter;
+    } else if (const auto& legacy_ext = std::dynamic_pointer_cast<ov::LegacyOpExtension>(extension)) {
+        m_other_extensions.push_back(legacy_ext);
+        std::call_once(has_legacy_extension, [this] {
+            m_extensions.conversions.push_back(ngraph::onnx_import::detail::get_legacy_conversion_extension());
+        });
     }
 }
