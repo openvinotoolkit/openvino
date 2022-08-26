@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-find_package(Git REQUIRED)
+if(ENABLE_DATA)
+    find_package(Git REQUIRED)
+endif()
 
 set(MODELS_LST "")
 set(MODELS_LST_TO_FETCH "")
