@@ -2,30 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-
-#include "openvino/pass/manager.hpp"
-#include "openvino/op/util/sub_graph_base.hpp"
-#include "openvino/opsets/opset9.hpp"
-#include "transformations/utils/utils.hpp"
 #include "transformations/smart_reshape/lstm_states_broadcast.hpp"
+
+#include <memory>
 
 #include "dimension_tracker.hpp"
 #include "itt.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/opsets/opset9.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace std;
 using namespace ov::opset9;
 
 ov::Input<ov::Node> get_outer_input_of_ti_by_parameter(const shared_ptr<Parameter>& parameter,
                                                        const shared_ptr<TensorIterator>& ti) {
-    const auto& body = ti->get_body();
-    OPENVINO_ASSERT(body != nullptr, "TI returns invalid body graph ", ti);
+    const auto& body = ti->get_body(); // body is not nullptr -- we checked earlier
     int64_t parameter_index = ti->get_body()->get_parameter_index(parameter);
-    OPENVINO_ASSERT(parameter_index >= 0,
-                    "LSTMStatesBroadcast encountered unregistered parameter ",
-                    parameter,
-                    " related to TI body ",
-                    ti);
     for (const auto& input_descriptor : ti->get_input_descriptions())
         if (input_descriptor->m_body_parameter_index == parameter_index)
             return ti->input(input_descriptor->m_input_index);
@@ -35,11 +29,9 @@ ov::Input<ov::Node> get_outer_input_of_ti_by_parameter(const shared_ptr<Paramete
                          parameter);
 }
 
-shared_ptr<ov::Node> deduce_outer_source_of_batch_for_inner_lstm_cell(
-    const shared_ptr<TensorIterator>& ti,
-    const shared_ptr<LSTMCell>& lstm_cell) {
-    const auto& body = ti->get_body();
-    OPENVINO_ASSERT(body != nullptr, "TI returns invalid body graph ", ti);
+shared_ptr<ov::Node> deduce_outer_source_of_batch_for_inner_lstm_cell(const shared_ptr<TensorIterator>& ti,
+                                                                      const shared_ptr<LSTMCell>& lstm_cell) {
+    const auto& body = ti->get_body();  // body is not nullptr -- we checked earlier
 
     map<Parameter*, ov::PartialShape> original_shapes;
     size_t label = 1;
@@ -51,8 +43,6 @@ shared_ptr<ov::Node> deduce_outer_source_of_batch_for_inner_lstm_cell(
         if (pshape.rank().is_dynamic())
             continue;
         for (ov::Dimension& n : pshape) {
-            OPENVINO_ASSERT(ov::DimensionTracker::get_label(n) == 0,
-                            "LSTMStatesBroadcast encountered TI with previously tracked dimensions");
             n = ov::Dimension::dynamic();
             ov::DimensionTracker::set_label(n, label++);
         }
@@ -99,20 +89,17 @@ shared_ptr<ov::Node> deduce_outer_source_of_batch_for_inner_lstm_cell(
 
     const auto& batched_source = get_outer_input_of_ti_by_parameter(batch_delivering_parameter, ti);
     const auto& batched_shape = make_shared<ShapeOf>(batched_source.get_source_output());
-    const auto& batch = make_shared<Gather>(
-        batched_shape,
-        Constant::create(ov::element::i64, ov::Shape{1}, {index_of_batch_dim}),
-        Constant::create(ov::element::i64, ov::Shape{}, {0}));
+    const auto& batch = make_shared<Gather>(batched_shape,
+                                            Constant::create(ov::element::i64, ov::Shape{1}, {index_of_batch_dim}),
+                                            Constant::create(ov::element::i64, ov::Shape{}, {0}));
     return batch;
 }
 
 bool broadcast_state_by_batch(ov::Input<ov::Node> input, const shared_ptr<ov::Node>& batch_delivering_node) {
-    auto constant_state=
-            dynamic_pointer_cast<Constant>(input.get_source_output().get_node_shared_ptr());
+    auto constant_state = dynamic_pointer_cast<Constant>(input.get_source_output().get_node_shared_ptr());
     if (constant_state == nullptr)
         return false;
     const auto& constant_shape = constant_state->get_shape();
-    OPENVINO_ASSERT(constant_shape.size() == 2, "State has unexpected shape ", constant_shape);
     if (constant_shape[0] != 1)
         // we only expect to broadcast LSTM states prepared for batch 1 -- no tiling of batch > 1 will be done
         return false;
@@ -120,13 +107,12 @@ bool broadcast_state_by_batch(ov::Input<ov::Node> input, const shared_ptr<ov::No
     const auto& constant_copy = constant_state->copy_with_new_inputs({});
     const auto& broadcast_by_batch = make_shared<Broadcast>(
         constant_copy,
-        make_shared<Concat>(
-            ngraph::NodeVector{batch_delivering_node,
-                               ngraph::op::util::make_try_fold<Gather>(
-                                   ngraph::op::util::make_try_fold<ShapeOf>(constant_copy),
-                                   Constant::create(ov::element::i64, ov::Shape{1}, {1}),
-                                   Constant::create(ov::element::i64, ov::Shape{}, {0}))},
-            0));
+        make_shared<Concat>(ngraph::NodeVector{batch_delivering_node,
+                                               ngraph::op::util::make_try_fold<Gather>(
+                                                   ngraph::op::util::make_try_fold<ShapeOf>(constant_copy),
+                                                   Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+                                                   Constant::create(ov::element::i64, ov::Shape{}, {0}))},
+                            0));
     input.replace_source_output(broadcast_by_batch->output(0));
     return true;
 }
@@ -137,13 +123,11 @@ bool relax_batch_for_initial_states_of_lstm_in_ti(const shared_ptr<TensorIterato
     auto batch_delivering_node = deduce_outer_source_of_batch_for_inner_lstm_cell(ti, lstm_cell);
     if (batch_delivering_node == nullptr)
         return rewritten;
-    if (auto init_hidden_state =
-            dynamic_pointer_cast<Parameter>(lstm_cell->get_input_node_shared_ptr(1))) {
+    if (auto init_hidden_state = dynamic_pointer_cast<Parameter>(lstm_cell->get_input_node_shared_ptr(1))) {
         auto outer_init_hidden_state_input = get_outer_input_of_ti_by_parameter(init_hidden_state, ti);
         rewritten |= broadcast_state_by_batch(outer_init_hidden_state_input, batch_delivering_node);
     }
-    if (auto init_cell_state =
-            dynamic_pointer_cast<Parameter>(lstm_cell->get_input_node_shared_ptr(2))) {
+    if (auto init_cell_state = dynamic_pointer_cast<Parameter>(lstm_cell->get_input_node_shared_ptr(2))) {
         auto outer_init_cell_state_input = get_outer_input_of_ti_by_parameter(init_cell_state, ti);
         rewritten |= broadcast_state_by_batch(outer_init_cell_state_input, batch_delivering_node);
     }
@@ -153,10 +137,9 @@ bool relax_batch_for_initial_states_of_lstm_in_ti(const shared_ptr<TensorIterato
 bool relax_batch_for_initial_states_of_lstm(const shared_ptr<LSTMCell>& lstm_cell) {
     bool rewritten = false;
     const auto& batched_shape = make_shared<ShapeOf>(lstm_cell->get_input_source_output(0));
-    const auto& batch_delivering_node =
-        make_shared<Gather>(batched_shape,
-                                             Constant::create(ov::element::i64, ov::Shape{1}, {0}),
-                                             Constant::create(ov::element::i64, ov::Shape{}, {0}));
+    const auto& batch_delivering_node = make_shared<Gather>(batched_shape,
+                                                            Constant::create(ov::element::i64, ov::Shape{1}, {0}),
+                                                            Constant::create(ov::element::i64, ov::Shape{}, {0}));
     rewritten |= broadcast_state_by_batch(lstm_cell->input(1), batch_delivering_node);
     rewritten |= broadcast_state_by_batch(lstm_cell->input(2), batch_delivering_node);
     return rewritten;
@@ -178,7 +161,8 @@ bool ov::pass::LSTMStatesBroadcast::run_on_model(const shared_ptr<ov::Model>& f)
         // Case with TI (LSTMCell and Constant are in different ov::Model objects)
         if (auto ti = dynamic_pointer_cast<TensorIterator>(node)) {
             auto body = ti->get_body();
-            OPENVINO_ASSERT(body, "TensorIterator must have body network");
+            if (body == nullptr)
+                continue;
             for (const auto& body_node : body->get_ordered_ops())
                 if (const auto& lstm_cell = dynamic_pointer_cast<LSTMCell>(body_node))
                     rewritten |= relax_batch_for_initial_states_of_lstm_in_ti(ti, lstm_cell);
