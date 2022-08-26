@@ -19,38 +19,50 @@ primitive_type_id convolution::type_id() {
     return &instance;
 }
 
-static format get_recommended_format(layout input_layout, data_types output_type) {
+static format get_recommended_format(layout input_layout, data_types output_type, int output_feature, uint32_t groups) {
+    bool is_dw = input_layout.feature() == static_cast<int>(groups) && output_feature == static_cast<int>(groups);
+    int ofm_per_group = output_feature / groups;
+    if (groups > 1 &&
+        ((is_dw && ((data_type_traits::is_i8_u8(output_type) && output_feature < 32) ||
+                   (data_type_traits::is_floating_point(input_layout.data_type) && output_feature < 16))) ||
+         (!is_dw && ((ofm_per_group % 32 != 0))))) {
+        return input_layout.format.spatial_num() == 2 ? format::byxf : format::bzyxf;
+    }
     if (data_type_traits::is_i8_u8(output_type)) {
+        if (output_feature <= 16)
+            return input_layout.format.spatial_num() == 2 ? format::byxf : format::bzyxf;
         switch (input_layout.format) {
             case format::b_fs_yx_fsv16:         return format::b_fs_yx_fsv32;
             case format::bs_fs_yx_bsv32_fsv16:  return format::bs_fs_yx_bsv32_fsv32;
             case format::b_fs_zyx_fsv16:        return format::b_fs_zyx_fsv32;
             case format::bs_fs_zyx_bsv32_fsv16: return format::bs_fs_zyx_bsv32_fsv32;
-            case format::b_fs_yx_fsv2:
-            case format::b_fs_yx_fsv4:          return format::b_fs_yx_fsv32;
-            case format::b_fs_zyx_fsv2:
-            case format::b_fs_zyx_fsv4:         return format::b_fs_zyx_fsv32;
-            case format::bs_fs_yx_bsv8_fsv2:
-            case format::bs_fs_yx_bsv8_fsv4:    return input_layout.batch() > 16 ? format::bs_fs_yx_bsv32_fsv32 : format::b_fs_yx_fsv32;
-            case format::bs_fs_zyx_bsv8_fsv2:
-            case format::bs_fs_zyx_bsv8_fsv4:   return input_layout.batch() > 16 ? format::bs_fs_zyx_bsv32_fsv32 : format::b_fs_zyx_fsv32;
+            case format::byxf:                  return input_layout.batch() > 16 ? format::bs_fs_yx_bsv32_fsv32 : format::b_fs_yx_fsv32;
+            case format::bzyxf:                 return input_layout.batch() > 16 ? format::bs_fs_zyx_bsv32_fsv32 : format::b_fs_zyx_fsv32;
             default:
                 break;
         }
     } else if (data_type_traits::is_floating_point(output_type)) {
+        if ((output_feature <= 8 && output_type == data_types::f16)|| (output_feature <= 4 && output_type == data_types::f32))
+            return input_layout.format.spatial_num() == 2 ? format::byxf : format::bzyxf;
         switch (input_layout.format) {
             case format::b_fs_yx_fsv32:         return format::b_fs_yx_fsv16;
-            case format::bs_fs_yx_bsv32_fsv32:  return format::bs_fs_yx_bsv32_fsv16;
+            case format::bs_fs_yx_bsv32_fsv32:  return output_type == data_types::f16 ? format::bs_fs_yx_bsv32_fsv16 : format::bs_fs_yx_bsv16_fsv16;
             case format::b_fs_zyx_fsv32:        return format::b_fs_zyx_fsv16;
-            case format::bs_fs_zyx_bsv32_fsv32: return format::bs_fs_zyx_bsv32_fsv16;
-            case format::b_fs_yx_fsv2:
-            case format::b_fs_yx_fsv4:          return format::b_fs_yx_fsv16;
-            case format::b_fs_zyx_fsv2:
-            case format::b_fs_zyx_fsv4:         return format::b_fs_zyx_fsv16;
-            case format::bs_fs_yx_bsv8_fsv2:
-            case format::bs_fs_yx_bsv8_fsv4:    return input_layout.batch() > 16 ? format::bs_fs_yx_bsv32_fsv16 : format::b_fs_yx_fsv16;
-            case format::bs_fs_zyx_bsv8_fsv2:
-            case format::bs_fs_zyx_bsv8_fsv4:   return input_layout.batch() > 16 ? format::bs_fs_zyx_bsv32_fsv16 : format::b_fs_zyx_fsv16;
+            case format::bs_fs_zyx_bsv32_fsv32: return output_type == data_types::f16 ? format::bs_fs_zyx_bsv32_fsv16 : format::bs_fs_zyx_bsv16_fsv16;
+            case format::bs_fs_yx_bsv32_fsv16:  return output_type == data_types::f16 ? format::bs_fs_yx_bsv32_fsv16 : format::bs_fs_yx_bsv16_fsv16;
+            case format::bs_fs_zyx_bsv32_fsv16: return output_type == data_types::f16 ? format::bs_fs_zyx_bsv32_fsv16 : format::bs_fs_zyx_bsv16_fsv16;
+            case format::byxf: {
+                if (input_layout.batch() > 16)
+                    return output_type == data_types::f16 ? format::bs_fs_yx_bsv32_fsv16 : format::bs_fs_yx_bsv16_fsv16;
+                else
+                    return format::b_fs_yx_fsv16;
+            }
+            case format::bzyxf: {
+                if (input_layout.batch() > 16)
+                    return output_type == data_types::f16 ? format::bs_fs_zyx_bsv32_fsv16 : format::bs_fs_zyx_bsv16_fsv16;
+                else
+                    return format::b_fs_zyx_fsv16;
+            }
             default:
                 break;
         }
@@ -212,10 +224,10 @@ layout convolution_inst::calc_output_layout(convolution_node const& node, kernel
                       input_layout.data_padding};
     }
 
-    // Adjust output format for mixed precision case in onednn
+    // Adjust output format for shallow conv and mixed precision cases in onednn
     auto out_fmt = input_layout.format;
     if (node.get_preferred_impl_type() == impl_types::onednn) {
-        format recommended_fmt = get_recommended_format(input_layout, output_type);
+        format recommended_fmt = get_recommended_format(input_layout, output_type, desc->output_size.feature[0], desc->groups);
         if (recommended_fmt != format::any)
             out_fmt = recommended_fmt;
     }

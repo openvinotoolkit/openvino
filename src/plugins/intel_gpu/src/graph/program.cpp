@@ -1335,6 +1335,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t total_1x1_fm_conv_layers = 0;
     size_t total_grouped_conv_layers = 0;
     size_t opt_deconv_layers_b_fs_zyx_fsv16 = 0;
+    size_t opt_deconv_layers_b_fs_yx_fsv16 = 0;
     size_t total_crop_layers = 0;
 
     for (auto& node : get_processing_order()) {
@@ -1370,6 +1371,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         if (prim.type() == cldnn::deconvolution::type_id()) {
             if (lo.is_format_optimized(prim.as<deconvolution>(), format::b_fs_zyx_fsv16))
                 opt_deconv_layers_b_fs_zyx_fsv16 += 1;
+            else if (lo.is_format_supported(prim.as<deconvolution>(), format::b_fs_yx_fsv16))
+                opt_deconv_layers_b_fs_yx_fsv16 += 1;
         }
 
         // list of layers that do not support yxfb or perform worse than bfyx
@@ -1456,6 +1459,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     // Due to fact that single winograd convolution is faster than b_fs_yx_fsv16 and
     // using them together leads do redundant reorders, whole topology switch
     // will be performed if at least half of layers can use b_fs_yx_fsv16.
+    // b_fs_yx_fsv16 deconv is faster than bfyx deconv with winograd convolution together,
+    // whole topology switch will be perform if at lease one layer can use b_fs_yx_fsv16.
     // Crop layers are poorly optimized in fsv16 layout so whole topology stays in bfyx
     // if there are many crops (2x more then b_fs_yx_fsv16 convolutions)
     const float cond_denom = total_conv_layers > 0 ? 1.0f / static_cast<float>(total_conv_layers) : 1.0f;
@@ -1464,7 +1469,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     bool should_use_b_fs_yx_fsv16_conv = is_quantized_int8_model ||
                                          (can_use_fsv16 &&
                                           total_conv_layers > 11 &&
-                                          num_of_conv_b_fs_yx_fsv16 * cond_denom > 0.5f &&
+                                          (num_of_conv_b_fs_yx_fsv16 * cond_denom > 0.5f || opt_deconv_layers_b_fs_yx_fsv16 >= 1) &&
                                           num_of_conv_b_fs_yx_fsv16 * 2 > total_crop_layers);
 
     bool should_use_fs_b_yx_fsv32_conv = total_conv_layers > 11 &&

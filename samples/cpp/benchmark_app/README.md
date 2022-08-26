@@ -164,7 +164,7 @@ Options:
     -pcseq                    Optional. Report latencies for each shape in -data_shape sequence.
     -dump_config              Optional. Path to JSON file to dump IE parameters, which were set by application.
     -load_config              Optional. Path to JSON file to load custom IE parameters. Please note, command line parameters have higher priority then parameters from configuration file.
-    -infer_precision "<element type>"Optional. Inference precission
+    -infer_precision "<element type>"Optional. Inference precision
     -ip                          <value>     Optional. Specifies precision for all input layers of the network.
     -op                          <value>     Optional. Specifies precision for all output layers of the network.
     -iop                        "<value>"    Optional. Specifies precision for input and output layers by name.
