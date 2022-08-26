@@ -233,12 +233,12 @@ static constexpr char inference_only_message[] =
 // @brief message for load property option
 static const char load_property_message[] =
     "Optional. Path to JSON file to load custom property for OpenVINO runtime API 2.0."
-    " Please note, command line parameters have higher priority then parameters from configuration "
+    " Please note, command line parameters have higher priority than parameters from configuration "
     "file.";
 
 // @brief message for dump property option
 static const char dump_property_message[] =
-    "Optional. Path to JSON file to dump property for OpenVINO runtime API 2.0, which were set by application.";
+    "Optional. Path to JSON file to dump property for OpenVINO runtime API 2.0, which are set by application.";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
