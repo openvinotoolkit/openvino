@@ -254,7 +254,6 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
                                                  const ov::element::Type exec_type) {
     ngraph::pass::Manager p_manager;
     p_manager.register_pass<snippets::pass::TransformConvertToConvertTruncation>();
-    p_manager.register_pass<snippets::pass::InsertConvertOnInputs>(exec_type);
     p_manager.run_passes(m_body);
 
     const auto& body_results = m_body->get_results();
@@ -262,8 +261,13 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
         const auto needed_out_type = std::get<2>(outputShapes[i]);
 
         // If there is real Convert from graph (ConvertTruncation) before Result
-        // we should check destination type and insert ConvertSaturation before that if needed
-        if (auto existing_convert_t = ngraph::as_type_ptr<ngraph::snippets::op::ConvertTruncation>(body_results[i]->get_input_node_shared_ptr(0))) {
+        // we should check destination type and insert ConvertSaturation before that if needed.
+        // For example, to return original element type after Convert insertion on inputs
+        std::shared_ptr<ov::Node> first_convert = body_results[i];
+        while (ov::is_type<ngraph::snippets::op::ConvertTruncation>(first_convert->get_input_node_ptr(0))) {
+            first_convert = first_convert->get_input_node_shared_ptr(0);
+        }
+        if (auto existing_convert_t = ngraph::as_type_ptr<ngraph::snippets::op::ConvertTruncation>(first_convert)) {
             const auto original_input_element_type = existing_convert_t->get_input_element_type(0);
             if (original_input_element_type != exec_type) {
                 const auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
@@ -279,11 +283,13 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
     }
 
     // After Convert insertion we should make the following steps:
+    //      - insert ConvertSaturation after inputs and scalar to start aligning of exec data type inside body
     //      - manually set output element types of type relaxed nodes to align element type inside subgraph body
     //      - after Convert insertion on inputs and after scalars we should use ConstantFolding pass to convert
     //        element type of Scalars before inference
     //      - eliminate redundant Convert that could have been inserted
     ngraph::pass::Manager manager;
+    manager.register_pass<snippets::pass::InsertConvertOnInputs>(exec_type);
     manager.register_pass<snippets::pass::ResetTypeRelaxedNodePrecision>(exec_type);
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::EliminateConvert>();

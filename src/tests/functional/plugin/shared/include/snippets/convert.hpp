@@ -56,6 +56,21 @@ protected:
     void SetUp() override;
 };
 
+class ConvertManyOnInputs : public ConvertInput {
+protected:
+    void SetUp() override;
+};
+
+class ConvertManyOnOutputs : public ConvertInput {
+protected:
+    void SetUp() override;
+};
+
+class ConvertManyOnInputOutput : public ConvertInput {
+protected:
+    void SetUp() override;
+};
+
 } // namespace snippets
 } // namespace test
 } // namespace ov

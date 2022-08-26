@@ -156,6 +156,36 @@ void ConvertPartialInputsAndResults::SetUp() {
     function = f.getOriginal();
 }
 
+void ConvertManyOnInputs::SetUp() {
+    std::vector<ov::Shape> inputShape;
+    std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
+    std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    init_input_shapes(static_shapes_to_test_representation(inputShape));
+
+    auto f = ov::test::snippets::ConvertManyOnInputsFunction(inputShape, types.first);
+    function = f.getOriginal();
+}
+
+void ConvertManyOnOutputs::SetUp() {
+    std::vector<ov::Shape> inputShape;
+    std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
+    std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    init_input_shapes(static_shapes_to_test_representation(inputShape));
+
+    auto f = ov::test::snippets::ConvertManyOnOutputsFunction(inputShape, types.first);
+    function = f.getOriginal();
+}
+
+void ConvertManyOnInputOutput::SetUp() {
+    std::vector<ov::Shape> inputShape;
+    std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
+    std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    init_input_shapes(static_shapes_to_test_representation(inputShape));
+
+    auto f = ov::test::snippets::ConvertManyOnInputOutputFunction(inputShape, types.first, types.second);
+    function = f.getOriginal();
+}
+
 TEST_P(Convert, CompareWithRefImpl) {
     run();
     validateNumSubgraphs();
@@ -177,6 +207,21 @@ TEST_P(ConvertStub, CompareWithRefImpl) {
 }
 
 TEST_P(ConvertPartialInputsAndResults, CompareWithRefImpl) {
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(ConvertManyOnInputs, CompareWithRefImpl) {
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(ConvertManyOnOutputs, CompareWithRefImpl) {
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(ConvertManyOnInputOutput, CompareWithRefImpl) {
     run();
     validateNumSubgraphs();
 }

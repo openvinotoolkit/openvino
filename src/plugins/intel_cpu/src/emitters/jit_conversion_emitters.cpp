@@ -263,7 +263,6 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t> &in_vec_
                 dword2int8<isa>({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())}, output_type.is_signed());
             }
             break;
-            break;
         default:
             assert(!"unsupported output data type");
     }

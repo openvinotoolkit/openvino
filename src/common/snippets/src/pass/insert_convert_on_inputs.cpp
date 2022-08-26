@@ -16,22 +16,30 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 
-
-bool insertConvertSaturationAfterNode(const std::shared_ptr<ngraph::Node>& node, const ov::element::Type element_type) {
+// We should recursivelly (after full sequences of ConvertTruncation) go through inputs and
+// insert ConvertSaturation with supported element type before eltwises
+// NOTE: JUST EXAMPLE:
+//                             Parameter I8
+//                        ConvertTruncation U8
+//                  /              |               \
+// ConvertTruncation F32  ConvertTruncation I32  ConvertTruncation BF16
+//      Eltwise           ConvertSaturation FP32 ConvertTruncation I32
+//        <>                    Eltwise          ConvertSaturation FP32
+//                                 <>                    Eltwise
+bool insertConvertSaturationAfterNode(const std::shared_ptr<ov::Node>& node, const ov::element::Type element_type) {
     bool rewritten = false;
     for (const auto& output : node->outputs()) {
         for (auto consumer : output.get_target_inputs()) {
-            // If after node there is ConvertTruncation we should insert ConvertSaturation after that
-            if (auto existing_convert_t = ngraph::as_type_ptr<ngraph::snippets::op::ConvertTruncation>(consumer.get_node()->shared_from_this())) {
-                if (existing_convert_t->get_destination_type() != element_type) {
-                    rewritten = insertConvertSaturationAfterNode(existing_convert_t, element_type);
-                }
+            const auto output_shared_node = consumer.get_node()->shared_from_this();
+            // Go down through ConvertTruncation sequence
+            if (auto existing_convert_t = ov::as_type_ptr<ngraph::snippets::op::ConvertTruncation>(output_shared_node)) {
+                rewritten = insertConvertSaturationAfterNode(existing_convert_t, element_type);
                 continue;
             }
 
-            auto existing_convert_s = ngraph::as_type_ptr<ngraph::snippets::op::ConvertSaturation>(consumer.get_node()->shared_from_this());
-            if ((!existing_convert_s && !ov::is_type<ngraph::op::v0::Result>(consumer.get_node()->shared_from_this()) &&
-                    consumer.get_element_type() != element_type) ||
+            // Check if ConvertSaturation already exists with supported element type or not and insert ConvertSaturation with supported element type
+            auto existing_convert_s = ov::as_type_ptr<ngraph::snippets::op::ConvertSaturation>(output_shared_node);
+            if ((!existing_convert_s && !ov::is_type<ov::op::v0::Result>(output_shared_node) && consumer.get_element_type() != element_type) ||
                 (existing_convert_s && existing_convert_s->get_destination_type() != element_type)) {
                 const auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(node, element_type);
                 consumer.replace_source_output(convert);

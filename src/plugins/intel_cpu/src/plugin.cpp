@@ -601,7 +601,6 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
     postLPTPassManager.register_pass<ngraph::pass::ConstantFolding>();
     postLPTPassManager.run_passes(nGraphFunc);
-
     if (!useLpt && _enableSnippets && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
         ngraph::pass::Manager tokenization_manager;
         tokenization_manager.register_pass<SnippetsMarkSkipped>();

@@ -148,6 +148,94 @@ std::shared_ptr<ov::Model> ConvertPartialInputsAndResultsFunction::initReference
     return std::make_shared<ov::Model>(OutputVector{subgraph->output(1), stub3->output(0)},
                                        ParameterVector{data0, data1, data2});
 }
+
+std::shared_ptr<ov::Model> ConvertManyOnInputsFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(types[0], input_shapes[0]);
+    auto stub0 = createRollAsStub(data0);
+    std::shared_ptr<ov::Node> out = stub0;
+    for (auto i = 1; i < types.size(); i++) {
+        auto convert = std::make_shared<op::v0::Convert>(out, types[i]);
+        out = convert;
+    }
+    auto relu = std::make_shared<op::v0::Relu>(out);
+    return std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{data0});
+}
+std::shared_ptr<ov::Model> ConvertManyOnInputsFunction::initReference() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(types[0], input_shapes[0]);
+    auto stub0 = createRollAsStub(data0);
+    auto indata0 = std::make_shared<op::v0::Parameter>(types[0], stub0->get_shape());
+    std::shared_ptr<ov::Node> out = indata0;
+    for (auto i = 1; i < types.size(); i++) {
+        auto convert = std::make_shared<ngraph::snippets::op::ConvertTruncation>(out, types[i]);
+        out = convert;
+    }
+    auto relu = std::make_shared<op::v0::Relu>(out);
+    auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{stub0},
+        std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{indata0}));
+    return std::make_shared<ov::Model>(NodeVector{subgraph}, ParameterVector{data0});
+}
+
+std::shared_ptr<ov::Model> ConvertManyOnOutputsFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(types[0], input_shapes[0]);
+    auto stub0 = std::make_shared<ov::op::v0::Sinh>(data0);
+    auto relu = std::make_shared<op::v0::Relu>(stub0);
+    std::shared_ptr<ov::Node> out = relu;
+    for (auto i = 1; i < types.size(); i++) {
+        auto convert = std::make_shared<op::v0::Convert>(out, types[i]);
+        out = convert;
+    }
+    return std::make_shared<ov::Model>(NodeVector{out}, ParameterVector{data0});
+}
+std::shared_ptr<ov::Model> ConvertManyOnOutputsFunction::initReference() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(types[0], input_shapes[0]);
+    auto stub0 = std::make_shared<ov::op::v0::Sinh>(data0);
+    auto indata0 = std::make_shared<op::v0::Parameter>(types[0], stub0->get_shape());
+    auto relu = std::make_shared<op::v0::Relu>(indata0);
+    std::shared_ptr<ov::Node> out = relu;
+    for (auto i = 1; i < types.size(); i++) {
+        auto convert = std::make_shared<ngraph::snippets::op::ConvertTruncation>(out, types[i]);
+        out = convert;
+    }
+    auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{stub0},
+        std::make_shared<ov::Model>(NodeVector{out}, ParameterVector{indata0}));
+    return std::make_shared<ov::Model>(NodeVector{subgraph}, ParameterVector{data0});
+}
+
+std::shared_ptr<ov::Model> ConvertManyOnInputOutputFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(inTypes[0], input_shapes[0]);
+    auto stub0 = std::make_shared<ov::op::v0::Sinh>(data0);
+    std::shared_ptr<ov::Node> out = stub0;
+    for (auto i = 1; i < inTypes.size(); i++) {
+        auto convert = std::make_shared<op::v0::Convert>(out, inTypes[i]);
+        out = convert;
+    }
+    auto relu = std::make_shared<op::v0::Relu>(stub0);
+    out = relu;
+    for (auto i = 0; i < outTypes.size(); i++) {
+        auto convert = std::make_shared<op::v0::Convert>(out, outTypes[i]);
+        out = convert;
+    }
+    return std::make_shared<ov::Model>(NodeVector{out}, ParameterVector{data0});
+}
+std::shared_ptr<ov::Model> ConvertManyOnInputOutputFunction::initReference() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(inTypes[0], input_shapes[0]);
+    auto stub0 = std::make_shared<ov::op::v0::Sinh>(data0);
+    auto indata0 = std::make_shared<op::v0::Parameter>(inTypes[0], stub0->get_shape());
+    std::shared_ptr<ov::Node> out = indata0;
+    for (auto i = 1; i < inTypes.size(); i++) {
+        auto convert = std::make_shared<op::v0::Convert>(out, inTypes[i]);
+        out = convert;
+    }
+    auto relu = std::make_shared<op::v0::Relu>(stub0);
+    out = relu;
+    for (auto i = 0; i < outTypes.size(); i++) {
+        auto convert = std::make_shared<op::v0::Convert>(out, outTypes[i]);
+        out = convert;
+    }
+    auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{stub0},
+        std::make_shared<ov::Model>(NodeVector{out}, ParameterVector{indata0}));
+    return std::make_shared<ov::Model>(NodeVector{subgraph}, ParameterVector{data0});
+}
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov
