@@ -38,7 +38,7 @@ public:
     ///
     /// \tparam T  Node type.
     ///
-    /// \param node  Node to add
+    /// \param node  Node to add.
     ///
     /// \return Shared pointer to new node added of type T.
     template <typename T>
@@ -47,10 +47,23 @@ public:
         return node;
     }
 
+    /// \brief Add generic node to register.
+    ///
+    /// \note This specialization is required To prevent LTO optimization (remove) template methods from this class
+    /// on Ubuntu 20.
+    ///
+    /// \param node Node to add.
+    ///
+    /// \return Shared pointer to new generic node added.
+    std::shared_ptr<Node> add(const std::shared_ptr<Node>& node) {
+        m_nodes.push_back(node);
+        return node;
+    }
+
     /// \brief Get nodes container.
     ///
     /// \return Const reference to nodes container.
-    const std::vector<std::shared_ptr<ov::Node>>& get() const {
+    const std::vector<std::shared_ptr<Node>>& get() const {
         return m_nodes;
     }
 
