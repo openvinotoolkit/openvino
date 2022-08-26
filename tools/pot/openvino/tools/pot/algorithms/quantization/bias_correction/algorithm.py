@@ -347,6 +347,7 @@ class BiasCorrection(Algorithm):
 
         if model_copy.is_cascade:
             ref_stats_layout = {add_name: {'mean_per_channel': TensorStatisticAxis(asf.mean_per_channel_axis,
+                                                                                   graph_depth=op_output_name.count('|'),
                                                                                    channel=self._channel_axis)}}
             self._engine.set_model(model_copy)
             _, q_outputs = self._engine.predict(ref_stats_layout, self._sampler)
@@ -434,6 +435,7 @@ class BiasCorrection(Algorithm):
                 {'mean_per_channel': TensorStatisticAxis(granularity='perchannel',
                                                          type='mean',
                                                          inplace_statistics=self.config['inplace_statistics'],
+                                                         graph_depth=op_output_name.count('|'),
                                                          channel=self._channel_axis)}
             statistics_layout[add_node_name]["shape"] = TensorStatistic(func=lambda x, **kwargs: x.shape,
                                                                         shape_for_inference=True)
