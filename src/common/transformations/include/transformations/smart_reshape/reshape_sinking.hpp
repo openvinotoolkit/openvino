@@ -5,16 +5,17 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
 #include <vector>
+#include "openvino/pass/graph_rewrite.hpp"
+#include "transformations_visibility.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
-class NGRAPH_API ReshapeSinkingMatMul;
+class TRANSFORMATIONS_API ReshapeSinkingMatMul;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -24,7 +25,7 @@ class NGRAPH_API ReshapeSinkingMatMul;
  * Reshape operators to make batch propagate through freely
  */
 
-class ngraph::pass::ReshapeSinkingMatMul : public ngraph::pass::MatcherPass {
+class ov::pass::ReshapeSinkingMatMul : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ReshapeSinkingMatMul", "0");
     ReshapeSinkingMatMul();
