@@ -67,6 +67,8 @@
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/op_conversions/convert_negative.hpp>
 #include <transformations/op_conversions/convert_scatter_elements_to_scatter.hpp>
+#include <transformations/smart_reshape/lstm_states_broadcast.hpp>
+#include <transformations/smart_reshape/reshape_sinking.hpp>
 
 bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     // To avoid issues with dynamism we make nGraph Function dynamic and after we apply all
@@ -111,6 +113,13 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     // dynamism, so we have to execute type/shape propagation after.
     manager.register_pass<ngraph::pass::FuseFilteringBoxesBySize>();
     manager.register_pass<ngraph::pass::Validate>();
+
+    if (!m_use_shapes) {  // Approved Smart Reshape
+        manager.register_pass<ngraph::pass::LSTMStatesBroadcast>();
+        manager.register_pass<ngraph::pass::Validate>();
+        manager.register_pass<ngraph::pass::ReshapeSinkingMatMul>();
+        manager.register_pass<ngraph::pass::Validate>();
+    }
 
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ngraph::pass::SimplifyShapeOfSubGraph>();

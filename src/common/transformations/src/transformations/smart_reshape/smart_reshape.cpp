@@ -6,9 +6,10 @@
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/smart_reshape/broadcast_const_range_replacement.hpp>
+#include <transformations/smart_reshape/lstm_states_broadcast.hpp>
 #include <transformations/smart_reshape/matmul_sr.hpp>
-#include <transformations/smart_reshape/mimic_set_batch_size.hpp>
 #include <transformations/smart_reshape/proposal_scales_stridedslice.hpp>
+#include <transformations/smart_reshape/reshape_sinking.hpp>
 #include <transformations/smart_reshape/reshape_to_1D.hpp>
 #include <transformations/smart_reshape/smart_reshape.hpp>
 #include <transformations/smart_reshape/strided_slice_squeeze.hpp>
@@ -30,6 +31,8 @@ bool ngraph::pass::SmartReshape::run_on_model(const std::shared_ptr<ngraph::Func
     static_manager.register_pass<ngraph::pass::ReshapeTo1D>();
     static_manager.register_pass<ngraph::pass::TransposeMatMul>();
     static_manager.register_pass<ngraph::pass::BroadcastConstRangeReplacement>();
+    static_manager.register_pass<ngraph::pass::LSTMStatesBroadcast>();
+    static_manager.register_pass<ngraph::pass::ReshapeSinkingMatMul>();
     static_manager.run_passes(f);
 
     ngraph::pass::Manager dynamic_manager;
