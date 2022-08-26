@@ -243,7 +243,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
         p.AddPrimitive(
             cldnn::reorder(reorderPrimName,
                            genericLayerName,
-                           DefaultFormatForDims(op->get_output_shape(0).size()),
+                           cldnn::format::get_default_format(op->get_output_shape(0).size()),
                            customPrim.output_layout.data_type,
                            std::vector<float>(),
                            cldnn::reorder_mean_mode::subtract,

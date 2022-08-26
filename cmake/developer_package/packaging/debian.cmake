@@ -16,19 +16,21 @@ macro(ov_debian_cpack_set_dirs)
     set(OV_CPACK_LIBRARYDIR ${CMAKE_INSTALL_LIBDIR})
     set(OV_CPACK_RUNTIMEDIR ${CMAKE_INSTALL_LIBDIR})
     set(OV_CPACK_ARCHIVEDIR ${CMAKE_INSTALL_LIBDIR})
-    set(OV_CPACK_PLUGINSDIR ${CMAKE_INSTALL_LIBDIR}/openvino${OpenVINO_VERSION})
+    set(OV_CPACK_PLUGINSDIR ${CMAKE_INSTALL_LIBDIR}/openvino-${OpenVINO_VERSION})
     set(OV_CPACK_IE_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/inferenceengine${OpenVINO_VERSION})
     set(OV_CPACK_NGRAPH_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/ngraph${OpenVINO_VERSION})
     set(OV_CPACK_OPENVINO_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/openvino${OpenVINO_VERSION})
-    set(OV_CPACK_DOCDIR ${CMAKE_INSTALL_DATADIR}/doc/openvino${OpenVINO_VERSION})
+    set(OV_CPACK_DOCDIR ${CMAKE_INSTALL_DATADIR}/doc/openvino-${OpenVINO_VERSION})
 
     # non-native stuff
     set(OV_CPACK_PYTHONDIR ${OV_CPACK_PLUGINSDIR})
-    set(OV_CPACK_SHAREDIR ${CMAKE_INSTALL_DATADIR}/openvino${OpenVINO_VERSION}) # internal
+    set(OV_CPACK_SHAREDIR ${CMAKE_INSTALL_DATADIR}/openvino) # internal
     set(OV_CPACK_SAMPLESDIR ${OV_CPACK_SHAREDIR}/samples)
     set(OV_CPACK_DEVREQDIR ${OV_CPACK_SHAREDIR})
+    unset(OV_CPACK_SHAREDIR)
 
-    set(OV_CPACK_WHEELSDIR .) # TODO
+    # skipped during debian packaging
+    set(OV_CPACK_WHEELSDIR "tools")
 
     # for BW compatibility
     set(IE_CPACK_LIBRARY_PATH ${OV_CPACK_LIBRARYDIR})
@@ -49,19 +51,16 @@ macro(ov_override_component_names)
     set(OV_CPACK_COMP_CORE_C "${OV_CPACK_COMP_CORE}")
     set(OV_CPACK_COMP_CORE_C_DEV "${OV_CPACK_COMP_CORE_DEV}")
     # merge all pythons into a single component
-    set(OV_CPACK_COMP_PYTHON_OPENVINO "python")
+    set(OV_CPACK_COMP_PYTHON_OPENVINO "pyopenvino")
     set(OV_CPACK_COMP_PYTHON_IE_API "${OV_CPACK_COMP_PYTHON_OPENVINO}")
     set(OV_CPACK_COMP_PYTHON_NGRAPH "${OV_CPACK_COMP_PYTHON_OPENVINO}")
     # merge all C / C++ samples as a single samples component
     set(OV_CPACK_COMP_CPP_SAMPLES "samples")
     set(OV_CPACK_COMP_C_SAMPLES "${OV_CPACK_COMP_CPP_SAMPLES}")
-    # set(OV_CPACK_COMP_PYTHON_SAMPLES "${OV_CPACK_COMP_CPP_SAMPLES}")
     # move requirements.txt to core-dev
     set(OV_CPACK_COMP_DEV_REQ_FILES "${OV_CPACK_COMP_CORE_DEV}")
     # move core_tools to core-dev
     set(OV_CPACK_COMP_CORE_TOOLS "${OV_CPACK_COMP_CORE_DEV}")
-    # move licensing to core
-    set(OV_CPACK_COMP_LICENSING "${OV_CPACK_COMP_CORE}")
 endmacro()
 
 ov_override_component_names()
@@ -88,12 +87,17 @@ macro(ov_debian_specific_settings)
 
     # WA: dpkg-shlibdeps requires folder with libraries
     # proper way is to use -l (path to libs) and -L (path to shlibs) for other already installed components
-    # but it require CMake source code changes
+    # but it requires CMake source code changes
     # with current WA automatic deps detection via dpkg-shlibdeps for "our libraries"
     # is ignored; but dependencies between our components are here because of
     # CPACK_COMPONENT_<UCOMP>_DEPENDS variables
     # More proper WA is try to enable INSTALL_RPATH
-    set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+
+    if(DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
+        set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+    else()
+        message(FATAL_ERROR "CMAKE_LIBRARY_OUTPUT_DIRECTORY is empty")
+    endif()
 
     # automatic dependencies discovering between openvino and user packages
     set(CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS ON)
@@ -103,6 +107,8 @@ macro(ov_debian_specific_settings)
     set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
     # need to update this version once we rebuild the same package with additional fixes
     # set(CPACK_DEBIAN_PACKAGE_RELEASE "1")
+    # enable this if someday we change the version scheme
+    # set(CPACK_DEBIAN_PACKAGE_EPOCH "2")
 endmacro()
 
 ov_debian_specific_settings()
@@ -208,25 +214,25 @@ endfunction()
 # ov_debian_generate_conflicts(<comp name>)
 #
 function(ov_debian_generate_conflicts comp)
-    set(versions ${ARGN})
+    set(cpack_name_versions ${ARGN})
     string(TOUPPER "${comp}" ucomp)
 
     # sanity check
     if(NOT DEFINED CPACK_DEBIAN_${ucomp}_PACKAGE_NAME)
         message(FATAL_ERROR "CPACK_DEBIAN_${ucomp}_PACKAGE_NAME is not defined")
     else()
-        if(NOT DEFINED CPACK_PACKAGE_VERSION)
-            message(FATAL_ERROR "CPACK_PACKAGE_VERSION is not defined")
+        if(NOT DEFINED cpack_name_ver)
+            message(FATAL_ERROR "Internal variable 'cpack_name_ver' is not defined")
         endif()
 
-        string(REPLACE "${CPACK_PACKAGE_VERSION}" "" package_name_base "${CPACK_DEBIAN_${ucomp}_PACKAGE_NAME}")
+        string(REPLACE "${cpack_name_ver}" "" package_name_base "${CPACK_DEBIAN_${ucomp}_PACKAGE_NAME}")
     endif()
 
-    foreach(version IN LISTS versions)
+    foreach(cpack_name_version IN LISTS cpack_name_versions)
         if(package_names)
-            set(package_names "${package_names}, ${package_name_base}${version}")
+            set(package_names "${package_names}, ${package_name_base}${cpack_name_version}")
         else()
-            set(package_names "${package_name_base}${version}")
+            set(package_names "${package_name_base}${cpack_name_version}")
         endif()
     endforeach()
 
@@ -250,7 +256,7 @@ macro(ov_debian_add_latest_component comp)
 
     # take package name
     if(DEFINED CPACK_DEBIAN_${ucomp}_PACKAGE_NAME)
-        string(REPLACE "-${cpack_ver_mm}" ""
+        string(REPLACE "-${cpack_name_ver}" ""
             CPACK_DEBIAN_${upper_case}_PACKAGE_NAME
             "${CPACK_DEBIAN_${ucomp}_PACKAGE_NAME}")
     else()
