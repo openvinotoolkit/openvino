@@ -79,7 +79,7 @@ OutputVector translate_conv_3d_backprop_input_v2_op(const NodeContext& node) {
 
     // initially think that output shape defined for NCDHW layout
     auto ss_begin = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{2});
-    auto ss_end = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{-1});
+    auto ss_end = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{5});
     auto ss_strides = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
 
     // change range of indices for spatial dimensions in case NDHWC layout

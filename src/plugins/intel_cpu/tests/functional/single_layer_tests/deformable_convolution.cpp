@@ -69,7 +69,6 @@ public:
         bool withBilinearInterpolationPad, withModulation;
         OffsetType offType;
         std::tie(withBilinearInterpolationPad, withModulation, offType) = dcSpecificParams;
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         std::ostringstream result;
         result << "DefConvTest(";
         result << std::to_string(obj.index) << ")_";

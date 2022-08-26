@@ -38,11 +38,21 @@ function(ov_check_python_build_conditions)
         set(message_mode WARNING)
     endif()
 
-    # Try to find python3
-    find_package(PythonInterp 3 ${find_package_mode})
+    # Try to find python3 and its libs
+    find_host_package(PythonInterp 3 ${find_package_mode})
     if(PYTHONINTERP_FOUND)
-        # use libraries with the same version as python itself
-        find_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT ${find_package_mode})
+        function(_ov_find_python_libs_new)
+            set(PYBIND11_PYTHON_VERSION ${PYTHON_VERSION_STRING})
+            list(APPEND CMAKE_MODULE_PATH "${OpenVINOPython_SOURCE_DIR}/thirdparty/pybind11/tools")
+            # use libraries with the same version as python itself
+            find_package(PythonLibsNew ${PYBIND11_PYTHON_VERSION} EXACT ${find_package_mode})
+            set(PYTHONLIBSNEW_FOUND ${PYTHONLIBS_FOUND} PARENT_SCOPE)
+        endfunction()
+        # try to find python libraries
+        _ov_find_python_libs_new()
+        if(PYTHONLIBSNEW_FOUND)
+            find_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT ${find_package_mode})
+        endif()
         if(NOT PYTHONLIBS_FOUND)
             message(${message_mode} "Python development libraries are not found. OpenVINO Python API will be turned off (ENABLE_PYTHON is OFF)")
         endif()

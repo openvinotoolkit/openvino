@@ -8954,7 +8954,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     }
     build_options options;
     options.set_option(build_option::optimize_data(true));
-    implementation_desc conv_impl = { input_data_format, impl_name, prim_impl_types };
+    implementation_desc conv_impl = { format::byxf, impl_name, prim_impl_types };
     options.set_option(build_option::force_implementations({ { "conv_fsv", conv_impl } }));
     network network(engine, topology, options);
 
@@ -8968,7 +8968,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     mem_lock<FLOAT16> out_ptr{ out_mem, get_test_stream() };
     auto out_lay = out_mem->get_layout();
 
-    ASSERT_EQ(out_mem->get_layout().format, input_data_format);
+    ASSERT_EQ(out_mem->get_layout().format, format::byxf);
     ASSERT_EQ(out_lay.batch(), expected_result.size());
     ASSERT_EQ(out_lay.feature(), expected_result[0].size());
     ASSERT_EQ(out_lay.spatial(1), expected_result[0][0].size());
@@ -9022,7 +9022,7 @@ TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
     topology topology_ref(input, weights, input_reorder, conv1, conv2, output_reorder);
 
     build_options options_test;
-    implementation_desc conv1_impl_test = { format::b_fs_yx_fsv16, "", impl_types::onednn };
+    implementation_desc conv1_impl_test = { format::byxf, "", impl_types::onednn };
     implementation_desc conv2_impl_test = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16", impl_types::ocl };
     options_test.set_option(build_option::force_implementations({ { "conv1", conv1_impl_test }, { "conv2", conv2_impl_test } }));
     options_test.set_option(build_option::optimize_data(true));
