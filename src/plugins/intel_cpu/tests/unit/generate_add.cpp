@@ -31,7 +31,7 @@
 
 using namespace testing;
 
-auto gen_inputs(const ngraph::Shape& shape, size_t n = 2) -> std::vector<std::vector<std::uint8_t>>{
+inline auto gen_inputs(const ngraph::Shape& shape, size_t n = 2) -> std::vector<std::vector<std::uint8_t>> {
     std::vector<std::vector<std::uint8_t>> referenceInputs(n);
     for (size_t k = 0; k < n; k++) {
         referenceInputs[k].resize(ngraph::shape_size(shape)*sizeof(float));
@@ -50,7 +50,7 @@ auto gen_inputs(const ngraph::Shape& shape, size_t n = 2) -> std::vector<std::ve
     return referenceInputs;
 }
 
-auto compare(std::shared_ptr<ngraph::Function>& s, std::shared_ptr<ngraph::Function>& f, std::vector<std::vector<std::uint8_t>>& in) -> bool{
+inline auto compare(std::shared_ptr<ngraph::Function>& s, std::shared_ptr<ngraph::Function>& f, std::vector<std::vector<std::uint8_t>>& in) -> bool{
     auto act = ngraph::helpers::interpreterFunction(s, in);
     auto exp = ngraph::helpers::interpreterFunction(f, in);
 
@@ -68,16 +68,17 @@ auto compare(std::shared_ptr<ngraph::Function>& s, std::shared_ptr<ngraph::Funct
     return isCorrect;
 }
 
-auto wrapAsSnippet(std::shared_ptr<ngraph::Function>& f, const ngraph::Shape& shape0, const ngraph::Shape& shape1)
--> std::shared_ptr<ngraph::Function>{
+inline auto wrapAsSnippet(std::shared_ptr<ngraph::Function>& f,
+                          const ngraph::Shape& shape0,
+                          const ngraph::Shape& shape1) -> std::shared_ptr<ngraph::Function> {
     auto input0 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, shape0);
     auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, shape1);
     auto snippet = std::make_shared<ngraph::snippets::op::Subgraph>(ngraph::OutputVector{input0, input1}, ngraph::clone_function(*f.get()));
     return std::make_shared<ngraph::Function>(ngraph::NodeVector{snippet}, ngraph::ParameterVector{input0, input1});
 }
 
-auto wrapAsSnippet(std::shared_ptr<ngraph::Function>& f, const ngraph::Shape& shape0)
--> std::shared_ptr<ngraph::Function>{
+inline auto wrapAsSnippet(std::shared_ptr<ngraph::Function>& f, const ngraph::Shape& shape0)
+    -> std::shared_ptr<ngraph::Function> {
     auto input0 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, shape0);
     auto snippet = std::make_shared<ngraph::snippets::op::Subgraph>(ngraph::OutputVector{input0}, ngraph::clone_function(*f.get()));
     return std::make_shared<ngraph::Function>(ngraph::NodeVector{snippet}, ngraph::ParameterVector{input0});

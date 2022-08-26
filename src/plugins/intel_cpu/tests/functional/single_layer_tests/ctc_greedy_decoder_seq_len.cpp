@@ -33,7 +33,7 @@ using CTCGreedyDecoderSeqLenLayerCPUTestParams = std::tuple<InputShapeParams,   
                                                             ElementType,         // Index Type
                                                             bool                 // mergeRepeated
                                                             >;
-ngraph::ParameterVector makeDynamicParams(const std::vector<ElementType>& types,
+inline ngraph::ParameterVector makeDynamicParams(const std::vector<ElementType>& types,
                                           const std::vector<ov::PartialShape>& shapes) {
     ngraph::ParameterVector outs;
     NGRAPH_CHECK(types.size() == shapes.size());
