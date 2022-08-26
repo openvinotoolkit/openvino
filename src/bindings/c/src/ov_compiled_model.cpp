@@ -34,7 +34,7 @@ ov_status_e ov_compiled_model_inputs(const ov_compiled_model_t* compiled_model,
         auto inputs = compiled_model->object->inputs();
         size_t num = inputs.size();
         input_ports->size = num;
-        std::unique_ptr<ov_output_const_node_t[]> _output_ports(new ov_output_const_node_t[num]);
+        std::unique_ptr<ov_output_const_port_t[]> _output_ports(new ov_output_const_port_t[num]);
         for (size_t i = 0; i < num; i++) {
             _output_ports[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(inputs[i]));
         }
@@ -55,7 +55,7 @@ ov_status_e ov_compiled_model_outputs(const ov_compiled_model_t* compiled_model,
         auto outputs = compiled_model->object->outputs();
         size_t num = outputs.size();
         output_ports->size = num;
-        std::unique_ptr<ov_output_const_node_t[]> _output_ports(new ov_output_const_node_t[num]);
+        std::unique_ptr<ov_output_const_port_t[]> _output_ports(new ov_output_const_port_t[num]);
         for (size_t i = 0; i < num; i++) {
             _output_ports[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(outputs[i]));
         }

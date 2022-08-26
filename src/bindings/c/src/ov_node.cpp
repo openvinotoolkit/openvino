@@ -5,7 +5,7 @@
 
 #include "common.h"
 
-ov_status_e ov_const_node_get_shape(ov_output_const_node_t* port, ov_shape_t* tensor_shape) {
+ov_status_e ov_const_node_get_shape(ov_output_const_port_t* port, ov_shape_t* tensor_shape) {
     if (!port || !tensor_shape) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -136,7 +136,7 @@ void ov_output_node_free(ov_output_node_t* output_node) {
         delete output_node;
 }
 
-void ov_output_const_node_free(ov_output_const_node_t* output_node) {
+void ov_output_const_node_free(ov_output_const_port_t* output_node) {
     if (output_node)
         delete output_node;
 }

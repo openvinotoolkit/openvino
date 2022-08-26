@@ -88,7 +88,7 @@ TEST(ov_model, ov_model_const_input) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_output_const_node_t* input_port = nullptr;
+    ov_output_const_port_t* input_port = nullptr;
     OV_ASSERT_OK(ov_model_const_input(model, &input_port));
     ASSERT_NE(nullptr, input_port);
 
@@ -106,7 +106,7 @@ TEST(ov_model, ov_model_const_input_by_name) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_output_const_node_t* input_port = nullptr;
+    ov_output_const_port_t* input_port = nullptr;
     OV_ASSERT_OK(ov_model_const_input_by_name(model, "data", &input_port));
     ASSERT_NE(nullptr, input_port);
 
@@ -128,7 +128,7 @@ TEST(ov_model, ov_model_const_input_by_index) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_output_const_node_t* input_port = nullptr;
+    ov_output_const_port_t* input_port = nullptr;
     OV_ASSERT_OK(ov_model_const_input_by_index(model, 0, &input_port));
     ASSERT_NE(nullptr, input_port);
 
@@ -212,7 +212,7 @@ TEST(ov_model, ov_model_const_output) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_output_const_node_t* output_port = nullptr;
+    ov_output_const_port_t* output_port = nullptr;
     OV_ASSERT_OK(ov_model_const_output(model, &output_port));
     ASSERT_NE(nullptr, output_port);
 
@@ -230,7 +230,7 @@ TEST(ov_model, ov_model_const_output_by_index) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_output_const_node_t* output_port = nullptr;
+    ov_output_const_port_t* output_port = nullptr;
     OV_ASSERT_OK(ov_model_const_output_by_index(model, 0, &output_port));
     ASSERT_NE(nullptr, output_port);
 
@@ -252,7 +252,7 @@ TEST(ov_model, ov_model_const_output_by_name) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_output_const_node_t* output_port = nullptr;
+    ov_output_const_port_t* output_port = nullptr;
     OV_ASSERT_OK(ov_model_const_output_by_name(model, "fc_out", &output_port));
     ASSERT_NE(nullptr, output_port);
 

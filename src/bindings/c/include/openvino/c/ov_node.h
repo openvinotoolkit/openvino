@@ -14,15 +14,15 @@
 #include "openvino/c/ov_partial_shape.h"
 #include "openvino/c/ov_shape.h"
 
-typedef struct ov_output_const_node ov_output_const_node_t;
-typedef struct ov_output_node ov_output_node_t;
+typedef struct ov_output_const_port ov_output_const_port_t;
+typedef struct ov_output_port ov_output_node_t;
 
 /**
  * @struct ov_output_const_node_list_t
  * @brief Represents an array of const ov_output_nodes.
  */
 typedef struct {
-    ov_output_const_node_t* ports;
+    ov_output_const_port_t* ports;
     size_t size;
 } ov_output_const_node_list_t;
 
@@ -46,11 +46,11 @@ typedef struct {
 /**
  * @brief Get the shape of port object.
  * @ingroup node
- * @param port A pointer to ov_output_const_node_t.
+ * @param port A pointer to ov_output_const_port_t.
  * @param tensor_shape tensor shape.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_const_node_get_shape(ov_output_const_node_t* port, ov_shape_t* tensor_shape);
+OPENVINO_C_API(ov_status_e) ov_const_node_get_shape(ov_output_const_port_t* port, ov_shape_t* tensor_shape);
 
 /**
  * @brief Get the shape of port object.
@@ -131,8 +131,8 @@ OPENVINO_C_API(void) ov_output_node_free(ov_output_node_t* port);
 /**
  * @brief free const port
  * @ingroup node
- * @param port The pointer to the instance of the ov_output_const_node_t to free.
+ * @param port The pointer to the instance of the ov_output_const_port_t to free.
  */
-OPENVINO_C_API(void) ov_output_const_node_free(ov_output_const_node_t* port);
+OPENVINO_C_API(void) ov_output_const_node_free(ov_output_const_port_t* port);
 
 /** @} */  // end of Node
