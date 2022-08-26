@@ -14,5 +14,6 @@ static const std::string manifest{
 };
 
 int main(int argc, char** argv) {
+    printf("Running main() from %s:%d\n", __FILE__, __LINE__);
     return FrontEndTestUtils::run_tests(argc, argv, manifest);
 }

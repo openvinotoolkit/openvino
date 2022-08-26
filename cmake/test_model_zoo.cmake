@@ -64,7 +64,7 @@ endfunction()
 
 ov_model_convert("${CMAKE_CURRENT_SOURCE_DIR}/src/core/tests"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/core"
-                  onnx_out_files)
+                  core_tests_out_files)
 
 set(rel_path "src/tests/functional/plugin/shared/models")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
@@ -84,7 +84,7 @@ ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
 set(rel_path "src/frontends/onnx/tests/models")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx"
-                 ie_onnx_import_out_files)
+                 onnx_fe_out_files)
 
 if(ENABLE_TESTS)
     if(ENABLE_OV_ONNX_FRONTEND AND ENABLE_REQUIREMENTS_INSTALL)
@@ -120,12 +120,11 @@ if(ENABLE_TESTS)
                           SOURCES ${reqs})
     endif()
 
-    add_custom_target(test_model_zoo DEPENDS ${onnx_out_files}
+    add_custom_target(test_model_zoo DEPENDS ${core_tests_out_files}
                                              ${ft_out_files}
                                              ${ie_onnx_out_files}
                                              ${ie_serialize_out_files}
-                                             ${ie_onnx_import_out_files}
-                                             ${docs_onnx_out_files})
+                                             ${onnx_fe_out_files})
 
     if(TARGET test_pip_prerequisites)
         add_dependencies(test_model_zoo test_pip_prerequisites)
