@@ -19,7 +19,7 @@ OutputVector translate_max_pool_util(const NodeContext& node,
                                      size_t spatial_dims_num,
                                      const std::vector<int64_t>& tf_kernel_sizes,
                                      const std::vector<int64_t>& tf_strides) {
-    TENSORFLOW_OP_VALIDATION(node, node.get_input_size() > 0, "MaxPool operation must have at least one input.");
+    default_op_checks(node, 1, {"MaxPool2D", "MaxPool3D"});
     TENSORFLOW_OP_VALIDATION(node,
                              spatial_dims_num == 2 || spatial_dims_num == 3,
                              "Only MaxPool2D and MaxPool3D are supported.");
@@ -61,7 +61,7 @@ OutputVector translate_max_pool_util(const NodeContext& node,
     }
 
     // prepare input to MaxPool
-    convert_nhwc_to_nchw(is_nhwc, input);
+    convert_nhwc_to_nchw(is_nhwc, input, ov::Rank(spatial_dims_num + 2));
 
     auto max_pool_node = std::make_shared<ov::opset8::MaxPool>(input,
                                                                strides,
@@ -72,7 +72,7 @@ OutputVector translate_max_pool_util(const NodeContext& node,
                                                                ov::op::RoundingType::FLOOR,
                                                                auto_pad);
     auto max_pool = max_pool_node->output(0);
-    ov::frontend::tensorflow::convert_nchw_to_nhwc(is_nhwc, max_pool);
+    ov::frontend::tensorflow::convert_nchw_to_nhwc(is_nhwc, max_pool, ov::Rank(spatial_dims_num + 2));
     ov::frontend::tensorflow::set_node_name(node.get_name(), max_pool.get_node_shared_ptr());
     return {max_pool};
 }
