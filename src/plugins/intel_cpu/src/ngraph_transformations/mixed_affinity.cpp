@@ -85,7 +85,7 @@ bool ov::intel_cpu::MixedAffinity::run_on_model(const std::shared_ptr<ov::Model>
 
     ov::pass::Manager switch_affinity_manager(get_pass_config());
     // TODO: remove 'share_constants' parameter
-    switch_affinity_manager.register_pass<ov::intel_cpu::SwitchAffinity>(subgraphs, false);
+    switch_affinity_manager.register_pass<ov::intel_cpu::SwitchAffinity>(subgraphs, true);
     //markup_manager.register_pass<ngraph::pass::VisualizeTree>("C://models//model//test.after");
     //switch_affinity_manager.register_pass<ngraph::pass::Serialize>("C://models//affinity.xml",
     //                                                               "C://models//affinity.bin");
