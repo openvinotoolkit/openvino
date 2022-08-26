@@ -670,7 +670,7 @@ private:
 
             cmp(aux_reg_weight_ow, reg_weight_ow);
             jge(loop_ix_end, T_NEAR);
-            
+
             if (jcp_.spatial_dim_size > 1) {
                 uni_vmulss(xmm_weights, xmm_weightsDH, ptr[aux_reg_weight_ow]);
             } else {
@@ -678,14 +678,14 @@ private:
             }
             vucomiss(xmm_weights, xmm_zero_const);
             je(skip_loop_ix, T_NEAR);
-           
+
             uni_vaddss(xmm_weights_sum, xmm_weights_sum, xmm_weights);
 
             mov(reg_index_ow, ptr[aux_reg_weight_ow + indexOffset * sizeof(float)]);
             if (jcp_.spatial_dim_size > 1) {
                 add(reg_index_ow, reg_index_oh);
             }
-            
+
             uni_vmovd(xmm_src, ptr[reg_src + reg_index_ow.cvt64() * sizeof(float)]);
 
             uni_vfmadd231ss(vmm_val, vmm_src, vmm_weights);
@@ -843,9 +843,9 @@ private:
                 uni_vmulps(vmm_weightsDH, vmm_weightsDH, vmm_weightsD);
                 uni_vpaddd(vmm_indexDH, vmm_indexDH, vmm_indexD);
             }
-            
+
             linear_planar_vector_1sp(sizeOW, indexOffset, step);
-            
+
             L(skip_loop_iy);
 
             add(aux_reg_weight_oh, jcp_.OH * sizeof(float));
@@ -891,7 +891,7 @@ private:
 
     inline void linear_planar_vector(int sizeOD, int sizeOH, int sizeOW, int step) {
         int indexOffset = sizeOD + sizeOH + sizeOW;
-        
+
         if (jcp_.spatial_dim_size > 2) {
             linear_planar_vector_3sp(sizeOD, sizeOH, sizeOW, indexOffset, step);
         } else if (jcp_.spatial_dim_size > 1) {
@@ -957,7 +957,7 @@ private:
 
         mov(reg_weight_ow, reg_weight_oh);
         add(reg_weight_ow, sizeOH * sizeof(float));
-        
+
         add(reg_index, jcp_.OD * sizeof(float));
         L(loop_oz_label);
         {
@@ -974,7 +974,7 @@ private:
                     cmp(reg_weight_oh, reg_index);
                     jge(loop_oy_end, T_NEAR);
                 }
-                
+
                 add(reg_index, (sizeOH - jcp_.OH + jcp_.OW - vector_step) * sizeof(float));
                 linear_planar_inner(sizeOD, sizeOH, sizeOW, vector_step);
 
@@ -984,7 +984,7 @@ private:
                 sub(reg_index, (jcp_.OW - scalar_step) * sizeof(float));
                 mov(reg_weight_ow, reg_index);
                 sub(reg_index, (sizeOH - jcp_.OH) * sizeof(float));
-                
+
                 if (jcp_.spatial_dim_size > 1) {
                     add(reg_weight_oh, sizeof(float));
                     jmp(loop_oy_label, T_NEAR);
@@ -1005,8 +1005,7 @@ private:
         L(loop_oz_end);
     }
 
-    inline void rotate_float(Vmm vmm_reg, bool is_left)
-    {
+    inline void rotate_float(Vmm vmm_reg, bool is_left) {
         uint8_t shufpd_imm = is_left ? 0b10010011 : 0b00111001;
         Vmm vmm_indices = is_left ? vmm_vperm_indices_l : vmm_vperm_indices_r;
 
@@ -1025,8 +1024,7 @@ private:
         }
     }
 
-    inline void rotate_int(Vmm vmm_reg, bool is_left)
-    {
+    inline void rotate_int(Vmm vmm_reg, bool is_left) {
         uint8_t shufpd_imm = is_left ? 0b10010011 : 0b00111001;
         Vmm vmm_indices = is_left ? vmm_vperm_indices_l : vmm_vperm_indices_r;
 
@@ -1323,7 +1321,7 @@ private:
         if (isa == cpu::x64::sse41) {
             mov(reg_oc_off, vector_step * sizeof(float));
             add(reg_src, vector_step * jcp_.src_data_size);
-            
+
             linear_c_gathered_block_next(diaOD, diaOH, diaOW, vector_step, save_weights);
 
             sub(reg_src, vector_step * jcp_.src_data_size);
@@ -1408,7 +1406,7 @@ private:
                 uni_vmovdqu(vmm_vperm_indices_r, ptr[rip + l_vperm_constant_r]);
             }
         }
-        
+
         mov(reg_weight_od, ptr[reg_params + GET_OFF(weight_ptr[0])]);
         mov(reg_weight_oh, ptr[reg_params + GET_OFF(weight_ptr[0]) + sizeof(size_t)]);
 
@@ -1424,7 +1422,7 @@ private:
             }
 
             add(reg_index, sizeOW * sizeof(float));
-            
+
             L(loop_ox_label);
             {
                 cmp(reg_weight_ow, reg_index);
@@ -1440,7 +1438,7 @@ private:
                 jmp(loop_ox_label, T_NEAR);
             }
             L(loop_ox_end);
-            
+
             if (jcp_.spatial_dim_size > 1) {
                 sub(reg_index, sizeOW * sizeof(float));
                 mov(reg_weight_ow, reg_index);
@@ -3165,7 +3163,7 @@ void Interpolate::InterpolateJitExecutor::linearPlanar(const uint8_t* in_ptr_, u
     if (checkLinearMemcpy(in_ptr_, out_ptr_, B, C, ID, IH, IW, OD, OH, OW, hasPostOps)) {
         return;
     }
-    
+
     float* weightTable = reinterpret_cast<float*>(&indexTable[0]);
 
     parallel_for2d(B, C, [&](size_t b, size_t c) {
@@ -3189,7 +3187,7 @@ void Interpolate::InterpolateJitExecutor::linearCGathered(const uint8_t* in_ptr_
     int CB = isByChannel ? 1 : div_up(C, blkSize);
     int CGatherLen = isByChannel ? C : blkSize;
     int CSize = CB * CGatherLen;
-    
+
     bool hasPostOps = interpolateKernel->attr_.post_ops_.len() > 0;
     if (checkLinearMemcpy(in_ptr_, out_ptr_, B, CSize, ID, IH, IW, OD, OH, OW, hasPostOps)) {
         return;
