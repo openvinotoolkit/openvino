@@ -142,7 +142,7 @@ protected:
 //  Result
 class ConvertManyOnInputsFunction : public SnippetsFunctionBase {
 public:
-    explicit ConvertManyOnInputsFunction(const std::vector<Shape>& inputShapes, const std::vector<ov::element::Type>& types)
+    explicit ConvertManyOnInputsFunction(const std::vector<ov::PartialShape>& inputShapes, const std::vector<ov::element::Type>& types)
     : SnippetsFunctionBase(inputShapes), types(types) {
         NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
         NGRAPH_CHECK(types.size() > 1, "Got invalid number of element types");
@@ -165,7 +165,7 @@ protected:
 //  Result        Result
 class ConvertManyOnOutputsFunction : public SnippetsFunctionBase {
 public:
-    explicit ConvertManyOnOutputsFunction(const std::vector<Shape>& inputShapes, const std::vector<ov::element::Type>& types)
+    explicit ConvertManyOnOutputsFunction(const std::vector<ov::PartialShape>& inputShapes, const std::vector<ov::element::Type>& types)
     : SnippetsFunctionBase(inputShapes), types(types) {
         NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
         NGRAPH_CHECK(types.size() > 1, "Got invalid number of element types");
@@ -191,7 +191,7 @@ protected:
 //  Result        Result
 class ConvertManyOnInputOutputFunction : public SnippetsFunctionBase {
 public:
-    explicit ConvertManyOnInputOutputFunction(const std::vector<Shape>& inputShapes,
+    explicit ConvertManyOnInputOutputFunction(const std::vector<ov::PartialShape>& inputShapes,
                                               const std::vector<ov::element::Type>& inTypes,
                                               const std::vector<ov::element::Type>& outTypes)
     : SnippetsFunctionBase(inputShapes), inTypes(inTypes), outTypes(outTypes) {
