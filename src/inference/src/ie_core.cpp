@@ -247,9 +247,9 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             auto it = config.find(CONFIG_KEY(CACHE_DIR));
             if (it != config.end()) {
                 std::lock_guard<std::mutex> lock(_cacheConfigMutex);
-                fillConfig(_cacheConfig, it->second);
+                fillConfig(_cacheConfig, it->second.as<std::string>());
                 for (auto& deviceCfg : _cacheConfigPerDevice) {
-                    fillConfig(deviceCfg.second, it->second);
+                    fillConfig(deviceCfg.second, it->second.as<std::string>());
                 }
                 config.erase(it);
             }
