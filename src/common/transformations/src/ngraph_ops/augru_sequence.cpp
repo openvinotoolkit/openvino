@@ -162,10 +162,6 @@ void ov::op::internal::AUGRUSequence::validate_and_infer_types() {
         }
     }
 
-    // Mark inputs which are relevant to output parameters
-    set_input_is_relevant_to_shape(0);
-    set_input_is_relevant_to_shape(1);
-
     // Set output size, type and shape
     set_output_size(2);
     set_output_type(0, result_et, {merged_batch_size, merged_num_directions, x_pshape[1], merged_hidden_size});

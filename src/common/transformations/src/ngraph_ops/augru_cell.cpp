@@ -133,9 +133,6 @@ void ov::op::internal::AUGRUCell::validate_and_infer_types() {
         }
     }
 
-    // Mark inputs which are relevant to output parameters
-    set_input_is_relevant_to_shape(1);
-
     // Set output size, type and shape
     set_output_size(1);
     set_output_type(0, result_et, {merged_batch_size, merged_hidden_size});
