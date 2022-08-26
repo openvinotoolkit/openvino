@@ -212,6 +212,10 @@ void IInferencePlugin::SetConfig(const std::map<std::string, std::string>&) {
     IE_THROW(NotImplemented);
 }
 
+void IInferencePlugin::SetProperties(const ov::AnyMap&) {
+    IE_THROW(NotImplemented);
+}
+
 Parameter IInferencePlugin::GetConfig(const std::string&, const std::map<std::string, Parameter>&) const {
     IE_THROW(NotImplemented);
 }

@@ -611,9 +611,7 @@ public:
      * @param device_name Hardware device name to register a plugin for.
      * @param config Plugin configuration ontions
      */
-    void register_plugin(const std::string& plugin_name,
-                         const std::string& device_name,
-                         const std::map<std::string, std::string>& config = {});
+    void register_plugin(const std::string& plugin_name, const std::string& device_name, const ov::AnyMap& config = {});
 
     /**
      * @brief Unloads the previously loaded plugin identified by @p device_name from OpenVINO Runtime.

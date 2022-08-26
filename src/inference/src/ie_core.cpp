@@ -245,7 +245,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             std::shared_ptr<ie::ICacheManager> _cacheManager;
         };
 
-        void setAndUpdate(std::map<std::string, std::string>& config) {
+        void setAndUpdate(ov::AnyMap& config) {
             auto it = config.find(CONFIG_KEY(CACHE_DIR));
             if (it != config.end()) {
                 std::lock_guard<std::mutex> lock(_cacheConfigMutex);
@@ -258,7 +258,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
             it = config.find(ov::force_tbb_terminate.name());
             if (it != config.end()) {
-                auto flag = it->second == CONFIG_VALUE(YES) ? true : false;
+                auto flag = it->second.as<std::string>() == CONFIG_VALUE(YES) ? true : false;
                 executorManager()->setTbbFlag(flag);
                 config.erase(it);
             }
@@ -339,7 +339,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
     struct PluginDescriptor {
         ov::util::FilePath libraryLocation;
-        std::map<std::string, std::string> defaultConfig;
+        ov::AnyMap defaultConfig;
         std::vector<ov::util::FilePath> listOfExtentions;
         InferenceEngine::CreatePluginEngineFunc* pluginCreateFunc = nullptr;
         InferenceEngine::CreateExtensionFunc* extensionCreateFunc = nullptr;
@@ -347,7 +347,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         PluginDescriptor() = default;
 
         PluginDescriptor(const ov::util::FilePath& libraryLocation,
-                         const std::map<std::string, std::string>& defaultConfig = {},
+                         const ov::AnyMap& defaultConfig = {},
                          const std::vector<ov::util::FilePath>& listOfExtentions = {}) {
             this->libraryLocation = libraryLocation;
             this->defaultConfig = defaultConfig;
@@ -355,7 +355,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         }
 
         PluginDescriptor(InferenceEngine::CreatePluginEngineFunc* pluginCreateFunc,
-                         const std::map<std::string, std::string>& defaultConfig = {},
+                         const ov::AnyMap& defaultConfig = {},
                          InferenceEngine::CreateExtensionFunc* extensionCreateFunc = nullptr) {
             this->pluginCreateFunc = pluginCreateFunc;
             this->defaultConfig = defaultConfig;
@@ -546,16 +546,14 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     }
 
     void RegisterPluginInRegistryUnsafe(const std::string& deviceName, PluginDescriptor& desc) {
-        const auto& fill_config = [](std::map<std::string, std::string>& defaultConfig,
-                                     const std::map<std::string, std::string>& config,
-                                     const std::string& dev_name) {
+        const auto& fill_config = [](ov::AnyMap& defaultConfig, const ov::AnyMap& config, const std::string& dev_name) {
             // Configure aliases for proxy plugin
             auto it = config.find("ALIAS");
             if (it != config.end()) {
                 if (defaultConfig.find("ALIAS_FOR") == defaultConfig.end()) {
                     defaultConfig["ALIAS_FOR"] = dev_name;
                 } else {
-                    defaultConfig["ALIAS_FOR"] += "," + dev_name;
+                    defaultConfig["ALIAS_FOR"] = defaultConfig["ALIAS_FOR"].as<std::string>() + "," + dev_name;
                 }
             }
 
@@ -563,9 +561,10 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             it = config.find("DEVICE_PRIORITY");
             if (it != config.end()) {
                 if (defaultConfig.find("DEVICES_PRIORITY") == defaultConfig.end()) {
-                    defaultConfig["DEVICES_PRIORITY"] = dev_name + ":" + it->second;
+                    defaultConfig["DEVICES_PRIORITY"] = dev_name + ":" + it->second.as<std::string>();
                 } else {
-                    defaultConfig["DEVICES_PRIORITY"] += "," + dev_name + ":" + it->second;
+                    defaultConfig["DEVICES_PRIORITY"] = defaultConfig["DEVICES_PRIORITY"].as<std::string>() + "," +
+                                                        dev_name + ":" + it->second.as<std::string>();
                 }
             }
 
@@ -581,9 +580,10 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             it = config.find("FALLBACK");
             if (it != config.end()) {
                 if (defaultConfig.find("FALLBACK") == defaultConfig.end()) {
-                    defaultConfig["FALLBACK_PRIORITY"] = dev_name + "->" + it->second;
+                    defaultConfig["FALLBACK_PRIORITY"] = dev_name + "->" + it->second.as<std::string>();
                 } else {
-                    defaultConfig["FALLBACK_PRIORITY"] += "," + dev_name + "->" + it->second;
+                    defaultConfig["FALLBACK_PRIORITY"] = defaultConfig["FALLBACK_PRIORITY"].as<std::string>() + "," +
+                                                         dev_name + "->" + it->second.as<std::string>();
                 }
             }
         };
@@ -675,7 +675,7 @@ public:
 
             // check properties
             auto propertiesNode = pluginNode.child("properties");
-            std::map<std::string, std::string> config;
+            ov::AnyMap config;
 
             if (propertiesNode) {
                 FOREACH_CHILD (propertyNode, propertiesNode, "property") {
@@ -719,7 +719,12 @@ public:
                 IE_THROW() << "Device name must not contain dot '.' symbol";
             }
             const auto& value = plugin.second;
-            PluginDescriptor desc{value.m_create_plugin_func, value.m_default_config, value.m_create_extension_func};
+            ov::AnyMap config;
+            for (const auto& it : value.m_default_config) {
+                config[it.first] = it.second;
+            }
+
+            PluginDescriptor desc{value.m_create_plugin_func, config, value.m_create_extension_func};
             RegisterPluginInRegistryUnsafe(deviceName, desc);
         }
     }
@@ -1080,7 +1085,7 @@ public:
                         "You can configure the devices with set_property before creating the BATCH on top.");
 
         ExtractAndSetDeviceConfig(properties);
-        SetConfigForPlugins(any_copy(properties), device_name);
+        SetConfigForPlugins(properties, device_name);
     }
 
     Any get_property_for_core(const std::string& name) const {
@@ -1256,7 +1261,7 @@ public:
                 if (desc.defaultConfig.find("ALIAS_FOR") != desc.defaultConfig.end() ||
                     desc.defaultConfig.find("DEVICES_PRIORITY") != desc.defaultConfig.end() ||
                     desc.defaultConfig.find("FALLBACK_PRIORITY") != desc.defaultConfig.end()) {
-                    std::map<std::string, std::string> initial_config;
+                    ov::AnyMap initial_config;
                     auto it = desc.defaultConfig.find("ALIAS_FOR");
                     if (it != desc.defaultConfig.end()) {
                         initial_config[it->first] = it->second;
@@ -1269,7 +1274,7 @@ public:
                     if (it != desc.defaultConfig.end()) {
                         initial_config[ov::device::priorities.name()] = ov::proxy::restore_order(it->second);
                     }
-                    plugin.set_config(initial_config);
+                    plugin.set_properties(initial_config);
                 }
                 if (DeviceSupportsCacheDir(plugin)) {
                     auto cacheConfig = coreConfig.getCacheConfigForDevice(deviceName);
@@ -1295,10 +1300,18 @@ public:
                         InferenceEngine::DeviceIDParser parser(pluginDesc.first);
                         if (pluginDesc.first.find(deviceName) != std::string::npos && !parser.getDeviceID().empty()) {
                             pluginDesc.second.defaultConfig[deviceKey] = parser.getDeviceID();
-                            plugin.set_config(pluginDesc.second.defaultConfig);
+                            try {
+                                plugin.set_properties(pluginDesc.second.defaultConfig);
+                            } catch (const ie::NotImplemented&) {
+                                plugin.set_config(any_copy(pluginDesc.second.defaultConfig));
+                            }
                         }
                     }
-                    plugin.set_config(desc.defaultConfig);
+                    try {
+                        plugin.set_properties(desc.defaultConfig);
+                    } catch (const ie::NotImplemented&) {
+                        plugin.set_config(any_copy(desc.defaultConfig));
+                    }
                 });
 
                 allowNotImplemented([&]() {
@@ -1349,9 +1362,7 @@ public:
      * @brief Registers plugin meta-data in registry for specified device
      * @param deviceName A name of device
      */
-    void RegisterPluginByName(const std::string& pluginName,
-                              const std::string& deviceName,
-                              const std::map<std::string, std::string>& config) {
+    void RegisterPluginByName(const std::string& pluginName, const std::string& deviceName, const ov::AnyMap& config) {
         std::lock_guard<std::mutex> lock(get_mutex());
 
         auto it = pluginRegistry.find(deviceName);
@@ -1389,7 +1400,7 @@ public:
      * @note  `deviceName` is not allowed in form of MULTI:CPU, HETERO:GPU,CPU, AUTO:CPU
      *        just simple forms like CPU, GPU, MULTI, GPU.0, etc
      */
-    void SetConfigForPlugins(const std::map<std::string, std::string>& configMap, const std::string& deviceName) {
+    void SetConfigForPlugins(const ov::AnyMap& configMap, const std::string& deviceName) {
         auto config = configMap;
         if (config.empty()) {
             return;
@@ -1467,7 +1478,11 @@ public:
                 if (!parser.getDeviceID().empty()) {
                     configCopy[deviceKey] = parser.getDeviceID();
                 }
-                plugin.second.set_config(configCopy);
+                try {
+                    plugin.second.set_properties(configCopy);
+                } catch (const ie::NotImplemented&) {
+                    plugin.second.set_config(any_copy(configCopy));
+                }
             });
         }
     }
@@ -1487,7 +1502,7 @@ public:
                     return device == parsed._deviceName;
                 });
             if (config_is_device_name_in_regestry) {
-                SetConfigForPlugins(any_copy(config.second.as<ov::AnyMap>()), config.first);
+                SetConfigForPlugins(config.second.as<ov::AnyMap>(), config.first);
             }
         }
     }
@@ -1940,10 +1955,13 @@ void Core::SetConfig(const std::map<std::string, std::string>& config, const std
                       "You can configure the devices with SetConfig before creating the AUTO on top.";
     }
 
+    ov::AnyMap conf;
+    for (const auto& it : config)
+        conf[it.first] = it.second;
     if (deviceName.empty()) {
-        _impl->SetConfigForPlugins(config, std::string());
+        _impl->SetConfigForPlugins(conf, std::string());
     } else {
-        _impl->SetConfigForPlugins(config, deviceName);
+        _impl->SetConfigForPlugins(conf, deviceName);
     }
 }
 
@@ -2188,9 +2206,7 @@ std::vector<std::string> Core::get_available_devices() const {
     OV_CORE_CALL_STATEMENT(return _impl->GetAvailableDevices(););
 }
 
-void Core::register_plugin(const std::string& pluginName,
-                           const std::string& deviceName,
-                           const std::map<std::string, std::string>& config) {
+void Core::register_plugin(const std::string& pluginName, const std::string& deviceName, const ov::AnyMap& config) {
     OV_CORE_CALL_STATEMENT(_impl->RegisterPluginByName(pluginName, deviceName, config););
 }
 
