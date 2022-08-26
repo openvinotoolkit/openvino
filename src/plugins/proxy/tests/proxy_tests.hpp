@@ -37,7 +37,7 @@ public:
         try {
             core.register_plugin(std::string("mock_abc_plugin") + IE_BUILD_POSTFIX,
                                  "ABC",
-                                 {{"ALIAS", "MOCK"}, {"FALLBACK", "BDE"}, {"DEVICES_PRIORITY", "0"}});
+                                 {{"ALIAS", "MOCK"}, {"FALLBACK", "BDE"}, {"DEVICE_PRIORITY", "0"}});
             core.register_plugin(std::string("mock_bde_plugin") + IE_BUILD_POSTFIX, "BDE", {{"ALIAS", "MOCK"}});
         } catch (const ov::Exception& ex) {
             // Plugin is already registered

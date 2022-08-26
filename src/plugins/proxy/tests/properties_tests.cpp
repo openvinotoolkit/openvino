@@ -15,6 +15,12 @@ std::string get_string_value(const ov::Any& value) {
 }
 }  // namespace
 
+TEST_F(ProxyTests, get_property_on_default_uninit_device) {
+    const std::string dev_name = "MOCK";
+    core.set_property(dev_name, ov::num_streams(2));
+    EXPECT_EQ(2, core.get_property(dev_name, ov::num_streams));
+}
+
 TEST_F(ProxyTests, get_property_on_default_device) {
     const std::string dev_name = "MOCK";
     auto supported_properties = core.get_property(dev_name, ov::supported_properties);

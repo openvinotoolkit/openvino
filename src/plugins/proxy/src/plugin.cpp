@@ -125,29 +125,6 @@ void ov::proxy::Plugin::SetProperties(const ov::AnyMap& config) {
     // Empty config_name means means global config for all devices
     std::string config_name = is_device_in_config(config) ? std::to_string(get_device_from_config(config)) : "";
 
-    auto it = config.find(ov::device::priorities.name());
-    if (it != config.end()) {
-        configs[config_name][ov::device::priorities.name()] = it->second;
-        // Main device is needed in case if we don't have alias and would like to be able change fallback order per
-        // device
-        if (alias_for.empty() && config_name.empty())
-            alias_for.insert(split(it->second, " ")[0]);
-    }
-    for (const auto& it : config) {
-        // Skip proxy properties
-        if (ov::device::id.name() == it.first || it.first == ov::device::priorities.name() ||
-            it.first == "DEVICES_PRIORITY" || it.first == "ALIAS_FOR")
-            continue;
-        configs[config_name][it.first] = it.second;
-    }
-}
-
-void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& config) {
-    // Cannot change config from different threads
-    std::lock_guard<std::mutex> lock(plugin_mutex);
-    // Empty config_name means means global config for all devices
-    std::string config_name = is_device_in_config(config) ? std::to_string(get_device_from_config(config)) : "";
-
     // Parse alias config
     auto it = config.find("ALIAS_FOR");
     bool fill_order = config.find("DEVICES_PRIORITY") == config.end() && device_order.empty();
@@ -219,6 +196,13 @@ void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& conf
             continue;
         configs[config_name][it.first] = it.second;
     }
+}
+
+void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& config) {
+    ov::AnyMap properties;
+    for (const auto& it : config)
+        properties[it.first] = it.second;
+    SetProperties(properties);
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr ov::proxy::Plugin::LoadExeNetworkImpl(
