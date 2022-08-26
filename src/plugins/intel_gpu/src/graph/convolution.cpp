@@ -121,17 +121,17 @@ layout convolution_inst::calc_output_layout(convolution_node const& node, kernel
                                    0,
                                    "Stride spatial Y must be positive (>= 1)");
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
-                                   "Dilatation spatial X",
+                                   "Dilation spatial X",
                                    dilation_x,
                                    "value",
                                    0,
-                                   "Dilatation patial X must be positive (>= 1)");
+                                   "Dilation patial X must be positive (>= 1)");
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
-                                   "Dilatation spatial Y",
+                                   "Dilation spatial Y",
                                    dilation_y,
                                    "value",
                                    0,
-                                   "Dilatation spatial Y must be positive (>= 1)");
+                                   "Dilation spatial Y must be positive (>= 1)");
 
     if (input_layout.format.spatial_num() == 3) {
         // convolution 3D
@@ -142,11 +142,11 @@ layout convolution_inst::calc_output_layout(convolution_node const& node, kernel
                                        0,
                                        "Stride spatial Z must be positive (>= 1)");
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
-                                       "Dilatation spatial Z",
+                                       "Dilation spatial Z",
                                        dilation_z,
                                        "value",
                                        0,
-                                       "Dilatation spatial Z must be positive (>= 1)");
+                                       "Dilation spatial Z must be positive (>= 1)");
     }
 
     if (input_layout.format == format::winograd_2x3_s1_weights ||
@@ -178,17 +178,17 @@ layout convolution_inst::calc_output_layout(convolution_node const& node, kernel
                               1,
                               "Convolution's input in winograd_2x3_s1_data format can only be used with stride 1x1");
         CLDNN_ERROR_NOT_EQUAL(desc->id,
-                              "Dilatation spatial X",
+                              "Dilation spatial X",
                               dilation_x,
                               "expected value",
                               1,
-                              "Winograd 2x3 convolution does not support dilatation");
+                              "Winograd 2x3 convolution does not support dilation");
         CLDNN_ERROR_NOT_EQUAL(desc->id,
-                              "Dilatation spatial Y",
+                              "Dilation spatial Y",
                               dilation_y,
                               "expected value",
                               1,
-                              "Winograd 2x3 convolution does not support dilatation");
+                              "Winograd 2x3 convolution does not support dilation");
         if (input_layout.feature() % 32 != 0)
             CLDNN_ERROR_MESSAGE(desc->id,
                                 "Input for winograd 2x3 convolution should have features count divisable by 32");
