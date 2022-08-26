@@ -150,7 +150,7 @@ std::string ov::util::path_join(const std::vector<std::string>& paths) {
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-std::wstring ov::util::path_join(const std::vector<std::wstring>& paths) {
+std::wstring ov::util::path_join_w(const std::vector<std::wstring>& paths) {
     std::wstring result;
     if (paths.empty()) {
         return result;
@@ -217,7 +217,7 @@ void ov::util::iterate_files(const std::string& path,
 #ifdef _WIN32
 #    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     std::wstring pathw = string_to_wstring(path);
-    std::wstring file_match = path_join({pathw, L"*"});
+    std::wstring file_match = path_join_w({pathw, L"*"});
     WIN32_FIND_DATAW data;
     HANDLE hFind = FindFirstFileW(file_match.c_str(), &data);
     if (hFind != INVALID_HANDLE_VALUE) {
@@ -225,7 +225,7 @@ void ov::util::iterate_files(const std::string& path,
             bool is_dir = data.dwFileAttributes == FILE_ATTRIBUTE_DIRECTORY;
             if (is_dir) {
                 if (std::wstring(data.cFileName) != L"." && std::wstring(data.cFileName) != L"..") {
-                    std::wstring dir_pathw = path_join({pathw, data.cFileName});
+                    std::wstring dir_pathw = path_join_w({pathw, data.cFileName});
                     std::string dir_path = wstring_to_string(dir_pathw);
                     if (recurse) {
                         iterate_files(dir_path, func, recurse);
@@ -233,7 +233,7 @@ void ov::util::iterate_files(const std::string& path,
                     func(dir_path, true);
                 }
             } else {
-                std::wstring file_namew = path_join({pathw, data.cFileName});
+                std::wstring file_namew = path_join_w({pathw, data.cFileName});
                 std::string file_name = wstring_to_string(file_namew);
                 func(file_name, false);
             }
