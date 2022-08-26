@@ -109,7 +109,15 @@ InferenceEngine::QueryNetworkResult ov::proxy::Plugin::QueryNetwork(
     size_t num_devices = get_hidden_devices().size();
     // Recall for HW device
     auto dev_id = get_device_from_config(config);
-    auto res = GetCore()->QueryNetwork(network, get_fallback_device(dev_id), config);
+    std::map<std::string, std::string> config_copy;
+    for (const auto& it : config) {
+        // Skip proxy properties
+        if (ov::device::id.name() == it.first || it.first == ov::device::priorities.name() ||
+            it.first == "DEVICES_PRIORITY" || it.first == "ALIAS_FOR")
+            continue;
+        config_copy[it.first] = it.second;
+    }
+    auto res = GetCore()->QueryNetwork(network, get_fallback_device(dev_id), config_copy);
     // Replace hidden device name
     for (auto&& it : res.supportedLayersMap) {
         it.second = GetName();
@@ -254,6 +262,8 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetConfig(
         return split(get_property(name, config_name), " ");
     }
 
+    if (has_property(name, config_name))
+        return get_property(name, config_name);
     return GetCore()->GetConfig(get_primary_device(device_id), name);
 }
 
