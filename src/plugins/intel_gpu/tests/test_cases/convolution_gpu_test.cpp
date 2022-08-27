@@ -26,11 +26,6 @@
 using namespace cldnn;
 using namespace ::tests;
 
-namespace cldnn
-{
-    template<> struct type_to_data_type<FLOAT16> { static const data_types value = data_types::f16; };
-}
-
 template<typename T>
 T kahan_summation(std::vector<T> &input) {
     T sum = 0;
@@ -1332,6 +1327,66 @@ TEST(convolution_f32_fw_gpu, basic_convolution_bfyx_weights_as_input_layout) {
     network.set_input_data("input", input);
     network.set_input_data("weights", weights);
     network.set_input_data("biases", biases);
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "conv");
+
+    auto output_memory = outputs.at("conv").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+    EXPECT_EQ(output_layout.format, format::bfyx);
+    EXPECT_EQ(y_size, 2);
+    EXPECT_EQ(x_size, 3);
+    EXPECT_EQ(f_size, 1);
+    EXPECT_EQ(b_size, 1);
+    for (int y = 0; y < y_size; ++y) {
+        for (int x = 0; x < x_size; ++x) {
+            EXPECT_EQ(output_vec[y][x], output_ptr[y * x_size + x]);
+        }
+    }
+}
+
+TEST(convolution_f32_fw_gpu, basic_convolution_bfyx_weights_as_input_layout_non_opt_build) {
+    //Same params as convolution_f32_fw_gpu, basic_convolution but with bfyx optimized data and weights set as input_layout
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,
+    { 1, 1, 5, 4 }
+    });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx,
+    { 1, 1, 3, 2 }
+    });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx,
+    { 1, 1, 1, 1 }
+    });
+    set_values(input,
+    { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f }
+    );
+    set_values(weights,
+    { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f }
+    );
+    set_values(biases,
+    { 1.0f }
+    );
+    VVF<float> output_vec = {
+        { 21.0f, 28.0f, 39.0f }
+        ,
+        { 18.0f, 20.0f, 20.0f }
+    };
+    topology topology(
+        input_layout("input", input->get_layout()),
+        input_layout("weights", weights->get_layout()),
+        data("biases", biases),
+        convolution("conv", "input", { "weights" }, { "biases" }, { 2, 1 }, { 0, 0 }));
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::optimize_data(false));
+    network network(engine, topology, options, true);
+    network.set_input_data("input", input);
+    network.set_input_data("weights", weights);
     auto outputs = network.execute();
     EXPECT_EQ(outputs.size(), size_t(1));
     EXPECT_EQ(outputs.begin()->first, "conv");
@@ -8899,7 +8954,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     }
     build_options options;
     options.set_option(build_option::optimize_data(true));
-    implementation_desc conv_impl = { input_data_format, impl_name, prim_impl_types };
+    implementation_desc conv_impl = { format::byxf, impl_name, prim_impl_types };
     options.set_option(build_option::force_implementations({ { "conv_fsv", conv_impl } }));
     network network(engine, topology, options);
 
@@ -8913,7 +8968,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     mem_lock<FLOAT16> out_ptr{ out_mem, get_test_stream() };
     auto out_lay = out_mem->get_layout();
 
-    ASSERT_EQ(out_mem->get_layout().format, input_data_format);
+    ASSERT_EQ(out_mem->get_layout().format, format::byxf);
     ASSERT_EQ(out_lay.batch(), expected_result.size());
     ASSERT_EQ(out_lay.feature(), expected_result[0].size());
     ASSERT_EQ(out_lay.spatial(1), expected_result[0][0].size());
@@ -8967,7 +9022,7 @@ TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
     topology topology_ref(input, weights, input_reorder, conv1, conv2, output_reorder);
 
     build_options options_test;
-    implementation_desc conv1_impl_test = { format::b_fs_yx_fsv16, "", impl_types::onednn };
+    implementation_desc conv1_impl_test = { format::byxf, "", impl_types::onednn };
     implementation_desc conv2_impl_test = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16", impl_types::ocl };
     options_test.set_option(build_option::force_implementations({ { "conv1", conv1_impl_test }, { "conv2", conv2_impl_test } }));
     options_test.set_option(build_option::optimize_data(true));

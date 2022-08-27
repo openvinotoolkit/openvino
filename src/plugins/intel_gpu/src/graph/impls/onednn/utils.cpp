@@ -106,6 +106,7 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
         case cldnn::format::bfyx: return dnnl::memory::format_tag::nchw;
         case cldnn::format::bfzyx: return dnnl::memory::format_tag::ncdhw;
         case cldnn::format::byxf: return dnnl::memory::format_tag::nhwc;
+        case cldnn::format::bzyxf: return dnnl::memory::format_tag::ndhwc;
         case cldnn::format::b_fs_yx_fsv2: return dnnl::memory::format_tag::undef;
         case cldnn::format::b_fs_yx_fsv4: return dnnl::memory::format_tag::aBcd4b;
         case cldnn::format::b_fs_yx_fsv16: return dnnl::memory::format_tag::nChw16c;
@@ -133,6 +134,10 @@ std::string convert_data_format_string(cldnn::format fmt) {
     switch (fmt) {
         case cldnn::format::b_fs_yx_fsv2: return "aBcd2b";
         case cldnn::format::b_fs_zyx_fsv2: return "aBcde2b";
+        case cldnn::format::bs_fs_yx_bsv16_fsv2: return "ABcd16a2b";
+        case cldnn::format::bs_fs_zyx_bsv16_fsv2: return "ABcde16a2b";
+        case cldnn::format::bs_fs_yx_bsv16_fsv4: return "ABcd16a4b";
+        case cldnn::format::bs_fs_zyx_bsv16_fsv4: return "ABcde16a4b";
         case cldnn::format::bs_fs_zyx_bsv16_fsv32: return "ABcde16a32b";
         default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn layout string" + fmt_to_str(fmt));
     }
@@ -155,8 +160,8 @@ int64_t get_f_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     auto f_padding = l.data_padding.lower_size().feature[0];
     if (f_padding != 0) {
         offset = f_padding;
-        for (size_t i = 0; i < l.get_tensor().spatial.size(); ++i) {
-            offset *= l.get_tensor().spatial[i];
+        for (size_t i = 0; i < l.get_spatial_rank(); ++i) {
+            offset *= l.spatial(i);
         }
     }
 
@@ -423,6 +428,21 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
                 && blk.inner_idxs[0] == 2 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 2
                 && compare_strides(order, {0, 1, 2, 3, 4})) {
                 return cldnn::format::g_os_is_yx_isa8_osv8_isv2;
+            }  else if (desc.data.ndims == 5 && blk.inner_nblks == 3
+                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 4
+                && blk.inner_idxs[0] == 2 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 2
+                && compare_strides(order, {0, 1, 2, 3, 4})) {
+                return cldnn::format::g_os_is_yx_isa8_osv8_isv4;
+            } else if (desc.data.ndims == 5 && blk.inner_nblks == 2
+                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 2
+                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 2) {
+                    if (compare_strides(order, {0, 1, 3, 4, 2}))        return cldnn::format::g_os_yx_is_osv8_isv2;
+                    else if (compare_strides(order, {0, 1, 3, 2, 4}))   return cldnn::format::g_os_y_is_x_osv8_isv2;
+            } else if (desc.data.ndims == 5 && blk.inner_nblks == 2
+                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 4
+                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 2) {
+                    if (compare_strides(order, {0, 1, 3, 4, 2}))        return cldnn::format::g_os_yx_is_osv8_isv4;
+                    else if (compare_strides(order, {0, 1, 3, 2, 4}))   return cldnn::format::g_os_y_is_x_osv8_isv4;
             }
         } else {
             if (desc.data.ndims == 4 && blk.inner_nblks == 4
@@ -442,23 +462,47 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
             } else if (desc.data.ndims == 4 && blk.inner_nblks == 3
                 && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 2
                 && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 0 && blk.inner_idxs[2] == 1) {
-                if (compare_strides(order, {0, 1, 2, 3})) {
-                    return cldnn::format::os_is_yx_isa8_osv8_isv2;
-                } else if (compare_strides(order, {1, 0, 2, 3})) {
-                    return cldnn::format::is_os_yx_isa8_osv8_isv2;
-                }
+                if (compare_strides(order, {0, 1, 2, 3}))           return cldnn::format::os_is_yx_isa8_osv8_isv2;
+                else if (compare_strides(order, {1, 0, 2, 3}))      return cldnn::format::is_os_yx_isa8_osv8_isv2;
+            } else if (desc.data.ndims == 4 && blk.inner_nblks == 3
+                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 4
+                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 0 && blk.inner_idxs[2] == 1) {
+                if (compare_strides(order, {0, 1, 2, 3}))           return cldnn::format::os_is_yx_isa8_osv8_isv4;
+                else if (compare_strides(order, {1, 0, 2, 3}))      return cldnn::format::is_os_yx_isa8_osv8_isv4;
+            } else if (desc.data.ndims == 4 && blk.inner_nblks == 2
+                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 2
+                && blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1) {
+                if (compare_strides(order, {0, 2, 1, 3}))           return cldnn::format::os_y_is_x_osv8_isv2;
+                else if (compare_strides(order, {0, 2, 3, 1}))      return cldnn::format::os_yx_is_osv8_isv2;
+            } else if (desc.data.ndims == 4 && blk.inner_nblks == 2
+                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 4
+                && blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1) {
+                if (compare_strides(order, {0, 2, 1, 3}))           return cldnn::format::os_y_is_x_osv8_isv4;
+                else if (compare_strides(order, {0, 2, 3, 1}))      return cldnn::format::os_yx_is_osv8_isv4;
+            } else if (desc.data.ndims == 5 && blk.inner_nblks == 2 &&
+                blk.inner_blks[0] == 8 && blk.inner_blks[1] == 2 &&
+                blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1) {
+                if (compare_strides(order, {0, 2, 3, 4, 1}))        return cldnn::format::os_zyx_is_osv8_isv2;
+                else if (compare_strides(order, {0, 2, 3, 1, 4}))   return cldnn::format::os_zy_is_x_osv8_isv2;
+            } else if (desc.data.ndims == 5 && blk.inner_nblks == 2 &&
+                blk.inner_blks[0] == 8 && blk.inner_blks[1] == 4 &&
+                blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1) {
+                if (compare_strides(order, {0, 2, 3, 4, 1}))        return cldnn::format::os_zyx_is_osv8_isv4;
+                else if (compare_strides(order, {0, 2, 3, 1, 4}))   return cldnn::format::os_zy_is_x_osv8_isv4;
+            } else if (desc.data.ndims == 5 && blk.inner_nblks == 3
+                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 2
+                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 0 && blk.inner_idxs[2] == 1) {
+                if (compare_strides(order, {0, 1, 2, 3, 4}))        return cldnn::format::os_is_zyx_isa8_osv8_isv2;
+                else if (compare_strides(order, {1, 0, 2, 3, 4}))   return cldnn::format::is_os_zyx_isa8_osv8_isv2;
+            } else if (desc.data.ndims == 5 && blk.inner_nblks == 3
+                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 4
+                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 0 && blk.inner_idxs[2] == 1) {
+                if (compare_strides(order, {0, 1, 2, 3, 4}))        return cldnn::format::os_is_zyx_isa8_osv8_isv4;
+                else if (compare_strides(order, {1, 0, 2, 3, 4}))   return cldnn::format::is_os_zyx_isa8_osv8_isv4;
             } else if (desc.data.ndims == 5 && blk.inner_nblks == 4 &&
                 blk.inner_blks[0] == 2 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 8 && blk.inner_blks[3] == 2 &&
                 blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 0 && blk.inner_idxs[3] == 1) {
                 return cldnn::format::os_is_zyx_osa2_isa8_osv8_isv2;
-            } else if (desc.data.ndims == 5 && blk.inner_nblks == 3
-                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 2
-                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 0 && blk.inner_idxs[2] == 1) {
-                if (compare_strides(order, {0, 1, 2, 3, 4})) {
-                    return cldnn::format::os_is_zyx_isa8_osv8_isv2;
-                } else if (compare_strides(order, {1, 0, 2, 3, 4})) {
-                    return cldnn::format::is_os_zyx_isa8_osv8_isv2;
-                }
             } else if (desc.data.ndims == 5 && blk.inner_nblks == 4 &&
                 blk.inner_blks[0] == 4 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 8 && blk.inner_blks[3] == 4 &&
                 blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 0 && blk.inner_idxs[3] == 1) {
@@ -473,6 +517,9 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
             << ", inner_blks: ";
         for (int i = 0; i < blk.inner_nblks; i++)
             msg << "(blk " << blk.inner_blks[i] << ", idx " << blk.inner_idxs[i] << ") ";
+        msg << ", strides_order: ";
+        for (const auto& value : order)
+            msg << value << " ";
 
         throw std::runtime_error(msg.str());
     }

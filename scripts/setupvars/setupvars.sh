@@ -45,20 +45,36 @@ if [ -e "$INSTALLDIR/runtime" ]; then
     if [ -e "$HDDL_UNITE_DIR" ]; then
         export LD_LIBRARY_PATH=$HDDL_UNITE_DIR/lib:$HDDL_UNITE_DIR/thirdparty/XLink/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     fi
-fi
 
-if [ -e "$INSTALLDIR/runtime/3rdparty/tbb" ]; then
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        export DYLD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/tbb/lib:${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}
-    fi
-    export LD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/tbb/lib:${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH}
+    if [ -e "$INSTALLDIR/runtime/3rdparty/tbb" ]; then
+        tbb_lib_path=$INSTALLDIR/runtime/3rdparty/tbb/lib
+        if [ -d "$tbb_lib_path/$system_type" ]; then
+            lib_path=$(find "$tbb_lib_path/$system_type" -name "libtbb*" | sort -r | head -n1)
+            if [ -n "$lib_path" ]; then
+                tbb_lib_path=$(dirname "$lib_path")
+            fi
+        fi
 
-    if [ -e "$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/TBB" ]; then
-        export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/TBB
-    elif [ -e "$INSTALLDIR/runtime/3rdparty/tbb/lib64/cmake/TBB" ]; then
-        export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/lib64/cmake/TBB
-    elif [ -e "$INSTALLDIR/runtime/3rdparty/tbb/cmake" ]; then
-        export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/cmake
+        if ls "$tbb_lib_path"/libtbb* >/dev/null 2>&1; then
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                export DYLD_LIBRARY_PATH=$tbb_lib_path:${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}
+            fi
+            export LD_LIBRARY_PATH=$tbb_lib_path:${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH}
+        else
+            echo "[setupvars.sh] WARNING: Directory with TBB libraries is not detected. Please, add TBB libraries to LD_LIBRARY_PATH / DYLD_LIBRARY_PATH manually"
+        fi
+
+        if [ -e "$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/TBB" ]; then
+            export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/TBB
+        elif [ -e "$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/tbb" ]; then
+            export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/tbb
+        elif [ -e "$INSTALLDIR/runtime/3rdparty/tbb/lib64/cmake/TBB" ]; then
+            export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/lib64/cmake/TBB
+        elif [ -e "$INSTALLDIR/runtime/3rdparty/tbb/cmake" ]; then
+            export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/cmake
+        else
+            echo "[setupvars.sh] WARNING: TBB_DIR directory is not defined automatically by setupvars.sh. Please, set it manually to point to TBBConfig.cmake"
+        fi
     fi
 fi
 
@@ -79,7 +95,7 @@ if [ -z "$python_version" ]; then
     python_version=$(python3 -c 'import sys; print(str(sys.version_info[0])+"."+str(sys.version_info[1]))')
 fi
 
-# splitting Python version variable depending on the used shell 
+# splitting Python version variable depending on the used shell
 if [ -n "$ZSH_VERSION" ]; then
     version_arr=(${(@s:.:)python_version})
     if [ "${#version_arr[@]}" -ge "2" ]; then

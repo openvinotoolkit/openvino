@@ -88,7 +88,7 @@ ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
 
 if(ENABLE_TESTS)
     if(ENABLE_OV_ONNX_FRONTEND AND ENABLE_REQUIREMENTS_INSTALL)
-        find_package(PythonInterp 3 REQUIRED)
+        find_host_package(PythonInterp 3 REQUIRED)
 
         get_filename_component(PYTHON_EXEC_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
         execute_process(COMMAND "${PYTHON_EXECUTABLE}" -m pip --version

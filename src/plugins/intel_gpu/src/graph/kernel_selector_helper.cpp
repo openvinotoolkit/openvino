@@ -126,6 +126,8 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::b_fs_yx_32fp;
         case format::bfzyx:
             return kernel_selector::data_layout::bfzyx;
+        case format::bzyxf:
+            return kernel_selector::data_layout::bzyxf;
         case format::fs_b_yx_fsv32:
             return kernel_selector::data_layout::fs_b_yx_fsv32;
         case format::bfwzyx:
@@ -148,6 +150,14 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::bs_fs_yx_bsv8_fsv4;
         case format::bs_fs_zyx_bsv8_fsv4:
             return kernel_selector::data_layout::bs_fs_zyx_bsv8_fsv4;
+        case format::bs_fs_yx_bsv16_fsv4:
+            return kernel_selector::data_layout::bs_fs_yx_bsv16_fsv4;
+        case format::bs_fs_zyx_bsv16_fsv4:
+            return kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv4;
+        case format::bs_fs_yx_bsv16_fsv2:
+            return kernel_selector::data_layout::bs_fs_yx_bsv16_fsv2;
+        case format::bs_fs_zyx_bsv16_fsv2:
+            return kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv2;
         case format::bs_fs_yx_bsv8_fsv2:
             return kernel_selector::data_layout::bs_fs_yx_bsv8_fsv2;
         case format::bs_fs_zyx_bsv8_fsv2:
@@ -219,6 +229,14 @@ cldnn::format from_data_layout(kernel_selector::data_layout l) {
             return cldnn::format::bs_fs_yx_bsv8_fsv4;
         case kernel_selector::data_layout::bs_fs_zyx_bsv8_fsv4:
             return cldnn::format::bs_fs_zyx_bsv8_fsv4;
+        case kernel_selector::data_layout::bs_fs_yx_bsv16_fsv4:
+            return cldnn::format::bs_fs_yx_bsv16_fsv4;
+        case kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv4:
+            return cldnn::format::bs_fs_zyx_bsv16_fsv4;
+        case kernel_selector::data_layout::bs_fs_yx_bsv16_fsv2:
+            return cldnn::format::bs_fs_yx_bsv16_fsv2;
+        case kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv2:
+            return cldnn::format::bs_fs_zyx_bsv16_fsv2;
         case kernel_selector::data_layout::bs_fs_yx_bsv8_fsv2:
             return cldnn::format::bs_fs_yx_bsv8_fsv2;
         case kernel_selector::data_layout::bs_fs_yx_bsv32_fsv32:
@@ -282,6 +300,8 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4;
         case format::g_os_is_yx_isa8_osv8_isv2:
             return kernel_selector::weights_layout::g_os_is_yx_isa8_osv8_isv2;
+        case format::g_os_is_yx_isa8_osv8_isv4:
+            return kernel_selector::weights_layout::g_os_is_yx_isa8_osv8_isv4;
         case format::g_os_is_yx_osa2_isa8_osv8_isv2:
             return kernel_selector::weights_layout::g_os_is_yx_osa2_isa8_osv8_isv2;
         case format::g_os_is_yx_osa4_isa8_osv8_isv2:
@@ -438,14 +458,42 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::os_is_zyx_isa8_osv8_isv2;
         case format::is_os_zyx_isa8_osv8_isv2:
             return kernel_selector::weights_layout::is_os_zyx_isa8_osv8_isv2;
+        case format::is_os_zyx_isa8_osv8_isv4:
+            return kernel_selector::weights_layout::is_os_zyx_isa8_osv8_isv4;
         case format::os_is_yx_isa8_osv8_isv2:
             return kernel_selector::weights_layout::os_is_yx_isa8_osv8_isv2;
         case format::is_os_yx_isa8_osv8_isv2:
             return kernel_selector::weights_layout::is_os_yx_isa8_osv8_isv2;
+        case format::is_os_yx_isa8_osv8_isv4:
+            return kernel_selector::weights_layout::is_os_yx_isa8_osv8_isv4;
         case format::is_os_yx_isa2_osa8_isv8_osv2:
             return kernel_selector::weights_layout::is_os_yx_isa2_osa8_isv8_osv2;
         case format::is_os_yx_isa4_osa8_isv8_osv4:
             return kernel_selector::weights_layout::is_os_yx_isa4_osa8_isv8_osv4;
+        case format::os_y_is_x_osv8_isv2:
+            return kernel_selector::weights_layout::os_y_is_x_osv8_isv2;
+        case format::os_y_is_x_osv8_isv4:
+            return kernel_selector::weights_layout::os_y_is_x_osv8_isv4;
+        case format::os_yx_is_osv8_isv2:
+            return kernel_selector::weights_layout::os_yx_is_osv8_isv2;
+        case format::os_yx_is_osv8_isv4:
+            return kernel_selector::weights_layout::os_yx_is_osv8_isv4;
+        case format::os_zyx_is_osv8_isv2:
+            return kernel_selector::weights_layout::os_zyx_is_osv8_isv2;
+        case format::os_zyx_is_osv8_isv4:
+            return kernel_selector::weights_layout::os_zyx_is_osv8_isv4;
+        case format::os_zy_is_x_osv8_isv2:
+            return kernel_selector::weights_layout::os_zy_is_x_osv8_isv2;
+        case format::os_zy_is_x_osv8_isv4:
+            return kernel_selector::weights_layout::os_zy_is_x_osv8_isv4;
+        case format::g_os_yx_is_osv8_isv2:
+            return kernel_selector::weights_layout::g_os_yx_is_osv8_isv2;
+        case format::g_os_yx_is_osv8_isv4:
+            return kernel_selector::weights_layout::g_os_yx_is_osv8_isv4;
+        case format::g_os_y_is_x_osv8_isv2:
+            return kernel_selector::weights_layout::g_os_y_is_x_osv8_isv2;
+        case format::g_os_y_is_x_osv8_isv4:
+            return kernel_selector::weights_layout::g_os_y_is_x_osv8_isv4;
         default:
             throw std::invalid_argument("Unable to convert tensor layout " + fmt_to_str(f) + " to weights layout");
     }
@@ -572,10 +620,14 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::is_os_yx_isv16_osv16;
         case kernel_selector::weights_layout::is_os_zyx_isa8_osv8_isv2:
             return cldnn::format::is_os_zyx_isa8_osv8_isv2;
+        case kernel_selector::weights_layout::is_os_zyx_isa8_osv8_isv4:
+            return cldnn::format::is_os_zyx_isa8_osv8_isv4;
         case kernel_selector::weights_layout::os_is_zyx_isa8_osv8_isv2:
             return cldnn::format::os_is_zyx_isa8_osv8_isv2;
         case kernel_selector::weights_layout::is_os_yx_isa8_osv8_isv2:
             return cldnn::format::is_os_yx_isa8_osv8_isv2;
+        case kernel_selector::weights_layout::is_os_yx_isa8_osv8_isv4:
+            return cldnn::format::is_os_yx_isa8_osv8_isv4;
         case kernel_selector::weights_layout::os_is_yx_isa8_osv8_isv2:
             return cldnn::format::os_is_yx_isa8_osv8_isv2;
         case kernel_selector::weights_layout::is_os_yx_osa4_isa8_osv8_isv4:
@@ -620,6 +672,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::g_is_os_yx_isv16_osv16;
         case kernel_selector::weights_layout::g_os_is_yx_isa8_osv8_isv2:
             return cldnn::format::g_os_is_yx_isa8_osv8_isv2;
+        case kernel_selector::weights_layout::g_os_is_yx_isa8_osv8_isv4:
+            return cldnn::format::g_os_is_yx_isa8_osv8_isv4;
         case kernel_selector::weights_layout::g_os_is_zyx_isv8_osv16_isv2:
             return cldnn::format::g_os_is_zyx_isv8_osv16_isv2;
         case kernel_selector::weights_layout::g_os_is_yx_isv8_osv16_isv2:
@@ -684,6 +738,30 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::giy_xs_os_xsv2_osv16__ao32;
         case kernel_selector::weights_layout::ioyx:
             return cldnn::format::ioyx;
+        case kernel_selector::weights_layout::os_y_is_x_osv8_isv2:
+            return cldnn::format::os_y_is_x_osv8_isv2;
+        case kernel_selector::weights_layout::os_y_is_x_osv8_isv4:
+            return cldnn::format::os_y_is_x_osv8_isv4;
+        case kernel_selector::weights_layout::os_yx_is_osv8_isv2:
+            return cldnn::format::os_yx_is_osv8_isv2;
+        case kernel_selector::weights_layout::os_yx_is_osv8_isv4:
+            return cldnn::format::os_yx_is_osv8_isv4;
+        case kernel_selector::weights_layout::os_zyx_is_osv8_isv2:
+            return cldnn::format::os_zyx_is_osv8_isv2;
+        case kernel_selector::weights_layout::os_zyx_is_osv8_isv4:
+            return cldnn::format::os_zyx_is_osv8_isv4;
+       case kernel_selector::weights_layout::os_zy_is_x_osv8_isv2:
+            return cldnn::format::os_zy_is_x_osv8_isv2;
+        case kernel_selector::weights_layout::os_zy_is_x_osv8_isv4:
+            return cldnn::format::os_zy_is_x_osv8_isv4;
+        case kernel_selector::weights_layout::g_os_yx_is_osv8_isv2:
+            return cldnn::format::g_os_yx_is_osv8_isv2;
+        case kernel_selector::weights_layout::g_os_yx_is_osv8_isv4:
+            return cldnn::format::g_os_yx_is_osv8_isv4;
+        case kernel_selector::weights_layout::g_os_y_is_x_osv8_isv2:
+            return cldnn::format::g_os_y_is_x_osv8_isv2;
+        case kernel_selector::weights_layout::g_os_y_is_x_osv8_isv4:
+            return cldnn::format::g_os_y_is_x_osv8_isv4;
         default:
             throw std::invalid_argument("Unable to convert kernel selector Weights layout " +
                                          std::to_string(static_cast<int>(l)) + " to cldnn format");
@@ -905,11 +983,11 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
     }
 }
 
-void set_params(const program_node& node, kernel_selector::params& params) {
-    const auto& program = node.get_program();
+void set_params(const kernel_impl_params& param_info, kernel_selector::params& params) {
+    const auto& program = param_info.prog;
     const auto& device_info = program.get_engine().get_device_info();
 
-    params.uniqueID = std::to_string(node.get_unique_id());
+    params.uniqueID = std::to_string(param_info.unique_id);
     params.engineInfo.bSubGroupSupport = device_info.supports_subgroups;
     params.engineInfo.bSubGroupShortSupport = device_info.supports_subgroups_short;
     params.engineInfo.bSubGroupCharSupport = device_info.supports_subgroups_char;
@@ -935,8 +1013,8 @@ void set_params(const program_node& node, kernel_selector::params& params) {
     auto impl_forcing_bo = program.get_options().get<build_option_type::force_implementations>();
     const auto& impl_forcing = impl_forcing_bo->forcing;
 
-    if (impl_forcing.count(node.id()) != 0) {
-        params.forceImplementation = impl_forcing.at(node.id()).kernel_name;
+    if (impl_forcing.count(param_info.desc->id) != 0) {
+        params.forceImplementation = impl_forcing.at(param_info.desc->id).kernel_name;
     }
 }
 

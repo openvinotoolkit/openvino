@@ -15,7 +15,7 @@ usage() {
 }
 
 samples_type=$(basename "$( dirname "${BASH_SOURCE[0]-$0}" )" )
-build_dir="$HOME/inference_engine_${samples_type}_samples_build"
+build_dir="$HOME/openvino_${samples_type}_samples_build"
 sample_install_dir=""
 
 # parse command line options
@@ -57,15 +57,17 @@ SAMPLES_PATH="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
 printf "\nSetting environment variables for building samples...\n"
 
 if [ -z "$INTEL_OPENVINO_DIR" ]; then
-    if [ -e "$SAMPLES_PATH/../../setupvars.sh" ]; then
+    if [[ "$SAMPLES_PATH" = "/usr/share/openvino"* ]]; then
+        true
+    elif [ -e "$SAMPLES_PATH/../../setupvars.sh" ]; then
         setvars_path="$SAMPLES_PATH/../../setupvars.sh"
+        source "$setvars_path" || true
     else
         printf "Error: Failed to set the environment variables automatically. To fix, run the following command:\n source <INSTALL_DIR>/setupvars.sh\n where INSTALL_DIR is the OpenVINO installation directory.\n\n"
         exit 1
     fi
-    source "$setvars_path" || true
 else
-    # case for run with `sudo -E` 
+    # case for run with `sudo -E`
     source "$INTEL_OPENVINO_DIR/setupvars.sh" || true
 fi
 

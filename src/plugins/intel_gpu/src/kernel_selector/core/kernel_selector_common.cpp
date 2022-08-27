@@ -101,6 +101,7 @@ std::string toString(DataLayout l) {
         case kernel_selector::DataLayout::winograd_2x3_s1_data:  return "WINOGRAD_2x3_S1_DATA";
         case kernel_selector::DataLayout::b_fs_yx_32fp:          return "B_FS_YX_32FP";
         case kernel_selector::DataLayout::bfzyx:                 return "BFZYX";
+        case kernel_selector::DataLayout::bzyxf:                 return "BZYXF";
         case kernel_selector::DataLayout::fs_b_yx_fsv32:         return "FS_B_YX_FSV32";
         case kernel_selector::DataLayout::bfwzyx:                return "BFWZYX";
         case kernel_selector::DataLayout::b_fs_zyx_fsv16:        return "B_FS_ZYX_FSV16";
@@ -110,6 +111,10 @@ std::string toString(DataLayout l) {
         case kernel_selector::DataLayout::bs_fs_yx_bsv4_fsv4:    return "BS_FS_YX_BSV4_FSV4";
         case kernel_selector::DataLayout::bs_fs_yx_bsv8_fsv4:    return "BS_FS_YX_BSV8_FSV4";
         case kernel_selector::DataLayout::bs_fs_zyx_bsv8_fsv4:   return "BS_FS_ZYX_BSV8_FSV4";
+        case kernel_selector::DataLayout::bs_fs_yx_bsv16_fsv4:   return "BS_FS_YX_BSV16_FSV4";
+        case kernel_selector::DataLayout::bs_fs_zyx_bsv16_fsv4:  return "BS_FS_ZYX_BSV16_FSV4";
+        case kernel_selector::DataLayout::bs_fs_yx_bsv16_fsv2:   return "BS_FS_YX_BSV16_FSV2";
+        case kernel_selector::DataLayout::bs_fs_zyx_bsv16_fsv2:  return "BS_FS_ZYX_BSV16_FSV2";
         case kernel_selector::DataLayout::bs_fs_yx_bsv8_fsv2:    return "BS_FS_YX_BSV8_FSV2";
         case kernel_selector::DataLayout::bs_fs_zyx_bsv8_fsv2:   return "BS_FS_ZYX_BSV8_FSV2";
         case kernel_selector::DataLayout::bs_fs_yx_bsv4_fsv2:    return "BS_FS_YX_BSV4_FSV2";
@@ -227,18 +232,6 @@ std::string toString(ArgMaxMinAxis mode) {
         case ArgMaxMinAxis::X:       return "X";
         case ArgMaxMinAxis::Y:       return "Y";
         case ArgMaxMinAxis::Z:       return "Z";
-        case ArgMaxMinAxis::XYF:     return "XYF";
-        default: return "";
-    }
-}
-
-std::string toString(LookUpTableAxis mode) {
-    switch (mode) {
-        case LookUpTableAxis::BATCH:   return "BATCH";
-        case LookUpTableAxis::FEATURE: return "FEATURE";
-        case LookUpTableAxis::X:       return "X";
-        case LookUpTableAxis::Y:       return "Y";
-        case LookUpTableAxis::XYF:     return "XYF";
         default: return "";
     }
 }
@@ -365,8 +358,10 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::is_os_zyx_isv16_osv16:                       return "IS_OS_ZYX_ISV16_OSV16";
         case WeightsLayout::is_os_yx_isv16_osv16:                        return "IS_OS_YX_ISV16_OSV16";
         case WeightsLayout::is_os_zyx_isa8_osv8_isv2:                    return "IS_OS_ZYX_ISA8_OSV8_ISV2";
+        case WeightsLayout::is_os_zyx_isa8_osv8_isv4:                    return "IS_OS_ZYX_ISA8_OSV8_ISV4";
         case WeightsLayout::os_is_zyx_isa8_osv8_isv2:                    return "OS_IS_ZYX_ISA8_OSV8_ISV2";
         case WeightsLayout::is_os_yx_isa8_osv8_isv2:                     return "IS_OS_YX_ISA8_OSV8_ISV2";
+        case WeightsLayout::is_os_yx_isa8_osv8_isv4:                     return "IS_OS_YX_ISA8_OSV8_ISV4";
         case WeightsLayout::os_is_yx_isa8_osv8_isv2:                     return "OS_IS_YX_ISA8_OSV8_ISV2";
         case WeightsLayout::os_is_zyx_isv8_osv16_isv2:                   return "OS_IS_ZYX_ISV8_OSV16_ISV2";
         case WeightsLayout::os_zyxi_osv16:                               return "OS_ZYXI_OSV16";
@@ -408,6 +403,7 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4:               return "OS_IS_ZYX_OSA4_ISA8_OSV8_ISV4";
         case WeightsLayout::is_os_yx_osa4_isa8_osv8_isv4:                return "IS_OS_YX_OSA4_ISA8_OSV8_ISV4";
         case WeightsLayout::g_os_is_yx_isa8_osv8_isv2:                   return "G_OS_IS_YX_ISA8_OSV8_ISV2";
+        case WeightsLayout::g_os_is_yx_isa8_osv8_isv4:                   return "G_OS_IS_YX_ISA8_OSV8_ISV4";
         case WeightsLayout::g_os_is_yx_osa4_isa8_osv8_isv2:              return "G_OS_IS_YX_OSA4_ISA8_OSV8_ISV2";
         case WeightsLayout::g_os_is_zyx_osa4_isa8_osv8_isv2:             return "G_OS_IS_ZYX_OSA4_ISA8_OSV8_ISV2";
         case WeightsLayout::os_is_yx_osa2_isa8_osv16_isv4:               return "OS_IS_YX_OSA2_ISA8_OSV16_ISV4";
@@ -429,6 +425,20 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::g_os_zyx_is_osv32_isv4:                      return "G_OS_ZYX_IS_OSV32_ISV4";
         case WeightsLayout::g_os_zyx_is_osv32_isv16:                     return "G_OS_ZYX_IS_OSV32_ISV16";
         case WeightsLayout::g_os_zyx_is_osv32_isv32:                     return "G_OS_ZYX_IS_OSV32_ISV32";
+        case WeightsLayout::os_y_is_x_osv8_isv2:                         return "OS_Y_IS_X_OSV8_ISV2";
+        case WeightsLayout::os_y_is_x_osv8_isv4:                         return "OS_Y_IS_X_OSV8_ISV4";
+        case WeightsLayout::os_yx_is_osv8_isv2:                          return "OS_YX_IS_OSV8_ISV2";
+        case WeightsLayout::os_yx_is_osv8_isv4:                          return "OS_YX_IS_OSV8_ISV4";
+        case WeightsLayout::os_zyx_is_osv8_isv2:                         return "OS_ZYX_IS_OSV8_ISV2";
+        case WeightsLayout::os_zyx_is_osv8_isv4:                         return "OS_ZYX_IS_OSV8_ISV4";
+
+        case WeightsLayout::os_zy_is_x_osv8_isv2:                        return "OS_ZY_IS_X_OSV8_ISV2";
+        case WeightsLayout::os_zy_is_x_osv8_isv4:                        return "OS_ZY_IS_X_OSV8_ISV4";
+
+        case WeightsLayout::g_os_yx_is_osv8_isv2:                        return "G_OS_YX_IS_OSV8_ISV2";
+        case WeightsLayout::g_os_yx_is_osv8_isv4:                        return "G_OS_YX_IS_OSV8_ISV4";
+        case WeightsLayout::g_os_y_is_x_osv8_isv2:                       return "G_OS_Y_IS_X_OSV8_ISV2";
+        case WeightsLayout::g_os_y_is_x_osv8_isv4:                       return "G_OS_Y_IS_X_OSV8_ISV4";
         default: throw std::invalid_argument("Failed to convert WeightsLayout " + std::to_string(layout) + " to string");
     }
 }

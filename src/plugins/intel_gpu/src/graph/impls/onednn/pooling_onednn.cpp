@@ -66,7 +66,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const pooling_node& arg) {
+    static primitive_impl* create(const pooling_node& arg, const kernel_impl_params&) {
         auto& engine = arg.get_program().get_engine();
         auto desc = get_pooling_descriptor(arg);
         auto attr = arg.get_onednn_primitive_attributes();
@@ -115,15 +115,20 @@ attach_pooling_onednn::attach_pooling_onednn() {
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
 
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv16),
-
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
+
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
+        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
+        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv16_fsv16),
+        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv16),
+
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv16),
+        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv16),
+        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv16),
+        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv16),
 
         std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv32),
         std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv32),

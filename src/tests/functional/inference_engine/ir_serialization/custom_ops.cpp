@@ -24,11 +24,13 @@
 #endif
 
 static std::string get_extension_path() {
-    return FileUtils::makePluginLibraryName<char>({}, std::string("template_extension") + IE_BUILD_POSTFIX);
+    return FileUtils::makePluginLibraryName<char>(CommonTestUtils::getExecutableDirectory(),
+        std::string("template_extension") + IE_BUILD_POSTFIX);
 }
 
 static std::string get_ov_extension_path() {
-    return FileUtils::makePluginLibraryName<char>({}, std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
+    return FileUtils::makePluginLibraryName<char>(CommonTestUtils::getExecutableDirectory(),
+        std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
 }
 
 class CustomOpsSerializationTest : public ::testing::Test {
@@ -40,6 +42,7 @@ protected:
     void TearDown() override {
         std::remove(m_out_xml_path.c_str());
         std::remove(m_out_bin_path.c_str());
+        ov::shutdown();
     }
 };
 

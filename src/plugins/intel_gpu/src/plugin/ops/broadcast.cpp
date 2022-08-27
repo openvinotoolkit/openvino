@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/except.hpp"
 #include "intel_gpu/plugin/program.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
@@ -28,8 +29,8 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
 
     if (inputRank != outputRank) {
         // Add reorder if changing number of dimensions requires changing format
-        auto targetFormat = DefaultFormatForDims(outputRank);
-        if (targetFormat.value != DefaultFormatForDims(inputRank).value) {
+        auto targetFormat = cldnn::format::get_default_format(outputRank);
+        if (targetFormat.value != cldnn::format::get_default_format(inputRank).value) {
             auto reorderName = layerName + "_cldnn_in_reorder";
             auto targetDatatype = DataTypeFromPrecision(op->get_input_element_type(0));
             auto reorderPrim = cldnn::reorder(reorderName,
@@ -79,10 +80,26 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
         inputPrimitive = reshapeName;
     }
 
+    ov::op::BroadcastModeSpec mode = ov::op::BroadcastType::NONE;
+    if (auto broadcast_v3 = std::dynamic_pointer_cast<ngraph::op::v3::Broadcast>(op)) {
+        mode = broadcast_v3->get_broadcast_spec();
+    } else if (auto broadcast_v1 = std::dynamic_pointer_cast<ngraph::op::v1::Broadcast>(op)) {
+        switch (broadcast_v1->get_broadcast_spec().m_type) {
+            case ov::op::AutoBroadcastType::NONE: mode = ov::op::BroadcastType::NONE; break;
+            case ov::op::AutoBroadcastType::NUMPY: mode = ov::op::BroadcastType::NUMPY; break;
+            case ov::op::AutoBroadcastType::PDPD: mode = ov::op::BroadcastType::PDPD; break;
+            default:
+                throw ov::Exception("[GPU] Can't match Broadcast v1 mode with v3 version");
+        }
+    } else {
+        throw ov::Exception("[GPU] Can't cast Broadcast operation to any supported version");
+    }
+
     auto broadcastPrim = cldnn::broadcast(layerName,
                                           inputPrimitive,
-                                          tensor_from_dims(op->get_output_shape(0)),
-                                          {},
+                                          outputShape,
+                                          axis_mapping,
+                                          mode,
                                           op->get_friendly_name());
 
     p.AddPrimitive(broadcastPrim);

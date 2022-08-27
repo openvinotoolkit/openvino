@@ -19,38 +19,50 @@ primitive_type_id convolution::type_id() {
     return &instance;
 }
 
-static format get_recommended_format(layout input_layout, data_types output_type) {
+static format get_recommended_format(layout input_layout, data_types output_type, int output_feature, uint32_t groups) {
+    bool is_dw = input_layout.feature() == static_cast<int>(groups) && output_feature == static_cast<int>(groups);
+    int ofm_per_group = output_feature / groups;
+    if (groups > 1 &&
+        ((is_dw && ((data_type_traits::is_i8_u8(output_type) && output_feature < 32) ||
+                   (data_type_traits::is_floating_point(input_layout.data_type) && output_feature < 16))) ||
+         (!is_dw && ((ofm_per_group % 32 != 0))))) {
+        return input_layout.format.spatial_num() == 2 ? format::byxf : format::bzyxf;
+    }
     if (data_type_traits::is_i8_u8(output_type)) {
+        if (output_feature <= 16)
+            return input_layout.format.spatial_num() == 2 ? format::byxf : format::bzyxf;
         switch (input_layout.format) {
             case format::b_fs_yx_fsv16:         return format::b_fs_yx_fsv32;
             case format::bs_fs_yx_bsv32_fsv16:  return format::bs_fs_yx_bsv32_fsv32;
             case format::b_fs_zyx_fsv16:        return format::b_fs_zyx_fsv32;
             case format::bs_fs_zyx_bsv32_fsv16: return format::bs_fs_zyx_bsv32_fsv32;
-            case format::b_fs_yx_fsv2:
-            case format::b_fs_yx_fsv4:          return format::b_fs_yx_fsv32;
-            case format::b_fs_zyx_fsv2:
-            case format::b_fs_zyx_fsv4:         return format::b_fs_zyx_fsv32;
-            case format::bs_fs_yx_bsv8_fsv2:
-            case format::bs_fs_yx_bsv8_fsv4:    return input_layout.batch() > 16 ? format::bs_fs_yx_bsv32_fsv32 : format::b_fs_yx_fsv32;
-            case format::bs_fs_zyx_bsv8_fsv2:
-            case format::bs_fs_zyx_bsv8_fsv4:   return input_layout.batch() > 16 ? format::bs_fs_zyx_bsv32_fsv32 : format::b_fs_zyx_fsv32;
+            case format::byxf:                  return input_layout.batch() > 16 ? format::bs_fs_yx_bsv32_fsv32 : format::b_fs_yx_fsv32;
+            case format::bzyxf:                 return input_layout.batch() > 16 ? format::bs_fs_zyx_bsv32_fsv32 : format::b_fs_zyx_fsv32;
             default:
                 break;
         }
     } else if (data_type_traits::is_floating_point(output_type)) {
+        if ((output_feature <= 8 && output_type == data_types::f16)|| (output_feature <= 4 && output_type == data_types::f32))
+            return input_layout.format.spatial_num() == 2 ? format::byxf : format::bzyxf;
         switch (input_layout.format) {
             case format::b_fs_yx_fsv32:         return format::b_fs_yx_fsv16;
-            case format::bs_fs_yx_bsv32_fsv32:  return format::bs_fs_yx_bsv32_fsv16;
+            case format::bs_fs_yx_bsv32_fsv32:  return output_type == data_types::f16 ? format::bs_fs_yx_bsv32_fsv16 : format::bs_fs_yx_bsv16_fsv16;
             case format::b_fs_zyx_fsv32:        return format::b_fs_zyx_fsv16;
-            case format::bs_fs_zyx_bsv32_fsv32: return format::bs_fs_zyx_bsv32_fsv16;
-            case format::b_fs_yx_fsv2:
-            case format::b_fs_yx_fsv4:          return format::b_fs_yx_fsv16;
-            case format::b_fs_zyx_fsv2:
-            case format::b_fs_zyx_fsv4:         return format::b_fs_zyx_fsv16;
-            case format::bs_fs_yx_bsv8_fsv2:
-            case format::bs_fs_yx_bsv8_fsv4:    return input_layout.batch() > 16 ? format::bs_fs_yx_bsv32_fsv16 : format::b_fs_yx_fsv16;
-            case format::bs_fs_zyx_bsv8_fsv2:
-            case format::bs_fs_zyx_bsv8_fsv4:   return input_layout.batch() > 16 ? format::bs_fs_zyx_bsv32_fsv16 : format::b_fs_zyx_fsv16;
+            case format::bs_fs_zyx_bsv32_fsv32: return output_type == data_types::f16 ? format::bs_fs_zyx_bsv32_fsv16 : format::bs_fs_zyx_bsv16_fsv16;
+            case format::bs_fs_yx_bsv32_fsv16:  return output_type == data_types::f16 ? format::bs_fs_yx_bsv32_fsv16 : format::bs_fs_yx_bsv16_fsv16;
+            case format::bs_fs_zyx_bsv32_fsv16: return output_type == data_types::f16 ? format::bs_fs_zyx_bsv32_fsv16 : format::bs_fs_zyx_bsv16_fsv16;
+            case format::byxf: {
+                if (input_layout.batch() > 16)
+                    return output_type == data_types::f16 ? format::bs_fs_yx_bsv32_fsv16 : format::bs_fs_yx_bsv16_fsv16;
+                else
+                    return format::b_fs_yx_fsv16;
+            }
+            case format::bzyxf: {
+                if (input_layout.batch() > 16)
+                    return output_type == data_types::f16 ? format::bs_fs_zyx_bsv32_fsv16 : format::bs_fs_zyx_bsv16_fsv16;
+                else
+                    return format::b_fs_zyx_fsv16;
+            }
             default:
                 break;
         }
@@ -59,11 +71,12 @@ static format get_recommended_format(layout input_layout, data_types output_type
     return format::any;
 }
 
-layout convolution_inst::calc_output_layout(convolution_node const& node) {
-    auto desc = node.get_primitive();
+layout convolution_inst::calc_output_layout(convolution_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<convolution>();
 
-    auto input_layout = node.input().get_output_layout();
-    auto weights_layout = node.weights(0).get_output_layout().convert_to_weights_layout(desc->grouped_weights_shape);
+    auto input_layout = impl_param.get_input_layout();
+    auto weights_layout = *impl_param.weights_layout;
+    weights_layout = weights_layout.convert_to_weights_layout(desc->grouped_weights_shape);
 
     auto pad = desc->pad;
     auto stride = desc->stride;
@@ -77,12 +90,12 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
     auto input_type = input_layout.data_type;
 
     auto output_type = input_type;
-    if (node.has_fused_primitives()) {
-        output_type = node.get_fused_output_layout().data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
     }
 
     if ((input_type == data_types::u8 || input_type == data_types::i8) &&
-         !node.has_fused_primitives()) {
+         !impl_param.has_fused_primitives()) {
         output_type = data_types::f32;
     }
 
@@ -95,45 +108,45 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
     uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
 
     // TODO: Consider moving general parameter verification to arguments constructor.
-    CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+    CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                    "Stride spatial X",
                                    stride_x,
                                    "value",
                                    0,
                                    "Stride spatial X must be positive (>= 1)");
-    CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+    CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                    "Stride spatial Y",
                                    stride_y,
                                    "value",
                                    0,
                                    "Stride spatial Y must be positive (>= 1)");
-    CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
-                                   "Dilatation spatial X",
+    CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
+                                   "Dilation spatial X",
                                    dilation_x,
                                    "value",
                                    0,
-                                   "Dilatation patial X must be positive (>= 1)");
-    CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
-                                   "Dilatation spatial Y",
+                                   "Dilation patial X must be positive (>= 1)");
+    CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
+                                   "Dilation spatial Y",
                                    dilation_y,
                                    "value",
                                    0,
-                                   "Dilatation spatial Y must be positive (>= 1)");
+                                   "Dilation spatial Y must be positive (>= 1)");
 
     if (input_layout.format.spatial_num() == 3) {
         // convolution 3D
-        CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                        "Stride spatial Z",
                                        stride_z,
                                        "value",
                                        0,
                                        "Stride spatial Z must be positive (>= 1)");
-        CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
-                                       "Dilatation spatial Z",
+        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
+                                       "Dilation spatial Z",
                                        dilation_z,
                                        "value",
                                        0,
-                                       "Dilatation spatial Z must be positive (>= 1)");
+                                       "Dilation spatial Z must be positive (>= 1)");
     }
 
     if (input_layout.format == format::winograd_2x3_s1_weights ||
@@ -142,54 +155,54 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
         input_layout.format == format::image_2d_weights_winograd_6x3_s1_fbxyb ||
         input_layout.format == format::image_2d_weights_winograd_6x3_s1_xfbyb)
         CLDNN_ERROR_MESSAGE(
-            node.id(),
+            desc->id,
             "Input for convolution should not be in winograd weights format - it is reserved for weights only");
 
     if (input_layout.format == format::winograd_2x3_s1_data) {
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
+        CLDNN_ERROR_NOT_EQUAL(desc->id,
                               "convolution split",
                               split,
                               "expected value",
                               1,
                               "Convolution with winograd input only supports split == 1");
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
+        CLDNN_ERROR_NOT_EQUAL(desc->id,
                               "stride spatial X",
                               stride_x,
                               "expected value",
                               1,
                               "Convolution's input in winograd_2x3_s1_data format can only be used with stride 1x1");
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
+        CLDNN_ERROR_NOT_EQUAL(desc->id,
                               "stride spatial Y",
                               stride_y,
                               "expected value",
                               1,
                               "Convolution's input in winograd_2x3_s1_data format can only be used with stride 1x1");
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Dilatation spatial X",
+        CLDNN_ERROR_NOT_EQUAL(desc->id,
+                              "Dilation spatial X",
                               dilation_x,
                               "expected value",
                               1,
-                              "Winograd 2x3 convolution does not support dilatation");
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Dilatation spatial Y",
+                              "Winograd 2x3 convolution does not support dilation");
+        CLDNN_ERROR_NOT_EQUAL(desc->id,
+                              "Dilation spatial Y",
                               dilation_y,
                               "expected value",
                               1,
-                              "Winograd 2x3 convolution does not support dilatation");
+                              "Winograd 2x3 convolution does not support dilation");
         if (input_layout.feature() % 32 != 0)
-            CLDNN_ERROR_MESSAGE(node.id(),
+            CLDNN_ERROR_MESSAGE(desc->id,
                                 "Input for winograd 2x3 convolution should have features count divisable by 32");
         if (weights_layout.ofm() % 32 != 0)
-            CLDNN_ERROR_MESSAGE(node.id(),
+            CLDNN_ERROR_MESSAGE(desc->id,
                                 "Number of filters (OFM) for winograd 2x3 convolution should be divisable by 32");
 
-        CLDNN_ERROR_LESS_THAN(node.id(),
+        CLDNN_ERROR_LESS_THAN(desc->id,
                               "input width",
                               input_layout.spatial(0),
                               "filter width",
                               3,
                               "Convolution input is smaller than weights");
-        CLDNN_ERROR_LESS_THAN(node.id(),
+        CLDNN_ERROR_LESS_THAN(desc->id,
                               "input height",
                               input_layout.spatial(1),
                               "filter height",
@@ -211,10 +224,10 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
                       input_layout.data_padding};
     }
 
-    // Adjust output format for mixed precision case in onednn
+    // Adjust output format for shallow conv and mixed precision cases in onednn
     auto out_fmt = input_layout.format;
     if (node.get_preferred_impl_type() == impl_types::onednn) {
-        format recommended_fmt = get_recommended_format(input_layout, output_type);
+        format recommended_fmt = get_recommended_format(input_layout, output_type, desc->output_size.feature[0], desc->groups);
         if (recommended_fmt != format::any)
             out_fmt = recommended_fmt;
     }
@@ -222,19 +235,19 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
     // get output feature map from weights. It should be the same as number of biases. Will be verifed in
     // convolution::create()
     if (desc->with_output_size) {
-        CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                        "User defined output spatial X",
                                        desc->output_size.spatial[0],
                                        "value",
                                        0,
                                        "must be positive(>= 1)");
-        CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                        "User defined output spatial Y",
                                        desc->output_size.spatial[1],
                                        "value",
                                        0,
                                        "must be positive(>= 1)");
-        CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                        "User defined output spatial Z",
                                        desc->output_size.spatial[2],
                                        "value",

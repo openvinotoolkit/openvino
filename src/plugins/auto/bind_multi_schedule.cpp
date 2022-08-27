@@ -72,8 +72,8 @@ Pipeline BinderMultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, Wor
                 if (_multiSContext->_needPerfCounters) {
                     auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>
                         (syncInferRequest);
-                    multiSyncInferRequest->_perfMap =
-                        (*workerInferRequest)->_inferRequest->GetPerformanceCounts();
+                    multiSyncInferRequest->_scheduledRequest =
+                        (*workerInferRequest)->_inferRequest;
                 }
                 INFO_RUN([workerInferRequest]() {
                    (*workerInferRequest)->_endTimes.push_back(std::move(std::chrono::steady_clock::now()));

@@ -30,7 +30,7 @@ target_include_directories(${TARGET_NAME} PUBLIC
 target_link_libraries(${TARGET_NAME} PRIVATE ngraph_reference
                                              ngraph_builders
                                              ov_shape_inference
-                                             pugixml::static
+                                             openvino::pugixml
                                              ${CMAKE_DL_LIBS}
                                              Threads::Threads)
 
@@ -86,7 +86,7 @@ target_include_directories(${TARGET_NAME}_dev INTERFACE
 target_compile_definitions(${TARGET_NAME}_dev INTERFACE
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
 
-target_link_libraries(${TARGET_NAME}_dev INTERFACE ${TARGET_NAME} pugixml::static openvino::itt openvino::util)
+target_link_libraries(${TARGET_NAME}_dev INTERFACE ${TARGET_NAME} openvino::itt openvino::util)
 
 set_ie_threading_interface_for(${TARGET_NAME}_dev)
 set_target_properties(${TARGET_NAME}_dev PROPERTIES EXPORT_NAME runtime::dev)
@@ -102,32 +102,28 @@ ov_install_static_lib(${TARGET_NAME}_dev ${OV_CPACK_COMP_CORE})
 
 list(APPEND PATH_VARS "IE_INCLUDE_DIR")
 
-# TODO: dpkg-shlibdeps does not work otherwise
-# TODO: define proper library version, currently SOVERSION 2022
-# set_target_properties(${TARGET_NAME} PROPERTIES
-#     SOVERSION ${OpenVINO_VERSION_MAJOR}
-#     VERSION ${OpenVINO_VERSION})
+ov_add_library_version(${TARGET_NAME})
 
 if(ENABLE_INTEL_GNA)
     list(APPEND PATH_VARS "GNA_PATH")
 endif()
 
-ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
-ie_cpack_add_component(core_dev REQUIRED DEPENDS core ${core_dev_components})
+ie_cpack_add_component(${OV_CPACK_COMP_CORE}
+                       HIDDEN
+                       DEPENDS ${core_components})
+ie_cpack_add_component(${OV_CPACK_COMP_CORE_DEV}
+                       HIDDEN
+                       DEPENDS ${OV_CPACK_COMP_CORE} ${core_dev_components})
 
 if(BUILD_SHARED_LIBS)
     install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
             DESTINATION ${OV_CPACK_PLUGINSDIR}
-            COMPONENT core)
+            COMPONENT ${OV_CPACK_COMP_CORE})
 
-    # for InferenceEngineUnitTest
-    # For public tests
-    install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
-            DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
-    # For private tests
-    if (NOT WIN32)
+    if(ENABLE_TESTS)
+        # for InferenceEngineUnitTest
         install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
-                DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
+                DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
     endif()
 endif()
 

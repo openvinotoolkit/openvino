@@ -8,11 +8,11 @@
 #include <deque>
 #include <iostream>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <openvino/cc/pass/itt.hpp>
 #include <regex>
 #include <unordered_set>
 #include <vector>
 
-#include "itt.hpp"
 #include "ngraph/env_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
@@ -62,6 +62,7 @@ PerfCounters& perf_counters_graph_rewrite() {
 }  // namespace ov
 
 bool ov::pass::BackwardGraphRewrite::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(BackwardGraphRewrite);
     // Initialize execution queue with nodes in topological order
     std::deque<std::weak_ptr<Node>> nodes_to_run;
     for (auto& node : f->get_ordered_ops()) {
@@ -71,6 +72,7 @@ bool ov::pass::BackwardGraphRewrite::run_on_model(const std::shared_ptr<ov::Mode
 }
 
 bool ov::pass::GraphRewrite::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(GraphRewrite);
     // Initialize execution queue with nodes in topological order
     std::deque<std::weak_ptr<Node>> nodes_to_run;
     for (auto& node : f->get_ordered_ops()) {
@@ -240,7 +242,7 @@ void ov::pass::GraphRewrite::add_matcher(const std::shared_ptr<pattern::Matcher>
             NGRAPH_DEBUG << "Running matcher " << m->get_name() << " on " << node;
             if (m->match(node->output(0))) {
                 NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
-                NGRAPH_PASS_CALLBACK(m);
+                OV_PASS_CALLBACK(m);
                 bool status = callback(*m.get());
                 // explicitly clear Matcher state because it holds pointers to matched nodes
                 m->clear_state();
@@ -297,8 +299,9 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
     m_handler = [m, callback](const std::shared_ptr<Node>& node) -> bool {
         if (m->match(node->output(0))) {
             NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
-            NGRAPH_PASS_CALLBACK(m);
-            bool status = callback(*m.get());
+            OV_PASS_CALLBACK(m);
+            const bool status = callback(*m.get());
+            NGRAPH_DEBUG << "Matcher " << m->get_name() << " callback " << (status ? "succeded" : "failed");
             // explicitly clear Matcher state because it holds pointers to matched nodes
             m->clear_state();
             return status;

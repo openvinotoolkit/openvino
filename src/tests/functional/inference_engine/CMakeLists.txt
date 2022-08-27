@@ -4,7 +4,7 @@
 
 set(TARGET_NAME ieFuncTests)
 
-set(INCLUDES $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src)
+set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src)
 
 set(LINK_LIBRARIES
     gmock
@@ -16,7 +16,7 @@ set(LINK_LIBRARIES
     openvino::conditional_compilation
     sharedTestClasses
     offline_transformations
-    pugixml::static
+    openvino::pugixml
     openvino::runtime::dev
 )
 
@@ -31,10 +31,6 @@ set(DEPENDENCIES
 
 if(ENABLE_OV_IR_FRONTEND)
     list(APPEND DEPENDENCIES openvino_ir_frontend)
-endif()
-
-if(ENABLE_IR_V7_READER)
-    list(APPEND DEPENDENCIES inference_engine_ir_v7_reader)
 endif()
 
 if(ENABLE_HETERO)
@@ -69,18 +65,22 @@ addIeTargetTest(
         IE
 )
 
+target_compile_definitions(${TARGET_NAME} PRIVATE $<$<BOOL:${BUILD_SHARED_LIBS}>:"BUILD_SHARED_LIBS">)
+
 set_ie_threading_interface_for(${TARGET_NAME})
 
 if(ENABLE_OV_ONNX_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         ENABLE_OV_ONNX_FRONTEND
-        ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx_reader/models/")
+        ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx_reader/models/"
+        TEST_ONNX_MODELS_DIRNAME="${TEST_MODEL_ZOO}/core/models/onnx")
     add_dependencies(${TARGET_NAME} openvino_onnx_frontend)
 endif()
 
 if(ENABLE_OV_PADDLE_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
-            PADDLE_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader/models/")
+        PADDLE_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader/models/"
+        TEST_PADDLE_MODELS_DIRNAME="test_model_zoo/paddle_test_models")
     add_dependencies(${TARGET_NAME} openvino_paddle_frontend)
 endif()
 
@@ -195,9 +195,9 @@ function(ie_headers_compilation_with_custom_flags)
     target_compile_definitions(${target_name} PRIVATE $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>)
 
     if(IE_TEST_PLUGIN_API)
-        # ngraph, pugixml::static, openvino::itt, openvino_gapi_preproc headers
+        # ngraph, openvino::pugixml, openvino::itt, openvino_gapi_preproc headers
         target_include_directories(${target_name} SYSTEM PRIVATE
-            $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
         target_include_directories(${target_name} PRIVATE
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -282,8 +282,8 @@ ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiCxx17
                                          CXX_STANDARD 17 PLUGIN_API)
 
 if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
-    if(TBB_VERSION VERSION_EQUAL 2021.2)
-        # TBB 2021.2 has a bug in headers with CXX_STANDARD 20
+    if(TBB_VERSION VERSION_EQUAL 2021.2.2)
+        # TBB 2021.2.2 has a bug in headers with CXX_STANDARD 20
         # see https://github.com/oneapi-src/oneTBB/issues/379
         set(skip_headers_list HEADERS_TO_SKIP "threading/ie_thread_local.hpp")
     endif()
