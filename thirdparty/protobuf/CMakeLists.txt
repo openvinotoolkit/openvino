@@ -40,7 +40,13 @@ if(CMAKE_CROSSCOMPILING)
         execute_process(
             COMMAND ${SYSTEM_PROTOC} --version
             OUTPUT_VARIABLE PROTOC_VERSION
+            ERROR_VARIABLE error_message
+            RESULT_VARIABLE exit_code
             OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+        if(NOT exit_code EQUAL 0)
+            message(FATAL_ERROR "Internal error: failed to get ${SYSTEM_PROTOC} version ${error_message}")
+        endif()
 
         string(REPLACE " " ";" PROTOC_VERSION ${PROTOC_VERSION})
         list(GET PROTOC_VERSION -1 PROTOC_VERSION)
