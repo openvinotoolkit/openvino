@@ -140,6 +140,8 @@ bool relax_batch_for_initial_states_of_lstm_in_ti(const std::shared_ptr<ov::opse
         auto outer_init_cell_state_input = get_outer_input_of_ti_by_parameter(init_cell_state, ti);
         rewritten |= broadcast_state_by_batch(outer_init_cell_state_input, batch_delivering_node);
     }
+    if (rewritten)
+        std::cout << "Transformed: TI LSTM" << std::endl;
     return rewritten;
 }
 
@@ -152,6 +154,8 @@ bool relax_batch_for_initial_states_of_lstm(const std::shared_ptr<ov::opset9::LS
                                              ov::opset9::Constant::create(ov::element::i64, ov::Shape{}, {0}));
     rewritten |= broadcast_state_by_batch(lstm_cell->input(1), batch_delivering_node);
     rewritten |= broadcast_state_by_batch(lstm_cell->input(2), batch_delivering_node);
+    if (rewritten)
+        std::cout << "Transformed: Bare LSTM" << std::endl;
     return rewritten;
 }
 

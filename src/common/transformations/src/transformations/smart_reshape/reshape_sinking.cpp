@@ -148,6 +148,7 @@ ngraph::pass::ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
         output_pattern[0] = 0;
         auto new_reshape_1_constant = opset9::Constant::create(ov::element::i64, Shape{input_rank}, output_pattern);
         reshape_1->input(1).replace_source_output(new_reshape_1_constant->output(0));
+        std::cout << "Transformed: MatMul Reshape" << std::endl;
 
         return true;
     };
