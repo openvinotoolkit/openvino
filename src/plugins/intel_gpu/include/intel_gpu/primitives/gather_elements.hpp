@@ -36,6 +36,14 @@ struct gather_elements : public primitive_base<gather_elements> {
                     const padding& output_padding = padding())
         : primitive_base(id, {data, indices}, ext_prim_id, output_padding), output_format(output_format), output_shape(output_shape), axis(axis) {}
 
+    gather_elements(const primitive_id& id,
+                    const primitive_id& data,
+                    const primitive_id& indices,
+                    const int64_t axis,
+                    const primitive_id& ext_prim_id = "",
+                    const padding& output_padding = padding())
+        : primitive_base(id, {data, indices}, ext_prim_id, output_padding), output_format({}), output_shape({}), axis(axis) {}
+
     /// @brief Gather Elements output format
     format output_format;
     /// @brief Gather Elements output shape
