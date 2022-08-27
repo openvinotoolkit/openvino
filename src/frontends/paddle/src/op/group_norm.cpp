@@ -11,21 +11,6 @@ namespace frontend {
 namespace paddle {
 namespace op {
 
-std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const Output<ov::Node>& value) {
-    if (value.get_partial_shape().rank().is_static()) {
-        size_t reshape_rank = value.get_partial_shape().rank().get_length();
-        std::vector<size_t> range_value;
-        for (size_t i = 1; i < reshape_rank; i++)
-            range_value.push_back(i);
-        return default_opset::Constant::create(element::i64, {range_value.size()}, range_value);
-    }
-    const auto value_shape = std::make_shared<default_opset::ShapeOf>(value);
-    return std::make_shared<default_opset::Range>(default_opset::Constant::create(element::i64, {}, {1}),
-                                                  std::make_shared<default_opset::ShapeOf>(value_shape),
-                                                  default_opset::Constant::create(element::i64, {}, {1}),
-                                                  element::i64);
-}
-
 Output<ov::Node> reshape_channel_shaped_node_to_nchw(const Output<ov::Node>& node,
                                                      const Output<ov::Node>& expected_rank) {
     const auto one_const = default_opset::Constant::create(element::i64, Shape{1}, {1});
@@ -73,7 +58,13 @@ NamedOutputs group_norm(const NodeContext& node) {
     // The reason is the lack of support for 5D MVN input by some plugins.
     auto reshaped_ = std::make_shared<default_opset::Concat>(new_shape, 0);
     auto data_reshaped = std::make_shared<default_opset::Reshape>(data, reshaped_, true);
-    const auto reduction_axes = op::get_monotonic_range_along_node_rank(data_reshaped);
+    const Output<ov::Node> data_reshaped_value = data_reshaped;
+    PADDLE_OP_CHECK(node, data_reshaped_value.get_partial_shape().rank().is_static());
+    size_t reshape_rank = data_reshaped_value.get_partial_shape().rank().get_length();
+    std::vector<size_t> range_value;
+    for (size_t i = 1; i < reshape_rank; i++)
+        range_value.push_back(i);
+    const auto reduction_axes = default_opset::Constant::create(element::i64, {range_value.size()}, range_value);
 
     auto mvn = std::make_shared<default_opset::MVN>(data_reshaped,
                                                     reduction_axes,
