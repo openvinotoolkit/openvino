@@ -174,8 +174,8 @@ TEST_P(activation_eltwise_activation_quantize_u8, basic) {
         quantize("quant", "act2", "in_low", "in_high", "out_low", "out_high", 256, data_types::u8),
         reorder("reorder_bfyx", "quant", p.default_format, data_types::f32)
     );
-    //Activation won't be fused because onednn doesn't support softsign activation
-    if(engine.get_device_info().supports_immad)
+    // Activation won't be fused because onednn doesn't support softsign activation
+    if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
     tolerance = 1.f;
@@ -197,8 +197,8 @@ TEST_P(activation_eltwise_activation_quantize_u8, per_channel) {
         quantize("quant", "act2", "in_low", "in_high", "out_low", "out_high", 256, data_types::u8),
         reorder("reorder_bfyx", "quant", p.default_format, data_types::f32)
     );
-    //Activation won't be fused because onednn doesn't support softsign activation
-    if(engine.get_device_info().supports_immad)
+    // Activation won't be fused because onednn doesn't support softsign activation
+    if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
     tolerance = 1.f;

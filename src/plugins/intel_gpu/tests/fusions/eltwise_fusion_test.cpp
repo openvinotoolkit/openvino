@@ -187,8 +187,8 @@ TEST_P(eltwise_const_path, not_fuse_to_const_eltwise) {
         activation("activation", "add", activation_func::negative),
         reorder("out", "activation", p.default_format, data_types::f32)
     );
-    //Activation won't be fused because onednn doesn't support negative activation
-    if(engine.get_device_info().supports_immad)
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
     tolerance = 1e-5f;
@@ -216,8 +216,8 @@ TEST_P(eltwise_fp32_fsv16, add) {
         activation("activation", "add", activation_func::negative),
         reorder("out", "activation", p.default_format, data_types::f32)
     );
-    //Activation won't be fused because onednn doesn't support negative activation
-    if(engine.get_device_info().supports_immad)
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_b_fs_yx_fsv16" };
@@ -238,8 +238,8 @@ TEST_P(eltwise_fp32_fsv16, add_per_element) {
         activation("activation", "add", activation_func::negative),
         reorder("out", "activation", p.default_format, data_types::f32)
     );
-    //Activation won't be fused because onednn doesn't support negative activation
-    if(engine.get_device_info().supports_immad)
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_b_fs_yx_fsv16" };
@@ -266,8 +266,8 @@ TEST_P(eltwise_fp32_fsv32, add) {
         activation("activation", "add", activation_func::negative),
         reorder("out", "activation", p.default_format, data_types::f32)
     );
-    //Activation won't be fused because onednn doesn't support negative activation
-    if(engine.get_device_info().supports_immad)
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::fs_b_yx_fsv32, "eltwise_fs_b_yx_fsv32" };
@@ -288,8 +288,8 @@ TEST_P(eltwise_fp32_fsv32, add_per_element) {
         activation("activation", "add", activation_func::negative),
         reorder("out", "activation", p.default_format, data_types::f32)
     );
-    //Activation won't be fused because onednn doesn't support negative activation
-    if(engine.get_device_info().supports_immad)
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::fs_b_yx_fsv32, "eltwise_fs_b_yx_fsv32" };
@@ -317,8 +317,8 @@ TEST_P(eltwise_fp32_fsv4, add) {
         activation("activation", "add", activation_func::negative),
         reorder("out", "activation", p.default_format, data_types::f32)
     );
-    //Activation won't be fused because onednn doesn't support negative activation
-    if(engine.get_device_info().supports_immad)
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::b_fs_yx_fsv4, "eltwise_b_fs_yx_fsv4" };
@@ -339,8 +339,8 @@ TEST_P(eltwise_fp32_fsv4, add_per_element) {
         activation("activation", "add", activation_func::negative),
         reorder("out", "activation", p.default_format, data_types::f32)
     );
-    //Activation won't be fused because onednn doesn't support negative activation
-    if(engine.get_device_info().supports_immad)
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::b_fs_yx_fsv4, "eltwise_b_fs_yx_fsv4" };
@@ -470,8 +470,8 @@ TEST_P(eltwise_fp16_byxf, add) {
         activation("activation", "add", activation_func::negative),
         reorder("out", "activation", p.default_format, data_types::f32)
     );
-    //Activation won't be fused because onednn doesn't support negative activation
-    if(engine.get_device_info().supports_immad)
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::byxf, "generic_eltwise_ref" };
