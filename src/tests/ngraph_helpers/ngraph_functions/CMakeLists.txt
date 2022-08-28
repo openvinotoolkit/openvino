@@ -20,6 +20,7 @@ addIeTarget(
                 openvino::runtime
                 ngraph_reference
                 interpreter_backend
+                inference_engine_transformations
         ADD_CPPLINT
         DEVELOPER_PACKAGE
             tests

@@ -169,6 +169,30 @@ DnnlDesriptor::operator std::shared_ptr<dnnl::lbr_gru_forward::desc>() {
     return typeDesc->getPtr();
 }
 
+DnnlDesriptor::DnnlDesriptor(std::shared_ptr<dnnl::augru_forward::desc> desc) {
+    this->desc.reset(new DescFwdImpl<dnnl::augru_forward::desc>(desc));
+}
+
+DnnlDesriptor::operator std::shared_ptr<dnnl::augru_forward::desc>() {
+    auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<dnnl::augru_forward::desc>>(desc);
+    if (typeDesc == nullptr) {
+        IE_THROW() << "Cannot cast descriptor!";
+    }
+    return typeDesc->getPtr();
+}
+
+DnnlDesriptor::DnnlDesriptor(std::shared_ptr<dnnl::lbr_augru_forward::desc> desc) {
+    this->desc.reset(new DescFwdImpl<dnnl::lbr_augru_forward::desc>(desc));
+}
+
+DnnlDesriptor::operator std::shared_ptr<dnnl::lbr_augru_forward::desc>() {
+    auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<dnnl::lbr_augru_forward::desc>>(desc);
+    if (typeDesc == nullptr) {
+        IE_THROW() << "Cannot cast descriptor!";
+    }
+    return typeDesc->getPtr();
+}
+
 DnnlDesriptor::DnnlDesriptor(std::shared_ptr<dnnl::eltwise_forward::desc> desc) {
     this->desc.reset(new DescFwdImpl<dnnl::eltwise_forward::desc>(desc));
 }
