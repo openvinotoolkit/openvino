@@ -249,7 +249,7 @@ def test_bad_data_shape():
 
 def test_constant_get_data_bool():
     input_data = np.array([True, False, False, True])
-    node = ops.constant(input_data, dtype=np.bool)
+    node = ops.constant(input_data, dtype=np.bool_)
     retrieved_data = node.get_data()
     assert np.allclose(input_data, retrieved_data)
 
