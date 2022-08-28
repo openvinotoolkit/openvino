@@ -226,18 +226,29 @@ if(LINUX AND NOT CMAKE_CROSSCOMPILING)
         endif()
     endif()
 
-    if(CPACK_GENERATOR STREQUAL "DEB" AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT AND CMAKE_C_COMPILER STREQUAL "gcc")
-        # detect multiarch-triplet
-        # note: clang provides different output like 'x86_64-pc-linux-gnu', so it's not used
-        execute_process(COMMAND "${CMAKE_C_COMPILER}" -dumpmachine
-            OUTPUT_VARIABLE PKGCONFIG_OpenVINO_TRIPLET
-            ERROR_VARIABLE error_message
-            RESULT_VARIABLE exit_code
-            OUTPUT_STRIP_TRAILING_WHITESPACE)
-        if(NOT exit_code EQUAL 0)
-            message(WARNING "Internal error: failed to detect library <triplet> ${error_message}")
+    # detect <multiarch-triplet>
+    if(CPACK_GENERATOR STREQUAL "DEB" AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+        # TODO: find a better way to detect <multiarch-triplet>
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            # note: clang provides different output like 'x86_64-pc-linux-gnu', so it's not used
+            execute_process(COMMAND "${CMAKE_C_COMPILER}" -dumpmachine
+                OUTPUT_VARIABLE PKGCONFIG_OpenVINO_TRIPLET
+                ERROR_VARIABLE error_message
+                RESULT_VARIABLE exit_code
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+            if(NOT exit_code EQUAL 0)
+                message(WARNING "Internal error: failed to detect library <multiarch-triplet> ${error_message}")
+                set(generate_pkgconfig OFF)
+            endif()
+        else()
+            # cannot detect <multiarch-triplet>
             set(generate_pkgconfig OFF)
         endif()
+    endif()
+
+    # temporary skip generator of pkg-config file for static libraries
+    if(NOT BUILD_SHARED_LIBS)
+        set(generate_pkgconfig OFF)
     endif()
 
     # define relative paths

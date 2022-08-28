@@ -228,22 +228,11 @@ macro(ie_add_sample)
         set(folder_name c_samples)
     endif()
 
-    if(WIN32 OR CMAKE_CROSSCOMPILING OR
-        "${CMAKE_SOURCE_DIR}" STREQUAL "${OpenVINO_SOURCE_DIR}")
-        find_package(OpenVINO REQUIRED COMPONENTS Runtime)
-        if(c_sample)
-            set(ov_link_libraries openvino::runtime::c)
-        else()
-            set(ov_link_libraries openvino::runtime)
-        endif()
+    find_package(OpenVINO REQUIRED COMPONENTS Runtime)
+    if(c_sample)
+        set(ov_link_libraries openvino::runtime::c)
     else()
-        find_host_package(PkgConfig QUIET)
-        if(PkgConfig_FOUND)
-            pkg_search_module(openvino REQUIRED
-                              IMPORTED_TARGET
-                              openvino)
-            set(ov_link_libraries PkgConfig::openvino)
-        endif()
+        set(ov_link_libraries openvino::runtime)
     endif()
 
     set_target_properties(${IE_SAMPLE_NAME} PROPERTIES FOLDER ${folder_name}
