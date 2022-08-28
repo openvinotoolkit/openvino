@@ -46,7 +46,7 @@ class FreezePlaceholderValue(FrontReplacementSubgraph):
                 data_type = SUPPORTED_DATA_TYPES[graph.graph['cmd_params'].data_type][0]
             string_value = graph.graph['freeze_placeholder'][name]
             try:
-                if data_type != np.bool:
+                if data_type != np.bool_:
                     value = mo_array(string_value, dtype=data_type)
                 # TODO: investigate why boolean type is allowed only for TensorFlow
                 elif data_type == np.bool and graph.graph['fw'] == 'tf':
