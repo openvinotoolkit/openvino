@@ -146,7 +146,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             }
 
             // remove CPU from default candidate list for Cumulative Throughput mode
-            if (GPUNums >= 3 && CPUNums > 0) {
+            if (GPUNums >= 3 && CPUNums > 0 && !_autoSContext->_bindBuffer) {
                 validDevices.erase(itCPUDevice);
                 LOG_INFO_TAG("GPUNums:%d, remove CPU from default candidate list for "
                          "CUMULATIVE_THROUGHPUT",
@@ -557,10 +557,15 @@ IInferPtr AutoSchedule::CreateInferRequest() {
         } catch(...) {
             LOG_INFO("query perf hint from passthrough network failed");
         }
-        if (_autoSContext->_batchingDisabled || perfmode != CONFIG_VALUE(THROUGHPUT))
+        if (_autoSContext->_batchingDisabled || perfmode != CONFIG_VALUE(THROUGHPUT)) {
             syncRequestImpl->setPointerToSo(_passthroughExeNet._so);
-        else
-            syncRequestImpl->setPointerToSo(_passthroughExeNet._ptr->GetPointerToSo());
+        } else {
+            auto so = _passthroughExeNet._ptr->GetPointerToSo();
+            // Get the _so from passthrough executable network when batch plugin is disable.
+            if (!so)
+                so = _passthroughExeNet._so;
+            syncRequestImpl->setPointerToSo(so);
+        }
     }
     return std::make_shared<AsyncInferRequest>(shared_from_this(),
                                                syncRequestImpl,
