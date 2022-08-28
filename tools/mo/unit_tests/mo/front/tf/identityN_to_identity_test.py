@@ -19,7 +19,7 @@ nodes = {
     **empty_data('identityN_1_d'),
     **regular_op_with_empty_data('identity0', {'op': 'Identity', 'type': None, 'data_type': np.int32,
                                                'name': 'my_identity/0_port'}),
-    **regular_op_with_empty_data('identity1', {'op': 'Identity', 'type': None, 'data_type': np.float,
+    **regular_op_with_empty_data('identity1', {'op': 'Identity', 'type': None, 'data_type': np.float32,
                                                'name': 'my_identity/1_port'}),
 
     **result('output0'),
