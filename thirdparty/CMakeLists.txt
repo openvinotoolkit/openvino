@@ -67,7 +67,10 @@ if(ENABLE_SYSTEM_PUGIXML)
         if(target_type STREQUAL "SHARED_LIBRARY")
             ie_cpack_add_component(pugixml HIDDEN)
             get_target_property(pugixml_loc ${pugixml_target} IMPORTED_LOCATION_NOCONFIG)
-            install(FILES ${pugixml_loc}
+            get_target_property(pugixml_soname_loc ${pugixml_target} IMPORTED_SONAME_NOCONFIG)
+            get_filename_component(pugixml_dir "${pugixml_loc}" DIRECTORY)
+            install(FILES "${pugixml_loc}"
+                          "${pugixml_dir}/${pugixml_soname_loc}"
                     DESTINATION runtime/3rdparty/pugixml/lib
                     COMPONENT pugixml EXCLUDE_FROM_ALL)
         endif()
