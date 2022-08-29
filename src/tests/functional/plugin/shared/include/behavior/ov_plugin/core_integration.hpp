@@ -140,7 +140,7 @@ inline bool supportsAvaliableDevices(ov::Core& ie, const std::string& target_dev
            std::find(std::begin(supported_properties), std::end(supported_properties), ov::available_devices);
 }
 
-bool supportsDeviceID(ov::Core& ie, const std::string& target_device) {
+inline bool supportsDeviceID(ov::Core& ie, const std::string& target_device) {
     auto supported_properties =
             ie.get_property(target_device, ov::supported_properties);
     return supported_properties.end() !=
@@ -1086,7 +1086,7 @@ TEST_P(OVClassLoadNetworkWithDefaultPropertiesTest, LoadNetworkWithDefaultProper
     ov::Core ie = createCoreWithTemplate();
     ov::CompiledModel model;
     OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, target_device, configuration));
-    ov::hint::PerformanceMode value;
+    ov::hint::PerformanceMode value = ov::hint::PerformanceMode::UNDEFINED;
     OV_ASSERT_NO_THROW(value = model.get_property(ov::hint::performance_mode));
     ASSERT_EQ(value, ov::hint::PerformanceMode::THROUGHPUT);
 }
@@ -1095,9 +1095,9 @@ TEST_P(OVClassLoadNetworkWithDefaultIncorrectPropertiesTest, LoadNetworkWithDefa
     ov::Core ie = createCoreWithTemplate();
     ov::CompiledModel model;
     OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, target_device, configuration));
-    ov::hint::PerformanceMode value;
+    ov::hint::PerformanceMode value = ov::hint::PerformanceMode::THROUGHPUT;
     OV_ASSERT_NO_THROW(value = model.get_property(ov::hint::performance_mode));
-    ASSERT_EQ(value, ov::hint::PerformanceMode::UNDEFINED);
+    ASSERT_NE(value, ov::hint::PerformanceMode::THROUGHPUT);
 }
 
 TEST_P(OVClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {
