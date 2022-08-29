@@ -211,14 +211,14 @@ macro(ov_cpack_settings)
     #
 
     if(ENABLE_PYTHON)
-        set(CPACK_COMPONENT_PYOPENVINO_PYTHON3.8_DESCRIPTION "OpenVINO Python bindings")
+        set(CPACK_COMPONENT_PYOPENVINO_PYTHON3.6_DESCRIPTION "OpenVINO Python bindings")
         if(installed_plugins)
-            set(CPACK_COMPONENT_PYOPENVINO_PYTHON3.8_DEPENDS "${installed_plugins}")
+            set(CPACK_COMPONENT_PYOPENVINO_PYTHON3.6_DEPENDS "${installed_plugins}")
         else()
-            set(CPACK_COMPONENT_PYOPENVINO_PYTHON3.8_DEPENDS "core")
+            set(CPACK_COMPONENT_PYOPENVINO_PYTHON3.6_DEPENDS "core")
         endif()
-        set(CPACK_RPM_PYOPENVINO_PYTHON3.8_PACKAGE_NAME "libopenvino-python-${cpack_name_ver}")
-        set(CPACK_RPM_PYOPENVINO_PYTHON3.8_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
+        set(CPACK_RPM_PYOPENVINO_PYTHON3.6_PACKAGE_NAME "libopenvino-python-${cpack_name_ver}")
+        set(CPACK_RPM_PYOPENVINO_PYTHON3.6_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
     endif()
 
     #
