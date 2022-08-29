@@ -16,6 +16,7 @@
 #include <string>
 #include <unordered_set>
 
+#include "any_copy.hpp"
 #include "blob_factory.hpp"
 #include "cnn_network_ngraph_impl.hpp"
 #include "cpp/ie_cnn_network.h"
@@ -212,8 +213,8 @@ void IInferencePlugin::SetConfig(const std::map<std::string, std::string>&) {
     IE_THROW(NotImplemented);
 }
 
-void IInferencePlugin::SetProperties(const ov::AnyMap&) {
-    IE_THROW(NotImplemented);
+void IInferencePlugin::SetProperties(const ov::AnyMap& config) {
+    SetConfig(any_copy(config));
 }
 
 Parameter IInferencePlugin::GetConfig(const std::string&, const std::map<std::string, Parameter>&) const {
