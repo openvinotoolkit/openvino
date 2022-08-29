@@ -20,30 +20,13 @@ ov_status_e ov_const_node_get_shape(ov_output_const_port_t* port, ov_shape_t* te
     return ov_status_e::OK;
 }
 
-ov_status_e ov_node_get_shape(ov_output_node_t* port, ov_shape_t* tensor_shape) {
+ov_status_e ov_node_get_shape(ov_output_port_t* port, ov_shape_t* tensor_shape) {
     if (!port || !tensor_shape) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
         auto shape = port->object->get_shape();
-        ov_shape_init(tensor_shape, shape.size());
-        std::copy_n(shape.begin(), shape.size(), tensor_shape->dims);
-    }
-    CATCH_OV_EXCEPTIONS
-
-    return ov_status_e::OK;
-}
-
-ov_status_e ov_node_list_get_shape_by_index(const ov_output_const_node_list_t* port_list,
-                                            size_t idx,
-                                            ov_shape_t* tensor_shape) {
-    if (!port_list || idx >= port_list->size || !tensor_shape) {
-        return ov_status_e::INVALID_C_PARAM;
-    }
-
-    try {
-        auto shape = port_list->ports[idx].object->get_shape();
         ov_shape_create(shape.size(), nullptr, tensor_shape);
         std::copy_n(shape.begin(), shape.size(), tensor_shape->dims);
     }
@@ -52,28 +35,26 @@ ov_status_e ov_node_list_get_shape_by_index(const ov_output_const_node_list_t* p
     return ov_status_e::OK;
 }
 
-ov_status_e ov_node_list_get_any_name_by_index(const ov_output_const_node_list_t* port_list, size_t idx, char** tensor_name) {
-    if (!port_list || !tensor_name || idx >= port_list->size) {
+ov_status_e ov_node_get_any_name(ov_output_const_port_t* port, char** tensor_name) {
+    if (!port || !tensor_name) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
-        *tensor_name = str_to_char_array(port_list->ports[idx].object->get_any_name());
+        *tensor_name = str_to_char_array(port->object->get_any_name());
     }
     CATCH_OV_EXCEPTIONS
 
     return ov_status_e::OK;
 }
 
-ov_status_e ov_node_list_get_partial_shape_by_index(const ov_output_node_list_t* port_list,
-                                                    size_t idx,
-                                                    ov_partial_shape_t* partial_shape) {
-    if (!port_list || idx >= port_list->size || !partial_shape) {
+ov_status_e ov_node_get_partial_shape(const ov_output_const_port_t* port, ov_partial_shape_t** partial_shape) {
+    if (!port || !partial_shape) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
-        auto pshape = port_list->ports[idx].object->get_partial_shape();
+        auto pshape = port->object->get_partial_shape();
         auto rank = pshape.rank();
 
         partial_shape->rank.min = rank.get_min_length();
@@ -99,15 +80,13 @@ ov_status_e ov_node_list_get_partial_shape_by_index(const ov_output_node_list_t*
     return ov_status_e::OK;
 }
 
-ov_status_e ov_node_list_get_element_type(const ov_output_const_node_list_t* port_list,
-                                          size_t idx,
-                                          ov_element_type_e* tensor_type) {
-    if (!port_list || idx >= port_list->size) {
+ov_status_e ov_node_get_element_type(const ov_output_const_port_t* port, ov_element_type_e* tensor_type) {
+    if (!port) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
-        auto type = (ov::element::Type_t)port_list->ports[idx].object->get_element_type();
+        auto type = (ov::element::Type_t)port->object->get_element_type();
         *tensor_type = (ov_element_type_e)type;
     }
     CATCH_OV_EXCEPTIONS
@@ -115,28 +94,12 @@ ov_status_e ov_node_list_get_element_type(const ov_output_const_node_list_t* por
     return ov_status_e::OK;
 }
 
-void ov_output_node_list_free(ov_output_node_list_t* output_ports) {
-    if (output_ports) {
-        if (output_ports->ports)
-            delete[] output_ports->ports;
-        output_ports->ports = nullptr;
-    }
+void ov_output_node_free(ov_output_port_t* port) {
+    if (port)
+        delete port;
 }
 
-void ov_output_const_node_list_free(ov_output_const_node_list_t* output_ports) {
-    if (output_ports) {
-        if (output_ports->ports)
-            delete[] output_ports->ports;
-        output_ports->ports = nullptr;
-    }
-}
-
-void ov_output_node_free(ov_output_node_t* output_node) {
-    if (output_node)
-        delete output_node;
-}
-
-void ov_output_const_node_free(ov_output_const_port_t* output_node) {
-    if (output_node)
-        delete output_node;
+void ov_output_const_node_free(ov_output_const_port_t* port) {
+    if (port)
+        delete port;
 }

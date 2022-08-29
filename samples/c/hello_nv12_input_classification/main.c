@@ -195,8 +195,8 @@ int main(int argc, char** argv) {
     struct infer_result* results = NULL;
     char* input_tensor_name = NULL;
     char* output_tensor_name = NULL;
-    ov_output_const_node_list_t input_ports;
-    ov_output_const_node_list_t output_ports;
+    ov_output_const_port_t* input_port;
+    ov_output_const_port_t* output_port;
     ov_layout_t* model_layout = NULL;
     ov_shape_t input_shape;
 
@@ -221,20 +221,12 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_core_read_model(core, input_model, NULL, &model));
     print_model_input_output_info(model);
 
-    CHECK_STATUS(ov_model_const_outputs(model, &output_ports));
-    if (output_ports.size != 1) {
-        fprintf(stderr, "[ERROR] Sample supports models with 1 output only %d\n", __LINE__);
-        goto err;
-    }
+    CHECK_STATUS(ov_model_const_output(model, &output_port));
 
-    CHECK_STATUS(ov_model_const_inputs(model, &input_ports));
-    if (input_ports.size != 1) {
-        fprintf(stderr, "[ERROR] Sample supports models with 1 input only %d\n", __LINE__);
-        goto err;
-    }
+    CHECK_STATUS(ov_model_const_input(model, &input_port));
 
-    CHECK_STATUS(ov_node_list_get_any_name_by_index(&input_ports, 0, &input_tensor_name));
-    CHECK_STATUS(ov_node_list_get_any_name_by_index(&output_ports, 0, &output_tensor_name));
+    CHECK_STATUS(ov_node_get_any_name(input_port, &input_tensor_name));
+    CHECK_STATUS(ov_node_get_any_name(output_port, &output_tensor_name));
 
     // -------- Step 3. Configure preprocessing  --------
     CHECK_STATUS(ov_preprocess_prepostprocessor_create(model, &preprocess));
@@ -329,8 +321,8 @@ err:
     ov_shape_free(&input_shape);
     ov_free(input_tensor_name);
     ov_free(output_tensor_name);
-    ov_output_const_node_list_free(&output_ports);
-    ov_output_const_node_list_free(&input_ports);
+    ov_output_const_node_free(output_port);
+    ov_output_const_node_free(input_port);
     if (output_tensor)
         ov_tensor_free(output_tensor);
     if (infer_request)

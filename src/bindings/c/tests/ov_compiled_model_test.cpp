@@ -53,6 +53,7 @@ TEST_P(ov_compiled_model, get_runtime_model_error_handling) {
     ov_core_free(core);
 }
 
+<<<<<<< HEAD
 TEST_P(ov_compiled_model, get_inputs) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;

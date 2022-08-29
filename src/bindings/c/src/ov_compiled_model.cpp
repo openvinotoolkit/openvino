@@ -24,6 +24,7 @@ ov_status_e ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compi
     return ov_status_e::OK;
 }
 
+<<<<<<< HEAD
 ov_status_e ov_compiled_model_inputs(const ov_compiled_model_t* compiled_model,
                                      ov_output_const_node_list_t* input_ports) {
     if (!compiled_model || !input_ports) {
