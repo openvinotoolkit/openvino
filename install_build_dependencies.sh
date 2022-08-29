@@ -29,10 +29,14 @@ if [ -f /etc/lsb-release ]; then
         x86_64_specific_packages=()
     fi
 
+    if ! command -v cmake &> /dev/null; then
+        cmake_packages=(cmake)
+    fi
+
     sudo -E apt update
     sudo -E apt-get install -y \
             build-essential \
-            cmake \
+            "${cmake_packages[@]}" \
             ccache \
             curl \
             wget \
