@@ -5,12 +5,7 @@
 
 #include "ov_test.hpp"
 
-<<<<<<< HEAD
-inline void get_tensor_info(ov_model_t* model,
-                            bool input,
-                            char** name,
-                            ov_shape_t* shape,
-                            ov_element_type_e* type) {
+inline void get_tensor_info(ov_model_t* model, bool input, char** name, ov_shape_t* shape, ov_element_type_e* type) {
     ov_output_const_port* port = nullptr;
     if (input) {
         OV_EXPECT_OK(ov_model_const_input(model, &port));
