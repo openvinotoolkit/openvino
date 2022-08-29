@@ -67,6 +67,7 @@
 #include "transformations/op_conversions/softsign_decomposition.hpp"
 #include <transformations/utils/utils.hpp>
 
+#include "transformations/utils/transformation_helper.hpp"
 #include "transformations/pwl_approximation.hpp"
 #include "transformations/remove_extra_reshapes.hpp"
 #include "transformations/insert_transpose_after_convolution_or_pooling.hpp"
@@ -91,6 +92,7 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 #include "transformations/insert_copy_layer.hpp"
+#include "transformations/decompose_concat.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -737,6 +739,13 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
             manager.register_pass<ov::intel_gna::pass::PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
         }
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        // Enable Concat decomposition only for non-trivial networks
+        vector<shared_ptr<ngraph::Node>> nodes(graph->get_ordered_ops());
+        for (auto& node : nodes) {
+            if (!ov::intel_gna::pass::helper::IsGNANonFunctionalNode(node)) {
+                manager.register_pass<ov::intel_gna::pass::DecomposeConcat>();
+            }
+        }
         manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();
         manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
         manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();

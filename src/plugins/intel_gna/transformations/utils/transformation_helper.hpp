@@ -83,6 +83,13 @@ std::shared_ptr<ngraph::Node> VerifyBiasGetConst(std::shared_ptr<ngraph::Node> c
  */
 std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7::FakeQuantize> fq_layer, std::shared_ptr<ngraph::Node> last_node);
 
+/**
+ * @brief checks whether a node is non-functional on GNA
+ * @param node node to check
+ * @return true if node is non-functional, false otherwise
+ */
+bool IsGNANonFunctionalNode(std::shared_ptr<ngraph::Node> node);
+
 } // namespace helper
 } // namespace pass
 } // namespace intel_gna

@@ -3,7 +3,8 @@
 //
 
 
-#include <ngraph/opsets/opset7.hpp>
+#include <legacy/ngraph_ops/crop_ie.hpp>
+#include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include "transformation_helper.hpp"
@@ -105,6 +106,20 @@ std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7
     }
     return last_node;
 }
+
+bool IsGNANonFunctionalNode(std::shared_ptr<ngraph::Node> node) {
+    return std::dynamic_pointer_cast<ngraph::opset9::Reshape>(node) ||
+           std::dynamic_pointer_cast<ngraph::opset9::Squeeze>(node) ||
+           std::dynamic_pointer_cast<ngraph::opset9::Unsqueeze>(node) ||
+           std::dynamic_pointer_cast<ngraph::op::CropIE>(node) ||
+           std::dynamic_pointer_cast<ngraph::opset9::Split>(node) ||
+           std::dynamic_pointer_cast<ngraph::opset9::VariadicSplit>(node) ||
+           std::dynamic_pointer_cast<ngraph::opset9::Parameter>(node) ||
+           std::dynamic_pointer_cast<ngraph::opset9::Constant>(node) ||
+           std::dynamic_pointer_cast<ngraph::opset9::Concat>(node) ||
+           std::dynamic_pointer_cast<ngraph::opset9::Result>(node);
+}
+
 } // namespace helper
 } // namespace pass
 } // namespace intel_gna
