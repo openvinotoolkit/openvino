@@ -42,7 +42,7 @@ static std::string _get_frontend_library_path() {
 #elif defined(__APPLE__) || defined(__linux__)
     Dl_info info;
     dladdr(reinterpret_cast<void*>(ov::frontend::get_frontend_library_path), &info);
-    return ov::util::get_directory(std::string(info.dli_fname)).c_str();
+    return ov::util::get_directory(ov::util::get_absolute_file_path(std::string(info.dli_fname))).c_str();
 #else
 #    error "Unsupported OS"
 #endif  // _WIN32
