@@ -237,8 +237,8 @@ static const char load_property_message[] =
     "file.";
 
 // @brief message for dump property option
-static const char dump_property_message[] =
-    "Optional. Path to JSON file to dump property for OpenVINO runtime API 2.0, which are set by application.";
+static const char dump_property_message[] = "Optional. Path to JSON file to dump properties for OpenVINO runtime API "
+                                            "2.0, these properties are set by the application.";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);

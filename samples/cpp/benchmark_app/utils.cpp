@@ -788,13 +788,16 @@ void dump_property(const std::string& filename, const std::map<std::string, ov::
             }
             std::string property_key = iter->second.property_name;
             PropertyType property_type = iter->second.property_type;
-            if (property_type == PROPERTY_TYPE_BOOL) {
+            switch (property_type) {
+            case PROPERTY_TYPE_BOOL: {
                 if (value == "YES") {
                     jsonConfig[deviceName][property_key] = true;
                 } else {
                     jsonConfig[deviceName][property_key] = false;
                 }
-            } else if (property_type == PROPERTY_TYPE_ENUM) {
+                break;
+            }
+            case PROPERTY_TYPE_ENUM: {
                 jsonConfig[deviceName][property_key] = value;
                 for (auto& element : enum_map) {
                     if (element.second == value) {
@@ -802,25 +805,35 @@ void dump_property(const std::string& filename, const std::map<std::string, ov::
                         break;
                     }
                 }
-            } else if (property_type == PROPERTY_TYPE_STRING_FLOAT_MAP) {
+                break;
+            }
+            case PROPERTY_TYPE_STRING_FLOAT_MAP: {
                 std::map<std::string, float> out_map;
                 out_map = ov::util::from_string<std::map<std::string, float>>(value);
                 for (auto& out : out_map) {
                     jsonConfig[deviceName][property_key][out.first] = out.second;
                 }
-            } else if (property_type == PROPERTY_TYPE_FLOAT) {
+                break;
+            }
+            case PROPERTY_TYPE_FLOAT:
                 jsonConfig[deviceName][property_key] = ov::util::from_string<float>(value);
-            } else if (property_type == PROPERTY_TYPE_INTER) {
+                break;
+            case PROPERTY_TYPE_INT:
                 jsonConfig[deviceName][property_key] = ov::util::from_string<int32_t>(value);
-            } else if (property_type == PROPERTY_TYPE_UNSIGNED_INTER) {
+                break;
+            case PROPERTY_TYPE_UNSIGNED_INT:
                 jsonConfig[deviceName][property_key] = ov::util::from_string<uint32_t>(value);
-            } else if (property_type == PROPERTY_TYPE_INTER64) {
+                break;
+            case PROPERTY_TYPE_INT64:
                 jsonConfig[deviceName][property_key] = ov::util::from_string<int64_t>(value);
-            } else if (property_type == PROPERTY_TYPE_STRING) {
+                break;
+            case PROPERTY_TYPE_STRING:
                 jsonConfig[deviceName][property_key] = value;
-            } else {
+                break;
+            default:
                 slog::warn << "Invalid property type:" << property_type << " for property:" << property_key
                            << slog::endl;
+                break;
             }
         }
     }
@@ -856,13 +869,16 @@ void load_property(const std::string& filename, std::map<std::string, ov::AnyMap
             std::string key = option.key();
             auto iter = property_map.find(key);
             if (iter != property_map.end()) {
-                if (iter->second.property_type == PROPERTY_TYPE_STRING) {
+                switch (iter->second.property_type) {
+                case PROPERTY_TYPE_STRING: {
                     if (option.value().is_string()) {
                         property[deviceName][iter->second.property_name] = option.value().get<std::string>();
                     } else {
                         slog::warn << "For property " << key << ", its value must be a string" << slog::endl;
                     }
-                } else if (iter->second.property_type == PROPERTY_TYPE_BOOL) {
+                    break;
+                }
+                case PROPERTY_TYPE_BOOL: {
                     if (option.value().is_boolean()) {
                         auto value = option.value().get<bool>();
                         if (value) {
@@ -873,27 +889,35 @@ void load_property(const std::string& filename, std::map<std::string, ov::AnyMap
                     } else {
                         slog::warn << "For property " << key << ", its value must be a boolean" << slog::endl;
                     }
-                } else if (iter->second.property_type == PROPERTY_TYPE_INTER) {
+                    break;
+                }
+                case PROPERTY_TYPE_INT: {
                     if (option.value().is_number_integer()) {
                         property[deviceName][iter->second.property_name] =
                             std::to_string(option.value().get<int32_t>());
                     } else {
                         slog::warn << "For property " << key << ", its value must be an integer" << slog::endl;
                     }
-                } else if (iter->second.property_type == PROPERTY_TYPE_UNSIGNED_INTER) {
+                    break;
+                }
+                case PROPERTY_TYPE_UNSIGNED_INT: {
                     if (option.value().is_number_unsigned()) {
                         property[deviceName][iter->second.property_name] =
                             std::to_string(option.value().get<uint32_t>());
                     } else {
                         slog::warn << "For property " << key << ", its value must be an unsigned integer" << slog::endl;
                     }
-                } else if (iter->second.property_type == PROPERTY_TYPE_FLOAT) {
+                    break;
+                }
+                case PROPERTY_TYPE_FLOAT: {
                     if (option.value().is_number_float()) {
                         property[deviceName][iter->second.property_name] = std::to_string(option.value().get<float>());
                     } else {
                         slog::warn << "For property " << key << ", its value must be a float" << slog::endl;
                     }
-                } else if (iter->second.property_type == PROPERTY_TYPE_ENUM) {
+                    break;
+                }
+                case PROPERTY_TYPE_ENUM: {
                     if (option.value().is_string()) {
                         std::string value = option.value().get<std::string>();
                         auto iter_tmp = enum_map.find(value);
@@ -905,7 +929,9 @@ void load_property(const std::string& filename, std::map<std::string, ov::AnyMap
                     } else {
                         slog::warn << "For property " << key << ", its value must be a string" << slog::endl;
                     }
-                } else if (iter->second.property_type == PROPERTY_TYPE_STRING_FLOAT_MAP) {
+                    break;
+                }
+                case PROPERTY_TYPE_STRING_FLOAT_MAP: {
                     if (option.value().is_object()) {
                         std::map<std::string, float> map_value;
                         for (const auto& element : option.value().items()) {
@@ -920,16 +946,21 @@ void load_property(const std::string& filename, std::map<std::string, ov::AnyMap
                     } else {
                         slog::warn << "For property " << key << ", its value must be an object of json" << slog::endl;
                     }
-                } else if (iter->second.property_type == PROPERTY_TYPE_INTER64) {
+                    break;
+                }
+                case PROPERTY_TYPE_INT64: {
                     if (option.value().is_number_integer()) {
                         property[deviceName][iter->second.property_name] =
                             std::to_string(option.value().get<int64_t>());
                     } else {
                         slog::warn << "For property " << key << ", its value must be an integer64" << slog::endl;
                     }
-                } else {
+                    break;
+                }
+                default:
                     slog::warn << "Invalid property type:" << iter->second.property_type << " for property:" << key
                                << slog::endl;
+                    break;
                 }
             } else {
                 slog::warn << "Not support property:" << key << slog::endl;

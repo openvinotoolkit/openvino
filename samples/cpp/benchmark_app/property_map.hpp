@@ -21,9 +21,9 @@
 
 enum PropertyType {
     PROPERTY_TYPE_STRING = 0,
-    PROPERTY_TYPE_INTER,
-    PROPERTY_TYPE_UNSIGNED_INTER,
-    PROPERTY_TYPE_INTER64,
+    PROPERTY_TYPE_INT,
+    PROPERTY_TYPE_UNSIGNED_INT,
+    PROPERTY_TYPE_INT64,
     PROPERTY_TYPE_ENUM,
     PROPERTY_TYPE_BOOL,
     PROPERTY_TYPE_FLOAT,
@@ -41,22 +41,22 @@ struct PropertyInfo {
         std::string str_name = value.name();                \
         PropertyInfo property_info;                         \
         property_info.property_type = type;                 \
-        if (false == reversed) {                            \
-            property_info.property_name = str_name;         \
-            out_map[str_key] = property_info;               \
-        } else {                                            \
+        if (reversed) {                                     \
             property_info.property_name = str_key;          \
             out_map[str_name] = property_info;              \
+        } else {                                            \
+            property_info.property_name = str_name;         \
+            out_map[str_key] = property_info;               \
         }                                                   \
     }
 
 void generate_property_map(std::map<std::string, PropertyInfo>& property_map, bool reversed) {
     INSERT_PROPERTY_MAP(property_map, ov::enable_profiling, PROPERTY_TYPE_BOOL, reversed);
     INSERT_PROPERTY_MAP(property_map, ov::cache_dir, PROPERTY_TYPE_STRING, reversed);
-    INSERT_PROPERTY_MAP(property_map, ov::auto_batch_timeout, PROPERTY_TYPE_UNSIGNED_INTER, reversed);
+    INSERT_PROPERTY_MAP(property_map, ov::auto_batch_timeout, PROPERTY_TYPE_UNSIGNED_INT, reversed);
     INSERT_PROPERTY_MAP(property_map, ov::num_streams, PROPERTY_TYPE_ENUM, reversed);
-    INSERT_PROPERTY_MAP(property_map, ov::inference_num_threads, PROPERTY_TYPE_INTER, reversed);
-    INSERT_PROPERTY_MAP(property_map, ov::compilation_num_threads, PROPERTY_TYPE_INTER, reversed);
+    INSERT_PROPERTY_MAP(property_map, ov::inference_num_threads, PROPERTY_TYPE_INT, reversed);
+    INSERT_PROPERTY_MAP(property_map, ov::compilation_num_threads, PROPERTY_TYPE_INT, reversed);
     INSERT_PROPERTY_MAP(property_map, ov::affinity, PROPERTY_TYPE_ENUM, reversed);
     INSERT_PROPERTY_MAP(property_map, ov::device::id, PROPERTY_TYPE_STRING, reversed);
     INSERT_PROPERTY_MAP(property_map, ov::device::priorities, PROPERTY_TYPE_STRING, reversed);
@@ -64,7 +64,7 @@ void generate_property_map(std::map<std::string, PropertyInfo>& property_map, bo
     INSERT_PROPERTY_MAP(property_map, ov::hint::model_priority, PROPERTY_TYPE_ENUM, reversed);
     INSERT_PROPERTY_MAP(property_map, ov::hint::performance_mode, PROPERTY_TYPE_ENUM, reversed);
     INSERT_PROPERTY_MAP(property_map, ov::hint::allow_auto_batching, PROPERTY_TYPE_BOOL, reversed);
-    INSERT_PROPERTY_MAP(property_map, ov::hint::num_requests, PROPERTY_TYPE_UNSIGNED_INTER, reversed);
+    INSERT_PROPERTY_MAP(property_map, ov::hint::num_requests, PROPERTY_TYPE_UNSIGNED_INT, reversed);
     INSERT_PROPERTY_MAP(property_map, ov::log::level, PROPERTY_TYPE_ENUM, reversed);
     INSERT_PROPERTY_MAP(property_map, ov::streams::num, PROPERTY_TYPE_ENUM, reversed);
     INSERT_PROPERTY_MAP(property_map, ov::force_tbb_terminate, PROPERTY_TYPE_BOOL, reversed);
@@ -86,15 +86,15 @@ void generate_property_map(std::map<std::string, PropertyInfo>& property_map, bo
     INSERT_PROPERTY_MAP(property_map, ov::intel_gna::scale_factors_per_input, PROPERTY_TYPE_STRING_FLOAT_MAP, reversed);
 
     INSERT_PROPERTY_MAP(property_map, ov::intel_gpu::context_type, PROPERTY_TYPE_ENUM, reversed);
-    INSERT_PROPERTY_MAP(property_map, ov::intel_gpu::ocl_context_device_id, PROPERTY_TYPE_INTER, reversed);
-    INSERT_PROPERTY_MAP(property_map, ov::intel_gpu::tile_id, PROPERTY_TYPE_INTER, reversed);
+    INSERT_PROPERTY_MAP(property_map, ov::intel_gpu::ocl_context_device_id, PROPERTY_TYPE_INT, reversed);
+    INSERT_PROPERTY_MAP(property_map, ov::intel_gpu::tile_id, PROPERTY_TYPE_INT, reversed);
     INSERT_PROPERTY_MAP(property_map, ov::intel_gpu::shared_mem_type, PROPERTY_TYPE_ENUM, reversed);
-    INSERT_PROPERTY_MAP(property_map, ov::intel_gpu::va_plane, PROPERTY_TYPE_UNSIGNED_INTER, reversed);
+    INSERT_PROPERTY_MAP(property_map, ov::intel_gpu::va_plane, PROPERTY_TYPE_UNSIGNED_INT, reversed);
     INSERT_PROPERTY_MAP(property_map, ov::intel_gpu::enable_loop_unrolling, PROPERTY_TYPE_BOOL, reversed);
     INSERT_PROPERTY_MAP(property_map, ov::intel_gpu::hint::queue_throttle, PROPERTY_TYPE_ENUM, reversed);
     INSERT_PROPERTY_MAP(property_map, ov::intel_gpu::hint::queue_priority, PROPERTY_TYPE_ENUM, reversed);
     INSERT_PROPERTY_MAP(property_map, ov::intel_gpu::hint::host_task_priority, PROPERTY_TYPE_ENUM, reversed);
-    INSERT_PROPERTY_MAP(property_map, ov::intel_gpu::hint::available_device_mem, PROPERTY_TYPE_INTER64, reversed);
+    INSERT_PROPERTY_MAP(property_map, ov::intel_gpu::hint::available_device_mem, PROPERTY_TYPE_INT64, reversed);
 
     INSERT_PROPERTY_MAP(property_map, ov::intel_myriad::hddl::graph_tag, PROPERTY_TYPE_STRING, reversed);
     INSERT_PROPERTY_MAP(property_map, ov::intel_myriad::hddl::set_stream_id, PROPERTY_TYPE_STRING, reversed);
