@@ -25,7 +25,7 @@ def test_concat():
 
 
 @pytest.mark.parametrize(
-    "val_type, value", [(np.bool_, False), (np.bool_, np.empty((2, 2), dtype=np.bool_))]
+    "val_type, value", [(bool, False), (bool, np.empty((2, 2), dtype=bool))]
 )
 def test_constant_from_bool(val_type, value):
     expected = np.array(value, dtype=val_type)

@@ -831,7 +831,7 @@ def test_loop():
         TensorIteratorConcatOutputDesc,
     )
 
-    condition = ng.constant(True, dtype=np.bool_)
+    condition = ng.constant(True, dtype=np.bool)
     trip_count = ng.constant(16, dtype=np.int32)
     #  Body parameters
     body_timestep = ng.parameter([], np.int32, "timestep")
@@ -854,7 +854,7 @@ def test_loop():
     initial_cma = ng.constant(np.zeros([2, 2], dtype=np.float32), dtype=np.float32)
     iter_cnt = ng.range(zero, np.int32(16), np.int32(1))
     ti_inputs = [iter_cnt, data, initial_cma, one]
-    body_const_condition = ng.constant(True, dtype=np.bool_)
+    body_const_condition = ng.constant(True, dtype=np.bool)
 
     graph_body = GraphBody([body_timestep, body_data_in, body_prev_cma, body_const_one],
                            [curr_cma, cma_hist, body_const_condition])
@@ -1881,11 +1881,11 @@ def test_multiclass_nms():
                            0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
                            0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0], dtype="float32")
     boxes_data = boxes_data.reshape([1, 6, 4])
-    box = ng.constant(boxes_data, dtype=np.float32)
+    box = ng.constant(boxes_data, dtype=np.float)
     scores_data = np.array([0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
                             0.95, 0.75, 0.6, 0.80, 0.5, 0.3], dtype="float32")
     scores_data = scores_data.reshape([1, 2, 6])
-    score = ng.constant(scores_data, dtype=np.float32)
+    score = ng.constant(scores_data, dtype=np.float)
 
     nms_node = ng.multiclass_nms(box, score, None, output_type="i32", nms_top_k=3,
                                  iou_threshold=0.5, score_threshold=0.0, sort_result_type="classid",
@@ -1906,11 +1906,11 @@ def test_multiclass_nms():
                             [9.66, 3.36, 18.57, 13.26]],
                            [[6.50, 7.00, 13.33, 17.63],
                             [0.73, 5.34, 19.97, 19.97]]]).astype("float32")
-    box = ng.constant(boxes_data, dtype=np.float32)
+    box = ng.constant(boxes_data, dtype=np.float)
     scores_data = np.array([[0.34, 0.66],
                             [0.45, 0.61],
                             [0.39, 0.59]]).astype("float32")
-    score = ng.constant(scores_data, dtype=np.float32)
+    score = ng.constant(scores_data, dtype=np.float)
     rois_num_data = np.array([3]).astype("int32")
     roisnum = ng.constant(rois_num_data, dtype=np.int)
     nms_node = ng.multiclass_nms(box, score, roisnum, output_type="i32", nms_top_k=3,
@@ -1932,11 +1932,11 @@ def test_matrix_nms():
                            0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
                            0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0], dtype="float32")
     boxes_data = boxes_data.reshape([1, 6, 4])
-    box = ng.constant(boxes_data, dtype=np.float32)
+    box = ng.constant(boxes_data, dtype=np.float)
     scores_data = np.array([0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
                             0.95, 0.75, 0.6, 0.80, 0.5, 0.3], dtype="float32")
     scores_data = scores_data.reshape([1, 2, 6])
-    score = ng.constant(scores_data, dtype=np.float32)
+    score = ng.constant(scores_data, dtype=np.float)
 
     nms_node = ng.matrix_nms(box, score, output_type="i32", nms_top_k=3,
                              score_threshold=0.0, sort_result_type="score", background_class=0,

@@ -127,13 +127,13 @@ def test_broadcast_3():
 
 @pytest.mark.parametrize(
     "destination_type, input_data",
-    [(np.bool_, np.zeros((2, 2), dtype=np.int32)), ("boolean", np.zeros((2, 2), dtype=np.int32))],
+    [(bool, np.zeros((2, 2), dtype=np.int32)), ("boolean", np.zeros((2, 2), dtype=np.int32))],
 )
 def test_convert_to_bool(destination_type, input_data):
-    expected = np.array(input_data, dtype=np.bool_)
+    expected = np.array(input_data, dtype=bool)
     result = run_op_node([input_data], ng.convert, destination_type)
     assert np.allclose(result, expected)
-    assert np.array(result).dtype == np.bool_
+    assert np.array(result).dtype == bool
 
 
 @pytest.mark.parametrize(
@@ -213,7 +213,7 @@ def test_bad_data_shape():
 
 def test_constant_get_data_bool():
     input_data = np.array([True, False, False, True])
-    node = ng.constant(input_data, dtype=np.bool_)
+    node = ng.constant(input_data, dtype=np.bool)
     retrieved_data = node.get_data()
     assert np.allclose(input_data, retrieved_data)
 

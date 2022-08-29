@@ -91,14 +91,14 @@ def test_binary_logical_op(graph_api_helper, numpy_function):
     runtime = get_runtime()
 
     shape = [2, 2]
-    parameter_a = ov.parameter(shape, name="A", dtype=np.bool_)
-    parameter_b = ov.parameter(shape, name="B", dtype=np.bool_)
+    parameter_a = ov.parameter(shape, name="A", dtype=np.bool)
+    parameter_b = ov.parameter(shape, name="B", dtype=np.bool)
 
     model = graph_api_helper(parameter_a, parameter_b)
     computation = runtime.computation(model, parameter_a, parameter_b)
 
-    value_a = np.array([[True, False], [False, True]], dtype=np.bool_)
-    value_b = np.array([[False, True], [False, True]], dtype=np.bool_)
+    value_a = np.array([[True, False], [False, True]], dtype=np.bool)
+    value_b = np.array([[False, True], [False, True]], dtype=np.bool)
 
     result = computation(value_a, value_b)
     expected = numpy_function(value_a, value_b)
@@ -112,11 +112,11 @@ def test_binary_logical_op(graph_api_helper, numpy_function):
 def test_binary_logical_op_with_scalar(graph_api_helper, numpy_function):
     runtime = get_runtime()
 
-    value_a = np.array([[True, False], [False, True]], dtype=np.bool_)
-    value_b = np.array([[False, True], [False, True]], dtype=np.bool_)
+    value_a = np.array([[True, False], [False, True]], dtype=np.bool)
+    value_b = np.array([[False, True], [False, True]], dtype=np.bool)
 
     shape = [2, 2]
-    parameter_a = ov.parameter(shape, name="A", dtype=np.bool_)
+    parameter_a = ov.parameter(shape, name="A", dtype=np.bool)
 
     model = graph_api_helper(parameter_a, value_b)
     computation = runtime.computation(model, parameter_a)
