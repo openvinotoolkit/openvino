@@ -4,7 +4,7 @@
 
 find_program(rpmlint_PROGRAM NAMES rpmlint DOC "Path to rpmlint tool")
 if(NOT rpmlint_PROGRAM)
-    message(WARNING "Failed to find 'rpmlint' tool, use 'sudo apt-get install rpmlint' to install it")
+    message(WARNING "Failed to find 'rpmlint' tool, use 'sudo dnf install rpmlint' to install it")
     return()
 endif()
 

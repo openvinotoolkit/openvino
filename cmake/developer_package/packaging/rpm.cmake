@@ -84,20 +84,6 @@ macro(ov_rpm_specific_settings)
         set(CPACK_RPM_PACKAGE_DEBUG OFF)
     endif()
 
-    # WA: dpkg-shlibdeps requires folder with libraries
-    # proper way is to use -l (path to libs) and -L (path to shlibs) for other already installed components
-    # but it requires CMake source code changes
-    # with current WA automatic deps detection via dpkg-shlibdeps for "our libraries"
-    # is ignored; but dependencies between our components are here because of
-    # CPACK_COMPONENT_<UCOMP>_DEPENDS variables
-    # More proper WA is try to enable INSTALL_RPATH
-
-    if(DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
-        set(CPACK_RPM_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-    else()
-        message(FATAL_ERROR "CMAKE_LIBRARY_OUTPUT_DIRECTORY is empty")
-    endif()
-
     # naming convention for rpm package files
     set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
     # need to update this version once we rebuild the same package with additional fixes

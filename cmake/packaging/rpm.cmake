@@ -127,7 +127,6 @@ macro(ov_cpack_settings)
         set(CPACK_COMPONENT_BATCH_DESCRIPTION "OpenVINO Automatic Batching plugin")
         set(CPACK_COMPONENT_BATCH_DEPENDS "core")
         set(CPACK_RPM_BATCH_PACKAGE_NAME "libopenvino-auto-batch-${cpack_name_ver}")
-        set(CPACK_RPM_BATCH_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
         _ov_add_plugin(batch ON)
     endif()
 
