@@ -229,7 +229,7 @@ cmdclass["build_ext"] = BuildCMakeExt
 cmdclass["install_lib"] = InstallCMakeLibs
 
 setup(
-    name="openvino",
+    name="openvino_old",
     description="OpenVINO - deploying pre-trained deep learning models",
     version=__version__,
     author="Intel Corporation",

@@ -27,7 +27,7 @@ def static_vars(**kwargs):
 def next_step(additional_info='', step_id=0):
     step_names = {
         1: "Parsing and validating input arguments",
-        2: "Loading OpenVINO",
+        2: "Loading OpenVINO Runtime",
         3: "Setting device configuration",
         4: "Reading network files",
         5: "Resizing network to match image sizes and given batch",

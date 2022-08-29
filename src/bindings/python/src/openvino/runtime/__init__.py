@@ -14,6 +14,11 @@ try:
 except DistributionNotFound:
     __version__ = "0.0.0.dev0"
 
+"""
+from openvino.pyopenvino import get_version
+__version__ = get_version()
+"""
+
 add_openvino_libs_to_path()
 
 # Openvino pybind bindings and python extended classes

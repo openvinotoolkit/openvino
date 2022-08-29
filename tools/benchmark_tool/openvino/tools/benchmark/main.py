@@ -33,11 +33,6 @@ def run(args):
     try:
         logger.info("Parsing input parameters")
 
-        if args.number_streams is None:
-                logger.warning("-nstreams default value is determined automatically for a device. "
-                               "Although the automatic selection usually provides a reasonable performance, "
-                               "but it still may be non-optimal for some cases, for more information look at README. ")
-
         command_line_arguments = get_command_line_arguments(sys.argv)
         if args.report_type:
           statistics = StatisticsReport(StatisticsReport.Config(args.report_type, args.report_folder))
@@ -63,7 +58,7 @@ def run(args):
             is_network_compiled = True
             logger.info("Network is compiled")
 
-        # ------------------------------ 2. Loading OpenVINO ---------------------------------------------------
+        # ------------------------------ 2. Loading OpenVINO Runtime -------------------------------------------
         next_step(step_id=2)
 
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
@@ -97,7 +92,7 @@ def run(args):
             else:
                 logger.warning(f"Device {device} does not support performance hint property(-hint).")
 
-        version = benchmark.get_version_info()
+        version = benchmark.print_version_info()
 
         logger.info(version)
 
