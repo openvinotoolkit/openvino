@@ -15,7 +15,8 @@
 #include "jit_dnnl_ext_emitters.hpp"
 #include "jit_conversion_emitters.hpp"
 
-#include "snippets_transformations/op/load_store_convert.hpp"
+#include "snippets_transformations/op/load_convert.hpp"
+#include "snippets_transformations/op/store_convert.hpp"
 
 #include <ngraph/opsets/opset5.hpp>
 
@@ -47,10 +48,12 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
 
     jitters[ngraph::snippets::op::Load::get_type_info_static()] = CREATE_EMITTER(LoadEmitter);
     jitters[ngraph::snippets::op::BroadcastLoad::get_type_info_static()] = CREATE_EMITTER(BroadcastLoadEmitter);
-    jitters[ov::intel_cpu::LoadConvert::get_type_info_static()] = CREATE_EMITTER(LoadConvertEmitter);
+    jitters[ov::intel_cpu::LoadConvertSaturation::get_type_info_static()] = CREATE_EMITTER(LoadConvertEmitter);
+    jitters[ov::intel_cpu::LoadConvertTruncation::get_type_info_static()] = CREATE_EMITTER(LoadConvertEmitter);
 
     jitters[ngraph::snippets::op::Store::get_type_info_static()] = CREATE_EMITTER(StoreEmitter);
-    jitters[ov::intel_cpu::StoreConvert::get_type_info_static()] = CREATE_EMITTER(StoreConvertEmitter);
+    jitters[ov::intel_cpu::StoreConvertSaturation::get_type_info_static()] = CREATE_EMITTER(StoreConvertEmitter);
+    jitters[ov::intel_cpu::StoreConvertTruncation::get_type_info_static()] = CREATE_EMITTER(StoreConvertEmitter);
 
     jitters[ngraph::snippets::op::Scalar::get_type_info_static()] = CREATE_EMITTER(ScalarEmitter);
     jitters[ngraph::snippets::op::BroadcastMove::get_type_info_static()] = CREATE_EMITTER(BroadcastMoveEmitter);

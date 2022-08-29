@@ -7,8 +7,8 @@
 #include "fuse_load_store_and_convert.hpp"
 #include "snippets/snippets_isa.hpp"
 
-#include "snippets_transformations/op/load_store_convert.hpp"
-
+#include "snippets_transformations/op/load_convert.hpp"
+#include "snippets_transformations/op/store_convert.hpp"
 
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/rt_info.hpp"
@@ -40,16 +40,14 @@ ov::intel_cpu::pass::FuseLoadConvert::FuseLoadConvert() {
         std::shared_ptr<ngraph::Node> load_convert = nullptr;
         if (const auto convert_saturation =
                 std::dynamic_pointer_cast<ngraph::snippets::op::ConvertSaturation>(convert)) {
-            load_convert = std::make_shared<ov::intel_cpu::LoadConvert>(param,
-                                                                        convert_saturation->get_destination_type(),
-                                                                        arithmetic_mode::saturation,
-                                                                        load->get_count());
+            load_convert = std::make_shared<ov::intel_cpu::LoadConvertSaturation>(param,
+                                                                                  convert_saturation->get_destination_type(),
+                                                                                  load->get_count());
         } else if (const auto convert_truncation =
                 std::dynamic_pointer_cast<ngraph::snippets::op::ConvertTruncation>(convert)) {
-            load_convert = std::make_shared<ov::intel_cpu::LoadConvert>(param,
-                                                                        convert_truncation->get_destination_type(),
-                                                                        arithmetic_mode::truncation,
-                                                                        load->get_count());
+            load_convert = std::make_shared<ov::intel_cpu::LoadConvertTruncation>(param,
+                                                                                  convert_truncation->get_destination_type(),
+                                                                                  load->get_count());
         } else {
             throw ngraph::ngraph_error(
                 "Type of Convert op is undefined. Supports only fusing Load and ConvertTruncation or ConvertSaturation ops");
@@ -91,16 +89,14 @@ ov::intel_cpu::pass::FuseStoreConvert::FuseStoreConvert() {
         std::shared_ptr<ngraph::Node> store_convert = nullptr;
         if (const auto convert_saturation =
                 std::dynamic_pointer_cast<ngraph::snippets::op::ConvertSaturation>(convert)) {
-            store_convert = std::make_shared<ov::intel_cpu::StoreConvert>(input,
-                                                                          convert_saturation->get_destination_type(),
-                                                                          arithmetic_mode::saturation,
-                                                                          store->get_count());
+            store_convert = std::make_shared<ov::intel_cpu::StoreConvertSaturation>(input,
+                                                                                    convert_saturation->get_destination_type(),
+                                                                                    store->get_count());
         } else if (const auto convert_truncation =
                 std::dynamic_pointer_cast<ngraph::snippets::op::ConvertTruncation>(convert)) {
-            store_convert = std::make_shared<ov::intel_cpu::StoreConvert>(input,
-                                                                          convert_truncation->get_destination_type(),
-                                                                          arithmetic_mode::truncation,
-                                                                          store->get_count());
+            store_convert = std::make_shared<ov::intel_cpu::StoreConvertTruncation>(input,
+                                                                                    convert_truncation->get_destination_type(),
+                                                                                    store->get_count());
         } else {
             throw ngraph::ngraph_error(
                 "Type of Convert op is undefined. Supports only fusing Store and ConvertTruncation or ConvertSaturation ops");

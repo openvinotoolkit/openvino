@@ -7,7 +7,6 @@
 #include <cpu/x64/jit_generator.hpp>
 
 #include "jit_snippets_emitters.hpp"
-#include "snippets_transformations/op/load_store_convert.hpp"
 
 using namespace Xbyak;
 
@@ -634,8 +633,11 @@ StoreConvertEmitter::StoreConvertEmitter(dnnl::impl::cpu::x64::jit_generator* h,
     count = ov::as_type_ptr<ngraph::snippets::op::Store>(n)->get_count();
     in_out_type_ = emitter_in_out_map::vec_to_gpr;
 
-    const auto mode = ov::as_type_ptr<ov::intel_cpu::StoreConvert>(n)->get_arithmetic_mode();
-    store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count, mode));
+    if (ov::is_type<ov::intel_cpu::StoreConvertTruncation>(n)) {
+        store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count, arithmetic_mode::truncation));
+    } else if (ov::is_type<ov::intel_cpu::StoreConvertSaturation>(n)) {
+        store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count, arithmetic_mode::saturation));
+    }
 }
 
 void StoreConvertEmitter::emit_impl(const std::vector<size_t>& in,
