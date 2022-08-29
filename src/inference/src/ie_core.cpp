@@ -1175,18 +1175,10 @@ public:
                         InferenceEngine::DeviceIDParser parser(pluginDesc.first);
                         if (pluginDesc.first.find(deviceName) != std::string::npos && !parser.getDeviceID().empty()) {
                             pluginDesc.second.defaultConfig[deviceKey] = parser.getDeviceID();
-                            try {
-                                plugin.set_properties(pluginDesc.second.defaultConfig);
-                            } catch (const ie::NotImplemented&) {
-                                plugin.set_config(any_copy(pluginDesc.second.defaultConfig));
-                            }
+                            plugin.set_properties(pluginDesc.second.defaultConfig);
                         }
                     }
-                    try {
-                        plugin.set_properties(desc.defaultConfig);
-                    } catch (const ie::NotImplemented&) {
-                        plugin.set_config(any_copy(desc.defaultConfig));
-                    }
+                    plugin.set_properties(desc.defaultConfig);
                 });
 
                 allowNotImplemented([&]() {
@@ -1354,11 +1346,7 @@ public:
                 if (!parser.getDeviceID().empty()) {
                     configCopy[deviceKey] = parser.getDeviceID();
                 }
-                try {
-                    plugin.second.set_properties(configCopy);
-                } catch (const ie::NotImplemented&) {
-                    plugin.second.set_config(any_copy(configCopy));
-                }
+                plugin.second.set_properties(configCopy);
             });
         }
     }
