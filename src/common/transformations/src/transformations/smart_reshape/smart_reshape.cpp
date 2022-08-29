@@ -30,8 +30,8 @@ bool ngraph::pass::SmartReshape::run_on_model(const std::shared_ptr<ngraph::Func
     static_manager.register_pass<ngraph::pass::ReshapeTo1D>();
     static_manager.register_pass<ngraph::pass::TransposeMatMul>();
     static_manager.register_pass<ngraph::pass::BroadcastConstRangeReplacement>();
-    static_manager.register_pass<ngraph::pass::LSTMStatesBroadcast>();
-    static_manager.register_pass<ngraph::pass::ReshapeSinkingMatMul>();
+    static_manager.register_pass<ov::pass::LSTMStatesBroadcast>();
+    static_manager.register_pass<ov::pass::ReshapeSinkingMatMul>();
     static_manager.run_passes(f);
 
     ngraph::pass::Manager dynamic_manager;

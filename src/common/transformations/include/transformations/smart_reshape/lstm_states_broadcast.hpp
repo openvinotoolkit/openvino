@@ -5,16 +5,18 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
 #include <vector>
 
-namespace ngraph {
+#include "openvino/pass/graph_rewrite.hpp"
+#include "transformations_visibility.hpp"
+
+namespace ov {
 namespace pass {
 
-class NGRAPH_API LSTMStatesBroadcast;
+class TRANSFORMATIONS_API LSTMStatesBroadcast;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -22,8 +24,8 @@ class NGRAPH_API LSTMStatesBroadcast;
  * we make them broadcast-able by batch
  */
 
-class ngraph::pass::LSTMStatesBroadcast : public ngraph::pass::FunctionPass {
+class ov::pass::LSTMStatesBroadcast : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("LSTMStatesBroadcast", "0");
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
