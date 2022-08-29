@@ -74,13 +74,11 @@ macro(ov_rpm_specific_settings)
     # multiple packages are generated
     set(CPACK_RPM_COMPONENT_INSTALL ON)
     # automatically find dependencies for binaries
-    set(CPACK_RPM_PACKAGE_SHLIBDEPS ON)
+    set(CPACK_RPM_PACKAGE_AUTOREQPROV ON)
     # enable dependencies between components
     set(CPACK_RPM_ENABLE_COMPONENT_DEPENDS ON)
-    # control file permissions
-    set(CPACK_RPM_PACKAGE_CONTROL_STRICT_PERMISSION OFF)
     # homepage
-    set(CPACK_RPM_PACKAGE_HOMEPAGE "https://docs.openvino.ai/")
+    set(CPACK_RPM_PACKAGE_URL "https://docs.openvino.ai/")
     # enable for debug cpack run
     if(NOT DEFINED CPACK_RPM_PACKAGE_DEBUG)
         set(CPACK_RPM_PACKAGE_DEBUG OFF)
@@ -100,12 +98,8 @@ macro(ov_rpm_specific_settings)
         message(FATAL_ERROR "CMAKE_LIBRARY_OUTPUT_DIRECTORY is empty")
     endif()
 
-    # automatic dependencies discovering between openvino and user packages
-    set(CPACK_RPM_PACKAGE_GENERATE_SHLIBS ON)
-    # OpenVINO does not have backward and forward compatibility
-    set(CPACK_RPM_PACKAGE_GENERATE_SHLIBS_POLICY "=")
     # naming convention for rpm package files
-    set(CPACK_RPM_FILE_NAME "DEB-DEFAULT")
+    set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
     # need to update this version once we rebuild the same package with additional fixes
     # set(CPACK_RPM_PACKAGE_RELEASE "1")
     # enable this if someday we change the version scheme
@@ -181,9 +175,9 @@ function(ov_rpm_add_changelog_and_copyright comp)
 endfunction()
 
 #
-# ov_rpm_add_lintian_suppression(<comp name> <suppression1, suppression2, ...>)
+# ov_rpm_add_rpmlint_suppression(<comp name> <suppression1, suppression2, ...>)
 #
-function(ov_rpm_add_lintian_suppression comp)
+function(ov_rpm_add_rpmlint_suppression comp)
     set(lines ${ARGN})
 
     string(TOUPPER "${comp}" ucomp)
@@ -202,12 +196,12 @@ function(ov_rpm_add_lintian_suppression comp)
         endif()
     endforeach()
 
-    set(lintian_override_file "${OpenVINO_BINARY_DIR}/_CPack_Packages/lintian/${package_name}")
-    file(REMOVE ${lintian_override_file})
-    file(WRITE ${lintian_override_file} ${content})
+    set(rpmlint_override_file "${OpenVINO_BINARY_DIR}/_CPack_Packages/rpmlint/${package_name}")
+    file(REMOVE ${rpmlint_override_file})
+    file(WRITE ${rpmlint_override_file} ${content})
 
-    install(FILES ${lintian_override_file}
-            DESTINATION ${CMAKE_INSTALL_DATADIR}/lintian/overrides/
+    install(FILES ${rpmlint_override_file}
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/rpmlint/overrides/
             COMPONENT ${comp})
 endfunction()
 
@@ -264,7 +258,7 @@ macro(ov_rpm_add_latest_component comp)
         message(FATAL_ERROR "CPACK_RPM_${ucomp}_PACKAGE_NAME is not defined")
     endif()
 
-    ov_rpm_add_lintian_suppression(${comp_name}
+    ov_rpm_add_rpmlint_suppression(${comp_name}
         # it's umbrella package
         "empty-binary-package")
 

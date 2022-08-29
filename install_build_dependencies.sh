@@ -107,6 +107,7 @@ elif [ -f /etc/redhat-release ]; then
             tar \
             xz \
             p7zip \
+            rpm-build \
             unzip \
             yum-plugin-ovl \
             which \
