@@ -6,6 +6,7 @@
 
 #include <ie_common.h>
 #include <node.h>
+#include "kernels/roi_align_kernel.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -19,6 +20,8 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
+
+    void createPrimitive() override;
 
     bool needPrepareParams() const override { return false; };
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); };
@@ -38,6 +41,9 @@ private:
     std::vector<int64_t> pyramid_scales_;
     int sampling_ratio_ = 0;
     bool aligned_ = false;
+    std::shared_ptr<jit_uni_roi_align_kernel> roi_align_kernel_ = nullptr;
+
+    void createJitKernel(const InferenceEngine::Precision& dataPrec, const ROIAlignLayoutType& selectLayout);
 };
 
 }   // namespace node
