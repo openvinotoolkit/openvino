@@ -98,7 +98,5 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*VirtualPlugin.*BehaviorTests.*OVHoldersTest.*LoadedTensor.*target_device=AUTO.*)",
             // TODO: Issue: 89555
             R"(.*CoreThreadingTests.*smoke.*Network.*)",
-            // TODO:
-            R"(.*(Multi|Auto).*CheckOperationInProfilingInfo*)",
     };
 }
