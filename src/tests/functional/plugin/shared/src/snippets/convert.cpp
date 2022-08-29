@@ -155,30 +155,30 @@ void ConvertPartialInputsAndResults::SetUp() {
 }
 
 void ConvertManyOnInputs::SetUp() {
-    std::vector<ov::Shape> inputShape;
+    std::vector<ov::PartialShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_shapes_to_test_representation(inputShape));
+    init_input_shapes(dynamic_shapes_to_test_representation(inputShape));
 
     auto f = ov::test::snippets::ConvertManyOnInputsFunction(inputShape, types.first);
     function = f.getOriginal();
 }
 
 void ConvertManyOnOutputs::SetUp() {
-    std::vector<ov::Shape> inputShape;
+    std::vector<ov::PartialShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_shapes_to_test_representation(inputShape));
+    init_input_shapes(dynamic_shapes_to_test_representation(inputShape));
 
     auto f = ov::test::snippets::ConvertManyOnOutputsFunction(inputShape, types.first);
     function = f.getOriginal();
 }
 
 void ConvertManyOnInputOutput::SetUp() {
-    std::vector<ov::Shape> inputShape;
+    std::vector<ov::PartialShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_shapes_to_test_representation(inputShape));
+    init_input_shapes(dynamic_shapes_to_test_representation(inputShape));
 
     auto f = ov::test::snippets::ConvertManyOnInputOutputFunction(inputShape, types.first, types.second);
     function = f.getOriginal();

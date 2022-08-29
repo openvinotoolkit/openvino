@@ -126,7 +126,7 @@ const std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::elem
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertManyOnInputs, ConvertManyOnInputs,
                          ::testing::Combine(
-                                 ::testing::Values(std::vector<ov::Shape>{ov::Shape{5, 5, 5, 5}}),
+                                 ::testing::Values(std::vector<ov::PartialShape>{{5, 5, 5, 5}}),
                                  ::testing::ValuesIn(types_ConvertMany),
                                  ::testing::Values(2),
                                  ::testing::Values(1),
@@ -135,7 +135,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertManyOnInputs, ConvertManyOnInputs
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertManyOnOutputs, ConvertManyOnOutputs,
                          ::testing::Combine(
-                                 ::testing::Values(std::vector<ov::Shape>{ov::Shape{5, 5, 5, 5}}),
+                                 ::testing::Values(std::vector<ov::PartialShape>{{5, 5, 5, 5}}),
                                  ::testing::ValuesIn(types_ConvertMany),
                                  ::testing::Values(5), // sinh + subgraph + reorders for sinh
                                  ::testing::Values(1),
@@ -149,7 +149,7 @@ const std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::elem
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertManyOnInputOutput, ConvertManyOnInputOutput,
                          ::testing::Combine(
-                                 ::testing::Values(std::vector<ov::Shape>{ov::Shape{5, 5, 5, 5}}),
+                                 ::testing::Values(std::vector<ov::PartialShape>{{5, 5, 5, 5}}),
                                  ::testing::ValuesIn(types_ConvertManyIO),
                                  ::testing::Values(5), // sinh + subgraph + reorders for sinh
                                  ::testing::Values(1),
