@@ -23,6 +23,7 @@ namespace CPUSubgraphTestsDefinitions {
 typedef std::tuple<
         std::vector<InputShape>,   // Input shapes
         std::vector<ElementType>,  // Input precisions
+        std::vector<ElementType>,  // MatMul input #0 precisions
         size_t,                    // pattern type #
         std::string                // Device name
 > MHATuple;
@@ -152,9 +153,10 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<MHATuple> &obj) {
         std::vector<InputShape> inputShapes;
         std::vector<ElementType> inputPrecisions;
+        std::vector<ElementType> matMulIn0Precisions;
         size_t patternType;
         std::string targetName;
-        std::tie(inputShapes, inputPrecisions, patternType, targetName) = obj.param;
+        std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, targetName) = obj.param;
         std::ostringstream results;
 
         results << "IS=(";
@@ -191,8 +193,9 @@ protected:
     void SetUp() override {
         std::vector<InputShape> inputShapes;
         std::vector<ElementType> inputPrecisions;
+        std::vector<ElementType> matMulIn0Precisions;
         size_t patternType;
-        std::tie(inputShapes, inputPrecisions, patternType, targetDevice) = this->GetParam();
+        std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, targetDevice) = this->GetParam();
 
         init_input_shapes(inputShapes);
 
@@ -220,8 +223,9 @@ TEST_P(MHATest, CompareWithRefs) {
 
     std::vector<InputShape> inputShapes;
     std::vector<ElementType> inputPrecisions;
+    std::vector<ElementType> matMulIn0Precisions;
     size_t patternType;
-    std::tie(inputShapes, inputPrecisions, patternType, targetDevice) = this->GetParam();
+    std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, targetDevice) = this->GetParam();
 
     if (inputPrecisions[0] == ElementType::bf16 && !InferenceEngine::with_cpu_x86_bfloat16())
         GTEST_SKIP();
@@ -250,6 +254,10 @@ std::vector<std::vector<ElementType>> inputPrecisions = {
     { ElementType::bf16, ElementType::bf16, ElementType::bf16, ElementType::bf16 },
 };
 
+std::vector<std::vector<ElementType>> matMulIn0Precisions = {
+    {},
+};
+
 std::vector<size_t> patternTypes = {
     0, 1
 };
@@ -258,13 +266,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHA, MHATest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(static_shapes_to_test_representation(inputShapes)),
                                 ::testing::ValuesIn(inputPrecisions),
+                                ::testing::ValuesIn(matMulIn0Precisions),
                                 ::testing::ValuesIn(patternTypes),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         MHATest::getTestCaseName);
 
 } // namespace
 
-static std::shared_ptr<ov::Model> initMHAQuantSubgraph0(std::vector<ov::PartialShape>& inputDynamicShapes, std::vector<ElementType>& inputPrecisions) {
+static std::shared_ptr<ov::Model> initMHAQuantSubgraph0(std::vector<ov::PartialShape>& inputDynamicShapes, std::vector<ElementType>& inputPrecisions,
+                                                        std::vector<ElementType>& matMulIn0Precisions) {
     ngraph::ParameterVector ngraphParam;
 
     auto transpose0Param = std::make_shared<ngraph::opset1::Parameter>(inputPrecisions[0], inputDynamicShapes[0]);
@@ -314,10 +324,16 @@ static std::shared_ptr<ov::Model> initMHAQuantSubgraph0(std::vector<ov::PartialS
     float transA = false;
     float transB = false;
 
-    const auto fakeQuantize0 = ngraph::builder::makeFakeQuantize(transpose0Param, inputPrecisions[0], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+    std::shared_ptr<ov::Node> fakeQuantize0;
+    if (matMulIn0Precisions[0] == ElementType::u8)
+        fakeQuantize0 = ngraph::builder::makeFakeQuantize(transpose0Param, inputPrecisions[0], 256, {}, {0.0f}, {2.55f}, {0.0f}, {2.55f});
+    else
+        fakeQuantize0 = ngraph::builder::makeFakeQuantize(transpose0Param, inputPrecisions[0], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+
     const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(transpose1Param, inputPrecisions[1], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
     const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(transpose2Param, inputPrecisions[3], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
 
+    std::shared_ptr<ov::Node> fakeQuantize4;
 
     const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(fakeQuantize0, transpose0Const);
     const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(fakeQuantize1, transpose1Const);
@@ -327,7 +343,10 @@ static std::shared_ptr<ov::Model> initMHAQuantSubgraph0(std::vector<ov::PartialS
     const auto reshape0 = std::make_shared<ngraph::opset1::Reshape>(add, reshape0Const, true);
     const auto softMax = std::make_shared<ngraph::opset1::Softmax>(reshape0, 1);
     const auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(softMax, reshape1Const, true);
-    const auto fakeQuantize4 = ngraph::builder::makeFakeQuantize(reshape1, inputPrecisions[0], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+    if (matMulIn0Precisions[1] == ElementType::u8)
+        fakeQuantize4 = ngraph::builder::makeFakeQuantize(reshape1, inputPrecisions[0], 256, {}, {0.0f}, {0.255f}, {0.0f}, {0.255f});
+    else
+        fakeQuantize4 = ngraph::builder::makeFakeQuantize(reshape1, inputPrecisions[0], 256, {}, {-0.128f}, {0.127f}, {-0.128f}, {0.127f});
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(fakeQuantize2, transpose2Const);
     const auto matMul1 = std::make_shared<ngraph::opset3::MatMul>(fakeQuantize4, transpose2, transA, transB);
     const auto fakeQuantize5 = ngraph::builder::makeFakeQuantize(matMul1, inputPrecisions[0], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
@@ -337,7 +356,8 @@ static std::shared_ptr<ov::Model> initMHAQuantSubgraph0(std::vector<ov::PartialS
     return std::make_shared<ngraph::Function>(results, ngraphParam, "mha");
 }
 
-static std::shared_ptr<ov::Model> initMHAQuantSubgraph1(std::vector<ov::PartialShape>& inputDynamicShapes, std::vector<ElementType>& inputPrecisions) {
+static std::shared_ptr<ov::Model> initMHAQuantSubgraph1(std::vector<ov::PartialShape>& inputDynamicShapes, std::vector<ElementType>& inputPrecisions,
+                                                        std::vector<ElementType>& matMulIn0Precisions) {
     ngraph::ParameterVector ngraphParam;
 
     auto transpose0Param = std::make_shared<ngraph::opset1::Parameter>(inputPrecisions[0], inputDynamicShapes[0]);
@@ -377,7 +397,12 @@ static std::shared_ptr<ov::Model> initMHAQuantSubgraph1(std::vector<ov::PartialS
     float transA = false;
     float transB = false;
 
-    const auto fakeQuantize0 = ngraph::builder::makeFakeQuantize(transpose0Param, inputPrecisions[0], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+    std::shared_ptr<ov::Node> fakeQuantize0;
+    if (matMulIn0Precisions[0] == ElementType::u8)
+        fakeQuantize0 = ngraph::builder::makeFakeQuantize(transpose0Param, inputPrecisions[0], 256, {}, {0.0f}, {2.55f}, {0.0f}, {2.55f});
+    else
+        fakeQuantize0 = ngraph::builder::makeFakeQuantize(transpose0Param, inputPrecisions[0], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+
     const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(fakeQuantize0, transpose0Const);
     const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(transpose1Param, transpose1Const);
     const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(transpose1, inputPrecisions[1], 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
@@ -400,9 +425,10 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<MHATuple> &obj) {
         std::vector<InputShape> inputShapes;
         std::vector<ElementType> inputPrecisions;
+        std::vector<ElementType> matMulIn0Precisions;
         size_t patternType;
         std::string targetName;
-        std::tie(inputShapes, inputPrecisions, patternType, targetName) = obj.param;
+        std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, targetName) = obj.param;
         std::ostringstream results;
 
         results << "IS=(";
@@ -417,6 +443,9 @@ public:
         }
         for (int i = 0; i < inputPrecisions.size(); i++) {
             results << "InPRC" << std::to_string(i) << "=" << inputPrecisions[i] << "_";
+        }
+        for (int i = 0; i < matMulIn0Precisions.size(); i++) {
+            results << "MatMulIn0PRC" << std::to_string(i) << "=" << matMulIn0Precisions[i] << "_";
         }
         results << "patternType=" << patternType;
         results << "targetDevice=" << targetName;
@@ -446,15 +475,16 @@ protected:
 
         std::vector<InputShape> inputShapes;
         std::vector<ElementType> inputPrecisions;
+        std::vector<ElementType> matMulIn0Precisions;
         size_t patternType;
-        std::tie(inputShapes, inputPrecisions, patternType, targetDevice) = this->GetParam();
+        std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, targetDevice) = this->GetParam();
 
         init_input_shapes(inputShapes);
 
         if (patternType == 0) {
-            function = initMHAQuantSubgraph0(inputDynamicShapes, inputPrecisions);
+            function = initMHAQuantSubgraph0(inputDynamicShapes, inputPrecisions, matMulIn0Precisions);
         } else if (patternType == 1) {
-            function = initMHAQuantSubgraph1(inputDynamicShapes, inputPrecisions);
+            function = initMHAQuantSubgraph1(inputDynamicShapes, inputPrecisions, matMulIn0Precisions);
         } else {
             FAIL() << "Unsupported MHA pattern type";
         }
@@ -466,8 +496,9 @@ TEST_P(MHAQuantTest, CompareWithRefs) {
 
     std::vector<InputShape> inputShapes;
     std::vector<ElementType> inputPrecisions;
+    std::vector<ElementType> matMulIn0Precisions;
     size_t patternType;
-    std::tie(inputShapes, inputPrecisions, patternType, targetDevice) = this->GetParam();
+    std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, targetDevice) = this->GetParam();
 
     if (inputPrecisions[0] == ElementType::bf16 && !InferenceEngine::with_cpu_x86_bfloat16())
         GTEST_SKIP();
@@ -497,6 +528,11 @@ std::vector<std::vector<ElementType>> inputPrecisionsQuant = {
     { ElementType::f32, ElementType::f32, ElementType::f32, ElementType::f32 },
 };
 
+std::vector<std::vector<ElementType>> matMulIn0PrecisionsQuant = {
+    { ElementType::i8, ElementType::i8 },
+    { ElementType::i8, ElementType::u8 },
+};
+
 std::vector<size_t> patternTypesQuant = {
     0, 1
 };
@@ -505,6 +541,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant, MHAQuantTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesQuant)),
                                 ::testing::ValuesIn(inputPrecisionsQuant),
+                                ::testing::ValuesIn(matMulIn0PrecisionsQuant),
                                 ::testing::ValuesIn(patternTypesQuant),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         MHAQuantTest::getTestCaseName);
