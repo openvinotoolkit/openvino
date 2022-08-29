@@ -147,39 +147,58 @@ set(_ov_package_prefix_dir "${PACKAGE_PREFIX_DIR}")
 
 set(THREADING "@THREADING@")
 if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND NOT TBB_FOUND)
-    set(enable_system_tbb "@ENABLE_SYSTEM_TBB@")
-    if(NOT enable_system_tbb)
-        set_and_check(_tbb_dir "@PACKAGE_IE_TBB_DIR@")
+    set(enable_pkgconfig_tbb "@tbb_FOUND@")
 
-        # see https://stackoverflow.com/questions/28070810/cmake-generate-error-on-windows-as-it-uses-as-escape-seq
-        if(DEFINED ENV{TBBROOT})
-            file(TO_CMAKE_PATH $ENV{TBBROOT} ENV_TBBROOT)
+    # try tbb.pc
+    if(enable_pkgconfig_tbb AND NOT ANDROID)
+        find_package(PkgConfig QUIET)
+        if(PkgConfig_FOUND)
+            pkg_search_module(tbb QUIET
+                              IMPORTED_TARGET GLOBAL
+                              tbb)
+            if(tbb_FOUND)
+                add_library(TBB::tbb ALIAS PkgConfig::tbb)
+                set(TBB_VERSION ${tbb_VERSION})
+                set(TBB_FOUND ${tbb_FOUND})
+            endif()
         endif()
-        if(DEFINED ENV{TBB_DIR})
-            file(TO_CMAKE_PATH $ENV{TBB_DIR} ENV_TBB_DIR)
-        endif()
+    else()
+        # try cmake TBB interface
 
-        set(find_package_tbb_extra_args
-            CONFIG
-            PATHS
-                # oneTBB case exposed via export TBBROOT=<custom TBB root>
-                "${ENV_TBBROOT}/lib64/cmake/TBB"
-                "${ENV_TBBROOT}/lib/cmake/TBB"
-                "${ENV_TBBROOT}/lib/cmake/tbb"
-                "${ENV_TBB_DIR}"
-                # for custom TBB exposed via cmake -DTBBROOT=<custom TBB root>
-                "${TBBROOT}/cmake"
-                # _tbb_dir points to TBB_DIR (custom | temp | system) used to build OpenVINO
-                ${_tbb_dir}
-            NO_CMAKE_FIND_ROOT_PATH
-            NO_DEFAULT_PATH)
-        unset(_tbb_dir)
+        set(enable_system_tbb "@ENABLE_SYSTEM_TBB@")
+        if(NOT enable_system_tbb)
+            set_and_check(_tbb_dir "@PACKAGE_IE_TBB_DIR@")
+
+            # see https://stackoverflow.com/questions/28070810/cmake-generate-error-on-windows-as-it-uses-as-escape-seq
+            if(DEFINED ENV{TBBROOT})
+                file(TO_CMAKE_PATH $ENV{TBBROOT} ENV_TBBROOT)
+            endif()
+            if(DEFINED ENV{TBB_DIR})
+                file(TO_CMAKE_PATH $ENV{TBB_DIR} ENV_TBB_DIR)
+            endif()
+
+            set(find_package_tbb_extra_args
+                CONFIG
+                PATHS
+                    # oneTBB case exposed via export TBBROOT=<custom TBB root>
+                    "${ENV_TBBROOT}/lib64/cmake/TBB"
+                    "${ENV_TBBROOT}/lib/cmake/TBB"
+                    "${ENV_TBBROOT}/lib/cmake/tbb"
+                    "${ENV_TBB_DIR}"
+                    # for custom TBB exposed via cmake -DTBBROOT=<custom TBB root>
+                    "${TBBROOT}/cmake"
+                    # _tbb_dir points to TBB_DIR (custom | temp | system) used to build OpenVINO
+                    ${_tbb_dir}
+                NO_CMAKE_FIND_ROOT_PATH
+                NO_DEFAULT_PATH)
+            unset(_tbb_dir)
+        endif()
+        unset(enable_system_tbb)
+
+        _ov_find_dependency(TBB
+                            COMPONENTS tbb tbbmalloc
+                            ${find_package_tbb_extra_args})
     endif()
-    unset(enable_system_tbb)
-
-    _ov_find_dependency(TBB
-                        COMPONENTS tbb tbbmalloc
-                        ${find_package_tbb_extra_args})
 
     set(install_tbbbind "@install_tbbbind@")
     if(install_tbbbind)
@@ -214,8 +233,12 @@ if(NOT TARGET openvino)
     # WA for cmake version < 3.16 which does not export
     # IMPORTED_LINK_DEPENDENT_LIBRARIES_** properties if no PUBLIC dependencies for the library
     if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBB_FOUND)
-        foreach (type RELEASE DEBUG RELWITHDEBINFO MINSIZEREL)
-            set_property(TARGET openvino::runtime APPEND PROPERTY IMPORTED_LINK_DEPENDENT_LIBRARIES_${type} "TBB::tbb;TBB::tbbmalloc")
+        foreach(type RELEASE DEBUG RELWITHDEBINFO MINSIZEREL)
+            foreach(tbb_target TBB::tbb TBB::tbbmalloc)
+                if(TARGET ${tbb_target})
+                    set_property(TARGET openvino::runtime APPEND PROPERTY IMPORTED_LINK_DEPENDENT_LIBRARIES_${type} "${tbb_target}")
+                endif()
+            endforeach()
         endforeach()
     endif()
 endif()
