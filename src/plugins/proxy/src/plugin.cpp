@@ -60,6 +60,9 @@ void remove_proxy_properties(std::map<std::string, T>& config) {
     it = config.find("DEVICES_PRIORITY");
     if (it != config.end())
         config.erase(it);
+    it = config.find("FALLBACK_PRIORITY");
+    if (it != config.end())
+        config.erase(it);
 }
 
 }  // namespace
@@ -208,9 +211,12 @@ void ov::proxy::Plugin::SetProperties(const ov::AnyMap& config) {
             alias_for.insert(split(it->second, " ")[0]);
     }
     for (const auto& it : config) {
+        // Skip proxy properties
+        if (ov::device::id.name() == it.first || it.first == ov::device::priorities.name() ||
+            it.first == "DEVICES_PRIORITY" || it.first == "ALIAS_FOR")
+            continue;
         configs[config_name][it.first] = it.second;
     }
-    remove_proxy_properties(configs[config_name]);
 }
 
 void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& config) {
@@ -337,7 +343,6 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
         return get_property(name, device_id_str);
     return GetCore()->GetMetric(device_name, name, options);
 }
-
 InferenceEngine::IExecutableNetworkInternal::Ptr ov::proxy::Plugin::ImportNetwork(
     std::istream& model,
     const std::map<std::string, std::string>& config) {
