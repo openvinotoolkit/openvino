@@ -4,7 +4,7 @@
 from pathlib import Path
 
 from openvino.runtime import serialize
-from openvino import convert
+from openvino.tools.mo import convert
 from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
 
 from common.utils.common_utils import generate_ir

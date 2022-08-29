@@ -79,7 +79,6 @@ class BuildCmd(build_py):
 
 packages = find_namespace_packages(prefix[:-1])
 packages = [prefix.replace('/', '.') + p for p in packages]
-packages.append('openvino')
 
 setup(
     name='openvino-mo',
