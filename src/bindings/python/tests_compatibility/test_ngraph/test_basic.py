@@ -127,13 +127,13 @@ def test_broadcast_3():
 
 @pytest.mark.parametrize(
     "destination_type, input_data",
-    [(bool, np.zeros((2, 2), dtype=np.int32)), ("boolean", np.zeros((2, 2), dtype=np.int32))],
+    [(np.bool_, np.zeros((2, 2), dtype=np.int32)), ("boolean", np.zeros((2, 2), dtype=np.int32))],
 )
 def test_convert_to_bool(destination_type, input_data):
-    expected = np.array(input_data, dtype=bool)
+    expected = np.array(input_data, dtype=np.bool_)
     result = run_op_node([input_data], ng.convert, destination_type)
     assert np.allclose(result, expected)
-    assert np.array(result).dtype == bool
+    assert np.array(result).dtype == np.bool_
 
 
 @pytest.mark.parametrize(
