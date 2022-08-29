@@ -13,8 +13,9 @@ namespace op {
 
 /**
  * @interface ConvertTruncation
- * @brief The implementation "truncation" conversion.
- *        It means that if there are overflow, the values will wrap around.
+ * @brief It's a ordinary Convert op with specific rules for integer conversion.
+ *        The implementation "truncation" conversion for integer values.
+ *        It means that if there are overflow, the integer values will wrap around.
  *        For example, int_32t ---> int8_t
  *                       129   --->  -127
  * @ingroup snippets

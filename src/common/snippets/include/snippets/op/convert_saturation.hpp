@@ -13,8 +13,9 @@ namespace op {
 
 /**
  * @interface ConvertSaturation
- * @brief The implementation uses "saturation" conversion.
- *        It means that if the values are outside the limits
+ * @brief It's a ordinary Convert op with specific rules for integer conversion.
+ *        The implementation uses "saturation" conversion for integer values.
+ *        It means that if the integer values are outside the limits
  *        of the maximum and minimum values of the destination data type, they are clamped.
  *        For example, int_32t ---> int8_t
  *                       129   --->  127
