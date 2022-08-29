@@ -1220,7 +1220,7 @@ static UNUSED void printPerformanceCountsSimpleSort(std::vector<ov::ProfilingInf
                 stream << std::setw(30) << std::left << "layerType: " + std::string(it.node_type) + " ";
                 stream << std::setw(20) << std::left << "realTime: " + std::to_string(it.real_time.count());
                 stream << std::setw(15) << std::left << "cpu: " + std::to_string(it.cpu_time.count());
-                float opt_proportion = it.real_time.count() * 100.0 / totalTime.count();
+                double opt_proportion = it.real_time.count() * 100.0 / totalTime.count();
                 std::stringstream opt_proportion_ss;
                 opt_proportion_ss << std::fixed << std::setprecision(2) << opt_proportion;
                 std::string opt_proportion_str = opt_proportion_ss.str();
