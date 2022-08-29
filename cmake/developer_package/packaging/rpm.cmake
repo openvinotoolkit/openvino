@@ -10,7 +10,7 @@ include(GNUInstallDirs)
 # Set directories for cpack
 #
 macro(ov_rpm_cpack_set_dirs)
-    # override default locations for Debian
+    # override default locations for RPM
     set(OV_CPACK_TOOLSDIR ${CMAKE_INSTALL_BINDIR}) # only C++ tools are here
     set(OV_CPACK_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
     set(OV_CPACK_LIBRARYDIR ${CMAKE_INSTALL_LIBDIR})
@@ -41,7 +41,7 @@ endmacro()
 ov_rpm_cpack_set_dirs()
 
 #
-# Override CPack components name for Debian generator
+# Override CPack components name for RPM generator
 # This is needed to change the granularity, i.e. merge several components
 # into a single one
 #
@@ -67,7 +67,7 @@ endmacro()
 ov_override_component_names()
 
 #
-# Common Debian specific settings
+# Common RPM specific settings
 #
 
 macro(ov_rpm_specific_settings)
@@ -108,7 +108,7 @@ file(WRITE "${def_postrm}" "${post_content}")
 file(WRITE "${def_triggers}" "${triggers_content}")
 
 #
-# Functions helpful for packaging your modules with Debian cpack
+# Functions helpful for packaging your modules with RPM cpack
 #
 
 #
