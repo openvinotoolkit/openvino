@@ -6,10 +6,3 @@ add_subdirectory(shared)
 add_subdirectory(abc)
 add_subdirectory(bde)
 add_subdirectory(fgh)
-
-# Use the same code for proxy plugin registration in plugins.xml
-#
-# ov_add_plugin(NAME PROXY
-#               DEVICE_NAME "MOCK"
-#               DEFAULT_CONFIG
-#                   FALLBACK_PRIORITY:ABC,BDE)

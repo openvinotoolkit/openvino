@@ -22,12 +22,6 @@ namespace tests {
 //         </plugin>
 //         <plugin name="BDE" location="libmock_bde_plugin.so">
 //         </plugin>
-//         <plugin name="MOCK" location="">
-//             <properties>
-//                 <property key="FALLBACK_PRIORITY" value="ABC,BDE"/>
-//                 <property key="DEVICE_ORDER" value="BDE,BDE"/>
-//             </properties>
-//         </plugin>
 //     </plugins>
 // </ie>
 class ProxyTests : public ::testing::Test {

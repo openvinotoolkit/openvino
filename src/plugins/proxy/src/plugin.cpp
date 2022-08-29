@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "compiled_model.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_icore.hpp"
 #include "openvino/runtime/common.hpp"
@@ -255,6 +256,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr ov::proxy::Plugin::LoadExeNetwo
     for (auto&& value : device_config) {
         result_config.emplace(value.first, value.second.as<std::string>());
     }
+    // Disable cache creation for internal plugins
+    result_config.emplace(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE), "");
     remove_proxy_properties(result_config);
     return std::make_shared<ov::proxy::CompiledModel>(GetCore()->LoadNetwork(network, dev_name, result_config));
 }
