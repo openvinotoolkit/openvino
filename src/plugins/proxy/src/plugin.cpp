@@ -46,6 +46,22 @@ size_t get_device_from_config(const std::map<std::string, T>& config) {
     return 0;
 }
 
+template <class T>
+void remove_proxy_properties(std::map<std::string, T>& config) {
+    auto it = config.find(ov::device::id.name());
+    if (it != config.end())
+        config.erase(it);
+    it = config.find(ov::device::priorities.name());
+    if (it != config.end())
+        config.erase(it);
+    it = config.find("ALIAS_FOR");
+    if (it != config.end())
+        config.erase(it);
+    it = config.find("DEVICES_PRIORITY");
+    if (it != config.end())
+        config.erase(it);
+}
+
 }  // namespace
 
 std::string ov::proxy::restore_order(const std::string& original_order) {
@@ -109,14 +125,8 @@ InferenceEngine::QueryNetworkResult ov::proxy::Plugin::QueryNetwork(
     size_t num_devices = get_hidden_devices().size();
     // Recall for HW device
     auto dev_id = get_device_from_config(config);
-    std::map<std::string, std::string> config_copy;
-    for (const auto& it : config) {
-        // Skip proxy properties
-        if (ov::device::id.name() == it.first || it.first == ov::device::priorities.name() ||
-            it.first == "DEVICES_PRIORITY" || it.first == "ALIAS_FOR")
-            continue;
-        config_copy[it.first] = it.second;
-    }
+    auto config_copy = config;
+    remove_proxy_properties(config_copy);
     auto res = GetCore()->QueryNetwork(network, get_fallback_device(dev_id), config_copy);
     // Replace hidden device name
     for (auto&& it : res.supportedLayersMap) {
@@ -198,12 +208,9 @@ void ov::proxy::Plugin::SetProperties(const ov::AnyMap& config) {
             alias_for.insert(split(it->second, " ")[0]);
     }
     for (const auto& it : config) {
-        // Skip proxy properties
-        if (ov::device::id.name() == it.first || it.first == ov::device::priorities.name() ||
-            it.first == "DEVICES_PRIORITY" || it.first == "ALIAS_FOR")
-            continue;
         configs[config_name][it.first] = it.second;
     }
+    remove_proxy_properties(configs[config_name]);
 }
 
 void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& config) {
@@ -242,6 +249,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr ov::proxy::Plugin::LoadExeNetwo
     for (auto&& value : device_config) {
         result_config.emplace(value.first, value.second.as<std::string>());
     }
+    remove_proxy_properties(result_config);
     return std::make_shared<ov::proxy::CompiledModel>(GetCore()->LoadNetwork(network, dev_name, result_config));
 }
 
@@ -329,14 +337,12 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
         return get_property(name, device_id_str);
     return GetCore()->GetMetric(device_name, name, options);
 }
+
 InferenceEngine::IExecutableNetworkInternal::Ptr ov::proxy::Plugin::ImportNetwork(
     std::istream& model,
     const std::map<std::string, std::string>& config) {
     auto device_config = config;
-    // Remove proxy properties
-    auto it = device_config.find(ov::device::id.name());
-    if (it != device_config.end())
-        device_config.erase(it);
+    remove_proxy_properties(device_config);
 
     return std::make_shared<ov::proxy::CompiledModel>(
         GetCore()->ImportNetwork(model, get_fallback_device(get_device_from_config(config)), device_config));
