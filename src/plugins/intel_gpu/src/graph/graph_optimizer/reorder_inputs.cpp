@@ -617,31 +617,56 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         auto conv_format = output_layout.format;
         int32_t group_size = conv_node.get_groups();
         bool is_dw = group_size > 1 && (group_size == input_layout.feature() && group_size == output_layout.feature());
-        if (conv_node.impl_type == impl_types::onednn &&
-            lo.needs_onednn_small_ic_to_blocked(conv_format, input_layout, conv_node) && !is_dw) {
-            auto new_layout = input_layout;
-            auto dims = new_layout.format.dimension();
-            if (new_layout.data_type == data_types::f16) {
-                if (dims == 5)
-                    new_layout.format = (input_layout.batch() < 8) ? format::b_fs_zyx_fsv2 : format::bs_fs_zyx_bsv8_fsv2;
-                else
-                    new_layout.format = (input_layout.batch() < 8) ? format::b_fs_yx_fsv2 : format::bs_fs_yx_bsv8_fsv2;
-            } else if (data_type_traits::is_i8_u8(new_layout.data_type)) {
-                if (dims == 5)
-                    new_layout.format = (input_layout.batch() < 8) ? format::b_fs_zyx_fsv4 : format::bs_fs_zyx_bsv8_fsv4;
-                else
-                    new_layout.format = (input_layout.batch() < 8) ? format::b_fs_yx_fsv4 : format::bs_fs_yx_bsv8_fsv4;
-            }
-            // TODO: handling other types for first conv
+        if (conv_node.impl_type == impl_types::onednn) {
+            if (lo.needs_onednn_small_ic_to_blocked(conv_format, input_layout, conv_node) && !is_dw) {
+                auto new_layout = input_layout;
+                auto dims = new_layout.format.dimension();
+                new_layout.format = (dims == 4) ? format::byxf : format::bzyxf;
+                if (new_layout == input_layout)
+                    return;
 
-            if (new_layout == input_layout)
-                return;
+                auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
+                if (new_input.first) {
+                    p.add_intermediate(new_input.first, conv_node, 0, !new_input.second);
+                }
+                conv_node.get_dependencies().front()->set_output_layout(new_layout, false);
+            } else if (!lo.needs_onednn_small_ic_to_blocked(conv_format, input_layout, conv_node)) {
+                bool is_shallow_out = ((data_type_traits::is_i8_u8(output_layout.data_type) && output_layout.feature() <= 16) ||
+                                       (output_layout.data_type == data_types::f16 && output_layout.feature() <= 8) ||
+                                       (output_layout.data_type == data_types::f32 && output_layout.feature() <= 4));
+                if (is_shallow_out) {
+                    auto new_layout = input_layout;
+                    auto dims = new_layout.format.dimension();
+                    auto dt = input_layout.data_type;
+                    if (dt == data_types::i8 || dt == data_types::u8) {
+                        if (input_layout.batch() >= 16) {
+                            new_layout.format = (dims == 4) ? cldnn::format::bs_fs_yx_bsv32_fsv32 : cldnn::format::bs_fs_zyx_bsv32_fsv32;
+                        } else {
+                            new_layout.format = (dims == 4) ? cldnn::format::b_fs_yx_fsv32 : cldnn::format::b_fs_zyx_fsv32;
+                        }
+                    } else if (dt == data_types::f16) {
+                        if (input_layout.batch() >= 16) {
+                            new_layout.format = (dims == 4) ? cldnn::format::bs_fs_yx_bsv32_fsv16 : cldnn::format::bs_fs_zyx_bsv32_fsv16;
+                        } else {
+                            new_layout.format = (dims == 4) ? cldnn::format::b_fs_yx_fsv16 : cldnn::format::b_fs_zyx_fsv16;
+                        }
+                    } else if (dt == data_types::i32) {
+                        if (input_layout.batch() >= 16) {
+                            new_layout.format = (dims == 4) ? cldnn::format::bs_fs_yx_bsv16_fsv16 : cldnn::format::bs_fs_zyx_bsv16_fsv16;
+                        } else {
+                            new_layout.format = (dims == 4) ? cldnn::format::b_fs_yx_fsv16 : cldnn::format::b_fs_zyx_fsv16;
+                        }
+                    }
+                    if (new_layout == input_layout)
+                        return;
 
-            auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
-            if (new_input.first) {
-                p.add_intermediate(new_input.first, conv_node, 0, !new_input.second);
+                    auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
+                    if (new_input.first) {
+                        p.add_intermediate(new_input.first, conv_node, 0, !new_input.second);
+                    }
+                    conv_node.get_dependencies().front()->set_output_layout(new_layout, false);
+                }
             }
-            conv_node.get_dependencies().front()->set_output_layout(new_layout, false);
         }
 
         // reorder for onednn mixed-precision conv
@@ -652,24 +677,35 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         //   (bsv32_fsv16.u8) --> reorder --> (bsv32_fsv32.u8) --> conv --> (bsv32_fsv16.fp16)
         //
         // Do not apply such change for b=1 first conv
-        enum class __data_type {i8_u8, floating_point};
+        enum class __data_type {i8_u8, floating_point, f16, f32};
         // Errata for mixed precision in onednn
         // data_type, wrong_format, correct_format
         std::vector<std::tuple<__data_type, format, format>> errata = {
             {__data_type::i8_u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32},
+            {__data_type::i8_u8, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv32_fsv32},
             {__data_type::i8_u8, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv32},
             {__data_type::i8_u8, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv32},
+            {__data_type::i8_u8, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv32_fsv32},
             {__data_type::i8_u8, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv32},
             {__data_type::floating_point, format::b_fs_yx_fsv32, format::b_fs_yx_fsv16},
-            {__data_type::floating_point, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv16},
             {__data_type::floating_point, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv16},
-            {__data_type::floating_point, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv16}};
+            {__data_type::f16, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv32_fsv16},
+            {__data_type::f16, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv32_fsv16},
+            {__data_type::f16, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv16},
+            {__data_type::f16, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv16},
+            {__data_type::f32, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv16_fsv16},
+            {__data_type::f32, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv16_fsv16},
+            {__data_type::f32, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv16_fsv16},
+            {__data_type::f32, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv16_fsv16}};
+
         for (auto &e : errata) {
             auto prev_node = conv_node.get_dependencies().front();
             auto prev_layout = prev_node->get_output_layout();
             auto conv_layout = conv_node.get_output_layout();
             auto is_target_dt_in_errata = (std::get<0>(e) == __data_type::i8_u8 && data_type_traits::is_i8_u8(prev_layout.data_type)) ||
-                                          (std::get<0>(e) == __data_type::floating_point && data_type_traits::is_floating_point(prev_layout.data_type));
+                                          (std::get<0>(e) == __data_type::floating_point && data_type_traits::is_floating_point(prev_layout.data_type)) ||
+                                          (std::get<0>(e) == __data_type::f16 && prev_layout.data_type == data_types::f16) ||
+                                          (std::get<0>(e) == __data_type::f32 && prev_layout.data_type == data_types::f32);
             auto wrong_format = std::get<1>(e);
             auto correct_format = std::get<2>(e);
             if (lo.get_optimization_attributes().use_onednn_impls

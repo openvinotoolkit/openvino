@@ -290,6 +290,15 @@ def find_fqs_to_unify(model, config):
                 unified_scales_ops_.append(hw_op)
         return unified_scales_ops_
 
+    def _get_quantizable_per_ch_ops(hw_cfg_):
+        _quantizable_per_ch_ops = []
+        for hw_layer_cfg in hw_cfg_:
+            if 'quantization' in hw_layer_cfg and \
+               all(config['granularity'] == 'perchannel'
+                   for config in hw_layer_cfg['quantization']['activations']):
+                _quantizable_per_ch_ops.append(hw_layer_cfg['type'])
+        return _quantizable_per_ch_ops
+
     def _is_special_unify_conditions(node):
         check_map = {
             'Concat': _is_concat_unify_condition
@@ -310,6 +319,18 @@ def find_fqs_to_unify(model, config):
                 return True
             return False
 
+        def _is_followed_by_quantizable_per_channel(input_node):
+            if _is_quantize_agnostic_op(input_node):
+                concat_stack.extend(get_all_node_outputs(input_node))
+            else:
+                hw_op_type = get_hardware_config_operation_type(input_node, [hw_op['type'] for hw_op in hw_ops])
+                if hw_op_type in per_channel_quantizable:
+                    concat_stack.clear()
+                    logger.debug('Found per channel quantizible op %s %s as Concat %s output',
+                                 input_node.type, input_node.fullname, node.fullname)
+                    return True
+            return False
+
         res = False
         concat_inputs = get_node_inputs(node)
         for concat_input in concat_inputs:
@@ -317,10 +338,17 @@ def find_fqs_to_unify(model, config):
                 logger.debug('Concat %s without FQ or Concat as input will not unified',
                              node.fullname)
                 return res
+
         concat_stack = [node]
         while concat_stack:
             node_to_check = concat_stack.pop()
             res = _is_followed_by_conv(node_to_check)
+        if res:
+            concat_stack = [node]
+            while concat_stack:
+                node_to_check = concat_stack.pop()
+                res = not _is_followed_by_quantizable_per_channel(node_to_check)
+
         return res
 
     def _is_agnostic_branching_op(node_):
@@ -360,6 +388,7 @@ def find_fqs_to_unify(model, config):
                     stack_.append(parent)
 
     hardware_config = load_hardware_config(config)
+    per_channel_quantizable = _get_quantizable_per_ch_ops(hardware_config)
     hw_ops = get_operation_list(hardware_config)
     quantize_agnostic_ops = [op[1] for op in find_operation_matches(QUANTIZE_AGNOSTIC_OPERATIONS, hw_ops)]
     unified_scales_ops = _get_unified_scales_ops(hw_ops)
