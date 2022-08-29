@@ -58,9 +58,6 @@ protected:
         OV_EXPECT_OK(ov_tensor_create(tensor_type, tensor_shape, &input_tensor));
         EXPECT_NE(nullptr, input_tensor);
 
-        OV_EXPECT_OK(ov_tensor_list_create(&tensor_list, 1));
-        tensor_list.tensors[0] = input_tensor;
-
         compiled_model = nullptr;
         OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, nullptr));
         EXPECT_NE(nullptr, compiled_model);
@@ -74,7 +71,6 @@ protected:
     void TearDown() override {
         ov_tensor_free(input_tensor);
         ov_tensor_free(output_tensor);
-        ov_tensor_list_free(&tensor_list);
         ov_free(in_tensor_name);
         ov_infer_request_free(infer_request);
         ov_compiled_model_free(compiled_model);
@@ -90,7 +86,6 @@ public:
     char* in_tensor_name;
     ov_tensor_t* input_tensor;
     ov_tensor_t* output_tensor;
-    ov_tensor_list_t tensor_list;
     static std::mutex m;
     static bool ready;
     static std::condition_variable condVar;
@@ -204,24 +199,12 @@ TEST_P(ov_infer_request, set_tensor) {
     OV_EXPECT_OK(ov_infer_request_set_tensor(infer_request, in_tensor_name, input_tensor));
 }
 
-TEST_P(ov_infer_request, set_tensors) {
-    OV_EXPECT_OK(ov_infer_request_set_tensors(infer_request, in_tensor_name, &tensor_list));
-}
-
 TEST_P(ov_infer_request, set_input_tensor_by_index) {
     OV_EXPECT_OK(ov_infer_request_set_input_tensor_by_index(infer_request, 0, input_tensor));
 }
 
 TEST_P(ov_infer_request, set_input_tensor) {
     OV_EXPECT_OK(ov_infer_request_set_input_tensor(infer_request, input_tensor));
-}
-
-TEST_P(ov_infer_request, set_input_tensors) {
-    OV_EXPECT_OK(ov_infer_request_set_input_tensors(infer_request, &tensor_list));
-}
-
-TEST_P(ov_infer_request, set_input_tensors_by_index) {
-    OV_EXPECT_OK(ov_infer_request_set_input_tensors_by_index(infer_request, 0, &tensor_list));
 }
 
 TEST_P(ov_infer_request, set_output_tensor_by_index) {

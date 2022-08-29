@@ -148,22 +148,3 @@ void ov_tensor_free(ov_tensor_t* tensor) {
     if (tensor)
         delete tensor;
 }
-
-ov_status_e ov_tensor_list_create(ov_tensor_list_t* tensors, const size_t size) {
-    if (!tensors) {
-        return ov_status_e::INVALID_C_PARAM;
-    }
-    try {
-        tensors->size = size;
-        std::unique_ptr<ov_tensor_t*[]> _tensors_arr(new ov_tensor_t*[size]);
-        tensors->tensors = _tensors_arr.release();
-    }
-    CATCH_OV_EXCEPTIONS
-    return ov_status_e::OK;
-}
-
-void ov_tensor_list_free(ov_tensor_list_t* tensor_list) {
-    if (!tensor_list)
-        return;
-    delete[] tensor_list->tensors;
-}

@@ -25,33 +25,6 @@ typedef struct ov_tensor ov_tensor_t;
  */
 
 /**
- * @struct ov_tensor_list_t
- * @brief A list of tensors
- */
-typedef struct {
-    ov_tensor_t** tensors;
-    size_t size;
-} ov_tensor_list_t;
-
-
-/**
- * @brief Creat a tensor list
- * @ingroup tensor
- * @param tensors A point to ov_tensor_list_t
- * @param size The size of the tensors in tensor list
- * @return Status code of the operation: OK(0) for success.
- */
-OPENVINO_C_API(ov_status_e)
-ov_tensor_list_create(ov_tensor_list_t* tensors, const size_t size);
-
-/**
- * @brief Free ov_tensor_list_t.
- * @ingroup tensor
- * @param tensor A point to ov_tensor_list_t
- */
-OPENVINO_C_API(void) ov_tensor_list_free(ov_tensor_list_t* tensor);
-
-/**
  * @brief Constructs Tensor using element type and shape. Allocate internal host storage using default allocator
  * @ingroup tensor
  * @param type Tensor element type

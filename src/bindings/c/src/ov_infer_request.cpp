@@ -55,42 +55,6 @@ ov_status_e ov_infer_request_set_tensor_by_const_port(ov_infer_request_t* infer_
     return ov_status_e::OK;
 }
 
-ov_status_e ov_infer_request_set_tensors(ov_infer_request_t* infer_request,
-                                         const char* tensor_name,
-                                         const ov_tensor_list_t* tensors) {
-    if (!infer_request || !tensor_name || !tensors) {
-        return ov_status_e::INVALID_C_PARAM;
-    }
-
-    try {
-        std::vector<ov::Tensor> _tmp_tensors;
-        for (int i = 0; i < tensors->size; i++)
-            _tmp_tensors.emplace_back(*(tensors->tensors[i]->object));
-        infer_request->object->set_tensors(tensor_name, _tmp_tensors);
-    }
-    CATCH_OV_EXCEPTIONS
-
-    return ov_status_e::OK;
-}
-
-ov_status_e ov_infer_request_set_tensors_by_const_port(ov_infer_request_t* infer_request,
-                                                       const ov_output_const_node_t* port,
-                                                       const ov_tensor_list_t* tensors) {
-    if (!infer_request || !port || !tensors) {
-        return ov_status_e::INVALID_C_PARAM;
-    }
-
-    try {
-        std::vector<ov::Tensor> _tmp_tensors;
-        for (int i = 0; i < tensors->size; i++)
-            _tmp_tensors.emplace_back(*(tensors->tensors[i]->object));
-        infer_request->object->set_tensors(*port->object, _tmp_tensors);
-    }
-    CATCH_OV_EXCEPTIONS
-
-    return ov_status_e::OK;
-}
-
 ov_status_e ov_infer_request_set_input_tensor_by_index(ov_infer_request_t* infer_request,
                                                        size_t idx,
                                                        const ov_tensor_t* tensor) {
@@ -113,40 +77,6 @@ ov_status_e ov_infer_request_set_input_tensor(ov_infer_request_t* infer_request,
 
     try {
         infer_request->object->set_input_tensor(*tensor->object);
-    }
-    CATCH_OV_EXCEPTIONS
-
-    return ov_status_e::OK;
-}
-
-ov_status_e ov_infer_request_set_input_tensors(ov_infer_request_t* infer_request, const ov_tensor_list_t* tensors) {
-    if (!infer_request || !tensors) {
-        return ov_status_e::INVALID_C_PARAM;
-    }
-
-    try {
-        std::vector<ov::Tensor> _tmp_tensors;
-        for (int i = 0; i < tensors->size; i++)
-            _tmp_tensors.emplace_back(*(tensors->tensors[i]->object));
-        infer_request->object->set_input_tensors(_tmp_tensors);
-    }
-    CATCH_OV_EXCEPTIONS
-
-    return ov_status_e::OK;
-}
-
-ov_status_e ov_infer_request_set_input_tensors_by_index(ov_infer_request_t* infer_request,
-                                                        size_t idx,
-                                                        const ov_tensor_list_t* tensors) {
-    if (!infer_request || !tensors) {
-        return ov_status_e::INVALID_C_PARAM;
-    }
-
-    try {
-        std::vector<ov::Tensor> _tmp_tensors;
-        for (int i = 0; i < tensors->size; i++)
-            _tmp_tensors.emplace_back(*(tensors->tensors[i]->object));
-        infer_request->object->set_input_tensors(idx, _tmp_tensors);
     }
     CATCH_OV_EXCEPTIONS
 

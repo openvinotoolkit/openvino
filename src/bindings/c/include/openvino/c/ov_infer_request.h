@@ -93,36 +93,6 @@ OPENVINO_C_API(ov_status_e)
 ov_infer_request_set_tensor_by_const_port(ov_infer_request_t* infer_request, const ov_output_const_node_t* port, const ov_tensor_t* tensor);
 
 /**
- * @brief Sets a batch of tensors for input data to infer by tensor name.
- * Model input must have batch dimension, and the number of @p tensors must match the batch size.
- * The current version supports setting tensors to model inputs only. If @p tensor_name is associated
- * with output (or any other non-input node), an exception is thrown.
- * @ingroup infer_request
- * @param infer_request A pointer to the ov_infer_request_t.
- * @param tensor_name Name of the input tensor.
- * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
- * input element type and shape (except batch dimension). Total size of tensors must match the input size.
- * @return Status code of the operation: OK(0) for success.
- */
-OPENVINO_C_API(ov_status_e)
-ov_infer_request_set_tensors(ov_infer_request_t* infer_request, const char* tensor_name, const ov_tensor_list_t* tensors);
-
-/**
- * @brief Sets a batch of tensors for input data to infer by input port.
- * Model input must have batch dimension, and the number of @p tensors must match the batch size.
- * The current version supports setting tensors to model inputs only. If @p port is associated
- * with output (or any other non-input node), an exception is thrown.
- * @ingroup infer_request
- * @param infer_request A pointer to the ov_infer_request_t.
- * @param port Const port of the input tensor.
- * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
- * input element type and shape (except batch dimension). Total size of tensors must match the input size.
- * @return Status code of the operation: OK(0) for success.
- */
-OPENVINO_C_API(ov_status_e)
-ov_infer_request_set_tensors_by_const_port(ov_infer_request_t* infer_request, const ov_output_const_node_t* port, const ov_tensor_list_t* tensors);
-
-/**
  * @brief Sets an input tensor to infer on by the index of tensor.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
@@ -143,31 +113,6 @@ ov_infer_request_set_input_tensor_by_index(ov_infer_request_t* infer_request, si
  */
 OPENVINO_C_API(ov_status_e)
 ov_infer_request_set_input_tensor(ov_infer_request_t* infer_request, const ov_tensor_t* tensor);
-
-/**
- * @brief Sets a batch of tensors for the model with single input to infer on.
- * Model input must have batch dimension, and the number of @p tensors must match the batch size.
- * @ingroup infer_request
- * @param infer_request A pointer to the ov_infer_request_t.
- * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
- * input element type and shape (except batch dimension). Total size of tensors must match the input size.
- * @return Status code of the operation: OK(0) for success.
- */
-OPENVINO_C_API(ov_status_e)
-ov_infer_request_set_input_tensors(ov_infer_request_t* infer_request, const ov_tensor_list_t* tensors);
-
-/**
- * @brief Sets a batch of tensors for input data by index.
- * Model input must have batch dimension, and the number of @p tensors must match the batch size.
- * @ingroup infer_request
- * @param infer_request A pointer to the ov_infer_request_t.
- * @param idx Index of the input tensor. If @p idx is greater than the number of model inputs, an exception is thrown.
- * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
- * input element type and shape (except batch dimension). Total size of tensors must match the input size.
- * @return Status code of the operation: OK(0) for success.
- */
-OPENVINO_C_API(ov_status_e)
-ov_infer_request_set_input_tensors_by_index(ov_infer_request_t* infer_request, size_t idx, const ov_tensor_list_t* tensors);
 
 /**
  * @brief Sets an output tensor to infer by the index of output tensor.
