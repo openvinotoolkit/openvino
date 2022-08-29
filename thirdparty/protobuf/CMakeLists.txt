@@ -33,7 +33,8 @@ if(NOT DEFINED protobuf_MSVC_STATIC_RUNTIME)
     set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
 endif()
 
-if(CMAKE_CROSSCOMPILING)
+# WA: see CVS-90227 about X86
+if(CMAKE_CROSSCOMPILING AND NOT X86)
     find_host_program(SYSTEM_PROTOC protoc PATHS ENV PATH)
 
     if(SYSTEM_PROTOC)
