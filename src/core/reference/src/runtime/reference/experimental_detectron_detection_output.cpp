@@ -54,7 +54,7 @@ void refine_boxes(const float* boxes,
         const float ctr_x = x0 + 0.5f * ww;
         const float ctr_y = y0 + 0.5f * hh;
 
-        for (int class_idx = 1; class_idx < classes_num; ++class_idx) {
+        for (int class_idx = 0; class_idx < classes_num; ++class_idx) {
             const int64_t deltas_base_offset = classes_num * 4 * roi_idx + 4 * class_idx;
             const float dx = deltas[deltas_base_offset + 0] / weights[0];
             const float dy = deltas[deltas_base_offset + 1] / weights[1];
@@ -76,10 +76,10 @@ void refine_boxes(const float* boxes,
             float y1_new = pred_ctr_y + 0.5f * pred_h - coordinates_offset;
 
             // adjust new corner locations to be within the image region,
-            x0_new = std::max<float>(0.0f, x0_new);
-            y0_new = std::max<float>(0.0f, y0_new);
-            x1_new = std::max<float>(0.0f, x1_new);
-            y1_new = std::max<float>(0.0f, y1_new);
+            x0_new = std::min(std::max(0.0f, x0_new), img_W);
+            y0_new = std::min(std::max(0.0f, y0_new), img_H);
+            x1_new = std::min(std::max(0.0f, x1_new), img_W);
+            y1_new = std::min(std::max(0.0f, y1_new), img_H);
 
             // recompute new width & height
             const float box_w = x1_new - x0_new + coordinates_offset;
@@ -214,6 +214,7 @@ void experimental_detectron_detection_output(const float* boxes,
                                              const float* input_deltas,
                                              const float* input_scores,
                                              const float* input_im_info,
+                                             size_t roi_count,
                                              const op::v6::ExperimentalDetectronDetectionOutput::Attributes& attrs,
                                              float* output_boxes,
                                              float* output_scores,
@@ -221,7 +222,7 @@ void experimental_detectron_detection_output(const float* boxes,
     const float img_H = input_im_info[0];
     const float img_W = input_im_info[1];
     const int64_t classes_num = attrs.num_classes;
-    const int64_t rois_num = static_cast<int64_t>(attrs.max_detections_per_image);
+    const int64_t rois_num = static_cast<int64_t>(roi_count);
     const int64_t max_detections_per_image = static_cast<int64_t>(attrs.max_detections_per_image);
     const int64_t max_detections_per_class = attrs.post_nms_count;
     const float score_threshold = attrs.score_threshold;
@@ -255,7 +256,7 @@ void experimental_detectron_detection_output(const float* boxes,
     std::vector<int64_t> detections_per_class(classes_num, 0);
     int64_t total_detections_num = 0;
 
-    for (int64_t class_idx = 1; class_idx < classes_num; ++class_idx) {
+    for (int64_t class_idx = 0; class_idx < classes_num; ++class_idx) {
         nms_cf(&refined_scores[rois_num * class_idx],
                &refined_boxes[rois_num * 4 * class_idx],
                &refined_boxes_areas[rois_num * class_idx],
