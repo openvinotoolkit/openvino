@@ -17,9 +17,10 @@ from .utils.config import get_engine_config, merge_configs
 from .utils.path import TEST_ROOT
 
 TEST_MODELS = [
-    ('mobilenet-v2-pytorch', 'pytorch', 'MinMaxQuantization', 'performance'),
-    ('resnet-50-tf', 'tf', 'DefaultQuantization', 'performance'),
-    ('octave-resnet-26-0.25', 'mxnet', 'DefaultQuantization', 'accuracy'),
+    ('mobilenet-v2-pytorch', 'pytorch', 'MinMaxQuantization', 'performance', 'VPU'),
+    ('resnet-50-tf', 'tf', 'DefaultQuantization', 'performance', 'VPU'),
+    ('octave-resnet-26-0.25', 'mxnet', 'DefaultQuantization', 'accuracy', 'VPU'),
+    ('concat_depthwise_model', 'pytorch', 'MinMaxQuantization', 'accuracy', 'CPU'),
 ]
 
 REFERENCES_PATH = TEST_ROOT / 'data/reference_unify'
@@ -32,13 +33,13 @@ def _params(request):
 
 
 def test_unify_scales(_params, tmp_path, models):
-    model_name, model_framework, algorithm, preset = _params
+    model_name, model_framework, algorithm, preset, device = _params
 
     algorithm_config = Dict({
         'algorithms': [{
             'name': algorithm,
             'params': {
-                'target_device': 'VPU',
+                'target_device': device,
                 'preset': preset,
                 'stat_subset_size': 2
             }

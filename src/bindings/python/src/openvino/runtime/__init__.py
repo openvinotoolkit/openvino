@@ -6,20 +6,10 @@
 # noqa: F401
 
 from openvino.utils import add_openvino_libs_to_path
-from pkg_resources import get_distribution, DistributionNotFound
+add_openvino_libs_to_path()
 
-
-try:
-    __version__ = get_distribution("openvino-core").version
-except DistributionNotFound:
-    __version__ = "0.0.0.dev0"
-
-"""
 from openvino.pyopenvino import get_version
 __version__ = get_version()
-"""
-
-add_openvino_libs_to_path()
 
 # Openvino pybind bindings and python extended classes
 from openvino.pyopenvino import Dimension
@@ -49,7 +39,6 @@ from openvino.pyopenvino import Version
 from openvino.pyopenvino import Tensor
 from openvino.pyopenvino import Extension
 from openvino.pyopenvino import ProfilingInfo
-from openvino.pyopenvino import get_version
 from openvino.pyopenvino import get_batch
 from openvino.pyopenvino import set_batch
 from openvino.pyopenvino import serialize
