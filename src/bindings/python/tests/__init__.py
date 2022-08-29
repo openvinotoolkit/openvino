@@ -24,6 +24,8 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 
 
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
+skip_devtest = pytest.mark.skip(reason="Test might depend on machine, should be run by developers"
+                                       "or advanced users for debug/testing purposes.")
 xfail_accuracy = xfail_test(reason="Accuracy")
 xfail_issue_69444 = xfail_test(reason="ONNX Resize - AssertionError: Mismatched elements.")
 skip_issue_67415 = pytest.mark.skip(reason="RuntimeError: Unsupported data type for when filling blob!")
@@ -131,5 +133,4 @@ xfail_issue_82038 = xfail_test(reason="ScatterElements, ScatterND, AssertionErro
 xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeError: [ NOT_IMPLEMENTED ] "
                                       "CPU plugin: Input image format UNSPECIFIED is not supported yet...")
 
-xfail_issue_86909 = xfail_test(reason="ssd_resnet34 - AssertionError: zoo models results mismatch")
 xfail_issue_86911 = xfail_test(reason="LSTM_Seq_len_unpacked - AssertionError: zoo models results mismatch")

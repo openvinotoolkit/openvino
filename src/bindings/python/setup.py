@@ -175,8 +175,7 @@ class BuildCMakeExt(build_ext):
         self.spawn(["cmake", "-S" + root_dir, "-B" + self.build_temp,
                     f"-DCMAKE_BUILD_TYPE={self.config}",
                     f"-DInferenceEngineDeveloperPackage_DIR={ov_build_dir}",
-                    "-DENABLE_PYTHON=ON",
-                    "-DENABLE_OV_ONNX_FRONTEND=ON"] + ext_args)
+                    "-DENABLE_PYTHON=ON"] + ext_args)
 
         self.announce("Building binaries", level=3)
 

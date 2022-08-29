@@ -17,7 +17,7 @@ primitive_type_id eltwise::type_id() {
     return &instance;
 }
 
-layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
+layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_params const& impl_param) {
     size_t primary_input_idx = 0;
     if (node.input(primary_input_idx).is_constant()) {
         for (size_t i = 1; i < node.get_dependencies().size(); i++) {
@@ -27,17 +27,17 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
             }
         }
     }
-    auto input_node_layout = node.input(primary_input_idx).get_non_padded_output_layout();
-
-    auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_node_layout.data_type;
+    auto input_node_layout = impl_param.get_non_padded_input_layout(primary_input_idx);
+    auto desc = impl_param.typed_desc<eltwise>();
+    auto output_type = desc->output_data_type ? *desc->output_data_type : input_node_layout.data_type;
 
     auto size = input_node_layout.get_tensor();
     auto format = input_node_layout.format;
-    for (size_t i = 0; i < node.inputs_count(); i++) {
+    for (size_t i = 0; i < desc->input_size(); i++) {
         if (i == primary_input_idx)
             continue;
 
-        auto l = node.input(i).get_non_padded_output_layout();
+        auto l = impl_param.get_non_padded_input_layout(i);
         size = tensor::max(size, l.get_tensor());
         if (l.format == format::b_fs_zyx_fsv16)  // use optimized 5D
             format = format::b_fs_zyx_fsv16;
@@ -46,7 +46,7 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
     }
     auto output_layout = layout(output_type, format, size);
 
-    auto mode = node.get_primitive()->mode;
+    auto mode = desc->mode;
     // list of operations supported for integer types
     if (input_node_layout.data_type == data_types::i8 || input_node_layout.data_type == data_types::u8 ||
         input_node_layout.data_type == data_types::i32 || input_node_layout.data_type == data_types::i64) {
@@ -69,7 +69,7 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
                                                        eltwise_mode::logic_or,
                                                        eltwise_mode::logic_xor};
         if (std::find(eltwise_int_modes.begin(), eltwise_int_modes.end(), mode) == eltwise_int_modes.end())
-            CLDNN_ERROR_MESSAGE(node.id(), "Requested eltwise mode is not supported for integer types.");
+            CLDNN_ERROR_MESSAGE(desc->id, "Requested eltwise mode is not supported for integer types.");
     }
 
     // Logic and comparison operations should return i8 for any inputs
@@ -86,22 +86,21 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
         output_layout.data_type = data_types::i8;
     }
 
-    if (node.get_primitive()->output_data_type) {
-        output_layout.data_type = *node.get_primitive()->output_data_type;
+    if (desc->output_data_type) {
+        output_layout.data_type = *desc->output_data_type;
     }
 
     if (node.has_fused_primitives()) {
         output_layout.data_type = node.get_fused_output_layout().data_type;
     }
 
-    auto eltw = std::static_pointer_cast<const eltwise>((node.get_primitive()));
-    if (!eltw->stride.empty()) {
+    if (!desc->stride.empty()) {
         auto new_size = input_node_layout.get_tensor();
         // we can safely use only first stride, since we're using first input, and input / stride should give exact same
         // value for every input
-        new_size.spatial[0] = (input_node_layout.spatial(0) - 1) / eltw->stride[0].spatial[0] + 1;
-        new_size.spatial[1] = (input_node_layout.spatial(1) - 1) / eltw->stride[0].spatial[1] + 1;
-        new_size.spatial[2] = (input_node_layout.spatial(2) - 1) / eltw->stride[0].spatial[2] + 1;
+        new_size.spatial[0] = (input_node_layout.spatial(0) - 1) / desc->stride[0].spatial[0] + 1;
+        new_size.spatial[1] = (input_node_layout.spatial(1) - 1) / desc->stride[0].spatial[1] + 1;
+        new_size.spatial[2] = (input_node_layout.spatial(2) - 1) / desc->stride[0].spatial[2] + 1;
         input_node_layout.set_tensor(new_size);
         return input_node_layout;
     }

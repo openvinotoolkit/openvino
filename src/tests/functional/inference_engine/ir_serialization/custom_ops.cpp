@@ -24,11 +24,13 @@
 #endif
 
 static std::string get_extension_path() {
-    return FileUtils::makePluginLibraryName<char>({}, std::string("template_extension") + IE_BUILD_POSTFIX);
+    return FileUtils::makePluginLibraryName<char>(CommonTestUtils::getExecutableDirectory(),
+        std::string("template_extension") + IE_BUILD_POSTFIX);
 }
 
 static std::string get_ov_extension_path() {
-    return FileUtils::makePluginLibraryName<char>({}, std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
+    return FileUtils::makePluginLibraryName<char>(CommonTestUtils::getExecutableDirectory(),
+        std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
 }
 
 class CustomOpsSerializationTest : public ::testing::Test {
@@ -68,7 +70,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_MO) {
 // a shared library for ONNX don't make sence in static OpenVINO build
 #ifndef OPENVINO_STATIC_LIBRARY
 
-TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
+TEST_F(CustomOpsSerializationTest, DISABLED_CustomOpUser_ONNXImporter) {
     const std::string model = CommonTestUtils::getModelFromTestModelZoo(IR_SERIALIZATION_MODELS_PATH "custom_op.onnx");
 
     InferenceEngine::Core ie;
