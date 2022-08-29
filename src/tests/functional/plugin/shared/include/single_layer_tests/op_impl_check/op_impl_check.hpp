@@ -32,6 +32,7 @@ protected:
 
 public:
     void run();
+    void query_model();
     void SetUp() override;
     static std::string getTestCaseName(const testing::TestParamInfo<OpImplParams> &obj);
 };
