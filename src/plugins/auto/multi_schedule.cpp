@@ -315,6 +315,9 @@ IInferPtr MultiSchedule::CreateInferRequest() {
             syncRequestImpl->setPointerToSo(_passthroughExeNet._so);
         else
             syncRequestImpl->setPointerToSo(_passthroughExeNet._ptr->GetPointerToSo());
+    } else if (_multiSContext->_bindBuffer) {
+        auto sharedRequest = std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl)->GetSharedRequest();
+        syncRequestImpl->setPointerToSo(sharedRequest._so);
     }
     return std::make_shared<AsyncInferRequest>(shared_from_this(),
                                                syncRequestImpl,

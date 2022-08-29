@@ -11,7 +11,8 @@
 namespace MultiDevicePlugin {
 
 void BinderMultiSchedule::init(const ScheduleContext::Ptr& sContext) {
-     MultiSchedule::init(sContext);
+    MultiSchedule::init(sContext);
+    LOG_INFO_TAG("will enable bind buffer for MULTI!");
 }
 
 BinderMultiSchedule::~BinderMultiSchedule() {
