@@ -153,10 +153,11 @@ static const char progress_message[] =
 static const char pc_message[] = "Optional. Report performance counters.";
 
 // @brief message for sorted performance counters option
-static const char pc_sort_message[] = "Optional. Report performance counters and analysis the sort hotpoint opts. "
-                                      " \"sort\" Analysis opts time cost, print by hotpoint order "
-                                      " \"no_sort\" Analysis opts time cost, print by normal order "
-                                      " \"simple_sort\" Analysis opts time cost, only print EXECUTED opts by normal order";
+static const char pc_sort_message[] =
+    "Optional. Report performance counters and analysis the sort hotpoint opts. "
+    " \"sort\" Analysis opts time cost, print by hotpoint order "
+    " \"no_sort\" Analysis opts time cost, print by normal order "
+    " \"simple_sort\" Analysis opts time cost, only print EXECUTED opts by normal order";
 
 // @brief message for performance counters for sequence option
 static const char pcseq_message[] = "Optional. Report latencies for each shape in -data_shape sequence.";

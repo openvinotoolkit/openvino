@@ -1057,9 +1057,9 @@ static UNUSED void printPerformanceCounts(ov::InferRequest request,
 }
 
 static UNUSED void printPerformanceCountsNoSort(std::vector<ov::ProfilingInfo> performanceData,
-                                          std::ostream& stream,
-                                          std::string deviceName,
-                                          bool bshowHeader = true) {
+                                                std::ostream& stream,
+                                                std::string deviceName,
+                                                bool bshowHeader = true) {
     std::chrono::microseconds totalTime = std::chrono::microseconds::zero();
     // Print performance counts
     if (bshowHeader) {
@@ -1072,7 +1072,7 @@ static UNUSED void printPerformanceCountsNoSort(std::vector<ov::ProfilingInfo> p
             totalTime += it.real_time;
         }
     }
-    if (totalTime.count()!=0){
+    if (totalTime.count() != 0) {
         for (const auto& it : performanceData) {
             std::string toPrint(it.node_name);
             const int maxLayerName = 30;
@@ -1108,22 +1108,22 @@ static UNUSED void printPerformanceCountsNoSort(std::vector<ov::ProfilingInfo> p
             stream << " execType: " << it.exec_type << std::endl;
         }
     }
-    stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0) << " microseconds"
-           << std::endl;
+    stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0)
+           << " microseconds" << std::endl;
     std::cout << std::endl;
     std::cout << "Full device name: " << deviceName << std::endl;
     std::cout << std::endl;
     std::cout.flags(fmt);
 }
 
-static UNUSED bool sort_pc_descend(const ov::ProfilingInfo  &profiling1, const ov::ProfilingInfo  &profiling2){
+static UNUSED bool sort_pc_descend(const ov::ProfilingInfo& profiling1, const ov::ProfilingInfo& profiling2) {
     return profiling1.real_time > profiling2.real_time;
 }
 
 static UNUSED void printPerformanceCountsDescendSort(std::vector<ov::ProfilingInfo> performanceData,
-                                          std::ostream& stream,
-                                          std::string deviceName,
-                                          bool bshowHeader = true) {
+                                                     std::ostream& stream,
+                                                     std::string deviceName,
+                                                     bool bshowHeader = true) {
     std::chrono::microseconds totalTime = std::chrono::microseconds::zero();
     // Print performance counts
     if (bshowHeader) {
@@ -1136,8 +1136,8 @@ static UNUSED void printPerformanceCountsDescendSort(std::vector<ov::ProfilingIn
             totalTime += it.real_time;
         }
     }
-    if (totalTime.count()!=0){
-        // sort perfcounter 
+    if (totalTime.count() != 0) {
+        // sort perfcounter
         std::vector<ov::ProfilingInfo> sortPerfCounts{std::begin(performanceData), std::end(performanceData)};
         std::sort(sortPerfCounts.begin(), sortPerfCounts.end(), sort_pc_descend);
 
@@ -1169,15 +1169,15 @@ static UNUSED void printPerformanceCountsDescendSort(std::vector<ov::ProfilingIn
             std::stringstream opt_proportion_ss;
             opt_proportion_ss << std::fixed << std::setprecision(2) << opt_proportion;
             std::string opt_proportion_str = opt_proportion_ss.str();
-            if (opt_proportion_str == "0.00"){
+            if (opt_proportion_str == "0.00") {
                 opt_proportion_str = "N/A";
             }
             stream << std::setw(20) << std::left << "proportion: " + opt_proportion_str + "%";
             stream << " execType: " << it.exec_type << std::endl;
         }
     }
-    stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0) << " microseconds"
-           << std::endl;
+    stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0)
+           << " microseconds" << std::endl;
     std::cout << std::endl;
     std::cout << "Full device name: " << deviceName << std::endl;
     std::cout << std::endl;
@@ -1185,9 +1185,9 @@ static UNUSED void printPerformanceCountsDescendSort(std::vector<ov::ProfilingIn
 }
 
 static UNUSED void printPerformanceCountsSimpleSort(std::vector<ov::ProfilingInfo> performanceData,
-                                          std::ostream& stream,
-                                          std::string deviceName,
-                                          bool bshowHeader = true) {
+                                                    std::ostream& stream,
+                                                    std::string deviceName,
+                                                    bool bshowHeader = true) {
     std::chrono::microseconds totalTime = std::chrono::microseconds::zero();
     // Print performance counts
     if (bshowHeader) {
@@ -1200,13 +1200,13 @@ static UNUSED void printPerformanceCountsSimpleSort(std::vector<ov::ProfilingInf
             totalTime += it.real_time;
         }
     }
-    if (totalTime.count()!=0){
-        // sort perfcounter 
+    if (totalTime.count() != 0) {
+        // sort perfcounter
         std::vector<ov::ProfilingInfo> sortPerfCounts{std::begin(performanceData), std::end(performanceData)};
         std::sort(sortPerfCounts.begin(), sortPerfCounts.end(), sort_pc_descend);
 
         for (const auto& it : sortPerfCounts) {
-            if(it.status == ov::ProfilingInfo::Status::EXECUTED) {
+            if (it.status == ov::ProfilingInfo::Status::EXECUTED) {
                 std::string toPrint(it.node_name);
                 const int maxLayerName = 30;
 
@@ -1224,7 +1224,7 @@ static UNUSED void printPerformanceCountsSimpleSort(std::vector<ov::ProfilingInf
                 std::stringstream opt_proportion_ss;
                 opt_proportion_ss << std::fixed << std::setprecision(2) << opt_proportion;
                 std::string opt_proportion_str = opt_proportion_ss.str();
-                if (opt_proportion_str == "0.00"){
+                if (opt_proportion_str == "0.00") {
                     opt_proportion_str = "N/A";
                 }
                 stream << std::setw(20) << std::left << "proportion: " + opt_proportion_str + "%";
@@ -1232,8 +1232,8 @@ static UNUSED void printPerformanceCountsSimpleSort(std::vector<ov::ProfilingInf
             }
         }
     }
-    stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0) << " microseconds"
-           << std::endl;
+    stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0)
+           << " microseconds" << std::endl;
     std::cout << std::endl;
     std::cout << "Full device name: " << deviceName << std::endl;
     std::cout << std::endl;
@@ -1241,10 +1241,10 @@ static UNUSED void printPerformanceCountsSimpleSort(std::vector<ov::ProfilingInf
 }
 
 static UNUSED void printPerformanceCountsSort(std::vector<ov::ProfilingInfo> performanceData,
-                                          std::ostream& stream,
-                                          std::string deviceName,
-                                          std::string sorttype,
-                                          bool bshowHeader = true) {
+                                              std::ostream& stream,
+                                              std::string deviceName,
+                                              std::string sorttype,
+                                              bool bshowHeader = true) {
     if (sorttype == pcNoSort) {
         printPerformanceCountsNoSort(performanceData, stream, deviceName, bshowHeader);
     } else if (sorttype == pcSort) {

@@ -72,9 +72,9 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
         throw std::logic_error("only " + std::string(detailedCntReport) + " report type is supported for MULTI device");
     }
 
-    if (!FLAGS_pcsort.empty() && FLAGS_pcsort != "sort" && FLAGS_pcsort != "no_sort" && FLAGS_pcsort != "simple_sort"){
-        std::string pcsort_err = "Incorrect performance count sort . Please set -pcsort option to" +
-                               "'sort', 'no_sort', 'simple_sort'.";
+    if (!FLAGS_pcsort.empty() && FLAGS_pcsort != "sort" && FLAGS_pcsort != "no_sort" && FLAGS_pcsort != "simple_sort") {
+        std::string pcsort_err = std::string("Incorrect performance count sort . Please set -pcsort option to ") +
+                                 std::string("'sort', 'no_sort', 'simple_sort'.");
         throw std::logic_error(pcsort_err);
     }
 
@@ -1142,11 +1142,15 @@ int main(int argc, char* argv[]) {
                 auto reqPerfCounts = inferRequestsQueue.requests[ireq]->get_performance_counts();
                 if (!FLAGS_pcsort.empty()) {
                     slog::info << "Sort performance counts for " << ireq << "-th infer request:" << slog::endl;
-                    printPerformanceCountsSort(reqPerfCounts, std::cout, getFullDeviceName(core, FLAGS_d), FLAGS_pcsort, false);
+                    printPerformanceCountsSort(reqPerfCounts,
+                                               std::cout,
+                                               getFullDeviceName(core, FLAGS_d),
+                                               FLAGS_pcsort,
+                                               false);
                 } else if (FLAGS_pc) {
                     slog::info << "Performance counts for " << ireq << "-th infer request:" << slog::endl;
                     printPerformanceCounts(reqPerfCounts, std::cout, getFullDeviceName(core, FLAGS_d), false);
-                } 
+                }
                 perfCounts.push_back(reqPerfCounts);
             }
             if (statistics) {
