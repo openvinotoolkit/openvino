@@ -906,9 +906,7 @@ public:
         CleanUpProperties(deviceName, config_with_batch);
 
         auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
-        bool forceDisableCache = config_with_batch.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0 ||
-                                 (pluginRegistry.find(parsed._deviceName) != pluginRegistry.end() &&
-                                  pluginRegistry.at(parsed._deviceName).pluginCreateFunc == ov::proxy::create_plugin);
+        bool forceDisableCache = config_with_batch.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0;
         if (forceDisableCache) {
             // remove this config key from parsed as plugins can throw unsupported exception
             parsed._config.erase(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE));
