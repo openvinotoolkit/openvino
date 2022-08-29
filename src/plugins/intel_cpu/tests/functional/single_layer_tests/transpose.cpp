@@ -66,7 +66,6 @@ protected:
 
         init_input_shapes({inputShapes});
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeDynamicParams(inType, { inputDynamicShapes[0] });
 
         const auto inputOrderOp = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
