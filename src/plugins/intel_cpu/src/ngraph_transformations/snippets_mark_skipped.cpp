@@ -200,21 +200,21 @@ bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node> &nod
     const auto weight_shape = child->get_input_shape(1);
     const bool is_depthwise = is_group_conv && weight_shape[1] == 1 && weight_shape[2] == 1;
     const bool deptwise_is_suitable = implication(is_depthwise, child->get_input_shape(0).size() < 5);
-    if (!(is_conv && deptwise_is_suitable))
+    if (!deptwise_is_suitable)
         return false;
 
-    const bool first_input_is_suitable = node->get_input_node_shared_ptr(0)->get_output_element_type(0) == ov::element::u8;
     const auto zp_weights = node->get_input_node_shared_ptr(1);
     const auto zp_weight_shape = zp_weights->get_output_shape(0);
-    bool second_input_is_suitable =
-            ov::is_type<ngraph::op::v0::Constant>(zp_weights) &&
-                    zp_weights->get_output_element_type(0) == ov::element::u8 &&
-                    zp_weight_shape.size() >= 2;
-    if (!(first_input_is_suitable && second_input_is_suitable))
-        return false;
     auto correct_shape = ov::Shape(zp_weight_shape.size(), 1);
     correct_shape[1] = zp_weight_shape[1];
-    return correct_shape == zp_weight_shape;
+    const bool first_conv_input_is_suitable = node->get_input_node_shared_ptr(0)->get_element_type() == ov::element::u8 &&
+                                              node->get_input_node_shared_ptr(1)->get_element_type() == ov::element::u8 &&
+                                              zp_weight_shape.size() >= 2 && correct_shape == zp_weight_shape;
+
+    const auto conv_weights = child->get_input_node_shared_ptr(1);
+    bool second_conv_input_is_suitable = ov::is_type<ngraph::op::v0::Constant>(conv_weights) &&
+                                         conv_weights->get_output_element_type(0) == ov::element::i8;
+    return first_conv_input_is_suitable && second_conv_input_is_suitable;
 }
 bool isSuitablePoolChild(const std::shared_ptr<const Node> &node) {
     const bool is_suitable_node = ov::is_type<ngraph::op::v1::MaxPool>(node);
