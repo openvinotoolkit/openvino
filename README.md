@@ -144,7 +144,7 @@ The latest documentation for OpenVINO™ Toolkit is availabe [here](https://docs
 
 ### Developer documentation
 
-[Developer documentation](#todo-add) contains information about architectural decisions which are applied inside the OpenVINO components. This documentation has all necessary information which could be needed in order to contribute to OpenVINO.
+[Developer documentation](https://docs.openvino.ai/latest/documentation.html) contains information about architectural decisions which are applied inside the OpenVINO components. This documentation has all necessary information which could be needed in order to contribute to OpenVINO.
 
 ## Tutorials
 
