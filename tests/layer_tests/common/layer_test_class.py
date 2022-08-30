@@ -7,7 +7,6 @@ import os
 import re
 import warnings
 import xml.etree.ElementTree as ET
-from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
 from pathlib import Path
 
 import numpy as np

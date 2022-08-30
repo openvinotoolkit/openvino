@@ -4,20 +4,10 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset9.hpp>
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset9.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-
-template<class T>
-std::shared_ptr<ov::opset9::Constant> create_constant(const std::vector<T>& data, const ov::element::Type_t et = ov::element::i64, bool scalar = false) {
-    ov::Shape shape = scalar ? ov::Shape{} : ov::Shape{data.size()};
-    return ov::opset9::Constant::create(et, shape, data);
-}
-
-std::shared_ptr<ov::opset9::Constant> create_zero_constant(const ov::element::Type_t et, ov::Shape shape) {
-    return ov::opset9::Constant::create(et, shape, {0});
-}
 
 struct ReshapeSinkingAttributes {
     ov::element::Type_t data_et;
