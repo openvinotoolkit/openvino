@@ -131,8 +131,7 @@ private:
 namespace detail {
 
 attach_deconvolution_impl::attach_deconvolution_impl() {
-    static auto types =
-        {data_types::f16, data_types::f32, data_types::i8, data_types::u8};
+    static auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::u8};
     static auto formats = {
         format::bfyx,
         format::byxf,
