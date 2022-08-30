@@ -24,7 +24,7 @@ public:
 
 private:
     HeteroInferRequest::Ptr _heteroInferRequest;
-    std::mutex              _getBlobMutex;
+    std::mutex _getBlobMutex;
 };
 
 }  // namespace HeteroPlugin
