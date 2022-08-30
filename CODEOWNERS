@@ -95,6 +95,8 @@ CMakeLists.txt @openvinotoolkit/openvino-ie-maintainers
 
 # Documentation:
 /docs/  @openvinotoolkit/openvino-docs-maintainers
+/docs/template_plugin/ @openvinotoolkit/openvino-ie-template-maintainers
+/docs/template_extension/ @openvinotoolkit/openvino-ie-template-maintainers
 *.md  @openvinotoolkit/openvino-docs-maintainers 
 README @openvinotoolkit/openvino-docs-maintainers
 
