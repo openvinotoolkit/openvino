@@ -14,7 +14,8 @@
 #include "dnn_types.h"
 #include "backend/gna_types.h"
 #include "round_float_define.hpp"
-
+#include "pwl_input_params.hpp"
+#include "pwl_segments_creator_factory.hpp"
 
 // This function performes emulatation of HW saturation of PWL segments in SW
 // by inserting additional segments when overflow would happen
@@ -140,19 +141,50 @@ void make_gna_pwl(const DnnActivation&  fun,
                   const double out_scale,
                   const bool low_precision,
                   std::vector<gna_pwl_segment_t> &gna_pwl) {
+    if (fun.type == kActIdentity) {
+        auto pwl_creator = ov::intel_gna::backend::PWLSegmentsCreatorFactory::CreateCreator(fun.type);
+        if (pwl_creator == nullptr) {
+            THROW_GNA_EXCEPTION << "Could not find creator for function type equal: " << static_cast<int>(fun.type);
+        }
+        ov::intel_gna::backend::PWLInputParams input_data(low_precision, fun.fqParams, in_scale, out_scale);
+        auto segments_with_borders = pwl_creator->CreateSegmentsWithBorders(input_data);
+        gna_pwl = segments_with_borders.segments;
+        auto& y_min_max = segments_with_borders.border_values.y_min_max;
+
+        // looks like insert_extra_pwl_segments is not needed for identity beacuse the left most and the right most
+        // segments meets condtion put in the method.
+        insert_extra_pwl_segments(gna_pwl, y_min_max.y_min, y_min_max.y_max);
+
+        // TODO remove
+        //for (const auto pwl : gna_pwl) {
+        //    std::cout << "Output Segment before:" << std::endl;
+        //    std::cout << "\txBase      : " << static_cast<int32_t>(pwl.xBase & XBASEMASK) << std::endl;
+        //    std::cout << "\tyBase      : " << static_cast<int32_t>(pwl.yBase) << std::endl;
+        //    std::cout << "\tslope      : " << static_cast<int32_t>(pwl.slope) << std::endl;
+        //    std::cout << "\tslope_index: " << static_cast<int32_t>(pwl.xBase & ~XBASEMASK) << std::endl;
+        //}
+        return;
+    }
+
     pwl_gna_slope_scale_t s;
     const int16_t y_min = low_precision ? INT8_MIN : INT16_MIN;
     const int16_t y_max = low_precision ? INT8_MAX : INT16_MAX;
     gnalog() << "make_gna_pwl\n";
     gnalog() << "   in_scale  " << in_scale << "\n";
     gnalog() << "   out_scale " << out_scale << "\n";
+    // TODO remove
+    //std::cout << "make_gna_pwl\n";
+    //std::cout << "   in_scale  " << std::to_string(in_scale) << "\n";
+    //std::cout << "   out_scale " << std::to_string(out_scale) << "\n";
+    //std::cout << "   size " << gna_pwl.size() << "\n";
+    //std::cout << "   identity???: " << (fun == kActIdentity ? "true" : "false") << gna_pwl.size() << "\n";
+    std::vector<gna_pwl_segment_t> out_pwl;
     print_segments_header(fun);
     switch (fun) {
         case kActRelu:
         case kActLeakyRelu: {
             auto n_segments = 2;
             gna_pwl.resize(n_segments);
-
             int32_t x_lower = INT32_MIN;
             int32_t x_upper = INT32_MAX;
             int32_t y_lower = y_min;
@@ -222,14 +254,13 @@ void make_gna_pwl(const DnnActivation&  fun,
                 (gna_pwl[2].slope * in_scale) / (out_scale*s.slope_scale));
             break;
         }
-        case kActIdentity:
         case kActKaldiLstmClipping:
         case kActFakeQuantize: {
             int32_t x_lower = INT32_MIN;
             int32_t x_upper = INT32_MAX;
             int16_t y_lower = y_min;
             int16_t y_upper = y_max;
-            if ((fun == kActFakeQuantize || fun == kActIdentity) && fun.fqParams.set) {
+            if (kActFakeQuantize && fun.fqParams.set) {
                 x_lower = std::max(static_cast<int64_t>(*fun.fqParams.input_low * in_scale), static_cast<int64_t>(x_lower));
                 x_upper = std::min(static_cast<int64_t>(*fun.fqParams.input_high * in_scale), static_cast<int64_t>(x_upper));
                 y_lower = std::max(static_cast<int32_t>(*fun.fqParams.input_low * out_scale), static_cast<int32_t>(y_lower));
@@ -253,11 +284,6 @@ void make_gna_pwl(const DnnActivation&  fun,
                         x_upper = FLOAT_TO_INT32(y_upper  * in_scale / out_scale);
                     }
                 }
-            } else if (fun == kActIdentity && !fun.fqParams.set) {
-                if (x_lower < y_lower * in_scale / out_scale) x_lower = FLOAT_TO_INT32(y_lower * in_scale / out_scale);
-                if (x_upper > y_upper * in_scale / out_scale) x_upper = FLOAT_TO_INT32(y_upper * in_scale / out_scale);
-                if (y_lower < x_lower * out_scale / in_scale) y_lower = FLOAT_TO_INT16(x_lower * out_scale / in_scale);
-                if (y_upper > x_upper * out_scale / in_scale) y_upper = FLOAT_TO_INT16(x_upper * out_scale / in_scale);
             }
 
             gna_pwl.resize(n_segments);
@@ -322,6 +348,7 @@ void make_gna_pwl(const DnnActivation&  fun,
         default:
             THROW_GNA_EXCEPTION << "Unexpected function activation!" << fun;
     }
+
     insert_extra_pwl_segments(gna_pwl, y_min, y_max);
 }
 

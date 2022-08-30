@@ -24,6 +24,7 @@
 #define ACTIVATION_SCALE_FACTOR 2048.0f
 #define IDENTITY_SCALE_FACTOR 2049.0f
 #define XBASEMASK 0xFFFFFFFC  // only top 30 bits are used
+#define XBASE_SCALE_INDEX_MASK ~XBASEMASK // only 2 LSB are used
 #define KALDI_LSTM_CLIP_LOWER (-50.0)
 #define KALDI_LSTM_CLIP_UPPER (50.0)
 #define POW_DOMAIN (16.0)
