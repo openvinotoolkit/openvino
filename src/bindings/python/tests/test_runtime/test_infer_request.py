@@ -376,7 +376,7 @@ def test_infer_mixed_keys(device):
     (Type.u16, np.uint16),
     (Type.i64, np.int64),
     (Type.u64, np.uint64),
-    (Type.boolean, np.bool_),
+    (Type.boolean, bool),
 ])
 def test_infer_mixed_values(device, ov_type, numpy_dtype):
     request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
@@ -399,7 +399,7 @@ def test_infer_mixed_values(device, ov_type, numpy_dtype):
     (Type.u16, np.uint16),
     (Type.i64, np.int64),
     (Type.u64, np.uint64),
-    (Type.boolean, np.bool_),
+    (Type.boolean, bool),
 ])
 def test_async_mixed_values(device, ov_type, numpy_dtype):
     request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
