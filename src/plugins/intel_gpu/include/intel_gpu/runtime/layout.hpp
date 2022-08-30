@@ -212,7 +212,7 @@ bool data_type_match(data_types data_type) {
     return data_type == type_to_data_type<T>::value;
 }
 
-inline data_types data_type_to_element_type(ov::element::Type t) {
+inline data_types element_type_to_data_type(ov::element::Type t) {
     switch (t) {
     case ov::element::Type_t::i16:
     case ov::element::Type_t::u16:
@@ -240,7 +240,7 @@ inline data_types data_type_to_element_type(ov::element::Type t) {
     }
 }
 
-inline ov::element::Type element_type_to_data_type(data_types t) {
+inline ov::element::Type data_type_to_element_type(data_types t) {
     switch (t) {
     case cldnn::data_types::f32:
         return ov::element::Type_t::f32;

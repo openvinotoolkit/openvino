@@ -95,7 +95,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
     auto inputName = layer_type_name_ID(op);
     auto preProcess = inputInfo->getPreProcess();
     size_t meanChannels = preProcess.getNumberOfChannels();
-    cldnn::layout networkInputLayout(DataTypeFromPrecision(op->get_output_element_type(0)),
+    cldnn::layout networkInputLayout(cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                      inputFormat,
                                      dataTensor.transform(inputFormat, 1));
     cldnn::primitive_id meanBlobID = inputName + Program::m_meanValuesTag;
