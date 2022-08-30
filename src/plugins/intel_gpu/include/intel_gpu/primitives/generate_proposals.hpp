@@ -49,9 +49,8 @@ struct generate_proposals
                        bool normalized,
                        float nms_eta,
                        const data_types roi_num_type,
-                       const primitive_id& ext_prim_id = "",
                        const padding& output_padding = {}) :
-            primitive_base{id, {input_im_info, input_anchors, input_deltas, input_scores, output_rois_scores, output_rois_num}, ext_prim_id, output_padding},
+            primitive_base{id, {input_im_info, input_anchors, input_deltas, input_scores, output_rois_scores, output_rois_num}, output_padding},
             output_rois_scores{output_rois_scores},
             output_rois_num{output_rois_num},
             min_size{min_size},
