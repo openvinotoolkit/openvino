@@ -45,9 +45,8 @@ struct convert_color : public primitive_base<convert_color> {
                   const color_format output_color_format,
                   const memory_type mem_type,
                   const layout& output_layout,
-                  const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
-        : primitive_base(id, inputs, ext_prim_id, output_padding),
+        : primitive_base(id, inputs, output_padding),
           input_color_format(input_color_format),
           output_color_format(output_color_format),
           mem_type(mem_type),

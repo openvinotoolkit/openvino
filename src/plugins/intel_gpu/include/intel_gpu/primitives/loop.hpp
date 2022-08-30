@@ -130,9 +130,8 @@ struct loop : public primitive_base<loop> {
          int64_t max_iteration = -1,
          const primitive_id& current_iteration_id = primitive_id(),
          const primitive_id& condition_id = primitive_id(),
-         const primitive_id& ext_prim_id = "",
          const padding& output_padding = padding())
-            : primitive_base(id, inputs, ext_prim_id, output_padding),
+            : primitive_base(id, inputs, output_padding),
               body(body),
               trip_count_id(trip_count_id),
               initial_execution_id(initial_condition_id),

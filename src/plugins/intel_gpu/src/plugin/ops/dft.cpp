@@ -14,7 +14,7 @@ namespace intel_gpu {
 namespace {
 
 void createDft(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::dft_kind kind) {
-    p.ValidateInputs(op, {2, 3});
+    validate_inputs_count(op, {2, 3});
 
     const auto inputs = p.GetInputPrimitiveIDs(op);
     const auto layer_name = layer_type_name_ID(op);
@@ -29,10 +29,9 @@ void createDft(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::dft_k
     const uint8_t data_rank = out_shape.size();
     ov::normalize_axes(op.get(), data_rank - 1, axes);
 
-    const cldnn::dft prim(layer_name, inputs.front(), std::move(axes), out_shape, kind, op_friendly_name);
+    const cldnn::dft prim(layer_name, inputs.front(), std::move(axes), out_shape, kind);
 
-    p.AddPrimitive(prim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, prim);
 }
 
 void CreateDFTOp(Program& p, const std::shared_ptr<ngraph::op::v7::DFT>& op) {

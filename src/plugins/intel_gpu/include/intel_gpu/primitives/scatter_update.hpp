@@ -39,9 +39,8 @@ struct scatter_update : public primitive_base<scatter_update> {
                    const primitive_id& idx,
                    const primitive_id& idupd,
                    const int64_t axis,
-                   const primitive_id& ext_prim_id = "",
                    const padding& output_padding = padding())
-        : primitive_base(id, {dict, idx, idupd}, ext_prim_id, output_padding), axis(axis) {}
+        : primitive_base(id, {dict, idx, idupd}, output_padding), axis(axis) {}
 
     /// @brief ScatterUpdate axis
     int64_t axis;

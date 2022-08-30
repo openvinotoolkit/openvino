@@ -22,7 +22,7 @@ static cldnn::lrn_norm_region GetNormRegion(std::vector<int64_t> axis_value) {
 }
 
 static void CreateLRNOp(Program& p, const std::shared_ptr<ngraph::op::v0::LRN>& op) {
-    p.ValidateInputs(op, {2});
+    validate_inputs_count(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -39,11 +39,9 @@ static void CreateLRNOp(Program& p, const std::shared_ptr<ngraph::op::v0::LRN>& 
                               static_cast<float>(op->get_bias()),
                               static_cast<float>(op->get_alpha()),
                               static_cast<float>(op->get_beta()),
-                              GetNormRegion(axis_value),
-                              op->get_friendly_name());
+                              GetNormRegion(axis_value));
 
-    p.AddPrimitive(lrnPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, lrnPrim);
 }
 
 REGISTER_FACTORY_IMPL(v0, LRN);

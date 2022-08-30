@@ -148,7 +148,7 @@ TEST(spatial_concatenate_f32_gpu, test03) {
     topology tpl;
     tpl.add(input_layout("in1", input1->get_layout()));
     tpl.add(input_layout("in2", input2->get_layout()));
-    tpl.add(concatenation("conc", { "in1", "in2" }, 2, "", padding({ 0, 0, 1, 1 }, 0.0f)));
+    tpl.add(concatenation("conc", { "in1", "in2" }, 2, padding({ 0, 0, 1, 1 }, 0.0f)));
 
     network net(engine, tpl);
     net.set_input_data("in1", input1);
@@ -203,7 +203,7 @@ TEST(spatial_concatenate_f32_gpu, test04) {
     topology tpl;
     tpl.add(input_layout("in1", input1->get_layout()));
     tpl.add(input_layout("in2", input2->get_layout()));
-    tpl.add(concatenation("conc", { "in1", "in2" }, 3, "", padding({ 0, 0, 2, 0 }, { 0, 0, 0, 0 })));
+    tpl.add(concatenation("conc", { "in1", "in2" }, 3, padding({ 0, 0, 2, 0 }, { 0, 0, 0, 0 })));
 
     network net(engine, tpl);
     net.set_input_data("in1", input1);

@@ -20,7 +20,7 @@ cldnn::tensor mkTensor(const ov::Shape& shape) {
 static void CreateExperimentalDetectronPriorGridGeneratorOp(
     Program& p,
     const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronPriorGridGenerator>& op) {
-    p.ValidateInputs(op, {3});
+    validate_inputs_count(op, {3});
     cldnn::tensor outTensor = mkTensor(op->get_output_shape(0));
     auto outDataType = DataTypeFromPrecision(op->get_output_element_type(0));
     cldnn::layout outLayout{outDataType, cldnn::format::bfyx, outTensor};
@@ -39,10 +39,8 @@ static void CreateExperimentalDetectronPriorGridGeneratorOp(
                                                             featmap_shape[2],
                                                             featmap_shape[3],
                                                             image_shape[2],
-                                                            image_shape[3],
-                                                            op->get_friendly_name()};
-    p.AddPrimitive(prim);
-    p.AddPrimitiveToProfiler(op);
+                                                            image_shape[3]};
+    p.add_primitive(*op, prim);
 }
 }  // namespace
 

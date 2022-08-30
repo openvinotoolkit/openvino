@@ -1472,7 +1472,6 @@ TEST(convolution_f32_fw_gpu, basic_convolution_input_padding) {
             { 1, 1 },
             { 2, 1 },
             { 1, 1 },
-            "",
             padding{ { 0, 0, 0, 0 }, 0 })
     );
 
@@ -1575,7 +1574,6 @@ TEST(convolution_f32_fw_gpu, basic_convolution_sym_input_padding) {
             { 1, 1 },
             { 2, 1 },
             { 2, 1 },
-            "",
             padding{ { 0, 0, 0, 0 }, 0 })
     );
 
@@ -1673,7 +1671,6 @@ TEST(convolution_f32_fw_gpu, basic_convolution_asym_input_padding) {
             { 1, 1 },
             { 2, 1 },
             { 3, 2 },
-            "",
             padding{ { 0, 0, 0, 0 }, 0 }));
 
     network network(engine, topology);
@@ -1780,7 +1777,6 @@ TEST(convolution_f32_fw_gpu, basic_convolution_sym_input_padding_with_pad) {
             { 1, 1 },
             { 2, 1 },
             { 2, 1 },
-            "",
             padding{ { 0, 0, 0, 0 }, 0 })
     );
 
@@ -1891,7 +1887,6 @@ TEST(convolution_f32_fw_gpu, basic_convolution_asym_input_padding_with_pad) {
             { 1, 1 },
             { 2, 1 },
             { 3, 2 },
-            "",
             padding{ { 0, 0, 0, 0 }, 0 }));
 
     network network(engine, topology);
@@ -1989,7 +1984,6 @@ TEST(convolution_f32_fw_gpu, basic_convolution_input_and_output_padding) {
             { 1, 1 },
             { 2, 1 },
             { 1, 1 },
-            "",
             padding{ { 0,0,x_pad,y_pad }, 0 })
     );
 
@@ -2561,7 +2555,6 @@ TEST(convolution_f32_fw_gpu, offsets_wsiz3x3_wstr2x2_in2x2x1x1_zeropad) {
             { 2, 2 },
             { 1, 1 },
             { 1, 1 },
-            "",
             padding{ { 0, 0, 1, 1 }, 0 })
     );
 
@@ -5423,7 +5416,7 @@ TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4_to_bfyx) {
         reorder("to_int", "input", { data_types::i8, format::bfyx, { batch_num, input_f, input_size_x, input_size_y } }),
         data("weights", weights),
         data("biases", biases),
-        convolution("conv", "to_int", { "weights" }, { "biases" }, { 1, 1 }, { 2, 2 }, { 1, 1 }, "",
+        convolution("conv", "to_int", { "weights" }, { "biases" }, { 1, 1 }, { 2, 2 }, { 1, 1 },
                     padding{ { 0, 0, output_padding, output_padding }, 0 }),
         reorder("output", "conv", { data_types::f32, format::bfyx, { batch_num, input_f, input_size_x, input_size_y } }));
 
@@ -5445,7 +5438,7 @@ TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4_to_bfyx) {
         reorder("to_int", "input", { data_types::i8,format::b_fs_yx_fsv4, { batch_num, input_f, input_size_x, input_size_y } }),
         data("weights", weights),
         data("biases", biases),
-        convolution("conv", "to_int", { "weights" }, { "biases" }, { 1, 1 }, { 2, 2 }, { 1, 1 }, "",
+        convolution("conv", "to_int", { "weights" }, { "biases" }, { 1, 1 }, { 2, 2 }, { 1, 1 },
             padding{ { 0, 0, output_padding, output_padding }, 0 }),
         reorder("output", "conv", { data_types::f32,format::bfyx, { batch_num, input_f, input_size_x, input_size_y } }));
 
@@ -8549,12 +8542,12 @@ public:
         all_layer_params.emplace_back(new convolution("convolution_no_relu", "reorder0", weights, bias, stride_sizes[3], pad_sizes[3], dilation_sizes[3]));
 
         // Output padding
-        all_layer_params.emplace_back(new convolution("convolution_no_relu", "input0", weights, bias, stride_sizes[1], pad_sizes[1], dilation_sizes[1], "", { { 0, 0, 2, 4 }, { 0, 0, 0, 19 } }));
-        all_layer_params.emplace_back(new convolution("convolution_no_relu", "input0", weights, bias, stride_sizes[2], pad_sizes[2], dilation_sizes[2], "", { { 0, 0, 1, 0 }, { 0, 0, 13, 9 } }));
+        all_layer_params.emplace_back(new convolution("convolution_no_relu", "input0", weights, bias, stride_sizes[1], pad_sizes[1], dilation_sizes[1], { { 0, 0, 2, 4 }, { 0, 0, 0, 19 } }));
+        all_layer_params.emplace_back(new convolution("convolution_no_relu", "input0", weights, bias, stride_sizes[2], pad_sizes[2], dilation_sizes[2], { { 0, 0, 1, 0 }, { 0, 0, 13, 9 } }));
 
         // Input + Output padding
-        all_layer_params.emplace_back(new convolution("convolution_no_relu", "reorder0", weights, bias, stride_sizes[0], pad_sizes[0], dilation_sizes[0], "", { { 0, 0, 1, 5 }, { 0, 0, 19, 4 } }));
-        all_layer_params.emplace_back(new convolution("convolution_no_relu", "reorder0", weights, bias, stride_sizes[3], pad_sizes[3], dilation_sizes[3], "", { { 0, 0, 1, 2 }, { 0, 0, 3, 4 } }));
+        all_layer_params.emplace_back(new convolution("convolution_no_relu", "reorder0", weights, bias, stride_sizes[0], pad_sizes[0], dilation_sizes[0], { { 0, 0, 1, 5 }, { 0, 0, 19, 4 } }));
+        all_layer_params.emplace_back(new convolution("convolution_no_relu", "reorder0", weights, bias, stride_sizes[3], pad_sizes[3], dilation_sizes[3], { { 0, 0, 1, 2 }, { 0, 0, 3, 4 } }));
 
         return all_layer_params;
     }

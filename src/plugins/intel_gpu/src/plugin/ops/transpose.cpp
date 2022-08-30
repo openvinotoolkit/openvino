@@ -15,7 +15,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::Transpose>& op) {
-    p.ValidateInputs(op, {1, 2});
+    validate_inputs_count(op, {1, 2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -51,14 +51,13 @@ static void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::
     if (((input && is_convert_color_type(input)) || (input1 && is_convert_color_type(input1)))
             && order == std::vector<uint16_t>{0, 3, 1, 2}) {
         auto precision = input->get_element_type();
-        p.AddPrimitive(cldnn::reorder(layerName,
+        auto reorder_prim = cldnn::reorder(layerName,
                                       inputPrimitives[0],
                                       cldnn::format::bfyx,
                                       DataTypeFromPrecision(precision),
                                       std::vector<float>(),
-                                      cldnn::reorder_mean_mode::none,
-                                      op->get_friendly_name()));
-        p.AddPrimitiveToProfiler(op);
+                                      cldnn::reorder_mean_mode::none);
+        p.add_primitive(*op, reorder_prim);
         return;
     }
 
@@ -71,11 +70,9 @@ static void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::
 
     auto permutePrim = cldnn::permute(layerName,
                                       inputPrimitives[0],
-                                      order,
-                                      op->get_friendly_name());
+                                      order);
 
-    p.AddPrimitive(permutePrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, permutePrim);
 }
 
 REGISTER_FACTORY_IMPL(v1, Transpose);

@@ -44,6 +44,13 @@ void __register ## _ ## op_name ## _ ## op_version() {                          
 namespace ov {
 namespace intel_gpu {
 
+template<class T>
+struct is_smart_pointer : std::false_type {};
+template<class T>
+struct is_smart_pointer<std::shared_ptr<T>> : std::true_type {};
+template<class T>
+struct is_smart_pointer<std::shared_ptr<const T>> : std::true_type {};
+
 std::string layer_type_lower(const ngraph::Node* op);
 std::string layer_type_name_ID(const ngraph::Node* op);
 std::string layer_type_lower(const std::shared_ptr<ngraph::Node>& op);
@@ -93,11 +100,11 @@ public:
     static const cldnn::primitive_id m_preCustomLayerTag;
     static const cldnn::primitive_id m_postCustomLayerTag;
 
-    std::map<std::string, cldnn::primitive_id> primitiveIDs;
+    std::map<std::string, cldnn::primitive_id> primitive_ids;
     std::map<std::string, std::vector<cldnn::primitive_id>> prevPrimitiveIDs;
     std::map<cldnn::primitive_id, std::pair<std::string, PerfCounter>> perfMap;
 
-    std::vector<cldnn::primitive_id> profilingIDs;
+    std::vector<cldnn::primitive_id> profiling_ids;
 
     std::map<std::string, InferenceEngine::SizeVector> outputDims;
     std::map<std::string, cldnn::layout> inputLayouts;
@@ -124,21 +131,9 @@ public:
                          std::map<std::string, std::pair<int64_t, int64_t>>& batch_dim);
 
     // Profiling utils
-    void InitProfileInfo(const std::string& layerName,
-                         const std::string& layerType,
-                         bool isCPU = false,
-                         InferenceEngine::InferenceEngineProfileInfo::LayerStatus status
-                         = InferenceEngine::InferenceEngineProfileInfo::EXECUTED,
-                         std::string parentId = "");
-    void AddPrimitiveToProfiler(cldnn::primitive_id id, const std::shared_ptr<ngraph::Node>& op,
-                                cldnn::primitive_id customOutputId = "");
-    void AddPrimitiveToProfiler(const std::shared_ptr<ngraph::Node>& op,
-                                cldnn::primitive_id customOutputId = "");
-    void AddInnerPrimitiveToProfiler(cldnn::primitive_id id, cldnn::primitive_id parentId,
-                                     const std::shared_ptr<ngraph::Node>& op);
+    void init_profile_info(const cldnn::primitive& prim);
 
     // Graph construction helpers
-    void ValidateInputs(const std::shared_ptr<ngraph::Node>& op, std::vector<size_t> validInputsCount);
     std::vector<cldnn::primitive_id> GetInputPrimitiveIDs(const std::shared_ptr<ngraph::Node>& op) const;
 
     using factory_t = std::function<void(Program&, const std::shared_ptr<ngraph::Node>&)>;
@@ -152,14 +147,12 @@ public:
             Program::factories_map.insert({OpType::get_type_info_static(), func});
     }
 
-    template<typename PType>
-    void AddPrimitive(const PType& prim) {
-        if (m_topology == nullptr) {
-            IE_THROW() << "m_topology object was not created in ov::runtime::intel_gpu::Program";
-        }
-
-        m_topology->add(prim);
+    template<typename PType, typename = typename std::enable_if<!is_smart_pointer<PType>::value>::type>
+    void add_primitive(const ngraph::Node& op, PType prim, std::vector<std::string> aliases = {}) {
+        add_primitive(op, std::static_pointer_cast<cldnn::primitive>(std::make_shared<PType>(prim)), aliases);
     }
+
+    void add_primitive(const ngraph::Node& op, std::shared_ptr<cldnn::primitive> prim, std::vector<std::string> aliases = {});
 
     std::shared_ptr<cldnn::topology> GetTopology() const { return m_topology; }
 
@@ -204,6 +197,14 @@ void CreateUnaryEltwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& node,
 void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& node, cldnn::eltwise_mode mode);
 
 bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node);
+
+void validate_inputs_count(const std::shared_ptr<ngraph::Node>& op, std::vector<size_t> possible_inputs_count);
+
+inline bool ends_with(const std::string& value, const std::string& suffix) {
+    if (suffix.size() > value.size())
+        return false;
+    return std::equal(suffix.rbegin(), suffix.rend(), value.rbegin());
+}
 
 }  // namespace intel_gpu
 }  // namespace ov

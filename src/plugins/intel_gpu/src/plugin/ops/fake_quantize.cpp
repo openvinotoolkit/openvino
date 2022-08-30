@@ -13,7 +13,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateFakeQuantizeOp(Program& p, const std::shared_ptr<ngraph::op::v0::FakeQuantize>& op) {
-    p.ValidateInputs(op, {5});
+    validate_inputs_count(op, {5});
     std::string layerName = layer_type_name_ID(op);
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
 
@@ -32,11 +32,9 @@ static void CreateFakeQuantizeOp(Program& p, const std::shared_ptr<ngraph::op::v
                                             output_low_id,
                                             output_high_id,
                                             levels,
-                                            dt,
-                                            op->get_friendly_name());
+                                            dt);
 
-    p.AddPrimitive(quantizationPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, quantizationPrim);
 }
 
 REGISTER_FACTORY_IMPL(v0, FakeQuantize);

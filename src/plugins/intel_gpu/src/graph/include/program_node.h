@@ -149,8 +149,6 @@ public:
         return params;
     }
 
-    const primitive_id& get_ext_prim_id() const { return desc->ext_prim_id; }
-
     template <class PType>
     bool is_type() const {
         static_assert(

@@ -25,8 +25,7 @@ void CreateRandomUniformOp(Program &p, const std::shared_ptr<ngraph::op::v8::Ran
                                                      op->get_op_seed(),
                                                      tensor_from_dims(output_shape),
                                                      outputFormat);
-    p.AddPrimitive(random_uniform_prim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, random_uniform_prim);
 }
 
 } // namespace

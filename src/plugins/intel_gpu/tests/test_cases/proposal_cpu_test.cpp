@@ -83,7 +83,6 @@ TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_in
                                         post_nms_topn,
                                         ratios,
                                         scales,
-                                        "",
                                         padding())
 {
     _topology.add(input_layout(cls_scores_name, _cls_scores_layout));

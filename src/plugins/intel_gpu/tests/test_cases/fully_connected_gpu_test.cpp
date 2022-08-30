@@ -1738,7 +1738,7 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
     auto input = input_layout("input", input_prim->get_layout());
     auto w_data = data("weights", weights_prim);
     auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, { input_b, input_f, 1, input_y } });
-    auto fc = fully_connected("fc_prim", "reorder_to_int", "weights", "", "", padding(), 3);
+    auto fc = fully_connected("fc_prim", "reorder_to_int", "weights", "", padding(), 3);
     auto rf = reorder("reorder_to_float", "fc_prim", { data_types::f32, format::bfyx, { output_b, output_f, 1, 1 } });
     topology topology;
     topology.add(input);

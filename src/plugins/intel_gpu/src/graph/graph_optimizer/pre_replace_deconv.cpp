@@ -118,7 +118,6 @@ void pre_replace_deconv::run(program& p) {
                                                               pad,
                                                               dilation,
                                                               grouped_weights_shape,
-                                                              "",
                                                               output_padding);
                 } else {
                     tensor output_size(0);
@@ -133,7 +132,6 @@ void pre_replace_deconv::run(program& p) {
                                                                   dilation,
                                                                   output_size,
                                                                   grouped_weights_shape,
-                                                                  "",
                                                                   output_padding);
                     } else {
                         conv_prim = std::make_shared<convolution>(deconv_node_id,
@@ -145,7 +143,6 @@ void pre_replace_deconv::run(program& p) {
                                                                   dilation,
                                                                   output_size,
                                                                   grouped_weights_shape,
-                                                                  "",
                                                                   output_padding);
                     }
                 }
@@ -283,7 +280,6 @@ void pre_replace_deconv::run(program& p) {
                                                                pad,
                                                                dilation,
                                                                grouped_weights_shape,
-                                                               "",
                                                                output_padding);
                 program_node& created_node = p.get_or_create(conv_prim);
 

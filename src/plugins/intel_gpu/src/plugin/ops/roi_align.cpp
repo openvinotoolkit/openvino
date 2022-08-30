@@ -38,7 +38,7 @@ cldnn::roi_align::AlignedMode from(ngraph::op::v9::ROIAlign::AlignedMode mode) {
 }
 
 void CreateROIAlignOp(Program& p, const std::shared_ptr<ngraph::op::v3::ROIAlign>& op) {
-    p.ValidateInputs(op, {3});
+    validate_inputs_count(op, {3});
     auto roi_align_prim = cldnn::roi_align(layer_type_name_ID(op),
                                            p.GetInputPrimitiveIDs(op),
                                            op->get_pooled_h(),
@@ -46,14 +46,12 @@ void CreateROIAlignOp(Program& p, const std::shared_ptr<ngraph::op::v3::ROIAlign
                                            op->get_sampling_ratio(),
                                            op->get_spatial_scale(),
                                            from(op->get_mode()),
-                                           cldnn::roi_align::AlignedMode::asymmetric,
-                                           op->get_friendly_name());
-    p.AddPrimitive(roi_align_prim);
-    p.AddPrimitiveToProfiler(op);
+                                           cldnn::roi_align::AlignedMode::asymmetric);
+    p.add_primitive(*op, roi_align_prim);
 }
 
 void CreateROIAlignOp(Program& p, const std::shared_ptr<ngraph::op::v9::ROIAlign>& op) {
-    p.ValidateInputs(op, {3});
+    validate_inputs_count(op, {3});
     auto roi_align_prim = cldnn::roi_align(layer_type_name_ID(op),
                                            p.GetInputPrimitiveIDs(op),
                                            op->get_pooled_h(),
@@ -61,10 +59,8 @@ void CreateROIAlignOp(Program& p, const std::shared_ptr<ngraph::op::v9::ROIAlign
                                            op->get_sampling_ratio(),
                                            op->get_spatial_scale(),
                                            from(op->get_mode()),
-                                           from(op->get_aligned_mode()),
-                                           op->get_friendly_name());
-    p.AddPrimitive(roi_align_prim);
-    p.AddPrimitiveToProfiler(op);
+                                           from(op->get_aligned_mode()));
+    p.add_primitive(*op, roi_align_prim);
 }
 
 }  // anonymous namespace

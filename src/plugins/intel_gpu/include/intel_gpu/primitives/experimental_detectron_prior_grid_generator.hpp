@@ -30,9 +30,8 @@ struct experimental_detectron_prior_grid_generator
                                                 uint64_t featmap_height,
                                                 uint64_t featmap_width,
                                                 uint64_t image_height,
-                                                uint64_t image_width,
-                                                const primitive_id& ext_prim_id = {})
-        : primitive_base{id, input, ext_prim_id},
+                                                uint64_t image_width)
+        : primitive_base{id, input},
           flatten{flatten},
           h{h},
           w{w},

@@ -1128,7 +1128,6 @@ TEST_P(conv_fp32_multi_eltwise_concat, basic) {
             { "eltwise1", "eltwise2" },
             1,
             data_types::i8,
-            "",
             padding{ { 0, 0, 0, 0 }, 0 }),
         reorder("reorder_bfyx", "concat", p.default_format, data_types::f32)
     );
