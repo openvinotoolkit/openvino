@@ -325,7 +325,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
  private :
     const float activation_scale_factor = 2048.f;
     const float low_prec_activation_scale_factor = 4.f;
-    const float identity_scale_factor = 2049.0f;
+    const float identity_scale_factor = 2048.0f;
     const float max_activation_scale_factor = 4096.0f;
     const float k = 5;
     const float k_identity = 6;
