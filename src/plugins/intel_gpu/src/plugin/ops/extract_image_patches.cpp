@@ -24,7 +24,7 @@ static inline std::string PadToString(ngraph::op::PadType pad) {
 }
 
 static void CreateExtractImagePatchesOp(Program& p, const std::shared_ptr<ngraph::op::v3::ExtractImagePatches>& op) {
-    p.ValidateInputs(op, {1});
+    validate_inputs_count(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -39,11 +39,9 @@ static void CreateExtractImagePatchesOp(Program& p, const std::shared_ptr<ngraph
                                                                 strides,
                                                                 rates,
                                                                 auto_pad,
-                                                                tensor_from_dims(op->get_output_shape(0)),
-                                                                op->get_friendly_name());
+                                                                tensor_from_dims(op->get_output_shape(0)));
 
-    p.AddPrimitive(extractImagePatchesPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, extractImagePatchesPrim);
 }
 
 REGISTER_FACTORY_IMPL(v3, ExtractImagePatches);
