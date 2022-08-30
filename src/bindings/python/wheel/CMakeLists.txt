@@ -22,7 +22,6 @@ set(PUGIXML_LIBS_DIR runtime/3rdparty/pugixml/lib)
 # Dependencies
 #
 
-set(openvino_wheel_deps ie_api)
 foreach(_target ie_api constants _pyngraph pyopenvino ov_plugins ov_frontends py_ov_frontends)
     if(TARGET ${_target})
         list(APPEND openvino_wheel_deps ${_target})

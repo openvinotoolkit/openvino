@@ -17,7 +17,8 @@ from .utils.config import merge_configs
 TEST_MODELS = [
     ('resnet_example', 'pytorch', 'DefaultQuantization', 'CPU'),
     ('resnet_example', 'pytorch', 'RangeSupervision', 'ANY'),
-    ('act_act_example', 'pytorch', 'DefaultQuantization', 'GNA')
+    ('act_act_example', 'pytorch', 'DefaultQuantization', 'GNA'),
+    ('concat_depthwise_model', 'pytorch', 'MinMaxQuantization', 'CPU'),
 ]
 
 
