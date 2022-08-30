@@ -95,13 +95,12 @@ macro(ov_parse_ci_build_number)
     endif()
 
     set(OpenVINO_SOVERSION "${OpenVINO_VERSION_MAJOR}${OpenVINO_VERSION_MINOR}${OpenVINO_VERSION_PATCH}")
+    string(REGEX REPLACE "^20" "" OpenVINO_SOVERSION "${OpenVINO_SOVERSION}")
     set(OpenVINO_VERSION "${OpenVINO_VERSION_MAJOR}.${OpenVINO_VERSION_MINOR}.${OpenVINO_VERSION_PATCH}")
-    # see https://www.opengis.ch/2011/11/23/creating-non-versioned-shared-libraries-for-android/
-    # Android does not support SOVERSION
-    if(WIN32 OR ANDROID)
-        set(OpenVINO_VERSION_SUFFIX "")
-    else()
+    if(ENABLE_LIBRARY_VERSIONING)
         set(OpenVINO_VERSION_SUFFIX ".${OpenVINO_VERSION}")
+    else()
+        set(OpenVINO_VERSION_SUFFIX "")
     endif()
     message(STATUS "OpenVINO version is ${OpenVINO_VERSION} (Build ${OpenVINO_VERSION_BUILD})")
 
@@ -158,7 +157,9 @@ function(ov_add_library_version library)
         message(FATAL_ERROR "Internal error: OpenVINO_SOVERSION is not defined")
     endif()
 
-    set_target_properties(${library} PROPERTIES
-        SOVERSION ${OpenVINO_SOVERSION}
-        VERSION ${OpenVINO_VERSION})
+    if(ENABLE_LIBRARY_VERSIONING)
+        set_target_properties(${library} PROPERTIES
+            SOVERSION ${OpenVINO_SOVERSION}
+            VERSION ${OpenVINO_VERSION})
+    endif()
 endfunction()

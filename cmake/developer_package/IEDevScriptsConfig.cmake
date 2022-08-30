@@ -23,10 +23,10 @@ function(set_ci_build_number)
     endforeach()
 endfunction()
 
-set_ci_build_number()
-
 include(features)
 include(message)
+
+set_ci_build_number()
 
 #
 # Detect target
