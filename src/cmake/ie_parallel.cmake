@@ -25,12 +25,16 @@ macro(ov_find_package_tbb)
             # if TBBROOT env variable is not defined
             ov_download_tbb()
 
+            # fallback variant for TBB 2018 and older where TBB have not had cmake interface
+            if(DEFINED TBBROOT OR DEFINED ENV{TBBROOT})
+                set(_tbb_paths PATHS ${IEDevScripts_DIR})
+            endif()
+
             # try to find one more time
             find_package(TBB QUIET COMPONENTS tbb tbbmalloc
                          # can be provided by ov_download_tbb
                          HINTS ${TBB_DIR}
-                         # fallback variant for TBB 2018 and older
-                         PATHS ${IEDevScripts_DIR}
+                         ${_tbb_paths}
                          ${_find_package_no_args})
         endif()
 
