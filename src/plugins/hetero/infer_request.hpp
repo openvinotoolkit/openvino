@@ -60,7 +60,6 @@ public:
 
 private:
     void CreateInferRequest(const std::unordered_map<std::string, std::string>& subgraphInputToOutputBlobNames);
-    std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> memoryStates;
 };
 
 }  // namespace HeteroPlugin

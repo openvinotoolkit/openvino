@@ -128,7 +128,7 @@ void HeteroInferRequest::InferImpl() {
 }
 
 std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> HeteroInferRequest::QueryState() {
-    memoryStates = {};
+    std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> memoryStates = {};
     for (auto&& desc : _inferRequests) {
         auto& r = desc._request;
         assert(r);

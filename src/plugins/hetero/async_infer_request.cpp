@@ -59,6 +59,8 @@ StatusCode HeteroAsyncInferRequest::Wait(int64_t millis_timeout) {
 
 InferenceEngine::Blob::Ptr HeteroAsyncInferRequest::GetBlob(const std::string& name) {
     CheckState();
+    // need lock when different blobs of same infer request from parallel
+    std::lock_guard<std::mutex> lock(_getBlobMutex);
     auto blob = _heteroInferRequest->GetBlob(name);
     setPointerToSo(_heteroInferRequest->getPointerToSo());
     return blob;
