@@ -75,8 +75,8 @@ public:
 namespace detail {
 
 attach_scatter_update_impl::attach_scatter_update_impl() {
-    const auto types = {data_types::f32, data_types::f16, data_types::i32};
-    const auto formats = {
+    auto types = {data_types::f32, data_types::f16, data_types::i32};
+    auto formats = {
         format::bfyx,
         format::b_fs_yx_fsv16,
         format::b_fs_yx_fsv32,
