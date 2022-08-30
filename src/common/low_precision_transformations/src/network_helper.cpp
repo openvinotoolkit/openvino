@@ -1644,6 +1644,9 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
                 op::TemporaryReplaceOutputType(foldConvert(dequantization.subtractConstant, parentPrecision), element::f32).get());
             ngraph::copy_runtime_info({ newOperation, parent }, parent);
         } else {
+            // Subtract constant could be changed (including a shape) before propagation in some cases
+            // so it's necessary to compute the shape for a subtractConvert before creating a new subtract
+            dequantization.subtractConvert->validate_and_infer_types();
             parent = std::make_shared<opset1::Subtract>(parent, dequantization.subtractConvert);
             ngraph::copy_runtime_info({ newOperation, parent }, parent);
         }
@@ -1736,6 +1739,9 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefor
                         foldConvert(subtractConstant, parentPrecision), element::f32).get());
                 parent->set_friendly_name(dequantization.subtract->get_friendly_name() + "_" + std::to_string(i + 1));
             } else {
+                // Subtract constant could be changed (including a shape) before propagation in some cases
+                // so it's necessary to compute the shape for a subtractConvert before creating a new subtract
+                dequantization.subtractConvert->validate_and_infer_types();
                 parent = std::make_shared<opset1::Subtract>(parent, dequantization.subtractConvert);
             }
             ngraph::copy_runtime_info(dequantization.subtract, parent);
