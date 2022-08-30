@@ -18,8 +18,8 @@ macro(ov_find_package_tbb)
             unset(TBB_DIR CACHE)
             unset(TBB_DIR)
 
-            # try tbb.pc
-            if(NOT ANDROID)
+            # try tbb.pc from system
+            if(NOT ANDROID AND ENABLE_SYSTEM_TBB)
                 find_package(PkgConfig QUIET)
                 if(PkgConfig_FOUND)
                     pkg_search_module(tbb QUIET
