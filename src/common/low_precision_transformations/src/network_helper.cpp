@@ -1187,6 +1187,16 @@ FakeQuantizeDequantization NetworkHelper::makeDequantization(
     return FakeQuantizeDequantization(input, convert, subtract, nullptr, subtractConstant, multiply, multiplyConstant);
 }
 
+std::shared_ptr<ov::Node> NetworkHelper::makeDequantizationSubtract(
+    const ov::Output<ov::Node>& parent,
+    const ov::Output<ov::Node>& subtract_constant) {
+    return subtract_constant.get_element_type() != parent.get_element_type()
+               ? std::dynamic_pointer_cast<ov::Node>(std::make_shared<opset1::Subtract>(
+                     parent,
+                     std::make_shared<opset1::Convert>(subtract_constant, parent.get_element_type())))
+               : std::make_shared<opset1::Subtract>(parent, subtract_constant);
+}
+
 FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
     std::shared_ptr<opset1::FakeQuantize> fq,
     element::Type precision,
