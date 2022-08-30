@@ -14,14 +14,14 @@ on:
       - '.github/workflows/py_checks.yml'
 jobs:
   linters:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     steps:
       - name: Code checkout
         uses: actions/checkout@v2
         with:
           submodules: recursive
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v2
         with:
           python-version: '3.6'
       - name: Install dependencies
