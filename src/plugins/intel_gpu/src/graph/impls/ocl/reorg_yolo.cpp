@@ -46,16 +46,16 @@ struct reorg_yolo_impl : typed_primitive_impl_ocl<reorg_yolo> {
 namespace detail {
 
 attach_reorg_yolo_impl::attach_reorg_yolo_impl() {
-    const auto types = {data_types::f16, data_types::f32};
-    const auto formats = {
-            format::bfyx,
-            format::yxfb,
-            format::byxf,
-            format::b_fs_yx_fsv16,
-            format::b_fs_yx_fsv32,
-            format::bs_fs_yx_bsv16_fsv16,
-            format::bs_fs_yx_bsv32_fsv16,
-            format::bs_fs_yx_bsv32_fsv32,
+    auto types = {data_types::f16, data_types::f32};
+    auto formats = {
+        format::bfyx,
+        format::yxfb,
+        format::byxf,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
     };
 
     implementation_map<reorg_yolo>::add(impl_types::ocl, reorg_yolo_impl::create, types, formats);
