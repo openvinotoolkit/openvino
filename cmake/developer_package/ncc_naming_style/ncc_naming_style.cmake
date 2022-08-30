@@ -19,12 +19,16 @@ endif()
 
 if(PYTHON_VERSION_MINOR EQUAL 6)
     set(clang_version 10)
+elseif(PYTHON_VERSION_MINOR EQUAL 7)
+    set(clang_version 11)
 elseif(PYTHON_VERSION_MINOR EQUAL 8)
     set(clang_version 12)
 elseif(PYTHON_VERSION_MINOR EQUAL 9)
     set(clang_version 12)
 elseif(PYTHON_VERSION_MINOR EQUAL 10)
     set(clang_version 14)
+else()
+    message(WARNING "Cannot suggest clang package for python ${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
 endif()
 
 

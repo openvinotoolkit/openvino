@@ -6,6 +6,13 @@
 
 #include <gflags/gflags.h>
 
+// gflags supports uint32 starting from v2.2 only
+#ifndef DEFINE_uint32
+#   define DEFINE_uint32(name,val, txt) \
+   DEFINE_VARIABLE(GFLAGS_NAMESPACE::uint32, U, \
+                   name, val, txt)
+#endif
+
 #include <iostream>
 #include <string>
 #include <vector>

@@ -120,7 +120,7 @@ set(IE_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include i
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the Inference Engine binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
 get_linux_name(LINUX_OS_NAME)
-if(LINUX_OS_NAME MATCHES "^Ubuntu [0-9]+\.[0-9]+$")
+if(LINUX_OS_NAME MATCHES "(Ubuntu|Debian)")
     # Debian packages are enabled on Ubuntu systems
     # so, system TBB / pugixml can be tried for usage
     set(ENABLE_SYSTEM_LIBS_DEFAULT ON)
