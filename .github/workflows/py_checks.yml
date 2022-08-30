@@ -6,10 +6,12 @@ on:
     paths:
       - 'src/bindings/python/**'
       - 'samples/python/**'
+      - '.github/workflows/py_checks.yml'
   pull_request:
     paths:
       - 'src/bindings/python/**'
       - 'samples/python/**'
+      - '.github/workflows/py_checks.yml'
 jobs:
   linters:
     runs-on: ubuntu-22.04
