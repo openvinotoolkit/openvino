@@ -157,7 +157,7 @@ pip3 install openvino-0.0.0-cp<version>-cp<version>-linux_x86_64.whl
 
 ### Prerequisites
 
-In order to build OpenVINO™ and the nGraph Python wheel on Windows, you need to install Microsoft Visual Studio* and Python.
+In order to build OpenVINO™ and its Python wheel on Windows, you need to install Microsoft Visual Studio* and Python.
 
 Once Python is installed, you also need to install Cython using `pip install cython`.
 
@@ -206,17 +206,17 @@ Set up the OpenVINO™ environment in order to add a module path to `PYTHONPATH`
 
     %OPENVINO_BASEDIR%\openvino_dist\setupvars.bat
 
-### Build an nGraph Python Wheel on Windows
+### Build a Python Wheel on Windows
 
 Build the Python wheel package:
 
-    cd "%OPENVINO_BASEDIR%/openvino/ngraph/python"
+    cd "%OPENVINO_BASEDIR%/openvino/src/bindings/python"
     python setup.py bdist_wheel
 
-The final wheel should be located in the `ngraph\python\dist` directory.
+The final wheel should be located in the `bindings\python\dist` directory.
 
-    dir openvino\ngraph\python\dist\
-    10/09/2020  04:06 PM         4,010,943 ngraph_core-0.0.0-cp38-cp38-win_amd64.whl
+    dir openvino/src/bindings/python/dist/
+    10/09/2020  04:06 PM         4,010,943 openvino-0.0.0.dev0-cp<version>-cp<version>-win_amd64.whl
 
 ## Run Tests
 
@@ -228,12 +228,12 @@ You may wish to use a virutualenv for your installation.
     $ source venv/bin/activate
     (venv) $
 
-### Install the nGraph Wheel and Other Requirements
+### Install the Wheel and Other Requirements
 
-    (venv) $ cd "${OPENVINO_BASEDIR}/openvino/ngraph/python"
+    (venv) $ cd "${OPENVINO_BASEDIR}/openvino/src/bindings/python"
     (venv) $ pip3 install -r requirements.txt
     (venv) $ pip3 install -r requirements_test.txt
-    (venv) $ pip3 install dist/ngraph_core-0.0.0-cp38-cp38-linux_x86_64.whl
+    (venv) $ pip3 install dist/openvino-0.0.0.dev0-cp38-cp38-linux_x86_64.whl
 
 ### Run Tests
 

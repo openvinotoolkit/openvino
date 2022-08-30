@@ -30,9 +30,8 @@ struct scatter_nd_update : public primitive_base<scatter_nd_update> {
                       const primitive_id& idx,
                       const primitive_id& idupd,
                       const size_t indices_rank,
-                      const primitive_id& ext_prim_id = "",
                       const padding& output_padding = padding())
-        : primitive_base(id, {data, idx, idupd}, ext_prim_id, output_padding), indices_rank(indices_rank) {}
+        : primitive_base(id, {data, idx, idupd}, output_padding), indices_rank(indices_rank) {}
 
     /// @brief ScatterNDUpdate indices_rank
     size_t indices_rank;

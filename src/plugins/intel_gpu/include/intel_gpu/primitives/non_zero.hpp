@@ -16,9 +16,8 @@ struct count_nonzero : public primitive_base<count_nonzero> {
     /// @param data Input data primitive id.
     count_nonzero(const primitive_id& id,
                   const primitive_id& data,
-                  const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
-        : primitive_base(id, {data}, ext_prim_id, output_padding) {}
+        : primitive_base(id, {data}, output_padding) {}
 };
 
 struct gather_nonzero : public primitive_base<gather_nonzero> {
@@ -31,9 +30,8 @@ struct gather_nonzero : public primitive_base<gather_nonzero> {
     gather_nonzero(const primitive_id& id,
                    const primitive_id& data,
                    const primitive_id& output_shape,
-                   const primitive_id& ext_prim_id = "",
                    const padding& output_padding = padding())
-        : primitive_base(id, {data, output_shape}, ext_prim_id, output_padding) {}
+        : primitive_base(id, {data, output_shape}, output_padding) {}
 };
 
 }  // namespace cldnn
