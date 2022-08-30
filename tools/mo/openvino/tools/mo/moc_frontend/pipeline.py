@@ -11,8 +11,9 @@ from openvino.tools.mo.moc_frontend.analysis import json_model_analysis_dump
 from openvino.tools.mo.moc_frontend.extractor import fe_user_data_repack
 from openvino.tools.mo.middle.passes.infer import validate_batch_in_shape
 from openvino.tools.mo.utils.class_registration import get_enabled_and_disabled_transforms
+from openvino.tools.mo.utils.error import Error
 
-from openvino.runtime import Dimension, PartialShape        # pylint: disable=no-name-in-module,import-error
+from openvino.runtime import Dimension, PartialShape, Type        # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEnd, InputModel, NotImplementedFailure, Place # pylint: disable=no-name-in-module,import-error
 from openvino.runtime.utils.types import get_element_type   # pylint: disable=no-name-in-module,import-error
 
@@ -124,6 +125,21 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 data_type = get_element_type(user_shape['data_type'])
                 log.debug('Set data type: {}'.format(data_type))
                 input_model.set_element_type(user_shape['node'], data_type)
+
+    if freeze_placeholder:
+        for name, value in freeze_placeholder.items():
+            for node in user_shapes:
+                if node.get('input_name') == name:
+                    place = node['node']
+                    if node.get('shape'):
+                        shape = [int(val) for val in node['shape']]
+                        input_model.set_partial_shape(place, PartialShape(shape))
+                    if node.get('data_type'):
+                        value = np.array(value, dtype=node['data_type'])
+                        input_model.set_element_type(place, Type(node['data_type']))
+                    else:
+                        value = np.array(value, dtype=np.float32)
+                    input_model.set_tensor_value(place, value)
 
     def shape_to_array(shape: PartialShape):
         return [shape.get_dimension(i) for i in range(shape.rank.get_length())]
