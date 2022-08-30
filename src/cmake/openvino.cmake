@@ -265,6 +265,7 @@ if(LINUX AND NOT CMAKE_CROSSCOMPILING)
 
         add_custom_command(TARGET openvino PRE_BUILD
             COMMAND "${PKG_CONFIG_EXECUTABLE}" --validate "${pkgconfig_out}"
+            COMMAND cat "${pkgconfig_out}"
             COMMENT "[pkg-config] validating openvino.pc"
             VERBATIM)
     endif()
