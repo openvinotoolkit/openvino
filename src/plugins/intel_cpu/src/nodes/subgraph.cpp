@@ -458,7 +458,7 @@ void Snippet::prepareParams() {
     initDataSizes();
     if (isDynamic) {
         masterShape = getParentEdgesAtPort(0)[0]->getMemory().GetShape().toPartialShape();
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
+        for (size_t i = 0; i < inputShapes.size(); i++) {
             auto inShape = getParentEdgesAtPort(i)[0]->getMemory().GetShape().toPartialShape();
             if (masterShapeIsBlocked && !inputShapeIsBlocked[i])
                 inShape.insert(inShape.end(), 1);
@@ -469,8 +469,8 @@ void Snippet::prepareParams() {
             normInputShapes[i] = inShape;
         }
         // this is a simple way to update output shapes without doing honest (and expensive) m_body->reshape()
-        normOutputShapes.resize(getChildEdges().size());
-        for (size_t i = 0; i < getChildEdges().size(); i++) {
+        normOutputShapes.resize(outputShapes.size());
+        for (size_t i = 0; i < outputShapes.size(); i++) {
             auto outShape = getChildEdgesAtPort(i)[0]->getMemory().GetShape().toPartialShape();
             if (masterShapeIsBlocked && !outputShapeIsBlocked[i])
                 outShape.insert(outShape.end(), 1);
