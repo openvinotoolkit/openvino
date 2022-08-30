@@ -35,10 +35,8 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
                                                  targetFormat,
                                                  cldnn::data_types::i32,
                                                  std::vector<float>(),
-                                                 cldnn::reorder_mean_mode::subtract,
-                                                 op->get_friendly_name());
-            p.AddPrimitive(preprocessPrim);
-            p.AddInnerPrimitiveToProfiler(reorderPrimName, layerName, op);
+                                                 cldnn::reorder_mean_mode::subtract);
+            p.add_primitive(*op, preprocessPrim);
             reorderedInputs[portIndex] = reorderPrimName;
         } else {
             reorderedInputs[portIndex] = inputPrimitives[portIndex];
@@ -51,29 +49,27 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
                                     axis,
                                     op->get_output_shape(0),
                                     batch_dim,
-                                    support_neg_ind,
-                                    op->get_friendly_name());
+                                    support_neg_ind);
 
-    p.AddPrimitive(gatherPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, gatherPrim);
 }
 
 static void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v1::Gather>& op) {
-    p.ValidateInputs(op, {2, 3});
+    validate_inputs_count(op, {2, 3});
     CreateGatherOpBase<ngraph::op::v1::Gather>(p, op);
 }
 
 REGISTER_FACTORY_IMPL(v1, Gather);
 
 static void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v7::Gather>& op) {
-    p.ValidateInputs(op, {2, 3, 4});
+    validate_inputs_count(op, {2, 3, 4});
     CreateGatherOpBase<ngraph::op::v7::Gather>(p, op, op->get_batch_dims());
 }
 
 REGISTER_FACTORY_IMPL(v7, Gather);
 
 static void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v8::Gather>& op) {
-    p.ValidateInputs(op, {2, 3, 4});
+    validate_inputs_count(op, {2, 3, 4});
     CreateGatherOpBase<ngraph::op::v8::Gather>(p, op, op->get_batch_dims(), true);
 }
 
