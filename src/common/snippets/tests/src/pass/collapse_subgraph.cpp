@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include <pass/collapse_subgraph.hpp>
 #include <subgraph_simple.hpp>
+#include <subgraph_converts.hpp>
 #include "snippets/pass/collapse_subgraph.hpp"
 
 namespace ov {
@@ -34,6 +35,43 @@ TEST_F(CollapseSubgraphTests, smoke_Snippets_MatMulWithEltwise) {
 
 TEST_F(CollapseSubgraphTests, smoke_Snippets_AvoidLoopEltwise) {
     const auto &f = EltwiseLogLoopFunction(std::vector<Shape> {{2, 5}, {2, 1}});
+    function = f.getOriginal();
+    function_ref = f.getReference();
+    run();
+}
+
+TEST_F(CollapseSubgraphTests, smoke_Snippets_OneConvert) {
+    const auto &f = ConvertFunction(std::vector<Shape>{{2, 5}});
+    function = f.getOriginal();
+    function_ref = f.getReference();
+    run();
+}
+
+TEST_F(CollapseSubgraphTests, smoke_Snippets_ConvertInput) {
+    const auto &f = ConvertInputFunction(std::vector<Shape>{{2, 5}, {1, 5}});
+    function = f.getOriginal();
+    function_ref = f.getReference();
+    run();
+}
+
+TEST_F(CollapseSubgraphTests, smoke_Snippets_ConvertOutput) {
+    const auto &f = ConvertOutputFunction(std::vector<Shape>{{2, 5}, {1, 5}});
+    function = f.getOriginal();
+    function_ref = f.getReference();
+    run();
+}
+
+TEST_F(CollapseSubgraphTests, smoke_Snippets_ConvertStub) {
+    const auto &f = ConvertStubFunction(std::vector<Shape>{{2, 5, 2}, {1, 5, 1}});
+    function = f.getOriginal();
+    function_ref = f.getReference();
+    run();
+}
+
+TEST_F(CollapseSubgraphTests, smoke_Snippets_ConvertPartialInputsAndResults) {
+    const auto &f = ConvertPartialInputsAndResultsFunction(std::vector<Shape>{{2, 5, 1}, {1, 5, 1}, {2, 1, 10}},
+                                                           std::vector<ov::element::Type>{ov::element::i8, ov::element::bf16, ov::element::f32},
+                                                           std::vector<ov::element::Type>{ov::element::f32, ov::element::i8});
     function = f.getOriginal();
     function_ref = f.getReference();
     run();

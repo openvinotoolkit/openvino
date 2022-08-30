@@ -39,6 +39,12 @@ struct store_emitter_params : public emitter_params {
     int store_num_;
 };
 
+// Arithmetic modes for data type conversion in store_emitter
+enum arithmetic_mode {
+    saturation,
+    truncation
+};
+
 class jit_load_emitter : public jit_emitter {
 public:
     jit_load_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, Precision src_prc, Precision dst_prc, int load_num,
@@ -101,7 +107,8 @@ private:
 class jit_store_emitter : public jit_emitter {
 public:
     jit_store_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, Precision src_prc, Precision dst_prc, int store_num,
-                      Precision exec_prc = Precision::FP32, emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_gpr);
+                      arithmetic_mode mode = arithmetic_mode::saturation, Precision exec_prc = Precision::FP32,
+                      emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_gpr);
 
     /**
     * store_num values with src_prc in Vmm[in_vec_idx] is stored to ptr[reg_dst + offset_byte] address as dst_prc data, where offset_byte is in_idxs[1]
@@ -143,8 +150,13 @@ private:
     template <typename Vmm>
     void store_dword_to_word_extension(const Vmm &vmm, const Xbyak::Reg64 &reg, int offset, bool is_bf16, bool is_signed, int store_size) const;
 
+    void register_table_entries() override;
+
     size_t aux_gprs_count() const override;
     size_t aux_vecs_count() const override;
+
+    inline bool is_saturation() const;
+    inline bool is_truncation_emulation() const;
 
     std::string name_;
     int v_len_elt_;  // 4/8/16
@@ -152,6 +164,7 @@ private:
     int store_size_;
     Precision src_prc_;
     Precision dst_prc_;
+    arithmetic_mode mode_ = arithmetic_mode::saturation;
     std::shared_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16_;
 };
 

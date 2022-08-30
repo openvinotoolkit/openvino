@@ -30,6 +30,7 @@ public:
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
+    InferenceEngine::Precision getRuntimePrecision() const override;
 
     // Here we convert to canonical for & jit everything
     void createPrimitive() override;

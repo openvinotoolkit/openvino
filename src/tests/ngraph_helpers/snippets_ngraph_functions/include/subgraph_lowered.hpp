@@ -7,6 +7,7 @@
 #include "ngraph/ngraph.hpp"
 #include "snippets_helpers.hpp"
 #include "subgraph_simple.hpp"
+#include "subgraph_converts.hpp"
 
 /* This file provides lowered representations (after the generate() was calles) for some simple functions.
  * This is required to test snippets lowering and optimization passes. All the functions are expected to be direct
@@ -45,7 +46,7 @@ public:
 protected:
     std::shared_ptr<ov::Model> initLowered() const override;
 private:
-    std::vector<Shape> broadcast_shapes;;
+    std::vector<Shape> broadcast_shapes;
 };
 
 }  // namespace snippets

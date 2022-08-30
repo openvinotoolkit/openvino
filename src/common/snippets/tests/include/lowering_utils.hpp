@@ -29,7 +29,7 @@ public:
     DummyTargetMachine();
     bool is_supported() const override { return true; }
     ngraph::snippets::code get_snippet() const override { return nullptr; }
-    size_t get_lanes() const override { return 1; }
+    size_t get_lanes() const override { return 10; }
 };
 
 class DummyGenerator : public ngraph::snippets::Generator {
