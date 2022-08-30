@@ -11,6 +11,7 @@ namespace op {
 namespace v6 {
 /// \brief GatherElements operation
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API GatherElements : public Op {
 public:
     OPENVINO_OP("GatherElements", "opset6", op::Op, 6);
@@ -30,6 +31,9 @@ public:
 
     int64_t get_axis() const {
         return m_axis;
+    }
+    void set_axis(int64_t axis) {
+        m_axis = axis;
     }
 
 private:

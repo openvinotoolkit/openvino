@@ -30,14 +30,18 @@ static size_t GetGatherElementsChannelIndex(const gather_elements_params& params
             break;
     }
 
-    return DataTensor::Channelndex(params.output.GetLayout(), name);
+    return DataTensor::Channelndex(params.outputs[0].GetLayout(), name);
 }
 
 ParamsKey GatherElementsKernelRef::GetSupportedKey() const {
     ParamsKey k;
+    k.EnableInputDataType(Datatype::UINT8);
+    k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT32);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT32);
@@ -70,10 +74,10 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
 CommonDispatchData GatherElementsKernelRef::SetDefault(const gather_elements_params& params, const optional_params&) const {
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.output.GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     switch (params.inputs[1].GetLayout()) {
     case DataLayout::bfyx:

@@ -109,7 +109,9 @@ TEST_P(TransposeToReshapeTests, CompareFunctions) {
     f->validate_nodes_and_infer_types();
     ASSERT_NO_THROW(check_rt_info(f));
 
-    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto fc = FunctionsComparator::no_default()
+            .enable(FunctionsComparator::NODES)
+            .enable(FunctionsComparator::PRECISIONS);
     auto res = fc.compare(f, f_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }

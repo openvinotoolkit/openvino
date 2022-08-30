@@ -13,6 +13,8 @@
 #include "openvino/core/except.hpp"
 
 namespace ov {
+namespace intel_cpu {
+
 /// \brief Class representing a dimension, which must be static,
 ///        in a shape or shape-like object.
 ///
@@ -74,4 +76,6 @@ private:
 };
 
 std::ostream& operator<<(std::ostream& str, const StaticDimension& dimension);
-}  // namespace ov
+
+}   // namespace intel_cpu
+}   // namespace ov

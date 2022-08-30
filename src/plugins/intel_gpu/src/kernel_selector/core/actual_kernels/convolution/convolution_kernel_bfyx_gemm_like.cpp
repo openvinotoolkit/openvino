@@ -42,7 +42,7 @@ JitConstants ConvolutionKernel_bfyx_GEMMLike::GetJitConstants(const convolution_
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
     jit.AddConstants({
-        MakeJitConstant("ALIGNED_OFM_PER_GROUP", RoundUp(params.output.Feature().v / params.groups, dispatchData.gemmStyle.subBlockDimN)),
+        MakeJitConstant("ALIGNED_OFM_PER_GROUP", RoundUp(params.outputs[0].Feature().v / params.groups, dispatchData.gemmStyle.subBlockDimN)),
         MakeJitConstant("DX", dispatchData.gemmStyle.globalWorkSizeDX),
         MakeJitConstant("DY", dispatchData.gemmStyle.globalWorkSizeDY),
         MakeJitConstant("FILTER_SIZE_X_DIV2", params.filterSize.x / 2),
@@ -50,7 +50,7 @@ JitConstants ConvolutionKernel_bfyx_GEMMLike::GetJitConstants(const convolution_
         MakeJitConstant("INPUT_BUFFER_HEIGHT_PADDED", ""),
     });
 
-    if (CeilDiv(RoundUp(params.output.X().v * params.output.Y().v, dispatchData.gemmStyle.subBlockDimM),
+    if (CeilDiv(RoundUp(params.outputs[0].X().v * params.outputs[0].Y().v, dispatchData.gemmStyle.subBlockDimM),
                 dispatchData.gemmStyle.globalWorkSizeDY) %
             dispatchData.lws[1] !=
         0)
@@ -75,12 +75,12 @@ ConvolutionKernel_bfyx_GEMMLike::Parent::DispatchData ConvolutionKernel_bfyx_GEM
         dispatchData.lws[1] = 8;
     }
 
-    size_t sgemm_m = RoundUp(arg.output.X().v * arg.output.Y().v, dispatchData.gemmStyle.subBlockDimM);
-    size_t sgemm_n = RoundUp(arg.output.Feature().v / arg.groups, dispatchData.gemmStyle.subBlockDimN);
+    size_t sgemm_m = RoundUp(arg.outputs[0].X().v * arg.outputs[0].Y().v, dispatchData.gemmStyle.subBlockDimM);
+    size_t sgemm_n = RoundUp(arg.outputs[0].Feature().v / arg.groups, dispatchData.gemmStyle.subBlockDimN);
 
     dispatchData.gws[0] = RoundUp(CeilDiv(sgemm_n, dispatchData.gemmStyle.globalWorkSizeDX), dispatchData.lws[0]);
     dispatchData.gws[1] = RoundUp(CeilDiv(sgemm_m, dispatchData.gemmStyle.globalWorkSizeDY), dispatchData.lws[1]);
-    dispatchData.gws[2] = arg.output.Batch().v * arg.groups;
+    dispatchData.gws[2] = arg.outputs[0].Batch().v * arg.groups;
 
     return dispatchData;
 }
@@ -88,11 +88,11 @@ ConvolutionKernel_bfyx_GEMMLike::Parent::DispatchData ConvolutionKernel_bfyx_GEM
 KernelsPriority ConvolutionKernel_bfyx_GEMMLike::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
-    return p.output.GetDType() == Datatype::F16 ? FORCE_PRIORITY_6 : FORCE_PRIORITY_8;
+    return p.outputs[0].GetDType() == Datatype::F16 ? FORCE_PRIORITY_6 : FORCE_PRIORITY_8;
 }
 
 bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o) || !CovolutionCheckInput(p, o)) {
+    if (!Parent::Validate(p, o) || !ConvolutionCheckInput(p, o)) {
         return false;
     }
 

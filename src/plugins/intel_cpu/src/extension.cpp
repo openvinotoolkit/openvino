@@ -7,30 +7,35 @@
 #include "ngraph_transformations/op/leaky_relu.hpp"
 #include "ngraph_transformations/op/power_static.hpp"
 #include "ngraph_transformations/op/swish_cpu.hpp"
+#include "snippets_transformations/op/load_convert.hpp"
+#include "snippets_transformations/op/store_convert.hpp"
 
 #include <ngraph/ngraph.hpp>
+#include <ngraph_ops/augru_cell.hpp>
+#include <ngraph_ops/augru_sequence.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
 #include <ngraph_ops/nms_ie_internal.hpp>
 #include <ngraph_ops/nms_static_shape_ie.hpp>
+#include <ngraph_ops/multiclass_nms_ie_internal.hpp>
 
 #include <mutex>
 
 namespace ov {
 namespace intel_cpu {
 
-void MKLDNNExtension::GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept {
+void Extension::GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept {
     static const InferenceEngine::Version version = {
         {1, 0},             // extension API version
         "1.0",
-        "MKLDNNExtension"   // extension description message
+        "Extension"   // extension description message
     };
 
     versionInfo = &version;
 }
 
-void MKLDNNExtension::Unload() noexcept {}
+void Extension::Unload() noexcept {}
 
-std::map<std::string, ngraph::OpSet> MKLDNNExtension::getOpSets() {
+std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
     auto cpu_plugin_opset = []() {
         ngraph::OpSet opset;
 
@@ -39,6 +44,10 @@ std::map<std::string, ngraph::OpSet> MKLDNNExtension::getOpSets() {
         NGRAPH_OP(LeakyReluNode, ov::intel_cpu)
         NGRAPH_OP(PowerStaticNode, ov::intel_cpu)
         NGRAPH_OP(SwishNode, ov::intel_cpu)
+        NGRAPH_OP(LoadConvertSaturation, ov::intel_cpu)
+        NGRAPH_OP(LoadConvertTruncation, ov::intel_cpu)
+        NGRAPH_OP(StoreConvertSaturation, ov::intel_cpu)
+        NGRAPH_OP(StoreConvertTruncation, ov::intel_cpu)
 #undef NGRAPH_OP
 
         return opset;
@@ -103,7 +112,9 @@ std::map<std::string, ngraph::OpSet> MKLDNNExtension::getOpSets() {
 
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
         NGRAPH_OP(NonMaxSuppressionIEInternal, ngraph::op::internal)
-        NGRAPH_OP(NmsStaticShapeIE<ov::op::v8::MulticlassNms>, ngraph::op::internal)
+        NGRAPH_OP(MulticlassNmsIEInternal, ngraph::op::internal)
+        NGRAPH_OP(AUGRUCell, ov::op::internal)
+        NGRAPH_OP(AUGRUSequence, ov::op::internal)
         NGRAPH_OP(NmsStaticShapeIE<ov::op::v8::MatrixNms>, ngraph::op::internal)
 #undef NGRAPH_OP
 
@@ -119,11 +130,11 @@ std::map<std::string, ngraph::OpSet> MKLDNNExtension::getOpSets() {
     return opsets;
 }
 
-std::vector<std::string> MKLDNNExtension::getImplTypes(const std::shared_ptr<ngraph::Node>&) {
+std::vector<std::string> Extension::getImplTypes(const std::shared_ptr<ngraph::Node>&) {
     return {};
 }
 
-InferenceEngine::ILayerImpl::Ptr MKLDNNExtension::getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) {
+InferenceEngine::ILayerImpl::Ptr Extension::getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) {
     return nullptr;
 }
 
@@ -131,4 +142,4 @@ InferenceEngine::ILayerImpl::Ptr MKLDNNExtension::getImplementation(const std::s
 }   // namespace ov
 
 // Generate exported function
-IE_DEFINE_EXTENSION_CREATE_FUNCTION(ov::intel_cpu::MKLDNNExtension)
+IE_DEFINE_EXTENSION_CREATE_FUNCTION(ov::intel_cpu::Extension)

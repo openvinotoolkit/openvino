@@ -98,7 +98,7 @@ class FullyConnectedFusingTestOneDNN : public BaseFusingTest<fully_connected_tes
 public:
     void execute(fully_connected_test_params& p) {
         // Onednn post operation has issue in a machine that does not support imad.
-        if (!engine.get_device_info().supports_imad)
+        if (!engine.get_device_info().supports_immad)
             return;
 
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));
@@ -183,7 +183,7 @@ TEST_P(fc_fp32_activation, basic) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        fully_connected("fc_prim", "input", "weights", "bias", "", padding(), get_output_dim_size(p)),
+        fully_connected("fc_prim", "input", "weights", "bias", padding(), get_output_dim_size(p)),
         activation("activation", "fc_prim", activation_func::abs),
         reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
     );
@@ -207,7 +207,7 @@ TEST_P(fc_fp32_bias, basic) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        fully_connected("fc_prim", "input", "weights", "", "", padding(), get_output_dim_size(p)),
+        fully_connected("fc_prim", "input", "weights", "", padding(), get_output_dim_size(p)),
         eltwise("bias_add", { "fc_prim", "bias" }, eltwise_mode::sum),
         reorder("reorder_bfyx", "bias_add", p.default_format, data_types::f32)
     );
@@ -233,7 +233,7 @@ TEST_P(fc_int8_scale, basic) {
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count())),
-        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, "", padding(), get_output_dim_size(p)),
+        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, padding(), get_output_dim_size(p)),
         scale("scale", "fc_prim", "scale_data"),
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
@@ -249,7 +249,7 @@ TEST_P(fc_int8_scale, fp16_scale_out) {
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count())),
-        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, "", padding(), get_output_dim_size(p)),
+        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, padding(), get_output_dim_size(p)),
         scale("scale", "fc_prim", "scale_data", optional_data_type{ data_types::f16 }),
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
@@ -278,7 +278,7 @@ TEST_P(fc_int8_quantize_u8, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
-        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, "", padding(), get_output_dim_size(p)),
+        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, padding(), get_output_dim_size(p)),
         quantize("quantize", "fc_prim", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
@@ -308,7 +308,7 @@ TEST_P(fc_int8_scale_quantize_i8, basic) {
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count() / 255)),
-        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, "", padding(), get_output_dim_size(p)),
+        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, padding(), get_output_dim_size(p)),
         scale("scale", "fc_prim", "scale_data"),
         quantize("quantize", "scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
@@ -339,7 +339,7 @@ TEST_P(fc_int8_scale_activation_quantize_i8, basic) {
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count() / 255)),
-        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, "", padding(), get_output_dim_size(p)),
+        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, padding(), get_output_dim_size(p)),
         scale("scale", "fc_prim", "scale_data"),
         activation("activation_scale", "scale", activation_func::exp),
         quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
@@ -377,9 +377,9 @@ TEST_P(fc_int8_inputs_fused_fp32_sum, basic) {
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("shift_data", get_mem(shift_layout, 1)),
-        fully_connected("fc_prim", "input", "weights", "bias", cldnn::data_types::f32, "", padding(), get_output_dim_size(p)),
+        fully_connected("fc_prim", "input", "weights", "bias", cldnn::data_types::f32, padding(), get_output_dim_size(p)),
         eltwise("shift", { "fc_prim", "shift_data" }, eltwise_mode::sum, cldnn::data_types::f32),
-        crop("crop", "shift", get_output_layout(p).size, { 0, 0, 0, 0 }),
+        crop("crop", "shift", get_output_layout(p).get_tensor(), { 0, 0, 0, 0 }),
         reorder("reorder_bfyx", "crop", p.default_format, data_types::f32)
     );
 

@@ -11,10 +11,11 @@
 namespace ov {
 namespace op {
 namespace v3 {
-
-template <class T>
-void shape_infer(const ov::op::v3::ROIAlign* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
+template <class OpType, class ShapeType>
+void infer_roi_align_shape(const OpType* op,
+                           const std::vector<ShapeType>& input_shapes,
+                           std::vector<ShapeType>& output_shapes) {
+    using DimType = typename std::iterator_traits<typename ShapeType::iterator>::value_type;
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 && output_shapes.size() == 1);
 
     const auto& input_ps = input_shapes[0];
@@ -71,7 +72,23 @@ void shape_infer(const ov::op::v3::ROIAlign* op, const std::vector<T>& input_sha
         output_shape[0] = Dimension::dynamic();
     }
 }
+template <class T>
+void shape_infer(const ov::op::v3::ROIAlign* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 && output_shapes.size() == 1);
+    ov::op::v3::infer_roi_align_shape(op, input_shapes, output_shapes);
+}
 
 }  // namespace v3
+namespace v9 {
+
+template <class T>
+void shape_infer(const ov::op::v9::ROIAlign* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 && output_shapes.size() == 1);
+
+    ov::op::v3::infer_roi_align_shape(op, input_shapes, output_shapes);
+}
+
+}  // namespace v9
 }  // namespace op
 }  // namespace ov

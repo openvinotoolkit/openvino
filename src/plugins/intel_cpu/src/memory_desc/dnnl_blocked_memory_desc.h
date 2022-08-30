@@ -6,7 +6,7 @@
 
 #include "blocked_memory_desc.h"
 #include <cpu_memory.h>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 
 namespace ov {
 namespace intel_cpu {
@@ -16,7 +16,7 @@ public:
     // Creates planar DnnlBlockedMemoryDesc
     DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& strides = {});
 
-    DnnlBlockedMemoryDesc(const Shape& shape, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format);
+    DnnlBlockedMemoryDesc(const Shape& shape, dnnl::memory::data_type dataType, dnnl::memory::format_tag format);
 
     MemoryDescPtr clone() const override {
         return std::make_shared<DnnlBlockedMemoryDesc>(*this);
@@ -40,7 +40,7 @@ public:
     }
 
     size_t getOffsetPadding() const override {
-        return MKLDNNExtensionUtils::convertToDim(desc.data.offset0);
+        return DnnlExtensionUtils::convertToDim(desc.data.offset0);
     }
 
     const VectorDims& getStrides() const override {
@@ -49,7 +49,7 @@ public:
 
     bool hasLayoutType(LayoutType layoutType) const override;
 
-    bool isSame(mkldnn::memory::format_tag fmt) const override;
+    bool isSame(dnnl::memory::format_tag fmt) const override;
 
     std::string serializeFormat() const override;
 
@@ -66,12 +66,12 @@ private:
                           const VectorDims& order, size_t offsetPadding = 0, const VectorDims& offsetPaddingToData = {},
                           const VectorDims& strides = {});
 
-    explicit DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc);
+    explicit DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc);
 
     // Creates DnnlBlockedMemoryDesc using the shape parameter as a true shape but all other params (layout, blocks, etc.) are used from the mdesc, but
     // the mdesc own shape is ignored. The main purpose of this constructor is making dynamic descriptor from some dummy mdesc, which stores info about
     // layout, blocking, strides, etc., and the provided dynamic shape.
-    DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc, const Shape& shape);
+    DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc, const Shape& shape);
 
     MemoryDescPtr cloneWithNewDimsImp(const VectorDims& dims) const override;
 
@@ -93,8 +93,8 @@ private:
 
     void recomputeDefaultStrides();
 
-    friend DnnlMemoryDescPtr MKLDNNExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc);
-    friend std::shared_ptr<DnnlBlockedMemoryDesc> MKLDNNExtensionUtils::makeUndefinedDesc(const mkldnn::memory::desc &desc, const Shape& shape);
+    friend DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const dnnl::memory::desc &desc);
+    friend std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(const dnnl::memory::desc &desc, const Shape& shape);
     friend class MemoryDescUtils;
 };
 

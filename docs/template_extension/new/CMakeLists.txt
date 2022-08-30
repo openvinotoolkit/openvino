@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 set(TARGET_NAME "openvino_template_extension")
 
-find_package(OpenVINO)
+find_package(OpenVINO REQUIRED)
 
 set(SRC identity.cpp ov_extension.cpp)
 
@@ -15,14 +15,4 @@ add_library(${TARGET_NAME} MODULE ${SRC})
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_OPENVINO_EXTENSION_API)
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
-
-# To map custom operation to framework
-if(OpenVINO_Frontend_ONNX_FOUND)
-    target_link_libraries(${TARGET_NAME} PRIVATE openvino::frontend::onnx)
-    target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_ONNX_FRONTEND_ENABLED)
-endif()
 # [cmake:extension]
-
-# Enable code style check
-file(GLOB_RECURSE template_extension_src "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
-add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${template_extension_src})

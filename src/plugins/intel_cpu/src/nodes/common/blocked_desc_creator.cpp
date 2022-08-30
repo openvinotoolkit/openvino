@@ -6,9 +6,11 @@
 #include <numeric>
 
 using namespace InferenceEngine;
-using namespace ov::intel_cpu;
 
+namespace ov {
+namespace intel_cpu {
 namespace {
+
 constexpr size_t channelsPos = 1lu;
 
 class PlainFormatCreator : public BlockedDescCreator {
@@ -67,6 +69,7 @@ public:
 private:
     size_t _blockSize;
 };
+
 } // namespace
 
 const BlockedDescCreator::CreatorsMap& BlockedDescCreator::getCommonCreators() {
@@ -119,3 +122,6 @@ BlockedDescCreator::makeFilteredRange(const CreatorsMap &map, BlockedDescCreator
     auto last = first.end();
     return std::make_pair(first, last);
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

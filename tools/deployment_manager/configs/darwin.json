@@ -16,16 +16,17 @@
     "ie_core": {
       "group": ["ie"],
       "files": [
-        "runtime/lib/intel64/libov_runtime.dylib",
-        "runtime/lib/intel64/libopenvino_gapi_preproc.so",
-        "runtime/lib/intel64/libopenvino_c.dylib",
-        "runtime/lib/intel64/libopenvino_hetero_plugin.so",
-        "runtime/lib/intel64/libopenvino_auto_plugin.so",
-        "runtime/lib/intel64/libopenvino_auto_batch_plugin.so",
-        "runtime/lib/intel64/libopenvino_ir_frontend.dylib",
-        "runtime/lib/intel64/libopenvino_onnx_frontend.dylib",
-        "runtime/lib/intel64/libopenvino_paddle_frontend.dylib",
-        "runtime/lib/intel64/plugins.xml",
+        "runtime/lib/intel64/Release/libopenvino.dylib",
+        "runtime/lib/intel64/Release/libopenvino_gapi_preproc.so",
+        "runtime/lib/intel64/Release/libopenvino_c.dylib",
+        "runtime/lib/intel64/Release/libopenvino_hetero_plugin.so",
+        "runtime/lib/intel64/Release/libopenvino_auto_plugin.so",
+        "runtime/lib/intel64/Release/libopenvino_auto_batch_plugin.so",
+        "runtime/lib/intel64/Release/libopenvino_ir_frontend.dylib",
+        "runtime/lib/intel64/Release/libopenvino_onnx_frontend.dylib",
+        "runtime/lib/intel64/Release/libopenvino_paddle_frontend.dylib",
+        "runtime/lib/intel64/Release/libopenvino_tensorflow_fe.dylib",
+        "runtime/lib/intel64/Release/plugins.xml",
         "runtime/3rdparty/tbb"
       ]
     },
@@ -34,7 +35,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/lib/intel64/libopenvino_intel_cpu_plugin.so"
+        "runtime/lib/intel64/Release/libopenvino_intel_cpu_plugin.so"
       ]
     },
     "vpu": {
@@ -42,9 +43,9 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/lib/intel64/libopenvino_intel_myriad_plugin.so",
-        "runtime/lib/intel64/usb-ma2x8x.mvcmd",
-        "runtime/lib/intel64/pcie-ma2x8x.mvcmd"
+        "runtime/lib/intel64/Release/libopenvino_intel_myriad_plugin.so",
+        "runtime/lib/intel64/Release/usb-ma2x8x.mvcmd",
+        "runtime/lib/intel64/Release/pcie-ma2x8x.mvcmd"
       ]
     },
     "python3.6": {

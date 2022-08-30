@@ -11,38 +11,39 @@
 namespace ov {
 namespace intel_cpu {
 
-class MKLDNNGraphOptimizer {
+class GraphOptimizer {
 public:
-    MKLDNNGraphOptimizer();
+    GraphOptimizer();
 
 public:
-    void ApplyCommonGraphOptimizations(MKLDNNGraph& graph);
-    void ApplyImplSpecificGraphOptimizations(MKLDNNGraph& graph);
+    void ApplyCommonGraphOptimizations(Graph& graph);
+    void ApplyImplSpecificGraphOptimizations(Graph& graph);
 
 private:
-    void FuseConvolutionMatMulAndBias(MKLDNNGraph &graph);
-    void FuseDeconvolutionAndSimpleOperation(MKLDNNGraph &graph);
-    void FuseMultiplyAndAdd(MKLDNNGraph &graph);
-    void FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &graph);
-    void FuseMatMulAndSimpleOperation(MKLDNNGraph &graph);
-    void FuseConvolutionAndSimpleOperationThroughMaxPool(MKLDNNGraph &graph);
-    void FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph);
-    void FuseConvolutionAndDWConvolution(MKLDNNGraph &graph);
-    void FusePoolingAndFakeQuantize(MKLDNNGraph &graph);
-    void FuseConvolutionSumAndConvolutionSumActivation(MKLDNNGraph &graph);
-    void FuseMVNAndSimpleOperation(MKLDNNGraph &graph);
-    void FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph);
-    void FuseNormalizeL2AndSimpleOperation(MKLDNNGraph &graph);
-    void FuseReduceAndSimpleOperation(MKLDNNGraph &graph);
+    void FuseConvolutionMatMulAndBias(Graph &graph);
+    void FuseDeconvolutionAndSimpleOperation(Graph &graph);
+    void FuseMultiplyAndAdd(Graph &graph);
+    void MergeConvertAndScaleShift(Graph& graph);
+    void FuseFullyConnectedAndSimpleOperation(Graph &graph);
+    void FuseMatMulAndSimpleOperation(Graph &graph);
+    void FuseConvolutionAndSimpleOperationThroughMaxPool(Graph &graph);
+    void FuseConvolutionAndSimpleOperation(Graph &graph);
+    void FuseConvolutionAndDWConvolution(Graph &graph);
+    void FusePoolingAndFakeQuantize(Graph &graph);
+    void FuseConvolutionSumAndConvolutionSumActivation(Graph &graph);
+    void FuseMVNAndSimpleOperation(Graph &graph);
+    void FuseInterpolateAndSimpleOperation(Graph &graph);
+    void FuseNormalizeL2AndSimpleOperation(Graph &graph);
+    void FuseReduceAndSimpleOperation(Graph &graph);
 
-    void DropDoubleReorders(MKLDNNGraph& graph);
-    void FuseConvolutionAndZeroPoints(MKLDNNGraph &graph);
-    void FuseBroadcastAndEltwise(MKLDNNGraph &graph);
-    void FuseEltwiseAndSimple(MKLDNNGraph &graph);
-    void FusePerformedAsScaleShiftAndFakeQuantize(MKLDNNGraph &graph);
-    void FuseClampAndFakeQuantize(MKLDNNGraph &graph);
-    void MergeTransposeAndReorder(MKLDNNGraph &graph);
-    void reshapeRnnSeq(MKLDNNGraph &graph);
+    void DropDoubleReorders(Graph& graph);
+    void FuseConvolutionAndZeroPoints(Graph &graph);
+    void FuseBroadcastAndEltwise(Graph &graph);
+    void FuseEltwiseAndSimple(Graph &graph);
+    void FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph);
+    void FuseClampAndFakeQuantize(Graph &graph);
+    void MergeTransposeAndReorder(Graph &graph);
+    void reshapeRnnSeq(Graph &graph);
 };
 
 }   // namespace intel_cpu

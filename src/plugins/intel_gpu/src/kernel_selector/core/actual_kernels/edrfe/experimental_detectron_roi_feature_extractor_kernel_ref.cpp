@@ -12,13 +12,13 @@ namespace {
     ExperimentalDetectronROIFeatureExtractorRef::DispatchData SetDefault(const experimental_detectron_roi_feature_extractor_params& params) {
         ExperimentalDetectronROIFeatureExtractorRef::DispatchData dispatch_data;
         auto in_layout = params.inputs[0].GetLayout();
-        auto out_layout = params.output.GetLayout();
+        auto out_layout = params.outputs[0].GetLayout();
 
         std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X, Tensor::DataChannelName::Y },
                                                                          { Tensor::DataChannelName::FEATURE },
                                                                          { Tensor::DataChannelName::BATCH }};
 
-        dispatch_data.gws = {params.output.X().v * params.output.Y().v, params.output.Feature().v, params.output.Batch().v};
+        dispatch_data.gws = {params.outputs[0].X().v * params.outputs[0].Y().v, params.outputs[0].Feature().v, params.outputs[0].Batch().v};
 
         dispatch_data.lws = GetOptimalLocalWorkGroupSizes(dispatch_data.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 

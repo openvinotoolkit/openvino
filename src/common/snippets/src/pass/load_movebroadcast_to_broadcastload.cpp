@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "remarks.hpp"
+#include "snippets/remarks.hpp"
 #include <snippets/itt.hpp>
 
 #include "snippets/pass/load_movebroadcast_to_broadcastload.hpp"
@@ -15,10 +15,10 @@
 ngraph::snippets::pass::LoadMoveBroadcastToBroadcastLoad::LoadMoveBroadcastToBroadcastLoad() {
     MATCHER_SCOPE(LoadMoveBroadcastToBroadcastLoad);
     auto param_pattern = ngraph::pattern::wrap_type<ngraph::opset1::Parameter>();
-    auto load_pattern = std::make_shared<ngraph::snippets::op::Load>(param_pattern);
+    auto load_pattern = ngraph::pattern::wrap_type<ngraph::snippets::op::Load>({param_pattern});
     auto fbn = std::make_shared<ngraph::snippets::op::BroadcastMove>(load_pattern, Shape{1});
 
-    register_matcher(std::make_shared<ngraph::pattern::Matcher>(fbn),
+    register_matcher(std::make_shared<ngraph::pattern::Matcher>(fbn, matcher_name),
         [load_pattern, param_pattern](ngraph::pattern::Matcher &m) {
             OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::LoadMoveBroadcastToBroadcastLoad")
             auto root = m.get_match_root();

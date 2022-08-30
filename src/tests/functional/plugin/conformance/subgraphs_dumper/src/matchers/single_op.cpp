@@ -70,8 +70,7 @@ bool compare_constants_data(const std::shared_ptr<ov::op::v0::Constant> &op,
 bool SingleOpMatcher::same_op_type(const std::shared_ptr<ov::Node> &node,
                                    const std::shared_ptr<ov::Node> &ref,
                                    const LayerTestsUtils::OPInfo &op_info) const {
-    return node->get_type_info().name == ref->get_type_info().name &&
-           node->get_type_info().version == ref->get_type_info().version;
+    return node->get_type_info() == ref->get_type_info();
 }
 
 bool SingleOpMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,

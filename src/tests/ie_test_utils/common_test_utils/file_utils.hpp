@@ -185,8 +185,8 @@ inline int createDirectoryRecursive(const std::string& dirPath) {
         copyDirPath = copyDirPath.substr(0, pos);
     }
     while (!nested_dir_names.empty()) {
-        std::string a = copyDirPath + nested_dir_names.back();
-        if (createDirectory(a) != 0) {
+        copyDirPath = copyDirPath + nested_dir_names.back();
+        if (createDirectory(copyDirPath) != 0) {
             return -1;
         }
         nested_dir_names.pop_back();
@@ -243,8 +243,32 @@ inline std::vector<std::string> splitStringByDelimiter(std::string paths, const 
     return splitPath;
 }
 
-std::string getExecutableDirectory();
+inline std::string getModelFromTestModelZoo(const std::string& relModelPath);
 
-std::string getModelFromTestModelZoo(const std::string & relModelPath);
+inline std::vector<std::string> readListFiles(const std::vector<std::string>& filePaths) {
+    std::vector<std::string> res;
+    for (const auto& filePath : filePaths) {
+        if (!fileExists(filePath)) {
+            std::string msg = "Input directory (" + filePath + ") doesn't not exist!";
+            throw std::runtime_error(msg);
+        }
+        std::ifstream file(filePath);
+        if (file.is_open()) {
+            std::string buffer;
+            while (getline(file, buffer)) {
+                if (buffer.find("#") == std::string::npos && !buffer.empty()) {
+                    res.emplace_back(buffer);
+                }
+            }
+        } else {
+            std::string msg = "Error in opening file: " + filePath;
+            throw std::runtime_error(msg);
+        }
+        file.close();
+    }
+    return res;
+}
+
+std::string getExecutableDirectory();
 
 }  // namespace CommonTestUtils

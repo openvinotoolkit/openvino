@@ -32,7 +32,7 @@ ov::CompiledModel compiled_model = core.compile_model("model.pdmodel", "AUTO");
 auto create_model = []() {
     std::shared_ptr<ov::Model> model;
     // To construct a model, please follow 
-    // https://docs.openvino.ai/latest/openvino_docs_OV_Runtime_UG_Model_Representation.html
+    // https://docs.openvino.ai/latest/openvino_docs_OV_UG_Model_Representation.html
     return model;
 };
 std::shared_ptr<ov::Model> model = create_model();
@@ -63,7 +63,7 @@ infer_request.wait();
 // Get output tensor by tensor name
 auto output = infer_request.get_tensor("tensor_name");
 const float *output_buffer = output.data<const float>();
-/* output_buffer[] - accessing output tensor data */
+// output_buffer[] - accessing output tensor data
 //! [part6]
 return 0;
 }

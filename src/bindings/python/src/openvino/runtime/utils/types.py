@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -21,7 +22,7 @@ ScalarData = Union[int, float]
 NodeInput = Union[Node, NumericData]
 
 openvino_to_numpy_types_map = [
-    (Type.boolean, np.bool),
+    (Type.boolean, bool),
     (Type.f16, np.float16),
     (Type.f32, np.float32),
     (Type.f64, np.float64),
@@ -37,7 +38,7 @@ openvino_to_numpy_types_map = [
 ]
 
 openvino_to_numpy_types_str_map = [
-    ("boolean", np.bool),
+    ("boolean", bool),
     ("f16", np.float16),
     ("f32", np.float32),
     ("f64", np.float64),
@@ -63,7 +64,7 @@ def get_element_type(data_type: NumericType) -> Type:
         return Type.f32
 
     ov_type = next(
-        (ov_type for (ov_type, np_type) in openvino_to_numpy_types_map if np_type == data_type), None
+        (ov_type for (ov_type, np_type) in openvino_to_numpy_types_map if np_type == data_type), None,
     )
     if ov_type:
         return ov_type

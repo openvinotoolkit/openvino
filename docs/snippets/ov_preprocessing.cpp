@@ -6,71 +6,78 @@
 #include <openvino/core/preprocess/pre_post_process.hpp>
 
 void ppp_input_1(ov::preprocess::PrePostProcessor& ppp) {
- //! [ov:preprocess:input_1]
- ppp.input() // no index/name is needed if model has one input
-   .preprocess().scale(50.f);
+//! [ov:preprocess:input_1]
+ppp.input() // no index/name is needed if model has one input
+  .preprocess().scale(50.f);
 
- ppp.output()   // same for output
-   .postprocess().convert_element_type(ov::element::u8);
- //! [ov:preprocess:input_1]
- //! [ov:preprocess:mean_scale]
- ppp.input("input").preprocess().mean(128).scale(127);
- //! [ov:preprocess:mean_scale]
- //! [ov:preprocess:mean_scale_array]
- // Suppose model's shape is {1, 3, 224, 224}
- ppp.input("input").model().set_layout("NCHW"); // N=1, C=3, H=224, W=224
- // Mean/Scale has 3 values which matches with C=3
- ppp.input("input").preprocess()
-   .mean({103.94, 116.78, 123.68}).scale({57.21, 57.45, 57.73});
- //! [ov:preprocess:mean_scale_array]
- //! [ov:preprocess:convert_element_type]
- // First define data type for your tensor
- ppp.input("input").tensor().set_element_type(ov::element::u8);
+ppp.output()   // same for output
+  .postprocess().convert_element_type(ov::element::u8);
+//! [ov:preprocess:input_1]
 
- // Then define preprocessing step
- ppp.input("input").preprocess().convert_element_type(ov::element::f32);
+//! [ov:preprocess:mean_scale]
+ppp.input("input").preprocess().mean(128).scale(127);
+//! [ov:preprocess:mean_scale]
 
- // If conversion is needed to `model's` element type, 'f32' can be omitted
- ppp.input("input").preprocess().convert_element_type();
- //! [ov:preprocess:convert_element_type]
- //! [ov:preprocess:convert_layout]
- // First define layout for your tensor
- ppp.input("input").tensor().set_layout("NHWC");
+//! [ov:preprocess:mean_scale_array]
+// Suppose model's shape is {1, 3, 224, 224}
+ppp.input("input").model().set_layout("NCHW"); // N=1, C=3, H=224, W=224
+// Mean/Scale has 3 values which matches with C=3
+ppp.input("input").preprocess()
+  .mean({103.94, 116.78, 123.68}).scale({57.21, 57.45, 57.73});
+//! [ov:preprocess:mean_scale_array]
 
- // Then define layout of model
- ppp.input("input").model().set_layout("NCHW");
+//! [ov:preprocess:convert_element_type]
+// First define data type for your tensor
+ppp.input("input").tensor().set_element_type(ov::element::u8);
 
- std::cout << ppp; // Will print 'implicit layout conversion step'
- //! [ov:preprocess:convert_layout]
- //! [ov:preprocess:convert_layout_2]
- ppp.input("input").tensor().set_shape({1, 480, 640, 3});
- // Model expects shape {1, 3, 480, 640}
- ppp.input("input").preprocess().convert_layout({0, 3, 1, 2});
- // 0 -> 0; 3 -> 1; 1 -> 2; 2 -> 3
- //! [ov:preprocess:convert_layout_2]
+// Then define preprocessing step
+ppp.input("input").preprocess().convert_element_type(ov::element::f32);
 
- //! [ov:preprocess:resize_1]
- ppp.input("input").tensor().set_shape({1, 3, 960, 1280});
- ppp.input("input").model().set_layout("??HW");
- ppp.input("input").preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR, 480, 640);
- //! [ov:preprocess:resize_1]
- //! [ov:preprocess:resize_2]
- ppp.input("input").tensor().set_shape({1, 3, 960, 1280});
- ppp.input("input").model().set_layout("??HW"); // Model accepts {1, 3, 480, 640} shape
- // Resize to model's dimension
- ppp.input("input").preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
- //! [ov:preprocess:resize_2]
+// If conversion is needed to `model's` element type, 'f32' can be omitted
+ppp.input("input").preprocess().convert_element_type();
+//! [ov:preprocess:convert_element_type]
 
- //! [ov:preprocess:convert_color_1]
- ppp.input("input").tensor().set_color_format(ov::preprocess::ColorFormat::BGR);
- ppp.input("input").preprocess().convert_color(ov::preprocess::ColorFormat::RGB);
- //! [ov:preprocess:convert_color_1]
- //! [ov:preprocess:convert_color_2]
- // This will split original `input` to 2 separate inputs: `input/y' and 'input/uv'
- ppp.input("input").tensor().set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES);
- ppp.input("input").preprocess().convert_color(ov::preprocess::ColorFormat::RGB);
- std::cout << ppp;  // Dump preprocessing steps to see what will happen
- //! [ov:preprocess:convert_color_2]
+//! [ov:preprocess:convert_layout]
+// First define layout for your tensor
+ppp.input("input").tensor().set_layout("NHWC");
+
+// Then define layout of model
+ppp.input("input").model().set_layout("NCHW");
+
+std::cout << ppp; // Will print 'implicit layout conversion step'
+//! [ov:preprocess:convert_layout]
+
+//! [ov:preprocess:convert_layout_2]
+ppp.input("input").tensor().set_shape({1, 480, 640, 3});
+// Model expects shape {1, 3, 480, 640}
+ppp.input("input").preprocess().convert_layout({0, 3, 1, 2});
+// 0 -> 0; 3 -> 1; 1 -> 2; 2 -> 3
+//! [ov:preprocess:convert_layout_2]
+
+//! [ov:preprocess:resize_1]
+ppp.input("input").tensor().set_shape({1, 3, 960, 1280});
+ppp.input("input").model().set_layout("??HW");
+ppp.input("input").preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR, 480, 640);
+//! [ov:preprocess:resize_1]
+
+//! [ov:preprocess:resize_2]
+ppp.input("input").tensor().set_shape({1, 3, 960, 1280});
+ppp.input("input").model().set_layout("??HW"); // Model accepts {1, 3, 480, 640} shape
+// Resize to model's dimension
+ppp.input("input").preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
+//! [ov:preprocess:resize_2]
+
+//! [ov:preprocess:convert_color_1]
+ppp.input("input").tensor().set_color_format(ov::preprocess::ColorFormat::BGR);
+ppp.input("input").preprocess().convert_color(ov::preprocess::ColorFormat::RGB);
+//! [ov:preprocess:convert_color_1]
+
+//! [ov:preprocess:convert_color_2]
+// This will split original `input` to 2 separate inputs: `input/y' and 'input/uv'
+ppp.input("input").tensor().set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES);
+ppp.input("input").preprocess().convert_color(ov::preprocess::ColorFormat::RGB);
+std::cout << ppp;  // Dump preprocessing steps to see what will happen
+//! [ov:preprocess:convert_color_2]
 }
 
 void ppp_input_2(ov::preprocess::PrePostProcessor& ppp) {
@@ -149,4 +156,61 @@ int main() {
 
  OPENVINO_ASSERT(model, "Model is invalid");
  return 0;
+}
+
+ //! [ov:preprocess:save_headers]
+ #include <openvino/runtime/core.hpp>
+ #include <openvino/core/preprocess/pre_post_process.hpp>
+ #include <openvino/pass/serialize.hpp>
+ //! [ov:preprocess:save_headers]
+
+void save_example() {
+ //! [ov:preprocess:save]
+ // ========  Step 0: read original model =========
+ ov::Core core;
+ std::shared_ptr<ov::Model> model = core.read_model("/path/to/some_model.onnx");
+
+ // ======== Step 1: Preprocessing ================
+ ov::preprocess::PrePostProcessor prep(model);
+ // Declare section of desired application's input format
+ prep.input().tensor()
+        .set_element_type(ov::element::u8)
+        .set_layout("NHWC")
+        .set_color_format(ov::preprocess::ColorFormat::BGR)
+        .set_spatial_dynamic_shape();
+ // Specify actual model layout
+ prep.input().model()
+        .set_layout("NCHW");
+ // Explicit preprocessing steps. Layout conversion will be done automatically as last step
+ prep.input().preprocess()
+        .convert_element_type()
+        .convert_color(ov::preprocess::ColorFormat::RGB)
+        .resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR)
+        .mean({123.675, 116.28, 103.53}) // Subtract mean after color conversion
+        .scale({58.624, 57.12, 57.375});
+ // Dump preprocessor
+ std::cout << "Preprocessor: " << prep << std::endl;
+ model = prep.build();
+
+ // ======== Step 2: Change batch size ================
+ // In this example we also want to change batch size to increase throughput
+ ov::set_batch(model, 2);
+
+ // ======== Step 3: Save the model ================
+ std::string xml = "/path/to/some_model_saved.xml";
+ std::string bin = "/path/to/some_model_saved.bin";
+ ov::serialize(model, xml, bin);
+ //! [ov:preprocess:save]
+
+}
+
+void load_aftersave_example() {
+ //! [ov:preprocess:save_load]
+ ov::Core core;
+ core.set_property(ov::cache_dir("/path/to/cache/dir"));
+
+ // In case that no preprocessing is needed anymore, we can load model on target device directly
+ // With cached model available, it will also save some time on reading original model
+ ov::CompiledModel compiled_model = core.compile_model("/path/to/some_model_saved.xml", "CPU");
+ //! [ov:preprocess:save_load]
 }

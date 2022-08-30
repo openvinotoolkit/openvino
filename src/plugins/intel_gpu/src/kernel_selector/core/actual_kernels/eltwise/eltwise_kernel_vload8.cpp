@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "activation/activation_kernel_base.h"
 #include "eltwise_kernel_vload8.h"
 #include "kernel_selector_utils.h"
 #include <string>
@@ -32,6 +33,12 @@ bool EltwiseKernel_vload8::Validate(const Params& params, const optional_params&
 
     const auto& ewParams = static_cast<const eltwise_params&>(params);
 
+    // Only one activation can be fused.
+    if (ewParams.fused_ops.size() > 1 ||
+        (ewParams.activations.size() !=0 && ewParams.fused_ops.size() != 0)) {
+        return false;
+    }
+
         for (size_t i = 0; i < ewParams.inputs.size(); i++) {
             const auto input_layout = ewParams.inputs[i].GetLayout();
             const auto batch_size = ewParams.inputs[i].Batch().v;
@@ -45,18 +52,18 @@ bool EltwiseKernel_vload8::Validate(const Params& params, const optional_params&
                 (input_layout == DataLayout::bs_fs_yx_bsv32_fsv32 && (feature_size % 32 != 0 || batch_size % 32 != 0)))
                 return false;
         }
-        if ((ewParams.output.GetLayout() == DataLayout::b_fs_yx_fsv16 && ewParams.output.Feature().v % 16 != 0) ||
-            (ewParams.output.GetLayout() == DataLayout::b_fs_yx_fsv32 && ewParams.output.Feature().v % 32 != 0) ||
-            (ewParams.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 && ewParams.output.Feature().v % 16 != 0) ||
-            (ewParams.output.GetLayout() == DataLayout::b_fs_yx_fsv4 && ewParams.output.Feature().v % 8 != 0) ||
-            ewParams.output.GetLayout() == DataLayout::fs_b_yx_fsv32 ||
-            (ewParams.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 &&
-                (ewParams.output.Feature().v % 16 != 0 || ewParams.output.Batch().v % 32 != 0)) ||
-            (ewParams.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 &&
-                (ewParams.output.Feature().v % 32 != 0 || ewParams.output.Batch().v % 32 != 0)))
+        if ((ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
+            (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32 && ewParams.outputs[0].Feature().v % 32 != 0) ||
+            (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
+            (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv4 && ewParams.outputs[0].Feature().v % 8 != 0) ||
+            ewParams.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32 ||
+            (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 &&
+                (ewParams.outputs[0].Feature().v % 16 != 0 || ewParams.outputs[0].Batch().v % 32 != 0)) ||
+            (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 &&
+                (ewParams.outputs[0].Feature().v % 32 != 0 || ewParams.outputs[0].Batch().v % 32 != 0)))
             return false;
 
-    const auto& output = ewParams.output;
+    const auto& output = ewParams.outputs[0];
     const auto count = output.PhysicalSize();
 
     const bool bSupportedCount = (count % 8) == 0;
@@ -65,7 +72,7 @@ bool EltwiseKernel_vload8::Validate(const Params& params, const optional_params&
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
         // allow only the same input sizes or scalars, without pitches
         if (ewParams.inputs[i].PitchesDifferFromLogicalDims() ||
-            (!(ewParams.inputs[0] == ewParams.inputs[i] && ewParams.inputs[i] == ewParams.output) &&
+            (!(ewParams.inputs[0] == ewParams.inputs[i] && ewParams.inputs[i] == ewParams.outputs[0]) &&
              ewParams.inputs[i].PhysicalSize() != 1))
             bCheckSizes = false;
     }
@@ -109,6 +116,16 @@ KernelsData EltwiseKernel_vload8::GetKernelsData(const Params& params, const opt
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
 
     try {
+        // move a fused activation from fused_ops to activations
+        if (newParams.activations.size() == 0 &&
+            newParams.fused_ops.size() == 1 &&
+            newParams.fused_ops[0].GetType() == KernelType::ACTIVATION) {
+            auto p = newParams.fused_ops[0].GetOpParams<activation_fuse_params>();
+            base_activation_params activation_p = p->param;
+            newParams.activations.push_back(activation_p);
+            newParams.fused_ops.clear();
+        }
+
         auto cldnn_jit = GetJitConstants(newParams);
         jit = CreateJit(kernelName, cldnn_jit, entry_point);
     } catch (const std::runtime_error&) {

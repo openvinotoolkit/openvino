@@ -31,12 +31,12 @@ JitConstants ConvolutionKernel_bfyx_Direct_10_10_12::GetJitConstants(const convo
     JitConstants jit = Parent::GetJitConstants(cp, dispatchData);
 
     jit.AddConstants({
-        MakeJitConstant("ALIGNED_OFM", RoundUp(cp.output.Feature().v / cp.groups, dispatchData.gemmStyle.subBlockDimN) * cp.groups),
-        MakeJitConstant("ALIGNED_OFM_PER_GROUP", RoundUp(cp.output.Feature().v / cp.groups, dispatchData.gemmStyle.subBlockDimN)),
+        MakeJitConstant("ALIGNED_OFM", RoundUp(cp.outputs[0].Feature().v / cp.groups, dispatchData.gemmStyle.subBlockDimN) * cp.groups),
+        MakeJitConstant("ALIGNED_OFM_PER_GROUP", RoundUp(cp.outputs[0].Feature().v / cp.groups, dispatchData.gemmStyle.subBlockDimN)),
         MakeJitConstant("DX", dispatchData.gemmStyle.globalWorkSizeDX),
         MakeJitConstant("DY", dispatchData.gemmStyle.globalWorkSizeDY),
         MakeJitConstant("KERNEL_SLICE_DIV2", (cp.filterSize.x * cp.filterSize.y) / 2),
-        MakeJitConstant("RIGHT_PARTIAL_TILE_K", cp.output.X().v % dispatchData.gemmStyle.globalWorkSizeDX),
+        MakeJitConstant("RIGHT_PARTIAL_TILE_K", cp.outputs[0].X().v % dispatchData.gemmStyle.globalWorkSizeDX),
         MakeJitConstant("INPUT_BUFFER_WIDTH_PADDED", ""),  // TODO: enable non padding path again
         MakeJitConstant("INPUT_BUFFER_HEIGHT_PADDED", ""),
     });
@@ -56,9 +56,9 @@ ConvolutionKernel_bfyx_Direct_10_10_12::DispatchData ConvolutionKernel_bfyx_Dire
         dispatchData.gemmStyle = {1, 1, TILE_N, /*GWS DX*/ 4, /*GWS DY*/ 3, 1};
     }
 
-    dispatchData.gws[0] = RoundUp(arg.output.X().v, dispatchData.gemmStyle.globalWorkSizeDX) / dispatchData.gemmStyle.globalWorkSizeDX;
-    dispatchData.gws[1] = RoundUp(arg.output.Y().v, dispatchData.gemmStyle.globalWorkSizeDY) / dispatchData.gemmStyle.globalWorkSizeDY;
-    dispatchData.gws[2] = RoundUp(arg.output.Feature().v / arg.groups, TILE_N) * arg.output.Batch().v * arg.groups;
+    dispatchData.gws[0] = RoundUp(arg.outputs[0].X().v, dispatchData.gemmStyle.globalWorkSizeDX) / dispatchData.gemmStyle.globalWorkSizeDX;
+    dispatchData.gws[1] = RoundUp(arg.outputs[0].Y().v, dispatchData.gemmStyle.globalWorkSizeDY) / dispatchData.gemmStyle.globalWorkSizeDY;
+    dispatchData.gws[2] = RoundUp(arg.outputs[0].Feature().v / arg.groups, TILE_N) * arg.outputs[0].Batch().v * arg.groups;
 
     dispatchData.lws[0] = 1;
     dispatchData.lws[1] = 1;
@@ -72,7 +72,7 @@ KernelsPriority ConvolutionKernel_bfyx_Direct_10_10_12::GetKernelsPriority(const
 }
 
 bool ConvolutionKernel_bfyx_Direct_10_10_12::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o) || !CovolutionCheckInput(p, o)) {
+    if (!Parent::Validate(p, o) || !ConvolutionCheckInput(p, o)) {
         return false;
     }
 

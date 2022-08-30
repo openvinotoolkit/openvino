@@ -265,6 +265,12 @@ public:
     virtual std::shared_ptr<ov::ICore> GetCore() const noexcept;
 
     /**
+     * @brief Provides an information about used API
+     * @return true if new API is used
+     */
+    bool IsNewAPI() const noexcept;
+
+    /**
      * @brief Gets reference to tasks execution manager
      * @return Reference to ExecutorManager interface
      */
@@ -335,10 +341,22 @@ protected:
     void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                            const std::shared_ptr<const ov::Model>& function);
 
+    /**
+     * @brief Returns set of nodes which were removed after transformation.
+     * If originalFunction contains node1 and transformedFunction does not
+     * contains node1 in ops list, node1 will be returned.
+     * @param originalFunction Original network
+     * @param transformedFunction Transformed network
+     * @return Set of strings which contains removed node names
+     */
+    std::unordered_set<std::string> GetRemovedNodes(const std::shared_ptr<const ov::Model>& originalFunction,
+                                                    const std::shared_ptr<const ov::Model>& transformedFunction) const;
+
     std::string _pluginName;                            //!< A device name that plugins enables
     std::map<std::string, std::string> _config;         //!< A map config keys -> values
     std::weak_ptr<ov::ICore> _core;                     //!< A pointer to ICore interface
     std::shared_ptr<ExecutorManager> _executorManager;  //!< A tasks execution manager
+    bool _isNewAPI;                                     //!< A flag which shows used API
 };
 
 /**

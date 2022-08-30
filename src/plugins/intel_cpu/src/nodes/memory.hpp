@@ -5,6 +5,7 @@
 #pragma once
 
 #include <ie_common.h>
+#include <cpu_types.h>
 #include "ie_algorithm.hpp"
 #include "input.h"
 #include <node.h>
@@ -14,35 +15,37 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNMemoryNode {
+class MemoryNode {
     std::string _id;
  public:
-    explicit MKLDNNMemoryNode(std::string id) : _id(id) {}
-    explicit MKLDNNMemoryNode(const std::shared_ptr<ngraph::Node>& op);
-    virtual ~MKLDNNMemoryNode() = default;
+    explicit MemoryNode(std::string id) : _id(id) {}
+    explicit MemoryNode(const std::shared_ptr<ngraph::Node>& op);
+    virtual ~MemoryNode() = default;
     std::string getId() {
         return _id;
     }
-    virtual void setInputNode(MKLDNNNode *) = 0;
+    virtual void setInputNode(Node *) = 0;
 };
-class MKLDNNMemoryOutputNode;
-class MKLDNNMemoryInputNode;
+
+class MemoryOutput;
+class MemoryInput;
 
 /**
  * @brief
  * TODO: ATTENTION: this is a temporary solution, this connection should be keep in graph
  * WARNING: thread_local and holderMutex are not needed if moved into graph
  */
-class MKLDNNMemoryNodeVirtualEdge {
- public:
-    using Holder = std::map<std::string, MKLDNNMemoryNode*>;
+class MemoryNodeVirtualEdge {
+public:
+    using Holder = std::map<std::string, MemoryNode*>;
     static Holder & getExisted() {
         thread_local static Holder existed;
         return existed;
     }
 
-    static MKLDNNMemoryNode * getByName(Holder& holder, std::string name) {
+    static MemoryNode * getByName(Holder& holder, std::string name) {
         auto result = holder.find(name);
         if (result != holder.end()) {
             return result->second;
@@ -50,26 +53,26 @@ class MKLDNNMemoryNodeVirtualEdge {
         return nullptr;
     }
 
-    static Holder* registerOutput(MKLDNNMemoryOutputNode * node);
-    static Holder* registerInput(MKLDNNMemoryInputNode * node);
-    static void remove(MKLDNNMemoryNode * node, Holder* holder);
+    static Holder* registerOutput(MemoryOutput * node);
+    static Holder* registerInput(MemoryInput * node);
+    static void remove(MemoryNode * node, Holder* holder);
     static std::mutex holderMutex;
 };
 
-class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
- public:
-    MKLDNNMemoryOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNMemoryOutputNode() override;
+class MemoryOutput : public Node, public MemoryNode {
+public:
+    MemoryOutput(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    ~MemoryOutput() override;
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override {}
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override {
-        return getType() == MemoryOutput;
+        return getType() == Type::MemoryOutput;
     }
 
-    void setInputNode(MKLDNNNode* node) override {
+    void setInputNode(Node* node) override {
         inputNode = node;
     }
 
@@ -77,33 +80,34 @@ class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
     /**
      * @brief keeps reference to input sibling node
      */
-    MKLDNNNode* inputNode = nullptr;
-    MKLDNNMemoryNodeVirtualEdge::Holder* holder = nullptr;
+    Node* inputNode = nullptr;
+    MemoryNodeVirtualEdge::Holder* holder = nullptr;
 };
 
-class MKLDNNMemoryInputNode : public MKLDNNInputNode, public MKLDNNMemoryNode {
+class MemoryInput : public Input, public MemoryNode {
 public:
-    MKLDNNMemoryInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNMemoryInputNode() override;
+    MemoryInput(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    ~MemoryInput() override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     bool created() const override {
-        return getType() == MemoryInput;
+        return getType() == Type::MemoryInput;
     }
     bool isExecutable() const override {
         return true;
     }
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
 
     void createPrimitive() override;
 
-    void setInputNode(MKLDNNNode* node) override {}
-    void storeState(const MKLDNNMemory& mem);
-    MKLDNNMemoryPtr getStore();
+    void setInputNode(Node* node) override {}
+    void storeState(const Memory& mem);
+    MemoryPtr getStore();
  private:
-    MKLDNNMemoryPtr dataStore;
-    MKLDNNMemoryNodeVirtualEdge::Holder* holder = nullptr;
+    MemoryPtr dataStore;
+    MemoryNodeVirtualEdge::Holder* holder = nullptr;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

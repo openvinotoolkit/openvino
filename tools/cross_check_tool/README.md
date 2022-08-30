@@ -61,7 +61,7 @@ Plugin specific arguments:
   --reference_config REFERENCE_CONFIG, -ref_conf REFERENCE_CONFIG
                         Path to config file for -ref_d or -reference_device
                         device plugin
-  -l L                  Required for MKLDNN (CPU)-targeted custom layers.
+  -l L                  Required for (CPU)-targeted custom layers.
                         Comma separated paths to a shared libraries with the
                         kernels implementation.
 

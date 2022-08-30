@@ -40,6 +40,17 @@ TEST_F(OVTensorTest, canCreateTensor) {
     ASSERT_THROW(t.data<std::int32_t>(), ov::Exception);
 }
 
+TEST_F(OVTensorTest, canAccessF16Tensor) {
+    ov::Shape shape = {4, 3, 2};
+    ov::Tensor t{ov::element::f16, shape};
+    EXPECT_NE(nullptr, t.data());
+    EXPECT_NO_THROW(t.data(ov::element::f16));
+    EXPECT_NO_THROW(t.data<ov::float16>());
+    EXPECT_THROW(t.data<ov::bfloat16>(), ov::Exception);
+    EXPECT_THROW(t.data<std::uint16_t>(), ov::Exception);
+    EXPECT_THROW(t.data<std::int16_t>(), ov::Exception);
+}
+
 TEST_F(OVTensorTest, emptySize) {
     ov::Tensor t(ov::element::f32, {0});
     ASSERT_NE(nullptr, t.data());
@@ -175,12 +186,38 @@ TEST_F(OVTensorTest, canSetShape) {
     }
 }
 
-TEST_F(OVTensorTest, cannotSetShapeOnPreallocatedMemory) {
+TEST_F(OVTensorTest, cannotSetShapeOfBiggerSizeOnPreallocatedMemory) {
     float data[4 * 5 * 6 * 2];
     ov::Tensor t{ov::element::f32, {1, 2, 3}, data};
     const ov::Shape newShape({4, 5, 6});
 
     ASSERT_THROW(t.set_shape(newShape), ov::Exception);
+}
+
+TEST_F(OVTensorTest, canSetShapeOfSmallerSizeOnPreallocatedMemory) {
+    float data[4 * 5 * 6 * 2];
+    ov::Tensor t{ov::element::f32, {4, 5, 6}, data};
+    const ov::Shape newShape({1, 2, 3});
+
+    ASSERT_NO_THROW(t.set_shape(newShape));
+}
+
+TEST_F(OVTensorTest, canSetShapeOfSameSizeOnPreallocatedMemory) {
+    float data[4 * 5 * 6 * 2];
+    ov::Tensor t{ov::element::f32, {4, 5, 6}, data};
+    const ov::Shape newShape({4, 5, 6});
+
+    ASSERT_NO_THROW(t.set_shape(newShape));
+}
+
+TEST_F(OVTensorTest, DISABLED_canSetShapeOfOriginalSizeAfterDecreasingOnPreallocatedMemory) {
+    float data[4 * 5 * 6 * 2];
+    ov::Tensor t{ov::element::f32, {4, 5, 6}, data};
+    const ov::Shape smallerShape({1, 2, 3});
+    const ov::Shape originalShape({4, 5, 6});
+
+    ASSERT_NO_THROW(t.set_shape(smallerShape));
+    ASSERT_NO_THROW(t.set_shape(originalShape));
 }
 
 TEST_F(OVTensorTest, makeRangeRoiTensor) {

@@ -1,15 +1,25 @@
 # How to Implement Custom GPU Operations {#openvino_docs_Extensibility_UG_GPU}
 
-To enable operations not supported by OpenVINO out of the box, you may need an extension for OpenVINO operation set, and a custom kernel for the device you will target. This page describes custom kernel support for the GPU device.
+To enable operations not supported by OpenVINO out of the box, you may need an extension for an OpenVINO operation set, and a custom kernel for the device you will target. This page describes custom kernel support for the GPU device.
 
-The GPU codepath abstracts many details about OpenCL\*. You need to provide the kernel code in OpenCL C and an XML configuration file that connects the kernel and its parameters to the parameters of the operation.
+The GPU codepath abstracts many details about OpenCL. You need to provide the kernel code in OpenCL C and an XML configuration file that connects the kernel and its parameters to the parameters of the operation.
 
 There are two options for using the custom operation configuration file:
 
 * Include a section with your kernels into the automatically-loaded `<lib_path>/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml` file.
 * Call the `ov::Core::set_property()` method from your application with the `"CONFIG_FILE"` key and the configuration file name as a value before loading the network that uses custom operations to the plugin:
 
-@snippet snippets/gpu/custom_kernels_api.cpp part0
+@sphinxtabset
+
+@sphinxtab{C++}
+@snippet docs/snippets/gpu/custom_kernels_api.cpp part0
+@endsphinxtab
+
+@sphinxtab{Python}
+@snippet docs/snippets/gpu/custom_kernels_api.py part0
+@endsphinxtab
+
+@endsphinxtabset
 
 All OpenVINO samples, except the trivial `hello_classification`, and most Open Model Zoo demos
 feature a dedicated command-line option `-c` to load custom kernels. For example, to load custom operations for the classification sample, run the command below:
@@ -21,7 +31,7 @@ $ ./classification_sample -m <path_to_model>/bvlc_alexnet_fp16.xml -i ./validati
 ## Configuration File Format <a name="config-file-format"></a>
 
 The configuration file is expected to follow the `.xml` file structure
-with a node of the type `CustomLayer` for every custom operation you provide.
+with a node of the `CustomLayer` type for every custom operation you provide.
 
 The definitions described in the sections below use the following notations:
 
@@ -212,7 +222,7 @@ __kernel void example_relu_kernel(
 
 > **NOTE**: As described in the previous section, all items like
 > `INPUT0_TYPE` are actually defined as OpenCL (pre-)compiler inputs by
-> the OpenVINO for efficiency reasons. See [Debugging
+> OpenVINO for efficiency reasons. See [Debugging
 > Tips](#debugging-tips) for information on debugging the results.
 
 ## Debugging Tips<a name="debugging-tips"></a>

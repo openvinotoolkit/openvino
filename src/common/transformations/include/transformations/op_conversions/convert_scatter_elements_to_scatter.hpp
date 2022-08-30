@@ -23,6 +23,6 @@ class TRANSFORMATIONS_API ConvertScatterElementsToScatter;
  */
 class ngraph::pass::ConvertScatterElementsToScatter : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertScatterElementsToScatter", "0");
     ConvertScatterElementsToScatter();
 };

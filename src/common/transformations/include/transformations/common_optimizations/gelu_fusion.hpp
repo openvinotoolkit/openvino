@@ -16,6 +16,7 @@ class TRANSFORMATIONS_API GeluFusion;
 class TRANSFORMATIONS_API GeluFusionWithErfOne;
 class TRANSFORMATIONS_API GeluFusionWithErfTwo;
 class TRANSFORMATIONS_API GeluFusionWithErfThree;
+class TRANSFORMATIONS_API GeluFusionWithTanh;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -27,7 +28,7 @@ class TRANSFORMATIONS_API GeluFusionWithErfThree;
  */
 class ngraph::pass::GeluFusionWithErfOne : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("GeluFusionWithErfOne", "0");
     GeluFusionWithErfOne();
 };
 
@@ -38,7 +39,7 @@ public:
  */
 class ngraph::pass::GeluFusionWithErfTwo : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("GeluFusionWithErfTwo", "0");
     GeluFusionWithErfTwo();
 };
 
@@ -49,8 +50,19 @@ public:
  */
 class ngraph::pass::GeluFusionWithErfThree : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("GeluFusionWithErfThree", "0");
     GeluFusionWithErfThree();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief GeluFusion transformation replaces a sub-graph
+ * x * (0.5 * (1 + tanh([sqrt(2 / pi)] * [x + 0.044715^3])) with a Gelu (Tanh) op.
+ */
+class ngraph::pass::GeluFusionWithTanh : public ngraph::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("GeluFusionWithTanh", "0");
+    GeluFusionWithTanh();
 };
 
 /**
@@ -59,10 +71,11 @@ public:
  */
 class ngraph::pass::GeluFusion : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("GeluFusion", "0");
     GeluFusion() {
         add_matcher<ngraph::pass::GeluFusionWithErfOne>();
         add_matcher<ngraph::pass::GeluFusionWithErfTwo>();
         add_matcher<ngraph::pass::GeluFusionWithErfThree>();
+        add_matcher<ngraph::pass::GeluFusionWithTanh>();
     }
 };

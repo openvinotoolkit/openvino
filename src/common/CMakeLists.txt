@@ -11,5 +11,3 @@ add_subdirectory(legacy)
 add_subdirectory(transformations)
 add_subdirectory(offline_transformations)
 add_subdirectory(low_precision_transformations)
-
-add_dependencies(ov_runtime_libraries openvino_gapi_preproc)

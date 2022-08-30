@@ -34,10 +34,13 @@
 #if defined _WIN32 || defined __CYGWIN__
 #    define OPENVINO_CORE_IMPORTS __declspec(dllimport)
 #    define OPENVINO_CORE_EXPORTS __declspec(dllexport)
+#    define _OPENVINO_HIDDEN_METHOD
 #elif defined(__GNUC__) && __GNUC__ >= 4
-#    define OPENVINO_CORE_IMPORTS __attribute__((visibility("default")))
-#    define OPENVINO_CORE_EXPORTS __attribute__((visibility("default")))
+#    define OPENVINO_CORE_IMPORTS   __attribute__((visibility("default")))
+#    define OPENVINO_CORE_EXPORTS   __attribute__((visibility("default")))
+#    define _OPENVINO_HIDDEN_METHOD __attribute__((visibility("hidden")))
 #else
 #    define OPENVINO_CORE_IMPORTS
 #    define OPENVINO_CORE_EXPORTS
+#    define _OPENVINO_HIDDEN_METHOD
 #endif

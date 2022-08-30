@@ -182,8 +182,7 @@ XLinkError_t XLinkWriteDataWithTimeout(streamId_t streamId, const uint8_t* buffe
     XLINK_INIT_EVENT(event, streamId, XLINK_WRITE_REQ,
         size,(void*)buffer, link->deviceHandle);
 
-    mvLog(MVLOG_WARN,"XLinkWriteDataWithTimeout is not fully supported yet. The XLinkWriteData method is called instead. Desired timeout = %d\n", timeoutMs);
-    XLINK_RET_IF_FAIL(addEventWithPerf(&event, &opTime, XLINK_NO_RW_TIMEOUT));
+    XLINK_RET_IF_FAIL(addEventWithPerf(&event, &opTime, timeoutMs));
 
     if( glHandler->profEnable) {
         glHandler->profilingData.totalWriteBytes += size;
@@ -322,10 +321,10 @@ XLinkError_t addEvent(xLinkEvent_t *event, unsigned int timeoutMs)
             TypeToStr(event->header.type), event->header.id, event->header.streamName);
         return X_LINK_ERROR;
     }
+    event->header.canBeServed = 1;
 
     if (timeoutMs != XLINK_NO_RW_TIMEOUT) {
-        ASSERT_XLINK(event->header.type == XLINK_READ_REQ);
-        xLinkDesc_t* link;
+        xLinkDesc_t* link = NULL;
         XLINK_RET_IF(getLinkByStreamId(event->header.streamId, &link));
 
         if (DispatcherWaitEventComplete(&event->deviceHandle, timeoutMs))  // timeout reached
@@ -333,17 +332,28 @@ XLinkError_t addEvent(xLinkEvent_t *event, unsigned int timeoutMs)
             streamDesc_t* stream = getStreamById(event->deviceHandle.xLinkFD,
                                                  event->header.streamId);
             ASSERT_XLINK(stream);
+            event->header.dropped = 1;
             if (event->header.type == XLINK_READ_REQ)
             {
-                // XLINK_READ_REQ is a local event. It is safe to serve it.
-                // Limitations.
-                // Possible vulnerability in this mechanism:
-                //      If we reach timeout with DispatcherWaitEventComplete and before
-                //      we call DispatcherServeEvent, the event actually comes,
-                //      and gets served by XLink stack and event semaphore is posted.
-                DispatcherServeEvent(event->header.id, XLINK_READ_REQ, stream->id, event->deviceHandle.xLinkFD);
+                event->header.canBeServed = 0;
+                XLINK_RET_IF(DispatcherServeOrDropEvent(event->header.id, XLINK_READ_REQ, stream->id, event->deviceHandle.xLinkFD));
+            }
+            else if (event->header.type == XLINK_WRITE_REQ)
+            {
+                event->header.canBeServed = 0;
+                XLINK_RET_IF(DispatcherServeOrDropEvent(event->header.id, XLINK_WRITE_REQ, stream->id, event->deviceHandle.xLinkFD));
             }
             releaseStream(stream);
+            if (event->header.type == XLINK_WRITE_REQ && event->header.dropped)
+            {
+                mvLog(MVLOG_ERROR,"event is dropped\n");
+                xLinkEvent_t dropEvent = {0};
+                dropEvent.header.streamId = EXTRACT_STREAM_ID(event->header.streamId);
+                XLINK_INIT_EVENT(dropEvent, event->header.streamId, XLINK_DROP_REQ,
+                                 0, NULL, link->deviceHandle);
+                DispatcherAddEvent(EVENT_LOCAL, &dropEvent);
+                XLINK_RET_ERR_IF(DispatcherWaitEventComplete(&link->deviceHandle, XLINK_NO_RW_TIMEOUT), dropEvent.header.streamId);
+            }
 
             return X_LINK_TIMEOUT;
         }

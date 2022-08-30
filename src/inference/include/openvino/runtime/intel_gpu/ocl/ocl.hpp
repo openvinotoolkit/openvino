@@ -23,12 +23,19 @@ namespace ov {
 namespace intel_gpu {
 
 /**
+ * @defgroup ov_runtime_ocl_gpu_cpp_api Intel GPU OpenCL interoperability
+ * @ingroup ov_runtime_cpp_api
+ * Set of C++ classes and properties to work with Remote API for Intel GPU OpenCL plugin.
+ */
+
+/**
  * @brief Namespace with Intel GPU OpenCL specific remote objects
  */
 namespace ocl {
 
 /**
  * @brief Shortcut for defining a handle parameter
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 using gpu_handle_param = void*;
 
@@ -37,6 +44,7 @@ using gpu_handle_param = void*;
  * which can be shared with user-supplied OpenCL buffer.
  * The plugin object derived from this class can be obtained with ClContext::create_tensor() call.
  * @note User can obtain OpenCL buffer handle from this class.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 class ClBufferTensor : public RemoteTensor {
 public:
@@ -81,6 +89,7 @@ public:
  * which can be shared with user-supplied OpenCL 2D Image.
  * The plugin object derived from this class can be obtained with ClContext::create_tensor() call.
  * @note User can obtain OpenCL image handle from this class.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 class ClImage2DTensor : public RemoteTensor {
 public:
@@ -125,6 +134,7 @@ public:
  * which can be shared with user-supplied USM device pointer.
  * The plugin object derived from this class can be obtained with ClContext::create_tensor() call.
  * @note User can obtain USM pointer from this class.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 class USMTensor : public RemoteTensor {
 public:
@@ -155,6 +165,7 @@ public:
  * which is shared with OpenCL context object.
  * The plugin object derived from this class can be obtained either with
  * CompiledModel::get_context() or Core::create_context() calls.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 class ClContext : public RemoteContext {
 protected:
@@ -198,8 +209,7 @@ public:
     ClContext(Core& core, cl_command_queue queue) {
         cl_context ctx;
         auto res = clGetCommandQueueInfo(queue, CL_QUEUE_CONTEXT, sizeof(cl_context), &ctx, nullptr);
-        if (res != CL_SUCCESS)
-            IE_THROW() << "Can't get context from given opencl queue";
+        OPENVINO_ASSERT(res == CL_SUCCESS, "Can't get context from given opencl queue");
         AnyMap context_params = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL)},
                                  {GPU_PARAM_KEY(OCL_CONTEXT), static_cast<gpu_handle_param>(ctx)},
                                  {GPU_PARAM_KEY(OCL_QUEUE), static_cast<gpu_handle_param>(queue)}};

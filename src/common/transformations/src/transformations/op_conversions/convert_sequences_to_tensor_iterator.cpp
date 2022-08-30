@@ -14,11 +14,6 @@
 #include "itt.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertRNNSequenceToTensorIterator, "ConvertRNNSequenceToTensorIterator", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGRUSequenceToTensorIterator, "ConvertGRUSequenceToTensorIterator", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertLSTMSequenceToTensorIterator, "ConvertLSTMSequenceToTensorIterator", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSequenceToTensorIterator, "ConvertSequenceToTensorIterator", 0);
-
 namespace {
 ngraph::Output<ngraph::Node> get_current_iter(ngraph::ParameterVector& body_params,
                                               ngraph::ResultVector& body_results,

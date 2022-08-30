@@ -10,19 +10,19 @@
 namespace {
 using namespace ExecutionGraphTests;
 
-INSTANTIATE_TEST_SUITE_P(smoke_serialization, ExecGraphSerializationTest,
-                                ::testing::Values(ov::test::conformance::targetDevice),
+INSTANTIATE_TEST_SUITE_P(ie_executable_network, ExecGraphSerializationTest,
+                                ::testing::ValuesIn(ov::test::conformance::return_all_possible_device_combination()),
                         ExecGraphSerializationTest::getTestCaseName);
 
 const std::vector<InferenceEngine::Precision> execGraphInfoElemTypes = {
         InferenceEngine::Precision::FP32
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, ExecGraphUniqueNodeNames,
+INSTANTIATE_TEST_SUITE_P(ie_executable_network, ExecGraphUniqueNodeNames,
         ::testing::Combine(
         ::testing::ValuesIn(execGraphInfoElemTypes),
         ::testing::Values(InferenceEngine::SizeVector({1, 2, 5, 5})),
-        ::testing::Values(ov::test::conformance::targetDevice)),
+        ::testing::ValuesIn(ov::test::conformance::return_all_possible_device_combination())),
         ExecGraphUniqueNodeNames::getTestCaseName);
 
 }  // namespace

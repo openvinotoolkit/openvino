@@ -25,7 +25,7 @@ bool Verbose::shouldBePrinted() const {
         return false;
 
     if (node->isConstant() ||
-        node->getType() == Input || node->getType() == Output)
+        node->getType() == Type::Input || node->getType() == Type::Output)
         return false;
     return true;
 }
@@ -144,7 +144,7 @@ void Verbose::printInfo() {
     std::string nodeImplementer = "cpu";
     if (node->prim)
         nodeImplementer = "dnnl"; // oneDNN
-    else if (node->getType() == Reference)
+    else if (node->getType() == Type::Reference)
         nodeImplementer = "ngraph_ref"; // ngraph reference
 
     const std::string& nodeName = colorize(GREEN, node->getName());

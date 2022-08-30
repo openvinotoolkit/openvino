@@ -25,7 +25,7 @@ namespace InferenceEngine {
  * @brief Interface for tasks execution manager.
  * This is global point for getting task executor objects by string id.
  * It's necessary in multiple asynchronous requests for having unique executors to avoid oversubscription.
- * E.g. There 2 task executors for CPU device: one - in FPGA, another - in MKLDNN. Parallel execution both of them leads
+ * E.g. There 2 task executors for CPU device: one - in FPGA, another - in OneDNN. Parallel execution both of them leads
  * to not optimal CPU usage. More efficient to run the corresponding tasks one by one via single executor.
  * @ingroup ie_dev_api_threading
  */
@@ -66,6 +66,16 @@ public:
      */
     INFERENCE_ENGINE_DEPRECATED("Use IInferencePlugin::executorManager() instead")
     static ExecutorManager* getInstance();
+
+    /**
+     * @brief Set TBB terminate flag
+     * @param flag A boolean value:
+     * True to terminate tbb during destruction
+     * False to not terminate tbb during destruction
+     * @return void
+     */
+    virtual void setTbbFlag(bool flag) = 0;
+    virtual bool getTbbFlag() = 0;
 };
 
 INFERENCE_ENGINE_API_CPP(ExecutorManager::Ptr) executorManager();

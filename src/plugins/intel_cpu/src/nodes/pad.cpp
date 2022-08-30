@@ -5,8 +5,8 @@
 #include "pad.h"
 #include <string>
 #include <cmath>
-#include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_types.h>
+#include <dnnl_extension_utils.h>
 #include <limits>
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
@@ -14,13 +14,16 @@
 #include <selective_build.h>
 #include <ngraph/opsets/opset1.hpp>
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 #define THROW_ERROR IE_THROW() << "Pad layer with name '" << getName() << "' "
 
-bool MKLDNNPadNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool Pad::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         auto pad = ov::as_type_ptr<const ngraph::opset1::Pad>(op);
         if (!pad) {
@@ -29,7 +32,7 @@ bool MKLDNNPadNode::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
         }
 
         const auto pad_mode = pad->get_pad_mode();
-        if (!ov::intel_cpu::one_of(pad_mode, ngraph::op::PadMode::CONSTANT, ngraph::op::PadMode::EDGE, ngraph::op::PadMode::REFLECT,
+        if (!one_of(pad_mode, ngraph::op::PadMode::CONSTANT, ngraph::op::PadMode::EDGE, ngraph::op::PadMode::REFLECT,
             ngraph::op::PadMode::SYMMETRIC)) {
             errorMessage = "Has unsupported pad_mode: " + ngraph::as_string(pad_mode);
             return false;
@@ -57,8 +60,8 @@ bool MKLDNNPadNode::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
     return true;
 }
 
-MKLDNNPadNode::MKLDNNPadNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) {
+Pad::Pad(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -113,9 +116,9 @@ MKLDNNPadNode::MKLDNNPadNode(const std::shared_ptr<ngraph::Node>& op, const mkld
     }
 }
 
-void MKLDNNPadNode::getSupportedDescriptors() {}
+void Pad::getSupportedDescriptors() {}
 
-void MKLDNNPadNode::initSupportedPrimitiveDescriptors() {
+void Pad::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -166,7 +169,7 @@ void MKLDNNPadNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNPadNode::createPrimitive() {
+void Pad::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -227,17 +230,17 @@ void MKLDNNPadNode::createPrimitive() {
     }
 }
 
-bool MKLDNNPadNode::isExecutable() const {
+bool Pad::isExecutable() const {
     return !isOutputTensorAtPortEmpty(0);
 }
 
-void MKLDNNPadNode::prepareParams() {
+void Pad::prepareParams() {
     execPtr = std::make_shared<PadExecutor>(attrs,
                                             getParentEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims(),
                                             getChildEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims());
 }
 
-MKLDNNPadNode::PadExecutor::PadExecutor(const PadAttrs& attrs,
+Pad::PadExecutor::PadExecutor(const PadAttrs& attrs,
                                         const VectorDims& srcDims,
                                         const VectorDims& dstDims) {
     params.attrs = attrs;
@@ -299,7 +302,7 @@ MKLDNNPadNode::PadExecutor::PadExecutor(const PadAttrs& attrs,
     }
 }
 
-void MKLDNNPadNode::PadExecutor::exec(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+void Pad::PadExecutor::exec(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
     if (zeroInputDimsCase) {
         padConstant(srcMemPtr, dstMemPtr);
     } else {
@@ -320,19 +323,19 @@ void MKLDNNPadNode::PadExecutor::exec(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPt
     }
 }
 
-void MKLDNNPadNode::execute(mkldnn::stream strm) {
+void Pad::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_ERROR << "has not compiled executor.";
 
     execPtr->exec(getParentEdgeAt(0)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr());
 }
 
-void MKLDNNPadNode::executeDynamicImpl(mkldnn::stream strm) {
+void Pad::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-std::vector<VectorDims> MKLDNNPadNode::shapeInfer() const {
-    return MKLDNNNode::shapeInferGeneric(PortMask(PADS_BEGIN_ID, PADS_END_ID));
+std::vector<VectorDims> Pad::shapeInfer() const {
+    return Node::shapeInferGeneric(PortMask(PADS_BEGIN_ID, PADS_END_ID));
 }
 
 static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims& dims, VectorDims& indexes) {
@@ -353,7 +356,7 @@ static inline void parallel_step(size_t nDims, const VectorDims& dims, VectorDim
     }
 }
 
-void MKLDNNPadNode::PadExecutor::padConstant(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+void Pad::PadExecutor::padConstant(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
     if (params.attrs.padValue == 0 && !zeroInputDimsCase) {
         padConstantZero(srcMemPtr, dstMemPtr);
         return;
@@ -369,7 +372,7 @@ void MKLDNNPadNode::PadExecutor::padConstant(MKLDNNMemoryPtr& srcMemPtr, MKLDNNM
 }
 
 template<typename T>
-void MKLDNNPadNode::PadExecutor::padConstantCommon(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+void Pad::PadExecutor::padConstantCommon(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
     T* dstData = reinterpret_cast<T*>(dstMemPtr->GetPtr());
     const T value = static_cast<T>(params.attrs.padValue);
     if (zeroInputDimsCase) {
@@ -421,7 +424,7 @@ void MKLDNNPadNode::PadExecutor::padConstantCommon(MKLDNNMemoryPtr& srcMemPtr, M
     });
 }
 
-void MKLDNNPadNode::PadExecutor::padConstantZero(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+void Pad::PadExecutor::padConstantZero(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
 
@@ -466,7 +469,7 @@ void MKLDNNPadNode::PadExecutor::padConstantZero(MKLDNNMemoryPtr& srcMemPtr, MKL
     });
 }
 
-void MKLDNNPadNode::PadExecutor::padEdge(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+void Pad::PadExecutor::padEdge(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
 
@@ -506,7 +509,7 @@ void MKLDNNPadNode::PadExecutor::padEdge(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemor
     });
 }
 
-void MKLDNNPadNode::PadExecutor::padReflectOrSymmetric(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const bool isSymmetric) {
+void Pad::PadExecutor::padReflectOrSymmetric(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr, const bool isSymmetric) {
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
     size_t shift = isSymmetric ? 1 : 0;
@@ -548,12 +551,15 @@ void MKLDNNPadNode::PadExecutor::padReflectOrSymmetric(MKLDNNMemoryPtr& srcMemPt
     });
 }
 
-inline void MKLDNNPadNode::PadExecutor::getDstIdx(const VectorDims& indexes, size_t& dstIdx) const {
+inline void Pad::PadExecutor::getDstIdx(const VectorDims& indexes, size_t& dstIdx) const {
     for (size_t i = 0; i < params.nDimsForWork; ++i)
         dstIdx += indexes[i] * params.dstStrides[i];
 }
 
-bool MKLDNNPadNode::created() const {
-    return getType() == Pad;
+bool Pad::created() const {
+    return getType() == Type::Pad;
 }
-REG_MKLDNN_PRIM_FOR(MKLDNNPadNode, Pad);
+
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

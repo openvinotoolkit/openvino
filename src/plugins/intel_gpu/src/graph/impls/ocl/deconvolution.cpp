@@ -22,14 +22,29 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
         return make_unique<deconvolution_impl>(*this);
     }
 
+    explicit deconvolution_impl(const deconvolution_impl& other) : parent(other),
+        _split(other._split),
+        _groups(other._groups) {}
+
+    deconvolution_impl(const deconvolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+        set_node_params(arg);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<deconvolution>());
+        const auto& node = arg.as<deconvolution>();
+        _split = node.get_split();
+        _groups = node.get_groups();
+    }
+
 protected:
     // TODO: share it with convolution and fully connected
-    bool validate_impl(const typed_primitive_inst<deconvolution>&) const override {
+    bool validate_impl(const typed_primitive_inst<deconvolution>& instance) const override {
         bool res = true;
 
-        CLDNN_ERROR_NOT_EQUAL(_outer.id(),
+        CLDNN_ERROR_NOT_EQUAL(_node_id,
                               "deconvolution filling value",
-                              _outer.get_output_layout().data_padding.filling_value(),
+                              instance.node.get_output_layout().data_padding.filling_value(),
                               "padding mode",
                               0.0f,
                               "Unknown padding mode in deconvolution.");
@@ -46,31 +61,23 @@ protected:
         return args;
     }
 
-    int32_t get_split() const override { return _outer.get_split(); }
+    int32_t get_split() const override { return _split; }
 
-    uint32_t get_groups() const override { return _outer.get_groups(); }
+    uint32_t get_groups() const override { return _groups; }
 
 public:
-    static primitive_impl* create(const deconvolution_node& arg) {
+    static primitive_impl* create(const deconvolution_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = arg.get_primitive();
-        const auto& weights_layout = arg.weights(0).get_output_layout();
-
-        const auto& weights_size = weights_layout.size;
-
         const auto& split = primitive->split();
         const auto& stride = primitive->stride;
-#if 0  // TODO: support dilation
-        const auto& dilation = primitive->dilation;
-#else
-        const tensor dilation = {0, 0, 1, 1, 1};
-#endif
+        const ov::Strides dilation(impl_param.output_layout.get_spatial_rank(), 1);
         const auto actual_split = split;
 
         const auto& pad = primitive->pad;
         const auto& groups = primitive->groups;
 
         auto deconv_params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(
-            arg,
+            impl_param,
             (groups > 1) ? 1 : actual_split,
             1,
             primitive->grouped_weights_shape);
@@ -80,21 +87,28 @@ public:
         deconv_params.split = split;
         deconv_params.groups = groups;
 
-        auto spatial_size = arg.get_output_layout().format.dimension() - 2;
-        uint32_t kx = weights_size.spatial[0];
-        uint32_t ky = weights_size.spatial[1];
-        uint32_t kz = spatial_size == 2 ? 1 : weights_size.spatial[2];
+        const auto weights_idx = 1 + 0;
+        const auto& weights_layout = impl_param.input_layouts[weights_idx].convert_to_weights_layout(primitive->grouped_weights_shape);
+        uint32_t kx = weights_layout.spatial(0);
+        uint32_t ky = weights_layout.spatial(1);
+        uint32_t kz = weights_layout.spatial(2);
+
         deconv_params.filterSize = { kx, ky, kz };
 
-        deconv_params.padding = {(uint32_t)std::max(pad.spatial[0], 0),
-                                 (uint32_t)std::max(pad.spatial[1], 0),
-                                 (uint32_t)std::max(pad.spatial[2], 0)};
+        uint32_t pad_z = std::max<std::ptrdiff_t>(pad.size() >= 3 ? pad[pad.size() - 3] : 0, 0);
+        uint32_t pad_y = std::max<std::ptrdiff_t>(pad.size() >= 2 ? pad[pad.size() - 2] : 0, 0);
+        uint32_t pad_x = std::max<std::ptrdiff_t>(pad.size() >= 1 ? pad[pad.size() - 1] : 0, 0);
+        deconv_params.padding = {pad_x, pad_y, pad_z};
 
-        deconv_params.stride = {(uint32_t)stride.spatial[0], (uint32_t)stride.spatial[1], (uint32_t)stride.spatial[2]};
+        uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
+        uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
+        uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+        deconv_params.stride = {stride_x, stride_y, stride_z};
 
-        deconv_params.dilation = {(uint32_t)dilation.spatial[0],
-                                  (uint32_t)dilation.spatial[1],
-                                  (uint32_t)dilation.spatial[2]};
+        uint32_t dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
+        uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
+        uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
+        deconv_params.dilation = {dilation_x, dilation_y, dilation_z};
 
         auto& kernel_selector = kernel_selector::deconvolution_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(deconv_params, deconv_optional_params);
@@ -104,9 +118,14 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
         auto deconv = new deconvolution_impl(arg, best_kernels[0]);
+        deconv->can_reuse_memory = best_kernels[0].can_reuse_memory;
 
         return deconv;
     }
+
+private:
+    int32_t _split;
+    uint32_t _groups;
 };
 
 namespace detail {

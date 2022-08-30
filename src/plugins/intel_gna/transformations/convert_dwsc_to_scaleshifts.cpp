@@ -14,10 +14,8 @@
 #include <ie_common.h>
 #include "utils/transformation_helper.hpp"
 
-
-using namespace GNAPluginNS;
-
-NGRAPH_RTTI_DEFINITION(ConvertDWSCToScaleShifts, "ConvertDWSCToScaleShifts", 0);
+using namespace ov::intel_gna::pass;
+using namespace ov::intel_gna::pass::helper;
 
 static std::shared_ptr<ngraph::Node> DecomposeDWSC(std::shared_ptr<ngraph::opset7::GroupConvolution> dwsc,
     std::shared_ptr<ngraph::opset7::Constant> bias_const, std::shared_ptr<ngraph::opset7::FakeQuantize> fq_bias,

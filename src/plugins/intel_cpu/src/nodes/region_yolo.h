@@ -13,6 +13,7 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 struct jit_args_logistic {
     const void* src;
@@ -38,21 +39,21 @@ struct jit_uni_logistic_kernel {
     virtual ~jit_uni_logistic_kernel() {}
 };
 
-class MKLDNNRegionYoloNode : public MKLDNNNode {
+class RegionYolo : public Node {
 public:
-    MKLDNNRegionYoloNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    RegionYolo(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
     bool needPrepareParams() const override;
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
 
 private:
     int classes;
@@ -77,5 +78,6 @@ private:
     inline void calculate_logistic(size_t start_index, int count, uint8_t * dst_data);
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "remarks.hpp"
+#include "snippets/remarks.hpp"
 #include <snippets/itt.hpp>
 
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/op/subgraph.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/op/loop.hpp>
 #include "transformations/utils/utils.hpp"
@@ -21,8 +22,6 @@
 #include <numeric>
 #include <climits>
 
-NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::TokenizeSnippets, "Snippets::TokenizeSnippets", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::EnumerateNodes, "Snippets::EnumerateNodes", 0);
 
 namespace ngraph {
 namespace snippets {
@@ -86,26 +85,31 @@ auto is_layout_oblivious(const std::shared_ptr<const Node> &n) -> bool {
     auto is_layout_oblivious_unary = [](const std::shared_ptr<const Node> &n) -> bool {
         return ov::is_type<opset1::Abs>(n)
             || ov::is_type<opset1::Clamp>(n)
+            || ov::is_type<opset1::Floor>(n)
+            || ov::is_type<opset1::Ceiling>(n)
             || ov::is_type<opset1::Elu>(n)
             || ov::is_type<opset1::Erf>(n)
             || ov::is_type<opset1::Exp>(n)
             || ov::is_type<opset1::LogicalNot>(n)
             || ov::is_type<opset1::Negative>(n)
             || ov::is_type<opset1::Relu>(n)
+            || ov::is_type<opset5::Round>(n)
             || ov::is_type<opset1::Sigmoid>(n)
             || ov::is_type<opset1::Sqrt>(n)
             || ov::is_type<opset1::Tanh>(n)
             || ov::is_type<ngraph::op::v0::Gelu>(n)
             || ov::is_type<ngraph::op::v7::Gelu>(n)
-            || ov::is_type<ngraph::op::v4::HSwish>(n);
+            || ov::is_type<ngraph::op::v4::HSwish>(n)
+            || ov::is_type<ngraph::op::v0::Convert>(n);
     };
     return is_layout_oblivious_unary(n) || is_layout_oblivious_binary(n);
 }
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
     auto supported = [](descriptor::Tensor& t) -> bool {
-        return t.get_element_type() == ngraph::element::f32 &&
-               t.get_partial_shape().is_static();
+        static const std::set<ngraph::element::Type> supported_data_types =
+                { ngraph::element::f32, ngraph::element::i32, ngraph::element::bf16, ngraph::element::i8, ngraph::element::u8 };
+        return t.get_partial_shape().is_static() && supported_data_types.count(t.get_element_type()) != 0;
     };
     const auto & inputs = n->inputs();
     const auto & outputs = n->outputs();
@@ -139,22 +143,16 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
     }
     return result;
 }
-// Need to update tensor name manually, since MKLDNNGraph::Replicate() looks at input.get_tensor().get_name();
+// Need to update tensor name manually, since intel_cpu::Graph::Replicate() looks at input.get_tensor().get_name();
 // If subgraph->get_output_size() == 1, then the name will be restored correctly from the node name
 auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &subgraph) -> void {
     bool not_set = true;
     for (unsigned int i = 0; i < subgraph->get_output_size() && not_set; i++) {
         for (const auto &in : subgraph->get_output_target_inputs(i)) {
             if (ov::is_type<opset1::Result>(in.get_node())) {
-                auto out_tensor = subgraph->output(i).get_tensor_ptr();
-                NGRAPH_SUPPRESS_DEPRECATED_START
-                if (out_tensor->get_name().empty()) {
-                    const auto& body_result = subgraph->get_body()->get_output_op(i);
-                    const std::string newTensorName = ngraph::op::util::get_ie_output_name(
-                            body_result->get_input_source_output(0));
-                    out_tensor->set_name(newTensorName);
-                }
-                NGRAPH_SUPPRESS_DEPRECATED_END
+                const auto& body_result = subgraph->get_body()->get_output_op(i);
+                const auto& body_result_input = body_result->get_input_source_output(0);
+                op::Subgraph::fill_empty_output_names(subgraph->output(i), body_result_input);
                 not_set = false;
                 break;
             }
@@ -265,8 +263,8 @@ TokenizeSnippets::TokenizeSnippets() {
         OutputVector internal_inputs;
 
         auto input_values = node->input_values();
-        /* 
-        * Called with subgraph->input_value(i) arg and used to 
+        /*
+        * Called with subgraph->input_value(i) arg and used to
         * Check that the attached node input subgraph has the same input as the node itself.
         * If true, then ternary merge is initiated.
         *        input
@@ -322,7 +320,6 @@ TokenizeSnippets::TokenizeSnippets() {
                       << " outputs" << std::endl;
             return true;
         }
-        std::string newSubgraphName{};
         std::string fusedNames{};
         size_t num_result_children = 0;
         std::pair<int64_t, int64_t> currentTopoBounds {-1, LONG_MAX};
@@ -337,8 +334,7 @@ TokenizeSnippets::TokenizeSnippets() {
                     input_subgraphs.insert(input_node);
 
                     fusedNames += getFusedNames(subgraph);
-                    if (newSubgraphName.empty())
-                            newSubgraphName = subgraph->get_friendly_name();
+
                     num_result_children += has_result_child(subgraph);
                     auto f = clones[input_node];
                     const auto& input_body_parameters = f->get_parameters();
@@ -402,6 +398,40 @@ TokenizeSnippets::TokenizeSnippets() {
                 auto& input_body = clones[input_node];
                 size_t source_output_index = input_value.get_index();
                 auto source_result = input_body->get_results()[source_output_index];
+
+                // We cannot add new node, that is not Convert, after Convert (that is start node) to avoid arithmetic problems with conversion
+                // We can add any new node in Subgraph after Convert (bacause after Input)
+                //              Parameter
+                //                  |
+                //               Convert
+                //
+                // We cannot add new node, that isn't Convert, in Subgraph after existing Convert
+                //              Parameter
+                //                Relu
+                //               Convert
+                //
+                // But we can add new Convert in Subgraph after existing Convert
+                //              Parameter
+                //                Relu
+                //               Convert
+                //               Convert
+                //
+                // Thus, We can grow subgraph only if Convert is the first node of subgraph and have to abort it's the last one and we want to add not Convert
+                // We have this limitation because at the moment we support only one execution precision inside body, so
+                // if there is Convert with input and output data types that aren't equal to supported exec type,
+                // we can get conversion math errors
+                const auto output_of_subgraph = source_result->get_input_node_shared_ptr(0);
+                if (!ov::is_type<ngraph::op::v0::Convert>(node) && ov::is_type<ngraph::op::v0::Convert>(output_of_subgraph)) {
+                    // Also we can add new node after < Parameter -> Convert -> Convert -> Convert >
+                    auto grandparent = output_of_subgraph->get_input_node_ptr(0);
+                    while (ov::is_type<ngraph::op::v0::Convert>(grandparent)) {
+                        grandparent = grandparent->get_input_node_ptr(0);
+                    }
+
+                    if (!ov::is_type<ngraph::op::v0::Parameter>(grandparent)) {
+                        return abort_with_strategy("Convert supports only as Input and as Result of subgraph. Aborting");
+                    }
+                }
                 // Result op has a single input
                 internal_inputs.push_back(source_result->input_value(0));
             } else {
@@ -420,8 +450,6 @@ TokenizeSnippets::TokenizeSnippets() {
         num_result_children += get_num_result_children(node);
         if (num_result_children > 1)
             return abort_with_strategy("New subgraph is created since too many Result children are detected");
-        if (newSubgraphName.empty())
-            newSubgraphName = node->get_friendly_name();
 
         auto body_node = node->copy_with_new_inputs(internal_inputs);
         body_node->set_friendly_name(node->get_friendly_name());
@@ -475,7 +503,7 @@ TokenizeSnippets::TokenizeSnippets() {
             throw ngraph_error("body results and node results size mismatch during subgraph collaps");
         }
         // todo: move this plugin-specific constraint to the plugin callback
-        if (body_parameters.size() + body_results.size() > 7) {
+        if (body_parameters.size() + body_results.size() > 12) {
             const std::string message_reset = "new subgraph is created. Impossible to schedule subgraph with " +
             std::to_string(body_parameters.size()) + " inputs and " + std::to_string(body_results.size()) + " outputs.";
             const std::string message_abort = "failed to continue subgraph. Impossible to schedule subgraph with " +
@@ -483,11 +511,11 @@ TokenizeSnippets::TokenizeSnippets() {
             return abort_with_strategy(message_reset, message_abort);
         }
 
-        auto body = op::create_body(newSubgraphName, body_results, body_parameters);
+        auto body = op::create_body(node->get_friendly_name(), body_results, body_parameters);
         for (size_t i = 0; i < body->get_parameters().size(); i++) {
             body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
-        auto subgraph = op::build_subgraph(node, external_inputs, body, newSubgraphName);
+        auto subgraph = op::build_subgraph(node, external_inputs, body);
         auto act_body = subgraph->get_body();
         for (size_t i = 0; i < act_body->get_parameters().size(); i++) {
             act_body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
@@ -513,7 +541,7 @@ TokenizeSnippets::TokenizeSnippets() {
         for (size_t i = 0; i < act_body1->get_parameters().size(); i++) {
             act_body1->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
-        subgraph->get_rt_info()["originalLayersNames"] = node->get_friendly_name();
+        subgraph->get_rt_info()["originalLayersNames"] = fusedNames;
 
         remark(1) << "Replacement (merge) done for: "
                     << subgraph->get_friendly_name()
@@ -523,7 +551,7 @@ TokenizeSnippets::TokenizeSnippets() {
 
         return true;
     };
-    auto matcher = std::make_shared<ngraph::pattern::Matcher>(label);
+    auto matcher = std::make_shared<ngraph::pattern::Matcher>(label, matcher_name);
     register_matcher(matcher, callback);
 }
 } // namespace pass

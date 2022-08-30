@@ -38,6 +38,6 @@ class NGRAPH_API FixRtInfo;
  */
 class ngraph::pass::FixRtInfo : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("FixRtInfo", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };

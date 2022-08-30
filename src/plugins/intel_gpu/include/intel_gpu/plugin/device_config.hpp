@@ -8,13 +8,13 @@
 #include <string>
 
 #include "intel_gpu/plugin/custom_layer.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include <ie_performance_hints.hpp>
 #include <threading/ie_cpu_streams_executor.hpp>
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 
@@ -37,6 +37,7 @@ struct Config {
                                           graph_dumps_dir(""),
                                           sources_dumps_dir(""),
                                           kernels_cache_dir(""),
+                                          inference_precision(ov::element::undefined),
                                           task_exec_config({"GPU plugin internal task executor",                        // name
                                                     std::max(1, static_cast<int>(std::thread::hardware_concurrency())), // # of streams
                                                     1,                                                                  // # of threads per streams
@@ -46,6 +47,11 @@ struct Config {
                                                     1,                                                                  // # of threads
                                                     InferenceEngine::IStreamsExecutor::Config::ANY}),                   // preferred core type
                                           enable_loop_unrolling(true) {
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->serialize_compile == 1) {
+            task_exec_config._streams = 1;
+        }
+
         adjustKeyMapValues();
     }
 
@@ -75,6 +81,7 @@ struct Config {
     std::string graph_dumps_dir;
     std::string sources_dumps_dir;
     std::string kernels_cache_dir;
+    ov::element::Type inference_precision;
     InferenceEngine::IStreamsExecutor::Config task_exec_config;
 
     bool enable_loop_unrolling;
@@ -103,5 +110,4 @@ private:
 };
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

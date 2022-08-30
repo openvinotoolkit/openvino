@@ -11,10 +11,13 @@
 #include "common/cpu_memcpy.h"
 #include "experimental_detectron_topkrois.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNExperimentalDetectronTopKROIsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool ExperimentalDetectronTopKROIs::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto topKROI = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronTopKROIs>(op);
         if (!topKROI) {
@@ -27,8 +30,8 @@ bool MKLDNNExperimentalDetectronTopKROIsNode::isSupportedOperation(const std::sh
     return true;
 }
 
-MKLDNNExperimentalDetectronTopKROIsNode::MKLDNNExperimentalDetectronTopKROIsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -49,7 +52,7 @@ MKLDNNExperimentalDetectronTopKROIsNode::MKLDNNExperimentalDetectronTopKROIsNode
     max_rois_num_ = topKROI->get_max_rois();
 }
 
-void MKLDNNExperimentalDetectronTopKROIsNode::initSupportedPrimitiveDescriptors() {
+void ExperimentalDetectronTopKROIs::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -59,7 +62,7 @@ void MKLDNNExperimentalDetectronTopKROIsNode::initSupportedPrimitiveDescriptors(
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNExperimentalDetectronTopKROIsNode::execute(mkldnn::stream strm) {
+void ExperimentalDetectronTopKROIs::execute(dnnl::stream strm) {
     const int input_rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     const int top_rois_num = (std::min)(max_rois_num_, input_rois_num);
 
@@ -77,8 +80,10 @@ void MKLDNNExperimentalDetectronTopKROIsNode::execute(mkldnn::stream strm) {
     }
 }
 
-bool MKLDNNExperimentalDetectronTopKROIsNode::created() const {
-    return getType() == ExperimentalDetectronTopKROIs;
+bool ExperimentalDetectronTopKROIs::created() const {
+    return getType() == Type::ExperimentalDetectronTopKROIs;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNExperimentalDetectronTopKROIsNode, ExperimentalDetectronTopKROIs)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

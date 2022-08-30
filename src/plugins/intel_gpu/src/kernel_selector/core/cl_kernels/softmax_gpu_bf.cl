@@ -7,23 +7,28 @@
 
 
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
-KERNEL (softmax_gpu_continoues_bfyx)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output)
-{
+KERNEL (softmax_gpu_continuous_bfyx)(
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
+) {
     const uint data_set_idx = get_global_id(1);     //in processing of which data set this WI participates?
     const uint workers_per_data_set = LWS;          //how many WI participates in processing of one data set
     const uint in_data_set_idx = get_global_id(0);  //this WI's id in group of items processing single data set
     const uint data_set_size = DATA_SET_SIZE;       //how many elements are in one data set
-    const uint data_sets_count = DATA_SETS_COUNT;   //how many data sets are in the processing payload     
+    const uint data_sets_count = DATA_SETS_COUNT;   //how many data sets are in the processing payload
 
     const uint data_set_offset = data_set_idx * data_set_size;
     const uint my_data_offset = data_set_offset + in_data_set_idx;
 
-    UNIT_TYPE my_chunk[ITEMS_NUM + 1];
-    UNIT_TYPE my_maximum = -UNIT_VAL_MAX;
-    UNIT_TYPE my_sum = UNIT_VAL_ZERO;
-    UNIT_TYPE tmp;
+    INPUT0_TYPE my_chunk[ITEMS_NUM + 1];
+    INPUT0_TYPE my_maximum = -UNIT_VAL_MAX;
+    INPUT0_TYPE my_sum = UNIT_VAL_ZERO;
+    INPUT0_TYPE tmp;
 
-    __local UNIT_TYPE lg_storage[LWS];
+    __local INPUT0_TYPE lg_storage[LWS];
 
     //each WI reads ITEMS_NUM consecutive items from batch
     for (uint i=0; i<ITEMS_NUM; ++i)
@@ -85,8 +90,23 @@ KERNEL (softmax_gpu_continoues_bfyx)(const __global UNIT_TYPE* input, __global U
 
     my_sum = lg_storage[0];
 
+#if HAS_FUSED_OPS
+    for (uint i=0; i<ITEMS_NUM; ++i)
+    {
+        ACTIVATION_TYPE dequantized = my_chunk[i] / my_sum;
+        FUSED_OPS_MAIN;
+        output[my_data_offset + i * workers_per_data_set] = FUSED_OPS_RESULT_MAIN;
+    }
+    if (in_data_set_idx < LEFTOVERS)
+    {
+        ACTIVATION_TYPE dequantized = my_chunk[ITEMS_NUM] / my_sum;
+        FUSED_OPS_LEFTOVERS;
+        output[data_set_offset + workers_per_data_set * ITEMS_NUM + in_data_set_idx] = FUSED_OPS_RESULT_LEFTOVERS;
+    }
+#else
     for (uint i=0; i<ITEMS_NUM; ++i)
         output[my_data_offset + i * workers_per_data_set] = ACTIVATION(my_chunk[i] / my_sum, ACTIVATION_PARAMS);
     if (in_data_set_idx < LEFTOVERS)
         output[data_set_offset + workers_per_data_set * ITEMS_NUM + in_data_set_idx] = ACTIVATION(my_chunk[ITEMS_NUM] / my_sum, ACTIVATION_PARAMS);
+#endif
 }

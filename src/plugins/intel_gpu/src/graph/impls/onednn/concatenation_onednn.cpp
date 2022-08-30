@@ -54,24 +54,17 @@ protected:
             input_mds.push_back(onednn::layout_to_memory_desc(input->get_output_layout()));
         }
         auto output_md = onednn::layout_to_memory_desc(arg.get_output_layout());
-        int axis = 0;
-        switch (prim->axis) {
-            case concatenation::concatenation_axis::along_b: axis = 0; break;
-            case concatenation::concatenation_axis::along_f: axis = 1; break;
-            case concatenation::concatenation_axis::along_y: axis = 2; break;
-            case concatenation::concatenation_axis::along_x: axis = 3; break;
-            default: throw std::runtime_error("unsupported concat axis");
-        }
-
         return std::make_shared<dnnl::concat::primitive_desc>(
             output_md,
-            axis,
+            prim->axis,
             input_mds,
             engine.get_onednn_engine());
     }
 
 public:
-    static primitive_impl* create(const concatenation_node& arg) {
+    static primitive_impl* create(const concatenation_node& arg, const kernel_impl_params&) {
+        if (arg.can_be_optimized())
+            return new concatenation_onednn(arg);
         auto desc = get_concatenation_descriptor(arg);
         auto attr = arg.get_onednn_primitive_attributes();
 
@@ -89,6 +82,11 @@ attach_concatenation_onednn::attach_concatenation_onednn() {
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),
+
+        std::make_tuple(data_types::f32, format::byxf),
+        std::make_tuple(data_types::f16, format::byxf),
+        std::make_tuple(data_types::u8, format::byxf),
+        std::make_tuple(data_types::i8, format::byxf),
 
         std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),

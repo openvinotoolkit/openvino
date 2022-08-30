@@ -13,9 +13,10 @@
 namespace ov {
 namespace intel_cpu {
 
-std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
+std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph);
 #ifdef CPU_DEBUG_CAPS
-void serialize(const MKLDNNGraph &graph);
+void serialize(const Graph &graph);
+void summary_perf(const Graph &graph);
 #endif // CPU_DEBUG_CAPS
 
 }   // namespace intel_cpu

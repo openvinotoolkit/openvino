@@ -9,8 +9,6 @@
 #include <transformations/common_optimizations/disable_shapeof_constant_folding.hpp>
 #include <transformations/rt_info/disable_constant_folding.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::DisableShapeOfConstantFolding, "DisableShapeOfConstantFolding", 0);
-
 ngraph::pass::DisableShapeOfConstantFolding::DisableShapeOfConstantFolding() {
     auto shape_of = pattern::wrap_type<opset2::ShapeOf, opset3::ShapeOf>([=](const Output<Node>& output) {
         const auto& shape = output.get_partial_shape();

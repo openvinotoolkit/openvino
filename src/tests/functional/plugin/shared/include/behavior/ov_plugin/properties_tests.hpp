@@ -16,11 +16,10 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-class OVPropertiesBase : public CommonTestUtils::TestsCommon {
+class OVPropertiesBase : public OVPluginTestBase {
 public:
     std::shared_ptr<Core> core = utils::PluginCache::get().core();
     std::shared_ptr<Model> model;
-    std::string device_name;
     AnyMap properties;
 };
 
@@ -46,6 +45,18 @@ public:
 
 using OVPropertiesIncorrectTests = OVPropertiesTests;
 using OVPropertiesDefaultTests = OVPropertiesTests;
+
+using CompileModelPropertiesParams = std::tuple<std::string, AnyMap, AnyMap>;
+class OVSetPropComplieModleGetPropTests : public testing::WithParamInterface<CompileModelPropertiesParams>,
+                                          public OVPropertiesBase {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<CompileModelPropertiesParams> obj);
+
+    void SetUp() override;
+
+    AnyMap compileModelProperties;
+};
+using OVSetPropComplieModleWihtIncorrectPropTests = OVSetPropComplieModleGetPropTests;
 
 }  // namespace behavior
 }  // namespace test

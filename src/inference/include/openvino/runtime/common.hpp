@@ -46,6 +46,7 @@ namespace ie = InferenceEngine;
 
 /**
  * @brief This type of map is used for result of Core::query_model
+ * @ingroup ov_runtime_cpp_api
  *   - `key` means operation name
  *   - `value` means device name supporting this operation
  */

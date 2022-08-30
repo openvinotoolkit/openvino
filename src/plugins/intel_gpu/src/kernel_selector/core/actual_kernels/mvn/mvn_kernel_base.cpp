@@ -33,7 +33,7 @@ JitConstants MVNKernelBase::GetJitConstants(const mvn_params& params, MVNKernelB
 }
 
 MVNKernelBase::DispatchData MVNKernelBase::SetDefault(const mvn_params& params) const {
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     DispatchData dispatchData;
     if (params.mvnMode == MVNMode::WITHIN_CHANNELS) {

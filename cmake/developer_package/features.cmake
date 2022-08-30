@@ -7,7 +7,7 @@ include(target_flags)
 
 # FIXME: there are compiler failures with LTO and Cross-Compile toolchains. Disabling for now, but
 #        this must be addressed in a proper way
-ie_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF "LINUX;NOT CMAKE_CROSSCOMPILING; CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
+ie_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF "LINUX;NOT CMAKE_CROSSCOMPILING;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
 
 ie_option (OS_FOLDER "create OS dedicated folder in output" OFF)
 
@@ -18,7 +18,12 @@ else()
 endif()
 
 # FIXME: ARM cross-compiler generates several "false positive" warnings regarding __builtin_memcpy buffer overflow
-ie_dependent_option (TREAT_WARNING_AS_ERROR "Treat build warnings as errors" ON "X86 OR X86_64" OFF)
+if(X86 OR X86_64)
+    set(TREAT_WARNING_AS_ERROR_DEFAULT ON)
+else()
+    set(TREAT_WARNING_AS_ERROR_DEFAULT OFF)
+endif()
+ie_option (TREAT_WARNING_AS_ERROR "Treat build warnings as errors" ${TREAT_WARNING_AS_ERROR_DEFAULT})
 
 ie_dependent_option (ENABLE_INTEGRITYCHECK "build DLLs with /INTEGRITYCHECK flag" OFF "CMAKE_CXX_COMPILER_ID STREQUAL MSVC" OFF)
 
@@ -44,19 +49,25 @@ ie_option (BUILD_SHARED_LIBS "Build as a shared library" ON)
 
 ie_dependent_option (ENABLE_FASTER_BUILD "Enable build features (PCH, UNITY) to speed up build time" OFF "CMAKE_VERSION VERSION_GREATER_EQUAL 3.16" OFF)
 
-ie_dependent_option (ENABLE_CPPLINT "Enable cpplint checks during the build" ON "UNIX;NOT ANDROID" OFF)
+if(UNIX AND NOT ANDROID)
+    set(STYLE_CHECKS_DEFAULT ON)
+else()
+    set(STYLE_CHECKS_DEFAULT OFF)
+endif()
+
+ie_option (ENABLE_CPPLINT "Enable cpplint checks during the build" ${STYLE_CHECKS_DEFAULT})
 
 ie_dependent_option (ENABLE_CPPLINT_REPORT "Build cpplint report instead of failing the build" OFF "ENABLE_CPPLINT" OFF)
 
-ie_dependent_option (ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ON "UNIX;NOT ANDROID" OFF)
+ie_option (ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ${STYLE_CHECKS_DEFAULT})
 
-ie_dependent_option (ENABLE_NCC_STYLE "Enable ncc style check" ON "UNIX;NOT ANDROID" OFF)
+ie_option (ENABLE_NCC_STYLE "Enable ncc style check" ${STYLE_CHECKS_DEFAULT})
 
 ie_option (VERBOSE_BUILD "shows extra information about build" OFF)
 
 ie_option (ENABLE_UNSAFE_LOCATIONS "skip check for MD5 for dependency" OFF)
 
-ie_dependent_option (ENABLE_FUZZING "instrument build for fuzzing" OFF "OV_COMPILER_IS_CLANG; NOT WIN32" OFF)
+ie_dependent_option (ENABLE_FUZZING "instrument build for fuzzing" OFF "OV_COMPILER_IS_CLANG;NOT WIN32" OFF)
 
 #
 # Check features
@@ -79,6 +90,4 @@ if(ENABLE_AVX512F)
     endif()
 endif()
 
-if (VERBOSE_BUILD)
-    set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "" FORCE)
-endif()
+set(CMAKE_VERBOSE_MAKEFILE ${VERBOSE_BUILD} CACHE BOOL "" FORCE)

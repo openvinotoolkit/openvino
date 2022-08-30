@@ -26,6 +26,7 @@ ParamsKey GemmKernelRef::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableDifferentTypes();
     k.EnableTensorPitches();
+    k.EnableTensorOffset();
     k.EnableQuantization(QuantizationType::SYMMETRIC);
 
     return k;
@@ -67,7 +68,7 @@ bool GemmKernelRef::Validate(const Params& params, const optional_params& option
     const auto& gmm_params = static_cast<const gemm_params&>(params);
     auto input_type = gmm_params.inputs[0].GetDType();
     auto input2_type = gmm_params.inputs[1].GetDType();
-    auto output_type = gmm_params.output.GetDType();
+    auto output_type = gmm_params.outputs[0].GetDType();
 
     // int8/uint8 inputs (quantization case) require additional checks
     // require some additional checks.

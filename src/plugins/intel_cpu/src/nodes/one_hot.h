@@ -13,21 +13,22 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNOneHotNode : public MKLDNNNode {
+class OneHot : public Node {
 public:
-    MKLDNNOneHotNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    OneHot(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override {};
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     bool needShapeInfer() const override;
     std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override { return false; };
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -35,7 +36,7 @@ private:
     typedef InferenceEngine::PrecisionTrait<InferenceEngine::Precision::I32>::value_type in_type;
 
     struct OneHotContext {
-        MKLDNNOneHotNode* nodePtr;
+        OneHot* nodePtr;
         size_t prefix_size;
         size_t suffix_size;
     };
@@ -63,5 +64,6 @@ private:
     void one_hot(size_t prefix_size, size_t suffix_size);
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

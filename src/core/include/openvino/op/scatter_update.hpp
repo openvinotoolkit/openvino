@@ -12,6 +12,7 @@ namespace v3 {
 ///
 /// \brief      Set new values to slices from data addressed by indices
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ScatterUpdate : public util::ScatterBase {
 public:
     OPENVINO_OP("ScatterUpdate", "opset3", util::ScatterBase, 3);

@@ -25,6 +25,8 @@ using namespace std;
 
 atomic<size_t> ov::Node::m_next_instance_id(0);
 
+ov::Node::Node() = default;
+
 ov::Node::Node(const Node& node)
     : m_control_dependents(node.m_control_dependents),
       m_control_dependencies(node.m_control_dependencies),
@@ -381,7 +383,9 @@ std::ostream& ov::Node::write_description(std::ostream& out, uint32_t depth) con
     if (depth == 0) {
         out << get_friendly_name();
     } else {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         out << "v" << get_type_info().version << "::" << get_type_info().name << " " << get_friendly_name() << " (";
+        OPENVINO_SUPPRESS_DEPRECATED_END
         string sep = "";
         for (const auto& arg : input_values()) {
             out << sep << arg;
@@ -699,6 +703,15 @@ protected:
     }
 };
 
+inline ov::Tensor create_tensor_from_output(const ov::Output<ov::Node>& output) {
+    if (output.get_element_type().is_dynamic()) {
+        return ov::Tensor();
+    } else if (output.get_partial_shape().is_dynamic()) {
+        return ov::Tensor(output.get_element_type(), {0});
+    }
+    return ov::Tensor(output.get_element_type(), output.get_shape());
+}
+
 inline ngraph::HostTensorVector create_tmp_tensors(const ov::TensorVector& tensors) {
     ngraph::HostTensorVector result;
     result.reserve(tensors.size());
@@ -741,13 +754,15 @@ bool ov::Node::evaluate(ov::TensorVector& output_values, const ov::TensorVector&
 bool ov::Node::evaluate(ov::TensorVector& output_values,
                         const ov::TensorVector& input_values,
                         const ov::EvaluationContext& evaluationContext) const {
+    // Call evaluate for old implementation with EvaluationContext
     HostTensorVector output = create_tmp_tensors(output_values);
     HostTensorVector input = create_tmp_tensors(input_values);
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool sts = evaluate(output, input, evaluationContext);
     OPENVINO_SUPPRESS_DEPRECATED_END
     update_output_tensors(output_values, output);
-    return sts;
+    // Call evaluate for ov::Tensor if op doesn't have evaluate with EvaluationContext
+    return sts ? sts : evaluate(output_values, input_values);
 }
 
 bool ov::Node::evaluate_lower(ov::TensorVector& output_values) const {
@@ -799,7 +814,7 @@ bool ov::Node::evaluate_label(TensorLabelVector& output_labels) const {
 bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Node::constant_fold");
 
-    if (m_rt_info.count(ov::pass::DisableConstantFolding::get_type_info_static())) {
+    if (is_const_fold_disabled()) {
         return false;
     }
 
@@ -810,27 +825,34 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     if (!all_constants)
         return false;
 
-    HostTensorVector input_tensors;
+    TensorVector input_tensors;
     for (const auto& input : input_values) {
-        auto host_tensor = make_shared<ngraph::runtime::HostTensor>(
-            ov::as_type_ptr<ngraph::op::v0::Constant>(input.get_node_shared_ptr()));
-        input_tensors.push_back(host_tensor);
+        auto constant = ov::as_type_ptr<ngraph::op::v0::Constant>(input.get_node_shared_ptr());
+        auto tensor = ov::Tensor(input.get_element_type(), input.get_shape());
+        std::copy_n(constant->get_data_ptr<uint8_t>(), constant->get_byte_size(), static_cast<uint8_t*>(tensor.data()));
+        input_tensors.push_back(tensor);
     }
-    HostTensorVector output_tensors;
-    OutputVector output_constants;
+
+    TensorVector output_tensors;
     for (const auto& output : outputs()) {
-        auto tensor = make_shared<HostTensor>(output.get_element_type(), output.get_partial_shape());
-        output_tensors.push_back(tensor);
+        output_tensors.push_back(create_tensor_from_output(output));
     }
+
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (evaluate(output_tensors, input_tensors)) {
         for (size_t i = 0; i < output_tensors.size(); ++i) {
-            output_values[i] = make_shared<ngraph::op::Constant>(output_tensors[i]);
+            output_values[i] = make_shared<ngraph::op::Constant>(output_tensors[i].get_element_type(),
+                                                                 output_tensors[i].get_shape(),
+                                                                 output_tensors[i].data());
         }
         return true;
     }
     OPENVINO_SUPPRESS_DEPRECATED_END
     return false;
+}
+
+bool ov::Node::is_const_fold_disabled() const {
+    return ov::pass::constant_folding_is_disabled(this);
 }
 
 namespace ov {

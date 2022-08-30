@@ -35,10 +35,13 @@ int main() {
     // compile model within a shared context
     auto compiled_model = core.compile_model(model, shared_va_context);
 
-    auto input = model->get_parameters().at(0);
-    size_t width = 1024;
-    size_t height = 768;
-
+    auto input0 = model->get_parameters().at(0);
+    auto input1 = model->get_parameters().at(1);
+    
+    auto shape = input0->get_shape();
+    auto width = shape[1];
+    auto height = shape[2];
+    
     // execute decoding and obtain decoded surface handle
     VASurfaceID va_surface = decode_va_surface();
     //     ...
@@ -46,8 +49,8 @@ int main() {
     auto nv12_blob = shared_va_context.create_tensor_nv12(height, width, va_surface);
 
     auto infer_request = compiled_model.create_infer_request();
-    infer_request.set_tensor("y", nv12_blob.first);
-    infer_request.set_tensor("uv", nv12_blob.second);
+    infer_request.set_tensor(input0->get_friendly_name(), nv12_blob.first);
+    infer_request.set_tensor(input1->get_friendly_name(), nv12_blob.second);
     infer_request.start_async();
     infer_request.wait();
     //! [context_sharing_va]

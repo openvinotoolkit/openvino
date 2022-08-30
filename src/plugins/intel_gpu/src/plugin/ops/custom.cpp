@@ -13,7 +13,6 @@
 #include "intel_gpu/primitives/reorder.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 template<typename T>
@@ -136,10 +135,10 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
             kernelParameters.resize(kernelParameters.size() > size_t(param.paramIndex + 1) ? kernelParameters.size() : size_t(param.paramIndex + 1));
             kernelParameters[param.paramIndex].type = cldnn::custom_gpu_primitive::arg_input;
             kernelParameters[param.paramIndex].index =
-                static_cast<cldnn::custom_gpu_primitive::arg_index>((param.portIndex >= inputPrimitives.size()) ? -1 : param.portIndex);
+                static_cast<cldnn::custom_gpu_primitive::arg_index>((param.portIndex >= static_cast<int>(inputPrimitives.size())) ? -1 : param.portIndex);
 
             // Handle input reorder
-            if (param.portIndex < inputPrimitives.size() && reorderedInputs[param.portIndex].empty()) {
+            if (param.portIndex < static_cast<int>(inputPrimitives.size()) && reorderedInputs[param.portIndex].empty()) {
                 // todo: add support for multiple reorders of the same input? (read as bfyx for one arg and yxfb for another)
                 if (param.format != cldnn::format::any) {
                     auto reorderPrimName = inputPrimitives[param.portIndex] + "_" + op->get_friendly_name() + Program::m_preCustomLayerTag;
@@ -149,11 +148,9 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
                         param.format,
                         DataTypeFromPrecision(op->get_input_element_type(param.portIndex)),
                         std::vector<float>(),
-                        cldnn::reorder_mean_mode::subtract,
-                        op->get_friendly_name());
+                        cldnn::reorder_mean_mode::subtract);
 
-                    p.AddPrimitive(preprocessPrim);
-                    p.AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(op), op);
+                    p.add_primitive(*op, preprocessPrim);
                     reorderedInputs[param.portIndex] = (reorderPrimName);
                 } else {
                     reorderedInputs[param.portIndex] = inputPrimitives[param.portIndex];
@@ -165,7 +162,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
             kernelParameters.resize(kernelParameters.size() > size_t(param.paramIndex + 1) ? kernelParameters.size() : size_t(param.paramIndex + 1));
             kernelParameters[param.paramIndex].type = cldnn::custom_gpu_primitive::arg_output;
             kernelParameters[param.paramIndex].index =
-                static_cast<cldnn::custom_gpu_primitive::arg_index>((param.portIndex >= inputPrimitives.size()) ? -1 : param.portIndex);
+                static_cast<cldnn::custom_gpu_primitive::arg_index>((param.portIndex >= static_cast<int>(inputPrimitives.size())) ? -1 : param.portIndex);
             outputFormat = param.format;
             break;
         }
@@ -193,7 +190,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
     int featureDim = outputTensor.feature[0];
     int yDim = outputTensor.spatial[1];
     int xDim = outputTensor.spatial[0];
-    int iidx = customLayer->InputDimSourceIndex();
+    size_t iidx = customLayer->InputDimSourceIndex();
 
     std::string genericLayerName = layer_type_name_ID(op);
     // if input index is greater than -1, take dimension from input
@@ -234,29 +231,22 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
                                                   customLayer->CompilerOptions(),
                                                   outputLayout,
                                                   gws,
-                                                  lws,
-                                                  op->get_friendly_name());
+                                                  lws);
 
     auto prevLayerName = genericLayerName;
     if (outputLayout.format != cldnn::format::any) {
         // Handle output reorder
         auto reorderPrimName = genericLayerName + Program::m_postCustomLayerTag;
-        p.AddPrimitive(
-            cldnn::reorder(reorderPrimName,
-                           genericLayerName,
-                           DefaultFormatForDims(op->get_output_shape(0).size()),
-                           customPrim.output_layout.data_type,
-                           std::vector<float>(),
-                           cldnn::reorder_mean_mode::subtract,
-                           op->get_friendly_name()));
+        p.add_primitive(*op, cldnn::reorder(reorderPrimName,
+                                            genericLayerName,
+                                            cldnn::format::get_default_format(op->get_output_shape(0).size()),
+                                            customPrim.output_layout.data_type,
+                                            std::vector<float>(),
+                                            cldnn::reorder_mean_mode::subtract));
         prevLayerName = reorderPrimName;
-        p.AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(op), op);
     }
-    p.AddPrimitive(customPrim);
-    p.AddPrimitiveToProfiler(genericLayerName, op);
-    p.primitiveIDs[genericLayerName] = prevLayerName;
+    p.add_primitive(*op, customPrim);
 }
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

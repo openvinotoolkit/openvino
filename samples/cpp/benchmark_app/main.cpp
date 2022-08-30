@@ -56,9 +56,9 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
     if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency" &&
-        FLAGS_hint != "none") {
+        FLAGS_hint != "cumulative_throughput" && FLAGS_hint != "ctput" && FLAGS_hint != "none") {
         throw std::logic_error("Incorrect performance hint. Please set -hint option to"
-                               "`throughput`(tput), `latency' value or 'none'.");
+                               "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value or 'none'.");
     }
     if (!FLAGS_report_type.empty() && FLAGS_report_type != noCntReport && FLAGS_report_type != averageCntReport &&
         FLAGS_report_type != detailedCntReport) {
@@ -88,7 +88,7 @@ static void next_step(const std::string additional_info = "") {
     static size_t step_id = 0;
     static const std::map<size_t, std::string> step_names = {
         {1, "Parsing and validating input arguments"},
-        {2, "Loading Inference Engine"},
+        {2, "Loading OpenVINO Runtime"},
         {3, "Setting device configuration"},
         {4, "Reading network files"},
         {5, "Resizing network to match image sizes and given batch"},
@@ -100,8 +100,12 @@ static void next_step(const std::string additional_info = "") {
         {11, "Dumping statistics report"}};
 
     step_id++;
-    if (step_names.count(step_id) == 0)
-        IE_THROW() << "Step ID " << step_id << " is out of total steps number " << step_names.size();
+
+    OPENVINO_ASSERT(step_names.count(step_id) != 0,
+                    "Step ID ",
+                    step_id,
+                    " is out of total steps number ",
+                    step_names.size());
 
     std::cout << "[Step " << step_id << "/" << step_names.size() << "] " << step_names.at(step_id)
               << (additional_info.empty() ? "" : " (" + additional_info + ")") << std::endl;
@@ -119,6 +123,9 @@ ov::hint::PerformanceMode get_performance_hint(const std::string& device, const 
             } else if (FLAGS_hint == "latency") {
                 slog::warn << "Device(" << device << ") performance hint is set to LATENCY" << slog::endl;
                 ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
+            } else if (FLAGS_hint == "cumulative_throughput" || FLAGS_hint == "ctput") {
+                slog::warn << "Device(" << device << ") performance hint is set to CUMULATIVE_THROUGHPUT" << slog::endl;
+                ov_perf_hint = ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
             } else if (FLAGS_hint == "none") {
                 slog::warn << "No device(" << device << ") performance hint is set" << slog::endl;
                 ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
@@ -203,16 +210,16 @@ int main(int argc, char* argv[]) {
         /** This vector stores paths to the processed images with input names**/
         auto inputFiles = parse_input_arguments(gflags::GetArgvs());
 
-        // ----------------- 2. Loading the Inference Engine
+        // ----------------- 2. Loading the OpenVINO Runtime
         // -----------------------------------------------------------
         next_step();
 
         ov::Core core;
 
-        if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
-            // CPU (MKLDNN) extensions is loaded as a shared library
-            core.add_extension(FLAGS_l);
-            slog::info << "CPU (MKLDNN) extensions is loaded " << FLAGS_l << slog::endl;
+        if (!FLAGS_extensions.empty()) {
+            // Extensions are loaded as a shared library
+            core.add_extension(FLAGS_extensions);
+            slog::info << "Extensions are loaded: " << FLAGS_extensions << slog::endl;
         }
 
         // Load clDNN Extensions
@@ -225,7 +232,7 @@ int main(int argc, char* argv[]) {
         if (config.count("GPU") && config.at("GPU").count(CONFIG_KEY(CONFIG_FILE))) {
             auto ext = config.at("GPU").at(CONFIG_KEY(CONFIG_FILE)).as<std::string>();
             core.set_property("GPU", {{CONFIG_KEY(CONFIG_FILE), ext}});
-            slog::info << "GPU extensions is loaded " << ext << slog::endl;
+            slog::info << "GPU extensions are loaded: " << ext << slog::endl;
         }
 
         slog::info << "OpenVINO: " << ov::get_openvino_version() << slog::endl;
@@ -389,6 +396,7 @@ int main(int argc, char* argv[]) {
             } else if (device.find("GPU") != std::string::npos) {
                 // for GPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();
+                set_infer_precision();
 
                 if ((device_name.find("MULTI") != std::string::npos) &&
                     (device_name.find("CPU") != std::string::npos)) {
@@ -437,6 +445,9 @@ int main(int argc, char* argv[]) {
             compiledModel = core.compile_model(FLAGS_m, device_name);
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Original network I/O parameters:" << slog::endl;
+            printInputAndOutputsInfoShort(compiledModel);
+
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
@@ -466,6 +477,9 @@ int main(int argc, char* argv[]) {
             auto model = core.read_model(FLAGS_m);
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Read network took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Original network I/O parameters:" << slog::endl;
+            printInputAndOutputsInfoShort(*model);
+
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
@@ -478,6 +492,12 @@ int main(int argc, char* argv[]) {
 
             // ----------------- 5. Resizing network to match image sizes and given
             // batch ----------------------------------
+            for (auto& item : model->inputs()) {
+                if (item.get_tensor().get_names().empty()) {
+                    item.get_tensor_ptr()->set_names(
+                        std::unordered_set<std::string>{item.get_node_shared_ptr()->get_name()});
+                }
+            }
             next_step();
             convert_io_names_in_map(inputFiles, std::const_pointer_cast<const ov::Model>(model)->inputs());
             // Parse input shapes if specified
@@ -633,6 +653,9 @@ int main(int argc, char* argv[]) {
 
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Import network took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Original network I/O paramteters:" << slog::endl;
+            printInputAndOutputsInfoShort(compiledModel);
+
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
@@ -706,9 +729,10 @@ int main(int argc, char* argv[]) {
                 try {
                     nireq = compiledModel.get_property(ov::optimal_number_of_infer_requests);
                 } catch (const std::exception& ex) {
-                    IE_THROW() << "Every device used with the benchmark_app should "
-                               << "support " << ov::optimal_number_of_infer_requests.name()
-                               << " Failed to query the metric for the " << device_name << " with error:" << ex.what();
+                    throw ov::Exception("Every device used with the benchmark_app should support " +
+                                        std::string(ov::optimal_number_of_infer_requests.name()) +
+                                        " Failed to query the metric for the " + device_name +
+                                        " with error:" + ex.what());
                 }
             }
         }
@@ -806,7 +830,7 @@ int main(int argc, char* argv[]) {
                         nireq);
                 }
             } else {
-                IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
+                throw ov::Exception("Requested device doesn't support `use_device_mem` option.");
             }
         } else {
             if (newInputType) {
@@ -904,7 +928,7 @@ int main(int argc, char* argv[]) {
         // warming up - out of scope
         auto inferRequest = inferRequestsQueue.get_idle_request();
         if (!inferRequest) {
-            IE_THROW() << "No idle Infer Requests!";
+            throw ov::Exception("No idle Infer Requests!");
         }
 
         if (!inferenceOnly) {
@@ -956,7 +980,7 @@ int main(int argc, char* argv[]) {
                (FLAGS_api == "async" && iteration % nireq != 0)) {
             inferRequest = inferRequestsQueue.get_idle_request();
             if (!inferRequest) {
-                IE_THROW() << "No idle Infer Requests!";
+                throw ov::Exception("No idle Infer Requests!");
             }
 
             if (!inferenceOnly) {
@@ -1089,14 +1113,12 @@ int main(int argc, char* argv[]) {
 
         if (!FLAGS_dump_config.empty()) {
             dump_config(FLAGS_dump_config, config);
-            slog::info << "Inference Engine configuration settings were dumped to " << FLAGS_dump_config << slog::endl;
+            slog::info << "OpenVINO Runtime configuration settings were dumped to " << FLAGS_dump_config << slog::endl;
         }
 
         if (!FLAGS_exec_graph_path.empty()) {
             try {
-                std::string fileName = fileNameNoExt(FLAGS_exec_graph_path);
-                ov::pass::Serialize serializer(fileName + ".xml", fileName + ".bin");
-                serializer.run_on_model(std::const_pointer_cast<ov::Model>(compiledModel.get_runtime_model()));
+                ov::serialize(compiledModel.get_runtime_model(), FLAGS_exec_graph_path);
                 slog::info << "executable graph is stored to " << FLAGS_exec_graph_path << slog::endl;
             } catch (const std::exception& ex) {
                 slog::err << "Can't get executable graph: " << ex.what() << slog::endl;

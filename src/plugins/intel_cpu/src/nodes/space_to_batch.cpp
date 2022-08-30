@@ -5,7 +5,7 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "ie_parallel.hpp"
 #include "utils/bfloat16.hpp"
 #include <selective_build.h>
@@ -13,10 +13,13 @@
 #include <nodes/common/blocked_desc_creator.h>
 #include <ngraph/opsets/opset2.hpp>
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNSpaceToBatchNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool SpaceToBatch::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto spaceToBatch = std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(op);
         if (!spaceToBatch) {
@@ -35,8 +38,8 @@ bool MKLDNNSpaceToBatchNode::isSupportedOperation(const std::shared_ptr<const ng
     return true;
 }
 
-MKLDNNSpaceToBatchNode::MKLDNNSpaceToBatchNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+SpaceToBatch::SpaceToBatch(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -57,7 +60,7 @@ MKLDNNSpaceToBatchNode::MKLDNNSpaceToBatchNode(const std::shared_ptr<ngraph::Nod
     padsBeginIn = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<size_t>();
 }
 
-void MKLDNNSpaceToBatchNode::initSupportedPrimitiveDescriptors() {
+void SpaceToBatch::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -97,8 +100,8 @@ void MKLDNNSpaceToBatchNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-std::vector<VectorDims> MKLDNNSpaceToBatchNode::shapeInfer() const {
-    return MKLDNNNode::shapeInferGeneric(PortMask(1, 2, 3));
+std::vector<VectorDims> SpaceToBatch::shapeInfer() const {
+    return Node::shapeInferGeneric(PortMask(1, 2, 3));
 }
 
 static std::vector<size_t> getShape5D(const SizeVector &shape) {
@@ -112,7 +115,7 @@ static std::vector<size_t> getShape5D(const SizeVector &shape) {
 }
 
 template<typename T>
-void MKLDNNSpaceToBatchNode::SpaceToBatchKernel() {
+void SpaceToBatch::SpaceToBatchKernel() {
     const auto *srcData = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
@@ -233,11 +236,11 @@ void MKLDNNSpaceToBatchNode::SpaceToBatchKernel() {
     });
 }
 
-void MKLDNNSpaceToBatchNode::executeDynamicImpl(mkldnn::stream strm) {
+void SpaceToBatch::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNSpaceToBatchNode::execute(mkldnn::stream strm) {
+void SpaceToBatch::execute(dnnl::stream strm) {
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision().size()) {
         case 1: SpaceToBatchKernel<PrecisionTrait<Precision::U8>::value_type>();  break;
         case 2: SpaceToBatchKernel<PrecisionTrait<Precision::U16>::value_type>(); break;
@@ -248,8 +251,10 @@ void MKLDNNSpaceToBatchNode::execute(mkldnn::stream strm) {
     }
 }
 
-bool MKLDNNSpaceToBatchNode::created() const {
-    return getType() == SpaceToBatch;
+bool SpaceToBatch::created() const {
+    return getType() == Type::SpaceToBatch;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNSpaceToBatchNode, SpaceToBatch)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

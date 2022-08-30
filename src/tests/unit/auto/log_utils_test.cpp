@@ -85,6 +85,29 @@ TEST_P(LogUtilsTest, setLogLevel) {
     printLog();
 }
 
+TEST_P(LogUtilsTest, INFO_RUN) {
+    setLogLevel(_logLevel);
+    int a = 0;
+    INFO_RUN([&a](){a++;});
+    if (_logLevel == "LOG_INFO" || _logLevel == "LOG_DEBUG" ||
+            _logLevel == "LOG_TRACE") {
+        EXPECT_EQ(a, 1);
+    } else {
+        EXPECT_EQ(a, 0);
+    }
+}
+
+TEST_P(LogUtilsTest, DEBUG_RUN) {
+    setLogLevel(_logLevel);
+    int a = 0;
+    DEBUG_RUN([&a](){a++;});
+    if (_logLevel == "LOG_DEBUG" || _logLevel == "LOG_TRACE") {
+        EXPECT_EQ(a, 1);
+    } else {
+        EXPECT_EQ(a, 0);
+    }
+}
+
 #if 0
 TEST_P(LogUtilsTest, setEnvNotAffectSetLogLevel) {
     EXPECT_CALL(*(HLogger), print(_)).Times(_expectCallNum);

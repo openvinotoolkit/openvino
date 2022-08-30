@@ -48,11 +48,11 @@ bool ConvolutionKernel_b_fs_yx_fsv16_depthwise::Validate(const Params& p, const 
     if (cp.groups == 1)
         return false;
 
-    if (cp.inputs[0].Feature().v != cp.groups || cp.output.Feature().v != cp.groups)
+    if (cp.inputs[0].Feature().v != cp.groups || cp.outputs[0].Feature().v != cp.groups)
         return false;
 
     // Check that padding features doesn't miss-align the blocks
-    if (cp.inputs[0].Feature().pad.before % feature_block_size != 0 || cp.output.Feature().pad.before % feature_block_size != 0)
+    if (cp.inputs[0].Feature().pad.before % feature_block_size != 0 || cp.outputs[0].Feature().pad.before % feature_block_size != 0)
         return false;
 
     return true;
@@ -61,7 +61,7 @@ bool ConvolutionKernel_b_fs_yx_fsv16_depthwise::Validate(const Params& p, const 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_depthwise::SetDefault(const convolution_params& params,
                                                                                           int) const {
     DispatchData dispatchData = Parent::SetDefault(params);
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
 
     dispatchData.gws[0] = CeilDiv(out.X().v, x_block_size) * out.Y().v;
     dispatchData.gws[1] = Align(out.Feature().v, feature_block_size);
@@ -77,7 +77,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_depthwise::S
 KernelsPriority ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
-    return p.output.Batch().v == 1 ? FORCE_PRIORITY_1 : FORCE_PRIORITY_7;
+    return p.outputs[0].Batch().v == 1 ? FORCE_PRIORITY_1 : FORCE_PRIORITY_7;
 }
 
 JitConstants ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetJitConstants(const convolution_params& params,
@@ -109,10 +109,10 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetJitConstants(const co
     }
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
-    jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(params.output.X().v, block_width)));
+    jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(params.outputs[0].X().v, block_width)));
     jit.AddConstant(MakeJitConstant("IC_BLOCK", feature_block_size));
     jit.AddConstant(MakeJitConstant("FILTER_SIZE_X_DIV_2", params.filterSize.x / 2));
-    if (params.output.Feature().v % feature_block_size != 0) {
+    if (params.outputs[0].Feature().v % feature_block_size != 0) {
         jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", 1));
     }
 

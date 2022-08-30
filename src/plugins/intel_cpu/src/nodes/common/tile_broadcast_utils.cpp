@@ -10,7 +10,9 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace InferenceEngine;
-using namespace ov::intel_cpu;
+
+namespace ov {
+namespace intel_cpu {
 
 VectorDims TileBroadcastCommon::calculateDenseStrides(const VectorDims &dims) {
     VectorDims strides(dims.size(), 1);
@@ -87,10 +89,10 @@ bool TileBroadcastCommon::canBeExecutedInNSPCLayout(VectorDims srcBlockedDims, V
     return optimizedDims.size() <= maxNDims;
 }
 
-std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const MKLDNNNode *node) {
+std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node *node) {
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     auto precision = node->getOriginalInputPrecisionAtPort(0);
-    auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
+    auto dataType = DnnlExtensionUtils::IEPrecisionToDataType(precision);
 
     const auto& srcDims = node->getInputShapeAtPort(0).getDims();
     const auto& inDataShape = node->getInputShapeAtPort(0);
@@ -116,7 +118,7 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const MKLDNNNode 
 
     config.outConfs.resize(node->getChildEdges().size());
 
-    auto pushDesc = [&](mkldnn::memory::format_tag inFormat, mkldnn::memory::format_tag outFormat) {
+    auto pushDesc = [&](dnnl::memory::format_tag inFormat, dnnl::memory::format_tag outFormat) {
         config.inConfs[0].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(node->getInputShapeAtPort(0), dataType, inFormat));
         for (int i = 0; i < config.outConfs.size(); i++) {
             config.outConfs[i].inPlace(-1);
@@ -129,30 +131,30 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const MKLDNNNode 
     if (!repeats.empty() && inDataShape.getRank() == outDataShapeRank && (outDataShapeRank == 4 || outDataShapeRank == 5)) {
         if (canBeExecutedInBlockedLayout(srcDims, repeats, 16)) {
             if (outDataShapeRank == 4) {
-                pushDesc(mkldnn::memory::format_tag::nChw16c, mkldnn::memory::format_tag::nChw16c);
+                pushDesc(dnnl::memory::format_tag::nChw16c, dnnl::memory::format_tag::nChw16c);
             } else {
-                pushDesc(mkldnn::memory::format_tag::nCdhw16c, mkldnn::memory::format_tag::nCdhw16c);
+                pushDesc(dnnl::memory::format_tag::nCdhw16c, dnnl::memory::format_tag::nCdhw16c);
             }
         }
         if (canBeExecutedInBlockedLayout(srcDims, repeats, 8)) {
             if (outDataShapeRank == 4) {
-                pushDesc(mkldnn::memory::format_tag::nChw8c, mkldnn::memory::format_tag::nChw8c);
+                pushDesc(dnnl::memory::format_tag::nChw8c, dnnl::memory::format_tag::nChw8c);
             } else {
-                pushDesc(mkldnn::memory::format_tag::nCdhw8c, mkldnn::memory::format_tag::nCdhw8c);
+                pushDesc(dnnl::memory::format_tag::nCdhw8c, dnnl::memory::format_tag::nCdhw8c);
             }
         }
         if (canBeExecutedInNSPCLayout(srcDims, repeats)) {
             if (outDataShapeRank == 4) {
-                pushDesc(mkldnn::memory::format_tag::nhwc, mkldnn::memory::format_tag::nhwc);
+                pushDesc(dnnl::memory::format_tag::nhwc, dnnl::memory::format_tag::nhwc);
             } else {
-                pushDesc(mkldnn::memory::format_tag::ndhwc, mkldnn::memory::format_tag::ndhwc);
+                pushDesc(dnnl::memory::format_tag::ndhwc, dnnl::memory::format_tag::ndhwc);
             }
         }
     }
 
-    auto inFmt = MKLDNNExtensionUtils::GetPlainFormatByRank(inDataShape.getRank());
-    auto outFmt = MKLDNNExtensionUtils::GetPlainFormatByRank(outDataShapeRank);
-    if (inFmt == mkldnn::memory::format_tag::undef || outFmt == mkldnn::memory::format_tag::undef) {
+    auto inFmt = DnnlExtensionUtils::GetPlainFormatByRank(inDataShape.getRank());
+    auto outFmt = DnnlExtensionUtils::GetPlainFormatByRank(outDataShapeRank);
+    if (inFmt == dnnl::memory::format_tag::undef || outFmt == dnnl::memory::format_tag::undef) {
         config.inConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(precision, node->getInputShapeAtPort(0)));
         for (int i = 0; i < config.outConfs.size(); i++) {
             config.outConfs[i].inPlace(-1);
@@ -167,7 +169,7 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const MKLDNNNode 
     return supportedPrimitiveDescriptors;
 }
 
-bool TileBroadcastCommon::prepareOptimizedParams(const MKLDNNNode *node, VectorDims& srcBlockedDims, VectorDims& dstBlockedDims) {
+bool TileBroadcastCommon::prepareOptimizedParams(const Node *node, VectorDims& srcBlockedDims, VectorDims& dstBlockedDims) {
     while (srcBlockedDims.size() < dstBlockedDims.size()) {
         srcBlockedDims.insert(srcBlockedDims.begin(), 1);
     }
@@ -244,7 +246,7 @@ void TileBroadcastCommon::broadcastScalar(const char *srcData, char *dstData, si
     }
 }
 
-void TileBroadcastCommon::optimizedExecute(const MKLDNNMemoryPtr& srcMemory, const MKLDNNMemoryPtr& dstMemory) {
+void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory, const MemoryPtr& dstMemory) {
     auto srcData = reinterpret_cast<const char *>(srcMemory->GetPtr());
     auto dstData = reinterpret_cast<char *>(dstMemory->GetPtr());
 
@@ -287,3 +289,6 @@ void TileBroadcastCommon::optimizedExecute(const MKLDNNMemoryPtr& srcMemory, con
         });
     }
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

@@ -6,15 +6,19 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace pass {
 
 /**
  * @brief Removes reshapes before MaxPool which do nothing. Such reshapes can be a result of conversion from IR10 to IR7.
  */
 class RemoveExtraReshapes : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("RemoveExtraReshapes", "0");
   RemoveExtraReshapes();
 };
 
-} // namespace GNAPluginNS
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov

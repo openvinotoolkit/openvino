@@ -23,6 +23,6 @@ class TRANSFORMATIONS_API SubtractFusion;
  */
 class ngraph::pass::SubtractFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SubtractFusion", "0");
     SubtractFusion();
 };

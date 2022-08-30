@@ -6,7 +6,10 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace pass {
+
 
 /**
  * @brief Inserts Transpose before MatMul or removes it (if it exists)
@@ -29,7 +32,7 @@ namespace GNAPluginNS {
  */
 class HandleTransposeBeforeMatMul : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("HandleTransposeBeforeMatMul", "0");
   HandleTransposeBeforeMatMul();
 };
 
@@ -58,14 +61,17 @@ public:
  */
 class HandleTransposeAfterMatMul: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("HandleTransposeAfterMatMul", "0");
     HandleTransposeAfterMatMul();
 };
 
 class HandleTransposesAroundMatMul : public ngraph::pass::GraphRewrite {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("HandleTransposesAroundMatMul", "0");
   HandleTransposesAroundMatMul();
 };
 
-} // namespace GNAPluginNS
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov
+

@@ -5,7 +5,7 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "ie_parallel.hpp"
 #include "gather_nd.h"
 #include <ngraph/opsets/opset8.hpp>
@@ -13,14 +13,17 @@
 #include <utils/general_utils.h>
 #include "common/cpu_memcpy.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
 #define THROW_ERROR IE_THROW() << "GatherND layer with name '" << getName() << "' "
 
-bool MKLDNNGatherNDNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool GatherND::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::intel_cpu::one_of(op->get_type_info(), ngraph::op::v5::GatherND::get_type_info_static(), ngraph::op::v8::GatherND::get_type_info_static())) {
+        if (!one_of(op->get_type_info(), ngraph::op::v5::GatherND::get_type_info_static(), ngraph::op::v8::GatherND::get_type_info_static())) {
             errorMessage = "Node is not an instance of the GatherND operation from operation set v5 and v8.";
             return false;
         }
@@ -31,8 +34,8 @@ bool MKLDNNGatherNDNode::isSupportedOperation(const std::shared_ptr<const ngraph
     return true;
 }
 
-MKLDNNGatherNDNode::MKLDNNGatherNDNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+GatherND::GatherND(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -55,22 +58,22 @@ MKLDNNGatherNDNode::MKLDNNGatherNDNode(const std::shared_ptr<ngraph::Node>& op, 
         THROW_ERROR << "has invalid batch_dims attribute: " << attrs.batchDims;
 }
 
-void MKLDNNGatherNDNode::initSupportedPrimitiveDescriptors() {
+void GatherND::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
     Precision inDataPrecision = getOriginalInputPrecisionAtPort(GATHERND_DATA);
-    if (!ov::intel_cpu::one_of(inDataPrecision.size(),
-                              sizeof(PrecisionTrait<Precision::I32>::value_type),
-                              sizeof(PrecisionTrait<Precision::I16>::value_type),
-                              sizeof(PrecisionTrait<Precision::I8>::value_type))) {
+    if (!one_of(inDataPrecision.size(),
+                sizeof(PrecisionTrait<Precision::I32>::value_type),
+                sizeof(PrecisionTrait<Precision::I16>::value_type),
+                sizeof(PrecisionTrait<Precision::I8>::value_type))) {
         THROW_ERROR << "has unsupported 'data' input precision: " << inDataPrecision;
     }
     attrs.dataSize = inDataPrecision.size();
 
     Precision indicesPrecision = getOriginalInputPrecisionAtPort(GATHERND_INDEXES);
-    if (!ov::intel_cpu::one_of(indicesPrecision,
-                              Precision::I32, Precision::I64, Precision::I16, Precision::U16, Precision::I8, Precision::U8)) {
+    if (!one_of(indicesPrecision,
+                Precision::I32, Precision::I64, Precision::I16, Precision::U16, Precision::I8, Precision::U8)) {
         THROW_ERROR << "has unsupported 'indices' input precision: " << indicesPrecision;
     }
 
@@ -80,7 +83,7 @@ void MKLDNNGatherNDNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNGatherNDNode::prepareParams() {
+void GatherND::prepareParams() {
     auto& srcMemPtr = getParentEdgeAt(GATHERND_DATA)->getMemoryPtr();
     auto& idxMemPtr = getParentEdgeAt(GATHERND_INDEXES)->getMemoryPtr();
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
@@ -100,7 +103,7 @@ void MKLDNNGatherNDNode::prepareParams() {
     execPtr = std::make_shared<GatherNDExecutor>(attrs);
 }
 
-MKLDNNGatherNDNode::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs) : dataSize(attrs.dataSize), sliceRank(attrs.sliceRank) {
+GatherND::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs) : dataSize(attrs.dataSize), sliceRank(attrs.sliceRank) {
     batchSize = std::accumulate(attrs.srcDims.begin(), attrs.srcDims.begin() + attrs.batchDims, 1lu, std::multiplies<size_t>());
     dataLength = std::accumulate(attrs.srcDims.begin() + sliceRank + attrs.batchDims, attrs.srcDims.end(), 1lu,
                                  std::multiplies<size_t>());
@@ -124,7 +127,7 @@ MKLDNNGatherNDNode::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes&
     }
 }
 
-void MKLDNNGatherNDNode::execute(mkldnn::stream strm) {
+void GatherND::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_ERROR << "has not compiled executor.";
 
@@ -133,7 +136,7 @@ void MKLDNNGatherNDNode::execute(mkldnn::stream strm) {
                   getChildEdgeAt(0)->getMemoryPtr());
 }
 
-void MKLDNNGatherNDNode::GatherNDExecutor::exec(const MKLDNNMemoryPtr& srcMemPtr, const MKLDNNMemoryPtr& idxMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+void GatherND::GatherNDExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, MemoryPtr& dstMemPtr) {
     if (dataLength > 1) {
         gatherBlocks(srcMemPtr, idxMemPtr, dstMemPtr);
         return;
@@ -146,7 +149,7 @@ void MKLDNNGatherNDNode::GatherNDExecutor::exec(const MKLDNNMemoryPtr& srcMemPtr
               OV_CASE(sizeof(PrecisionTrait<Precision::I8>::value_type), PrecisionTrait<Precision::I8>::value_type));
 }
 
-void MKLDNNGatherNDNode::GatherNDExecutor::gatherBlocks(const MKLDNNMemoryPtr& srcMemPtr, const MKLDNNMemoryPtr& idxMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, MemoryPtr& dstMemPtr) {
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
     const int32_t* indices = reinterpret_cast<const int32_t*>(idxMemPtr->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
@@ -183,7 +186,7 @@ void MKLDNNGatherNDNode::GatherNDExecutor::gatherBlocks(const MKLDNNMemoryPtr& s
 }
 
 template <typename dataType>
-void MKLDNNGatherNDNode::GatherNDExecutor::gatherElementwise(const MKLDNNMemoryPtr& srcMemPtr, const MKLDNNMemoryPtr& idxMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, MemoryPtr& dstMemPtr) {
     const dataType* srcData = reinterpret_cast<const dataType*>(srcMemPtr->GetPtr());
     const int32_t* indices = reinterpret_cast<const int32_t*>(idxMemPtr->GetPtr());
     dataType* dstData = reinterpret_cast<dataType*>(dstMemPtr->GetPtr());
@@ -219,12 +222,14 @@ void MKLDNNGatherNDNode::GatherNDExecutor::gatherElementwise(const MKLDNNMemoryP
     });
 }
 
-void MKLDNNGatherNDNode::executeDynamicImpl(mkldnn::stream strm) {
+void GatherND::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-bool MKLDNNGatherNDNode::created() const {
-    return getType() == GatherND;
+bool GatherND::created() const {
+    return getType() == Type::GatherND;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNGatherNDNode, GatherND)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

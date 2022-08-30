@@ -12,8 +12,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::FullyConnectedBiasFusion, "FullyConnectedBiasFusion", 0);
-
 ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
     auto m_fc = ngraph::pattern::wrap_type<op::FullyConnected>([](Output<Node> output) {
         return pattern::consumers_count(1)(output) &&

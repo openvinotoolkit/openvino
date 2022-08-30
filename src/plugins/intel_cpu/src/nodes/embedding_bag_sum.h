@@ -12,10 +12,11 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNEmbeddingBagSumNode {
+class EmbeddingBagSum {
 public:
-    MKLDNNEmbeddingBagSumNode(
+    EmbeddingBagSum(
             const std::shared_ptr<ngraph::Node>&,
             size_t requiredInputsNum,
             size_t indicesIdx,
@@ -25,7 +26,7 @@ public:
     void execute(const uint8_t* srcData, const uint8_t* weightsData, uint8_t* dstData, const InferenceEngine::Precision &srcPrc,
                  const InferenceEngine::SizeVector& inDims, const InferenceEngine::SizeVector& outDims);
 
-    ~MKLDNNEmbeddingBagSumNode() = default;
+    ~EmbeddingBagSum() = default;
 
 protected:
     virtual void initFromInputs() = 0;
@@ -52,5 +53,6 @@ protected:
     std::string _layerName;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

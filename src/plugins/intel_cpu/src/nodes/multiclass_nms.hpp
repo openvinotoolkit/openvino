@@ -11,6 +11,7 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 enum class MulticlassNmsSortResultType {
     CLASSID,  // sort selected boxes by class id (ascending) in each batch element
@@ -18,19 +19,19 @@ enum class MulticlassNmsSortResultType {
     NONE      // do not guarantee the order in each batch element
 };
 
-class MKLDNNMultiClassNmsNode : public MKLDNNNode {
+class MultiClassNms : public Node {
 public:
-    MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr& cache);
+    MultiClassNms(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
     bool isExecutable() const override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     bool needShapeInfer() const override { return false; }
     void prepareParams() override;
@@ -39,6 +40,7 @@ private:
     // input (port Num)
     const size_t NMS_BOXES = 0;
     const size_t NMS_SCORES = 1;
+    const size_t NMS_ROISNUM = 2;
 
     // output (port Num)
     const size_t NMS_SELECTEDOUTPUTS = 0;
@@ -65,7 +67,7 @@ private:
 
     std::string m_errorPrefix;
 
-    std::vector<std::vector<size_t>> m_numFiltBox;
+    std::vector<std::vector<size_t>> m_numFiltBox; // number of rois after nms for each class in each image
     std::vector<size_t> m_numBoxOffset;
     const std::string m_inType = "input", m_outType = "output";
 
@@ -85,18 +87,29 @@ private:
         int suppress_begin_index;
     };
 
-    std::vector<filteredBoxes> m_filtBoxes;
+    std::vector<filteredBoxes> m_filtBoxes; // rois after nms for each class in each image
 
     void checkPrecision(const InferenceEngine::Precision prec, const std::vector<InferenceEngine::Precision> precList, const std::string name,
                         const std::string type);
 
     float intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized);
 
-    void nmsWithEta(const float* boxes, const float* scores, const InferenceEngine::SizeVector& boxesStrides, const InferenceEngine::SizeVector& scoresStrides);
+    void nmsWithEta(const float* boxes, const float* scores, const int* roisnum, const InferenceEngine::SizeVector& boxesStrides,
+                    const InferenceEngine::SizeVector& scoresStrides, const InferenceEngine::SizeVector& roisnumStrides, const bool shared);
 
-    void nmsWithoutEta(const float* boxes, const float* scores, const InferenceEngine::SizeVector& boxesStrides,
-                       const InferenceEngine::SizeVector& scoresStrides);
+    void nmsWithoutEta(const float* boxes, const float* scores, const int* roisnum, const InferenceEngine::SizeVector& boxesStrides,
+                       const InferenceEngine::SizeVector& scoresStrides, const InferenceEngine::SizeVector& roisnumStrides, const bool shared);
+
+    const float* slice_class(const int batch_idx,
+                            const int class_idx,
+                            const float* dataPtr,
+                            const InferenceEngine::SizeVector& dataStrides,
+                            const bool is_boxes,
+                            const int* roisnum,
+                            const InferenceEngine::SizeVector& roisnumStrides,
+                            const bool shared);
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

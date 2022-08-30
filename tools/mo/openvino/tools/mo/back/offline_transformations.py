@@ -54,7 +54,8 @@ def apply_offline_transformations(input_model: str, argv: argparse.Namespace):
     # to produce correct mapping
     extract_names = argv.framework in ['tf', 'mxnet', 'kaldi']
 
-    from openvino.offline_transformations import generate_mapping_file, serialize  # pylint: disable=import-error,no-name-in-module
+    from openvino.runtime import serialize # pylint: disable=import-error,no-name-in-module
+    from openvino.offline_transformations import generate_mapping_file # pylint: disable=import-error,no-name-in-module
     from openvino.frontend import FrontEndManager  # pylint: disable=no-name-in-module,import-error
     from openvino.tools.mo.back.preprocessing import apply_preprocessing  # pylint: disable=no-name-in-module,import-error
 
@@ -70,29 +71,8 @@ def apply_offline_transformations(input_model: str, argv: argparse.Namespace):
 
     func = read_model(input_model + "_tmp.xml")
 
-    # TODO: use ngraph preprocessing (Mean/Scale/ReverseInputChannels) for legacy frontends
-    reverse_input_channels = False
-    if 'reverse_input_channels' in argv:
-        reverse_input_channels = argv.reverse_input_channels
-        argv.reverse_input_channels = False
-    mean_scale_values = {}
-    if 'mean_scale_values' in argv:
-        mean_scale_values = argv.mean_scale_values
-        argv.mean_scale_values = {}
-    scale = None
-    if 'scale' in argv:
-        scale = argv.scale
-        argv.scale = None
-
-    # Apply preprocessing for layouts only
+    # Apply preprocessing (mean/scale/reverse_channels/convert_layout/etc)
     apply_preprocessing(ov_function=func, argv=argv)
-
-    if 'reverse_input_channels' in argv:
-        argv.reverse_input_channels = reverse_input_channels
-    if 'mean_scale_values' in argv:
-        argv.mean_scale_values = mean_scale_values
-    if 'scale' in argv:
-        argv.scale = scale
 
     apply_moc_transformations(func)
 

@@ -179,7 +179,7 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
              loadCount, loadSuccessCount) = this->GetParam();
 
     // test auto plugin
-    config.insert({CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO), InferenceEngine::PluginConfigParams::YES});
+    plugin->SetName("AUTO");
     std::string devicesStr = "";
     int selDevsSize = deviceConfigs.size();
     for (auto iter = deviceConfigs.begin(); iter != deviceConfigs.end(); selDevsSize--) {
@@ -203,7 +203,8 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
                 break;
             case LATENCY:
                 devInfo = {deviceName, {{CONFIG_KEY(PERFORMANCE_HINT),
-                    InferenceEngine::PluginConfigParams::LATENCY}}, 2, ""};
+                    InferenceEngine::PluginConfigParams::LATENCY}, {CONFIG_KEY(ALLOW_AUTO_BATCHING), "YES"}, {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "1000"}},
+                    2, ""};
                 break;
             case THROUGHPUT:
                 devInfo = {deviceName, {{CONFIG_KEY(PERFORMANCE_HINT),

@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API LogSoftmaxDecomposition;
  */
 class ngraph::pass::LogSoftmaxDecomposition : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("LogSoftmaxDecomposition", "0");
     LogSoftmaxDecomposition();
 };

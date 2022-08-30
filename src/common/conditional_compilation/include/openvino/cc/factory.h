@@ -3,7 +3,9 @@
 //
 
 #pragma once
+#include <cctype>
 #include <functional>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
@@ -57,6 +59,7 @@ public:
 
     template <openvino::itt::domain_t (*domain)(), typename Impl>
     void registerImpl(const Key& key, const char* typeName) {
+        validate_type(typeName);
         const std::string task_name = "REG$" + name + "$" + to_string(key) + "$" + typeName;
         openvino::itt::ScopedTask<domain> task(openvino::itt::handle(task_name));
         builders[key] = [](Args... args) -> T {
@@ -109,6 +112,14 @@ public:
     }
 
 private:
+    void validate_type(const char* name) const {
+        for (const char* ch = name; *ch; ++ch) {
+            if (!std::isalnum(*ch) && *ch != '_')
+                throw std::runtime_error(std::string("Invalid identifier name: '") + name +
+                                         "'. Allowed characters should be alphanumeric or '_'");
+        }
+    }
+
     const std::string& to_string(const std::string& str) const noexcept {
         return str;
     }

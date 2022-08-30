@@ -15,6 +15,7 @@
 #include <common_test_utils/test_common.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 
+#include "base/ov_behavior_test_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
@@ -30,13 +31,16 @@ protected:
 
 public:
     void SetUp() override {
-        fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
         deviceName = CommonTestUtils::DEVICE_GPU;
         auto with_auto_batching = this->GetParam();
         if (with_auto_batching) { // BATCH:GPU
-            deviceName = std::string(CommonTestUtils::DEVICE_BATCH) + ":" + deviceName;
-            config = {{CONFIG_KEY(ALLOW_AUTO_BATCHING), CONFIG_VALUE(YES)}};
-        }
+            config =
+                    {{CONFIG_KEY(PERFORMANCE_HINT) , CONFIG_VALUE(THROUGHPUT)},
+                            // immediate timeout to avoid increasing the test time
+                            {CONFIG_KEY(AUTO_BATCH_TIMEOUT) , "0"},
+                            };
+            }
+        fn_ptr = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(with_auto_batching ? CommonTestUtils::DEVICE_BATCH : deviceName);
     }
     static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
         auto with_auto_batch = obj.param;
@@ -55,7 +59,7 @@ TEST_P(RemoteBlob_Test, smoke_canInputUserBlob) {
 
     // TODO: Issue: investigate issue with IECore
     auto ie = InferenceEngine::Core();
-    auto exec_net = ie.LoadNetwork(net, deviceName);
+    auto exec_net = ie.LoadNetwork(net, deviceName, config);
 
     // regular inference
     auto inf_req_regular = exec_net.CreateInferRequest();
@@ -73,8 +77,10 @@ TEST_P(RemoteBlob_Test, smoke_canInputUserBlob) {
     auto ocl_instance = std::make_shared<OpenCL>(ctx);
     cl_int err;
 
-    auto dims = net.getInputsInfo().begin()->second->getTensorDesc().getDims();
-    size_t imSize = dims[1] * dims[2] * dims[3];
+    auto desc = net.getInputsInfo().begin()->second->getTensorDesc();
+    size_t imSize = std::accumulate(desc.getDims().begin(), desc.getDims().end(),
+                                    desc.getPrecision().size(),
+                                    std::multiplies<size_t>());
 
     cl::Buffer shared_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, imSize, NULL, &err);
     {
@@ -169,7 +175,7 @@ TEST_P(RemoteBlob_Test, smoke_canInputPluginRemoteBlob) {
 
     // TODO: Issue: investigate issue with IECore
     auto ie = InferenceEngine::Core();
-    auto exec_net = ie.LoadNetwork(net, deviceName);
+    auto exec_net = ie.LoadNetwork(net, deviceName, config);
 
     // regular inference
     auto inf_req_regular = exec_net.CreateInferRequest();
@@ -186,8 +192,10 @@ TEST_P(RemoteBlob_Test, smoke_canInputPluginRemoteBlob) {
     cl_context ctx = std::dynamic_pointer_cast<ClContext>(cldnn_context)->get();
     auto ocl_instance = std::make_shared<OpenCL>(ctx);
 
-    auto dims = net.getInputsInfo().begin()->second->getTensorDesc().getDims();
-    size_t imSize = dims[1] * dims[2] * dims[3];
+    auto desc = net.getInputsInfo().begin()->second->getTensorDesc();
+    size_t imSize = std::accumulate(desc.getDims().begin(), desc.getDims().end(),
+                                    desc.getPrecision().size(),
+                                    std::multiplies<size_t>());
 
     Blob::Ptr shared_blob = make_shared_blob(net.getInputsInfo().begin()->second->getTensorDesc(), cldnn_context);
     shared_blob->allocate();
@@ -213,7 +221,6 @@ TEST_P(RemoteBlob_Test, smoke_canInputPluginRemoteBlob) {
 
 
 TEST_P(RemoteBlob_Test, smoke_canInferOnUserContext) {
-    auto fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
     CNNNetwork net(fn_ptr);
 
     net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
@@ -237,7 +244,7 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserContext) {
     auto remote_context = make_shared_context(*ie, deviceName, ocl_instance->_context.get());
     // since there is no way to enable the Auto-Batching thru the device name when loading with the RemoteContext
     // (as the device name is deduced from the context, which is the "GPU")
-    // the only-way to test the auto-batching is explicit config with ALLOW_AUTO_BATCHING set to YES
+    // the only-way to test the auto-batching is explicit config with perf hint set to THROUGHPUT
     auto exec_net_shared = ie->LoadNetwork(net, remote_context, config);
     auto inf_req_shared = exec_net_shared.CreateInferRequest();
     inf_req_shared.SetBlob(net.getInputsInfo().begin()->first, fakeImageData);
@@ -258,7 +265,9 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_out_of_order) {
 #if defined _WIN32
     GTEST_SKIP();
 #endif
-    auto fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     CNNNetwork net(fn_ptr);
 
     net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
@@ -285,13 +294,17 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_out_of_order) {
     auto out_desc = net.getOutputsInfo().begin()->second->getTensorDesc();
     auto in_dims = in_desc.getDims();
     auto out_dims = out_desc.getDims();
-    size_t in_size = in_dims[1] * in_dims[2] * in_dims[3];
-    size_t out_size = out_dims[1] * out_dims[2] * out_dims[3] * sizeof(float);
+    size_t in_size = std::accumulate(in_desc.getDims().begin(), in_desc.getDims().end(),
+                                     in_desc.getPrecision().size(),
+                                     std::multiplies<size_t>());
+    size_t out_size = std::accumulate(out_desc.getDims().begin(), out_desc.getDims().end(),
+                                      out_desc.getPrecision().size(),
+                                      std::multiplies<size_t>());
 
     // In this scenario we create shared OCL queue and run simple pre-process action and post-process action (buffer copies in both cases)
     // without calling thread blocks
     auto remote_context = make_shared_context(*ie, deviceName, ocl_instance->_queue.get());
-    auto exec_net_shared = ie->LoadNetwork(net, remote_context);
+    auto exec_net_shared = ie->LoadNetwork(net, remote_context); // no auto-batching support, so no config is passed
     auto inf_req_shared = exec_net_shared.CreateInferRequest();
 
     // Allocate shared buffers for input and output data which will be set to infer request
@@ -350,7 +363,9 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_in_order) {
 #if defined _WIN32
     GTEST_SKIP();
 #endif
-    auto fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     CNNNetwork net(fn_ptr);
 
     net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
@@ -378,13 +393,17 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_in_order) {
     auto out_desc = net.getOutputsInfo().begin()->second->getTensorDesc();
     auto in_dims = in_desc.getDims();
     auto out_dims = out_desc.getDims();
-    size_t in_size = in_dims[1] * in_dims[2] * in_dims[3];
-    size_t out_size = out_dims[1] * out_dims[2] * out_dims[3] * sizeof(float);
+    size_t in_size = std::accumulate(in_desc.getDims().begin(), in_desc.getDims().end(),
+                                     in_desc.getPrecision().size(),
+                                     std::multiplies<size_t>());
+    size_t out_size = std::accumulate(out_desc.getDims().begin(), out_desc.getDims().end(),
+                                      out_desc.getPrecision().size(),
+                                      std::multiplies<size_t>());
 
     // In this scenario we create shared OCL queue and run simple pre-process action and post-process action (buffer copies in both cases)
     // without calling thread blocks
     auto remote_context = make_shared_context(*ie, deviceName, ocl_instance->_queue.get());
-    auto exec_net_shared = ie->LoadNetwork(net, remote_context);
+    auto exec_net_shared = ie->LoadNetwork(net, remote_context); // no auto-batching support, so no config is passed
     auto inf_req_shared = exec_net_shared.CreateInferRequest();
 
     // Allocate shared buffers for input and output data which will be set to infer request

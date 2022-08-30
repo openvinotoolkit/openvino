@@ -4,10 +4,12 @@
 
 #include "pooling_inst.h"
 #include "primitive_type_base.h"
-#include "sliding_window_utils.h"
+#include "sliding_window_utils.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
+
+using namespace ov::intel_gpu;
 
 namespace cldnn {
 primitive_type_id pooling::type_id() {
@@ -15,10 +17,10 @@ primitive_type_id pooling::type_id() {
     return &instance;
 }
 
-layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
-    auto desc = node.get_primitive();
+layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<pooling>();
 
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = impl_param.get_input_layout();
 
     auto pad = desc->pad;
     auto stride = desc->stride;
@@ -34,13 +36,18 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
         }
     }
 
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
 
-    if (node.has_fused_primitives()) {
-        output_type = node.get_fused_output_layout().data_type;
+        // pooling doesn't support i32 data type
+        // FIXME: Someday delete this, when pooling supports i32 output.
+        if (desc->mode == pooling_mode::max && output_type == data_types::i32) {
+            output_type = data_types::f32;
+        }
     }
 
     if (!desc->argmax.empty())
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
+        CLDNN_ERROR_NOT_EQUAL(desc->id,
                               "Pooling mode",
                               static_cast<size_t>(desc->mode),
                               "should be max_with_argmax",
@@ -48,21 +55,21 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
                               "Pooling mode should be set to max_with_argmax when argmax primitive is present.");
 
     if (desc->mode == pooling_mode::max_with_argmax) {
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
+        CLDNN_ERROR_NOT_EQUAL(desc->id,
                               "Argmax primitive",
                               static_cast<size_t>(desc->argmax.empty()),
                               "should not be empty",
                               static_cast<size_t>(0),
                               "Argmax primitive not present despite max_with_argmax mode.");
 
-        auto argmax_layout = node.argmax().get_output_layout();
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
+        auto argmax_layout = impl_param.get_input_layout(1);
+        CLDNN_ERROR_NOT_EQUAL(desc->id,
                               "Argmax data type",
                               static_cast<size_t>(argmax_layout.data_type),
                               "expected to be fp32",
                               static_cast<size_t>(data_types::f32),
                               "Argmax data type is not fp32.");
-        CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
+        CLDNN_ERROR_NOT_PROPER_FORMAT(desc->id,
                                       "Input_layout.format",
                                       input_layout.format.value,
                                       "argmax_layout.format",
@@ -70,74 +77,83 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
     }
 
     if (desc->global_pooling) {
-        window_size.spatial[0] = input_layout.size.spatial[0];
-        window_size.spatial[1] = input_layout.size.spatial[1];
-        window_size.spatial[2] = input_layout.size.spatial[2];
+        window_size = ov::Shape(input_layout.get_spatial_rank(), 1);
+        for (size_t i = 0; i < input_layout.get_spatial_rank(); i++) {
+            window_size[i] = input_layout.spatial(input_layout.get_spatial_rank() - i - 1);
+        }
     }
 
+    uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
+    uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
+    uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+
+    uint32_t kernel_z = window_size.size() >= 3 ? window_size[window_size.size() - 3] : 1;
+    uint32_t kernel_y = window_size.size() >= 2 ? window_size[window_size.size() - 2] : 1;
+    uint32_t kernel_x = window_size.size() >= 1 ? window_size[window_size.size() - 1] : 1;
+
     // TODO: Consider moving general parameter verification to arguments constructor.
-    CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+    CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                    "stride spatial X",
-                                   stride.spatial[0],
+                                   stride_x,
                                    "",
                                    0,
                                    "Stride spatial X must be positive (>= 1)");
-    CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+    CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                    "stride spatial Y",
-                                   stride.spatial[1],
+                                   stride_y,
                                    "",
                                    0,
                                    "Stride spatial Y must be positive (>= 1)");
-    CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+    CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                    "window size spatial X",
-                                   window_size.spatial[0],
+                                   kernel_x,
                                    "",
                                    0,
                                    "Size X (of pooling window) must be positive (>= 1)");
-    CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+    CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                    "window size spatial Y",
-                                   window_size.spatial[1],
+                                   kernel_y,
                                    "",
                                    0,
                                    "Size Y (of pooling window) must be positive (>= 1)");
     if (input_layout.format.spatial_num() == 3) {
         // 3D
-        CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                        "stride spatial Z",
-                                       stride.spatial[1],
+                                       stride_z,
                                        "",
                                        0,
                                        "Stride spatial Z must be positive (>= 1)");
-        CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                        "window size spatial Z",
-                                       window_size.spatial[2],
+                                       kernel_z,
                                        "",
                                        0,
                                        "Size Z (of pooling window) must be positive (>= 1)");
     }
 
     if (desc->with_output_size) {
-        CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                        "User-defined size of output X",
                                        desc->output_size.spatial[0],
                                        "",
                                        0,
                                        "User-defined size of output layout (spatial X) must be positive (>= 1)");
-        CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                        "User-defined size of output Y",
                                        desc->output_size.spatial[1],
                                        "",
                                        0,
                                        "User-defined size of output layout (spatial Y) must be positive (>= 1)");
-        CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                        "User-defined size of output Z",
                                        desc->output_size.spatial[2],
                                        "",
                                        0,
                                        "User-defined size of output layout (spatial Z) must be positive (>= 1)");
 
-        tensor output_size(input_layout.size.batch[0],
-                           input_layout.size.feature[0],
+        tensor output_size(input_layout.batch(),
+                           input_layout.feature(),
                            desc->output_size.spatial[0],
                            desc->output_size.spatial[1],
                            desc->output_size.spatial[2]);
@@ -145,16 +161,20 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
     }
 
     // TODO: Check compatibility of output size calculation (with caffe).
-    auto output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(input_layout.size,
-                                                                                      window_size,
-                                                                                      pad,
+    tensor size(1);
+    for (size_t i = 0; i < window_size.size(); i++) {
+        size.spatial[i] = window_size[window_size.size() - i - 1];
+    }
+    auto output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(input_layout.get_tensor(),
+                                                                                      size,
+                                                                                      ov::CoordinateDiff(pad.begin(), pad.end()),
                                                                                       stride,
-                                                                                      {1, 1, 1, 1},
+                                                                                      ov::Strides(window_size.size(), 1),
                                                                                       true,
                                                                                       1);
 
-    tensor output_size(input_layout.size.batch[0],
-                       input_layout.size.feature[0],
+    tensor output_size(input_layout.batch(),
+                       input_layout.feature(),
                        output_range.spatial[0],
                        output_range.spatial[1],
                        output_range.spatial[2]);
@@ -170,11 +190,13 @@ std::string pooling_inst::to_string(pooling_node const& node) {
 
     std::stringstream primitive_description;
 
+    bool is_global = desc->global_pooling;
+
     json_composite pooling_info;
     pooling_info.add("mode", mode);
-    pooling_info.add("stride", strd.to_string());
-    pooling_info.add("kernel size", kernel_size.to_string());
-    pooling_info.add("pad", desc->pad.to_string());
+    pooling_info.add("stride", cldnn::to_string(strd));
+    pooling_info.add("kernel size", cldnn::to_string(kernel_size));
+    pooling_info.add("is global", is_global ? "true" : "false");
     if (desc->with_output_size) {
         json_composite ud_out_size_info;
         ud_out_size_info.add("size", desc->output_size.to_string());

@@ -39,7 +39,6 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 Graph::Graph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr context, Config config, uint16_t stream_id)
@@ -66,9 +65,9 @@ Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
 
 void Graph::UpdateLayersMaps() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::UpdateLayersMaps");
-    primitiveIDs = m_program->primitiveIDs;
+    primitiveIDs = m_program->primitive_ids;
     prevPrimitiveIDs = m_program->prevPrimitiveIDs;
-    profilingIDs = m_program->profilingIDs;
+    profilingIDs = m_program->profiling_ids;
     perfMap = m_program->perfMap;
     outputDims = m_program->outputDims;
 }
@@ -131,6 +130,23 @@ std::shared_ptr<cldnn::network> Graph::BuildNetwork(std::shared_ptr<cldnn::progr
     }
 
     return network;
+}
+
+Graph::variable_states_map Graph::AllocateVariablesMemories() {
+    Graph::variable_states_map states {};
+    const auto& memStatesInfo = m_program->GetVariablesStatesInfo();
+    for (const auto& memStateInfo : memStatesInfo) {
+        std::vector<cldnn::layout> orderedLayouts {memStateInfo.second.begin(), memStateInfo.second.end()};
+        std::sort(orderedLayouts.begin(), orderedLayouts.end(), [](cldnn::layout& first, cldnn::layout& second) {
+            return first.batch() < second.batch();
+        });
+        std::vector<cldnn::network::VariableState::Ptr> memoryStates;
+        memoryStates.reserve(orderedLayouts.size());
+        for (const auto& layout : orderedLayouts)
+            memoryStates.push_back(std::make_shared<cldnn::network::VariableState>(GetEngine()->allocate_memory(layout, false)));
+        states.insert({memStateInfo.first, memoryStates });
+    }
+    return states;
 }
 
 std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
@@ -294,7 +310,7 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
         Precision precision = data_type_to_precision(layout.data_type);
         SizeVector dims;
         auto l = InferenceEngine::Layout::NCHW;
-        auto size = layout.size;
+        auto size = layout.get_tensor();
         if (layout.format.dimension() == 4) {
             dims = {static_cast<size_t>(size.batch[0]),
                     static_cast<size_t>(size.feature[0]),
@@ -556,9 +572,19 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> Graph::GetPer
     auto extIdMap = GetNetwork()->get_ext_id_mapping();
 
     auto getUpperCaseName = [](std::string name) {
-        if (name.length() > 0)
-            name[0] = toupper(name[0]);
-        return name;
+        std::vector<char> res;
+        bool convert_next_to_upper = true;
+        for (size_t i = 0; i < name.length(); i++) {
+            char c = convert_next_to_upper ? toupper(name[i]) : name[i];
+            if (c == '_') {
+                convert_next_to_upper = true;
+            } else {
+                convert_next_to_upper = false;
+                res.push_back(c);
+            }
+        }
+
+        return std::string(res.begin(), res.end());
     };
 
     auto getClearName = [](std::string name) {
@@ -571,11 +597,10 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> Graph::GetPer
     auto getFromProfiling = [&](std::string primId) -> bool {
         auto perfIter = perfMap.find(primId);
 
-        if (perfIter == perfMap.end())  return false;
-
-        const auto& layerName = perfIter->second.first;
-        if (layerName.length() == 0)  // no layer directly associated
+        if (perfIter == perfMap.end())
             return false;
+
+        auto layerName = getClearName(perfIter->second.first);
 
         const auto& perfCounter = perfIter->second.second;
 
@@ -766,5 +791,4 @@ InferenceEngine::SizeVector Graph::GetOutputSize(std::string outName) const {
 }
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

@@ -42,7 +42,7 @@ auto nireq = compiled_model.get_property(ov::optimal_number_of_infer_requests);
 
 {
 //! [compiled_model_get_rw_property]
-ov::hint::PerformanceMode perf_model = compiled_model.get_property(ov::hint::performance_mode);
+ov::hint::PerformanceMode perf_mode = compiled_model.get_property(ov::hint::performance_mode);
 //! [compiled_model_get_rw_property]
 }
 
@@ -54,12 +54,12 @@ return 0;
 int main_old() {
     InferenceEngine::Core core;
 //! [core_get_metric]
-auto full_device_name = core.GetConfig("CPU", METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
+auto full_device_name = core.GetMetric("CPU", METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
 //! [core_get_metric]
 
 //! [core_get_config]
 // a user has to parse std::string after
-auto num_streams = core.GetMetric("CPU", CONFIG_KEY(CPU_THROUGHPUT_STREAMS)).as<std::string>();
+auto num_streams = core.GetConfig("CPU", CONFIG_KEY(CPU_THROUGHPUT_STREAMS)).as<std::string>();
 //! [core_get_config]
 
 //! [core_set_config]

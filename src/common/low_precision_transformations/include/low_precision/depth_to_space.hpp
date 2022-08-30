@@ -15,12 +15,12 @@ namespace low_precision {
  * @brief DepthToSpaceTransformation propagates dequantization operations through DepthToSpace operation.
  *
  * For more details about the transformation, refer to
- * [DepthToSpaceTransformation](@ref openvino_docs_IE_DG_lpt_DepthToSpaceTransformation) page
+ * [DepthToSpaceTransformation](@ref openvino_docs_OV_UG_lpt_DepthToSpaceTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API DepthToSpaceTransformation : public TransparentBaseTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("DepthToSpaceTransformation", "0");
     DepthToSpaceTransformation(const Params& params = Params());
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
 };

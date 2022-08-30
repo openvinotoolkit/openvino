@@ -6,7 +6,8 @@
 #include <cpu_memory.h>
 #include "dnnl_blocked_memory_desc.h"
 
-using namespace ov::intel_cpu;
+namespace ov {
+namespace intel_cpu {
 
 static VectorDims makeRange(size_t size) {
     VectorDims retVec(size, 0);
@@ -308,3 +309,6 @@ MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewPrecision(const InferenceEngine:
     newDesc->setPrecision(prec);
     return newDesc;
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

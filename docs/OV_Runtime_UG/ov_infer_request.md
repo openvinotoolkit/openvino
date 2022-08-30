@@ -1,277 +1,288 @@
-# OpenVINO™ Inference Request {#openvino_docs_OV_Runtime_UG_Infer_request}
+# OpenVINO™ Inference Request {#openvino_docs_OV_UG_Infer_request}
 
-OpenVINO™ Runtime uses Infer Request mechanism which allows to run models on different devices in asynchronous or synchronous manners.
-`ov::InferRequest` class is used for this purpose inside the OpenVINO™ Runtime.
-This class allows to set and get data for model inputs, outputs and run inference for the model.
+OpenVINO™ Runtime uses Infer Request mechanism which allows running models on different devices in asynchronous or synchronous manners.
+The `ov::InferRequest` class is used for this purpose inside the OpenVINO™ Runtime.
+This class allows you to set and get data for model inputs, outputs and run inference for the model.
 
 ## Creating Infer Request
 
-`ov::InferRequest` can be created from the `ov::CompiledModel`:
+The `ov::InferRequest` can be created from the `ov::CompiledModel`:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
-       :language: cpp
-       :fragment: [create_infer_request]
+@snippet docs/snippets/ov_infer_request.cpp create_infer_request
 
-.. tab:: Python
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_infer_request.py
-       :language: python
-       :fragment: [create_infer_request]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_infer_request.py create_infer_request
 
-## Run inference
+@endsphinxtab
 
-`ov::InferRequest` supports synchronous and asynchronous modes for inference.
+@endsphinxtabset
 
-### Synchronous mode
+## Run Inference
 
-You can use `ov::InferRequest::infer()`, which blocks the application execution,  to infer model in synchronous mode:
+The `ov::InferRequest` supports synchronous and asynchronous modes for inference.
 
-@sphinxdirective
+### Synchronous Mode
 
-.. tab:: C++
+You can use `ov::InferRequest::infer`, which blocks the application execution, to infer a model in the synchronous mode:
 
-    .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
-       :language: cpp
-       :fragment: [sync_infer]
+@sphinxtabset
 
-.. tab:: Python
+@sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_infer_request.py
-       :language: python
-       :fragment: [sync_infer]
+@snippet docs/snippets/ov_infer_request.cpp sync_infer
 
-@endsphinxdirective
+@endsphinxtab
 
-### Asynchronous mode
+@sphinxtab{Python}
 
-Asynchronous mode can improve overall frame-rate of the application, because rather than wait for inference to complete, the app can continue doing things on the host, while accelerator is busy. You can use `ov::InferRequest::start_async()` to infer model in asynchronous mode:
+@snippet docs/snippets/ov_infer_request.py sync_infer
 
-@sphinxdirective
+@endsphinxtab
 
-.. tab:: C++
+@endsphinxtabset
 
-    .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
-       :language: cpp
-       :fragment: [async_infer]
+### Asynchronous Mode
 
-.. tab:: Python
+The asynchronous mode can improve application's overall frame-rate, by making it work on the host while the accelerator is busy, instead of waiting for inference to complete. To infer a model in the asynchronous mode, use `ov::InferRequest::start_async`:
 
-    .. doxygensnippet:: docs/snippets/ov_infer_request.py
-       :language: python
-       :fragment: [async_infer]
+@sphinxtabset
 
-@endsphinxdirective
+@sphinxtab{C++}
 
-Asynchronous mode supports two ways to wait inference results:
-  * `ov::InferRequest::wait_for()` - specify maximum duration in milliseconds to block for. The method is blocked until the specified timeout has elapsed, or the result becomes available, whichever comes first.
-    @sphinxdirective
+@snippet docs/snippets/ov_infer_request.cpp async_infer
 
-    .. tab:: C++
+@endsphinxtab
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
-           :language: cpp
-           :fragment: [wait_for]
+@sphinxtab{Python}
 
-    .. tab:: Python
+@snippet docs/snippets/ov_infer_request.py async_infer
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.py
-           :language: python
-           :fragment: [wait_for]
+@endsphinxtab
 
-    @endsphinxdirective
-  * `ov::InferRequest::wait()` - waits until inference result becomes available
-    @sphinxdirective
+@endsphinxtabset
 
-    .. tab:: C++
+Asynchronous mode supports two ways the application waits for inference results:
+  * `ov::InferRequest::wait_for` - specifies the maximum duration in milliseconds to block the method. The method is blocked until the specified time has passed, or the result becomes available, whichever comes first.
+    @sphinxtabset
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
-           :language: cpp
-           :fragment: [wait]
+    @sphinxtab{C++}
 
-    .. tab:: Python
+    @snippet docs/snippets/ov_infer_request.cpp wait_for
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.py
-           :language: python
-           :fragment: [wait]
+    @endsphinxtab
 
-    @endsphinxdirective
+    @sphinxtab{Python}
 
-Both requests are thread-safe: can be called from different threads without fearing corruption and failures.
+    @snippet docs/snippets/ov_infer_request.py wait_for
 
-Also InferRequest provides an functionality which allows to avoid a call of `ov::InferRequest::wait()`, in order to do it, you can use `ov::InferRequest::set_callback()` method. This method allows to set callback which will be called after completing run of InferRequest, please use weak reference of infer_request (`ov::InferRequest*`, `ov::InferRequest&`, `std::weal_ptr<ov::InferRequest>` and etc) in the callback, it is needed to avoid cyclic references.
-For more details please take a look too [Classification Sample Async](../../samples/cpp/classification_sample_async/README.md).
+    @endsphinxtab
 
-@sphinxdirective
+    @endsphinxtabset
 
-.. tab:: C++
+  * `ov::InferRequest::wait` - waits until inference result becomes available
+    @sphinxtabset
 
-    .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
-       :language: cpp
-       :fragment: [set_callback]
+    @sphinxtab{C++}
 
-.. tab:: Python
+    @snippet docs/snippets/ov_infer_request.cpp wait
 
-    .. doxygensnippet:: docs/snippets/ov_infer_request.py
-       :language: python
-       :fragment: [set_callback]
+    @endsphinxtab
 
-@endsphinxdirective
+    @sphinxtab{Python}
 
-You can use `ov::InferRequest::cancel()` method in case if you want to cancel the current inference request:
+    @snippet docs/snippets/ov_infer_request.py wait
 
-@sphinxdirective
+    @endsphinxtab
 
-.. tab:: C++
+    @endsphinxtabset
 
-    .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
-       :language: cpp
-       :fragment: [cancel]
+Both methods are thread-safe.
 
-.. tab:: Python
+When you are running several inference requests in parallel, a device can process them simultaneously, with no guarantees on the completion order. This may complicate a possible logic based on the `ov::InferRequest::wait` (unless your code needs to wait for the _all_ requests). For multi-request scenarios, consider using the `ov::InferRequest::set_callback` method to set a callback which is called upon completion of the request:
 
-    .. doxygensnippet:: docs/snippets/ov_infer_request.py
-       :language: python
-       :fragment: [cancel]
+@sphinxtabset
 
-@endsphinxdirective
+@sphinxtab{C++}
 
+@snippet docs/snippets/ov_infer_request.cpp set_callback
+
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@snippet docs/snippets/ov_infer_request.py set_callback
+
+@endsphinxtab
+
+@endsphinxtabset
+
+
+> **NOTE**: Use weak reference of infer_request (`ov::InferRequest*`, `ov::InferRequest&`, `std::weal_ptr<ov::InferRequest>`, etc.) in the callback. It is necessary to avoid cyclic references.
+For more details, see the [Classification Async Sample](../../samples/cpp/classification_sample_async/README.md).
+
+You can use the `ov::InferRequest::cancel` method if you want to abort execution of the current inference request:
+
+@sphinxtabset
+
+@sphinxtab{C++}
+
+@snippet docs/snippets/ov_infer_request.cpp cancel
+
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@snippet docs/snippets/ov_infer_request.py cancel
+
+@endsphinxtab
+
+@endsphinxtabset
+
+@anchor in_out_tensors
 ## Working with Input and Output tensors
 
-`ov::InferRequest` allows to get input/output tensors by tensor name, index, port and without any arguments in case if model has only one input or output.
+`ov::InferRequest` allows you to get input/output tensors by tensor name, index, port, and without any arguments, if a model has only one input or output.
 
-  * `ov::InferRequest::get_input_tensor()`, `ov::InferRequest::set_input_tensor()`, `ov::InferRequest::get_output_tensor()`, `ov::InferRequest::set_output_tensor()` methods without arguments can be used to get or set input/output tensor for model with only one input/output:
-    @sphinxdirective
+  * `ov::InferRequest::get_input_tensor`, `ov::InferRequest::set_input_tensor`, `ov::InferRequest::get_output_tensor`, `ov::InferRequest::set_output_tensor` methods without arguments can be used to get or set input/output tensor for a model with only one input/output:
 
-    .. tab:: C++
+    @sphinxtabset
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
-           :language: cpp
-           :fragment: [get_set_one_tensor]
+    @sphinxtab{C++}
 
-    .. tab:: Python
+    @snippet docs/snippets/ov_infer_request.cpp get_set_one_tensor
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.py
-           :language: python
-           :fragment: [get_set_one_tensor]
+    @endsphinxtab
 
-    @endsphinxdirective
+    @sphinxtab{Python}
 
-  * `ov::InferRequest::get_input_tensor()`, `ov::InferRequest::set_input_tensor()`, `ov::InferRequest::get_output_tensor()`, `ov::InferRequest::set_output_tensor()` methods with argument can be used to get or set input/output tensor by input/output index:
-    @sphinxdirective
+    @snippet docs/snippets/ov_infer_request.py get_set_one_tensor
 
-    .. tab:: C++
+    @endsphinxtab
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
-           :language: cpp
-           :fragment: [get_set_index_tensor]
+    @endsphinxtabset
 
-    .. tab:: Python
+  * `ov::InferRequest::get_input_tensor`, `ov::InferRequest::set_input_tensor`, `ov::InferRequest::get_output_tensor`, `ov::InferRequest::set_output_tensor` methods with argument can be used to get or set input/output tensor by input/output index:
+    
+    @sphinxtabset
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.py
-           :language: python
-           :fragment: [get_set_index_tensor]
+    @sphinxtab{C++}
 
-    @endsphinxdirective
+    @snippet docs/snippets/ov_infer_request.cpp get_set_index_tensor
 
-  * `ov::InferRequest::get_tensor()`, `ov::InferRequest::set_tensor()` methods can be used to get or set input/output tensor by tensor name:
-    @sphinxdirective
+    @endsphinxtab
 
-    .. tab:: C++
+    @sphinxtab{Python}
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
-           :language: cpp
-           :fragment: [get_set_tensor]
+    @snippet docs/snippets/ov_infer_request.py get_set_index_tensor
 
-    .. tab:: Python
+    @endsphinxtab
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.py
-           :language: python
-           :fragment: [get_set_tensor]
+    @endsphinxtabset
 
-    @endsphinxdirective
+  * `ov::InferRequest::get_tensor`, `ov::InferRequest::set_tensor` methods can be used to get or set input/output tensor by tensor name:
 
-  * `ov::InferRequest::get_tensor()`, `ov::InferRequest::set_tensor()` methods can be used to get or set input/output tensor by port:
-    @sphinxdirective
+    @sphinxtabset
 
-    .. tab:: C++
+    @sphinxtab{C++}
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
-           :language: cpp
-           :fragment: [get_set_tensor_by_port]
+    @snippet docs/snippets/ov_infer_request.cpp get_set_tensor
 
-    .. tab:: Python
+    @endsphinxtab
 
-        .. doxygensnippet:: docs/snippets/ov_infer_request.py
-           :language: python
-           :fragment: [get_set_tensor_by_port]
+    @sphinxtab{Python}
 
-    @endsphinxdirective
+    @snippet docs/snippets/ov_infer_request.py get_set_tensor
 
-## Examples of InferRequest usages
+    @endsphinxtab
 
-### Cascade of models
+    @endsphinxtabset
 
-`ov::InferRequest` can be used to organize cascade of models. You need to have infer requests for each model.
-In this case you can get output tensor from the first request using `ov::InferRequest::get_tensor()` and set it as input for the second request using `ov::InferRequest::set_tensor()`. But be careful, shared tensors across compiled models can be rewritten by the first model if the first infer request is run once again, while the second model has not started yet.
+  * `ov::InferRequest::get_tensor`, `ov::InferRequest::set_tensor` methods can be used to get or set input/output tensor by port:
 
-@sphinxdirective
+    @sphinxtabset
 
-.. tab:: C++
+    @sphinxtab{C++}
 
-    .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
-       :language: cpp
-       :fragment: [cascade_models]
+    @snippet docs/snippets/ov_infer_request.cpp get_set_tensor_by_port
 
-.. tab:: Python
+    @endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/ov_infer_request.py
-       :language: python
-       :fragment: [cascade_models]
+    @sphinxtab{Python}
 
-@endsphinxdirective
+    @snippet docs/snippets/ov_infer_request.py get_set_tensor_by_port
 
-### Using of ROI tensors
+    @endsphinxtab
 
-It is possible to re-use shared input by several models. You do not need to allocate separate input tensor for a model if it processes a ROI object located inside of already allocated input of a previous model. For instance, when first model detects objects on a video frame (stored as input tensor) and second model accepts detected bounding boxes (ROI inside of the frame) as input. In this case, it is allowed to re-use pre-allocated input tensor (used by first model) by second model and just crop ROI without allocation of new memory using `ov::Tensor()` with passing of `ov::Tensor` and `ov::Coordinate` as parameters.
+    @endsphinxtabset
 
-@sphinxdirective
+## Examples of Infer Request Usages
 
-.. tab:: C++
+Presented below are examples of what the Infer Request can be used for.
 
-    .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
-       :language: cpp
-       :fragment: [roi_tensor]
+### Cascade of Models
 
-.. tab:: Python
+`ov::InferRequest` can be used to organize a cascade of models. Infer Requests are required for each model.
+In this case, you can get the output tensor from the first request, using `ov::InferRequest::get_tensor` and set it as input for the second request, using `ov::InferRequest::set_tensor`. Keep in mind that tensors shared across compiled models can be rewritten by the first model if the first infer request is run once again, while the second model has not started yet.
 
-    .. doxygensnippet:: docs/snippets/ov_infer_request.py
-       :language: python
-       :fragment: [roi_tensor]
+@sphinxtabset
 
-@endsphinxdirective
+@sphinxtab{C++}
 
-### Using of remote tensors
+@snippet docs/snippets/ov_infer_request.cpp cascade_models
 
-You can create a remote tensor to work with remote device memory. `ov::RemoteContext` allows to create remote tensor.
+@endsphinxtab
 
-@sphinxdirective
+@sphinxtab{Python}
 
-.. tab:: C++
+@snippet docs/snippets/ov_infer_request.py cascade_models
 
-    .. doxygensnippet:: docs/snippets/ov_infer_request.cpp
-       :language: cpp
-       :fragment: [remote_tensor]
+@endsphinxtab
 
-.. tab:: Python
+@endsphinxtabset
 
-    .. doxygensnippet:: docs/snippets/ov_infer_request.py
-       :language: python
-       :fragment: [remote_tensor]
+### Using of ROI Tensors
 
-@endsphinxdirective
+It is possible to re-use shared input in several models. You do not need to allocate a separate input tensor for a model if it processes a ROI object located inside of an already allocated input of a previous model. For instance, when the first model detects objects in a video frame (stored as an input tensor) and the second model accepts detected bounding boxes (ROI inside of the frame) as input. In this case, it is allowed to re-use a pre-allocated input tensor (used by the first model) by the second model and just crop ROI without allocation of new memory, using `ov::Tensor` with passing `ov::Tensor` and `ov::Coordinate` as parameters.
+
+@sphinxtabset
+
+@sphinxtab{C++}
+
+@snippet docs/snippets/ov_infer_request.cpp roi_tensor
+
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@snippet docs/snippets/ov_infer_request.py roi_tensor
+
+@endsphinxtab
+
+@endsphinxtabset
+
+### Using Remote Tensors
+
+By using `ov::RemoteContext` you can create a remote tensor to work with remote device memory.
+
+@sphinxtabset
+
+@sphinxtab{C++}
+
+@snippet docs/snippets/ov_infer_request.cpp remote_tensor
+
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@snippet docs/snippets/ov_infer_request.py remote_tensor
+
+@endsphinxtab
+
+@endsphinxtabset

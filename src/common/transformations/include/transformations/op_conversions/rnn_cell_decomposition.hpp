@@ -30,6 +30,6 @@ class TRANSFORMATIONS_API RNNCellDecomposition;
 
 class ngraph::pass::RNNCellDecomposition : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("RNNCellDecomposition", "0");
     RNNCellDecomposition();
 };

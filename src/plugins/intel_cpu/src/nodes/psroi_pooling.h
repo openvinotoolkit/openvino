@@ -12,15 +12,16 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNPSROIPoolingNode : public MKLDNNNode {
+class PSROIPooling : public Node {
 public:
-    MKLDNNPSROIPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    PSROIPooling(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override {};
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
@@ -80,5 +81,6 @@ private:
     struct PSROIPoolingExecute;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

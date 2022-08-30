@@ -11,8 +11,6 @@
 
 #include "mask_attribute.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::Pruning, "Pruning", 0);
-
 bool ngraph::pass::Pruning::run_on_model(const std::shared_ptr<Function>& f) {
     Manager manager(get_pass_config());
 

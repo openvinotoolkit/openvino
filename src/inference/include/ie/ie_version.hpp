@@ -21,13 +21,12 @@
  */
 
 #define IE_VERSION_MAJOR 2022
-#define IE_VERSION_MINOR 1
+#define IE_VERSION_MINOR 3
 #define IE_VERSION_PATCH 0
 
 #include "ie_api.h"
 
 /**
- * @ingroup ie_cpp_api
  * @brief Inference Engine C++ API
  */
 namespace InferenceEngine {

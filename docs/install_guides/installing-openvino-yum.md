@@ -14,6 +14,12 @@ The complete list of supported hardware is available in the [Release Notes](http
 
 - Red Hat Enterprise Linux 8, 64-bit
 
+**Software**
+
+- [CMake 3.13 or higher, 64-bit](https://cmake.org/download/)
+- GCC 8.2.0
+- [Python 3.6 - 3.9, 64-bit](https://www.python.org/downloads/windows/)
+
 ## Install OpenVINO Runtime
 
 ### Step 1: Set Up the Repository
@@ -42,9 +48,14 @@ The complete list of supported hardware is available in the [Release Notes](http
 
 
 To list available OpenVINO packages, use the following command:
-```
-yum list 'openvino*'
-```
+
+@sphinxdirective
+
+   .. code-block:: sh
+
+      yum list 'openvino*'
+
+@endsphinxdirective
 
 ### Step 2: Install OpenVINO Runtime Using the YUM Package Manager
 
@@ -76,9 +87,14 @@ sudo yum install openvino-2022.1.0
 #### To Check for Installed Packages and Version
 
 Run the following command:
-```sh
-yum list installed 'openvino*'
-```
+
+@sphinxdirective
+
+   .. code-block:: sh
+
+      yum list installed 'openvino*'
+
+@endsphinxdirective
 
 #### To Uninstall the Latest Version
 
@@ -96,7 +112,7 @@ sudo yum autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
 
 ### Step 3 (Optional): Install OpenCV from YUM
 
-OpenCV is necessary to run C++ demos from Open Model Zoo. Some C++ samples and demos also use OpenCV as a dependency. OpenVINO provides a package to install OpenCV from YUM:
+OpenCV is necessary to run C++ demos from Open Model Zoo. Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. OpenVINO provides a package to install OpenCV from YUM:
 
 #### To Install the Latest Version of OpenCV
 
@@ -116,18 +132,47 @@ sudo yum install openvino-opencv-<VERSION>.<UPDATE>.<PATCH>
 
 After you have installed OpenVINO Runtime, if you decided to [install OpenVINO Model Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first. 
 
-Refer to <a href="#install-external-dependencies">Install External Software Dependencies</a> for detailed steps.
+Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#install-external-dependencies">Install External Software Dependencies</a> for detailed steps.
 
-## Configurations for Non-CPU Devices
+### Step 5 (Optional): Configure Inference on Non-CPU Devices
 
-If you are using Intel® Processor Graphics, Intel® Vision Accelerator Design with Intel® Movidius™ VPUs or Intel® Neural Compute Stick 2, please follow the configuration steps in [Configurations for GPU](configurations-for-intel-gpu.md), [Configurations for VPU](installing-openvino-config-ivad-vpu.md) or [Configurations for NCS2](configurations-for-ncs2.md) accordingly.
+@sphinxdirective
 
+.. tab:: GNA
+
+   To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide>`.
+   
+.. tab:: GPU
+
+   To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.
+
+.. tab:: NCS 2
+
+   To perform inference on Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU, follow the steps on :ref:`NCS2 Setup Guide <ncs guide>`.
+   <!--For more details, see the `Get Started page for Intel® Neural Compute Stick 2 <https://software.intel.com/en-us/neural-compute-stick/get-started>`.-->
+
+.. tab:: VPU
+
+   To install and configure your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see the :ref:`VPU Configuration Guide <vpu guide>`.
+   After configuration is done, you are ready to run the verification scripts with the HDDL Plugin for your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs. 
+
+   .. warning::
+      While working with either HDDL or NCS, choose one of them as they cannot run simultaneously on the same machine.
+
+@endsphinxdirective
+
+
+## What's Next?
+
+Now you may continue with the following tasks:
+
+* To convert models for use with OpenVINO, see [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+* See pre-trained deep learning models in our [Open Model Zoo](../model_zoo.md).
+* Try out OpenVINO via [OpenVINO Notebooks](https://docs.openvino.ai/latest/notebooks/notebooks.html).
+* To write your own OpenVINO™ applications, see [OpenVINO Runtime User Guide](../OV_Runtime_UG/openvino_intro.md).
+* See sample applications in [OpenVINO™ Toolkit Samples Overview](../OV_Runtime_UG/Samples_Overview.md).
 
 ## Additional Resources
 
-- Intel® Distribution of OpenVINO™ toolkit home page: <https://software.intel.com/en-us/openvino-toolkit>.
-- OpenVINO™ toolkit online documentation: <https://docs.openvino.ai/>.
-- [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
-- [OpenVINO Runtime User Guide](../OV_Runtime_UG/OpenVINO_Runtime_User_Guide).
-- For more information on Sample Applications, see the [OpenVINO Samples Overview](../OV_Runtime_UG/Samples_Overview.md).
-- For IoT Libraries & Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
+- Intel® Distribution of OpenVINO™ toolkit home page: <https://software.intel.com/en-us/openvino-toolkit>
+- For IoT Libraries & Code Samples, see [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).

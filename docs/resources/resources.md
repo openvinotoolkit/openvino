@@ -9,24 +9,22 @@
    :caption: Additional Resources
 
    Release Notes <https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html>
-   openvino_docs_IE_DG_supported_plugins_Supported_Devices
+   openvino_docs_OV_UG_supported_plugins_Supported_Devices
+   openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers
    openvino_docs_OV_Glossary
    openvino_docs_Legal_Information
 
 
 .. toctree::
    :maxdepth: 1
-   :caption: Developer Documentation
+   :caption: Intermediate Representation and Operations Sets
    :hidden:
 
    openvino_docs_MO_DG_IR_and_opsets
    openvino_docs_ops_opset
    openvino_docs_ops_broadcast_rules
    openvino_docs_operations_specifications
-   openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers
-   openvino_docs_MO_DG_prepare_model_Model_Optimization_Techniques
    openvino_docs_MO_DG_prepare_model_convert_model_IR_suitable_for_INT8_inference
-   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
 
 
 .. toctree::

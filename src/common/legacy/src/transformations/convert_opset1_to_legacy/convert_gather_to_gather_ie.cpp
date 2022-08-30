@@ -11,8 +11,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGatherToGatherIEMatcher, "ConvertGatherToGatherIEMatcher", 0);
-
 ngraph::pass::ConvertGatherToGatherIEMatcher::ConvertGatherToGatherIEMatcher() {
     auto gather = ngraph::pattern::wrap_type<opset1::Gather>();
 

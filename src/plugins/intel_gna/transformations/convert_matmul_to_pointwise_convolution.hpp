@@ -6,7 +6,10 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace pass {
+
 
 /**
  * @brief Convert a MatMul with batch size unsupported by GNA to a point-wise convolution with NHWC layout
@@ -22,7 +25,7 @@ namespace GNAPluginNS {
  */
 class ConvertMatmulToPointWiseConvolution : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("ConvertMatmulToPointWiseConvolution", "0");
   ConvertMatmulToPointWiseConvolution();
 };
 
@@ -42,7 +45,7 @@ public:
  */
 class ConvertMatmulWithBiasToPointWiseConvolution : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("ConvertMatmulWithBiasToPointWiseConvolution", "0");
   ConvertMatmulWithBiasToPointWiseConvolution();
 };
 
@@ -64,8 +67,10 @@ public:
  */
 class ConvertMatmulWithFqToPointWiseConvolution : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("ConvertMatmulWithFqToPointWiseConvolution", "0");
   ConvertMatmulWithFqToPointWiseConvolution();
 };
 
-} // namespace GNAPluginNS
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov

@@ -14,8 +14,6 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::FakeQuantizeMulFusion, "FakeQuantizeMulFusion", 0);
-
 // This transformation multiplies the "output_low" and "output_high" inputs of the FQ operation
 // by the constant value that before transormation is used to multiply the output of FQ.
 // Both output_low and output_high are multiplied by the value represented as C (a constant) below.
@@ -115,7 +113,7 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
                                                                  fq_node->input_value(2),
                                                                  get_adjusted_output_range(original_output_low),
                                                                  get_adjusted_output_range(original_output_high)});
-        bool fq_on_weights = is_type<opset4::Constant>(data.get_node());
+        bool fq_on_weights = is_type<opset4::Constant>(data.get_node()) || get_constant_from_source(data) != nullptr;
         if (!fq_on_weights && transformation_callback(new_fq_node))
             return false;
 

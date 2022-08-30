@@ -65,8 +65,8 @@ protected:
                                      int autoTuneIndex = -1) const;
 };
 
-bool CovolutionBinaryCheckInput(const Params& p, const optional_params& o);
+bool ConvolutionBinaryCheckInput(const Params& p, const optional_params& o);
 bool CheckConvolutionBinaryPaddedInputDesc(const binary_convolution_params& params, const DataTensor& reqDesc);
-bool CovolutionBinaryUpdateInputParams(binary_convolution_params& params);
+bool ConvolutionBinaryUpdateInputParams(binary_convolution_params& params);
 
 }  // namespace kernel_selector

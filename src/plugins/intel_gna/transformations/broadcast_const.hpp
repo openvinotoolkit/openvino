@@ -6,11 +6,13 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace pass {
 
 /**
  * @brief Brodcast data in Const layer
- * Transformation recognizes the next patterns
+ * Transformation recognizes the following patterns
  *
  * Constant    Any
  *       |     |
@@ -22,7 +24,7 @@ namespace GNAPluginNS {
  *            |     |
  *            Eltwise
  *
- * Where Eltwise node is one of the: Multiply, Substract and Add
+ * Where Eltwise node is one of the: Multiply, Substract, Add or ScaleShiftIE
  * There are different types of broadcasting: NONE/EXPLICIT, NUMPY and PDPD
  *
  * If eltwise node inputs have different shapes and one the inputs is Constant node
@@ -46,8 +48,10 @@ namespace GNAPluginNS {
  */
 class BroadcastAddMultiplyConst : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("BroadcastAddMultiplyConst", "0");
   BroadcastAddMultiplyConst();
 };
 
-} // namespace GNAPluginNS
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov

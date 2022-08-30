@@ -12,6 +12,7 @@
 
 @endsphinxdirective
 
+OpenVINO Transformation mechanism allows to develop transformation passes to modify `ov::Model`. You can use this mechanism to apply additional optimizations to the original Model or transform unsupported subgraphs and operations to new operations which are supported by the plugin.
 This guide contains all necessary information that you need to start implementing OpenVINO™ transformations.
 
 ## Working with Model

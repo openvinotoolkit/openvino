@@ -37,7 +37,7 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
-target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::util ov_core_dev)
+target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::util openvino::core::dev)
 set_target_properties(${TARGET_NAME}_obj PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
@@ -46,7 +46,7 @@ set_property(SOURCE
             ${CMAKE_CURRENT_SOURCE_DIR}/src/manager.cpp
         APPEND PROPERTY COMPILE_DEFINITIONS
         FRONTEND_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}${FRONTEND_NAME_PREFIX}"
-        FRONTEND_LIB_SUFFIX="${FRONTEND_NAME_SUFFIX}${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+        FRONTEND_LIB_SUFFIX="${FRONTEND_NAME_SUFFIX}${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}${OpenVINO_VERSION_SUFFIX}")
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
 
@@ -54,6 +54,8 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
                     SOURCE_DIRECTORY "${FRONTEND_INCLUDE_DIR}"
                     ADDITIONAL_INCLUDE_DIRECTORIES
                         $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
+
+# INTERFACE library for BW compatibility
 
 add_library(${TARGET_NAME} INTERFACE)
 target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
@@ -66,10 +68,11 @@ add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME})
 
 openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})
 
-# Installation rules for shared version only
+# Installation rules header files
+
 install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/openvino
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
-        COMPONENT core_dev)
+        COMPONENT ${OV_CPACK_COMP_CORE_DEV})
 
 # Shutdown protobuf library
 if(Protobuf_IN_FRONTEND AND BUILD_SHARED_LIBS)

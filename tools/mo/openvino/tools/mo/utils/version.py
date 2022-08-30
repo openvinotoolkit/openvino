@@ -3,7 +3,7 @@
 
 import os
 import re
-import subprocess
+import subprocess # nosec
 import sys
 
 from openvino.tools.mo.utils.utils import get_mo_root_dir

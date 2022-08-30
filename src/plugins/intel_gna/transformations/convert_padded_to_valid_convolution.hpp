@@ -6,7 +6,10 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace pass {
+
 
 /**
  * @brief Convert a padded convolution with bias, max pooling and activation function
@@ -30,8 +33,10 @@ namespace GNAPluginNS {
  */
 class ConvertPaddedToValidConv : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("ConvertPaddedToValidConv", "0");
   ConvertPaddedToValidConv();
 };
 
-} // namespace GNAPluginNS
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov

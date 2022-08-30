@@ -11,14 +11,15 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNInputNode : public MKLDNNNode {
+class Input : public Node {
 public:
-    MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    MKLDNNInputNode(const Shape& shape, const InferenceEngine::Precision &prc, const std::string &name,
-                    const std::string &type, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    MKLDNNInputNode(MemoryDescPtr memDesc, const std::string &name, const std::string &type, const mkldnn::engine& eng,
-                    MKLDNNWeightsSharing::Ptr &cache);
+    Input(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Input(const Shape& shape, const InferenceEngine::Precision &prc, const std::string &name,
+                    const std::string &type, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Input(MemoryDescPtr memDesc, const std::string &name, const std::string &type, const dnnl::engine& eng,
+                    WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -26,9 +27,9 @@ public:
     bool created() const override;
 
     void withMeanImage();
-    MKLDNNMemoryCPtr getMemoryPtr() const;
+    MemoryCPtr getMemoryPtr() const;
 
-    void executeDynamicImpl(mkldnn::stream strm) override {}
+    void executeDynamicImpl(dnnl::stream strm) override {}
     bool isExecutable() const override {
         return false;
     }
@@ -43,10 +44,11 @@ private:
 
 private:
     std::shared_ptr<ngraph::op::Constant> constOp;
-    MKLDNNMemoryCPtr memoryPtr;
+    MemoryCPtr memoryPtr;
     MemoryDescPtr extMemDesc = nullptr;
     bool isMeanImage = false;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

@@ -78,22 +78,12 @@ public:
                 uint32_t asym_d_quantization : 1;
 
                 union dedicated_t {
-                    struct lookt_t {
-                        uint32_t axisX : 1;
-                        uint32_t axisY : 1;
-                        uint32_t axisFeature : 1;
-                        uint32_t axisBatch : 1;
-                        uint32_t axisXYF : 1;
-                        uint32_t indicesF32 : 1;
-                        uint32_t indicesOther : 1;
-                    } lookt;
                     struct argm_t {
                         uint32_t axisX : 1;
                         uint32_t axisY : 1;
                         uint32_t axisZ : 1;
                         uint32_t axisFeature : 1;
                         uint32_t axisBatch : 1;
-                        uint32_t axisXYF : 1;
                     } argm;
                     struct idxsel_t {
                         uint32_t axisX : 1;
@@ -141,7 +131,9 @@ public:
                     struct softmax_t {
                         uint32_t dimX : 1;
                         uint32_t dimY : 1;
+                        uint32_t dimZ : 1;
                         uint32_t dimFeature : 1;
+                        uint32_t dimBatch : 1;
                     } softmax;
                     struct region_yolo_t {
                         uint32_t dimX : 1;
@@ -275,7 +267,6 @@ public:
     void EnableActivationAdditionalParamsAsInput() { key.restrict.val.activationAdditionalParamsAsInput = 1; }
     void EnableMomentum() { key.restrict.val.momentum = 1; }
     void EnableLRNMode(LRNMode m);
-    void EnableLookUpTableAxis(LookUpTableAxis m);
     void EnableNormalizeMode(NormalizeMode m);
     void EnableMVNMode(MVNMode m);
     void EnableMVNNormalizeVariance();
@@ -315,7 +306,6 @@ public:
     void DisableTuning() { key.enableTuning = 0; }
     void EnableConcatOneKernel() { key.restrict.val.dedicated.concat.oneKernel = 1; }
     void EnableArgMaxMinAxis(ArgMaxMinAxis a);
-    void EnableLookUpTableIndicesFormat(Datatype a);
     void EnableIndexSelectAxis(IndexSelectAxis a);
     void EnableFusedConvEltwiseRWOutOpt();
     bool Support(const ParamsKey& k) const;
@@ -589,14 +579,14 @@ struct base_params : public Params {
     std::vector<base_activation_params> activations;
     std::vector<fused_operation_desc> fused_ops = {};
     MultiDataTensor inputs;
-    DataTensor output;
+    MultiDataTensor outputs;
 
     std::string to_string() const override;
     std::string to_cache_string_v2() const override;
     ParamsKey GetParamsKey() const override;
 
 protected:
-    explicit base_params(KernelType kt) : Params(kt, ""), inputs(1) {}
+    explicit base_params(KernelType kt) : Params(kt, ""), inputs(1), outputs(1) {}
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

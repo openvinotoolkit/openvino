@@ -31,6 +31,6 @@ class NGRAPH_API MimicSetBatchSize;
 
 class ngraph::pass::MimicSetBatchSize : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MimicSetBatchSize", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };

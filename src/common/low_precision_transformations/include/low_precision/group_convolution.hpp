@@ -16,12 +16,12 @@ namespace low_precision {
  * @brief GroupConvolutionTransformation propagates dequantization operations through GroupConvolution operation.
  *
  * For more details about the transformation, refer to
- * [GroupConvolutionTransformation](@ref openvino_docs_IE_DG_lpt_GroupConvolutionTransformation) page
+ * [GroupConvolutionTransformation](@ref openvino_docs_OV_UG_lpt_GroupConvolutionTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API GroupConvolutionTransformation : public ConvolutionTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("GroupConvolutionTransformation", "0");
     GroupConvolutionTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
     bool isQuantized(const std::shared_ptr<const Node>& layer,

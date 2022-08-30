@@ -41,8 +41,11 @@ void op::v8::RandomUniform::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this,
                               input_shape.rank() == 1,
                               "The rank of the tensor defining output shape must be equal to 1.");
+
         if (const auto& const_shape = get_constant_from_source(input_value(0))) {
             output_shape = ov::PartialShape(const_shape->cast_vector<int64_t>());
+        } else {
+            output_shape = ov::PartialShape::dynamic(input_shape[0]);
         }
     }
 

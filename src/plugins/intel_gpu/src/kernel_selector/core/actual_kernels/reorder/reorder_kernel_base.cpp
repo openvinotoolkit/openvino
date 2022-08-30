@@ -33,6 +33,7 @@ inline uint32_t SubGroupSize(WeightsLayout l) {
         case WeightsLayout::gs_oiyx_gsv16:
         case WeightsLayout::gs_oizyx_gsv16:
         case WeightsLayout::gs_oiyx_gsv32:
+        case WeightsLayout::gs_oizyx_gsv32:
         case WeightsLayout::g_os_iyx_osv16_rotate_180:
         case WeightsLayout::gi_yxs_os_yxsv2_osv16:
         case WeightsLayout::g_is_os_zyx_isv16_osv16:
@@ -115,11 +116,11 @@ JitConstants ReorderKernelBase::GetJitConstants(const reorder_params& params) co
     // Type JITs:
 
     // half->half without subtraction and activation (so plain reorder) can be done on shorts without explicit fp16 support
-    bool useUshort = (params.inputs[0].GetDType() == Datatype::F16 && params.output.GetDType() == Datatype::F16 &&
+    bool useUshort = (params.inputs[0].GetDType() == Datatype::F16 && params.outputs[0].GetDType() == Datatype::F16 &&
                       params.mode == MeanSubtractMode::NONE && params.activations.empty());
 
     Datatype calc_type = useUshort ? Datatype::UINT16 : params.inputs[0].GetDType();
-    Datatype output_reorder_type = useUshort ? Datatype::UINT16 : params.output.GetDType();
+    Datatype output_reorder_type = useUshort ? Datatype::UINT16 : params.outputs[0].GetDType();
     Datatype input_reorder_type = useUshort ? Datatype::UINT16 : params.inputs[0].GetDType();
 
     jit.Merge(MakeTypeJitConstants(calc_type, "CALC"));
@@ -132,7 +133,7 @@ JitConstants ReorderKernelBase::GetJitConstants(const reorder_params& params) co
     jit.Merge(MakeActivationJitConstants(params.activations, GetUnitType(params), "_TYPED", true));
 
     // TODO: Move to lower classes
-    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", SubGroupSize(params.output.GetLayout())));
+    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", SubGroupSize(params.outputs[0].GetLayout())));
 
     return jit;
 }
@@ -152,7 +153,7 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
     DispatchData dispatchData;
 
     auto& input = params.inputs[0];
-    auto& output = params.output;
+    auto& output = params.outputs[0];
     auto input_l = input.GetLayout();
     auto output_l = output.GetLayout();
     DataTensor input_tensor = input;

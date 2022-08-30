@@ -13,6 +13,7 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 struct jit_roi_pooling_params {
     int mb, c;
@@ -65,17 +66,17 @@ struct jit_uni_roi_pooling_kernel {
     jit_roi_pooling_params jpp_;
 };
 
-class MKLDNNROIPoolingNode : public MKLDNNNode {
+class ROIPooling : public Node {
 public:
-    MKLDNNROIPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    ROIPooling(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     void prepareParams() override;
 
 private:
@@ -92,9 +93,9 @@ private:
     public:
         ROIPoolingExecutor() = default;
         virtual void exec(
-            const ov::intel_cpu::MKLDNNMemory& srcData,
-            const ov::intel_cpu::MKLDNNMemory& srcRoi,
-            const ov::intel_cpu::MKLDNNMemory& dst) = 0;
+            const ov::intel_cpu::Memory& srcData,
+            const ov::intel_cpu::Memory& srcRoi,
+            const ov::intel_cpu::Memory& dst) = 0;
         virtual ~ROIPoolingExecutor() = default;
 
         static std::shared_ptr<ROIPoolingExecutor> createROIPoolingNewExecutor(const jit_roi_pooling_params& jpp);
@@ -131,5 +132,6 @@ private:
     executorPtr execPtr = nullptr;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

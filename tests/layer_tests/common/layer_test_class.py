@@ -7,7 +7,6 @@ import os
 import re
 import warnings
 import xml.etree.ElementTree as ET
-from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
 from pathlib import Path
 
 import numpy as np
@@ -30,7 +29,7 @@ class CommonLayerTest:
                            " the specific framework")
 
     def _test(self, framework_model, ref_net, ie_device, precision, ir_version, temp_dir, api_2,
-              use_new_frontend=False, infer_timeout=60, enabled_transforms='',
+              use_new_frontend=True, infer_timeout=60, enabled_transforms='',
               disabled_transforms='', **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
@@ -60,6 +59,8 @@ class CommonLayerTest:
 
         if use_new_frontend:
             mo_params["use_new_frontend"] = True
+        else:
+            mo_params["use_legacy_frontend"] = True
 
         exit_code, stderr = generate_ir(**mo_params)
 

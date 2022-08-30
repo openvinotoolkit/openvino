@@ -34,18 +34,22 @@ TEST(DecoderTransformation, FunctionPass) {
     EXPECT_EQ(flag, true);
 }
 
+namespace _decoder_transformation_test {
+class TestPass : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("ov::pass::TestPass");
+    TestPass() = default;
+    TestPass(const TestPass& tp) = default;
+    bool run_on_model(const std::shared_ptr<ov::Model>&) override {
+        *m_flag = true;
+        return *m_flag;
+    }
+    std::shared_ptr<bool> m_flag = std::make_shared<bool>(false);
+};
+}  // namespace _decoder_transformation_test
+
 TEST(DecoderTransformation, TestPass) {
-    class TestPass : public ov::pass::ModelPass {
-    public:
-        OPENVINO_RTTI("ov::pass::TestPass");
-        TestPass() = default;
-        TestPass(const TestPass& tp) = default;
-        bool run_on_model(const std::shared_ptr<ov::Model>&) override {
-            *m_flag = true;
-            return *m_flag;
-        }
-        std::shared_ptr<bool> m_flag = std::make_shared<bool>(false);
-    } test_pass;
+    _decoder_transformation_test::TestPass test_pass;
     DecoderTransformationExtension decoder_ext(test_pass);
 
     ov::pass::Manager manager;

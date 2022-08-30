@@ -26,7 +26,7 @@ public:
     OpSet() = default;
     /// \brief Insert an op into the opset with a particular name and factory
     void insert(const std::string& name, const NodeTypeInfo& type_info, FactoryRegistry<Node>::Factory factory) {
-        return insert(name, type_info, std::move(factory));
+        return ov::OpSet::insert(name, type_info, std::move(factory));
     }
     /// \brief Insert OP_TYPE into the opset with a special name and the default factory
     template <typename OP_TYPE>
@@ -60,4 +60,5 @@ const NGRAPH_API OpSet& get_opset5();
 const NGRAPH_API OpSet& get_opset6();
 const NGRAPH_API OpSet& get_opset7();
 const NGRAPH_API OpSet& get_opset8();
+const NGRAPH_API OpSet& get_opset9();
 }  // namespace ngraph

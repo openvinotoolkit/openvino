@@ -684,8 +684,6 @@ void contract_two_inputs(ngraph::pass::EinsumDecomposition* einsum_decompose_ptr
 }
 }  // namespace
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::EinsumDecomposition, "EinsumDecomposition", 0);
-
 ngraph::pass::EinsumDecomposition::EinsumDecomposition() {
     // NOTE: The transformation is applicable if Einsum equation does not contain ellipsis label
     // and does not contain subscripts with repeated labels.

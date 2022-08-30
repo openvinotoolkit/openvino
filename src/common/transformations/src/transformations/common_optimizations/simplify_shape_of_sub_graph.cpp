@@ -18,8 +18,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SharedShapeOf, "SharedShapeOf", 0);
-
 static constexpr size_t index_for_int32 = 0;
 static constexpr size_t index_for_int64 = 1;
 
@@ -60,8 +58,6 @@ bool ngraph::pass::SharedShapeOf::run_on_model(const std::shared_ptr<ngraph::Fun
     return graph_rewritten;
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::GroupedGatherElimination, "GroupedGatherElimination", 0);
-
 ngraph::pass::GroupedGatherElimination::GroupedGatherElimination() {
     MATCHER_SCOPE(GroupedGatherElimination);
     auto concat_label = ngraph::pattern::wrap_type<ngraph::opset1::Concat>(pattern::rank_equals(1));
@@ -79,7 +75,16 @@ ngraph::pass::GroupedGatherElimination::GroupedGatherElimination() {
                 (curr->input_value(0) != next->input_value(0))) {
                 ++i;
                 continue;
-            }  // curr and next are the same type of gather which takes data from the same source
+            }
+
+            // Scalar inputs are not supported by Concat and we don't want to throw an exception here.
+            // The transformation should not be applied instead.
+            if (curr->input_value(1).get_partial_shape().same_scheme(Shape{}) ||
+                next->input_value(1).get_partial_shape().same_scheme(Shape{})) {
+                return false;
+            }
+
+            // curr and next are the same type of gather which takes data from the same source
             auto joint_indices = ngraph::op::util::make_try_fold<opset1::Concat>(
                 OutputVector{curr->input_value(1), next->input_value(1)},
                 0);
@@ -124,8 +129,6 @@ ngraph::pass::GroupedGatherElimination::GroupedGatherElimination() {
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::GatherNopElimination, "GatherNopElimination", 0);
-
 ngraph::pass::GatherNopElimination::GatherNopElimination() {
     MATCHER_SCOPE(GatherNopElimination);
     const auto gather_label = ngraph::pattern::wrap_type<ngraph::op::util::GatherBase>(
@@ -151,8 +154,6 @@ ngraph::pass::GatherNopElimination::GatherNopElimination() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(gather_label, matcher_name);
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyGatherShapeOf, "SimplifyGatherShapeOf", 0);
 
 ngraph::pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
     MATCHER_SCOPE(SimplifyGatherShapeOf);
@@ -221,8 +222,6 @@ ngraph::pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifySecondInputOfReshape, "SimplifySecondInputOfReshape", 0);
-
 ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
     MATCHER_SCOPE(SimplifySecondInputOfReshape);
     const auto input = pattern::any_input();
@@ -244,7 +243,7 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
             return false;
 
         const auto concat_axis = concat->get_axis();
-        OPENVINO_ASSERT(concat_axis == 0, "axis is not valid for matched Concat with 1D output");
+        OPENVINO_ASSERT(concat_axis == 0 || concat_axis == -1, "axis is not valid for matched Concat with 1D output");
 
         auto data = m.get_pattern_value_map().at(input);
         if (is_type<opset8::FakeQuantize>(data.get_node_shared_ptr()) ||
@@ -265,13 +264,20 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
         std::int64_t gather_dims_expected_location = 0;
         bool gather_folded = false;
 
+        auto update_expected_gather_location = [&](const Output<Node>& concat_input) {
+            const auto concat_input_shape = concat_input.get_shape();
+            OPENVINO_ASSERT(concat_input_shape.size() == 1,
+                            "concat input rank is not valid for matched Concat with 1D output");
+            gather_dims_expected_location += concat_input_shape[0];
+        };
+
         // We need this check to avoid sequences shapeOf -> gather -> concat
         // that change the arrangement of dimensions in the reshape pattern
-        for (auto& input : new_concat_inputs) {
-            if (const auto gather = as_type_ptr<op::util::GatherBase>(input.get_node_shared_ptr())) {
+        for (auto& concat_input : new_concat_inputs) {
+            if (const auto gather = as_type_ptr<op::util::GatherBase>(concat_input.get_node_shared_ptr())) {
                 auto indices_constant = as_type_ptr<opset8::Constant>(gather->get_input_node_shared_ptr(1));
                 if (!indices_constant || !check_shape_of_gather(gather)) {
-                    gather_dims_expected_location++;
+                    update_expected_gather_location(gather);
                     continue;
                 }
 
@@ -287,14 +293,11 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
                 if (gather_can_be_fused) {
                     const size_t num_of_unchanged_dimensions = indices.size();
                     const auto subgraph_et = gather->get_input_element_type(0);
-                    input = opset8::Constant::create(subgraph_et, Shape{num_of_unchanged_dimensions}, {0});
+                    concat_input = opset8::Constant::create(subgraph_et, Shape{num_of_unchanged_dimensions}, {0});
                     gather_folded = true;
                 }
             } else {
-                const auto concat_input_shape = input.get_shape();
-                OPENVINO_ASSERT(concat_input_shape.size() == 1,
-                                "concat input rank is not valid for matched Concat with 1D output");
-                gather_dims_expected_location += concat_input_shape[0];
+                update_expected_gather_location(concat_input);
             }
         }
 
@@ -317,8 +320,6 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyShapeOfSubGraph, "SimplifyShapeOfSubGraph", 0);
 
 bool ngraph::pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(SimplifyShapeOfSubGraph);

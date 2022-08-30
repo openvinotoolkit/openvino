@@ -39,16 +39,6 @@ namespace cldnn {
 ///   @li outputIdx : index of destination feature
 struct concatenation : public primitive_base<concatenation> {
     CLDNN_DECLARE_PRIMITIVE(concatenation)
-
-    enum concatenation_axis {
-        along_b,
-        along_f,
-        along_x,
-        along_y,
-        along_z,
-        along_w
-    };
-
     /// @li Constructs concatenation primitive.
     /// @param id This primitive id.
     /// @param input Vector of input primitives ids.
@@ -56,10 +46,9 @@ struct concatenation : public primitive_base<concatenation> {
     concatenation(
         const primitive_id& id,
         const std::vector<primitive_id>& input,
-        const concatenation_axis axis,
-        const primitive_id& ext_prim_id = "",
+        const int64_t axis,
         const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding), axis(axis) {}
+        : primitive_base(id, {input}, output_padding), axis(axis) {}
 
     /// @li Constructs concatenation primitive.
     /// @param id This primitive id.
@@ -69,14 +58,13 @@ struct concatenation : public primitive_base<concatenation> {
     concatenation(
         const primitive_id& id,
         const std::vector<primitive_id>& input,
-        const concatenation_axis axis,
+        const int64_t axis,
         const data_types output_dt,
-        const primitive_id& ext_prim_id = "",
         const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding, optional_data_type{output_dt}), axis(axis) {}
+        : primitive_base(id, {input}, output_padding, optional_data_type{output_dt}), axis(axis) {}
 
     /// @brief Dimension along which concatenation should take place
-    concatenation_axis axis;
+    int64_t axis;
 };
 /// @}
 /// @}

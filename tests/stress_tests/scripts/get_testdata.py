@@ -112,6 +112,7 @@ def main():
                              'which will be downloaded and converted to IRs via OMZ.')
     parser.add_argument('--omz_repo', required=False,
                         help='Path to Open Model Zoo (OMZ) repository. It will be used to skip cloning step.')
+    # TODO: update discretion for --mo_tool. When MO installed to python venv path to MO is redundant
     parser.add_argument('--mo_tool', type=Path,
                         help='Path to Model Optimizer (MO) runner. Required for OMZ converter.py only.')
     parser.add_argument('--omz_models_out_dir', type=Path,
@@ -144,6 +145,7 @@ def main():
     # prepare virtual environment and install requirements
     python_executable = sys.executable
     if not args.no_venv:
+        # TODO: Update paths to requirements, currently paths are wrong
         Venv = VirtualEnv("./.stress_venv")
         requirements = [
             args.mo_tool.parents[3] / "requirements.txt",
@@ -205,15 +207,15 @@ def main():
 
         # convert models to IRs
         converter_path = omz_path / "tools" / "model_tools" / "converter.py"
+
         # NOTE: remove --precisions if both precisions (FP32 & FP16) required
-        cmd = '"{executable}" {converter_path} --name {model_name}' \
-              ' -p "{executable}"' \
-              ' --precisions={precision}' \
-              ' --output_dir {irs_dir}' \
-              ' --download_dir {models_dir}' \
-              ' --mo {mo_tool}'.format(executable=python_executable, converter_path=converter_path,
-                                       precision=precision, model_name=model_name, irs_dir=args.omz_irs_out_dir,
-                                       models_dir=args.omz_models_out_dir, mo_tool=args.mo_tool)
+        cmd = f'"{python_executable}" {converter_path} --name {model_name}' \
+              f' -p "{python_executable}"' \
+              f' --precisions={precision}' \
+              f' --output_dir {args.omz_irs_out_dir}' \
+              f' --download_dir {args.omz_models_out_dir}'
+        if args.mo_tool:
+            cmd += f' --mo {args.mo_tool}'
         run_in_subprocess(cmd, check_call=not args.skip_omz_errors)
 
     for model_rec in model_recs:

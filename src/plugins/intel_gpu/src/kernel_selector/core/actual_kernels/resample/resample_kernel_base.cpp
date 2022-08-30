@@ -37,12 +37,12 @@ size_t ResampleKernelBase::GetFeatureBlockSize(const resample_params& params) co
     size_t feature_block_size = 1;
     std::vector<size_t> preferred_sizes = { 32, 16, 8 };
     for (auto& s : preferred_sizes)
-        if (params.output.Feature().v % s == 0)
+        if (params.outputs[0].Feature().v % s == 0)
             return s;
-    if (params.output.Feature().v < max_size)
-        return params.output.Feature().v;
-    for (size_t f = 1; f <= params.output.Feature().v && f <= max_size; f++)
-        if (params.output.Feature().v % f == 0)
+    if (params.outputs[0].Feature().v < max_size)
+        return params.outputs[0].Feature().v;
+    for (size_t f = 1; f <= params.outputs[0].Feature().v && f <= max_size; f++)
+        if (params.outputs[0].Feature().v % f == 0)
             feature_block_size = f;
     return std::max(feature_block_size, min_size);
 }
@@ -50,10 +50,10 @@ size_t ResampleKernelBase::GetFeatureBlockSize(const resample_params& params) co
 ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_selector::resample_params &arg) const {
     DispatchData dispatchData;
     auto in_layout = arg.inputs[0].GetLayout();
-    auto out_layout = arg.output.GetLayout();
+    auto out_layout = arg.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    const auto& out = arg.output;
+    const auto& out = arg.outputs[0];
 
     if (arg.resampleType == ResampleType::NEAREST_NEIGHBOR) {
         dispatchData.gws = { out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v };
@@ -118,8 +118,7 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     const auto& input = params.inputs[0];
-    const auto& output = params.output;
-    const auto align_corners = params.align_corners;
+    const auto& output = params.outputs[0];
     auto pads_begin = params.pads_begin;
     auto pads_end = params.pads_end;
     if (pads_begin.size() == 4)
@@ -144,29 +143,12 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
         paddingUsed |= (pads_begin[i] != 0 || pads_end[i] != 0);
     }
 
-    if (align_corners) {
-        scales[0] = (out_b_size_padded) > 1
-                        ? static_cast<float>(b_size_padded - 1) / static_cast<float>(out_b_size_padded - 1)
-                        : 0.0f;
-        scales[1] = (out_f_size_padded) > 1
-                        ? static_cast<float>(f_size_padded - 1) / static_cast<float>(out_f_size_padded - 1)
-                        : 0.0f;
-        scales[4] = (out_x_size_padded) > 1
-                        ? static_cast<float>(x_size_padded - 1) / static_cast<float>(out_x_size_padded - 1)
-                        : 0.0f;
-        scales[3] = (out_y_size_padded) > 1
-                        ? static_cast<float>(y_size_padded - 1) / static_cast<float>(out_y_size_padded - 1)
-                        : 0.0f;
-        scales[2] = (out_z_size_padded) > 1
-                        ? static_cast<float>(z_size_padded - 1) / static_cast<float>(out_z_size_padded - 1)
-                        : 0.0f;
-    } else {
-        scales[0] = static_cast<float>(b_size_padded) / static_cast<float>(out_b_size_padded);
-        scales[1] = static_cast<float>(f_size_padded) / static_cast<float>(out_f_size_padded);
-        scales[4] = static_cast<float>(x_size_padded) / static_cast<float>(out_x_size_padded);
-        scales[3] = static_cast<float>(y_size_padded) / static_cast<float>(out_y_size_padded);
-        scales[2] = static_cast<float>(z_size_padded) / static_cast<float>(out_z_size_padded);
-    }
+    scales[0] = static_cast<float>(b_size_padded) / static_cast<float>(out_b_size_padded);
+    scales[1] = static_cast<float>(f_size_padded) / static_cast<float>(out_f_size_padded);
+    scales[4] = static_cast<float>(x_size_padded) / static_cast<float>(out_x_size_padded);
+    scales[3] = static_cast<float>(y_size_padded) / static_cast<float>(out_y_size_padded);
+    scales[2] = static_cast<float>(z_size_padded) / static_cast<float>(out_z_size_padded);
+
     for (const auto& it : params.axesAndScales) {
         int idx = getAxisIndex(it.first);
         axesUsed[idx] = 1;
@@ -187,7 +169,6 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
         MakeJitConstant("PADS_END", pads_end),
         MakeJitConstant("PADDING_USED", static_cast<int>(paddingUsed)),
         MakeJitConstant("AXES_USED", axesUsed),
-        MakeJitConstant("ALIGN_CORNERS", align_corners),
         MakeJitConstant("KERNEL_W", 2),
         MakeJitConstant("ANTIALIAS", params.antialias),
         MakeJitConstant("CUBE_COEFF", params.cube_coeff),
@@ -213,14 +194,14 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
 
     if (params.resampleType == ResampleType::CAFFE_BILINEAR_INTERP) {
         jit.AddConstant(MakeJitConstant("FEATURE_BLOCK_SIZE", feature_block_size));
-        if (params.output.Feature().v % feature_block_size != 0) {
+        if (params.outputs[0].Feature().v % feature_block_size != 0) {
             jit.AddConstant(MakeJitConstant("LEFTOVERS", 1));
-            jit.AddConstant(MakeJitConstant("FEATURE_LEFTOVER", params.output.Feature().v % feature_block_size));
+            jit.AddConstant(MakeJitConstant("FEATURE_LEFTOVER", params.outputs[0].Feature().v % feature_block_size));
         }
     }
 
     if (params.resampleType == ResampleType::BILINEAR_INTERP || params.resampleType == ResampleType::LINEAR_ONNX) {
-        if (params.output.X().v % 32 != 0) {
+        if (params.outputs[0].X().v % 32 != 0) {
             jit.AddConstant(MakeJitConstant("LEFTOVERS", 1));
         }
     }

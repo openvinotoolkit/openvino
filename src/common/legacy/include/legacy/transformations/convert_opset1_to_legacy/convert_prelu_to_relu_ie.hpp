@@ -22,6 +22,6 @@ class ConvertPReLUToReLUIE;
 
 class ngraph::pass::ConvertPReLUToReLUIE: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertPReLUToReLUIE", "0");
     ConvertPReLUToReLUIE();
 };

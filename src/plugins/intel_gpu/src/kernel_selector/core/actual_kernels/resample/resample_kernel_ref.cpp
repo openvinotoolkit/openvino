@@ -42,7 +42,7 @@ KernelsData ResampleKernelRef::GetKernelsData(const Params& params, const option
 static size_t packing_factor(const resample_params& params) {
     // TODO Add support for only input packing
     bool in_out_8bit = (params.inputs[0].GetDType() == Datatype::UINT8 || params.inputs[0].GetDType() == Datatype::INT8) &&
-                       (params.output.GetDType() == Datatype::UINT8 || params.output.GetDType() == Datatype::INT8);
+                       (params.outputs[0].GetDType() == Datatype::UINT8 || params.outputs[0].GetDType() == Datatype::INT8);
 
     if (!in_out_8bit)
         return 1;
@@ -61,7 +61,7 @@ static size_t packing_factor(const resample_params& params) {
     };
 
     size_t input_factor = get_layout_packing_factor(params.inputs[0].GetLayout());
-    size_t output_factor = get_layout_packing_factor(params.output.GetLayout());
+    size_t output_factor = get_layout_packing_factor(params.outputs[0].GetLayout());
 
     if (input_factor % output_factor == 0 || output_factor % input_factor == 0)
         return std::min(input_factor, output_factor);
@@ -76,11 +76,11 @@ static bool use_packing(const resample_params& params) {
     if (pack == 1)
         return false;
 
-    if (params.inputs[0].Feature().pad.before % pack != 0 || params.output.Feature().pad.before % pack != 0)
+    if (params.inputs[0].Feature().pad.before % pack != 0 || params.outputs[0].Feature().pad.before % pack != 0)
         return false;
 
-    auto packed_work_items = params.output.X().v * params.output.Y().v * params.output.Z().v
-        * CeilDiv(params.output.Feature().v, pack) * params.output.Batch().v;
+    auto packed_work_items = params.outputs[0].X().v * params.outputs[0].Y().v * params.outputs[0].Z().v
+        * CeilDiv(params.outputs[0].Feature().v, pack) * params.outputs[0].Batch().v;
     // TODO Loosen this requirement to minimum EUs needed to saturate cache bandwidth
     size_t max_work_items_per_eu = 32 * static_cast<size_t>(params.engineInfo.maxThreadsPerExecutionUnit);
     auto minimum_work_items = params.engineInfo.computeUnitsCount * max_work_items_per_eu;
@@ -101,9 +101,9 @@ JitConstants ResampleKernelRef::GetJitConstants(const resample_params& params) c
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
-        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 4) {
+        if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
             idx_order = {"batch", "OF_ID", "oy", "ox"};
-        } else if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+        } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
             idx_order = {"batch", "OF_ID", "oz", "oy", "ox"};
         }
 
@@ -117,14 +117,15 @@ JitConstants ResampleKernelRef::GetJitConstants(const resample_params& params) c
 ResampleKernelBase::DispatchData ResampleKernelRef::SetDefault(const resample_params& arg) const {
     auto dispatchData = Parent::SetDefault(arg);
     auto in_layout = arg.inputs[0].GetLayout();
-    auto out_layout = arg.output.GetLayout();
+    auto out_layout = arg.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
                                                                      { Tensor::DataChannelName::Y, Tensor::DataChannelName::Z },
                                                                      { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
 
     if (use_packing(arg)) {
         auto pack = packing_factor(arg);
-        dispatchData.gws = { arg.output.X().v, arg.output.Y().v * arg.output.Z().v, CeilDiv(arg.output.Feature().v, pack) * arg.output.Batch().v };
+        dispatchData.gws = { arg.outputs[0].X().v, arg.outputs[0].Y().v * arg.outputs[0].Z().v,
+                             CeilDiv(arg.outputs[0].Feature().v, pack) * arg.outputs[0].Batch().v };
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
     }
 

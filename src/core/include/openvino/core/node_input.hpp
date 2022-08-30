@@ -24,6 +24,7 @@ template <typename NodeType>
 class Input {};
 
 /// \brief A handle for one of a node's inputs.
+/// \ingroup ov_model_cpp_api
 template <>
 class OPENVINO_API Input<Node> {
 public:
@@ -75,6 +76,7 @@ private:
 };
 
 /// \brief A handle for one of a node's inputs.
+/// \ingroup ov_model_cpp_api
 template <>
 class OPENVINO_API Input<const Node> {
 public:

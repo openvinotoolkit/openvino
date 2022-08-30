@@ -148,28 +148,6 @@ void ParamsKey::EnableLRNMode(LRNMode m) {
     }
 }
 
-void ParamsKey::EnableLookUpTableAxis(LookUpTableAxis m) {
-    switch (m) {
-        case kernel_selector::LookUpTableAxis::BATCH:
-            key.restrict.val.dedicated.lookt.axisBatch = 1;
-            break;
-        case kernel_selector::LookUpTableAxis::FEATURE:
-            key.restrict.val.dedicated.lookt.axisFeature = 1;
-            break;
-        case kernel_selector::LookUpTableAxis::X:
-            key.restrict.val.dedicated.lookt.axisX = 1;
-            break;
-        case kernel_selector::LookUpTableAxis::Y:
-            key.restrict.val.dedicated.lookt.axisY = 1;
-            break;
-        case kernel_selector::LookUpTableAxis::XYF:
-            key.restrict.val.dedicated.lookt.axisXYF = 1;
-            break;
-        default:
-            break;
-    }
-}
-
 void ParamsKey::EnableNormalizeMode(NormalizeMode m) {
     switch (m) {
         case NormalizeMode::ACROSS_SPATIAL:
@@ -270,8 +248,14 @@ void ParamsKey::EnableSoftmaxDim(SoftmaxDim d) {
         case SoftmaxDim::Y:
             key.restrict.val.dedicated.softmax.dimY = 1;
             break;
+        case SoftmaxDim::Z:
+            key.restrict.val.dedicated.softmax.dimZ = 1;
+            break;
         case SoftmaxDim::FEATURE:
             key.restrict.val.dedicated.softmax.dimFeature = 1;
+            break;
+        case SoftmaxDim::BATCH:
+            key.restrict.val.dedicated.softmax.dimBatch = 1;
             break;
         default:
             break;
@@ -344,9 +328,6 @@ void ParamsKey::EnableArgMaxMinAxis(ArgMaxMinAxis a) {
         case ArgMaxMinAxis::BATCH:
             key.restrict.val.dedicated.argm.axisBatch = 1;
             break;
-        case ArgMaxMinAxis::XYF:
-            key.restrict.val.dedicated.argm.axisXYF = 1;
-            break;
         default:
             break;
     }
@@ -369,13 +350,6 @@ void ParamsKey::EnableIndexSelectAxis(IndexSelectAxis a) {
         default:
             break;
     }
-}
-
-void ParamsKey::EnableLookUpTableIndicesFormat(Datatype a) {
-    if (a == Datatype::F32)
-        key.restrict.val.dedicated.lookt.indicesF32 = 1;
-    else
-        key.restrict.val.dedicated.lookt.indicesOther = 1;
 }
 
 void ParamsKey::EnableQuantization(QuantizationType q) {
@@ -500,7 +474,8 @@ ParamsKey base_params::GetParamsKey() const {
     bool bPitches = false;
     bool bOffests = false;
     bool bDifferentTypes = false;
-    bool bFP16Used = (output.GetDType() == Datatype::F16);
+    // TODO : multiple output support
+    bool bFP16Used = (outputs[0].GetDType() == Datatype::F16);
 
     for (const auto& i : inputs) {
         k.EnableInputDataType(i.GetDType());
@@ -509,18 +484,18 @@ ParamsKey base_params::GetParamsKey() const {
         bBatching |= (i.Batch().v > 1);
         bPitches |= (i.PitchesDifferFromLogicalDims());
         bOffests |= (i.GetFirstElementOffset() != 0);
-        bDifferentTypes |= (i.GetDType() != output.GetDType());
+        bDifferentTypes |= (i.GetDType() != outputs[0].GetDType());
         bFP16Used |= (i.GetDType() == Datatype::F16);
     }
 
-    k.EnableOutputDataType(output.GetDType());
-    k.EnableOutputLayout(output.GetLayout());
+    k.EnableOutputDataType(outputs[0].GetDType());
+    k.EnableOutputLayout(outputs[0].GetLayout());
 
     if (bBatching) {
         k.EnableBatching();
     }
 
-    if (bPitches || output.PitchesDifferFromLogicalDims()) {
+    if (bPitches || outputs[0].PitchesDifferFromLogicalDims()) {
         k.EnableTensorPitches();
     }
 
@@ -528,7 +503,7 @@ ParamsKey base_params::GetParamsKey() const {
         k.EnableDifferentTypes();
     }
 
-    if (bOffests || output.GetFirstElementOffset() != 0) {
+    if (bOffests || outputs[0].GetFirstElementOffset() != 0) {
         k.EnableTensorOffset();
     }
 
@@ -576,7 +551,7 @@ std::string base_params::to_string() const {
     for (auto input : inputs) {
         s << toString(input) << "_";
     }
-    s << toString(output);
+    s << toString(outputs[0]);
 
     return s.str();
 }
@@ -587,7 +562,7 @@ std::string base_params::to_cache_string_v2() const {
     for (auto input : inputs) {
         s << toString_v2(input) << ";";
     }
-    s << toString_v2(output);
+    s << toString_v2(outputs[0]);
 
     return s.str();
 }

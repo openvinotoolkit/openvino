@@ -11,6 +11,7 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 struct jit_def_conv_params {
     int ndims;
@@ -68,14 +69,14 @@ struct jit_uni_def_conv_kernel {
     jit_def_conv_params jcp_;
 };
 
-class MKLDNNDeformableConvolutionNode : public MKLDNNNode {
+class DeformableConvolution : public Node {
 public:
-    MKLDNNDeformableConvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    DeformableConvolution(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -101,7 +102,7 @@ private:
     void prepareParams() override;
     void updatePadding();
 
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     static constexpr size_t DATA_ID = 0;
     static constexpr size_t OFF_ID = 1;
     static constexpr size_t WEI_ID = 2;
@@ -155,5 +156,6 @@ private:
     bool autoPadding = false;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

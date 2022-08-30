@@ -10,14 +10,17 @@
 #include <vector>
 
 #include <ie_parallel.hpp>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNPriorBoxClusteredNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto priorBox = std::dynamic_pointer_cast<const ngraph::opset1::PriorBoxClustered>(op);
         if (!priorBox) {
@@ -30,10 +33,10 @@ bool MKLDNNPriorBoxClusteredNode::isSupportedOperation(const std::shared_ptr<con
     return true;
 }
 
-MKLDNNPriorBoxClusteredNode::MKLDNNPriorBoxClusteredNode(
+PriorBoxClustered::PriorBoxClustered(
     const std::shared_ptr<ngraph::Node>& op,
-    const mkldnn::engine& eng,
-    MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+    const dnnl::engine& eng,
+    WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -58,7 +61,7 @@ MKLDNNPriorBoxClusteredNode::MKLDNNPriorBoxClusteredNode(
     }
 }
 
-bool MKLDNNPriorBoxClusteredNode::needShapeInfer() const {
+bool PriorBoxClustered::needShapeInfer() const {
     auto& memory = getChildEdgeAt(0)->getMemoryPtr();
     if (memory->GetShape().isDynamic()) {
         return true;
@@ -73,7 +76,7 @@ bool MKLDNNPriorBoxClusteredNode::needShapeInfer() const {
     return outputShape[1] != output;
 }
 
-std::vector<VectorDims> MKLDNNPriorBoxClusteredNode::shapeInfer() const {
+std::vector<VectorDims> PriorBoxClustered::shapeInfer() const {
     const int* in_data = reinterpret_cast<int*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     const int H = in_data[0];
     const int W = in_data[1];
@@ -81,11 +84,11 @@ std::vector<VectorDims> MKLDNNPriorBoxClusteredNode::shapeInfer() const {
     return {{2, output}};
 }
 
-bool MKLDNNPriorBoxClusteredNode::needPrepareParams() const {
+bool PriorBoxClustered::needPrepareParams() const {
     return false;
 }
 
-void MKLDNNPriorBoxClusteredNode::initSupportedPrimitiveDescriptors() {
+void PriorBoxClustered::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -95,7 +98,7 @@ void MKLDNNPriorBoxClusteredNode::initSupportedPrimitiveDescriptors() {
             impl_desc_type::ref_any);
 }
 
-void MKLDNNPriorBoxClusteredNode::createPrimitive() {
+void PriorBoxClustered::createPrimitive() {
     if (inputShapesDefined()) {
         if (needPrepareParams())
             prepareParams();
@@ -103,7 +106,7 @@ void MKLDNNPriorBoxClusteredNode::createPrimitive() {
     }
 }
 
-void MKLDNNPriorBoxClusteredNode::execute(mkldnn::stream strm) {
+void PriorBoxClustered::execute(dnnl::stream strm) {
     const int* in_data = reinterpret_cast<int*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     const int layer_height = in_data[0];
     const int layer_width = in_data[1];
@@ -163,8 +166,10 @@ void MKLDNNPriorBoxClusteredNode::execute(mkldnn::stream strm) {
     });
 }
 
-bool MKLDNNPriorBoxClusteredNode::created() const {
-    return getType() == PriorBoxClustered;
+bool PriorBoxClustered::created() const {
+    return getType() == Type::PriorBoxClustered;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNPriorBoxClusteredNode, PriorBoxClustered)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

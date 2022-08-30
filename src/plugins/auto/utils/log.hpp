@@ -14,6 +14,7 @@
 #include <vector>
 #include <stdexcept>
 #include <algorithm>
+#include <functional>
 
 #include "singleton.hpp"
 #include "time_utils.hpp"
@@ -86,6 +87,8 @@ enum class LogLevel : uint32_t {
     LOG_FREQUENT = static_cast<uint32_t>(LogLevel::FREQUENT) | static_cast<uint32_t>(LogLevel::LOG_TRACE)
 };
 
+using LogTask = std::function<void()>;
+
 class Log : public Singleton<Log> {
 public:
     void setPrefix(std::string prefix);
@@ -95,6 +98,7 @@ public:
     template <typename... Args>
     void doLog(bool on, bool isTraceCallStack, LogLevel level, const char* levelStr, const char* file,
         const char* func, long line, const char* tag, const char* fmt, Args... args);
+    void doRun(LogLevel level, const LogTask& task);
 #ifdef MULTIUNITTEST
     Log(std::string unittest):Log() {
     }
@@ -254,6 +258,13 @@ inline void Log::doLog(bool on, bool isTraceCallStack, LogLevel level, const cha
 
     std::lock_guard<std::mutex> autoLock(mutex);
     print(stream);
+}
+
+inline void Log::doRun(LogLevel level, const LogTask& task) {
+    if (!(static_cast<uint32_t>(level) & static_cast<uint32_t>(logLevel))) {
+        return;
+    }
+    task();
 }
 
 inline std::string Log::colorBegin(MultiDevicePlugin::LogLevel logLevel) {

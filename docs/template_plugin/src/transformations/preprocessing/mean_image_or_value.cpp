@@ -10,8 +10,6 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::AddMeanSubtract, "AddMeanSubtract", 0);
-
 ngraph::pass::AddMeanSubtract::AddMeanSubtract(const MeanMap& inputInfoMap) {
     // RUN_ON_FUNCTION_SCOPE(AddMeanSubtract);
     auto label = ngraph::pattern::wrap_type<ngraph::opset3::Parameter>();

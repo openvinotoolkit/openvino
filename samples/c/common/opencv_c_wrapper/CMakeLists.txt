@@ -12,14 +12,14 @@ file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 add_library(${TARGET_NAME} SHARED ${HEADERS} ${SOURCES})
 
 # Find OpenCV components if exist
-find_package(OpenCV COMPONENTS core imgproc imgcodecs QUIET)
+find_package(OpenCV QUIET COMPONENTS core imgproc imgcodecs)
 if(NOT OpenCV_FOUND)
     message(WARNING "OPENCV is disabled or not found, ${TARGET_NAME} is built without OPENCV support")
 else()
-    add_definitions(-DUSE_OPENCV)
+    target_compile_definitions(${TARGET_NAME} PRIVATE USE_OPENCV)
 endif()
 
-target_link_libraries(${TARGET_NAME} PUBLIC ${OpenCV_LIBRARIES})
+target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCV_LIBRARIES})
 
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 

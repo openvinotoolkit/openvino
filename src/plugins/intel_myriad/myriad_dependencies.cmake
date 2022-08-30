@@ -6,15 +6,15 @@ include_guard(GLOBAL)
 
 set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma2x8x)
 set(VPU_SUPPORTED_FIRMWARES_HASH
-    "e65fcc1c6b0f3e9d814e53022c212ec0a2b83197a9df38badb298fb85ccf3acf"
-    "b11368fec2036d96fb703d2a40b171184fefe89f27e74a988ef1ca34260a2bc5")
+    "877c4e1616d14a94dd2764f4f32f1c1aa2180dcd64ad1823b31efdc3f56ad593"
+    "aabff3d817431792ef9e17056448979c2cdbb484ad4b0af9e68cb874ee10eef5")
 
 #
 # Default packages
 #
 
-set(FIRMWARE_PACKAGE_VERSION 1875)
-set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.2")
+set(FIRMWARE_PACKAGE_VERSION 20220307_34)
+set(VPU_CLC_MA2X8X_VERSION "movi-cltools-22.08.1")
 
 #
 # CMake variables to override default firmware files
@@ -80,7 +80,7 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
         VERBATIM)
 
     install(FILES ${${var_name}}
-            DESTINATION ${IE_CPACK_RUNTIME_PATH}
+            DESTINATION ${OV_CPACK_PLUGINSDIR}
             COMPONENT myriad)
 
     if(ENABLE_INTEL_MYRIAD AND ENABLE_BEH_TESTS)
@@ -137,7 +137,7 @@ if(LINUX AND NOT ARM
             ARCHIVE_LIN "VPU_OCL_compiler/${VPU_CLC_MA2X8X_VERSION}.tar.gz"
             TARGET_PATH "${TEMP}/vpu/clc/ma2x8x/${VPU_CLC_MA2X8X_VERSION}"
             ENVIRONMENT "VPU_CLC_MA2X8X_COMMAND"
-            SHA256 "0a864bd0e11cee2d85ac7e451dddae19216c8bc9bb50e1a8e0151ab97d5e3c8d")
+            SHA256 "ad0bc3d94e2c85d8501a4bf2f0c7c75b82244fcadbb69b83369412c75fafaa57")
         debug_message(STATUS "VPU_CLC_MA2X8X=" ${VPU_CLC_MA2X8X})
 
         update_deps_cache(

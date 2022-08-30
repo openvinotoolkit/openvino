@@ -6,11 +6,10 @@
 
 #include "fake_quantize.h"
 #include "eltwise.h"
-#include <mkldnn.hpp>
 #include <string>
 #include <vector>
-#include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <onednn/dnnl.h>
+#include <dnnl_extension_utils.h>
 #include "ie_parallel.hpp"
 #include <algorithm>
 
@@ -22,6 +21,7 @@
 #include "common/cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
 #include "emitters/jit_bf16_emitters.hpp"
+#include "emitters/jit_load_store_emitters.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset4.hpp>
@@ -30,23 +30,26 @@
 #include <ie_ngraph_utils.hpp>
 #include "utils/cpu_utils.hpp"
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 
 #define GET_OFF(field) offsetof(jit_interpolate_call_args, field)
 
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
 template <cpu_isa_t isa>
 struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_interpolate_kernel_f32)
 
-    explicit jit_uni_interpolate_kernel_f32(jit_interpolate_config_params jcp, const mkldnn_primitive_attr &attr)
+    explicit jit_uni_interpolate_kernel_f32(jit_interpolate_config_params jcp, const dnnl_primitive_attr &attr)
     : jit_uni_interpolate_kernel(jcp, attr), jit_generator() {}
 
     void create_ker() override {
@@ -55,6 +58,11 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
     }
 
     void generate() override {
+        // dummy second reg_tmp_64 as no fill needed
+        load_pool_gpr_idxs = {static_cast<size_t>(reg_tmp_64.getIdx()), static_cast<size_t>(reg_tmp_64.getIdx())};
+        store_pool_gpr_idxs = {static_cast<size_t>(reg_tmp_64.getIdx())};
+        store_pool_vec_idxs = {static_cast<size_t>(vmm_zero.getIdx())};
+
         const auto &p = attr_.post_ops_;
         for (int i = 0; i < p.len(); i++) {
             auto &post_op = p.entry_[i];
@@ -75,17 +83,13 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
             }
         }
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa));
-
         this->preamble();
 
         if (attr_.post_ops_.len() != 0) {
             mov(reg_post_ops_data, ptr[reg_params + GET_OFF(post_op_data)]);
             mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
         }
-        if (isa == cpu::x64::avx512_common)
-            uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
+        uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
         switch (jcp_.mode) {
             case InterpolateMode::nearest: {
@@ -155,9 +159,7 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
 
         this->postamble();
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core) && emu_vcvtneps2bf16 != nullptr)
-            emu_vcvtneps2bf16->emit_data();
-
+        emit_emitters_data();
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
         if ((jcp_.mode == InterpolateMode::cubic) && (jcp_.layout == InterpolateLayoutType::planar)) {
@@ -170,6 +172,9 @@ private:
             Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits<isa>::vlen;
+    const int vector_step = vlen / sizeof(float);
+    const int tail_step = jcp_.C % vector_step;
+    const int scalar_step = 1;
 
     Xbyak::Reg64 reg_src = r8;
     Xbyak::Reg64 reg_src_aux = r15;
@@ -196,7 +201,6 @@ private:
     Xbyak::Reg64 reg_table = rdx;   // do not need reg_index_offset in this mode, so use rdx
 
     Vmm vmm_val = Vmm(1);
-    Xmm xmm_val = Xmm(1);
     Vmm vmm_index = Vmm(0);
     Vmm vmm_zero = Vmm(2);
     Vmm vmm_mask = Vmm(3);
@@ -205,25 +209,15 @@ private:
 
     // for linear
     Vmm vmm_weightT = Vmm(15);
-    Xmm xmm_weightT = Xmm(15);
     Vmm vmm_weightB = Vmm(14);
-    Xmm xmm_weightB = Xmm(14);
     Vmm vmm_weightL = Vmm(13);
-    Xmm xmm_weightL = Xmm(13);
     Vmm vmm_weightR = Vmm(12);
-    Xmm xmm_weightR = Xmm(12);
     Vmm vmm_weightF = Vmm(6);
-    Xmm xmm_weightF = Xmm(6);
     Vmm vmm_weightE = Vmm(7);
-    Xmm xmm_weightE = Xmm(7);
     Vmm vmm_valTL = Vmm(11);
-    Xmm xmm_valTL = Xmm(11);
     Vmm vmm_valTR = vmm_val;
-    Xmm xmm_valTR = xmm_val;
     Vmm vmm_valBL = Vmm(9);
-    Xmm xmm_valBL = Xmm(9);
     Vmm vmm_valBR = Vmm(8);
-    Xmm xmm_valBR = Xmm(8);
 
     // for cubic
     Vmm vmm_src = Vmm(6);
@@ -251,11 +245,55 @@ private:
     Xbyak::Label l_table_constant;
     Opmask k_mask = Xbyak::Opmask(1);
 
-    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16 = nullptr;
+    std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
+
+    std::vector<size_t> store_pool_gpr_idxs;
+    std::vector<size_t> store_pool_vec_idxs;
+    std::vector<size_t> load_pool_gpr_idxs;
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
     std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
+
+    void emit_emitters_data() {
+        for (const auto& emitter : emitters) {
+            if (emitter.second)
+                emitter.second->emit_data();
+        }
+    }
+
+    inline void load(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
+        emit_load(reg_src, vmm_src, jcp_.src_prc, Precision::FP32, elt_num, offset);
+    }
+
+    inline void load_weights(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
+        emit_load(reg_src, vmm_src, Precision::FP32, Precision::FP32, elt_num, offset);
+    }
+
+    inline void emit_load(Xbyak::Reg64 reg_src, Vmm vmm_src, Precision src_prc, Precision dst_prc, const int elt_num, const int offset = 0) {
+        const auto seed = load_emitter_params(src_prc, dst_prc, elt_num).hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num));
+        }
+
+        emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), static_cast<size_t>(offset)},
+                                  {static_cast<size_t>(vmm_src.getIdx())}, {}, {load_pool_gpr_idxs});
+    }
+
+    inline void store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, const int elt_num, const int offset = 0) {
+        const auto seed = store_emitter_params(Precision::FP32, jcp_.dst_prc, elt_num).hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, elt_num));
+        }
+
+        // for cases when Store emitter need 2 aux vmm we can use vmm_dst as second aux vmm
+        std::vector<size_t> local_store_pool_vec_idxs = { static_cast<size_t>(vmm_dst.getIdx()) };
+        local_store_pool_vec_idxs.insert(local_store_pool_vec_idxs.begin(), store_pool_vec_idxs.begin(), store_pool_vec_idxs.end());
+
+        emitters[seed]->emit_code({static_cast<size_t>(vmm_dst.getIdx()), static_cast<size_t>(offset)},
+                                  {static_cast<size_t>(reg_dst.getIdx())},
+                                  {local_store_pool_vec_idxs}, {store_pool_gpr_idxs});
+    }
 
     void nn_planar() {
         Xbyak::Reg64 reg_index_h = reg_src_aux1;
@@ -288,7 +326,6 @@ private:
 
             // reset index_w, index_w * dataSize done when built to avoid redundent compute
             mov(reg_index, reg_index_w);
-            int step = vlen / sizeof(float);
 
             Xbyak::Label nn_loop_label;
             Xbyak::Label nn_loop_end_label;
@@ -297,25 +334,24 @@ private:
 
             L(nn_loop_label);   // inner loop
             {
-                cmp(reg_work_amount, step);
+                cmp(reg_work_amount, vector_step);
                 jl(nn_loop_end_label, T_NEAR);
 
                 uni_vmovdqu(vmm_index, ptr[reg_index]);
                 uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
                 vgatherdps(vmm_val, ptr[reg_src_h + vmm_index], vmm_mask);
                 if (attr_.post_ops_.len() != 0)
-                    apply_post_ops(jcp_.dst_dt, 1);
-                store_vector(ptr[reg_dst], vmm_val, jcp_.dst_dt);
+                    apply_post_ops(jcp_.dst_prc, 1);
+                store(vmm_val, reg_dst, vector_step);
 
-                add(reg_dst, step * jcp_.dst_data_size);
-                add(reg_index, step * jcp_.indices_size);
-                sub(reg_work_amount, step);
+                add(reg_dst, vector_step * jcp_.dst_data_size);
+                add(reg_index, vector_step * jcp_.indices_size);
+                sub(reg_work_amount, vector_step);
 
                 jmp(nn_loop_label, T_NEAR);
             }
             L(nn_loop_end_label);
 
-            step = 1;
             L(nn_tail_loop_label);
             {
                 cmp(reg_work_amount, 1);
@@ -325,14 +361,14 @@ private:
                 mov(reg_index_offset, dword[reg_index]);
                 add(reg_src_aux, reg_index_offset);
 
-                load_scalar(xmm_val, ptr[reg_src_aux], jcp_.src_dt);
+                load(reg_src_aux, vmm_val, scalar_step);
                 if (attr_.post_ops_.len() != 0)
-                    apply_post_ops(jcp_.dst_dt, 1);
-                store_scalar(ptr[reg_dst], xmm_val, jcp_.dst_dt);
+                    apply_post_ops(jcp_.dst_prc, 1);
+                store(vmm_val, reg_dst, scalar_step);
 
-                add(reg_dst, step * jcp_.dst_data_size);
-                add(reg_index, step * jcp_.indices_size);
-                sub(reg_work_amount, step);
+                add(reg_dst, scalar_step * jcp_.dst_data_size);
+                add(reg_index, scalar_step * jcp_.indices_size);
+                sub(reg_work_amount, scalar_step);
 
                 jmp(nn_tail_loop_label, T_NEAR);
             }
@@ -348,10 +384,6 @@ private:
     }
 
     void nn_blk() {
-        int step = vlen / sizeof(float);
-        if (isa == cpu::x64::sse41)
-            step *= 2;
-
         Xbyak::Label nn_loop_label;
         Xbyak::Label nn_loop_end_label;
         L(nn_loop_label);
@@ -363,24 +395,24 @@ private:
             mov(reg_index_offset, dword[reg_index]);
             add(reg_src_aux, reg_index_offset);
 
-            load_vector(vmm_val, ptr[reg_src_aux], jcp_.src_dt);
+            load(reg_src_aux, vmm_val, vector_step);
             if (attr_.post_ops_.len() != 0)
-                apply_post_ops(jcp_.dst_dt, 0);
-            store_vector(ptr[reg_dst], vmm_val, jcp_.dst_dt);
+                apply_post_ops(jcp_.dst_prc, 0);
+            store(vmm_val, reg_dst, vector_step);
+            add(reg_dst, vector_step * jcp_.dst_data_size);
 
             if (isa == cpu::x64::sse41) {
-                int sse42_offset = 4;
-                add(reg_src_aux, sse42_offset * jcp_.src_data_size);
-                load_vector(vmm_val, ptr[reg_src_aux], jcp_.src_dt);
+                add(reg_src_aux, vector_step * jcp_.src_data_size);
+                load(reg_src_aux, vmm_val, vector_step);
                 if (attr_.post_ops_.len() != 0) {
-                    add(reg_oc_off, sse42_offset * sizeof(float));
-                    apply_post_ops(jcp_.dst_dt, 0);
-                    sub(reg_oc_off, sse42_offset * sizeof(float));
+                    add(reg_oc_off, vector_step * sizeof(float));
+                    apply_post_ops(jcp_.dst_prc, 0);
+                    sub(reg_oc_off, vector_step * sizeof(float));
                 }
-                store_vector(ptr[reg_dst + sse42_offset * jcp_.dst_data_size], vmm_val, jcp_.dst_dt);
+                store(vmm_val, reg_dst, vector_step);
+                add(reg_dst, vector_step * jcp_.dst_data_size);
             }
 
-            add(reg_dst, step * jcp_.dst_data_size);
             add(reg_index, jcp_.indices_size);
             sub(reg_work_amount, 1);
 
@@ -408,8 +440,6 @@ private:
             cmp(reg_work_amount_out, 1);
             jl(out_loop_end, T_NEAR);
 
-            int step = vlen / sizeof(float);
-
             //inner loop for C
             Xbyak::Label nn_loop_label;
             Xbyak::Label nn_loop_end_label;
@@ -431,46 +461,36 @@ private:
 
             L(nn_loop_label);
             {
-                cmp(reg_work_amount, step);
+                cmp(reg_work_amount, vector_step);
                 jl(nn_loop_end_label, T_NEAR);
 
-                load_vector(vmm_val, ptr[reg_src_aux], jcp_.src_dt);
+                load(reg_src_aux, vmm_val, vector_step);
                 if (attr_.post_ops_.len() != 0)
-                    apply_post_ops(jcp_.dst_dt, 0);
-                store_vector(ptr[reg_dst], vmm_val, jcp_.dst_dt);
+                    apply_post_ops(jcp_.dst_prc, 0);
+                store(vmm_val, reg_dst, vector_step);
 
-                add(reg_dst, step * jcp_.dst_data_size);
-                add(reg_src_aux, step * jcp_.src_data_size);
-                add(reg_oc_off, step * sizeof(float));
-                sub(reg_work_amount, step);
+                add(reg_dst, vector_step * jcp_.dst_data_size);
+                add(reg_src_aux, vector_step * jcp_.src_data_size);
+                add(reg_oc_off, vector_step * sizeof(float));
+                sub(reg_work_amount, vector_step);
 
                 jmp(nn_loop_label, T_NEAR);
             }
             L(nn_loop_end_label);
 
-            step = 1;
-            L(nn_tail_loop_label);
-            {
-                cmp(reg_work_amount, 1);
-                jl(nn_tail_loop_end_label, T_NEAR);
-
-                load_scalar(xmm_val, ptr[reg_src_aux], jcp_.src_dt);
+            if (tail_step != 0) {
+                load(reg_src_aux, vmm_val, tail_step);
                 if (attr_.post_ops_.len() != 0)
-                    apply_post_ops(jcp_.dst_dt, 0);
-                store_scalar(ptr[reg_dst], xmm_val, jcp_.dst_dt);
+                    apply_post_ops(jcp_.dst_prc, 0);
+                store(vmm_val, reg_dst, tail_step);
 
-                add(reg_dst, step * jcp_.dst_data_size);
-                add(reg_src_aux, step * jcp_.src_data_size);
-                add(reg_oc_off, step * sizeof(float));
-                sub(reg_work_amount, step);
-
-                jmp(nn_tail_loop_label, T_NEAR);
+                // check to remove below
+                add(reg_dst, tail_step * jcp_.dst_data_size);
+                add(reg_src_aux, tail_step * jcp_.src_data_size);
+                add(reg_oc_off, tail_step * sizeof(float));
+                sub(reg_work_amount, tail_step);
             }
-            L(nn_tail_loop_end_label);
-            // inner loop end
-
             add(reg_index, jcp_.indices_size);
-
             sub(reg_work_amount_out, 1);
             jmp(out_loop_label, T_NEAR);
         }
@@ -515,11 +535,10 @@ private:
         }
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
 
-        int step = vlen / sizeof(float);
-        int blk = (isa == cpu::x64::sse41) ? (2 * step) : step;
-        int dst_stride = (jcp_.layout == InterpolateLayoutType::by_channel) ? (step * jcp_.dst_data_size) :
+        int blk = (isa == cpu::x64::sse41) ? (2 * vector_step) : vector_step;
+        int dst_stride = (jcp_.layout == InterpolateLayoutType::by_channel) ? (vector_step * jcp_.dst_data_size) :
                                             (blk * jcp_.OW * jcp_.OH * jcp_.OD * jcp_.dst_data_size);
-        int src_stride = (jcp_.layout == InterpolateLayoutType::by_channel) ? (step * jcp_.src_data_size) :
+        int src_stride = (jcp_.layout == InterpolateLayoutType::by_channel) ? (vector_step * jcp_.src_data_size) :
                                             (blk * jcp_.IW * jcp_.IH * jcp_.ID * jcp_.src_data_size);
 
         Xbyak::Label main_loop_label;
@@ -531,30 +550,29 @@ private:
         L(main_loop_label);
         {
             if (jcp_.layout == InterpolateLayoutType::by_channel) {
-                cmp(reg_work_amount, step);
+                cmp(reg_work_amount, vector_step);
                 jl(main_loop_end_label, T_NEAR);
             } else {
                 cmp(reg_work_amount, 1);
-                jl(tail_loop_end_label, T_NEAR);
+                jl(main_loop_end_label, T_NEAR);
             }
             // progressive manner
-            load_vector(vmm_valTL, ptr[reg_src], jcp_.src_dt);
-            load_vector(vmm_valTR, ptr[reg_src_aux], jcp_.src_dt);
+            load(reg_src, vmm_valTL, vector_step);
+            load(reg_src_aux, vmm_valTR, vector_step);
             if (jcp_.spatial_dim_size == 1) {
                 linear_onnx_worker_1d();
             }
             if (jcp_.spatial_dim_size > 1) {
-                load_vector(vmm_valBL, ptr[reg_src_aux1], jcp_.src_dt);
-                load_vector(vmm_valBR, ptr[reg_src_aux2], jcp_.src_dt);
+                load(reg_src_aux1, vmm_valBL, vector_step);
+                load(reg_src_aux2, vmm_valBR, vector_step);
                 linear_onnx_worker_2d();
             }
             if (jcp_.spatial_dim_size > 2) {
                 uni_vmovups(vmm_d_bias, vmm_valTR);  // temporally save front result to temp_vmm
-
-                load_vector(vmm_valTL, ptr[reg_src_aux4], jcp_.src_dt);
-                load_vector(vmm_valTR, ptr[reg_src_aux5], jcp_.src_dt);
-                load_vector(vmm_valBL, ptr[reg_src_aux6], jcp_.src_dt);
-                load_vector(vmm_valBR, ptr[reg_src_aux7], jcp_.src_dt);
+                load(reg_src_aux4, vmm_valTL, vector_step);
+                load(reg_src_aux5, vmm_valTR, vector_step);
+                load(reg_src_aux6, vmm_valBL, vector_step);
+                load(reg_src_aux7, vmm_valBR, vector_step);
 
                 // 2d for end depth
                 linear_onnx_worker_2d();
@@ -564,31 +582,29 @@ private:
             }
 
             if (attr_.post_ops_.len() != 0) {
-                apply_post_ops(jcp_.dst_dt, false);  // vmm_val is vmm_valTR
-                add(reg_oc_off, step * sizeof(float));
+                apply_post_ops(jcp_.dst_prc, false);  // vmm_val is vmm_valTR
+                add(reg_oc_off, vector_step * sizeof(float));
             }
-            store_vector(ptr[reg_dst], vmm_valTR, jcp_.dst_dt);
+            store(vmm_valTR, reg_dst, vector_step);
 
             if ((isa == cpu::x64::sse41) && (jcp_.layout == InterpolateLayoutType::block)) {
-                int sse42_offset = 4;  // vmm is xmm here
-                load_vector(vmm_valTL, ptr[reg_src + sse42_offset * jcp_.src_data_size], jcp_.src_dt);
-                load_vector(vmm_valTR, ptr[reg_src_aux + sse42_offset * jcp_.src_data_size], jcp_.src_dt);
+                int offset_src = vector_step * jcp_.src_data_size;
+                load(reg_src, vmm_valTL, vector_step, offset_src);
+                load(reg_src_aux, vmm_valTR, vector_step, offset_src);
                 if (jcp_.spatial_dim_size == 1) {
                     linear_onnx_worker_1d();
                 }
                 if (jcp_.spatial_dim_size > 1) {
-                    load_vector(vmm_valBL, ptr[reg_src_aux1 + sse42_offset * jcp_.src_data_size], jcp_.src_dt);
-                    load_vector(vmm_valBR, ptr[reg_src_aux2 + sse42_offset * jcp_.src_data_size], jcp_.src_dt);
+                    load(reg_src_aux1, vmm_valBL, vector_step, offset_src);
+                    load(reg_src_aux2, vmm_valBR, vector_step, offset_src);
                     linear_onnx_worker_2d();
                 }
                 if (jcp_.spatial_dim_size > 2) {
                     uni_vmovups(vmm_d_bias, vmm_valTR);  // temporally save front result to temp_vmm
-
-                    load_vector(vmm_valTL, ptr[reg_src_aux4 + sse42_offset * jcp_.src_data_size], jcp_.src_dt);
-                    load_vector(vmm_valTR, ptr[reg_src_aux5 + sse42_offset * jcp_.src_data_size], jcp_.src_dt);
-                    load_vector(vmm_valBL, ptr[reg_src_aux6 + sse42_offset * jcp_.src_data_size], jcp_.src_dt);
-                    load_vector(vmm_valBR, ptr[reg_src_aux7 + sse42_offset * jcp_.src_data_size], jcp_.src_dt);
-
+                    load(reg_src_aux4, vmm_valTL, vector_step, offset_src);
+                    load(reg_src_aux5, vmm_valTR, vector_step, offset_src);
+                    load(reg_src_aux6, vmm_valBL, vector_step, offset_src);
+                    load(reg_src_aux7, vmm_valBR, vector_step, offset_src);
                     // 2d for end depth
                     linear_onnx_worker_2d();
                     // 3th dimension
@@ -597,10 +613,11 @@ private:
                 }
 
                 if (attr_.post_ops_.len() != 0) {
-                    apply_post_ops(jcp_.dst_dt, false);
-                    add(reg_oc_off, step * sizeof(float));
+                    apply_post_ops(jcp_.dst_prc, false);
+                    add(reg_oc_off, vector_step * sizeof(float));
                 }
-                store_vector(ptr[reg_dst + sse42_offset * jcp_.dst_data_size], vmm_valTR, jcp_.dst_dt);
+                int offset_dst = vector_step * jcp_.dst_data_size;
+                store(vmm_valTR, reg_dst, vector_step, offset_dst);
             }
             add(reg_dst, dst_stride);
             add(reg_src, src_stride);
@@ -616,7 +633,7 @@ private:
                 add(reg_src_aux7, src_stride);
             }
             if (jcp_.layout == InterpolateLayoutType::by_channel) {
-                sub(reg_work_amount, step);    // work_amount is c
+                sub(reg_work_amount, vector_step);    // work_amount is c
             } else {
                 sub(reg_work_amount, 1);       // work_amount = div_up(c, blk), no tails
             }
@@ -625,113 +642,38 @@ private:
         }
         L(main_loop_end_label);
 
-        step = 4;
-        L(blk_tail_loop_label);
-        {
-            cmp(reg_work_amount, step);
-            jl(blk_tail_loop_end_label, T_NEAR);
-
-            // load to xmm with 4s in tails, process on vmm
-            load_xmm(xmm_valTL, ptr[reg_src], jcp_.src_dt);
-            load_xmm(xmm_valTR, ptr[reg_src_aux], jcp_.src_dt);
+        if ((jcp_.layout == InterpolateLayoutType::by_channel) && (tail_step != 0)) {
+            load(reg_src, vmm_valTL, tail_step);
+            load(reg_src_aux, vmm_valTR, tail_step);
             if (jcp_.spatial_dim_size == 1) {
                 linear_onnx_worker_1d();
             }
             if (jcp_.spatial_dim_size > 1) {
-                load_xmm(xmm_valBL, ptr[reg_src_aux1], jcp_.src_dt);
-                load_xmm(xmm_valBR, ptr[reg_src_aux2], jcp_.src_dt);
+                load(reg_src_aux1, vmm_valBL, tail_step);
+                load(reg_src_aux2, vmm_valBR, tail_step);
                 linear_onnx_worker_2d();
             }
             if (jcp_.spatial_dim_size > 2) {
                 uni_vmovups(vmm_d_bias, vmm_valTR);  // temporally save front result to temp_vmm
-                load_xmm(xmm_valTL, ptr[reg_src_aux4], jcp_.src_dt);
-                load_xmm(xmm_valTR, ptr[reg_src_aux5], jcp_.src_dt);
-                load_xmm(xmm_valBL, ptr[reg_src_aux6], jcp_.src_dt);
-                load_xmm(xmm_valBR, ptr[reg_src_aux7], jcp_.src_dt);
-                linear_onnx_worker_2d();
 
+                load(reg_src_aux4, vmm_valTL, tail_step);
+                load(reg_src_aux5, vmm_valTR, tail_step);
+                load(reg_src_aux6, vmm_valBL, tail_step);
+                load(reg_src_aux7, vmm_valBR, tail_step);
+                // 2d for end depth
+                linear_onnx_worker_2d();
+                // 3th dimension
                 uni_vmulps(vmm_valTR, vmm_valTR, vmm_weightE); // end_value * end_weight
                 uni_vfmadd231ps(vmm_valTR, vmm_d_bias, vmm_weightF); // start_value * start_weight + end_value * end_weight
             }
 
             if (attr_.post_ops_.len() != 0) {
-                apply_post_ops(jcp_.dst_dt, false);  // vmm_val is vmm_valTR
-                add(reg_oc_off, step * sizeof(float));
+                apply_post_ops(jcp_.dst_prc, false);  // vmm_val is vmm_valTR
+                add(reg_oc_off, tail_step * sizeof(float));
             }
-            store_xmm(ptr[reg_dst], xmm_valTR, jcp_.dst_dt);
 
-            add(reg_dst, step * jcp_.dst_data_size);
-            add(reg_src, step * jcp_.src_data_size);
-            add(reg_src_aux, step * jcp_.src_data_size);
-            if (jcp_.spatial_dim_size > 1) {
-                add(reg_src_aux1, step * jcp_.src_data_size);
-                add(reg_src_aux2, step * jcp_.src_data_size);
-            }
-            if (jcp_.spatial_dim_size > 2) {
-                add(reg_src_aux4, step * jcp_.src_data_size);
-                add(reg_src_aux5, step * jcp_.src_data_size);
-                add(reg_src_aux6, step * jcp_.src_data_size);
-                add(reg_src_aux7, step * jcp_.src_data_size);
-            }
-            sub(reg_work_amount, step);
-
-            jmp(blk_tail_loop_label, T_NEAR);
+            store(vmm_valTR, reg_dst, tail_step);
         }
-        L(blk_tail_loop_end_label);
-
-        step = 1;
-        L(tail_loop_label);
-        {
-            cmp(reg_work_amount, 1);
-            jl(tail_loop_end_label, T_NEAR);
-
-            // load on xmm, process on vmm
-            load_scalar(xmm_valTL, ptr[reg_src], jcp_.src_dt);
-            load_scalar(xmm_valTR, ptr[reg_src_aux], jcp_.src_dt);
-            if (jcp_.spatial_dim_size == 1) {
-                linear_onnx_worker_1d();
-            }
-            if (jcp_.spatial_dim_size > 1) {
-                load_scalar(xmm_valBL, ptr[reg_src_aux1], jcp_.src_dt);
-                load_scalar(xmm_valBR, ptr[reg_src_aux2], jcp_.src_dt);
-                linear_onnx_worker_2d();
-            }
-            if (jcp_.spatial_dim_size > 2) {
-                uni_vmovups(vmm_d_bias, vmm_valTR);  // temporally save front result to temp_vmm
-                load_scalar(xmm_valTL, ptr[reg_src_aux4], jcp_.src_dt);
-                load_scalar(xmm_valTR, ptr[reg_src_aux5], jcp_.src_dt);
-                load_scalar(xmm_valBL, ptr[reg_src_aux6], jcp_.src_dt);
-                load_scalar(xmm_valBR, ptr[reg_src_aux7], jcp_.src_dt);
-                linear_onnx_worker_2d();
-
-                uni_vmulps(vmm_valTR, vmm_valTR, vmm_weightE); // end_value * end_weight
-                uni_vfmadd231ps(vmm_valTR, vmm_d_bias, vmm_weightF); // start_value * start_weight + end_value * end_weight
-            }
-
-            if (attr_.post_ops_.len() != 0) {
-                apply_post_ops(jcp_.dst_dt, false);  // vmm_val is vmm_valTR
-                add(reg_oc_off, step * sizeof(float));
-            }
-            store_scalar(ptr[reg_dst], xmm_valTR, jcp_.dst_dt);
-
-            add(reg_dst, step * jcp_.dst_data_size);
-            add(reg_src, step * jcp_.src_data_size);
-            add(reg_src_aux, step * jcp_.src_data_size);
-            if (jcp_.spatial_dim_size > 1) {
-                add(reg_src_aux1, step * jcp_.src_data_size);
-                add(reg_src_aux2, step * jcp_.src_data_size);
-            }
-            if (jcp_.spatial_dim_size > 2) {
-                add(reg_src_aux4, step * jcp_.src_data_size);
-                add(reg_src_aux5, step * jcp_.src_data_size);
-                add(reg_src_aux6, step * jcp_.src_data_size);
-                add(reg_src_aux7, step * jcp_.src_data_size);
-            }
-            sub(reg_work_amount, step);
-
-            jmp(tail_loop_label, T_NEAR);
-        }
-        L(tail_loop_end_label);
     }
 
     void linear_onnx_planar() {
@@ -741,7 +683,6 @@ private:
         mov(reg_src_aux, ptr[reg_params + GET_OFF(weight_ptr[0])]);
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
 
-        int step = vlen / sizeof(float);
         int index_stride = jcp_.OW * jcp_.OH * jcp_.OD * jcp_.indices_size;
         int weight_stride = jcp_.OW * jcp_.OH * jcp_.OD * sizeof(float);
 
@@ -751,7 +692,7 @@ private:
         Xbyak::Label tail_loop_end_label;
         L(main_loop_label);
         {
-            cmp(reg_work_amount, step);
+            cmp(reg_work_amount, vector_step);
             jl(main_loop_end_label, T_NEAR);
 
             uni_vmovdqu(vmm_index, ptr[reg_index]);
@@ -762,8 +703,8 @@ private:
             uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
             vgatherdps(vmm_valTR, ptr[reg_src + vmm_index], vmm_mask);
 
-            load_vector(vmm_weightL, ptr[reg_src_aux], memory::data_type::f32);
-            load_vector(vmm_weightR, ptr[reg_src_aux + weight_stride], memory::data_type::f32);
+            load_weights(reg_src_aux, vmm_weightL, vector_step);
+            load_weights(reg_src_aux, vmm_weightR, vector_step, weight_stride);
 
             // progressive manner
             if (jcp_.spatial_dim_size == 1) {
@@ -778,8 +719,8 @@ private:
                 uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
                 vgatherdps(vmm_valBR, ptr[reg_src + vmm_index], vmm_mask);
 
-                load_vector(vmm_weightT, ptr[reg_src_aux + 2 * weight_stride], memory::data_type::f32);
-                load_vector(vmm_weightB, ptr[reg_src_aux + 3 * weight_stride], memory::data_type::f32);
+                load_weights(reg_src_aux, vmm_weightT, vector_step, 2 * weight_stride);
+                load_weights(reg_src_aux, vmm_weightB, vector_step, 3 * weight_stride);
 
                 linear_onnx_worker_2d();
             }
@@ -805,46 +746,44 @@ private:
 
                 linear_onnx_worker_2d();
 
-                load_vector(vmm_weightE, ptr[reg_src_aux + 5 * weight_stride], memory::data_type::f32);
-                load_vector(vmm_weightF, ptr[reg_src_aux + 4 * weight_stride], memory::data_type::f32);
+                load_weights(reg_src_aux, vmm_weightE, vector_step, 5 * weight_stride);
+                load_weights(reg_src_aux, vmm_weightF, vector_step, 4 * weight_stride);
 
                 uni_vmulps(vmm_valTR, vmm_valTR, vmm_weightE); // end_value * end_weight
                 uni_vfmadd231ps(vmm_valTR, vmm_d_bias, vmm_weightF); // start_value * start_weight + end_value * end_weight
             }
 
             if (attr_.post_ops_.len() != 0) {
-                apply_post_ops(jcp_.dst_dt, true);  // vmm_val is vmm_valTR, broadcase is true
+                apply_post_ops(jcp_.dst_prc, true);  // vmm_val is vmm_valTR, broadcase is true
             }
-            store_vector(ptr[reg_dst], vmm_valTR, jcp_.dst_dt);
+            store(vmm_valTR, reg_dst, vector_step);
 
-            add(reg_dst, step * jcp_.dst_data_size);
-            add(reg_src_aux, step * sizeof(float));
-            add(reg_index, step * jcp_.indices_size);
-            sub(reg_work_amount, step);
+            add(reg_dst, vector_step * jcp_.dst_data_size);
+            add(reg_src_aux, vector_step * sizeof(float));
+            add(reg_index, vector_step * jcp_.indices_size);
+            sub(reg_work_amount, vector_step);
 
             jmp(main_loop_label, T_NEAR);
         }
         L(main_loop_end_label);
 
-        step = 1;
         L(tail_loop_label);
         {
             cmp(reg_work_amount, 1);
             jl(tail_loop_end_label, T_NEAR);
 
-            // load to xmm, process on ymm/zmm
             mov(reg_src_aux1, reg_src);
             mov(reg_index_offset, dword[reg_index]);
             add(reg_src_aux1, reg_index_offset);
-            load_scalar(xmm_valTL, ptr[reg_src_aux1], jcp_.src_dt);
+            load(reg_src_aux1, vmm_valTL, scalar_step);
 
             mov(reg_src_aux1, reg_src);
             mov(reg_index_offset, dword[reg_index + index_stride]);
             add(reg_src_aux1, reg_index_offset);
-            load_scalar(xmm_valTR, ptr[reg_src_aux1], jcp_.src_dt);
+            load(reg_src_aux1, vmm_valTR, scalar_step);
 
-            load_scalar(xmm_weightL, ptr[reg_src_aux], memory::data_type::f32);
-            load_scalar(xmm_weightR, ptr[reg_src_aux + weight_stride], memory::data_type::f32);
+            load_weights(reg_src_aux, vmm_weightL, scalar_step, 0);
+            load_weights(reg_src_aux, vmm_weightR, scalar_step, weight_stride);
 
             if (jcp_.spatial_dim_size == 1) {
                 linear_onnx_worker_1d();
@@ -853,15 +792,15 @@ private:
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 2 * index_stride]);
                 add(reg_src_aux1, reg_index_offset);
-                load_scalar(xmm_valBL, ptr[reg_src_aux1], jcp_.src_dt);
+                load(reg_src_aux1, vmm_valBL, scalar_step);
 
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 3 * index_stride]);
                 add(reg_src_aux1, reg_index_offset);
-                load_scalar(xmm_valBR, ptr[reg_src_aux1], jcp_.src_dt);
+                load(reg_src_aux1, vmm_valBR, scalar_step);
 
-                load_scalar(xmm_weightT, ptr[reg_src_aux + 2 * weight_stride], memory::data_type::f32);
-                load_scalar(xmm_weightB, ptr[reg_src_aux + 3 * weight_stride], memory::data_type::f32);
+                load_weights(reg_src_aux, vmm_weightT, scalar_step, 2 * weight_stride);
+                load_weights(reg_src_aux, vmm_weightB, scalar_step, 3 * weight_stride);
 
                 linear_onnx_worker_2d();
             }
@@ -872,41 +811,41 @@ private:
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 4 * index_stride]);
                 add(reg_src_aux1, reg_index_offset);
-                load_scalar(xmm_valTL, ptr[reg_src_aux1], jcp_.src_dt);
+                load(reg_src_aux1, vmm_valTL, scalar_step);
 
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 5 * index_stride]);
                 add(reg_src_aux1, reg_index_offset);
-                load_scalar(xmm_valTR, ptr[reg_src_aux1], jcp_.src_dt);
+                load(reg_src_aux1, vmm_valTR, scalar_step);
 
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 6 * index_stride]);
                 add(reg_src_aux1, reg_index_offset);
-                load_scalar(xmm_valBL, ptr[reg_src_aux1], jcp_.src_dt);
+                load(reg_src_aux1, vmm_valBL, scalar_step);
 
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 7 * index_stride]);
                 add(reg_src_aux1, reg_index_offset);
-                load_scalar(xmm_valBR, ptr[reg_src_aux1], jcp_.src_dt);
+                load(reg_src_aux1, vmm_valBR, scalar_step);
 
                 linear_onnx_worker_2d();
 
-                load_scalar(xmm_weightE, ptr[reg_src_aux + 5 * weight_stride], memory::data_type::f32);
-                load_scalar(xmm_weightF, ptr[reg_src_aux + 4 * weight_stride], memory::data_type::f32);
+                load_weights(reg_src_aux, vmm_weightE, scalar_step, 5 * weight_stride);
+                load_weights(reg_src_aux, vmm_weightF, scalar_step, 4 * weight_stride);
 
-                uni_vmulps(vmm_valTR, vmm_valTR, xmm_weightE); // end_value * end_weight
-                uni_vfmadd231ps(vmm_valTR, vmm_d_bias, xmm_weightF); // start_value * start_weight + end_value * end_weight
+                uni_vmulps(vmm_valTR, vmm_valTR, vmm_weightE); // end_value * end_weight
+                uni_vfmadd231ps(vmm_valTR, vmm_d_bias, vmm_weightF); // start_value * start_weight + end_value * end_weight
             }
 
             if (attr_.post_ops_.len() != 0) {
-                apply_post_ops(jcp_.dst_dt, true);  // process on vmm_val, vmm_val is vmm_valTR, and bc
+                apply_post_ops(jcp_.dst_prc, true);  // process on vmm_val, vmm_val is vmm_valTR, and bc
             }
-            store_scalar(ptr[reg_dst], xmm_valTR, jcp_.dst_dt);
+            store(vmm_valTR, reg_dst, scalar_step);
 
-            add(reg_dst, step * jcp_.dst_data_size);
-            add(reg_src_aux, step * sizeof(float));
-            add(reg_index, step * jcp_.indices_size);
-            sub(reg_work_amount, step);
+            add(reg_dst, scalar_step * jcp_.dst_data_size);
+            add(reg_src_aux, scalar_step * sizeof(float));
+            add(reg_index, scalar_step * jcp_.indices_size);
+            sub(reg_work_amount, scalar_step);
 
             jmp(tail_loop_label, T_NEAR);
         }
@@ -949,8 +888,7 @@ private:
         uni_vbroadcastss(vmm_weightY2, ptr[reg_src_aux1 + 2 * sizeof(float)]);
         uni_vbroadcastss(vmm_weightY3, ptr[reg_src_aux1 + 3 * sizeof(float)]);
 
-        int step = vlen / sizeof(float);
-        int blk = (isa == cpu::x64::sse41) ? (2 * step) : step;
+        int blk = (isa == cpu::x64::sse41) ? (2 * vector_step) : vector_step;
 
         Xbyak::Label main_loop_label;
         Xbyak::Label main_loop_end_label;
@@ -959,7 +897,7 @@ private:
         L(main_loop_label);
         {
             if (jcp_.layout == InterpolateLayoutType::by_channel) {
-                cmp(reg_work_amount, step);
+                cmp(reg_work_amount, vector_step);
                 jl(main_loop_end_label, T_NEAR);
             } else {
                 cmp(reg_work_amount, 1);
@@ -971,35 +909,35 @@ private:
             cubic_c_gathered_matrix(false);
 
             if (attr_.post_ops_.len() != 0) {
-                apply_post_ops(jcp_.dst_dt, false);     // vmm_val is default dst value to post_ops and store
-                add(reg_oc_off, step * sizeof(float));
+                apply_post_ops(jcp_.dst_prc, false);     // vmm_val is default dst value to post_ops and store
+                add(reg_oc_off, vector_step * sizeof(float));
             }
-            store_vector(ptr[reg_dst], vmm_val, jcp_.dst_dt);
+            store(vmm_val, reg_dst, vector_step);
 
             if ((isa == cpu::x64::sse41) && (jcp_.layout == InterpolateLayoutType::block)) {
-                int sse42_offset = 4;  // vmm is xmm here
-                add(reg_src, sse42_offset * jcp_.src_data_size);
-                add(reg_dst, sse42_offset * jcp_.dst_data_size);
+                // vmm is xmm here
+                add(reg_src, vector_step * jcp_.src_data_size);
+                add(reg_dst, vector_step * jcp_.dst_data_size);
 
                 uni_vpxor(vmm_val, vmm_val, vmm_val);
 
                 cubic_c_gathered_matrix(false);
 
                 if (attr_.post_ops_.len() != 0) {
-                    apply_post_ops(jcp_.dst_dt, false);
-                    add(reg_oc_off, step * sizeof(float));  // second step for one blk
+                    apply_post_ops(jcp_.dst_prc, false);
+                    add(reg_oc_off, vector_step * sizeof(float));  // second vector_step for one blk
                 }
-                store_vector(ptr[reg_dst], vmm_val, jcp_.dst_dt);
+                store(vmm_val, reg_dst, vector_step);
 
-                sub(reg_src, sse42_offset * jcp_.src_data_size);
-                sub(reg_dst, sse42_offset * jcp_.dst_data_size);
+                sub(reg_src, vector_step * jcp_.src_data_size);
+                sub(reg_dst, vector_step * jcp_.dst_data_size);
             }
             if (jcp_.layout == InterpolateLayoutType::by_channel) {
-                int dst_stride = step * jcp_.dst_data_size;
-                int src_stride = step * jcp_.src_data_size;
+                int dst_stride = vector_step * jcp_.dst_data_size;
+                int src_stride = vector_step * jcp_.src_data_size;
                 add(reg_dst, dst_stride);
                 add(reg_src, src_stride);
-                sub(reg_work_amount, step);    // work_amount is c
+                sub(reg_work_amount, vector_step);    // work_amount is c
             } else {
                 int dst_stride = blk * jcp_.OW * jcp_.OH * jcp_.dst_data_size;
                 int src_stride = blk * jcp_.IW * jcp_.IH * jcp_.src_data_size;
@@ -1013,7 +951,6 @@ private:
         L(main_loop_end_label);
 
         // only for by_channel layout for tails.
-        step = 1;
         L(tail_loop_label);
         {
             cmp(reg_work_amount, 1);
@@ -1025,16 +962,16 @@ private:
             cubic_c_gathered_matrix(true);
 
             if (attr_.post_ops_.len() != 0) {
-                apply_post_ops(jcp_.dst_dt, false);     // vmm_val is default dst value
-                add(reg_oc_off, step * sizeof(float));
+                apply_post_ops(jcp_.dst_prc, false);     // vmm_val is default dst value
+                add(reg_oc_off, scalar_step * sizeof(float));
             }
-            store_scalar(ptr[reg_dst], xmm_val, jcp_.dst_dt);
+            store(vmm_val, reg_dst, scalar_step);
 
-            int dst_stride = step * jcp_.dst_data_size;
-            int src_stride = step * jcp_.src_data_size;
+            int dst_stride = scalar_step * jcp_.dst_data_size;
+            int src_stride = scalar_step * jcp_.src_data_size;
             add(reg_dst, dst_stride);
             add(reg_src, src_stride);
-            sub(reg_work_amount, step);    // work_amount is c
+            sub(reg_work_amount, scalar_step);    // work_amount is c
 
             jmp(tail_loop_label, T_NEAR);
         }
@@ -1065,11 +1002,8 @@ private:
         mov(reg_src_aux, reg_src);
         mov(reg_index_offset, dword[reg_index + i * jcp_.indices_size]);
         add(reg_src_aux, reg_index_offset);
-        if (!is_scalar) {
-            load_vector(vmm_src, ptr[reg_src_aux], jcp_.src_dt);
-        } else {
-            load_scalar(xmm_src, ptr[reg_src_aux], jcp_.src_dt);
-        }
+        int step = is_scalar ? 1 : vlen / sizeof(float);
+        load(reg_src_aux, vmm_src, step);
         uni_vfmadd231ps(vmm_dstX, vmm_src, vmm_weight);
     }
 
@@ -1096,7 +1030,6 @@ private:
         mov(reg_weight_y, ptr[reg_params + GET_OFF(weight_ptr[0]) + sizeof(size_t)]);
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
 
-        int step = vlen / sizeof(float);
         int grid_len = 4;
 
         // 0   1   2   3   4   5   6   7   8   9   10   11   12   13   14   15   16   17   18   19
@@ -1111,7 +1044,7 @@ private:
         Xbyak::Label tail_loop_end_label;
         L(main_loop_label);
         {
-            cmp(reg_work_amount, step);
+            cmp(reg_work_amount, vector_step);
             jl(main_loop_end_label, T_NEAR);
 
             // vmm_tbl_y: (0 0 0 0 1 1 1 1 * index_size) --> (0 0 0 0 4 4 4 4)
@@ -1185,21 +1118,20 @@ private:
             cubic_planar_line(false);
 
             if (attr_.post_ops_.len() != 0) {
-                apply_post_ops(jcp_.dst_dt, true);  // oc_off is broadcast and always the same value for this channel
+                apply_post_ops(jcp_.dst_prc, true);  // oc_off is broadcast and always the same value for this channel
             }
-            store_vector(ptr[reg_dst], vmm_val, jcp_.dst_dt);
+            store(vmm_val, reg_dst, vector_step);
 
-            add(reg_tbl_y, step * sizeof(int));  // sizeof(int): sequence by dd()
-            add(reg_tbl_x, step * sizeof(int));
-            add(reg_dst, step * jcp_.dst_data_size);
+            add(reg_tbl_y, vector_step * sizeof(int));  // sizeof(int): sequence by dd()
+            add(reg_tbl_x, vector_step * sizeof(int));
+            add(reg_dst, vector_step * jcp_.dst_data_size);
 
-            sub(reg_work_amount, step);
+            sub(reg_work_amount, vector_step);
 
             jmp(main_loop_label, T_NEAR);
         }
         L(main_loop_end_label);
 
-        step = 1;
         L(tail_loop_label);
         {
             cmp(reg_work_amount, 1);
@@ -1207,15 +1139,15 @@ private:
 
             // get idx for input
             uni_vmovss(Xmm(vmm_tbl_y.getIdx()), ptr[reg_tbl_y]);
-            gather_i32_indices(vmm_index_in_y, reg_index_y, 0, vmm_tbl_y, 1, memory::data_type::s32, true);
+            gather_i32_indices(vmm_index_in_y, reg_index_y, 0, vmm_tbl_y, 1, Precision::I32, true);
 
             uni_vmovss(Xmm(vmm_val.getIdx()), ptr[reg_tbl_x]);
-            gather_i32_indices(vmm_index_in_x, reg_index, 0, vmm_val, 1, memory::data_type::s32, true);
+            gather_i32_indices(vmm_index_in_x, reg_index, 0, vmm_val, 1, Precision::I32, true);
             // gather weightX by input idx, used in y0-y3
-            gather_i32_indices(vmm_weightX0, reg_weight_x, 0, vmm_val, grid_len, memory::data_type::f32, true);
-            gather_i32_indices(vmm_weightX1, reg_weight_x, sizeof(float), vmm_val, grid_len, memory::data_type::f32, true);
-            gather_i32_indices(vmm_weightX2, reg_weight_x, 2 * sizeof(float), vmm_val, grid_len, memory::data_type::f32, true);
-            gather_i32_indices(vmm_weightX3, reg_weight_x, 3 * sizeof(float), vmm_val, grid_len, memory::data_type::f32, true);
+            gather_i32_indices(vmm_weightX0, reg_weight_x, 0, vmm_val, grid_len, Precision::FP32, true);
+            gather_i32_indices(vmm_weightX1, reg_weight_x, sizeof(float), vmm_val, grid_len, Precision::FP32, true);
+            gather_i32_indices(vmm_weightX2, reg_weight_x, 2 * sizeof(float), vmm_val, grid_len, Precision::FP32, true);
+            gather_i32_indices(vmm_weightX3, reg_weight_x, 3 * sizeof(float), vmm_val, grid_len, Precision::FP32, true);
             // vmm_val is now relieved and used for dst_value
 
             uni_vpxor(vmm_val, vmm_val, vmm_val);
@@ -1225,7 +1157,7 @@ private:
             vpminsd(vmm_index_y_itr, vmm_index_y_itr, cubic_planar_table_val(1));
             vpmaxsd(vmm_index_y_itr, vmm_index_y_itr, vmm_zero);
 
-            gather_i32_indices(vmm_weightY, reg_weight_y, 0, vmm_tbl_y, grid_len, memory::data_type::f32, true);
+            gather_i32_indices(vmm_weightY, reg_weight_y, 0, vmm_tbl_y, grid_len, Precision::FP32, true);
             cubic_planar_line(true);
 
             // y1
@@ -1233,7 +1165,7 @@ private:
             vpminsd(vmm_index_y_itr, vmm_index_in_y, cubic_planar_table_val(1));
             vpmaxsd(vmm_index_y_itr, vmm_index_y_itr, vmm_zero);
             // weight y1: shift weight_size
-            gather_i32_indices(vmm_weightY, reg_weight_y, sizeof(float), vmm_tbl_y, grid_len, memory::data_type::f32, true);
+            gather_i32_indices(vmm_weightY, reg_weight_y, sizeof(float), vmm_tbl_y, grid_len, Precision::FP32, true);
             cubic_planar_line(true);
 
             // y2
@@ -1242,7 +1174,7 @@ private:
             vpminsd(vmm_index_y_itr, vmm_index_y_itr, cubic_planar_table_val(1));
             vpmaxsd(vmm_index_y_itr, vmm_index_y_itr, vmm_zero);
             // weight y2
-            gather_i32_indices(vmm_weightY, reg_weight_y, 2 * sizeof(float), vmm_tbl_y, grid_len, memory::data_type::f32, true);
+            gather_i32_indices(vmm_weightY, reg_weight_y, 2 * sizeof(float), vmm_tbl_y, grid_len, Precision::FP32, true);
             cubic_planar_line(true);
 
             // y3
@@ -1252,19 +1184,19 @@ private:
             vpminsd(vmm_index_y_itr, vmm_index_y_itr, cubic_planar_table_val(1));
             vpmaxsd(vmm_index_y_itr, vmm_index_y_itr, vmm_zero);
             // weight y3
-            gather_i32_indices(vmm_weightY, reg_weight_y, 3 * sizeof(float), vmm_tbl_y, grid_len, memory::data_type::f32, true);
+            gather_i32_indices(vmm_weightY, reg_weight_y, 3 * sizeof(float), vmm_tbl_y, grid_len, Precision::FP32, true);
             cubic_planar_line(true);
 
             if (attr_.post_ops_.len() != 0) {
-                apply_post_ops(jcp_.dst_dt, true);  // oc_off is broadcast and always the same value for this channel
+                apply_post_ops(jcp_.dst_prc, true);  // oc_off is broadcast and always the same value for this channel
             }
-            store_scalar(ptr[reg_dst], Xmm(vmm_val.getIdx()), jcp_.dst_dt);
+            store(vmm_val, reg_dst, scalar_step);
 
-            add(reg_tbl_y, step * sizeof(int));  // sizeof(int): sequence with dd()
-            add(reg_tbl_x, step * sizeof(int));
-            add(reg_dst, step * jcp_.dst_data_size);
+            add(reg_tbl_y, scalar_step * sizeof(int));  // sizeof(int): sequence with dd()
+            add(reg_tbl_x, scalar_step * sizeof(int));
+            add(reg_dst, scalar_step * jcp_.dst_data_size);
 
-            sub(reg_work_amount, step);
+            sub(reg_work_amount, scalar_step);
 
             jmp(tail_loop_label, T_NEAR);
         }
@@ -1303,7 +1235,7 @@ private:
         vpaddd(vmm_mask, vmm_mask, vmm_one);  // (IW - 1) + 1 = IW
         uni_vpmulld(vmm_mask, vmm_mask, vmm_index_y_itr);
         uni_vpaddd(vmm_index_x_itr, vmm_index_x_itr, vmm_mask);
-        gather_i32_indices(vmm_src, reg_src, 0, vmm_index_x_itr, jcp_.src_data_size, memory::data_type::f32, is_scalar);
+        gather_i32_indices(vmm_src, reg_src, 0, vmm_index_x_itr, jcp_.src_data_size, Precision::FP32, is_scalar);
 
         if (itr == 0) {
             uni_vfmadd231ps(vmm_dstX, vmm_src, vmm_weightX0);
@@ -1340,23 +1272,23 @@ private:
         return ptr[reg_table + index * vlen];
     }
 
-    // always gather to Vmm, compute with Vmm, store with Xmm if scalar
+    // always gather to Vmm, compute with Vmm, store with Xmm if scalar_step
     inline void gather_i32_indices(Vmm vmm_src, const Xbyak::Reg64 &base, int offset, Vmm vmm_indices, int scale,
-                                memory::data_type src_dt, bool is_scalar) {
+                                Precision src_prc, bool is_scalar) {
         Xbyak::Address table_idx = ptr[base + offset + vmm_indices * scale];
-        if ((isa == cpu::x64::avx512_common) && !is_scalar) {
+        if ((isa == cpu::x64::avx512_core) && !is_scalar) {
             // [0-15] bit of int to mask
             kmovw(k_mask, cubic_planar_table_val(3));
-            if (src_dt == memory::data_type::f32) {
+            if (src_prc == Precision::FP32) {
                 vgatherdps(vmm_src | k_mask, table_idx);  // dword index, packed single data
-            } else if (src_dt == memory::data_type::s32) {
+            } else if (src_prc == Precision::I32) {
                 vpgatherdd(vmm_src | k_mask, table_idx);  // dword index, dword data
             }
         } else if ((isa == cpu::x64::avx2) && !is_scalar) {
             uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
-            if (src_dt == memory::data_type::f32) {
+            if (src_prc == Precision::FP32) {
                 vgatherdps(vmm_src, table_idx, vmm_mask);
-            } else if (src_dt == memory::data_type::s32) {
+            } else if (src_prc == Precision::I32) {
                 vpgatherdd(vmm_src, table_idx, vmm_mask);
             }
         } else {
@@ -1385,189 +1317,8 @@ private:
         }
     }
 
-    inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
-        switch (src_dt) {
-            case memory::data_type::f32:
-            case memory::data_type::s32:
-                uni_vmovups(vmm_src, op);
-                break;
-            case memory::data_type::s8:
-                uni_vpmovsxbd(vmm_src, op);
-                break;
-            case memory::data_type::u8:
-                uni_vpmovzxbd(vmm_src, op);
-                break;
-            case memory::data_type::bf16:
-                uni_vpmovzxwd(vmm_src, op);
-                uni_vpslld(vmm_src, vmm_src, 16);
-                break;
-            default:
-                assert(!"unknown dst_dt");
-        }
-
-        if (src_dt != memory::data_type::f32 && src_dt != data_type::bf16)
-            uni_vcvtdq2ps(vmm_src, vmm_src);
-    }
-
-    inline void load_xmm(Xmm xmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
-        switch (src_dt) {
-            case memory::data_type::f32:
-            case memory::data_type::s32:
-                uni_vmovups(xmm_src, op);
-                break;
-            case memory::data_type::s8:
-                uni_vpmovsxbd(xmm_src, op);
-                break;
-            case memory::data_type::u8:
-                uni_vpmovzxbd(xmm_src, op);
-                break;
-            case memory::data_type::bf16:
-                uni_vpmovzxwd(xmm_src, op);
-                uni_vpslld(xmm_src, xmm_src, 16);
-                break;
-            default:
-                assert(!"unknown dst_dt");
-        }
-
-        if (src_dt != memory::data_type::f32 && src_dt != data_type::bf16)
-            uni_vcvtdq2ps(xmm_src, xmm_src);
-    }
-
-    inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
-        switch (src_dt) {
-            case memory::data_type::f32:
-            case memory::data_type::s32:
-                uni_vmovss(xmm_src, op);
-                break;
-            case memory::data_type::s8:
-                movsx(reg_tmp_32, op);
-                uni_vmovq(xmm_src, reg_tmp_64);
-                break;
-            case memory::data_type::u8:
-                movzx(reg_tmp_32, op);
-                uni_vmovq(xmm_src, reg_tmp_64);
-                break;
-            case memory::data_type::bf16:
-                uni_vpinsrw(xmm_src, xmm_src, op, 0x0);
-                uni_vpslld(xmm_src, xmm_src, 16);
-                break;
-            default:
-                assert(!"unknown dst_dt");
-        }
-
-        if (src_dt != data_type::f32 && src_dt != data_type::bf16) {
-            uni_vcvtdq2ps(xmm_src, xmm_src);
-        }
-    }
-
-    inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, memory::data_type dst_dt) {
-        Ymm ymm_dst = Ymm(vmm_dst.getIdx());
-        Xmm xmm_dst = Xmm(vmm_dst.getIdx());
-
-        if (dst_dt == memory::data_type::f32) {
-            uni_vmovups(op, vmm_dst);
-        } else if (dst_dt == memory::data_type::u8) {
-            uni_vcvtps2dq(vmm_dst, vmm_dst);
-            if (isa == cpu::x64::avx512_common) {
-                vpmaxsd(vmm_dst, vmm_dst, vmm_zero);
-                vpmovusdb(op, vmm_dst);
-            } else {
-                uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41)
-                    vpermq(ymm_dst, ymm_dst, 0x08);
-                uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41)
-                    vmovq(op, xmm_dst);
-                else
-                    movd(op, xmm_dst);
-            }
-        } else if (dst_dt == memory::data_type::s8) {
-            uni_vcvtps2dq(vmm_dst, vmm_dst);
-            if (isa == cpu::x64::avx512_common) {
-                vpmovsdb(op, vmm_dst);
-            } else {
-                uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41)
-                    vpermq(ymm_dst, ymm_dst, 0x08);
-                uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41)
-                    vmovq(op, xmm_dst);
-                else
-                    movd(op, xmm_dst);
-            }
-        } else if (dst_dt == memory::data_type::bf16) {
-            if (mayiuse(avx512_core_bf16))
-                vcvtneps2bf16(ymm_dst, vmm_dst);
-            else
-                emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
-            vmovdqu16(op, ymm_dst);
-        }
-    }
-
-    inline void store_xmm(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
-        if (dst_dt != memory::data_type::f32 && dst_dt != memory::data_type::bf16) {
-            uni_vcvtps2dq(xmm_dst, xmm_dst);
-        }
-
-        switch (dst_dt) {
-            case memory::data_type::f32:
-            case memory::data_type::s32:
-                uni_vmovups(op, xmm_dst);
-                break;
-            case memory::data_type::s8:
-                uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-                movd(op, xmm_dst);
-                break;
-            case memory::data_type::u8:
-                uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                movd(op, xmm_dst);
-                break;
-            case memory::data_type::bf16:
-                pshuflw(xmm_dst, xmm_dst, 0x0d);  // 01 01 01 01 --> 01 01 11 00  imm=0b00001101
-                pshufhw(xmm_dst, xmm_dst, 0x0d);  // 01 01 11 00 --> 11 00 11 00
-                pshufd(xmm_dst, xmm_dst, 0x08);   // 11 00 11 00 --> 11 11 00 00  imm=0b00001000
-                vmovq(op, xmm_dst);
-                break;
-            default:
-                assert(!"unknown dst_dt");
-        }
-    }
-
-    inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
-        if (dst_dt != data_type::f32 && dst_dt != data_type::bf16) {
-            uni_vcvtps2dq(xmm_dst, xmm_dst);
-        }
-
-        switch (dst_dt) {
-            case memory::data_type::f32:
-            case memory::data_type::s32:
-                uni_vmovss(op, xmm_dst);
-                break;
-            case memory::data_type::s8:
-                uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-                movq(reg_tmp_64, xmm_dst);
-                mov(op, reg_tmp_8);
-                break;
-            case memory::data_type::u8:
-                uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                movq(reg_tmp_64, xmm_dst);
-                mov(op, reg_tmp_8);
-                break;
-            case memory::data_type::bf16:
-                uni_vpsrld(xmm_dst, xmm_dst, 16);
-                uni_vpextrw(op, xmm_dst, 0x0);
-                break;
-            default:
-                assert(!"unknown dst_dt");
-        }
-    }
-
     // is_broadcast for broadcasting param for depth_wise and quantize(channel-sensitive post-ops), for fusion with plain layout.
-    void apply_post_ops(memory::data_type dst_dt, bool is_broadcast) {
+    void apply_post_ops(Precision dst_prc, bool is_broadcast) {
         const auto &p = attr_.post_ops_;
         int eltwise_inj_idx = 0;
         int depthwise_inj_idx = 0;
@@ -1590,7 +1341,7 @@ private:
                 post_ops_data_offset += depthwise_injectors[depthwise_inj_idx]->memoryStep();
             } else if (post_op.is_quantization()) {
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
-                bool do_rounding = do_dequantization || dst_dt == memory::data_type::f32 || i != p.len() - 1;
+                bool do_rounding = do_dequantization || dst_prc == Precision::FP32 || i != p.len() - 1;
 
                 int s_idx = vmm_val.getIdx();
 
@@ -1614,11 +1365,11 @@ private:
 
 namespace {
 struct InterpolateKey {
-    MKLDNNInterpolateNode::InterpolateAttrs nodeAttrs;
+    Interpolate::InterpolateAttrs nodeAttrs;
     VectorDims srcDims;
     VectorDims dstDims;
     std::vector<float> dataScales;
-    mkldnn::primitive_attr attr;
+    dnnl::primitive_attr attr;
 
     size_t hash() const;
     bool operator==(const InterpolateKey& rhs) const;
@@ -1730,7 +1481,7 @@ using ngInterpCoordTransf = ngraph::opset4::Interpolate::CoordinateTransformMode
 using ngInterpNearMode = ngraph::opset4::Interpolate::NearestMode;
 using ngInterpShapeCalcMode = ngraph::opset4::Interpolate::ShapeCalcMode;
 
-bool MKLDNNInterpolateNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Interpolate::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto interp = std::dynamic_pointer_cast<const ngraph::opset4::Interpolate>(op);
         if (!interp) {
@@ -1793,8 +1544,8 @@ bool MKLDNNInterpolateNode::isSupportedOperation(const std::shared_ptr<const ngr
     return true;
 }
 
-MKLDNNInterpolateNode::MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache) {
+Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Interpolate node with name '" + getName() + "'";
@@ -1824,6 +1575,8 @@ MKLDNNInterpolateNode::MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>
             interpAttrs.mode = InterpolateMode::linear_onnx;
         } else if (interpMode == ngInterpMode::cubic) {
             interpAttrs.mode = InterpolateMode::cubic;
+        } else {
+            IE_THROW() << errorPrefix << " has unsupported interpolate mode";
         }
 
         const auto &interpCoordTransMode = interpAttr.coordinate_transformation_mode;
@@ -1837,6 +1590,8 @@ MKLDNNInterpolateNode::MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>
             interpAttrs.coordTransMode = InterpolateCoordTransMode::tf_half_pixel_for_nn;
         } else if (interpCoordTransMode == ngInterpCoordTransf::align_corners) {
             interpAttrs.coordTransMode = InterpolateCoordTransMode::align_corners;
+        } else {
+            IE_THROW() << errorPrefix << " has unsupported coordination transformation mode";
         }
 
         if (interpAttrs.mode == InterpolateMode::nearest) {
@@ -1851,6 +1606,8 @@ MKLDNNInterpolateNode::MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>
                 interpAttrs.nearestMode = InterpolateNearestMode::ceil;
             } else if (interpNearestMode == ngInterpNearMode::simple) {
                 interpAttrs.nearestMode = InterpolateNearestMode::simple;
+            } else {
+                IE_THROW() << errorPrefix << " has unsupported nearest mode";
             }
         } else if (interpAttrs.mode == InterpolateMode::cubic) {
             interpAttrs.cubeCoeff = static_cast<float>(interpAttr.cube_coeff);
@@ -1862,6 +1619,8 @@ MKLDNNInterpolateNode::MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>
             shapeCalcMode = InterpolateShapeCalcMode::scales;
         } else if (interpShapeCalcMode == ngInterpShapeCalcMode::sizes) {
             shapeCalcMode = InterpolateShapeCalcMode::sizes;
+        } else {
+            IE_THROW() << errorPrefix << " has unsupported shape calculation mode";
         }
 
         if (interpAttr.pads_begin.empty()) {
@@ -1899,7 +1658,7 @@ MKLDNNInterpolateNode::MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>
     }
 }
 
-void MKLDNNInterpolateNode::getSupportedDescriptors() {
+void Interpolate::getSupportedDescriptors() {
     if (getParentEdges().size() != 3 && getParentEdges().size() != 4)
         // data, target_shape, scale, axis(optional).
         IE_THROW() << errorPrefix << " has incorrect number of input edges";
@@ -1943,7 +1702,7 @@ void MKLDNNInterpolateNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
+void Interpolate::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -1998,7 +1757,7 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
     } else {
         // blk and by_channel JIT kernel on sse41 or above machine
         if (getInputShapeAtPort(DATA_ID).getRank() == 4 || (getInputShapeAtPort(DATA_ID).getRank() == 5 && interpAttrs.mode != InterpolateMode::cubic)) {
-            if (mayiuse(cpu::x64::avx512_common)) {
+            if (mayiuse(cpu::x64::avx512_core)) {
                 pushDesc(LayoutType::nspc, jit_avx512);
                 if (isBlkApplied)
                     pushDesc(LayoutType::nCsp16c, jit_avx512);
@@ -2020,8 +1779,8 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-bool MKLDNNInterpolateNode::needShapeInfer() const {
-    if (MKLDNNNode::inputShapesModified()) {
+bool Interpolate::needShapeInfer() const {
+    if (Node::inputShapesModified()) {
         return true;
     }
     if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
@@ -2048,12 +1807,12 @@ bool MKLDNNInterpolateNode::needShapeInfer() const {
     return false;
 }
 
-std::vector<VectorDims> MKLDNNInterpolateNode::shapeInfer() const {
+std::vector<VectorDims> Interpolate::shapeInfer() const {
     const size_t port = shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : SCALES_ID;
     return shapeInferGeneric(PortMask(port, AXES_ID));
 }
 
-void MKLDNNInterpolateNode::executeDynamicImpl(mkldnn::stream strm) {
+void Interpolate::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 
     const size_t port = shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : SCALES_ID;
@@ -2067,11 +1826,11 @@ void MKLDNNInterpolateNode::executeDynamicImpl(mkldnn::stream strm) {
     }
 }
 
-bool MKLDNNInterpolateNode::needPrepareParams() const {
+bool Interpolate::needPrepareParams() const {
     return (inputShapesModified() || lastOutputDims != getChildEdgesAtPort(0)[0]->getMemory().getStaticDims());
 }
 
-void MKLDNNInterpolateNode::prepareParams() {
+void Interpolate::prepareParams() {
     if (!shapesDefined()) {
         IE_THROW() << "Can't prepare params for Interpolate node with name: " << getName() << ", because input/output dims aren't defined";
     }
@@ -2111,7 +1870,7 @@ void MKLDNNInterpolateNode::prepareParams() {
         IE_THROW() << "Interpolate layer only supports resize on spatial dimensions(depth, height and width)";
     }
 
-    InterpolateKey key = {interpAttrs, srcDims, dstDims, dataScales, mkldnn::primitive_attr()};
+    InterpolateKey key = {interpAttrs, srcDims, dstDims, dataScales, dnnl::primitive_attr()};
     setPostOps(key.attr, dstDims);
 
     auto buildExecutor = [&](const InterpolateKey& key) -> std::shared_ptr<InterpolateExecutor> {
@@ -2141,7 +1900,7 @@ void MKLDNNInterpolateNode::prepareParams() {
     lastOutputDims = dstDims;
 }
 
-void MKLDNNInterpolateNode::createPrimitive() {
+void Interpolate::createPrimitive() {
     auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
     auto& dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -2176,18 +1935,18 @@ static inline float triangleCoeff(float x) {
     return (std::max)(0.0f, 1 - std::abs(x));
 }
 
-void MKLDNNInterpolateNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims) {
-    mkldnn::post_ops ops;
+void Interpolate::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims) {
+    dnnl::post_ops ops;
 
     postOpsDataPtrs.clear();
     for (auto &node : fusedWith) {
-        auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
+        auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get());
         if (fakeQuantizeNode) {
             fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
             continue;
         }
 
-        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+        auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get());
         if (eltwiseNode) {
             eltwiseNode->appendPostOps(ops, dims, postOpsDataPtrs);
             continue;
@@ -2199,7 +1958,7 @@ void MKLDNNInterpolateNode::setPostOps(mkldnn::primitive_attr &attr, const Vecto
     attr.set_post_ops(ops);
 }
 
-SizeVector MKLDNNInterpolateNode::getPaddedInputShape(const VectorDims &srcDims,
+SizeVector Interpolate::getPaddedInputShape(const VectorDims &srcDims,
                                                       const std::vector<int> &padBegin,
                                                       const std::vector<int> &padEnd) {
     SizeVector paddedShape;
@@ -2214,7 +1973,7 @@ SizeVector MKLDNNInterpolateNode::getPaddedInputShape(const VectorDims &srcDims,
 // if "scale" version: set scales with input scales, 1.f for other dims not in axis
 // if "size" version: scales = shape[target] / shape[input].pad, 1.f for other dims not in axis
 // scales is a required input, but should not use input scales when "size" case, which may added eps that lead to inaccurate result, recalculate scales instead.
-std::vector<float> MKLDNNInterpolateNode::getScales(const VectorDims &srcDimPad, const VectorDims &dstDim) {
+std::vector<float> Interpolate::getScales(const VectorDims &srcDimPad, const VectorDims &dstDim) {
     const size_t dataRank = getInputShapeAtPort(DATA_ID).getRank();
     std::vector<float> fullScales(dataRank, 1.f);
     const size_t axesRank = axes.size();
@@ -2226,7 +1985,7 @@ std::vector<float> MKLDNNInterpolateNode::getScales(const VectorDims &srcDimPad,
     return fullScales;
 }
 
-void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
+void Interpolate::execute(dnnl::stream strm) {
     if (!execPtr) {
         IE_THROW() << "Can't execute Interpolate node. Primitive didn't created";
     }
@@ -2281,7 +2040,7 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
             });
             src_data = src_data_pad;
         } else if (interpAttrs.layout == InterpolateLayoutType::block) {
-            size_t blkSize = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
+            size_t blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
             size_t CB = div_up(srcDimPad5d[1], blkSize);
             size_t eltsTotal = srcDimPad5d[0] * CB * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize;
             srcPadded.resize(eltsTotal * srcDataSize, 0x0);
@@ -2314,7 +2073,7 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
 
 // for ndhwc and nCdhw8c[16c]
 // input may be f32/bf16/int8, fused->output varies
-void MKLDNNInterpolateNode::InterpolateJitExecutor::NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+void Interpolate::InterpolateJitExecutor::NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
                                                                 int B, int C, int ID, int IH, int IW, int OD, int OH, int OW) {
     int *index_d = static_cast<int*>(&indexTable[0]);
     int *index_h = static_cast<int*>(&indexTable[OD]);
@@ -2344,7 +2103,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::NNCGathered(const uint8_t *i
                 (*interpolateKernel)(&arg);
             });
         } else {  // for blk
-            int blk_size = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
+            int blk_size = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
             int CB = div_up(C, blk_size);
             const uint8_t *in_ptr = in_ptr_ + (IW * IH * ID * CB * blk_size * b) * srcDataSize;
             uint8_t *out_ptr = out_ptr_ + (OW * OH * OD * CB * blk_size * b) * dstDataSize;
@@ -2370,7 +2129,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::NNCGathered(const uint8_t *i
     }  // batch end
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+void Interpolate::InterpolateJitExecutor::NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
                                                              int B, int C, int ID, int IH, int IW, int OD, int OH, int OW) {
     int *index_d = static_cast<int*>(&indexTable[0]);
     int *index_h = static_cast<int*>(&indexTable[OD]);
@@ -2401,7 +2160,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::NNPlanar(const uint8_t *in_p
     });
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_, int B, int C,
+void Interpolate::InterpolateJitExecutor::linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_, int B, int C,
                                                                      int ID, int IH, int IW, int OD, int OH, int OW) {
     // FrontTopLeft:0, FrontTopRight:1, FrontBottomLeft:2, FrontBottomRight:3, EndTopLeft:4,   EndTopRight:5,   EndBottomLeft:6,   EndBottomRight:7
     // weight: Left:0, ritht:1, top:2, bottom:3, front:4, end:5
@@ -2425,7 +2184,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::linearOnnxPlanar(const uint8
     });
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+void Interpolate::InterpolateJitExecutor::linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
                                                                         int B, int C, int ID, int IH, int IW, int OD, int OH, int OW) {
     // left:OW right:OW Top:OH Bottom:OH Front:OD End:OD
     std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, 0);
@@ -2447,7 +2206,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::linearOnnxCGathered(const ui
 
     bool isByChannel = (configured_for_layout == by_channel) ? true : false;
 
-    int blkSize = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
+    int blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
     int CB = isByChannel ? 1 : div_up(C, blkSize);
     int CGatherLen = isByChannel ? C : blkSize;
     int workAmount = isByChannel ? C : CB;
@@ -2497,7 +2256,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::linearOnnxCGathered(const ui
     });
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::cubicCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+void Interpolate::InterpolateJitExecutor::cubicCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
                                                                    int B, int C, int IH, int IW, int OH, int OW) {
     const int idxNum = 1;
     int *xOrigin = static_cast<int*>(&indexTable[0]);
@@ -2505,7 +2264,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::cubicCGathered(const uint8_t
     int *yOrigin = static_cast<int*>(&indexTable[(CUBIC_GRID_LEN + idxNum) * OW]);
     float *yFactor = reinterpret_cast<float*>(&indexTable[(CUBIC_GRID_LEN + idxNum) * OW + OH]);
 
-    int blkSize = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
+    int blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
     int CB = div_up(C, blkSize);
     int CSize = configured_for_layout == InterpolateLayoutType::by_channel ? C : blkSize * CB;
     int CGatherLen = configured_for_layout == InterpolateLayoutType::by_channel ? C : blkSize;
@@ -2544,7 +2303,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::cubicCGathered(const uint8_t
     });
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+void Interpolate::InterpolateJitExecutor::cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
                                                                 int B, int C, int IH, int IW, int OH, int OW) {
     int tblAdvance = 0;
     int *xOrigin = static_cast<int*>(&indexTable[tblAdvance]);
@@ -2583,7 +2342,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::cubicPlanar(const uint8_t *i
 // =====================================================================================================================
 // index layout:
 // d_0............d_OD-1, h_0..............h_OH-1, w_0................w_OW-1
-void MKLDNNInterpolateNode::InterpolateExecutor::buildTblNN(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d,
+void Interpolate::InterpolateExecutor::buildTblNN(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d,
                                         const std::vector<float>& dataScales, InterpolateLayoutType layout, InterpolateNearestMode nearestMode) {
     const int dimSize = dataRank;
     float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
@@ -2616,7 +2375,7 @@ void MKLDNNInterpolateNode::InterpolateExecutor::buildTblNN(const SizeVector& sr
 // scale is float(outShape) / float(inShape)
 // strictly consistent with onnx calc manner(div scale, not multiply inverse), given this is done offline
 // the slight precison diff can produce obvious wrong value due to "nearest round" behavior for NN mode
-float MKLDNNInterpolateNode::InterpolateExecutor::coordTransToInput(int outCoord, float scale, int inShape, int outShape) const {
+float Interpolate::InterpolateExecutor::coordTransToInput(int outCoord, float scale, int inShape, int outShape) const {
     if (scale == 1.0f || (inShape == outShape)) {
         return outCoord;
     }
@@ -2654,7 +2413,7 @@ float MKLDNNInterpolateNode::InterpolateExecutor::coordTransToInput(int outCoord
     }
 }
 
-int MKLDNNInterpolateNode::InterpolateExecutor::nearestRound(float originCoord, bool isDownsample, InterpolateNearestMode nearestMode) const {
+int Interpolate::InterpolateExecutor::nearestRound(float originCoord, bool isDownsample, InterpolateNearestMode nearestMode) const {
     switch (nearestMode) {
         case InterpolateNearestMode::round_prefer_floor: {
             if (originCoord == (static_cast<int>(originCoord) + 0.5f))
@@ -2688,7 +2447,7 @@ int MKLDNNInterpolateNode::InterpolateExecutor::nearestRound(float originCoord, 
     }
 }
 
-void MKLDNNInterpolateNode::InterpolateExecutor::linearOnnxCF(int outCoord, float scale, int inShape, int outShape,
+void Interpolate::InterpolateExecutor::linearOnnxCF(int outCoord, float scale, int inShape, int outShape,
                 int& index0, int& index1, float& weight0, float& weight1) {
     float inCoord = coordTransToInput(outCoord, scale, inShape, outShape);
     inCoord = std::max(0.0f, std::min(inCoord, static_cast<float>(inShape - 1)));
@@ -2703,7 +2462,7 @@ void MKLDNNInterpolateNode::InterpolateExecutor::linearOnnxCF(int outCoord, floa
     }
 }
 
-void MKLDNNInterpolateNode::InterpolateExecutor::buildTblLinearOnnx(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d,
+void Interpolate::InterpolateExecutor::buildTblLinearOnnx(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d,
                                                 const std::vector<float>& dataScales, InterpolateLayoutType layout) {
     int dimSize = dataRank;
     float fz = (spatialDimSize > 2) ? dataScales[dimSize - 3] : 1.f;
@@ -2816,7 +2575,7 @@ void MKLDNNInterpolateNode::InterpolateExecutor::buildTblLinearOnnx(const SizeVe
 // wd .........wd, wh............wh, ww.............ww, id...........id, ih............ih, iw..............iw
 //                        |                                                      |
 //                   wh0.....wh_diameter                                    ih0.....ih_diameter
-void MKLDNNInterpolateNode::InterpolateExecutor::buildTblLinear(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d,
+void Interpolate::InterpolateExecutor::buildTblLinear(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d,
                                             const std::vector<float>& dataScales, int kernel_width, bool antialias) {
     int dimSize = dataRank;
     float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
@@ -2893,7 +2652,7 @@ void MKLDNNInterpolateNode::InterpolateExecutor::buildTblLinear(const SizeVector
     }
 }
 
-std::vector<float> MKLDNNInterpolateNode::InterpolateExecutor::getCubicCoeffs(float mantissa, float a) {
+std::vector<float> Interpolate::InterpolateExecutor::getCubicCoeffs(float mantissa, float a) {
     float m = std::fabs(mantissa);
     std::vector<float> coeffs(4, 0.f);
 
@@ -2907,7 +2666,7 @@ std::vector<float> MKLDNNInterpolateNode::InterpolateExecutor::getCubicCoeffs(fl
 // table layout:
 // OW      OW         OW         OW         OW          OH       OH           OH           OH           OH
 // x_idx   x_weight0  x_weight1  x_weight2  x_weight3   y_idx    y_weight0    y_weight1    y_weight2    y_weight3
-void MKLDNNInterpolateNode::InterpolateExecutor::buildTblCubic(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
+void Interpolate::InterpolateExecutor::buildTblCubic(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
                                         float cubicCoeff, InterpolateLayoutType layout) {
     int dimSize = dataRank;
     float fy = dataScales[dimSize - 2];
@@ -2972,7 +2731,7 @@ void MKLDNNInterpolateNode::InterpolateExecutor::buildTblCubic(const SizeVector&
     }
 }
 
-void MKLDNNInterpolateNode::InterpolateRefExecutor::NNRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
+void Interpolate::InterpolateRefExecutor::NNRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
                                                           int OD, int OH, int OW) {
     int *index_d = static_cast<int*>(&indexTable[0]);
     int *index_h = static_cast<int*>(&indexTable[OD]);
@@ -2994,7 +2753,7 @@ void MKLDNNInterpolateNode::InterpolateRefExecutor::NNRef(const uint8_t *in_ptr_
     });
 }
 
-void MKLDNNInterpolateNode::InterpolateRefExecutor::linearOnnxRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
+void Interpolate::InterpolateRefExecutor::linearOnnxRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
                                                                   int OD, int OH, int OW) {
     std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, 0);
     std::vector<float*> weightPtr(MAX_INPUT_INTERPOLATE, 0);
@@ -3092,7 +2851,7 @@ void MKLDNNInterpolateNode::InterpolateRefExecutor::linearOnnxRef(const uint8_t 
     });
 }
 
-void MKLDNNInterpolateNode::InterpolateRefExecutor::cubicRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW) {
+void Interpolate::InterpolateRefExecutor::cubicRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW) {
     const int idxNum = 1;
     int *xOrigin = static_cast<int*>(&indexTable[0]);
     float *xFactor = reinterpret_cast<float*>(&indexTable[OW]);
@@ -3124,7 +2883,7 @@ void MKLDNNInterpolateNode::InterpolateRefExecutor::cubicRef(const uint8_t *in_p
     });
 }
 
-float MKLDNNInterpolateNode::InterpolateRefExecutor::getValue(const uint8_t *base, size_t offset, InferenceEngine::Precision prec) {
+float Interpolate::InterpolateRefExecutor::getValue(const uint8_t *base, size_t offset, InferenceEngine::Precision prec) {
     const uint8_t *baseOffset = base + offset;
     switch (prec) {
         case Precision::U8: {
@@ -3153,7 +2912,7 @@ float MKLDNNInterpolateNode::InterpolateRefExecutor::getValue(const uint8_t *bas
     }
 }
 
-void MKLDNNInterpolateNode::InterpolateRefExecutor::setValue(uint8_t *base, size_t offset, float value, InferenceEngine::Precision prec) {
+void Interpolate::InterpolateRefExecutor::setValue(uint8_t *base, size_t offset, float value, InferenceEngine::Precision prec) {
     uint8_t *baseOffset = base + offset;
     switch (prec) {
         case Precision::U8: {
@@ -3182,7 +2941,7 @@ void MKLDNNInterpolateNode::InterpolateRefExecutor::setValue(uint8_t *base, size
     }
 }
 
-void MKLDNNInterpolateNode::InterpolateRefExecutor::linearInterpolation(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
+void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
                                           float fx, float fy, float fz, int OD, int OH, int OW, int kernel_width, bool antialias) {
     if (IW == OW && IH == OH && ID == OD) {
         size_t spatialDimSize = IW * IH * ID;
@@ -3299,7 +3058,7 @@ void MKLDNNInterpolateNode::InterpolateRefExecutor::linearInterpolation(const ui
     });
 }
 
-MKLDNNInterpolateNode::InterpolateExecutor::InterpolateExecutor(const InterpolateAttrs& interpAttrs,
+Interpolate::InterpolateExecutor::InterpolateExecutor(const InterpolateAttrs& interpAttrs,
                                                                 const VectorDims &srcDims,
                                                                 const VectorDims &dstDims,
                                                                 const std::vector<float> &dataScales) :
@@ -3337,19 +3096,20 @@ MKLDNNInterpolateNode::InterpolateExecutor::InterpolateExecutor(const Interpolat
     }
 }
 
-MKLDNNInterpolateNode::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAttrs& interpAttrs,
+Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAttrs& interpAttrs,
                                                                       const VectorDims &srcDims,
                                                                       const VectorDims &dstDims,
                                                                       const std::vector<float> &dataScales,
-                                                                      const mkldnn::primitive_attr &attr) :
+                                                                      const dnnl::primitive_attr &attr) :
         InterpolateExecutor(interpAttrs, srcDims, dstDims, dataScales) {
     auto jcp = jit_interpolate_config_params();
     jcp.mode = mode;
-    jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(interpAttrs.inPrc);
-    jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(interpAttrs.outPrc);
-    jcp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.src_dt);
-    jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.dst_dt);
+    jcp.src_prc = interpAttrs.inPrc;
+    jcp.dst_prc = interpAttrs.outPrc;
+    jcp.src_data_size = jcp.src_prc.size();
+    jcp.dst_data_size = jcp.dst_prc.size();
     jcp.indices_size = sizeof(int);
+    jcp.C = dstDim5d[1];
     jcp.OW = dstDim5d[4];
     jcp.OH = dstDim5d[3];
     jcp.OD = dstDim5d[2];
@@ -3359,8 +3119,8 @@ MKLDNNInterpolateNode::InterpolateJitExecutor::InterpolateJitExecutor(const Inte
     jcp.spatial_dim_size = getSpatialDimsNum(srcDims.size());
     jcp.layout = interpAttrs.layout;
     if (jcp.layout != InterpolateLayoutType::planar) {
-        if (mayiuse(cpu::x64::avx512_common)) {
-            interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
+        if (mayiuse(cpu::x64::avx512_core)) {
+            interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx512_core>(jcp, *attr.get()));
         } else if (mayiuse(cpu::x64::avx2)) {
             interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
         } else if (mayiuse(cpu::x64::sse41)) {
@@ -3379,7 +3139,7 @@ MKLDNNInterpolateNode::InterpolateJitExecutor::InterpolateJitExecutor(const Inte
     }
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) {
+void Interpolate::InterpolateJitExecutor::exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) {
     size_t N = srcDimPad5d[0], C = srcDimPad5d[1], ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
     size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
@@ -3417,7 +3177,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::exec(const uint8_t *in_ptr_,
     }
 }
 
-void MKLDNNInterpolateNode::InterpolateRefExecutor::exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) {
+void Interpolate::InterpolateRefExecutor::exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) {
     size_t N = srcDimPad5d[0], C = srcDimPad5d[1], ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
     size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
@@ -3450,7 +3210,7 @@ void MKLDNNInterpolateNode::InterpolateRefExecutor::exec(const uint8_t *in_ptr_,
     }
 }
 
-size_t MKLDNNInterpolateNode::getSpatialDimsNum(const Dim rank) {
+size_t Interpolate::getSpatialDimsNum(const Dim rank) {
     switch (rank) {
         case 1:
         case 3:
@@ -3465,7 +3225,7 @@ size_t MKLDNNInterpolateNode::getSpatialDimsNum(const Dim rank) {
     }
 }
 
-bool MKLDNNInterpolateNode::canFuse(const MKLDNNNodePtr& node) const {
+bool Interpolate::canFuse(const NodePtr& node) const {
     if (!mayiuse(cpu::x64::sse41) || interpAttrs.mode == InterpolateMode::linear) {
         return false;
     }
@@ -3473,8 +3233,10 @@ bool MKLDNNInterpolateNode::canFuse(const MKLDNNNodePtr& node) const {
     return canFuseSimpleOperation(node);
 }
 
-bool MKLDNNInterpolateNode::created() const {
-    return getType() == Interpolate;
+bool Interpolate::created() const {
+    return getType() == Type::Interpolate;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNInterpolateNode, Interpolate);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

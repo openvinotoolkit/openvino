@@ -19,6 +19,6 @@ class TRANSFORMATIONS_API PullTransposeThroughFQUp;
 
 class ngraph::pass::PullTransposeThroughFQUp : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PullTransposeThroughFQUp", "0");
     PullTransposeThroughFQUp();
 };

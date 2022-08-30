@@ -62,7 +62,7 @@ ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::AutoTuneOption ConvolutionKernel_mm
     AutoTuneOption option = {0, 0, 0, DEFAULT};
 
     auto &params = dynamic_cast<const convolution_params &>(p);
-    auto &output = params.output;
+    auto &output = params.outputs[0];
 
     // TODO: Check if other block size can improve performance
     option.blockHeight = 1;
@@ -85,9 +85,9 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4:
     dispatchData.cldnnStyle.blockHeight = tuneOptions.blockHeight;
     dispatchData.cldnnStyle.prefetch = tuneOptions.prefetch;
 
-    dispatchData.gws[0] = Align(cp.output.Feature().v, 32) / 2;
-    dispatchData.gws[1] = CeilDiv(cp.output.X().v, dispatchData.cldnnStyle.blockWidth) * cp.output.Y().v;
-    dispatchData.gws[2] = cp.output.Batch().v;
+    dispatchData.gws[0] = Align(cp.outputs[0].Feature().v, 32) / 2;
+    dispatchData.gws[1] = CeilDiv(cp.outputs[0].X().v, dispatchData.cldnnStyle.blockWidth) * cp.outputs[0].Y().v;
+    dispatchData.gws[2] = cp.outputs[0].Batch().v;
 
     dispatchData.lws[0] = 16;
     dispatchData.lws[1] = 1;
@@ -110,7 +110,7 @@ JitConstants ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetJitConstants(const 
     jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", dispatchData.cldnnStyle.blockWidth));
     jit.AddConstant(MakeJitConstant("IFM_BLOCKS", CeilDiv(params.inputs[0].Feature().v, 32)));
     auto input = params.inputs[0];
-    auto output = params.output;
+    auto output = params.outputs[0];
     auto blockWidth = dispatchData.cldnnStyle.blockWidth;
     size_t input_line_size = std::min(params.stride.x * (blockWidth - 1) + (params.weights.X().v - 1) * params.dilation.x + 1,
                                       input.X().v + input.X().pad.Total());
@@ -119,7 +119,7 @@ JitConstants ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetJitConstants(const 
     jit.AddConstant(MakeJitConstant("INPUT_LINE_SIZE", input_line_size));
 
     jit.Merge(MakeTypeJitConstants(GetPackedInputType(params), "PACKED_IN"));
-    jit.Merge(MakeTypeJitConstants(GetPackedType(params.output.GetDType(), 2), "PACKED_OUT"));
+    jit.Merge(MakeTypeJitConstants(GetPackedType(params.outputs[0].GetDType(), 2), "PACKED_OUT"));
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);

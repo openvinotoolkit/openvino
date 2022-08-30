@@ -157,7 +157,7 @@ class GithubOrgApi:
                 self.github_users_by_email[email] = org_member
                 if not is_valid_name(org_member.name):
                     self.members_to_fix_name.add(org_member)
-            elif not is_user_ignored(org_member):
+            else:
                 self.members_to_remove.add(org_member)
 
         print("\nOrg members - no Intel emails:")

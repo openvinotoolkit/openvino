@@ -3,7 +3,7 @@
 //
 
 #include "ngraph_functions/builders.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/single_layer/multiclass_nms.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
@@ -23,7 +23,7 @@ std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo
     int32_t nmsTopK, backgroundClass, keepTopK;
     element::Type outType;
 
-    op::util::NmsBase::SortResultType sortResultType;
+    op::util::MulticlassNmsBase::SortResultType sortResultType;
 
     InputfloatVar inFloatVar;
     InputboolVar inboolVar;
@@ -32,8 +32,8 @@ std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo
 
     std::tie(shapes, inPrecisions, nmsTopK, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, targetDevice) = obj.param;
 
-    ElementType paramsPrec, maxBoxPrec, thrPrec;
-    std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
+    ElementType paramsPrec, roisnumPrec, maxBoxPrec, thrPrec;
+    std::tie(paramsPrec, roisnumPrec, maxBoxPrec, thrPrec) = inPrecisions;
 
     float iouThr, scoreThr, nmsEta;
     std::tie(iouThr, scoreThr, nmsEta) = inFloatVar;
@@ -53,7 +53,7 @@ std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo
         }
     }
 
-    result << ")_paramsPrec=" << paramsPrec << "_maxBoxPrec=" << maxBoxPrec << "_thrPrec=" << thrPrec << "_";
+    result << ")_paramsPrec=" << paramsPrec << "_roisnumPrec=" << roisnumPrec << "_maxBoxPrec=" << maxBoxPrec << "_thrPrec=" << thrPrec << "_";
     result << "nmsTopK=" << nmsTopK << "_";
     result << "iouThr=" << iouThr << "_scoreThr=" << scoreThr << "_backgroundClass=" << backgroundClass << "_";
     result << "keepTopK=" << keepTopK << "_outType=" << outType << "_";
@@ -66,11 +66,12 @@ void MulticlassNmsLayerTest::generate_inputs(const std::vector<ngraph::Shape>& t
     inputs.clear();
 
     const auto& funcInputs = function->inputs();
+    ASSERT_TRUE(funcInputs.size() == 2 || funcInputs.size() == 3) << "Expected 3 inputs or 2 inputs.";
     for (int i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
         ov::Tensor tensor;
 
-        if (i == 1) {
+        if (i == 1) { // scores
             tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
 
             const size_t range = 1;
@@ -85,8 +86,45 @@ void MulticlassNmsLayerTest::generate_inputs(const std::vector<ngraph::Shape>& t
                 auto value = static_cast<float>(distribution(random));
                 dataPtr[i] = value / static_cast<float>(k);
             }
-        } else {
+        } else if (i == 0) { // bboxes
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+        } else { // roisnum
+            /* sum of rois is no larger than num_bboxes. */
+            ASSERT_TRUE(targetInputStaticShapes[i].size() == 1) << "Expected shape size 1 for input roisnum, got: " << targetInputStaticShapes[i];
+
+            // returns num random values whose sum is max_num.
+            auto _generate_roisnum = [](int num, int max_num) {
+                std::vector<int> array;
+                std::vector<int> results(num);
+
+                array.push_back(0);
+                for (auto i = 0; i < num-1; i++) {
+                    array.push_back(std::rand() % max_num);
+                }
+                array.push_back(max_num);
+
+                std::sort(array.begin(), array.end());
+
+                for (auto i = 0; i < num; i++) {
+                    results[i] = array[i+1] - array[i];
+                }
+
+                return results;
+            };
+            auto roisnum = _generate_roisnum(targetInputStaticShapes[i][0], targetInputStaticShapes[0][1]/*num_bboxes*/);
+
+            tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+            if (tensor.get_element_type() == ov::element::i32) {
+                auto dataPtr = tensor.data<int32_t>();
+                for (size_t i = 0; i < roisnum.size(); i++) {
+                    dataPtr[i] = static_cast<int32_t>(roisnum[i]);
+                }
+            } else {
+                auto dataPtr = tensor.data<int64_t>();
+                for (size_t i = 0; i < roisnum.size(); i++) {
+                    dataPtr[i] = static_cast<int64_t>(roisnum[i]);
+                }
+            }
         }
 
         inputs.insert({funcInput.get_node_shared_ptr(), tensor});
@@ -94,21 +132,19 @@ void MulticlassNmsLayerTest::generate_inputs(const std::vector<ngraph::Shape>& t
 }
 
 void MulticlassNmsLayerTest::GetOutputParams(size_t& numBatches, size_t& maxOutputBoxesPerBatch) {
-    size_t it = 0;
-    size_t numBoxes = 0, numClasses = 0;
     const auto& funcInputs = function->inputs();
-    for (int i = 0; i < funcInputs.size(); ++i) {
-        const auto& funcInput = funcInputs[i];
-        const auto& dims = inputs[funcInput.get_node_shared_ptr()].get_shape();
+    const auto& boxes_dims = inputs[funcInputs[0].get_node_shared_ptr()].get_shape();
+    const auto& scores_dims = inputs[funcInputs[1].get_node_shared_ptr()].get_shape();
 
-        if (it == 1) {
-            numClasses = dims[1];
-        } else {
-            numBatches = dims[0];
-            numBoxes = dims[1];
-        }
-        it++;
-    }
+    const auto shared = (scores_dims.size() == 3);
+    if (!shared)
+        ASSERT_TRUE(funcInputs.size() > 2) << "Expected 3 inputs when input 'score' is 2D.";
+
+    const auto& roisnum_dims = funcInputs.size() >2 ? inputs[funcInputs[2].get_node_shared_ptr()].get_shape() : Shape();
+
+    const auto numBoxes = shared ? boxes_dims[1] : boxes_dims[1];
+    auto numClasses = shared ? scores_dims[1] : boxes_dims[0];
+    numBatches = shared ? scores_dims[0] : roisnum_dims[0];
 
     ASSERT_TRUE(numBatches > 0 && numBoxes > 0 && numClasses > 0)
         << "Expected numBatches, numBoxes, numClasses > 0, got:" << numBatches << ", " << numBoxes << ", " << numClasses;
@@ -132,14 +168,18 @@ void MulticlassNmsLayerTest::GetOutputParams(size_t& numBatches, size_t& maxOutp
 
 void MulticlassNmsLayerTest::compare(const std::vector<ov::Tensor> &expectedOutputs,
                                      const std::vector<ov::Tensor> &actualOutputs) {
-    auto batchIndex = -1;
+    auto batchIndex = -1; // output index for output 'selected_num'
     size_t numBatches(0), maxOutputBoxesPerBatch(0);
     GetOutputParams(numBatches, maxOutputBoxesPerBatch);
-    std::vector<int32_t> numPerBatch(numBatches);
+    std::vector<size_t> numPerBatch(numBatches);
+
+    ASSERT_TRUE(expectedOutputs.size() == 3) << "Expect 3 outputs, got: " << expectedOutputs.size();
+
     for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >= 0; outputIndex--) {
         const auto& actual = actualOutputs[outputIndex];
         const auto _dims = actual.get_shape();
-        if (_dims.size() == 1 && _dims[0] == numBatches) {
+        if (_dims.size() == 1) { // 'selected_num'
+            ASSERT_TRUE(_dims[0] == numBatches) << "Expect output 'selected_num' has shape of " << numBatches << ", got: " << _dims[0];
             batchIndex = outputIndex;
             if (actual.get_element_type() == ov::element::i32) {
                 auto buffer = actual.data<int32_t>();
@@ -148,21 +188,28 @@ void MulticlassNmsLayerTest::compare(const std::vector<ov::Tensor> &expectedOutp
                 auto buffer = actual.data<int64_t>();
                 std::copy_n(buffer, numBatches, numPerBatch.begin());
             }
+
+            break;
         }
     }
+    ASSERT_TRUE(batchIndex > -1) << "Expect to get output index for 'selected_num'";
 
+    // reserve order could make sure output 'selected_num' get checked first.
     for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >= 0; outputIndex--) {
         const auto& expected = expectedOutputs[outputIndex];
         const auto& actual = actualOutputs[outputIndex];
         const auto actualBuffer = static_cast<uint8_t*>(actual.data());
         const auto expectedBuffer = static_cast<uint8_t*>(expected.data());
 
+        const auto expected_shape = expected.get_shape();
+        const auto actual_shape = actual.get_shape();
+
         // Compare Selected Outputs & Selected Indices
         if (outputIndex != batchIndex) {
-            if (outputIndex == 2) {
-                if (expected.get_size() != actual.get_size())
-                    throw std::runtime_error("Expected and actual size 3rd output have different "
-                                             "size");
+            if (m_outStaticShape) {
+                ASSERT_TRUE(expected_shape[0] <= actual_shape[0]) << "Expected the compatible shape, got: " << expected_shape << " and " << actual_shape;
+            } else {
+                ASSERT_TRUE(expected_shape == actual_shape) << "Expected the same shape, got: " << expected_shape << " and " << actual_shape;
             }
 
             const auto& precision = actual.get_element_type();
@@ -248,11 +295,7 @@ void MulticlassNmsLayerTest::compare(const std::vector<ov::Tensor> &expectedOutp
                 }
             }
         } else {
-            if (outputIndex == 2) {
-                if (expected.get_size() != actual.get_size())
-                    throw std::runtime_error("Expected and actual size 3rd output have different "
-                                             "size");
-            }
+            ASSERT_TRUE(expected_shape == actual_shape) << "Expected the same shape, got: " << expected_shape << " and " << actual_shape;
 
             const auto& precision = actual.get_element_type();
             size_t size = expected.get_size();
@@ -300,7 +343,7 @@ void MulticlassNmsLayerTest::SetUp() {
     size_t maxOutBoxesPerClass, backgroundClass, keepTopK;
     element::Type outType;
 
-    op::util::NmsBase::SortResultType sortResultType;
+    op::util::MulticlassNmsBase::SortResultType sortResultType;
 
     InputfloatVar inFloatVar;
     InputboolVar inboolVar;
@@ -317,8 +360,8 @@ void MulticlassNmsLayerTest::SetUp() {
         return shape.rank() == 0;
     });
 
-    ElementType paramsPrec, maxBoxPrec, thrPrec;
-    std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
+    ElementType paramsPrec, roisnumPrec, maxBoxPrec, thrPrec;
+    std::tie(paramsPrec, roisnumPrec, maxBoxPrec, thrPrec) = inPrecisions;
 
     float iouThr, scoreThr, nmsEta;
     std::tie(iouThr, scoreThr, nmsEta) = inFloatVar;
@@ -326,7 +369,12 @@ void MulticlassNmsLayerTest::SetUp() {
     bool sortResCB, normalized;
     std::tie(sortResCB, normalized) = inboolVar;
 
-    const auto params = ngraph::builder::makeDynamicParams(paramsPrec, inputDynamicShapes);
+    ParameterVector params;
+    if (inputDynamicShapes.size() > 2) {
+        params = ngraph::builder::makeDynamicParams({paramsPrec, paramsPrec, roisnumPrec}, inputDynamicShapes);
+    } else {
+        params = ngraph::builder::makeDynamicParams(paramsPrec, inputDynamicShapes);
+    }
     const auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
@@ -341,11 +389,20 @@ void MulticlassNmsLayerTest::SetUp() {
     m_attrs.background_class = backgroundClass;
     m_attrs.normalized = normalized;
 
-    auto nms = std::make_shared<opset8::MulticlassNms>(paramOuts[0], paramOuts[1], m_attrs);
+    std::shared_ptr<opset9::MulticlassNms> nms;
+    if (paramOuts.size() > 2) {
+        nms = std::make_shared<opset9::MulticlassNms>(paramOuts[0], paramOuts[1], paramOuts[2], m_attrs);
+    } else {
+        nms = std::make_shared<opset9::MulticlassNms>(paramOuts[0], paramOuts[1], m_attrs);
+    }
 
     if (!m_outStaticShape) {
-        auto result = std::make_shared<opset5::Result>(nms);
-        function = std::make_shared<Function>(result, params, "MulticlassNMS");
+        OutputVector results = {
+            std::make_shared<opset5::Result>(nms->output(0)),
+            std::make_shared<opset5::Result>(nms->output(1)),
+            std::make_shared<opset5::Result>(nms->output(2))
+        };
+        function = std::make_shared<Function>(results, params, "MulticlassNMS");
     } else {
         auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(paramsPrec, Shape {1}, {1}));
         auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(outType, Shape {1}, {1}));

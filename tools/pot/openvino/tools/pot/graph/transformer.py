@@ -7,13 +7,16 @@ from .editor import add_fullname_for_nodes
 from .special_operations import QUANTIZE_AGNOSTIC_OPERATIONS
 from .passes import InsertFakeQuantize, FakeQuantizePropagation, FakeQuantizeOptimization, RemoveFakeQuantize, \
     SpecialBlocksMarker, FakeQuantizeNameSwapper
-from .utils import find_operation_matches, get_operation_list, preprocess_ignored_params
+from .utils import find_operation_matches, get_operation_list, preprocess_ignored_params, \
+    get_operation_list_with_outputs
 
 
 class GraphTransformer:
     def __init__(self, hardware_config, quantize_inputs=False):
         self.target_device = hardware_config[0]['target_device']
         hw_ops = get_operation_list(hardware_config)
+        hw_config = {conf['type']: conf['quantization'] for conf in hardware_config if 'type' in conf}
+        quantize_output_operations = get_operation_list_with_outputs(hardware_config)
 
         quantize_agnostic_operations = [op[1] for op in find_operation_matches(
             QUANTIZE_AGNOSTIC_OPERATIONS, hw_ops)]
@@ -27,11 +30,14 @@ class GraphTransformer:
 
         self.fq_insertion = InsertFakeQuantize()
         self.fq_insertion.quantize_operations = quantize_operations
+        self.fq_insertion.quantize_output_operations = quantize_output_operations
+        self.fq_insertion.hardware_config = hw_config
 
         self.fq_propagation = FakeQuantizePropagation()
         self.fq_propagation.quantize_agnostic_operations = quantize_agnostic_operations
         self.fq_propagation.quantize_inputs = quantize_inputs
         self.fq_propagation.quantize_operations = quantize_operations
+        self.fq_propagation.hardware_config = hw_config
 
         self.fq_optimization = FakeQuantizeOptimization()
 

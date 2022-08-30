@@ -5,16 +5,19 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "ie_parallel.hpp"
 #include "embedding_bag_sum.h"
 #include <ngraph/opsets/opset1.hpp>
 #include "common/cpu_memcpy.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-MKLDNNEmbeddingBagSumNode::MKLDNNEmbeddingBagSumNode(
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+EmbeddingBagSum::EmbeddingBagSum(
             const std::shared_ptr<ngraph::Node>& op,
             size_t requiredInputNum,
             size_t indicesIdx,
@@ -36,7 +39,7 @@ MKLDNNEmbeddingBagSumNode::MKLDNNEmbeddingBagSumNode(
     }
 }
 
-void MKLDNNEmbeddingBagSumNode::prepareParams(const VectorDims& indexStaticShape) {
+void EmbeddingBagSum::prepareParams(const VectorDims& indexStaticShape) {
     _embDepth = 1lu;
     for (size_t i = 1lu; i < indexStaticShape.size(); i++) {
         _embDepth *= indexStaticShape[i];
@@ -44,8 +47,8 @@ void MKLDNNEmbeddingBagSumNode::prepareParams(const VectorDims& indexStaticShape
 }
 
 template<typename T>
-void MKLDNNEmbeddingBagSumNode::processData(const T* srcData, const T* weightsData, T* dstData,
-                                            const InferenceEngine::SizeVector& inDataDims, const InferenceEngine::SizeVector& outDataDims) {
+void EmbeddingBagSum::processData(const T* srcData, const T* weightsData, T* dstData,
+                                  const InferenceEngine::SizeVector& inDataDims, const InferenceEngine::SizeVector& outDataDims) {
     std::string msgPrefix = std::string("Node EmbeddingBagSum with name '") + _layerName + "' ";
 
     initFromInputs();
@@ -115,8 +118,8 @@ void MKLDNNEmbeddingBagSumNode::processData(const T* srcData, const T* weightsDa
     parallel_nt(0, threadBody);
 }
 
-void MKLDNNEmbeddingBagSumNode::execute(const uint8_t* srcData, const uint8_t* weightsData, uint8_t* dstData, const InferenceEngine::Precision &srcPrc,
-                                        const InferenceEngine::SizeVector& inDims, const InferenceEngine::SizeVector& outDims) {
+void EmbeddingBagSum::execute(const uint8_t* srcData, const uint8_t* weightsData, uint8_t* dstData, const InferenceEngine::Precision &srcPrc,
+                              const InferenceEngine::SizeVector& inDims, const InferenceEngine::SizeVector& outDims) {
     switch (srcPrc) {
         case Precision::FP32: {
             return processData<PrecisionTrait<Precision::FP32>::value_type>(reinterpret_cast<const float*>(srcData),
@@ -139,3 +142,7 @@ void MKLDNNEmbeddingBagSumNode::execute(const uint8_t* srcData, const uint8_t* w
         }
     }
 }
+
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

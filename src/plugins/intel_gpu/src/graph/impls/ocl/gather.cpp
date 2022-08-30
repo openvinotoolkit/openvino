@@ -14,22 +14,48 @@ using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
-kernel_selector::gather_axis convert_axis(gather::gather_axis axis) {
-    switch (axis) {
-        case gather::along_x:
-            return kernel_selector::gather_axis::X;
-        case gather::along_y:
-            return kernel_selector::gather_axis::Y;
-        case gather::along_z:
-            return kernel_selector::gather_axis::Z;
-        case gather::along_w:
-            return kernel_selector::gather_axis::W;
-        case gather::along_f:
-            return kernel_selector::gather_axis::FEATURE;
-        case gather::along_b:
-            return kernel_selector::gather_axis::BATCH;
-        default:
-            return kernel_selector::gather_axis::X;
+static kernel_selector::gather_axis convert_axis(int64_t axis, size_t rank) {
+    if (axis == 0) {
+        return kernel_selector::gather_axis::BATCH;
+    } else if (axis == 1) {
+        return kernel_selector::gather_axis::FEATURE;
+    }
+
+    if (rank <= 4) {
+        switch (axis) {
+            case 2: return kernel_selector::gather_axis::Y;
+            case 3: return kernel_selector::gather_axis::X;
+            case -1: return kernel_selector::gather_axis::Y;
+            case -2: return kernel_selector::gather_axis::FEATURE;
+            case -3: return kernel_selector::gather_axis::BATCH;
+            default: IE_THROW() << "Unsupported gather axis: " << axis;
+        }
+    } else if (rank == 5) {
+        switch (axis) {
+            case 2: return kernel_selector::gather_axis::Z;
+            case 3: return kernel_selector::gather_axis::Y;
+            case 4: return kernel_selector::gather_axis::X;
+            case -1: return kernel_selector::gather_axis::Y;
+            case -2: return kernel_selector::gather_axis::Z;
+            case -3: return kernel_selector::gather_axis::FEATURE;
+            case -4: return kernel_selector::gather_axis::BATCH;
+            default: IE_THROW() << "Unsupported gather axis: " << axis;
+        }
+    } else if (rank == 6) {
+        switch (axis) {
+            case 2: return kernel_selector::gather_axis::W;
+            case 3: return kernel_selector::gather_axis::Z;
+            case 4: return kernel_selector::gather_axis::Y;
+            case 5: return kernel_selector::gather_axis::X;
+            case -1: return kernel_selector::gather_axis::Y;
+            case -2: return kernel_selector::gather_axis::Z;
+            case -3: return kernel_selector::gather_axis::W;
+            case -4: return kernel_selector::gather_axis::FEATURE;
+            case -5: return kernel_selector::gather_axis::BATCH;
+            default: IE_THROW() << "Unsupported gather axis: " << axis;
+        }
+    } else {
+        IE_THROW() << "Unsupported gather axis: " << axis;
     }
 }
 
@@ -42,16 +68,18 @@ struct gather_impl : typed_primitive_impl_ocl<gather> {
     }
 
 public:
-    static primitive_impl* create(const gather_node& arg) {
-        auto gather_params = get_default_params<kernel_selector::gather_params>(arg);
+    static primitive_impl* create(const gather_node& arg, const kernel_impl_params& impl_param) {
+        const auto& prim = arg.get_primitive();
+        auto gather_params = get_default_params<kernel_selector::gather_params>(impl_param);
         auto gather_optional_params =
             get_default_optional_params<kernel_selector::gather_optional_params>(arg.get_program());
 
-        gather_params.axis = convert_axis(arg.get_primitive()->axis);
-        gather_params.batch_dim = size_t(arg.get_primitive()->batch_dim);
-        gather_params.support_neg_ind = arg.get_primitive()->support_neg_ind;
+        auto input_layout = impl_param.input_layouts[0];
+        gather_params.axis = convert_axis(prim->axis, input_layout.get_rank());
+        gather_params.batch_dim = size_t(prim->batch_dim);
+        gather_params.support_neg_ind = prim->support_neg_ind;
 
-        gather_params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
+        gather_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
 
         auto& kernel_selector = kernel_selector::gather_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(gather_params, gather_optional_params);
@@ -71,6 +99,24 @@ namespace detail {
 
 attach_gather_impl::attach_gather_impl() {
     implementation_map<gather>::add(impl_types::ocl, gather_impl::create, {
+        std::make_tuple(data_types::f32, format::fyxb),
+        std::make_tuple(data_types::f16, format::fyxb),
+        std::make_tuple(data_types::i32, format::fyxb),
+        std::make_tuple(data_types::i8, format::fyxb),
+        std::make_tuple(data_types::u8, format::fyxb),
+
+        std::make_tuple(data_types::f32, format::yxfb),
+        std::make_tuple(data_types::f16, format::yxfb),
+        std::make_tuple(data_types::i32, format::yxfb),
+        std::make_tuple(data_types::i8, format::yxfb),
+        std::make_tuple(data_types::u8, format::yxfb),
+
+        std::make_tuple(data_types::f32, format::byxf),
+        std::make_tuple(data_types::f16, format::byxf),
+        std::make_tuple(data_types::i32, format::byxf),
+        std::make_tuple(data_types::i8, format::byxf),
+        std::make_tuple(data_types::u8, format::byxf),
+
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::i32, format::bfyx),
@@ -88,6 +134,84 @@ attach_gather_impl::attach_gather_impl() {
         std::make_tuple(data_types::i32, format::bfwzyx),
         std::make_tuple(data_types::i8, format::bfwzyx),
         std::make_tuple(data_types::u8, format::bfwzyx),
+
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv4),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv4),
+        std::make_tuple(data_types::i32, format::b_fs_yx_fsv4),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
+
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::i32, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
+
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::i32, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
+
+        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::i32, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
+
+        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::i32, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv32),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv4_fsv2),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv2),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv4_fsv2),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv2),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv2),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv4_fsv4),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv4),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv4_fsv4),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv4),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv4),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv8_fsv2),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv8_fsv2),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv8_fsv2),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv8_fsv2),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv8_fsv2),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv8_fsv4),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
+
+        std::make_tuple(data_types::f32, format::fs_b_yx_fsv32),
+        std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
+        std::make_tuple(data_types::i32, format::fs_b_yx_fsv32),
+        std::make_tuple(data_types::i8, format::fs_b_yx_fsv32),
+        std::make_tuple(data_types::u8, format::fs_b_yx_fsv32),
     });
 }
 

@@ -12,20 +12,21 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNGatherNDNode : public MKLDNNNode {
+class GatherND : public Node {
 public:
-    MKLDNNGatherNDNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    GatherND(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     void prepareParams() override;
 
 private:
@@ -42,12 +43,12 @@ private:
     struct GatherNDExecutor {
         GatherNDExecutor(const GatherNDAttributes& attrs);
         ~GatherNDExecutor() = default;
-        void exec(const MKLDNNMemoryPtr& srcMemPtr, const MKLDNNMemoryPtr& idxMemPtr, MKLDNNMemoryPtr& dstMemPtr);
+        void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, MemoryPtr& dstMemPtr);
 
     private:
         template <typename dataType>
-        void gatherElementwise(const MKLDNNMemoryPtr& srcMemPtr, const MKLDNNMemoryPtr& idxMemPtr, MKLDNNMemoryPtr& dstMemPtr);
-        void gatherBlocks(const MKLDNNMemoryPtr& srcMemPtr, const MKLDNNMemoryPtr& idxMemPtr, MKLDNNMemoryPtr& dstMemPtr);
+        void gatherElementwise(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, MemoryPtr& dstMemPtr);
+        void gatherBlocks(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, MemoryPtr& dstMemPtr);
 
         size_t batchSize = 1lu;
         size_t cycles = 1lu;
@@ -63,9 +64,9 @@ private:
 
         struct GatherNDContext {
             GatherNDExecutor* executor;
-            const MKLDNNMemoryPtr srcMemPtr;
-            const MKLDNNMemoryPtr idxMemPtr;
-            MKLDNNMemoryPtr dstMemPtr;
+            const MemoryPtr srcMemPtr;
+            const MemoryPtr idxMemPtr;
+            MemoryPtr dstMemPtr;
         };
 
         template<typename T>
@@ -83,5 +84,6 @@ private:
     executorPtr execPtr = nullptr;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

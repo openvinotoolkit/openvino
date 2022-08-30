@@ -26,6 +26,10 @@ enum class PassProperty : uint32_t {
 
 using PassPropertyMask = ov::EnumMask<PassProperty>;
 
+/**
+ * @brief Base class for transformation passes
+ * @ingroup ov_pass_cpp_api
+ */
 class OPENVINO_API PassBase {
     friend class Manager;
 
@@ -87,6 +91,10 @@ private:
     std::shared_ptr<PassConfig> m_pass_config;
 };
 
+/**
+ * @brief Base class for Model passes
+ * @ingroup ov_pass_cpp_api
+ */
 class OPENVINO_API ModelPass : public PassBase {
 public:
     OPENVINO_RTTI("ov::pass::ModelPass");

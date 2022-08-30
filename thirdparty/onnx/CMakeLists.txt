@@ -23,7 +23,7 @@ set(ONNX_USE_PROTOBUF_SHARED_LIBS CACHE BOOL "Use dynamic protobuf by ONNX libra
 set(ONNX_NAMESPACE ${OV_ONNX_NAMESPACE})
 set(ONNX_USE_LITE_PROTO ${ONNX_USE_LITE_PROTO_DEFAULT} CACHE BOOL "Use protobuf lite for ONNX library" FORCE)
 set(ONNX_ML ON CACHE BOOL "Use ONNX ML" FORCE)
-if(CMAKE_CROSSCOMPILING)
+if(CMAKE_CROSSCOMPILING AND NOT DEFINED ONNX_CUSTOM_PROTOC_EXECUTABLE)
     set(ONNX_CUSTOM_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
 endif()
 
@@ -43,16 +43,16 @@ ov_disable_all_warnings(onnx onnx_proto)
 
 # install
 
-ov_install_static_lib(onnx core)
-ov_install_static_lib(onnx_proto core)
+ov_install_static_lib(onnx ${OV_CPACK_COMP_CORE})
+ov_install_static_lib(onnx_proto ${OV_CPACK_COMP_CORE})
 
 # WA for ONNX: protobuf must be in the same export set of ONNX targets
 if(NOT BUILD_SHARED_LIBS)
     if(ONNX_USE_LITE_PROTO)
         install(TARGETS ${Protobuf_LITE_LIBRARIES} EXPORT ONNXTargets
-                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core)
+                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE})
     else()
         install(TARGETS ${Protobuf_LIBRARIES} EXPORT ONNXTargets
-                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core)
+                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE})
     endif()
 endif()

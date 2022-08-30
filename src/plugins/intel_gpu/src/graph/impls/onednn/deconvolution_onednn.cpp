@@ -78,7 +78,9 @@ protected:
         cldnn::format out_fmt = onednn::find_format(pd.weights_desc(0), grouped_weights);
         kernel_selector::WeightsLayout reqLayout = to_weights_layout(out_fmt, cldnn_prim->grouped_weights_shape);
 
-        set_params(arg, r_params);
+        const auto& param_info = arg.get_kernel_impl_params();
+
+        set_params(*param_info, r_params);
         r_params.layerID = arg.id() + "_reorder_";
         r_params.input = convert_weights_tensor(weights_layout, cldnn_prim->grouped_weights_shape);
         r_params.output = r_params.input.TransformIgnorePadding(reqLayout, r_params.input.GetDType(), arg.get_groups(), false);
@@ -105,12 +107,11 @@ protected:
 
         auto& input = arg.get_dependency(0);
         auto& weights = arg.get_dependency(1);
-        auto spatials_rank = cldnn::format::spatial_num(input.get_output_layout().format);
 
-        auto stride = onednn::convert_spatials(prim->stride, spatials_rank);
-        auto dilation = onednn::convert_spatials(cldnn::tensor{1}, spatials_rank);
-        auto pad_l = onednn::convert_spatials(prim->pad, spatials_rank);
-        auto pad_r = onednn::convert_spatials(prim->pad, spatials_rank);
+        dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
+        dnnl::memory::dims dilation(input.get_output_layout().get_spatial_rank(), 1);
+        dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
+        dnnl::memory::dims pad_r(prim->pad.begin(), prim->pad.end());
 
         auto input_md = onednn::layout_to_memory_desc(input.get_output_layout());
         auto weights_md = onednn::layout_to_memory_desc(weights.get_output_layout(), dnnl::memory::format_tag::any);
@@ -155,7 +156,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const deconvolution_node& arg) {
+    static primitive_impl* create(const deconvolution_node& arg, const kernel_impl_params&) {
         auto& engine = arg.get_program().get_engine();
         auto desc = get_deconvolution_descriptor(arg);
         auto attr = get_primitive_attributes(arg);
@@ -183,6 +184,11 @@ attach_deconvolution_onednn::attach_deconvolution_onednn() {
         std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
         std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
         std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
+
+        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv32),
 
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),

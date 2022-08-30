@@ -7,7 +7,10 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ie_precision.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace pass {
+
 
 /**
  * @brief Decompose a 2D convolution, wrapped with transposes,
@@ -30,7 +33,7 @@ namespace GNAPluginNS {
  */
 class Decompose2DConv : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("Decompose2DConv", "0");
     Decompose2DConv(const std::string& gnaCompileTarget, const InferenceEngine::Precision& gnaPrecision);
 };
 
@@ -51,7 +54,7 @@ public:
  */
 class Decompose2DConvTransposedWithBias : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("Decompose2DConvTransposedWithBias", "0");
     Decompose2DConvTransposedWithBias(const std::string& gnaCompileTarget, const InferenceEngine::Precision& gnaPrecision);
 };
 
@@ -70,12 +73,14 @@ public:
  *      Broadcast Bias                       Broadcast Bias
  *            |                                    |
  *   Activation Function                  Activation Function
- * 
+ *
  */
 class Decompose2DConvTransposedWithBiasAF : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("Decompose2DConvTransposedWithBiasAF", "0");
     Decompose2DConvTransposedWithBiasAF(const std::string& gnaCompileTarget, const InferenceEngine::Precision& gnaPrecision);
 };
 
-} // namespace GNAPluginNS
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov

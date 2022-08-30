@@ -6,9 +6,18 @@
 
 include (CMakeDependentOption)
 
+if(POLICY CMP0127)
+    cmake_policy(SET CMP0127 NEW)
+endif()
+
 macro (ie_option variable description value)
     option(${variable} "${description}" ${value})
     list(APPEND IE_OPTIONS ${variable})
+endmacro()
+
+# Usage: ov_option(<option_variable> "description" <initial value or boolean expression> [IF <condition>])
+macro (ov_option variable description value)
+    ie_option(${variable} "${description}" ${value})
 endmacro()
 
 macro (ie_dependent_option variable description def_value condition fallback_value)

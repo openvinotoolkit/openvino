@@ -137,7 +137,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
         auto& output = outputs[resultIndex];
         output.first = results[resultIndex]->get_element_type();
         const auto& outputTensor = outputTensors[resultIndex];
-        output.second.resize(ceil(shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().bitwidth() / 8.f));
+        output.second.resize((shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().bitwidth() + 7) >> 3);
         outputTensors[resultIndex]->read(output.second.data(), output.second.size());
     }
 
@@ -278,7 +278,9 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> getCons
 namespace {
 
 std::string toString(const NodeTypeInfo& typeInfo) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return std::string(typeInfo.name) + " ver. " + std::to_string(typeInfo.version);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void CompareShapes(const PartialShape& actual, const PartialShape& expected) {
@@ -339,7 +341,9 @@ std::shared_ptr<ngraph::Node> getNodeSharedPtr(const ngraph::NodeTypeInfo &type_
             ngraphNode->validate_and_infer_types();
             return ngraphNode;
         }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_UNREACHABLE("supported opsets does not contain op with name: ", type_info.name, " version: ", type_info.version);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 bool is_tensor_iterator_exist(const std::shared_ptr<ngraph::Function> & func) {
@@ -902,15 +906,32 @@ std::ostream& operator<<(std::ostream & os, MemoryTransformation type) {
     return os;
 }
 
-std::ostream& operator<<(std::ostream & os, ngraph::op::util::NmsBase::SortResultType type) {
+std::ostream& operator<<(std::ostream & os, op::v8::MatrixNms::SortResultType type) {
     switch (type) {
-        case op::util::NmsBase::SortResultType::CLASSID:
+        case op::v8::MatrixNms::SortResultType::CLASSID:
             os << "CLASSID";
             break;
-        case op::util::NmsBase::SortResultType::SCORE:
+        case op::v8::MatrixNms::SortResultType::SCORE:
             os << "SCORE";
             break;
-        case op::util::NmsBase::SortResultType::NONE:
+        case op::v8::MatrixNms::SortResultType::NONE:
+            os << "NONE";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::util::MulticlassNmsBase::SortResultType type) {
+    switch (type) {
+        case op::util::MulticlassNmsBase::SortResultType::CLASSID:
+            os << "CLASSID";
+            break;
+        case op::util::MulticlassNmsBase::SortResultType::SCORE:
+            os << "SCORE";
+            break;
+        case op::util::MulticlassNmsBase::SortResultType::NONE:
             os << "NONE";
             break;
         default:

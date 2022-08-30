@@ -16,5 +16,5 @@ def get_version():
             version = f.readline().replace('\n', '')
         return version
 
-    logger.warning('POT is not installed correctly. Please follow openvino/tools/pot/docs/InstallationGuide.md')
+    logger.warning('POT is not installed correctly. Please follow README.md')
     return INVALID_VERSION

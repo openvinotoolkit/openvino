@@ -11,16 +11,17 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNSpaceToDepthNode : public MKLDNNNode {
+class SpaceToDepth : public Node {
 public:
-    MKLDNNSpaceToDepthNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    SpaceToDepth(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     void prepareParams() override;
@@ -41,7 +42,7 @@ public:
     };
 
 protected:
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
 private:
     SpaceToDepthAttrs attrs;
@@ -58,5 +59,6 @@ private:
     executorPtr execPtr = nullptr;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

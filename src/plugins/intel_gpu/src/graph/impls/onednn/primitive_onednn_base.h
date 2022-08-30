@@ -10,6 +10,7 @@
 #include "to_string_utils.h"
 #include "register.hpp"
 #include "utils.hpp"
+#include "openvino/util/file_util.hpp"
 
 #include "quantize_inst.h"
 #include "reorder_inst.h"
@@ -25,6 +26,8 @@
 
 namespace cldnn {
 namespace onednn {
+
+static std::mutex cacheAccessMutex;
 
 template <class PType, class DescType, class PrimDescType = dnnl::primitive_desc, class PrimType = dnnl::primitive>
 struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
@@ -44,10 +47,71 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
           _outer(arg),
           _desc(desc),
           _attrs(attrs),
-          _pd(pd),
-          _prim(pd) { }
+          _pd(pd) {
+            build_primitive();
+        }
+
+    typed_primitive_onednn_impl(const typed_program_node<PType>& arg)
+        : typed_primitive_impl<PType>({}, "undef"),
+          _outer(arg),
+          _pd(),
+          _prim() {
+        assert(arg.can_be_optimized());
+    }
 
     bool is_cpu() const override { return false; }
+
+private:
+    std::string get_cache_directory() const {
+        auto path = _outer.get_program().get_engine().configuration().kernels_cache_path;
+        if (path.empty()) {
+            return {};
+        }
+
+        if (path.back() != '/' && path.back() != '\\') {
+            path += "/";
+        }
+        return path;
+    }
+
+    std::string generate_cache_path_from_key(std::vector<uint8_t> key) const {
+        auto path = get_cache_directory();
+        if (path.empty()) {
+            return {};
+        }
+
+        std::string key_str(key.begin(), key.end());
+        size_t hash = std::hash<std::string>()(key_str);
+        return path + std::to_string(hash) + ".onednn.cl_cache";
+    }
+
+    void build_primitive() {
+        auto cache_outpath = get_cache_directory();
+        if (cache_outpath.empty()) {
+            _prim = PrimType(_pd);
+        } else {
+            std::vector<uint8_t> key = _pd.get_cache_blob_id();
+            assert(!key.empty());
+
+            std::vector<uint8_t> cache;
+            {
+                std::lock_guard<std::mutex> lock(cacheAccessMutex);
+                cache = ov::util::load_binary(generate_cache_path_from_key(key));
+            }
+
+            if (cache.empty()) {
+                _prim = PrimType(_pd);
+                cache = _prim.get_cache_blob();
+
+                {
+                    std::lock_guard<std::mutex> lock(cacheAccessMutex);
+                    ov::util::save_binary(generate_cache_path_from_key(key), cache);
+                }
+            } else {
+                _prim = PrimType(_pd, cache);
+            }
+        }
+    }
 
 protected:
     virtual bool optimized_out(typed_primitive_inst<PType>&) const { return false; }
@@ -156,13 +220,13 @@ protected:
 
         {
             auto& input = instance.input_memory(0);
-            auto offset = onednn::get_offset(_pd.dnnl::primitive_desc_base::src_desc(0));
+            auto offset = onednn::get_f_offset(instance.node.input().get_output_layout(), _pd.dnnl::primitive_desc_base::src_desc(0));
             args.insert({DNNL_ARG_SRC, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});
         }
 
         {
             auto& output = instance.output_memory();
-            auto offset = onednn::get_offset(_pd.dnnl::primitive_desc_base::dst_desc(0));
+            auto offset = onednn::get_f_offset(instance.node.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
             args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
         }
 
@@ -171,7 +235,7 @@ protected:
         return args;
     }
 
-    void init_kernels() override { }
+    void init_kernels(const kernels_cache&) override { }
 
     event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
         if (events.size() == 1 && !is_output)
@@ -184,6 +248,8 @@ protected:
     }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
+        if (instance.can_be_optimized())
+            return;
         uint32_t net_id = instance.get_network().get_id();
         _args[net_id] = get_arguments(instance);
     }
@@ -209,14 +275,6 @@ protected:
         if (profiling) {
             stream.finish();
             event->set();
-        } else {
-            // Create and set user event as complete
-            event = stream.create_user_event(true);
-        }
-
-        if (!event) {
-            std::string error_msg = "Event was not created properly for " + instance.id();
-            throw std::runtime_error(error_msg);
         }
 
         return event;

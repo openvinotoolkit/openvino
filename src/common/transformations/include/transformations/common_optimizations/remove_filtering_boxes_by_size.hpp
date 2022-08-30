@@ -20,12 +20,12 @@ class TRANSFORMATIONS_API RemoveFilteringBoxesBySize;
 
 class ngraph::pass::FuseFilteringBoxesBySize : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("FuseFilteringBoxesBySize", "0");
     FuseFilteringBoxesBySize();
 };
 
 class ngraph::pass::RemoveFilteringBoxesBySize : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("RemoveFilteringBoxesBySize", "0");
     RemoveFilteringBoxesBySize();
 };

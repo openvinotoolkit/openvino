@@ -20,9 +20,9 @@
 namespace ov {
 namespace intel_cpu {
 
-class MKLDNNExecNetwork: public InferenceEngine::ExecutableNetworkThreadSafeDefault {
+class ExecNetwork: public InferenceEngine::ExecutableNetworkThreadSafeDefault {
 public:
-    typedef std::shared_ptr<MKLDNNExecNetwork> Ptr;
+    typedef std::shared_ptr<ExecNetwork> Ptr;
 
     std::shared_ptr<InferenceEngine::IInferRequestInternal>
     CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
@@ -34,9 +34,9 @@ public:
 
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
 
-    MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network, const Config &cfg,
-                      const MKLDNNExtensionManager::Ptr &extMgr, NumaNodesWeights &weightsSharing,
-                      const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin);
+    ExecNetwork(const InferenceEngine::CNNNetwork &network, const Config &cfg,
+                const ExtensionManager::Ptr &extMgr,
+                const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin);
 
     void setProperty(const std::map<std::string, std::string> &properties);
 
@@ -49,31 +49,31 @@ public:
     void Export(std::ostream& modelStream) override;
 
 protected:
-    friend class MKLDNNInferRequestBase;
-    MKLDNNExtensionManager::Ptr extensionManager;
+    friend class InferRequestBase;
+    ExtensionManager::Ptr extensionManager;
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
     const InferenceEngine::CNNNetwork           _network;
     mutable std::mutex                          _cfgMutex;
     Config                                      _cfg;
     std::atomic_int                             _numRequests = {0};
     std::string                                 _name;
-    struct Graph : public MKLDNNGraph {
+    struct GraphGuard : public Graph {
         std::mutex  _mutex;
         struct Lock : public std::unique_lock<std::mutex> {
-            explicit Lock(Graph& graph) : std::unique_lock<std::mutex>(graph._mutex), _graph(graph) {}
-            Graph&                          _graph;
+            explicit Lock(GraphGuard& graph) : std::unique_lock<std::mutex>(graph._mutex), _graph(graph) {}
+            GraphGuard& _graph;
         };
     };
 
     // WARNING: Do not use _graphs directly.
-    mutable std::deque<Graph>                   _graphs;
-    NumaNodesWeights&                           _numaNodesWeights;
+    mutable std::deque<GraphGuard>              _graphs;
+    mutable NumaNodesWeights                           _numaNodesWeights;
 
     /* WARNING: Use GetGraph() function to get access to graph in current stream.
      * NOTE: Main thread is interpreted as master thread of external stream so use this function to get access to graphs
      *       even from main thread
      */
-    Graph::Lock GetGraph() const;
+    GraphGuard::Lock GetGraph() const;
 
     bool canBeExecViaLegacyDynBatch(std::shared_ptr<const ov::Model> function, int64_t& maxBatchSize) const;
     bool CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const;
@@ -82,7 +82,7 @@ protected:
 
     InferenceEngine::Parameter GetConfigLegacy(const std::string &name) const;
 
-    InferenceEngine::Parameter GetMetricLegacy(const std::string &name, const Graph& graph) const;
+    InferenceEngine::Parameter GetMetricLegacy(const std::string &name, const GraphGuard& graph) const;
 };
 
 }   // namespace intel_cpu

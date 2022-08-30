@@ -9,6 +9,12 @@
 #include "ie_parallel.hpp"
 #include "proposal.h"
 
+using namespace InferenceEngine;
+
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
 static std::vector<float> generate_anchors(proposal_conf &conf) {
     auto base_size = conf.base_size_;
     auto coordinates_offset = conf.coordinates_offset;
@@ -68,10 +74,7 @@ static std::vector<float> generate_anchors(proposal_conf &conf) {
     return anchors;
 }
 
-using namespace ov::intel_cpu;
-using namespace InferenceEngine;
-
-bool MKLDNNProposalNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Proposal::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto proposal0Op = ngraph::as_type_ptr<const ngraph::op::v0::Proposal>(op);
         const auto proposal4Op = ngraph::as_type_ptr<const ngraph::op::v4::Proposal>(op);
@@ -90,8 +93,8 @@ bool MKLDNNProposalNode::isSupportedOperation(const std::shared_ptr<const ngraph
     return true;
 }
 
-MKLDNNProposalNode::MKLDNNProposalNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+Proposal::Proposal(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -135,7 +138,7 @@ MKLDNNProposalNode::MKLDNNProposalNode(const std::shared_ptr<ngraph::Node>& op, 
     store_prob = op->get_output_size() == 2;
 }
 
-void MKLDNNProposalNode::initSupportedPrimitiveDescriptors() {
+void Proposal::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -155,11 +158,11 @@ void MKLDNNProposalNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNProposalNode::executeDynamicImpl(mkldnn::stream strm) {
+void Proposal::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNProposalNode::execute(mkldnn::stream strm) {
+void Proposal::execute(dnnl::stream strm) {
     try {
         const float* probabilitiesData = reinterpret_cast<const float *>(getParentEdgeAt(PROBABILITIES_IN_IDX)->getMemoryPtr()->GetPtr());
         const float* anchorsData = reinterpret_cast<const float *>(getParentEdgeAt(ANCHORS_IN_IDX)->getMemoryPtr()->GetPtr());
@@ -194,8 +197,10 @@ void MKLDNNProposalNode::execute(mkldnn::stream strm) {
     }
 }
 
-bool MKLDNNProposalNode::created() const {
-    return getType() == Proposal;
+bool Proposal::created() const {
+    return getType() == Type::Proposal;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNProposalNode, Proposal)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

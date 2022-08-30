@@ -16,10 +16,10 @@ namespace intel_cpu {
 class TileBroadcastCommon {
 protected:
     static VectorDims calculateDenseStrides(const VectorDims &dims);
-    std::vector<NodeDesc> getSupportedConfigs(const MKLDNNNode *node);
-    bool prepareOptimizedParams(const MKLDNNNode *node, VectorDims& srcBlockedDims, VectorDims& dstBlockedDims);
+    std::vector<NodeDesc> getSupportedConfigs(const Node *node);
+    bool prepareOptimizedParams(const Node *node, VectorDims& srcBlockedDims, VectorDims& dstBlockedDims);
 
-    void optimizedExecute(const MKLDNNMemoryPtr& srcMemory, const MKLDNNMemoryPtr& dstMemory);
+    void optimizedExecute(const MemoryPtr& srcMemory, const MemoryPtr& dstMemory);
 
     VectorDims repeats;
     bool optimizedCase = false;

@@ -10,11 +10,10 @@
 #include "intel_gpu/primitives/reverse_sequence.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateReverseSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v0::ReverseSequence>& op) {
-    p.ValidateInputs(op, {2});
+    validate_inputs_count(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -24,15 +23,12 @@ static void CreateReverseSequenceOp(Program& p, const std::shared_ptr<ngraph::op
                                                        inputPrimitives[0],
                                                        inputPrimitives[1],
                                                        seq_axis,
-                                                       batch_axis,
-                                                       op->get_friendly_name());
+                                                       batch_axis);
 
-    p.AddPrimitive(reverseSequencePrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, reverseSequencePrim);
 }
 
 REGISTER_FACTORY_IMPL(v0, ReverseSequence);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

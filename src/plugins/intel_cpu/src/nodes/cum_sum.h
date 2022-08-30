@@ -9,18 +9,19 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNCumSumNode : public MKLDNNNode {
+class CumSum : public Node {
 public:
-    MKLDNNCumSumNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    CumSum(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     bool needPrepareParams() const override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -37,7 +38,7 @@ private:
 
     inline size_t getStartOffset(const std::vector<size_t> &forStartOffset, const std::vector<size_t>& strides) const;
 
-    size_t getAxis(const MKLDNNMemory& _axis, const MKLDNNMemory& _data) const;
+    size_t getAxis(const Memory& _axis, const Memory& _data) const;
 
     enum { CUM_SUM_DATA, AXIS, numOfInputs };
     bool exclusive;
@@ -50,11 +51,12 @@ private:
 
     template<typename T>
     struct CumSumExecute {
-        void operator()(MKLDNNCumSumNode* node) {
+        void operator()(CumSum* node) {
             node->exec<T>();
         }
     };
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

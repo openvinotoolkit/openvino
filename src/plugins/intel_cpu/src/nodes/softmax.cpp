@@ -5,18 +5,21 @@
 #include "softmax.h"
 
 #include <string>
-#include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_types.h>
+#include <dnnl_extension_utils.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include <ngraph/opsets/opset1.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_hashing_utils.hpp>
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
 
+namespace ov {
+namespace intel_cpu {
+namespace node {
 namespace {
+
 struct SoftmaxKey {
     DnnlMemoryDescCPtr inp0;
     impl_desc_type implType;
@@ -47,9 +50,10 @@ bool SoftmaxKey::operator==(const SoftmaxKey& rhs) const {
     retVal = retVal && implType == rhs.implType && axis == rhs.axis;
     return retVal;
 }
+
 }  // namespace
 
-bool MKLDNNSoftMaxNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool SoftMax::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!std::dynamic_pointer_cast<const ngraph::opset1::Softmax>(op)) {
             errorMessage = "Only opset1 Softmax operation is supported";
@@ -61,8 +65,8 @@ bool MKLDNNSoftMaxNode::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-MKLDNNSoftMaxNode::MKLDNNSoftMaxNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache) {
+SoftMax::SoftMax(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
+        Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -70,14 +74,14 @@ MKLDNNSoftMaxNode::MKLDNNSoftMaxNode(const std::shared_ptr<ngraph::Node>& op, co
     axis = ngraph::as_type_ptr<ngraph::op::v1::Softmax>(op)->get_axis();
 }
 
-void MKLDNNSoftMaxNode::getSupportedDescriptors() {
+void SoftMax::getSupportedDescriptors() {
     if (descs.size())
         return;
 
     InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
     if (precision != InferenceEngine::Precision::FP32 && precision != InferenceEngine::Precision::BF16)
         precision = InferenceEngine::Precision::FP32;
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
+    auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(precision);
 
     if (getParentEdges().size() != 1)
         IE_THROW() << "Incorrect number of input edges for layer " << getName();
@@ -100,11 +104,11 @@ void MKLDNNSoftMaxNode::getSupportedDescriptors() {
     }
 }
 
-bool MKLDNNSoftMaxNode::created() const {
-    return getType() == Softmax;
+bool SoftMax::created() const {
+    return getType() == Type::Softmax;
 }
 
-void MKLDNNSoftMaxNode::initOptimalPrimitiveDescriptor() {
+void SoftMax::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
@@ -124,18 +128,18 @@ void MKLDNNSoftMaxNode::initOptimalPrimitiveDescriptor() {
     initDescriptor(config);
 }
 
-void MKLDNNSoftMaxNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
+void SoftMax::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
                                          const std::vector<MemoryDescPtr> &outputDesc) {
     auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     auto in_candidate = definedInpMemDesc->getDnnlDesc();
 
-    MKLDNNDescriptor desc(std::shared_ptr<softmax_forward::desc>(
+    DnnlDesriptor desc(std::shared_ptr<softmax_forward::desc>(
             new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));
     descs.push_back(desc);
 }
 
-void MKLDNNSoftMaxNode::prepareParams() {
+void SoftMax::prepareParams() {
     auto inpDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<DnnlMemoryDesc>();
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
 
@@ -144,9 +148,9 @@ void MKLDNNSoftMaxNode::prepareParams() {
 
     SoftmaxKey key = {inpDesc, selected_pd->getImplementationType(), axis};
     auto engine = getEngine();
-    auto builder = [&engine](const SoftmaxKey& key) -> std::shared_ptr<mkldnn::primitive> {
+    auto builder = [&engine](const SoftmaxKey& key) -> std::shared_ptr<dnnl::primitive> {
         softmax_forward::primitive_desc prim_desc;
-        MKLDNNDescriptor desc(std::shared_ptr<softmax_forward::desc>(
+        DnnlDesriptor desc(std::shared_ptr<softmax_forward::desc>(
             new softmax_forward::desc(prop_kind::forward_scoring, key.inp0->getDnnlDesc(), key.axis)));
         primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine);
 
@@ -181,12 +185,14 @@ void MKLDNNSoftMaxNode::prepareParams() {
     primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
 }
 
-void MKLDNNSoftMaxNode::executeDynamicImpl(mkldnn::stream strm) {
+void SoftMax::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-std::vector<VectorDims> MKLDNNSoftMaxNode::shapeInfer() const {
+std::vector<VectorDims> SoftMax::shapeInfer() const {
     return {getParentEdgesAtPort(0).front()->getMemory().getStaticDims()};
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNSoftMaxNode, Softmax);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

@@ -19,6 +19,7 @@ using gpu_handle_param = void*;
 
 /**
  * @brief Enum to define the type of the shared context
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 enum class ContextType {
     OCL = 0,        //!< Pure OpenCL context
@@ -33,7 +34,7 @@ inline std::ostream& operator<<(std::ostream& os, const ContextType& context_typ
     case ContextType::VA_SHARED:
         return os << "VA_SHARED";
     default:
-        IE_THROW() << "Unsupported context type";
+        throw ov::Exception("Unsupported context type");
     }
 }
 
@@ -45,7 +46,7 @@ inline std::istream& operator>>(std::istream& is, ContextType& context_type) {
     } else if (str == "VA_SHARED") {
         context_type = ContextType::VA_SHARED;
     } else {
-        IE_THROW() << "Unsupported context type: " + str;
+        throw ov::Exception("Unsupported context type: " + str);
     }
     return is;
 }
@@ -54,40 +55,47 @@ inline std::istream& operator>>(std::istream& is, ContextType& context_type) {
 /**
  * @brief Shared device context type: can be either pure OpenCL (OCL)
  * or shared video decoder (VA_SHARED) context
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 static constexpr Property<ContextType> context_type{"CONTEXT_TYPE"};
 
 /**
  * @brief This key identifies OpenCL context handle
  * in a shared context or shared memory blob parameter map
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 static constexpr Property<gpu_handle_param> ocl_context{"OCL_CONTEXT"};
 
 /**
  * @brief This key identifies ID of device in OpenCL context
  * if multiple devices are present in the context
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 static constexpr Property<int> ocl_context_device_id{"OCL_CONTEXT_DEVICE_ID"};
 
 /**
  * @brief In case of multi-tile system,
  * this key identifies tile within given context
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 static constexpr Property<int> tile_id{"TILE_ID"};
 
 /**
  * @brief This key identifies OpenCL queue handle in a shared context
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 static constexpr Property<gpu_handle_param> ocl_queue{"OCL_QUEUE"};
 
 /**
  * @brief This key identifies video acceleration device/display handle
  * in a shared context or shared memory blob parameter map
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 static constexpr Property<gpu_handle_param> va_device{"VA_DEVICE"};
 
 /**
  * @brief Enum to define the type of the shared memory buffer
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 enum class SharedMemType {
     OCL_BUFFER = 0,         //!< Shared OpenCL buffer blob
@@ -117,7 +125,7 @@ inline std::ostream& operator<<(std::ostream& os, const SharedMemType& share_mem
     case SharedMemType::DX_BUFFER:
         return os << "DX_BUFFER";
     default:
-        IE_THROW() << "Unsupported memory type";
+        throw ov::Exception("Unsupported memory type");
     }
 }
 
@@ -139,7 +147,7 @@ inline std::istream& operator>>(std::istream& is, SharedMemType& share_mem_type)
     } else if (str == "DX_BUFFER") {
         share_mem_type = SharedMemType::DX_BUFFER;
     } else {
-        IE_THROW() << "Unsupported memory type: " + str;
+        throw ov::Exception("Unsupported memory type: " + str);
     }
     return is;
 }
@@ -148,18 +156,21 @@ inline std::istream& operator>>(std::istream& is, SharedMemType& share_mem_type)
 /**
  * @brief This key identifies type of internal shared memory
  * in a shared memory blob parameter map.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 static constexpr Property<SharedMemType> shared_mem_type{"SHARED_MEM_TYPE"};
 
 /**
  * @brief This key identifies OpenCL memory handle
  * in a shared memory blob parameter map
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 static constexpr Property<gpu_handle_param> mem_handle{"MEM_HANDLE"};
 
 /**
  * @brief This key identifies video decoder surface handle
  * in a shared memory blob parameter map
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 #ifdef _WIN32
 static constexpr Property<gpu_handle_param> dev_object_handle{"DEV_OBJECT_HANDLE"};
@@ -170,6 +181,7 @@ static constexpr Property<uint32_t> dev_object_handle{"DEV_OBJECT_HANDLE"};
 /**
  * @brief This key identifies video decoder surface plane
  * in a shared memory blob parameter map
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 static constexpr Property<uint32_t> va_plane{"VA_PLANE"};
 

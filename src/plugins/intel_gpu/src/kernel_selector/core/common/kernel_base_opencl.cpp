@@ -92,14 +92,25 @@ std::pair<std::string, std::string> KernelBaseOpenCL::CreateJit(const std::strin
         .add_line("// Kernel name: " + kernel_id)
         .value_macro("KERNEL(name)", "__kernel void " + kernel_id)
         .decoration_macro("FUNC", "", kernel_id)
-        .decoration_macro("FUNC_CALL", "", kernel_id);
+        .decoration_macro("FUNC_CALL", "", kernel_id)
+        .decoration_macro("CONST_ARRAY_DECL", "__constant size_t ", kernel_id + " []")
+        .decoration_macro("CONST_ARRAY_REF", "", kernel_id);
 
     undefs += "#undef KERNEL\n";
     undefs += "#undef FUNC\n";
     undefs += "#undef FUNC_CALL\n";
+    undefs += "#undef CONST_ARRAY_DECL\n";
+    undefs += "#undef CONST_ARRAY_REF\n";
 
     for (auto& definition : constants.GetDefinitions()) {
         code.value_macro(definition.first, definition.second);
+        if (definition.first.find("SIZES_DATA") != std::string::npos) {
+            auto size_arr_data = definition.first;
+            auto size_arr = size_arr_data.erase(size_arr_data.find("_DATA") , 5);
+            code.add_line("CONST_ARRAY_DECL(" + size_arr + ") = " + definition.first + ";");
+            code.value_macro(size_arr, "CONST_ARRAY_REF(" + size_arr + ")");
+        }
+
         undefs += "#ifdef " + definition.first.substr(0, definition.first.find('(')) + "\n";
         undefs += "#undef " + definition.first.substr(0, definition.first.find('(')) + "\n";
         undefs += "#endif\n";
@@ -114,14 +125,17 @@ std::pair<std::string, std::string> KernelBaseOpenCL::CreateJit(const std::strin
 Arguments KernelBaseOpenCL::GetArgsDesc(uint32_t num_of_input,
                                           bool use_weights,
                                           bool use_bias,
-                                          uint32_t number_of_inputs_for_fused_prim) const {
+                                          uint32_t number_of_inputs_for_fused_prim,
+                                          uint32_t num_of_output) const {
     Arguments args;
 
     for (uint32_t i = 0; i < num_of_input; i++) {
         args.push_back({ArgumentDescriptor::Types::INPUT, i});
     }
 
-    args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+    for (uint32_t i = 0; i < num_of_output; i++) {
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, i});
+    }
 
     if (use_weights) {
         args.push_back({ArgumentDescriptor::Types::WEIGHTS, 0});
@@ -183,11 +197,12 @@ void KernelBaseOpenCL::FillCLKernelData(clKernelData& kernel,
                                         bool weights,
                                         bool bias,
                                         int number_of_inputs,
-                                        uint32_t number_of_inputs_for_fused_prims) const {
+                                        uint32_t number_of_inputs_for_fused_prims,
+                                        int number_of_outputs) const {
     KernelBase::CheckDispatchData(kernelMapName, dispatchData, engine_info.maxWorkGroupSize);
     kernel.code.kernelString = GetKernelString(kernelMapName, jit, entryPoint, engine_info, exeMode);
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;
-    kernel.params.arguments = GetArgsDesc(number_of_inputs, weights, bias, number_of_inputs_for_fused_prims);
+    kernel.params.arguments = GetArgsDesc(number_of_inputs, weights, bias, number_of_inputs_for_fused_prims, number_of_outputs);
 }
 }  // namespace kernel_selector

@@ -368,6 +368,20 @@ std::vector<StridedSliceStrideOptionalParams> generateStrideOptionalParams() {
             std::vector<int64_t>{0, 0, 0},
             reference_tests::Tensor(IN_ET, {1, 4}, std::vector<T>{20, 21, 22, 23}),
             "strided_slice_stride_optional_dynamic"),
+        // strided_slice_stride_optional_dynamic_empty_output_tensor
+        StridedSliceStrideOptionalParams(
+            PartialShape::dynamic(),
+            reference_tests::Tensor(IN_ET, {2, 3, 4}, std::vector<T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+                                                    12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
+            reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{0, 0}),
+            reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{-1, 0}),
+            std::vector<int64_t>{1, 0},
+            std::vector<int64_t>{1, 0},
+            std::vector<int64_t>{},
+            std::vector<int64_t>{},
+            std::vector<int64_t>{},
+            reference_tests::Tensor(IN_ET, {2, 0, 4}, std::vector<T>{}),
+            "strided_slice_stride_optional_dynamic_empty_output_tensor"),
     };
     return params;
 }

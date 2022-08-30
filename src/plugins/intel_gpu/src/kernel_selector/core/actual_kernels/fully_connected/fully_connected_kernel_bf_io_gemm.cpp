@@ -32,7 +32,7 @@ FullyConnected_bf_io_GEMM::DispatchData FullyConnected_bf_io_GEMM::SetDefault(co
     const uint32_t localWorkSizeX = 64;
     const uint32_t globalWorkSizeX = localWorkSizeX;
 
-    dispatchData.gws = { globalWorkSizeX, params.output.Feature().v, 1 };
+    dispatchData.gws = { globalWorkSizeX, params.outputs[0].Feature().v, 1 };
     dispatchData.lws = { localWorkSizeX, 1, 1 };
 
     return dispatchData;

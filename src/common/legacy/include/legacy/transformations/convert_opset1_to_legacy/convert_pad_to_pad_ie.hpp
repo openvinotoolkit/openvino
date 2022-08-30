@@ -26,6 +26,6 @@ class ConvertPadToLegacyMatcher;
 
 class ngraph::pass::ConvertPadToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertPadToLegacyMatcher", "0");
     ConvertPadToLegacyMatcher();
 };

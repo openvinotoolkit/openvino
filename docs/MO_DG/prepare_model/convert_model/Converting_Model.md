@@ -1,32 +1,79 @@
-# General Conversion Parameters {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model}
+# Setting Input Shapes {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model}
 
-To get the full list of general (framework-agnostic) conversion parameters available in Model Optimizer, run the following command:
+With Model Optimizer you can increase your model's efficiency by providing an additional shape definition, with these two parameters: `--input_shape` and `--static_shape`.
+
+@anchor when_to_specify_input_shapes
+## Specifying --input_shape Command-line Parameter
+Model Optimizer supports conversion of models with dynamic input shapes that contain undefined dimensions.
+However, if the shape of data is not going to change from one inference request to another,
+it is recommended to set up static shapes (when all dimensions are fully defined) for the inputs.
+Doing it at this stage, instead of during inference in runtime, can be beneficial in terms of performance and memory consumption.
+To set up static shapes, Model Optimizer provides the `--input_shape` parameter.
+For more information on input shapes under runtime, refer to the [Changing input shapes](../../../OV_Runtime_UG/ShapeInference.md) guide.
+To learn more about dynamic shapes in runtime, refer to the [Dynamic Shapes](../../../OV_Runtime_UG/ov_dynamic_shapes.md) guide.
+
+The OpenVINO Runtime API may present certain limitations in inferring models with undefined dimensions on some hardware. See the [Features support matrix](../../../OV_Runtime_UG/supported_plugins/Device_Plugins.md) for reference.
+In this case, the `--input_shape` parameter and the [reshape method](../../../OV_Runtime_UG/ShapeInference.md) can help to resolve undefined dimensions.
+
+Sometimes, Model Optimizer is unable to convert models out-of-the-box (only the `--input_model` parameter is specified).
+Such problem can relate to models with inputs of undefined ranks and a case of cutting off parts of a model.
+In this case, input shapes must be specified explicitly with the `--input_shape` parameter.
+
+For example, run Model Optimizer for the TensorFlow MobileNet model with the single input
+and specify the input shape of `[2,300,300,3]`:
 
 ```sh
-mo --help
+mo --input_model MobileNet.pb --input_shape [2,300,300,3]
 ```
 
-Paragraphs below provide useful details on relevant parameters.
+If a model has multiple inputs, `--input_shape` must be used in conjunction with `--input` parameter.
+The `--input` parameter contains a list of input names, for which shapes in the same order are defined via `--input_shape`.
+For example, launch Model Optimizer for the ONNX OCR model with a pair of inputs `data` and `seq_len`
+and specify shapes `[3,150,200,1]` and `[3]` for them:
 
-## When to Specify --input_shape Command Line Parameter <a name="when_to_specify_input_shapes"></a>
-There are situations when Model Optimizer is unable to deduce input shapes of the model, for example, in case of model cutting due to unsupported operations.
-The solution is to provide input shapes of a static rank explicitly.
+```sh
+mo --input_model ocr.onnx --input data,seq_len --input_shape [3,150,200,1],[3]
+```
 
-## When to Specify --static_shape Command Line Parameter
-If the `--static_shape` command line parameter is specified the Model Optimizer evaluates shapes of all operations in the model (shape propagation) for a fixed input(s) shape(s). During the shape propagation the Model Optimizer evaluates operations *Shape* and removes them from the computation graph. With that approach, the initial model which can consume inputs of different shapes may be converted to IR working with the input of one fixed shape only. For example, consider the case when some blob is reshaped from 4D of a shape *[N, C, H, W]* to a shape *[N, C, H \* W]*. During the model conversion the Model Optimize calculates output shape as a constant 1D blob with values *[N, C, H \* W]*. So if the input shape changes to some other value *[N,C,H1,W1]* (it is possible scenario for a fully convolutional model) then the reshape layer becomes invalid.
-Resulting Intermediate Representation will not be resizable with the help of OpenVINO Runtime API.
+Alternatively, specify input shapes, using the `--input` parameter as follows:
 
-## Parameters for Pre-Processing
-Input data may require pre-processing such as `RGB<->BGR` conversion and mean and scale normalization. To learn about Model Optimizer parameters used for pre-processing, refer to [Optimize Preprocessing Computation](../Additional_Optimizations.md).
+```sh
+mo --input_model ocr.onnx --input data[3 150 200 1],seq_len[3]
+```
 
-## See Also
-* [Configuring the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md)
-* [Model Cutting](Cutting_Model.md)
-* [Optimize Preprocessing Computation](../Additional_Optimizations.md)
-* [Convert TensorFlow Models](Convert_Model_From_TensorFlow.md)
-* [Convert ONNX Models](Convert_Model_From_ONNX.md)
-* [Convert PyTorch Models](Convert_Model_From_PyTorch.md)
-* [Convert PaddlePaddle Models](Convert_Model_From_Paddle.md)
-* [Convert MXNet Models](Convert_Model_From_MxNet.md)
-* [Convert Caffe Models](Convert_Model_From_Caffe.md)
-* [Convert Kaldi Models](Convert_Model_From_Kaldi.md)
+The `--input_shape` parameter allows overriding original input shapes to ones compatible with a given model.
+Dynamic shapes, i.e. with dynamic dimensions, can be replaced in the original model with static shapes for the converted model, and vice versa.
+The dynamic dimension can be marked in Model Optimizer command-line as `-1`* or *`?`.
+For example, launch Model Optimizer for the ONNX OCR model and specify dynamic batch dimension for inputs:
+
+```sh
+mo --input_model ocr.onnx --input data,seq_len --input_shape [-1,150,200,1],[-1]
+```
+
+To optimize memory consumption for models with undefined dimensions in run-time, Model Optimizer provides the capability to define boundaries of dimensions.
+The boundaries of undefined dimension can be specified with ellipsis.
+For example, launch Model Optimizer for the ONNX OCR model and specify a boundary for the batch dimension:
+
+```sh
+mo --input_model ocr.onnx --input data,seq_len --input_shape [1..3,150,200,1],[1..3]
+```
+
+Practically, some models are not ready for input shapes change.
+In this case, a new input shape cannot be set via Model Optimizer.
+For more information about shape follow the [inference troubleshooting](@ref troubleshooting_reshape_errors) and [ways to relax shape inference flow](@ref how-to-fix-non-reshape-able-model) guides. 
+
+## Specifying --static_shape Command-line Parameter
+Model Optimizer provides the `--static_shape` parameter that allows evaluating shapes of all operations in the model for fixed input shapes
+and folding shape computing sub-graphs into constants. The resulting IR may be more compact in size and the loading time for such IR may decrease.
+However, the resulting IR will not be reshape-able with the help of the [reshape method](../../../OV_Runtime_UG/ShapeInference.md) from OpenVINO Runtime API.
+It is worth noting that the `--input_shape` parameter does not affect reshapeability of the model.
+
+For example, launch Model Optimizer for the ONNX OCR model using `--static_shape`:
+
+```sh
+mo --input_model ocr.onnx --input data[3 150 200 1],seq_len[3] --static_shape
+```
+
+## Additional Resources
+* [Introduction to converting models with Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Cutting Off Parts of a Model](Cutting_Model.md)

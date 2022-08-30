@@ -11,6 +11,7 @@ namespace op {
 namespace v0 {
 /// \brief Elementwise sign operation.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Sign : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Sign", "opset1", util::UnaryElementwiseArithmetic);

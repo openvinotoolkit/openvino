@@ -115,6 +115,20 @@ public:
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
     PreProcessSteps& resize(ResizeAlgorithm alg);
 
+    /// \brief Crop input tensor between begin and end coordinates. Under the hood, inserts `opset8::Slice` operation to
+    /// execution graph. It is recommended to use to together with `ov::preprocess::InputTensorInfo::set_shape` to set
+    /// original input shape before cropping
+    ///
+    /// \param begin Begin indexes for input tensor cropping. Negative values represent counting elements from the end
+    /// of input tensor
+    ///
+    /// \param end End indexes for input tensor cropping. End indexes are exclusive, which means values including end
+    /// edge are not included in the output slice. Negative values represent counting elements from the end of input
+    /// tensor
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps& crop(const std::vector<int>& begin, const std::vector<int>& end);
+
     /// \brief Add 'convert layout' operation to specified layout.
     ///
     /// \param dst_layout New layout after conversion. If not specified - destination layout is obtained from

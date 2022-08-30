@@ -8,10 +8,13 @@
 #include "ie_parallel.hpp"
 #include "experimental_detectron_priorgridgenerator.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNExperimentalDetectronPriorGridGeneratorNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool ExperimentalDetectronPriorGridGenerator::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
                                                                              std::string& errorMessage) noexcept {
     try {
         const auto priorGridGen = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronPriorGridGenerator>(op);
@@ -25,9 +28,9 @@ bool MKLDNNExperimentalDetectronPriorGridGeneratorNode::isSupportedOperation(con
     return true;
 }
 
-MKLDNNExperimentalDetectronPriorGridGeneratorNode::MKLDNNExperimentalDetectronPriorGridGeneratorNode
-        (const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator
+        (const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+                WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -45,7 +48,7 @@ MKLDNNExperimentalDetectronPriorGridGeneratorNode::MKLDNNExperimentalDetectronPr
     stride_w_ = attr.stride_x;
 }
 
-void MKLDNNExperimentalDetectronPriorGridGeneratorNode::initSupportedPrimitiveDescriptors() {
+void ExperimentalDetectronPriorGridGenerator::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -56,7 +59,7 @@ void MKLDNNExperimentalDetectronPriorGridGeneratorNode::initSupportedPrimitiveDe
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNExperimentalDetectronPriorGridGeneratorNode::execute(mkldnn::stream strm) {
+void ExperimentalDetectronPriorGridGenerator::execute(dnnl::stream strm) {
     const int num_priors_ = getParentEdgeAt(INPUT_PRIORS)->getMemory().getStaticDims()[0];
     assert(getParentEdgeAt(INPUT_PRIORS)->getMemory().getStaticDims()[1] == 4);
 
@@ -82,12 +85,14 @@ void MKLDNNExperimentalDetectronPriorGridGeneratorNode::execute(mkldnn::stream s
     }
 }
 
-bool MKLDNNExperimentalDetectronPriorGridGeneratorNode::created() const {
-    return getType() == ExperimentalDetectronPriorGridGenerator;
+bool ExperimentalDetectronPriorGridGenerator::created() const {
+    return getType() == Type::ExperimentalDetectronPriorGridGenerator;
 }
 
-bool MKLDNNExperimentalDetectronPriorGridGeneratorNode::needPrepareParams() const {
+bool ExperimentalDetectronPriorGridGenerator::needPrepareParams() const {
     return false;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNExperimentalDetectronPriorGridGeneratorNode, ExperimentalDetectronPriorGridGenerator)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

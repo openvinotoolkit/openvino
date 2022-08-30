@@ -5,7 +5,7 @@
 #pragma once
 
 #include <node.h>
-#include <mkldnn.hpp>
+#include <onednn/dnnl.h>
 #include <cassert>
 
 #include <cpu/ref_eltwise.hpp>
@@ -14,18 +14,17 @@
 #include "utils/cpu_utils.hpp"
 #include "ie_parallel.hpp"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 struct jit_normalize_config_params {
     bool is_nchw;
     bool is_nhwc;
     bool is_blk;
     bool across_spatial;
-    mkldnn::memory::data_type src_dt;
-    mkldnn::memory::data_type dst_dt;
+    dnnl::memory::data_type src_dt;
+    dnnl::memory::data_type dst_dt;
     int src_data_size;
     int dst_data_size;
     size_t n, c, h, w;
@@ -68,33 +67,33 @@ struct jit_uni_normalize_kernel {
         ker_(args);
     }
 
-    explicit jit_uni_normalize_kernel(jit_normalize_config_params jcp, const mkldnn_primitive_attr &attr) : ker_(nullptr), jcp_(jcp), attr_(attr) {}
+    explicit jit_uni_normalize_kernel(jit_normalize_config_params jcp, const dnnl_primitive_attr &attr) : ker_(nullptr), jcp_(jcp), attr_(attr) {}
     virtual ~jit_uni_normalize_kernel() {}
 
     virtual void create_ker() = 0;
 
     jit_normalize_config_params jcp_;
-    const mkldnn_primitive_attr &attr_;
+    const dnnl_primitive_attr &attr_;
 };
 
-class MKLDNNNormalizeL2Node : public MKLDNNNode {
+class NormalizeL2 : public Node {
 public:
-    MKLDNNNormalizeL2Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    NormalizeL2(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool canBeInPlace() const override {
         return false;
     }
-    bool canFuse(const MKLDNNNodePtr& node) const override;
+    bool canFuse(const NodePtr& node) const override;
 
     std::vector<VectorDims> shapeInfer() const override;
     void prepareParams() override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     bool isExecutable() const override;
 
@@ -110,8 +109,8 @@ public:
         bool cornerCase = false;
         float eps = 1e-10f;
 
-        InferenceEngine::Precision input_prec = Precision::UNSPECIFIED;
-        InferenceEngine::Precision output_prec = Precision::UNSPECIFIED;
+        InferenceEngine::Precision input_prec = InferenceEngine::Precision::UNSPECIFIED;
+        InferenceEngine::Precision output_prec = InferenceEngine::Precision::UNSPECIFIED;
         size_t src_data_size = 0lu;
         size_t dst_data_size = 0lu;
     };
@@ -126,7 +125,7 @@ private:
         virtual ~NormalizeL2Executor() = default;
 
         static std::shared_ptr<NormalizeL2Executor> getNormalizeL2Executor(const NormalizeL2Attrs& attrs,
-                                                                           const mkldnn::primitive_attr& kernel_attr,
+                                                                           const dnnl::primitive_attr& kernel_attr,
                                                                            const VectorDims& dims);
 
     protected:
@@ -137,13 +136,13 @@ private:
     private:
         template <typename in_data_t, typename out_data_t>
         static std::shared_ptr<NormalizeL2Executor> makeExecutor(const NormalizeL2Attrs& attrs,
-                                                                 const mkldnn::primitive_attr& kernel_attrs,
+                                                                 const dnnl::primitive_attr& kernel_attrs,
                                                                  const VectorDims& dims);
 
         struct NormalizeContext {
             std::shared_ptr<NormalizeL2Executor> executor;
             NormalizeL2Attrs attrs;
-            mkldnn::primitive_attr kernel_attrs;
+            dnnl::primitive_attr kernel_attrs;
             VectorDims dims;
         };
 
@@ -162,11 +161,11 @@ private:
     template <typename in_data_t, typename out_data_t> struct NormalizeL2JitExecutor;
     template <typename in_data_t, typename out_data_t> struct NormalizeL2ReferenceExecutor;
 
-    mkldnn::primitive_attr kernel_attrs;
+    dnnl::primitive_attr kernel_attrs;
 
     std::vector<const void*> postOpsDataPtrs;
 
-    void setPostOps(mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims, bool initWeights = false);
+    void setPostOps(dnnl::primitive_attr& kernel_attrs, const VectorDims& dims, bool initWeights = false);
 
     static constexpr size_t DATA = 0;
     static constexpr size_t AXES = 1;
@@ -175,5 +174,6 @@ private:
     executorPtr execPtr = nullptr;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

@@ -10,6 +10,7 @@ namespace ov {
 namespace op {
 namespace v1 {
 /// \brief Elementwise logical negation operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API LogicalNot : public Op {
 public:
     OPENVINO_OP("LogicalNot", "opset1", op::Op, 1);

@@ -67,7 +67,7 @@ JitConstants Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::GetJitConstants(c
 
 ConvolutionKernelBase::DispatchData Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::SetDefault(const convolution_params& params, int) const {
     DispatchData dispatchData;
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     dispatchData.gws = { output.X().v, output.Y().v, output.Feature().v / 32 * output.Batch().v };
     dispatchData.lws = { 1, 1, SIMD_SIZE};
@@ -99,17 +99,17 @@ bool Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::Validate(const Params& pa
         // Strides must be equal
         return false;
     }
-    if (newParams.output.X().v != newParams.output.Y().v) {
+    if (newParams.outputs[0].X().v != newParams.outputs[0].Y().v) {
         // W and H must be equal
         return false;
     }
 
-    if (newParams.output.Feature().v % 32 != 0) {
+    if (newParams.outputs[0].Feature().v % 32 != 0) {
         // output feature size must be divided by 32
         return false;
     }
 
-    if (newParams.output.Batch().v % 16 != 0) {
+    if (newParams.outputs[0].Batch().v % 16 != 0) {
         // batch size must be divided by 16
         return false;
     }

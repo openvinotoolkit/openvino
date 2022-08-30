@@ -9,11 +9,10 @@
 #include <ngraph/op/range.hpp>
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateRangeOp(Program &p, const std::shared_ptr<ngraph::op::v4::Range> &op) {
-    p.ValidateInputs(op, { 3 });
+    validate_inputs_count(op, { 3 });
     auto &outShape = op->get_output_shape(0);
     {
         auto r = outShape.size();
@@ -23,13 +22,11 @@ static void CreateRangeOp(Program &p, const std::shared_ptr<ngraph::op::v4::Rang
     cldnn::tensor outTensor { cldnn::spatial(outShape[0]) };
     auto outDataType = DataTypeFromPrecision(op->get_output_element_type(0));
     cldnn::layout outLayout { outDataType, cldnn::format::bfyx, outTensor };
-    cldnn::range prim { layer_type_name_ID(op), p.GetInputPrimitiveIDs(op), outLayout, op->get_friendly_name() };
-    p.AddPrimitive(prim);
-    p.AddPrimitiveToProfiler(op);
+    cldnn::range prim { layer_type_name_ID(op), p.GetInputPrimitiveIDs(op), outLayout };
+    p.add_primitive(*op, prim);
 }
 
 REGISTER_FACTORY_IMPL(v4, Range);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

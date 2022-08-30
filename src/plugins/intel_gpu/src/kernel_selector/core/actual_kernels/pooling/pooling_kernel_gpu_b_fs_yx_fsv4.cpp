@@ -34,15 +34,15 @@ ParamsKey PoolingKerneGPU_b_fs_yx_fsv4::GetSupportedKey() const {
 PoolingKernelBase::DispatchData PoolingKerneGPU_b_fs_yx_fsv4::SetDefault(const pooling_params& params) const {
     DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
     auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.output.GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::X},
                                                                      {Tensor::DataChannelName::Y},
                                                                      {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
 
-    dispatchData.gws[0] = params.output.X().v;  // X
-    dispatchData.gws[1] = params.output.Y().v;  // Y
+    dispatchData.gws[0] = params.outputs[0].X().v;  // X
+    dispatchData.gws[1] = params.outputs[0].Y().v;  // Y
     // we got b_fs_yx_fsv4 format, we process 4 features per workitem
-    dispatchData.gws[2] = CeilDiv(params.output.Feature().v, 4) * params.output.Batch().v;
+    dispatchData.gws[2] = CeilDiv(params.outputs[0].Feature().v, 4) * params.outputs[0].Batch().v;
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;

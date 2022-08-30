@@ -12,12 +12,12 @@
 namespace ov {
 namespace intel_cpu {
 
-class MKLDNNAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
+class AsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
-    MKLDNNAsyncInferRequest(const InferenceEngine::IInferRequestInternal::Ptr &inferRequest,
-                            const InferenceEngine::ITaskExecutor::Ptr &taskExecutor,
-                            const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor);
-    ~MKLDNNAsyncInferRequest();
+    AsyncInferRequest(const InferenceEngine::IInferRequestInternal::Ptr &inferRequest,
+                      const InferenceEngine::ITaskExecutor::Ptr &taskExecutor,
+                      const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor);
+    ~AsyncInferRequest();
 };
 
 }   // namespace intel_cpu

@@ -60,9 +60,9 @@ void printInputAndOutputsInfoShort(const T& network) {
                 in_name += name + " , ";
             }
             in_name = in_name.substr(0, in_name.size() - 3);
-
         } catch (const ov::Exception&) {
         }
+
         try {
             node_name = input.get_node()->get_friendly_name();
         } catch (const ov::Exception&) {
@@ -76,7 +76,7 @@ void printInputAndOutputsInfoShort(const T& network) {
         }
 
         std::cout << "    " << in_name << " (node: " << node_name << ") : " << input.get_element_type() << " / "
-                  << ov::layout::get_layout(input).to_string() << std::endl;
+                  << ov::layout::get_layout(input).to_string() << " / " << input.get_partial_shape() << std::endl;
     }
 
     std::cout << "Network outputs:" << std::endl;
@@ -90,7 +90,6 @@ void printInputAndOutputsInfoShort(const T& network) {
                 out_name += name + " , ";
             }
             out_name = out_name.substr(0, out_name.size() - 3);
-
         } catch (const ov::Exception&) {
         }
         try {
@@ -106,6 +105,6 @@ void printInputAndOutputsInfoShort(const T& network) {
         }
 
         std::cout << "    " << out_name << " (node: " << node_name << ") : " << output.get_element_type() << " / "
-                  << ov::layout::get_layout(output).to_string() << std::endl;
+                  << ov::layout::get_layout(output).to_string() << " / " << output.get_partial_shape() << std::endl;
     }
 }

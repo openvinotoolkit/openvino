@@ -10,16 +10,17 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNPadNode : public MKLDNNNode {
+class Pad : public Node {
 public:
-    MKLDNNPadNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    Pad(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     void prepareParams() override;
@@ -28,7 +29,7 @@ public:
 
 protected:
     std::vector<VectorDims> shapeInfer() const override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
 private:
     enum PadMode {
@@ -50,22 +51,22 @@ private:
 
     struct PadExecutor {
         PadExecutor(const PadAttrs& params, const VectorDims& srcDims, const VectorDims& dstDims);
-        void exec(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr);
+        void exec(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
         ~PadExecutor() = default;
 
     private:
-        void padConstant(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr);
-        template<typename T> void padConstantCommon(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr);
-        void padConstantZero(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr);
-        void padEdge(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr);
-        void padReflectOrSymmetric(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const bool isSymmetric = false);
+        void padConstant(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
+        template<typename T> void padConstantCommon(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
+        void padConstantZero(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
+        void padEdge(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
+        void padReflectOrSymmetric(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr, const bool isSymmetric = false);
 
         inline void getDstIdx(const VectorDims& indexes, size_t& dstIdx) const;
 
         struct PadContext {
             PadExecutor* executor;
-            MKLDNNMemoryPtr srcMemPtr;
-            MKLDNNMemoryPtr dstMemPtr;
+            MemoryPtr srcMemPtr;
+            MemoryPtr dstMemPtr;
         };
 
         template<typename T>
@@ -106,5 +107,6 @@ private:
     executorPtr execPtr = nullptr;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

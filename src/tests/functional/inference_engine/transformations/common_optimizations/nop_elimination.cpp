@@ -998,7 +998,7 @@ TEST_P(EliminateEltwiseTests, eliminate_eltwise) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     if (type == element::f32) {
-        enable_accuracy_check();
+        comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     }
 }
 
@@ -1088,5 +1088,5 @@ TEST_F(TransformationTestsF, eliminate_eltwise_dequantization_subgraph) {
     manager.register_pass<pass::NopElimination>();
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }

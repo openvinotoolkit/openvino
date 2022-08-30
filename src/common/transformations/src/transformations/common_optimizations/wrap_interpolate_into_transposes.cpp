@@ -51,8 +51,6 @@ std::vector<int64_t> build_new_axes(size_t num_of_axes, size_t rank) {
 }
 }  // namespace
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::WrapInterpolateIntoTransposes, "WrapInterpolateIntoTransposes", 0);
-
 ngraph::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
     MATCHER_SCOPE(WrapInterpolateIntoTransposes);
     auto interpolate_pattern = ov::pass::pattern::wrap_type<ov::opset8::Interpolate>();
@@ -63,7 +61,7 @@ ngraph::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
             return false;
 
         int64_t input_rank = interpolate->get_input_partial_shape(0).rank().get_length();
-        // If the input rank is equal to 1 or 2, then such Interpolate is supported by MKLDNN.
+        // If the input rank is equal to 1 or 2, then such Interpolate is supported by OneDNN.
         if (input_rank < 3)
             return false;
 

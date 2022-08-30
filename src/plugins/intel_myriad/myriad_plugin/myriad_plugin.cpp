@@ -170,7 +170,7 @@ QueryNetworkResult Engine::QueryNetwork(
             consoleOutput());
     std::set<std::string> namesToExclude;
     const auto supportedNetworks = vpu::FrontEnd::checkSupportedNetworks(network, namesToExclude);
-    for (const auto supportedNetwork : supportedNetworks) {
+    for (const auto & supportedNetwork : supportedNetworks) {
         const auto supportedLayers = getSupportedLayers(
                 supportedNetwork,
                 parsedConfigCopy,
@@ -180,9 +180,16 @@ QueryNetworkResult Engine::QueryNetwork(
 
         if (auto function = supportedNetwork.getFunction()) {
             auto clonedNetwork = cloneNetwork(supportedNetwork);
+            auto clonedFunction = clonedNetwork.getFunction();
             auto convertedNetwork = vpu::FrontEnd::convertNetwork(clonedNetwork);
 
             QueryNetworkResult supportedRes = getQueryNetwork(clonedNetwork, function, GetName(), supportedLayers);
+            auto removedNodeNames = GetRemovedNodes(function, clonedFunction);
+
+            for (const auto& layer : removedNodeNames) {
+                res.supportedLayersMap.emplace(layer, GetName());
+            }
+
             for (const auto& layer : supportedRes.supportedLayersMap) {
                 res.supportedLayersMap.insert(layer);
             }

@@ -107,8 +107,6 @@ bool check_input_reshape(const std::shared_ptr<ngraph::opset1::Reshape>& reshape
 }
 }  // namespace
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeReshapeEliminationForMatmul, "TransposeReshapeEliminationForMatmul", 0);
-
 ngraph::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationForMatmul() {
     MATCHER_SCOPE(TransposeReshapeEliminationForMatmul);
     auto input_1_pattern = ngraph::pattern::any_input([](const Output<Node>& node) -> bool {

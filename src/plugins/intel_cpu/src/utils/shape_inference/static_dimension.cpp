@@ -4,9 +4,10 @@
 
 #include "static_dimension.hpp"
 
-using namespace ov;
+namespace ov {
+namespace intel_cpu {
 
-std::ostream& ov::operator<<(std::ostream& str, const StaticDimension& dimension) {
+std::ostream& operator<<(std::ostream& str, const StaticDimension& dimension) {
     return str << dimension.get_length();
 }
 
@@ -102,3 +103,6 @@ StaticDimension::value_type StaticDimension::get_max_length() const {
 StaticDimension::value_type StaticDimension::get_min_length() const {
     return m_dimension;
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

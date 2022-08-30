@@ -9,6 +9,9 @@
 namespace ov {
 namespace op {
 namespace v1 {
+/// \brief ReduceMin operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReduceMin : public util::ArithmeticReductionKeepDims {
 public:
     OPENVINO_OP("ReduceMin", "opset1", util::ArithmeticReductionKeepDims, 1);

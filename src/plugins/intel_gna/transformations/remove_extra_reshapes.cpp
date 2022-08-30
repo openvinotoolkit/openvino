@@ -10,9 +10,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 
-using namespace GNAPluginNS;
-
-NGRAPH_RTTI_DEFINITION(RemoveExtraReshapes, "RemoveExtraReshapes", 0);
+using namespace ov::intel_gna::pass;
 
 RemoveExtraReshapes::RemoveExtraReshapes() {
     MATCHER_SCOPE(RemoveExtraReshapes);

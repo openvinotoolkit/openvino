@@ -23,6 +23,7 @@ ParamsKey PoolingKernelGPUInt8Ref::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
+    k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv32_fsv32);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::yxfb);
@@ -32,6 +33,7 @@ ParamsKey PoolingKernelGPUInt8Ref::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv32);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
+    k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv32_fsv32);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -63,9 +65,9 @@ JitConstants PoolingKernelGPUInt8Ref::GetJitConstants(const pooling_params& para
         auto input_dt = GetActivationType(params);
 
         std::vector<std::string> idx_order;
-        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 4) {
+        if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
             idx_order = {"b", "f", "y", "x"};
-        } else if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+        } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
             idx_order = {"b", "f", "z", "y", "x"};
         }
 
@@ -85,12 +87,12 @@ bool PoolingKernelGPUInt8Ref::Validate(const Params& params, const optional_para
     if (p.inputs[0].GetDType() == Datatype::INT8 || p.inputs[0].GetDType() == Datatype::UINT8) {
         // Max pooling doesn't change quantization ranges, so output data type should be the same as input
         if ((p.poolType == PoolType::MAX || p.poolType == PoolType::MAX_WITH_ARGMAX)
-            && (p.output.GetDType() != p.inputs[0].GetDType()) && p.quantization == QuantizationType::NONE)
+            && (p.outputs[0].GetDType() != p.inputs[0].GetDType()) && p.quantization == QuantizationType::NONE)
             return false;
 //         Average pooling should produce FP by default. (u)int8 is possible when quantize op is fused.
 //        if (p.poolType == PoolType::AVG &&
-//            !((p.output.GetDType() == p.inputs[0].GetDType() && !p.fused_ops.empty()) ||
-//              (p.output.GetDType() == Datatype::F32 || p.output.GetDType() == Datatype::F16)))
+//            !((p.outputs[0].GetDType() == p.inputs[0].GetDType() && !p.fused_ops.empty()) ||
+//              (p.outputs[0].GetDType() == Datatype::F32 || p.outputs[0].GetDType() == Datatype::F16)))
 //            return false;
     }
 

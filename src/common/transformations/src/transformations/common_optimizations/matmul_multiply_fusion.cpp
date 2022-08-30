@@ -13,8 +13,6 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(pass::MatMulMultiplyFusion, "MatMulMultiplyFusion", 0);
-
 static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& matmul,
                                                    const Output<Node>& weights,
                                                    std::shared_ptr<opset8::Constant> mul_const) {

@@ -10,10 +10,13 @@
 #include "ie_parallel.hpp"
 #include "bucketize.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNBucketizeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool Bucketize::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto bucketsize = std::dynamic_pointer_cast<const ngraph::opset3::Bucketize>(op);
         if (!bucketsize) {
@@ -26,8 +29,8 @@ bool MKLDNNBucketizeNode::isSupportedOperation(const std::shared_ptr<const ngrap
     return true;
 }
 
-MKLDNNBucketizeNode::MKLDNNBucketizeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                     MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+Bucketize::Bucketize(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -47,7 +50,7 @@ MKLDNNBucketizeNode::MKLDNNBucketizeNode(const std::shared_ptr<ngraph::Node>& op
     with_right = bucketsize->get_with_right_bound();
 }
 
-void MKLDNNBucketizeNode::initSupportedPrimitiveDescriptors() {
+void Bucketize::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -73,7 +76,7 @@ void MKLDNNBucketizeNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNBucketizeNode::execute(mkldnn::stream strm) {
+void Bucketize::execute(dnnl::stream strm) {
     auto precision_mask = getPrecisionMask(input_precision, boundaries_precision, output_precision);
 
     switch (precision_mask) {
@@ -172,7 +175,7 @@ void MKLDNNBucketizeNode::execute(mkldnn::stream strm) {
     }
 }
 
-void MKLDNNBucketizeNode::prepareParams() {
+void Bucketize::prepareParams() {
     auto& inputTensorMemPtr = getParentEdgeAt(INPUT_TENSOR_PORT)->getMemoryPtr();
     auto& inputBinsMemPtr = getParentEdgeAt(INPUT_BINS_PORT)->getMemoryPtr();
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
@@ -203,16 +206,16 @@ void MKLDNNBucketizeNode::prepareParams() {
         std::accumulate(input_tensor_dims.begin(), input_tensor_dims.end(), size_t(1), std::multiplies<size_t>());
 }
 
-bool MKLDNNBucketizeNode::isExecutable() const {
+bool Bucketize::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-std::vector<VectorDims> MKLDNNBucketizeNode::shapeInfer() const {
+std::vector<VectorDims> Bucketize::shapeInfer() const {
     return {getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
 }
 
 template <typename T, typename T_BOUNDARIES, typename T_IND>
-void MKLDNNBucketizeNode::bucketize() {
+void Bucketize::bucketize() {
     const auto *input_data = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     const auto *boundaries_data = reinterpret_cast<const T_BOUNDARIES *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
     auto *output_data = reinterpret_cast<T_IND *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
@@ -235,8 +238,10 @@ void MKLDNNBucketizeNode::bucketize() {
     });
 }
 
-bool MKLDNNBucketizeNode::created() const {
-    return getType() == Bucketize;
+bool Bucketize::created() const {
+    return getType() == Type::Bucketize;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNBucketizeNode, Bucketize)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

@@ -6,7 +6,7 @@
             <tab type="user" title="Low Precision Optimization Guide" url="@ref pot_docs_LowPrecisionOptimizationGuide"/>
             <tab type="usergroup" title="Quantization" url="@ref pot_compression_algorithms_quantization_README">
                 <tab type="user" title="DefaultQuantization Algorithm" url="@ref pot_compression_algorithms_quantization_default_README"/>
-                <tab type="user" title="AccuracyAwareQuantization Algorithm" url="@ref pot_compression_algorithms_quantization_accuracy_aware_README"/> 
+                <tab type="user" title="AccuracyAwareQuantization Algorithm" url="@ref accuracy_aware_README"/> 
                 <tab type="user" title="Saturation issue workaround" url="@ref pot_saturation_issue"/>
                 <tab type="user" title="Low-precision model representation" url="@ref pot_docs_model_representation"/>
             </tab>
@@ -26,7 +26,7 @@
                 </tab>
             </tab>
             <tab type="user" title="Configuration File Description" url="@ref pot_configs_README"/>
-            <tab type="user" title="Deep neural network protection through range supervision" url="@ref pot_ranger_README"/>
+            <tab type="user" title="Deep neural network protection through range supervision" url="@ref pot_range_supervision_README"/>
             <tab type="user" title="Frequently Asked Questions" url="@ref pot_docs_FrequentlyAskedQuestions"/>
         </tab>
     </navindex>

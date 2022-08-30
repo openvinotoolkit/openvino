@@ -13,6 +13,7 @@ namespace ov {
 namespace op {
 namespace v1 {
 /// \brief DeformableConvolution operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API DeformableConvolution : public op::util::DeformableConvolutionBase {
 public:
     OPENVINO_OP("DeformableConvolution", "opset1", op::util::DeformableConvolutionBase, 1);
@@ -57,6 +58,9 @@ public:
 }  // namespace v1
 
 namespace v8 {
+/// \brief DeformableConvolution operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API DeformableConvolution : public op::util::DeformableConvolutionBase {
 public:
     OPENVINO_OP("DeformableConvolution", "opset8", op::util::DeformableConvolutionBase);

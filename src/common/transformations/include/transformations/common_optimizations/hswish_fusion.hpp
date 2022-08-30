@@ -27,7 +27,7 @@ class TRANSFORMATIONS_API HSwishFusionWithClamp;
  */
 class ngraph::pass::HSwishFusionWithReluDiv : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("HSwishFusionWithReluDiv", "0");
     HSwishFusionWithReluDiv();
 };
 
@@ -37,7 +37,7 @@ public:
  */
 class ngraph::pass::HSwishFusionWithReluMul : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("HSwishFusionWithReluMul", "0");
     HSwishFusionWithReluMul();
 };
 
@@ -47,7 +47,7 @@ public:
  */
 class ngraph::pass::HSwishFusionWithHSigmoid : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("HSwishFusionWithHSigmoid", "0");
     HSwishFusionWithHSigmoid();
 };
 
@@ -57,7 +57,7 @@ public:
  */
 class ngraph::pass::HSwishFusionWithClamp : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("HSwishFusionWithClamp", "0");
     HSwishFusionWithClamp();
 };
 
@@ -67,7 +67,7 @@ public:
  */
 class ngraph::pass::HSwishFusion : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("HSwishFusion", "0");
     HSwishFusion() {
         add_matcher<ngraph::pass::HSwishFusionWithReluDiv>();
         add_matcher<ngraph::pass::HSwishFusionWithReluMul>();

@@ -13,7 +13,7 @@ namespace low_precision {
 
 class LP_TRANSFORMATIONS_API AssignAndReadValueTransformation : public LayerTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("AssignAndReadValueTransformation", "0");
     AssignAndReadValueTransformation(const std::shared_ptr<ngraph::Function> function, const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher& m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const override;

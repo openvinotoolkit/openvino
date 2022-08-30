@@ -73,9 +73,9 @@ JitConstants ConvolutionKernel_Ref::GetJitConstants(const convolution_params& pa
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
-        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 4) {
+        if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
             idx_order = {"b", "f", "y", "x"};
-        } else if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+        } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
             idx_order = {"b", "f", "z", "y", "x"};
         }
 
@@ -97,9 +97,9 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_Ref::SetDefault(const conv
     //
     // Just set the correct value for a particular implementation here,
     // until the whole hierarchy is re-written.
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
     auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.output.GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::X},
                                                                      {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
                                                                      {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
@@ -119,7 +119,7 @@ bool ConvolutionKernel_Ref::Validate(const Params& params, const optional_params
 
     const auto& conv_params = static_cast<const convolution_params&>(params);
     auto input_type = conv_params.inputs[0].GetDType();
-    auto output_type = conv_params.output.GetDType();
+    auto output_type = conv_params.outputs[0].GetDType();
     auto weights_type = conv_params.weights.GetDType();
 
     // int8/uint8 inputs (quantization case) require additional checks

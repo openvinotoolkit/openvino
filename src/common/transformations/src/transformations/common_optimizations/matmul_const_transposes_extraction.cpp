@@ -9,8 +9,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MatMulConstTransposesExtraction, "MatMulConstTransposesExtraction", 0);
-
 ngraph::pass::MatMulConstTransposesExtraction::MatMulConstTransposesExtraction() {
     auto data_pattern = pattern::any_input();
     auto weights_pattern = pattern::wrap_type<opset8::Constant, opset8::FakeQuantize>([](Output<Node> node) -> bool {

@@ -93,13 +93,16 @@ void set_arguments_impl(ocl_kernel_type& kernel,
                 }
                 break;
             case args_t::OUTPUT:
-                if (data.output) {
-                     if (data.output->get_layout().format.is_image_2d())
-                        status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_image2d>(data.output)->get_buffer());
-                     else if (memory_capabilities::is_usm_type(data.output->get_allocation_type()))
-                         status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ocl::gpu_usm>(data.output)->get_buffer());
-                     else
-                        status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_buffer>(data.output)->get_buffer());
+                if (args[i].index < data.outputs.size() && data.outputs[args[i].index]) {
+                    const auto& output_mem = data.outputs[args[i].index];
+                    if (output_mem) {
+                         if (output_mem->get_layout().format.is_image_2d())
+                            status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_image2d>(output_mem)->get_buffer());
+                         else if (memory_capabilities::is_usm_type(output_mem->get_allocation_type()))
+                             status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ocl::gpu_usm>(output_mem)->get_buffer());
+                         else
+                            status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_buffer>(output_mem)->get_buffer());
+                    }
                 }
                 break;
             case args_t::WEIGHTS:
@@ -286,6 +289,7 @@ ocl_stream::ocl_stream(const ocl_engine &engine)
     queue_builder.set_supports_queue_families(queue_families_extension);
 
     _command_queue = queue_builder.build(context, device);
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
     if (config.queue_type == queue_types::in_order) {
         auto onednn_engine = engine.get_onednn_engine();
@@ -314,9 +318,10 @@ ocl_stream::ocl_stream(const ocl_engine &engine, void *handle)
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-dnnl::stream& ocl_stream::get_onednn_stream() {
+dnnl::stream& ocl_stream::get_onednn_stream() const {
     if (!_onednn_stream)
         throw std::runtime_error("[GPU] onednn stream is nullptr");
+
     return *_onednn_stream;
 }
 #endif
@@ -439,10 +444,26 @@ void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
     if (events.empty())
         return;
 
+    bool needs_barrier = false;
     std::vector<cl::Event> clevents;
     for (auto& ev : events) {
-        if (auto ocl_base_ev = downcast<ocl_base_event>(ev.get()))
-            clevents.push_back(ocl_base_ev->get());
+        if (auto ocl_base_ev = downcast<ocl_base_event>(ev.get())) {
+            if (ocl_base_ev->get().get() != nullptr) {
+                clevents.push_back(ocl_base_ev->get());
+            } else {
+                needs_barrier = true;
+            }
+        }
+    }
+
+    if (needs_barrier) {
+        try {
+            cl::Event barrier_ev;
+            _command_queue.enqueueBarrierWithWaitList(nullptr, &barrier_ev);
+            clevents.push_back(barrier_ev);
+        } catch (cl::Error const& err) {
+            throw ocl_error(err);
+        }
     }
 
     try {

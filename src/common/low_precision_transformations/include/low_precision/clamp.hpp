@@ -17,12 +17,12 @@ namespace low_precision {
  * @brief ClampTransformation propagates dequantization operations through Clamp operation.
  *
  * For more details about the transformation, refer to
- * [ClampTransformation](@ref openvino_docs_IE_DG_lpt_ClampTransformation) page
+ * [ClampTransformation](@ref openvino_docs_OV_UG_lpt_ClampTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API ClampTransformation : public LayerTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ClampTransformation", "0");
     ClampTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher& m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const override;

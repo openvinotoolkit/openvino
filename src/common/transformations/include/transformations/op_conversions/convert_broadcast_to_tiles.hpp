@@ -19,6 +19,6 @@ class TRANSFORMATIONS_API ConvertBroadcastToTiles;
 
 class ngraph::pass::ConvertBroadcastToTiles : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertBroadcastToTiles", "0");
     ConvertBroadcastToTiles();
 };

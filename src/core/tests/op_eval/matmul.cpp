@@ -10,6 +10,7 @@
 #include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/util.hpp"
 #include "util/all_close_f.hpp"
 
 using namespace std;

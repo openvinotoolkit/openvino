@@ -16,11 +16,10 @@
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::Node>& op, bool ctc_merge_repeated) {
-    p.ValidateInputs(op, {2, 3});
+    validate_inputs_count(op, {2, 3});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
 
     std::vector<cldnn::primitive_id> reorderedInputs;
@@ -32,16 +31,14 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
             // GPU primitive supports only i32 data type for 'sequence_length' and 'blank_index' inputs
             // so we need additional reorder if it's provided as i64
             auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
-            auto targetFormat = DefaultFormatForDims(op->get_input_shape(portIndex).size());
+            auto targetFormat = cldnn::format::get_default_format(op->get_input_shape(portIndex).size());
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputPrimitives[portIndex],
                                                  targetFormat,
                                                  cldnn::data_types::i32,
                                                  std::vector<float>(),
-                                                 cldnn::reorder_mean_mode::subtract,
-                                                 op->get_friendly_name());
-            p.AddPrimitive(preprocessPrim);
-            p.AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(op), op);
+                                                 cldnn::reorder_mean_mode::subtract);
+            p.add_primitive(*op, preprocessPrim);
             reorderedInputs[portIndex] = (reorderPrimName);
         } else {
             reorderedInputs[portIndex] = inputPrimitives[portIndex];
@@ -73,7 +70,7 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
 
         cldnn::layout mutableLayout = cldnn::layout(
             DataTypeFromPrecision(mutable_precision),
-            DefaultFormatForDims(op->get_output_shape(1).size()),
+            cldnn::format::get_default_format(op->get_output_shape(1).size()),
             tensor_from_dims(op->get_output_shape(1)));
 
         GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -84,21 +81,18 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
 
         cldnn::primitive_id ctc_gd_mutable_id_w = layer_type_name_ID(op) + "_md_write";
         auto ctc_gd_mutable_prim = cldnn::mutable_data(ctc_gd_mutable_id_w,
-                                                       shared_memory[0],
-                                                       op->get_friendly_name());
-        p.primitiveIDs[ctc_gd_mutable_id_w] = ctc_gd_mutable_id_w;
-        p.AddPrimitive(ctc_gd_mutable_prim);
+                                                       shared_memory[0]);
+        p.add_primitive(*op, ctc_gd_mutable_prim);
         reorderedInputs.push_back(ctc_gd_mutable_id_w);
     }
 
-    auto CTCGreedyDecoderLayerName = num_output == 2 ? layer_type_name_ID(op) + ".0" : layer_type_name_ID(op);
+    auto CTCGreedyDecoderLayerName = num_output == 2 ? layer_type_name_ID(op) + ".out0" : layer_type_name_ID(op);
     auto primitive = cldnn::ctc_greedy_decoder(
                 CTCGreedyDecoderLayerName,
                 reorderedInputs,
                 blank_index,
                 ctc_merge_repeated,
-                tensor_from_dims(op->get_output_shape(0)),
-                op->get_friendly_name());
+                tensor_from_dims(op->get_output_shape(0)));
 
     // GPU primitive supports only i32 as output data type
     primitive.output_data_type = DataTypeFromPrecision(ngraph::element::i32);
@@ -107,19 +101,15 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
         primitive.second_output = reorderedInputs.back();
     }
 
-    p.AddPrimitive(primitive);
+    p.add_primitive(*op, primitive);
 
     if (num_output == 2) {
-        cldnn::primitive_id ctc_gd_mutable_id_r = layer_type_name_ID(op) + ".1";
+        cldnn::primitive_id ctc_gd_mutable_id_r = layer_type_name_ID(op) + ".out1";
         auto ctc_gd_mutable_prim_r = cldnn::mutable_data(ctc_gd_mutable_id_r,
                                                          { CTCGreedyDecoderLayerName },
-                                                         shared_memory[0],
-                                                         op->get_friendly_name());
-        p.primitiveIDs[ctc_gd_mutable_id_r] = ctc_gd_mutable_id_r;
-        p.AddPrimitive(ctc_gd_mutable_prim_r);
+                                                         shared_memory[0]);
+        p.add_primitive(*op, ctc_gd_mutable_prim_r);
     }
-
-    p.AddPrimitiveToProfiler(CTCGreedyDecoderLayerName, op);
 }
 
 static void CreateCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::op::v0::CTCGreedyDecoder>& op) {
@@ -134,5 +124,4 @@ REGISTER_FACTORY_IMPL(v0, CTCGreedyDecoder);
 REGISTER_FACTORY_IMPL(v6, CTCGreedyDecoderSeqLen);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

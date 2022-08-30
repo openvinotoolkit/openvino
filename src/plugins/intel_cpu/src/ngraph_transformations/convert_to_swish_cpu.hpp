@@ -11,7 +11,7 @@ namespace intel_cpu {
 
 class ConvertToSwishCPU: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertToSwishCPU", "0");
     ConvertToSwishCPU();
 };
 

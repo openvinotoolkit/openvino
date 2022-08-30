@@ -27,6 +27,6 @@ class ngraph::pass::AddStdScale : public ngraph::pass::MatcherPass {
 public:
     using ScaleMap = std::map<std::string, std::shared_ptr<ngraph::op::v0::Constant>>;
 
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("AddStdScale", "0");
     explicit AddStdScale(const ScaleMap& inputInfoMap);
 };

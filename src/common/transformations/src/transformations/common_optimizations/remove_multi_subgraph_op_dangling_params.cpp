@@ -14,8 +14,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ov::pass::RemoveMultiSubGraphOpDanglingParams, "RemoveMultiSubGraphOpDanglingParams", 0);
-
 ov::pass::RemoveMultiSubGraphOpDanglingParams::RemoveMultiSubGraphOpDanglingParams() {
     MATCHER_SCOPE(RemoveMultiSubGraphOpDanglingParams);
     auto multi_subgraph_op_pattern = pattern::wrap_type<op::util::MultiSubGraphOp>();

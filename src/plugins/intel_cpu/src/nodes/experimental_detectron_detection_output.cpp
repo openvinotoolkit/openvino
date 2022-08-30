@@ -9,6 +9,11 @@
 #include "ie_parallel.hpp"
 #include "experimental_detectron_detection_output.h"
 
+using namespace InferenceEngine;
+
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 struct Indexer {
     const std::vector<int> dims_;
@@ -32,10 +37,6 @@ struct Indexer {
         return flat_idx;
     }
 };
-
-
-using namespace ov::intel_cpu;
-using namespace InferenceEngine;
 
 static
 void refine_boxes(const float* boxes, const float* deltas, const float* weights, const float* scores,
@@ -110,10 +111,9 @@ void refine_boxes(const float* boxes, const float* deltas, const float* weights,
     }
 }
 
-template <typename T>
-static bool SortScorePairDescend(const std::pair<float, T>& pair1,
-                                 const std::pair<float, T>& pair2) {
-    return pair1.first > pair2.first;
+static bool SortScorePairDescend(const std::pair<float, std::pair<int, int>>& pair1,
+                                 const std::pair<float, std::pair<int, int>>& pair2) {
+    return (pair1.first > pair2.first) || ((pair1.first == pair2.first) && (pair1.second.second < pair2.second.second));
 }
 
 
@@ -215,15 +215,15 @@ static void nms_cf(const float* conf_data,
     detections = (post_nms_topn == -1 ? detections : (std::min)(post_nms_topn, detections));
 }
 
-bool MKLDNNExperimentalDetectronDetectionOutputNode::needShapeInfer() const {
+bool ExperimentalDetectronDetectionOutput::needShapeInfer() const {
     return false;
 }
 
-bool MKLDNNExperimentalDetectronDetectionOutputNode::needPrepareParams() const {
+bool ExperimentalDetectronDetectionOutput::needPrepareParams() const {
     return false;
 }
 
-bool MKLDNNExperimentalDetectronDetectionOutputNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ExperimentalDetectronDetectionOutput::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto doOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronDetectionOutput>(op);
         if (!doOp) {
@@ -236,9 +236,9 @@ bool MKLDNNExperimentalDetectronDetectionOutputNode::isSupportedOperation(const 
     return true;
 }
 
-MKLDNNExperimentalDetectronDetectionOutputNode::MKLDNNExperimentalDetectronDetectionOutputNode
-                        (const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                         MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput
+                        (const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+                         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -256,7 +256,7 @@ MKLDNNExperimentalDetectronDetectionOutputNode::MKLDNNExperimentalDetectronDetec
     deltas_weights_ = attributes.deltas_weights;
 }
 
-void MKLDNNExperimentalDetectronDetectionOutputNode::initSupportedPrimitiveDescriptors() {
+void ExperimentalDetectronDetectionOutput::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -272,7 +272,7 @@ void MKLDNNExperimentalDetectronDetectionOutputNode::initSupportedPrimitiveDescr
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNExperimentalDetectronDetectionOutputNode::execute(mkldnn::stream strm) {
+void ExperimentalDetectronDetectionOutput::execute(dnnl::stream strm) {
     const int rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     assert(classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1]));
     assert(4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims()[1]));
@@ -344,7 +344,7 @@ void MKLDNNExperimentalDetectronDetectionOutputNode::execute(mkldnn::stream strm
         std::partial_sort(conf_index_class_map.begin(),
                           conf_index_class_map.begin() + max_detections_per_image_,
                           conf_index_class_map.end(),
-                          SortScorePairDescend<std::pair<int, int>>);
+                          SortScorePairDescend);
         conf_index_class_map.resize(max_detections_per_image_);
         total_detections_num = max_detections_per_image_;
     }
@@ -369,8 +369,10 @@ void MKLDNNExperimentalDetectronDetectionOutputNode::execute(mkldnn::stream strm
     }
 }
 
-bool MKLDNNExperimentalDetectronDetectionOutputNode::created() const {
-    return getType() == ExperimentalDetectronDetectionOutput;
+bool ExperimentalDetectronDetectionOutput::created() const {
+    return getType() == Type::ExperimentalDetectronDetectionOutput;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNExperimentalDetectronDetectionOutputNode, ExperimentalDetectronDetectionOutput)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

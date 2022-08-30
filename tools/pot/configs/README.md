@@ -44,8 +44,7 @@ There are two options to define engine parameters in this mode:
 
 ## Compression Parameters
 
-This section defines optimization algorithms and their parameters. For more details about parameters of the concrete optimization algorithm, please refer to the corresponding
-[documentation](@ref pot_compression_algorithms_quantization_README).
+For more details about parameters of the concrete optimization algorithm, see descriptions of [Default Quantization](@ref pot_compression_algorithms_quantization_default_README) and [Accuracy-aware Quantizatoin](@ref accuracy_aware_README) methods. 
 
 ## Examples of the Configuration File
 
@@ -57,4 +56,3 @@ For details on how to run the Post-Training Optimization Tool with a sample conf
 
 ## See Also
 * [Optimization with Simplified mode](@ref pot_docs_simplified_mode)
-* [POT API](@ref pot_compression_api_README)

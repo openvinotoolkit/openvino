@@ -6,19 +6,20 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace GNAPluginNS {
-
+namespace ov {
+namespace intel_gna {
+namespace pass {
 // @brief Splits convolution with large input buffer
 class SplitConvolution : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("SplitConvolution", "0");
   SplitConvolution();
 };
 
 // @brief Splits convolution with large input buffer, move add with bias to each convolution before concat
 class SplitConvolutionWithBias : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("SplitConvolutionWithBias", "0");
   SplitConvolutionWithBias();
 };
 
@@ -27,8 +28,11 @@ public:
  */
 class SplitConvolutionWithFq : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("SplitConvolutionWithFq", "0");
   SplitConvolutionWithFq();
 };
 
-} // namespace GNAPluginNS
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov
+

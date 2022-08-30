@@ -83,7 +83,7 @@ public:
     virtual allocation_type get_default_allocation_type() const = 0;
 
     /// Returns preferred allocation type which can be mapped to host ptr
-    allocation_type get_lockable_preffered_memory_allocation_type(bool is_image_layout = false) const;
+    allocation_type get_lockable_preferred_memory_allocation_type(bool is_image_layout = false) const;
 
     /// Checks if the current engine supports speicied allocation @p type
     bool supports_allocation(allocation_type type) const;
@@ -121,6 +121,9 @@ public:
 
     /// Returns true if USM is enabled in engine config and device/driver supports required features
     bool use_unified_shared_memory() const;
+
+    /// Returns the size of the larger of the GPU memory and CPU memory.
+    uint64_t get_max_memory_size() const;
 
     /// Create stream object for current engine
     virtual stream_ptr create_stream() const = 0;

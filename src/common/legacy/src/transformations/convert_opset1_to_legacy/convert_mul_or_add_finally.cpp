@@ -14,8 +14,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMulOrAddFinally, "ConvertMulOrAddFinally", 0);
-
 template <typename T>
 bool convert_to_eltwise(std::shared_ptr<T> & node,
                         ngraph::Output<ngraph::Node> data1,

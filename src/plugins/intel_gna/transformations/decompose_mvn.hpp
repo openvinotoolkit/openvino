@@ -6,19 +6,24 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace pass {
+
 
 /**
  * @brief Decompose MVN operation
  * See official OpenVINO documentation for the MVN formula
  * implemented partially by this decomposition:
  * https://docs.openvino.ai/latest/openvino_docs_ops_normalization_MVN_6.html
- * 
+ *
  */
 class DecomposeMVN : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("DecomposeMVN", "0");
     DecomposeMVN();
 };
 
-} // namespace GNAPluginNS
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov

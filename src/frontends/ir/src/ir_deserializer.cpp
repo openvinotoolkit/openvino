@@ -342,7 +342,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
                 IE_THROW() << "Empty weights data in bin file or bin file cannot be found!";
             if (m_weights->size() < offset + size)
                 IE_THROW() << "Incorrect weights in bin file!";
-            if (size < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
+            if (size < ((ngraph::shape_size(shape) * el_type.bitwidth() + 7) >> 3))
                 IE_THROW() << "Attribute and shape size are inconsistent for " << type << " op!";
 
             char* data = m_weights->get_ptr<char>() + offset;
@@ -550,7 +550,7 @@ GenericLayerParams XmlDeserializer::parseGenericParams(const pugi::xml_node& nod
                                   bool input) -> GenericLayerParams::LayerPortData {
         GenericLayerParams::LayerPortData port;
 
-        port.portId = XMLParseUtils::GetIntAttr(parentNode, "id");
+        port.portId = XMLParseUtils::GetUIntAttr(parentNode, "id");
 
         FOREACH_CHILD (node, parentNode, "dim") {
             int64_t dim = 0;
@@ -590,7 +590,7 @@ GenericLayerParams XmlDeserializer::parseGenericParams(const pugi::xml_node& nod
     };
     GenericLayerParams params;
 
-    params.layerId = XMLParseUtils::GetIntAttr(node, "id");
+    params.layerId = XMLParseUtils::GetUIntAttr(node, "id");
     params.version = XMLParseUtils::GetStrAttr(node, "version");
 
     params.type = XMLParseUtils::GetStrAttr(node, "type");

@@ -6,16 +6,19 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace GNAPluginNS {
-
+namespace ov {
+namespace intel_gna {
+namespace pass {
 /**
  * @brief Pooling can be reordered with activation, on GNA there is a strategy to have conv->maxpool->activation
  * it means maxpool receives 4 bytes, and produces 4 bytes
  */
 class ReorderActivationAndPooling : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("ReorderActivationAndPooling", "0");
   ReorderActivationAndPooling();
 };
 
-} // namespace GNAPluginNS
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov

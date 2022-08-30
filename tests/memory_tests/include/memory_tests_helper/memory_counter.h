@@ -22,6 +22,6 @@ public:
   MemoryCounter(const std::string &mem_counter_name);
 };
 
-#define MEMORY_SNAPSHOT(mem_counter_name) MemoryTest::MemoryCounter (#mem_counter_name);
+#define MEMORY_SNAPSHOT(mem_counter_name) MemoryTest::MemoryCounter mem_counter_name(#mem_counter_name);
 
 } // namespace MemoryTest

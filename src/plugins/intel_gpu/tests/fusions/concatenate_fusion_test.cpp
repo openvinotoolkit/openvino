@@ -32,7 +32,7 @@ class ConcatOneDNNFusingTest : public ::BaseFusingTest<concat_test_params> {
 public:
     void execute(concat_test_params& p) {
         // Onednn post operation has issue in a machine that does not support imad.
-        if (!engine.get_device_info().supports_imad)
+        if (!engine.get_device_info().supports_immad)
             return;
 
         auto input0_prim = get_mem(get_input_layout(p));
@@ -102,9 +102,8 @@ TEST_P(concat_onednn_activation, along_f) {
         input_layout("input1", get_input_layout(p)),
         concatenation("concat",
                       { "input0", "input1" },
-                      concatenation::concatenation_axis::along_f,
+                      1,
                       data_types::f16,
-                      "",
                       padding{ { 0, 0, 0, 0 }, 0 }),
         activation("act", "concat", activation_func::relu),
         reorder("reorder_bfyx", "act", cldnn::format::bfyx, p.default_type)
@@ -125,9 +124,8 @@ TEST_P(concat_onednn_eltwise, along_f) {
         data("scale_data", get_mem(data_layout, 1.0f / tensor{ 1, 1, 4, 4 }.count())),
         concatenation("concat",
                       { "input0", "input1" },
-                      concatenation::concatenation_axis::along_f,
+                      1,
                       data_types::f16,
-                      "",
                       padding{ { 0, 0, 0, 0 }, 0 }),
         eltwise("scale", { "concat", "scale_data" }, eltwise_mode::prod, p.default_type),
         reorder("reorder_bfyx", "scale", cldnn::format::bfyx, p.default_type)

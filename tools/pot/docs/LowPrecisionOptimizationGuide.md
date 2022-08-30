@@ -1,4 +1,4 @@
-# Low Precision Optimization Guide {#pot_docs_LowPrecisionOptimizationGuide}
+# Low Precision Optimization Guide
 
 ## Introduction
 This document provides the best-known methods on how to use low-precision capabilities of the OpenVINO™ toolkit to transform models
@@ -39,7 +39,7 @@ The diagram below shows the optimization flow for the new model with OpenVINO an
 
 ![](images/low_precision_flow.png)
 
-- **Step 0: Model enabling**. In this step we should ensure that the model trained on the target dataset can be successfully inferred with [OpenVINO™ Runtime](@ref openvino_docs_OV_Runtime_User_Guide) in floating-point precision.
+- **Step 0: Model enabling**. In this step we should ensure that the model trained on the target dataset can be successfully inferred with [OpenVINO™ Runtime](@ref openvino_docs_OV_UG_OV_Runtime_User_Guide) in floating-point precision.
 This process involves use of [Model Optimizer](@ref openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide) tool to convert the model from the source framework 
 to the OpenVINO Intermediate Representation (IR) and run it on CPU with Inference Engine. 
   > **NOTE**: This step presumes that the model has the same accuracy as in the original training framework and enabled in the [Accuracy Checker](@ref omz_tools_accuracy_checker) tool or through the custom validation sample.

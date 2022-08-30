@@ -19,6 +19,6 @@ class TRANSFORMATIONS_API ConvertMod;
 
 class ngraph::pass::ConvertMod : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertMod", "0");
     ConvertMod();
 };

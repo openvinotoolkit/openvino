@@ -140,7 +140,7 @@ static const std::map<const char*, kernel> s_kernels = {
 };
 
 void genRandomDataPow(Blob::Ptr blob) {
-    float scale = 2.0f / RAND_MAX;
+    float scale = 2.0f / float(RAND_MAX);
     /* fill by random data in the range (-1, 1)*/
     auto * blobRawDataFp16 = blob->buffer().as<ie_fp16 *>();
     size_t count = blob->size();
@@ -160,7 +160,7 @@ void genRandomDataLogic(Blob::Ptr blob) {
     size_t count = blob->size();
     const auto TrueVal = PrecisionUtils::f32tof16(1.f);
     const auto FalseVal = PrecisionUtils::f32tof16(0.f);
-    float scale = 1.0f / RAND_MAX;
+    float scale = 1.0f / float(RAND_MAX);
     for (size_t indx = 0; indx < count; ++indx) {
         float val = rand() * scale;
         blobRawDataFp16[indx] = val <.5f ? FalseVal : TrueVal;
@@ -315,7 +315,7 @@ protected:
 
         std::vector<float> coeff;
         for (int i = 0; i < count; i++)
-            coeff.push_back(withCoefs ? ((float)rand() / RAND_MAX) * 2.0f : 1.0f);
+            coeff.push_back(withCoefs ? (float(rand()) / float(RAND_MAX)) * 2.0f : 1.0f);
         if (withCoefs) {
             _params["coeff"] = std::to_string(coeff[0]);
             for (int i = 1; i < count; i++)

@@ -45,7 +45,7 @@ public:
     program_node& initial_cell() const { return get_dependency_by_name("initial_cell"); }
 
     float clip() const { return get_primitive()->clip; }
-    int32_t direction() const { return recurrent().get_output_layout().size.feature[0]; }
+    int32_t direction() const { return recurrent().get_output_layout().feature(); }
     bool input_forget() const { return get_primitive()->input_forget; }
     bool dyn_length_term() const { return !get_primitive()->dyn_length.empty(); }
     bool recurrent_term() const { return !get_primitive()->recurrent.empty(); }
@@ -62,7 +62,7 @@ class typed_primitive_inst<lstm_dynamic_timeloop> : public typed_primitive_inst_
     using parent = typed_primitive_inst_base<lstm_dynamic_timeloop>;
 
 public:
-    static layout calc_output_layout(lstm_dynamic_timeloop_node const& node);
+    static layout calc_output_layout(lstm_dynamic_timeloop_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(lstm_dynamic_timeloop_node const& node);
 
 public:

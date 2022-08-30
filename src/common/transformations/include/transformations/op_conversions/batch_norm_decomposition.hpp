@@ -22,6 +22,6 @@ class TRANSFORMATIONS_API BatchNormDecomposition;
 
 class ngraph::pass::BatchNormDecomposition : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("BatchNormDecomposition", "0");
     BatchNormDecomposition();
 };

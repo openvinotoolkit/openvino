@@ -2,23 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gmock/gmock-matchers.h>
 #include <gtest/gtest.h>
 
-#include <gmock/gmock-matchers.h>
-
 #include <memory>
-#include <queue>
-#include <string>
-#include "common_test_utils/test_common.hpp"
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <queue>
+#include <string>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 
 using namespace testing;
 using namespace ngraph;
@@ -50,8 +48,7 @@ TEST(TransformationTests, CompareFunctoinsTIPositive) {
         auto reshape_pattern_2 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 1, 128});
         auto unsqueeze = std::make_shared<opset5::Reshape>(lstm_cell, reshape_pattern_2, false);
         auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2},
-                                               ParameterVector{Xi, Yi, Zi});
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi, Zi});
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         tensor_iterator->set_body(body);
@@ -64,8 +61,7 @@ TEST(TransformationTests, CompareFunctoinsTIPositive) {
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
         auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1},
-                                               ngraph::ParameterVector{X, Y, Z});
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y, Z});
     }
 
     {
@@ -95,8 +91,7 @@ TEST(TransformationTests, CompareFunctoinsTIPositive) {
         auto unsqueeze = std::make_shared<opset5::Reshape>(lstm_cell, reshape_pattern_2, false);
         auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
         res_2->set_friendly_name("res_2");
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2},
-                                               ParameterVector{Xi, Yi, Zi});
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi, Zi});
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         tensor_iterator->set_body(body);
@@ -109,8 +104,7 @@ TEST(TransformationTests, CompareFunctoinsTIPositive) {
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
         auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1},
-                                               ngraph::ParameterVector{X, Y, Z});
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y, Z});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -144,8 +138,7 @@ TEST(TransformationTests, CompareFunctoinsTINegative) {
         auto reshape_pattern_2 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 1, 128});
         auto unsqueeze = std::make_shared<opset5::Reshape>(lstm_cell, reshape_pattern_2, false);
         auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2},
-                                               ParameterVector{Xi, Yi, Zi});
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi, Zi});
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         tensor_iterator->set_body(body);
@@ -158,8 +151,7 @@ TEST(TransformationTests, CompareFunctoinsTINegative) {
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
         auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1},
-                                               ngraph::ParameterVector{X, Y, Z});
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y, Z});
     }
 
     {
@@ -190,8 +182,7 @@ TEST(TransformationTests, CompareFunctoinsTINegative) {
         auto unsqueeze = std::make_shared<opset5::Reshape>(lstm_cell, reshape_pattern_2, false);
         auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
         res_2->set_friendly_name("res_2");
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2},
-                                               ParameterVector{Xi, Yi, Zi});
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, Yi, Zi});
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         tensor_iterator->set_body(body);
@@ -204,8 +195,7 @@ TEST(TransformationTests, CompareFunctoinsTINegative) {
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
         auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1},
-                                               ngraph::ParameterVector{X, Y, Z});
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y, Z});
     }
 
     const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
@@ -237,8 +227,7 @@ TEST(TransformationTests, CompareFunctoinsTINegativeDifferentElementTypeBetweenS
 
         auto out = ti->get_concatenated_slices(result, 0, 1, 1, -1, 1);
 
-        return std::make_shared<Function>(
-            NodeVector{out.get_node_shared_ptr()}, ParameterVector{X, Y});
+        return std::make_shared<Function>(NodeVector{out.get_node_shared_ptr()}, ParameterVector{X, Y});
     };
     const auto f1 = createFunc(element::f32);
     const auto f2 = createFunc(element::f16);
@@ -274,8 +263,7 @@ TEST(TransformationTests, CompareFunctoinsTINegativeDifferentElementTypeBetweenI
 
         auto out = ti->get_concatenated_slices(result, 0, 1, 1, -1, 1);
 
-        return std::make_shared<Function>(
-            NodeVector{out.get_node_shared_ptr()}, ParameterVector{X, Y});
+        return std::make_shared<Function>(NodeVector{out.get_node_shared_ptr()}, ParameterVector{X, Y});
     };
     const auto f1 = createFunc(element::f32);
 
@@ -310,8 +298,7 @@ TEST(TransformationTests, CompareFunctoinsTINegativeDifferentElementTypeBetweent
 
         auto out = ti->get_concatenated_slices(result, 0, 1, 1, -1, 1);
 
-        auto fn = std::make_shared<Function>(
-            NodeVector{out.get_node_shared_ptr()}, ParameterVector{X, Y});
+        auto fn = std::make_shared<Function>(NodeVector{out.get_node_shared_ptr()}, ParameterVector{X, Y});
 
         /// <<
         auto&& result_out = result->output(0);
@@ -321,7 +308,7 @@ TEST(TransformationTests, CompareFunctoinsTINegativeDifferentElementTypeBetweent
 
         return fn;
     };
-    { // check element type difference
+    {  // check element type difference
         const auto f1 = createFunc(element::u16, Shape{10, 20});
         const auto f2 = createFunc(element::u64, Shape{10, 20});
 
@@ -332,7 +319,7 @@ TEST(TransformationTests, CompareFunctoinsTINegativeDifferentElementTypeBetweent
         EXPECT_FALSE(result.valid);
         EXPECT_THAT(result.message, HasSubstr("outputs and results mismatch"));
     }
-    { // check Shape difference
+    {  // check Shape difference
         const auto f1 = createFunc(element::u16, Shape{11, 20});
         const auto f2 = createFunc(element::u16, Shape{12, 20});
 
@@ -350,8 +337,7 @@ TEST(TransformationTests, ConstantNegativeDifferentElementType) {
         using namespace ngraph::opset5;
         auto constant = Constant::create(t, ngraph::Shape{1}, {1.1});
 
-        return std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{constant}, ngraph::ParameterVector{});
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{constant}, ngraph::ParameterVector{});
     };
 
     const auto& f1 = createConstantFunc(ngraph::element::f64);
@@ -368,8 +354,7 @@ TEST(TransformationTests, ConstantNegativeDifferentValues) {
         using namespace ngraph::opset5;
         auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {value});
 
-        return std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{constant}, ngraph::ParameterVector{});
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{constant}, ngraph::ParameterVector{});
     };
 
     const auto& f1 = createConstantFunc(1.0);
@@ -386,8 +371,7 @@ TEST(TransformationTests, ConstantNegativeDifferentShapes) {
         using namespace ngraph::opset5;
         auto constant = Constant::create(ngraph::element::f32, s, {1.1});
 
-        return std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{constant}, ngraph::ParameterVector{});
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{constant}, ngraph::ParameterVector{});
     };
 
     const auto& f1 = createConstantFunc(ngraph::Shape{2});
@@ -405,8 +389,7 @@ TEST(TransformationTests, ClampNegativeDifferentMin) {
         auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.0});
         auto clamp = std::make_shared<Clamp>(constant, min, 20.);
 
-        return std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{clamp}, ngraph::ParameterVector{});
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{clamp}, ngraph::ParameterVector{});
     };
 
     const auto& f1 = createClampFunc(1.0);
@@ -424,8 +407,7 @@ TEST(TransformationTests, ClampNegativeDifferentMax) {
         auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.0});
         auto clamp = std::make_shared<Clamp>(constant, 1., max);
 
-        return std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{clamp}, ngraph::ParameterVector{});
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{clamp}, ngraph::ParameterVector{});
     };
 
     const auto& f1 = createClampFunc(10.1);
@@ -440,12 +422,10 @@ TEST(TransformationTests, ClampNegativeDifferentMax) {
 TEST(TransformationTests, ConcatNegativeDifferentMax) {
     const auto createConcatFunc = [](int64_t axis) {
         using namespace ngraph::opset5;
-        auto constant =
-            Constant::create(ngraph::element::f32, ngraph::Shape{10, 10, 2, 2, 3}, {1.0});
+        auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{10, 10, 2, 2, 3}, {1.0});
         auto clamp = std::make_shared<Concat>(ngraph::OutputVector{constant}, axis);
 
-        return std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{clamp}, ngraph::ParameterVector{});
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{clamp}, ngraph::ParameterVector{});
     };
 
     const auto& f1 = createConcatFunc(1);
@@ -500,12 +480,11 @@ TEST(TransformationTests, ReorgYoloNegativeDifferentMax) {
     const auto createReorgYoloFunc = [](const Strides& stride) {
         using namespace ngraph::opset5;
 
-        auto param =
-            std::make_shared<Parameter>(ngraph::element::f32, ngraph::Shape{10, 10, 10, 10});
+        auto param = std::make_shared<Parameter>(ngraph::element::f32, ngraph::Shape{10, 10, 10, 10});
         auto reorg_yolo = std::make_shared<ReorgYolo>(param, stride);
 
-        return std::make_shared<ngraph::Function>(
-            std::make_shared<ngraph::opset1::Result>(reorg_yolo), ngraph::ParameterVector{param});
+        return std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(reorg_yolo),
+                                                  ngraph::ParameterVector{param});
     };
 
     const auto& f1 = createReorgYoloFunc({1, 2});
@@ -524,20 +503,18 @@ class DummyConstant : public ngraph::op::Op {
 public:
     DummyConstant() = default;
 
-    DummyConstant(const Member& member)
-        : m_element_type(element::Type_t::u8), m_shape({1, 1}), m_member(member) {
+    DummyConstant(const Member& member) : m_element_type(element::Type_t::u8), m_shape({1, 1}), m_member(member) {
         constructor_validate_and_infer_types();
     }
 
-    DummyConstant(const DummyConstant& o)
-        : m_element_type(o.m_element_type), m_shape(o.m_shape), m_member(o.m_member) {
+    DummyConstant(const DummyConstant& o) : m_element_type(o.m_element_type), m_shape(o.m_shape), m_member(o.m_member) {
         constructor_validate_and_infer_types();
     }
 
     DummyConstant& operator=(const DummyConstant&) = delete;
 
     const NodeTypeInfo& get_type_info() const override {
-        static const NodeTypeInfo type_info{typeid(this).name(), 0};
+        static const NodeTypeInfo type_info{typeid(this).name(), static_cast<uint64_t>(0)};
         return type_info;
     }
 
@@ -576,8 +553,7 @@ template <typename Member>
 std::shared_ptr<ngraph::Function> createDummyFunc(const Member& m) {
     auto constant = std::make_shared<DummyConstant<Member>>(m);
 
-    return std::make_shared<ngraph::Function>(
-        ngraph::NodeVector{constant}, ngraph::ParameterVector{});
+    return std::make_shared<ngraph::Function>(ngraph::NodeVector{constant}, ngraph::ParameterVector{});
 }
 
 }  // namespace
@@ -631,19 +607,16 @@ class AttributeAdapter<TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLIS
     : public DirectValueAccessor<TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION> {
 public:
     AttributeAdapter(TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION& value)
-        : DirectValueAccessor<TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION>(value) {
-    }
+        : DirectValueAccessor<TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{
-        "TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION", 0};
+    static constexpr DiscreteTypeInfo type_info{"TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION", static_cast<uint64_t>(0)};
 
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
 
-constexpr DiscreteTypeInfo
-    AttributeAdapter<TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION>::type_info;
 
 }  // namespace ov
 
@@ -677,7 +650,9 @@ TEST(TransformationTests, DifferentPrecisionVersusAttributes) {
     ///
 
     {  // check precision only
-        const auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+        const auto fc = FunctionsComparator::no_default()
+                .enable(FunctionsComparator::NODES)
+                .enable(FunctionsComparator::PRECISIONS);
         const auto res = fc.compare(f1, f2);
         EXPECT_FALSE(res.valid);
         EXPECT_THAT(res.message, HasSubstr("Different element type detected"));
@@ -687,6 +662,7 @@ TEST(TransformationTests, DifferentPrecisionVersusAttributes) {
 
     {  // check precision and attributes
         const auto fc = FunctionsComparator::no_default()
+                            .enable(FunctionsComparator::NODES)
                             .enable(FunctionsComparator::PRECISIONS)
                             .enable(FunctionsComparator::ATTRIBUTES);
         const auto res = fc.compare(f1, f2);
@@ -702,8 +678,7 @@ const auto createU1ConstantFunc = [](const Shape& s, const uint8_t* data) {
     using namespace ngraph::opset5;
     auto c = std::make_shared<Constant>(element::u1, s, data);
 
-    return std::make_shared<ngraph::Function>(ngraph::NodeVector{c},
-                                              ngraph::ParameterVector{});
+    return std::make_shared<ngraph::Function>(ngraph::NodeVector{c}, ngraph::ParameterVector{});
 };
 }
 
@@ -711,13 +686,10 @@ TEST(TransformationTests, ConstantComparison_ElementTypeU1_Positive_1stbit) {
     const Shape shape{1};
     const uint8_t data[1] = {0x80};  // 1000'0000
 
-    const auto& f1 =
-        createU1ConstantFunc(shape, static_cast<const uint8_t*>(data));
-    const auto& f2 =
-        createU1ConstantFunc(shape, static_cast<const uint8_t*>(data));
+    const auto& f1 = createU1ConstantFunc(shape, static_cast<const uint8_t*>(data));
+    const auto& f2 = createU1ConstantFunc(shape, static_cast<const uint8_t*>(data));
 
-    const auto fc = FunctionsComparator::with_default().enable(
-        FunctionsComparator::CONST_VALUES);
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::CONST_VALUES);
     const auto res = fc.compare(f1, f2);
     EXPECT_TRUE(res.valid) << res.message;
 }
@@ -726,13 +698,10 @@ TEST(TransformationTests, ConstantComparison_ElementTypeU1_Positive_9thbit) {
     const Shape shape{9};
     const uint8_t data[2] = {0x00, 0x80};  // 0000'0000 1000'0000
 
-    const auto& f1 =
-        createU1ConstantFunc(shape, static_cast<const uint8_t*>(data));
-    const auto& f2 =
-        createU1ConstantFunc(shape, static_cast<const uint8_t*>(data));
+    const auto& f1 = createU1ConstantFunc(shape, static_cast<const uint8_t*>(data));
+    const auto& f2 = createU1ConstantFunc(shape, static_cast<const uint8_t*>(data));
 
-    const auto fc = FunctionsComparator::with_default().enable(
-        FunctionsComparator::CONST_VALUES);
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::CONST_VALUES);
     const auto res = fc.compare(f1, f2);
     EXPECT_TRUE(res.valid) << res.message;
 }
@@ -743,13 +712,10 @@ TEST(TransformationTests, ConstantComparison_ElementTypeU1_Positive_garbage) {
     const uint8_t data1[2] = {0xAA, 0x8F};  // 1010'1010 1000'1111
     const uint8_t data2[2] = {0xAA, 0xF0};  // 1010'1010 1111'0000
 
-    const auto& f1 =
-        createU1ConstantFunc(shape, static_cast<const uint8_t*>(data1));
-    const auto& f2 =
-        createU1ConstantFunc(shape, static_cast<const uint8_t*>(data2));
+    const auto& f1 = createU1ConstantFunc(shape, static_cast<const uint8_t*>(data1));
+    const auto& f2 = createU1ConstantFunc(shape, static_cast<const uint8_t*>(data2));
 
-    const auto fc = FunctionsComparator::with_default().enable(
-        FunctionsComparator::CONST_VALUES);
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::CONST_VALUES);
     const auto res = fc.compare(f1, f2);
     EXPECT_TRUE(res.valid) << res.message;
 }
@@ -759,13 +725,10 @@ TEST(TransformationTests, ConstantComparison_ElementTypeU1_Negative) {
     const uint8_t data1[1] = {0x80};  // 1000 0000
     const uint8_t data2[1] = {0x01};  // 0000 0001
 
-    const auto& f1 =
-        createU1ConstantFunc(shape, static_cast<const uint8_t*>(data1));
-    const auto& f2 =
-        createU1ConstantFunc(shape, static_cast<const uint8_t*>(data2));
+    const auto& f1 = createU1ConstantFunc(shape, static_cast<const uint8_t*>(data1));
+    const auto& f2 = createU1ConstantFunc(shape, static_cast<const uint8_t*>(data2));
 
-    const auto fc = FunctionsComparator::with_default().enable(
-        FunctionsComparator::CONST_VALUES);
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::CONST_VALUES);
     const auto res = fc.compare(f1, f2);
     EXPECT_FALSE(res.valid);
     EXPECT_THAT(res.message, HasSubstr("Different Constant values detected"));
@@ -776,13 +739,10 @@ TEST(TransformationTests, ConstantComparison_ElementTypeU1_Negative_9thbit) {
     const uint8_t data1[2] = {0x00, 0x80};  // 0000 0000 1000 0000
     const uint8_t data2[2] = {0x00, 0x00};  // 0000 0000 0000 0000
 
-    const auto& f1 =
-        createU1ConstantFunc(shape, static_cast<const uint8_t*>(data1));
-    const auto& f2 =
-        createU1ConstantFunc(shape, static_cast<const uint8_t*>(data2));
+    const auto& f1 = createU1ConstantFunc(shape, static_cast<const uint8_t*>(data1));
+    const auto& f2 = createU1ConstantFunc(shape, static_cast<const uint8_t*>(data2));
 
-    const auto fc = FunctionsComparator::with_default().enable(
-        FunctionsComparator::CONST_VALUES);
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::CONST_VALUES);
     const auto res = fc.compare(f1, f2);
     EXPECT_FALSE(res.valid);
     EXPECT_THAT(res.message, HasSubstr("Different Constant values detected"));

@@ -6,7 +6,9 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace pass {
 
 /**
  * @brief remove convert layers after inputs and changing it's precision
@@ -53,7 +55,7 @@ const std::vector<std::pair<ov::element::Type, ov::element::Type>> kSupportedInp
 
 class RemoveInputConvert : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("RemoveInputConvert", "0");
   RemoveInputConvert();
 };
 
@@ -91,8 +93,10 @@ const std::vector<std::pair<ov::element::Type, ov::element::Type>> kSupportedOut
 
 class RemoveOutputConvert : public ngraph::pass::MatcherPass {
 public:
-  NGRAPH_RTTI_DECLARATION;
+  OPENVINO_RTTI("RemoveOutputConvert", "0");
   RemoveOutputConvert();
 };
 
-} // namespace GNAPluginNS
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov

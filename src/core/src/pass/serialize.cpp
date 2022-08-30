@@ -9,10 +9,10 @@
 #include <cstdint>
 #include <fstream>
 #include <ngraph/variant.hpp>
+#include <openvino/cc/pass/itt.hpp>
 #include <unordered_map>
 #include <unordered_set>
 
-#include "itt.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/opsets/opset1.hpp"
@@ -942,9 +942,11 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         // WA for LSTMCellv0, peephole input shall not be serialized
         if (e.to_port == 6) {
             auto type_info = f.get_ordered_ops()[e.to_layer]->get_type_info();
+            OPENVINO_SUPPRESS_DEPRECATED_START
             if (!strcmp(type_info.name, "LSTMCell") && type_info.version == 0) {
                 continue;
             }
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
         pugi::xml_node edge = edges.append_child("edge");
         edge.append_attribute("from-layer").set_value(e.from_layer);
@@ -1015,6 +1017,7 @@ void serializeFunc(std::ostream& xml_file,
 
 namespace ov {
 bool pass::Serialize::run_on_model(const std::shared_ptr<ngraph::Function>& f_orig) {
+    RUN_ON_FUNCTION_SCOPE(Serialize);
     auto f = ov::clone_model(*f_orig);
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, f, m_version, m_custom_opsets);
@@ -1096,6 +1099,7 @@ pass::StreamSerialize::StreamSerialize(std::ostream& stream,
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+    RUN_ON_MODEL_SCOPE(StreamSerialize);
     /*
         Format:
         [ DataHeader  ]
@@ -1197,6 +1201,7 @@ public:
 }  // namespace
 
 bool pass::Hash::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(Hash);
     OstreamHashWrapper xmlHash;
     OstreamHashWrapper binHash;
     std::ostream xml(&xmlHash);

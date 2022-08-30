@@ -13,7 +13,6 @@ namespace ngraph {
 namespace op {
 namespace internal {
 
-template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<op::v8::MulticlassNms>;
 template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<op::v8::MatrixNms>;
 
 }  // namespace internal

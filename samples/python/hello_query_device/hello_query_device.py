@@ -9,7 +9,7 @@ from openvino.runtime import Core
 
 
 def param_to_string(parameters) -> str:
-    """Convert a list / tuple of parameters returned from IE to a string"""
+    """Convert a list / tuple of parameters returned from IE to a string."""
     if isinstance(parameters, (list, tuple)):
         return ', '.join([str(x) for x in parameters])
     else:

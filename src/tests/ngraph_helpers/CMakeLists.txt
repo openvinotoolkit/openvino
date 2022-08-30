@@ -4,3 +4,4 @@
 
 add_subdirectory(ngraph_functions)
 add_subdirectory(lpt_ngraph_functions)
+add_subdirectory(snippets_ngraph_functions)

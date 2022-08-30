@@ -13,12 +13,12 @@
 namespace ov {
 namespace intel_cpu {
 
-class MKLDNNExecNetwork;
-class MKLDNNAsyncInferRequest;
+class ExecNetwork;
+class AsyncInferRequest;
 
-class MKLDNNInferRequestBase : public InferenceEngine::IInferRequestInternal {
+class InferRequestBase : public InferenceEngine::IInferRequestInternal {
 public:
-    virtual ~MKLDNNInferRequestBase();
+    virtual ~InferRequestBase();
 
     void InferImpl() override;
 
@@ -30,7 +30,7 @@ public:
      * @brief      Sets the pointer to asynchronous inference request that holds this request
      * @param[in]  asyncRequest Pointer to asynchronous inference request
      */
-    void SetAsyncRequest(MKLDNNAsyncInferRequest* asyncRequest);
+    void SetAsyncRequest(AsyncInferRequest* asyncRequest);
 
     /**
      * @brief If `_asyncRequest` is initialized throw exception with `InferenceEngine::INFER_CANCELLED` status if inference request is canceled
@@ -38,14 +38,14 @@ public:
     void ThrowIfCanceled() const;
 
 protected:
-    MKLDNNInferRequestBase(InferenceEngine::InputsDataMap networkInputs,
-                           InferenceEngine::OutputsDataMap networkOutputs,
-                           std::shared_ptr<MKLDNNExecNetwork> execNetwork_)
+    InferRequestBase(InferenceEngine::InputsDataMap networkInputs,
+                     InferenceEngine::OutputsDataMap networkOutputs,
+                     std::shared_ptr<ExecNetwork> execNetwork_)
     : IInferRequestInternal(networkInputs, networkOutputs), execNetwork(execNetwork_) {}
 
-    MKLDNNInferRequestBase(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                           const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                           std::shared_ptr<MKLDNNExecNetwork> execNetwork_)
+    InferRequestBase(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                     const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                     std::shared_ptr<ExecNetwork> execNetwork_)
     : IInferRequestInternal(inputs, outputs), execNetwork(execNetwork_) {}
 
     void CreateInferRequest();
@@ -55,7 +55,7 @@ protected:
     virtual void initBlobs() = 0;
     virtual void PushInputData() = 0;
 
-    MKLDNNGraph* graph = nullptr;
+    Graph* graph = nullptr;
     std::unordered_map<std::string, void*> externalPtr;
 
 private:
@@ -64,34 +64,37 @@ private:
     void redefineMemoryForInputNodes();
 
     void changeDefaultPtr();
-    std::shared_ptr<MKLDNNExecNetwork>  execNetwork;
+    std::shared_ptr<ExecNetwork>        execNetwork;
     openvino::itt::handle_t             profilingTask;
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> memoryStates;
-    MKLDNNAsyncInferRequest*            _asyncRequest = nullptr;
+    AsyncInferRequest*                  _asyncRequest = nullptr;
 };
 
-class MKLDNNLegacyInferRequest : public MKLDNNInferRequestBase {
+class LegacyInferRequest : public InferRequestBase {
 public:
-    MKLDNNLegacyInferRequest(InferenceEngine::InputsDataMap networkInputs,
-                             InferenceEngine::OutputsDataMap networkOutputs,
-                             std::shared_ptr<MKLDNNExecNetwork> execNetwork);
+    LegacyInferRequest(InferenceEngine::InputsDataMap networkInputs,
+                       InferenceEngine::OutputsDataMap networkOutputs,
+                       std::shared_ptr<ExecNetwork> execNetwork);
 
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) override;
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
+
 private:
     void PushInputData() override;
     void initBlobs() override;
     void SetBatch(int batch = -1) override;
 };
 
-class MKLDNNInferRequest : public MKLDNNInferRequestBase {
+class InferRequest : public InferRequestBase {
 public:
-    MKLDNNInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                       const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                       std::shared_ptr<MKLDNNExecNetwork> execNetwork);
+    InferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                 const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                 std::shared_ptr<ExecNetwork> execNetwork);
 
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) override;
+    void SetBlobsImpl(const std::string& name, const InferenceEngine::BatchedBlob::Ptr& batched_blob) override;
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
+
 private:
     void PushInputData() override;
     void initBlobs() override;

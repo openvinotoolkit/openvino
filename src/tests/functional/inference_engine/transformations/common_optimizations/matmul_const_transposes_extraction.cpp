@@ -30,7 +30,7 @@ TEST_F(TransformationTestsF, MatMulConstTransposesExtractionConstantWeights) {
         function_ref = std::make_shared<Function>(matmul, ParameterVector{data});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, MatMulConstTransposesExtractionFQOnWeights) {
@@ -57,7 +57,7 @@ TEST_F(TransformationTestsF, MatMulConstTransposesExtractionFQOnWeights) {
         function_ref = std::make_shared<Function>(matmul, ParameterVector{data});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, NegativeMatMulConstTransposesExtractionInvalidRank) {

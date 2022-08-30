@@ -8,6 +8,11 @@
 #include "float16.h"
 #include <iostream>
 
+
+namespace cldnn {
+const cldnn::data_types type_to_data_type<FLOAT16>::value;
+}  // namespace cldnn
+
 using namespace cldnn;
 
 namespace tests {
@@ -37,7 +42,7 @@ void generic_test::run_single_test() {
                 tests::set_random_values<FLOAT16>(input_mems[i], true, 5, 10);
             }
         } else {
-            size_t size = generic_params->input_layouts[i].size.batch[0] * generic_params->input_layouts[i].size.feature[0];
+            size_t size = generic_params->input_layouts[i].batch() * generic_params->input_layouts[i].feature();
 
             if (generic_params->data_type == data_types::f32) {
                 std::vector<float> values;
@@ -113,18 +118,16 @@ void generic_test::compare_buffers(const memory::ptr out, const memory::ptr ref)
     auto out_layout = out->get_layout();
     auto ref_layout = ref->get_layout();
 
-    EXPECT_EQ(out_layout.size, ref_layout.size);
+    EXPECT_EQ(out_layout.get_tensor(), ref_layout.get_tensor());
     EXPECT_EQ(out_layout.data_type, ref_layout.data_type);
-    EXPECT_EQ(get_expected_output_tensor(), out_layout.size);
+    EXPECT_EQ(get_expected_output_tensor(), out_layout.get_tensor());
     EXPECT_EQ(out_layout.get_linear_size(), ref_layout.get_linear_size());
     EXPECT_EQ(out_layout.data_padding, ref_layout.data_padding);
 
-    auto output_size = out_layout.size;
-
-    int batch_size = output_size.batch[0];
-    int feature_size = output_size.feature[0];
-    int y_size = output_size.spatial[1];
-    int x_size = output_size.spatial[0];
+    int batch_size = out_layout.batch();
+    int feature_size = out_layout.feature();
+    int y_size = out_layout.spatial(1);
+    int x_size = out_layout.spatial(0);
 
     mem_lock<Type> res_data(out, get_test_stream());
     mem_lock<Type> ref_data(ref, get_test_stream());
@@ -244,16 +247,16 @@ size_t generic_test::get_linear_index_with_broadcast(const layout& in_layout, si
 {
     return
         desc.offset +
-        (b % in_layout.size.batch[0]) * desc.pitch.b +
-        (f % in_layout.size.feature[0]) * desc.pitch.f +
-        (y % in_layout.size.spatial[1]) * desc.pitch.y +
-        (x % in_layout.size.spatial[0]) * desc.pitch.x;
+        (b % in_layout.batch()) * desc.pitch.b +
+        (f % in_layout.feature()) * desc.pitch.f +
+        (y % in_layout.spatial(1)) * desc.pitch.y +
+        (x % in_layout.spatial(0)) * desc.pitch.x;
 }
 
 //Default implementation. Should be overridden in derived class otherwise.
 cldnn::tensor generic_test::get_expected_output_tensor()
 {
-    return generic_params->input_layouts[0].size;
+    return generic_params->input_layouts[0].get_tensor();
 }
 
 std::vector<std::shared_ptr<test_params>> generic_test::generate_generic_test_params(std::vector<std::shared_ptr<test_params>>& all_generic_params)
@@ -353,7 +356,7 @@ std::string test_params::print() {
     str << "Data type: " << data_type_traits::name(data_type) << std::endl;
 
     for (int j = 0 ; j < (int)input_layouts.size(); j++) {
-        const cldnn::tensor& t = input_layouts[j].size;
+        const cldnn::tensor& t = input_layouts[j].get_tensor();
 
         str << "Input " << j << ": " << print_tensor(t) << std::endl;
     }

@@ -76,7 +76,7 @@ def _create_log_path(config):
 
 
 def _update_config_path(args):
-    config_template_folder = os.path.join(Path(__file__).parents[4], 'configs')
+    config_template_folder = os.path.join(Path(__file__).parents[1], 'configs', 'templates')
 
     if args.quantize is not None:
         if args.quantize == 'default':

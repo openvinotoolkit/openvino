@@ -15,6 +15,7 @@
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset9.hpp"
 
 TEST(opset, opset1) {
     auto op = std::make_shared<ov::opset1::Parameter>();
@@ -144,9 +145,25 @@ TEST(opset, opset8_dump) {
     ASSERT_EQ(167, opset.get_types_info().size());
 }
 
+TEST(opset, opset9) {
+    auto op = std::make_shared<ov::opset9::Parameter>();
+    ASSERT_NE(nullptr, op);
+    EXPECT_TRUE(ov::op::util::is_parameter(op));
+}
+
+TEST(opset, opset9_dump) {
+    const auto& opset = ov::get_opset9();
+    std::cout << "All opset9 operations: ";
+    for (const auto& t : opset.get_types_info()) {
+        std::cout << t.name << " ";
+    }
+    std::cout << std::endl;
+    ASSERT_EQ(173, opset.get_types_info().size());
+}
+
 class MyOpOld : public ov::op::Op {
 public:
-    static constexpr ov::DiscreteTypeInfo type_info{"MyOpOld", 0};
+    static constexpr ov::DiscreteTypeInfo type_info{"MyOpOld", static_cast<uint64_t>(0)};
     const ov::DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
