@@ -160,6 +160,7 @@ if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND NOT TBB_FOUND
                 add_library(TBB::tbb ALIAS PkgConfig::tbb)
                 set(TBB_VERSION ${tbb_VERSION})
                 set(TBB_FOUND ${tbb_FOUND})
+                message(STATUS "tbb (${tbb_VERSION}) is found at ${tbb_PREFIX}")
             endif()
         endif()
     else()
