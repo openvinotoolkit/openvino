@@ -27,7 +27,7 @@ static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>&
     bool is_single_out_split = op->get_output_size() == 1;
 
     for (size_t i = 0; i < op->get_output_size(); i++) {
-        std::string outLayerName = layerName + (is_single_out_split ? "" : "." + std::to_string(i));
+        std::string outLayerName = layerName + (is_single_out_split ? "" : ".out" + std::to_string(i));
         const auto outLayerDims = op->get_output_shape(i);
         NGRAPH_SUPPRESS_DEPRECATED_START
         if (outLayerDims.size() != start_offset.size()) {
@@ -45,12 +45,8 @@ static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>&
         auto outTensor = tensor_from_dims(outLayerDims, 1);
         auto offsetTensor = tensor_from_dims(start_offset, 0);
 
-        auto cropPrim = cldnn::crop(outLayerName, inputPrimitives[0], outTensor, offsetTensor, op->get_friendly_name());
-        p.primitiveIDs[outLayerName] = outLayerName;
-
-        p.AddPrimitive(cropPrim);
-        p.profilingIDs.push_back(outLayerName);
-        p.InitProfileInfo(outLayerName, "Crop");
+        auto cropPrim = cldnn::crop(outLayerName, inputPrimitives[0], outTensor, offsetTensor);
+        p.add_primitive(*op, cropPrim);
 
         for (size_t i = 0; i < input_shape.size(); i++) {
             if (outLayerDims[i] != input_shape[i]) {
@@ -58,18 +54,15 @@ static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>&
             }
         }
     }
-
-    // set split as not_run
-    p.InitProfileInfo(op->get_friendly_name(), op->get_type_name(), false, InferenceEngine::InferenceEngineProfileInfo::OPTIMIZED_OUT);
 }
 
 static void CreateSplitOp(Program& p, const std::shared_ptr<ngraph::op::v1::Split>& op) {
-    p.ValidateInputs(op, {2});
+    validate_inputs_count(op, {2});
     CreateCommonSplitOp(p, op);
 }
 
 static void CreateVariadicSplitOp(Program& p, const std::shared_ptr<ngraph::op::v1::VariadicSplit>& op) {
-    p.ValidateInputs(op, {3});
+    validate_inputs_count(op, {3});
     CreateCommonSplitOp(p, op);
 }
 
