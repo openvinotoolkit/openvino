@@ -78,6 +78,11 @@ def run(args):
             cldnn_config = config[GPU_DEVICE_NAME]['CONFIG_FILE']
             benchmark.add_extension(path_to_cldnn_config=cldnn_config)
 
+        benchmark.print_version_info()
+
+        # --------------------- 3. Setting device configuration --------------------------------------------------------
+        next_step()
+
         for device in devices:
             supported_properties = benchmark.core.get_property(device, 'SUPPORTED_PROPERTIES')
             if 'PERFORMANCE_HINT' in supported_properties:
@@ -92,12 +97,6 @@ def run(args):
             else:
                 logger.warning(f"Device {device} does not support performance hint property(-hint).")
 
-        version = benchmark.print_version_info()
-
-        logger.info(version)
-
-        # --------------------- 3. Setting device configuration --------------------------------------------------------
-        next_step()
         def get_device_type_from_name(name) :
             new_name = str(name)
             new_name = new_name.split(".", 1)[0]
@@ -327,11 +326,11 @@ def run(args):
         ## actual device-deduced settings
         for device in devices:
             keys = benchmark.core.get_property(device, 'SUPPORTED_PROPERTIES')
-            logger.info(f'DEVICE: {device}')
+            logger.info(f'Device: {device}')
             for k in keys:
                 if k not in ('SUPPORTED_METRICS', 'SUPPORTED_CONFIG_KEYS', 'SUPPORTED_PROPERTIES'):
                     try:
-                        logger.info(f'  {k}  , {benchmark.core.get_property(device, k)}')
+                        logger.info(f'  {k}: {benchmark.core.get_property(device, k)}')
                     except:
                         pass
 
@@ -485,8 +484,7 @@ def run(args):
                                       ])
             if MULTI_DEVICE_NAME not in device_name:
                 latency_prefix = None
-                if args.latency_percentile == 50 and static_mode:
-                    #latency_prefix = 'median latency (ms)'
+                if args.latency_percentile == 50:
                     latency_prefix = 'latency (ms)'
                 elif args.latency_percentile != 50:
                     latency_prefix = 'latency (' + str(args.latency_percentile) + ' percentile) (ms)'
@@ -532,14 +530,14 @@ def run(args):
             statistics.dump()
 
 
-        logger.info(f'Count:          {iteration} iterations')
-        logger.info(f'Duration:       {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
+        logger.info(f'Count:        {iteration} iterations')
+        logger.info(f'Duration:     {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
         if MULTI_DEVICE_NAME not in device_name:
             logger.info('Latency:')
-            if args.latency_percentile == 50 and static_mode:
+            if args.latency_percentile == 50:
                 logger.info(f'\tMedian:     {median_latency_ms:.2f} ms')
             elif args.latency_percentile != 50:
-                logger.info(f'({args.latency_percentile} percentile):     {median_latency_ms:.2f} ms')
+                logger.info(f'\t{args.latency_percentile} percentile:     {median_latency_ms:.2f} ms')
             logger.info(f'\tAverage:    {avg_latency_ms:.2f} ms')
             logger.info(f'\tMin:        {min_latency_ms:.2f} ms')
             logger.info(f'\tMax:        {max_latency_ms:.2f} ms')

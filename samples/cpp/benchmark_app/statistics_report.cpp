@@ -252,7 +252,7 @@ void LatencyMetrics::write_to_stream(std::ostream& stream) const {
 void LatencyMetrics::write_to_slog() const {
     std::string percentileStr = (percentile_boundary == 50)
                                     ? "\tMedian:     "
-                                    : "\t" + std::to_string(percentile_boundary) + " percentile:    ";
+                                    : "\t" + std::to_string(percentile_boundary) + " percentile:     ";
     if (!data_shape.empty()) {
         slog::info << "\tData shape: " << data_shape << slog::endl;
     }

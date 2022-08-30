@@ -704,7 +704,7 @@ int main(int argc, char* argv[]) {
                         continue;
 
                     auto prop = compiledModel.get_property(cfg);
-                    slog::info << "  { " << cfg << " , " << prop.as<std::string>() << " }" << slog::endl;
+                    slog::info << "  " << cfg << ": " << prop.as<std::string>() << slog::endl;
                 } catch (const ov::Exception&) {
                 }
             }
@@ -1142,8 +1142,8 @@ int main(int argc, char* argv[]) {
             statistics->dump();
 
         // Performance metrics report
-        slog::info << "Count:       " << iteration << " iterations" << slog::endl;
-        slog::info << "Duration:    " << double_to_string(totalDuration) << " ms" << slog::endl;
+        slog::info << "Count:        " << iteration << " iterations" << slog::endl;
+        slog::info << "Duration:     " << double_to_string(totalDuration) << " ms" << slog::endl;
         if (device_name.find("MULTI") == std::string::npos) {
             slog::info << "Latency: " << slog::endl;
             generalLatency.write_to_slog();
@@ -1165,7 +1165,7 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-        slog::info << "Throughput:  " << double_to_string(fps) << " FPS" << slog::endl;
+        slog::info << "Throughput:   " << double_to_string(fps) << " FPS" << slog::endl;
 
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
