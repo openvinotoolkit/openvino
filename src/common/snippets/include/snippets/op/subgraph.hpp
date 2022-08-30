@@ -89,10 +89,9 @@ public:
     }
 
 
-    snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,
-                                ngraph::pass::Manager& opt, const void* compile_params = nullptr);
-    snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,
+    snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, ngraph::pass::Manager& opt,
                                 const void* compile_params = nullptr);
+    snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, const void* compile_params = nullptr);
     snippets::Schedule generate(ngraph::pass::Manager &opt, const void* compile_params = nullptr);
     snippets::Schedule generate(const void* compile_params = nullptr);
     Shape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
@@ -107,8 +106,10 @@ public:
     void serialize() const;
 
     static auto wrap_node_as_subgraph(const std::shared_ptr<ngraph::Node>& node) -> std::shared_ptr<Subgraph>;
+    static void fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node);
 
 private:
+    void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
     void convert_to_snippet_dialect();
     Shape exec_domain;
     std::shared_ptr<ov::Model> m_body;
