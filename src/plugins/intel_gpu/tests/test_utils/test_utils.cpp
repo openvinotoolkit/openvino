@@ -316,6 +316,8 @@ cldnn::engine& get_onednn_test_engine() {
     if (!test_engine) {
         test_engine = create_test_engine(cldnn::queue_types::in_order);
     }
+    if (!test_engine->get_device_info().supports_immad)
+        IE_THROW() << "Onednn device should support immad.";
     return *test_engine;
 }
 #endif
