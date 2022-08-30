@@ -792,7 +792,7 @@ def test_rnn_sequence():
 
 
 def test_loop():
-    bool_val = [True]  # np.array([1], dtype=np.bool)
+    bool_val = [True]  # np.array([1], dtype=bool)
     condition = ov.constant(bool_val)
     trip_count = ov.constant(16, dtype=np.int32)
     #  Body parameters
@@ -1816,11 +1816,11 @@ def test_multiclass_nms():
                            0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
                            0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0], dtype="float32")
     boxes_data = boxes_data.reshape([1, 6, 4])
-    box = ov.constant(boxes_data, dtype=np.float)
+    box = ov.constant(boxes_data, dtype=float)
     scores_data = np.array([0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
                             0.95, 0.75, 0.6, 0.80, 0.5, 0.3], dtype="float32")
     scores_data = scores_data.reshape([1, 2, 6])
-    score = ov.constant(scores_data, dtype=np.float)
+    score = ov.constant(scores_data, dtype=float)
 
     nms_node = ov.multiclass_nms(box, score, None, output_type="i32", nms_top_k=3,
                                  iou_threshold=0.5, score_threshold=0.0, sort_result_type="classid",
@@ -1841,13 +1841,13 @@ def test_multiclass_nms():
                             [9.66, 3.36, 18.57, 13.26]],
                            [[6.50, 7.00, 13.33, 17.63],
                             [0.73, 5.34, 19.97, 19.97]]]).astype("float32")
-    box = ov.constant(boxes_data, dtype=np.float)
+    box = ov.constant(boxes_data, dtype=float)
     scores_data = np.array([[0.34, 0.66],
                             [0.45, 0.61],
                             [0.39, 0.59]]).astype("float32")
-    score = ov.constant(scores_data, dtype=np.float)
+    score = ov.constant(scores_data, dtype=float)
     rois_num_data = np.array([3]).astype("int32")
-    roisnum = ov.constant(rois_num_data, dtype=np.int)
+    roisnum = ov.constant(rois_num_data, dtype=int)
     nms_node = ov.multiclass_nms(box, score, roisnum, output_type="i32", nms_top_k=3,
                                  iou_threshold=0.5, score_threshold=0.0, sort_result_type="classid",
                                  nms_eta=1.0)
@@ -1867,11 +1867,11 @@ def test_matrix_nms():
                            0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
                            0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0], dtype="float32")
     boxes_data = boxes_data.reshape([1, 6, 4])
-    box = ov.constant(boxes_data, dtype=np.float)
+    box = ov.constant(boxes_data, dtype=float)
     scores_data = np.array([0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
                             0.95, 0.75, 0.6, 0.80, 0.5, 0.3], dtype="float32")
     scores_data = scores_data.reshape([1, 2, 6])
-    score = ov.constant(scores_data, dtype=np.float)
+    score = ov.constant(scores_data, dtype=float)
 
     nms_node = ov.matrix_nms(box, score, output_type="i32", nms_top_k=3,
                              score_threshold=0.0, sort_result_type="score", background_class=0,
