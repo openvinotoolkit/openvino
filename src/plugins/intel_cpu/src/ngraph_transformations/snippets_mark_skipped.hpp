@@ -37,7 +37,7 @@ enum class NodeFusingType : int64_t {
     NotSet,
     FusedTerminator,
     FusedWithConvolution,  FusedWithBinaryConvolution, FusedWithConvolutionSumActivation,
-    FusedWithMatMul, FusedWithMisc, IgnoredAfterInputs};
+    FusedWithMatMul, FusedWithMatMulI8, FusedWithMisc, IgnoredAfterInputs};
 
 }   // namespace intel_cpu
 }   // namespace ov

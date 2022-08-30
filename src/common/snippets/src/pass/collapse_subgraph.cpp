@@ -111,6 +111,7 @@ auto is_layout_oblivious(const std::shared_ptr<const Node> &n) -> bool {
             || ov::is_type<opset1::Tanh>(n)
             || ov::is_type<ngraph::op::v0::Gelu>(n)
             || ov::is_type<ngraph::op::v7::Gelu>(n)
+            || ov::is_type<ngraph::op::v4::Swish>(n)
             || ov::is_type<ngraph::op::v4::HSwish>(n)
             || ov::is_type<ngraph::op::v0::Convert>(n);
     };

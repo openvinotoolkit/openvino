@@ -102,6 +102,19 @@ public:
         }
 };
 
+class jit_swish_emitter : public jit_dnnl_emitter {
+public:
+    jit_swish_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& n,
+                        InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32)
+            : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
+        kind = dnnl_eltwise_swish;
+        alpha = 0.f;
+        beta = 0.f;
+
+        set_injector();
+    }
+};
+
 class jit_hswish_emitter : public jit_dnnl_emitter {
 public:
     jit_hswish_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& n,
@@ -114,6 +127,7 @@ public:
         set_injector();
     }
 };
+
 class jit_gelu_v0_emitter : public jit_dnnl_emitter {
 public:
     jit_gelu_v0_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& n,
