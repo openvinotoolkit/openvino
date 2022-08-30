@@ -337,11 +337,17 @@ bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node> &n
         }
         return true;
     };
+    auto isFusedFQNode = [&isFusedBiasNode](std::shared_ptr<Node> n) {
+        const auto& parent = n->get_input_node_shared_ptr(0);
+        const bool is_suitable_parent = isSuitableConvolutionParent(parent) || isFusedBiasNode(parent);
+        return ov::is_type<ngraph::op::v0::FakeQuantize>(n) && is_suitable_parent &&
+               GetNodeFusingType(n) ==  NodeFusingType::FusedWithConvolution;
+    };
     int num_conv_parents = 0;
     for (size_t i = 0; i < node->get_input_size(); i++) {
         const auto n = node->get_input_node_shared_ptr(i);
         //BinaryConvolution allows other ops to be fused before the Add, while Convolution doesn't
-        num_conv_parents += (isSuitableConvolutionParent(n) || isFusedBiasNode(n) ||
+        num_conv_parents += (isSuitableConvolutionParent(n) || isFusedBiasNode(n) || isFusedFQNode(n) ||
                              GetNodeFusingType(n) == NodeFusingType::FusedWithBinaryConvolution);
     }
     return getNumNonConstInputs(node) == 2 && num_conv_parents >=1;
