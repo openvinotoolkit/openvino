@@ -16,15 +16,13 @@ This folder layer tests framework code and test files.
     ```
 * Set up environment variables for layer tests:
     ```bash
-    export MO_ROOT=PATH_TO_MO
+    export PYTHONPATH="path_to_openvino"/tests/layer_tests/:"path_to_openvino"/tools/mo:"path to python api"
     ```
+  To parametrize tests by device and precision (optional)
     ```bash
-    export PYTHONPATH="path_to_openvino"/tests/layer_tests/:$PYTHONPATH
+    export TEST_DEVICE="CPU;GPU"
+    export TEST_PRECISION="FP32;FP16"
     ```
-    ```bash
-    export IE_APP_PATH="path_to_IE"
-    ```
-* Add IE dependencies in LD_LIBRARY_PATH.
 
 ## Run tests
 ```bash

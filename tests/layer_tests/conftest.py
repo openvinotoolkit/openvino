@@ -56,7 +56,7 @@ def pytest_addoption(parser):
     """Specify command-line options for all plugins"""
     parser.addoption(
         "--ir_version",
-        required=True,
+        default=11,
         action="store",
         help="Version of IR to generate by Model Optimizer")
     parser.addoption(
@@ -68,7 +68,7 @@ def pytest_addoption(parser):
         "--api_2",
         action="store_true",
         help="Use new API 2.0 for model processing in Inference Engine",
-        default=False)
+        default=True)
 
 
 @pytest.fixture(scope="session")

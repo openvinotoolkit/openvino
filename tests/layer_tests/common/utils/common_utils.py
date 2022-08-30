@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+import os
 import subprocess
 import sys
 from pathlib import Path
 
-from openvino.tools.mo import mo
 import numpy as np
+from openvino.tools.mo import mo
 
 logger = logging.getLogger(__name__)
 
@@ -85,3 +86,12 @@ def allclose(cur_array, ref_array, atol, rtol):
         abs_diff = np.absolute(cur_array - ref_array)
     max_val = np.maximum(np.absolute(cur_array), np.absolute(ref_array))
     return ((abs_diff < atol) | (abs_diff < rtol * max_val)).all()
+
+
+def rename_ov_lib(files_to_rename: list, lib_dir: Path):
+    for pair in files_to_rename:
+        current_lib_path = os.path.join(lib_dir, pair[0])
+        new_lib_path = os.path.join(lib_dir, pair[1])
+        if os.path.exists(current_lib_path):
+            logging.info('Renaming library from {} to {}'.format(current_lib_path, new_lib_path))
+            os.replace(current_lib_path, new_lib_path)
