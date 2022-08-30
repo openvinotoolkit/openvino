@@ -340,6 +340,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                        layout == DataLayout::fs_b_yx_fsv32 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
                        layout == DataLayout::bs_fs_yx_bsv4_fsv4 ||
+                       layout == DataLayout::bs_fs_yx_bsv16_fsv4 ||
+                       layout == DataLayout::bs_fs_yx_bsv16_fsv2 ||
                        layout == DataLayout::bs_fs_yx_bsv8_fsv4 ||
                        layout == DataLayout::bs_fs_yx_bsv8_fsv2 ||
                        layout == DataLayout::bs_fs_yx_bsv4_fsv2 ||
@@ -348,21 +350,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                 auto layout_str = toString(layout);
                 index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
                 raw_index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
-                if (layout == DataLayout::b_fs_yx_fsv16 ||
-                    layout == DataLayout::b_fs_yx_fsv32 ||
-                    layout == DataLayout::b_fs_yx_fsv2  ||
-                    layout == DataLayout::b_fs_yx_fsv4  ||
-                    layout == DataLayout::bs_fs_yx_bsv32_fsv32  ||
-                    layout == DataLayout::bs_fs_yx_bsv32_fsv16  ||
-                    layout == DataLayout::bs_fs_yx_bsv4_fsv4  ||
-                    layout == DataLayout::bs_fs_yx_bsv8_fsv4  ||
-                    layout == DataLayout::bs_fs_yx_bsv8_fsv2  ||
-                    layout == DataLayout::bs_fs_yx_bsv4_fsv2  ||
-                    layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
-                    layout == DataLayout::fs_b_yx_fsv32)
-                    safe_index_func_val = "GET_DATA_" + layout_str + "_INDEX_SAFE(" + _name + ", b, f, y, x)";
-                else
-                    safe_index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
+                safe_index_func_val = "GET_DATA_" + layout_str + "_INDEX_SAFE(" + _name + ", b, f, y, x)";
             } else if (layout == DataLayout::bs_f_bsv8__af8 ||
                        layout == DataLayout::bs_f_bsv16__af8) {
                 size_t sub_group_size = layout == DataLayout::bs_f_bsv16__af8 ? 16 : 8;
@@ -420,10 +408,18 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                 index_func_val = "GET_DATA_B_FS_ZYX_FSV32_INDEX(" + _name + ", b, f, z, y, x)";
                 raw_index_func_val = "GET_DATA_B_FS_ZYX_FSV32_INDEX(" + _name + ", b, f, z, y, x)";
                 safe_index_func_val = "GET_DATA_B_FS_ZYX_FSV32_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
+            } else if (layout == DataLayout::bs_fs_zyx_bsv16_fsv4) {
+                index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV4_INDEX(" + _name + ", b, f, z, y, x)";
+                raw_index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV4_INDEX(" + _name + ", b, f, z, y, x)";
+                safe_index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV4_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
             } else if (layout == DataLayout::bs_fs_zyx_bsv8_fsv4) {
                 index_func_val = "GET_DATA_BS_FS_ZYX_BSV8_FSV4_INDEX(" + _name + ", b, f, z, y, x)";
                 raw_index_func_val = "GET_DATA_BS_FS_ZYX_BSV8_FSV4_INDEX(" + _name + ", b, f, z, y, x)";
                 safe_index_func_val = "GET_DATA_BS_FS_ZYX_BSV8_FSV4_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
+            } else if (layout == DataLayout::bs_fs_zyx_bsv16_fsv2) {
+                index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV2_INDEX(" + _name + ", b, f, z, y, x)";
+                raw_index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV2_INDEX(" + _name + ", b, f, z, y, x)";
+                safe_index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV2_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
             } else if (layout == DataLayout::bs_fs_zyx_bsv8_fsv2) {
                 index_func_val = "GET_DATA_BS_FS_ZYX_BSV8_FSV2_INDEX(" + _name + ", b, f, z, y, x)";
                 raw_index_func_val = "GET_DATA_BS_FS_ZYX_BSV8_FSV2_INDEX(" + _name + ", b, f, z, y, x)";
@@ -1881,10 +1877,13 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
 
     bool safe_load = conf.boundary_check == FusedOpsConfiguration::BoundaryCheck::ENABLED;
 
+    // Fsv16 Eltwise whcih requires f axis broadcast such as input[1,1,z,1,1], output[b,f,z,y,x] need to use LT unligned read.
+    // In this case, intel_sub_group_block_read() introduces increasing index in feature block.
+    bool f_axis_broadcast = ((input_tensor.Feature().v != prim_output.Feature().v) && (input_tensor.Feature().v == 1) && (vec_size == 1));
     // Change JitLoad to ignore LT_ALIGNED_READ LoadType if this input tensor has a planar format(SimpleLayout)
     if (desc.GetType() == KernelType::ELTWISE && input_tensor.SimpleLayout() && input_tensor.GetLayout() != orig_output_layout &&
         conf.load_type == FusedOpsConfiguration::LoadType::LT_ALIGNED_READ &&
-        input_tensor.SameDimsSizes(prim_output) && input_tensor.LogicalSize() != 1) {
+        (input_tensor.SameDimsSizes(prim_output) || f_axis_broadcast) && input_tensor.LogicalSize() != 1) {
         std::string sub_group_local_id_str = "get_sub_group_local_id";
         size_t found_sub = conf.bfzyx_idx_order[1].rfind(sub_group_local_id_str);
         if (found_sub != std::string::npos) {

@@ -24,6 +24,7 @@
 #endif
 #include "ie_itt.hpp"
 #include "legacy/ie_reader.hpp"
+#include "legacy_op_extension.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/variant.hpp"
@@ -41,7 +42,7 @@ namespace ov {
 /*
  * @brief Wrapper for old IE extensions to new API
  */
-class ExtensionWrapper : public ov::BaseOpExtension {
+class ExtensionWrapper : public ov::LegacyOpExtension {
 public:
     ExtensionWrapper(const InferenceEngine::IExtensionPtr& ext, const std::string& opset, const std::string& name)
         : m_ext(ext),
