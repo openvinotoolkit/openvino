@@ -6,7 +6,9 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace pass {
 
 /**
  * @brief Inserts transpose after convolution or pooling if its output is reshaped to 3D or 4D data with only one last dimension > 1
@@ -25,4 +27,7 @@ public:
   bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override;
 };
 
-} // namespace GNAPluginNS
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov
+

@@ -16,7 +16,7 @@ namespace intel_gpu {
 
 static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Result>& op) {
     OutputsDataMap networkOutputs = p.GetNetworkOutputs();
-    p.ValidateInputs(op, {1});
+    validate_inputs_count(op, {1});
 
     auto prev = op->get_input_node_shared_ptr(0);
     NGRAPH_SUPPRESS_DEPRECATED_START
@@ -63,18 +63,13 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
     Precision precision = outputData->getPrecision();
     std::string outputID = inputs[0];
 
-    p.AddPrimitive(cldnn::reorder(outLayerName,
-                                  outputID,
-                                  FormatFromLayout(outputlayout),
-                                  DataTypeFromPrecision(precision),
-                                  std::vector<float>(),
-                                  cldnn::reorder_mean_mode::subtract,
-                                  op->get_friendly_name()));
-    p.InitProfileInfo(outLayerName, "reorder");
-    p.profilingIDs.push_back(outLayerName);
-    p.primitiveIDs[outLayerName] = outLayerName;
-    p.primitiveIDs[originalOutName] = outLayerName;
-
+    auto reorder_primitive = cldnn::reorder(outLayerName,
+                                            outputID,
+                                            FormatFromLayout(outputlayout),
+                                            DataTypeFromPrecision(precision),
+                                            std::vector<float>(),
+                                            cldnn::reorder_mean_mode::subtract);
+    p.add_primitive(*op, reorder_primitive, {originalOutName});
     p.outputDims[originalOutName] = outputDesc.getDims();
     p.prevPrimitiveIDs[outLayerName] = {originalOutName};
 }

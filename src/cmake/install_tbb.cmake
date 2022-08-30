@@ -7,10 +7,41 @@ include(cmake/ie_parallel.cmake)
 # pre-find TBB: need to provide TBB_IMPORTED_TARGETS used for installation
 ov_find_package_tbb()
 
-if(TBB_FOUND AND TBB_VERSION VERSION_GREATER_EQUAL 2021)
-    message(STATUS "Static tbbbind_2_5 package usage is disabled, since oneTBB (ver. ${TBB_VERSION}) is used")
+# check whether TBB has TBBBind 2.5 with hwloc 2.5 or higher which is required
+# to detect hybrid cores
+function(_ov_detect_dynamic_tbbbind_2_5 var)
+    if(NOT TBB_FOUND)
+        return()
+    endif()
+
+    # try to select proper library directory
+    get_target_property(_tbb_lib_location TBB::tbb IMPORTED_LOCATION_RELEASE)
+    get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
+
+    # unset for cases if user specified different TBB_DIR / TBBROOT
+    unset(_ov_tbbbind_2_5 CACHE)
+
+    find_library(_ov_tbbbind_2_5
+                 NAMES tbbbind_2_5
+                 HINTS "${_tbb_libs_dir}"
+                 "Path to TBBBind 2.5 library"
+                 NO_DEFAULT_PATH)
+
+    if(_ov_tbbbind_2_5)
+        set(${var} ON PARENT_SCOPE)
+    endif()
+endfunction()
+
+_ov_detect_dynamic_tbbbind_2_5(_ov_dynamic_tbbbind_2_5_found)
+
+if(_ov_dynamic_tbbbind_2_5_found)
+    message(STATUS "Static tbbbind_2_5 package usage is disabled, since oneTBB (ver. ${TBB_VERSION}) provides dynamic TBBBind 2.5")
     set(ENABLE_TBBBIND_2_5 OFF)
 elseif(ENABLE_TBBBIND_2_5)
+    if(TBB_VERSION VERSION_GREATER_EQUAL 2021)
+        message(STATUS "oneTBB (ver. ${TBB_VERSION}) is used, but dynamic TBBBind 2.5 is not found. Use custom static TBBBind 2.5")
+    endif()
+
     # download and find a prebuilt version of TBBBind_2_5
     ov_download_tbbbind_2_5()
     find_package(TBBBIND_2_5 QUIET)
@@ -22,8 +53,12 @@ elseif(ENABLE_TBBBIND_2_5)
         if(NOT BUILD_SHARED_LIBS)
             set(install_tbbbind ON)
         endif()
+    else()
+        message(STATUS "Prebuilt static tbbbind_2_5 package is not available for current platform (${CMAKE_SYSTEM_NAME})")
     endif()
 endif()
+
+unset(_ov_dynamic_tbbbind_2_5_found)
 
 # install TBB
 
@@ -61,6 +96,10 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
     endif()
 
     if(ENABLE_SYSTEM_TBB)
+        # TODO: what's about tbbbind for cases U22 with >= TBB 20221
+        # it seems that oneTBB from U22 distro does not contains tbbbind library
+        # message(FATAL_ERROR "TBB_IMPORTED_TARGETS - ${TBB_IMPORTED_TARGETS}")
+
         # for system libraries we still need to install TBB libraries
         # so, need to take locations of actual libraries and install them
         foreach(tbb_lib IN LISTS TBB_IMPORTED_TARGETS)
@@ -68,14 +107,13 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             # depending on the TBB, tbb_loc can be in form:
             # - libtbb.so.x.y
             # - libtbb.so.x
-            # - libtbb.so
             # We need to install such files
             get_filename_component(name_we "${tbb_loc}" NAME_WE)
             get_filename_component(dir "${tbb_loc}" DIRECTORY)
             # grab all tbb files matching pattern
             file(GLOB tbb_files "${dir}/${name_we}.*")
             foreach(tbb_file IN LISTS tbb_files)
-                if(tbb_file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)*$")
+                if(tbb_file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)+$")
                     # since the setup.py for pip installs tbb component
                     # explicitly, it's OK to put EXCLUDE_FROM_ALL to such component
                     # to ignore from IRC / apt / yum distribution;
@@ -117,9 +155,19 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             set(IE_TBB_DIR_INSTALL "${TBB_DIR}")
         endif()
 
-        install(DIRECTORY "${TBBROOT}/"
-                DESTINATION "${IE_TBBROOT_INSTALL}"
-                COMPONENT tbb)
+        # try to select proper library directory
+        get_target_property(_tbb_lib_location TBB::tbb IMPORTED_LOCATION_RELEASE)
+        get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
+        file(RELATIVE_PATH tbb_libs_dir "${TBBROOT}" "${_tbb_libs_dir}")
+
+        # install only meaningful directories
+        foreach(dir include ${tbb_libs_dir} cmake lib/cmake)
+            if(EXISTS "${TBBROOT}/${dir}")
+                install(DIRECTORY "${TBBROOT}/${dir}/"
+                        DESTINATION "${IE_TBBROOT_INSTALL}/${dir}"
+                        COMPONENT tbb)
+            endif()
+        endforeach()
     elseif(tbb_downloaded)
         set(IE_TBB_DIR_INSTALL "runtime/3rdparty/tbb/")
 

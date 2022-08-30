@@ -32,9 +32,8 @@ struct reshape : public primitive_base<reshape> {
     reshape(const primitive_id& id,
             const primitive_id& input,
             const tensor& output_shape,
-            const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding)
+        : primitive_base(id, {input}, output_padding)
         , output_shape(output_shape)
         , output_pattern({})
         , output_partial_shape({}) {}
@@ -45,9 +44,8 @@ struct reshape : public primitive_base<reshape> {
             const primitive_id& pattern_id,
             bool special_zero,
             const ov::PartialShape& output_partial_shape,
-            const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
-        : primitive_base(id, {input, pattern_id}, ext_prim_id, output_padding)
+        : primitive_base(id, {input, pattern_id}, output_padding)
         , output_shape(tensor())
         , special_zero(special_zero)
         , output_pattern({})
@@ -59,9 +57,8 @@ struct reshape : public primitive_base<reshape> {
             bool special_zero,
             const std::vector<int64_t>& output_pattern,
             const ov::PartialShape& output_partial_shape,
-            const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding)
+        : primitive_base(id, {input}, output_padding)
         , output_shape(tensor())
         , special_zero(special_zero)
         , output_pattern(output_pattern)

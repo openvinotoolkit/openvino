@@ -145,6 +145,7 @@ jobs:
         -DENABLE_TESTS=ON ^
         -DENABLE_STRICT_DEPENDENCIES=OFF ^
         -DENABLE_PYTHON=ON ^
+        -DBUILD_cuda_plugin=OFF ^
         -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.7.6\x64\python.exe" ^
         -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.7.6\x64\include" ^
         -DPYTHON_LIBRARY="C:\hostedtoolcache\windows\Python\3.7.6\x64\libs\python37.lib" ^
@@ -226,7 +227,7 @@ jobs:
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
-    continueOnError: false
+    continueOnError: true
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\onnx_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ONNX.xml
     displayName: 'ONNX Frontend UT'
@@ -283,7 +284,7 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\cpuFuncTests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
     continueOnError: false
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF')
+    condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF'))
 
   - script: |
       set DATA_PATH=$(MODELS_PATH)
