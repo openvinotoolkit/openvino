@@ -69,14 +69,14 @@ public:
 
 namespace detail {
 attach_experimental_detectron_generate_proposals_single_image_impl::attach_experimental_detectron_generate_proposals_single_image_impl() {
-    const auto types = {data_types::f16, data_types::f32};
-    const auto formats = {
-            format::bfyx,
-            format::b_fs_yx_fsv16,
-            format::b_fs_yx_fsv32,
-            format::bs_fs_yx_bsv16_fsv16,
-            format::bs_fs_yx_bsv32_fsv16,
-            format::bs_fs_yx_bsv32_fsv32
+    auto types = {data_types::f16, data_types::f32};
+    auto formats = {
+        format::bfyx,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32
     };
 
     implementation_map<experimental_detectron_generate_proposals_single_image>::add(impl_types::ocl,
