@@ -5,17 +5,20 @@
 #include "transformations/common_optimizations/sequence_fusion.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset9.hpp>
 
 #include "itt.hpp"
 #include "ngraph_ops/augru_cell.hpp"
 #include "ngraph_ops/augru_sequence.hpp"
 #include "node_register.hpp"
 
+#include "openvino/core/rt_info.hpp"
+#include "openvino/opsets/opset9.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+
 using namespace std;
 using namespace ov;
-using namespace opset9;
-using namespace pass::pattern;
+using namespace ov::opset9;-
+using namespace ov::pass::pattern;
 using namespace ov::op::util;
 
 namespace {
