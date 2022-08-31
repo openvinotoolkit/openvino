@@ -749,51 +749,65 @@ bool ngraph::check_for_cycles(const ngraph::Function* func, ngraph::NodeVector& 
     return false;
 }
 
+bool has_result_consumers(const Output<Node>& port) {
+    const auto& consumers = port.get_target_inputs();
+    return std::any_of(consumers.cbegin(), consumers.cend(), [](const Input<Node>& consumer) {
+        return ov::is_type<op::v0::Result>(consumer.get_node());
+    });
+};
+
+bool ov::replace_outputs_update_names(OutputVector outputs, const OutputVector& replacements) {
+    if (outputs.size() != replacements.size()) {
+        return false;
+    }
+
+    for (int64_t idx = 0; idx < outputs.size(); ++idx) {
+        auto& output = outputs[idx];
+        const auto& replacement = replacements[idx];
+        bool preserve_legacy_output_name = false;
+        if (has_result_consumers(output)) {
+            preserve_legacy_output_name = true;
+            if (is_type<ngraph::op::Parameter>(replacement.get_node()) || has_result_consumers(replacement)) {
+                return false;
+            }
+        }
+        if (preserve_legacy_output_name) {
+            replacement.get_node()->set_friendly_name(output.get_node()->get_friendly_name());
+            // Update output tensor name
+            const auto& output_tensor_name = output.get_tensor().get_name();
+            if (!output_tensor_name.empty()) {
+                replacement.get_tensor().set_name(output_tensor_name);
+            } else {
+                replacement.get_tensor().set_name(output.get_node()->get_friendly_name());
+            }
+        }
+
+        // Save replacement tensor name before replacement as they will be overridden by the output tensor name
+        const auto tensor_name = replacement.get_tensor().get_name();
+
+        output.replace(replacement);
+
+        // Restore back original replacement tensor name
+        replacement.get_tensor().set_name(tensor_name);
+
+        copy_runtime_info({replacement.get_node_shared_ptr(), output.get_node_shared_ptr()},
+                          replacement.get_node_shared_ptr());
+    }
+    return true;
+}
+
 bool ov::replace_output_update_name(Output<Node> output, const Output<Node>& replacement) {
     // output port consumers can be reconnected to replacement port only when:
     // 1. output has no Result consumers (so we do not propagate node name)
     // 2. output has Result consumers and single output port and replacement doesn't have Results consumers
     //    and has exactly one output port
     // In all other cases output name will be lost or changed, so we don't perform the replacement
-
-    auto has_result_consumers = [](const Output<Node>& port) {
-        const auto& consumers = port.get_target_inputs();
-        return std::any_of(consumers.cbegin(), consumers.cend(), [](const Input<Node>& consumer) {
-            return ov::is_type<op::v0::Result>(consumer.get_node());
-        });
-    };
-
-    bool preserve_legacy_output_name = false;
     if (has_result_consumers(output)) {
-        preserve_legacy_output_name = true;
-        if (output.get_node()->get_output_size() != 1 || replacement.get_node()->get_output_size() != 1 ||
-            is_type<ngraph::op::Parameter>(replacement.get_node()) || has_result_consumers(replacement)) {
+        if (output.get_node()->get_output_size() != 1 || replacement.get_node()->get_output_size() != 1) {
             return false;
         }
     }
-
-    if (preserve_legacy_output_name) {
-        replacement.get_node()->set_friendly_name(output.get_node()->get_friendly_name());
-        // Update output tensor name
-        const auto& output_tensor_name = output.get_tensor().get_name();
-        if (!output_tensor_name.empty()) {
-            replacement.get_tensor().set_name(output_tensor_name);
-        } else {
-            replacement.get_tensor().set_name(output.get_node()->get_friendly_name());
-        }
-    }
-
-    // Save replacement tensor name before replacement as they will be overridden by the output tensor name
-    const auto tensor_name = replacement.get_tensor().get_name();
-
-    output.replace(replacement);
-
-    // Restore back original replacement tensor name
-    replacement.get_tensor().set_name(tensor_name);
-
-    copy_runtime_info({replacement.get_node_shared_ptr(), output.get_node_shared_ptr()},
-                      replacement.get_node_shared_ptr());
-    return true;
+    return replace_outputs_update_names({output}, {replacement});
 }
 
 bool ov::replace_node_update_name(const std::shared_ptr<Node>& target, const std::shared_ptr<Node>& replacement) {
