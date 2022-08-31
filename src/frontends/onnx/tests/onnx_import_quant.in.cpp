@@ -370,7 +370,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_2d) {
     auto test_case = test::TestCase(function, s_device);
 
     test_case.add_input_from_file<uint8_t>(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), TEST_FILES, "onnx/qlinearconv2d/x.bin"));
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/files/qlinearconv2d/x.bin"));
     test_case.add_input(std::vector<float>{0.00369204697199166f});  // x_scale
     test_case.add_input(std::vector<uint8_t>{132});                 // x_zero_point
     test_case.add_input(std::vector<uint8_t>{0});                   // w
@@ -379,8 +379,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_2d) {
     test_case.add_input(std::vector<float>{0.00162681262008846f});  // y_scale
     test_case.add_input(std::vector<uint8_t>{123});                 // y_zero_point
 
-    test_case.add_expected_output_from_file<uint8_t>({1, 1, 7, 7}, 
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), TEST_FILES, "onnx/qlinearconv2d/y.bin"));
+    test_case.add_expected_output_from_file<uint8_t>({1, 1, 7, 7},
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/files/qlinearconv2d/y.bin"));
     test_case.run();
 }
 

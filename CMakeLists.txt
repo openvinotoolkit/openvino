@@ -99,7 +99,9 @@ function(openvino_developer_export_targets)
 endfunction()
 
 # add target with processed tests model zoo
-include(cmake/test_model_zoo.cmake)
+if (ENABLE_TESTS)
+    include(cmake/test_model_zoo.cmake)
+endif()
 
 add_subdirectory(thirdparty)
 add_subdirectory(src)

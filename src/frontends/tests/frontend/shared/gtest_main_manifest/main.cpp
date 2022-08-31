@@ -14,8 +14,6 @@ static const std::string manifest{
 };
 
 int main(int argc, char** argv) {
-    if (!manifest.empty()) {
-        testing::GTEST_FLAG(filter) += FrontEndTestUtils::get_disabled_tests(manifest);
-    }
-    return FrontEndTestUtils::run_tests(argc, argv);
+    printf("Running main() from %s:%d\n", __FILE__, __LINE__);
+    return FrontEndTestUtils::run_tests(argc, argv, manifest);
 }

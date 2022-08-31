@@ -6,10 +6,6 @@ if (ENABLE_OV_PADDLE_FRONTEND)
     add_subdirectory(paddle)
 endif()
 
-if (ENABLE_OV_ONNX_FRONTEND)
-    add_subdirectory(onnx)
-endif()
-
 set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_frontend.cpp)
 set(MOCK1_FE_NAME openvino_mock1_frontend)
 add_library(${MOCK1_FE_NAME} SHARED EXCLUDE_FROM_ALL ${SRC})

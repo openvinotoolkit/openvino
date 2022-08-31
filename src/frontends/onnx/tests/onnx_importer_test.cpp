@@ -3,17 +3,18 @@
 //
 
 #include <gtest/gtest.h>
+
+#include <fstream>
 #include <set>
 #include <string>
-#include <fstream>
 
 #include "common_test_utils/file_utils.hpp"
-#include "openvino/util/file_util.hpp"
 #include "onnx_import/onnx.hpp"
+#include "openvino/util/file_util.hpp"
 
 TEST(ONNX_Importer_Tests, ImportBasicModel) {
-    auto model_file_path = CommonTestUtils::getModelFromTestModelZoo(
-        ov::util::path_join({ONNX_MODELS_DIR, "add_abc_initializers.onnx"}));
+    auto model_file_path =
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "add_abc_initializers.onnx"}));
     auto function = ngraph::onnx_import::import_onnx_model(model_file_path);
 
     int count_additions = 0;
@@ -37,8 +38,8 @@ TEST(ONNX_Importer_Tests, ImportBasicModel) {
 }
 
 TEST(ONNX_Importer_Tests, ImportModelWithFusedOp) {
-    auto model_file_path = CommonTestUtils::getModelFromTestModelZoo(
-        ov::util::path_join({ONNX_MODELS_DIR, "selu.onnx"}));
+    auto model_file_path =
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "selu.onnx"}));
     auto function = ngraph::onnx_import::import_onnx_model(model_file_path);
 
     int count_selu = 0;
@@ -62,8 +63,8 @@ TEST(ONNX_Importer_Tests, ImportModelWithFusedOp) {
 }
 
 TEST(ONNX_Importer_Tests, ImportModelWithMultiOutput) {
-    auto model_file_path = CommonTestUtils::getModelFromTestModelZoo(
-        ov::util::path_join({ONNX_MODELS_DIR, "topk.onnx"}));
+    auto model_file_path =
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "topk.onnx"}));
     auto function = ngraph::onnx_import::import_onnx_model(model_file_path);
 
     int count_topk = 0;
@@ -90,39 +91,39 @@ TEST(ONNX_Importer_Tests, ImportModelWithMultiOutput) {
 }
 
 TEST(ONNX_Importer_Tests, ImportModelWithNotSupportedOp) {
-    auto model_file_path = CommonTestUtils::getModelFromTestModelZoo(
-        ov::util::path_join({ONNX_MODELS_DIR, "not_supported.onnx"}));
+    auto model_file_path =
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "not_supported.onnx"}));
     try {
         auto function = ngraph::onnx_import::import_onnx_model(model_file_path);
         FAIL() << "Any expection was thrown despite the ONNX model is not supported";
-    }
-    catch(const ngraph::ngraph_error& error) {
-        EXPECT_PRED_FORMAT2(testing::IsSubstring, std::string("OpenVINO does not support the following ONNX operations: NotSupported"), error.what());
-    }
-    catch(...) {
+    } catch (const ngraph::ngraph_error& error) {
+        EXPECT_PRED_FORMAT2(testing::IsSubstring,
+                            std::string("OpenVINO does not support the following ONNX operations: NotSupported"),
+                            error.what());
+    } catch (...) {
         FAIL() << "Expected 'ngraph::ngraph_error' exception was not thrown despite the ONNX model is not supported";
     }
 }
 
 TEST(ONNX_Importer_Tests, ImportModelWhenFileDoesNotExist) {
-    auto model_file_path = CommonTestUtils::getModelFromTestModelZoo(
-        ov::util::path_join({ONNX_MODELS_DIR, "not_exist_file.onnx"}));
+    auto model_file_path =
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "not_exist_file.onnx"}));
     try {
         auto function = ngraph::onnx_import::import_onnx_model(model_file_path);
         FAIL() << "Any expection was thrown despite the ONNX model file does not exist";
-    }
-    catch(const ngraph::ngraph_error& error) {
-        EXPECT_PRED_FORMAT2(testing::IsSubstring, std::string("Error during import of ONNX model expected to be in file:"), error.what());
-    }
-    catch(...) {
+    } catch (const ngraph::ngraph_error& error) {
+        EXPECT_PRED_FORMAT2(testing::IsSubstring,
+                            std::string("Error during import of ONNX model expected to be in file:"),
+                            error.what());
+    } catch (...) {
         FAIL() << "Expected 'ngraph::ngraph_error' exception was not thrown despite the ONNX model file does not exist";
     }
 }
 
 // TODO: CVS-61224
 TEST(ONNX_Importer_Tests, DISABLED_ImportModelFromStream) {
-    auto model_file_path = CommonTestUtils::getModelFromTestModelZoo(
-        ov::util::path_join({ONNX_MODELS_DIR, "addmul_abc.onnx"}));
+    auto model_file_path =
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "addmul_abc.onnx"}));
     std::ifstream model_file_stream(model_file_path);
     ASSERT_TRUE(model_file_stream.is_open());
     int count_adds = 0;
