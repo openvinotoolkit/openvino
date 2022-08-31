@@ -41,7 +41,7 @@ static void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngr
     reorderedInputs.resize(inputPrimitives.size());
 
     for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
-        auto inputDataType = DataTypeFromPrecision(op->get_input_element_type(portIndex));
+        auto inputDataType = cldnn::element_type_to_data_type(op->get_input_element_type(portIndex));
         if (((portIndex == 1) || (portIndex == 2)) && (inputDataType == cldnn::data_types::i64)) {
             // GPU primitive supports only i32 data type for indices inputs,
             // so we need additional reorders if they are provided as i64
@@ -78,7 +78,7 @@ static void CreateEmbeddingBagPackedSumOp(Program& p, const std::shared_ptr<ngra
     reorderedInputs.resize(inputPrimitives.size());
 
     for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
-        auto inputDataType = DataTypeFromPrecision(op->get_input_element_type(portIndex));
+        auto inputDataType = cldnn::element_type_to_data_type(op->get_input_element_type(portIndex));
         if ((portIndex == 1) && (inputDataType == cldnn::data_types::i64)) {
             // GPU primitive supports only i32 data type for indices input,
             // so we need additional reorder if it's provided as i64
@@ -133,7 +133,7 @@ static void CreateEmbeddingSegmentsSumOp(Program& p, const std::shared_ptr<ngrap
     reorderedInputs.resize(inputPrimitives.size());
 
     for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
-        auto inputDataType = DataTypeFromPrecision(op->get_input_element_type(portIndex));
+        auto inputDataType = cldnn::element_type_to_data_type(op->get_input_element_type(portIndex));
         if (((portIndex == 1) || (portIndex == 2)) && (inputDataType == cldnn::data_types::i64)) {
             // GPU primitive supports only i32 data type for indices inputs,
             // so we need additional reorders if they are provided as i64
