@@ -214,6 +214,7 @@ private:
     std::vector<size_t> wsp;
 
     bool isMulFirst;
+    InferenceEngine::Precision fqPrc2;
 
     std::vector<float> mulScales;
     std::vector<float> fqScales0;

@@ -17,6 +17,9 @@ ov::intel_cpu::MHANode::MHANode(const ngraph::Output<ngraph::Node> &in0,
     : Op({in0, in1, in2, in3}), m_output_type(output_type) {
     this->mul_scales = mul_scales;
     this->is_mul_first = is_mul_first;
+    this->fq0_output_type = ngraph::element::undefined;
+    this->fq1_output_type = ngraph::element::undefined;
+    this->fq2_output_type = ngraph::element::undefined;
     validate_and_infer_types();
 }
 
@@ -30,6 +33,9 @@ ov::intel_cpu::MHANode::MHANode(const ngraph::Output<ngraph::Node> &in0,
                                 const std::vector<float> &fq_scales1,
                                 const std::vector<float> &fq_scales2,
                                 const std::vector<float> &fq_scales3,
+                                const ngraph::element::Type fq0_output_type,
+                                const ngraph::element::Type fq1_output_type,
+                                const ngraph::element::Type fq2_output_type,
                                 const ngraph::element::Type output_type)
     : Op({in0, in1, in2, in3}), m_output_type(output_type) {
     this->mul_scales = mul_scales;
@@ -38,6 +44,9 @@ ov::intel_cpu::MHANode::MHANode(const ngraph::Output<ngraph::Node> &in0,
     this->fq_scales1 = fq_scales1;
     this->fq_scales2 = fq_scales2;
     this->fq_scales3 = fq_scales3;
+    this->fq0_output_type = fq0_output_type;
+    this->fq1_output_type = fq1_output_type;
+    this->fq2_output_type = fq2_output_type;
     validate_and_infer_types();
 }
 
@@ -45,7 +54,8 @@ std::shared_ptr<ngraph::Node> ov::intel_cpu::MHANode::clone_with_new_inputs(cons
     INTERNAL_OP_SCOPE(MHANode_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<ov::intel_cpu::MHANode>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
-                                                    mul_scales, is_mul_first, fq_scales0, fq_scales1, fq_scales2, fq_scales3, m_output_type);
+                                                    mul_scales, is_mul_first, fq_scales0, fq_scales1, fq_scales2, fq_scales3,
+                                                    fq0_output_type, fq1_output_type, fq2_output_type, m_output_type);
 }
 
 void ov::intel_cpu::MHANode::validate_and_infer_types() {

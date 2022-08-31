@@ -344,8 +344,9 @@ ov::intel_cpu::MHAQuantFusion::MHAQuantFusion() {
             return false;
 
         std::vector<float> fq0_scale;
-        if (auto fq_node = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(pattern_to_output.at(fakeQuantize0).get_node_shared_ptr())) {
-            fq0_scale = simplifyToScale(fq_node);
+        auto fq0_node = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(pattern_to_output.at(fakeQuantize0).get_node_shared_ptr());
+        if (fq0_node) {
+            fq0_scale = simplifyToScale(fq0_node);
             if (!fq0_scale.size())
                 return false;
         }
@@ -382,10 +383,13 @@ ov::intel_cpu::MHAQuantFusion::MHAQuantFusion() {
             return false;
 
         std::vector<float> fq1_scale;
-        if (auto fq_node = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(pattern_to_output.at(fakeQuantize1).get_node_shared_ptr())) {
-            fq1_scale = simplifyToScale(fq_node);
+        auto fq1_node = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(pattern_to_output.at(fakeQuantize1).get_node_shared_ptr());
+        if (fq1_node) {
+            fq1_scale = simplifyToScale(fq1_node);
             if (!fq1_scale.size())
                 return false;
+        } else {
+            return false;
         }
 
         auto matmul1_node = std::dynamic_pointer_cast<ngraph::opset3::MatMul>(pattern_to_output.at(matmul1).get_node_shared_ptr());
@@ -405,7 +409,9 @@ ov::intel_cpu::MHAQuantFusion::MHAQuantFusion() {
         auto transpose3_node = pattern_to_output.at(transpose3).get_node_shared_ptr();
         auto mha = std::make_shared<ov::intel_cpu::MHANode>(transpose0_in, transpose1_in, add_in1, transpose2_in, mul_scales, is_mul_first,
                                                             std::vector<float>(), fq0_scale, fq1_scale, fq2_scale,
-                                                            transpose3_node->output(0).get_element_type());
+                                                            ngraph::element::undefined,
+                                                            fq0_node ? fq0_node->get_output_element_type(0) : ngraph::element::undefined,
+                                                            fq1_node->get_output_element_type(0), transpose3_node->output(0).get_element_type());
         mha->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info({pattern_to_output.at(transpose0).get_node_shared_ptr(),
                                    pattern_to_output.at(transpose1).get_node_shared_ptr(),
@@ -493,10 +499,13 @@ ov::intel_cpu::MHAQuantFusion2::MHAQuantFusion2() {
             return false;
 
         std::vector<float> fq0_scale;
-        if (auto fq_node = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(pattern_to_output.at(fakeQuantize0).get_node_shared_ptr())) {
-            fq0_scale = simplifyToScale(fq_node);
+        auto fq0_node = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(pattern_to_output.at(fakeQuantize0).get_node_shared_ptr());
+        if (fq0_node) {
+            fq0_scale = simplifyToScale(fq0_node);
             if (!fq0_scale.size())
                 return false;
+        } else {
+            return false;
         }
 
         auto softmax_node = std::dynamic_pointer_cast<ngraph::opset1::Softmax>(pattern_to_output.at(softmax).get_node_shared_ptr());
@@ -518,17 +527,11 @@ ov::intel_cpu::MHAQuantFusion2::MHAQuantFusion2() {
         if (matmul1_node->get_transpose_a() || matmul1_node->get_transpose_b())
             return false;
 
-        std::vector<float> fq2_scale;
-        if (auto fq_node = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(pattern_to_output.at(fakeQuantize1).get_node_shared_ptr())) {
-            fq2_scale = simplifyToScale(fq_node);
-            if (!fq2_scale.size())
-                return false;
-        }
-
         bool is_mul_first = true;
         auto transpose3_node = pattern_to_output.at(transpose3).get_node_shared_ptr();
         auto mha = std::make_shared<ov::intel_cpu::MHANode>(transpose0_in, transpose1_in, add_in1, transpose2_in, mul_scales, is_mul_first,
                                                             fq0_scale, std::vector<float>(), std::vector<float>(), fq1_scale,
+                                                            fq0_node->get_output_element_type(0), ngraph::element::undefined, ngraph::element::undefined,
                                                             transpose3_node->output(0).get_element_type());
         mha->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info({pattern_to_output.at(transpose0).get_node_shared_ptr(),

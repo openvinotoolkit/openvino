@@ -16,8 +16,10 @@
 #include "common/cpu_convert.h"
 #include "ngraph_transformations/op/mha.hpp"
 #include "dnnl_extension_utils.h"
+#include <ie_ngraph_utils.hpp>
 
 using namespace InferenceEngine;
+using namespace InferenceEngine::details;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::cpu::x64::matmul;
 using namespace Xbyak;
@@ -333,7 +335,7 @@ private:
     Reg64 reg_params = abi_param1;
 
     const std::vector<size_t> pool_aux_gpr_idxs = { static_cast<size_t>(rsi.getIdx()), static_cast<size_t>(rbp.getIdx()) };
-    const std::vector<size_t> pool_aux_vmm_idxs = { static_cast<size_t>(xmm_tmp.getIdx()), 13, 14, 15};
+    const std::vector<size_t> pool_aux_vmm_idxs = { 12, 13, 14, 15};
 
     std::shared_ptr<jit_dnnl_aux_emitter> exp_emitter;
 
@@ -664,6 +666,19 @@ bool MHA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                     mha->get_input_element_type(0) != mha->get_input_element_type(3)) {
                 supportedPrecisions = false;
             }
+        } else {
+            if (mha->get_fq0_output_type() != mha->get_input_element_type(0))
+               supportedPrecisions = false;
+        }
+
+        if (!mha->get_fq_scales1().empty() && mha->get_fq1_output_type() != element::i8) {
+            supportedPrecisions = false;
+        }
+
+        if (mha->get_input_element_type(3) == element::i8) {
+            if (!one_of(mha->get_fq2_output_type(), element::u8, element::i8)) {
+                supportedPrecisions = false;
+            }
         }
 
         if (!supportedPrecisions) {
@@ -716,6 +731,7 @@ MHA::MHA(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng,
     fqScales1 = mha->get_fq_scales1();
     fqScales2 = mha->get_fq_scales2();
     fqScales3 = mha->get_fq_scales3();
+    fqPrc2 = details::convertPrecision(mha->get_fq2_output_type());
 }
 
 void MHA::initSupportedPrimitiveDescriptors() {
@@ -754,10 +770,6 @@ void MHA::initSupportedPrimitiveDescriptors() {
 void MHA::init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) {
     brgemm_t brgDesc;
     brgemm_strides_t strides {static_cast<dnnl_dim_t>(ctx.M * ctx.K), static_cast<dnnl_dim_t>(ctx.K * ctx.N)};
-
-    if (ctx.dt_in0 != ctx.dt_in1) {
-        THROW_ERROR << "cannot be executed due to invalid brgconv params";
-    }
 
     auto isa = use_amx ? isa_any
                        : ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16 : avx512_core_vnni;
@@ -950,18 +962,19 @@ void MHA::prepareParams() {
     N1 = dimsMatMul1Out[3];
     K1 = dimsMatMul0Out[3];
 
-    auto brg1Prc = inputPrecisions[3];
-    brg1VnniFactor = 4 / brg1Prc.size();
-    bool brg1WithAMX = isAMXSupported && brg1Prc != Precision::FP32 && (K1 % brg1VnniFactor == 0) && (N1 % brg1VnniFactor == 0);
+    auto brg1PrcIn0 = !fqScales2.empty() ? fqPrc2 : inputPrecisions[3];
+    auto brg1PrcIn1 = inputPrecisions[3];
+    brg1VnniFactor = 4 / brg1PrcIn0.size();
+    bool brg1WithAMX = isAMXSupported && brg1PrcIn0 != Precision::FP32 && (K1 % brg1VnniFactor == 0) && (N1 % brg1VnniFactor == 0);
 
-    N1_blk = brg1Prc == Precision::FP32 ? N1 :
-             brg1Prc == Precision::BF16 ? 32 : 64;
+    N1_blk = brg1PrcIn1 == Precision::FP32 ? N1 :
+             brg1PrcIn1 == Precision::BF16 ? 32 : 64;
     N1_tail = N1 % N1_blk;
-    K1_blk = brg1WithAMX ? brg1Prc == Precision::BF16 ? 32 : 64
+    K1_blk = brg1WithAMX ? brg1PrcIn0 == Precision::BF16 ? 32 : 64
                          : K1;
     K1_tail = K1 % K1_blk;
 
-    accPrecision1 = brg1Prc == Precision::I8 ? Precision::I32 : Precision::FP32;
+    accPrecision1 = one_of(brg1PrcIn0, Precision::U8, Precision::I8) ? Precision::I32 : Precision::FP32;
 
     size_t brg1BaseIdx = -1;
     for (size_t m = 0; m < 2; m++) {
@@ -979,10 +992,10 @@ void MHA::prepareParams() {
                 brgemmCtx.N = N_;
                 brgemmCtx.K = K_;
                 brgemmCtx.LDA = K1;
-                brgemmCtx.LDB = brg1Prc == Precision::FP32 ? batch1 * N1 : rnd_up(N1, N1_blk);
+                brgemmCtx.LDB = brg1PrcIn1 == Precision::FP32 ? batch1 * N1 : rnd_up(N1, N1_blk);
                 brgemmCtx.LDC = accPrecision1 == getOriginalOutputPrecisionAtPort(0) ? batch1 * N1 : N1;
-                brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
-                brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
+                brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1PrcIn0));
+                brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1PrcIn1));
                 brgemmCtx.beta = beta;
 
                 // don't create brgemm kernels for empty tiles
@@ -997,7 +1010,7 @@ void MHA::prepareParams() {
     }
 
     auto& brgemmCtx1 = brgCtxs1[brg1BaseIdx];
-    if (brgemmCtx1.is_with_amx || brg1Prc == Precision::I8 || brg1Prc == Precision::BF16) {
+    if (brgemmCtx1.is_with_amx || brg1PrcIn1 == Precision::I8 || brg1PrcIn1 == Precision::BF16) {
         init_brgemm_copy_b(brgCopyBKernel1, batch1 * N1, N1_blk, N1_tail, brgemmCtx1.LDB, brgemmCtx1.K,
             brgemmCtx1.is_with_amx, brgemmCtx1.dt_in0, brgemmCtx1.dt_in1);
     }
@@ -1005,7 +1018,7 @@ void MHA::prepareParams() {
     bufferMatMul0In0Size = M_blk * rnd_up(K0, K0_blk) * brg0Prc.size();
     bufferMatMul0In1Size = rnd_up(K0, brg0VnniFactor) * rnd_up(N0, N0_blk) * brg0Prc.size();
     bufferMatMul0OutSize = brgemmCtx0.M * N0 * accPrecision0.size();
-    bufferMatMul1In1Size = rnd_up(K1, brg1VnniFactor) * rnd_up(N1, N1_blk) * std::max(brg0Prc.size(), brg1Prc.size());
+    bufferMatMul1In1Size = rnd_up(K1, brg1VnniFactor) * rnd_up(N1, N1_blk) * std::max(brg0Prc.size(), brg1PrcIn1.size());
     bufferMatMul1OutSize = brgemmCtx1.M * N1 * accPrecision1.size();
     bufferCompensation0Size = rnd_up(N0, N0_blk);
     bufferCompensation1Size = rnd_up(N1, N1_blk);
@@ -1031,7 +1044,7 @@ void MHA::prepareParams() {
     {
         jit_mul_add_softmax_compile_params jcp;
         jcp.src_prc = accPrecision0;
-        jcp.dst_prc = brg1Prc;
+        jcp.dst_prc = brg1PrcIn0;
         jcp.work_amount = N0;
         jcp.with_mul_scales = !mulScales.empty();
         jcp.is_mul_first = isMulFirst;

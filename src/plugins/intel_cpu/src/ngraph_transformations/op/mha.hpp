@@ -33,6 +33,9 @@ public:
             const std::vector<float> &fq_scales1,
             const std::vector<float> &fq_scales2,
             const std::vector<float> &fq_scales3,
+            const ngraph::element::Type fq0_output_type,
+            const ngraph::element::Type fq1_output_type,
+            const ngraph::element::Type fq2_output_type,
             const ngraph::element::Type output_type);
 
     void validate_and_infer_types() override;
@@ -64,6 +67,16 @@ public:
         return is_mul_first;
     }
 
+    ngraph::element::Type get_fq0_output_type() const {
+        return fq0_output_type;
+    }
+    ngraph::element::Type get_fq1_output_type() const {
+        return fq1_output_type;
+    }
+    ngraph::element::Type get_fq2_output_type() const {
+        return fq2_output_type;
+    }
+
 private:
     ngraph::element::Type m_output_type;
     std::vector<float> mul_scales;
@@ -72,6 +85,9 @@ private:
     std::vector<float> fq_scales1;
     std::vector<float> fq_scales2;
     std::vector<float> fq_scales3;
+    ngraph::element::Type fq0_output_type;
+    ngraph::element::Type fq1_output_type;
+    ngraph::element::Type fq2_output_type;
 };
 
 }   // namespace intel_cpu
