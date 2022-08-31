@@ -25,6 +25,7 @@
 #include <transformations/common_optimizations/fq_mul_fusion.hpp>
 #include <transformations/common_optimizations/fq_reshape_fusion.hpp>
 #include <transformations/common_optimizations/gelu_fusion.hpp>
+#include <transformations/common_optimizations/gru_cell_fusion.hpp>
 #include <transformations/common_optimizations/hsigmoid_fusion.hpp>
 #include <transformations/common_optimizations/hswish_fusion.hpp>
 #include <transformations/common_optimizations/leaky_relu_fusion.hpp>
@@ -170,6 +171,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     if (m_use_shapes) {
         common_fusions->add_matcher<ngraph::pass::NearestNeighborUpsamplingFusion>();
     }
+    common_fusions->add_matcher<ov::pass::GRUCellFusion>();
     common_fusions->add_matcher<ngraph::pass::DivideFusion>();
     common_fusions->add_matcher<ngraph::pass::SubtractFusion>();
     common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
