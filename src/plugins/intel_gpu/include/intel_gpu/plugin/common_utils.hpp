@@ -57,35 +57,6 @@ inline cldnn::data_types DataTypeFromPrecision(InferenceEngine::Precision p) {
     }
 }
 
-inline cldnn::data_types DataTypeFromPrecision(ngraph::element::Type t) {
-    switch (t) {
-    case ngraph::element::Type_t::i16:
-    case ngraph::element::Type_t::u16:
-    case ngraph::element::Type_t::f32:
-    case ngraph::element::Type_t::f64:
-        return cldnn::data_types::f32;
-    case ngraph::element::Type_t::f16:
-        return cldnn::data_types::f16;
-    case ngraph::element::Type_t::u8:
-        return cldnn::data_types::u8;
-    case ngraph::element::Type_t::i8:
-        return cldnn::data_types::i8;
-    case ngraph::element::Type_t::i32:
-    case ngraph::element::Type_t::u32:
-    case ngraph::element::Type_t::u64:
-        return cldnn::data_types::i32;
-    case ngraph::element::Type_t::i64:
-        return cldnn::data_types::i64;
-    case ngraph::element::Type_t::boolean:
-        return cldnn::data_types::i8;
-    case ngraph::element::Type_t::u1:
-        return cldnn::data_types::bin;
-    default:
-        IE_THROW(ParameterMismatch)
-            << "The plugin does not support " << t.get_type_name()<< " precision";
-    }
-}
-
 inline InferenceEngine::Precision PrecisionFromDataType(cldnn::data_types dt) {
     switch (dt) {
     case cldnn::data_types::bin:
