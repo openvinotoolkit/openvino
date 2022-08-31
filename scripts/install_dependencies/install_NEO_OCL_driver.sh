@@ -436,7 +436,7 @@ check_current_driver()
     gfx_version="$(echo -e "${gfx_version}" | grep -Eo "[0-9]{2,3}\.[0-9]{2,3}\.[0-9]{3,6}")"
     
     # install NEO OCL driver if the current driver version < INSTALL_DRIVER_VERSION
-    if [[ ! -z $gfx_version && "$(printf '%s\n' "$INSTALL_DRIVER_VERSION" "$gfx_version" | sort -V | head -n 1)" = "$INSTALL_DRIVER_VERSION" ]]; then
+    if [[ -n $gfx_version && "$(printf '%s\n' "$INSTALL_DRIVER_VERSION" "$gfx_version" | sort -V | head -n 1)" = "$INSTALL_DRIVER_VERSION" ]]; then
         echo "Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver installation skipped because current version greater or equal to $INSTALL_DRIVER_VERSION" >&2
         echo "Installation of Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver interrupted." >&2
         exit $EXIT_FAILURE
