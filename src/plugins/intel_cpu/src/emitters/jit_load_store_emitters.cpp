@@ -547,8 +547,10 @@ void jit_load_emitter::register_table_entries() {
 
 /// STORE ///
 jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                                     Precision src_prc, Precision dst_prc, int store_num, Precision exec_prc, emitter_in_out_map in_out_type)
-: jit_emitter(host, host_isa, exec_prc, in_out_type), store_num_(store_num), src_prc_(src_prc), dst_prc_(dst_prc), name_("unknown") {
+                                     Precision src_prc, Precision dst_prc, int store_num, arithmetic_mode mode, Precision exec_prc,
+                                     emitter_in_out_map in_out_type)
+    : jit_emitter(host, host_isa, exec_prc, in_out_type), store_num_(store_num), src_prc_(src_prc), dst_prc_(dst_prc), mode_(mode), name_("unknown") {
+    prepare_table();
     v_len_elt_ = get_vec_length() / exec_prc.size();
     store_size_ = store_num * dst_prc.size();
     if (!mayiuse(cpu::x64::avx512_core_bf16) && mayiuse(cpu::x64::avx512_core)) {
@@ -556,9 +558,25 @@ jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator *host, 
     }
 }
 
-// 0 for temp reg for mask store for avx512
+inline bool jit_store_emitter::is_saturation() const {
+    return mode_ == arithmetic_mode::saturation;
+}
+
+// case for SSE and AVX2 when we should use AND to truncate values
+inline bool jit_store_emitter::is_truncation_emulation() const {
+    return !mayiuse(cpu::x64::avx512_core) && !is_saturation() &&
+        src_prc_ != dst_prc_ && one_of(dst_prc_, Precision::U16, Precision::I16, Precision::U8, Precision::I8);
+}
+
 size_t jit_store_emitter::aux_gprs_count() const {
-    return get_aux_regs_for_avx512_mask(store_num_ * src_prc_.size());
+    // for temp reg for mask store
+    int count = get_aux_regs_for_avx512_mask(store_num_ * src_prc_.size());
+
+    // for table value in truncation arithmetic mode
+    if (is_truncation_emulation())
+        count++;
+
+    return count;
 }
 
 size_t jit_store_emitter::aux_vecs_count() const {
@@ -580,6 +598,7 @@ size_t jit_store_emitter::aux_vecs_count() const {
 size_t jit_store_emitter::get_inputs_num() const { return 1; }
 
 void jit_store_emitter::emit_data() const {
+    jit_emitter::emit_data();
     if (emu_vcvtneps2bf16_)
         emu_vcvtneps2bf16_->emit_data();
 }
@@ -618,7 +637,11 @@ void jit_store_emitter::emit_isa(const int in_vec_idx, const Xbyak::Reg64 &reg_d
         switch (src_prc_) {
             case Precision::FP32:
                 if ((dst_prc_ != Precision::FP32) && (dst_prc_ != Precision::BF16)) {
-                    h->uni_vcvtps2dq(Vmm(aux_vec_idxs.back()), Vmm(data_idx));
+                    if (is_saturation()) {
+                        h->uni_vcvtps2dq(Vmm(aux_vec_idxs.back()), Vmm(data_idx));
+                    } else {
+                        h->uni_vcvttps2dq(Vmm(aux_vec_idxs.back()), Vmm(data_idx));
+                    }
                     data_idx = aux_vec_idxs.back();
                 }
                 break;
@@ -804,7 +827,7 @@ void jit_store_emitter::store_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int
 
 /**
 * store_dword_to_byte_extension is the utility function to
-* 1. convert store_num (0 <= store_num <= 16) dwords in the Xmm/Ymm/Zmm to store_num bytes with singed or unsinged saturation.
+* 1. convert store_num (0 <= store_num <= 16) dwords in the Xmm/Ymm/Zmm to store_num bytes with and without singed or unsinged saturation.
 * 2. store the packed byte into the memory referenced by ptr[reg + offset] address.
 */
 template <typename Vmm>
@@ -835,28 +858,37 @@ void jit_store_emitter::store_dword_to_byte_extension(const Vmm &vmm, const Xbya
     };
 
     auto store_dword_to_byte_base = [&]() {
-        // db only available on avx512, need dw+wb to emulate
-        if (is_signed)
-            h->uni_vpackssdw(vmm, vmm, vmm);
-        else
-            h->uni_vpackusdw(vmm, vmm, vmm);
-        // gather 2(cross lane) 64 bits into lower vmm to store
-        // [y_3 y_2 y_1 y_0] |--> [y_0 y_0 y_2 y_0]
-        if (is_ymm) {
-            h->vpermq(ymm, ymm, 0x08);  // 00001000
-        }
+        if (is_saturation()) {
+            // db only available on avx512, need dw+wb to emulate
+            if (is_signed)
+                h->uni_vpackssdw(vmm, vmm, vmm);
+            else
+                h->uni_vpackusdw(vmm, vmm, vmm);
+            // gather 2(cross lane) 64 bits into lower vmm to store
+            // [y_3 y_2 y_1 y_0] |--> [y_0 y_0 y_2 y_0]
+            if (is_ymm) {
+                h->vpermq(ymm, ymm, 0x08);  // 00001000
+            }
 
-        if (is_signed)
-            h->uni_vpacksswb(vmm, vmm, vmm);
-        else
+            if (is_signed)
+                h->uni_vpacksswb(vmm, vmm, vmm);
+            else
+                h->uni_vpackuswb(vmm, vmm, vmm);
+        } else {
+            h->vpand(vmm, vmm, table_val("mask_truncation_byte"));  // to avoid saturation
+            h->uni_vpackssdw(vmm, vmm, vmm);
+            if (is_ymm)
+                h->vpermq(ymm, ymm, 0x08);
             h->uni_vpackuswb(vmm, vmm, vmm);
+        }
 
         store_bytes(vmm, reg, offset, store_num);
     };
 
     switch (store_num) {
-        case 16:
-            // must support avx512F
+    case 16:
+        // must support avx512F
+        if (is_saturation()) {
             if (is_signed) {
                 h->vpmovsdb(addr(0), vmm);
             } else {
@@ -865,9 +897,13 @@ void jit_store_emitter::store_dword_to_byte_extension(const Vmm &vmm, const Xbya
                 h->uni_vpmaxsd(vmm, vmm, zero);
                 h->vpmovusdb(addr(0), vmm);
             }
-            break;
-        case 8:
-            if (mayiuse(cpu::x64::avx512_core)) {  // ymm block on avx512F + VL
+        } else {
+            h->vpmovdb(addr(0), vmm);
+        }
+        break;
+    case 8:
+        if (mayiuse(cpu::x64::avx512_core)) {
+            if (is_saturation()) {  // ymm block on avx512F + VL
                 if (is_signed) {
                     h->vpmovsdb(addr(0), ymm);
                 } else {
@@ -877,11 +913,15 @@ void jit_store_emitter::store_dword_to_byte_extension(const Vmm &vmm, const Xbya
                     h->vpmovusdb(addr(0), ymm);
                 }
             } else {
-                store_dword_to_byte_base();
+                h->vpmovdb(addr(0), ymm);
             }
-            break;
-        case 4:
-            if (mayiuse(cpu::x64::avx512_core)) {  // xmm block on avx512F + VL
+        } else {
+            store_dword_to_byte_base();
+        }
+        break;
+    case 4:
+        if (mayiuse(cpu::x64::avx512_core)) {
+            if (is_saturation()) {// xmm block on avx512F + VL
                 if (is_signed) {
                     h->vpmovsdb(addr(0), xmm);
                 } else {
@@ -891,15 +931,19 @@ void jit_store_emitter::store_dword_to_byte_extension(const Vmm &vmm, const Xbya
                     h->vpmovusdb(addr(0), xmm);
                 }
             } else {
-                store_dword_to_byte_base();
+                h->vpmovdb(addr(0), xmm);
             }
-            break;
-        default:
-            if (is_zmm) {  // avx512F
-                unsigned int mask = 1;
-                mask = (mask << store_num) - mask;
-                h->mov(Reg32(aux_gpr_idxs[0]), mask);
-                h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
+        } else {
+            store_dword_to_byte_base();
+        }
+        break;
+    default:
+        if (is_zmm) {  // avx512F
+            unsigned int mask = 1;
+            mask = (mask << store_num) - mask;
+            h->mov(Reg32(aux_gpr_idxs[0]), mask);
+            h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
+            if (is_saturation()) {
                 if (is_signed) {
                     h->vpmovsdb(addr(0), vmm | k_mask);
                 } else {
@@ -909,9 +953,12 @@ void jit_store_emitter::store_dword_to_byte_extension(const Vmm &vmm, const Xbya
                     h->vpmovusdb(addr(0), vmm | k_mask);
                 }
             } else {
-                store_dword_to_byte_base();
+                h->vpmovdb(addr(0), vmm | k_mask);
             }
-            break;
+        } else {
+            store_dword_to_byte_base();
+        }
+        break;
     }
 }
 
@@ -946,16 +993,21 @@ void jit_store_emitter::store_dword_to_word_extension(const Vmm &vmm, const Xbya
     auto zmm = Xbyak::Zmm(vmm.getIdx());
 
     auto store_dword_to_word_base = [&]() {
-        // direct mov_dw available only on avx512, emulate with pack_dw + permute + pure store
-        if (is_signed)
-            h->uni_vpackssdw(vmm, vmm, vmm);
-        else
+        // direct mov_dw available only on avx512
+        if (is_saturation()) {  // emulate with pack_dw + permute + pure store for saturation mode
+            if (is_signed)
+                h->uni_vpackssdw(vmm, vmm, vmm);
+            else
+                h->uni_vpackusdw(vmm, vmm, vmm);
+            // gather 2/4(cross lane) 64 bits into lower vmm to store
+            // [y_3 y_2 y_1 y_0] |--> [y_0 y_0 y_2 y_0]
+            // [  128  |  128  ] |--> [ 128   |  128  ]
+            if (is_ymm) {
+                h->vpermq(ymm, ymm, 0x08);  // 00001000
+            }
+        } else {  // emulate with AND + pure store for truncation mode
+            h->vpand(vmm, vmm, table_val("mask_truncation_word"));
             h->uni_vpackusdw(vmm, vmm, vmm);
-        // gather 2/4(cross lane) 64 bits into lower vmm to store
-        // [y_3 y_2 y_1 y_0] |--> [y_0 y_0 y_2 y_0]
-        // [  128  |  128  ] |--> [ 128   |  128  ]
-        if (is_ymm) {
-            h->vpermq(ymm, ymm, 0x08);  // 00001000
         }
 
         store_bytes(vmm, reg, offset, store_num * 2);
@@ -978,7 +1030,8 @@ void jit_store_emitter::store_dword_to_word_extension(const Vmm &vmm, const Xbya
         }
     } else {
         switch (store_num) {
-            case 16:
+        case 16:
+            if (is_saturation()) {
                 if (is_signed) {
                     h->vpmovsdw(ptr[reg + offset], vmm);  // singed int32 saturate to signed int16.
                 } else {
@@ -987,9 +1040,13 @@ void jit_store_emitter::store_dword_to_word_extension(const Vmm &vmm, const Xbya
                     h->uni_vpmaxsd(vmm, zero, vmm);        // if singed bit is 1, set value as 0.
                     h->vpmovusdw(ptr[reg + offset], vmm); // unsinged int32 saturate to unsigned int16.
                 }
-                break;
-            case 8:
-                if (mayiuse(cpu::x64::avx512_core)) {
+            } else {
+                h->vpmovdw(ptr[reg + offset], vmm);
+            }
+            break;
+        case 8:
+            if (mayiuse(cpu::x64::avx512_core)) {
+                if (is_saturation()) {
                     if (is_signed) {
                         h->vpmovsdw(ptr[reg + offset], ymm);
                     } else {
@@ -999,11 +1056,15 @@ void jit_store_emitter::store_dword_to_word_extension(const Vmm &vmm, const Xbya
                         h->vpmovusdw(ptr[reg + offset], ymm);
                     }
                 } else {
-                    store_dword_to_word_base();
+                    h->vpmovdw(ptr[reg + offset], ymm);
                 }
-                break;
-            case 4:
-                if (mayiuse(cpu::x64::avx512_core)) {
+            } else {
+                store_dword_to_word_base();
+            }
+            break;
+        case 4:
+            if (mayiuse(cpu::x64::avx512_core)) {
+                if (is_saturation()) {
                     if (is_signed) {
                         h->vpmovsdw(ptr[reg + offset], xmm);
                     } else {
@@ -1013,15 +1074,19 @@ void jit_store_emitter::store_dword_to_word_extension(const Vmm &vmm, const Xbya
                         h->vpmovusdw(ptr[reg + offset], xmm);
                     }
                 } else {
-                   store_dword_to_word_base();
+                    h->vpmovdw(ptr[reg + offset], xmm);
                 }
-                break;
-            default:
-                if (is_zmm) {
-                    unsigned int mask = 1;
-                    mask = (mask << store_num) - mask;
-                    h->mov(Reg32(aux_gpr_idxs[0]), mask);
-                    h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
+            } else {
+               store_dword_to_word_base();
+            }
+            break;
+        default:
+            if (is_zmm) {
+                unsigned int mask = 1;
+                mask = (mask << store_num) - mask;
+                h->mov(Reg32(aux_gpr_idxs[0]), mask);
+                h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
+                if (is_saturation()) {
                     if (is_signed) {
                         h->vpmovsdw(ptr[reg + offset], vmm | k_mask);
                     } else {
@@ -1031,10 +1096,20 @@ void jit_store_emitter::store_dword_to_word_extension(const Vmm &vmm, const Xbya
                         h->vpmovusdw(ptr[reg + offset], vmm | k_mask);
                     }
                 } else {
-                    store_dword_to_word_base();
+                    h->vpmovdw(ptr[reg + offset], vmm | k_mask);
                 }
-                break;
+            } else {
+                store_dword_to_word_base();
+            }
+            break;
         }
+    }
+}
+
+void jit_store_emitter::register_table_entries() {
+    if (is_truncation_emulation()) {
+        push_arg_entry_of("mask_truncation_byte", 0x000000ff, true);
+        push_arg_entry_of("mask_truncation_word", 0x0000ffff, true);
     }
 }
 
