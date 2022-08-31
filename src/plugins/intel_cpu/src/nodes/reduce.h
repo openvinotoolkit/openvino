@@ -114,6 +114,7 @@ private:
     inline void reduce_kernel_post_process(uint8_t *out_ptr);
     inline void init_dst_data(uint8_t *out_ptr, size_t dst_size);
     inline void create_working_memory();
+    inline void create_DH_working_memory();
     inline void calc_process_dst_dims(std::vector<int> &reduce_axes, const InferenceEngine::SizeVector &dst_dim);
     inline void set_reduce_dim_flags();
     inline void reduce_ref(const float *in_ptr, float *out_ptr);
@@ -128,6 +129,7 @@ private:
 
     size_t blk_size;
     size_t dst_size;
+    size_t prc_size;
     static const size_t REDUCE_DATA = 0;
     static const size_t REDUCE_INDEXES = 1;
     bool jit_beyond_5D = false;
@@ -135,10 +137,13 @@ private:
     bool keep_dims = true;
     bool is_hybrid_layout = false;
     bool compile_post_kernel = true;
+    bool support_split = false;
+    bool ReduceDH_opt = false;
     bool ReduceN, ReduceC, ReduceD, ReduceH, ReduceW;
     size_t IB, IC, ID, IH, IW;
     size_t OB, OC, OD, OH, OW;
-    size_t src_data_size, dst_data_size;
+    size_t PD, PW;
+    size_t src_data_size, dst_data_size, prc_data_size;
     size_t reduce_stride;
     ReduceLayoutType layout;
     InferenceEngine::Precision input_prec, output_prec;
@@ -154,6 +159,7 @@ private:
     std::vector<const void*> postOpsDataPtrs;
 
     std::shared_ptr<dnnl::memory> prc_mem;
+    std::vector<uint8_t> vec_reduceDH_prc;
 
     std::shared_ptr<jit_uni_reduce_kernel> reduce_kernel;
     std::shared_ptr<jit_uni_reduce_post_kernel> reduce_post_kernel;

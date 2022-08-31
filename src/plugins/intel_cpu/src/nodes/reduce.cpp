@@ -1753,6 +1753,7 @@ Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
                 IE_THROW() << errorPrefix << " second tensor is not constant!";
             raw_axes = reduceConst->cast_vector<int>();
         }
+        vec_reduceDH_prc.clear();
         setJITBeyond5D();
     } else {
         IE_THROW(NotImplemented) << errorMessage;
@@ -1809,6 +1810,9 @@ void Reduce::initSupportedPrimitiveDescriptors() {
             }
         }
     }
+
+    support_split = algorithm != Algorithm::ReduceL2 && algorithm != Algorithm::ReduceLogSumExp &&
+                    algorithm != Algorithm::ReduceSumSquare && input_prec == output_prec;
 
     src_data_size = input_prec.size();
     dst_data_size = output_prec.size();
@@ -1967,6 +1971,12 @@ void Reduce::createPrimitive() {
 
     compile_post_kernel = true;
 
+    if (mayiuse(cpu::x64::avx512_core)) {
+        blk_size = 16;
+    } else {
+        blk_size = 8;
+    }
+
     if (inputShapesDefined()) {
         if (needPrepareParams())
             prepareParams();
@@ -1975,13 +1985,10 @@ void Reduce::createPrimitive() {
 
     if (mayiuse(cpu::x64::avx512_core)) {
         reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx512_core>(jcp));
-        blk_size = 16;
     } else if (mayiuse(cpu::x64::avx2)) {
         reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx2>(jcp));
-        blk_size = 8;
     } else if (mayiuse(cpu::x64::sse41)) {
         reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::sse41>(jcp));
-        blk_size = 8;
     }
     if (reduce_kernel)
         reduce_kernel->create_ker();
@@ -2138,17 +2145,46 @@ void Reduce::reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr) {
                                           IW - tail_start, 0, IH);
                 });
             } else if (!ReduceC && ReduceD && ReduceH && !ReduceW) {
-                parallel_for(IC, [&](size_t ic) {
-                    size_t oc = ic; GET_PTR_NC_PLN;
-                    parallel_for(IW / blk_size, [&](size_t ibw){
-                        size_t obw = ibw;
-                        reduce_kernel_process(in_ptr_nc + ibw * blk_size * src_data_size, out_ptr_nc + obw * blk_size * dst_data_size,
-                                              blk_size, 0, ID * IH);
+                size_t IWB = IW / blk_size;
+                if (ReduceDH_opt) {
+                    // reduce parallelly in D dimension
+                    // step1: !ReduceD && ReduceH && !ReduceW
+                    uint8_t *prc_ptr_n = &vec_reduceDH_prc[0];
+                    init_dst_data(prc_ptr_n, prc_size);
+                    parallel_for2d(ID, IWB, [&](size_t id, size_t iwb){
+                        size_t pd = id, pwb = iwb;
+                        reduce_kernel_process(in_ptr_n + (id * IH * IW + iwb * blk_size) * src_data_size,
+                                              prc_ptr_n + (pd * PW + pwb * blk_size) * prc_data_size, blk_size, 0, IH);
                     });
-                    size_t tail_start = IW / blk_size * blk_size;
-                    reduce_kernel_process(in_ptr_nc + tail_start * src_data_size, out_ptr_nc + tail_start * dst_data_size,
-                                          IW - tail_start, 0, ID * IH);
-                });
+                    // step2: ReduceD
+                    reduce_stride = PW;
+                    parallel_for(IWB, [&](size_t iwb){
+                        size_t pwb = iwb, owb = iwb;
+                        reduce_kernel_process(prc_ptr_n + pwb * blk_size * prc_data_size,
+                                              out_ptr_n + owb * blk_size * dst_data_size, blk_size, 0, ID);
+                    });
+                    // reduce tail
+                    reduce_stride = IW;
+                    size_t tail_start = IWB * blk_size;
+                    parallel_for(IW - tail_start, [&](size_t i_tail) {
+                        reduce_kernel_process(in_ptr_n + (tail_start + i_tail) * src_data_size, out_ptr_n + (tail_start + i_tail) * dst_data_size,
+                                            1, 0, ID * IH);
+                    });
+                } else {
+                    parallel_for(IC, [&](size_t ic) {
+                        size_t oc = ic; GET_PTR_NC_PLN;
+                        parallel_for(IWB, [&](size_t iwb){
+                            size_t owb = iwb;
+                            reduce_kernel_process(in_ptr_nc + iwb * blk_size * src_data_size, out_ptr_nc + owb * blk_size * dst_data_size,
+                                                blk_size, 0, ID * IH);
+                        });
+                        size_t tail_start = IWB * blk_size;
+                        parallel_for(IW - tail_start, [&](size_t i_tail) {
+                            reduce_kernel_process(in_ptr_nc + (tail_start + i_tail) * src_data_size, out_ptr_nc + (tail_start + i_tail) * dst_data_size,
+                                                1, 0, ID * IH);
+                        });
+                    });
+                }
             } else if (ReduceC && ReduceD && ReduceH && !ReduceW) {
                 parallel_for(IW / blk_size, [&](size_t ibw){
                     size_t obw = ibw;
@@ -2207,8 +2243,7 @@ void Reduce::reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr) {
                 reduce_kernel_process(in_ptr_ncd, out_ptr_ncd, IH * IW * blk_size);
             });
         } else if (ReduceC && ReduceD && ReduceH && ReduceW) {
-            if (input_prec != output_prec || getAlgorithm() == Algorithm::ReduceL2 ||
-                 algorithm == Algorithm::ReduceLogSumExp || algorithm == Algorithm::ReduceSumSquare) {
+            if (!support_split) {
                 reduce_kernel_process(in_ptr_n, out_ptr_n, ICB * ID * IH * IW * blk_size);
             } else {
                 // reduce parallelly
@@ -2608,6 +2643,20 @@ inline void Reduce::create_working_memory() {
     dst_size = desc.get_size();
 }
 
+inline void Reduce::create_DH_working_memory() {
+    ReduceDH_opt = layout == ReduceLayoutType::reduce_nspc && !isDynamicNode() && support_split &&
+                   !ReduceC && ReduceD && ReduceH && !ReduceW && IC == 1 && ID > 1;
+    if (ReduceDH_opt) {
+        PD = ID;
+        PW = IW / blk_size * blk_size;
+        prc_data_size = src_data_size;
+        prc_size = PD * PW * src_data_size;
+        if (prc_size > vec_reduceDH_prc.size()) {
+            vec_reduceDH_prc.resize(prc_size);
+        }
+    }
+}
+
 inline void Reduce::calc_process_dst_dims(std::vector<int> &reduce_axes, const SizeVector &dst_dims) {
     std::set<size_t> axes;
     SizeVector out_dims;
@@ -2690,6 +2739,9 @@ inline void Reduce::set_reduce_dim_flags() {
     ReduceD = ID != OD && OD == 1;
     ReduceH = IH != OH && OH == 1;
     ReduceW = IW != OW && OW == 1;
+
+    // must be done before the above dimension change
+    create_DH_working_memory();
 
     // suit for parallel
     if (ReduceH && IW == 1) {
