@@ -96,15 +96,6 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
         mov(reg_anchors_chunk, reg_anchors_loop);
         L(loop_mask);
 
-        // Prepare mask
-        Vmm vmm_anchor_mask = this->get_free_vmm<Vmm>(not_available_vmm);
-        mov(rax, this->SIMD_WIDTH);
-        sub(rax, reg_anchors_chunk);
-        add(rax, 16);
-        sub(rax, this->SIMD_WIDTH);
-        mov(rbx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, refine_anchor_masks)]);
-        uni_vmovdqu(vmm_anchor_mask, ptr[rbx + rax * sizeof(float)]);
-
         /** @code
             const int a_idx = anchor_idx(h, w, anchor, 0);
             const int a_idx_offset = anchor_idx(h, w, anchor, 1) - anchor_idx(h, w, anchor, 0);
@@ -126,17 +117,33 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
         uni_vpmulld(vmm_anchor_anchor_offset, vmm_anchor_anchor_offset, ptr[rbx]);
         uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_anchor_offset);
 
-        // float x0 = anchors[a_idx + 0 * a_idx_offset];
-        this->uni_gather(vmm_x0, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
-        // float y0 = anchors[a_idx + 1 * a_idx_offset];
-        uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
-        this->uni_gather(vmm_y0, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
-        // float x1 = anchors[a_idx + 2 * a_idx_offset];
-        uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
-        this->uni_gather(vmm_x1, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
-        // float y1 = anchors[a_idx + 3 * a_idx_offset];
-        uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
-        this->uni_gather(vmm_y1, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
+        {
+            // Prepare mask
+            Vmm vmm_anchor_mask = this->get_free_vmm<Vmm>(not_available_vmm);
+            mov(rax, this->SIMD_WIDTH);
+            sub(rax, reg_anchors_chunk);
+            add(rax, 16);
+            sub(rax, this->SIMD_WIDTH);
+            mov(rbx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, refine_anchor_masks)]);
+            uni_vmovdqu(vmm_anchor_mask, ptr[rbx + rax * sizeof(float)]);
+            sub(rsp, this->SIMD_WIDTH * sizeof(float));
+            uni_vmovdqu(ptr[rsp + this->SIMD_WIDTH * sizeof(float)], vmm_anchor_mask);
+
+            // float x0 = anchors[a_idx + 0 * a_idx_offset];
+            this->uni_gather(vmm_x0, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
+            // float y0 = anchors[a_idx + 1 * a_idx_offset];
+            uni_vmovdqu(vmm_anchor_mask, ptr[rsp + this->SIMD_WIDTH * sizeof(float)]);
+            uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
+            this->uni_gather(vmm_y0, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
+            // float x1 = anchors[a_idx + 2 * a_idx_offset];
+            uni_vmovdqu(vmm_anchor_mask, ptr[rsp + this->SIMD_WIDTH * sizeof(float)]);
+            uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
+            this->uni_gather(vmm_x1, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
+            // float y1 = anchors[a_idx + 3 * a_idx_offset];
+            uni_vmovdqu(vmm_anchor_mask, ptr[rsp + this->SIMD_WIDTH * sizeof(float)]);
+            uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
+            this->uni_gather(vmm_y1, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
+        }
 
         /** @code
             const int d_idx = delta_idx(anchor, 0, h, w);
@@ -328,6 +335,8 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
 //
 //        this->update_input_output_ptrs();
 //
+        // Free space for mask
+        add(rsp, this->SIMD_WIDTH * sizeof(float));
         inc(reg_anchors_loop);
         mov(rax, this->SIMD_WIDTH);
         imul(rax, reg_anchors_loop);
