@@ -18,7 +18,8 @@
 #include "layers/gna_convolution_layer.hpp"
 
 
-using namespace GNAPluginNS;
+using namespace ov::intel_gna::pass;
+using namespace ov::intel_gna::pass::helper;
 
 struct GraphData {
     std::shared_ptr<ngraph::opset7::Transpose>leading_transpose;
@@ -52,7 +53,7 @@ static bool VerifyAndGetConvData(std::shared_ptr<ngraph::opset7::Convolution> co
     size_t filter_height = filters.get_shape()[2];
     size_t filter_width = filters.get_shape()[3];
 
-    if (filter_width > GNALimitations::copyMaxGrouping || filter_height > GNALimitations::copyMaxGrouping) {
+    if (filter_width > GNAPluginNS::GNALimitations::copyMaxGrouping || filter_height > GNAPluginNS::GNALimitations::copyMaxGrouping) {
         return false;
     }
 
@@ -74,7 +75,7 @@ static bool VerifyMaxPool(GraphData& graph_data, std::shared_ptr<ngraph::opset7:
             max_pool->get_pads_begin() != ngraph::Shape({0, 0}) || max_pool->get_pads_end() != ngraph::Shape({0, 0}))) ||
         pool_filter.size() != 2 || pool_strides.size() != 2 ||
         pool_filter[0] > 1 || pool_strides[0] > 1 ||
-        pool_filter[0] > GNALimitations::maxPoolMaxWindowSize)
+        pool_filter[0] > GNAPluginNS::GNALimitations::maxPoolMaxWindowSize)
         return false;
 
     graph_data.pool_size_width = pool_filter[1];
@@ -85,7 +86,7 @@ static bool VerifyMaxPool(GraphData& graph_data, std::shared_ptr<ngraph::opset7:
 static bool GNA30SupportedConv(const std::string& gnaCompileTarget, const InferenceEngine::Precision& gnaPrecision,
     const GraphData& graph_data, const ConvData& conv_data) {
 
-    const auto cnn2dValidatorPtr = GNALimitations::Cnn2D::AbstractValidator::Create(gnaCompileTarget);
+    const auto cnn2dValidatorPtr = GNAPluginNS::GNALimitations::Cnn2D::AbstractValidator::Create(gnaCompileTarget);
     if (!cnn2dValidatorPtr) {
         return false;
     }
@@ -112,7 +113,7 @@ static size_t CalculateConvCount(const ConvData& conv_data) {
     // Check if split of plane due to GNA HW limitations of 768 filter elements is possible
     size_t conv_count = 1;
     size_t total_factorized_conv_channel_count = (conv_data.input_channel_count * conv_data.filter_height * conv_data.filter_width);
-    while (total_factorized_conv_channel_count / conv_count > GNALimitations::convFilterMaxSize ||
+    while (total_factorized_conv_channel_count / conv_count > GNAPluginNS::GNALimitations::convFilterMaxSize ||
         total_factorized_conv_channel_count % conv_count != 0 || conv_data.filter_channel_count % conv_count != 0)
         conv_count++;
 
@@ -125,16 +126,16 @@ static bool ShouldDecompose(GraphData& graph_data, const ConvData& conv_data) {
 
     // Concat (copy) layer limitation allows to split up to a certain limit
     // Currently we are able to split only convolutions without pooling in horizontal dimension
-    if (graph_data.conv_count > GNALimitations::copyMaxGrouping ||
+    if (graph_data.conv_count > GNAPluginNS::GNALimitations::copyMaxGrouping ||
         ((graph_data.pool_size_width > 1 || graph_data.pool_stride_width > 1) && graph_data.conv_count > 1))
         return false;
 
     // GNA supported features or handled otherwise - there is no need to decompose such convolution
     if (graph_data.conv_count == 1 && (((conv_data.input_height == 1 || conv_data.input_width == 1) &&
         conv_data.filter_dilation_width == 1 && conv_data.filter_dilation_height == 1) ||
-        GNAConvolutionLayer::isMappableFrom2DTo1D(conv_data.input_height, conv_data.input_width, conv_data.input_channel_count,
-                                                  conv_data.filter_height, conv_data.filter_width,
-                                                  conv_data.filter_stride_height, conv_data.filter_stride_width)))
+        GNAPluginNS::GNAConvolutionLayer::isMappableFrom2DTo1D(conv_data.input_height, conv_data.input_width, conv_data.input_channel_count,
+                                                               conv_data.filter_height, conv_data.filter_width,
+                                                               conv_data.filter_stride_height, conv_data.filter_stride_width)))
         return false;
 
     return true;
