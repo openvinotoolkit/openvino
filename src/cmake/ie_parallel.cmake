@@ -6,14 +6,38 @@ macro(ov_find_package_tbb)
     if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
 
         if(NOT ENABLE_SYSTEM_TBB)
-            set(_find_package_no_args NO_SYSTEM_ENVIRONMENT_PATH
-                                      NO_CMAKE_SYSTEM_PATH)
+            message(STATUS "!!!!!!!!!!!!!!!!!!!! DEBUG: ENABLE_SYSTEM_TBB is turned OFF")
+
+            # Note, we explicitly:
+            # don't set NO_CMAKE_PATH to allow -DTBB_DIR=XXX
+            # don't set NO_CMAKE_ENVIRONMENT_PATH to allow env TBB_DIR=XXX
+            set(_find_package_no_args NO_PACKAGE_ROOT_PATH
+                                      NO_CMAKE_ENVIRONMENT_PATH
+                                      NO_SYSTEM_ENVIRONMENT_PATH
+                                      NO_CMAKE_PACKAGE_REGISTRY
+                                      NO_CMAKE_SYSTEM_PATH
+                                    #   NO_CMAKE_INSTALL_PREFIX
+                                      NO_CMAKE_SYSTEM_PACKAGE_REGISTRY)
         endif()
+
+        message(STATUS "!!!!!!!!!!!!!!!!!!!! DEBUG: ENV TBB_DIR = $ENV{TBB_DIR}")
+        message("start of tbb files")
+
+        if(DEFINED ENV{TBB_DIR})
+            file(GLOB tbb_files "$ENV{TBB_DIR}/")
+            foreach(tbb_file IN LISTS tbb_files)
+                message("${tbb_files}")
+            endforeach()
+        endif()
+
+        message("end of tbb files")
 
         find_package(TBB QUIET COMPONENTS tbb tbbmalloc
                      ${_find_package_no_args})
 
         if(NOT TBB_FOUND)
+            message(STATUS "!!!!!!!!!!!!!!!!!!!! DEBUG: failed to find TBB")
+
             # system TBB failed to be found
             set(ENABLE_SYSTEM_TBB OFF)
 
@@ -29,6 +53,8 @@ macro(ov_find_package_tbb)
             if(DEFINED TBBROOT OR DEFINED ENV{TBBROOT})
                 set(_tbb_paths PATHS ${IEDevScripts_DIR})
             endif()
+
+            message(STATUS "!!!!!!!!!!!!!!!!!!!! HINT TBB_DIR ${TBB_DIR}")
 
             # try to find one more time
             find_package(TBB QUIET COMPONENTS tbb tbbmalloc
@@ -50,10 +76,10 @@ macro(ov_find_package_tbb)
         if(NOT TBB_FOUND)
             set(THREADING "SEQ")
             set(ENABLE_TBBBIND_2_5 OFF)
-            message(WARNING "TBB was not found by the configured TBB_DIR/TBBROOT path.\
+            message(WARNING "TBB was not found by the configured TBB_DIR / TBBROOT path.\
                              SEQ method will be used.")
         else()
-            message(STATUS "TBB (${TBB_VERSION}) is found at ${TBB_DIR}")
+            message(STATUS "!!!!!!!!!! TBB (${TBB_VERSION}) is found at ${TBB_DIR}")
         endif()
 
         unset(_find_package_no_args)

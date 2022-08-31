@@ -76,7 +76,7 @@ endif()
 # install only downloaded | custom TBB, system one is not installed
 # - downloaded TBB should be a part of all packages
 # - custom TBB provided by users, needs to be a part of wheel packages
-# - TODO: system TBB also needs to be a part of wheel packages
+# - system TBB also needs to be a part of wheel packages
 if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
        ( (DEFINED TBB AND TBB MATCHES ${TEMP}) OR
          (DEFINED TBBROOT OR DEFINED TBB_DIR OR DEFINED ENV{TBBROOT} OR
@@ -98,7 +98,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
     if(ENABLE_SYSTEM_TBB)
         # TODO: what's about tbbbind for cases U22 with >= TBB 20221
         # it seems that oneTBB from U22 distro does not contains tbbbind library
-        # message(FATAL_ERROR "TBB_IMPORTED_TARGETS - ${TBB_IMPORTED_TARGETS}")
+        # the same situation for conda-forge distribution of TBB / oneTBB
 
         # for system libraries we still need to install TBB libraries
         # so, need to take locations of actual libraries and install them
