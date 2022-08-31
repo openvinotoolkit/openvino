@@ -73,16 +73,19 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
 
     this->preamble();
 
+    mov(rbp, rsp);
     xor_(reg_anchors_loop, reg_anchors_loop);
     mov(reg_anchors_loop, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchors_num)]);
     mov(reg_anchors_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchors)]);
     mov(reg_deltas_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, deltas)]);
     mov(reg_scores_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, scores)]);
     mov(reg_proposals_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposals)]);
+//    mov(reg_coordinates_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, coordinates_offset)]);
 //    mov(reg_anchors_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchors_idx_offset)]);
 //    mov(reg_delta_index_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_idx)]);
 //    mov(reg_delta_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_idx_offset)]);
 
+    const size_t& vmm_reg_size_in_bytes = this->SIMD_WIDTH * sizeof(float);
     std::vector<Xbyak::Xmm> not_available_vmm;
 
     Xbyak::Label anchor_loop;
@@ -125,22 +128,23 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
         sub(rax, this->SIMD_WIDTH);
         mov(rbx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, refine_anchor_masks)]);
         uni_vmovdqu(vmm_anchor_mask, ptr[rbx + rax * sizeof(float)]);
-        sub(rsp, this->SIMD_WIDTH * sizeof(float));
-        uni_vmovdqu(ptr[rsp + this->SIMD_WIDTH * sizeof(float)], vmm_anchor_mask);
+        sub(rsp, vmm_reg_size_in_bytes);
+        Xbyak::Address vmm_anchor_mask_addr = ptr[rbp - vmm_reg_size_in_bytes];
+        uni_vmovdqu(vmm_anchor_mask_addr, vmm_anchor_mask);
 
         {
             // float x0 = anchors[a_idx + 0 * a_idx_offset];
             this->uni_vgatherdps(vmm_x0, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
             // float y0 = anchors[a_idx + 1 * a_idx_offset];
-            uni_vmovdqu(vmm_anchor_mask, ptr[rsp + this->SIMD_WIDTH * sizeof(float)]);
+            uni_vmovdqu(vmm_anchor_mask, vmm_anchor_mask_addr);
             uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
             this->uni_vgatherdps(vmm_y0, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
             // float x1 = anchors[a_idx + 2 * a_idx_offset];
-            uni_vmovdqu(vmm_anchor_mask, ptr[rsp + this->SIMD_WIDTH * sizeof(float)]);
+            uni_vmovdqu(vmm_anchor_mask, vmm_anchor_mask_addr);
             uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
             this->uni_vgatherdps(vmm_x1, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
             // float y1 = anchors[a_idx + 3 * a_idx_offset];
-            uni_vmovdqu(vmm_anchor_mask, ptr[rsp + this->SIMD_WIDTH * sizeof(float)]);
+            uni_vmovdqu(vmm_anchor_mask, vmm_anchor_mask_addr);
             uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
             this->uni_vgatherdps(vmm_y1, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
         }
@@ -169,37 +173,53 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
 
         // Prepare mask
         Vmm vmm_delta_mask = this->get_free_vmm<Vmm>(not_available_vmm);
-        uni_vmovdqu(vmm_delta_mask, ptr[rsp + this->SIMD_WIDTH * sizeof(float)]);
+        uni_vmovdqu(vmm_delta_mask, vmm_anchor_mask_addr);
 
         {
             // const float dx = deltas[d_idx + 0 * d_idx_offset];
             this->uni_vgatherdps(vmm_dx, reg_deltas_ptr, vmm_delta_idx, sizeof(float), vmm_delta_mask);
             // const float dy = deltas[d_idx + 1 * d_idx_offset];
-            uni_vmovdqu(vmm_delta_mask, ptr[rsp + this->SIMD_WIDTH * sizeof(float)]);
+            uni_vmovdqu(vmm_delta_mask, vmm_anchor_mask_addr);
             uni_vpaddd(vmm_delta_idx, vmm_delta_idx, vmm_delta_idx_offset);
             this->uni_vgatherdps(vmm_dy, reg_deltas_ptr, vmm_delta_idx, sizeof(float), vmm_delta_mask);
             // const float d_log_w = deltas[d_idx + 2 * d_idx_offset];
-            uni_vmovdqu(vmm_delta_mask, ptr[rsp + this->SIMD_WIDTH * sizeof(float)]);
+            uni_vmovdqu(vmm_delta_mask, vmm_anchor_mask_addr);
             uni_vpaddd(vmm_delta_idx, vmm_delta_idx, vmm_delta_idx_offset);
             this->uni_vgatherdps(vmm_d_log_w, reg_deltas_ptr, vmm_delta_idx, sizeof(float), vmm_delta_mask);
             // const float d_log_h = deltas[d_idx + 3 * d_idx_offset];
-            uni_vmovdqu(vmm_delta_mask, ptr[rsp + this->SIMD_WIDTH * sizeof(float)]);
+            uni_vmovdqu(vmm_delta_mask, vmm_anchor_mask_addr);
             uni_vpaddd(vmm_delta_idx, vmm_delta_idx, vmm_delta_idx_offset);
             this->uni_vgatherdps(vmm_d_log_h, reg_deltas_ptr, vmm_delta_idx, sizeof(float), vmm_delta_mask);
         }
+
+        not_available_vmm = {vmm_x0, vmm_y0, vmm_x1, vmm_y1,
+                             vmm_dx, vmm_dy, vmm_d_log_w, vmm_d_log_h};
+        Vmm vmm_temp = this->get_free_vmm<Vmm>(not_available_vmm);
 
 //        /** @code
 //            // width & height of box
 //            const float ww = x1 - x0 + coordinates_offset;
 //            const float hh = y1 - y0 + coordinates_offset;
 //         */
+//        Vmm vmm_ww = vmm_temp;
+//        Vmm vmm_hh = vmm_temp;
+//        Xbyak::Address vmm_ww_addr = ptr[rbp - 2 * vmm_reg_size_in_bytes];
+//        Xbyak::Address vmm_hh_addr = ptr[rbp - 3 * vmm_reg_size_in_bytes];
+//        Xbyak::Address vmm_coordinates_offset_addr = ptr[rbp - 4 * vmm_reg_size_in_bytes];
+//        uni_vbroadcastss(vmm_temp, ptr[reg_params + offsetof(jit_refine_anchors_call_args, coordinates_offset)]);
+//        sub(rsp, vmm_reg_size_in_bytes);
+//        uni_vmovdqu(vmm_coordinates_offset_addr, vmm_temp);
 //        // const float ww = x1 - x0 + coordinates_offset;
-//        uni_vaddss(vmm_ww, vmm_x0, reg_coordinates_offset);
-//        uni_vsubps(vmm_ww, vmm_ww, vmm_x1);
+//        uni_vsubps(vmm_ww, vmm_x1, vmm_x0);
+//        uni_vaddps(vmm_ww, vmm_ww, vmm_coordinates_offset_addr);
+//        sub(rsp, vmm_reg_size_in_bytes);
+//        uni_vmovdqu(vmm_ww_addr, vmm_ww);
 //        // const float hh = y1 - y0 + coordinates_offset;
-//        uni_vaddss(vmm_hh, vmm_y0, reg_coordinates_offset);
-//        uni_vsubps(vmm_hh, vmm_hh, vmm_y1);
-//
+//        uni_vsubps(vmm_hh, vmm_y1, vmm_y0);
+//        uni_vaddps(vmm_hh, vmm_hh, vmm_coordinates_offset_addr);
+//        sub(rsp, vmm_reg_size_in_bytes);
+//        uni_vmovdqu(vmm_hh_addr, vmm_hh);
+
 //        /** @code
 //            // center location of box
 //            const float ctr_x = x0 + 0.5f * ww;
@@ -347,7 +367,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
 //        this->update_input_output_ptrs();
 //
         // Free space for mask
-        add(rsp, this->SIMD_WIDTH * sizeof(float));
+        add(rsp, 4 * vmm_reg_size_in_bytes);
         inc(reg_anchors_loop);
         mov(rax, this->SIMD_WIDTH);
         imul(rax, reg_anchors_loop);
