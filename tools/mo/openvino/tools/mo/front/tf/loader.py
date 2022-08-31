@@ -238,7 +238,6 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                     # tf.keras.models.load_model function throws TypeError,KeyError or IndexError
                     # for TF 1.x SavedModel format in case TF 1.x installed
                     imported = tf.keras.models.load_model(model_dir, compile=False)
-
                 except:
                     imported = tf.saved_model.load(model_dir, saved_model_tags)  # pylint: disable=E1120
 
