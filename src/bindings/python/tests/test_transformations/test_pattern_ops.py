@@ -108,9 +108,9 @@ def test_all_predicates():
     assert not Matcher(WrapType("opset8.Parameter",
                                 type_matches(get_element_type(np.float32))), "Test").match(dynamic_param)
 
-    assert Matcher(WrapType("opset8.Parameter",
+    assert Matcher(WrapType("opset8.Parameter",  # noqa: ECE001
                             type_matches_any([get_element_type(np.float32),
-                                              get_element_type(np.compat.long)])), "Test").match(static_param)  # noqa: ECE001
-    assert Matcher(WrapType("opset8.Parameter",
+                                              get_element_type(np.compat.long)])), "Test").match(static_param)
+    assert Matcher(WrapType("opset8.Parameter",  # noqa: ECE001
                             type_matches_any([get_element_type(np.float32),
-                                              get_element_type(np.compat.long)])), "Test").match(dynamic_param)  # noqa: ECE001
+                                              get_element_type(np.compat.long)])), "Test").match(dynamic_param)
