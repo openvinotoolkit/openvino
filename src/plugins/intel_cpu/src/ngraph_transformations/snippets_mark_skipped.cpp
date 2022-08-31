@@ -265,6 +265,15 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
     if (num_non_const_inputs != 1)
         return false;
 
+    // FuseMatMulAndSimpleOperation or FuseFullyConnectedAndSimpleOperation
+    // Invoke SupportsFusingWithConvolution_Simple directly instead of isSuitableChildForFusingSimple to
+    // eliminate getNumNonConstInputs() check
+    int fusingAxis = can_be_converted_to_FC ? (matmul_shape.size() == 3 ? 2 : 1) : matmul_shape.size() - 1;
+    if (SupportsFusingWithConvolution_Simple(node, fusingAxis)) {
+        updatedChainType = NodeFusingType::FusedWithMisc;
+        return true;
+    }
+
     // canFuse() from MatMul for case with rank > 2
     // Algorithm::EltwisePowerStatic is ignored
     if (!can_be_converted_to_FC &&
@@ -312,15 +321,6 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
         if (one_of(node->get_output_element_type(0), ov::element::i8, ov::element::u8) && canMatMulBeExecutedInI8) {
             return false;
         }
-    }
-
-    // FuseMatMulAndSimpleOperation or FuseFullyConnectedAndSimpleOperation
-    // Invoke SupportsFusingWithConvolution_Simple directly instead of isSuitableChildForFusingSimple to
-    // eliminate getNumNonConstInputs() check
-    int fusingAxis = can_be_converted_to_FC ? (matmul_shape.size() == 3 ? 2 : 1) : matmul_shape.size() - 1;
-    if (SupportsFusingWithConvolution_Simple(node, fusingAxis)) {
-        updatedChainType = NodeFusingType::FusedWithMisc;
-        return true;
     }
 
     // Fusing chain must be interrupted after the node, since reshape will be inserted
