@@ -16,7 +16,7 @@
 #include "gna_plugin_log.hpp"
 #include "backend/gna_limitations.hpp"
 
-namespace GNAPluginNS {
+using namespace ov::intel_gna::pass;
 
 namespace {
 
@@ -137,7 +137,7 @@ HandleTransposeBeforeMatMul::HandleTransposeBeforeMatMul() {
             }
 
             if (prev_node) {
-                if (GNALimitations::IsTransposeSupported(prev_node->get_output_shape(0))) {
+                if (GNAPluginNS::GNALimitations::IsTransposeSupported(prev_node->get_output_shape(0))) {
                     InsertTranspose(prev_node, matmul_node->get_friendly_name(), true);
                 }
             }
@@ -148,7 +148,7 @@ HandleTransposeBeforeMatMul::HandleTransposeBeforeMatMul() {
         if (iter != pattern_map.end() ||
             (iter = pattern_map.find(constant)) != pattern_map.end()) {
             auto prev_node = iter->second.get_node_shared_ptr();
-            if (GNALimitations::IsTranspose2d(prev_node->get_output_shape(0))) {
+            if (GNAPluginNS::GNALimitations::IsTranspose2d(prev_node->get_output_shape(0))) {
                 InsertTranspose(prev_node, prev_node->get_friendly_name(), true);
             }
         }
@@ -165,7 +165,7 @@ HandleTransposeBeforeMatMul::HandleTransposeBeforeMatMul() {
             }
 
             if (prev_node) {
-                if (GNALimitations::IsTransposeSupported(prev_node->get_output_shape(0))) {
+                if (GNAPluginNS::GNALimitations::IsTransposeSupported(prev_node->get_output_shape(0))) {
                     InsertTranspose(prev_node, matmul_node->get_friendly_name(), true);
                 }
             }
@@ -206,7 +206,7 @@ HandleTransposeAfterMatMul::HandleTransposeAfterMatMul() {
             ReplaceTransposeWithReshape(transpose_it->second.get_node_shared_ptr());
         } else {
             auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
-            if (!GNALimitations::IsTransposeSupported(reshape_node->get_input_shape(0))) return false;
+            if (!GNAPluginNS::GNALimitations::IsTransposeSupported(reshape_node->get_input_shape(0))) return false;
             auto iter = pattern_map.find(act);
             if (iter == pattern_map.end() &&
                 (iter = pattern_map.find(fq2)) == pattern_map.end() &&
@@ -229,5 +229,3 @@ HandleTransposesAroundMatMul::HandleTransposesAroundMatMul() {
     add_matcher<HandleTransposeBeforeMatMul>();
     add_matcher<HandleTransposeAfterMatMul>();
 }
-
-} // namespace GNAPluginNS

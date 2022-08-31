@@ -48,7 +48,7 @@ TEST(resample_gpu, basic_in2x3x2x2_nearest) {
         12.f, 9.f, -17.f,
     });
 
-    cldnn::network net {engine, topology };
+    cldnn::network net{ engine, topology };
 
     net.set_input_data("input", input);
 
@@ -652,7 +652,7 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
 
         auto build_opts_opt = build_options();
         build_opts_opt.set_option(build_option::outputs({"resample_opt"}));
-        build_opts.set_option(build_option::force_implementations({ {"resample_opt", {params.in_format, "resample_opt"}} }));
+        build_opts_opt.set_option(build_option::force_implementations({ {"resample_opt", {params.in_format, "resample_opt"}} }));
 
         cldnn::network net_opt(engine, topo_opt, build_opts_opt);
 
@@ -726,6 +726,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest1) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -734,7 +736,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest1) {
     tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, shape });
 
-    auto output_size = tensor(batch(b), feature(f), spatial(x*2, y*2));
+    std::vector<int64_t> output_pattern {b, f, y*2, x*2};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -744,7 +746,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest1) {
     auto ctm = resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL;
     auto nm = resample::InterpolateOp::NearestMode::CEIL;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_size, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -757,7 +759,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest1) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net {engine, topology };
+    cldnn::network net{ engine, topology, options };
 
     net.set_input_data("input", input);
 
@@ -814,6 +816,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest2) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -822,7 +826,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest2) {
     tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, shape });
 
-    auto output_size = tensor(batch(b), feature(f), spatial(x*2, y*2));
+    std::vector<int64_t> output_pattern {b, f, y*2, x*2};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -832,7 +836,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest2) {
     auto ctm = resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL;
     auto nm = resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_size, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -845,7 +849,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest2) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net {engine, topology };
+    cldnn::network net{ engine, topology, options };
 
     net.set_input_data("input", input);
 
@@ -902,6 +906,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest3) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -910,7 +916,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest3) {
     tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, shape });
 
-    auto output_size = tensor(batch(b), feature(f), spatial(x*2, y*2));
+    std::vector<int64_t> output_pattern {b, f, y*2, x*2};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -920,7 +926,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest3) {
     auto ctm = resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL;
     auto nm = resample::InterpolateOp::NearestMode::ROUND_PREFER_CEIL;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_size, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -933,7 +939,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest3) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net {engine, topology };
+    cldnn::network net{ engine, topology, options };
 
     net.set_input_data("input", input);
 
@@ -990,6 +996,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest4) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -998,7 +1006,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest4) {
     tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, shape });
 
-    auto output_size = tensor(batch(b), feature(f), spatial(x*2, y*2));
+    std::vector<int64_t> output_pattern {b, f, y*2, x*2};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1008,7 +1016,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest4) {
     auto ctm = resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL;
     auto nm = resample::InterpolateOp::NearestMode::FLOOR;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_size, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -1021,7 +1029,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest4) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net {engine, topology };
+    cldnn::network net{ engine, topology, options };
 
     net.set_input_data("input", input);
 
@@ -1078,6 +1086,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest5) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -1086,7 +1096,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest5) {
     tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, shape });
 
-    auto output_size = tensor(batch(b), feature(f), spatial(x*2, y*2));
+    std::vector<int64_t> output_pattern {b, f, y*2, x*2};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1096,7 +1106,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest5) {
     auto ctm = resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL;
     auto nm = resample::InterpolateOp::NearestMode::SIMPLE;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_size, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -1109,7 +1119,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest5) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net {engine, topology };
+    cldnn::network net{ engine, topology, options };
 
     net.set_input_data("input", input);
 
@@ -1166,6 +1176,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode1) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -1176,7 +1188,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode1) {
 
     y = 2;
     x = 3;
-    auto output_size = tensor(batch(b), feature(f), spatial(x, y));
+    std::vector<int64_t> output_pattern {b, f, y, x};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1186,7 +1198,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode1) {
     auto ctm = resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL;
     auto nm = resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_size, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -1199,7 +1211,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode1) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net {engine, topology };
+    cldnn::network net{ engine, topology, options };
 
     net.set_input_data("input", input);
 
@@ -1234,6 +1246,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode2) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -1244,7 +1258,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode2) {
 
     y = 1;
     x = 3;
-    auto output_size = tensor(batch(b), feature(f), spatial(x, y));
+    std::vector<int64_t> output_pattern {b, f, y, x};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1254,7 +1268,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode2) {
     auto ctm = resample::InterpolateOp::CoordinateTransformMode::PYTORCH_HALF_PIXEL;
     auto nm = resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_size, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -1267,7 +1281,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode2) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net {engine, topology };
+    cldnn::network net{ engine, topology, options };
 
     net.set_input_data("input", input);
 
@@ -1296,6 +1310,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode3) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -1306,7 +1322,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode3) {
 
     y = 2;
     x = 3;
-    auto output_size = tensor(batch(b), feature(f), spatial(x, y));
+    std::vector<int64_t> output_pattern {b, f, y, x};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1316,7 +1332,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode3) {
     auto ctm = resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC;
     auto nm = resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_size, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -1329,7 +1345,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode3) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net {engine, topology };
+    cldnn::network net{ engine, topology, options };
 
     net.set_input_data("input", input);
 
@@ -1364,6 +1380,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode4) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -1374,7 +1392,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode4) {
 
     y = 2;
     x = 3;
-    auto output_size = tensor(batch(b), feature(f), spatial(x, y));
+    std::vector<int64_t> output_pattern {b, f, y, x};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1384,7 +1402,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode4) {
     auto ctm = resample::InterpolateOp::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN;
     auto nm = resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_size, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -1397,7 +1415,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode4) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net {engine, topology };
+    cldnn::network net{ engine, topology, options };
 
     net.set_input_data("input", input);
 
@@ -1432,6 +1450,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode5) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -1442,7 +1462,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode5) {
 
     y = 2;
     x = 3;
-    auto output_size = tensor(batch(b), feature(f), spatial(x, y));
+    std::vector<int64_t> output_pattern {b, f, y, x};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1452,7 +1472,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode5) {
     auto ctm = resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS;
     auto nm = resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_size, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -1465,7 +1485,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode5) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net {engine, topology };
+    cldnn::network net{ engine, topology, options };
 
     net.set_input_data("input", input);
 
@@ -1500,6 +1520,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -1510,7 +1532,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic) {
 
     y = 2;
     x = 3;
-    auto output_size = tensor(batch(b), feature(f), spatial(x, y));
+    std::vector<int64_t> output_pattern {b, f, y, x};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1518,7 +1540,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic) {
     float cube_coeff = -0.75f;
     auto mode = resample::InterpolateOp::InterpolateMode::CUBIC;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_size, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
+    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -1531,7 +1553,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net {engine, topology };
+    cldnn::network net{ engine, topology, options };
 
     net.set_input_data("input", input);
 
@@ -1566,6 +1588,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic2) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
 
     int b = 1;
     int f = 1;
@@ -1575,7 +1599,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic2) {
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, shape });
 
     x = 3;
-    auto output_size = tensor(batch(b), feature(f), spatial(x, y));
+    std::vector<int64_t> output_pattern {b, f, y, x};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1583,14 +1607,14 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic2) {
     float cube_coeff = -0.75f;
     auto mode = resample::InterpolateOp::InterpolateMode::CUBIC;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_size, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
+    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
 
     set_values(input, {
         5.f, 1.f, 2.f,
         3.f, 4.f, 5.f,
     });
 
-    cldnn::network net {engine, topology };
+    cldnn::network net{ engine, topology, options };
 
     net.set_input_data("input", input);
 
@@ -1617,6 +1641,8 @@ TEST(resample_gpu, interpolate_in2x2x3x2_linear) {
     //  Sample Type: Nearest
 
     auto& engine = get_test_engine();
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
 
     int b = 2;
     int f = 2;
@@ -1627,7 +1653,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_linear) {
 
     y = 2;
     x = 3;
-    auto output_size = tensor(batch(b), feature(f), spatial(x, y));
+    std::vector<int64_t> output_pattern {b, f, y, x};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1635,7 +1661,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_linear) {
     float cube_coeff = -0.75f;
     auto mode = resample::InterpolateOp::InterpolateMode::LINEAR;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_size, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
+    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -1648,7 +1674,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_linear) {
         21.f, 22.f, 23.f,
     });
 
-    cldnn::network net {engine, topology };
+    cldnn::network net{ engine, topology, options };
 
     net.set_input_data("input", input);
 
@@ -1683,6 +1709,8 @@ TEST(resample_gpu, interpolate_in1x1x2x4_linear_scale) {
     //  Sample Type: Linear
 
     auto& engine = get_test_engine();
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
 
     int b = 1;
     int f = 1;
@@ -1693,7 +1721,7 @@ TEST(resample_gpu, interpolate_in1x1x2x4_linear_scale) {
 
     y = 1;
     x = 2;
-    auto output_size = tensor(batch(b), feature(f), spatial(x, y));
+    std::vector<int64_t> output_pattern {b, f, y, x};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1702,14 +1730,14 @@ TEST(resample_gpu, interpolate_in1x1x2x4_linear_scale) {
     auto mode = resample::InterpolateOp::InterpolateMode::LINEAR;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SCALES;
 
-    topology.add(resample("interpolate", "input", output_size, {0.6f, 0.6f}, {2, 3}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
+    topology.add(resample("interpolate", "input", output_pattern, {0.6f, 0.6f}, {2, 3}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
 
     set_values(input, {
         1.f, 2.f, 3.f, 4.f,
         5.f, 6.f, 7.f, 8.f,
     });
 
-    cldnn::network net {engine, topology };
+    cldnn::network net{ engine, topology, options };
 
     net.set_input_data("input", input);
 

@@ -83,7 +83,7 @@ public:
     virtual allocation_type get_default_allocation_type() const = 0;
 
     /// Returns preferred allocation type which can be mapped to host ptr
-    allocation_type get_lockable_preffered_memory_allocation_type(bool is_image_layout = false) const;
+    allocation_type get_lockable_preferred_memory_allocation_type(bool is_image_layout = false) const;
 
     /// Checks if the current engine supports speicied allocation @p type
     bool supports_allocation(allocation_type type) const;
