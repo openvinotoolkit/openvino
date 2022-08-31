@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC2034
+# need to fix sc2034 unused variable
 
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
@@ -9,7 +11,7 @@ set -e
 # Option parsing
 
 default_comp=(core dev python myriad cl_compiler)
-all_comp=(${default_comp[@]} opencv_req opencv_opt)
+all_comp=("${default_comp[@]}" opencv_req opencv_opt)
 os=${os:-auto}
 
 # public options
@@ -48,7 +50,7 @@ done
 
 # No components selected - install default
 if [ ${#comp[@]} -eq 0 ]; then
-    comp=(${default_comp[@]})
+    comp=("${default_comp[@]}")
 fi
 
 #===================================================================================================
@@ -62,12 +64,12 @@ if [ -n "$selftest" ] ; then
             echo "||"
             SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" >/dev/null 2>&1 && pwd )"
             docker run -it --rm \
-                --volume ${SCRIPT_DIR}:/scripts:ro,Z  \
+                --volume "${SCRIPT_DIR}":/scripts:ro,Z  \
                 --volume yum-cache:/var/cache/yum \
                 --volume apt-cache:/var/cache/apt/archives \
                 -e DEBIAN_FRONTEND=noninteractive \
                 $image \
-                bash /scripts/${0##*/} $opt --keepcache
+                bash /scripts/"${0##*/}" "$opt" --keepcache
             echo "||"
             echo "|| Completed: $image / '$opt'"
             echo "||"
@@ -141,12 +143,12 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubu
     )
 
     if [ "$os" == "ubuntu20.04" ] ; then
-        pkgs_python=(${pkgs_python[@]} libpython3.8)
-        pkgs_opencv_opt=(${pkgs_opencv_opt[@]} libavresample4)
+        pkgs_python=("${pkgs_python[@]}" libpython3.8)
+        pkgs_opencv_opt=("${pkgs_opencv_opt[@]}" libavresample4)
     elif [ "$os" == "ubuntu21.10" ] ; then
-        pkgs_python=(${pkgs_python[@]} libpython3.9)
+        pkgs_python=("${pkgs_python[@]}" libpython3.9)
     elif [ "$os" == "ubuntu22.04" ] ; then
-        pkgs_python=(${pkgs_python[@]} libpython3.10)
+        pkgs_python=("${pkgs_python[@]}" libpython3.10)
     fi
 
 elif [ "$os" == "rhel8" ] ; then
@@ -202,9 +204,9 @@ fi
 # Gather packages and print list
 
 pkgs=()
-for comp in ${comp[@]} ; do
-    var=pkgs_${comp}[@]
-    pkgs+=(${!var})
+for comp in "${comp[@]}" ; do
+    var="pkgs_${comp}[@]"
+    pkgs+=("${!var}")
 done
 
 if [ ${#pkgs[@]} -eq 0 ]; then
@@ -240,16 +242,16 @@ if [ "$os" == "ubuntu18.04" ] || [ "$os" == "ubuntu20.04" ] || \
     [ -n "$dry" ] && iopt="--dry-run"
     [ -n "$keepcache" ] && rm -f /etc/apt/apt.conf.d/docker-clean
 
-    apt-get update && apt-get install -y --no-install-recommends $iopt ${pkgs[@]}
+    apt-get update && apt-get install -y --no-install-recommends "$iopt" "${pkgs[@]}"
 
 elif [ "$os" == "rhel8" ] ; then
 
     [ -z "$interactive" ] && iopt="--assumeyes"
     [ -n "$dry" ] && iopt="--downloadonly"
     [ -n "$keepcache" ] && iopt="$iopt --setopt=keepcache=1"
-    [ ${#extra_repos[@]} -ne 0 ] && yum localinstall $iopt --nogpgcheck ${extra_repos[@]}
+    [ ${#extra_repos[@]} -ne 0 ] && yum localinstall "$iopt" --nogpgcheck "${extra_repos[@]}"
 
-    yum install $iopt ${pkgs[@]}
+    yum install "$iopt" "${pkgs[@]}"
 
 else
     echo "Internal script error: invalid OS after check (package installation)" >&2
