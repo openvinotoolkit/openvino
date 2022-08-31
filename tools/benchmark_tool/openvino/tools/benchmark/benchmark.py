@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 from math import ceil
 from typing import Union
-from openvino.runtime import Core, get_version, AsyncInferQueue
+from openvino.runtime import Core, get_version_string, AsyncInferQueue
 
 from .utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, GPU_DEVICE_NAME, XML_EXTENSION, BIN_EXTENSION
 from .utils.logging import logger
@@ -40,8 +40,8 @@ class Benchmark:
             logger.info(f'CPU extensions is loaded {path_to_extension}')
 
     def print_version_info(self) -> None:
-        logger.info(f"OpenVINO:")
-        logger.info(f"{'API version':.<24} {get_version()}")
+        logger.info(f"OpenVINO: {get_version_string()}")
+        #logger.info(f"{'API version':.<24} {get_version()}")
         logger.info(f"Device info")
         for device, version in self.core.get_versions(self.device).items():
             logger.info(f"{'': <9}{device}")

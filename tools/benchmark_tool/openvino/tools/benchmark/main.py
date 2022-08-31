@@ -559,9 +559,9 @@ def run(args):
         logger.exception(e)
 
         if statistics:
-            statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
-                                      [
-                                          ('error', str(e)),
-                                      ])
+            statistics.add_parameters(
+                StatisticsReport.Category.EXECUTION_RESULTS,
+                [('error', str(e))]
+            )
             statistics.dump()
         sys.exit(1)
