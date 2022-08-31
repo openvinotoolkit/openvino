@@ -29,7 +29,7 @@ from typing import (
     Sequence,
 )
 
-if getattr(OnnxTestCase, '_fields', None):
+if getattr(OnnxTestCase, "_fields", None):
     ExtOnnxTestCase = OnnxTestCase._fields + ("post_processing",)
 else:  # for ONNX >= 1.12
     ExtOnnxTestCase = tuple((field.name for field in dataclasses.fields(OnnxTestCase))) + ("post_processing",)

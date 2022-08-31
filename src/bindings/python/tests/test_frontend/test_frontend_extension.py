@@ -9,7 +9,7 @@ mock_available = True
 try:
     from openvino.pybind_mock_frontend import FrontEndWrapperPaddle, FrontEndWrapperTensorflow
 except Exception:
-    print("No mock frontend available")
+    print("No mock frontend available")  # noqa T201
     mock_available = False
 
 # FrontEndManager shall be initialized and destroyed after all tests finished

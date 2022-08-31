@@ -24,7 +24,7 @@ try:
         clear_place_stat,
     )
 except Exception:
-    print("No mock frontend available")
+    print("No mock frontend available")  # noqa T201
     mock_available = False
 
 # FrontEndManager shall be initialized and destroyed after all tests finished
@@ -51,7 +51,7 @@ def test_load_by_unknown_framework():
     try:
         fem.load_by_framework("UnknownFramework")
     except InitializationFailure as exc:
-        print(exc)
+        print(exc)  # noqa T201
     else:
         raise AssertionError("Unexpected exception.")
 
