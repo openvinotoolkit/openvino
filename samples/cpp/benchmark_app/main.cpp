@@ -311,7 +311,7 @@ int main(int argc, char* argv[]) {
                     // set to user defined value
                     if (supported(key)) {
                         device_config[key] = it_device_nstreams->second;
-                    } else if (supported(ov::num_streams.name())) {
+                    } else if (device == "MULTI" || supported(ov::num_streams.name())) {
                         // Use API 2.0 key for streams
                         key = ov::num_streams.name();
                         device_config[key] = it_device_nstreams->second;
@@ -414,6 +414,18 @@ int main(int argc, char* argv[]) {
                 set_infer_precision();
             } else if (device.find("AUTO") != std::string::npos) {
                 device_nstreams.erase(device);
+            } else if (device.find("MULTI") != std::string::npos) {
+                setThroughputStreams();
+                set_infer_precision();
+                if ((device_name.find("GPU") != std::string::npos) &&
+                    (device_name.find("CPU") != std::string::npos)) {
+                    slog::warn << "GPU throttling is turned on. Multi-device execution with "
+                                  "the CPU + GPU performs best with GPU throttling hint, "
+                               << "which releases another CPU thread (that is otherwise "
+                                  "used by the GPU driver for active polling)."
+                               << slog::endl;
+                    device_config[GPU_CONFIG_KEY(PLUGIN_THROTTLE)] = "1";
+                }
             }
         }
 
