@@ -78,19 +78,16 @@ set(MULTI_TEST_SRC
     onnx_test_utils.in.cpp
     onnx_import_with_editor.in.cpp)
 set(SRC
-    onnx_import_exceptions.cpp
-    onnx_import_library.cpp
-    onnx_importer_test.cpp # from merged target onnxImporterUnitTests
-    onnx_tensor_names.cpp
-    onnx_test_util.cpp
-    onnx_transformations.cpp
-    onnx_editor.cpp)
-
-# formerly these were in separate target onnx_frontend_tests
-list(APPEND SRC
     conversion.cpp
     json_config_extension.cpp
     load_from.cpp
+    onnx_editor.cpp
+    onnx_import_exceptions.cpp
+    onnx_import_library.cpp
+    onnx_importer_test.cpp
+    onnx_tensor_names.cpp
+    onnx_test_util.cpp
+    onnx_transformations.cpp
     op_extension.cpp
     telemetry.cpp)
 
