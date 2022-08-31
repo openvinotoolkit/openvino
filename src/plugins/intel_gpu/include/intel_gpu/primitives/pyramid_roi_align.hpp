@@ -50,11 +50,9 @@ struct pyramid_roi_align : public primitive_base<pyramid_roi_align> {
                       int sampling_ratio,
                       std::vector<int> pyramid_scales,
                       int pyramid_starting_level,
-                      const primitive_id& ext_prim_id = "",
                       const padding &output_padding = padding())
         : primitive_base(id,
                          { rois, P2, P3, P4, P5 },
-                         ext_prim_id,
                          output_padding)
         , output_size(output_size)
         , sampling_ratio(sampling_ratio)

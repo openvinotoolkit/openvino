@@ -517,7 +517,6 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                        desc->weights,
                                                                        bias_name,
                                                                        fc.get_output_layout().data_type,
-                                                                       desc->ext_prim_id,
                                                                        desc->output_padding,
                                                                        desc->input_size);
 
