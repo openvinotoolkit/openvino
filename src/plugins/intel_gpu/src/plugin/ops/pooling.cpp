@@ -37,7 +37,7 @@ static void CreateAvgPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::Av
                                    strides,
                                    pads_begin,
                                    tensor_from_dims(op->get_output_shape(0)),
-                                   DataTypeFromPrecision(op->get_output_element_type(0)));
+                                   cldnn::element_type_to_data_type(op->get_output_element_type(0)));
     poolPrim.pad_end = pads_end;
     p.add_primitive(*op, poolPrim);
 }
@@ -65,7 +65,7 @@ static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::Ma
                                    strides,
                                    pads_begin,
                                    tensor_from_dims(op->get_output_shape(0)),
-                                   DataTypeFromPrecision(op->get_output_element_type(0)));
+                                   cldnn::element_type_to_data_type(op->get_output_element_type(0)));
     poolPrim.pad_end = pads_end;
     p.add_primitive(*op, poolPrim);
 }
@@ -81,7 +81,7 @@ static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v8::Ma
 
     const auto mutable_precision = op->get_output_element_type(1);
     const auto output_shape = op->get_output_shape(1);
-    cldnn::layout mutableLayout = cldnn::layout(DataTypeFromPrecision(mutable_precision),
+    cldnn::layout mutableLayout = cldnn::layout(cldnn::element_type_to_data_type(mutable_precision),
                                                 cldnn::format::get_default_format(output_shape.size()),
                                                 tensor_from_dims(output_shape));
     const auto shared_memory = p.GetEngine().allocate_memory(mutableLayout);
@@ -113,9 +113,9 @@ static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v8::Ma
                                    pads_begin,
                                    pads_end,
                                    op->get_axis(),
-                                   DataTypeFromPrecision(op->get_index_element_type()),
+                                   cldnn::element_type_to_data_type(op->get_index_element_type()),
                                    tensor_from_dims(op->get_output_shape(0)),
-                                   DataTypeFromPrecision(op->get_output_element_type(0)));
+                                   cldnn::element_type_to_data_type(op->get_output_element_type(0)));
     p.add_primitive(*op, poolPrim);
 
     const cldnn::primitive_id maxpool_mutable_id_r = layer_type_name + ".out1";

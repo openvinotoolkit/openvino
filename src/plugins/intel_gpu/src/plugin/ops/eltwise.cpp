@@ -46,7 +46,7 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
             auto targetFormat = cldnn::format::get_default_format(outRank);
             if (targetFormat.value != cldnn::format::get_default_format(inputRank).value) {
                 auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
-                auto targetDatatype = DataTypeFromPrecision(op->get_input_element_type(i));
+                auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(i));
                 auto reorderPrim = cldnn::reorder(reorderName,
                                                   inputPrimitives[i],
                                                   targetFormat,
@@ -72,7 +72,7 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
         }
     }
 
-    auto out_dt = DataTypeFromPrecision(op->get_output_element_type(0));
+    auto out_dt = cldnn::element_type_to_data_type(op->get_output_element_type(0));
     auto eltwisePrim = cldnn::eltwise(layerName,
                                       inputPrimitives,
                                       mode,

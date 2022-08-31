@@ -24,7 +24,7 @@ static void CreateFakeQuantizeOp(Program& p, const std::shared_ptr<ngraph::op::v
     auto output_high_id = inputPrimitives[4];
 
     int levels = static_cast<int>(op->get_levels());
-    auto dt = DataTypeFromPrecision(op->get_output_element_type(0));
+    auto dt = cldnn::element_type_to_data_type(op->get_output_element_type(0));
     auto quantizationPrim = cldnn::quantize(layerName,
                                             input_id,
                                             input_low_id,

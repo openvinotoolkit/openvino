@@ -39,7 +39,7 @@ static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node
         default: break;
         }
 
-        cldnn::layout outputLayout(DataTypeFromPrecision(op->get_output_element_type(0)), outputFormat, outTensor);
+        cldnn::layout outputLayout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outTensor);
         p.add_primitive(*op, cldnn::reorder(reorderId,
                                             reshapeInputId,
                                             outputLayout,

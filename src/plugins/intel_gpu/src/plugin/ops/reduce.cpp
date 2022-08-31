@@ -75,7 +75,7 @@ static void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, 
 
     auto reorderLayerName = layerName + "_reorder";
     cldnn::format out_format = cldnn::format::any;
-    auto out_dt = DataTypeFromPrecision(op->get_output_element_type(0));
+    auto out_dt = cldnn::element_type_to_data_type(op->get_output_element_type(0));
     if (!keep_dims && rank > 4) {
         if (rank - axes.size() == 6)
             out_format = cldnn::format::bfwzyx;

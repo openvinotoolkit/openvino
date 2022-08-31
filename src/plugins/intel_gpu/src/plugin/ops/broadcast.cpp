@@ -32,7 +32,7 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
         auto targetFormat = cldnn::format::get_default_format(outputRank);
         if (targetFormat.value != cldnn::format::get_default_format(inputRank).value) {
             auto reorderName = layerName + "_cldnn_in_reorder";
-            auto targetDatatype = DataTypeFromPrecision(op->get_input_element_type(0));
+            auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(0));
             auto reorderPrim = cldnn::reorder(reorderName,
                                               inputPrimitive,
                                               targetFormat,

@@ -146,7 +146,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
                         reorderPrimName,
                         inputPrimitives[param.portIndex],
                         param.format,
-                        DataTypeFromPrecision(op->get_input_element_type(param.portIndex)),
+                        cldnn::element_type_to_data_type(op->get_input_element_type(param.portIndex)),
                         std::vector<float>(),
                         cldnn::reorder_mean_mode::subtract);
 
@@ -180,7 +180,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
     size_t W = (dims.size() > 3) ? dims[3] : 1;
     cldnn::tensor outputTensor = cldnn::tensor(cldnn::batch(N), cldnn::feature(C), cldnn::spatial(W, H));
 
-    cldnn::layout outputLayout = cldnn::layout(DataTypeFromPrecision(op->get_output_element_type(0)), outputFormat, outputTensor);
+    cldnn::layout outputLayout = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outputTensor);
 
     // evaluate work sizes rules
     std::vector<size_t> gws, lws;

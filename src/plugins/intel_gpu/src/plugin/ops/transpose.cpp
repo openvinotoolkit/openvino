@@ -54,7 +54,7 @@ static void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::
         auto reorder_prim = cldnn::reorder(layerName,
                                       inputPrimitives[0],
                                       cldnn::format::bfyx,
-                                      DataTypeFromPrecision(precision),
+                                      cldnn::element_type_to_data_type(precision),
                                       std::vector<float>(),
                                       cldnn::reorder_mean_mode::none);
         p.add_primitive(*op, reorder_prim);

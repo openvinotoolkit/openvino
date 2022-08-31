@@ -22,7 +22,7 @@ static void CreateExperimentalDetectronPriorGridGeneratorOp(
     const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronPriorGridGenerator>& op) {
     validate_inputs_count(op, {3});
     cldnn::tensor outTensor = mkTensor(op->get_output_shape(0));
-    auto outDataType = DataTypeFromPrecision(op->get_output_element_type(0));
+    auto outDataType = cldnn::element_type_to_data_type(op->get_output_element_type(0));
     cldnn::layout outLayout{outDataType, cldnn::format::bfyx, outTensor};
     auto& attrs = op->get_attrs();
     auto& featmap_shape = op->get_input_shape(1);

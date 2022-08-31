@@ -18,7 +18,7 @@ static void CreateConvertLikeOp(Program& p, const std::shared_ptr<ngraph::op::v1
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto outDataType = DataTypeFromPrecision(op->get_input_element_type(1));
+    auto outDataType = cldnn::element_type_to_data_type(op->get_input_element_type(1));
 
     auto reorderPrim = cldnn::reorder(layerName,
                                       inputPrimitives[0],
@@ -34,7 +34,7 @@ static void CreateConvertOp(Program& p, const std::shared_ptr<ngraph::op::v0::Co
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto outDataType = DataTypeFromPrecision(op->get_destination_type());
+    auto outDataType = cldnn::element_type_to_data_type(op->get_destination_type());
 
     auto reorderPrim = cldnn::reorder(layerName,
                                       inputPrimitives[0],

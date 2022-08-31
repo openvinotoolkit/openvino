@@ -52,7 +52,7 @@ static void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::o
                                        pads_begin,
                                        dilations,
                                        tensor_from_dims(outDims),
-                                       DataTypeFromPrecision(outPrecision),
+                                       cldnn::element_type_to_data_type(outPrecision),
                                        weights_have_group_dim);
 
     p.add_primitive(*op, convPrim);
@@ -87,7 +87,7 @@ static void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1
                                        pads_begin,
                                        dilations,
                                        tensor_from_dims(outDims),
-                                       DataTypeFromPrecision(outPrecision),
+                                       cldnn::element_type_to_data_type(outPrecision),
                                        weights_have_group_dim);
 
     p.add_primitive(*op, convPrim);
@@ -325,7 +325,7 @@ static void CreateBinaryConvolutionOp(Program& p, const std::shared_ptr<ngraph::
     auto outDims = op->get_output_shape(0);
 
     std::vector<cldnn::primitive_id> weights = {inputs[1]};
-    cldnn::data_types calc_precision = DataTypeFromPrecision(op->get_output_element_type(0));
+    cldnn::data_types calc_precision = cldnn::element_type_to_data_type(op->get_output_element_type(0));
 
     auto strides = op->get_strides();
     auto pads_begin = op->get_pads_begin();
