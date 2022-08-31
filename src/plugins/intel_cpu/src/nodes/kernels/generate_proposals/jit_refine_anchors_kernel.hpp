@@ -236,7 +236,8 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
     Xbyak::Reg64 reg_scores_ptr = r10;
     Xbyak::Reg64 reg_proposals_ptr = r11;
     Xbyak::Reg64 reg_anchors_chunk = r12;
-    Xbyak::Reg64 reg_coordinates_offset = r8;
+    Xbyak::Reg64 reg_img_h = r13;
+    Xbyak::Reg64 reg_img_w = r14;
 
     // Temp variables
     Xbyak::Reg64 reg_anchor_idx = r13;

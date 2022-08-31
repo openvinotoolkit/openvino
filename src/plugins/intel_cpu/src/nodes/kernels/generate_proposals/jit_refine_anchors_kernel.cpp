@@ -80,7 +80,8 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
     mov(reg_deltas_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, deltas)]);
     mov(reg_scores_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, scores)]);
     mov(reg_proposals_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposals)]);
-//    mov(reg_coordinates_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, coordinates_offset)]);
+    mov(reg_img_h, ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_h)]);
+    mov(reg_img_w, ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_w)]);
 //    mov(reg_anchors_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchors_idx_offset)]);
 //    mov(reg_delta_index_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_idx)]);
 //    mov(reg_delta_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_idx_offset)]);
@@ -196,120 +197,181 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
                              vmm_dx, vmm_dy, vmm_d_log_w, vmm_d_log_h};
         Vmm vmm_temp = this->get_free_vmm<Vmm>(not_available_vmm);
 
-//        /** @code
-//            // width & height of box
-//            const float ww = x1 - x0 + coordinates_offset;
-//            const float hh = y1 - y0 + coordinates_offset;
-//         */
-//        Vmm vmm_ww = vmm_temp;
-//        Vmm vmm_hh = vmm_temp;
-//        Xbyak::Address vmm_ww_addr = ptr[rbp - 2 * vmm_reg_size_in_bytes];
-//        Xbyak::Address vmm_hh_addr = ptr[rbp - 3 * vmm_reg_size_in_bytes];
-//        Xbyak::Address vmm_coordinates_offset_addr = ptr[rbp - 4 * vmm_reg_size_in_bytes];
-//        uni_vbroadcastss(vmm_temp, ptr[reg_params + offsetof(jit_refine_anchors_call_args, coordinates_offset)]);
-//        sub(rsp, vmm_reg_size_in_bytes);
-//        uni_vmovdqu(vmm_coordinates_offset_addr, vmm_temp);
-//        // const float ww = x1 - x0 + coordinates_offset;
-//        uni_vsubps(vmm_ww, vmm_x1, vmm_x0);
-//        uni_vaddps(vmm_ww, vmm_ww, vmm_coordinates_offset_addr);
-//        sub(rsp, vmm_reg_size_in_bytes);
-//        uni_vmovdqu(vmm_ww_addr, vmm_ww);
-//        // const float hh = y1 - y0 + coordinates_offset;
-//        uni_vsubps(vmm_hh, vmm_y1, vmm_y0);
-//        uni_vaddps(vmm_hh, vmm_hh, vmm_coordinates_offset_addr);
-//        sub(rsp, vmm_reg_size_in_bytes);
-//        uni_vmovdqu(vmm_hh_addr, vmm_hh);
+        /** @code
+            // width & height of box
+            const float ww = x1 - x0 + coordinates_offset;
+            const float hh = y1 - y0 + coordinates_offset;
+         */
+        Vmm vmm_ww = vmm_temp;
+        Vmm vmm_hh = vmm_temp;
+        sub(rsp, 3 * vmm_reg_size_in_bytes);
+        Xbyak::Address vmm_ww_addr = ptr[rbp - 2 * vmm_reg_size_in_bytes];
+        Xbyak::Address vmm_hh_addr = ptr[rbp - 3 * vmm_reg_size_in_bytes];
+        Xbyak::Address vmm_coordinates_offset_addr = ptr[rbp - 4 * vmm_reg_size_in_bytes];
+        uni_vbroadcastss(vmm_temp, ptr[reg_params + offsetof(jit_refine_anchors_call_args, coordinates_offset)]);
+        uni_vmovdqu(vmm_coordinates_offset_addr, vmm_temp);
+        // const float ww = x1 - x0 + coordinates_offset;
+        uni_vsubps(vmm_ww, vmm_x1, vmm_x0);
+        uni_vaddps(vmm_ww, vmm_ww, vmm_coordinates_offset_addr);
+        uni_vmovdqu(vmm_ww_addr, vmm_ww);
+        // const float hh = y1 - y0 + coordinates_offset;
+        uni_vsubps(vmm_hh, vmm_y1, vmm_y0);
+        uni_vaddps(vmm_hh, vmm_hh, vmm_coordinates_offset_addr);
+        uni_vmovdqu(vmm_hh_addr, vmm_hh);
 
-//        /** @code
-//            // center location of box
-//            const float ctr_x = x0 + 0.5f * ww;
-//            const float ctr_y = y0 + 0.5f * hh;
-//         */
-//        // const float ctr_x = x0 + 0.5f * ww;
-//        uni_vmulss(vmm_ctr_x, vmm_ww, reg_scale_0_5);
-//        uni_vaddps(vmm_ctr_x, vmm_ctr_x, vmm_x0);
-//        // const float ctr_y = y0 + 0.5f * hh;
-//        uni_vmulss(xmm_ctr_y, vmm_hh, reg_scale_0_5);
-//        uni_vaddps(xmm_ctr_y, xmm_ctr_y, vmm_y0);
-//
-//        /** @code
-//            // new center location according to deltas (dx, dy)
-//            const float pred_ctr_x = dx * ww + ctr_x;
-//            const float pred_ctr_y = dy * hh + ctr_y;
-//         */
-//        // const float pred_ctr_x = dx * ww + ctr_x;
-//        uni_vmulps(xmm_pred_ctr_x, xmm_dx, vmm_ww);
-//        uni_vaddps(xmm_pred_ctr_x, xmm_pred_ctr_x, vmm_ctr_x);
-//        // const float pred_ctr_y = dy * hh + ctr_y;
-//        uni_vmulps(xmm_pred_ctr_y, xmm_dy, vmm_hh);
-//        uni_vaddps(xmm_pred_ctr_y, xmm_pred_ctr_y, xmm_ctr_y);
-//
-//        /** @code
-//            // new width & height according to deltas d(log w), d(log h)
-//            const float pred_w = std::exp(std::min(d_log_w, max_delta_log_wh)) * ww;
-//            const float pred_h = std::exp(std::min(d_log_h, max_delta_log_wh)) * hh;
-//         */
-//        // const float pred_w = std::exp(std::min(d_log_w, max_delta_log_wh)) * ww;
-//        uni_vminss(xmm_pred_w, xmm_d_log_w, xmm_max_delta_log_wh);
-//        uni_expf(vmm_pred_w);
-//        uni_vmulps(xmm_pred_w, xmm_pred_w, vmm_ww);
-//        // const float pred_h = std::exp(std::min(d_log_h, max_delta_log_wh)) * hh;
-//        uni_vminss(xmm_pred_h, xmm_d_log_h, xmm_max_delta_log_wh);
-//        uni_expf(vmm_pred_h);
-//        uni_vmulps(xmm_pred_h, xmm_pred_h, vmm_hh);
-//
-//        /** @code
-//            // update upper-left corner location
-//            x0 = pred_ctr_x - 0.5f * pred_w;
-//            y0 = pred_ctr_y - 0.5f * pred_h;
-//         */
-//        // x0 = pred_ctr_x - 0.5f * pred_w;
-//        uni_vmulss(vmm_x0, xmm_pred_w, reg_scale_0_5);
-//        uni_vaddps(vmm_x0, xmm_pred_ctr_x, vmm_x0);
-//        // y0 = pred_ctr_y - 0.5f * pred_h;
-//        uni_vmulss(vmm_y0, xmm_pred_h, reg_scale_0_5);
-//        uni_vaddps(vmm_y0, xmm_pred_ctr_y, vmm_y0);
-//
-//        /** @code
-//            // update lower-right corner location
-//            x1 = pred_ctr_x + 0.5f * pred_w - coordinates_offset;
-//            y1 = pred_ctr_y + 0.5f * pred_h - coordinates_offset;
-//         */
-//        // x1 = pred_ctr_x + 0.5f * pred_w - coordinates_offset;
-//        uni_vmulss(vmm_x1, xmm_pred_w, reg_scale_0_5);
-//        uni_vsubss(vmm_x1, vmm_x1, reg_coordinates_offset);
-//        uni_vaddps(vmm_x1, xmm_pred_ctr_x, vmm_x1);
-//        // y1 = pred_ctr_y + 0.5f * pred_h - coordinates_offset;
-//        uni_vmulss(vmm_y1, xmm_pred_h, reg_scale_0_5);
-//        uni_vsubss(vmm_y1, vmm_y1, reg_coordinates_offset);
-//        uni_vaddps(vmm_y1, xmm_pred_ctr_y, vmm_y1);
-//
-//        sub(reg_img_W, reg_coordinates_offset);
-//        sub(reg_img_H, reg_coordinates_offset);
-//        /** @code
-//            // adjust new corner locations to be within the image region,
-//            x0 = std::max<float>(0.0f, std::min<float>(x0, img_w - coordinates_offset));
-//            y0 = std::max<float>(0.0f, std::min<float>(y0, img_h - coordinates_offset));
-//         */
-//        // x0 = std::max<float>(0.0f, std::min<float>(x0, img_w - coordinates_offset));
-//        uni_vminss(vmm_x0, vmm_x0, reg_img_W);
-//        uni_vmaxss(vmm_x0, xmm_0_0, vmm_x0);
-//        // y0 = std::max<float>(0.0f, std::min<float>(y0, img_h - coordinates_offset));
-//        uni_vminss(vmm_y0, vmm_y0, reg_img_H);
-//        uni_vmaxss(vmm_y0, xmm_0_0, vmm_y0);
-//
-//        /** @code
-//            // adjust new corner locations to be within the image region,
-//            x1 = std::max<float>(0.0f, std::min<float>(x1, img_w - coordinates_offset));
-//            y1 = std::max<float>(0.0f, std::min<float>(y1, img_h - coordinates_offset));
-//         */
-//        // x1 = std::max<float>(0.0f, std::min<float>(x1, img_w - coordinates_offset));
-//        uni_vminss(vmm_x1, vmm_x1, reg_img_W);
-//        uni_vmaxss(vmm_x1, xmm_0_0, vmm_x1);
-//        // y1 = std::max<float>(0.0f, std::min<float>(y1, img_h - coordinates_offset));
-//        uni_vminss(vmm_y1, vmm_y1, reg_img_H);
-//        uni_vmaxss(vmm_y1, xmm_0_0, vmm_y1);
-//
+        /** @code
+            // center location of box
+            const float ctr_x = x0 + 0.5f * ww;
+            const float ctr_y = y0 + 0.5f * hh;
+         */
+        Vmm vmm_ctr_x = vmm_temp;
+        Vmm vmm_ctr_y = vmm_temp;
+        sub(rsp, sizeof(float) + 3 * vmm_reg_size_in_bytes);
+        Xbyak::Address reg_scale_0_5_addr = ptr[rbp - (4 * vmm_reg_size_in_bytes + sizeof(float))];
+        Xbyak::Address vmm_scale_0_5_addr = ptr[rbp - (5 * vmm_reg_size_in_bytes + sizeof(float))];
+        Xbyak::Address vmm_ctr_x_addr = ptr[rbp - (6 * vmm_reg_size_in_bytes + sizeof(float))];
+        Xbyak::Address vmm_ctr_y_addr = ptr[rbp - (7 * vmm_reg_size_in_bytes + sizeof(float))];
+        mov(rax.cvt32(), dnnl::impl::float2int(0.5f));
+        mov(reg_scale_0_5_addr, rax.cvt32());
+        uni_vbroadcastss(vmm_temp, reg_scale_0_5_addr);
+        uni_vmovdqu(vmm_scale_0_5_addr, vmm_temp);
+        // const float ctr_x = x0 + 0.5f * ww;
+        uni_vmovdqu(vmm_ww, vmm_ww_addr);
+        uni_vmulps(vmm_ctr_x, vmm_ww, vmm_scale_0_5_addr);
+        uni_vaddps(vmm_ctr_x, vmm_ctr_x, vmm_x0);
+        uni_vmovdqu(vmm_ctr_x_addr, vmm_ctr_x);
+        // const float ctr_y = y0 + 0.5f * hh;
+        uni_vmovdqu(vmm_hh, vmm_hh_addr);
+        uni_vmulps(vmm_ctr_y, vmm_hh, vmm_scale_0_5_addr);
+        uni_vaddps(vmm_ctr_y, vmm_ctr_y, vmm_y0);
+        uni_vmovdqu(vmm_ctr_y_addr, vmm_ctr_y);
+
+        /** @code
+            // new center location according to deltas (dx, dy)
+            const float pred_ctr_x = dx * ww + ctr_x;
+            const float pred_ctr_y = dy * hh + ctr_y;
+         */
+        Vmm vmm_pred_ctr_x = vmm_temp;
+        Vmm vmm_pred_ctr_y = vmm_temp;
+        sub(rsp, sizeof(float) + 2 * vmm_reg_size_in_bytes);
+        Xbyak::Address vmm_pred_ctr_x_addr = ptr[rbp - (8 * vmm_reg_size_in_bytes + sizeof(float))];
+        Xbyak::Address vmm_pred_ctr_y_addr = ptr[rbp - (9 * vmm_reg_size_in_bytes + sizeof(float))];
+        // const float pred_ctr_x = dx * ww + ctr_x;
+        uni_vmulps(vmm_pred_ctr_x, vmm_dx, vmm_ww_addr);
+        uni_vaddps(vmm_pred_ctr_x, vmm_pred_ctr_x, vmm_ctr_x_addr);
+        uni_vmovdqu(vmm_pred_ctr_x_addr, vmm_pred_ctr_x);
+        // const float pred_ctr_y = dy * hh + ctr_y;
+        uni_vmulps(vmm_pred_ctr_y, vmm_dy, vmm_hh_addr);
+        uni_vaddps(vmm_pred_ctr_y, vmm_pred_ctr_y, vmm_ctr_y_addr);
+        uni_vmovdqu(vmm_pred_ctr_y_addr, vmm_pred_ctr_y);
+
+        /** @code
+            // new width & height according to deltas d(log w), d(log h)
+            const float pred_w = std::exp(std::min(d_log_w, max_delta_log_wh)) * ww;
+            const float pred_h = std::exp(std::min(d_log_h, max_delta_log_wh)) * hh;
+         */
+        Vmm vmm_pred_w = vmm_temp;
+        Vmm vmm_pred_h = vmm_temp;
+        sub(rsp, sizeof(float) + 3 * vmm_reg_size_in_bytes);
+        Xbyak::Address reg_max_delta_log_wh_addr = ptr[rbp - (9 * vmm_reg_size_in_bytes + 2 * sizeof(float))];
+        Xbyak::Address vmm_max_delta_log_wh_addr = ptr[rbp - (10 * vmm_reg_size_in_bytes + 2 * sizeof(float))];
+        Xbyak::Address vmm_pred_w_addr = ptr[rbp - (11 * vmm_reg_size_in_bytes + 2 * sizeof(float))];
+        Xbyak::Address vmm_pred_h_addr = ptr[rbp - (12 * vmm_reg_size_in_bytes + 2 * sizeof(float))];
+        mov(rax.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, max_delta_log_wh)]);
+        mov(reg_max_delta_log_wh_addr, rax.cvt32());
+        uni_vbroadcastss(vmm_temp, reg_max_delta_log_wh_addr);
+        uni_vmovdqu(vmm_max_delta_log_wh_addr, vmm_temp);
+        // const float pred_w = std::exp(std::min(d_log_w, max_delta_log_wh)) * ww;
+        uni_vminps(vmm_pred_w, vmm_d_log_w, vmm_max_delta_log_wh_addr);
+        uni_expf(vmm_pred_w);
+        uni_vmulps(vmm_pred_w, vmm_pred_w, vmm_ww_addr);
+        uni_vmovdqu(vmm_pred_w_addr, vmm_pred_w);
+        // const float pred_h = std::exp(std::min(d_log_h, max_delta_log_wh)) * hh;
+        uni_vminps(vmm_pred_h, vmm_d_log_h, vmm_max_delta_log_wh_addr);
+        uni_expf(vmm_pred_h);
+        uni_vmulps(vmm_pred_h, vmm_pred_h, vmm_hh_addr);
+        uni_vmovdqu(vmm_pred_h_addr, vmm_pred_h);
+
+        /** @code
+            // update upper-left corner location
+            x0 = pred_ctr_x - 0.5f * pred_w;
+            y0 = pred_ctr_y - 0.5f * pred_h;
+         */
+        // x0 = pred_ctr_x - 0.5f * pred_w;
+        uni_vmovdqu(vmm_pred_w, vmm_pred_w_addr);
+        uni_vmulps(vmm_x0, vmm_pred_w, vmm_scale_0_5_addr);
+        uni_vmovdqu(vmm_pred_ctr_x, vmm_pred_ctr_x_addr);
+        uni_vsubps(vmm_x0, vmm_pred_ctr_x, vmm_x0);
+        // y0 = pred_ctr_y - 0.5f * pred_h;
+        uni_vmovdqu(vmm_pred_h, vmm_pred_h_addr);
+        uni_vmulps(vmm_y0, vmm_pred_h, vmm_scale_0_5_addr);
+        uni_vmovdqu(vmm_pred_ctr_y, vmm_pred_ctr_y_addr);
+        uni_vsubps(vmm_y0, vmm_pred_ctr_y, vmm_y0);
+
+        /** @code
+            // update lower-right corner location
+            x1 = pred_ctr_x + 0.5f * pred_w - coordinates_offset;
+            y1 = pred_ctr_y + 0.5f * pred_h - coordinates_offset;
+         */
+        // x1 = pred_ctr_x + 0.5f * pred_w - coordinates_offset;
+        uni_vmovdqu(vmm_pred_w, vmm_pred_w_addr);
+        uni_vmulps(vmm_x1, vmm_pred_w, vmm_scale_0_5_addr);
+        uni_vsubps(vmm_x1, vmm_x1, vmm_coordinates_offset_addr);
+        uni_vmovdqu(vmm_pred_ctr_x, vmm_pred_ctr_x_addr);
+        uni_vaddps(vmm_x1, vmm_pred_ctr_x, vmm_x1);
+        // y1 = pred_ctr_y + 0.5f * pred_h - coordinates_offset;
+        uni_vmovdqu(vmm_pred_h, vmm_pred_h_addr);
+        uni_vmulps(vmm_y1, vmm_pred_h, vmm_scale_0_5_addr);
+        uni_vsubps(vmm_y1, vmm_y1, vmm_coordinates_offset_addr);
+        uni_vmovdqu(vmm_pred_ctr_y, vmm_pred_ctr_y_addr);
+        uni_vaddps(vmm_y1, vmm_pred_ctr_y, vmm_y1);
+
+        sub(reg_img_w, ptr[reg_params + offsetof(jit_refine_anchors_call_args, coordinates_offset)]);
+        sub(reg_img_h, ptr[reg_params + offsetof(jit_refine_anchors_call_args, coordinates_offset)]);
+        /** @code
+            // adjust new corner locations to be within the image region,
+            x0 = std::max<float>(0.0f, std::min<float>(x0, img_w - coordinates_offset));
+            y0 = std::max<float>(0.0f, std::min<float>(y0, img_h - coordinates_offset));
+         */
+        sub(rsp, 3 * sizeof(float) + 3 * vmm_reg_size_in_bytes);
+        Xbyak::Address reg_img_w_addr = ptr[rbp - (12 * vmm_reg_size_in_bytes + 3 * sizeof(float))];
+        Xbyak::Address vmm_img_w_addr = ptr[rbp - (13 * vmm_reg_size_in_bytes + 3 * sizeof(float))];
+        Xbyak::Address reg_img_h_addr = ptr[rbp - (13 * vmm_reg_size_in_bytes + 4 * sizeof(float))];
+        Xbyak::Address vmm_img_h_addr = ptr[rbp - (14 * vmm_reg_size_in_bytes + 4 * sizeof(float))];
+        Xbyak::Address reg_0_0_addr = ptr[rbp - (14 * vmm_reg_size_in_bytes + 5 * sizeof(float))];
+        Xbyak::Address vmm_0_0_addr = ptr[rbp - (15 * vmm_reg_size_in_bytes + 5 * sizeof(float))];
+        mov(reg_img_w_addr, reg_img_w);
+        uni_vbroadcastss(vmm_temp, reg_img_w_addr);
+        uni_vmovdqu(vmm_img_w_addr, vmm_temp);
+
+        mov(reg_img_h_addr, reg_img_h);
+        uni_vbroadcastss(vmm_temp, reg_img_h_addr);
+        uni_vmovdqu(vmm_img_h_addr, vmm_temp);
+
+        mov(rax.cvt32(), dnnl::impl::float2int(0.0f));
+        mov(reg_0_0_addr, rax.cvt32());
+        uni_vbroadcastss(vmm_temp, reg_0_0_addr);
+        uni_vmovdqu(vmm_0_0_addr, vmm_temp);
+
+        // x0 = std::max<float>(0.0f, std::min<float>(x0, img_w - coordinates_offset));
+        uni_vminps(vmm_x0, vmm_x0, vmm_img_w_addr);
+        uni_vmaxps(vmm_x0, vmm_x0, vmm_0_0_addr);
+        // y0 = std::max<float>(0.0f, std::min<float>(y0, img_h - coordinates_offset));
+        uni_vminps(vmm_y0, vmm_y0, vmm_img_h_addr);
+        uni_vmaxps(vmm_y0, vmm_y0, vmm_0_0_addr);
+
+        /** @code
+            // adjust new corner locations to be within the image region,
+            x1 = std::max<float>(0.0f, std::min<float>(x1, img_w - coordinates_offset));
+            y1 = std::max<float>(0.0f, std::min<float>(y1, img_h - coordinates_offset));
+         */
+        // x1 = std::max<float>(0.0f, std::min<float>(x1, img_w - coordinates_offset));
+        uni_vminps(vmm_x1, vmm_x1, vmm_img_w_addr);
+        uni_vmaxps(vmm_x1, vmm_x1, vmm_0_0_addr);
+        // y1 = std::max<float>(0.0f, std::min<float>(y1, img_h - coordinates_offset));
+        uni_vminps(vmm_y1, vmm_y1, vmm_img_h_addr);
+        uni_vmaxps(vmm_y1, vmm_y1, vmm_0_0_addr);
+
 //        /** @code
 //            // recompute new width & height
 //            const float box_w = x1 - x0 + coordinates_offset;
