@@ -617,10 +617,7 @@ public:
                 IE_THROW() << "Device name must not contain dot '.' symbol";
             }
             const auto& value = plugin.second;
-            ov::AnyMap config;
-            for (const auto& it : value.m_default_config) {
-                config[it.first] = it.second;
-            }
+            ov::AnyMap config = any_copy(value.m_default_config);
             PluginDescriptor desc{value.m_create_plugin_func, config, value.m_create_extension_func};
             pluginRegistry[deviceName] = desc;
             add_mutex(deviceName);
