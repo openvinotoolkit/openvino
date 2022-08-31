@@ -95,12 +95,12 @@ macro(ov_parse_ci_build_number)
     endif()
 
     set(OpenVINO_SOVERSION "${OpenVINO_VERSION_MAJOR}${OpenVINO_VERSION_MINOR}${OpenVINO_VERSION_PATCH}")
+    string(REGEX REPLACE "^20" "" OpenVINO_SOVERSION "${OpenVINO_SOVERSION}")
     set(OpenVINO_VERSION "${OpenVINO_VERSION_MAJOR}.${OpenVINO_VERSION_MINOR}.${OpenVINO_VERSION_PATCH}")
-    # TODO: remove DEB later
-    if(WIN32 OR NOT CPACK_GENERATOR STREQUAL "DEB")
-        set(OpenVINO_VERSION_SUFFIX "")
-    else()
+    if(ENABLE_LIBRARY_VERSIONING)
         set(OpenVINO_VERSION_SUFFIX ".${OpenVINO_VERSION}")
+    else()
+        set(OpenVINO_VERSION_SUFFIX "")
     endif()
     message(STATUS "OpenVINO version is ${OpenVINO_VERSION} (Build ${OpenVINO_VERSION_BUILD})")
 
@@ -153,11 +153,11 @@ macro (addVersionDefines FILE)
 endmacro()
 
 function(ov_add_library_version library)
-    if(CPACK_GENERATOR STREQUAL "DEB")
-        if(NOT DEFINED OpenVINO_SOVERSION)
-            message(FATAL_ERROR "Internal error: OpenVINO_SOVERSION is not defined")
-        endif()
+    if(NOT DEFINED OpenVINO_SOVERSION)
+        message(FATAL_ERROR "Internal error: OpenVINO_SOVERSION is not defined")
+    endif()
 
+    if(ENABLE_LIBRARY_VERSIONING)
         set_target_properties(${library} PROPERTIES
             SOVERSION ${OpenVINO_SOVERSION}
             VERSION ${OpenVINO_VERSION})
