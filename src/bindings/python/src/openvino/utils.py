@@ -7,8 +7,6 @@ import sys
 from functools import wraps
 from typing import Callable, Any
 
-from openvino.pyopenvino.util import deprecation_warning
-
 
 def add_openvino_libs_to_path() -> None:
     """Adds OpenVINO libraries to the PATH environment variable on Windows."""
@@ -43,6 +41,8 @@ def deprecated(version: str = "", message: str = "") -> Callable[..., Any]:
     def decorator(wrapped: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(wrapped)
         def wrapper(*args: Any, **kwargs: Any) -> Callable[..., Any]:
+            # it must be imported here; otherwise, there are errors with no loaded DLL for Windows
+            from openvino.pyopenvino.util import deprecation_warning
             deprecation_warning(wrapped.__name__, version, message)
             return wrapped(*args, **kwargs)
         return wrapper
