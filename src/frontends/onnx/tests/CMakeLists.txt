@@ -118,53 +118,53 @@ foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
 endforeach()
 
-add_executable(ov_onnx_frontend_test ${SRC})
+add_executable(ov_onnx_frontend_tests ${SRC})
 
-add_dependencies(ov_onnx_frontend_test template_extension)
+add_dependencies(ov_onnx_frontend_tests template_extension)
 
-target_include_directories(ov_onnx_frontend_test PRIVATE ".")
+target_include_directories(ov_onnx_frontend_tests PRIVATE ".")
 
-target_compile_definitions(ov_onnx_frontend_test
+target_compile_definitions(ov_onnx_frontend_tests
     PRIVATE
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
 if(ONNX_TESTS_DEPENDENCIES)
-    add_dependencies(ov_onnx_frontend_test ${ONNX_TESTS_DEPENDENCIES})
+    add_dependencies(ov_onnx_frontend_tests ${ONNX_TESTS_DEPENDENCIES})
 endif()
 
-target_link_libraries(ov_onnx_frontend_test PRIVATE engines_test_util gtest_main_manifest openvino::runtime::dev
+target_link_libraries(ov_onnx_frontend_tests PRIVATE engines_test_util gtest_main_manifest openvino::runtime::dev
     openvino_onnx_frontend onnx_common)
 
 # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
 # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
-target_include_directories(ov_onnx_frontend_test
+target_include_directories(ov_onnx_frontend_tests
     SYSTEM PRIVATE
         $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
         ${Protobuf_INCLUDE_DIRS})
-target_compile_definitions(ov_onnx_frontend_test PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
-target_compile_definitions(ov_onnx_frontend_test PRIVATE ENABLE_OV_ONNX_FRONTEND)
+target_compile_definitions(ov_onnx_frontend_tests PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
+target_compile_definitions(ov_onnx_frontend_tests PRIVATE ENABLE_OV_ONNX_FRONTEND)
 
 if (OV_COMPILER_IS_CLANG)
-    target_compile_options(ov_onnx_frontend_test PRIVATE -Wno-undef -Wno-reserved-id-macro)
+    target_compile_options(ov_onnx_frontend_tests PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
 
-target_include_directories(ov_onnx_frontend_test PRIVATE
+target_include_directories(ov_onnx_frontend_tests PRIVATE
     $<TARGET_PROPERTY:openvino_onnx_frontend,INCLUDE_DIRECTORIES>)
 if (LINUX)
-    target_link_options(ov_onnx_frontend_test PRIVATE -Wl,--exclude-libs,ALL)
+    target_link_options(ov_onnx_frontend_tests PRIVATE -Wl,--exclude-libs,ALL)
 elseif(APPLE)
-    target_link_options(ov_onnx_frontend_test PRIVATE -Wl,-dead_strip)
+    target_link_options(ov_onnx_frontend_tests PRIVATE -Wl,-dead_strip)
 endif()
 
-install(TARGETS ov_onnx_frontend_test
+install(TARGETS ov_onnx_frontend_tests
         RUNTIME DESTINATION tests
         COMPONENT tests
         EXCLUDE_FROM_ALL)
 
 # process models
-add_dependencies(ov_onnx_frontend_test test_model_zoo)
+add_dependencies(ov_onnx_frontend_tests test_model_zoo)
 
 add_subdirectory(standalone_build)
-add_dependencies(ov_onnx_frontend_test onnx_fe_standalone_build_test)
+add_dependencies(ov_onnx_frontend_tests onnx_fe_standalone_build_test)
