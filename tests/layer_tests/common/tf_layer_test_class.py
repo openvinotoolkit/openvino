@@ -62,14 +62,11 @@ class CommonTFLayerTest(CommonLayerTest):
                 tf.compat.v1.import_graph_def(graph_def, name='')
 
                 input = dict()
-                if self.api_2:
-                    input.update(inputs_dict)
-                else:
-                    for key in inputs_dict.keys():
-                        data = inputs_dict.get(key)
-                        if not self.api_2:
-                            key += ':0'
-                        input[key] = transpose_nchw_to_nhwc(data, self.use_new_frontend, self.api_2)
+                for key in inputs_dict.keys():
+                    data = inputs_dict.get(key)
+                    if not self.api_2 or self.use_new_frontend:
+                        key += ':0'
+                    input[key] = transpose_nchw_to_nhwc(data, self.use_new_frontend, self.api_2)
 
                 tf_res = sess.run([out + ":0" for out in outputs_list], input)
 

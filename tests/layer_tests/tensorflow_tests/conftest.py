@@ -2,15 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import inspect
-import os
-import sys
 import logging as log
 from pathlib import Path
 
 import pytest
 from common.layer_test_class import get_params
-
-from common.utils.common_utils import rename_ov_lib
+from common.utils.common_utils import rename_files_by_pattern
 
 
 def pytest_generate_tests(metafunc):
@@ -26,37 +23,21 @@ def rename_tf_fe_libs(request):
         import openvino.runtime as rt
     except ImportError as err:
         raise Exception("Please set PYTHONPATH to OpenVINO Python") from err
-    
+
     openvino_lib_path = Path(rt.__file__).parent.parent.parent.parent.parent
+    tf_fe_lib_names = ['libopenvino_tensorflow_fe', 'libopenvino_tensorflow_frontend']
 
-    if sys.platform == 'win32':
-        tf_fe_lib_names = [('openvino_tensorflow_fe.dll', 'openvino_tensorflow_frontend.dll'),
-                           ('openvino_tensorflow_fe.lib', 'openvino_tensorflow_frontend.lib'),
-                           ('openvino_tensorflow_fe.exp', 'openvino_tensorflow_frontend.exp')]
+    # in case of usual test run we should check names of libs and rename back them if applicable
+    if not request.config.getoption('use_new_frontend'):
+        rename_files_by_pattern(openvino_lib_path, tf_fe_lib_names[1], pattern_to_rename=tf_fe_lib_names[0])
+
+    # in case of new frontend usage we should rename libs
     else:
-        tf_fe_lib_names = [('libopenvino_tensorflow_fe.so', 'libopenvino_tensorflow_frontend.so')]
-
-    if request.config.getoption('use_new_frontend'):
         log.info('Using new frontend...')
-
-        # check if all required files already have new names
-        if all([file_pair[1] in os.listdir(openvino_lib_path) for file_pair in tf_fe_lib_names]):
-            log.info('TF FE libraries already have new names, no renaming will be done')
-        else:
-            rename_ov_lib(tf_fe_lib_names, openvino_lib_path)
+        rename_files_by_pattern(openvino_lib_path, tf_fe_lib_names[0], tf_fe_lib_names[1])
 
     # code after 'yield' statement is equal to 'tear_down' function
     yield
 
-    # check if all required files already have old names
-    if all([file_pair[0] in os.listdir(openvino_lib_path) for file_pair in tf_fe_lib_names]):
-        log.info('TF FE libraries already have old names, no renaming will be done')
-    else:
-        if sys.platform == 'win32':
-            tf_fe_lib_names = [('openvino_tensorflow_frontend.dll', 'openvino_tensorflow_fe.dll'),
-                               ('openvino_tensorflow_frontend.lib', 'openvino_tensorflow_fe.lib'),
-                               ('openvino_tensorflow_frontend.exp', 'openvino_tensorflow_fe.exp')]
-        else:
-            tf_fe_lib_names = [('libopenvino_tensorflow_frontend.so', 'libopenvino_tensorflow_fe.so')]
-        rename_ov_lib(tf_fe_lib_names, openvino_lib_path)
-
+    # we should rename back names of libs in case of previous renaming
+    rename_files_by_pattern(openvino_lib_path, tf_fe_lib_names[1], tf_fe_lib_names[0])

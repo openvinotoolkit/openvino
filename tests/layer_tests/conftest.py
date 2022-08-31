@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import re
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 import pytest
+
 from common import constants
 
 
@@ -65,10 +66,10 @@ def pytest_addoption(parser):
         action="store_true",
         help="Use Model Optimizer with new FrontEnd")
     parser.addoption(
-        "--api_2",
-        action="store_true",
-        help="Use new API 2.0 for model processing in Inference Engine",
-        default=True)
+        "--use_old_api",
+        action="store_false",
+        help="Use old API for model processing in Inference Engine",
+    )
 
 
 @pytest.fixture(scope="session")
@@ -86,7 +87,7 @@ def use_new_frontend(request):
 @pytest.fixture(scope="session")
 def api_2(request):
     """Fixture function for command-line option."""
-    return request.config.getoption('api_2')
+    return request.config.getoption('use_old_api')
 
 
 @pytest.fixture(scope="function")
