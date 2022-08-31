@@ -98,5 +98,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*VirtualPlugin.*BehaviorTests.*OVHoldersTest.*LoadedTensor.*target_device=AUTO.*)",
             // TODO: Issue: 89555
             R"(.*CoreThreadingTests.*smoke.*Network.*)",
+            // Assign-3/ReadValue-3 does not have evaluate() methods; ref implementation does not save the value across the inferences.
+            R"(smoke_MemoryTestV3.*)",
     };
 }

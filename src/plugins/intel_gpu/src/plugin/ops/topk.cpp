@@ -31,7 +31,7 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
             mutable_precision = ngraph::element::i32;
         }
 
-        cldnn::layout mutableLayout = cldnn::layout(DataTypeFromPrecision(mutable_precision),
+        cldnn::layout mutableLayout = cldnn::layout(cldnn::element_type_to_data_type(mutable_precision),
                                                     cldnn::format::get_default_format(op->get_output_shape(1).size()),
                                                     tensor_from_dims(op->get_output_shape(1)));
 
@@ -56,7 +56,7 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
                                              stype,
                                              true,
                                              cldnn::padding({0, 0, 0, 0}, 0),
-                                             DataTypeFromPrecision(op->get_output_element_type(0)));
+                                             cldnn::element_type_to_data_type(op->get_output_element_type(0)));
 
         p.add_primitive(*op, argmaxPrim);
 
@@ -74,7 +74,7 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
                                              stype,
                                              true,
                                              cldnn::padding({0, 0, 0, 0}, 0),
-                                             DataTypeFromPrecision(op->get_output_element_type(0)));
+                                             cldnn::element_type_to_data_type(op->get_output_element_type(0)));
 
         p.add_primitive(*op, argmaxPrim);
     } else {
