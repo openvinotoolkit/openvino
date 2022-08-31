@@ -92,6 +92,9 @@ public:
         }
     }
 
+    /* Copy values from given mask in reversed order.
+        param: mask - given mask.
+    */
     void copy_value_from_mask_reversed(Mask *const mask) {
         auto cur_mask_iter = rbegin();
         auto mask_iter = mask->rbegin();
@@ -103,7 +106,33 @@ public:
         }
     }
 
-    Mask::Ptr intersect_masks_reversed(Mask *const mask) {
+    /* Copy values from given mask in reversed order, ignoring dimensions
+        specified in idx_mask. Ignored dimensions keep prevous values.
+        Dimensions in idx_mask correspond to dimensions of current mask.
+        idx_mask could be reversed by param invert_mask.
+        param: mask - given mask.
+        param: idx_mask - current mask dimensions indexes which will be skipped during copying.
+        param invert_mask - do mask need to be inverted. Default value == false.
+    */
+    void copy_value_from_mask_reversed_masked(Mask *const mask, const std::set<int64_t> &idx_mask, const bool invert_mask = false) {
+        auto cur_mask_iter = rbegin();
+        auto mask_iter = mask->rbegin();
+        while (cur_mask_iter != rend() && mask_iter != mask->rend()) {
+            const auto idx = rend() - cur_mask_iter - 1;
+            if ((idx_mask.find(idx) != idx_mask.end()) == invert_mask)
+                *cur_mask_iter = *mask_iter;
+
+            cur_mask_iter++;
+            mask_iter++;
+        }
+    }
+
+    /* Intersents current mask with given mask alligning
+        dimension starting from the end.
+        param: mask - given mask.
+        returns: intersected masks alligned from the end.
+    */
+    Mask::Ptr intersect_masks_reversed(Mask *const mask) const {
         auto result_mask = std::make_shared<Mask>(std::max(size(), mask->size()));
         auto result_iter = result_mask->rbegin();
         auto mask_1_iter = rbegin();
@@ -127,6 +156,11 @@ public:
         return result_mask;
     }
 
+    /* Unions current mask with given mask alligning
+        dimension starting from the end.
+        param: mask - given mask.
+        returns: united masks alligned from the end.
+    */
     Mask::Ptr union_masks_reversed(Mask *const mask) const {
         auto result_mask = std::make_shared<Mask>(std::max(size(), mask->size()));
         auto result_iter = result_mask->rbegin();

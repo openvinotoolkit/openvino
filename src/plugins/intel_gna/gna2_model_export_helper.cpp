@@ -10,6 +10,7 @@
 #include "gna2-device-api.h"
 #include "gna/gna_config.hpp"
 #include "common/gna_target.hpp"
+#include "common/versioning.hpp"
 
 #include "gna2-tlv-writer.h"
 
@@ -59,6 +60,7 @@ void * ExportSueLegacyUsingGnaApi2(
 #define Gna2TlvTypeOVInputScaleFactor GNA2_TLV_IMPL_CHAR_TO_TYPE("OVIS")
 #define Gna2TlvTypeOVOutputScaleFactor GNA2_TLV_IMPL_CHAR_TO_TYPE("OVOS")
 #define Gna2TlvTypeOVString GNA2_TLV_IMPL_CHAR_TO_TYPE("OVSS")
+#define Gna2TlvTypeOVVersion GNA2_TLV_IMPL_CHAR_TO_TYPE("OVVR")
 #define Gna2ExportTlv(...) 1
 
 static_assert(std::numeric_limits<float>::is_iec559, "Float is not IEC 559 compatible");
@@ -147,6 +149,11 @@ std::string WriteAllEndpoints(std::ostream& outStream,
         }
     }
     return stream.str();
+}
+
+void WriteStringToTlv(std::ostream& outStream, const Gna2TlvType tlvType, const std::string& value) {
+    const auto& valueTlv = GetStringAsTlv(tlvType, value);
+    outStream.write(valueTlv.data(), valueTlv.size());
 }
 
 }  // namespace
@@ -254,8 +261,9 @@ void ExportTlvModel(uint32_t modelId,
         outStream.write(outTlv, outTlvSize);
         auto metadata = WriteAllEndpoints(outStream, allInputs, Gna2TlvTypeOVInputScaleFactor, allAllocations.Get(Gna2MemoryTagInput));
         metadata += WriteAllEndpoints(outStream, allOutputs, Gna2TlvTypeOVOutputScaleFactor, allAllocations.Get(Gna2MemoryTagOutput));
-        auto metadataTlv = GetStringAsTlv(Gna2TlvTypeOVString, metadata);
-        outStream.write(metadataTlv.data(), metadataTlv.size());
+        WriteStringToTlv(outStream, Gna2TlvTypeOVString, metadata);
+        const auto& ovVersionString = ov::intel_gna::common::get_openvino_version_string();
+        WriteStringToTlv(outStream, Gna2TlvTypeOVVersion, ovVersionString);
     }
 
     gnaUserFree(outTlv);

@@ -94,6 +94,8 @@ set(SRC
     type_prop/assign.cpp
     type_prop/atan.cpp
     type_prop/atanh.cpp
+    type_prop/augru_cell.cpp
+    type_prop/augru_sequence.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
     type_prop/batch_to_space.cpp
@@ -565,7 +567,6 @@ target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
                                         ngraph::builder
                                         openvino::util
                                         ov_shape_inference
-                                        pugixml::static
                                         ${CMAKE_DL_LIBS}
                                         Threads::Threads
                                         openvino::conditional_compilation

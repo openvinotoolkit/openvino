@@ -6,7 +6,10 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace pass {
+
 
 /**
  * @brief Convert a depthwise separable convolution (represented by a GroupConvolution) to a set of ScaleShift layers (MatMul + Add)
@@ -18,4 +21,6 @@ public:
     ConvertDWSCToScaleShifts();
 };
 
-} // namespace GNAPluginNS
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov

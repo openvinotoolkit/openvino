@@ -1617,25 +1617,23 @@ void Convolution::initTryBrgconvFlag() {
     // Due to performance issue, brgconv will only be enabled by default:
     // 1, static shape(dynamic shape may change weights layout if the input shape changes and cause performance issue: 86948)
     // 2, support amx
-    // 3, int8 without legacy postops/zero point when avx512
+    // 3, support avx512 without legacy postops/zero point when avx512
     if (!isDynamicNode()) {
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
             shouldTryBrgconv = true;
         } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+            shouldTryBrgconv = true;
             // should remove after binary postops performance issue resolved
-            // heuristics: if it's  avx512 ISA int8 model && it doesn't have legacy depthwise/quantization post ops or zero point.
-            if (canBeExecutedInInt8()) {
-                shouldTryBrgconv = true;
-                dnnl::primitive_attr attr;
-                //Set the legacy attr
-                setPostOps(attr, MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
-                addLegacyZeroPoints(attr);
-                attrs.push_back(attr);
-                const auto& ops = attr.get_post_ops();
-                if (havingZeroPoint || ops.get()->find(dnnl::impl::primitive_kind::depthwise) != -1 ||
-                    ops.get()->find(dnnl::impl::primitive_kind::quantization) != -1)
-                    shouldTryBrgconv = false;
-            }
+            // heuristics: if it's  avx512 ISA  model && it doesn't have legacy depthwise/quantization post ops or zero point.
+            dnnl::primitive_attr attr;
+            //Set the legacy attr
+            setPostOps(attr, MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
+            addLegacyZeroPoints(attr);
+            attrs.push_back(attr);
+            const auto& ops = attr.get_post_ops();
+            if (havingZeroPoint || ops.get()->find(dnnl::impl::primitive_kind::depthwise) != -1 ||
+                ops.get()->find(dnnl::impl::primitive_kind::quantization) != -1)
+                shouldTryBrgconv = false;
         }
     }
 }
