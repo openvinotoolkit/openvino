@@ -5,10 +5,11 @@
 #include "transformations/common_optimizations/gru_cell_fusion.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset9.hpp>
 
 #include "itt.hpp"
+#include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace std;
 using namespace ov::opset9;
