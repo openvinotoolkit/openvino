@@ -47,7 +47,7 @@ const std::vector<std::vector<InputShape>> inputShapes = {
     static_shapes_to_test_representation({{16, 4}, {16, 8}, {16, 2}, {1, 3}}),
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronDetectionOutput,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ExperimentalDetectronDetectionOutput,
                          ExperimentalDetectronDetectionOutputLayerTest,
                          ::testing::Combine(::testing::ValuesIn(inputShapes),
                                             ::testing::ValuesIn(score_threshold),
