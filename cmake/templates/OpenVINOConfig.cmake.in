@@ -151,15 +151,28 @@ if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND NOT TBB_FOUND
 
     # try tbb.pc
     if(enable_pkgconfig_tbb AND NOT ANDROID)
-        find_package(PkgConfig QUIET)
+        _ov_find_dependency(PkgConfig)
         if(PkgConfig_FOUND)
-            pkg_search_module(tbb QUIET
+            if(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY)
+                set(pkg_config_quiet_arg QUIET)
+            endif()
+            if(${CMAKE_FIND_PACKAGE_NAME}_FIND_REQUIRED)
+                set(pkg_config_required_arg REQUIRED)
+            endif()
+
+            pkg_search_module(tbb
+                              ${pkg_config_quiet_arg}
+                              ${pkg_config_required_arg}
                               IMPORTED_TARGET GLOBAL
                               tbb)
+            unset(pkg_config_quiet_arg)
+            unset(pkg_config_required_arg)
+
             if(tbb_FOUND)
                 add_library(TBB::tbb ALIAS PkgConfig::tbb)
                 set(TBB_VERSION ${tbb_VERSION})
                 set(TBB_FOUND ${tbb_FOUND})
+                set(TBB_IMPORTED_TARGETS TBB::tbb)
                 message(STATUS "tbb (${tbb_VERSION}) is found at ${tbb_PREFIX}")
             endif()
         endif()
@@ -231,12 +244,25 @@ unset(_OV_ENABLE_INTEL_GNA)
 
 set(_OV_ENABLE_INTEL_MYRIAD "@ENABLE_INTEL_MYRIAD@")
 if(_OV_ENABLE_INTEL_MYRIAD AND NOT _OV_ENABLE_OPENVINO_BUILD_SHARED)
-    find_package(PkgConfig QUIET)
+    _ov_find_dependency(PkgConfig)
     if(PkgConfig_FOUND AND NOT ANDROID)
-        pkg_search_module(libusb REQUIRED
+        if(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY)
+            set(pkg_config_quiet_arg QUIET)
+        endif()
+        if(${CMAKE_FIND_PACKAGE_NAME}_FIND_REQUIRED)
+            set(pkg_config_required_arg REQUIRED)
+        endif()
+        pkg_search_module(libusb
+                          ${pkg_config_quiet_arg}
+                          ${pkg_config_required_arg}
                           IMPORTED_TARGET GLOBAL
                           libusb-1.0)
-        message(STATUS "libusb-1.0 (${libusb_VERSION}) is found at ${libusb_PREFIX}")
+        unset(pkg_config_quiet_arg)
+        unset(pkg_config_required_arg)
+
+        if(libusb_FOUND)
+            message(STATUS "libusb-1.0 (${libusb_VERSION}) is found at ${libusb_PREFIX}")
+        endif()
     endif()
 endif()
 unset(_OV_ENABLE_INTEL_MYRIAD)
