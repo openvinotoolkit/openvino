@@ -319,6 +319,10 @@ void layout::set_tensor(const tensor& size) {
     this->size = ov::PartialShape(shape);
 }
 
+void layout::set_partial_shape(const ov::PartialShape& size) {
+    this->size = size;
+}
+
 tensor layout::get_buffer_size() const {
     if (is_dynamic())
         throw std::runtime_error("[GPU] get_buffer_size() is called for dynamic shape");
