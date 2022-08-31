@@ -26,7 +26,7 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
     reorderedInputs.resize(inputPrimitives.size());
 
     for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
-        auto inputDataType = DataTypeFromPrecision(op->get_input_element_type(portIndex));
+        auto inputDataType = cldnn::element_type_to_data_type(op->get_input_element_type(portIndex));
         if (inputDataType == cldnn::data_types::i64) {
             // GPU primitive supports only i32 data type for 'sequence_length' and 'blank_index' inputs
             // so we need additional reorder if it's provided as i64
@@ -69,7 +69,7 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
         }
 
         cldnn::layout mutableLayout = cldnn::layout(
-            DataTypeFromPrecision(mutable_precision),
+            cldnn::element_type_to_data_type(mutable_precision),
             cldnn::format::get_default_format(op->get_output_shape(1).size()),
             tensor_from_dims(op->get_output_shape(1)));
 
@@ -95,7 +95,7 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
                 tensor_from_dims(op->get_output_shape(0)));
 
     // GPU primitive supports only i32 as output data type
-    primitive.output_data_type = DataTypeFromPrecision(ngraph::element::i32);
+    primitive.output_data_type = cldnn::element_type_to_data_type(ngraph::element::i32);
 
     if (num_output == 2) {
         primitive.second_output = reorderedInputs.back();
