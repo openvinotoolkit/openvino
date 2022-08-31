@@ -168,11 +168,11 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
         return available_reg;
     }
 
-    inline void uni_gather(const Xbyak::Xmm &xmm_val,
-                           const Xbyak::Reg64 &reg_addr,
-                           const Xbyak::Xmm &xmm_index,
-                           const int &scale,
-                           const Xbyak::Xmm &xmm_mask) {
+    inline void uni_vgatherdps(const Xbyak::Xmm &xmm_val,
+                               const Xbyak::Reg64 &reg_addr,
+                               const Xbyak::Xmm &xmm_index,
+                               const int &scale,
+                               const Xbyak::Xmm &xmm_mask) {
         if (mayiuse(cpu_isa_t::avx2) || mayiuse(cpu_isa_t::avx512_core)) {
             vgatherdps(xmm_val, ptr[reg_addr + xmm_index * scale], xmm_mask);
         } else {

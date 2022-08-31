@@ -130,19 +130,19 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
 
         {
             // float x0 = anchors[a_idx + 0 * a_idx_offset];
-            this->uni_gather(vmm_x0, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
+            this->uni_vgatherdps(vmm_x0, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
             // float y0 = anchors[a_idx + 1 * a_idx_offset];
             uni_vmovdqu(vmm_anchor_mask, ptr[rsp + this->SIMD_WIDTH * sizeof(float)]);
             uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
-            this->uni_gather(vmm_y0, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
+            this->uni_vgatherdps(vmm_y0, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
             // float x1 = anchors[a_idx + 2 * a_idx_offset];
             uni_vmovdqu(vmm_anchor_mask, ptr[rsp + this->SIMD_WIDTH * sizeof(float)]);
             uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
-            this->uni_gather(vmm_x1, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
+            this->uni_vgatherdps(vmm_x1, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
             // float y1 = anchors[a_idx + 3 * a_idx_offset];
             uni_vmovdqu(vmm_anchor_mask, ptr[rsp + this->SIMD_WIDTH * sizeof(float)]);
             uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
-            this->uni_gather(vmm_y1, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
+            this->uni_vgatherdps(vmm_y1, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
         }
 
         /** @code
@@ -173,19 +173,19 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
 
         {
             // const float dx = deltas[d_idx + 0 * d_idx_offset];
-            this->uni_gather(vmm_dx, reg_deltas_ptr, vmm_delta_idx, sizeof(float), vmm_delta_mask);
+            this->uni_vgatherdps(vmm_dx, reg_deltas_ptr, vmm_delta_idx, sizeof(float), vmm_delta_mask);
             // const float dy = deltas[d_idx + 1 * d_idx_offset];
             uni_vmovdqu(vmm_delta_mask, ptr[rsp + this->SIMD_WIDTH * sizeof(float)]);
             uni_vpaddd(vmm_delta_idx, vmm_delta_idx, vmm_delta_idx_offset);
-            this->uni_gather(vmm_dy, reg_deltas_ptr, vmm_delta_idx, sizeof(float), vmm_delta_mask);
+            this->uni_vgatherdps(vmm_dy, reg_deltas_ptr, vmm_delta_idx, sizeof(float), vmm_delta_mask);
             // const float d_log_w = deltas[d_idx + 2 * d_idx_offset];
             uni_vmovdqu(vmm_delta_mask, ptr[rsp + this->SIMD_WIDTH * sizeof(float)]);
             uni_vpaddd(vmm_delta_idx, vmm_delta_idx, vmm_delta_idx_offset);
-            this->uni_gather(vmm_d_log_w, reg_deltas_ptr, vmm_delta_idx, sizeof(float), vmm_delta_mask);
+            this->uni_vgatherdps(vmm_d_log_w, reg_deltas_ptr, vmm_delta_idx, sizeof(float), vmm_delta_mask);
             // const float d_log_h = deltas[d_idx + 3 * d_idx_offset];
             uni_vmovdqu(vmm_delta_mask, ptr[rsp + this->SIMD_WIDTH * sizeof(float)]);
             uni_vpaddd(vmm_delta_idx, vmm_delta_idx, vmm_delta_idx_offset);
-            this->uni_gather(vmm_d_log_h, reg_deltas_ptr, vmm_delta_idx, sizeof(float), vmm_delta_mask);
+            this->uni_vgatherdps(vmm_d_log_h, reg_deltas_ptr, vmm_delta_idx, sizeof(float), vmm_delta_mask);
         }
 
 //        /** @code
