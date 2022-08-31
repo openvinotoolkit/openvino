@@ -183,7 +183,7 @@ install(FILES "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
 
 # Generate and install openvino.pc pkg-config file
 
-if(LINUX AND NOT CMAKE_CROSSCOMPILING)
+if(LINUX)
     set(generate_pkgconfig ON)
 
     # fill in PKGCONFIG_OpenVINO_FRONTENDS
@@ -207,8 +207,11 @@ if(LINUX AND NOT CMAKE_CROSSCOMPILING)
 
     if(ENABLE_SYSTEM_TBB)
         set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "tbb")
-    else()
-        set(pkg_config_tbb_lib_dir "${IE_TBBROOT_INSTALL}/${tbb_libs_dir}")
+    elseif(TBB_FOUND)
+        if(NOT pkg_config_tbb_lib_dir)
+            message(FATAL_ERROR "Internal error: variable 'pkg_config_tbb_lib_dir' is not defined")
+        endif()
+
         set(PKGCONFIG_OpenVINO_LIBS_PRIVATE "-L\${prefix}/${pkg_config_tbb_lib_dir} -ltbb")
     endif()
 

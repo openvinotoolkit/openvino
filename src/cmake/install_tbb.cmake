@@ -124,6 +124,8 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                 endif()
             endforeach()
         endforeach()
+
+        set(pkg_config_tbb_lib_dir "runtime/3rdparty/tbb/lib")
     elseif(tbb_custom)
         # for custom TBB we need to install it to our package
         # to simplify life for our customers
@@ -168,6 +170,8 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                         COMPONENT tbb)
             endif()
         endforeach()
+
+        set(pkg_config_tbb_lib_dir "${IE_TBBROOT_INSTALL}/${tbb_libs_dir}")
     elseif(tbb_downloaded)
         set(IE_TBB_DIR_INSTALL "runtime/3rdparty/tbb/")
 
@@ -206,6 +210,8 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                     DESTINATION "${IE_TBB_DIR_INSTALL}"
                     COMPONENT tbb_dev)
         endif()
+
+        set(pkg_config_tbb_lib_dir "${IE_TBBROOT_INSTALL}/lib")
     else()
         message(WARNING "TBB of unknown origin. TBB files are not installed")
     endif()
