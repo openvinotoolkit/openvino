@@ -110,7 +110,7 @@ def test_all_predicates():
 
     assert Matcher(WrapType("opset8.Parameter",
                             type_matches_any([get_element_type(np.float32),
-                                              get_element_type(np.compat.long)])), "Test").match(static_param)
+                                              get_element_type(np.compat.long)])), "Test").match(static_param)  # noqa: ECE001
     assert Matcher(WrapType("opset8.Parameter",
                             type_matches_any([get_element_type(np.float32),
-                                              get_element_type(np.compat.long)])), "Test").match(dynamic_param)
+                                              get_element_type(np.compat.long)])), "Test").match(dynamic_param)  # noqa: ECE001
