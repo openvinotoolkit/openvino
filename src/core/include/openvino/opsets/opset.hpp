@@ -40,12 +40,18 @@ public:
     /// \brief Insert OP_TYPE into the opset with a special name and the default factory
     template <typename OP_TYPE, typename std::enable_if<!ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
     void insert(const std::string& name) {
-        insert(name, OP_TYPE::get_type_info_static(), []() {return new OP_TYPE();});
+        auto builder = []() {
+            return new OP_TYPE();
+        };
+        insert(name, OP_TYPE::get_type_info_static(), std::move(builder));
     }
     template <typename OP_TYPE, typename std::enable_if<ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
     void insert(const std::string& name) {
         OPENVINO_SUPPRESS_DEPRECATED_START
-        insert(name, OP_TYPE::type_info, []() {return new OP_TYPE();});
+        auto builder = []() {
+            return new OP_TYPE();
+        };
+        insert(name, OP_TYPE::type_info, std::move(builder));
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
@@ -129,7 +135,6 @@ protected:
     std::map<std::string, NodeTypeInfo> m_name_type_info_map;
     std::map<std::string, NodeTypeInfo> m_case_insensitive_type_info_map;
 };
-
 
 /**
  * @brief Returns opset1

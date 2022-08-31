@@ -13,8 +13,7 @@ class Factory : public openvino::cc::Factory<NodeTypeInfo, ov::Node*()> {
 public:
     Factory(const std::string& name) : openvino::cc::Factory<NodeTypeInfo, ov::Node*()>(name) {}
 
-    Factory(const ov::opset::Factory& factory)
-        : openvino::cc::Factory<NodeTypeInfo, ov::Node*()>(factory.name) {
+    Factory(const ov::opset::Factory& factory) : openvino::cc::Factory<NodeTypeInfo, ov::Node*()>(factory.name) {
         builders = factory.builders;
     }
 
