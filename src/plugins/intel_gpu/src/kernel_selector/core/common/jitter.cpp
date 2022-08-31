@@ -486,7 +486,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
             auto f_size = toCodeString(_tensor.Feature().v);
             definitions.push_back({ safe_index_func_name, "(" + offset + " + ((f) % " + f_size + ")  * " + f_pitch + ")" });
             definitions.push_back({ index_func_name, "(" + offset + " + (f) * " + f_pitch + ")" });
-        } else if (_tensor.PitchesDifferFromLogicalDims()) {
+        } else if (_tensor.PitchesDifferFromLogicalDims() || _tensor.DoubleBlockedLayout()) {
             // TODO This should be solved differently, by setting the macro arguments to zero
             definitions.push_back({ safe_index_func_name, safe_index_func_val });
             definitions.push_back({ index_func_name, index_func_val });

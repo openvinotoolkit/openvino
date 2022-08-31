@@ -287,6 +287,31 @@ inline bool SimpleLayout(DataLayout l) {
     }
 }
 
+inline bool DoubleBlockedLayout(DataLayout l) {
+    switch (l) {
+        case DataLayout::bs_fs_yx_bsv16_fsv16:
+        case DataLayout::bs_fs_zyx_bsv16_fsv32:
+        case DataLayout::bs_fs_zyx_bsv16_fsv16:
+        case DataLayout::bs_fs_yx_bsv4_fsv4:
+        case DataLayout::bs_fs_yx_bsv8_fsv4:
+        case DataLayout::bs_fs_yx_bsv8_fsv2:
+        case DataLayout::bs_fs_zyx_bsv8_fsv4:
+        case DataLayout::bs_fs_zyx_bsv8_fsv2:
+        case DataLayout::bs_fs_yx_bsv16_fsv4:
+        case DataLayout::bs_fs_zyx_bsv16_fsv4:
+        case DataLayout::bs_fs_yx_bsv16_fsv2:
+        case DataLayout::bs_fs_zyx_bsv16_fsv2:
+        case DataLayout::bs_fs_yx_bsv4_fsv2:
+        case DataLayout::bs_fs_yx_bsv32_fsv32:
+        case DataLayout::bs_fs_yx_bsv32_fsv16:
+        case DataLayout::bs_fs_zyx_bsv32_fsv32:
+        case DataLayout::bs_fs_zyx_bsv32_fsv16:
+            return true;
+        default:
+            return false;
+    }
+}
+
 inline bool GroupedLayout(WeightsLayout l);
 
 inline bool GroupedLayout(DataLayout) {
@@ -513,6 +538,7 @@ public:
     uint32_t ElementSize() const override { return BytesPerElement(dtype); }
     size_t Dimentions() const { return dims.size(); }
     bool SimpleLayout() const { return Tensor::SimpleLayout(layout); }
+    bool DoubleBlockedLayout() const { return Tensor::DoubleBlockedLayout(layout); }
     bool GroupedLayout() const { return Tensor::GroupedLayout(layout); }
 
     bool operator==(const TensorBaseT& t) const {
