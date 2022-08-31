@@ -5,10 +5,12 @@
 #include "transformations/common_optimizations/augru_cell_fusion.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset9.hpp>
 
 #include "itt.hpp"
 #include "ngraph_ops/augru_cell.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/opsets/opset9.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace std;
 using namespace ov::opset9;
