@@ -38,6 +38,14 @@ void CreateVariableAccessPrimitive(Program &p, const std::shared_ptr<ngraph::op:
     p.add_primitive(*op, prim);
 }
 
+void CreateReadValueOp(Program& p, const std::shared_ptr<ngraph::op::v3::ReadValue>& op) {
+    CreateVariableAccessPrimitive<cldnn::read_value>(p, op, op->get_variable_id());
+}
+
+void CreateAssignOp(Program& p, const std::shared_ptr<ngraph::op::v3::Assign>& op) {
+    CreateVariableAccessPrimitive<cldnn::assign>(p, op, op->get_variable_id());
+}
+
 void CreateReadValueOp(Program& p, const std::shared_ptr<ngraph::op::v6::ReadValue>& op) {
     CreateVariableAccessPrimitive<cldnn::read_value>(p, op, op->get_variable_id());
 }
@@ -48,7 +56,9 @@ void CreateAssignOp(Program& p, const std::shared_ptr<ngraph::op::v6::Assign>& o
 
 } // namespace
 
+REGISTER_FACTORY_IMPL(v3, Assign);
 REGISTER_FACTORY_IMPL(v6, Assign);
+REGISTER_FACTORY_IMPL(v3, ReadValue);
 REGISTER_FACTORY_IMPL(v6, ReadValue);
 
 }  // namespace intel_gpu

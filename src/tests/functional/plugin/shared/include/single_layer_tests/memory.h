@@ -12,4 +12,8 @@ TEST_P(MemoryTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(MemoryTestV3, CompareWithRefs) {
+    Run();
+};
+
 }  // namespace LayerTestsDefinitions
