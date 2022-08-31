@@ -203,10 +203,15 @@ if(LINUX AND NOT CMAKE_CROSSCOMPILING)
         endif()
     endforeach()
 
-    # fill in PKGCONFIG_OpenVINO_REQUIRES_PRIVATE
+    # fill in PKGCONFIG_OpenVINO_REQUIRES_PRIVATE and PKGCONFIG_OpenVINO_LIBS_PRIVATE
+
     if(ENABLE_SYSTEM_TBB)
         set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "tbb")
+    else()
+        set(pkg_config_tbb_lib_dir "${IE_TBBROOT_INSTALL}/${tbb_libs_dir}")
+        set(PKGCONFIG_OpenVINO_LIBS_PRIVATE "-L\${prefix}/${pkg_config_tbb_lib_dir} -ltbb")
     endif()
+
     if(ENABLE_SYSTEM_PUGIXML)
         find_package(PkgConfig QUIET)
         if(PkgConfig_FOUND)
