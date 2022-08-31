@@ -645,7 +645,6 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                     return has_only_const_inputs || bad_input_rank || bad_output_rank;
                 });
         tokenization_manager.register_pass<ngraph::snippets::pass::CommonOptimizations>();
-        tokenization_manager.register_pass<ngraph::snippets::pass::ConstantFolding>();
         tokenization_manager.run_passes(nGraphFunc);
     }
 
