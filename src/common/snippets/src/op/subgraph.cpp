@@ -271,9 +271,9 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
 
     ngraph::pass::Manager p_manager;
     p_manager.register_pass<snippets::pass::TransformConvertToConvertTruncation>();
-    p_manager.run_passes(m_body);
+    p_manager.run_passes(m_bodies[0]);
 
-    const auto& body_results = m_body->get_results();
+    const auto& body_results = body().get_results();
     for (size_t i = 0; i < outputShapes.size(); i++) {
         const auto needed_out_type = std::get<2>(outputShapes[i]);
 
@@ -310,7 +310,7 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
     manager.register_pass<snippets::pass::ResetTypeRelaxedNodePrecision>(execution_element_type);
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::EliminateConvert>();
-    manager.run_passes(m_body);
+    manager.run_passes(m_bodies[0]);
 }
 
 void snippets::op::Subgraph::convert_to_snippet_dialect() {
