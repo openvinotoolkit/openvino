@@ -208,7 +208,7 @@ if(LINUX AND NOT CMAKE_CROSSCOMPILING)
         set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "tbb")
     endif()
     if(ENABLE_SYSTEM_PUGIXML)
-        find_host_package(PkgConfig QUIET)
+        find_package(PkgConfig QUIET)
         if(PkgConfig_FOUND)
             pkg_check_modules(PKGCONFIG_pugixml QUIET
                               NO_CMAKE_PATH
