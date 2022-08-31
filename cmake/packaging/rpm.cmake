@@ -95,7 +95,7 @@ macro(ov_cpack_settings)
     set(CPACK_POST_BUILD_SCRIPTS "${IEDevScripts_DIR}/packaging/rpm_post_build.cmake")
 
     # We currently don't have versioning for openvino core library
-    ov_rpm_add_lintian_suppression(core
+    ov_rpm_add_rpmlint_suppression(core
         "shlib-without-versioned-soname"
         "package-name-doesnt-match-sonames")
 
@@ -105,7 +105,7 @@ macro(ov_cpack_settings)
     set(CPACK_RPM_CORE_DEV_PACKAGE_NAME "libopenvino-dev-${cpack_name_ver}")
     ov_rpm_generate_conflicts(core_dev ${conflicting_versions})
 
-    ov_rpm_add_lintian_suppression(core_dev
+    ov_rpm_add_rpmlint_suppression(core_dev
         # CVS-79409: create man page for compile_tool
         "binary-without-manpage")
 
@@ -190,7 +190,7 @@ macro(ov_cpack_settings)
         # since we have libgna.so we need to call ldconfig and have `def_triggers` here
         set(CPACK_RPM_GNA_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
 
-        ov_rpm_add_lintian_suppression(gna
+        ov_rpm_add_rpmlint_suppression(gna
             # package name matches libopenvino_intel_gna_plugin.so
             # but lintian looks at libgna.so.2 since it's a versioned library
             "package-name-doesnt-match-sonames")
@@ -256,7 +256,7 @@ macro(ov_cpack_settings)
     endif()
     set(CPACK_RPM_LIBRARIES_PACKAGE_NAME "openvino-libraries-${cpack_name_ver}")
 
-    ov_rpm_add_lintian_suppression(libraries
+    ov_rpm_add_rpmlint_suppression(libraries
         # it's umbrella package
         "empty-binary-package")
 
@@ -265,7 +265,7 @@ macro(ov_cpack_settings)
     set(CPACK_COMPONENT_LIBRARIES_DEV_DEPENDS "core_dev;libraries")
     set(CPACK_RPM_LIBRARIES_DEV_PACKAGE_NAME "openvino-libraries-dev-${cpack_name_ver}")
     ov_rpm_generate_conflicts(libraries_dev ${conflicting_versions})
-    ov_rpm_add_lintian_suppression(libraries_dev
+    ov_rpm_add_rpmlint_suppression(libraries_dev
         # it's umbrella package
         "empty-binary-package")
 
@@ -274,7 +274,7 @@ macro(ov_cpack_settings)
     set(CPACK_COMPONENT_OPENVINO_DEPENDS "libraries_dev;samples;python_samples")
     set(CPACK_RPM_OPENVINO_PACKAGE_NAME "openvino-${cpack_name_ver}")
     ov_rpm_generate_conflicts(openvino ${conflicting_versions})
-    ov_rpm_add_lintian_suppression(openvino
+    ov_rpm_add_rpmlint_suppression(openvino
         # it's umbrella package
         "empty-binary-package")
 
