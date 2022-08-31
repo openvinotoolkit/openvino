@@ -48,6 +48,10 @@ enum DataLayout {
     bs_fs_yx_bsv8_fsv2,     // batch, feature, 2D spatial. Blocks of 8 batch and 2 channels
     bs_fs_zyx_bsv8_fsv4,    // batch, feature, 3D spatial. Blocks of 8 batch and 4 channels
     bs_fs_zyx_bsv8_fsv2,    // batch, feature, 3D spatial. Blocks of 8 batch and 2 channels
+    bs_fs_yx_bsv16_fsv4,    // batch, feature, 2D spatial. Blocks of 16 batch and 4 channels
+    bs_fs_zyx_bsv16_fsv4,   // batch, feature, 3D spatial. Blocks of 16 batch and 4 channels
+    bs_fs_yx_bsv16_fsv2,    // batch, feature, 2D spatial. Blocks of 16 batch and 2 channels
+    bs_fs_zyx_bsv16_fsv2,   // batch, feature, 3D spatial. Blocks of 16 batch and 2 channels
     bs_fs_yx_bsv4_fsv2,     // batch, feature, 2D spatial. Blocks of 4 batch and 2 channels
     bs_fs_yx_bsv32_fsv32,   // batch, feature, 2D spatial. Blocks of 32 batch and 32 channels
     bs_fs_yx_bsv32_fsv16,   // batch, feature, 2D spatial. Blocks of 32 batch and 16 channels
@@ -57,6 +61,7 @@ enum DataLayout {
     bs_f_bsv16__af8,        // for optimized FC
     winograd_2x3_s1_data,   // winograd convolution input, F(2,3) -- filter 3x3 with stride 1
     bfzyx,                  // batch+feature+3D spatial
+    bzyxf,
     fs_b_yx_fsv32,          // for FP16 kernels, 32 features to avoid partial writes
     b_fs_yx_32fp,           // bfyx with blocks of 16 packed binary input channels
     bfwzyx,                 // batch, feature, 4D spatial
@@ -131,8 +136,10 @@ enum WeightsLayout {
     os_is_yx_osa2_isa8_osv16_isv2,
     os_is_zyx_isa8_osv8_isv2,
     is_os_zyx_isa8_osv8_isv2,
+    is_os_zyx_isa8_osv8_isv4,
     os_is_yx_isa8_osv8_isv2,
     is_os_yx_isa8_osv8_isv2,
+    is_os_yx_isa8_osv8_isv4,
     is_os_yx_isa2_osa8_isv8_osv2,
     g_os_is_yx_osa2_isa8_osv16_isv4,
     g_os_is_yx_osa2_isa8_osv16_isv2,
@@ -160,6 +167,14 @@ enum WeightsLayout {
     os_is_yx_osv32_isv32p,  // 2 blocks: 32 packed binary in channels and 32 output channels
     os_is_osv32_isv32_swizzled_by_4,     // for weights for 1x1 IMAD convolution
     os_i_yxs_osv4_yxsv4,                 // for weights for depthwise IMAD convolution
+    os_y_is_x_osv8_isv2,
+    os_y_is_x_osv8_isv4,
+    os_yx_is_osv8_isv2,
+    os_yx_is_osv8_isv4,
+    os_zyx_is_osv8_isv2,
+    os_zyx_is_osv8_isv4,
+    os_zy_is_x_osv8_isv2,
+    os_zy_is_x_osv8_isv4,
     goiyx,
     gioyx,
     goizyx,
@@ -176,6 +191,7 @@ enum WeightsLayout {
     g_is_os_zyx_isv16_osv16,
     g_is_os_yx_isv16_osv16,
     g_os_is_yx_isa8_osv8_isv2,
+    g_os_is_yx_isa8_osv8_isv4,
     g_os_is_zyx_isv8_osv16_isv2,
     g_os_is_yx_isv8_osv16_isv2,
     g_os_is_zyx_isv16_osv16,
@@ -196,6 +212,11 @@ enum WeightsLayout {
     g_os_zyx_is_osv32_isv4,
     g_os_zyx_is_osv32_isv16,
     g_os_zyx_is_osv32_isv32,
+
+    g_os_yx_is_osv8_isv2,
+    g_os_yx_is_osv8_isv4,
+    g_os_y_is_x_osv8_isv2,
+    g_os_y_is_x_osv8_isv4,
 
     WeightsLayoutCount                   // NUMBER OF ELEMENTS IN ENUM
 };
@@ -258,6 +279,7 @@ inline bool SimpleLayout(DataLayout l) {
         case DataLayout::fyxb:
         case DataLayout::bfxy:
         case DataLayout::bfzyx:
+        case DataLayout::bzyxf:
         case DataLayout::bfwzyx:
             return true;
         default:

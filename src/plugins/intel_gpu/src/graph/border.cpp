@@ -59,7 +59,7 @@ std::vector<layout> border_inst::calc_output_layouts(border_node const& /*node*/
     auto& memory_deps = impl_param.memory_deps;
     std::map<size_t, ngraph::HostTensorPtr> const_data;
 
-    if (!memory_deps.empty()) {
+    if (memory_deps.count(1) && memory_deps.count(2)) {
         auto pads_begin_mem = memory_deps.at(1);
         cldnn::mem_lock<uint8_t, mem_lock_type::read> pads_begin_lock(pads_begin_mem, impl_param.prog.get_stream());
         const_data.emplace(1, make_host_tensor(pads_begin_mem->get_layout(), pads_begin_lock.data()));
