@@ -290,10 +290,14 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
     //      - after Convert insertion on inputs and after scalars we should use ConstantFolding pass to convert
     //        element type of Scalars before inference
     //      - eliminate redundant Convert that could have been inserted
+    // To avoid element type conflicts for TypeRelaxed nodes on inputs, firstly we disabled Validate pass for
+    // InsertConvertOnInputs pass and then ResetTypeRelaxedNodePrecision propogates correctly element type for all nodes
     ngraph::pass::Manager manager;
+    manager.set_per_pass_validation(false);
     manager.register_pass<snippets::pass::InsertConvertOnInputs>(execution_element_type);
     manager.register_pass<snippets::pass::ResetTypeRelaxedNodePrecision>(execution_element_type);
     manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::Validate>();
     manager.register_pass<ngraph::pass::EliminateConvert>();
     manager.run_passes(m_body);
 }

@@ -22,9 +22,9 @@ bool ngraph::snippets::pass::ResetTypeRelaxedNodePrecision::run_on_model(const s
                 node->set_overridden_output_type(exec_type, i);
                 rewritten |= true;
             }
-        } else {
-            op->validate_and_infer_types();
         }
+
+        op->validate_and_infer_types();
     }
 
     return rewritten;
