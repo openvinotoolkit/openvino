@@ -6,6 +6,10 @@ macro(ov_find_package_tbb)
     if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
 
         if(NOT ENABLE_SYSTEM_TBB)
+            if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
+                set(_no_cmake_install_prefix NO_CMAKE_INSTALL_PREFIX)
+            endif()
+
             # Note, we explicitly:
             # don't set NO_CMAKE_PATH to allow -DTBB_DIR=XXX
             # don't set NO_CMAKE_ENVIRONMENT_PATH to allow env TBB_DIR=XXX
@@ -14,8 +18,10 @@ macro(ov_find_package_tbb)
                                       NO_SYSTEM_ENVIRONMENT_PATH
                                       NO_CMAKE_PACKAGE_REGISTRY
                                       NO_CMAKE_SYSTEM_PATH
-                                      NO_CMAKE_INSTALL_PREFIX
+                                      ${_no_cmake_install_prefix}
                                       NO_CMAKE_SYSTEM_PACKAGE_REGISTRY)
+
+            unset(_no_cmake_install_prefix)
         endif()
 
         find_package(TBB QUIET COMPONENTS tbb tbbmalloc
