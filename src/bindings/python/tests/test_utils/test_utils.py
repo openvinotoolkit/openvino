@@ -25,7 +25,7 @@ def test_compare_models():
         model = get_test_model()
         status, _ = compare_models(model, model)
         assert status
-    except ModuleNotFoundError:
+    except RuntimeError:
         print("openvino.test_utils.compare_models is not available")
 
 
