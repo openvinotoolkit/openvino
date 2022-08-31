@@ -9,10 +9,10 @@
 namespace ov {
 namespace pass {
 /// \brief Register openvino node pointers into container.
-/// Can create and/or add existing node pointers into register
-class NodeRegister {
+/// Can create and/or add existing node pointers into registry.
+class NodeRegistry {
 public:
-    /// \brief Make new node and add it to register.
+    /// \brief Make new node and add it to registry.
     ///
     /// \tparam T     Node type.
     /// \tparam Args  Node ctor args types.
@@ -25,28 +25,15 @@ public:
         return add(node);
     }
 
-    /// \brief Add node to register
+    /// \brief Add node to registry.
     ///
     /// \tparam T  Node type.
     ///
-    /// \param node  Node to add
+    /// \param node  Node to add.
     ///
     /// \return Shared pointer to new node added of type T.
     template <typename T>
     std::shared_ptr<T> add(const std::shared_ptr<T>& node) {
-        m_nodes.push_back(node);
-        return node;
-    }
-
-    /// \brief Add generic node to register.
-    ///
-    /// \note This is required to prevent LTO do optimization (remove) template methods from this class
-    /// on Ubuntu 20.
-    ///
-    /// \param node Node to add.
-    ///
-    /// \return Shared pointer to new generic node added.
-    std::shared_ptr<Node> add(const std::shared_ptr<Node>& node) {
         m_nodes.push_back(node);
         return node;
     }
@@ -58,7 +45,7 @@ public:
         return m_nodes;
     }
 
-    /// \brief Clear register.
+    /// \brief Clear registry.
     void clear() {
         m_nodes.clear();
     }
