@@ -26,6 +26,7 @@ ov::Output<ov::Node> create_activation_by_name(const string& activation_name, co
         return make_shared<Relu>(input);
     } else {
         OPENVINO_ASSERT("Unsupported activation function");
+        return {};
     }
 }
 shared_ptr<ov::Model> gen_model(const string& activation_1, const string& activation_2, size_t batch, size_t hidden_size, size_t input_size,
