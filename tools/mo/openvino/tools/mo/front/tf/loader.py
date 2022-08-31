@@ -238,6 +238,8 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                     # tf.keras.models.load_model function throws TypeError,KeyError or IndexError
                     # for TF 1.x SavedModel format in case TF 1.x installed
                     imported = tf.keras.models.load_model(model_dir, compile=False)
+
+                    print('ok')
                 except:
                     imported = tf.saved_model.load(model_dir, saved_model_tags)  # pylint: disable=E1120
 
@@ -257,7 +259,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 tf_v1.disable_eager_execution()
 
                 input_names = []
-                if hasattr(imported, 'inputs'):
+                if hasattr(imported, 'inputs') and imported.inputs is not None:
                     # Extract tensor names order from Keras model
                     input_names = [tensor.name for tensor in imported.inputs]
 
