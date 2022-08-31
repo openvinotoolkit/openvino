@@ -145,7 +145,7 @@ public:
         auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(), in_layouts, out_layout,
                                                                                  get_fused_primitives(),
                                                                                  get_fused_activations_funcs(), get_fused_activations_params()));
-
+        params->memory_deps = get_const_memory_deps();
         return params;
     }
 

@@ -33,6 +33,7 @@
 #include "random_gen.h"
 #include "uniform_quantized_real_distribution.hpp"
 #include "to_string_utils.h"
+#include "program_node.h"
 
 #include <iostream>
 #include <limits>
@@ -58,6 +59,16 @@ cldnn::engine& get_test_engine();
 cldnn::engine& get_onednn_test_engine();
 #endif
 cldnn::stream& get_test_stream();
+
+template<typename T>
+bool has_node_with_type(cldnn::program& prog) {
+    for (auto node : prog.get_processing_order()) {
+        if (node->is_type<T>())
+            return true;
+    }
+
+    return false;
+}
 
 #define USE_RANDOM_SEED 0
 #if USE_RANDOM_SEED

@@ -540,9 +540,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             continue;
 
         auto is_grouped_conv = [](convolution_node& node) -> bool {
-            auto in_size = node.get_dependency(0).get_output_layout().get_tensor();
-            return (node.get_split() > 1 && node.get_split() != in_size.feature[0]) ||
-                   (node.get_groups() > 1 && node.get_groups() != static_cast<uint32_t>(in_size.feature[0]));
+            auto in_layout = node.get_dependency(0).get_output_layout();
+            return (node.get_split() > 1 && node.get_split() != in_layout.feature()) ||
+                   (node.get_groups() > 1 && node.get_groups() != static_cast<uint32_t>(in_layout.feature()));
         };
 
         auto conv_supports_fusings = [&](convolution_node& node) -> bool {

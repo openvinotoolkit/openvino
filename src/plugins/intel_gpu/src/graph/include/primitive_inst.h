@@ -156,7 +156,7 @@ public:
     }
 
     bool is_dynamic() const {
-        return _node.is_dynamic() || _node.generates_dynamic_output();
+        return _is_dynamic;
     }
 
     void allocate_internal_buffers();
@@ -200,6 +200,7 @@ protected:
         true;  // by default all primitives has valid inputs, exception is input_layout (see input_layout_inst)
     bool _has_mutable_input = false;
     bool _mem_allocated = false;
+    bool _is_dynamic = false;
 
     size_t max_output_layout_size = 0;
 

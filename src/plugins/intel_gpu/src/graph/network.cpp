@@ -320,11 +320,12 @@ void network::validate_primitives() {
 }
 
 void network::set_arguments() {
-    if (!_reset_arguments || is_dynamic())
+    if (!_reset_arguments)
         return;
 
     for (auto const& prim : _exec_order) {
-        prim->set_arguments();
+        if (!prim->is_dynamic())
+            prim->set_arguments();
     }
     _reset_arguments = false;
 }

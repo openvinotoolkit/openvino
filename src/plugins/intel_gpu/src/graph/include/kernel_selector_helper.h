@@ -157,7 +157,7 @@ struct kernel_impl_params {
 
     layout get_non_padded_input_layout(size_t idx = 0) const {
         auto input_layout = get_input_layout(idx);
-        auto result = layout({input_layout.data_type, input_layout.format, input_layout.get_tensor()});
+        auto result = layout({input_layout.get_partial_shape(), input_layout.data_type, input_layout.format});
         return result;
     }
 
@@ -218,7 +218,7 @@ inline params_t get_default_params(const kernel_impl_params& param_info, uint32_
 
     set_params(param_info, params);
 
-    const auto& input_layout = param_info.input_layouts[0];
+    const auto& input_layout = param_info.get_input_layout(0);
     const auto& output_layout = param_info.output_layout;
 
     params.inputs[0] = convert_data_tensor(input_layout, split);
@@ -244,7 +244,7 @@ inline params_t get_default_params(const kernel_impl_params& param_info, uint32_
         prim_id_type_map[fused_prim.desc->id] = std::make_pair(desc.op_id, desc.output_tensor.GetDType());
 
         for (size_t i = desc.dep_idx_start; i < desc.dep_idx_start + desc.dep_size; i++) {
-            desc.tensors.push_back(convert_data_tensor(param_info.input_layouts[i]));
+            desc.tensors.push_back(convert_data_tensor(param_info.get_input_layout(i)));
         }
 
         if (fused_prim.total_num_deps > 0) {

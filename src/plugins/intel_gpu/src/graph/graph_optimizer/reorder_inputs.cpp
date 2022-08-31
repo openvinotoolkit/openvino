@@ -274,7 +274,9 @@ reorder_cnt count_reorders_in_dir(const std::map<program_node*, format::type>& f
                                   travel_direction_wrapper<dir>::first(sel_fmt, next_fmt),
                                   travel_direction_wrapper<dir>::second(sel_fmt, next_fmt)))) {
             cnt += 1;
-            size += travel_direction_wrapper<dir>::first(node, next)->get_output_layout().count();
+            auto l = travel_direction_wrapper<dir>::first(node, next)->get_output_layout();
+            if (l.is_static())
+                size += l.count();
         }
     }
 
@@ -780,7 +782,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         }
 
         // Change input data of fully-connected node from bx to bf
-        if (format::is_simple_data_format(input_layout.format) && weights.is_constant() && input_layout.format.dimension() == 4 &&
+        if (input_layout.is_static() && format::is_simple_data_format(input_layout.format) && weights.is_constant() && input_layout.format.dimension() == 4 &&
             input_layout.feature() == 1 && input_layout.spatial(0) != 1 && input_layout.spatial(1) == 1) {
             auto new_tensor = input_layout.get_tensor();
             new_tensor.feature[0] = input_layout.spatial(0);
