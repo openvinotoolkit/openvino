@@ -16,13 +16,12 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace std;
-using namespace ov;
 using namespace ov::element;
 using namespace ov::opset9;
 using namespace ov::op::util;
 
 namespace {
-bool is_equal_consts(const shared_ptr<Node>& l, const shared_ptr<Node>& r) {
+bool is_equal_consts(const shared_ptr<ov::Node>& l, const shared_ptr<ov::Node>& r) {
     auto l_const = dynamic_pointer_cast<Constant>(l);
     auto r_const = dynamic_pointer_cast<Constant>(r);
     if (l_const && r_const) {
@@ -80,10 +79,10 @@ shared_ptr<RNNCellBase> find_cell_chain(ov::pass::NodeRegister& cp_from,
                                         const shared_ptr<RNNCellBase>& current_cell,
                                         OutputVector& x_to_concat,
                                         OutputVector& attention_to_concat,
-                                        map<int, set<Input<Node>>>& h_inputs_to_redirect,
-                                        map<int, set<Input<Node>>>& c_inputs_to_redirect,
+                                        map<int, set<ov::Input<ov::Node>>>& h_inputs_to_redirect,
+                                        map<int, set<ov::Input<ov::Node>>>& c_inputs_to_redirect,
                                         int& cells_cnt,
-                                        const shared_ptr<Node>& axis_1) {
+                                        const shared_ptr<ov::Node>& axis_1) {
     cells_cnt = 1;
 
     shared_ptr<RNNCellBase> current = current_cell;
@@ -143,11 +142,11 @@ bool create_sequence(ov::pass::NodeRegister& cp_to,
                      const shared_ptr<RNNCellBase>& last_cell,
                      const OutputVector& x_to_concat,
                      const OutputVector& attention_to_concat,
-                     const map<int, set<Input<Node>>>& h_inputs_to_redirect,
-                     const map<int, set<Input<Node>>>& c_inputs_to_redirect,
+                     const map<int, set<ov::Input<ov::Node>>>& h_inputs_to_redirect,
+                     const map<int, set<ov::Input<ov::Node>>>& c_inputs_to_redirect,
                      int cells_cnt,
-                     const shared_ptr<Node>& axis_0,
-                     const shared_ptr<Node>& axis_1) {
+                     const shared_ptr<ov::Node>& axis_0,
+                     const shared_ptr<ov::Node>& axis_1) {
     int64_t idx_W = 2, idx_R = 3, idx_B = 4;
     auto lstm_cell_1 = dynamic_pointer_cast<LSTMCell>(last_cell);
     // 2nd input is Cell State
@@ -170,7 +169,7 @@ bool create_sequence(ov::pass::NodeRegister& cp_to,
     auto sequence_lengths_in =
         cp_to.add(ngraph::op::util::make_try_fold<Broadcast>(seq_lengths_scalar, batch_dimension));
 
-    shared_ptr<Node> sequence;
+    shared_ptr<ov::Node> sequence;
     OutputVector outputs(1);
     if (dynamic_pointer_cast<LSTMCell>(first_cell)) {
         const auto Ct_in = cp_to.make<Unsqueeze>(first_cell->input_value(2), axis_1);
@@ -281,8 +280,8 @@ ov::pass::SequenceFusion::SequenceFusion() {
         int cells_cnt;
         OutputVector x_to_concat;
         OutputVector attention_to_concat;
-        map<int, set<Input<Node>>> h_inputs_to_redirect;
-        map<int, set<Input<Node>>> c_inputs_to_redirect;
+        map<int, set<ov::Input<ov::Node>>> h_inputs_to_redirect;
+        map<int, set<ov::Input<ov::Node>>> c_inputs_to_redirect;
         auto axis_0 = copy_to.make<Constant>(i64, Shape{}, 0);
         auto axis_1 = copy_to.make<Constant>(i64, Shape{}, 1);
 
