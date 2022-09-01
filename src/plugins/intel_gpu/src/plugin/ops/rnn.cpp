@@ -94,7 +94,7 @@ static void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::L
     float clip = op->get_clip();
 
     //  LSTM primitive works with single precision for all in/out/weights tensors
-    auto lstm_dtype = DataTypeFromPrecision(op->get_output_element_type(0));
+    auto lstm_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
 
     cldnn::primitive_id inReshapeID = layerName + "_inReshape";
     cldnn::primitive_id permuteID = layerName + "_inputReorder";
@@ -205,7 +205,7 @@ static void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v
     bool isForward = op->get_direction() == ngraph::op::RecurrentSequenceDirection::FORWARD;
 
     //  LSTM primitive works with single precision for all in/out/weights tensors
-    auto lstm_dtype = DataTypeFromPrecision(op->get_output_element_type(0));
+    auto lstm_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
 
     cldnn::primitive_id inReshapeID = layerName + "_inReshape";
     cldnn::primitive_id permuteID = layerName + "_inputReorder";
