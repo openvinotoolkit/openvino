@@ -16,7 +16,6 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace std;
-using namespace ov;
 using namespace ov::element;
 using namespace ov::opset9;
 using namespace ov::pass;
