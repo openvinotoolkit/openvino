@@ -184,7 +184,15 @@ install(FILES "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
 # Generate and install openvino.pc pkg-config file
 
 if(LINUX)
-    set(generate_pkgconfig ON)
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        set(generate_pkgconfig ON)
+    endif()
+
+    # temporary skip generator of pkg-config file for static libraries
+    if(NOT BUILD_SHARED_LIBS)
+        set(generate_pkgconfig OFF)
+    endif()
 
     # fill in PKGCONFIG_OpenVINO_FRONTENDS
     get_target_property(PKGCONFIG_OpenVINO_FRONTENDS_LIST ov_frontends MANUALLY_ADDED_DEPENDENCIES)
@@ -215,22 +223,17 @@ if(LINUX)
         set(PKGCONFIG_OpenVINO_LIBS_PRIVATE "-L\${prefix}/${pkg_config_tbb_lib_dir} -ltbb")
     endif()
 
-    if(ENABLE_SYSTEM_PUGIXML)
-        find_package(PkgConfig QUIET)
-        if(PkgConfig_FOUND)
-            pkg_check_modules(PKGCONFIG_pugixml QUIET
-                              NO_CMAKE_PATH
-                              NO_CMAKE_ENVIRONMENT_PATH
-                              pugixml)
-            set(pugixml_dep "pugixml = ${PKGCONFIG_pugixml_VERSION}")
+    if(ENABLE_SYSTEM_PUGIXML AND PkgConfig_FOUND)
+        pkg_check_modules(PKGCONFIG_pugixml QUIET
+                          NO_CMAKE_PATH
+                          NO_CMAKE_ENVIRONMENT_PATH
+                          pugixml)
+        set(pugixml_dep "pugixml = ${PKGCONFIG_pugixml_VERSION}")
 
-            if(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE)
-                set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "${PKGCONFIG_OpenVINO_REQUIRES_PRIVATE}, ${pugixml_dep}")
-            else()
-                set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "${pugixml_dep}")
-            endif()
+        if(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE)
+            set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "${PKGCONFIG_OpenVINO_REQUIRES_PRIVATE}, ${pugixml_dep}")
         else()
-            set(generate_pkgconfig OFF)
+            set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "${pugixml_dep}")
         endif()
     endif()
 
@@ -254,16 +257,11 @@ if(LINUX)
         endif()
     endif()
 
-    # temporary skip generator of pkg-config file for static libraries
-    if(NOT BUILD_SHARED_LIBS)
-        set(generate_pkgconfig OFF)
-    endif()
-
     # define relative paths
     file(RELATIVE_PATH PKGCONFIG_OpenVINO_PREFIX "/${OV_CPACK_RUNTIMEDIR}/pkgconfig" "/")
 
     if(generate_pkgconfig)
-        set(pkgconfig_in "${IEDevScripts_DIR}/packaging/openvino.pc.in")
+        set(pkgconfig_in "${OpenVINO_SOURCE_DIR}/cmake/templates/openvino.pc.in")
         set(pkgconfig_out "${OpenVINO_BINARY_DIR}/share/openvino.pc")
         configure_file("${pkgconfig_in}" "${pkgconfig_out}" @ONLY)
 
