@@ -24,7 +24,7 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
     reorderedInputs.resize(inputPrimitives.size());
 
     for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
-        auto inputDataType = DataTypeFromPrecision(op->get_input_element_type(portIndex));
+        auto inputDataType = cldnn::element_type_to_data_type(op->get_input_element_type(portIndex));
         if (inputDataType == cldnn::data_types::i64) {
             // GPU primitive does not support i64 inputs,
             // so we need additional reorders to convert them to i32
