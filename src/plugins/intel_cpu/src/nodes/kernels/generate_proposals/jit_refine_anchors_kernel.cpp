@@ -75,13 +75,15 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
 
     mov(rbp, rsp);
     xor_(reg_anchors_loop, reg_anchors_loop);
-    mov(reg_anchors_loop, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchors_num)]);
+    xor_(reg_img_h, reg_img_h);
+    xor_(reg_img_w, reg_img_w);
+    mov(reg_anchors_loop.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchors_num)]);
     mov(reg_anchors_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchors)]);
     mov(reg_deltas_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, deltas)]);
     mov(reg_scores_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, scores)]);
     mov(reg_proposals_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposals)]);
-    mov(reg_img_h, ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_h)]);
-    mov(reg_img_w, ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_w)]);
+    mov(reg_img_h.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_h)]);
+    mov(reg_img_w.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_w)]);
 //    mov(reg_anchors_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchors_idx_offset)]);
 //    mov(reg_delta_index_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_idx)]);
 //    mov(reg_delta_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_idx_offset)]);
@@ -253,7 +255,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
          */
         Vmm vmm_pred_ctr_x = vmm_temp;
         Vmm vmm_pred_ctr_y = vmm_temp;
-        sub(rsp, sizeof(float) + 2 * vmm_reg_size_in_bytes);
+        sub(rsp, 2 * vmm_reg_size_in_bytes);
         Xbyak::Address vmm_pred_ctr_x_addr = ptr[rbp - (8 * vmm_reg_size_in_bytes + sizeof(float))];
         Xbyak::Address vmm_pred_ctr_y_addr = ptr[rbp - (9 * vmm_reg_size_in_bytes + sizeof(float))];
         // const float pred_ctr_x = dx * ww + ctr_x;
@@ -326,8 +328,8 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
         uni_vmovdqu(vmm_pred_ctr_y, vmm_pred_ctr_y_addr);
         uni_vaddps(vmm_y1, vmm_pred_ctr_y, vmm_y1);
 
-        sub(reg_img_w, ptr[reg_params + offsetof(jit_refine_anchors_call_args, coordinates_offset)]);
-        sub(reg_img_h, ptr[reg_params + offsetof(jit_refine_anchors_call_args, coordinates_offset)]);
+        sub(reg_img_w.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, coordinates_offset)]);
+        sub(reg_img_h.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, coordinates_offset)]);
         /** @code
             // adjust new corner locations to be within the image region,
             x0 = std::max<float>(0.0f, std::min<float>(x0, img_w - coordinates_offset));
@@ -340,11 +342,11 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
         Xbyak::Address vmm_img_h_addr = ptr[rbp - (14 * vmm_reg_size_in_bytes + 4 * sizeof(float))];
         Xbyak::Address reg_0_0_addr = ptr[rbp - (14 * vmm_reg_size_in_bytes + 5 * sizeof(float))];
         Xbyak::Address vmm_0_0_addr = ptr[rbp - (15 * vmm_reg_size_in_bytes + 5 * sizeof(float))];
-        mov(reg_img_w_addr, reg_img_w);
+        mov(reg_img_w_addr, reg_img_w.cvt32());
         uni_vbroadcastss(vmm_temp, reg_img_w_addr);
         uni_vmovdqu(vmm_img_w_addr, vmm_temp);
 
-        mov(reg_img_h_addr, reg_img_h);
+        mov(reg_img_h_addr, reg_img_h.cvt32());
         uni_vbroadcastss(vmm_temp, reg_img_h_addr);
         uni_vmovdqu(vmm_img_h_addr, vmm_temp);
 
