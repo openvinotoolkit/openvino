@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(FRONTEND_INSTALL_INCLUDE "${OV_CPACK_INCLUDEDIR}/")
+set(FRONTEND_INSTALL_INCLUDE "${OV_CPACK_INCLUDEDIR}")
 set(FRONTEND_NAME_PREFIX "openvino_")
 set(FRONTEND_NAME_SUFFIX "_frontend")
 
@@ -261,7 +261,7 @@ macro(ov_add_frontend)
         if(OV_FRONTEND_LINKABLE_FRONTEND)
             # install library development files
             install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/openvino
-                    DESTINATION ${FRONTEND_INSTALL_INCLUDE}/
+                    DESTINATION ${FRONTEND_INSTALL_INCLUDE}
                     COMPONENT ${dev_component}
                     FILES_MATCHING PATTERN "*.hpp")
 
