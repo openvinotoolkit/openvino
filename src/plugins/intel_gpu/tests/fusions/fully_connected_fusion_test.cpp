@@ -294,7 +294,7 @@ TEST_P(fc_int8_inputs_fused_fp32_sum, basic) {
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("shift_data", get_mem(shift_layout, 1)),
-        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, "", padding(), get_output_dim_size(p)),
+        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, padding(), get_output_dim_size(p)),
         eltwise("shift", { "fc_prim", "shift_data" }, eltwise_mode::sum, data_types::f32),
         crop("crop", "shift", get_output_layout(p).get_tensor(), { 0, 0, 0, 0 }),
         reorder("reorder_bfyx", "crop", p.default_format, data_types::f32)
