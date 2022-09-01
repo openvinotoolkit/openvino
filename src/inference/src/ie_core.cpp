@@ -998,6 +998,9 @@ public:
             return decltype(ov::force_tbb_terminate)::value_type(flag);
         } else if (name == ov::cache_dir.name()) {
             return ov::Any(coreConfig.get_cache_dir());
+        } else if (name == ov::hint::allow_auto_batching.name()) {
+            const auto flag = coreConfig.flag_allow_auto_batching;
+            return decltype(ov::hint::allow_auto_batching)::value_type(flag);
         }
 
         IE_THROW() << "Exception is thrown while trying to call get_property with unsupported property: '" << name
