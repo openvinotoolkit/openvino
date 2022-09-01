@@ -7,6 +7,30 @@ include(cmake/ie_parallel.cmake)
 # pre-find TBB: need to provide TBB_IMPORTED_TARGETS used for installation
 ov_find_package_tbb()
 
+function(_ov_get_tbb_library_path tbb_lib tbb_libs_dir)
+    if(NOT TBB_FOUND)
+        return()
+    endif()
+
+    # i.e. yocto case
+    get_target_property(_tbb_lib_location ${tbb_lib} INTERFACE_LINK_LIBRARIES)
+    if(_tbb_lib_location)
+        get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
+        set(${tbb_libs_dir} "${_tbb_libs_dir}" PARENT_SCOPE)
+        return()
+   endif()
+
+    # usual imported library
+    get_target_property(_tbb_lib_location ${tbb_lib} IMPORTED_LOCATION_RELEASE)
+    if(_tbb_lib_location)
+        get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
+        set(${tbb_libs_dir} "${_tbb_libs_dir}" PARENT_SCOPE)
+        return()
+    endif()
+
+   message(FATAL_ERROR "Failed to detect TBB library location")
+endfunction()
+
 # check whether TBB has TBBBind 2.5 with hwloc 2.5 or higher which is required
 # to detect hybrid cores
 function(_ov_detect_dynamic_tbbbind_2_5 var)
@@ -15,8 +39,7 @@ function(_ov_detect_dynamic_tbbbind_2_5 var)
     endif()
 
     # try to select proper library directory
-    get_target_property(_tbb_lib_location TBB::tbb IMPORTED_LOCATION_RELEASE)
-    get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
+    _ov_get_tbb_library_path(TBB::tbb _tbb_libs_dir)
 
     # unset for cases if user specified different TBB_DIR / TBBROOT
     unset(_ov_tbbbind_2_5 CACHE)
@@ -103,7 +126,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         # for system libraries we still need to install TBB libraries
         # so, need to take locations of actual libraries and install them
         foreach(tbb_lib IN LISTS TBB_IMPORTED_TARGETS)
-            get_target_property(tbb_loc ${tbb_lib} IMPORTED_LOCATION_RELEASE)
+            _ov_get_tbb_library_path(${tbb_lib} tbb_loc)
             # depending on the TBB, tbb_loc can be in form:
             # - libtbb.so.x.y
             # - libtbb.so.x
