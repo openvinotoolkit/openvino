@@ -378,35 +378,11 @@ int main(int argc, char* argv[]) {
                 device_config.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
             }
 
-            if (device.find("CPU") != std::string::npos) {  // CPU supports few special performance-oriented keys
-                // limit threading for CPU portion of inference
-                if (!isFlagSetInCommandLine("pin")) {
-                    auto it_affinity = device_config.find(ov::affinity.name());
-                    if (it_affinity != device_config.end() && (device_name.find("MULTI") != std::string::npos) &&
-                        (device_name.find("GPU") != std::string::npos)) {
-                        slog::warn << "Turn off threads pinning for " << device
-                                   << " device since multi-scenario with GPU device is used." << slog::endl;
-                        it_affinity->second = ov::Affinity::NONE;
-                    }
-                }
-
-                // for CPU execution, more throughput-oriented execution via streams
+            if (device.find("CPU") != std::string::npos || device.find("GPU") != std::string::npos) {
+                // CPU supports few special performance-oriented keys
+                // for CPU and GPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();
                 set_infer_precision();
-            } else if (device.find("GPU") != std::string::npos) {
-                // for GPU execution, more throughput-oriented execution via streams
-                setThroughputStreams();
-                set_infer_precision();
-
-                if ((device_name.find("MULTI") != std::string::npos) &&
-                    (device_name.find("CPU") != std::string::npos)) {
-                    slog::warn << "GPU throttling is turned on. Multi-device execution with "
-                                  "the CPU + GPU performs best with GPU throttling hint, "
-                               << "which releases another CPU thread (that is otherwise "
-                                  "used by the GPU driver for active polling)."
-                               << slog::endl;
-                    device_config[GPU_CONFIG_KEY(PLUGIN_THROTTLE)] = "1";
-                }
             } else if (device.find("MYRIAD") != std::string::npos) {
                 device_config.emplace(ov::log::level(ov::log::Level::WARNING));
                 setThroughputStreams();
@@ -423,7 +399,17 @@ int main(int argc, char* argv[]) {
                                << "which releases another CPU thread (that is otherwise "
                                   "used by the GPU driver for active polling)."
                                << slog::endl;
-                    device_config[GPU_CONFIG_KEY(PLUGIN_THROTTLE)] = "1";
+
+                    device_config.insert(ov::device::properties("GPU", {{GPU_CONFIG_KEY(PLUGIN_THROTTLE), 1}}));
+                    // limit threading for CPU portion of inference
+                    if (!isFlagSetInCommandLine("pin")) {
+                        auto it_affinity = device_config.find(ov::affinity.name());
+                        if (it_affinity != device_config.end()) {
+                            slog::warn << "Turn off threads pinning for " << device
+                                       << " device since multi-scenario with GPU device is used." << slog::endl;
+                            it_affinity->second = ov::Affinity::NONE;
+                        }
+                    }
                 }
             }
         }
