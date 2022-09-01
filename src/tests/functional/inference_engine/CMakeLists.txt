@@ -73,14 +73,14 @@ if(ENABLE_OV_ONNX_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         ENABLE_OV_ONNX_FRONTEND
         ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx_reader/models/"
-        TEST_ONNX_MODELS_DIRNAME="${TEST_MODEL_ZOO}/core/models/onnx")
+        TEST_ONNX_MODELS_DIRNAME="${TEST_MODEL_ZOO}/onnx")
     add_dependencies(${TARGET_NAME} openvino_onnx_frontend)
 endif()
 
 if(ENABLE_OV_PADDLE_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         PADDLE_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader/models/"
-        TEST_PADDLE_MODELS_DIRNAME="test_model_zoo/paddle_test_models")
+        TEST_PADDLE_MODELS_DIRNAME="${TEST_MODEL_ZOO}/paddle_test_models")
     add_dependencies(${TARGET_NAME} openvino_paddle_frontend)
 endif()
 
