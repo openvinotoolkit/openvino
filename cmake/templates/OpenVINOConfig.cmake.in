@@ -187,7 +187,6 @@ if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND NOT TBB_FOUND
             if(DEFINED ENV{TBBROOT})
                 file(TO_CMAKE_PATH $ENV{TBBROOT} ENV_TBBROOT)
             endif()
-
             if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
                 set(_no_cmake_install_prefix NO_CMAKE_INSTALL_PREFIX)
             endif()
@@ -203,6 +202,7 @@ if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND NOT TBB_FOUND
                     "${TBBROOT}/cmake"
                     # _tbb_dir points to TBB_DIR (custom | temp | system) used to build OpenVINO
                     ${_tbb_dir}
+                CMAKE_FIND_ROOT_PATH_BOTH
                 NO_PACKAGE_ROOT_PATH
                 NO_SYSTEM_ENVIRONMENT_PATH
                 NO_CMAKE_PACKAGE_REGISTRY
