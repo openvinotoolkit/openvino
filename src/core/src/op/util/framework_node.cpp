@@ -4,25 +4,50 @@
 
 #include "openvino/op/util/framework_node.hpp"
 
+#include "ngraph/graph_util.hpp"
 #include "itt.hpp"
 
 BWDCMP_RTTI_DEFINITION(ov::op::util::FrameworkNode);
 
-ov::op::util::FrameworkNode::FrameworkNode(const OutputVector& inputs, size_t output_size) : Op(inputs) {
+ov::op::util::FrameworkNode::FrameworkNode(const OutputVector& inputs, size_t output_size, size_t num_subgraphs)
+    : MultiSubGraphOp(inputs, num_subgraphs) {
     set_output_size(output_size);
     constructor_validate_and_infer_types();
+}
+
+ov::op::util::FrameworkNode::FrameworkNode(const ov::op::util::FrameworkNode& other) : MultiSubGraphOp() {
+    set_arguments(other.input_values());
+    other.clone_to(*this);
+}
+
+void ov::op::util::FrameworkNode::clone_to(ov::op::util::FrameworkNode& dst) const {
+    dst.set_output_size(m_output_descriptions.size());
+
+    for (size_t i = 0; i < get_output_size(); ++i) {
+        dst.set_output_type(i, get_output_element_type(i), get_output_partial_shape(i));
+    }
+    dst.m_inputs_desc = m_inputs_desc;
+    dst.m_output_desc = m_output_desc;
+    dst.m_attrs = m_attrs;
+
+    for (int i = 0; i < dst.m_bodies.size(); i++) {
+        dst.m_bodies.push_back(ov::clone_model(*get_function(i)));
+    }
+
+    for (auto& input_description : m_input_descriptions[0]) {
+        dst.m_input_descriptions[0].push_back(input_description->copy());
+    }
+    for (auto& output_description : m_output_descriptions[0]) {
+        dst.m_output_descriptions[0].push_back(output_description->copy());
+    }
+    dst.validate_and_infer_types();
 }
 
 std::shared_ptr<ov::Node> ov::op::util::FrameworkNode::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(FrameworkNode_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     auto node = std::make_shared<op::util::FrameworkNode>(new_args);
-    for (size_t i = 0; i < get_output_size(); ++i) {
-        node->set_output_type(i, get_output_element_type(i), get_output_partial_shape(i));
-    }
-    node->m_inputs_desc = m_inputs_desc;
-    node->m_output_desc = m_output_desc;
-    node->m_attrs = m_attrs;
+    clone_to(*node);
     return node;
 }
 

@@ -9,6 +9,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/strides.hpp"
 #include "openvino/op/op.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 
 namespace ov {
 namespace op {
@@ -69,14 +70,14 @@ private:
     std::unordered_map<std::string, std::string> m_attrs;
 };
 
-class OPENVINO_API FrameworkNode : public Op {
+class OPENVINO_API FrameworkNode : public MultiSubGraphOp {
 public:
     OPENVINO_OP("FrameworkNode", "util");
     BWDCMP_RTTI_DECLARATION;
 
     FrameworkNode() = default;
 
-    explicit FrameworkNode(const OutputVector& inputs, size_t output_size = 1);
+    explicit FrameworkNode(const OutputVector& inputs, size_t output_size = 1, size_t num_subgraphs = 0);
 
     void validate_and_infer_types() override;
 
@@ -96,6 +97,10 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     void cache_output_descriptor();
+    void clone_to(FrameworkNode& dst) const;
+
+protected:
+    FrameworkNode(const FrameworkNode&);
 
 private:
     std::vector<std::tuple<ov::PartialShape, ov::element::Type>> m_inputs_desc;
