@@ -61,8 +61,8 @@ function(ie_add_onednn)
 
     # WA for old TBBConfig.cmake like tbb2019_20180718oss
     # they don't check that imported target is already created
-    if(TBB_FOUND AND TBB_VERSION VERSION_GREATER_EQUAL 2018 AND TBB_VERSION VERSION_LESS_EQUAL 2019.4)
-        set(Threading_cmake_included ON)
+    if(TBB_FOUND)
+        set(TBB_cmake_included ON)
         set(DNNL_CPU_THREADING_RUNTIME "${THREADING}")
         function(find_package_tbb)
             # dummy

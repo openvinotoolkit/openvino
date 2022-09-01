@@ -33,14 +33,21 @@ if(NOT DEFINED protobuf_MSVC_STATIC_RUNTIME)
     set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
 endif()
 
-if(CMAKE_CROSSCOMPILING)
+# WA: see CVS-90227 about X86
+if(CMAKE_CROSSCOMPILING AND NOT X86)
     find_host_program(SYSTEM_PROTOC protoc PATHS ENV PATH)
 
     if(SYSTEM_PROTOC)
         execute_process(
             COMMAND ${SYSTEM_PROTOC} --version
             OUTPUT_VARIABLE PROTOC_VERSION
+            ERROR_VARIABLE error_message
+            RESULT_VARIABLE exit_code
             OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+        if(NOT exit_code EQUAL 0)
+            message(FATAL_ERROR "Internal error: failed to get ${SYSTEM_PROTOC} version ${error_message}")
+        endif()
 
         string(REPLACE " " ";" PROTOC_VERSION ${PROTOC_VERSION})
         list(GET PROTOC_VERSION -1 PROTOC_VERSION)
