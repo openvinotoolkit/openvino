@@ -374,14 +374,28 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
         uni_vminps(vmm_y1, vmm_y1, vmm_img_h_addr);
         uni_vmaxps(vmm_y1, vmm_y1, vmm_0_0_addr);
 
-//        /** @code
-//            const float score = scores[score_idx(anchor, 0, h, w)];
-//         */
-//        xor_(reg_score_idx_offset, reg_score_idx_offset);
-//        mov(reg_score_idx_offset.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, score_chunk_offset)]);
-//        // const float score = scores[score_idx(anchor, 0, h, w)];
-//        mov(reg_anchor_idx, 0);
-//        emulate_gather(vmm_score, reg_anchors_chunk, reg_scores_ptr, reg_anchor_idx_offset, reg_anchor_idx);
+        /** @code
+            const float score = scores[score_idx(anchor, 0, h, w)];
+         */
+        not_available_vmm = {vmm_score};
+
+        // Prepare indexes
+        Vmm vmm_score_idx = this->get_free_vmm<Vmm>(not_available_vmm);
+        Vmm vmm_score_anchor_offset = this->get_free_vmm<Vmm>(not_available_vmm);
+        uni_vbroadcastss(vmm_score_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, score_start_idx)]);
+        uni_vbroadcastss(vmm_score_anchor_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, score_anchor_offset)]);
+        mov(rbx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, refine_anchor_indices)]);
+        uni_vpmulld(vmm_score_anchor_offset, vmm_score_anchor_offset, ptr[rbx]);
+        uni_vpaddd(vmm_score_idx, vmm_score_idx, vmm_score_anchor_offset);
+
+        // Prepare mask
+        Vmm vmm_score_mask = this->get_free_vmm<Vmm>(not_available_vmm);
+        uni_vmovdqu(vmm_score_mask, vmm_anchor_mask_addr);
+
+        {
+            // const float score = scores[score_idx(anchor, 0, h, w)];
+            this->uni_vgatherdps(vmm_score, reg_scores_ptr, vmm_score_idx, sizeof(float), vmm_score_mask);
+        }
 
 //        /** @code
 //            // recompute new width & height
