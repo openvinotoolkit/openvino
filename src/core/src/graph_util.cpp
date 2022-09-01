@@ -32,6 +32,17 @@ using namespace std;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
+namespace {
+
+bool has_result_consumers(const ov::Output<ov::Node>& port) {
+    const auto& consumers = port.get_target_inputs();
+    return std::any_of(consumers.cbegin(), consumers.cend(), [](const ov::Input<ov::Node>& consumer) {
+        return ov::is_type<op::v0::Result>(consumer.get_node());
+    });
+};
+
+}  // namespace
+
 void ov::traverse_nodes(const std::shared_ptr<const Model>& p,
                         const std::function<void(const std::shared_ptr<Node>&)>& f) {
     traverse_nodes(p.get(), f);
@@ -748,13 +759,6 @@ bool ngraph::check_for_cycles(const ngraph::Function* func, ngraph::NodeVector& 
     // no cycles
     return false;
 }
-
-bool has_result_consumers(const ov::Output<ov::Node>& port) {
-    const auto& consumers = port.get_target_inputs();
-    return std::any_of(consumers.cbegin(), consumers.cend(), [](const ov::Input<ov::Node>& consumer) {
-        return ov::is_type<op::v0::Result>(consumer.get_node());
-    });
-};
 
 bool ov::replace_outputs_update_names(OutputVector outputs, const OutputVector& replacements) {
     if (outputs.size() != replacements.size()) {
