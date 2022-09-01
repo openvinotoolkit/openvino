@@ -77,8 +77,8 @@ bool is_equal_cells(const shared_ptr<RNNCellBase>& cell_1, const shared_ptr<RNNC
 shared_ptr<RNNCellBase> find_cell_chain(ov::pass::NodeRegister& cp_from,
                                         ov::pass::NodeRegister& cp_to,
                                         const shared_ptr<RNNCellBase>& current_cell,
-                                        OutputVector& x_to_concat,
-                                        OutputVector& attention_to_concat,
+                                        ov::OutputVector& x_to_concat,
+                                        ov::OutputVector& attention_to_concat,
                                         map<int, set<ov::Input<ov::Node>>>& h_inputs_to_redirect,
                                         map<int, set<ov::Input<ov::Node>>>& c_inputs_to_redirect,
                                         int& cells_cnt,
@@ -140,8 +140,8 @@ shared_ptr<RNNCellBase> find_cell_chain(ov::pass::NodeRegister& cp_from,
 bool create_sequence(ov::pass::NodeRegister& cp_to,
                      const shared_ptr<RNNCellBase>& first_cell,
                      const shared_ptr<RNNCellBase>& last_cell,
-                     const OutputVector& x_to_concat,
-                     const OutputVector& attention_to_concat,
+                     const ov::OutputVector& x_to_concat,
+                     const ov::OutputVector& attention_to_concat,
                      const map<int, set<ov::Input<ov::Node>>>& h_inputs_to_redirect,
                      const map<int, set<ov::Input<ov::Node>>>& c_inputs_to_redirect,
                      int cells_cnt,
@@ -170,7 +170,7 @@ bool create_sequence(ov::pass::NodeRegister& cp_to,
         cp_to.add(ngraph::op::util::make_try_fold<Broadcast>(seq_lengths_scalar, batch_dimension));
 
     shared_ptr<ov::Node> sequence;
-    OutputVector outputs(1);
+    ov::OutputVector outputs(1);
     if (dynamic_pointer_cast<LSTMCell>(first_cell)) {
         const auto Ct_in = cp_to.make<Unsqueeze>(first_cell->input_value(2), axis_1);
         sequence = cp_to.make<LSTMSequence>(X_in,
@@ -278,8 +278,8 @@ ov::pass::SequenceFusion::SequenceFusion() {
         }
 
         int cells_cnt;
-        OutputVector x_to_concat;
-        OutputVector attention_to_concat;
+        ov::OutputVector x_to_concat;
+        ov::OutputVector attention_to_concat;
         map<int, set<ov::Input<ov::Node>>> h_inputs_to_redirect;
         map<int, set<ov::Input<ov::Node>>> c_inputs_to_redirect;
         auto axis_0 = copy_to.make<Constant>(i64, Shape{}, 0);
