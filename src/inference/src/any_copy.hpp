@@ -15,4 +15,5 @@
 
 namespace ov {
 std::map<std::string, std::string> any_copy(const ov::AnyMap& config_map);
+ov::AnyMap any_copy(const std::map<std::string, std::string>& config_map);
 }  // namespace ov

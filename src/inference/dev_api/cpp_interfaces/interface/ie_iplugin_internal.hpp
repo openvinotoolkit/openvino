@@ -190,6 +190,12 @@ public:
     virtual void SetConfig(const std::map<std::string, std::string>& config);
 
     /**
+     * @brief Sets configuration for plugin, acceptable keys can be found in openvino/runtime/properties.hpp
+     * @param config  ov::AnyMap of config parameters
+     */
+    virtual void SetProperties(const ov::AnyMap& config);
+
+    /**
      * @brief Gets configuration dedicated to plugin behaviour
      * @param name  - value of config corresponding to config key
      * @param options - configuration details for config
