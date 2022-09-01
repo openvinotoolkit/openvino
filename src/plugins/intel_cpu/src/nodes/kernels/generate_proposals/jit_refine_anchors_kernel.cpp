@@ -375,6 +375,15 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
         uni_vmaxps(vmm_y1, vmm_y1, vmm_0_0_addr);
 
 //        /** @code
+//            const float score = scores[score_idx(anchor, 0, h, w)];
+//         */
+//        xor_(reg_score_idx_offset, reg_score_idx_offset);
+//        mov(reg_score_idx_offset.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, score_chunk_offset)]);
+//        // const float score = scores[score_idx(anchor, 0, h, w)];
+//        mov(reg_anchor_idx, 0);
+//        emulate_gather(vmm_score, reg_anchors_chunk, reg_scores_ptr, reg_anchor_idx_offset, reg_anchor_idx);
+
+//        /** @code
 //            // recompute new width & height
 //            const float box_w = x1 - x0 + coordinates_offset;
 //            const float box_h = y1 - y0 + coordinates_offset;
@@ -386,15 +395,6 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
 //        uni_vaddss(xmm_box_h, vmm_y0, reg_coordinates_offset);
 //        uni_vaddps(xmm_box_h, vmm_y1, xmm_box_h);
 //
-
-//        /** @code
-//            const float score = scores[score_idx(anchor, 0, h, w)];
-//         */
-//        xor_(reg_score_idx_offset, reg_score_idx_offset);
-//        mov(reg_score_idx_offset.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, score_chunk_offset)]);
-//        // const float score = scores[score_idx(anchor, 0, h, w)];
-//        mov(reg_anchor_idx, 0);
-//        emulate_gather(vmm_score, reg_anchors_chunk, reg_scores_ptr, reg_anchor_idx_offset, reg_anchor_idx);
 
 //        /** @code
 //            int p_idx = proposal_idx(h, w, anchor, 0);
