@@ -33,6 +33,25 @@ TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraph) {
     std::stringstream stream;
     compiled_model.export_model(stream);
     ov::CompiledModel imported_compiled_model = core.import_model(stream, "CPU");
+    float data[] = {1.f, 1.f, 1.f, 1.f};
+    ov::Tensor input_data1{ov::element::f32, ov::Shape({2, 2}), data};
+    ov::Tensor input_data2{ov::element::f32, ov::Shape({2, 2}), data};
+    ov::InferRequest infer_request = compiled_model.create_infer_request();
+    infer_request.set_input_tensor(0, input_data1);
+    infer_request.set_input_tensor(1, input_data2);
+    infer_request.infer();
+    auto out = infer_request.get_output_tensor(0);
+    float* out_p = static_cast<float*>(out.data(ov::element::Type_t::f32));
+    auto out_val = std::vector<float>(out_p, out_p + out.get_size());
+    ov::InferRequest imported_infer_request = imported_compiled_model.create_infer_request();
+    imported_infer_request.set_input_tensor(0, input_data1);
+    imported_infer_request.set_input_tensor(1, input_data2);
+    imported_infer_request.infer();
+    auto imported_out = imported_infer_request.get_output_tensor(0);
+    float* imported_out_p = static_cast<float*>(imported_out.data(ov::element::Type_t::f32));
+    auto imported_out_val = std::vector<float>(imported_out_p, imported_out_p + imported_out.get_size());
+    ASSERT_EQ(out_val, imported_out_val);
+
     auto compiled_model_runtime = ov::clone_model(*compiled_model.get_runtime_model());
     auto imported_compiled_model_runtime = ov::clone_model(*imported_compiled_model.get_runtime_model());
     const auto fc = FunctionsComparator::with_default()
@@ -61,7 +80,23 @@ TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraphWithScalarConst) {
     ov::CompiledModel compiled_model = core.compile_model(model, "CPU");
     std::stringstream stream;
     compiled_model.export_model(stream);
+    float data[] = {1.f};
+    ov::Tensor input_data1{ov::element::f32, ov::Shape({1}), data};
     ov::CompiledModel imported_compiled_model = core.import_model(stream, "CPU");
+    ov::InferRequest infer_request = compiled_model.create_infer_request();
+    infer_request.set_input_tensor(0, input_data1);
+    infer_request.infer();
+    auto out = infer_request.get_output_tensor(0);
+    float* out_p = static_cast<float*>(out.data(ov::element::Type_t::f32));
+    auto out_val = std::vector<float>(out_p, out_p + out.get_size());
+    ov::InferRequest imported_infer_request = imported_compiled_model.create_infer_request();
+    imported_infer_request.set_input_tensor(0, input_data1);
+    imported_infer_request.infer();
+    auto imported_out = imported_infer_request.get_output_tensor(0);
+    float* imported_out_p = static_cast<float*>(imported_out.data(ov::element::Type_t::f32));
+    auto imported_out_val = std::vector<float>(imported_out_p, imported_out_p + imported_out.get_size());
+    ASSERT_EQ(out_val, imported_out_val);
+
     auto compiled_model_runtime = ov::clone_model(*compiled_model.get_runtime_model());
     auto imported_compiled_model_runtime = ov::clone_model(*imported_compiled_model.get_runtime_model());
     const auto fc = FunctionsComparator::with_default()
