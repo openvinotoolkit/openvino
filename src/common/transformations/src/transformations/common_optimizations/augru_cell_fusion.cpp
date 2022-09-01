@@ -14,7 +14,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace std;
-using namespace opset9;
+using namespace ov::opset9;
 using namespace ov::element;
 using namespace ov::pass::pattern;
 
