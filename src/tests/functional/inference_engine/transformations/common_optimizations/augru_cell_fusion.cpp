@@ -95,12 +95,12 @@ class AUGRUFusionTest
 TEST_P(AUGRUFusionTest, AUGRUCellPattern) {
     const auto& p = GetParam();
     {
-        function = gen_model(p.batch, p.hidden_size, p.input_size, false);
+        model = gen_model(p.batch, p.hidden_size, p.input_size, false);
         manager.register_pass<pass::AUGRUCellFusion>();
     }
 
     {
-        function_ref = gen_reference(p.batch, p.hidden_size, p.input_size);
+        model_ref = gen_reference(p.batch, p.hidden_size, p.input_size);
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
@@ -113,7 +113,7 @@ class AUGRUFusionTestDyn
 TEST_P(AUGRUFusionTestDyn, AUGRUCellPatternDynamicShapes) {
     const auto& p = GetParam();
     {
-        function = gen_model(p.batch, p.hidden_size, p.input_size, true);
+        model = gen_model(p.batch, p.hidden_size, p.input_size, true);
         // the transformation won't be applied because we can't determine hidden_size/input_size,
         // they are dynamic.
         manager.register_pass<pass::AUGRUCellFusion>();

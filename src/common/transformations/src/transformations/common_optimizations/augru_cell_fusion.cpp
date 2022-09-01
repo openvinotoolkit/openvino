@@ -8,18 +8,26 @@
 
 #include "itt.hpp"
 #include "ngraph_ops/augru_cell.hpp"
+#include "node_registry.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace std;
-using namespace ov::opset9;
+using namespace opset9;
+using namespace ov::element;
 using namespace ov::pass::pattern;
 
 ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
     MATCHER_SCOPE(AUGRUCellFusion);
 
-    auto concat_1 = wrap_type<Concat>({any_input(), any_input()});
+    // we can't determine hidden_size or input_size in this case
+    const auto is_first_dim_dynamic = [](const Output<Node>& output) -> bool {
+        const auto& p_shape = output.get_partial_shape();
+        return !(p_shape.rank().is_dynamic() || p_shape[1].is_dynamic());
+    };
+
+    auto concat_1 = wrap_type<Concat>({any_input(is_first_dim_dynamic), any_input(is_first_dim_dynamic)});
     auto matmul_1 = wrap_type<MatMul>({concat_1, any_input()});
     auto add_1 = wrap_type<Add>({matmul_1, any_input()});
     // only Sigmoid is supported in the current version of AUGRUCell
@@ -41,7 +49,8 @@ ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
     auto multiply_4 = wrap_type<Multiply>({multiply_2, any_input()});
     auto add_3 = wrap_type<Add>({multiply_4, multiply_3});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        NodeRegistry rg;
         auto pattern_map = m.get_pattern_map();
         auto concat = pattern_map.at(concat_1);
         auto X = concat->input_value(0);
@@ -49,11 +58,6 @@ ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
 
         auto h_pshape = H.get_partial_shape();
         auto x_pshape = X.get_partial_shape();
-        if (h_pshape.rank().is_dynamic() || x_pshape.rank().is_dynamic() || h_pshape[1].is_dynamic() ||
-            x_pshape[1].is_dynamic()) {
-            // we can't determine hidden_size or input_size
-            return false;
-        }
 
         auto hidden_size = h_pshape[1].get_length();
         auto input_size = x_pshape[1].get_length();
@@ -63,27 +67,27 @@ ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
         auto bias_add_1 = pattern_map.at(add_1);
         auto bias_add_2 = pattern_map.at(add_2);
 
-        auto axis_0 = make_shared<Constant>(element::i64, Shape{}, 0);
-        auto axis_1 = make_shared<Constant>(element::i64, Shape{}, 1);
-        auto B = make_shared<Concat>(ov::OutputVector{bias_add_1->input_value(1), bias_add_2->input_value(1)}, 1);
+        auto axis_0 = rg.make<Constant>(i64, Shape{}, 0);
+        auto axis_1 = rg.make<Constant>(i64, Shape{}, 1);
+        auto B = rg.make<Concat>(OutputVector{bias_add_1->input_value(1), bias_add_2->input_value(1)}, 1);
 
         auto WRzr = pattern_map.at(matmul_1)->input_value(1);
         auto WRh = pattern_map.at(matmul_2)->input_value(1);
 
-        auto split_lenghts = make_shared<Constant>(element::i64, Shape{2}, vector<int64_t>{input_size, hidden_size});
-        auto split_WRzr = make_shared<VariadicSplit>(WRzr, axis_1, split_lenghts);
-        auto split_WRh = make_shared<VariadicSplit>(WRh, axis_1, split_lenghts);
-        auto Wzrh = make_shared<Concat>(ov::OutputVector{split_WRzr->output(0), split_WRh->output(0)}, 0);
-        auto Rzrh = make_shared<Concat>(ov::OutputVector{split_WRzr->output(1), split_WRh->output(1)}, 0);
+        auto split_lenghts = rg.make<Constant>(i64, Shape{2}, vector<int64_t>{input_size, hidden_size});
+        auto split_WRzr = rg.make<VariadicSplit>(WRzr, axis_1, split_lenghts);
+        auto split_WRh = rg.make<VariadicSplit>(WRh, axis_1, split_lenghts);
+        auto Wzrh = rg.make<Concat>(OutputVector{split_WRzr->output(0), split_WRh->output(0)}, 0);
+        auto Rzrh = rg.make<Concat>(OutputVector{split_WRzr->output(1), split_WRh->output(1)}, 0);
 
-        auto squeeze_B = make_shared<Squeeze>(B, axis_0);
-        auto cell = make_shared<ov::op::internal::AUGRUCell>(X, H, Wzrh, Rzrh, squeeze_B, A, H.get_shape()[1]);
+        auto squeeze_B = rg.make<Squeeze>(B, axis_0);
+        auto cell = rg.make<op::internal::AUGRUCell>(X, H, Wzrh, Rzrh, squeeze_B, A, H.get_shape()[1]);
 
         NodeVector new_nodes;
         new_nodes.insert(new_nodes.end(),
                          {axis_1, axis_0, split_lenghts, split_WRzr, split_WRh, Wzrh, Rzrh, B, squeeze_B, cell});
         cell->set_friendly_name(m.get_match_root()->get_friendly_name());
-        copy_runtime_info(m.get_matched_nodes(), new_nodes);
+        copy_runtime_info(m.get_matched_nodes(), rg.get());
         replace_node(m.get_match_root(), cell);
         return true;
     };
