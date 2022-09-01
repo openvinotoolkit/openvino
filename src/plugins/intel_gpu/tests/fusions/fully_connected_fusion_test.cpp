@@ -282,7 +282,9 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_eltwise_activation_quantize_i8, ::
 #ifdef ENABLE_ONEDNN_FOR_GPU
 
 // FC onednn sum case
-class fc_int8_inputs_fused_fp32_sum : public FullyConnectedFusingTestOneDNN {};
+// It inherit FullyConnectedFusingTest instead FullyConnectedFusingTestOneDNN because It is using cldnnFC
+// Change it to inherit FullyConnectedFusingTestOneDNN when use onednnFC.
+class fc_int8_inputs_fused_fp32_sum : public FullyConnectedFusingTest {};
 TEST_P(fc_int8_inputs_fused_fp32_sum, basic) {
     auto p = GetParam();
     auto shift_layout = layout{ ov::PartialShape{p.weights_shape[0]}, p.default_type, p.default_format };
@@ -292,8 +294,8 @@ TEST_P(fc_int8_inputs_fused_fp32_sum, basic) {
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("shift_data", get_mem(shift_layout, 1)),
-        fully_connected("fc_prim", "input", "weights", "bias", cldnn::data_types::f32, padding(), get_output_dim_size(p)),
-        eltwise("shift", { "fc_prim", "shift_data" }, eltwise_mode::sum, cldnn::data_types::f32),
+        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, "", padding(), get_output_dim_size(p)),
+        eltwise("shift", { "fc_prim", "shift_data" }, eltwise_mode::sum, data_types::f32),
         crop("crop", "shift", get_output_layout(p).get_tensor(), { 0, 0, 0, 0 }),
         reorder("reorder_bfyx", "crop", p.default_format, data_types::f32)
     );
@@ -304,8 +306,9 @@ TEST_P(fc_int8_inputs_fused_fp32_sum, basic) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_inputs_fused_fp32_sum, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     // OneDNN has issue with small shapes - ticket 7064
-    // fully_connected_test_params{ CASE_FC_U8S8_3D_1, 2, 4 },
-    // fully_connected_test_params{ CASE_FC_U8S8_3D_2, 2, 4 },
+    fully_connected_test_params{ CASE_FC_U8S8_3D_1, 2, 4 },
+    fully_connected_test_params{ CASE_FC_U8S8_3D_2, 2, 4 },
+    fully_connected_test_params{ CASE_FC_U8S8_3D_3, 2, 4 },
     fully_connected_test_params{ CASE_FC_U8S8_3D_4, 2, 4 },
 }));
 #endif
