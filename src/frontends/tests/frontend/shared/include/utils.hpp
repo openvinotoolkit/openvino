@@ -17,7 +17,7 @@
 // Helper functions
 namespace FrontEndTestUtils {
 
-int run_tests(int argc, char** argv);
+int run_tests(int argc, char** argv, const std::string& manifest);
 
 inline std::tuple<ov::frontend::FrontEnd::Ptr, ov::frontend::InputModel::Ptr>
 load_from_file(ov::frontend::FrontEndManager& fem, const std::string& frontend_name, const std::string& model_file) {

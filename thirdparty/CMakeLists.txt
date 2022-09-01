@@ -25,15 +25,15 @@ ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
 # zlib
 #
 
-if(NOT CMAKE_CROSSCOMPILING)
-    find_host_package(PkgConfig QUIET)
+if(NOT ANDROID)
+    find_package(PkgConfig QUIET)
     if(PkgConfig_FOUND)
         pkg_search_module(zlib QUIET
-                        IMPORTED_TARGET GLOBAL
-                        zlib)
+                          IMPORTED_TARGET GLOBAL
+                          zlib)
         if(zlib_FOUND)
             add_library(zlib::zlib ALIAS PkgConfig::zlib)
-            message(STATUS "zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
+            message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
         endif()
     endif()
 endif()
@@ -131,7 +131,14 @@ if(NOT APPLE)
 endif()
 
 if(gflags_FOUND)
-    set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
+    if(TARGET gflags_nothreads-static)
+        set_target_properties(gflags_nothreads-static PROPERTIES IMPORTED_GLOBAL ON)
+        add_library(gflags ALIAS gflags_nothreads-static)
+    elseif(TARGET gflags)
+        set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
+    else()
+        message(FATAL_ERROR "Internal error: failed to find imported target 'gflags'")
+    endif()
     message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
 else()
     add_subdirectory(gflags EXCLUDE_FROM_ALL)
@@ -166,7 +173,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         set(PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
 
         foreach(target ${SYSTEM_PROTOC} ${Protobuf_LIBRARIES} ${Protobuf_LITE_LIBRARIES})
-            set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL TRUE)
+            set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL ON)
         endforeach()
     else()
         add_subdirectory(protobuf EXCLUDE_FROM_ALL)

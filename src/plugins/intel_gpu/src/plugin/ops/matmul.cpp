@@ -141,7 +141,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                                              inputName,
                                              weightsName,
                                              "",
-                                             DataTypeFromPrecision(op->get_output_element_type(0)),
+                                             cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                              cldnn::padding(),
                                              input_rank);
 
@@ -164,7 +164,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                 }
 
                 cldnn::primitive_id reorderId = "reorder:" + outReshapeName + "_reorder";
-                cldnn::layout outputLayout(DataTypeFromPrecision(op->get_output_element_type(0)), outputFormat, outTensor);
+                cldnn::layout outputLayout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outTensor);
                 auto reorder_prim = cldnn::reorder(reorderId,
                                             layerName,
                                             outputLayout,
@@ -206,7 +206,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
             if (targetFormat.value != cldnn::format::get_default_format(inputDimsN).value) {
                 auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
-                auto targetDatatype = DataTypeFromPrecision(op->get_output_element_type(0));
+                auto targetDatatype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
                 auto reorderPrim = cldnn::reorder(reorderName,
                                                   inputPrimitives[i],
                                                   targetFormat,
@@ -266,7 +266,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
         auto gemmPrim = cldnn::gemm(layerName,
                                     inputPrimitives,
-                                    DataTypeFromPrecision(op->get_output_element_type(0)),
+                                    cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                     transA,
                                     transB,
                                     alpha,
