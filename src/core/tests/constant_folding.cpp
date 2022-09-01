@@ -2798,6 +2798,35 @@ TEST(constant_folding, constant_tile_1d_0_repeats) {
     ASSERT_EQ(values_expected, values_out);
 }
 
+TEST(constant_folding, constant_tile_2d_0_repeats) {
+    Shape shape_in{2, 2};
+    Shape shape_repeats{2};
+    Shape shape_out{};
+
+    vector<int> values_in{0, 1, 2, 3};
+    auto data = make_shared<op::Constant>(element::i32, shape_in, values_in);
+    vector<int> values_repeats{0, 0};
+    auto repeats = make_shared<op::Constant>(element::i64, shape_repeats, values_repeats);
+    auto tile = make_shared<op::v0::Tile>(data, repeats);
+    tile->set_friendly_name("test");
+    auto f = make_shared<Function>(tile, ParameterVector{});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::ConstantFolding>();
+    pass_manager.run_passes(f);
+
+    ASSERT_EQ(count_ops_of_type<op::v0::Tile>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+
+    auto new_const = ov::as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
+    ASSERT_TRUE(new_const);
+    ASSERT_EQ(new_const->get_friendly_name(), "test");
+    auto values_out = new_const->get_vector<int>();
+
+    vector<int> values_expected{};
+    ASSERT_EQ(values_expected, values_out);
+}
+
 TEST(constant_folding, constant_tile_0_rank_data) {
     Shape shape_in{};
     Shape shape_repeats{1};

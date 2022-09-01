@@ -49,6 +49,12 @@ void runtime::reference::tile(const char* arg,
     std::vector<size_t> indices(in_shape_expanded.size() - 1, 0);
     size_t axis = indices.size();
 
+    if (std::all_of(repeats.begin(), repeats.end(), [](int64_t repeat) {
+            return repeat == 0;
+        })) {
+        return;
+    }
+
     // Copy and repeat data for innermost axis as many times as described in the repeats parameter
     while (axis <= indices.size()) {
         block_size = last_dim * elem_size;
