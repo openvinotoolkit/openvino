@@ -98,6 +98,9 @@ private:
     Xbyak::Xmm xmm_div = xmm_twiddles;
 
     jit_dft_config_params jcp_ = {};
+
+
+    void uni_vhsubps(const Xbyak::Xmm& x, const Xbyak::Xmm& x2, const Xbyak::Operand& op);
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
@@ -147,6 +150,8 @@ private:
 
     void move_data(const Xbyak::Address& addr, const Xbyak::Xmm& x, int count);
     void move_data(const Xbyak::Xmm& x, const Xbyak::Address& addr, int count);
+
+    void uni_vaddsubps(const Xbyak::Xmm& x, const Xbyak::Xmm& x2, const Xbyak::Operand& op);
 };
 
 }   // namespace intel_cpu

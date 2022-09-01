@@ -97,25 +97,35 @@ void jit_uni_dft_kernel_f32<isa>::generate() {
     }
     L(tail_loop_end_label);
 
-    vmovhlps(xmm_sum_2, xmm_sum_2, xmm_sum);
+    uni_vmovhlps(xmm_sum_2, xmm_sum_2, xmm_sum);
 
     if (!jcp_.inverse) {
-        vhsubps(xmm_sum_2, xmm_sum_2, xmm_sum_2);
-        vhaddps(xmm_sum, xmm_sum, xmm_sum);
+        uni_vhsubps(xmm_sum_2, xmm_sum_2, xmm_sum_2);
+        uni_vhaddps(xmm_sum, xmm_sum, xmm_sum);
     } else {
-        vhaddps(xmm_sum_2, xmm_sum_2, xmm_sum_2);
-        vhsubps(xmm_sum, xmm_sum, xmm_sum);
+        uni_vhaddps(xmm_sum_2, xmm_sum_2, xmm_sum_2);
+        uni_vhsubps(xmm_sum, xmm_sum, xmm_sum);
 
         uni_vmovq(xmm_div, reg_work_amount);
         uni_vcvtdq2ps(xmm_div, xmm_div);
-        vdivss(xmm_sum, xmm_sum, xmm_div);
-        vdivss(xmm_sum_2, xmm_sum_2, xmm_div);
+        uni_vdivss(xmm_sum, xmm_sum, xmm_div);
+        uni_vdivss(xmm_sum_2, xmm_sum_2, xmm_div);
     }
 
     uni_vmovss(ptr[reg_dst], xmm_sum_2);
     uni_vmovss(ptr[reg_dst + sizeof(float)], xmm_sum);
 
     this->postamble();
+}
+
+template <cpu::x64::cpu_isa_t isa>
+void jit_uni_dft_kernel_f32<isa>::uni_vhsubps(const Xbyak::Xmm& x, const Xbyak::Xmm& x2, const Xbyak::Operand& op) {
+    if (mayiuse(avx)) {
+        vhsubps(x, x2, op);
+    } else {
+        assert(x.isEqualIfNotInherited(op));
+        hsubps(x, op);
+    }
 }
 
 template struct jit_uni_dft_kernel_f32<cpu::x64::sse41>;
@@ -226,7 +236,7 @@ void jit_uni_fft_kernel_f32<isa>::loop_process(int step) {
             }
 
             uni_vmulps(reg_data_odd_1, reg_data_odd_1, reg_twiddle_real);
-            vaddsubps(reg_data_odd_1, reg_data_odd_1, reg_data_odd_2);
+            uni_vaddsubps(reg_data_odd_1, reg_data_odd_1, reg_data_odd_2);
         }
 
         move_data(reg_data_even, ptr[reg_src], step);
@@ -261,6 +271,16 @@ void jit_uni_fft_kernel_f32<isa>::move_data(const Xbyak::Xmm& x, const Xbyak::Ad
         uni_vmovq(x, addr);
     } else {
         uni_vmovups(x, addr);
+    }
+}
+
+template <cpu::x64::cpu_isa_t isa>
+void jit_uni_fft_kernel_f32<isa>::uni_vaddsubps(const Xbyak::Xmm& x, const Xbyak::Xmm& x2, const Xbyak::Operand& op) {
+    if (mayiuse(avx)) {
+        vaddsubps(x, x2, op);
+    } else {
+        assert(x1.getIdx() != x2.getIdx());
+        addsubps(x, op);
     }
 }
 
