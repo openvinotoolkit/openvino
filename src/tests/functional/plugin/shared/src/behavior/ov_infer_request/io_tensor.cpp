@@ -198,7 +198,12 @@ TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetInputTensor) {
 
 TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetOutputTensor) {
     const ov::Shape shape1 = {1, 1, 32, 32};
-    const ov::Shape shape2 = {1, 20};
+    ov::Shape shape2;
+    if (target_device.find(CommonTestUtils::DEVICE_BATCH) == std::string::npos)
+        shape2 = ov::Shape{1, 20};
+    else
+        shape2 = ov::Shape{1, 4, 20, 20};
+
     std::map<std::string, ov::PartialShape> shapes;
     shapes[function->inputs().back().get_any_name()] = shape1;
     OV_ASSERT_NO_THROW(function->reshape(shapes));
