@@ -5,9 +5,8 @@
 
 #include "common.h"
 
-bool ov_rank_is_dynamic(const ov_rank_t* rank) {
-    assert(rank != nullptr);
-    if (rank->min == rank->max && rank->max > 0)
+bool ov_rank_is_dynamic(const ov_rank_t rank) {
+    if (rank.min == rank.max && rank.max > 0)
         return false;
     return true;
 }

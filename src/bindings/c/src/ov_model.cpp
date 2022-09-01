@@ -86,7 +86,7 @@ inline ov_status_e partial_shape_convert_to_cpp_object(const ov_partial_shape_t*
     }
 
     try {
-        if (ov_rank_is_dynamic(&partial_shape->rank)) {
+        if (ov_rank_is_dynamic(partial_shape->rank)) {
             // Dynamic rank
             dims.emplace_back(ov::Dimension());
         } else {

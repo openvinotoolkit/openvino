@@ -35,6 +35,6 @@ typedef struct ov_dimension {
  * @param dim The dimension pointer that will be checked.
  * @return Boolean, true is dynamic and false is static.
  */
-OPENVINO_C_API(bool) ov_dimension_is_dynamic(const ov_dimension_t* dim);
+OPENVINO_C_API(bool) ov_dimension_is_dynamic(const ov_dimension_t dim);
 
 /** @} */  // end of Dimension

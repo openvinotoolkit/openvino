@@ -11,7 +11,7 @@ TEST(ov_partial_shape, ov_partial_shape_create_static) {
     int64_t dims[4] = {1, 20, 300, 40};
 
     OV_ASSERT_OK(ov_partial_shape_create_static(&partial_shape, rank, dims));
-    auto tmp = ov_partial_shape_to_string(&partial_shape);
+    auto tmp = ov_partial_shape_to_string(partial_shape);
     EXPECT_STREQ(tmp, str);
 
     ov_free(tmp);
@@ -26,7 +26,7 @@ TEST(ov_partial_shape, ov_partial_shape_create_dynamic_1) {
     ov_dimension_t dims[4] = {{1, 1}, {20, 30}, {300, 300}, {40, 100}};
 
     OV_ASSERT_OK(ov_partial_shape_create(&partial_shape, rank, dims));
-    auto tmp = ov_partial_shape_to_string(&partial_shape);
+    auto tmp = ov_partial_shape_to_string(partial_shape);
     EXPECT_STREQ(tmp, str);
 
     ov_free(tmp);
@@ -41,7 +41,7 @@ TEST(ov_partial_shape, ov_partial_shape_create_dynamic_2) {
     ov_dimension_t dims[4] = {{1, 1}, {20, 20}, {300, 300}, {40, 100}};
 
     OV_ASSERT_OK(ov_partial_shape_create(&partial_shape, rank, dims));
-    auto tmp = ov_partial_shape_to_string(&partial_shape);
+    auto tmp = ov_partial_shape_to_string(partial_shape);
     EXPECT_STREQ(tmp, str);
 
     ov_free(tmp);
@@ -56,7 +56,7 @@ TEST(ov_partial_shape, ov_partial_shape_create_dynamic_3) {
     ov_dimension_t dims[4] = {{1, 1}, {-1, -1}, {300, 300}, {40, 100}};
 
     OV_ASSERT_OK(ov_partial_shape_create(&partial_shape, rank, dims));
-    auto tmp = ov_partial_shape_to_string(&partial_shape);
+    auto tmp = ov_partial_shape_to_string(partial_shape);
     EXPECT_STREQ(tmp, str);
 
     ov_free(tmp);
@@ -69,7 +69,7 @@ TEST(ov_partial_shape, ov_partial_shape_create_dynamic_rank) {
     ov_rank_t rank = {-1, -1};
 
     OV_ASSERT_OK(ov_partial_shape_create_dynamic(&partial_shape, rank, nullptr));
-    auto tmp = ov_partial_shape_to_string(&partial_shape);
+    auto tmp = ov_partial_shape_to_string(partial_shape);
     EXPECT_STREQ(tmp, str);
 
     ov_free(tmp);
@@ -94,7 +94,7 @@ TEST(ov_partial_shape, ov_partial_shape_to_shape) {
     OV_EXPECT_OK(ov_partial_shape_create(&partial_shape, rank, dims));
 
     ov_shape_t shape;
-    OV_ASSERT_OK(ov_partial_shape_to_shape(&partial_shape, &shape));
+    OV_ASSERT_OK(ov_partial_shape_to_shape(partial_shape, &shape));
     EXPECT_EQ(shape.rank, 5);
     EXPECT_EQ(shape.dims[0], 10);
     EXPECT_EQ(shape.dims[1], 20);
@@ -115,7 +115,7 @@ TEST(ov_partial_shape, ov_partial_shape_to_shape_invalid) {
 
     ov_shape_t shape;
     shape.rank = 0;
-    OV_EXPECT_NOT_OK(ov_partial_shape_to_shape(&partial_shape, &shape));
+    OV_EXPECT_NOT_OK(ov_partial_shape_to_shape(partial_shape, &shape));
 
     ov_partial_shape_free(&partial_shape);
     ov_shape_free(&shape);
@@ -128,8 +128,8 @@ TEST(ov_partial_shape, ov_shape_to_partial_shape) {
     OV_ASSERT_OK(ov_shape_create(&shape, 5, dims));
 
     ov_partial_shape_t partial_shape;
-    OV_ASSERT_OK(ov_shape_to_partial_shape(&shape, &partial_shape));
-    auto tmp = ov_partial_shape_to_string(&partial_shape);
+    OV_ASSERT_OK(ov_shape_to_partial_shape(shape, &partial_shape));
+    auto tmp = ov_partial_shape_to_string(partial_shape);
 
     EXPECT_STREQ(tmp, str);
     ov_partial_shape_free(&partial_shape);

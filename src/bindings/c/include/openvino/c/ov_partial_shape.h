@@ -101,7 +101,7 @@ OPENVINO_C_API(void) ov_partial_shape_free(ov_partial_shape_t* partial_shape);
  * @param shape The shape pointer.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_partial_shape_to_shape(ov_partial_shape_t* partial_shape, ov_shape_t* shape);
+OPENVINO_C_API(ov_status_e) ov_partial_shape_to_shape(const ov_partial_shape_t partial_shape, ov_shape_t* shape);
 
 /**
  * @brief Convert shape to partial shape.
@@ -110,7 +110,7 @@ OPENVINO_C_API(ov_status_e) ov_partial_shape_to_shape(ov_partial_shape_t* partia
  * @param partial_shape The partial_shape pointer.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_shape_to_partial_shape(ov_shape_t* shape, ov_partial_shape_t* partial_shape);
+OPENVINO_C_API(ov_status_e) ov_shape_to_partial_shape(const ov_shape_t shape, ov_partial_shape_t* partial_shape);
 
 /**
  * @brief Check this partial_shape whether is dynamic
@@ -118,7 +118,7 @@ OPENVINO_C_API(ov_status_e) ov_shape_to_partial_shape(ov_shape_t* shape, ov_part
  * @param partial_shape The partial_shape pointer.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(bool) ov_partial_shape_is_dynamic(const ov_partial_shape_t* partial_shape);
+OPENVINO_C_API(bool) ov_partial_shape_is_dynamic(const ov_partial_shape_t partial_shape);
 
 /**
  * @brief Helper function, convert a partial shape to readable string.
@@ -126,6 +126,6 @@ OPENVINO_C_API(bool) ov_partial_shape_is_dynamic(const ov_partial_shape_t* parti
  * @param partial_shape The partial_shape pointer.
  * @return A string reprensts partial_shape's content.
  */
-OPENVINO_C_API(const char*) ov_partial_shape_to_string(const ov_partial_shape_t* partial_shape);
+OPENVINO_C_API(const char*) ov_partial_shape_to_string(const ov_partial_shape_t partial_shape);
 
 /** @} */  // end of partial_shape

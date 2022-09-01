@@ -29,6 +29,6 @@ typedef ov_dimension_t ov_rank_t;
  * @param rank The rank pointer that will be checked.
  * @return bool The return value.
  */
-OPENVINO_C_API(bool) ov_rank_is_dynamic(const ov_rank_t* rank);
+OPENVINO_C_API(bool) ov_rank_is_dynamic(const ov_rank_t rank);
 
 /** @} */  // end of Rank

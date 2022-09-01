@@ -5,9 +5,8 @@
 
 #include "common.h"
 
-bool ov_dimension_is_dynamic(const ov_dimension_t* dim) {
-    assert(dim != nullptr);
-    if (dim->min == dim->max && dim->max > 0)
+bool ov_dimension_is_dynamic(const ov_dimension_t dim) {
+    if (dim.min == dim.max && dim.max > 0)
         return false;
     return true;
 }

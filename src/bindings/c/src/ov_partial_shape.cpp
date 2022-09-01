@@ -39,7 +39,7 @@ ov_status_e ov_partial_shape_create_dynamic(ov_partial_shape_t* partial_shape_ob
 
     try {
         partial_shape_obj->rank = rank;
-        if (ov_rank_is_dynamic(&rank)) {
+        if (ov_rank_is_dynamic(rank)) {
             // Dynamic rank
             partial_shape_obj->dims = nullptr;
         } else {
@@ -84,21 +84,21 @@ void ov_partial_shape_free(ov_partial_shape_t* partial_shape) {
         delete[] partial_shape->dims;
 }
 
-ov_status_e ov_partial_shape_to_shape(ov_partial_shape_t* partial_shape, ov_shape_t* shape) {
-    if (!partial_shape || !shape) {
+ov_status_e ov_partial_shape_to_shape(const ov_partial_shape_t partial_shape, ov_shape_t* shape) {
+    if (!shape) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
-        if (ov_rank_is_dynamic(&partial_shape->rank)) {
+        if (ov_rank_is_dynamic(partial_shape.rank)) {
             return ov_status_e::PARAMETER_MISMATCH;
         }
-        auto rank = partial_shape->rank.max;
+        auto rank = partial_shape.rank.max;
         ov_shape_create(shape, rank, nullptr);
 
         for (auto i = 0; i < rank; ++i) {
-            auto& ov_dim = partial_shape->dims[i];
-            if (!ov_dimension_is_dynamic(&ov_dim))
+            auto& ov_dim = partial_shape.dims[i];
+            if (!ov_dimension_is_dynamic(ov_dim))
                 shape->dims[i] = ov_dim.max;
             else
                 return ov_status_e::PARAMETER_MISMATCH;
@@ -109,35 +109,33 @@ ov_status_e ov_partial_shape_to_shape(ov_partial_shape_t* partial_shape, ov_shap
     return ov_status_e::OK;
 }
 
-ov_status_e ov_shape_to_partial_shape(ov_shape_t* shape, ov_partial_shape_t* partial_shape) {
-    if (!partial_shape || !shape || shape->rank <= 0 || !shape->dims) {
+ov_status_e ov_shape_to_partial_shape(const ov_shape_t shape, ov_partial_shape_t* partial_shape) {
+    if (!partial_shape || shape.rank <= 0 || !shape.dims) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
-        partial_shape->rank.min = shape->rank;
-        partial_shape->rank.max = shape->rank;
-        auto size = shape->rank;
+        partial_shape->rank.min = shape.rank;
+        partial_shape->rank.max = shape.rank;
+        auto size = shape.rank;
         std::unique_ptr<ov_dimension_t> _dims(new ov_dimension_t[size]);
         partial_shape->dims = _dims.release();
         for (auto i = 0; i < size; i++) {
-            partial_shape->dims[i].min = shape->dims[i];
-            partial_shape->dims[i].max = shape->dims[i];
+            partial_shape->dims[i].min = shape.dims[i];
+            partial_shape->dims[i].max = shape.dims[i];
         }
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
 
-bool ov_partial_shape_is_dynamic(const ov_partial_shape_t* partial_shape) {
-    assert(partial_shape != nullptr);
-
-    if (ov_rank_is_dynamic(&partial_shape->rank)) {
+bool ov_partial_shape_is_dynamic(const ov_partial_shape_t partial_shape) {
+    if (ov_rank_is_dynamic(partial_shape.rank)) {
         return true;
     }
-    auto rank = partial_shape->rank.max;
+    auto rank = partial_shape.rank.max;
     for (auto i = 0; i < rank; i++) {
-        auto dim = &partial_shape->dims[i];
+        auto dim = partial_shape.dims[i];
         if (ov_dimension_is_dynamic(dim)) {
             return true;
         }
@@ -145,21 +143,17 @@ bool ov_partial_shape_is_dynamic(const ov_partial_shape_t* partial_shape) {
     return false;
 }
 
-const char* ov_partial_shape_to_string(const ov_partial_shape_t* partial_shape) {
-    if (!partial_shape) {
-        return str_to_char_array("Error: null partial_shape!");
-    }
-
+const char* ov_partial_shape_to_string(const ov_partial_shape_t partial_shape) {
     // Dynamic rank
-    if (ov_rank_is_dynamic(&partial_shape->rank)) {
+    if (ov_rank_is_dynamic(partial_shape.rank)) {
         return str_to_char_array("?");
     }
 
     // Static rank
-    auto rank = partial_shape->rank.max;
+    auto rank = partial_shape.rank.max;
     std::string str = std::string("{");
     for (auto i = 0; i < rank; i++) {
-        auto _dim = &partial_shape->dims[i];
+        auto _dim = &partial_shape.dims[i];
         ov::Dimension item(_dim->min, _dim->max);
         std::ostringstream out;
         out.str("");
