@@ -1,3 +1,0 @@
-docopt
-protobuf~=3.18.1
-onnx
