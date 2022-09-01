@@ -113,11 +113,11 @@ protected:
         EXPECT_NE(nullptr, preprocess);
 
         input_info = nullptr;
-        OV_ASSERT_OK(ov_preprocess_prepostprocessor_input_by_index(preprocess, 0, &input_info));
+        OV_ASSERT_OK(ov_preprocess_prepostprocessor_get_input_info_by_index(preprocess, 0, &input_info));
         EXPECT_NE(nullptr, input_info);
 
         input_tensor_info = nullptr;
-        OV_EXPECT_OK(ov_preprocess_inputinfo_tensor(input_info, &input_tensor_info));
+        OV_EXPECT_OK(ov_preprocess_input_info_get_tensor_info(input_info, &input_tensor_info));
         EXPECT_NE(nullptr, input_tensor_info);
 
         ov_shape_t shape = {0, nullptr};
@@ -126,29 +126,29 @@ protected:
 
         ov_element_type_e type = U8;
         OV_ASSERT_OK(ov_tensor_create(type, shape, &input_tensor));
-        OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_from(input_tensor_info, input_tensor));
+        OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_from(input_tensor_info, input_tensor));
         OV_ASSERT_OK(ov_shape_free(&shape));
 
         const char* layout_desc = "NHWC";
         ov_layout_t* layout = nullptr;
         OV_ASSERT_OK(ov_layout_create(layout_desc, &layout));
-        OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_layout(input_tensor_info, layout));
+        OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_layout(input_tensor_info, layout));
         ov_layout_free(layout);
 
         input_process = nullptr;
-        OV_ASSERT_OK(ov_preprocess_inputinfo_preprocess(input_info, &input_process));
+        OV_ASSERT_OK(ov_preprocess_input_info_get_preprocess_steps(input_info, &input_process));
         ASSERT_NE(nullptr, input_process);
         OV_ASSERT_OK(
-            ov_preprocess_preprocesssteps_resize(input_process, ov_preprocess_resizealgorithm_e::RESIZE_LINEAR));
+            ov_preprocess_preprocess_steps_resize(input_process, ov_preprocess_resize_algorithm_e::RESIZE_LINEAR));
 
         input_model = nullptr;
-        OV_ASSERT_OK(ov_preprocess_inputinfo_model(input_info, &input_model));
+        OV_ASSERT_OK(ov_preprocess_input_info_get_model_info(input_info, &input_model));
         ASSERT_NE(nullptr, input_model);
 
         ov_layout_t* model_layout = nullptr;
         const char* model_layout_desc = "NCHW";
         OV_ASSERT_OK(ov_layout_create(model_layout_desc, &model_layout));
-        OV_ASSERT_OK(ov_preprocess_inputmodelinfo_set_layout(input_model, model_layout));
+        OV_ASSERT_OK(ov_preprocess_input_model_info_set_layout(input_model, model_layout));
         ov_layout_free(model_layout);
 
         OV_ASSERT_OK(ov_preprocess_prepostprocessor_build(preprocess, &model));
@@ -167,10 +167,10 @@ protected:
         ov_tensor_free(input_tensor);
         ov_infer_request_free(infer_request);
         ov_compiled_model_free(compiled_model);
-        ov_preprocess_inputmodelinfo_free(input_model);
-        ov_preprocess_preprocesssteps_free(input_process);
-        ov_preprocess_inputtensorinfo_free(input_tensor_info);
-        ov_preprocess_inputinfo_free(input_info);
+        ov_preprocess_input_model_info_free(input_model);
+        ov_preprocess_preprocess_steps_free(input_process);
+        ov_preprocess_input_tensor_info_free(input_tensor_info);
+        ov_preprocess_input_info_free(input_info);
         ov_preprocess_prepostprocessor_free(preprocess);
         ov_model_free(model);
         ov_core_free(core);
@@ -184,10 +184,10 @@ public:
     ov_tensor_t* input_tensor;
     ov_tensor_t* output_tensor;
     ov_preprocess_prepostprocessor_t* preprocess;
-    ov_preprocess_inputinfo_t* input_info;
-    ov_preprocess_inputtensorinfo_t* input_tensor_info;
-    ov_preprocess_preprocesssteps_t* input_process;
-    ov_preprocess_inputmodelinfo_t* input_model;
+    ov_preprocess_input_info_t* input_info;
+    ov_preprocess_input_tensor_info_t* input_tensor_info;
+    ov_preprocess_preprocess_steps_t* input_process;
+    ov_preprocess_input_model_info_t* input_model;
 };
 
 INSTANTIATE_TEST_SUITE_P(device_name, ov_infer_request, ::testing::Values("CPU"));

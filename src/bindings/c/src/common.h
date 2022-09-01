@@ -111,50 +111,50 @@ struct ov_preprocess_prepostprocessor {
 };
 
 /**
- * @struct ov_preprocess_inputinfo
+ * @struct ov_preprocess_input_info
  * @brief This is an interface of ov::preprocess::InputInfo
  */
-struct ov_preprocess_inputinfo {
+struct ov_preprocess_input_info {
     ov::preprocess::InputInfo* object;
 };
 
 /**
- * @struct ov_preprocess_inputtensorinfo
+ * @struct ov_preprocess_input_tensor_info
  * @brief This is an interface of ov::preprocess::InputTensorInfo
  */
-struct ov_preprocess_inputtensorinfo {
+struct ov_preprocess_input_tensor_info {
     ov::preprocess::InputTensorInfo* object;
 };
 
 /**
- * @struct ov_preprocess_outputinfo
+ * @struct ov_preprocess_output_info
  * @brief This is an interface of ov::preprocess::OutputInfo
  */
-struct ov_preprocess_outputinfo {
+struct ov_preprocess_output_info {
     ov::preprocess::OutputInfo* object;
 };
 
 /**
- * @struct ov_preprocess_outputtensorinfo
+ * @struct ov_preprocess_output_tensor_info
  * @brief This is an interface of ov::preprocess::OutputTensorInfo
  */
-struct ov_preprocess_outputtensorinfo {
+struct ov_preprocess_output_tensor_info {
     ov::preprocess::OutputTensorInfo* object;
 };
 
 /**
- * @struct ov_preprocess_inputmodelinfo
+ * @struct ov_preprocess_input_model_info
  * @brief This is an interface of ov::preprocess::InputModelInfo
  */
-struct ov_preprocess_inputmodelinfo {
+struct ov_preprocess_input_model_info {
     ov::preprocess::InputModelInfo* object;
 };
 
 /**
- * @struct ov_preprocess_preprocesssteps
+ * @struct ov_preprocess_preprocess_steps
  * @brief This is an interface of ov::preprocess::PreProcessSteps
  */
-struct ov_preprocess_preprocesssteps {
+struct ov_preprocess_preprocess_steps {
     ov::preprocess::PreProcessSteps* object;
 };
 
