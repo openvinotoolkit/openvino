@@ -244,7 +244,7 @@ unset(_OV_ENABLE_INTEL_GNA)
 
 set(_OV_ENABLE_INTEL_MYRIAD "@ENABLE_INTEL_MYRIAD@")
 if(_OV_ENABLE_INTEL_MYRIAD AND NOT _OV_ENABLE_OPENVINO_BUILD_SHARED)
-    _ov_find_dependency(PkgConfig)
+    find_package(PkgConfig QUIET)
     if(PkgConfig_FOUND AND NOT ANDROID)
         if(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY)
             set(pkg_config_quiet_arg QUIET)
