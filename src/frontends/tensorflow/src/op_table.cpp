@@ -186,6 +186,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ExpandDims", translate_expand_dims_op},
         {"ExtractImagePatches", translate_extract_image_patches_op},
         {"FakeQuantWithMinMaxVars", translate_fake_quant_op},
+        {"FakeQuantWithMinMaxVarsPerChannel", translate_fake_quant_op},
         {"Fill", translate_fill_op},
         {"FloorDiv", translate_floor_div_op},
         {"FusedBatchNorm", translate_fused_batch_norm_op},
