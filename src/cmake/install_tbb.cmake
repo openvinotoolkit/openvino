@@ -234,7 +234,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                     COMPONENT tbb_dev)
         endif()
 
-        set(pkg_config_tbb_lib_dir "${IE_TBBROOT_INSTALL}/lib")
+        set(pkg_config_tbb_lib_dir "${IE_TBB_DIR_INSTALL}/lib")
     else()
         message(WARNING "TBB of unknown origin. TBB files are not installed")
     endif()
