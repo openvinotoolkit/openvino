@@ -15,6 +15,8 @@
 #include <stdexcept>
 #include <vector>
 
+#include <iostream>
+
 // clang-format off
 #ifdef ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
 #define DEFAULT_FLOAT_TOLERANCE_BITS ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
@@ -5578,5 +5580,20 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_concat_empty_init) {
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<int64_t>(Shape{2}, std::vector<int64_t>{1, 2});
     test_case.add_expected_output<int64_t>(Shape{2}, std::vector<int64_t>{1, 2});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_castlike) {
+    printf(">>>>>>>>>>>>>>>  === My own test\n");
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/reduce_min.onnx"));
+
+
+    // output data shape (1,)
+    auto expected_output = test::NDArray<float, 4>({{{{1}}}}).get_vector();
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
     test_case.run();
 }
