@@ -8,8 +8,10 @@
 #include <ngraph/rt_info.hpp>
 #include "transformation_helper.hpp"
 
-
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace pass {
+namespace helper {
 
 void GetConvData(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& conv_data) {
     conv_data.output_height = conv->get_output_shape(0)[2];
@@ -103,5 +105,7 @@ std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7
     }
     return last_node;
 }
-
-} // namespace GNAPluginNS
+} // namespace helper
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov
