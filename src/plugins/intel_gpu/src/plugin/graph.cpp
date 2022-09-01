@@ -65,9 +65,9 @@ Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
 
 void Graph::UpdateLayersMaps() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::UpdateLayersMaps");
-    primitiveIDs = m_program->primitiveIDs;
+    primitiveIDs = m_program->primitive_ids;
     prevPrimitiveIDs = m_program->prevPrimitiveIDs;
-    profilingIDs = m_program->profilingIDs;
+    profilingIDs = m_program->profiling_ids;
     perfMap = m_program->perfMap;
     outputDims = m_program->outputDims;
 }
@@ -572,9 +572,19 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> Graph::GetPer
     auto extIdMap = GetNetwork()->get_ext_id_mapping();
 
     auto getUpperCaseName = [](std::string name) {
-        if (name.length() > 0)
-            name[0] = toupper(name[0]);
-        return name;
+        std::vector<char> res;
+        bool convert_next_to_upper = true;
+        for (size_t i = 0; i < name.length(); i++) {
+            char c = convert_next_to_upper ? toupper(name[i]) : name[i];
+            if (c == '_') {
+                convert_next_to_upper = true;
+            } else {
+                convert_next_to_upper = false;
+                res.push_back(c);
+            }
+        }
+
+        return std::string(res.begin(), res.end());
     };
 
     auto getClearName = [](std::string name) {
@@ -587,11 +597,10 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> Graph::GetPer
     auto getFromProfiling = [&](std::string primId) -> bool {
         auto perfIter = perfMap.find(primId);
 
-        if (perfIter == perfMap.end())  return false;
-
-        const auto& layerName = perfIter->second.first;
-        if (layerName.length() == 0)  // no layer directly associated
+        if (perfIter == perfMap.end())
             return false;
+
+        auto layerName = getClearName(perfIter->second.first);
 
         const auto& perfCounter = perfIter->second.second;
 

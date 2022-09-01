@@ -532,7 +532,7 @@ TEST(activation_f32_fw_gpu, relu_basic_yxfb) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, "", padding{ { 0, 0, 0, 0 }, 0 }));
+        activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -608,7 +608,7 @@ TEST(activation_f32_fw_gpu, relu_basic_bfzyx) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, "", padding{ { 0, 0, 0, 0, 0 }, 0 }));
+        activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1019,7 +1019,7 @@ TEST(activation_f32_fw_gpu, relu_basic_acosh_yxfb) {
     topology topology(
             input_layout("input", input->get_layout()),
             reorder("reorder", "input", input->get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })),
-            activation("relu", "reorder", activation_func::acosh, {0.5f, 0.f}, "", padding{ { 0, 0, 0, 0 }, 0 }));
+            activation("relu", "reorder", activation_func::acosh, {0.5f, 0.f}, padding{ { 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1085,7 +1085,7 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_yxfb) {
     topology topology(
         input_layout("input", input->get_layout()),
         reorder("reorder", "input", input->get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })),
-        activation("relu", "reorder", activation_func::relu_negative_slope, { 0.5f, 0.f }, "", padding{ { 0, 0, 0, 0 }, 0 }));
+        activation("relu", "reorder", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1172,7 +1172,7 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_bfzyx) {
     topology topology(
         input_layout("input", input->get_layout()),
         reorder("reorder", "input", input->get_layout().with_padding(padding{ { 0, 0, 2, 1, 0 }, 0 })),
-        activation("relu", "reorder", activation_func::relu_negative_slope, { 0.5f, 0.f }, "", padding{ { 0, 0, 0, 0, 0 }, 0 }));
+        activation("relu", "reorder", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1245,7 +1245,7 @@ TEST(activation_f32_fw_gpu, relu_basic_output_padding_yxfb) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, "", padding{ { 0, 0, 3, 3 }, 0 }));
+        activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 3, 3 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
