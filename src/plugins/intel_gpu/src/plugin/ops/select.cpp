@@ -15,7 +15,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Select>& op) {
-    p.ValidateInputs(op, {3});
+    validate_inputs_count(op, {3});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -42,17 +42,15 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
 
             if (targetFormat.value != cldnn::format::get_default_format(input_rank).value) {
                 auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
-                auto targetDatatype = DataTypeFromPrecision(op->get_input_element_type(i));
+                auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(i));
                 auto reorderPrim = cldnn::reorder(reorderName,
                                                   inputPrimitives[i],
                                                   targetFormat,
                                                   targetDatatype,
                                                   std::vector<float>(),
-                                                  cldnn::reorder_mean_mode::subtract,
-                                                  op->get_friendly_name());
+                                                  cldnn::reorder_mean_mode::subtract);
 
-                p.AddPrimitive(reorderPrim);
-                p.AddInnerPrimitiveToProfiler(reorderName, layerName, op);
+                p.add_primitive(*op, reorderPrim);
 
                 inputPrimitives[i] = reorderName;
             }
@@ -66,10 +64,9 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
 
                 auto targetShape = tensor_from_dims(input_shape);
 
-                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, op->get_friendly_name());
+                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
 
-                p.AddPrimitive(reshapePrim);
-                p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
+                p.add_primitive(*op, reshapePrim);
 
                 inputPrimitives[i] = reshapeName;
             }
@@ -82,12 +79,10 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
                                     inputPrimitives[0],
                                     inputPrimitives[1],
                                     inputPrimitives[2],
-                                    op->get_friendly_name(),
                                     cldnn::padding(),
                                     bc_string);
 
-    p.AddPrimitive(selectPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, selectPrim);
 }
 
 REGISTER_FACTORY_IMPL(v1, Select);

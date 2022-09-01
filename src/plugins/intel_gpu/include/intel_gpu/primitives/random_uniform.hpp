@@ -36,7 +36,7 @@ struct random_uniform : public primitive_base<random_uniform> {
                    const uint64_t op_seed, const tensor output_shape,
                    const format output_format,
                    const padding &output_padding = padding())
-            : primitive_base(id, inputs, "", output_padding,
+            : primitive_base(id, inputs, output_padding,
                              optional_data_type{data_type}),
               global_seed(global_seed),
               op_seed(op_seed),

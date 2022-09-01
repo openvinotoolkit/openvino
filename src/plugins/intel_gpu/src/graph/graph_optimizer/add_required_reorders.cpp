@@ -108,9 +108,9 @@ void add_required_reorders::run(program& p) {
                         ToDo: Here we should handle also the situation where primitive usr has data inputs in different
                        formats
                     */
-                    layout current_layout(original_layout.data_type,
-                                          node->get_output_layout().format,
-                                          original_layout.get_tensor());
+                    layout current_layout(original_layout.get_partial_shape(),
+                                          original_layout.data_type,
+                                          node->get_output_layout().format);
                     usr->set_output_layout(current_layout, false);
                     if (usr->type()->does_possible_implementation_exist(*usr)) {
                         correct_layout_selected = true;
@@ -177,6 +177,7 @@ void add_required_reorders::run(program& p) {
             if (max_in_dims == 5) {
                 preferred_layout_formats = {
                     cldnn::format::bfzyx,
+                    cldnn::format::bzyxf,
                 };
             } else if (max_in_dims == 4) {
                 preferred_layout_formats = {

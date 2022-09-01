@@ -14,24 +14,46 @@ macro(ov_find_package_tbb)
                      ${_find_package_no_args})
 
         if(NOT TBB_FOUND)
-            # system TBB failed to be found
-            set(ENABLE_SYSTEM_TBB OFF)
-
             # remove invalid TBB_DIR=TBB_DIR-NOTFOUND from cache
             unset(TBB_DIR CACHE)
             unset(TBB_DIR)
 
-            # TBB on system is not found, download prebuilt one
-            # if TBBROOT env variable is not defined
-            ov_download_tbb()
+            # try tbb.pc from system
+            if(NOT ANDROID AND ENABLE_SYSTEM_TBB)
+                find_package(PkgConfig QUIET)
+                if(PkgConfig_FOUND)
+                    pkg_search_module(tbb QUIET
+                                      IMPORTED_TARGET GLOBAL
+                                      tbb)
+                    if(tbb_FOUND)
+                        add_library(TBB::tbb ALIAS PkgConfig::tbb)
+                        set(TBB_VERSION ${tbb_VERSION})
+                        set(TBB_FOUND ${tbb_FOUND})
+                        message(STATUS "${PKG_CONFIG_EXECUTABLE}: tbb (${tbb_VERSION}) is found at ${tbb_PREFIX}")
+                    endif()
+                endif()
+            endif()
 
-            # try to find one more time
-            find_package(TBB QUIET COMPONENTS tbb tbbmalloc
-                         # can be provided by ov_download_tbb
-                         HINTS ${TBB_DIR}
-                         # fallback variant for TBB 2018 and older
-                         PATHS ${IEDevScripts_DIR}
-                         ${_find_package_no_args})
+            if(NOT TBB_FOUND)
+                # system TBB failed to be found
+                set(ENABLE_SYSTEM_TBB OFF)
+
+                # TBB on system is not found, download prebuilt one
+                # if TBBROOT env variable is not defined
+                ov_download_tbb()
+
+                # fallback variant for TBB 2018 and older where TBB have not had cmake interface
+                if(DEFINED TBBROOT OR DEFINED ENV{TBBROOT})
+                    set(_tbb_paths PATHS ${IEDevScripts_DIR})
+                endif()
+
+                # try to find one more time
+                find_package(TBB QUIET COMPONENTS tbb tbbmalloc
+                            # can be provided by ov_download_tbb
+                            HINTS ${TBB_DIR}
+                            ${_tbb_paths}
+                            ${_find_package_no_args})
+            endif()
         endif()
 
         # WA for oneTBB: it does not define TBB_IMPORTED_TARGETS
