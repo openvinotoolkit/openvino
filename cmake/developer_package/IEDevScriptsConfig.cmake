@@ -34,7 +34,7 @@ set_ci_build_number()
 
 include(target_flags)
 
-string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH_FOLDER)
+string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" ARCH_FOLDER)
 if(X86_64)
     set(ARCH_FOLDER intel64)
 elseif(X86)
