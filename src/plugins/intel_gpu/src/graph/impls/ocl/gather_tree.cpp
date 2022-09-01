@@ -44,8 +44,8 @@ struct gather_tree_impl : typed_primitive_impl_ocl<gather_tree> {
 };
 namespace detail {
 attach_gather_tree_impl::attach_gather_tree_impl() {
-    const auto types = {data_types::i32, data_types::f32};
-    const auto formats = {
+    auto types = {data_types::i32, data_types::f32};
+    auto formats = {
         format::yxfb,
         format::bfyx,
         format::byxf,
