@@ -171,7 +171,7 @@ int main(int argc, char** argv) {
     image_read(input_image_path, &img);
     ov_element_type_e input_type = U8;
     int64_t dims[4] = {1, (size_t)img.mat_height, (size_t)img.mat_width, 3};
-    ov_shape_create(&input_shape, 4, dims);
+    ov_shape_create(4, dims, &input_shape);
     CHECK_STATUS(ov_tensor_create_from_host_ptr(input_type, input_shape, img.mat_data, &tensor));
 
     // -------- Step 4. Configure preprocessing --------
@@ -182,7 +182,7 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_preprocess_inputtensorinfo_set_from(input_tensor_info, tensor));
 
     const char* input_layout_desc = "NHWC";
-    CHECK_STATUS(ov_layout_create(&input_layout, input_layout_desc));
+    CHECK_STATUS(ov_layout_create(input_layout_desc, &input_layout));
     CHECK_STATUS(ov_preprocess_inputtensorinfo_set_layout(input_tensor_info, input_layout));
 
     CHECK_STATUS(ov_preprocess_inputinfo_preprocess(input_info, &input_process));
@@ -190,7 +190,7 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_preprocess_inputinfo_model(input_info, &p_input_model));
 
     const char* model_layout_desc = "NCHW";
-    CHECK_STATUS(ov_layout_create(&model_layout, model_layout_desc));
+    CHECK_STATUS(ov_layout_create(model_layout_desc, &model_layout));
     CHECK_STATUS(ov_preprocess_inputmodelinfo_set_layout(p_input_model, model_layout));
 
     CHECK_STATUS(ov_preprocess_prepostprocessor_output_by_index(preprocess, 0, &output_info));

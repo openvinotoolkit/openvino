@@ -54,7 +54,7 @@ typedef struct ov_partial_shape {
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_partial_shape_create(ov_partial_shape_t* partial_shape_obj, int64_t rank, ov_dimension_t* dims);
+ov_partial_shape_create(int64_t rank, ov_dimension_t* dims, ov_partial_shape_t* partial_shape_obj);
 
 /**
  * @brief Initialze a partial shape with dynamic rank and dynamic dimension.
@@ -71,7 +71,7 @@ ov_partial_shape_create(ov_partial_shape_t* partial_shape_obj, int64_t rank, ov_
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_partial_shape_create_dynamic(ov_partial_shape_t* partial_shape_obj, ov_rank_t rank, ov_dimension_t* dims);
+ov_partial_shape_create_dynamic(ov_rank_t rank, ov_dimension_t* dims, ov_partial_shape_t* partial_shape_obj);
 
 /**
  * @brief Initialize a partial shape with static rank and static dimension.
@@ -84,7 +84,7 @@ ov_partial_shape_create_dynamic(ov_partial_shape_t* partial_shape_obj, ov_rank_t
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_partial_shape_create_static(ov_partial_shape_t* partial_shape_obj, int64_t rank, int64_t* dims);
+ov_partial_shape_create_static(int64_t rank, int64_t* dims, ov_partial_shape_t* partial_shape_obj);
 
 /**
  * @brief Release internal memory allocated in partial shape.

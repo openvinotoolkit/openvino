@@ -5,7 +5,7 @@
 
 inline void setup_4d_shape(ov_shape_t* shape, int64_t d0, int64_t d1, int64_t d2, int64_t d3) {
     int64_t dims[4] = {d0, d1, d2, d3};
-    ov_shape_create(shape, 4, dims);
+    ov_shape_create(4, dims, shape);
 }
 
 TEST(ov_tensor, ov_tensor_create) {

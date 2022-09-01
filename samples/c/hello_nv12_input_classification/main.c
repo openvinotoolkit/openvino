@@ -264,7 +264,7 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_preprocess_inputinfo_model(input_info, &p_input_model));
 
     const char* model_layout_desc = "NCHW";
-    CHECK_STATUS(ov_layout_create(&model_layout, model_layout_desc));
+    CHECK_STATUS(ov_layout_create(model_layout_desc, &model_layout));
     CHECK_STATUS(ov_preprocess_inputmodelinfo_set_layout(p_input_model, model_layout));
 
     // 5) Apply preprocessing to an input with 'input_tensor_name' name of loaded model
@@ -294,7 +294,7 @@ int main(int argc, char** argv) {
     ov_element_type_e input_type = U8;
     size_t batch = 1;
     int64_t dims[4] = {batch, input_height * 3 / 2, input_width, 1};
-    ov_shape_create(&input_shape, 4, dims);
+    ov_shape_create(4, dims, &input_shape);
     CHECK_STATUS(ov_tensor_create_from_host_ptr(input_type, input_shape, img_data, &tensor));
 
     // -------- Step 6. Set input tensor  --------

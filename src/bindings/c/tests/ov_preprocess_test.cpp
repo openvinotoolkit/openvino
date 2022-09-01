@@ -230,7 +230,7 @@ TEST(ov_preprocess, ov_preprocess_inputtensorinfo_set_from) {
     ov_tensor_t* tensor = nullptr;
     ov_shape_t shape;
     int64_t dims[4] = {1, 416, 416, 4};
-    OV_ASSERT_OK(ov_shape_create(&shape, 4, dims));
+    OV_ASSERT_OK(ov_shape_create(4, dims, &shape));
 
     OV_ASSERT_OK(ov_tensor_create(ov_element_type_e::F32, shape, &tensor));
     OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_from(input_tensor_info, tensor));
@@ -266,7 +266,7 @@ TEST(ov_preprocess, ov_preprocess_inputtensorinfo_set_layout) {
 
     ov_layout_t* layout = nullptr;
     const char* input_layout_desc = "NCHW";
-    OV_ASSERT_OK(ov_layout_create(&layout, input_layout_desc));
+    OV_ASSERT_OK(ov_layout_create(input_layout_desc, &layout));
     OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_layout(input_tensor_info, layout));
 
     ov_preprocess_inputtensorinfo_free(input_tensor_info);
@@ -591,7 +591,7 @@ TEST(ov_preprocess, ov_preprocess_inputmodelinfo_set_layout) {
 
     ov_layout_t* layout = nullptr;
     const char* layout_desc = "NCHW";
-    OV_ASSERT_OK(ov_layout_create(&layout, layout_desc));
+    OV_ASSERT_OK(ov_layout_create(layout_desc, &layout));
     OV_ASSERT_OK(ov_preprocess_inputmodelinfo_set_layout(input_model, layout));
     ov_layout_free(layout);
 
@@ -648,14 +648,14 @@ TEST(ov_preprocess, ov_preprocess_prepostprocessor_build_apply) {
     ov_tensor_t* tensor = nullptr;
     ov_shape_t shape;
     int64_t dims[4] = {1, 416, 416, 3};
-    OV_ASSERT_OK(ov_shape_create(&shape, 4, dims));
+    OV_ASSERT_OK(ov_shape_create(4, dims, &shape));
 
     OV_ASSERT_OK(ov_tensor_create(ov_element_type_e::U8, shape, &tensor));
     OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_from(input_tensor_info, tensor));
 
     const char* layout_desc = "NHWC";
     ov_layout_t* layout = nullptr;
-    OV_ASSERT_OK(ov_layout_create(&layout, layout_desc));
+    OV_ASSERT_OK(ov_layout_create(layout_desc, &layout));
     OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_layout(input_tensor_info, layout));
     ov_layout_free(layout);
 
@@ -670,7 +670,7 @@ TEST(ov_preprocess, ov_preprocess_prepostprocessor_build_apply) {
 
     const char* model_layout_desc = "NCHW";
     ov_layout_t* model_layout = nullptr;
-    OV_ASSERT_OK(ov_layout_create(&model_layout, model_layout_desc));
+    OV_ASSERT_OK(ov_layout_create(model_layout_desc, &model_layout));
     OV_ASSERT_OK(ov_preprocess_inputmodelinfo_set_layout(input_model, model_layout));
     ov_layout_free(model_layout);
 

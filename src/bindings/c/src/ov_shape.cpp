@@ -14,7 +14,7 @@ inline bool check_shape_dimension(const int64_t* dims, int64_t size) {
     return true;
 }
 
-ov_status_e ov_shape_create(ov_shape_t* shape, int64_t rank, int64_t* dims) {
+ov_status_e ov_shape_create(int64_t rank, int64_t* dims, ov_shape_t* shape) {
     if (!shape || rank <= 0 || (dims && !check_shape_dimension(dims, rank))) {
         return ov_status_e::INVALID_C_PARAM;
     }

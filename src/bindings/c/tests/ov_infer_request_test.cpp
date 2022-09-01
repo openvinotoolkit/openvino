@@ -122,7 +122,7 @@ protected:
 
         ov_shape_t shape = {0, nullptr};
         int64_t dims[4] = {1, 224, 224, 3};
-        OV_ASSERT_OK(ov_shape_create(&shape, 4, dims));
+        OV_ASSERT_OK(ov_shape_create(4, dims, &shape));
 
         ov_element_type_e type = U8;
         OV_ASSERT_OK(ov_tensor_create(type, shape, &input_tensor));
@@ -131,7 +131,7 @@ protected:
 
         const char* layout_desc = "NHWC";
         ov_layout_t* layout = nullptr;
-        OV_ASSERT_OK(ov_layout_create(&layout, layout_desc));
+        OV_ASSERT_OK(ov_layout_create(layout_desc, &layout));
         OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_layout(input_tensor_info, layout));
         ov_layout_free(layout);
 
@@ -147,7 +147,7 @@ protected:
 
         ov_layout_t* model_layout = nullptr;
         const char* model_layout_desc = "NCHW";
-        OV_ASSERT_OK(ov_layout_create(&model_layout, model_layout_desc));
+        OV_ASSERT_OK(ov_layout_create(model_layout_desc, &model_layout));
         OV_ASSERT_OK(ov_preprocess_inputmodelinfo_set_layout(input_model, model_layout));
         ov_layout_free(model_layout);
 

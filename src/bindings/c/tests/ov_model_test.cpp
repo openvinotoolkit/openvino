@@ -119,7 +119,7 @@ TEST(ov_model, ov_model_reshape_input_by_name) {
 
     ov_shape_t shape = {0, nullptr};
     int64_t dims[4] = {1, 3, 896, 896};
-    OV_ASSERT_OK(ov_shape_create(&shape, 4, dims));
+    OV_ASSERT_OK(ov_shape_create(4, dims, &shape));
 
     ov_partial_shape_t partial_shape;
     OV_ASSERT_OK(ov_shape_to_partial_shape(shape, &partial_shape));
