@@ -30,6 +30,10 @@ be passed into ondnn forked kernel.
 Fused legacy input zero point can not supported on amx cpu platforms and will fall back on vnni. The perf would greatly lower than amx.
 The stock onednn supports the per-tensor zero points. **Only on AMX platform, per-tensor zero point is fused into conv**
 
+# App can enforce BRGCONV kernel
+On AMX platform, even conv fuses legacy post-ops, conv node would try using brgconv no matter whether app enforces brgconv.
+
+On AVX-512 platform, when conv fuses legacy post-ops,conv node would  try using brgconv only when app enforce via rtinfo.
 # post-ops attribute in conv
 
 ## on avx512-core AMX platform:
@@ -45,10 +49,10 @@ The stock onednn supports the per-tensor zero points. **Only on AMX platform, pe
 
 **non-AMX kernel will not support per-tensor zero point because of potential conflicts with per-channel zero-point in forked onednn kernel. Only per-channel zero point would be supported.**
 
-|post-ops |without zero point                       |with per-channel/per-tensor zero point|
+|post-ops |without zero point                       |with per-channel zero point|
 --- | --- | ---|
-|**without binary**     |attr[0] legacy                 |attr[0] for legacy zp kernel +legacy post ops|
-|**with binary**        |attr[0] for legacy post-ops    |attr[0] for legacy zp + legacy post ops|
+|**without binary**     |attr[0] for all kernels                 |attr[0] for legacy zp kernel |
+|**with binary**        |attr[0] for legacy post-ops,attr[1] for enforced brgconv+binary    |attr[0] for legacy zp + legacy post ops|
 
 
 ## on AVX512 wth U8 precision:
@@ -57,8 +61,8 @@ The stock onednn supports the per-tensor zero points. **Only on AMX platform, pe
 
 |post-ops |without zero point                  |with per-channel zero point
 --- | --- | ---|
-|**without binary post-ops**     |attr[0] for legacy post-ops       |attr[0] for legacy zp kernel+legacy post ops|
-|**with binary post-ops**        |attr[0] for legacy post-ops       |attr[0] for legacy zp + legacy post ops|
+|**without binary post-ops**     |attr[0] for all kernels        |attr[0] for legacy zp kernel|
+|**with binary post-ops**        |attr[0] for legacy post-ops,attr[1] for enforced brgconv+binary       |attr[0] for legacy zp + legacy post ops|
 
 
 # attr[0] and attr[1]

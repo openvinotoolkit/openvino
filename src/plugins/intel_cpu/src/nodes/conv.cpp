@@ -540,7 +540,7 @@ void Convolution::getSupportedDescriptors() {
 
             bool acceptedFormat = inputDataType == memory::data_type::bf16;
             bool nspcAdded = false;
-            acceptedFormat |= shouldTryBrgconv && inputDataType == memory::data_type::f32;
+            acceptedFormat |= (shouldTryBrgconv && inputDataType == memory::data_type::f32);
             if (acceptedFormat && impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
                 in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
                 out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
@@ -929,32 +929,32 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
 void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs) {
     const bool zpPerTensor = (havingZeroPoint && !inputZeroPoints.empty());
     const bool zpPerChannel = (havingZeroPoint && inputZeroPoints.empty());
-    //avx512 core on u8 would try pre-set attrs[0].
-    //whether try brgconv on avx512, attr[0] is enough by now.
-    if (!attrs.empty())
+    //avx512 already preset attrs[0].
+    //Except application enforces brgconv when having legacy postops/zp, attrs[0] can represent on avx512 platform.
+    //Avoid duplicated attributes on avx512.
+    if (attrs.size()  == 1 && (!(shouldTryBrgconv && hasLegacyPostOpZpOnAvx512)))
         return;
-
-    // attr[0] - Legacy post ops + Legacy zero points.
-    attrs.resize(1);
-    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
-    addLegacyZeroPoints(attrs[0]);
-
-    //dw-conv would be fused into conv only on AVX2 platform. no need attr[1].
-    if (attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::convolution) != -1) {
-        return;
+    //set attrs[0] if not preset.
+    if (attrs.empty()) {
+        // attr[0] - Legacy post ops + Legacy zero points.
+        attrs.resize(1);
+        setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
+        addLegacyZeroPoints(attrs[0]);
+        //dw-conv would be fused into conv only on AVX2 platform. no need attr[1].
+        if (attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::convolution) != -1) {
+            return;
+        }
+        //2 attributes are not needed when without depthwise/quantization/input_zp;
+        if (!havingZeroPoint && attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::depthwise) == -1 &&
+            attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::quantization) == -1) {
+            // return to avoid duplicated attribute even when shouldTryBrgconv is true;
+            return;
+        }
     }
-
-    //2 attributes are not needed when without depthwise/quantization ops or per-tensor zp;
-    if (!havingZeroPoint && attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::depthwise) == -1 &&
-        attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::quantization) == -1) {
-        // return to avoid duplicated attribute even when shouldTryBrgconv is true;
-        return;
-    }
-
     // Per channel zero point can only use attr[0];
     if (zpPerChannel)
         return;
-    // Try 2 attributes. Consider the shouldTRyBrgconv can be set via RTinfo to enforce brgconv.
+    // Try 2 attributes. Consider the shouldTRyBrgconv could be set via RTinfo to enforce brgconv.
     if (shouldTryBrgconv) {
         attrs.resize(2);
         if (!zpPerTensor) {
@@ -1632,8 +1632,10 @@ void Convolution::initTryBrgconvFlag() {
             attrs.push_back(attr);
             const auto& ops = attr.get_post_ops();
             if (havingZeroPoint || ops.get()->find(dnnl::impl::primitive_kind::depthwise) != -1 ||
-                ops.get()->find(dnnl::impl::primitive_kind::quantization) != -1)
+                ops.get()->find(dnnl::impl::primitive_kind::quantization) != -1) {
                 shouldTryBrgconv = false;
+                hasLegacyPostOpZpOnAvx512 = true;
+            }
         }
     }
 }

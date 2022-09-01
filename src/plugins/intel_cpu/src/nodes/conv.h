@@ -147,6 +147,7 @@ private:
 
     bool isWino = false;
     bool shouldTryBrgconv = false;
+    bool hasLegacyPostOpZpOnAvx512 = false;
     std::vector<dnnl::primitive_attr> attrs;
     AttrPtr pAttr;
     bool autoPadding = false;
