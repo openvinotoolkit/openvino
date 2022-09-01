@@ -749,9 +749,9 @@ bool ngraph::check_for_cycles(const ngraph::Function* func, ngraph::NodeVector& 
     return false;
 }
 
-bool has_result_consumers(const Output<Node>& port) {
+bool has_result_consumers(const ov::Output<ov::Node>& port) {
     const auto& consumers = port.get_target_inputs();
-    return std::any_of(consumers.cbegin(), consumers.cend(), [](const Input<Node>& consumer) {
+    return std::any_of(consumers.cbegin(), consumers.cend(), [](const ov::Input<ov::Node>& consumer) {
         return ov::is_type<op::v0::Result>(consumer.get_node());
     });
 };
