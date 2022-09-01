@@ -19,7 +19,6 @@ using namespace std;
 using namespace ov;
 using namespace ov::element;
 using namespace ov::opset9;
-using namespace ov::pass;
 using namespace ov::op::util;
 
 namespace {
@@ -76,8 +75,8 @@ bool is_equal_cells(const shared_ptr<RNNCellBase>& cell_1, const shared_ptr<RNNC
     return is_equal;
 }
 
-shared_ptr<RNNCellBase> find_cell_chain(NodeRegister& cp_from,
-                                        NodeRegister& cp_to,
+shared_ptr<RNNCellBase> find_cell_chain(ov::pass::NodeRegister& cp_from,
+                                        ov::pass::NodeRegister& cp_to,
                                         const shared_ptr<RNNCellBase>& current_cell,
                                         OutputVector& x_to_concat,
                                         OutputVector& attention_to_concat,
@@ -139,7 +138,7 @@ shared_ptr<RNNCellBase> find_cell_chain(NodeRegister& cp_from,
     return current;
 }
 
-bool create_sequence(NodeRegister& cp_to,
+bool create_sequence(ov::pass::NodeRegister& cp_to,
                      const shared_ptr<RNNCellBase>& first_cell,
                      const shared_ptr<RNNCellBase>& last_cell,
                      const OutputVector& x_to_concat,
