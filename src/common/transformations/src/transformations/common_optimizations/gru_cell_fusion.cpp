@@ -13,6 +13,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace std;
+using namespace ov;
 using namespace ov::opset9;
 using namespace ov::pass::pattern;
 
@@ -38,7 +39,7 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
     auto multiply_3 = wrap_type<Multiply>({split, any_input()});
     auto add = wrap_type<Add>({multiply_2, multiply_3});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         NodeVector new_nodes;
         auto pattern_map = m.get_pattern_map();
         auto concat = pattern_map.at(concat_1);
@@ -92,18 +93,15 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
             new_nodes.push_back(bias_add_2.get_node_shared_ptr());
         }
 
-        auto B = make_shared<Concat>(ov::OutputVector{bias_add_1, bias_add_2}, 1);
+        auto B = make_shared<Concat>(OutputVector{bias_add_1, bias_add_2}, 1);
 
         auto squeeze_B = make_shared<Squeeze>(B, axis_0);
 
         string act_name_1 = pattern_map.at(activation_1)->get_type_name();
         string act_name_2 = pattern_map.at(activation_2)->get_type_name();
-        std::transform(act_name_1.begin(), act_name_1.end(), act_name_1.begin(), [](unsigned char c) {
-            return std::tolower(c);
-        });
-        std::transform(act_name_2.begin(), act_name_2.end(), act_name_2.begin(), [](unsigned char c) {
-            return std::tolower(c);
-        });
+        auto to_lower = [](unsigned char c) { return std::tolower(c); };
+        transform(act_name_1.begin(), act_name_1.end(), act_name_1.begin(), to_lower);
+        transform(act_name_2.begin(), act_name_2.end(), act_name_2.begin(), to_lower);
 
         auto cell =
             make_shared<GRUCell>(X, H, Wzrh, Rzrh, squeeze_B, hidden_size, vector<string>{act_name_1, act_name_2});
