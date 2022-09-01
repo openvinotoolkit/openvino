@@ -94,6 +94,8 @@ set(SRC
     type_prop/assign.cpp
     type_prop/atan.cpp
     type_prop/atanh.cpp
+    type_prop/augru_cell.cpp
+    type_prop/augru_sequence.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
     type_prop/batch_to_space.cpp

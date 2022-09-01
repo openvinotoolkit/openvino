@@ -48,14 +48,14 @@ if [ -e "$INSTALLDIR/runtime" ]; then
 
     if [ -e "$INSTALLDIR/runtime/3rdparty/tbb" ]; then
         tbb_lib_path=$INSTALLDIR/runtime/3rdparty/tbb/lib
-        if [ -d $tbb_lib_path/$system_type ]; then
-            lib_path=$(find $tbb_lib_path/$system_type -name "libtbb*" | sort -r | head -n1)
-            if [ -n $lib_path ]; then
-                tbb_lib_path=$(dirname $lib_path)
+        if [ -d "$tbb_lib_path/$system_type" ]; then
+            lib_path=$(find "$tbb_lib_path/$system_type" -name "libtbb*" | sort -r | head -n1)
+            if [ -n "$lib_path" ]; then
+                tbb_lib_path=$(dirname "$lib_path")
             fi
         fi
 
-        if ls $tbb_lib_path/libtbb* >/dev/null 2>&1; then
+        if ls "$tbb_lib_path"/libtbb* >/dev/null 2>&1; then
             if [[ "$OSTYPE" == "darwin"* ]]; then
                 export DYLD_LIBRARY_PATH=$tbb_lib_path:${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}
             fi
