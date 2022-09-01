@@ -58,10 +58,13 @@ CMakeLists.txt @openvinotoolkit/openvino-ie-maintainers
 # OpenVINO GPU:
 /src/plugins/intel_gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
 /src/tests/**gpu** @openvinotoolkit/openvino-ie-gpu-maintainers
+/src/inference/include/ie/gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
+/src/inference/include/ie/cldnn/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
 
 # OpenVINO VPU:
 /src/plugins/intel_myriad  @openvinotoolkit/openvino-ie-vpu-maintainers
 /src/tests/**myriad** @openvinotoolkit/openvino-ie-vpu-maintainers
+/src/inference/include/ie/vpu/ @openvinotoolkit/openvino-ie-vpu-maintainers
 
 # OpenVINO GNA:
 /src/plugins/intel_gna/  @openvinotoolkit/openvino-ie-gna-maintainers
