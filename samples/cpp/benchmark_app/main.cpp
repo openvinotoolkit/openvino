@@ -417,8 +417,7 @@ int main(int argc, char* argv[]) {
             } else if (device.find("MULTI") != std::string::npos) {
                 setThroughputStreams();
                 set_infer_precision();
-                if ((device_name.find("GPU") != std::string::npos) &&
-                    (device_name.find("CPU") != std::string::npos)) {
+                if ((device_name.find("GPU") != std::string::npos) && (device_name.find("CPU") != std::string::npos)) {
                     slog::warn << "GPU throttling is turned on. Multi-device execution with "
                                   "the CPU + GPU performs best with GPU throttling hint, "
                                << "which releases another CPU thread (that is otherwise "
