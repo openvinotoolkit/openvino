@@ -211,7 +211,7 @@ if(LINUX)
         endif()
     endforeach()
 
-    # fill in PKGCONFIG_OpenVINO_REQUIRES_PRIVATE and PKGCONFIG_OpenVINO_LIBS_PRIVATE
+    # fill in PKGCONFIG_OpenVINO_REQUIRES_PRIVATE and PKGCONFIG_OpenVINO_PRIVATE_DEPS
 
     if(ENABLE_SYSTEM_TBB)
         set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "tbb")
@@ -220,7 +220,7 @@ if(LINUX)
             message(FATAL_ERROR "Internal error: variable 'pkg_config_tbb_lib_dir' is not defined")
         endif()
 
-        set(PKGCONFIG_OpenVINO_LIBS_PRIVATE "-L\${prefix}/${pkg_config_tbb_lib_dir} -ltbb")
+        set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "-L\${prefix}/${pkg_config_tbb_lib_dir} -ltbb")
     endif()
 
     if(ENABLE_SYSTEM_PUGIXML AND PkgConfig_FOUND)

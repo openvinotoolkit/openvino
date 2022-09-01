@@ -19,5 +19,5 @@ Version: @OpenVINO_VERSION@
 Requires.private: @PKGCONFIG_OpenVINO_REQUIRES_PRIVATE@
 Conflicts: openvino < @OpenVINO_VERSION@
 Cflags: -I${includedir_old} -I${includedir_new}
-Libs: -L${libdir} @PKGCONFIG_OpenVINO_FRONTENDS@ -lopenvino_c -lopenvino
-Libs.private: -ldl -lm -lpthread -lrt @PKGCONFIG_OpenVINO_LIBS_PRIVATE@
+Libs: -L${libdir} @PKGCONFIG_OpenVINO_FRONTENDS@ -lopenvino_c -lopenvino @PKGCONFIG_OpenVINO_PRIVATE_DEPS@
+Libs.private: -ldl -lm -lpthread -lrt
