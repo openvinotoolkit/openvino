@@ -33,13 +33,24 @@ size_t string_to_size_t(const std::string& s) {
     sstream >> idx;
     return idx;
 }
+bool string_to_bool(const std::string& s) {
+    return s == "YES";
+}
 }  // namespace
 
 MockPluginAbc::MockPluginAbc() {}
 
 void MockPluginAbc::SetConfig(const std::map<std::string, std::string>& _config) {
-    if (_config.find("NUM_STREAMS") != _config.end())
-        num_streams = string_to_size_t(_config.at("NUM_STREAMS"));
+    for (const auto& it : _config) {
+        if (it.first == ov::num_streams.name())
+            num_streams = string_to_size_t(it.second);
+        else if (it.first == ov::enable_profiling.name())
+            m_profiling = string_to_bool(it.second);
+        else if (it.first == ov::device::id.name())
+            continue;
+        else
+            throw ov::Exception("ABC set config: " + it.first);
+    }
 }
 
 void MockPluginAbc::AddExtension(const ov::Extension::Ptr& extension) {
@@ -66,7 +77,9 @@ Parameter MockPluginAbc::GetConfig(const std::string& name,
         configs.push_back("PERF_COUNT");
         return configs;
     } else if (name == "NUM_STREAMS") {
-        return num_streams;
+        return decltype(ov::num_streams)::value_type{num_streams};
+    } else if (name == ov::enable_profiling.name()) {
+        return decltype(ov::enable_profiling)::value_type{m_profiling};
     } else if (name == ov::device::uuid) {
         ov::device::UUID uuid;
         for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
@@ -80,7 +93,7 @@ Parameter MockPluginAbc::GetConfig(const std::string& name,
         return decltype(ov::device::uuid)::value_type{uuid};
     }
 
-    IE_THROW(NotImplemented) << name;
+    IE_THROW(NotImplemented) << "ABC config: " << name;
 }
 
 Parameter MockPluginAbc::GetMetric(const std::string& name,
@@ -103,6 +116,7 @@ Parameter MockPluginAbc::GetMetric(const std::string& name,
         // the whole config is RW before network is loaded.
         std::vector<ov::PropertyName> rwProperties{
             RW_property(ov::num_streams.name()),
+            RW_property(ov::enable_profiling.name()),
         };
 
         std::vector<ov::PropertyName> supportedProperties;
@@ -141,13 +155,17 @@ Parameter MockPluginAbc::GetMetric(const std::string& name,
         return decltype(ov::device::capabilities)::value_type(capabilities);
     }
 
-    IE_THROW(NotImplemented);
+    IE_THROW(NotImplemented) << "ABC metric: " << name;
 }
 
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> MockPluginAbc::LoadNetwork(
     const CNNNetwork& network,
     const std::map<std::string, std::string>& config) {
     auto model = network.getFunction();
+
+    auto copyConfig = config;
+    copyConfig[ov::num_streams.name()] = std::to_string(num_streams);
+    copyConfig[ov::enable_profiling.name()] = m_profiling ? "YES" : "NO";
 
     OPENVINO_ASSERT(model);
     if (!support_model(model, QueryNetwork(network, config)))

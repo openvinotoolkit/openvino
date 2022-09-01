@@ -67,5 +67,6 @@ public:
 
 private:
     std::vector<ov::Extension::Ptr> m_extensions;
-    size_t num_streams{0};
+    int32_t num_streams{0};
+    bool m_profiling = false;
 };

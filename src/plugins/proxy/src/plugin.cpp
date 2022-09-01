@@ -48,13 +48,55 @@ size_t get_device_from_config(const std::map<std::string, T>& config) {
 }
 
 template <class T>
-void remove_proxy_properties(std::map<std::string, T>& config) {
+std::map<std::string, T> remove_device_properties(std::map<std::string, T>& config,
+                                                  const std::vector<std::string>& devices) {
+    std::map<std::string, T> result;
+    std::unordered_set<std::string> devs;
+    for (const auto& dev : devices)
+        devs.insert(dev);
+
+    for (const auto& it : config) {
+        InferenceEngine::DeviceIDParser parser(it.first);
+        if (devs.find(it.first) != devs.end() || devs.find(parser.getDeviceName()) != devs.end()) {
+            // It is a device property
+            result[it.first] = it.second;
+        }
+    }
+
+    // Remove device properties from config
+    for (const auto& it : result) {
+        auto c_it = config.find(it.first);
+        if (c_it != config.end())
+            config.erase(c_it);
+    }
+    return result;
+}
+
+template <class T>
+std::map<std::string, T> remove_device_properties(std::map<std::string, T>& config, const std::string& devices) {
+    return remove_device_properties(config, split(devices, " "));
+}
+
+template <class T>
+std::map<std::string, T> remove_device_properties(std::map<std::string, T>& config, const ov::Any& devices) {
+    if (devices.is<std::vector<std::string>>())
+        return remove_device_properties(config, devices.as<std::vector<std::string>>());
+    else
+        return remove_device_properties(config, devices.as<std::string>());
+}
+
+template <class T>
+std::map<std::string, T> remove_proxy_properties(std::map<std::string, T>& config, bool rem_device_properties = false) {
+    std::map<std::string, T> dev_properties;
     auto it = config.find(ov::device::id.name());
     if (it != config.end())
         config.erase(it);
     it = config.find(ov::device::priorities.name());
-    if (it != config.end())
+    if (it != config.end()) {
+        if (rem_device_properties)
+            dev_properties = remove_device_properties(config, it->second);
         config.erase(it);
+    }
     it = config.find("ALIAS_FOR");
     if (it != config.end())
         config.erase(it);
@@ -64,6 +106,7 @@ void remove_proxy_properties(std::map<std::string, T>& config) {
     it = config.find("FALLBACK_PRIORITY");
     if (it != config.end())
         config.erase(it);
+    return dev_properties;
 }
 
 }  // namespace
@@ -142,8 +185,6 @@ InferenceEngine::QueryNetworkResult ov::proxy::Plugin::QueryNetwork(
 }
 
 void ov::proxy::Plugin::SetProperties(const ov::AnyMap& config) {
-    // Cannot change config from different threads
-    std::lock_guard<std::mutex> lock(plugin_mutex);
     // Empty config_name means means global config for all devices
     std::string config_name = is_device_in_config(config) ? std::to_string(get_device_from_config(config)) : "";
 
@@ -203,21 +244,56 @@ void ov::proxy::Plugin::SetProperties(const ov::AnyMap& config) {
         }
     }
 
-    it = config.find(ov::device::priorities.name());
-    if (it != config.end()) {
-        configs[config_name][ov::device::priorities.name()] = it->second;
-        // Main device is needed in case if we don't have alias and would like to be able change fallback order per
-        // device
-        if (alias_for.empty() && config_name.empty())
-            alias_for.insert(split(it->second, " ")[0]);
+    {
+        // Cannot change config from different threads
+        std::lock_guard<std::mutex> lock(plugin_mutex);
+        it = config.find(ov::device::priorities.name());
+        if (it != config.end()) {
+            configs[config_name][ov::device::priorities.name()] = it->second;
+            // Main device is needed in case if we don't have alias and would like to be able change fallback order per
+            // device
+            if (alias_for.empty() && config_name.empty())
+                alias_for.insert(split(it->second, " ")[0]);
+        }
     }
-    for (const auto& it : config) {
-        // Skip proxy properties
-        if (ov::device::id.name() == it.first || it.first == ov::device::priorities.name() ||
-            it.first == "DEVICES_PRIORITY" || it.first == "ALIAS_FOR")
-            continue;
-        configs[config_name][it.first] = it.second;
+    const std::string primary_dev = get_primary_device(get_device_from_config(config));
+    auto hw_config = config;
+    // Add fallback priority to detect supported devices
+    hw_config[ov::device::priorities.name()] = get_property(ov::device::priorities.name(), config_name);
+    auto dev_properties = remove_proxy_properties(hw_config, true);
+    std::string dev_prop_name;
+    InferenceEngine::DeviceIDParser pr_parser(primary_dev);
+    for (const auto& it : dev_properties) {
+        InferenceEngine::DeviceIDParser parser(it.first);
+        if (parser.getDeviceName() == pr_parser.getDeviceName()) {
+            // Add primary device properties to primary device
+            OPENVINO_ASSERT(it.second.is<ov::AnyMap>());
+            auto dev_map = it.second.as<ov::AnyMap>();
+            for (const auto& m_it : dev_map) {
+                // Plugin shouldn't contain the different property for the same key
+                OPENVINO_ASSERT(hw_config.find(m_it.first) == hw_config.end() ||
+                                hw_config.at(m_it.first) == m_it.second);
+                hw_config[m_it.first] = m_it.second;
+            }
+            dev_prop_name = it.first;
+            break;
+        }
     }
+    {
+        // Cannot change config from different threads
+        std::lock_guard<std::mutex> lock(plugin_mutex);
+        for (const auto& it : config) {
+            // Skip proxy properties
+            if (ov::device::id.name() == it.first || it.first == ov::device::priorities.name() ||
+                it.first == "DEVICES_PRIORITY" || it.first == "ALIAS_FOR" ||
+                // Skip options from config for primaty device
+                hw_config.find(it.first) != hw_config.end() || (!dev_prop_name.empty() && it.first == dev_prop_name))
+                continue;
+            // Cache proxy and fallback device options
+            configs[config_name][it.first] = it.second;
+        }
+    }
+    GetCore()->set_property(primary_dev, hw_config);
 }
 
 void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& config) {

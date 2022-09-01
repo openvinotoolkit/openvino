@@ -34,8 +34,13 @@ bool string_to_bool(const std::string& s) {
 MockPluginBde::MockPluginBde() {}
 
 void MockPluginBde::SetConfig(const std::map<std::string, std::string>& _config) {
-    if (_config.find("PERF_COUNT") != _config.end()) {
-        m_profiling = string_to_bool(_config.at("PERF_COUNT"));
+    for (const auto& it : _config) {
+        if (it.first == ov::enable_profiling.name())
+            m_profiling = string_to_bool(it.second);
+        else if (it.first == ov::device::id.name())
+            continue;
+        else
+            throw ov::Exception("BDE set config: " + it.first);
     }
 }
 
@@ -74,7 +79,7 @@ Parameter MockPluginBde::GetConfig(const std::string& name,
         return decltype(ov::device::uuid)::value_type{uuid};
     }
 
-    IE_THROW(NotImplemented);
+    IE_THROW(NotImplemented) << "BDE config: " << name;
 }
 
 Parameter MockPluginBde::GetMetric(const std::string& name,
@@ -138,7 +143,7 @@ Parameter MockPluginBde::GetMetric(const std::string& name,
         return decltype(ov::device::capabilities)::value_type(capabilities);
     }
 
-    IE_THROW(NotImplemented);
+    IE_THROW(NotImplemented) << "BDE metric: " << name;
 }
 
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> MockPluginBde::LoadNetwork(
