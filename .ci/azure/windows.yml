@@ -146,6 +146,7 @@ jobs:
         -DENABLE_STRICT_DEPENDENCIES=OFF ^
         -DENABLE_PYTHON=ON ^
         -DBUILD_cuda_plugin=OFF ^
+        -DBUILD_nvidia_plugin=OFF ^
         -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.7.6\x64\python.exe" ^
         -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.7.6\x64\include" ^
         -DPYTHON_LIBRARY="C:\hostedtoolcache\windows\Python\3.7.6\x64\libs\python37.lib" ^
