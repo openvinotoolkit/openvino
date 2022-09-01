@@ -15,9 +15,6 @@ NamedOutputs sum(const NodeContext& node) {
     const auto shape = data[0].get_shape();
     auto sum = data[0].get_node_shared_ptr();
     for (int i = 1; i < data.size(); i++) {
-        // check the consistency of inputs
-        PADDLE_OP_CHECK(node, input_type == data[i].get_element_type(), "The types of inputs are not consistent!");
-        PADDLE_OP_CHECK(node, shape == data[i].get_shape(), "The shapes of inputs are not consistent!");
         sum = std::make_shared<default_opset::Add>(sum, data[i]);
     }
     return node.default_single_output_mapping({sum}, {"Out"});
