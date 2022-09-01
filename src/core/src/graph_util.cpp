@@ -37,7 +37,7 @@ namespace {
 bool has_result_consumers(const ov::Output<ov::Node>& port) {
     const auto& consumers = port.get_target_inputs();
     return std::any_of(consumers.cbegin(), consumers.cend(), [](const ov::Input<ov::Node>& consumer) {
-        return ov::is_type<op::v0::Result>(consumer.get_node());
+        return ov::is_type<ov::op::v0::Result>(consumer.get_node());
     });
 };
 
