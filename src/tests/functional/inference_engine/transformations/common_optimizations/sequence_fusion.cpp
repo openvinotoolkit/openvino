@@ -3,20 +3,19 @@
 //
 
 #include <gtest/gtest.h>
-
 #include <queue>
-#include <openvino/op/parameter.hpp>
-#include <openvino/opsets/opset9.hpp>
-#include <transformations/common_optimizations/sequence_fusion.hpp>
-#include <ngraph_ops/augru_sequence.hpp>
-#include <ngraph_ops/augru_cell.hpp>
+
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "openvino/opsets/opset9.hpp"
+#include "transformations/common_optimizations/sequence_fusion.hpp"
+#include "ngraph_ops/augru_sequence.hpp"
+#include "ngraph_ops/augru_cell.hpp"
 
 using namespace ov;
 using namespace std;
-using namespace opset9;
 using namespace testing;
-using namespace element;
+using namespace ov::opset9;
+using namespace ov::element;
 
 namespace {
     enum class RNN_TYPE {
@@ -52,7 +51,7 @@ namespace {
         Output<Node> cur_H = H;
         Output<Node> cur_C = C;
         OutputVector hidden_vec;
-        auto axis_1 = make_shared<Constant>(element::i64, Shape{}, 1);
+        auto axis_1 = make_shared<Constant>(i64, Shape{}, 1);
 
         for (int i = 0; i < cells_cnt; ++i) {
             if (rnn_type == RNN_TYPE::LSTM) {
@@ -144,7 +143,7 @@ namespace {
         }
 
         auto squeeze_H = make_shared<Squeeze>(seq->output(0), axis_1);
-        auto _axis_1 = make_shared<Constant>(element::i64, Shape{}, 1);
+        auto _axis_1 = make_shared<Constant>(i64, Shape{}, 1);
         auto split = make_shared<Split>(squeeze_H, axis_1, cells_cnt);
 
         OutputVector in_vec;
@@ -173,18 +172,19 @@ struct SequenceFusionParams {
 };
 
 class SequenceFusionTest
-        : public testing::WithParamInterface<SequenceFusionParams>,
+        : public WithParamInterface<SequenceFusionParams>,
           public TransformationTestsF {
 };
 
 TEST_P(SequenceFusionTest, SequencePattern) {
-    auto p = GetParam();
+    const auto& p = GetParam();
     {
         function = gen_model(p.rnn_type, p.batch,
                              p.hidden_size, p.input_size, p.cell_cnt);
         manager.register_pass<pass::SequenceFusion>();
     }
 
+    // the transformation won't be applied for single cell
     if (p.cell_cnt > 1) {
         function_ref = gen_reference(p.rnn_type, p.batch, p.hidden_size, p.input_size, p.cell_cnt);
     }
@@ -193,10 +193,10 @@ TEST_P(SequenceFusionTest, SequencePattern) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-static std::vector<SequenceFusionParams> params = {
+static const std::vector<SequenceFusionParams> params = {
         SequenceFusionParams{RNN_TYPE::GRU, 2, 128, 32, 10},
         SequenceFusionParams{RNN_TYPE::RNN, 2, 128, 32, 10},
         SequenceFusionParams{RNN_TYPE::AUGRU, 2, 128, 32, 10},
 };
 
-INSTANTIATE_TEST_SUITE_P(SequenceFusionTest, SequenceFusionTest, ::testing::ValuesIn(params));
+INSTANTIATE_TEST_SUITE_P(SequenceFusionTest, SequenceFusionTest, ValuesIn(params));
