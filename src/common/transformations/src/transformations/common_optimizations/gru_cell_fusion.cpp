@@ -7,20 +7,28 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "node_registry.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace std;
-using namespace ov;
+using namespace ov::element;
+using namespace ov::pass;
 using namespace ov::opset9;
 using namespace ov::pass::pattern;
 
 ov::pass::GRUCellFusion::GRUCellFusion() {
     MATCHER_SCOPE(GRUCellFusion);
 
-    auto concat_1 = wrap_type<Concat>({any_input(), any_input()});
+    // we can't determine hidden_size or input_size in this case
+    const auto is_first_dim_dynamic = [](const Output<Node>& output) -> bool {
+        const auto& p_shape = output.get_partial_shape();
+        return !(p_shape.rank().is_dynamic() || p_shape[1].is_dynamic());
+    };
+
+    auto concat_1 = wrap_type<Concat>({any_input(is_first_dim_dynamic), any_input(is_first_dim_dynamic)});
     auto matmul_1 = wrap_type<MatMul>({concat_1, any_input()});
     auto add_1 = wrap_type<Add>({matmul_1, any_input()});
     auto optional_bias_add_1 = make_shared<pattern::op::Or>(OutputVector{matmul_1, add_1});
@@ -40,7 +48,7 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
     auto add = wrap_type<Add>({multiply_2, multiply_3});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        NodeVector new_nodes;
+        NodeRegistry rg;
         auto pattern_map = m.get_pattern_map();
         auto concat = pattern_map.at(concat_1);
         auto X = concat->input_value(0);
@@ -48,17 +56,12 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
 
         auto h_pshape = H.get_partial_shape();
         auto x_pshape = X.get_partial_shape();
-        if (h_pshape.rank().is_dynamic() || x_pshape.rank().is_dynamic() || h_pshape[1].is_dynamic() ||
-            x_pshape[1].is_dynamic()) {
-            // we can't determine hidden_size or input_size
-            return false;
-        }
 
         auto hidden_size = h_pshape[1].get_length();
         auto input_size = x_pshape[1].get_length();
 
-        auto axis_0 = make_shared<Constant>(element::i64, Shape{}, 0);
-        auto axis_1 = make_shared<Constant>(element::i64, Shape{}, 1);
+        auto axis_0 = rg.make<Constant>(i64, Shape{}, 0);
+        auto axis_1 = rg.make<Constant>(i64, Shape{}, 1);
 
         auto WRzr = pattern_map.at(matmul_1)->input_value(1);
         auto WRh = pattern_map.at(matmul_2)->input_value(1);
@@ -71,45 +74,41 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
             return false;
         }
 
-        auto split_lenghts = make_shared<Constant>(element::i64, Shape{2}, vector<int64_t>{input_size, hidden_size});
-        auto split_WRzr = make_shared<VariadicSplit>(WRzr, axis_1, split_lenghts);
-        auto split_WRh = make_shared<VariadicSplit>(WRh, axis_1, split_lenghts);
-        auto Wzrh = make_shared<Concat>(OutputVector{split_WRzr->output(0), split_WRh->output(0)}, 0);
-        auto Rzrh = make_shared<Concat>(OutputVector{split_WRzr->output(1), split_WRh->output(1)}, 0);
+        auto split_lenghts = rg.make<Constant>(i64, Shape{2}, vector<int64_t>{input_size, hidden_size});
+        auto split_WRzr = rg.make<VariadicSplit>(WRzr, axis_1, split_lenghts);
+        auto split_WRh = rg.make<VariadicSplit>(WRh, axis_1, split_lenghts);
+        auto Wzrh = rg.make<Concat>(OutputVector{split_WRzr->output(0), split_WRh->output(0)}, 0);
+        auto Rzrh = rg.make<Concat>(OutputVector{split_WRzr->output(1), split_WRh->output(1)}, 0);
 
         Output<Node> bias_add_1;
         if (pattern_map.find(add_1) != pattern_map.end()) {
             bias_add_1 = pattern_map[add_1]->input_value(1);
         } else {
-            bias_add_1 = Constant::create(WRzr.get_element_type(), {1, static_cast<size_t>(2 * hidden_size)}, {0});
-            new_nodes.push_back(bias_add_1.get_node_shared_ptr());
+            bias_add_1 = rg.make<Constant>(WRzr.get_element_type(), Shape{1, static_cast<size_t>(2 * hidden_size)}, 0);
         }
 
         Output<Node> bias_add_2;
         if (pattern_map.find(add_2) != pattern_map.end()) {
             bias_add_2 = pattern_map[add_2]->input_value(1);
         } else {
-            bias_add_2 = Constant::create(WRh.get_element_type(), {1, static_cast<size_t>(hidden_size)}, {0});
-            new_nodes.push_back(bias_add_2.get_node_shared_ptr());
+            bias_add_2 = rg.make<Constant>(WRh.get_element_type(), Shape{1, static_cast<size_t>(hidden_size)}, 0);
         }
 
-        auto B = make_shared<Concat>(OutputVector{bias_add_1, bias_add_2}, 1);
-
-        auto squeeze_B = make_shared<Squeeze>(B, axis_0);
+        auto B = rg.make<Concat>(OutputVector{bias_add_1, bias_add_2}, 1);
+        auto squeeze_B = rg.make<Squeeze>(B, axis_0);
 
         string act_name_1 = pattern_map.at(activation_1)->get_type_name();
         string act_name_2 = pattern_map.at(activation_2)->get_type_name();
-        auto to_lower = [](unsigned char c) { return std::tolower(c); };
+        auto to_lower = [](unsigned char c) {
+            return std::tolower(c);
+        };
         transform(act_name_1.begin(), act_name_1.end(), act_name_1.begin(), to_lower);
         transform(act_name_2.begin(), act_name_2.end(), act_name_2.begin(), to_lower);
 
-        auto cell =
-            make_shared<GRUCell>(X, H, Wzrh, Rzrh, squeeze_B, hidden_size, vector<string>{act_name_1, act_name_2});
+        auto cell = rg.make<GRUCell>(X, H, Wzrh, Rzrh, squeeze_B, hidden_size, vector<string>{act_name_1, act_name_2});
 
-        new_nodes.insert(new_nodes.end(),
-                         {axis_1, axis_0, split_lenghts, split_WRzr, split_WRh, Wzrh, Rzrh, B, squeeze_B, cell});
         cell->set_friendly_name(m.get_match_root()->get_friendly_name());
-        copy_runtime_info(m.get_matched_nodes(), new_nodes);
+        copy_runtime_info(m.get_matched_nodes(), rg.get());
         replace_node(m.get_match_root(), cell);
         return true;
     };

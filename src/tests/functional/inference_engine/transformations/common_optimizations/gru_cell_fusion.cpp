@@ -3,11 +3,10 @@
 //
 
 #include <gtest/gtest.h>
-
 #include <queue>
-#include <openvino/op/parameter.hpp>
-#include <openvino/opsets/opset9.hpp>
-#include <transformations/common_optimizations/gru_cell_fusion.hpp>
+
+#include "openvino/opsets/opset9.hpp"
+#include "transformations/common_optimizations/gru_cell_fusion.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -80,12 +79,12 @@ shared_ptr<Model> gen_reference(const string& activation_1, const string& activa
     shared_ptr<Node> Bzr = make_shared<Constant>(f32, Shape{1, 2 * hidden_size}, 0);
     if (use_bias_add_1) {
         Bzr = make_shared<Parameter>(f32, Shape{1, 2 * hidden_size});
-        params.push_back(std::dynamic_pointer_cast<Parameter>(Bzr));
+        params.push_back(dynamic_pointer_cast<Parameter>(Bzr));
     }
     shared_ptr<Node> Bh = make_shared<Constant>(f32, Shape{1, hidden_size}, 0);
     if (use_bias_add_2) {
         Bh = make_shared<Parameter>(f32, Shape{1, hidden_size});
-        params.push_back(std::dynamic_pointer_cast<Parameter>(Bh));
+        params.push_back(dynamic_pointer_cast<Parameter>(Bh));
     }
 
     auto axis_0 = make_shared<Constant>(i64, Shape{}, 0);
@@ -100,7 +99,7 @@ shared_ptr<Model> gen_reference(const string& activation_1, const string& activa
 
     auto squeeze_B = make_shared<Squeeze>(B, axis_0);
     auto cell = make_shared<GRUCell>(X, H, Wzrh, Rzrh, squeeze_B, hidden_size, vector<string>{activation_1, activation_2});
-    return std::make_shared<ngraph::Function>(OutputVector {cell}, params);
+    return make_shared<Model>(OutputVector {cell}, params);
 }
 } // namespace
 
@@ -120,15 +119,15 @@ class GRUFusionTest
 };
 
 TEST_P(GRUFusionTest, GRUCellPattern) {
-    auto p = GetParam();
+    const auto& p = GetParam();
     {
-        function = gen_model(p.activation_1, p.activation_2, p.batch,
+        model = gen_model(p.activation_1, p.activation_2, p.batch,
                              p.hidden_size, p.input_size, p.use_bias_add_1, p.use_bias_add_2, false);
         manager.register_pass<pass::GRUCellFusion>();
     }
 
     {
-        function_ref = gen_reference(p.activation_1, p.activation_2, p.batch,
+        model_ref = gen_reference(p.activation_1, p.activation_2, p.batch,
                                      p.hidden_size, p.input_size, p.use_bias_add_1, p.use_bias_add_2);
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -141,14 +140,14 @@ class GRUFusionTestDyn
 };
 
 TEST_P(GRUFusionTestDyn, GRUCellPatternDynamicShapes) {
-    auto p = GetParam();
+    const auto& p = GetParam();
     {
-        function = gen_model(p.activation_1, p.activation_2, p.batch, p.hidden_size, p.input_size, false, false, true);
+        model = gen_model(p.activation_1, p.activation_2, p.batch, p.hidden_size, p.input_size, false, false, true);
         manager.register_pass<pass::GRUCellFusion>(); // the transformation won't be applied
     }
 }
 
-static const std::vector<GRUFusionParams> params = {
+static const vector<GRUFusionParams> params = {
         GRUFusionParams{"sigmoid", "tanh", 1, 1, 1, true, true},
         GRUFusionParams{"tanh", "sigmoid", 2, 128, 32, true, true},
         GRUFusionParams{"tanh", "tanh", 2, 128, 32, true, false},
