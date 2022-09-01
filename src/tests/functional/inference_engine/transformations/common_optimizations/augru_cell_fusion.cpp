@@ -50,7 +50,7 @@ shared_ptr<Model> gen_model(size_t batch, size_t hidden_size, size_t input_size,
     auto subtract_2 = make_shared<Subtract>(one, multiply_2);
     auto multiply_3 = make_shared<Multiply>(subtract_2, tanh);
 
-    auto multiply_4 = make_shared<Multiply>(multiply_2, split->output(0));
+    auto multiply_4 = make_shared<Multiply>(multiply_2, H);
     auto add = make_shared<Add>(multiply_4, multiply_3);
     return make_shared<Model>(OutputVector{add}, ParameterVector{X, H, WRzr, WRh, Bzr, Bh, A});
 }
@@ -102,6 +102,7 @@ TEST_P(AUGRUFusionTest, AUGRUCellPattern) {
     {
         model_ref = gen_reference(p.batch, p.hidden_size, p.input_size);
     }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
