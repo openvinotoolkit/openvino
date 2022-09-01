@@ -16,8 +16,10 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace std;
-using namespace ov::pass;
+using namespace ov;
+using namespace ov::element;
 using namespace ov::opset9;
+using namespace ov::pass;
 using namespace ov::pass::pattern;
 using namespace ov::op::util;
 
@@ -164,9 +166,9 @@ bool create_sequence(NodeRegister& cp_to,
     const auto B_in = cp_to.make<Unsqueeze>(first_cell->input_value(idx_B), axis_0);
 
     const auto& shape_node = cp_to.add(ngraph::op::util::make_try_fold<ShapeOf>(first_cell->input_value(0)));
-    const auto& zero = cp_to.make<Constant>(element::i64, Shape{1}, 0);
+    const auto& zero = cp_to.make<Constant>(i64, Shape{1}, 0);
     const auto& batch_dimension = cp_to.add(ngraph::op::util::make_try_fold<Gather>(shape_node, zero, axis_0));
-    auto seq_lengths_scalar = cp_to.make<Constant>(element::i64, Shape{}, cells_cnt);
+    auto seq_lengths_scalar = cp_to.make<Constant>(i64, Shape{}, cells_cnt);
     auto sequence_lengths_in =
         cp_to.add(ngraph::op::util::make_try_fold<Broadcast>(seq_lengths_scalar, batch_dimension));
 
@@ -283,8 +285,8 @@ ov::pass::SequenceFusion::SequenceFusion() {
         OutputVector attention_to_concat;
         map<int, set<Input<Node>>> h_inputs_to_redirect;
         map<int, set<Input<Node>>> c_inputs_to_redirect;
-        auto axis_0 = copy_to.make<Constant>(element::i64, Shape{}, 0);
-        auto axis_1 = copy_to.make<Constant>(element::i64, Shape{}, 1);
+        auto axis_0 = copy_to.make<Constant>(i64, Shape{}, 0);
+        auto axis_1 = copy_to.make<Constant>(i64, Shape{}, 1);
 
         // detect chain (Cell->Cell->Cell->..)
         auto first_cell = find_cell_chain(copy_from,
