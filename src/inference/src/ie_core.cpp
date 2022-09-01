@@ -719,11 +719,7 @@ public:
                 IE_THROW() << "Device name must not contain dot '.' symbol";
             }
             const auto& value = plugin.second;
-            ov::AnyMap config;
-            for (const auto& it : value.m_default_config) {
-                config[it.first] = it.second;
-            }
-
+            ov::AnyMap config = any_copy(value.m_default_config);
             PluginDescriptor desc{value.m_create_plugin_func, config, value.m_create_extension_func};
             RegisterPluginInRegistryUnsafe(deviceName, desc);
         }
@@ -1941,9 +1937,7 @@ void Core::SetConfig(const std::map<std::string, std::string>& config, const std
                       "You can configure the devices with SetConfig before creating the AUTO on top.";
     }
 
-    ov::AnyMap conf;
-    for (const auto& it : config)
-        conf[it.first] = it.second;
+    ov::AnyMap conf = ov::any_copy(config);
     if (deviceName.empty()) {
         _impl->SetConfigForPlugins(conf, std::string());
     } else {
