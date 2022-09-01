@@ -16,10 +16,10 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace std;
+using namespace ov;
 using namespace ov::element;
 using namespace ov::opset9;
 using namespace ov::pass;
-using namespace ov::pass::pattern;
 using namespace ov::op::util;
 
 namespace {
@@ -259,7 +259,7 @@ bool create_sequence(NodeRegister& cp_to,
 ov::pass::SequenceFusion::SequenceFusion() {
     MATCHER_SCOPE(SequenceFusion);
 
-    auto cell = wrap_type<RNNCellBase>();
+    auto cell = pattern::wrap_type<RNNCellBase>();
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         NodeRegister copy_from;
         NodeRegister copy_to;
@@ -322,6 +322,6 @@ ov::pass::SequenceFusion::SequenceFusion() {
         return true;
     };
 
-    auto m = make_shared<Matcher>(cell, matcher_name);
+    auto m = make_shared<pattern::Matcher>(cell, matcher_name);
     this->register_matcher(m, callback);
 }
