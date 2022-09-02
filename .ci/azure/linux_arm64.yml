@@ -127,7 +127,7 @@ jobs:
         -GNinja
         -DVERBOSE_BUILD=ON
         -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
-        -DPYTHON_INCLUDE_DIRS=$/usr/local/include/python3.8
+        -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8
         -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib/libpython3.8.so
         -DENABLE_PYTHON=ON
         -DPYTHON_MODULE_EXTENSION=".so"
@@ -178,7 +178,7 @@ jobs:
         -DInferenceEngineDeveloperPackage_DIR=$(BUILD_OPENVINO)
         -DENABLE_PYTHON=ON
         -DPYTHON_EXECUTABLE=$(INSTALL_PYTHON)/bin/python3.8
-        -DPYTHON_INCLUDE_DIRS=$/usr/local/include/python3.8
+        -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8
         -DPYTHON_LIBRARIES=$(INSTALL_PYTHON)/lib
         -DPYTHON3_NUMPY_INCLUDE_DIRS=/usr/local/lib/python3.8/site-packages/numpy/core/include
         -DPYTHON_MODULE_EXTENSION=".so"
@@ -219,7 +219,7 @@ jobs:
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_PYTHON=ON
         -DPYTHON_EXECUTABLE=/usr/local/bin/python3.8
-        -DPYTHON_INCLUDE_DIR=$/usr/local/include/python3.8
+        -DPYTHON_INCLUDE_DIR=$(INSTALL_PYTHON)/include/python3.8
         -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
         -DOpenVINO_DIR=$(BUILD_OPENVINO)
