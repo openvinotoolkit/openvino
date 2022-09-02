@@ -5,7 +5,8 @@
 import tensorflow as tf
 
 from nncf import NNCFConfig
-from nncf.torch import create_compressed_model, register_default_init_args
+from nncf.tensorflow import create_compressed_model, create_compression_callbacks, \
+                            register_default_init_args
 #! [imports]
 
 #! [nncf_congig]
@@ -30,7 +31,7 @@ nncf_config = register_default_init_args(nncf_config, train_dataset, batch_size=
 #! [nncf_congig]
 
 #! [wrap_model]
-model = KerasModel() # instance of the tensorflow.python.keras.models.Model
+model = KerasModel() # instance of the tensorflow.keras.Model
 compression_ctrl, model = create_compressed_model(model, nncf_config)
 #! [wrap_model]
 

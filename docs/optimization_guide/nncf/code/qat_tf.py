@@ -5,7 +5,7 @@
 import tensorflow as tf
 
 from nncf import NNCFConfig
-from nncf.torch import create_compressed_model, register_default_init_args
+from nncf.tensorflow import create_compressed_model, register_default_init_args
 #! [imports]
 
 #! [nncf_congig]
@@ -31,12 +31,14 @@ compression_ctrl.distributed() # call it before the training
 #! [tune_model]
 ... # fine-tuning preparations, e.g. dataset, loss, optimizer setup, etc.
 
+# create compression callbacks to control optimization parameters and dump compression statistics
+compression_callbacks = create_compression_callbacks(compression_ctrl, log_dir="./compression_log")
 # tune quantized model for 5 epochs the same way as the baseline
-model.fit(train_dataset, epochs=5)
+model.fit(train_dataset, epochs=5, callbacks=compression_callbacks)
 #! [tune_model]
 
 #! [export]
-compression_ctrl.export_model("compressed_model.pb", save_format='frozen_graph') #export to Frozen Graph
+compression_ctrl.export_model("compressed_model.pb") #export to Frozen Graph
 #! [export] 
 
 #! [save_checkpoint]
