@@ -8,6 +8,10 @@ macro(ov_find_package_tbb)
         if(NOT ENABLE_SYSTEM_TBB)
             message(STATUS "!!!!!!!!!!!!!!!!!!!! DEBUG: ENABLE_SYSTEM_TBB is turned OFF")
 
+            if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
+                set(_no_cmake_install_prefix NO_CMAKE_INSTALL_PREFIX)
+            endif()
+
             # Note, we explicitly:
             # don't set NO_CMAKE_PATH to allow -DTBB_DIR=XXX
             # don't set NO_CMAKE_ENVIRONMENT_PATH to allow env TBB_DIR=XXX
@@ -16,8 +20,10 @@ macro(ov_find_package_tbb)
                                       NO_SYSTEM_ENVIRONMENT_PATH
                                       NO_CMAKE_PACKAGE_REGISTRY
                                       NO_CMAKE_SYSTEM_PATH
-                                    #   NO_CMAKE_INSTALL_PREFIX
+                                      ${_no_cmake_install_prefix}
                                       NO_CMAKE_SYSTEM_PACKAGE_REGISTRY)
+
+            unset(_no_cmake_install_prefix)
         endif()
 
         message(STATUS "!!!!!!!!!!!!!!!!!!!! DEBUG: ENV TBB_DIR = $ENV{TBB_DIR}")
