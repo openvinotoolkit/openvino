@@ -25,39 +25,19 @@ set(protobuf_VERBOSE ON)
 set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests" FORCE)
 set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs" FORCE)
 set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support" FORCE)
-set(protobuf_BUILD_CONFORMANCE OFF CACHE BOOL "" FORCE)
 
-# When we build dll libraries. These flags make sure onnx and protobuf build with /MD, not /MT.
-# These two options can't be mixed, because they requires link two imcompatiable runtime.
-if(NOT DEFINED protobuf_MSVC_STATIC_RUNTIME)
-    set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
+if(CMAKE_CROSSCOMPILING OR
+    (CMAKE_OSX_ARCHITECTURES STREQUAL "x86_64" AND AARCH64) OR
+    (CMAKE_OSX_ARCHITECTURES STREQUAL "arm64" AND X86_64))
+    set(protobuf_BUILD_PROTOC_BINARIES OFF CACHE BOOL "Build protoc binaries" FORCE)
+else()
+    set(protobuf_BUILD_PROTOC_BINARIES ON CACHE BOOL "Build protoc binaries" FORCE)
 endif()
 
-# WA: see CVS-90227 about X86
-if(CMAKE_CROSSCOMPILING AND NOT X86)
-    find_host_program(SYSTEM_PROTOC protoc PATHS ENV PATH)
-
-    if(SYSTEM_PROTOC)
-        execute_process(
-            COMMAND ${SYSTEM_PROTOC} --version
-            OUTPUT_VARIABLE PROTOC_VERSION
-            ERROR_VARIABLE error_message
-            RESULT_VARIABLE exit_code
-            OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-        if(NOT exit_code EQUAL 0)
-            message(FATAL_ERROR "Internal error: failed to get ${SYSTEM_PROTOC} version ${error_message}")
-        endif()
-
-        string(REPLACE " " ";" PROTOC_VERSION ${PROTOC_VERSION})
-        list(GET PROTOC_VERSION -1 PROTOC_VERSION)
-
-        message("Detected system protoc version: ${PROTOC_VERSION}")
-    else()
-        message(FATAL_ERROR "System Protobuf is needed while cross-compiling")
-    endif()
-
-    set(protobuf_BUILD_PROTOC_BINARIES OFF CACHE BOOL "Build libprotoc and protoc compiler" FORCE)
+# When we build dll libraries. These flags make sure onnx and protobuf build with /MD, not /MT.
+# These two options can't be mixed, because they requires link two incompatiable runtime.
+if(NOT DEFINED protobuf_MSVC_STATIC_RUNTIME)
+    set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
 endif()
 
 add_subdirectory(protobuf/cmake EXCLUDE_FROM_ALL)
@@ -87,18 +67,60 @@ if(protobuf_VERSION VERSION_LESS "3.9")
     message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0 (provided ${protobuf_VERSION})")
 endif()
 
-if(CMAKE_CROSSCOMPILING AND NOT PROTOC_VERSION VERSION_EQUAL protobuf_VERSION)
-    message(WARNING "system protobuf version does not match with the compiled one, please update system protobuf or submodule")
-endif()
+# build protoc separatelly for host system processor
 
-# set to parent scope
+if(NOT protobuf_BUILD_PROTOC_BINARIES)
+    include(ExternalProject)
 
-if(SYSTEM_PROTOC)
-    set(SYSTEM_PROTOC ${SYSTEM_PROTOC} PARENT_SCOPE)
-    set(PROTOC_EXECUTABLE ${SYSTEM_PROTOC} PARENT_SCOPE)
+    set(HOST_PROTOC_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/host_protoc_build")
+    set(HOST_PROTOC_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/host_protoc_install")
+    set(HOST_PROTOC_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/host_protoc_root")
+
+    # need to unset several variables which can set env to cross-environment
+    foreach(var CC CXX CPP CFLAGS CPPFLAGS CXXFLAGS KCFLAGS LD LDFLAGS STRIP GDB RANLIB OBJDUMP NM
+                PKG_CONFIG_SYSROOT_DIR PKG_CONFIG_PATH READELF AR AS CONFIGURE_FLAGS
+                TARGET_PREFIX CROSS_COMPILE OBJCOPY CONFIG_SITE)
+        unset(ENV{${var}})
+    endforeach()
+
+    ExternalProject_Add(host_protoc
+        SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/protobuf/cmake"
+        BINARY_DIR "${HOST_PROTOC_BUILD_DIR}"
+        INSTALL_DIR "${HOST_PROTOC_INSTALL_DIR}"
+        PREFIX "${HOST_PROTOC_PREFIX_DIR}"
+        EXCLUDE_FROM_ALL ON
+        CMAKE_ARGS
+            # we explicitly skip the compiler
+            # "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+            # "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
+            # generic settings
+            "-DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}"
+            "-DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}"
+            "-DCMAKE_CXX_LINKER_LAUNCHER=${CMAKE_CXX_LINKER_LAUNCHER}"
+            "-DCMAKE_C_LINKER_LAUNCHER=${CMAKE_C_LINKER_LAUNCHER}"
+            "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -Wno-undef -Wno-error"
+            "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -Wno-undef -Wno-error"
+            "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=${ENABLE_LTO}"
+            "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
+            "-DCMAKE_INSTALL_PREFIX=${HOST_PROTOC_INSTALL_DIR}"
+            "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+            # protoc specific
+            "-Dprotobuf_VERBOSE=${protobuf_VERBOSE}"
+            "-Dprotobuf_BUILD_TESTS=${protobuf_BUILD_TESTS}"
+            "-Dprotobuf_WITH_ZLIB=${protobuf_WITH_ZLIB}"
+    )
+
+    add_executable(protobuf::protoc IMPORTED GLOBAL)
+    set_target_properties(protobuf::protoc PROPERTIES
+        IMPORTED_LOCATION_RELEASE "${HOST_PROTOC_INSTALL_DIR}/bin/protoc")
+    add_dependencies(protobuf::protoc host_protoc)
+    
+    set(PROTOC_EXECUTABLE "${HOST_PROTOC_INSTALL_DIR}/bin/protoc" PARENT_SCOPE)
 else()
     set(PROTOC_EXECUTABLE $<TARGET_FILE:protoc> PARENT_SCOPE)
 endif()
+
+# set to parent scope
 
 set(protobuf_VERSION ${protobuf_VERSION} PARENT_SCOPE)
 set(Protobuf_LITE_LIBRARIES libprotobuf-lite PARENT_SCOPE)
