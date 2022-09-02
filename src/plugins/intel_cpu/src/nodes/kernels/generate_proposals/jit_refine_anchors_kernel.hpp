@@ -217,6 +217,55 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
         }
     }
 
+    inline void uni_vscatterdps(const Xbyak::Reg64 &reg_addr,
+                                const Xbyak::Xmm &xmm_index,
+                                const int &scale,
+                                const Xbyak::Xmm &xmm_val,
+                                const Xbyak::Reg &reg_mask) {
+        assert(scale != 0);
+        const size_t scale_remainder = scale % 4;
+        if (mayiuse(cpu_isa_t::avx512_core) && (0 == scale_remainder)) {
+            assert(reg_mask.isOPMASK());
+            vscatterdps(ptr[reg_addr + xmm_index * scale], xmm_val);
+        } else {
+            assert(reg_mask.isXMM() || reg_mask.isYMM());
+            Vmm xmm_mask{reg_mask.getIdx()};
+            assert(xmm_val.getKind() == xmm_index.getKind());
+            assert(xmm_index.getKind() == xmm_mask.getKind());
+
+            std::vector<Xbyak::Reg> not_available_reg{reg_addr};
+            const Xbyak::Reg64 idx = this->get_free_reg<Xbyak::Reg64>(not_available_reg);
+            const Xbyak::Reg64 mask = this->get_free_reg<Xbyak::Reg64>(not_available_reg);
+            const Xbyak::Reg64 val = this->get_free_reg<Xbyak::Reg64>(not_available_reg);
+
+            push(idx);
+            push(mask);
+            push(val);
+            xor_(idx, idx);
+            xor_(mask, mask);
+            xor_(val, val);
+
+            for (int i = 0; i < SIMD_WIDTH; i++) {
+                Xbyak::Label scatter_end;
+                uni_vpextrd(mask.cvt32(), xmm_mask, i);
+                cmp(mask.cvt32(), 0xFFFFFFFF);
+                jne(scatter_end, T_NEAR);
+                uni_vpextrd(idx.cvt32(), xmm_index, i);
+                Xbyak::Address addr = ptr[reg_addr + idx * scale];
+                switch (scale) {
+                    case 8: uni_vpextrd(val, xmm_val, i); mov(addr, val); break;
+                    case 4: uni_vpextrd(val.cvt32(), xmm_val, i); mov(addr, val.cvt32()); break;
+                    case 2: uni_vpextrd(val.cvt16(), xmm_val, i); mov(addr, val.cvt16()); break;
+                    case 1: uni_vpextrd(val.cvt8(), xmm_val, i); mov(addr, val.cvt8()); break;
+                    default: IE_THROW() << "The data type of size '" << scale << "' is not supported.";
+                }
+                L(scatter_end);
+            }
+            pop(mask);
+            pop(idx);
+        }
+    }
+
     template<typename Tmm>
     void uni_expf(const Tmm& arg) {
         exp_injector->compute_vector(arg.getIdx());
