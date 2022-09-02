@@ -72,19 +72,44 @@ endif()
 if(NOT protobuf_BUILD_PROTOC_BINARIES)
     include(ExternalProject)
 
+    set(HOST_PROTOC_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/protobuf/cmake")
     set(HOST_PROTOC_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/host_protoc_build")
     set(HOST_PROTOC_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/host_protoc_install")
     set(HOST_PROTOC_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/host_protoc_root")
 
     # need to unset several variables which can set env to cross-environment
-    foreach(var CC CXX CPP CFLAGS CPPFLAGS CXXFLAGS KCFLAGS LD LDFLAGS STRIP GDB RANLIB OBJDUMP NM
-                READELF AR AS CONFIGURE_FLAGS TARGET_PREFIX CROSS_COMPILE OBJCOPY CONFIG_SITE
+    foreach(var SDKTARGETSYSROOT CONFIG_SITE OECORE_NATIVE_SYSROOT OECORE_TARGET_SYSROOT
+                OECORE_ACLOCAL_OPTS OECORE_BASELIB OECORE_TARGET_ARCH OECORE_TARGET_OS CC CXX
+                CPP AS LD GDB STRIP RANLIB OBJCOPY OBJDUMP READELF AR NM M4 TARGET_PREFIX
+                CONFIGURE_FLAGS CFLAGS CXXFLAGS LDFLAGS CPPFLAGS KCFLAGS OECORE_DISTRO_VERSION
+                OECORE_SDK_VERSION ARCH CROSS_COMPILE OE_CMAKE_TOOLCHAIN_FILE OPENSSL_CONF
+                OE_CMAKE_FIND_LIBRARY_CUSTOM_LIB_SUFFIX
                 # if we skip pkg-config variables, libusb is not found by the whole project
-                # it's safe to skip it here, because protobuf cmake does not use pkg-config
-                # PKG_CONFIG_SYSROOT_DIR PKG_CONFIG_PATH
+                # it's safe to skip it here, because protobuf cmake does not use pkg-config:
+                #   PKG_CONFIG_SYSROOT_DIR PKG_CONFIG_PATH
+                # don't unset PATH as well, otherwise no binaries are found at all:
                 )
-        unset(ENV{${var}})
+        list(APPEND cmake_env --unset=${var})
     endforeach()
+
+    if(DEFINED ENV{OECORE_NATIVE_SYSROOT})
+        # filter out PATH from yocto locations
+        string(REPLACE ":" ";" custom_path "$ENV{PATH}")
+        foreach(path IN LISTS custom_path)
+            if(NOT path MATCHES "^$ENV{OECORE_NATIVE_SYSROOT}")
+                list(APPEND clean_path "${path}")
+            endif()
+        endforeach()
+
+        find_host_program(HOST_CMAKE_COMMAND
+            NAMES cmake
+            PATHS ${clean_path}
+            DOC "Host cmake"
+            REQUIRED
+            NO_DEFAULT_PATH)
+    else()
+        set(HOST_CMAKE_COMMAND "${CMAKE_COMMAND}")
+    endif()
 
     # compile flags
     if(CMAKE_COMPILER_IS_GNUCXX)
@@ -92,29 +117,31 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
     endif()
 
     ExternalProject_Add(host_protoc
-        SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/protobuf/cmake"
+        SOURCE_DIR "${HOST_PROTOC_SOURCE_DIR}"
+        CONFIGURE_COMMAND
+            "${CMAKE_COMMAND}" -E env ${cmake_env}
+                "${HOST_CMAKE_COMMAND}"
+                "-DCMAKE_GENERATOR=${CMAKE_GENERATOR}"
+                "-DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}"
+                "-DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}"
+                "-DCMAKE_CXX_LINKER_LAUNCHER=${CMAKE_CXX_LINKER_LAUNCHER}"
+                "-DCMAKE_C_LINKER_LAUNCHER=${CMAKE_C_LINKER_LAUNCHER}"
+                "-DCMAKE_CXX_FLAGS=${compile_flags}"
+                "-DCMAKE_C_FLAGS=${compile_flags}"
+                "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
+                "-DCMAKE_INSTALL_PREFIX=${HOST_PROTOC_INSTALL_DIR}"
+                "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+                # protoc specific
+                "-DTHREADS_PREFER_PTHREAD_FLAG=${THREADS_PREFER_PTHREAD_FLAG}"
+                "-Dprotobuf_VERBOSE=${protobuf_VERBOSE}"
+                "-Dprotobuf_BUILD_TESTS=${protobuf_BUILD_TESTS}"
+                "-Dprotobuf_WITH_ZLIB=${protobuf_WITH_ZLIB}"
+                "-S${HOST_PROTOC_SOURCE_DIR}"
+                "-B${HOST_PROTOC_BUILD_DIR}"
         BINARY_DIR "${HOST_PROTOC_BUILD_DIR}"
         INSTALL_DIR "${HOST_PROTOC_INSTALL_DIR}"
         PREFIX "${HOST_PROTOC_PREFIX_DIR}"
         EXCLUDE_FROM_ALL ON
-        CMAKE_ARGS
-            # we explicitly skip the compiler, because we want host one
-            # "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
-            # "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
-            # generic settings
-            "-DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}"
-            "-DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}"
-            "-DCMAKE_CXX_LINKER_LAUNCHER=${CMAKE_CXX_LINKER_LAUNCHER}"
-            "-DCMAKE_C_LINKER_LAUNCHER=${CMAKE_C_LINKER_LAUNCHER}"
-            "-DCMAKE_CXX_FLAGS=${compile_flags}"
-            "-DCMAKE_C_FLAGS=${compile_flags}"
-            "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
-            "-DCMAKE_INSTALL_PREFIX=${HOST_PROTOC_INSTALL_DIR}"
-            "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
-            # protoc specific
-            "-Dprotobuf_VERBOSE=${protobuf_VERBOSE}"
-            "-Dprotobuf_BUILD_TESTS=${protobuf_BUILD_TESTS}"
-            "-Dprotobuf_WITH_ZLIB=${protobuf_WITH_ZLIB}"
     )
 
     add_executable(protobuf::protoc IMPORTED GLOBAL)
