@@ -333,19 +333,19 @@ To run the **Image Classification** code sample with an input image using the IR
 
    .. code-block:: sh
 
-      cd ~/inference_engine_cpp_samples_build/intel64/Release
+      cd ~/openvino_cpp_samples_build/intel64/Release
 
 .. tab:: Windows
 
    .. code-block:: bat
 
-      cd  %USERPROFILE%\Documents\Intel\OpenVINO\inference_engine_samples_build\intel64\Release
+      cd  %USERPROFILE%\Documents\Intel\OpenVINO\openvino_samples_build\intel64\Release
 
 .. tab:: macOS
 
    .. code-block:: sh
 
-      cd ~/inference_engine_cpp_samples_build/intel64/Release
+      cd ~/openvino_cpp_samples_build/intel64/Release
 
 @endsphinxdirective
 

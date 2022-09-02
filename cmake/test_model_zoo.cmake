@@ -5,7 +5,7 @@
 set_property(GLOBAL PROPERTY JOB_POOLS four_jobs=4)
 
 function(ov_model_convert SRC DST OUT)
-    set(onnx_gen_script ${OpenVINO_SOURCE_DIR}/src/core/tests/models/onnx/onnx_prototxt_converter.py)
+    set(onnx_gen_script ${OpenVINO_SOURCE_DIR}/src/frontends/onnx/tests/onnx_prototxt_converter.py)
 
     file(GLOB_RECURSE prototxt_models RELATIVE "${SRC}" "${SRC}/*.prototxt")
     file(GLOB_RECURSE xml_models RELATIVE "${SRC}" "${SRC}/*.xml")
@@ -64,7 +64,7 @@ endfunction()
 
 ov_model_convert("${CMAKE_CURRENT_SOURCE_DIR}/src/core/tests"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/core"
-                  onnx_out_files)
+                  core_tests_out_files)
 
 set(rel_path "src/tests/functional/plugin/shared/models")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
@@ -81,14 +81,14 @@ ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/ir_serialization"
                  ie_serialize_out_files)
 
-set(rel_path "src/tests/unit/frontends/onnx_import/models")
+set(rel_path "src/frontends/onnx/tests/models")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
-                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx_import"
-                 ie_onnx_import_out_files)
+                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx"
+                 onnx_fe_out_files)
 
 if(ENABLE_TESTS)
     if(ENABLE_OV_ONNX_FRONTEND AND ENABLE_REQUIREMENTS_INSTALL)
-        find_package(PythonInterp 3 REQUIRED)
+        find_host_package(PythonInterp 3 REQUIRED)
 
         get_filename_component(PYTHON_EXEC_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
         execute_process(COMMAND "${PYTHON_EXECUTABLE}" -m pip --version
@@ -112,20 +112,19 @@ if(ENABLE_TESTS)
             list(APPEND args --use-feature=2020-resolver)
         endif()
 
-        set(reqs "${OpenVINO_SOURCE_DIR}/src/core/tests/requirements_test_onnx.txt")
+        set(reqs "${OpenVINO_SOURCE_DIR}/src/frontends/onnx/tests/requirements.txt")
         add_custom_target(test_pip_prerequisites ALL
                           "${PYTHON_EXECUTABLE}" -m pip install ${args} -r ${reqs}
-                          COMMENT "Install requirements_test_onnx.txt"
+                          COMMENT "Install ONNX Frontend tests requirements."
                           VERBATIM
                           SOURCES ${reqs})
     endif()
 
-    add_custom_target(test_model_zoo DEPENDS ${onnx_out_files}
+    add_custom_target(test_model_zoo DEPENDS ${core_tests_out_files}
                                              ${ft_out_files}
                                              ${ie_onnx_out_files}
                                              ${ie_serialize_out_files}
-                                             ${ie_onnx_import_out_files}
-                                             ${docs_onnx_out_files})
+                                             ${onnx_fe_out_files})
 
     if(TARGET test_pip_prerequisites)
         add_dependencies(test_model_zoo test_pip_prerequisites)

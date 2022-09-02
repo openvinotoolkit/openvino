@@ -4,12 +4,14 @@
 
 #include "openvino/frontend/tensorflow/frontend.hpp"
 
+#include "graph_iterator_proto.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/log.hpp"
 #include "pass/transpose_sinking.hpp"
 #include "so_extension.hpp"
 #include "tf_framework_node.hpp"
@@ -190,7 +192,9 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
                 results.push_back(result);
             } else {
                 auto param = std::dynamic_pointer_cast<ov::opset8::Parameter>(output.get_node_shared_ptr());
-                if (param && operation_decoder->get_op_type() != "Identity") {
+                // avoid duplicating Parameter nodes if they are already in the Parameters vector
+                if (param && operation_decoder->get_op_type() != "Identity" &&
+                    std::find(params.begin(), params.end(), param) == params.end()) {
                     params.push_back(param);
                 }
                 ng_op_map[operation_name].push_back(output);

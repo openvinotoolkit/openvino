@@ -29,10 +29,14 @@ if [ -f /etc/lsb-release ]; then
         x86_64_specific_packages=()
     fi
 
+    if ! command -v cmake &> /dev/null; then
+        cmake_packages=(cmake)
+    fi
+
     sudo -E apt update
     sudo -E apt-get install -y \
             build-essential \
-            cmake \
+            "${cmake_packages[@]}" \
             ccache \
             curl \
             wget \
@@ -46,11 +50,13 @@ if [ -f /etc/lsb-release ]; then
             shellcheck \
             patchelf \
             lintian \
+            gzip \
             `# openvino` \
             libtbb-dev \
             libpugixml-dev \
             `# python` \
             python3-pip \
+            python3-venv \
             python3-enchant \
             python3-setuptools \
             libpython3-dev \
@@ -110,6 +116,7 @@ elif [ -f /etc/redhat-release ]; then
             gcc \
             gcc-c++ \
             make \
+            patchelf \
             pkg-config \
             gflags-devel.i686 \
             zlib-devel.i686 \

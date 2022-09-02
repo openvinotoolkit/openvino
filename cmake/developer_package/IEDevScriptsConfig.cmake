@@ -23,10 +23,10 @@ function(set_ci_build_number)
     endforeach()
 endfunction()
 
-set_ci_build_number()
-
 include(features)
 include(message)
+
+set_ci_build_number()
 
 #
 # Detect target
@@ -34,7 +34,7 @@ include(message)
 
 include(target_flags)
 
-string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH_FOLDER)
+string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" ARCH_FOLDER)
 if(X86_64)
     set(ARCH_FOLDER intel64)
 elseif(X86)

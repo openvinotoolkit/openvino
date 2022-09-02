@@ -15,7 +15,7 @@ namespace py = pybind11;
 template <typename... Args>
 using overload_cast_ = pybind11::detail::overload_cast_impl<Args...>;
 
-void* numpy_to_c(py::array a) {
+inline void* numpy_to_c(py::array a) {
     py::buffer_info info = a.request();
     return info.ptr;
 }
