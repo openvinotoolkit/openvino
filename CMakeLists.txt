@@ -12,6 +12,7 @@ else()
         # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
         cmake_minimum_required(VERSION 3.20)
     else()
+        # default choice
         cmake_minimum_required(VERSION 3.13)
     endif()
 endif()
@@ -98,7 +99,9 @@ function(openvino_developer_export_targets)
 endfunction()
 
 # add target with processed tests model zoo
-include(cmake/test_model_zoo.cmake)
+if (ENABLE_TESTS)
+    include(cmake/test_model_zoo.cmake)
+endif()
 
 add_subdirectory(thirdparty)
 add_subdirectory(src)

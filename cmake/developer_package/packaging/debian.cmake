@@ -24,7 +24,7 @@ macro(ov_debian_cpack_set_dirs)
 
     # non-native stuff
     set(OV_CPACK_PYTHONDIR ${OV_CPACK_PLUGINSDIR})
-    set(OV_CPACK_SHAREDIR ${CMAKE_INSTALL_DATADIR}/openvino-${OpenVINO_VERSION}) # internal
+    set(OV_CPACK_SHAREDIR ${CMAKE_INSTALL_DATADIR}/openvino) # internal
     set(OV_CPACK_SAMPLESDIR ${OV_CPACK_SHAREDIR}/samples)
     set(OV_CPACK_DEVREQDIR ${OV_CPACK_SHAREDIR})
     unset(OV_CPACK_SHAREDIR)
@@ -57,7 +57,6 @@ macro(ov_override_component_names)
     # merge all C / C++ samples as a single samples component
     set(OV_CPACK_COMP_CPP_SAMPLES "samples")
     set(OV_CPACK_COMP_C_SAMPLES "${OV_CPACK_COMP_CPP_SAMPLES}")
-    # set(OV_CPACK_COMP_PYTHON_SAMPLES "${OV_CPACK_COMP_CPP_SAMPLES}")
     # move requirements.txt to core-dev
     set(OV_CPACK_COMP_DEV_REQ_FILES "${OV_CPACK_COMP_CORE_DEV}")
     # move core_tools to core-dev
@@ -92,7 +91,6 @@ macro(ov_debian_specific_settings)
     # with current WA automatic deps detection via dpkg-shlibdeps for "our libraries"
     # is ignored; but dependencies between our components are here because of
     # CPACK_COMPONENT_<UCOMP>_DEPENDS variables
-    # More proper WA is try to enable INSTALL_RPATH
 
     if(DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
         set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
@@ -253,7 +251,7 @@ macro(ov_debian_add_latest_component comp)
 
     set(CPACK_COMPONENT_${upper_case}_DESCRIPTION "${CPACK_COMPONENT_${ucomp}_DESCRIPTION}")
     set(CPACK_COMPONENT_${upper_case}_ARCHITECTURE "${CPACK_COMPONENT_${ucomp}_ARCHITECTURE}")
-    set(CPACK_COMPONENT_${upper_case}_DEPENDS "${ucomp}")
+    set(CPACK_COMPONENT_${upper_case}_DEPENDS "${comp}")
 
     # take package name
     if(DEFINED CPACK_DEBIAN_${ucomp}_PACKAGE_NAME)

@@ -24,15 +24,19 @@ if [ -f /etc/lsb-release ]; then
     # Ubuntu
     host_cpu=$(uname -m)
     if [ "$host_cpu" = "x86_64" ]; then
-        x86_64_specific_packages="gcc-multilib g++-multilib"
+        x86_64_specific_packages=(gcc-multilib g++-multilib)
     else
-        x86_64_specific_packages=""
+        x86_64_specific_packages=()
+    fi
+
+    if ! command -v cmake &> /dev/null; then
+        cmake_packages=(cmake)
     fi
 
     sudo -E apt update
     sudo -E apt-get install -y \
             build-essential \
-            cmake \
+            "${cmake_packages[@]}" \
             ccache \
             curl \
             wget \
@@ -40,16 +44,19 @@ if [ -f /etc/lsb-release ]; then
             ca-certificates \
             git \
             git-lfs \
-            $x86_64_specific_packages \
+            "${x86_64_specific_packages[@]}" \
             libgtk2.0-dev \
             unzip \
             shellcheck \
             patchelf \
+            lintian \
+            gzip \
             `# openvino` \
             libtbb-dev \
             libpugixml-dev \
             `# python` \
             python3-pip \
+            python3-venv \
             python3-enchant \
             python3-setuptools \
             libpython3-dev \
@@ -109,6 +116,7 @@ elif [ -f /etc/redhat-release ]; then
             gcc \
             gcc-c++ \
             make \
+            patchelf \
             pkg-config \
             gflags-devel.i686 \
             zlib-devel.i686 \

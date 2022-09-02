@@ -27,7 +27,7 @@ jobs:
   timeoutInMinutes: 360
 
   pool:
-    vmImage: 'macOS-10.15'
+    vmImage: 'macOS-11'
 
   variables:
     system.debug: true
@@ -88,7 +88,7 @@ jobs:
   - script: |
       brew install cython
       brew install automake
-      python3 -m pip install -r $(REPO_DIR)/src/core/tests/requirements_test_onnx.txt
+      python3 -m pip install -r $(REPO_DIR)/src/frontends/onnx/tests/requirements.txt
       # Speed up build
       brew install ninja
       brew install ccache
@@ -110,6 +110,10 @@ jobs:
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules \
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
         -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+        -DCMAKE_CXX_LINKER_LAUNCHER=ccache \
+        -DCMAKE_C_LINKER_LAUNCHER=ccache \
+        -DBUILD_cuda_plugin=OFF \
+        -DBUILD_nvidia_plugin=OFF \
         -S $(REPO_DIR) \
         -B $(BUILD_DIR)
     displayName: 'CMake'
@@ -151,9 +155,7 @@ jobs:
 
   - script: |
       set -e
-      mkdir -p $(INSTALL_DIR)/opencv/
       cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P $(BUILD_DIR)/cmake_install.cmake
-      cp -R $(REPO_DIR)/temp/opencv_4.5.2_osx/opencv/* $(INSTALL_DIR)/opencv/
     displayName: 'Install tests'
 
   - script: ls -alR $(INSTALL_DIR)
@@ -164,8 +166,8 @@ jobs:
     continueOnError: false
     enabled: false
 
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnx_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU*--gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXImportUT.xml
-    displayName: 'ONNX Frontend UT'
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_onnx_frontend_test --gtest_print_time=1 --gtest_filter=-*IE_GPU*--gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
+    displayName: 'ONNX Frontend Test'
     continueOnError: false
     enabled: false
 
@@ -186,11 +188,6 @@ jobs:
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-vpuUnitTests.xml
     displayName: 'VPU UT'
-    continueOnError: false
-    enabled: false
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnxImporterUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-onnxImporterUnitTests.xml
-    displayName: 'ONNX Importer UT'
     continueOnError: false
     enabled: false
 
@@ -220,7 +217,7 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      . $(SETUPVARS) && $(INSTALL_TEST_DIR)/OpenVinoCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OpenVinoCAPITests.xml
+      . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_capi_test.xml
     displayName: 'IE CAPITests'
     continueOnError: false
     enabled: false

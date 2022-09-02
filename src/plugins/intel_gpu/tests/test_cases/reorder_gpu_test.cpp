@@ -935,7 +935,6 @@ TEST(reorder_gpu, basic_convert_uint8rgbabyxf_to_fp32_bfyx) {
              "reorder_input",               // primitive id of the cropping input
              crop_reference_input_tensor,   // input tensor
              crop_offset_tensor,            // bias primitive id
-             "",
              output_padding
             )
     );
@@ -1040,7 +1039,7 @@ TEST(reorder_gpu_f32, basic_yxfb_to_bfyx_input_padding)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, "", padding{ { 0, 0, 1, 2 }, 0 }),
+        reorder("reorder", "input", input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, padding{ { 0, 0, 1, 2 }, 0 }),
         reorder("reorder2", "reorder", output_layout));
 
     network network(engine, topology);
@@ -1119,7 +1118,7 @@ TEST(reorder_gpu_f32, basic_bfyx_to_yxfb_input_padding)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, "", padding{ { 0, 0, 2, 1 }, 0 }),
+        reorder("reorder", "input", input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, padding{ { 0, 0, 2, 1 }, 0 }),
         reorder("reorder2", "reorder", output_layout));
 
     network network(engine, topology);
