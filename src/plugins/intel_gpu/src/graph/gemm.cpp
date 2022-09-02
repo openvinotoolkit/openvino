@@ -11,6 +11,8 @@
 #include <utility>
 #include <algorithm>
 
+#include "matmul_shape_inference.hpp"
+
 namespace cldnn {
 primitive_type_id gemm::type_id() {
     static primitive_type_base<gemm> instance;
@@ -48,6 +50,34 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
     auto output_format = input0_layout.format;
 
     return layout(output_type, output_format, output_size, prim->output_padding);
+}
+
+template<typename ShapeType>
+std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& /*node*/, const kernel_impl_params& impl_param) {
+    auto prim = impl_param.typed_desc<gemm>();
+    auto input0_layout = impl_param.get_input_layout(0);
+    auto input1_layout = impl_param.get_input_layout(1);
+
+    auto default_out_dt = data_type_traits::is_floating_point(input0_layout.data_type) ? input0_layout.data_type : data_types::f32;
+    auto output_type = prim->output_data_type.value_or(default_out_dt);
+
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
+    }
+
+    ov::op::v0::MatMul op;
+    op.set_transpose_a(prim->transpose_input0);
+    op.set_transpose_b(prim->transpose_input1);
+
+    std::vector<ShapeType> output_shapes = {ShapeType()};
+    std::vector<ShapeType> input_shapes = {
+        input0_layout.get<ShapeType>(),
+        input1_layout.get<ShapeType>()
+    };
+
+    ov::op::v0::shape_infer(&op, input_shapes, output_shapes);
+
+    return { layout{output_shapes[0], output_type, input0_layout.format, prim->output_padding} };
 }
 
 std::string gemm_inst::to_string(gemm_node const& node) {

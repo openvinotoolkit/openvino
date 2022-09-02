@@ -179,7 +179,7 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
         constTensor = getConstTensor(newDims);
     }
 
-    cldnn::layout constLayout = cldnn::layout(DataTypeFromPrecision(op->get_output_element_type(0)),
+    cldnn::layout constLayout = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                               constFormat,
                                               constTensor);
 

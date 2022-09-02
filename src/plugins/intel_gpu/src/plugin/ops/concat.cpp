@@ -23,7 +23,7 @@ static void CreateConcatOp(Program& p, const std::shared_ptr<ngraph::op::v0::Con
         layerName,
         inputPrimitives,
         axis,
-        DataTypeFromPrecision(op->get_output_element_type(0)));
+        cldnn::element_type_to_data_type(op->get_output_element_type(0)));
 
     p.add_primitive(*op, concatPrim);
 }

@@ -17,4 +17,12 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     }
     return result;
 }
+
+ov::AnyMap any_copy(const std::map<std::string, std::string>& params) {
+    ov::AnyMap result;
+    for (auto&& value : params) {
+        result.emplace(value.first, value.second);
+    }
+    return result;
+}
 }  // namespace ov
