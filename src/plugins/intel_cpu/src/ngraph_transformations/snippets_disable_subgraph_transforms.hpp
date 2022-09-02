@@ -4,14 +4,15 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <snippets/op/subgraph.hpp>
 #include <vector>
+
+#include "openvino/pass/graph_rewrite.hpp"
+#include "snippets/op/subgraph.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-class SnippetsDisableSubgraphTransforms: public ngraph::pass::MatcherPass {
+class SnippetsDisableSubgraphTransforms: public ov::pass::MatcherPass {
 public:
     using Subgraphs = std::vector<std::shared_ptr<ngraph::snippets::op::Subgraph>>;
     OPENVINO_RTTI("SnippetsDisableSubgraphTransforms", "0");

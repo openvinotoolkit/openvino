@@ -3,12 +3,14 @@
 //
 
 #include "openvino/openvino.hpp"
+#include "openvino/opsets/opset9.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "snippets/op/subgraph.hpp"
 
 using namespace CPUTestUtils;
+using namespace ov::opset9;
 
 namespace SubgraphTestsDefinitions {
 
@@ -19,11 +21,11 @@ TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraph) {
 
     auto model = ([] () -> std::shared_ptr<ov::Model> {
         auto shape = ov::Shape({2, 2});
-        auto input0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
-        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
-        auto ininput0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
-        auto ininput1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
-        auto add = std::make_shared<ov::op::v1::Add>(ininput0, ininput1);
+        auto input0 = std::make_shared<Parameter>(ov::element::f32, shape);
+        auto input1 = std::make_shared<Parameter>(ov::element::f32, shape);
+        auto ininput0 = std::make_shared<Parameter>(ov::element::f32, shape);
+        auto ininput1 = std::make_shared<Parameter>(ov::element::f32, shape);
+        auto add = std::make_shared<Add>(ininput0, ininput1);
         auto subgraph_body = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{ininput0, ininput1});
         auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(ov::NodeVector{input0, input1}, ov::clone_model(*subgraph_body.get()));
         return std::make_shared<ov::Model>(ov::NodeVector{subgraph}, ov::ParameterVector{input0, input1});
@@ -66,12 +68,12 @@ TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraphWithScalarConst) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto model = ([] () -> std::shared_ptr<ov::Model> {
         auto shape = ov::Shape({1});
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
-        auto internal_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
-        auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, shape, 2);
-        auto internal_constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, shape, 2);
-        auto add = std::make_shared<ov::op::v1::Add>(input, constant);
-        auto internal_add = std::make_shared<ov::op::v1::Add>(internal_input, internal_constant);
+        auto input = std::make_shared<Parameter>(ov::element::f32, shape);
+        auto internal_input = std::make_shared<Parameter>(ov::element::f32, shape);
+        auto constant = std::make_shared<Constant>(ov::element::f32, shape, 2);
+        auto internal_constant = std::make_shared<Constant>(ov::element::f32, shape, 2);
+        auto add = std::make_shared<Add>(input, constant);
+        auto internal_add = std::make_shared<Add>(internal_input, internal_constant);
         auto subgraph_body = std::make_shared<ov::Model>(ov::NodeVector{internal_add}, ov::ParameterVector{internal_input});
         auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(ov::NodeVector{add}, ov::clone_model(*subgraph_body.get()));
         return std::make_shared<ov::Model>(ov::NodeVector{subgraph}, ov::ParameterVector{input});
