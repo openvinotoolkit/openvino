@@ -178,11 +178,11 @@ class TestPooling(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     def test_pool_4D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                     api_2):
+                     use_old_api):
         self._test(*self.create_pooling_net(**params, ir_version=ir_version,
                                             use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_5D = []
     for method in ['max', 'avg']:
@@ -256,10 +256,10 @@ class TestPooling(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
     def test_pool_5D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                     api_2):
+                     use_old_api):
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
         self._test(*self.create_pooling_net(**params, ir_version=ir_version,
                                             use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)

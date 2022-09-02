@@ -29,7 +29,7 @@ def rename_tf_fe_libs(request):
 
     # in case of usual test run we should check names of libs and rename back them if applicable
     if not request.config.getoption('use_new_frontend'):
-        rename_files_by_pattern(openvino_lib_path, tf_fe_lib_names[1], pattern_to_rename=tf_fe_lib_names[0])
+        rename_files_by_pattern(openvino_lib_path, tf_fe_lib_names[1], tf_fe_lib_names[0])
 
     # in case of new frontend usage we should rename libs
     else:

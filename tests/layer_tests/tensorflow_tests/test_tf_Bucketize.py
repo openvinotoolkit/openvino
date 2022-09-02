@@ -68,11 +68,11 @@ class TestBucketize(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_float32)
     @pytest.mark.nightly
     def test_bucketize_float32(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, api_2):
+                               use_new_frontend, use_old_api):
         self._test(*self.create_bucketize_net(**params, ir_version=ir_version,
                                               use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_int32 = [
         dict(input_shape=[5], input_type=tf.int32, boundaries_size=1),
@@ -85,8 +85,8 @@ class TestBucketize(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_int32)
     @pytest.mark.nightly
     def test_bucketize_int32(self, params, ie_device, precision, ir_version, temp_dir,
-                             use_new_frontend, api_2):
+                             use_new_frontend, use_old_api):
         self._test(*self.create_bucketize_net(**params, ir_version=ir_version,
                                               use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
