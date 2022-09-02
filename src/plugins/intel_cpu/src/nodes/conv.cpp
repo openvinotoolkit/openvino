@@ -367,9 +367,11 @@ const std::vector<impl_desc_type>& Convolution::getPrimitivesPriority() {
 void Convolution::getSupportedDescriptors() {
     if (!descs.empty())
         return;
+    if (!attrs.empty())
+        IE_THROW() << "attrs vector is not empty '" << getName() << "'";
 
+    attrs.reserve(2);
     withBiases = getOriginalInputsNumber() == 3;
-
     initTryBrgconvFlag();
 
     if (!implPriorities.empty()) {
@@ -381,12 +383,11 @@ void Convolution::getSupportedDescriptors() {
                  (withBiases ? (getParentEdgeAt(2)->getParent()->isConstant() && getParentEdgeAt(2)->getParent()->getType() == Type::Input) : true);
 
         // AVX512 brconv may be disabled by heuristics due to performance issues. User can force it via Primitives priority mechanism.
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
-            std::for_each(implPriorities.begin(), implPriorities.end(), [&](const impl_desc_type& desc_type) {
-                if (desc_type & impl_desc_type::brgconv_avx512) {
-                    shouldTryBrgconv = true;
-                }
-            });
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+            std::any_of(implPriorities.begin(), implPriorities.end(), [](const impl_desc_type& desc_type) {
+                return static_cast<bool>(desc_type & impl_desc_type::brgconv_avx512);
+            })) {
+            shouldTryBrgconv = true;
         }
     }
 
@@ -537,7 +538,7 @@ void Convolution::getSupportedDescriptors() {
 
             bool acceptedFormat = inputDataType == memory::data_type::bf16;
             bool nspcAdded = false;
-            acceptedFormat |= shouldTryBrgconv && inputDataType == memory::data_type::f32;
+            acceptedFormat |= (shouldTryBrgconv && inputDataType == memory::data_type::f32);
             if (acceptedFormat && impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
                 in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
                 out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
@@ -712,21 +713,14 @@ void Convolution::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    pInitAttrs[0] = std::make_shared<dnnl::primitive_attr>();
-    auto attrsNum = shouldTryBrgconv ? 2 : 1;
-    setPostOps(*pInitAttrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
-    if (shouldTryBrgconv && !pInitAttrs[1]) {
-        pInitAttrs[1] = std::make_shared<dnnl::primitive_attr>();
-        setPostOps(*pInitAttrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
-    }
-
+    SetPostOpsAndZeroPoints(attrs);
     bool containJitImpl = false;
 
     for (auto& desc : descs) {
         if (containJitImpl && isPossibleToSkipInitConfig(desc))
             continue;
-        for (int i = 0; i < attrsNum; i++) {
-            auto &attr = *pInitAttrs[i];
+        for (int i = 0; i < attrs.size(); i++) {
+            auto &attr = attrs[i];
             addZeroPoints(attr);
             auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
             while (static_cast<bool>(itpd)) {
@@ -920,6 +914,28 @@ void Convolution::addZeroPoints(dnnl::primitive_attr& attr) {
     }
 }
 
+void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs) {
+    // attr[0] - Legacy post ops + Legacy zero points.
+    attrs.resize(1);
+    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
+    addZeroPoints(attrs[0]);
+    //dw-conv would be fused into conv only on AVX2 platform. no need attr[1]. Avoid extra useless attribute.
+    if (attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::convolution) != -1) {
+        return;
+    }
+    //no matter whether shouldTryBrgconv is true, 1 attribute is enough. Avoid duplicated attribute.
+    if (inputZeroPoints.empty() && attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::depthwise) == -1 &&
+        attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::quantization) == -1) {
+        return;
+    }
+    //set attr[1]
+    if (shouldTryBrgconv) {
+        attrs.resize(2);
+        setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
+        addZeroPoints(attrs[1]);
+    }
+}
+
 void Convolution::initDescriptor(const NodeConfig& config) {
     auto *selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD) {
@@ -938,7 +954,6 @@ void Convolution::initDescriptor(const NodeConfig& config) {
     if (isStridedBlobsSupported) {
         createDescriptor({config.inConfs[0].getMemDesc()}, {config.outConfs[0].getMemDesc()});
     }
-    auto attrsNum = shouldTryBrgconv ? 2 : 1;
 
     auto rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
@@ -949,9 +964,8 @@ void Convolution::initDescriptor(const NodeConfig& config) {
         auto& desc = descs[i];
         if (containJitImpl && isPossibleToSkipInitConfig(desc))
             continue;
-        for (int n = 0; n < attrsNum; n++) {
-            auto &attr = *pInitAttrs[n];
-            addZeroPoints(attr);
+        for (int n = 0; n < attrs.size(); n++) {
+            auto &attr = attrs[n];
             auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
             while (static_cast<bool>(itpd)) {
                 NodeConfig cfg;
@@ -1547,25 +1561,21 @@ void Convolution::initTryBrgconvFlag() {
     // Due to performance issue, brgconv will only be enabled by default:
     // 1, static shape(dynamic shape may change weights layout if the input shape changes and cause performance issue: 86948)
     // 2, support amx
-    // 3, support avx512 except int8 with binary postops
+    // 3, support avx512 without legacy postops/zero point when avx512
     if (!isDynamicNode()) {
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
             shouldTryBrgconv = true;
         } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
             shouldTryBrgconv = true;
             // should remove after binary postops performance issue resolved
-            // heuristics: if model has binary post ops we will not use brgconv
-            dnnl::primitive_attr attrs;
-            setPostOps(attrs, MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
-            const auto& ops = attrs.get_post_ops();
-            for (int i = 0; i < ops.len(); i++) {
-                if (ops.kind(i) == dnnl::primitive::kind::binary) {
-                    shouldTryBrgconv = false;
-                    break;
-                }
-            }
-            if (shouldTryBrgconv)
-                pInitAttrs[1] = std::make_shared<dnnl::primitive_attr>(std::move(attrs));
+            // heuristics: if it's  avx512 ISA  model && it doesn't have legacy depthwise/quantization post ops or zero point.
+            dnnl::primitive_attr attr;
+            //Just try checking whether having binary post-ops.
+            setPostOps(attr, MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
+            addZeroPoints(attr);
+            const auto& ops = attr.get_post_ops();
+            if (!inputZeroPoints.empty() || ops.get()->find(dnnl::impl::primitive_kind::binary) != -1)
+                shouldTryBrgconv = false;
         }
     }
 }

@@ -92,6 +92,8 @@ private:
 
     void addZeroPoints(dnnl::primitive_attr& attr);
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool useLegacyPostOps, bool initWeights = false);
+    void SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs);
+
     void filterSupportedDescriptors();
     bool isPossibleToSkipInitConfig(DnnlDesriptor &desc) const;
     bool isNspcAvailable() const;
@@ -138,8 +140,7 @@ private:
 
     bool isWino = false;
     bool shouldTryBrgconv = false;
-    // cache attr for later usage. [0] - depthwise, quantize, [1] - binary
-    AttrPtr pInitAttrs[2];
+    std::vector<dnnl::primitive_attr> attrs;
     AttrPtr pAttr;
     bool autoPadding = false;
     FusedSubgraphPtr subgraph;
