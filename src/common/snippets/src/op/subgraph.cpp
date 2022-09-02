@@ -258,14 +258,14 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
     for (size_t i = 0; i < outputShapes.size(); i++) {
         const auto needed_out_type = std::get<2>(outputShapes[i]);
 
-        // If there is real Convert from graph (ConvertTruncation) before Result
+        // If there is real Convert from graph (ConvertTruncation) or after FQ decomp (ConvertSaturation) before Result
         // we should check destination type and insert ConvertSaturation before that if needed.
         // For example, to return original element type after Convert insertion on inputs
         std::shared_ptr<ov::Node> first_convert = body_results[i];
-        while (ov::is_type<ngraph::snippets::op::ConvertTruncation>(first_convert->get_input_node_ptr(0))) {
+        while (ov::is_type<ngraph::op::v0::Convert>(first_convert->get_input_node_ptr(0))) {
             first_convert = first_convert->get_input_node_shared_ptr(0);
         }
-        if (auto existing_convert_t = ngraph::as_type_ptr<ngraph::snippets::op::ConvertTruncation>(first_convert)) {
+        if (auto existing_convert_t = ngraph::as_type_ptr<ngraph::op::v0::Convert>(first_convert)) {
             const auto original_input_element_type = existing_convert_t->get_input_element_type(0);
             if (original_input_element_type != execution_element_type) {
                 const auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
