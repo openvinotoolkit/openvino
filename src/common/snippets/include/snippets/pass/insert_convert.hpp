@@ -22,19 +22,19 @@ namespace pass {
  */
 class InsertConvertOnInputs: public ngraph::pass::MatcherPass {
 public:
-    InsertConvertOnInputs(const ov::element::Type exec_type = ov::element::f32);
+    InsertConvertOnInputs(const ov::element::Type& exec_type = ov::element::f32);
 };
 
 
 /**
  * @interface InsertReverseConvert
  * @brief After FakeQuantize there are ConvertSaturations from F32 to U8 inside body. This pass inserts reverse ConvertSaturations
- *        after them to return FP32 calculation inside bofy if these original ConvertSaturations aren't on Results
+ *        after them to return FP32 calculation inside body if these original ConvertSaturations aren't on Results
  * @ingroup snippets
  */
 class InsertReverseConvert: public ngraph::pass::MatcherPass {
 public:
-    InsertReverseConvert();
+    InsertReverseConvert(const ov::element::Type& exec_type = ov::element::f32);
 };
 
 

@@ -50,7 +50,7 @@ bool insertConvertSaturationAfterNode(const std::shared_ptr<ov::Node>& node, con
     return rewritten;
 }
 
-ngraph::snippets::pass::InsertConvertOnInputs::InsertConvertOnInputs(const ov::element::Type exec_type) {
+ngraph::snippets::pass::InsertConvertOnInputs::InsertConvertOnInputs(const ov::element::Type& exec_type) {
     MATCHER_SCOPE(InsertConvertOnInputs);
 
     auto param_pattern = ngraph::pattern::wrap_type<ngraph::opset1::Parameter>();
@@ -71,15 +71,18 @@ ngraph::snippets::pass::InsertConvertOnInputs::InsertConvertOnInputs(const ov::e
     register_matcher(m, callback);
 }
 
-ngraph::snippets::pass::InsertReverseConvert::InsertReverseConvert() {
+ngraph::snippets::pass::InsertReverseConvert::InsertReverseConvert(const ov::element::Type& exec_type) {
     MATCHER_SCOPE(InsertReverseConvert);
 
     auto convert = pattern::wrap_type<ngraph::snippets::op::ConvertSaturation>();
     auto m = std::make_shared<ngraph::pattern::Matcher>(convert, matcher_name);
 
-    register_matcher(m, [this](ngraph::pattern::Matcher& m) {
+    register_matcher(m, [this, exec_type](ngraph::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::InsertReverseConvert")
         auto root = m.get_match_root();
+
+        if (root->get_output_element_type(0) == exec_type)
+            return false;
 
         auto reverse_convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(root, root->get_input_element_type(0));
         ngraph::copy_runtime_info(root, reverse_convert);
@@ -87,7 +90,11 @@ ngraph::snippets::pass::InsertReverseConvert::InsertReverseConvert() {
         bool rewritten = false;
         for (auto& consumer : root->output(0).get_target_inputs()) {
             auto shared_consumer = consumer.get_node()->shared_from_this();
-            if (!ov::is_type<ov::op::v0::Result>(shared_consumer) && shared_consumer != reverse_convert) {
+
+            // We should check that this ConvertSaturation isn't on output (Result or ConvertTruncation)
+            if (!ov::is_type<ov::op::v0::Result>(shared_consumer) && 
+                !ov::is_type<ngraph::snippets::op::ConvertTruncation>(shared_consumer) &&
+                shared_consumer != reverse_convert) {
                 consumer.replace_source_output(reverse_convert);
                 rewritten |= true;
             }
