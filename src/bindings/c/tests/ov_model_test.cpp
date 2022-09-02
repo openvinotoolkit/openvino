@@ -16,7 +16,7 @@ TEST(ov_model, ov_model_const_input) {
     OV_ASSERT_OK(ov_model_const_input(model, &input_port));
     ASSERT_NE(nullptr, input_port);
 
-    ov_output_const_node_free(input_port);
+    ov_output_const_port_free(input_port);
     ov_model_free(model);
     ov_core_free(core);
 }
@@ -35,10 +35,10 @@ TEST(ov_model, ov_model_const_input_by_name) {
     ASSERT_NE(nullptr, input_port);
 
     ov_shape_t shape;
-    OV_ASSERT_OK(ov_const_node_get_shape(input_port, &shape));
+    OV_ASSERT_OK(ov_const_port_get_shape(input_port, &shape));
     ov_shape_deinit(&shape);
 
-    ov_output_const_node_free(input_port);
+    ov_output_const_port_free(input_port);
     ov_model_free(model);
     ov_core_free(core);
 }
@@ -57,10 +57,10 @@ TEST(ov_model, ov_model_const_input_by_index) {
     ASSERT_NE(nullptr, input_port);
 
     ov_shape_t shape;
-    OV_ASSERT_OK(ov_const_node_get_shape(input_port, &shape));
+    OV_ASSERT_OK(ov_const_port_get_shape(input_port, &shape));
     ov_shape_deinit(&shape);
 
-    ov_output_const_node_free(input_port);
+    ov_output_const_port_free(input_port);
     ov_model_free(model);
     ov_core_free(core);
 }
@@ -78,7 +78,7 @@ TEST(ov_model, ov_model_input) {
     OV_ASSERT_OK(ov_model_input(model, &input_port));
     ASSERT_NE(nullptr, input_port);
 
-    ov_output_node_free(input_port);
+    ov_output_port_free(input_port);
     ov_model_free(model);
     ov_core_free(core);
 }
@@ -97,10 +97,10 @@ TEST(ov_model, ov_model_input_by_name) {
     ASSERT_NE(nullptr, input_port);
 
     ov_shape_t shape;
-    OV_ASSERT_OK(ov_node_get_shape(input_port, &shape));
+    OV_ASSERT_OK(ov_port_get_shape(input_port, &shape));
     ov_shape_free(&shape);
 
-    ov_output_node_free(input_port);
+    ov_output_port_free(input_port);
     ov_model_free(model);
     ov_core_free(core);
 }
@@ -119,10 +119,10 @@ TEST(ov_model, ov_model_input_by_index) {
     ASSERT_NE(nullptr, input_port);
 
     ov_shape_t shape;
-    OV_ASSERT_OK(ov_node_get_shape(input_port, &shape));
+    OV_ASSERT_OK(ov_port_get_shape(input_port, &shape));
     ov_shape_free(&shape);
 
-    ov_output_node_free(input_port);
+    ov_output_port_free(input_port);
     ov_model_free(model);
     ov_core_free(core);
 }
@@ -140,7 +140,7 @@ TEST(ov_model, ov_model_const_output) {
     OV_ASSERT_OK(ov_model_const_output(model, &output_port));
     ASSERT_NE(nullptr, output_port);
 
-    ov_output_const_node_free(output_port);
+    ov_output_const_port_free(output_port);
     ov_model_free(model);
     ov_core_free(core);
 }
@@ -159,10 +159,10 @@ TEST(ov_model, ov_model_const_output_by_index) {
     ASSERT_NE(nullptr, output_port);
 
     ov_shape_t shape;
-    OV_ASSERT_OK(ov_const_node_get_shape(output_port, &shape));
+    OV_ASSERT_OK(ov_const_port_get_shape(output_port, &shape));
     ov_shape_deinit(&shape);
 
-    ov_output_const_node_free(output_port);
+    ov_output_const_port_free(output_port);
     ov_model_free(model);
     ov_core_free(core);
 }
@@ -181,10 +181,10 @@ TEST(ov_model, ov_model_const_output_by_name) {
     ASSERT_NE(nullptr, output_port);
 
     ov_shape_t shape;
-    OV_ASSERT_OK(ov_const_node_get_shape(output_port, &shape));
+    OV_ASSERT_OK(ov_const_port_get_shape(output_port, &shape));
     ov_shape_deinit(&shape);
 
-    ov_output_const_node_free(output_port);
+    ov_output_const_port_free(output_port);
     ov_model_free(model);
     ov_core_free(core);
 }
@@ -202,7 +202,7 @@ TEST(ov_model, ov_model_output) {
     OV_ASSERT_OK(ov_model_output(model, &output_port));
     ASSERT_NE(nullptr, output_port);
 
-    ov_output_node_free(output_port);
+    ov_output_port_free(output_port);
     ov_model_free(model);
     ov_core_free(core);
 }
@@ -221,10 +221,10 @@ TEST(ov_model, ov_model_output_by_index) {
     ASSERT_NE(nullptr, output_port);
 
     ov_shape_t shape;
-    OV_ASSERT_OK(ov_node_get_shape(output_port, &shape));
+    OV_ASSERT_OK(ov_port_get_shape(output_port, &shape));
     ov_shape_deinit(&shape);
 
-    ov_output_node_free(output_port);
+    ov_output_port_free(output_port);
     ov_model_free(model);
     ov_core_free(core);
 }
@@ -243,10 +243,10 @@ TEST(ov_model, ov_model_output_by_name) {
     ASSERT_NE(nullptr, output_port);
 
     ov_shape_t shape;
-    OV_ASSERT_OK(ov_node_get_shape(output_port, &shape));
+    OV_ASSERT_OK(ov_port_get_shape(output_port, &shape));
     ov_shape_deinit(&shape);
 
-    ov_output_node_free(output_port);
+    ov_output_port_free(output_port);
     ov_model_free(model);
     ov_core_free(core);
 }
@@ -280,7 +280,7 @@ TEST(ov_model, ov_model_reshape_input_by_name) {
     ASSERT_NE(nullptr, input_port_1);
 
     char* tensor_name = nullptr;
-    OV_ASSERT_OK(ov_node_get_any_name(input_port_1, &tensor_name));
+    OV_ASSERT_OK(ov_port_get_any_name(input_port_1, &tensor_name));
 
     ov_shape_t shape = {0, nullptr};
     int64_t dims[4] = {1, 3, 896, 896};
@@ -299,8 +299,8 @@ TEST(ov_model, ov_model_reshape_input_by_name) {
     ov_shape_free(&shape);
     ov_partial_shape_free(&partial_shape);
     ov_free(tensor_name);
-    ov_output_const_node_free(input_port_1);
-    ov_output_const_node_free(input_port_2);
+    ov_output_const_port_free(input_port_1);
+    ov_output_const_port_free(input_port_2);
     ov_model_free(model);
     ov_core_free(core);
 }

@@ -223,8 +223,8 @@ err:
     free(results);
     image_free(&img);
     ov_shape_free(&input_shape);
-    ov_output_const_node_free(output_port);
-    ov_output_const_node_free(input_port);
+    ov_output_const_port_free(output_port);
+    ov_output_const_port_free(input_port);
     if (output_tensor)
         ov_tensor_free(output_tensor);
     if (infer_request)

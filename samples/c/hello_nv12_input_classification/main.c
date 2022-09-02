@@ -225,8 +225,8 @@ int main(int argc, char** argv) {
 
     CHECK_STATUS(ov_model_const_input(model, &input_port));
 
-    CHECK_STATUS(ov_node_get_any_name(input_port, &input_tensor_name));
-    CHECK_STATUS(ov_node_get_any_name(output_port, &output_tensor_name));
+    CHECK_STATUS(ov_port_get_any_name(input_port, &input_tensor_name));
+    CHECK_STATUS(ov_port_get_any_name(output_port, &output_tensor_name));
 
     // -------- Step 3. Configure preprocessing  --------
     CHECK_STATUS(ov_preprocess_prepostprocessor_create(model, &preprocess));
@@ -321,8 +321,8 @@ err:
     ov_shape_free(&input_shape);
     ov_free(input_tensor_name);
     ov_free(output_tensor_name);
-    ov_output_const_node_free(output_port);
-    ov_output_const_node_free(input_port);
+    ov_output_const_port_free(output_port);
+    ov_output_const_port_free(input_port);
     if (output_tensor)
         ov_tensor_free(output_tensor);
     if (infer_request)

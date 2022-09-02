@@ -14,17 +14,17 @@ inline void get_tensor_info(ov_model_t* model, bool input, char** name, ov_shape
     }
     EXPECT_NE(nullptr, port);
 
-    OV_EXPECT_OK(ov_node_get_any_name(port, name));
+    OV_EXPECT_OK(ov_port_get_any_name(port, name));
     EXPECT_NE(nullptr, *name);
 
-    OV_EXPECT_OK(ov_const_node_get_shape(port, shape));
-    OV_EXPECT_OK(ov_node_get_element_type(port, type));
+    OV_EXPECT_OK(ov_const_port_get_shape(port, shape));
+    OV_EXPECT_OK(ov_port_get_element_type(port, type));
 
     ov_partial_shape_t p_shape;
-    OV_EXPECT_OK(ov_node_get_partial_shape(port, &p_shape));
+    OV_EXPECT_OK(ov_port_get_partial_shape(port, &p_shape));
     ov_partial_shape_free(&p_shape);
 
-    ov_output_const_node_free(port);
+    ov_output_const_port_free(port);
 }
 
 class ov_infer_request : public ::testing::TestWithParam<std::string> {
