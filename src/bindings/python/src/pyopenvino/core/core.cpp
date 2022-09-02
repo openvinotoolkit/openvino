@@ -452,7 +452,6 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "register_plugin",
-        &ov::Core::register_plugin,
         [](ov::Core& self,
            const std::string& plugin_name,
            const std::string& device_name,
