@@ -115,7 +115,7 @@ jobs:
       # For running Paddle frontend unit tests
       python3 -m pip install -r $(REPO_DIR)/src/core/tests/frontend/paddle/requirements_dev.txt
       # For running ONNX frontend unit tests
-      python3 -m pip install -r $(REPO_DIR)/src/core/tests/requirements_test_onnx.txt
+      python3 -m pip install -r $(REPO_DIR)/src/frontends/onnx/tests/requirements.txt
       # For MO unit tests
       python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_dev.txt
@@ -155,6 +155,7 @@ jobs:
         -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCPACK_GENERATOR=DEB
         -DBUILD_cuda_plugin=OFF
+        -DBUILD_nvidia_plugin=OFF
         -S $(REPO_DIR)
         -B $(BUILD_DIR)
 
@@ -188,7 +189,7 @@ jobs:
   - script: ninja -C $(BUILD_LAYER_TESTS_DIR)
     displayName: 'Build Layer Tests'
 
-  - script: sudo apt-get remove libtbb2 -y
+  - script: sudo apt-get remove libtbb2 libpugixml1v5 -y
     displayName: 'Remove debian dependencies'
     continueOnError: false
 
@@ -295,16 +296,12 @@ jobs:
     displayName: 'OV Core UT'
     continueOnError: false
 
-  - script: $(INSTALL_TEST_DIR)/onnx_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXImportUT.xml
-    displayName: 'ONNX Import UT'
+  - script: $(INSTALL_TEST_DIR)/ov_onnx_frontend_test --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
+    displayName: 'ONNX Frontend Test'
     continueOnError: false
 
   - script: $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
-    continueOnError: false
-
-  - script: $(INSTALL_TEST_DIR)/onnx_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
-    displayName: 'ONNX Frontend UT'
     continueOnError: false
 
   - script: |
@@ -341,10 +338,6 @@ jobs:
 
   - script: $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
-    continueOnError: false
-
-  - script: $(INSTALL_TEST_DIR)/onnxImporterUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-onnxImporterUnitTests.xml
-    displayName: 'ONNX Importer UT'
     continueOnError: false
 
   - script: |
