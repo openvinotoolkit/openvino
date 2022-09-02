@@ -23,9 +23,8 @@ struct reverse : public primitive_base<reverse> {
             const primitive_id& input,
             const primitive_id& axes,
             const reverse_mode mode,
-            const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
-        : primitive_base{id, {input, axes}, ext_prim_id, output_padding},
+        : primitive_base{id, {input, axes}, output_padding},
           mode{mode} {}
 
     reverse_mode mode{reverse_mode::index};
