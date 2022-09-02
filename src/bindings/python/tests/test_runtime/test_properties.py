@@ -30,10 +30,10 @@ def test_property_ro():
 
 def test_allow_auto_batching_property():
     core = Core()
-    core.set_property({'ALLOW_AUTO_BATCHING': False})
+    core.set_property({"ALLOW_AUTO_BATCHING": False})
     assert core.get_property(properties.hint.allow_auto_batching()) is False
 
-    core.set_property({'ALLOW_AUTO_BATCHING': True})
+    core.set_property({"ALLOW_AUTO_BATCHING": True})
     assert core.get_property(properties.hint.allow_auto_batching()) is True
 
 
