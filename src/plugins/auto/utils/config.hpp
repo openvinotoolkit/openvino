@@ -214,6 +214,7 @@ struct PluginConfig {
                                                      "MULTI",
                                                      "HETERO",
                                                      "CUDA",
+                                                     "NVIDIA",
                                                      "HPU_GOYA",
                                                      "MOCK",
                                                      "FGH",
