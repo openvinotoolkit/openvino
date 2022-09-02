@@ -10,7 +10,7 @@ def sum_(name: str, input):
     paddle.enable_static()
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         data = paddle.static.data('data', shape=input.shape, dtype=input.dtype)
-        out = paddle.fluid.layers.sum(data)
+        out = paddle.add_n(data)
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
         # startup program will call initializer to initialize the parameters.
