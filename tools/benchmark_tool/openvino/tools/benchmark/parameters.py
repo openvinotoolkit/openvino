@@ -99,7 +99,7 @@ def parse_args():
                            'Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency '
                            'estimations the number of streams should be set to 1. '
                            'See samples README for more details.')
-    args.add_argument('--latency_percentile', type=int, required=False, default=50, choices=range(1,101),
+    args.add_argument('-latency_percentile', '--latency_percentile', type=int, required=False, default=50, choices=range(1,101),
                       help='Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).')
     args.add_argument('-nthreads', '--number_threads', type=int, required=False, default=None,
                       help='Number of threads to use for inference on the CPU, GNA '

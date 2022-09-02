@@ -48,4 +48,14 @@ void regclass_Version(py::module m) {
             :return: OpenVINO's minor version.
             :rtype: int
         )");
+
+    cls.def_property_readonly(
+        "patch",
+        [](ov::Version& self) {
+            return OPENVINO_VERSION_PATCH;
+        },
+        R"(
+            :return: OpenVINO's version patch.
+            :rtype: int
+        )");
 }

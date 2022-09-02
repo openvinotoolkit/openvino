@@ -29,7 +29,7 @@ def main():
 
 
 def run(args):
-    statistics = None
+    statistics: StatisticsReport = None
     try:
         logger.info("Parsing input parameters")
 

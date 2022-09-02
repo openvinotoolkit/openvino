@@ -40,13 +40,18 @@ class Benchmark:
             logger.info(f'CPU extensions is loaded {path_to_extension}')
 
     def print_version_info(self) -> None:
-        logger.info(f"OpenVINO: {get_version_string()}")
-        #logger.info(f"{'API version':.<24} {get_version()}")
-        logger.info(f"Device info")
+        version = self.core.get_version()
+        description = f"{version.description} version "
+        logger.info("OpenVINO:")
+        logger.info(f"{description:.<24} {version.major}.{version.minor}.{version.patch}")
+        logger.info(f"{'Build ':.<43} {version.build_number}")
+
+        logger.info("Device info:")
         for device, version in self.core.get_versions(self.device).items():
-            logger.info(f"{'': <9}{device}")
-            logger.info(f"{'': <9}{version.description:.<24}{' version'} {version.major}.{version.minor}")
-            logger.info(f"{'': <9}{'Build':.<24} {version.build_number}")
+            description = f"{version.description} version "
+            logger.info(f"{device}")
+            logger.info(f"{description:.<24} {version.major}.{version.minor}.{version.patch}")
+            logger.info(f"{'Build ':.<43} {version.build_number}")
 
     def set_config(self, config = {}):
         for device in config.keys():
