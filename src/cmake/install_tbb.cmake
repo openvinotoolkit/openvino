@@ -7,7 +7,7 @@ include(cmake/ie_parallel.cmake)
 # pre-find TBB: need to provide TBB_IMPORTED_TARGETS used for installation
 ov_find_package_tbb()
 
-function(_ov_get_tbb_library_path tbb_lib tbb_libs_dir)
+function(_ov_get_tbb_location tbb_target _tbb_lib_location_var)
     if(NOT TBB_FOUND)
         return()
     endif()
@@ -16,10 +16,9 @@ function(_ov_get_tbb_library_path tbb_lib tbb_libs_dir)
                        IMPORTED_LOCATION_RELEASE
                        IMPORTED_LOCATION_NONE
                        IMPORTED_LOCATION)
-        get_target_property(_tbb_lib_location ${tbb_lib} ${properties})
+        get_target_property(_tbb_lib_location ${tbb_target} ${properties})
         if(_tbb_lib_location)
-            get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
-            set(${tbb_libs_dir} "${_tbb_libs_dir}" PARENT_SCOPE)
+            set(${_tbb_lib_location_var} "${_tbb_lib_location}" PARENT_SCOPE)
             return()
         endif()
     endforeach()
@@ -35,7 +34,8 @@ function(_ov_detect_dynamic_tbbbind_2_5 var)
     endif()
 
     # try to select proper library directory
-    _ov_get_tbb_library_path(TBB::tbb _tbb_libs_dir)
+    _ov_get_tbb_location(TBB::tbb _tbb_lib_location)
+    get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
 
     # unset for cases if user specified different TBB_DIR / TBBROOT
     unset(_ov_tbbbind_2_5 CACHE)
@@ -121,14 +121,14 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
 
         # for system libraries we still need to install TBB libraries
         # so, need to take locations of actual libraries and install them
-        foreach(tbb_lib IN LISTS TBB_IMPORTED_TARGETS)
-            _ov_get_tbb_library_path(${tbb_lib} tbb_loc)
-            # depending on the TBB, tbb_loc can be in form:
+        foreach(tbb_target IN LISTS TBB_IMPORTED_TARGETS)
+            _ov_get_tbb_location(${tbb_target} tbb_lib_location)
+            # depending on the TBB, tbb_lib_location can be in form:
             # - libtbb.so.x.y
             # - libtbb.so.x
             # We need to install such files
-            get_filename_component(name_we "${tbb_loc}" NAME_WE)
-            get_filename_component(dir "${tbb_loc}" DIRECTORY)
+            get_filename_component(name_we "${tbb_lib_location}" NAME_WE)
+            get_filename_component(dir "${tbb_lib_location}" DIRECTORY)
             # grab all tbb files matching pattern
             file(GLOB tbb_files "${dir}/${name_we}.*")
             foreach(tbb_file IN LISTS tbb_files)
