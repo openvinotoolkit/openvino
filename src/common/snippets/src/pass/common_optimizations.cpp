@@ -11,6 +11,7 @@
 #include "transformations/utils/utils.hpp"
 #include "transformations/op_conversions/fq_decomposition.hpp"
 #include "snippets/pass/transform_convert.hpp"
+#include "snippets/pass/insert_convert.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/itt.hpp"
 
@@ -35,6 +36,7 @@ CommonOptimizations::CommonOptimizations() {
 
         // Before FQ decomposition we should transform all original Converts inside body to ConvertTruncation to save original behavior.
         // After FQ decomposition we should transform new Converts to ConvertSaturation to save saturation behavior.
+        // Also we have to insert reverse converts after ConvertSaturation (after FQ decompoisition) to return FP32 calculation inside body
         ngraph::pass::Manager manager;
         manager.set_per_pass_validation(false);
         manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertTruncation>();
@@ -42,6 +44,7 @@ CommonOptimizations::CommonOptimizations() {
         manager.register_pass<ngraph::pass::ConstantFolding>();
         manager.register_pass<ngraph::pass::Validate>();
         manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertSaturation>();
+        manager.register_pass<ngraph::snippets::pass::InsertReverseConvert>();
         manager.run_passes(body);
         return true;
     };

@@ -26,6 +26,18 @@ public:
 };
 
 
+/**
+ * @interface InsertReverseConvert
+ * @brief After FakeQuantize there are ConvertSaturations from F32 to U8 inside body. This pass inserts reverse ConvertSaturations
+ *        after them to return FP32 calculation inside bofy if these original ConvertSaturations aren't on Results
+ * @ingroup snippets
+ */
+class InsertReverseConvert: public ngraph::pass::MatcherPass {
+public:
+    InsertReverseConvert();
+};
+
+
 }  // namespace pass
 }  // namespace snippets
 }  // namespace ngraph

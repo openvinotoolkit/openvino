@@ -5,7 +5,7 @@
 #include <snippets/itt.hpp>
 #include "snippets/remarks.hpp"
 
-#include "snippets/pass/insert_convert_on_inputs.hpp"
+#include "snippets/pass/insert_convert.hpp"
 #include "snippets/snippets_isa.hpp"
 
 #include "ngraph/type.hpp"
@@ -69,4 +69,30 @@ ngraph::snippets::pass::InsertConvertOnInputs::InsertConvertOnInputs(const ov::e
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(input, matcher_name);
     register_matcher(m, callback);
+}
+
+ngraph::snippets::pass::InsertReverseConvert::InsertReverseConvert() {
+    MATCHER_SCOPE(InsertReverseConvert);
+
+    auto convert = pattern::wrap_type<ngraph::snippets::op::ConvertSaturation>();
+    auto m = std::make_shared<ngraph::pattern::Matcher>(convert, matcher_name);
+
+    register_matcher(m, [this](ngraph::pattern::Matcher& m) {
+        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::InsertReverseConvert")
+        auto root = m.get_match_root();
+
+        auto reverse_convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(root, root->get_input_element_type(0));
+        ngraph::copy_runtime_info(root, reverse_convert);
+
+        bool rewritten = false;
+        for (auto& consumer : root->output(0).get_target_inputs()) {
+            auto shared_consumer = consumer.get_node()->shared_from_this();
+            if (!ov::is_type<ov::op::v0::Result>(shared_consumer) && shared_consumer != reverse_convert) {
+                consumer.replace_source_output(reverse_convert);
+                rewritten |= true;
+            }
+        }
+
+        return rewritten;
+    });
 }

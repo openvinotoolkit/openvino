@@ -15,7 +15,7 @@
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
 #include "snippets/pass/vector_to_scalar.hpp"
 #include "snippets/pass/transform_convert.hpp"
-#include "snippets/pass/insert_convert_on_inputs.hpp"
+#include "snippets/pass/insert_convert.hpp"
 #include "snippets/pass/reset_type_relaxed_node_precision.hpp"
 
 #include "transformations/common_optimizations/nop_elimination.hpp"
