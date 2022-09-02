@@ -4,7 +4,8 @@
 
 # Search OpenVINO Runtime installed
 find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND AND NOT CMAKE_CROSSCOMPILING)
+# TODO: fix apple and cross-compilation later
+if(PkgConfig_FOUND AND NOT CMAKE_CROSSCOMPILING AND NOT APPLE)
     pkg_search_module(openvino REQUIRED
                       IMPORTED_TARGET
                       openvino)
