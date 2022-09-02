@@ -24,7 +24,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
     reorderedInputs.resize(inputPrimitives.size());
 
     for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
-        auto inputDataType = DataTypeFromPrecision(op->get_input_element_type(portIndex));
+        auto inputDataType = cldnn::element_type_to_data_type(op->get_input_element_type(portIndex));
         if ((portIndex == 2) && (inputDataType == cldnn::data_types::i64)) {
             // GPU primitive supports only i32 data type for 'max_output_boxes_per_class' input
             // so we need additional reorder if it's provided as i64
@@ -64,7 +64,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
                 mutable_precision_second = ngraph::element::i32;
             }
             cldnn::layout mutableLayoutSecond = cldnn::layout(
-                DataTypeFromPrecision(mutable_precision_second),
+                cldnn::element_type_to_data_type(mutable_precision_second),
                 cldnn::format::get_default_format(op->get_output_shape(2).size()),
                 tensor_from_dims(op->get_output_shape(2)));
 
@@ -82,7 +82,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
         case 2: {
             auto mutable_precision_first = op->get_output_element_type(1);
             cldnn::layout mutableLayoutFirst = cldnn::layout(
-                DataTypeFromPrecision(mutable_precision_first),
+                cldnn::element_type_to_data_type(mutable_precision_first),
                 cldnn::format::bfyx,
                 cldnn::tensor(static_cast<int32_t>(outputIndices), 3, 1, 1));
 
@@ -112,7 +112,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
             op->m_sort_result_descending,
             "", "", "", "", "", "");
 
-    prim.output_data_type = DataTypeFromPrecision(out_type);
+    prim.output_data_type = cldnn::element_type_to_data_type(out_type);
 
     switch (reorderedInputs.size()) {
         case 6: prim.soft_nms_sigma = reorderedInputs[5];
