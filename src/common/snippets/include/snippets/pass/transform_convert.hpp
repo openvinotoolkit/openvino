@@ -23,6 +23,17 @@ public:
     TransformConvertToConvertTruncation();
 };
 
+/**
+ * @interface TransofrmConvertToConvertSaturation
+ * @brief Transform Convert to ConvertSaturation with saturaion conversion rules
+ *        This transformation is needed to save saturation algorithm for Converts after FQ decomposition
+ * @ingroup snippets
+ */
+class TransformConvertToConvertSaturation: public ngraph::pass::MatcherPass {
+public:
+    TransformConvertToConvertSaturation();
+};
+
 }  // namespace pass
 }  // namespace snippets
 }  // namespace ngraph

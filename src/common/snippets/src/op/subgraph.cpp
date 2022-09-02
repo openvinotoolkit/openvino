@@ -14,7 +14,7 @@
 #include "snippets/pass/convert_constants.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
 #include "snippets/pass/vector_to_scalar.hpp"
-#include "snippets/pass/transform_convert_to_truncation.hpp"
+#include "snippets/pass/transform_convert.hpp"
 #include "snippets/pass/insert_convert_on_inputs.hpp"
 #include "snippets/pass/reset_type_relaxed_node_precision.hpp"
 
@@ -253,10 +253,6 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
                                                  const BlockedShapeVector& inputShapes) {
     // TODO: At the moment snippets support execution in only one element type
     const auto execution_element_type = ov::element::f32;
-
-    ngraph::pass::Manager p_manager;
-    p_manager.register_pass<snippets::pass::TransformConvertToConvertTruncation>();
-    p_manager.run_passes(m_body);
 
     const auto& body_results = m_body->get_results();
     for (size_t i = 0; i < outputShapes.size(); i++) {

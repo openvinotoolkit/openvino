@@ -10,6 +10,7 @@
 
 #include "transformations/utils/utils.hpp"
 #include "transformations/op_conversions/fq_decomposition.hpp"
+#include "snippets/pass/transform_convert.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/itt.hpp"
 
@@ -31,11 +32,16 @@ CommonOptimizations::CommonOptimizations() {
         }
 
         auto body = subgraph->get_body();
+
+        // Before FQ decomposition we should transform all original Converts inside body to ConvertTruncation to save original behavior.
+        // After FQ decomposition we should transform new Converts to ConvertSaturation to save saturation behavior.
         ngraph::pass::Manager manager;
         manager.set_per_pass_validation(false);
+        manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertTruncation>();
         manager.register_pass<ngraph::pass::FakeQuantizeDecomposition>(false);
         manager.register_pass<ngraph::pass::ConstantFolding>();
         manager.register_pass<ngraph::pass::Validate>();
+        manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertSaturation>();
         manager.run_passes(body);
         return true;
     };
