@@ -4,7 +4,6 @@
 
 from functools import singledispatch
 from typing import Any, Union, Dict
-from pathlib import Path
 
 import numpy as np
 
@@ -15,13 +14,11 @@ from openvino.pyopenvino import InferRequest as InferRequestBase
 from openvino.pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino.pyopenvino import ConstOutput
 from openvino.pyopenvino import Tensor
-from openvino.pyopenvino import Type
-from openvino.pyopenvino import Shape
 
 
 def tensor_from_file(path: str) -> Tensor:
     """Create Tensor from file. Data will be read with dtype of unit8."""
-    return Tensor(np.fromfile(path, dtype=np.uint8))
+    return Tensor(np.fromfile(path, dtype=np.uint8))  # type: ignore
 
 
 def set_scalar_tensor(request: InferRequestBase, tensor: Tensor, key: Union[str, int, ConstOutput] = None) -> None:
@@ -69,7 +66,7 @@ def _(
         tensor.data[:] = inputs[:]
 
 
-@update_tensor.register(np.number)
+@update_tensor.register(np.number)  # type: ignore
 @update_tensor.register(float)
 @update_tensor.register(int)
 def _(
@@ -356,7 +353,7 @@ class Core(CoreBase):
     """
 
     def compile_model(
-        self, model: Union[Model, str, Path], device_name: str = None, config: dict = None,
+        self, model: Union[Model, str], device_name: str = None, config: dict = None,
     ) -> CompiledModel:
         """Creates a compiled model.
 
@@ -369,7 +366,7 @@ class Core(CoreBase):
         (up to the limitation of the hardware resources).
 
         :param model: Model acquired from read_model function or a path to a model in IR / ONNX / PDPD format.
-        :type model: Union[openvino.runtime.Model, str, pathlib.Path]
+        :type model: Union[openvino.runtime.Model, str]
         :param device_name: Optional. Name of the device to load the model to. If not specified,
                             the default OpenVINO device will be selected by AUTO plugin.
         :type device_name: str
@@ -437,12 +434,12 @@ class Core(CoreBase):
         )
 
 
-def compile_model(model_path: Union[str, Path]) -> CompiledModel:
+def compile_model(model_path: str) -> CompiledModel:
     """Compact method to compile model with AUTO plugin.
 
     :param model_path: Path to file with model.
-    :type model_path: str, pathlib.Path
-    :return: A compiled model
+    :type model_path: str
+    :return: A compiled model.
     :rtype: openvino.runtime.CompiledModel
 
     """

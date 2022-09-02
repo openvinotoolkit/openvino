@@ -74,7 +74,7 @@ def unpack_data(array: np.ndarray, type: Type, shape: Union[list, Shape]) -> np.
     else:
         unpacked = unpacked.reshape(-1, type.bitwidth)
         padding_shape = (unpacked.shape[0], 8 - type.bitwidth)
-        padding = np.ndarray(padding_shape, np.uint8)
+        padding = np.ndarray(padding_shape, np.uint8)  # type: ignore
         if type == Type.i4:
             for axis, bits in enumerate(unpacked):
                 if bits[0] == 1:
