@@ -35,7 +35,7 @@ else()
 endif()
 
 # When we build dll libraries. These flags make sure onnx and protobuf build with /MD, not /MT.
-# These two options can't be mixed, because they requires link two incompatiable runtime.
+# These two options can't be mixed, because they requires link two incompatible runtime.
 if(NOT DEFINED protobuf_MSVC_STATIC_RUNTIME)
     set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
 endif()
@@ -122,7 +122,7 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
         IMPORTED_LOCATION_RELEASE "${HOST_PROTOC_INSTALL_DIR}/bin/protoc")
     add_dependencies(protobuf::protoc host_protoc)
 
-    set(PROTOC_DEPENDENCY protobuf::protoc PARENT_SCOPE)
+    set(PROTOC_DEPENDENCY host_protoc PARENT_SCOPE)
     set(PROTOC_EXECUTABLE "${HOST_PROTOC_INSTALL_DIR}/bin/protoc" PARENT_SCOPE)
 else()
     set(PROTOC_EXECUTABLE $<TARGET_FILE:protoc> PARENT_SCOPE)
