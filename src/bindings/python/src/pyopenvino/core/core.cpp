@@ -462,7 +462,7 @@ void regclass_Core(py::module m) {
         },
         py::arg("plugin_name"),
         py::arg("device_name"),
-        py::arg("config"),
+        py::arg("config") = std::map<std::string, py::object>(),
         R"(
                 Register a new device and plugin which enable this device inside OpenVINO Runtime.
 
