@@ -482,6 +482,8 @@ struct layout {
 
     void set_tensor(const tensor& size);
 
+    void set_partial_shape(const ov::PartialShape& size);
+
     // Returns true if other layout can be reinterpreted without need of reordering
     bool compatible(const layout& other) const;
 
