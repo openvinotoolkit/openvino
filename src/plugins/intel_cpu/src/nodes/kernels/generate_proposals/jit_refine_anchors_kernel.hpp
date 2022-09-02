@@ -46,7 +46,7 @@ struct jit_refine_anchors_call_args {
     uint32_t delta_anchor_offset;
     uint32_t delta_idx_offset;
     uint32_t score_start_idx;
-    uint32_t score_idx_offset;
+    uint32_t score_anchor_offset;
     uint32_t proposal_start_idx;
     uint32_t proposal_anchor_offset;
     uint32_t proposal_idx_offset;
@@ -68,11 +68,14 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
     static constexpr auto KERNEL_ELEMENT_TYPE = ov::element::Type_t::f32;
 
     using Vmm = typename jit_kernel_traits<isa, KERNEL_ELEMENT_TYPE>::Vmm;
-    static constexpr unsigned SIMD_WIDTH = jit_kernel_traits<isa, KERNEL_ELEMENT_TYPE>::SIMD_WIDTH;
+//    using Vmm = Xbyak::Xmm;
     static constexpr unsigned XMM_SIMD_WIDTH = 16 / sizeof(typename ov::element_type_traits<KERNEL_ELEMENT_TYPE>::value_type);
     static constexpr unsigned YMM_SIMD_WIDTH = 32 / sizeof(typename ov::element_type_traits<KERNEL_ELEMENT_TYPE>::value_type);
     static constexpr unsigned ZMM_SIMD_WIDTH = 64 / sizeof(typename ov::element_type_traits<KERNEL_ELEMENT_TYPE>::value_type);
     static constexpr unsigned DTYPE_SIZE = sizeof(typename ov::element_type_traits<KERNEL_ELEMENT_TYPE>::value_type);
+    static constexpr unsigned SIMD_WIDTH = jit_kernel_traits<isa, KERNEL_ELEMENT_TYPE>::SIMD_WIDTH;
+//    static constexpr unsigned SIMD_WIDTH = XMM_SIMD_WIDTH;
+
 
     jit_refine_anchors_kernel_fp32(const jit_refine_anchors_conf &jqp)
         : jit_refine_anchors_kernel(isa, jqp) {}
@@ -82,10 +85,6 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
  private:
 //    const size_t xmm_len = 16;
     
-    static constexpr uint8_t mask[] = {
-        0xFF, 0xFF, 0xFF, 0xFF,
-    };
-
     void update_input_output_ptrs();
 
 //    inline void push_xmm(const Xbyak::Xmm &xmm) {
@@ -172,12 +171,21 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
                                const Xbyak::Reg64 &reg_addr,
                                const Xbyak::Xmm &xmm_index,
                                const int &scale,
-                               const Xbyak::Xmm &xmm_mask) {
-        if (mayiuse(cpu_isa_t::avx2) || mayiuse(cpu_isa_t::avx512_core)) {
-            vgatherdps(xmm_val, ptr[reg_addr + xmm_index * scale], xmm_mask);
+                               const Xbyak::Reg &reg_mask) {
+        assert(scale != 0);
+        const size_t scale_remainder = scale % 4;
+        if (mayiuse(cpu_isa_t::avx512_core) && (0 == scale_remainder)) {
+            assert(reg_mask.isOPMASK());
+            vgatherdps(xmm_val, ptr[reg_addr + xmm_index * scale]);
+        } else if (mayiuse(cpu_isa_t::avx2) && (0 == scale_remainder)) {
+            assert(reg_mask.isYMM());
+            Xbyak::Ymm ymm_mask{reg_mask.getIdx()};
+            vgatherdps(xmm_val, ptr[reg_addr + xmm_index * scale], ymm_mask);
         } else {
-            assert(xmm_val.getKind() == xmm_index.getKind() &&
-                   xmm_index.getKind() == xmm_mask.getKind());
+            assert(reg_mask.isXMM());
+            Xbyak::Xmm xmm_mask{reg_mask.getIdx()};
+            assert(xmm_val.getKind() == xmm_index.getKind());
+            assert(xmm_index.getKind() == xmm_mask.getKind());
 
             std::vector<Xbyak::Reg> not_available_reg{reg_addr};
             const Xbyak::Reg64 idx = this->get_free_reg<Xbyak::Reg64>(not_available_reg);
@@ -191,10 +199,12 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
             for (int i = 0; i < SIMD_WIDTH; i++) {
                 Xbyak::Label gather_end;
                 uni_vpextrd(mask.cvt32(), xmm_mask, i);
-                cmp(mask.cvt32(), 0xFFFF);
-                je(gather_end, T_NEAR);
+                cmp(mask.cvt32(), 0xFFFFFFFF);
+                jne(gather_end, T_NEAR);
+                uni_vpextrd(idx.cvt32(), xmm_index, i);
                 Xbyak::Address addr = ptr[reg_addr + idx * scale];
                 switch (scale) {
+                    case 8: uni_vpinsrq(xmm_val, xmm_val, addr, i); break;
                     case 4: uni_vpinsrd(xmm_val, xmm_val, addr, i); break;
                     case 2: uni_vpinsrw(xmm_val, xmm_val, addr, i); break;
                     case 1: uni_vpinsrb(xmm_val, xmm_val, addr, i); break;
@@ -205,17 +215,6 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
             pop(mask);
             pop(idx);
         }
-    }
-
-    void fill_index(const Vmm &vmm,
-                    const Xbyak::Reg64 &reg_idx_start,
-                    const Xbyak::Reg64 &reg_chunk_offset,
-                    const Xbyak::Reg64 &reg_idx_offset) {
-
-    }
-
-    void shift_mask_chunk(const Vmm &vmm, const Xbyak::Reg64 &reg) {
-
     }
 
     template<typename Tmm>
@@ -262,7 +261,12 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
     Vmm vmm_dy = Vmm(5);
     Vmm vmm_d_log_w = Vmm(6);
     Vmm vmm_d_log_h = Vmm(7);
-    Vmm vmm_score = Vmm(0);
+
+    Vmm vmm_score = Vmm(4);
+    Vmm vmm_box_w = Vmm(4);
+    Vmm vmm_box_h = Vmm(5);
+    Vmm vmm_min_box_w = Vmm(6);
+    Vmm vmm_min_box_h = Vmm(7);
 };
 
 //template <x64::cpu_isa_t isa>
