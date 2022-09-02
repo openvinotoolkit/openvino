@@ -28,6 +28,9 @@ OP_CONVERTER(translate_avg_pool_op);
 OP_CONVERTER(translate_batch_mat_mul_op);
 OP_CONVERTER(translate_batch_nd_and_space_nd_op);
 OP_CONVERTER(translate_bias_add_op);
+OP_CONVERTER(translate_broadcast_args);
+OP_CONVERTER(translate_broadcast_to_op);
+OP_CONVERTER(translate_bucketize_op);
 OP_CONVERTER(translate_cast_op);
 OP_CONVERTER(translate_concat_op);
 OP_CONVERTER(translate_const_op);
@@ -115,6 +118,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Ceil", translate_unary_op<opset8::Ceiling>},
         {"Cos", translate_unary_op<opset8::Cos>},
         {"Cosh", translate_unary_op<opset8::Cosh>},
+        {"Erf", translate_unary_op<opset8::Erf>},
         {"Exp", translate_unary_op<opset8::Exp>},
         {"Floor", translate_unary_op<opset8::Floor>},
         {"Log", translate_unary_op<opset8::Log>},
@@ -155,6 +159,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         // note: ReduceOp translator declaration for each op must to be added in reduce.cpp file
         {"Any", translate_direct_reduce_op<opset8::ReduceLogicalOr>},
         {"All", translate_direct_reduce_op<opset8::ReduceLogicalAnd>},
+        {"EuclideanNorm", translate_direct_reduce_op<opset8::ReduceL2>},
         {"Max", translate_direct_reduce_op<opset8::ReduceMax>},
         {"Mean", translate_direct_reduce_op<opset8::ReduceMean>},
         {"Min", translate_direct_reduce_op<opset8::ReduceMin>},
@@ -170,6 +175,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"BatchMatMul", translate_batch_mat_mul_op},
         {"BatchMatMulV2", translate_batch_mat_mul_op},
         {"BatchToSpaceND", translate_batch_nd_and_space_nd_op},
+        {"BroadcastArgs", translate_broadcast_args},
+        {"BroadcastTo", translate_broadcast_to_op},
+        {"Bucketize", translate_bucketize_op},
         {"BiasAdd", translate_bias_add_op},
         {"Cast", translate_cast_op},
         {"Concat", translate_concat_op},

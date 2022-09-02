@@ -38,6 +38,7 @@ template OutputVector translate_unary_op<Atanh>(const NodeContext& node);
 template OutputVector translate_unary_op<Ceiling>(const NodeContext& node);
 template OutputVector translate_unary_op<Cos>(const NodeContext& node);
 template OutputVector translate_unary_op<Cosh>(const NodeContext& node);
+template OutputVector translate_unary_op<Erf>(const NodeContext& node);
 template OutputVector translate_unary_op<Exp>(const NodeContext& node);
 template OutputVector translate_unary_op<Floor>(const NodeContext& node);
 template OutputVector translate_unary_op<Log>(const NodeContext& node);
