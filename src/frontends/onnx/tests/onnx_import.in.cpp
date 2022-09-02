@@ -5580,3 +5580,20 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_concat_empty_init) {
     test_case.add_expected_output<int64_t>(Shape{2}, std::vector<int64_t>{1, 2});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_castlike) {
+    printf(">>>>>>>>>>>>>>>  === Own test\n");
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/add_abc.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+        
+    // test_case.add_expected_output(Shape{1}, std::vector<double>{1});    
+    
+    
+    test_case.add_input<float>(std::vector<float>{1});
+    test_case.add_input<float>(std::vector<float>{2});
+    test_case.add_expected_output<float>(std::vector<float>{3});
+    
+    test_case.run();
+}
