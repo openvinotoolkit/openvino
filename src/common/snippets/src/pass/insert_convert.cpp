@@ -73,11 +73,9 @@ ngraph::snippets::pass::InsertConvertOnInputs::InsertConvertOnInputs(const ov::e
 
 ngraph::snippets::pass::InsertReverseConvert::InsertReverseConvert(const ov::element::Type& exec_type) {
     MATCHER_SCOPE(InsertReverseConvert);
-
-    auto convert = pattern::wrap_type<ngraph::snippets::op::ConvertSaturation>();
-    auto m = std::make_shared<ngraph::pattern::Matcher>(convert, matcher_name);
-
-    register_matcher(m, [this, exec_type](ngraph::pattern::Matcher& m) {
+    register_matcher(std::make_shared<ngraph::pattern::Matcher>(
+        ngraph::pattern::wrap_type<ngraph::snippets::op::ConvertSaturation>(), matcher_name),
+        [this, exec_type](ngraph::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::InsertReverseConvert")
         auto root = m.get_match_root();
 
@@ -91,13 +89,16 @@ ngraph::snippets::pass::InsertReverseConvert::InsertReverseConvert(const ov::ele
         for (auto& consumer : root->output(0).get_target_inputs()) {
             auto shared_consumer = consumer.get_node()->shared_from_this();
 
-            // We should check that this ConvertSaturation isn't on output (Result or ConvertTruncation)
-            if (!ov::is_type<ov::op::v0::Result>(shared_consumer) &&
-                !ov::is_type<ngraph::snippets::op::ConvertTruncation>(shared_consumer) &&
-                shared_consumer != reverse_convert) {
-                consumer.replace_source_output(reverse_convert);
-                rewritten |= true;
-            }
+            // We should check that this ConvertSaturation isn't on output (Result or ConvertTruncation) or after it
+            // there isn't reverse convert yet
+            if ((ov::is_type<ov::op::v0::Convert>(shared_consumer) && shared_consumer->get_element_type() == exec_type) ||
+                ov::is_type<ov::op::v0::Result>(shared_consumer) ||
+                ov::is_type<ngraph::snippets::op::ConvertTruncation>(shared_consumer) ||
+                shared_consumer == reverse_convert)
+                continue;
+
+            consumer.replace_source_output(reverse_convert);
+            rewritten |= true;
         }
 
         return rewritten;
