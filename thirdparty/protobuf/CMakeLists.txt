@@ -77,22 +77,17 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
     set(HOST_PROTOC_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/host_protoc_install")
     set(HOST_PROTOC_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/host_protoc_root")
 
-    # need to unset several variables which can set env to cross-environment
-    foreach(var SDKTARGETSYSROOT CONFIG_SITE OECORE_NATIVE_SYSROOT OECORE_TARGET_SYSROOT
-                OECORE_ACLOCAL_OPTS OECORE_BASELIB OECORE_TARGET_ARCH OECORE_TARGET_OS CC CXX
-                CPP AS LD GDB STRIP RANLIB OBJCOPY OBJDUMP READELF AR NM M4 TARGET_PREFIX
-                CONFIGURE_FLAGS CFLAGS CXXFLAGS LDFLAGS CPPFLAGS KCFLAGS OECORE_DISTRO_VERSION
-                OECORE_SDK_VERSION ARCH CROSS_COMPILE OE_CMAKE_TOOLCHAIN_FILE OPENSSL_CONF
-                OE_CMAKE_FIND_LIBRARY_CUSTOM_LIB_SUFFIX
-                # if we skip pkg-config variables, libusb is not found by the whole project
-                # it's safe to skip it here, because protobuf cmake does not use pkg-config:
-                #   PKG_CONFIG_SYSROOT_DIR PKG_CONFIG_PATH
-                # don't unset PATH as well, otherwise no binaries are found at all:
-                )
-        list(APPEND cmake_env --unset=${var})
-    endforeach()
-
     if(DEFINED ENV{OECORE_NATIVE_SYSROOT})
+        # need to unset several variables which can set env to cross-environment
+        foreach(var SDKTARGETSYSROOT CONFIG_SITE OECORE_NATIVE_SYSROOT OECORE_TARGET_SYSROOT
+                    OECORE_ACLOCAL_OPTS OECORE_BASELIB OECORE_TARGET_ARCH OECORE_TARGET_OS CC CXX
+                    CPP AS LD GDB STRIP RANLIB OBJCOPY OBJDUMP READELF AR NM M4 TARGET_PREFIX
+                    CONFIGURE_FLAGS CFLAGS CXXFLAGS LDFLAGS CPPFLAGS KCFLAGS OECORE_DISTRO_VERSION
+                    OECORE_SDK_VERSION ARCH CROSS_COMPILE OE_CMAKE_TOOLCHAIN_FILE OPENSSL_CONF
+                    OE_CMAKE_FIND_LIBRARY_CUSTOM_LIB_SUFFIX PKG_CONFIG_SYSROOT_DIR PKG_CONFIG_PATH)
+            list(APPEND cmake_env --unset=${var})
+        endforeach()
+
         # filter out PATH from yocto locations
         string(REPLACE ":" ";" custom_path "$ENV{PATH}")
         foreach(path IN LISTS custom_path)
