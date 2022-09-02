@@ -1696,6 +1696,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             bool use_ops_cldnn_kernel = is_u8_i8 || (in0_l.spatial(0) % 16 == 0 && in0_l.spatial(1) % 16 == 0 &&
                                                      in1_l.spatial(0) % 16 == 0 && in1_l.spatial(1) % 16 == 0);
 
+            // Gemm with k < 64 may be faster in cldnn unless ref impl is used
             if ((size_k < 64 && use_ops_cldnn_kernel) || unsupported_onednn_gemm) {
                 impl_candidate = impl_types::ocl;
             }
