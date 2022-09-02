@@ -25,7 +25,11 @@ fetch_models_and_validation_set()
 
 get_linux_name(LINUX_OS_NAME)
 
-if(CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES Linux AND CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "amd64.*|x86_64.*|AMD64.*")
+if(CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES Linux AND
+    CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "amd64.*|x86_64.*|AMD64.*" AND
+    # for x86 we have to install libc6-amd64 to enable binary compiled for x86_64
+    # to run with proper loader; more safer just to disable system protoc on x86
+    NOT X86)
     set(protoc_version "3.18.2")
 
     RESOLVE_DEPENDENCY(SYSTEM_PROTOC_ROOT
@@ -119,7 +123,7 @@ function(ov_download_tbb)
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
-    elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
+    elseif(ANDROID AND X86_64)  # Should be before LINUX due LINUX is detected as well
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
                 TARGET_PATH "${TEMP}/tbb"
@@ -144,7 +148,8 @@ function(ov_download_tbb)
                 ENVIRONMENT "TBBROOT"
                 SHA256 "ad9cf52e657660058aa6c6844914bc0fc66241fec89a392d8b79a7ff69c3c7f6")
     else()
-        message(FATAL_ERROR "TBB is not available on current platform")
+        message(WARNING "TBB is not available on current platform")
+        return()
     endif()
 
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")

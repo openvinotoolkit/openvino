@@ -30,18 +30,21 @@ jobs:
       #   PYTHON_STATIC_ARGS:
       #   CMAKE_CPACK_GENERATOR:
       #   SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
+      #   PYTHON_SAMPLES_INSTALL_DIR: $(SAMPLES_INSTALL_DIR)/python
       #   RUN_PREFIX: . $(SETUPVARS) -pyver 3.8 &&
       # Debian:
       #   CMAKE_BUILD_SHARED_LIBS: 'ON'
       #   PYTHON_STATIC_ARGS:
       #   CMAKE_CPACK_GENERATOR: 'DEB'
-      #   SAMPLES_INSTALL_DIR: /usr/share/openvino-2022.3.0/samples
+      #   SAMPLES_INSTALL_DIR: /usr/share/openvino/samples
+      #   PYTHON_SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/share/openvino/samples/python
       #   RUN_PREFIX: LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$(INSTALL_DIR)/opencv/lib:$LD_LIBRARY_PATH
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
         PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
         CMAKE_CPACK_GENERATOR:
         SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
+        PYTHON_SAMPLES_INSTALL_DIR: $(SAMPLES_INSTALL_DIR)/python
         RUN_PREFIX: . $(SETUPVARS) -pyver 3.8 &&
     maxParallel: 2
 
@@ -129,12 +132,13 @@ jobs:
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
+      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/requirements.txt
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
       # For running Paddle frontend unit tests
       python3 -m pip install -r $(REPO_DIR)/src/core/tests/frontend/paddle/requirements_dev.txt
       # For running ONNX frontend unit tests
-      python3 -m pip install -r $(REPO_DIR)/src/core/tests/requirements_test_onnx.txt
+      python3 -m pip install -r $(REPO_DIR)/src/frontends/onnx/tests/requirements.txt
       # For MO unit tests
       python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_dev.txt
@@ -164,7 +168,6 @@ jobs:
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS)
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS)
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
-        -DENABLE_WHEEL=ON
         -DENABLE_TESTS=ON
         -DENABLE_OV_ONNX_FRONTEND=ON
         -DENABLE_FASTER_BUILD=ON
@@ -173,7 +176,11 @@ jobs:
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
+        -DCMAKE_CXX_LINKER_LAUNCHER=ccache
+        -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCPACK_GENERATOR=$(CMAKE_CPACK_GENERATOR)
+        -DBUILD_cuda_plugin=OFF
+        -DBUILD_nvidia_plugin=OFF
         -S $(REPO_DIR)
         -B $(BUILD_DIR)
 
@@ -322,16 +329,12 @@ jobs:
     displayName: 'OV Core UT'
     continueOnError: false
 
-  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/onnx_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXImportUT.xml
-    displayName: 'ONNX Frontend UT'
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_onnx_frontend_test --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
+    displayName: 'ONNX Frontend Test'
     continueOnError: false
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
-    continueOnError: false
-
-  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/onnx_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
-    displayName: 'ONNX Frontend UT'
     continueOnError: false
 
   - script: |
@@ -370,12 +373,8 @@ jobs:
     displayName: 'MULTI UT'
     continueOnError: false
 
-  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/onnxImporterUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-onnxImporterUnitTests.xml
-    displayName: 'ONNX Importer UT'
-    continueOnError: false
-
   - script: |
-      # because of IR reader v7 
+      # because of IR reader v7
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
       $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'
@@ -388,7 +387,7 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
     continueOnError: false
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF')
+    condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF'))
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
@@ -400,7 +399,7 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_capi_test --gtest_filter=-*ov_core_read_model_from_memory* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_capi_test.xml
+      $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_capi_test.xml
     displayName: 'OV CAPITests'
     continueOnError: false
 
@@ -422,7 +421,7 @@ jobs:
       export PATH=$HOME/.local/bin:$PATH
       export IE_APP_PATH=$(INSTALL_DIR)/samples_bin
       export LD_LIBRARY_PATH=$IE_APP_PATH:$LD_LIBRARY_PATH
-      export IE_APP_PYTHON_PATH=$(SAMPLES_INSTALL_DIR)/python/
+      export IE_APP_PYTHON_PATH=$(PYTHON_SAMPLES_INSTALL_DIR)/
       export SHARE=$(INSTALL_TEST_DIR)/smoke_tests/samples_smoke_tests_data/
       export WORKSPACE=$(INSTALL_DIR)
       $(RUN_PREFIX) python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/  --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml

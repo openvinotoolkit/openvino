@@ -64,7 +64,7 @@
 
 namespace py = pybind11;
 
-std::string get_version() {
+inline std::string get_version() {
     auto version = ov::get_openvino_version();
     return version.buildNumber;
 }

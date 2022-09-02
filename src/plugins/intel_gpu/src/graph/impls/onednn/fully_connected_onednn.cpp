@@ -60,12 +60,7 @@ protected:
     static kernel_selector::WeightsReorderParams get_weights_reorder(const fully_connected_node& arg, const dnnl::primitive_desc& pd) {
         auto weights_layout = arg.get_dependency(1).get_output_layout();
         auto cldnn_prim = arg.get_primitive();
-        const auto& param_info = kernel_impl_params(arg.get_program(), cldnn_prim, arg.get_unique_id(),
-                                                    arg.get_input_layouts(), arg.get_output_layout(),
-                                                    arg.get_fused_primitives(),
-                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params(),
-                                                    optional_layout(weights_layout),
-                                                    arg.bias_term() ? optional_layout(arg.bias().get_output_layout()) : optional_layout());
+        auto param_info = arg.get_kernel_impl_params();
 
         kernel_selector::WeightsReorderParams weights_reorder_params;
         auto& reorderKS = kernel_selector::ReorderWeightsKernelSelctor::Instance();
@@ -75,7 +70,7 @@ protected:
         kernel_selector::WeightsLayout req_layout = to_weights_layout(out_fmt, false);
 
         // set engine info & forcing
-        set_params(param_info, r_params);
+        set_params(*param_info, r_params);
         r_params.layerID = arg.id() + "_reorder_";
         r_params.input = convert_weights_tensor(weights_layout, false);
         r_params.output = r_params.input.TransformIgnorePadding(req_layout, r_params.input.GetDType(), 1, false);
