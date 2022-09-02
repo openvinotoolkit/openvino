@@ -21,7 +21,8 @@ using LSTMSequenceCpuSpecificParams = typename std::tuple<
         ngraph::op::RecurrentSequenceDirection, // Direction
         ElementType,                            // Network precision
         CPUSpecificParams,                      // CPU specific params
-        std::map<std::string, std::string>      // Additional config
+        std::map<std::string, std::string>,     // Additional config
+        float                                   // abs threshold override (<0 means no override)
 >;
 
 class LSTMSequenceCPUTest : public testing::WithParamInterface<LSTMSequenceCpuSpecificParams>,
@@ -36,8 +37,9 @@ public:
         ElementType netPrecision;
         CPUSpecificParams cpuParams;
         std::map<std::string, std::string> additionalConfig;
+        float abs_thr;
 
-        std::tie(inputShapes, seqMode, activations, clip, direction, netPrecision, cpuParams, additionalConfig) = obj.param;
+        std::tie(inputShapes, seqMode, activations, clip, direction, netPrecision, cpuParams, additionalConfig, abs_thr) = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -57,6 +59,8 @@ public:
         result << "clip=" << clip << "_";
         result << "direction=" << direction << "_";
         result << "netPrec=" << netPrecision << "_";
+        if (abs_thr >= 0)
+            result << "abs_thr=" << abs_thr << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams);
 
         if (!additionalConfig.empty()) {
@@ -79,8 +83,9 @@ protected:
         ElementType netPrecision;
         CPUSpecificParams cpuParams;
         std::map<std::string, std::string> additionalConfig;
+        float abs_thr;
 
-        std::tie(inputShapes, seqMode, activations, clip, direction, netPrecision, cpuParams, additionalConfig) = this->GetParam();
+        std::tie(inputShapes, seqMode, activations, clip, direction, netPrecision, cpuParams, additionalConfig, abs_thr) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         targetDevice = CommonTestUtils::DEVICE_CPU;
 
@@ -126,6 +131,9 @@ protected:
                 params[3]->set_element_type(ElementType::i64);
             }
         }
+
+        if (abs_thr >= 0)
+            abs_threshold = abs_thr;
 
         std::vector<ov::Shape> WRB = {{numDirections, 4 * hiddenSize, inputSize}, {numDirections, 4 * hiddenSize, hiddenSize},
                 {numDirections, 4 * hiddenSize}, {batchSize}};
@@ -239,7 +247,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_static, LSTMSequenceCPUTest,
                                    ::testing::ValuesIn(direction),
                                    ::testing::ValuesIn(netPrecisions),
                                    ::testing::Values(cpuParams),
-                                   ::testing::Values(std::map<std::string, std::string>{})),
+                                   ::testing::Values(std::map<std::string, std::string>{}),
+                                   ::testing::Values(-1.0f)),
                 LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_static_BatchSizeOne, LSTMSequenceCPUTest,
@@ -250,7 +259,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_BatchSizeOne, LSTMSequenceCPUTest,
                                    ::testing::ValuesIn(direction),
                                    ::testing::ValuesIn(netPrecisions),
                                    ::testing::Values(cpuParamsBatchSizeOne),
-                                   ::testing::Values(std::map<std::string, std::string>{})),
+                                   ::testing::Values(std::map<std::string, std::string>{}),
+                                   ::testing::Values(-1.0f)),
                 LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_static_bf16, LSTMSequenceCPUTest,
@@ -261,7 +271,8 @@ INSTANTIATE_TEST_SUITE_P(nightly_static_bf16, LSTMSequenceCPUTest,
                                    ::testing::ValuesIn(direction),
                                    ::testing::ValuesIn(netPrecisions),
                                    ::testing::Values(cpuParams),
-                                   ::testing::Values(additionalConfig[1])),
+                                   ::testing::Values(additionalConfig[1]),
+                                   ::testing::Values(-1.0f)),
                 LSTMSequenceCPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> dynamicShapes = {
@@ -329,6 +340,67 @@ const std::vector<std::vector<InputShape>> dynamicShapes = {
         { {10}, {3}, {5}, {10}, {5} } } }           // Target shapes
 };
 
+
+namespace dynamicShapesBatchSwitch {
+  const int input_size = 240;
+  const int seq_length = 1;
+  const int hidden_size = 1024;
+  const int num_directions = 1;
+  const ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ;
+  CPUSpecificParams cpuParams{{ntc, tnc, tnc}, {ntc, tnc, tnc}, {"ref_any"}, "ref_any"};
+
+  const std::vector<InputShape> shapes = {
+    {
+      // X: [batch_size, seq_length, input_size]
+      {-1, seq_length, input_size},
+      {
+        {1, seq_length, input_size},
+        {20, seq_length, input_size},
+        {1, seq_length, input_size},
+      }
+    },
+    {
+      // initial_hidden_state: [batch_size, num_directions, hidden_size]
+      {-1, num_directions, hidden_size},
+      {
+        {1, num_directions, hidden_size},
+        {20, num_directions, hidden_size},
+        {1, num_directions, hidden_size},
+      }
+    },
+    {
+      // initial_cell_state: [batch_size, num_directions, hidden_size]
+      {-1, num_directions, hidden_size},
+      {
+        {1, num_directions, hidden_size},
+        {20, num_directions, hidden_size},
+        {1, num_directions, hidden_size},
+      }
+    },
+    {
+      // sequence_lengths: [batch_size]
+      {-1},
+      {
+        {1},
+        {20},
+        {1}
+      }
+    },
+  };
+}; // namespace dynamicShapesBatchSwitch
+
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_batch, LSTMSequenceCPUTest,
+            ::testing::Combine(::testing::Values(dynamicShapesBatchSwitch::shapes),
+                               ::testing::Values(dynamicShapesBatchSwitch::mode),
+                               ::testing::ValuesIn(activations),
+                               ::testing::Values(0.0f),
+                               ::testing::Values(ov::op::RecurrentSequenceDirection::FORWARD),
+                               ::testing::ValuesIn(netPrecisions),
+                               ::testing::Values(dynamicShapesBatchSwitch::cpuParams),
+                               ::testing::Values(std::map<std::string, std::string>{}),
+                               ::testing::Values(0.001f)),
+            LSTMSequenceCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic, LSTMSequenceCPUTest,
             ::testing::Combine(::testing::ValuesIn({dynamicShapes[0], dynamicShapes[1], dynamicShapes[2]}),
                                ::testing::ValuesIn(mode),
@@ -337,7 +409,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic, LSTMSequenceCPUTest,
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
                                ::testing::Values(cpuParams),
-                               ::testing::Values(std::map<std::string, std::string>{})),
+                               ::testing::Values(std::map<std::string, std::string>{}),
+                               ::testing::Values(-1.0f)),
             LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_BatchSizeOne, LSTMSequenceCPUTest,
@@ -348,7 +421,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_BatchSizeOne, LSTMSequenceCPUTest,
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
                                ::testing::Values(CPUSpecificParams{{tnc}, {tnc}, {"ref_any"}, "ref_any"}),
-                               ::testing::Values(std::map<std::string, std::string>{})),
+                               ::testing::Values(std::map<std::string, std::string>{}),
+                               ::testing::Values(-1.0f)),
             LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_dynamic, LSTMSequenceCPUTest,
@@ -359,7 +433,8 @@ INSTANTIATE_TEST_SUITE_P(nightly_dynamic, LSTMSequenceCPUTest,
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
                                ::testing::Values(cpuParams),
-                               ::testing::Values(std::map<std::string, std::string>{})),
+                               ::testing::Values(std::map<std::string, std::string>{}),
+                               ::testing::Values(-1.0f)),
             LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_dynamic_bf16, LSTMSequenceCPUTest,
@@ -370,7 +445,8 @@ INSTANTIATE_TEST_SUITE_P(nightly_dynamic_bf16, LSTMSequenceCPUTest,
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
                                ::testing::Values(cpuParams),
-                               ::testing::Values(additionalConfig[1])),
+                               ::testing::Values(additionalConfig[1]),
+                               ::testing::Values(-1.0f)),
             LSTMSequenceCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions
