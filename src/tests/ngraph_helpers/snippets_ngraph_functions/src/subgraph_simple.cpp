@@ -281,6 +281,24 @@ std::shared_ptr<ov::Model> TwoInputsAndOutputsFunction::initOriginal() const {
     return std::make_shared<Model>(NodeVector{hswish, sin3}, ParameterVector{data0, data1});
 }
 
+
+std::shared_ptr<ov::Model> EltwisePerfFunction::initOriginal() const {
+    auto data = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    auto data_invariant = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
+    std::shared_ptr<Node> prew = data;
+    for (int i = 0; i < 300; i++) {
+        // any non-tokenizable node
+        auto barrier = std::make_shared<op::v0::Sin>(prew);
+        // this will be our subgraph
+        auto subgraph_1 = std::make_shared<op::v1::Add>(barrier, data_invariant);
+        const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(1, 1., 10.);
+        auto scalar_const = std::make_shared<op::v0::Constant>(precision, Shape{1}, const_values);
+        auto subgraph_2 = std::make_shared<op::v1::Divide>(subgraph_1, scalar_const);
+        // end of subgraph
+        prew = subgraph_2;
+    }
+    return std::make_shared<Model>(NodeVector{prew}, ParameterVector{data, data_invariant});
+}
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

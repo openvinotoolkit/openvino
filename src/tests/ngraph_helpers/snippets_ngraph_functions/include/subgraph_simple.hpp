@@ -197,6 +197,17 @@ public:
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
+/// Function that consists of lot of eltwises interchanged with non-tokenizable sin layers.
+// this is needed for performance benchmarking
+class EltwisePerfFunction : public SnippetsFunctionBase {
+public:
+    explicit EltwisePerfFunction(const std::vector<PartialShape>& inputShapes) :
+            SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov
