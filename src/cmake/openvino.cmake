@@ -183,7 +183,7 @@ install(FILES "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
 
 # Generate and install openvino.pc pkg-config file
 
-if(LINUX)
+if(LINUX OR APPLE)
     find_package(PkgConfig QUIET)
     if(PkgConfig_FOUND)
         set(generate_pkgconfig ON)
