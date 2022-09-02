@@ -92,6 +92,8 @@ struct PluginConfig {
                     IE_THROW() << "Unsupported config value: " << kvp.second
                             << " for key: " << kvp.first;
             } else if (kvp.first == ov::device::priorities.name()) {
+                if (!kvp.second.empty())
+                    ParsePrioritiesDevices(kvp.second);
                 _devicePriority = kvp.second;
             } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end()) {
                 _perfHintsConfig.SetConfig(kvp.first, kvp.second);
@@ -110,6 +112,42 @@ struct PluginConfig {
         if (!config.empty())
             _keyConfigMap.clear();
         adjustKeyMapValues();
+    }
+    std::vector<std::string> ParsePrioritiesDevices(const std::string& priorities, const char separator = ',') const {
+        std::vector<std::string> devices;
+        std::string::size_type pos = 0;
+        std::string::size_type endpos = 0;
+        auto isAvailableDevice = [&](std::string& deviceName) -> bool {
+            if (deviceName.empty())
+                return false;
+            auto realDevName = deviceName[0] != '-' ? deviceName : deviceName.substr(1);
+            if (realDevName.empty()) {
+                return false;
+            }
+            realDevName = DeviceIDParser(realDevName).getDeviceName();
+            std::string::size_type realEndPos = 0;
+            if ((realEndPos = realDevName.find('(')) != std::string::npos) {
+                realDevName = realDevName.substr(0, realEndPos);
+            }
+            if (_availableDevices.end() == std::find(_availableDevices.begin(), _availableDevices.end(), realDevName)) {
+                return false;
+            }
+            return true;
+        };
+        while ((endpos = priorities.find(separator, pos)) != std::string::npos) {
+            auto subStr = priorities.substr(pos, endpos - pos);
+            if (!isAvailableDevice(subStr)) {
+                IE_THROW() << "Unavailable device name: " << subStr;
+            }
+            devices.push_back(subStr);
+            pos = endpos + 1;
+        }
+        auto subStr = priorities.substr(pos, priorities.length() - pos);
+        if (!isAvailableDevice(subStr)) {
+            IE_THROW() << "Unavailable device name: " << subStr;
+        }
+        devices.push_back(subStr);
+        return devices;
     }
     void adjustKeyMapValues() {
         if (_useProfiling) {
@@ -165,6 +203,19 @@ struct PluginConfig {
     PerfHintsConfig  _perfHintsConfig;
     std::map<std::string, std::string> _passThroughConfig;
     std::map<std::string, std::string> _keyConfigMap;
-    const std::set<std::string> _availableDevices = {"CPU", "GPU", "GNA", "TEMPLATE", "MYRAID", "HDDL", "VPUX", "MULTI", "HETERO", "CUDA", "HPU_GOYA"};
+    const std::set<std::string> _availableDevices = {"AUTO",
+                                                     "CPU",
+                                                     "GPU",
+                                                     "GNA",
+                                                     "TEMPLATE",
+                                                     "MYRIAD",
+                                                     "HDDL",
+                                                     "VPUX",
+                                                     "MULTI",
+                                                     "HETERO",
+                                                     "CUDA",
+                                                     "NVIDIA",
+                                                     "HPU_GOYA",
+                                                     "mock"};
 };
 } // namespace MultiDevicePlugin

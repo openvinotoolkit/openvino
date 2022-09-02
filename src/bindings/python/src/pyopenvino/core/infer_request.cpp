@@ -18,7 +18,7 @@ PYBIND11_MAKE_OPAQUE(Containers::TensorNameMap);
 
 namespace py = pybind11;
 
-py::dict run_sync_infer(InferRequestWrapper& self) {
+inline py::dict run_sync_infer(InferRequestWrapper& self) {
     {
         py::gil_scoped_release release;
         self._start_time = Time::now();

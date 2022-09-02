@@ -22,9 +22,8 @@ struct adaptive_pooling : public primitive_base<adaptive_pooling> {
     /// @param output_size Output data size of the primitive
     adaptive_pooling(const primitive_id &id,
                      const primitive_id &input,
-                     tensor output_size,
-                     const primitive_id &ext_prim_id = "")
-            : primitive_base(id, {input}, ext_prim_id),
+                     tensor output_size)
+            : primitive_base(id, {input}),
               mode{adaptive_pooling_mode::average},
               output_size{output_size} {}
 
@@ -39,9 +38,8 @@ struct adaptive_pooling : public primitive_base<adaptive_pooling> {
                      const primitive_id &input,
                      tensor output_size,
                      const primitive_id &indices_output,
-                     data_types index_element_type,
-                     const primitive_id &ext_prim_id = "")
-            : primitive_base(id, {input, indices_output}, ext_prim_id),
+                     data_types index_element_type)
+            : primitive_base(id, {input, indices_output}),
               mode{adaptive_pooling_mode::max},
               output_size{output_size},
               indices_output{indices_output},

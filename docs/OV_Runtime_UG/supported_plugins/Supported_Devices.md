@@ -68,7 +68,7 @@ the supported models formats depends on the actual underlying devices. _Generall
 
 |Plugin             |FP32      |FP16           |U8             |U16            |I8            |I16            |
 |:------------------|:--------:|:-------------:|:-------------:|:-------------:|:------------:|:-------------:|
-|CPU plugin         |Supported |Not supported  |Supported      |Supported      |Not supported |Supported      |
+|CPU plugin         |Supported |Supported      |Supported      |Supported      |Supported     |Supported      |
 |GPU plugin         |Supported |Supported\*    |Supported\*    |Supported\*    |Not supported |Supported\*    |
 |VPU plugins        |Supported |Supported      |Supported      |Not supported  |Not supported |Not supported  |
 |GNA plugin         |Supported |Not supported  |Supported      |Not supported  |Supported     |Supported      |
@@ -82,7 +82,7 @@ the supported input precision  depends on the actual underlying devices. _Genera
 
 |Plugin             |FP32      |FP16          |
 |:------------------|:--------:|:------------:|
-|CPU plugin         |Supported |Not supported |
+|CPU plugin         |Supported |Supported     |
 |GPU plugin         |Supported |Supported     |
 |VPU plugins        |Supported |Supported     |
 |GNA plugin         |Supported |Not supported |

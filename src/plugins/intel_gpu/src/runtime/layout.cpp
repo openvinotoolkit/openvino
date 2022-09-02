@@ -20,6 +20,10 @@ namespace {
 std::pair<bool, bool> are_layouts_identical(layout const& l1, layout const& l2) {
     const auto& l1_pad = l1.data_padding;
     const auto& l2_pad = l2.data_padding;
+
+    if (l1.is_dynamic() || l2.is_dynamic())
+        return {false, false};
+
     auto l1_size = l1.get_tensor();
     auto l2_size = l2.get_tensor();
     int64_t offset_last_element_l1 = l1.get_linear_offset(l1_size - tensor{1});
@@ -214,6 +218,8 @@ static format to_weights_format(format f, bool is_grouped) {
                 throw std::runtime_error("Invalid conversion of data format to weights format. bfwzyx can't be non-grouped as 4D spatials are not supported");
             return format::goizyx;
         }
+        case format::b_fs_yx_fsv16:
+            return format::o_is_yx_isv16;
         case format::bs_xs_xsv8_bsv8:
             return format::os_i_osv8__ai8;
         default:
@@ -295,12 +301,26 @@ tensor layout::get_tensor() const {
     return t;
 }
 
+template<typename T>
+T layout::get() const {
+    static_assert(meta::always_false<T>::value, "Unexpected layout::get() template speciaization");
+}
+
+template<>
+ov::PartialShape layout::get<ov::PartialShape>() const {
+    return size;
+}
+
 void layout::set_tensor(const tensor& size) {
     auto sizes = format == format::any ? size.sizes() : size.sizes(format::get_default_format(format.dimension(),
                                                                                               format::is_weights_format(format),
                                                                                               format::is_grouped(format)));
     ov::Shape shape(sizes.begin(), sizes.end());
     this->size = ov::PartialShape(shape);
+}
+
+void layout::set_partial_shape(const ov::PartialShape& size) {
+    this->size = size;
 }
 
 tensor layout::get_buffer_size() const {

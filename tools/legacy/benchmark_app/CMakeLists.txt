@@ -27,7 +27,10 @@ if (CMAKE_COMPILER_IS_GNUCXX)
     target_compile_options(${TARGET_NAME} PRIVATE -Wall)
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime format_reader gflags)
+# for cross-compilation with gflags
+find_package(Threads REQUIRED)
+
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime format_reader gflags Threads::Threads)
 
 find_package(OpenCV QUIET COMPONENTS core)
 if(NOT OpenCV_FOUND)
