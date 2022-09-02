@@ -316,7 +316,7 @@ def print_perf_counters_sort(perf_counts_list,sort_flag="sort"):
         perf_counts = perf_counts_list[ni]
         total_time = datetime.timedelta()
         total_time_cpu = datetime.timedelta()
-        logger.info(f"Performance counts for {ni}-th infer request")
+        logger.info(f"Performance counts sorted for {ni}-th infer request")
         for pi in perf_counts:
             total_time += pi.real_time
             total_time_cpu += pi.cpu_time
