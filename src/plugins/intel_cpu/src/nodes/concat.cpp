@@ -38,6 +38,11 @@ bool Concat::isExecutable() const {
 }
 
 bool Concat::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+    if (getenv("USE_REF_CONCAT"))
+        return false;
+    // if (op->get_friendly_name().find("Concat") != std::string::npos || op->get_friendly_name().find("v") != std::string::npos
+    //     || op->get_friendly_name().find("r_att_cache") != std::string::npos)
+    //     return false;
     try {
         const auto concatOp = ngraph::as_type_ptr<const ngraph::op::v0::Concat>(op);
         if (!concatOp) {
@@ -94,6 +99,9 @@ void Concat::getSupportedDescriptors() {
         if (std::all_of(childDims.begin(), childDims.begin() + axis, [](size_t dim) { return  dim == 1; }))
             canBeInPlace = true;
     }
+    inputDims.resize(getParentEdges().size());
+    inputSize.resize(getParentEdges().size());
+    std::cout << getName() << "|input_size|" <<  getParentEdges().size() << std::endl;
 }
 
 void Concat::initSupportedPrimitiveDescriptors() {
@@ -354,6 +362,20 @@ bool Concat::needPrepareParams() const {
     return inputShapesModified();
 }
 
+// std::vector<VectorDims> Concat::shapeInfer() const {
+//     VectorDims output;
+//     const auto& srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
+//     const auto& dims = srcMemPtr->getStaticDims();
+//     output = dims;
+//     for (size_t i = 0; i < getParentEdges().size(); i++) {
+//         const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
+//         const auto& dims = srcMemPtr->getStaticDims();
+//         output[axis] += dims[axis];
+//     }
+//     std::cout << getName() << "|" << output << std::endl;
+//     return std::vector<VectorDims>{output};
+// }
+
 void Concat::prepareParams() {
     if (canOptimizeNspc || isOptimized())
         return;
@@ -364,37 +386,47 @@ void Concat::prepareParams() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
-    std::vector<memory::desc> srcs_d;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
-        if (!srcMemPtr || !srcMemPtr->isAllocated()) {
-            auto parent = getParentEdgeAt(i)->getParent();
-            IE_THROW() << "Source memory from " << parent->getName() << " didn't allocate for node "
-                               << getName() << ".";
-        }
-
-        if (srcMemPtr->GetShape().hasZeroDims()) {
-            continue;
-        }
-
-        auto desc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
         const auto& dims = srcMemPtr->getStaticDims();
-        for (size_t j = 0; j < dims.size(); j++) {
-            desc.data.dims[j] = dims[j];
-        }
-
-        srcs_d.emplace_back(desc);
+        inputDims[i] = dims;
+        size_t tmp = 1;
+        for (auto& a : dims)
+            tmp *= a;
+        inputSize[i] = tmp;
     }
 
-    auto desc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-    const auto& dims = dstMemPtr->getStaticDims();
-    for (size_t i = 0; i < dims.size(); i++) {
-        desc.data.dims[i] = dims[i];
-        desc.data.padded_dims[i] = dims[i];
-    }
+    // std::vector<memory::desc> srcs_d;
+    // for (size_t i = 0; i < getParentEdges().size(); i++) {
+    //     const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
+    //     if (!srcMemPtr || !srcMemPtr->isAllocated()) {
+    //         auto parent = getParentEdgeAt(i)->getParent();
+    //         IE_THROW() << "Source memory from " << parent->getName() << " didn't allocate for node "
+    //                            << getName() << ".";
+    //     }
 
-    auto primitive_desc = concat::primitive_desc(desc, static_cast<int>(axis), srcs_d, getEngine());
-    prim.reset(new concat(primitive_desc));
+    //     if (srcMemPtr->GetShape().hasZeroDims()) {
+    //         continue;
+    //     }
+
+    //     auto desc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+    //     const auto& dims = srcMemPtr->getStaticDims();
+    //     for (size_t j = 0; j < dims.size(); j++) {
+    //         desc.data.dims[j] = dims[j];
+    //     }
+
+    //     srcs_d.emplace_back(desc);
+    // }
+
+    // auto desc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+    // const auto& dims = dstMemPtr->getStaticDims();
+    // for (size_t i = 0; i < dims.size(); i++) {
+    //     desc.data.dims[i] = dims[i];
+    //     desc.data.padded_dims[i] = dims[i];
+    // }
+
+    // auto primitive_desc = concat::primitive_desc(desc, static_cast<int>(axis), srcs_d, getEngine());
+    // prim.reset(new concat(primitive_desc));
 }
 
 size_t Concat::inverseOrder(const SizeVector& order, size_t axis) {
@@ -499,6 +531,9 @@ void Concat::execute(dnnl::stream strm) {
         return;
     }
 
+    execRef();
+    return;
+
     const size_t num_src = getParentEdges().size();
     std::unordered_map<int, memory> mem_ags {{DNNL_ARG_DST, dst_memory.GetPrimitive()}};
     size_t nonZeroInShapes = 0;
@@ -558,6 +593,51 @@ void Concat::execNspcSpecCase() {
             cpu_memcpy(dst_ptrs[j] + dst_off, src_ptrs[j] + i * channelsDataSize[j], channelsDataSize[j]);
         }
     });
+}
+
+void Concat::execRef() {
+    const size_t num_src = getParentEdges().size();
+    std::vector<const uint8_t*> src_ptrs;
+    const Memory& dst_memory = getChildEdgeAt(0)->getMemory();
+    const size_t dataSize = DnnlExtensionUtils::sizeOfDataType(dst_memory.GetDataType());
+    const auto& output_shape = dst_memory.GetShape();
+    uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(dst_memory.GetData());
+    for (size_t i = 0; i < num_src; i++) {
+        const Memory& src_mem = getParentEdgesAtPort(i)[0]->getMemory();
+        src_ptrs.push_back(reinterpret_cast<const uint8_t*>(src_mem.GetData()));
+    }
+    auto concat_impl = [this](const std::vector<const uint8_t*>& args,
+                              uint8_t* out,
+                              const VectorDims& outShape,
+                              int64_t concatenation_axis,
+                              size_t elemSize) {
+        if (concatenation_axis == 0) {
+            size_t outOffset = 0;
+            for (size_t i = 0; i < args.size(); ++i) {
+                const auto inData = args[i];
+                auto outputData = &out[outOffset];
+                std::memcpy(outputData, inData, inputSize[i] * elemSize);
+                outOffset+= inputSize[i] * elemSize;
+            }
+        } else {
+            size_t steps = 1;
+            for (int i = 0; i < concatenation_axis; ++i) {
+                steps *= outShape[i];
+            }
+            size_t outOffset = 0;
+            for (size_t step = 0; step < steps; ++step) {
+                for (size_t i = 0; i < args.size(); ++i) {
+                    const size_t size = inputSize[i] / steps;
+                    const size_t inOffset = step * size;
+
+                    std::memcpy(&out[outOffset * elemSize], &args[i][inOffset * elemSize], size * elemSize);
+
+                    outOffset += size;
+                }
+            }
+        }
+    };
+    concat_impl(src_ptrs, dst_ptr, output_shape.getDims(), axis, dataSize);
 }
 
 }   // namespace node

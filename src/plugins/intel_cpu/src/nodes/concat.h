@@ -38,12 +38,16 @@ private:
     size_t axis = 0;
     bool canBeInPlace = false;
     bool canOptimizeNspc = false;
-
+    void execRef();
     size_t inverseOrder(const InferenceEngine::SizeVector& order, size_t axis);
     void execNspcSpecCase();
-
+    std::vector<VectorDims> inputDims;
+    std::vector<size_t> inputSize;
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
+
+protected:
+    // std::vector<VectorDims> shapeInfer() const override;
 };
 
 }   // namespace node

@@ -16,6 +16,7 @@
 #include "assign_shape_inference.hpp"
 #include "bucketize_shape_inference.hpp"
 #include "convolution_shape_inference.hpp"
+#include "concat_shape_inference.hpp"
 #include "ctc_greedy_decoder_seq_len_shape_inference.hpp"
 #include "ctc_greedy_decoder_shape_inference.hpp"
 #include "ctc_loss_shape_inference.hpp"
@@ -81,6 +82,7 @@
 #include "variadic_split_shape_inference.hpp"
 #include "matmul_shape_inference.hpp"
 #include "eye_shape_inference.hpp"
+#include "transpose_shape_inference.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -563,6 +565,10 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
         return std::make_shared<entryFallbackWithPadding<ov::op::v1::DeformableConvolution>>(node);
     } else if (auto node = ov::as_type_ptr<ov::op::v8::DeformableConvolution>(op)) {
         return std::make_shared<entryFallbackWithPadding<ov::op::v8::DeformableConvolution>>(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset1::Concat>(op)) {
+        return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset1::Transpose>(op)) {
+        return make_shared_entryIO(node);
     } else {
         return std::make_shared<entryFallback>(op);
     }
