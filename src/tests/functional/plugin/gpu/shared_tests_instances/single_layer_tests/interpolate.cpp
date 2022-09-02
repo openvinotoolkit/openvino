@@ -78,6 +78,8 @@ const std::vector<std::vector<int64_t>> defaultAxes = {
     {0, 1, 2, 3}
 };
 
+const std::vector<std::vector<int64_t>> emptyAxes = {{}};
+
 const std::vector<std::vector<float>> defaultScales = {
     {1.f, 1.f, 2.f, 2.f}
 };
@@ -96,6 +98,18 @@ const auto interpolateCasesWithoutNearest = ::testing::Combine(
         ::testing::ValuesIn(defaultAxes),
         ::testing::ValuesIn(defaultScales));
 
+const auto interpolateCasesWithoutNearestEmptyAxes = ::testing::Combine(
+        ::testing::ValuesIn(modesWithoutNearest),
+        ::testing::ValuesIn(shapeCalculationMode),
+        ::testing::ValuesIn(coordinateTransformModes),
+        ::testing::ValuesIn(defaultNearestMode),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(emptyAxes),
+        ::testing::ValuesIn(defaultScales));
+
 const auto interpolateCasesNearesMode = ::testing::Combine(
         ::testing::ValuesIn(nearestMode),
         ::testing::ValuesIn(shapeCalculationMode),
@@ -110,6 +124,19 @@ const auto interpolateCasesNearesMode = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesWithoutNearest,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inShapes),
+        ::testing::ValuesIn(targetShapes),
+        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(additional_config)),
+    InterpolateLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_BasicEmptyAxes, InterpolateLayerTest, ::testing::Combine(
+        interpolateCasesWithoutNearestEmptyAxes,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
