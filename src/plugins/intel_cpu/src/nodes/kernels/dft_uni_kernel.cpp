@@ -118,16 +118,6 @@ void jit_uni_dft_kernel_f32<isa>::generate() {
     this->postamble();
 }
 
-template <cpu::x64::cpu_isa_t isa>
-void jit_uni_dft_kernel_f32<isa>::uni_vhsubps(const Xbyak::Xmm& x, const Xbyak::Xmm& x2, const Xbyak::Operand& op) {
-    if (mayiuse(avx)) {
-        vhsubps(x, x2, op);
-    } else {
-        assert(x.isEqualIfNotInherited(op));
-        hsubps(x, op);
-    }
-}
-
 template struct jit_uni_dft_kernel_f32<cpu::x64::sse41>;
 template struct jit_uni_dft_kernel_f32<cpu::x64::avx2>;
 template struct jit_uni_dft_kernel_f32<cpu::x64::avx512_core>;
@@ -271,16 +261,6 @@ void jit_uni_fft_kernel_f32<isa>::move_data(const Xbyak::Xmm& x, const Xbyak::Ad
         uni_vmovq(x, addr);
     } else {
         uni_vmovups(x, addr);
-    }
-}
-
-template <cpu::x64::cpu_isa_t isa>
-void jit_uni_fft_kernel_f32<isa>::uni_vaddsubps(const Xbyak::Xmm& x, const Xbyak::Xmm& x2, const Xbyak::Operand& op) {
-    if (mayiuse(avx)) {
-        vaddsubps(x, x2, op);
-    } else {
-        assert(x1.getIdx() != x2.getIdx());
-        addsubps(x, op);
     }
 }
 
