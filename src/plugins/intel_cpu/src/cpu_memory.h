@@ -173,7 +173,7 @@ public:
     }
 
     bool isAllocated() const noexcept {
-        return static_cast<bool>(prim);
+        return prim.get(true) != nullptr;
     }
 
     /**

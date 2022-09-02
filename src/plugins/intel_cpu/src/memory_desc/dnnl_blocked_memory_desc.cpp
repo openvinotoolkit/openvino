@@ -190,7 +190,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
     std::copy(order.end() - inner_ndims, order.end(), dnn_blk_desc.inner_idxs);
 
     this->order = order;
-    initBlockDims();
+    this->blockedDims = blockedDims;
     initOffsetPadding();
 
     if (strides.empty()) {
@@ -200,7 +200,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
             auto dnnlStrides = DnnlExtensionUtils::convertToDnnlDims(strides);
             dnn_blk_desc.strides[order[i]] = dnnlStrides[i];
         }
-        initStrides();
+        this->strides = strides;
     }
 }
 
@@ -455,9 +455,9 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims)
         IE_THROW() << "Can't clone desc if new dims are undefined";
     }
 
-    // TODO [DS]: add stride recalculation for strided blobs
-    getStrides();
-    getBlockDims();
+    // // TODO [DS]: add stride recalculation for strided blobs
+    // getStrides();
+    // getBlockDims();
     for (int i = strides.size() - 2; i >= 0 ; i--) {
         if (strides[i] == Shape::UNDEFINED_DIM)
             break;
