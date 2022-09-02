@@ -15,7 +15,7 @@
 ngraph::snippets::pass::TransformConvertToConvertTruncation::TransformConvertToConvertTruncation() {
     MATCHER_SCOPE(TransformConvertToConvertTruncation);
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<ngraph::opset1::Convert>()),
+        ngraph::pattern::wrap_type<ngraph::opset1::Convert>(), matcher_name),
             [this](ngraph::pattern::Matcher &m) {
             OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::TransformConvertToConvertTruncation")
             const auto root = m.get_match_root();
@@ -35,8 +35,12 @@ ngraph::snippets::pass::TransformConvertToConvertTruncation::TransformConvertToC
 
 ngraph::snippets::pass::TransformConvertToConvertSaturation::TransformConvertToConvertSaturation() {
     MATCHER_SCOPE(TransformConvertToConvertSaturation);
-    register_matcher(std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<ngraph::opset1::Convert>()),
+    auto convert_after_fq_decomp = std::make_shared<pattern::op::Label>(pattern::any_input(),
+                                                [](std::shared_ptr<Node> n) {
+                                                    return is_type<ngraph::opset1::Convert>(n) &&
+                                                           !is_type<op::ConvertTruncation>(n);
+                                                });
+    register_matcher(std::make_shared<ngraph::pattern::Matcher>(convert_after_fq_decomp, matcher_name),
             [this](ngraph::pattern::Matcher &m) {
             OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::TransformConvertToConvertSaturation")
             const auto root = m.get_match_root();

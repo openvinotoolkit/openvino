@@ -92,7 +92,7 @@ ngraph::snippets::pass::InsertReverseConvert::InsertReverseConvert(const ov::ele
             auto shared_consumer = consumer.get_node()->shared_from_this();
 
             // We should check that this ConvertSaturation isn't on output (Result or ConvertTruncation)
-            if (!ov::is_type<ov::op::v0::Result>(shared_consumer) && 
+            if (!ov::is_type<ov::op::v0::Result>(shared_consumer) &&
                 !ov::is_type<ngraph::snippets::op::ConvertTruncation>(shared_consumer) &&
                 shared_consumer != reverse_convert) {
                 consumer.replace_source_output(reverse_convert);
