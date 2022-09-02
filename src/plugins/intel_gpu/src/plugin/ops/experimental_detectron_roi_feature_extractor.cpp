@@ -18,7 +18,7 @@ static void CreateExperimentalDetectronROIFeatureExtractorOp(Program& p, const s
     std::string layerName = layer_type_name_ID(op) + ".out0";
 
     cldnn::layout mutableLayout = cldnn::layout(
-        DataTypeFromPrecision(op->get_output_element_type(1)),
+        cldnn::element_type_to_data_type(op->get_output_element_type(1)),
         cldnn::format::get_default_format(op->get_output_shape(1).size()),
         tensor_from_dims(op->get_output_shape(1)));
 
