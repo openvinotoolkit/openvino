@@ -43,6 +43,8 @@ public:
     void enable_soft_names_comparison();
 
     std::shared_ptr<ov::Model> function, function_ref;
+    // Aliases to function and function_ref pointers to be more corresponding with ov namespace.
+    std::shared_ptr<ov::Model>&model, &model_ref;
     ngraph::pass::Manager manager;
     FunctionsComparator comparator;
 
