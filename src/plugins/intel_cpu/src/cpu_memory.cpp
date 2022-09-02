@@ -52,14 +52,14 @@ void Memory::Create(const dnnl::memory::desc& desc, const void *data, bool pads_
     // ========================
     // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
     // but with ability to skipp pads zeroing.
-    prim.reset(new memory(desc, eng, DNNL_MEMORY_NONE));
+    prim = memory(desc, eng, DNNL_MEMORY_NONE);
     //
     // ========================
     if (data != nullptr) {
         if (pads_zeroing)
-            prim->set_data_handle(const_cast<void*>(data));
+            prim.set_data_handle(const_cast<void*>(data));
         else
-            prim->set_data_handle_no_pads_proc(const_cast<void*>(data));
+            prim.set_data_handle_no_pads_proc(const_cast<void*>(data));
     }
 }
 
@@ -97,13 +97,13 @@ void Memory::SetData(const Memory& src, bool ftz) const {
 
     if (ftz
         && src.GetDataType() == memory::data_type::f32
-        && prim->get_desc().data.format_kind != dnnl_format_kind_wino
+        && prim.get_desc().data.format_kind != dnnl_format_kind_wino
         // WA: to avoid zero filling auxiliary information
-        && prim->get_desc().data.format_kind != dnnl_format_kind_rnn_packed
+        && prim.get_desc().data.format_kind != dnnl_format_kind_rnn_packed
         && GetDataType() != memory::data_type::bf16) {
         // Internal blobs haven't strides yet.
         auto *memData = static_cast<float *>(GetData());
-        memData += prim->get_desc().data.offset0;
+        memData += prim.get_desc().data.offset0;
         setSubnormalsToZero(memData, GetSize() / sizeof(float));
     }
 }
@@ -116,7 +116,7 @@ void Memory::FillZero() {
 
 void *Memory::GetPtr() const  {
     auto ptr = static_cast<uint8_t*>(GetData());
-    const dnnl_memory_desc_t md = prim->get_desc().data;
+    const dnnl_memory_desc_t md = prim.get_desc().data;
     dnnl::impl::memory_desc_wrapper wrapper(md);
     ptr += wrapper.offset0() * wrapper.data_type_size();
     return ptr;
@@ -144,12 +144,12 @@ void Memory::setDataHandle(void *data) {
 
     size_t maxMemSize = pMemDesc->hasDefinedMaxSize() ?  pMemDesc->getMaxMemSize() : 0;
     mgrHandle->setExtBuff(data, maxMemSize);
-    prim->set_data_handle(mgrHandle->getRawPtr()); // for pads zeroing, to preserve dnnl::memory::set_data_handle behaviour
+    prim.set_data_handle(mgrHandle->getRawPtr()); // for pads zeroing, to preserve dnnl::memory::set_data_handle behaviour
 }
 
 void Memory::update() {
     if (isAllocated()) {
-        prim->set_data_handle_no_pads_proc(mgrHandle->getRawPtr());
+        prim.set_data_handle_no_pads_proc(mgrHandle->getRawPtr());
     }
 }
 

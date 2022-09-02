@@ -86,18 +86,14 @@ dnnl::memory::dim DnnlExtensionUtils::convertToDnnlDim(const Dim &dim) {
 }
 
 VectorDims DnnlExtensionUtils::convertToVectorDims(const memory::dims& dims) {
-    std::vector<size_t> vecResult;
-    vecResult.reserve(dims.size());
-    std::back_insert_iterator<std::vector<size_t>> itr(vecResult);
-    std::transform(dims.begin(), dims.end(), itr, convertToDim);
+    std::vector<size_t> vecResult(dims.size());
+    std::transform(dims.begin(), dims.end(), vecResult.begin(), convertToDim);
     return vecResult;
 }
 
 memory::dims DnnlExtensionUtils::convertToDnnlDims(const VectorDims& dims) {
-    memory::dims vecResult;
-    vecResult.reserve(dims.size());
-    std::back_insert_iterator<memory::dims> itr(vecResult);
-    std::transform(dims.begin(), dims.end(), itr, convertToDnnlDim);
+    memory::dims vecResult(dims.size());
+    std::transform(dims.begin(), dims.end(), vecResult.begin(), convertToDnnlDim);
     return vecResult;
 }
 
