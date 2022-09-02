@@ -929,6 +929,14 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
 void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs) {
     const bool zpPerTensor = (havingZeroPoint && !inputZeroPoints.empty());
     const bool zpPerChannel = (havingZeroPoint && inputZeroPoints.empty());
+    //update the preset sum dest data type because eltwisePrecision maybe changes.
+    if (attrs.size() == 1 && attrs[0].get_post_ops().get()) {
+        auto postOps = attrs[0].get_post_ops().get();
+        auto sumEntryIdx = postOps->find(dnnl::impl::primitive_kind::sum);
+        if (sumEntryIdx != -1)
+            postOps->entry_[sumEntryIdx].sum.dt =
+                    dnnl::memory::convert_to_c(DnnlExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
+    }
     //avx512 already preset attrs[0].
     //Except application enforces brgconv when having legacy postops/zp, attrs[0] can represent on avx512 platform.
     //Avoid duplicated attributes on avx512.
@@ -1626,7 +1634,7 @@ void Convolution::initTryBrgconvFlag() {
             // should remove after binary postops performance issue resolved
             // heuristics: if it's  avx512 ISA  model && it doesn't have legacy depthwise/quantization post ops or zero point.
             dnnl::primitive_attr attr;
-            //Set the legacy attr
+            //Pre-set the legacy attr., postop sum data precision need to be updated after preset.
             setPostOps(attr, MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
             addLegacyZeroPoints(attr);
             attrs.push_back(attr);
