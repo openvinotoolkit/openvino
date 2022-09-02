@@ -12,21 +12,17 @@ function(_ov_get_tbb_library_path tbb_lib tbb_libs_dir)
         return()
     endif()
 
-    # i.e. yocto case
-    get_target_property(_tbb_lib_location ${tbb_lib} INTERFACE_LINK_LIBRARIES)
-    if(_tbb_lib_location)
-        get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
-        set(${tbb_libs_dir} "${_tbb_libs_dir}" PARENT_SCOPE)
-        return()
-   endif()
-
-    # usual imported library
-    get_target_property(_tbb_lib_location ${tbb_lib} IMPORTED_LOCATION_RELEASE)
-    if(_tbb_lib_location)
-        get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
-        set(${tbb_libs_dir} "${_tbb_libs_dir}" PARENT_SCOPE)
-        return()
-    endif()
+    foreach(properties INTERFACE_LINK_LIBRARIES
+                       IMPORTED_LOCATION_RELEASE
+                       IMPORTED_LOCATION_NONE
+                       IMPORTED_LOCATION)
+        get_target_property(_tbb_lib_location ${tbb_lib} ${properties})
+        if(_tbb_lib_location)
+            get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
+            set(${tbb_libs_dir} "${_tbb_libs_dir}" PARENT_SCOPE)
+            return()
+        endif()
+    endforeach()
 
    message(FATAL_ERROR "Failed to detect TBB library location")
 endfunction()
