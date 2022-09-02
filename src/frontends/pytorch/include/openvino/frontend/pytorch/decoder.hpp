@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <iostream>
 
 // TODO: rough!
 #include "openvino/openvino.hpp"
@@ -9,8 +10,56 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 
+// Extendable type system which reflects TorchScript supported python data types
+// Type nestings are built with the help of ov::Any
+
+namespace Type {
+
+
+struct Tensor {
+    Tensor () = default;
+    explicit Tensor (const Any& _element_type): element_type(_element_type) {}
+    Any element_type;
+};
+
+struct Tuple;
+
+
+struct List {
+
+    List () = default;
+
+    // Specifies list of elements of element_type type, all elements have the same given type
+    explicit List (const Any& _element_type) : element_type(_element_type) {}
+    Any element_type;
+};
+
+
+struct Optional;
+struct Dict;
+struct NamedTuple;
+struct Union;
+
+inline void print (const Any& x) {
+    if(x.is<element::Type>()) {
+        std::cout << x.as<element::Type>();
+    } else if(x.is<Tensor>()) {
+        std::cout << "Tensor[";
+        print(x.as<Tensor>().element_type);
+        std::cout << "]";
+    } else if(x.is<List>()) {
+        std::cout << "List[";
+        print(x.as<List>().element_type);
+        std::cout << "]";
+    } else {
+        std::cout << "UNKNWON_ANY_TYPE";
+    }
+}
+
+}
+
 /// Plays a role of node, block and module decoder (kind of temporary fat API)
-class Decoder {      // TODO: Is it required to be enable_shared_from_this?
+struct Decoder {      // TODO: Is it required to be enable_shared_from_this?
 public:
 
     // Do not search for input in tensor map; try to access it as a constant of specified type T and return its value
@@ -102,6 +151,9 @@ public:
 
     /// Probably this toghether with immediate nodes visitor is a replacement for visit_subgraphs with an index
     virtual std::shared_ptr<Decoder> get_subgraph_decoder (size_t index) const = 0;
+
+    /// Dumps debug info
+    virtual void debug () const = 0;
 };
 
 }

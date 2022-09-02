@@ -24,14 +24,16 @@ namespace {
 }
 
 void regclass_frontend_pytorch_decoder(py::module m) {
-    /*py::class_<ConversionExtension, ConversionExtension::Ptr, ov::frontend::ConversionExtensionBase> _ext(
-        m,
-        "_ConversionExtensionONNX",
-        py::dynamic_attr());*/
- 
     py::class_<Decoder, PyDecoder, std::shared_ptr<Decoder>>(m, "_FrontEndPytorchDecoder")
         .def(py::init<>());
-    // There is no need to register all Decoder methods here. TODO: why? How can they enumerate them without our help? 
-    // Looks like they statically register all the methods from PYBIND11_OVERRIDE_PURE when mentioning it in every member of PyDecoder.
-        // .def("inputs", &Decoder::inputs);
+
+    auto type_module = m.def_submodule("_Type");
+
+    // Register classes for TS type system
+
+    py::class_<Type::Tensor>(type_module, "Tensor").
+        def(py::init<Any>());
+    py::class_<Type::List>(type_module, "List").
+        def(py::init<Any>());
+    type_module.def("print", Type::print);
 }

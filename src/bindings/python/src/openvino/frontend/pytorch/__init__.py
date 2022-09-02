@@ -9,7 +9,7 @@ Low level wrappers for the FrontEnd C++ API.
 # flake8: noqa
 
 from openvino.utils import add_openvino_libs_to_path
-from openvino.runtime import PartialShape, Type, OVAny, Shape
+from openvino.runtime import PartialShape, Type as OVType, OVAny, Shape
 
 from openvino.runtime import op
 
@@ -18,6 +18,7 @@ add_openvino_libs_to_path()
 
 try:
     from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
+    from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
     import numpy as np
     import torch
 
@@ -26,10 +27,10 @@ try:
     decoders = []
 
     pt_to_ov_type_map = {
-        'float': Type.f32,
-        'int': Type.i32,
-        'torch.float32': Type.f32,
-        'torch.int32': Type.i32
+        'float': OVType.f32,
+        'int': OVType.i64,
+        'torch.float32': OVType.f32,
+        'torch.int32': OVType.i32
     }
 
     pt_to_py_type_map = {
@@ -45,6 +46,9 @@ try:
             self.pt_module = pt_module
             # TODO: remove this; leads to huge memory leaks while converting many models in one app
             decoders.append(self)
+            #print(dir(pt_module))
+            # Print schema for nodes if any
+            #print(f'there is schema: {pt_module.schema()}' if hasattr(pt_module, 'schema') else 'no schema')
             #print(pt_module)
             #exit()
 
@@ -71,6 +75,30 @@ try:
             output = self._raw_output(index)
             return self.get_type_for_value(output)
 
+        def _get_known_type_for_value (self, type):
+            return
+            '''
+                Returns known/unknown types wrapped as OVAny
+            '''
+            print(f'Trying to parse type {type} of class {type.__class__}')
+            # Check for simple scalar types first
+            # TODO: Don't use str, use native types
+            if str(type) in pt_to_ov_type_map:
+                print(f'Recognized native type, type.__class__ = {type.__class__}')
+                return OVAny(pt_to_ov_type_map[type])
+            elif type.__class__ is torch.TensorType:
+                print(f'Recognized Tensor type with type.dtype() = {type.dtype()}')
+                # Tensor type, parse element type
+                # TODO: replace string by native type
+                return OVAny(DecoderType.Tensor(self._get_known_type_for_value(type.dtype())))
+            else:
+                print(f'Not a tensor nor native type: {type}')
+                # Not yet recognized
+                return OVAny(OVType.dynamic)
+                #pt_type_class = value.type().__class__
+                #    if pt_type_class is torch.ListType:
+
+
         def get_shape_for_value (self, value):
             if value.isCompleteTensor():
                 ps = PartialShape(value.type().sizes())
@@ -78,10 +106,14 @@ try:
                 return ps
             else:
                 #print(f'NOT COMPLETE TENSOR for {value}')
+                # TODO: Recognize types that we can represent as a nested constructs with objects from DecoderType
+                # If recognized, return scalar instead of dynamic. Scalar means a single value of that custom type.
+                # See get_type_for_value for reference
                 pass
             return PartialShape.dynamic()
 
         def get_type_for_value (self, value):
+            #DecoderType.print(self._get_known_type_for_value(value.type()))
             if value.isCompleteTensor():
                 pt_type = str(value.type().dtype())
                 if pt_type in pt_to_ov_type_map:
@@ -90,8 +122,10 @@ try:
                     return OVAny(ov_type)
                 else:
                     #print(f'[ DEBUG ] Unrecognized pt element type for a tensor: {pt_type}. Captured it as custom type.', flush=True)
-                    pass
-            return OVAny(Type.dynamic)   # TODO: replace with dynamic when it is passed to Python from C++
+                    # TODO: Replace it by Tensor[dynamic]
+                    return OVAny(OVType.dynamic)
+            else:
+                return OVAny(OVType.dynamic)
 
         def get_input_transpose_order (self, index):
             return []
@@ -173,10 +207,10 @@ try:
                 #print(f'Trying to recognize value {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
                 if str(pt_value.type()) in ['torch.int32', 'int']:
                     #print(f'Found int value=  {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
-                    return op.Constant(Type.i32, Shape([]), [pt_value.toIValue()]).outputs()
+                    return op.Constant(OVType.i32, Shape([]), [pt_value.toIValue()]).outputs()
                 if str(pt_value.type()) in ['torch.bool', 'bool']:
                     #print('Scalar bool detected')
-                    return op.Constant(Type.boolean, Shape([]), [pt_value.toIValue()]).outputs()
+                    return op.Constant(OVType.boolean, Shape([]), [pt_value.toIValue()]).outputs()
                 print(f'Left value not converted to const, value = {pt_value}')
             else:
                 print(f'Not a known type, dtype = {pt_value.type().dtype()}')
@@ -206,13 +240,17 @@ try:
 
             if is_known_type:
                 ovtype = pt_to_ov_type_map[pt_element_type]
-                #print(f'ovtype = {ovtype}, pt_element_type = {pt_element_type}, Type.i32 = {Type.i32}, {Type.f32}')
+                #print(f'ovtype = {ovtype}, pt_element_type = {pt_element_type}, OVType.i32 = {OVType.i32}, {OVType.f32}')
                 ovshape = PartialShape([len(ivalue)])
                 ov_const = op.Constant(ovtype, ovshape.get_shape(), ivalue)
                 return ov_const.outputs()
 
         def input_is_none (self, index):
             return index >= len(self.inputs()) or self._raw_input(index) is None
+
+        def debug (self):
+            print(f'DEBUG CALLED FOR {self._raw_output(0)}')
+            #self.pt_module.print()
 
 except ImportError as err:
     raise ImportError("OpenVINO Pytorch frontend is not available, please make sure the frontend is built."

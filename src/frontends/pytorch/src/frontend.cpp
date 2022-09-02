@@ -99,6 +99,10 @@ public:
         throw std::runtime_error("There is no any named attributes in Pytorch node, query by attribute name is not implemented");
     }
 
+    void debug () const {
+        m_decoder->debug();
+    }
+
 private:
 
     std::shared_ptr<opset8::Constant> get_constant_at_input (size_t index) const;
@@ -328,6 +332,8 @@ OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMa
     std::map<std::string, std::function<OutputVector()> > converters = {
 
         { "aten::relu", relu},
+
+        // TODO: Handle inplace semantics correctly
         { "aten::relu_", relu}, // inplace version of relu, for us it is identical to regular relu
 
         { "aten::conv2d", [&]() -> OutputVector {
@@ -436,6 +442,8 @@ OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMa
         }},
 
         { "aten::add", add},
+
+        // TODO: Handle inplace semantics correctly
         { "aten::add_", add},   // inplace version of add, for us it is identical to regular add
 
         { "aten::mul", [&]() -> OutputVector {
@@ -467,6 +475,13 @@ OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMa
 
         { "aten::sigmoid", [&]() -> OutputVector {
             return { context.mark_node(make_shared<opset7::Sigmoid>(context.get_input(0))) };
+        }},
+
+        { "aten::silu_", [&]() -> OutputVector {
+            // TODO: Handle inplace semantics correctly
+            auto sigmoid = context.mark_node(make_shared<opset7::Sigmoid>(context.get_input(0)));
+            auto silu = context.mark_node(make_shared<opset7::Multiply>(context.get_input(0), sigmoid));
+            return { silu };
         }},
 
         { "aten::gelu", [&]() -> OutputVector {
@@ -529,14 +544,19 @@ OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMa
           auto listConstruct_fw_node = dynamic_cast<PtFrameworkNode*>(listConstruct);
           OV_FRONTEND_REQUIRE(listConstruct_fw_node);
           OV_FRONTEND_REQUIRE(listConstruct_fw_node->get_decoder()->get_op_type() == "prim::ListConstruct");
+          std::cerr << "POINT 1\n";
           auto axis = context.const_input<int64_t>(1);
+          std::cerr << "POINT 2\n";
           OutputVector inputs;
           for (auto& input : listConstruct->inputs()) {
             inputs.push_back(input.get_source_output());
           }
+          std::cerr << "POINT 3\n";
           auto result = context.mark_node(make_shared<opset7::Concat>(inputs, axis));
-          auto list_set = listConstruct_fw_node->get_rt_info()["pt_node"].as<std::set<const Node*>>();
-          result->get_rt_info()["pt_node"].as<std::set<const Node*>>().insert(list_set.begin(), list_set.end());
+          //auto list_set = listConstruct_fw_node->get_rt_info()["pt_node"].as<std::set<const Node*>>();   // TODO: fails if marking doesn't really mark anything
+          std::cerr << "POINT 4\n";
+          //result->get_rt_info()["pt_node"].as<std::set<const Node*>>().insert(list_set.begin(), list_set.end());
+          std::cerr << "POINT 5\n";
           return { result };
         }},
 
@@ -687,7 +707,7 @@ OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMa
         }},
 
         { "aten::size", [&]() -> OutputVector {
-            auto shape = context.mark_node(make_shared<opset8::ShapeOf>(context.get_input(0)));
+            auto shape = context.mark_node(make_shared<opset8::ShapeOf>(context.get_input(0), element::i32));
             if(context.input_is_none(1)) {
                 return shape->outputs();
             } else {
@@ -712,12 +732,25 @@ OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMa
                 }
                 auto concat = context.mark_node(make_shared<opset7::Concat>(inputs, 0));
                 reshape = context.mark_node(make_shared<opset7::Reshape>(context.get_input(0), concat, false));
-                auto list_set = shape_node_fw_node->get_rt_info()["pt_node"].as<std::set<const Node*>>();
-                reshape->get_rt_info()["pt_node"].as<std::set<const Node*>>().insert(list_set.begin(), list_set.end());
+                // TODO: temporary disabled
+                //auto list_set = shape_node_fw_node->get_rt_info()["pt_node"].as<std::set<const Node*>>();
+                //reshape->get_rt_info()["pt_node"].as<std::set<const Node*>>().insert(list_set.begin(), list_set.end());
             } else {
                 reshape = context.mark_node(make_shared<opset7::Reshape>(context.get_input(0), context.get_input(1), false));
             }
             return { reshape };
+        }},
+
+        { "prim::ListUnpack", [&]() -> OutputVector {
+            auto split_with_sizes = dynamic_cast<PtFrameworkNode*>(context.get_input(0).get_node());
+            if (split_with_sizes && split_with_sizes->get_decoder()->get_op_type() == "aten::split_with_sizes") {
+                auto split = make_shared<opset7::VariadicSplit>(
+                    split_with_sizes->get_input_source_output(0),
+                    split_with_sizes->get_input_source_output(2),
+                    split_with_sizes->get_input_source_output(1));
+                return context.mark_node(split)->outputs();
+            }
+            throw std::runtime_error("Cannot match prim::ListUnpack with expected aten::split_with_sizes as an input, left prim::ListUnpack not converted");
         }},
 
         { "aten::unsqueeze", [&]() -> OutputVector {
@@ -782,11 +815,20 @@ OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMa
     //     std::cout << "Python exception: " << e << "\n";
     // }
     catch (std::runtime_error& e) {
-        std::cout << "Exception happened during conversion: " << e.what() << '\n';
+        std::cout << std::flush;
+        std::cout << "Exception happened during conversion: " << e.what() << " during conversion of node of type " << context.get_op_type() << '\n';
+        std::cout << "Debug for node: " << std::endl;
+        context.debug();
+        std::cout << std::endl;
+        std::cout << "End of debug output for node" << std::endl;
         //throw;
     }
     catch (...) {
         std::cout << "Some exception happened during convertion of node of type: " << context.get_op_type() << std::endl;
+        std::cout << "Debug for node: " << std::endl;
+        context.debug();
+        std::cout << std::endl;
+        std::cout << "End of debug output for node" << std::endl;
         //throw;
     }
     //if (node->kind() != prim::ListConstruct) {
