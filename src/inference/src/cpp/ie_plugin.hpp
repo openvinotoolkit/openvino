@@ -180,7 +180,12 @@ public:
         OV_PLUGIN_CALL_STATEMENT(_ptr->SetConfig(config));
     }
 
-    SoPtr<ie::IExecutableNetworkInternal> compile_model(const ie::CNNNetwork& network, const std::map<std::string, std::string>& config) {
+    void set_properties(const ov::AnyMap& config) {
+        OV_PLUGIN_CALL_STATEMENT(_ptr->SetProperties(config));
+    }
+
+    SoPtr<ie::IExecutableNetworkInternal> compile_model(const ie::CNNNetwork& network,
+                                                        const std::map<std::string, std::string>& config) {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->LoadNetwork(network, config), _so});
     }
 
