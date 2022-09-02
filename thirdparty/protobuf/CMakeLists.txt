@@ -78,10 +78,18 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
 
     # need to unset several variables which can set env to cross-environment
     foreach(var CC CXX CPP CFLAGS CPPFLAGS CXXFLAGS KCFLAGS LD LDFLAGS STRIP GDB RANLIB OBJDUMP NM
-                PKG_CONFIG_SYSROOT_DIR PKG_CONFIG_PATH READELF AR AS CONFIGURE_FLAGS
-                TARGET_PREFIX CROSS_COMPILE OBJCOPY CONFIG_SITE)
+                READELF AR AS CONFIGURE_FLAGS TARGET_PREFIX CROSS_COMPILE OBJCOPY CONFIG_SITE
+                # if we skip pkg-config variables, libusb is not found by the whole project
+                # it's safe to skip it here, because protobuf cmake does not use pkg-config
+                # PKG_CONFIG_SYSROOT_DIR PKG_CONFIG_PATH
+                )
         unset(ENV{${var}})
     endforeach()
+
+    # compile flags
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        set(compile_flags "-Wno-undef -Wno-error")
+    endif()
 
     ExternalProject_Add(host_protoc
         SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/protobuf/cmake"
@@ -90,7 +98,7 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
         PREFIX "${HOST_PROTOC_PREFIX_DIR}"
         EXCLUDE_FROM_ALL ON
         CMAKE_ARGS
-            # we explicitly skip the compiler
+            # we explicitly skip the compiler, because we want host one
             # "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
             # "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
             # generic settings
@@ -98,9 +106,8 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
             "-DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}"
             "-DCMAKE_CXX_LINKER_LAUNCHER=${CMAKE_CXX_LINKER_LAUNCHER}"
             "-DCMAKE_C_LINKER_LAUNCHER=${CMAKE_C_LINKER_LAUNCHER}"
-            "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -Wno-undef -Wno-error"
-            "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -Wno-undef -Wno-error"
-            "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=${ENABLE_LTO}"
+            "-DCMAKE_CXX_FLAGS=${compile_flags}"
+            "-DCMAKE_C_FLAGS=${compile_flags}"
             "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
             "-DCMAKE_INSTALL_PREFIX=${HOST_PROTOC_INSTALL_DIR}"
             "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
@@ -114,10 +121,12 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
     set_target_properties(protobuf::protoc PROPERTIES
         IMPORTED_LOCATION_RELEASE "${HOST_PROTOC_INSTALL_DIR}/bin/protoc")
     add_dependencies(protobuf::protoc host_protoc)
-    
+
+    set(PROTOC_DEPENDENCY protobuf::protoc PARENT_SCOPE)
     set(PROTOC_EXECUTABLE "${HOST_PROTOC_INSTALL_DIR}/bin/protoc" PARENT_SCOPE)
 else()
     set(PROTOC_EXECUTABLE $<TARGET_FILE:protoc> PARENT_SCOPE)
+    set(PROTOC_DEPENDENCY protoc PARENT_SCOPE)
 endif()
 
 # set to parent scope
