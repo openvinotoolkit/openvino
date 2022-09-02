@@ -86,7 +86,7 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
     ngraph::OutputVector subgraph_inputs;
 
     for (const auto& input : node->input_values()) {
-        if (is_scalar_constant(input.get_node_shared_ptr())) {
+        if (ngraph::is_type<ngraph::opset1::Constant>(input.get_node_shared_ptr())) {
             body_inputs.push_back(input);
         } else {
             auto parameter = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
@@ -310,7 +310,7 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     const size_t count = m_generator->get_target_machine()->get_lanes();
 
     ngraph::pass::Manager manager;
-    manager.register_pass<snippets::pass::ConvertConstants>();
+    manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
     manager.register_pass<snippets::pass::InsertLoad>(count);
     manager.register_pass<snippets::pass::InsertStore>(count);

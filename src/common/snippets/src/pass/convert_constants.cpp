@@ -3,42 +3,81 @@
 //
 
 #include <snippets/itt.hpp>
+#include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+
 #include "snippets/snippets_isa.hpp"
 #include "snippets/pass/convert_constants.hpp"
-#include <ngraph/rt_info.hpp>
+#include "snippets/op/subgraph.hpp"
 
 
-bool ngraph::snippets::pass::ConvertConstants::run_on_model(const std::shared_ptr<ov::Model>& m) {
-    MATCHER_SCOPE(ConvertConstants);
+ngraph::snippets::pass::ConvertConstantsToScalars::ConvertConstantsToScalars() {
+    MATCHER_SCOPE(ConvertConstantsToScalars);
+    auto constants = std::make_shared<pattern::op::Label>(pattern::any_input(),
+                                                    [](std::shared_ptr<Node> n) {
+                                                        return ngraph::is_type<ov::op::v0::Constant>(n);
+                                                    });
+    ngraph::graph_rewrite_callback callback = [this](ngraph::pattern::Matcher &m) {
+        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::ConvertConstantsToScalars")
+        auto constant = as_type_ptr<ov::op::v0::Constant>(m.get_match_root());
+        auto scalar = std::make_shared<snippets::op::Scalar>(*constant);
+        scalar->set_friendly_name(constant->get_friendly_name());
+        ngraph::copy_runtime_info(constant, scalar);
+        ngraph::replace_node(constant, scalar);
 
-    bool was_updated = false;
-    ngraph::ParameterVector parameters;
+        return true;
+    };
+    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(constants), callback);
+}
 
-    const auto& ops = m->get_ops();
-    for (auto& op : ops) {
-        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::ConvertConstants")
+ngraph::snippets::pass::ConvertConstantsToParameters::ConvertConstantsToParameters() {
+    MATCHER_SCOPE(ConvertConstantsToParameters);
+    register_matcher(std::make_shared<ngraph::pattern::Matcher>(
+        ngraph::pattern::wrap_type<ngraph::snippets::op::Subgraph>(), matcher_name),
+        [this](ngraph::pattern::Matcher& m) {
+        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::ConvertConstantsToParameters");
+        auto root = m.get_match_root();
 
-        auto constant = as_type_ptr<ov::op::v0::Constant>(op);
-        if (constant == nullptr) {
-            continue;
+        auto subgraph = ov::as_type_ptr<ngraph::snippets::op::Subgraph>(root);
+        if (!subgraph)
+            return false;
+
+        auto body = subgraph->get_body();
+
+        std::vector<std::shared_ptr<opset1::Parameter>> new_parameters;
+        std::vector<ngraph::Output<Node>> new_inputs;
+        new_inputs.reserve(subgraph->get_input_size());
+        for (auto i = 0; i < subgraph->get_input_size(); ++i) {
+            new_inputs.push_back(subgraph->get_input_source_output(i));
         }
 
-        std::shared_ptr<Node> replacement;
-        if (ngraph::shape_size(constant->get_shape()) == 1ul) {
-            replacement = std::make_shared<snippets::op::Scalar>(*constant);
-        } else {
+        for (auto& op : body->get_ordered_ops()) {
+            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op);
+            if (!(constant && ngraph::shape_size(constant->get_shape()) != 1ul))
+                continue;
+
+            new_inputs.push_back(constant);
+
             auto parameter = std::make_shared<opset1::Parameter>(constant->get_element_type(), constant->output(0).get_partial_shape());
-            parameters.push_back(parameter);
-            replacement = parameter;
+            parameter->set_friendly_name(constant->get_friendly_name());
+            ngraph::copy_runtime_info(constant, parameter);
+            for (auto input : constant->output(0).get_target_inputs()) {
+                input.replace_source_output(parameter->output(0));
+            }
+
+            new_parameters.push_back(parameter);
         }
 
-        replacement->set_friendly_name(constant->get_friendly_name());
-        ngraph::copy_runtime_info(constant, replacement);
-        ngraph::replace_node(constant, replacement);
+        if (new_parameters.size() == 0)
+            return false;
 
-        was_updated = true;
-    }
-    m->add_parameters(parameters);
+        body->add_parameters(new_parameters);
+        body->validate_nodes_and_infer_types();
 
-    return was_updated;
+        const auto new_subgraph = subgraph->clone_with_new_inputs(new_inputs);
+        replace_node(subgraph, new_subgraph);
+        new_subgraph->set_friendly_name(subgraph->get_friendly_name());
+        copy_runtime_info(subgraph, new_subgraph);
+        return true;
+    });
 }

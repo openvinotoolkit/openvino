@@ -154,6 +154,42 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
     }
     return result;
 }
+auto get_potentional_non_scalar_constants_count(const std::shared_ptr<ov::Model> body) -> size_t {
+    auto get_additional_param_count_for_fq = [](std::shared_ptr<ov::Node> fq) -> size_t {
+        const bool il = ngraph::shape_size(fq->input(1).get_shape()) != 1lu;
+        const bool ih = ngraph::shape_size(fq->input(2).get_shape()) != 1lu;
+        const bool ol = ngraph::shape_size(fq->input(3).get_shape()) != 1lu;
+        const bool oh = ngraph::shape_size(fq->input(4).get_shape()) != 1lu;
+
+        int count = 0;
+        if (ol && il && ih)
+            count = 6;
+        else if ((ol && (il || ih)) || (il && ih && oh))
+            count = 5;
+        else if ((il && oh) || (ih && oh) || (il && ih))
+            count = 4;
+        else if (il || ih)
+            count = 3;
+        else if (ol)
+            count = 2;
+        else if (oh)
+            count = 1;
+
+        return count - static_cast<int>(il) - static_cast<int>(ih) - static_cast<int>(ol) - static_cast<int>(oh);
+    };
+
+    size_t count = 0;
+    for (const auto& op : body->get_ops()) {
+        if (ov::is_type<ov::op::v0::FakeQuantize>(op)) {
+            count += get_additional_param_count_for_fq(op);
+        } else if (ov::is_type<ov::op::v0::Constant>(op) &&
+                  !ov::is_type<ov::op::v0::FakeQuantize>(op->output(0).get_target_inputs().begin()->get_node()) &&
+                  ngraph::shape_size(op->get_shape()) != 1lu) {
+            count++;
+        }
+    }
+    return count;
+}
 // Need to update tensor name manually, since intel_cpu::Graph::Replicate() looks at input.get_tensor().get_name();
 // If subgraph->get_output_size() == 1, then the name will be restored correctly from the node name
 auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &subgraph) -> void {
@@ -446,7 +482,7 @@ TokenizeSnippets::TokenizeSnippets() {
                 // Result op has a single input
                 internal_inputs.push_back(source_result->input_value(0));
             } else {
-                if (op::is_scalar_constant(input_node)) {
+                if (ngraph::is_type<ngraph::opset1::Constant>(input_node)) {
                     internal_inputs.push_back(input_node->output(0));
                 } else {
                     external_inputs.push_back(input_value);
@@ -513,16 +549,21 @@ TokenizeSnippets::TokenizeSnippets() {
         if (body_results.size() != subgraph_result_inputs.size()) {
             throw ngraph_error("body results and node results size mismatch during subgraph collaps");
         }
+
+        auto body = op::create_body(node->get_friendly_name(), body_results, body_parameters);
+        const auto hidden_non_scalar_constant_count = get_potentional_non_scalar_constants_count(body);
+
         // todo: move this plugin-specific constraint to the plugin callback
-        if (body_parameters.size() + body_results.size() > 12) {
+        if (body_parameters.size() + body_results.size() + hidden_non_scalar_constant_count> 12) {
             const std::string message_reset = "new subgraph is created. Impossible to schedule subgraph with " +
-            std::to_string(body_parameters.size()) + " inputs and " + std::to_string(body_results.size()) + " outputs.";
+            std::to_string(body_parameters.size()) + " inputs, " + std::to_string(body_results.size()) + " outputs and " +
+            std::to_string(hidden_non_scalar_constant_count) + " non-scalar constants.";
             const std::string message_abort = "failed to continue subgraph. Impossible to schedule subgraph with " +
-            std::to_string(body_parameters.size()) + " inputs and " + std::to_string(body_results.size()) + " outputs.";
+            std::to_string(body_parameters.size()) + " inputs, " + std::to_string(body_results.size()) + " outputs and " +
+            std::to_string(hidden_non_scalar_constant_count) + " non-scalar constants.";
             return abort_with_strategy(message_reset, message_abort);
         }
 
-        auto body = op::create_body(node->get_friendly_name(), body_results, body_parameters);
         for (size_t i = 0; i < body->get_parameters().size(); i++) {
             body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }

@@ -14,12 +14,23 @@ namespace pass {
 /**
  * @interface ConvertConstantsToScalars
  * @brief Replace only constants which are should be represented as scalars during code generation.
- * Only single-value (0D) constants are currently supported.
+ *        Only single-value (0D) constants are currently supported.
  * @ingroup snippets
  */
-class ConvertConstants: public ngraph::pass::FunctionPass {
+class ConvertConstantsToScalars: public ngraph::pass::MatcherPass {
 public:
-    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+    ConvertConstantsToScalars();
+};
+
+/**
+ * @interface ConvertConstantsToParameters
+ * @brief Move up Constants which aren't scalars from body to Subgraph
+ *        and replace them with Parameters inside body
+ * @ingroup snippets
+ */
+class ConvertConstantsToParameters : public ngraph::pass::MatcherPass {
+public:
+    ConvertConstantsToParameters();
 };
 
 } // namespace pass
