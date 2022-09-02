@@ -175,6 +175,7 @@ auto get_potentional_non_scalar_constants_count(const std::shared_ptr<ov::Model>
         else if (oh)
             count = 1;
 
+        // remove Constants which are already non-scalar Constants
         return count - static_cast<int>(il) - static_cast<int>(ih) - static_cast<int>(ol) - static_cast<int>(oh);
     };
 
@@ -182,9 +183,7 @@ auto get_potentional_non_scalar_constants_count(const std::shared_ptr<ov::Model>
     for (const auto& op : body->get_ops()) {
         if (ov::is_type<ov::op::v0::FakeQuantize>(op)) {
             count += get_additional_param_count_for_fq(op);
-        } else if (ov::is_type<ov::op::v0::Constant>(op) &&
-                  !ov::is_type<ov::op::v0::FakeQuantize>(op->output(0).get_target_inputs().begin()->get_node()) &&
-                  ngraph::shape_size(op->get_shape()) != 1lu) {
+        } else if (ov::is_type<ov::op::v0::Constant>(op) && ngraph::shape_size(op->get_shape()) != 1lu) {
             count++;
         }
     }
@@ -554,7 +553,7 @@ TokenizeSnippets::TokenizeSnippets() {
         const auto hidden_non_scalar_constant_count = get_potentional_non_scalar_constants_count(body);
 
         // todo: move this plugin-specific constraint to the plugin callback
-        if (body_parameters.size() + body_results.size() + hidden_non_scalar_constant_count> 12) {
+        if (body_parameters.size() + body_results.size() + hidden_non_scalar_constant_count > 12) {
             const std::string message_reset = "new subgraph is created. Impossible to schedule subgraph with " +
             std::to_string(body_parameters.size()) + " inputs, " + std::to_string(body_results.size()) + " outputs and " +
             std::to_string(hidden_non_scalar_constant_count) + " non-scalar constants.";
