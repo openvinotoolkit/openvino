@@ -68,6 +68,8 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
     static constexpr auto KERNEL_ELEMENT_TYPE = ov::element::Type_t::f32;
 
     using Vmm = typename jit_kernel_traits<isa, KERNEL_ELEMENT_TYPE>::Vmm;
+    static constexpr unsigned VCMPPS_LE = 0x02;
+    static constexpr unsigned VCMPPS_GT = 0x0e;
 //    using Vmm = Xbyak::Xmm;
     static constexpr unsigned XMM_SIMD_WIDTH = 16 / sizeof(typename ov::element_type_traits<KERNEL_ELEMENT_TYPE>::value_type);
     static constexpr unsigned YMM_SIMD_WIDTH = 32 / sizeof(typename ov::element_type_traits<KERNEL_ELEMENT_TYPE>::value_type);
@@ -234,33 +236,46 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
             assert(xmm_index.getKind() == xmm_mask.getKind());
 
             std::vector<Xbyak::Reg> not_available_reg{reg_addr};
+            std::vector<Xbyak::Xmm> not_available_xmm{xmm_index, xmm_val, Xbyak::Xmm{reg_mask.getIdx()}};
             const Xbyak::Reg64 idx = this->get_free_reg<Xbyak::Reg64>(not_available_reg);
             const Xbyak::Reg64 mask = this->get_free_reg<Xbyak::Reg64>(not_available_reg);
             const Xbyak::Reg64 val = this->get_free_reg<Xbyak::Reg64>(not_available_reg);
+            const Xbyak::Xmm xmm_val_temp = this->get_free_vmm<Xbyak::Xmm>(not_available_xmm);
 
             push(idx);
             push(mask);
             push(val);
+            push_xmm(xmm_val_temp);
             xor_(idx, idx);
             xor_(mask, mask);
             xor_(val, val);
 
+            auto extract_xmm = [this](const Xbyak::Reg64 in, const Xbyak::Xmm& xmm_val_temp, const Xbyak::Xmm& xmm_reg, const int& i, const int &scale) {
+                if (mayiuse(cpu_isa_t::avx2)) {
+                    vextracti128(xmm_val_temp, Xbyak::Ymm{xmm_reg.getIdx()}, i/scale);
+                    uni_vpextrd(in.cvt32(), xmm_val_temp, i%scale);
+                } else {
+                    uni_vpextrd(in.cvt32(), xmm_reg, i);
+                }
+            };
+
             for (int i = 0; i < SIMD_WIDTH; i++) {
                 Xbyak::Label scatter_end;
-                uni_vpextrd(mask.cvt32(), xmm_mask, i);
+                extract_xmm(mask, xmm_val_temp, xmm_mask, i, scale);
                 cmp(mask.cvt32(), 0xFFFFFFFF);
                 jne(scatter_end, T_NEAR);
-                uni_vpextrd(idx.cvt32(), xmm_index, i);
+                extract_xmm(idx, xmm_val_temp, xmm_index, i, scale);
                 Xbyak::Address addr = ptr[reg_addr + idx * scale];
                 switch (scale) {
-                    case 8: uni_vpextrd(val, xmm_val, i); mov(addr, val); break;
-                    case 4: uni_vpextrd(val.cvt32(), xmm_val, i); mov(addr, val.cvt32()); break;
-                    case 2: uni_vpextrd(val.cvt16(), xmm_val, i); mov(addr, val.cvt16()); break;
-                    case 1: uni_vpextrd(val.cvt8(), xmm_val, i); mov(addr, val.cvt8()); break;
+                    case 8: uni_vpextrq(val, xmm_val, i); mov(addr, val); break;
+                    case 4: extract_xmm(val, xmm_val_temp, xmm_val, i, scale); mov(addr, val.cvt32()); break;
+                    case 2: uni_vpextrw(val.cvt16(), xmm_val, i); mov(addr, val.cvt16()); break;
+                    case 1: uni_vpextrb(val.cvt8(), xmm_val, i); mov(addr, val.cvt8()); break;
                     default: IE_THROW() << "The data type of size '" << scale << "' is not supported.";
                 }
                 L(scatter_end);
             }
+            pop_xmm(xmm_val_temp);
             pop(mask);
             pop(idx);
         }
@@ -286,21 +301,7 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
     Xbyak::Reg64 reg_anchors_chunk = r12;
     Xbyak::Reg64 reg_img_h = r13;
     Xbyak::Reg64 reg_img_w = r14;
-
-    // Temp variables
-    Xbyak::Reg64 reg_anchor_idx = r13;
-    Xbyak::Reg64 reg_anchor_anchor_offset = r14;
-    Xbyak::Reg64 reg_anchor_idx_offset = r15;
-    Xbyak::Reg64 reg_delta_idx = r13;
-    Xbyak::Reg64 reg_delta_anchor_offset = r14;
-    Xbyak::Reg64 reg_delta_idx_offset = r15;
-    Xbyak::Reg64 reg_score_idx = r13;
-    Xbyak::Reg64 reg_score_anchor_offset = r14;
-    Xbyak::Reg64 reg_proposal_idx = r13;
-    Xbyak::Reg64 reg_proposal_anchor_offset = r14;
-    Xbyak::Reg64 reg_proposal_idx_offset = r15;
-    Xbyak::Reg64 reg_num_proc_elem = r13;
-    Xbyak::Reg64 reg_elem_size = r14;
+    Xbyak::Reg64 reg_num_proc_elem = r15;
 
     Vmm vmm_x0 = Vmm(0);
     Vmm vmm_y0 = Vmm(1);
@@ -311,11 +312,7 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
     Vmm vmm_d_log_w = Vmm(6);
     Vmm vmm_d_log_h = Vmm(7);
 
-    Vmm vmm_score = Vmm(4);
-    Vmm vmm_box_w = Vmm(4);
-    Vmm vmm_box_h = Vmm(5);
-    Vmm vmm_min_box_w = Vmm(6);
-    Vmm vmm_min_box_h = Vmm(7);
+
 };
 
 //template <x64::cpu_isa_t isa>

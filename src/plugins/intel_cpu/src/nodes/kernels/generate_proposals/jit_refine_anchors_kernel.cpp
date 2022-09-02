@@ -3,6 +3,7 @@
 //
 
 #include "jit_refine_anchors_kernel.hpp"
+#include "nodes/kernels/registers_pool.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -75,8 +76,10 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
 
     mov(rbp, rsp);
     xor_(reg_anchors_loop, reg_anchors_loop);
+    xor_(reg_anchors_chunk, reg_anchors_chunk);
     xor_(reg_img_h, reg_img_h);
     xor_(reg_img_w, reg_img_w);
+    xor_(reg_num_proc_elem, reg_num_proc_elem);
     mov(reg_anchors_loop.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchors_num)]);
     mov(reg_anchors_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchors)]);
     mov(reg_deltas_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, deltas)]);
@@ -96,8 +99,8 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
     Xbyak::Label l_mask;
     L(anchor_loop);
     {
-        mov(reg_anchors_chunk, this->SIMD_WIDTH);
-        cmp(reg_anchors_loop, this->SIMD_WIDTH);
+        mov(reg_anchors_chunk.cvt32(), this->SIMD_WIDTH);
+        cmp(reg_anchors_loop.cvt32(), this->SIMD_WIDTH);
         jae(loop_mask);
         mov(reg_anchors_chunk, reg_anchors_loop);
         L(loop_mask);
@@ -125,10 +128,10 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
 
         // Prepare mask
         Vmm vmm_anchor_mask = this->get_free_vmm<Vmm>(not_available_vmm);
-        mov(rax, this->SIMD_WIDTH);
+        mov(rax.cvt32(), this->SIMD_WIDTH);
         sub(rax, reg_anchors_chunk);
         add(rax, 16);
-        sub(rax, this->SIMD_WIDTH);
+        sub(rax.cvt32(), this->SIMD_WIDTH);
         mov(rbx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, refine_anchor_masks)]);
         uni_vmovdqu(vmm_anchor_mask, ptr[rbx + rax * sizeof(float)]);
         sub(rsp, vmm_reg_size_in_bytes);
@@ -375,9 +378,57 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
         uni_vmaxps(vmm_y1, vmm_y1, vmm_0_0_addr);
 
         /** @code
+            int p_idx = proposal_idx(h, w, anchor, 0);
+            proposals[p_idx + 0] = x0;
+            proposals[p_idx + 1] = y0;
+            proposals[p_idx + 2] = x1;
+            proposals[p_idx + 3] = y1;
+            ...
+         */
+        not_available_vmm = {vmm_x0, vmm_y0, vmm_x1, vmm_y1};
+
+        // Prepare indexes
+        Vmm vmm_proposals_idx = this->get_free_vmm<Vmm>(not_available_vmm);
+        Vmm vmm_proposals_anchor_offset = this->get_free_vmm<Vmm>(not_available_vmm);
+        Vmm vmm_proposals_idx_offset = this->get_free_vmm<Vmm>(not_available_vmm);
+        uni_vbroadcastss(vmm_proposals_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_start_idx)]);
+        uni_vbroadcastss(vmm_proposals_anchor_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_anchor_offset)]);
+        uni_vbroadcastss(vmm_anchor_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_idx_offset)]);
+        mov(rbx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, refine_anchor_indices)]);
+        uni_vpmulld(vmm_proposals_anchor_offset, vmm_proposals_anchor_offset, ptr[rbx]);
+        uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_anchor_offset);
+
+        // Prepare mask
+        Vmm vmm_proposals_mask = this->get_free_vmm<Vmm>(not_available_vmm);
+        uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
+
+        {
+            // proposals[p_idx + 0] = x0;
+            uni_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), vmm_x0, vmm_proposals_mask);
+            // proposals[p_idx + 1] = y0;
+            uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
+            uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_idx_offset);
+            uni_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), vmm_y0, vmm_proposals_mask);
+            // proposals[p_idx + 2] = x1;
+            uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
+            uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_idx_offset);
+            uni_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), vmm_x1, vmm_proposals_mask);
+            // proposals[p_idx + 3] = y1;
+            uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
+            uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_idx_offset);
+            uni_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), vmm_y1, vmm_proposals_mask);
+        }
+
+        /** @code
             const float score = scores[score_idx(anchor, 0, h, w)];
          */
-        not_available_vmm = {vmm_score};
+        not_available_vmm = {vmm_proposals_idx, vmm_proposals_mask, vmm_proposals_idx_offset};
+
+        Vmm vmm_score = this->get_free_vmm<Vmm>(not_available_vmm);
+        Vmm vmm_box_w = this->get_free_vmm<Vmm>(not_available_vmm);
+        Vmm vmm_box_h = this->get_free_vmm<Vmm>(not_available_vmm);
+        Vmm vmm_min_box_w = this->get_free_vmm<Vmm>(not_available_vmm);
+        Vmm vmm_min_box_h = this->get_free_vmm<Vmm>(not_available_vmm);
 
         // Prepare indexes
         Vmm vmm_score_idx = this->get_free_vmm<Vmm>(not_available_vmm);
@@ -397,60 +448,55 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
             this->uni_vgatherdps(vmm_score, reg_scores_ptr, vmm_score_idx, sizeof(float), vmm_score_mask);
         }
 
+        /** @code
+            int p_idx = proposal_idx(h, w, anchor, 0);
+            ...
+            proposals[p_idx + 4] = score;
+            ...
+         */
+        {
+            // proposals[p_idx + 4] = score;
+            uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
+            uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_idx_offset);
+            uni_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), vmm_score, vmm_proposals_mask);
+        }
+
 //        /** @code
 //            // recompute new width & height
 //            const float box_w = x1 - x0 + coordinates_offset;
 //            const float box_h = y1 - y0 + coordinates_offset;
 //         */
 //        // const float box_w = x1 - x0 + coordinates_offset;
-//        uni_vaddss(xmm_box_w, vmm_x0, reg_coordinates_offset);
-//        uni_vaddps(xmm_box_w, vmm_x1, xmm_box_w);
+//        uni_vsubps(vmm_box_w, vmm_x1, vmm_x0);
+//        uni_vaddps(vmm_box_w, vmm_x1, vmm_coordinates_offset_addr);
 //        // const float box_h = y1 - y0 + coordinates_offset;
-//        uni_vaddss(xmm_box_h, vmm_y0, reg_coordinates_offset);
-//        uni_vaddps(xmm_box_h, vmm_y1, xmm_box_h);
-//
+//        uni_vsubps(vmm_box_h, vmm_y1, vmm_y0);
+//        uni_vaddps(vmm_box_h, vmm_y1, vmm_coordinates_offset_addr);
 
 //        /** @code
 //            int p_idx = proposal_idx(h, w, anchor, 0);
-//            proposals[p_idx + 0] = x0;
-//            proposals[p_idx + 1] = y0;
-//            proposals[p_idx + 2] = x1;
-//            proposals[p_idx + 3] = y1;
-//            proposals[p_idx + 4] = score;
+//            ...
 //            proposals[p_idx + 5] = (min_box_w <= box_w) * (min_box_h <= box_h) * 1.0;
 //         */
-//        mov(reg_proposal_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_idx_offset)]);
-//        mov(reg_proposal_chunk_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_chunk_offset)]);
-//        // int p_idx = proposal_idx(h, w, anchor, 0);
-//        uni_vmovdqu(xmm_proposals_index, ptr[reg_proposals_index]);
-//        uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
-//        // proposals[p_idx + 0] = x0;
-//        vscatterdps(ptr[reg_proposals_ptr + xmm_proposals_index], vmm_x0);
-//        // proposals[p_idx + 1] = y0;
-//        vscatterdps(ptr[reg_proposals_ptr + xmm_proposals_index], vmm_y0);
-//        // proposals[p_idx + 2] = x1;
-//        vscatterdps(ptr[reg_proposals_ptr + xmm_proposals_index], vmm_x1);
-//        // proposals[p_idx + 3] = y1;
-//        vscatterdps(ptr[reg_proposals_ptr + xmm_proposals_index], vmm_y1);
-//        // proposals[p_idx + 4] = score;
-//        vscatterdps(ptr[reg_proposals_ptr + xmm_proposals_index], xmm_score);
-//        // proposals[p_idx + 5] = (min_box_w <= box_w) * (min_box_h <= box_h) * 1.0;
-//        uni_vmovdqu(xmm_min_box_w, ptr[reg_proposals_index]);
-//        uni_vmovdqu(xmm_min_box_h, ptr[reg_proposals_index]);
-//        vcmpeq_uqps(xmm_min_box_w, xmm_min_box_w, xmm_box_w);
-//        vcmpeq_uqps(xmm_min_box_h, xmm_min_box_h, xmm_box_h);
-//        uni_vmulps(xmm_min_box_w, xmm_min_box_w, xmm_min_box_h);
-//        vscatterdps(ptr[reg_proposals_ptr + xmm_proposals_index], xmm_min_box_w);
-//
-//        this->update_input_output_ptrs();
-//
+//        uni_vbroadcastss(vmm_min_box_w, ptr[reg_params + offsetof(jit_refine_anchors_call_args, min_box_w)]);
+//        uni_vbroadcastss(vmm_min_box_h, ptr[reg_params + offsetof(jit_refine_anchors_call_args, min_box_h)]);
+//        uni_vcmpps(vmm_box_w, vmm_min_box_w, vmm_box_w, VCMPPS_LE);
+//        uni_vcmpps(vmm_box_h, vmm_min_box_h, vmm_box_h, VCMPPS_LE);
+//        uni_vmulps(vmm_box_h, vmm_box_w, vmm_box_h);
+
+//        {
+//            // proposals[p_idx + 5] = (min_box_w <= box_w) * (min_box_h <= box_h) * 1.0;
+//            uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
+//            uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_idx_offset);
+//            uni_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), vmm_box_h, vmm_proposals_mask);
+//        }
+
+        this->update_input_output_ptrs();
+
         // Free space for mask
         add(rsp, 4 * vmm_reg_size_in_bytes);
-        inc(reg_anchors_loop);
-        mov(rax, this->SIMD_WIDTH);
-        imul(rax, reg_anchors_loop);
-        sub(rax, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchors_num)]);
-        jbe(anchor_loop);
+        sub(reg_anchors_loop, reg_anchors_chunk);
+        ja(anchor_loop);
     }
 
     this->postamble();
@@ -460,26 +506,25 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
 
 template <x64::cpu_isa_t isa>
 void jit_refine_anchors_kernel_fp32<isa>::update_input_output_ptrs() {
-//    mov(reg_num_proc_elem, reg_anchors_chunk);
-//    imul(reg_num_proc_elem, reg_num_proc_elem, 4);
-//    mov(reg_anchor_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_idx_offset)]);
-//    imul(reg_num_proc_elem, reg_anchor_idx_offset);
-//    add(reg_anchors_ptr, reg_num_proc_elem);
-//    mov(reg_num_proc_elem, reg_anchors_chunk);
-//    imul(reg_num_proc_elem, reg_num_proc_elem, 4);
-//    mov(reg_delta_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_idx_offset)]);
-//    imul(reg_num_proc_elem, reg_delta_idx_offset);
-//    add(reg_deltas_ptr, reg_num_proc_elem);
-//    mov(reg_num_proc_elem, reg_anchors_chunk);
-//    imul(reg_num_proc_elem, reg_num_proc_elem, 4);
-//    mov(reg_score_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, score_idx_offset)]);
-//    imul(reg_num_proc_elem, reg_score_idx_offset);
-//    add(reg_scores_ptr, reg_num_proc_elem);
-//    mov(reg_num_proc_elem, reg_anchors_chunk);
-//    imul(reg_num_proc_elem, reg_num_proc_elem, 4);
-//    mov(reg_proposal_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_idx_offset)]);
-//    imul(reg_num_proc_elem, reg_proposal_idx_offset);
-//    add(reg_proposals_ptr, reg_num_proc_elem);
+    mov(reg_num_proc_elem, reg_anchors_chunk);
+    imul(reg_num_proc_elem, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_anchor_offset)]);
+    imul(reg_num_proc_elem, reg_num_proc_elem, sizeof(float));
+    add(reg_anchors_ptr, reg_num_proc_elem);
+
+    mov(reg_num_proc_elem, reg_anchors_chunk);
+    imul(reg_num_proc_elem, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_anchor_offset)]);
+    imul(reg_num_proc_elem, reg_num_proc_elem, sizeof(float));
+    add(reg_deltas_ptr, reg_num_proc_elem);
+
+    mov(reg_num_proc_elem, reg_anchors_chunk);
+    imul(reg_num_proc_elem, ptr[reg_params + offsetof(jit_refine_anchors_call_args, score_anchor_offset)]);
+    imul(reg_num_proc_elem, reg_num_proc_elem, sizeof(float));
+    add(reg_scores_ptr, reg_num_proc_elem);
+
+    mov(reg_num_proc_elem, reg_anchors_chunk);
+    imul(reg_num_proc_elem, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_anchor_offset)]);
+    imul(reg_num_proc_elem, reg_num_proc_elem, sizeof(float));
+    add(reg_proposals_ptr, reg_num_proc_elem);
 }
 
 template struct jit_refine_anchors_kernel_fp32<x64::avx512_core>;
