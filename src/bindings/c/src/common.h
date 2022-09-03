@@ -38,6 +38,38 @@
         return ov_status_e::UNEXPECTED;                       \
     }
 
+#define GET_ONE_PROPERTY_FROM_ARGS_LIST(count)                                    \
+    for (size_t i = 0; i < count; i++) {                                          \
+        std::string data_type = va_arg(args_ptr, char*);                          \
+        ov::Any value;                                                            \
+        if (data_type == ov_property_value_type_bool) {                           \
+            value = static_cast<bool>(va_arg(args_ptr, int));                     \
+        } else if (data_type == ov_property_value_type_int32) {                   \
+            value = va_arg(args_ptr, int);                                        \
+        } else if (data_type == ov_property_value_type_uint32) {                  \
+            value = va_arg(args_ptr, unsigned int);                               \
+        } else if (data_type == ov_property_value_type_float) {                   \
+            value = static_cast<float>(va_arg(args_ptr, double));                 \
+        } else if (data_type == ov_property_value_type_double) {                  \
+            value = va_arg(args_ptr, double);                                     \
+        } else if (data_type == ov_property_value_type_string) {                  \
+            value = va_arg(args_ptr, char*);                                      \
+        } else if (data_type == ov_property_value_type_ptr) {                     \
+            value = va_arg(args_ptr, void*);                                      \
+        } else if (data_type == ov_property_value_type_enum) {                    \
+            value = get_property_enum_value(property_key, va_arg(args_ptr, int)); \
+        } else {                                                                  \
+            break;                                                                \
+        }                                                                         \
+        value_vec.push_back(value);                                               \
+    }                                                                             \
+    va_end(args_ptr);                                                             \
+    if (value_vec.size() == 1) {                                                  \
+        property[property_key] = value_vec[0];                                    \
+    } else if (value_vec.size() > 1) {                                            \
+        return ov_status_e::NOT_IMPLEMENT_C_METHOD;                               \
+    }
+
 /**
  * @struct ov_core
  * @brief This struct represents OpenVINO Core entity.
@@ -205,3 +237,6 @@ struct mem_istream : virtual mem_stringbuf, std::istream {
 char* str_to_char_array(const std::string& str);
 ov_element_type_e find_ov_element_type_e(ov::element::Type type);
 ov::element::Type get_element_type(ov_element_type_e type);
+
+ov::Any get_property_enum_value(std::string key, int value);
+std::vector<std::string>& get_rw_property_keys();
