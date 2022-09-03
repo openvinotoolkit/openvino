@@ -43,6 +43,9 @@ public:
 
 protected:
     void Infer() override {
+        this->inferRequest = this->executableNetwork.CreateInferRequest();
+        this->ConfigureInferRequest();
+
         std::map<std::string, long long> results_us{};
         for (const auto& name : bench_names_) {
             results_us[name] = {};
@@ -52,13 +55,15 @@ protected:
         auto warmCur = std::chrono::steady_clock::now();
         const auto warmEnd = warmCur + warmup_time_;
         while (warmCur < warmEnd) {
-            LayerTestsUtils::LayerTestsCommon::Infer();
+            this->inferRequest.Infer();
+//            LayerTestsUtils::LayerTestsCommon::Infer();
             warmCur = std::chrono::steady_clock::now();
         }
 
         // Benchmark
         for (int i = 0; i < num_attempts_; ++i) {
-            LayerTestsUtils::LayerTestsCommon::Infer();
+//            LayerTestsUtils::LayerTestsCommon::Infer();
+            this->inferRequest.Infer();
             const auto& perf_results = LayerTestsUtils::LayerTestsCommon::inferRequest.GetPerformanceCounts();
             for (auto& res : results_us) {
                 const std::string name = res.first;
@@ -126,6 +131,12 @@ class BenchmarkLayerTest : public BaseLayerTest {
 
  protected:
     void infer() override {
+        this->inferRequest = this->compiledModel.create_infer_request();
+        for (const auto& input : this->inputs) {
+            this->inferRequest.set_tensor(input.first, input.second);
+        }
+//        SubgraphBaseTest::infer();
+
         std::map<std::string, long long> results_us{};
         for (const auto& name : bench_names_) {
             results_us[name] = {};
@@ -135,13 +146,14 @@ class BenchmarkLayerTest : public BaseLayerTest {
         auto warmCur = std::chrono::steady_clock::now();
         const auto warmEnd = warmCur + warmup_time_;
         while (warmCur < warmEnd) {
-            SubgraphBaseTest::infer();
+            this->inferRequest.infer();
             warmCur = std::chrono::steady_clock::now();
         }
 
         // Benchmark
         for (int i = 0; i < num_attempts_; ++i) {
-            SubgraphBaseTest::infer();
+            this->inferRequest.infer();
+//            SubgraphBaseTest::infer();
             const auto& profiling_info = SubgraphBaseTest::inferRequest.get_profiling_info();
             for (auto& res : results_us) {
                 const std::string name = res.first;
