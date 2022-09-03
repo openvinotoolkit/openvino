@@ -142,7 +142,7 @@ macro(ov_add_frontend)
         add_custom_command(
                 OUTPUT "${OUTPUT_PB_SRC}" "${OUTPUT_PB_HEADER}"
                 COMMAND ${PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
-                DEPENDS ${PROTOC_EXECUTABLE} ${GENERATED_PROTO}
+                DEPENDS ${PROTOC_DEPENDENCY} ${GENERATED_PROTO}
                 COMMENT "Running C++ protocol buffer compiler (${PROTOC_EXECUTABLE}) on ${GENERATED_PROTO}"
                 VERBATIM
                 COMMAND_EXPAND_LISTS)
