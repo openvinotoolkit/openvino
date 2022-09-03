@@ -42,6 +42,7 @@ OP_CONVERTER(translate_cumsum_op);
 OP_CONVERTER(translate_crop_and_resize_op);
 OP_CONVERTER(translate_depth_to_space_op);
 OP_CONVERTER(translate_depthwise_conv_2d_native_op);
+OP_CONVERTER(translate_einsum_op);
 OP_CONVERTER(translate_elu_op);
 OP_CONVERTER(translate_expand_dims_op);
 OP_CONVERTER(translate_extract_image_patches_op);
@@ -123,6 +124,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Floor", translate_unary_op<opset8::Floor>},
         {"Log", translate_unary_op<opset8::Log>},
         {"LogicalNot", translate_unary_op<opset8::LogicalNot>},
+        {"Mish", translate_unary_op<opset8::Mish>},
         {"Neg", translate_unary_op<opset8::Negative>},
         {"Relu", translate_unary_op<opset8::Relu>},
         {"Sigmoid", translate_unary_op<opset8::Sigmoid>},
@@ -191,6 +193,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Cumsum", translate_cumsum_op},
         {"DepthToSpace", translate_depth_to_space_op},
         {"DepthwiseConv2dNative", translate_depthwise_conv_2d_native_op},
+        {"Einsum", translate_einsum_op},
         {"Elu", translate_elu_op},
         {"ExpandDims", translate_expand_dims_op},
         {"ExtractImagePatches", translate_extract_image_patches_op},

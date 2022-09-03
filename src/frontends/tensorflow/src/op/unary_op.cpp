@@ -43,6 +43,7 @@ template OutputVector translate_unary_op<Exp>(const NodeContext& node);
 template OutputVector translate_unary_op<Floor>(const NodeContext& node);
 template OutputVector translate_unary_op<Log>(const NodeContext& node);
 template OutputVector translate_unary_op<LogicalNot>(const NodeContext& node);
+template OutputVector translate_unary_op<Mish>(const NodeContext& node);
 template OutputVector translate_unary_op<Negative>(const NodeContext& node);
 template OutputVector translate_unary_op<Relu>(const NodeContext& node);
 template OutputVector translate_unary_op<Sigmoid>(const NodeContext& node);
