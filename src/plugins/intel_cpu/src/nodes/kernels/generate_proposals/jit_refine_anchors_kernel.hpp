@@ -276,6 +276,7 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
                 L(scatter_end);
             }
             pop_xmm(xmm_val_temp);
+            pop(val);
             pop(mask);
             pop(idx);
         }
