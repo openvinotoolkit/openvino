@@ -142,7 +142,6 @@ jobs:
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_SAMPLES=ON
         -DBUILD_java_api=OFF
-        -DBUILD_cuda_plugin=OFF
         -DBUILD_nvidia_plugin=OFF
         -DENABLE_INTEL_MYRIAD=OFF
         -DTHREADING=SEQ
