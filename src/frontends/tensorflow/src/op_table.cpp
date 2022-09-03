@@ -28,7 +28,7 @@ OP_CONVERTER(translate_avg_pool_op);
 OP_CONVERTER(translate_batch_mat_mul_op);
 OP_CONVERTER(translate_batch_nd_and_space_nd_op);
 OP_CONVERTER(translate_bias_add_op);
-OP_CONVERTER(translate_broadcast_args);
+OP_CONVERTER(translate_broadcast_args_op);
 OP_CONVERTER(translate_broadcast_to_op);
 OP_CONVERTER(translate_bucketize_op);
 OP_CONVERTER(translate_cast_op);
@@ -175,7 +175,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"BatchMatMul", translate_batch_mat_mul_op},
         {"BatchMatMulV2", translate_batch_mat_mul_op},
         {"BatchToSpaceND", translate_batch_nd_and_space_nd_op},
-        {"BroadcastArgs", translate_broadcast_args},
+        {"BroadcastArgs", translate_broadcast_args_op},
         {"BroadcastTo", translate_broadcast_to_op},
         {"Bucketize", translate_bucketize_op},
         {"BiasAdd", translate_bias_add_op},
