@@ -161,30 +161,25 @@ auto get_potentional_non_scalar_constants_count(const std::shared_ptr<ov::Model>
         const bool ol = ngraph::shape_size(fq->input(3).get_shape()) != 1lu;
         const bool oh = ngraph::shape_size(fq->input(4).get_shape()) != 1lu;
 
-        int count = 0;
         if (ol && il && ih)
-            count = 6;
+            return 6;
         else if ((ol && (il || ih)) || (il && ih && oh))
-            count = 5;
+            return 5;
         else if ((il && oh) || (ih && oh) || (il && ih))
-            count = 4;
+            return 4;
         else if (il || ih)
-            count = 3;
+            return 3;
         else if (ol)
-            count = 2;
+            return 2;
         else if (oh)
-            count = 1;
-
-        // remove Constants which are already non-scalar Constants
-        return count - static_cast<int>(il) - static_cast<int>(ih) - static_cast<int>(ol) - static_cast<int>(oh);
+            return 1;
+        return 0;
     };
 
     size_t count = 0;
     for (const auto& op : body->get_ops()) {
         if (ov::is_type<ov::op::v0::FakeQuantize>(op)) {
             count += get_additional_param_count_for_fq(op);
-        } else if (ov::is_type<ov::op::v0::Constant>(op) && ngraph::shape_size(op->get_shape()) != 1lu) {
-            count++;
         }
     }
     return count;
@@ -481,7 +476,8 @@ TokenizeSnippets::TokenizeSnippets() {
                 // Result op has a single input
                 internal_inputs.push_back(source_result->input_value(0));
             } else {
-                if (ngraph::is_type<ngraph::opset1::Constant>(input_node)) {
+                // TODO COMMENT
+                if (op::is_scalar_constant(input_node) || ov::is_type<ov::op::v0::FakeQuantize>(node)) {
                     internal_inputs.push_back(input_node->output(0));
                 } else {
                     external_inputs.push_back(input_value);

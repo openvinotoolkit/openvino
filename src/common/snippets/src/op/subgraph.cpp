@@ -86,7 +86,8 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
     ngraph::OutputVector subgraph_inputs;
 
     for (const auto& input : node->input_values()) {
-        if (ngraph::is_type<ngraph::opset1::Constant>(input.get_node_shared_ptr())) {
+        if ((op::is_scalar_constant(input.get_node_shared_ptr())) ||
+            (ov::is_type<ov::op::v0::FakeQuantize>(node) && ov::is_type<ov::op::v0::Constant>(input.get_node_shared_ptr()))) {
             body_inputs.push_back(input);
         } else {
             auto parameter = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
