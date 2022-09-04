@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 from math import ceil
 from typing import Union
-from openvino.runtime import Core, get_version_string, AsyncInferQueue
+from openvino.runtime import Core, AsyncInferQueue
 
 from .utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, GPU_DEVICE_NAME, XML_EXTENSION, BIN_EXTENSION
 from .utils.logging import logger
@@ -43,15 +43,19 @@ class Benchmark:
         version = self.core.get_version()
         description = f"{version.description} version "
         logger.info("OpenVINO:")
-        logger.info(f"{description:.<24} {version.major}.{version.minor}.{version.patch}")
-        logger.info(f"{'Build ':.<43} {version.build_number}")
+        logger.info(f"{description:.<39} {version.major}.{version.minor}.{version.patch}")
+        logger.info(f"{'Build ':.<39} {version.build_number}")
+        logger.info("")
 
         logger.info("Device info:")
         for device, version in self.core.get_versions(self.device).items():
             description = f"{version.description} version "
             logger.info(f"{device}")
-            logger.info(f"{description:.<24} {version.major}.{version.minor}.{version.patch}")
-            logger.info(f"{'Build ':.<43} {version.build_number}")
+            logger.info(f"{description:.<39} {version.major}.{version.minor}.{version.patch}")
+            logger.info(f"{'Build ':.<39} {version.build_number}")
+
+        logger.info("")
+        logger.info("")
 
     def set_config(self, config = {}):
         for device in config.keys():
@@ -202,7 +206,7 @@ class Benchmark:
         if self.api_type == 'sync':
             fps = len(batch_size) * 1000 / median_latency_ms
 
-        if pcseq:
+        if pcseq:   
             for group in self.latency_groups:
                 if group.times:
                     group.times.sort()

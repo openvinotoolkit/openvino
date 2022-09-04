@@ -71,20 +71,6 @@ inline std::string get_version() {
     return version.buildNumber;
 }
 
-inline std::string get_version_string() {
-    auto version = ov::get_openvino_version();
-    
-    std::stringstream buffer;
-
-    buffer << version.description << " version ......... ";
-    buffer << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH << std::endl;
-
-    buffer << "Build ........... ";
-    buffer << version.buildNumber << std::endl;
-
-    return buffer.str();
-}
-
 PYBIND11_MODULE(pyopenvino, m) {
     m.doc() = "Package openvino.pyopenvino which wraps openvino C++ APIs";
     std::string pyopenvino_version = CI_BUILD_NUMBER;
@@ -103,7 +89,6 @@ PYBIND11_MODULE(pyopenvino, m) {
                     "OpenVINO Runtime and Python libraries point to same release.");
 
     m.def("get_version", &get_version);
-    m.def("get_version_string", &get_version_string);
     m.def("get_batch", &ov::get_batch);
     m.def("set_batch", &ov::set_batch);
     m.def(
