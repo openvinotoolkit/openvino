@@ -38,6 +38,8 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::util openvino::core::dev)
+
+# TODO: fix lto
 set_target_properties(${TARGET_NAME}_obj PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
