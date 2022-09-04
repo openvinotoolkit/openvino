@@ -76,6 +76,7 @@ typedef enum {
     INVALID_C_PARAM = -14,
     UNKNOWN_C_ERROR = -15,
     NOT_IMPLEMENT_C_METHOD = -16,
+    UNKNOW_EXCEPTION = -17,
 } ov_status_e;
 
 /**

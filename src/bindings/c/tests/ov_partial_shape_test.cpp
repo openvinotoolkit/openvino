@@ -134,4 +134,5 @@ TEST(ov_partial_shape, ov_shape_to_partial_shape) {
     EXPECT_STREQ(tmp, str);
     ov_partial_shape_free(&partial_shape);
     ov_shape_free(&shape);
+    ov_free(tmp);
 }

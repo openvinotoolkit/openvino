@@ -236,9 +236,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
     }
     try {
         auto value = core->object->get_property(device_name, property_key);
-        std::stringstream str;
-        value.print(str);
-        *property_value = str_to_char_array(str.str());
+        *property_value = str_to_char_array(value.as<std::string>());
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;

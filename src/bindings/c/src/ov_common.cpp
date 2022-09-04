@@ -23,7 +23,8 @@ char const* error_infos[] = {"success",
                              "inference is canceled",
                              "invalid c input parameters",
                              "unknown c error",
-                             "not implement in c method"};
+                             "not implement in c method",
+                             "unknown exception"};
 
 const char* ov_get_error_info(ov_status_e status) {
     auto index = -status;
@@ -35,5 +36,5 @@ const char* ov_get_error_info(ov_status_e status) {
 
 void ov_free(const char* content) {
     if (content)
-        delete content;
+        delete[] content;
 }

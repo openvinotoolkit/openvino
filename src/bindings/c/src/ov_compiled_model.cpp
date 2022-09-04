@@ -109,9 +109,7 @@ ov_status_e ov_compiled_model_get_property(const ov_compiled_model_t* compiled_m
     }
     try {
         auto value = compiled_model->object->get_property(key);
-        std::stringstream str;
-        value.print(str);
-        *property_value = str_to_char_array(str.str());
+        *property_value = str_to_char_array(value.as<std::string>());
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
