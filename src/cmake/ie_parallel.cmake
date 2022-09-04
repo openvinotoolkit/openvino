@@ -6,8 +6,22 @@ macro(ov_find_package_tbb)
     if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
 
         if(NOT ENABLE_SYSTEM_TBB)
-            set(_find_package_no_args NO_SYSTEM_ENVIRONMENT_PATH
-                                      NO_CMAKE_SYSTEM_PATH)
+            if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
+                set(_no_cmake_install_prefix NO_CMAKE_INSTALL_PREFIX)
+            endif()
+
+            # Note, we explicitly:
+            # don't set NO_CMAKE_PATH to allow -DTBB_DIR=XXX
+            # don't set NO_CMAKE_ENVIRONMENT_PATH to allow env TBB_DIR=XXX
+            set(_find_package_no_args NO_PACKAGE_ROOT_PATH
+                                      NO_CMAKE_ENVIRONMENT_PATH
+                                      NO_SYSTEM_ENVIRONMENT_PATH
+                                      NO_CMAKE_PACKAGE_REGISTRY
+                                      NO_CMAKE_SYSTEM_PATH
+                                      ${_no_cmake_install_prefix}
+                                      NO_CMAKE_SYSTEM_PACKAGE_REGISTRY)
+
+            unset(_no_cmake_install_prefix)
         endif()
 
         find_package(TBB QUIET COMPONENTS tbb tbbmalloc
@@ -68,7 +82,7 @@ macro(ov_find_package_tbb)
         if(NOT TBB_FOUND)
             set(THREADING "SEQ")
             set(ENABLE_TBBBIND_2_5 OFF)
-            message(WARNING "TBB was not found by the configured TBB_DIR/TBBROOT path.\
+            message(WARNING "TBB was not found by the configured TBB_DIR / TBBROOT path.\
                              SEQ method will be used.")
         else()
             message(STATUS "TBB (${TBB_VERSION}) is found at ${TBB_DIR}")
