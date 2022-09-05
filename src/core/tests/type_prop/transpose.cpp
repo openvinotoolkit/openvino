@@ -8,6 +8,7 @@
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
 
 TEST(type_prop, transpose_arg_static_input_order_static_ok) {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
@@ -230,4 +231,58 @@ TEST(type_prop, transpose_with_empty_order) {
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape({300, 1})));
+}
+
+using transpose_prop_params = tuple<vector<int64_t>,  // transpose order
+                                    PartialShape,     // Input partial shape
+                                    PartialShape      // Expected partial shape
+                                    >;
+
+// Test pre-defined constants.
+static constexpr auto exp_type = element::f32;
+static const auto interval_dim_1 = Dimension(3, 5);
+static const auto interval_dim_2 = Dimension(1, 8);
+
+/** \brief Parametrize fixture to test transpose property. */
+class TransposeTest : public TestWithParam<transpose_prop_params> {
+protected:
+    PartialShape input_p_shape, exp_p_shape;
+    vector<int64_t> transpose_order;
+
+    void SetUp() override {
+        std::tie(transpose_order, input_p_shape, exp_p_shape) = GetParam();
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    type_prop,
+    TransposeTest,
+    Values(make_tuple(vector<int64_t>{2, 0, 1}, PartialShape{2, interval_dim_2, 4}, PartialShape{4, 2, interval_dim_2}),
+           make_tuple(vector<int64_t>{0, 2, 1},
+                      PartialShape{interval_dim_1, interval_dim_2, 4},
+                      PartialShape{interval_dim_1, 4, interval_dim_2}),
+           make_tuple(vector<int64_t>{1, 2, 3, 0},
+                      PartialShape{interval_dim_1, 2, 3, 4},
+                      PartialShape{2, 3, 4, interval_dim_1}),
+           make_tuple(vector<int64_t>{3, 0, 2, 1},
+                      PartialShape{interval_dim_1, 2, interval_dim_2, 4},
+                      PartialShape{4, interval_dim_1, interval_dim_2, 2}),
+           make_tuple(vector<int64_t>{1, 0, 3, 2},
+                      PartialShape{interval_dim_1, interval_dim_2, interval_dim_2, interval_dim_1},
+                      PartialShape{interval_dim_2, interval_dim_1, interval_dim_1, interval_dim_2})),
+    PrintToStringParamName());
+
+/**
+ * \brief Test interval dimension propagate in transpose.
+ *
+ * The interval dimensions should be moved accordingly to transpose order.
+ */
+TEST_P(TransposeTest, propagate_interval_shape) {
+    const auto input = make_shared<op::Parameter>(exp_type, input_p_shape);
+    const auto order = op::Constant::create(element::i64, Shape{transpose_order.size()}, transpose_order);
+
+    const auto output = make_shared<op::Transpose>(input, order);
+
+    EXPECT_EQ(output->get_output_element_type(0), exp_type);
+    EXPECT_EQ(output->get_output_partial_shape(0), exp_p_shape);
 }
