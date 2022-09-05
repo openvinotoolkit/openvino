@@ -310,9 +310,9 @@ private:
     reorder_factory& _rf;
 };
 
-class set_layouts : public base_pass {
+class set_required_layouts : public base_pass {
 public:
-    set_layouts() : base_pass("set_layouts") {};
+    set_required_layouts() : base_pass("set_required_layouts") {}
 
 private:
     void run(program& p) override;
