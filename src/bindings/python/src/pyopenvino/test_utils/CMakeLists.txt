@@ -14,7 +14,7 @@ file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/test_utils.cpp)
 
 # create target
 
-pybind11_add_module(${TARGET_NAME} MODULE ${SOURCES})
+pybind11_add_module(${TARGET_NAME} MODULE NO_EXTRAS ${SOURCES})
 
 add_dependencies(${TARGET_NAME} pyopenvino)
 

@@ -173,6 +173,10 @@ macro(ov_add_frontend)
             "-DGetAPIVersion=GetAPIVersion${OV_FRONTEND_NAME}")
     endif()
 
+    # enable LTO
+    set_target_properties(${TARGET_NAME} PROPERTIES
+        INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
     if(OV_FRONTEND_SKIP_NCC_STYLE)
         # frontend's CMakeLists.txt must define its own custom 'ov_ncc_naming_style' step
     else()

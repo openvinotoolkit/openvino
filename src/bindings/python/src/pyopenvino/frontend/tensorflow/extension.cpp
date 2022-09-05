@@ -18,6 +18,7 @@ namespace py = pybind11;
 
 using namespace ov::frontend::tensorflow;
 
+
 void regclass_frontend_tensorflow_ConversionExtension(py::module m) {
     py::class_<ConversionExtension, ConversionExtension::Ptr, ov::frontend::ConversionExtensionBase> _ext(
         m,
