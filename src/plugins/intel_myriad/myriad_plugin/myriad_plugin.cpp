@@ -69,6 +69,10 @@
 #include "vpu/configuration/options/performance_hint.hpp"
 #include "vpu/configuration/options/performance_hint_num_requests.hpp"
 #include "vpu/configuration/options/ov_throughput_streams.hpp"
+#include <ngraph/pass/constant_folding.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <transformations/init_node_info.hpp>
+#include <ie_ngraph_utils.hpp>
 
 #include "myriad_plugin.h"
 
@@ -196,6 +200,38 @@ QueryNetworkResult Engine::QueryNetwork(
         } else {
             for (const auto& layerName : supportedLayers) {
                 res.supportedLayersMap.insert({ layerName, GetName() });
+            }
+        }
+    }
+
+    const auto& func = network.getFunction();
+    auto specialized_function = ngraph::clone_function(*func);
+
+    std::string defDevice = res.supportedLayersMap.begin()->second;
+    ngraph::pass::ConstantFolding().run_on_model(specialized_function);
+    std::unordered_set<std::string> opNames;
+
+    for (const auto& op : specialized_function->get_ops())
+        opNames.emplace(op->get_friendly_name());
+
+    for (const auto& op : func->get_ops()) {
+        if (opNames.find(op->get_friendly_name()) == opNames.end()) {
+            res.supportedLayersMap[op->get_friendly_name()] = defDevice;
+        }
+    }
+
+    for (const auto& op : func->get_ops()) {
+        if (!res.supportedLayersMap.count(op->get_friendly_name()) &&
+            std::dynamic_pointer_cast<ngraph::op::Constant>(op)) {
+            bool are_all_users_supported = true;
+            for (const auto& user : op->output(0).get_target_inputs()) {
+                if (!res.supportedLayersMap.count(user.get_node()->get_friendly_name())) {
+                    are_all_users_supported = false;
+                    break;
+                }
+            }
+            if (are_all_users_supported) {
+                res.supportedLayersMap[op->get_friendly_name()] = defDevice;
             }
         }
     }

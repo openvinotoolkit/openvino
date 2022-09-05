@@ -35,6 +35,7 @@
 #include "openvino/pass/serialize.hpp"
 #include "openvino/pass/manager.hpp"
 #include <ngraph/pass/manager.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 #include <openvino/util/common_util.hpp>
 
 #include "intel_gpu/runtime/device_query.hpp"
@@ -559,6 +560,38 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
 
     for (auto&& layerName : supported) {
         res.supportedLayersMap.emplace(layerName, GetName());
+    }
+
+    const auto& clonefunc = network.getFunction();
+    auto specialized_function = ngraph::clone_function(*clonefunc);
+
+    std::string defDevice = res.supportedLayersMap.begin()->second;
+    ngraph::pass::ConstantFolding().run_on_model(specialized_function);
+    std::unordered_set<std::string> opNames;
+
+    for (const auto& op : specialized_function->get_ops())
+        opNames.emplace(op->get_friendly_name());
+
+    for (const auto& op : clonefunc->get_ops()) {
+        if (opNames.find(op->get_friendly_name()) == opNames.end()) {
+            res.supportedLayersMap[op->get_friendly_name()] = defDevice;
+        }
+    }
+
+    for (const auto& op : clonefunc->get_ops()) {
+        if (!res.supportedLayersMap.count(op->get_friendly_name()) &&
+            std::dynamic_pointer_cast<ngraph::op::Constant>(op)) {
+            bool are_all_users_supported = true;
+            for (const auto& user : op->output(0).get_target_inputs()) {
+                if (!res.supportedLayersMap.count(user.get_node()->get_friendly_name())) {
+                    are_all_users_supported = false;
+                    break;
+                }
+            }
+            if (are_all_users_supported) {
+                res.supportedLayersMap[op->get_friendly_name()] = defDevice;
+            }
+        }
     }
 
     return res;
