@@ -170,9 +170,10 @@ std::map<IE::ColorFormat, colorformat_e> colorformat_map = {{IE::ColorFormat::RA
                                                             {IE::ColorFormat::NV12, colorformat_e::NV12},
                                                             {IE::ColorFormat::I420, colorformat_e::I420}};
 
-#define CATCH_IE_EXCEPTION(StatusCode, ExceptionType) \
-    catch (const IE::ExceptionType&) {                \
-        return IEStatusCode::StatusCode;              \
+#define CATCH_IE_EXCEPTION(StatusCode, ExceptionType)        \
+    catch (const IE::ExceptionType& e) {                     \
+        std::cout << "Exception: " << e.what() << std::endl; \
+        return IEStatusCode::StatusCode;                     \
     }
 
 #define CATCH_IE_EXCEPTIONS                                   \
