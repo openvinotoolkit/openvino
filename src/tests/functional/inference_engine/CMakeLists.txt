@@ -159,7 +159,14 @@ function(ie_headers_compilation_with_custom_flags)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_dx.hpp"
                                                 "openvino/runtime/intel_gpu/ocl/dx.hpp")
         endif()
-        if(NOT LIBVA_FOUND)
+        # try to find VA libraries
+        if(NOT CMAKE_CROSSCOMPILING)
+            find_host_package(PkgConfig QUIET)
+            if(PkgConfig_FOUND)
+                pkg_search_module(libva QUIET IMPORTED_TARGET libva)
+            endif()
+        endif()
+        if(NOT libva_FOUND)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_va.hpp"
                                                 "openvino/runtime/intel_gpu/ocl/va.hpp")
         endif()

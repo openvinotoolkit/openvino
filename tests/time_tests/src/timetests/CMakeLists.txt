@@ -9,8 +9,6 @@ add_custom_target(time_tests)
 # Test target name is source file name without extension.
 FILE(GLOB tests "*.cpp")
 
-add_subdirectory("${OpenVINO_SOURCE_DIR}/tests/lib" tests_shared_lib)
-
 foreach(test_source ${tests})
     get_filename_component(test_name ${test_source} NAME_WE)
     add_executable(${test_name} ${test_source})

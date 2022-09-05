@@ -2,4 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# Search OpenVINO Runtime installed
+find_package(PkgConfig QUIET)
+# TODO: fix apple and cross-compilation later
+if(PkgConfig_FOUND AND NOT CMAKE_CROSSCOMPILING AND NOT APPLE)
+    pkg_search_module(openvino REQUIRED
+                      IMPORTED_TARGET
+                      openvino)
+    set(ov_link_libraries PkgConfig::openvino)
+else()
+    find_package(OpenVINO REQUIRED COMPONENTS Runtime)
+    set(ov_link_libraries openvino::runtime)
+endif()
+
 add_subdirectory(src)
