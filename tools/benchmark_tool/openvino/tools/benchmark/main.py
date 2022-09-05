@@ -271,10 +271,10 @@ def run(args):
                 start_time = datetime.utcnow()
                 shapes = { info.name : info.partial_shape for info in app_inputs_info }
                 logger.info(
-                    'Reshaping model: {}'.format(', '.join("'{}': {}".format(k, str(v)) for k, v in shapes.items())))
+                    'Reshaping network: {}'.format(', '.join("'{}': {}".format(k, str(v)) for k, v in shapes.items())))
                 model.reshape(shapes)
                 duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
-                logger.info(f"Reshape model took {duration_ms} ms")
+                logger.info(f"Reshape network took {duration_ms} ms")
                 if statistics:
                     statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                               [

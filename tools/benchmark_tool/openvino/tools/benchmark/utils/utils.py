@@ -158,18 +158,15 @@ def print_inputs_and_outputs_info(model: Model):
 
     outputs = model.outputs
     logger.info("Network outputs:")
-    # n = outputs[0].node.input(0)
-    # help(n)
-    # dir(n)
     for output in outputs:
         out_name = " , ".join(output.get_names())
-        node_name = output.node.input(0).get_friendly_name()
+        node_name = output.get_node().input(0).get_source_output().get_node().get_friendly_name()
 
         if out_name=="": out_name = "***NO_NAME***"
         if node_name=="": node_name = "***NO_NAME***"
 
         logger.info(f"    {out_name} (node: {node_name}) : {output.element_type.get_type_name()} / "
-                    f"{str(output.node.layout)} /  {'{'}{','.join(str(x) for x in output.partial_shape)}{'}'}")
+                    f"{str(output.node.layout)} / {'{'}{','.join(str(x) for x in output.partial_shape)}{'}'}")
 
 
 def get_number_iterations(number_iterations: int, nireq: int, num_shapes: int, api_type: str):
