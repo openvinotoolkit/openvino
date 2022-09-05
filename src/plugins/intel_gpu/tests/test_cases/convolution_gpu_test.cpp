@@ -6078,7 +6078,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32_fused_ops)
     set_values(scale_mem, { scalar });
 
     topology.add(data("scalar", scale_mem));
-    topology.add(scale("scale", "conv_bsv16_fsv16", "scalar"));
+    topology.add(eltwise("scale", { "conv_bsv16_fsv16", "scalar" }, eltwise_mode::prod));
 
     topology.add(reorder("reorder_bfzyx", "scale", format::bfzyx, data_types::f32));
 
@@ -6517,7 +6517,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32_fused_ops)
     set_values(scale_mem, { scalar });
 
     topology.add(data("scalar", scale_mem));
-    topology.add(scale("scale", "conv_bsv16_fsv16", "scalar"));
+    topology.add(eltwise("scale", { "conv_bsv16_fsv16", "scalar" }, eltwise_mode::prod));
 
     topology.add(reorder("reorder_bfyx", "scale", format::bfyx, data_types::f32));
 
@@ -8255,7 +8255,8 @@ public:
 
         topo.add(cldnn::data("scale_scale", scale_mem));
         topo.add(cldnn::data("scale_shift", shift_mem));
-        topo.add(cldnn::scale("scale", "conv", "scale_scale", "scale_shift"));
+        topo.add(cldnn::eltwise("shift", { "conv", "scale_shift" }, eltwise_mode::sum));
+        topo.add(cldnn::eltwise("scale", { "shift", "scale_scale" }, eltwise_mode::prod));
         // Work-around since if scale is output it will not be fused
         topo.add(cldnn::reorder("scale_wa_reorder", "scale", format::bfyx, this->output_type()));
         return topo;

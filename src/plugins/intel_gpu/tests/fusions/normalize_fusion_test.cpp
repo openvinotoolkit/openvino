@@ -105,7 +105,7 @@ TEST_P(normalize_i8_float, basic) {
         data("weights", get_mem(get_weights_layout(p))),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/255)),
         normalize("normalizel2", "input", "weights", p.across_spatial),
-        scale("scale", "normalizel2", "scale_data"),
+        eltwise("scale", { "normalizel2", "scale_data" }, eltwise_mode::prod, p.default_type),
         activation("activation", "scale", activation_func::abs),
         reorder("output_reorder", "activation", p.default_format, data_types::f32)
     );

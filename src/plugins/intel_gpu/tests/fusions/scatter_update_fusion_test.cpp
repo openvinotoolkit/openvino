@@ -148,7 +148,7 @@ TEST_P(scatter_update_scale_activation, basic) {
         data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
         scatter_update("scatter_update_prim", "input", "scatter_update_indices", "scatter_update_updates", p.axis),
         activation("activation", "scatter_update_prim", activation_func::abs),
-        scale("scale", "activation", "scale_data"),
+        eltwise("scale", { "activation", "scale_data" }, eltwise_mode::prod, p.default_type),
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
 
@@ -194,7 +194,7 @@ TEST_P(scatter_update_scale_activation_eltwise, basic) {
         scatter_update("scatter_update_prim", "input", "scatter_update_indices", "scatter_update_updates", p.axis),
         activation("activation", "scatter_update_prim", activation_func::abs),
         eltwise("eltw", { "activation", "eltw_data" }, eltwise_mode::sum, p.default_type),
-        scale("scale", "eltw", "scale_data"),
+        eltwise("scale", { "eltw", "scale_data" }, eltwise_mode::prod, p.default_type),
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
     tolerance = 1e-5f;
