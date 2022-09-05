@@ -490,6 +490,19 @@ void fill_compensation_typed(W_T* w, AZP_T* azp, W_T* wzp, float* comp, const in
     }
 }
 
+static float get_value_from_data_node(data_node& node, const stream& stream) {
+    auto ptr = node.get_attached_memory_ptr();
+    mem_lock<float, mem_lock_type::read> data{ptr, stream};
+    if (data.size() > 0)
+        return data[0];
+    else
+        return 0.f;
+}
+
+static bool are_same(float a, float b) {
+    return fabs(a - b) < 0.01f;
+}
+
 void prepare_quantization::prepare_asymmetric_quantization(program &p, convolution_node& convolution_node) {
     // Detects if given eltwise node performs zero point subtraction
     auto is_zero_point_node = [](const eltwise_node& node) -> bool {
@@ -519,6 +532,26 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
     };
 
     const auto& stream = p.get_stream();
+    auto is_zero_point_quantize_node = [&](const quantize_node& node) -> bool {
+        if (node.get_users().size() != 1)
+            return false;
+
+        if (node.get_dependency(0).get_output_layout().data_type != data_types::u8 || node.get_output_layout().data_type != data_types::i8)
+            return false;
+
+        if (node.get_dependencies().size() == 9) {
+            float in_scale = get_value_from_data_node(node.get_dependency(5).as<data>(), stream);
+            float out_scale = get_value_from_data_node(node.get_dependency(7).as<data>(), stream);
+            float out_shift = get_value_from_data_node(node.get_dependency(8).as<data>(), stream);
+            if (!are_same(in_scale, 1.f) || !are_same(out_scale, 1.f) || are_same(out_shift, 0.f))
+                return false;
+        } else {
+            return false;
+        }
+
+        return true;
+    };
+
     auto fill_compensation = [&](int groups, const memory::ptr w, const memory::ptr azp, const memory::ptr wzp, memory::ptr compensation) {
         const auto& wl = w->get_layout();
 
@@ -576,6 +609,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
 
     bool asymmetric_data = in0.is_type<eltwise>() && is_zero_point_node(in0.as<eltwise>());
     bool asymmetric_weights = in1.is_type<eltwise>() && is_zero_point_node(in1.as<eltwise>());
+    asymmetric_data |= in0.is_type<quantize>() && is_zero_point_quantize_node(in0.as<quantize>());
 
     if (!asymmetric_data && !asymmetric_weights)
         return;
@@ -610,18 +644,34 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
     int ifm_aligned = ((ifm + 31) / 32) * 32;
 
     if (asymmetric_data) {
+        data_types new_data_type = data_types::i8;
         new_input = &in0.get_dependency(0);
-        new_a_zp = &in0.get_dependency(1);
+        if (in0.is_type<eltwise>()) {
+            new_a_zp = &in0.get_dependency(1);
+            new_data_type = new_a_zp->get_output_layout().data_type;
+        } else if (in0.is_type<quantize>()) {
+            new_a_zp = &in0.get_dependency(8);
+            new_data_type = data_types::i8;
+        }
 
-        auto l = layout{new_a_zp->get_output_layout().data_type, format::bfyx, tensor{1, ifm_aligned, 1, 1}};
+        auto l = layout{new_data_type, format::bfyx, tensor{1, ifm_aligned, 1, 1}};
         int s = new_a_zp->get_output_layout().feature();
         auto azp_aligned = p.get_engine().allocate_memory(l);
         auto old_ptr = new_a_zp->as<data>().get_attached_memory_ptr();
-        mem_lock<int8_t, mem_lock_type::write> new_data{azp_aligned, stream};
-        mem_lock<int8_t, mem_lock_type::read> old_data{old_ptr, stream};
-        for (int i = 0; i < ifm_aligned; i++) {
-            new_data.data()[i] = old_data.data()[i % s];
+        if (in0.is_type<eltwise>()) {
+            mem_lock<int8_t, mem_lock_type::write> dst_data{azp_aligned, stream};
+            mem_lock<int8_t, mem_lock_type::read> src_data{old_ptr, stream};
+            for (int i = 0; i < ifm_aligned; i++) {
+                dst_data.data()[i] = src_data.data()[i % s];
+            }
+        } else if (in0.is_type<quantize>()) {
+            mem_lock<int8_t, mem_lock_type::read_write> dst_data{azp_aligned, stream};
+            mem_lock<float, mem_lock_type::read> src_data{old_ptr, stream};
+            for (int i = 0; i < ifm_aligned; i++) {
+                dst_data.data()[i] = 255 + src_data.data()[i % s];
+            }
         }
+
         new_a_zp->as<data>().attach_memory(azp_aligned);
 
         input = new_input->id();
@@ -724,6 +774,14 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         new_input->users.push_back(&new_conv_node);
 
         p.add_optimized_primitive_info(in0.id(), {new_conv_node.id()});
+
+        if (in0.is_type<quantize>()) {
+            for (auto dep : in0.dependencies) {
+                if (dep->users.size() == 1 && dep->users.front()->is_type<quantize>()) {
+                    dep->users.clear();
+                }
+            }
+        }
 
         // Remove sub node on activations
         in0.dependencies.clear();
