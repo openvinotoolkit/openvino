@@ -7,6 +7,7 @@
 #include "attr_value.pb.h"
 #include "node_def.pb.h"
 #include "openvino/frontend/tensorflow/node_context.hpp"
+#include "openvino/frontend/tensorflow/special_types.hpp"
 #include "types.pb.h"
 
 namespace ov {
@@ -157,10 +158,8 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
                 name,
                 "' attribute is not supported.");
 
-        FRONT_END_GENERAL_CHECK(false,
-                                "Conversion from Tensorflow to OpenVINO data type failed: List type for '",
-                                name,
-                                "' attribute is not supported.");
+        // If we got to this point it must mean we have empty list attribute
+        return EmptyList();
     }
 
     case ::tensorflow::AttrValue::ValueCase::kTensor: {
