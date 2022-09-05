@@ -43,10 +43,6 @@ public:
         return offsetPaddingToData;
     }
 
-    size_t getOffsetPadding() const override {
-        return DnnlExtensionUtils::convertToDim(desc.get()->offset0);
-    }
-
     const VectorDims& getStrides() const override {
         return strides;
     }
