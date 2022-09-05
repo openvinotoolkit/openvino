@@ -6,8 +6,6 @@
 # Configure and install libonnx ...
 #------------------------------------------------------------------------------
 
-# TODO: enable LTO
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 set(OV_ONNX_NAMESPACE openvino_onnx)
 
 if(NOT DEFINED ONNX_USE_MSVC_STATIC_RUNTIME)
