@@ -16,7 +16,7 @@ NamedOutputs p_norm(const NodeContext& node) {
     const auto keepdim = node.get_attribute<bool>("keepdim", false);
 
     const auto absNode = std::make_shared<default_opset::Abs>(data);
-    const auto axisNode = default_opset::Constant::create(ngraph::element::i32, {1}, {axis});
+    const auto axisNode = default_opset::Constant::create(ov::element::i32, {1}, {axis});
 
     if (p == std::numeric_limits<float>::infinity()) {
         return node.default_single_output_mapping(
@@ -41,17 +41,17 @@ NamedOutputs p_norm(const NodeContext& node) {
                             "input rank of p_norm must be static when keepdim=false and p=0.");
             const auto input_rank = input_shape.rank().get_length();
             if (input_rank == 1) {
-                const auto one = default_opset::Constant::create(ngraph::element::i64, {1}, {1});
+                const auto one = default_opset::Constant::create(ov::element::i64, {1}, {1});
                 auto out = std::make_shared<default_opset::Reshape>(reduce_sum, one, false);
                 return node.default_single_output_mapping({out}, {"Out"});
             }
         }
         return node.default_single_output_mapping({reduce_sum}, {"Out"});
     } else {
-        const auto power_factor = default_opset::Constant::create(ngraph::element::f32, Shape{1}, {p});
+        const auto power_factor = default_opset::Constant::create(ov::element::f32, Shape{1}, {p});
         const auto powNode = std::make_shared<default_opset::Power>(absNode, power_factor);
         const auto reduce_sum = std::make_shared<default_opset::ReduceSum>(powNode, axisNode, keepdim);
-        const auto extract_factor = default_opset::Constant::create(ngraph::element::f32, Shape{1}, {1.0 / p});
+        const auto extract_factor = default_opset::Constant::create(ov::element::f32, Shape{1}, {1.0 / p});
         return node.default_single_output_mapping({std::make_shared<default_opset::Power>(reduce_sum, extract_factor)},
                                                   {"Out"});
     }
