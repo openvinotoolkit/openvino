@@ -714,10 +714,10 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         return;
 
     SetPostOpsAndZeroPoints(attrs);
-    bool containJitImpl = false;
+    bool containJitOrBrgconvImpl = false;
 
     for (auto& desc : descs) {
-        if (containJitImpl && isPossibleToSkipInitConfig(desc))
+        if (containJitOrBrgconvImpl && isPossibleToSkipInitConfig(desc))
             continue;
         for (int i = 0; i < attrs.size(); i++) {
             auto &attr = attrs[i];
@@ -780,8 +780,8 @@ void Convolution::initSupportedPrimitiveDescriptors() {
                     }
                 }
                 impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-                if (impl_type & jit)
-                    containJitImpl = true;
+                if (impl_type & jit || impl_type & brgconv)
+                    containJitOrBrgconvImpl = true;
 
                 supportedPrimitiveDescriptors.emplace_back(config, impl_type);
                 if (!itpd.next_impl())
@@ -958,11 +958,11 @@ void Convolution::initDescriptor(const NodeConfig& config) {
     auto rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
 
-    bool containJitImpl = false;
+    bool containJitOrBrgconvImpl = false;
 
     for (size_t i = 0; i < descs.size(); i++) {
         auto& desc = descs[i];
-        if (containJitImpl && isPossibleToSkipInitConfig(desc))
+        if (containJitOrBrgconvImpl && isPossibleToSkipInitConfig(desc))
             continue;
         for (int n = 0; n < attrs.size(); n++) {
             auto &attr = attrs[n];
@@ -1010,8 +1010,8 @@ void Convolution::initDescriptor(const NodeConfig& config) {
                     cfg.outConfs.push_back(dataConfig);
                 }
                 impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-                if (impl_type & jit)
-                    containJitImpl = true;
+                if (impl_type & jit || impl_type & brgconv)
+                    containJitOrBrgconvImpl = true;
 
                 if (selected_count == selectedPrimitiveDescriptorIndex) {
                     if (impl_type != selectedPD->getImplementationType()) {
