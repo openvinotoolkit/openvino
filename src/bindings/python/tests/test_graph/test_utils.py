@@ -4,6 +4,8 @@
 
 import numpy as np
 import openvino.runtime as ov
+import pytest
+from openvino.pyopenvino.util import deprecation_warning
 from openvino.runtime import Shape
 
 
@@ -27,3 +29,14 @@ def test_get_constant_from_source_failed():
     folded_const = ov.utils.get_constant_from_source(reshape.input(1).get_source_output())
 
     assert folded_const is None
+
+
+def test_deprecation_warning():
+    with pytest.warns(DeprecationWarning, match="function1 is deprecated"):
+        deprecation_warning("function1")
+    with pytest.warns(DeprecationWarning, match="function2 is deprecated and will be removed in version 2025.4"):
+        deprecation_warning("function2", "2025.4")
+    with pytest.warns(DeprecationWarning, match="function3 is deprecated. Use another function instead"):
+        deprecation_warning("function3", message="Use another function instead")
+    with pytest.warns(DeprecationWarning, match="function4 is deprecated and will be removed in version 2025.4. Use another function instead"):
+        deprecation_warning("function4", version="2025.4", message="Use another function instead")

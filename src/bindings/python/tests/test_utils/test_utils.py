@@ -2,12 +2,15 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from typing import Tuple, Union, List
+
+import numpy as np
 import openvino
+import openvino.runtime.opset8 as ops
+import pytest
 from openvino.runtime import Model, Core, Shape, Type
 from openvino.runtime.op import Parameter
-import openvino.runtime.opset8 as ops
-from typing import Tuple, Union, List
-import numpy as np
+from openvino.utils import deprecated
 
 
 def get_test_model():
@@ -49,3 +52,30 @@ def generate_add_model() -> openvino.pyopenvino.Model:
     param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
     add = ops.add(param1, param2)
     return Model(add, [param1, param2], "TestFunction")
+
+
+def test_deprecation_decorator():
+    @deprecated()
+    def deprecated_function1(param1, param2=None):
+        pass
+
+    @deprecated(version="2025.4")
+    def deprecated_function2(param1=None):
+        pass
+
+    @deprecated(message="Use another function instead")
+    def deprecated_function3():
+        pass
+
+    @deprecated(version="2025.4", message="Use another function instead")
+    def deprecated_function4():
+        pass
+
+    with pytest.warns(DeprecationWarning, match="deprecated_function1 is deprecated"):
+        deprecated_function1("param1")
+    with pytest.warns(DeprecationWarning, match="deprecated_function2 is deprecated and will be removed in version 2025.4"):
+        deprecated_function2(param1=1)
+    with pytest.warns(DeprecationWarning, match="deprecated_function3 is deprecated. Use another function instead"):
+        deprecated_function3()
+    with pytest.warns(DeprecationWarning, match="deprecated_function4 is deprecated and will be removed in version 2025.4. Use another function instead"):
+        deprecated_function4()
