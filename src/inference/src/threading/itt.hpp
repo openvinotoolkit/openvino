@@ -33,15 +33,17 @@ OV_CC_DOMAINS(tbb_bind);
 #if defined(SELECTIVE_BUILD_ANALYZER)
 
 #    define TBB_BIND_SCOPE(region) OV_SCOPE(tbb_bind, region)
+#    define TBB_BIND_NUMA_ENABLED  OV_SCOPE(tbb_bind, NUMA)
 
 #elif defined(SELECTIVE_BUILD)
 
 #    define TBB_BIND_SCOPE(region)                                        \
-        if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(tbb_bind, _, region)) == 0) \
-        throw ov::Exception(std::string(OV_PP_TOSTRING(OV_PP_CAT3(tbb_bind, _, region))) + " is disabled!")
+        if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(tbb_bind, _, NUMA)) == 1 && \
+            OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(tbb_bind, _, region)) == 1)
+#    define TBB_BIND_NUMA_ENABLED
 
 #else
 
 #    define TBB_BIND_SCOPE(region)
-
+#    define TBB_BIND_NUMA_ENABLED
 #endif

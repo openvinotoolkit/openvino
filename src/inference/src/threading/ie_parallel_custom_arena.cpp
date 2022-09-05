@@ -76,13 +76,16 @@ static tbb::task_arena::constraints convert_constraints(const custom::task_arena
 class TBBbindSystemTopology {
     TBBbindSystemTopology() {
 #    if USE_TBBBIND_2_5
-        TBB_BIND_SCOPE(TBBbindSystemTopology);
         if (is_binding_environment_valid()) {
+            TBB_BIND_SCOPE(TBBbindSystemTopology)
             __TBB_internal_initialize_system_topology(get_processors_group_num(),
                                                       numa_nodes_count,
                                                       numa_nodes_indexes,
                                                       core_types_count,
                                                       core_types_indexes);
+        }
+        if (numa_nodes_count > 1 || core_types_count > 1) {
+            TBB_BIND_NUMA_ENABLED;
         }
 #    endif
     }
@@ -91,6 +94,7 @@ public:
     ~TBBbindSystemTopology() {
 #    if USE_TBBBIND_2_5
         if (is_binding_environment_valid()) {
+            TBB_BIND_SCOPE(TBBbindSystemTopology)
             __TBB_internal_destroy_system_topology();
         }
 #    endif
@@ -126,6 +130,7 @@ public:
         }
 #    if USE_TBBBIND_2_5
         if (is_binding_environment_valid()) {
+            TBB_BIND_SCOPE(default_concurrency)
             return __TBB_internal_get_default_concurrency(c.numa_id, c.core_type, c.max_threads_per_core);
         }
         return tbb::this_task_arena::max_concurrency();
@@ -181,23 +186,24 @@ const TBBbindSystemTopology& system_topology() {
 
 binding_observer::binding_observer(tbb::task_arena& ta, int num_slots, const constraints& c)
     : task_scheduler_observer(ta) {
-    TBB_BIND_SCOPE(binding_observer);
     detail::system_topology();
+    TBB_BIND_SCOPE(binding_observer)
     my_binding_handler =
         detail::__TBB_internal_allocate_binding_handler(num_slots, c.numa_id, c.core_type, c.max_threads_per_core);
 }
 
 binding_observer::~binding_observer() {
+    TBB_BIND_SCOPE(binding_observer)
     detail::__TBB_internal_deallocate_binding_handler(my_binding_handler);
 }
 
 void binding_observer::on_scheduler_entry(bool) {
-    TBB_BIND_SCOPE(on_scheduler_entry);
+    TBB_BIND_SCOPE(on_scheduler_entry)
     detail::__TBB_internal_apply_affinity(my_binding_handler, tbb::this_task_arena::current_thread_index());
 }
 
 void binding_observer::on_scheduler_exit(bool) {
-    TBB_BIND_SCOPE(on_scheduler_exit);
+    TBB_BIND_SCOPE(on_scheduler_exit)
     detail::__TBB_internal_restore_affinity(my_binding_handler, tbb::this_task_arena::current_thread_index());
 }
 
