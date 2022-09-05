@@ -35,7 +35,14 @@ execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{next(tags._platform_tags())}')"
                 OUTPUT_VARIABLE WHEEL_PLATFORM OUTPUT_STRIP_TRAILING_WHITESPACE)
 
+if(CMAKE_CROSSCOMPILING)
+    message("LEO DEBUG: Cross-compilation.")
+    set(WHEEL_PLATFORM "${CMAKE_SYSTEM_PROCESSOR}")
+endif()
+
 set(openvino_wheel_name "openvino-${WHEEL_VERSION}-${WHEEL_BUILD}-${INTERPRETER}-${PYTHON_ABI}-${WHEEL_PLATFORM}.whl")
+message("LEO DEBUG: Variable name set correctly.")
+message("${openvino_wheel_name}")
 set(openvino_wheels_output_dir "${CMAKE_BINARY_DIR}/wheels")
 set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 
