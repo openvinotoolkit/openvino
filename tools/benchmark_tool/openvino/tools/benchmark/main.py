@@ -92,8 +92,8 @@ def run(args):
                         args.perf_hint = ""
                 else:
                     args.perf_hint = "THROUGHPUT" if benchmark.api_type == "async" else "LATENCY"
-                    logger.warning(f"PerformanceMode was not explicitly specified in command line. " +
-                    f"Device {device} performance hint will be set to " + args.perf_hint + ".")
+                    logger.warning(f"Performance hint was not explicitly specified in command line. " +
+                    f"Device({device}) performance hint will be set to " + args.perf_hint + ".")
             else:
                 logger.warning(f"Device {device} does not support performance hint property(-hint).")
 
@@ -247,11 +247,16 @@ def run(args):
             # --------------------- 4. Read the Intermediate Representation of the network -----------------------------
             next_step()
 
+            logger.info("Loading network files")
+
             start_time = datetime.utcnow()
             model = benchmark.read_model(args.path_to_model)
             topology_name = model.get_name()
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
-            logger.info(f"Read model took {duration_ms} ms")
+            logger.info(f"Read network took {duration_ms} ms")
+            logger.info("Original network I/O parameters:")
+            print_inputs_and_outputs_info(model)
+
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [

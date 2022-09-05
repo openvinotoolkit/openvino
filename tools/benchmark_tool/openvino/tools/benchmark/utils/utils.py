@@ -143,18 +143,33 @@ def parse_input_output_precision(arg_map: str):
 
 
 def print_inputs_and_outputs_info(model: Model):
+
     inputs = model.inputs
-    input_names = get_input_output_names(inputs)
-    for i in range(len(inputs)):
-        logger.info(f"Model input '{input_names[i]}' precision {inputs[i].element_type.get_type_name()}, "
-                                                    f"dimensions ({str(inputs[i].node.layout)}): "
-                                                    f"{' '.join(str(x) for x in inputs[i].partial_shape)}")
+    logger.info("Network inputs:")
+    for input in inputs:
+        in_name = " , ".join(input.get_names())
+        node_name = input.node.get_friendly_name()
+
+        if in_name=="": in_name = "***NO_NAME***"
+        if node_name=="": node_name = "***NO_NAME***"
+
+        logger.info(f"    {in_name} (node: {node_name}) : {input.element_type.get_type_name()} / "
+                    f"{str(input.node.layout)} / {'{'}{','.join(str(x) for x in input.partial_shape)}{'}'}")
+
     outputs = model.outputs
-    output_names = get_input_output_names(outputs)
-    for i in range(len(outputs)):
-        logger.info(f"Model output '{output_names[i]}' precision {outputs[i].element_type.get_type_name()}, "
-                                        f"dimensions ({str(outputs[i].node.layout)}): "
-                                        f"{' '.join(str(x) for x in  outputs[i].partial_shape)}")
+    logger.info("Network outputs:")
+    # n = outputs[0].node.input(0)
+    # help(n)
+    # dir(n)
+    for output in outputs:
+        out_name = " , ".join(output.get_names())
+        node_name = output.node.input(0).get_friendly_name()
+
+        if out_name=="": out_name = "***NO_NAME***"
+        if node_name=="": node_name = "***NO_NAME***"
+
+        logger.info(f"    {out_name} (node: {node_name}) : {output.element_type.get_type_name()} / "
+                    f"{str(output.node.layout)} /  {'{'}{','.join(str(x) for x in output.partial_shape)}{'}'}")
 
 
 def get_number_iterations(number_iterations: int, nireq: int, num_shapes: int, api_type: str):

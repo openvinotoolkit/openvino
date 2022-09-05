@@ -131,7 +131,7 @@ ov::hint::PerformanceMode get_performance_hint(const std::string& device, const 
             }
         } else {
             ov_perf_hint =
-                FLAGS_api == "sync" ? ov::hint::PerformanceMode::LATENCY : ov::hint::PerformanceMode::THROUGHPUT;
+                FLAGS_api == "async" ? ov::hint::PerformanceMode::THROUGHPUT : ov::hint::PerformanceMode::LATENCY;
 
             slog::warn << "Performance hint was not explicitly specified in command line. "
                           "Device("
@@ -322,7 +322,7 @@ int main(int argc, char* argv[]) {
                                                "<dev1>:<nstreams1>,<dev2>:<nstreams2>" +
                                                " or via configuration file.");
                     }
-                } else if (ov_perf_hint == ov::hint::PerformanceMode::UNDEFINED && !device_config.count(key) &&
+                } else if (!isFlagSetInCommandLine("hint") && !device_config.count(key) &&
                            (FLAGS_api == "async")) {
                     slog::warn << "-nstreams default value is determined automatically for " << device
                                << " device. "
@@ -331,7 +331,7 @@ int main(int argc, char* argv[]) {
                                   "but it still may be non-optimal for some cases, for more "
                                   "information look at README."
                                << slog::endl;
-                    if (std::string::npos == device.find("MYRIAD")) {  // MYRIAD sets the default number of
+                    if (device.find("MYRIAD") == std::string::npos) {  // MYRIAD sets the default number of
                                                                        // streams implicitly (without _AUTO)
                         if (supported(key)) {
                             device_config[key] = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_AUTO");
