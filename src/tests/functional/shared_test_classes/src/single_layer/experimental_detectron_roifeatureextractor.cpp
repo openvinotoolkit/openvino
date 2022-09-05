@@ -70,6 +70,10 @@ void ExperimentalDetectronROIFeatureExtractorLayerTest::SetUp() {
     attrs.sampling_ratio = samplingRatio;
     attrs.pyramid_scales = pyramidScales;
 
+    if (netPrecision == ElementType::bf16) {
+        rel_threshold = 1e-2;
+    }
+
     auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes});
     auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto experimentalDetectronROIFeatureExtractor = std::make_shared<ExperimentalROI>(paramsOuts, attrs);

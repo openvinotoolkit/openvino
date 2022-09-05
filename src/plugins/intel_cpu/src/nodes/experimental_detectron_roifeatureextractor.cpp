@@ -18,8 +18,9 @@ namespace intel_cpu {
 namespace node {
 namespace {
 
+template <typename T>
 struct LevelParams {
-    const float *src;
+    const T *src;
     int height;
     int width;
 };
@@ -182,15 +183,38 @@ void ExperimentalDetectronROIFeatureExtractor::initSupportedPrimitiveDescriptors
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
+    Precision inputPrec = getOriginalInputPrecisionAtPort(INPUT_FEATURES_START);
+    Precision outputPrec = getOriginalOutputPrecisionAtPort(OUTPUT_ROI_FEATURES);
+
+    if (inputPrec != Precision::FP32 || outputPrec != Precision::FP32) {
+        if ((outputPrec == Precision::BF16 || inputPrec == Precision::BF16) && mayiuse(avx512_core)) {
+            outputPrec = inputPrec = Precision::BF16;
+        } else {
+            outputPrec = inputPrec = Precision::FP32;
+        }
+    }
+
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (int i = 0; i < inputShapes.size(); ++i)
-        inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
+    inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
+    for (int i = 1; i < inputShapes.size(); ++i)
+        inDataConf.emplace_back(LayoutType::ncsp, inputPrec);
+
+    impl_desc_type impl_type;
+    if (mayiuse(cpu::x64::avx512_core)) {
+        impl_type = impl_desc_type::jit_avx512;
+    } else if (mayiuse(cpu::x64::avx2)) {
+        impl_type = impl_desc_type::jit_avx2;
+    } else if (mayiuse(cpu::x64::sse41)) {
+        impl_type = impl_desc_type::jit_sse42;
+    } else {
+        impl_type = impl_desc_type::ref;
+    }
 
     addSupportedPrimDesc(inDataConf,
-                         {{LayoutType::ncsp, Precision::FP32},
+                         {{LayoutType::ncsp, outputPrec},
                           {LayoutType::ncsp, Precision::FP32}},
-                         impl_desc_type::ref_any);
+                         impl_type);
 }
 
 void ExperimentalDetectronROIFeatureExtractor::createPrimitive() {
@@ -198,7 +222,7 @@ void ExperimentalDetectronROIFeatureExtractor::createPrimitive() {
 
     const bool jit_is_beneficial = (sampling_ratio_ >= 3 || sampling_ratio_ == 0);
     if (!roi_align_kernel_ && jit_is_beneficial) {
-        createJitKernel(getParentEdgeAt(0)->getMemoryPtr()->getDesc().getPrecision(), ROIAlignLayoutType::ncsp); 
+        createJitKernel(getParentEdgeAt(INPUT_FEATURES_START)->getMemoryPtr()->getDesc().getPrecision(), ROIAlignLayoutType::ncsp);
     }
 }
 
@@ -223,13 +247,44 @@ void ExperimentalDetectronROIFeatureExtractor::createJitKernel(const InferenceEn
         roi_align_kernel_->create_ker();
 }
 
+namespace {
+struct ExperimentalDetectronROIFeatureExtractorContext {
+    ExperimentalDetectronROIFeatureExtractor &node;
+};
+}
+
+template<typename T>
+struct ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtractorExecute {
+    using srcT = typename std::tuple_element<0, T>::type;
+    using dstT = typename std::tuple_element<1, T>::type;
+
+    void operator()(ExperimentalDetectronROIFeatureExtractorContext& ctx) {
+        ctx.node.executeSpecified<srcT, dstT>();
+    }
+};
+
 void ExperimentalDetectronROIFeatureExtractor::execute(dnnl::stream strm) {
+    auto inputPrec = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().GetDataType();
+    auto outputPrec = getChildEdgeAt(OUTPUT_ROI_FEATURES)->getMemory().GetDataType();
+    if (!((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) ||
+          (inputPrec == dnnl_f32 && outputPrec == dnnl_f32)))
+        IE_THROW() <<"ExperimentalDetectronROIFeatureExtractor: precision is not supported";
+
+    ExperimentalDetectronROIFeatureExtractorContext ctx{*this};
+
+    OV_SWITCH(intel_cpu, ExperimentalDetectronROIFeatureExtractorExecute, ctx, std::tie(inputPrec, outputPrec),
+              OV_CASE2(dnnl_f32, dnnl_f32, float, float),
+              OV_CASE2(dnnl_bf16, dnnl_bf16, bfloat16_t, bfloat16_t))
+}
+
+template <typename InputType, typename OutputType>
+void ExperimentalDetectronROIFeatureExtractor::executeSpecified() {
     const int levels_num = inputShapes.size() - INPUT_FEATURES_START;
     const int num_rois = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];
 
     auto *input_rois = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->GetPtr());
-    auto *output_rois_features = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROI_FEATURES)[0]->getMemoryPtr()->GetPtr());
+    auto *output_rois_features = reinterpret_cast<OutputType *>(getChildEdgesAtPort(OUTPUT_ROI_FEATURES)[0]->getMemoryPtr()->GetPtr());
     float *output_rois = nullptr;
     if (OUTPUT_ROIS < outputShapes.size()) {
         output_rois = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
@@ -238,10 +293,10 @@ void ExperimentalDetectronROIFeatureExtractor::execute(dnnl::stream strm) {
     std::vector<std::vector<float>> weights(num_rois);
     std::vector<std::vector<int>> indices(num_rois);
     std::vector<int> levels(num_rois);
-    std::vector<LevelParams> level_params(levels_num);
+    std::vector<LevelParams<InputType>> level_params(levels_num);
 
     for (size_t i = 0; i < levels_num; ++i) {
-        level_params[i].src = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_FEATURES_START + i)->getMemoryPtr()->GetPtr());
+        level_params[i].src = reinterpret_cast<const InputType *>(getParentEdgeAt(INPUT_FEATURES_START + i)->getMemoryPtr()->GetPtr());
         level_params[i].height = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[2];
         level_params[i].width = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[3];
     }
@@ -254,7 +309,7 @@ void ExperimentalDetectronROIFeatureExtractor::execute(dnnl::stream strm) {
         const int level = levels[n];
         if (level >= levels_num) {
             const size_t output_feature_size = channels_num * pooled_height_ * pooled_width_;
-            memset(&output_rois_features[n * output_feature_size], 0, output_feature_size * sizeof(float));
+            memset(&output_rois_features[n * output_feature_size], 0, output_feature_size * sizeof(OutputType));
             return;
         }
 
@@ -300,7 +355,7 @@ void ExperimentalDetectronROIFeatureExtractor::execute(dnnl::stream strm) {
 
         // pooling
 
-        const float *src_data = level_params[level].src;
+        const InputType *src_data = level_params[level].src;
         const int height = level_params[level].height;
         const int width = level_params[level].width;
 

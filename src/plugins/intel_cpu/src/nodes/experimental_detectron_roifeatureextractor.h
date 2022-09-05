@@ -43,6 +43,12 @@ private:
     bool aligned_ = false;
     std::shared_ptr<jit_uni_roi_align_kernel> roi_align_kernel_ = nullptr;
 
+    template<typename T>
+    struct ExperimentalDetectronROIFeatureExtractorExecute;
+
+    template <typename inputType, typename outputType>
+    void executeSpecified();
+
     void createJitKernel(const InferenceEngine::Precision& dataPrec, const ROIAlignLayoutType& selectLayout);
 };
 

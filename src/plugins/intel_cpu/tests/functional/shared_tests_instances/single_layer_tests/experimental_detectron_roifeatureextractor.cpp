@@ -10,6 +10,11 @@ using namespace ov::test::subgraph;
 
 namespace {
 
+const std::vector<ElementType> netPrecisions = {
+        ElementType::f32,
+        ElementType::bf16
+};
+
 const std::vector<int64_t> outputSize = {7, 14};
 const std::vector<int64_t> samplingRatio = {1, 2, 3};
 
@@ -32,7 +37,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalROI_static, ExperimentalDetectronROIF
                                  ::testing::ValuesIn(samplingRatio),
                                  ::testing::ValuesIn(pyramidScales),
                                  ::testing::Values(false),
-                                 ::testing::Values(ov::element::Type_t::f32),
+                                 ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          ExperimentalDetectronROIFeatureExtractorLayerTest::getTestCaseName);
 
@@ -64,7 +69,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalROI_dynamic, ExperimentalDetectronROI
                                  ::testing::ValuesIn(samplingRatio),
                                  ::testing::ValuesIn(pyramidScales),
                                  ::testing::Values(false),
-                                 ::testing::Values(ov::element::Type_t::f32),
+                                 ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          ExperimentalDetectronROIFeatureExtractorLayerTest::getTestCaseName);
 } // namespace
