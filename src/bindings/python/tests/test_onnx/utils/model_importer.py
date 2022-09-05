@@ -33,7 +33,7 @@ from typing import (
 if getattr(OnnxTestCase, "_fields", None):
     ExtOnnxTestCase = namedtuple("TestCaseExt", OnnxTestCase._fields + ("post_processing",))
 else:  # for ONNX >= 1.12
-    ExtOnnxTestCase = namedtuple("TestCaseExt", 
+    ExtOnnxTestCase = namedtuple("TestCaseExt",
                                  tuple((field.name for field in dataclasses.fields(OnnxTestCase))) + ("post_processing",),
                                  rename=True)
 
