@@ -88,11 +88,6 @@ Users in China might encounter errors while downloading sources via PIP during O
    pip install openvino-dev -i https://mirrors.aliyun.com/pypi/simple/
    ```
    Use the ``--trusted-host`` parameter if the URL above is ``http`` instead of ``https``.
-   You can also run the following command to install specific framework. For example:
-   
-   ```
-   pip install openvino-dev[tensorflow2] -i https://mirrors.aliyun.com/pypi/simple/
-   ```
 
 ### ERROR:root:Could not find the Inference Engine or nGraph Python API.
 
