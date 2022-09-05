@@ -757,11 +757,15 @@ void jit_store_emitter::store_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int
 
         // 64/32/16/8 with one go
         // tail 7 bytes for lower or upper xmm
+        bool ext8bit = false;
         switch (bytes_to_store) {
             case 0: break;
             case 1:
                 h->uni_vmovq(Reg64(aux_gpr_idxs[0]), xmm);
-                h->mov(addr(start_bytes), Reg8(aux_gpr_idxs[0]));
+                if (aux_gpr_idxs[0] == Operand::RSP || aux_gpr_idxs[0] == Operand::RBP ||
+                    aux_gpr_idxs[0] == Operand::RSI || aux_gpr_idxs[0] == Operand::RDI)
+                    ext8bit = true;
+                h->mov(addr(start_bytes), Reg8(aux_gpr_idxs[0], ext8bit));
                 break;
                 // h->uni_vpextrb(addr(start_bytes), xmm, 0); break;
             case 2: h->uni_vpextrw(addr(start_bytes), xmm, 0); break;
