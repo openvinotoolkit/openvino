@@ -12,9 +12,9 @@ This page introduces additional configurations for Intel® Processor Graphics (G
 
 ## Linux
 
-If you have installed OpenVINO Runtime via the installer, APT, or YUM, follow these steps to work with GPU.
+If you have installed OpenVINO Runtime via the installer, APT, or YUM, follow these steps to work with GPU. If you installed OpenVINO™ Runtime using PyPI or Anaconda Cloud, scripts are not installed locally and must be accessed through GitHub.
 
-Source code for the instalation scripts is also available in the OpenVINO™ scripts repository on GitHub. If you installed OpenVINO™ Runtime using PyPI or Anaconda, scripts are not installed locally and must be accessed through GitHub.
+Source code for the instalation scripts is also available in the [OpenVINO™ scripts repository on GitHub](https://github.com/openvinotoolkit/openvino/tree/master/scripts).
 
 1. Go to the install_dependencies directory:
    ```sh
