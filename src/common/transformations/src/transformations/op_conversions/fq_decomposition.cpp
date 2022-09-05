@@ -8,6 +8,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/partial_shape.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
 
@@ -79,54 +80,66 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
             decomp_ops.push_back(data.get_node_shared_ptr());
         }
 
-        // if we set input_low or input_high in formula we got output = output_low and output = output_high respectively
-        // so we just clamp x
-        const auto max = std::make_shared<ngraph::opset1::Maximum>(data, input_low);
-        const auto min = std::make_shared<ngraph::opset1::Minimum>(max, input_high);
-        decomp_ops.push_back(max);
-        decomp_ops.push_back(min);
+        std::shared_ptr<Node> result = nullptr;
+        const auto out_scales = simplifyToScale(fake_quantize_node);
+        if (out_scales.size() != 0) {
+            PartialShape scale_shape = input_low.get_partial_shape();
+            ov::PartialShape::broadcast_merge_into(scale_shape, input_high.get_partial_shape(), op::AutoBroadcastType::NUMPY);
+            const auto scales = std::make_shared<ngraph::opset1::Constant>(ov::element::f32, scale_shape.get_shape(), out_scales);
+            decomp_ops.push_back(scales);
 
-        // (levels-1)
-        const auto levels_minus_one =
-            std::make_shared<ngraph::opset1::Constant>(input_type, Shape{}, fake_quantize_node->get_levels() - 1);
-        decomp_ops.push_back(levels_minus_one);
-        // (input_high - input_low)
-        const auto subInHighLow = std::make_shared<ngraph::opset1::Subtract>(input_high, input_low);
-        // (levels-1) / (input_high - input_low)
-        const auto isc = std::make_shared<ngraph::opset1::Divide>(levels_minus_one, subInHighLow);
-        // input_low * (levels-1) / (input_high - input_low)
-        const auto ish = std::make_shared<ngraph::opset1::Multiply>(input_low, isc);
-        decomp_ops.push_back(subInHighLow);
-        decomp_ops.push_back(isc);
-        decomp_ops.push_back(ish);
+            result = std::make_shared<ngraph::opset1::Multiply>(data, scales);
+            decomp_ops.push_back(result);
+        } else {
+            // if we set input_low or input_high in formula we got output = output_low and output = output_high respectively
+            // so we just clamp x
+            const auto max = std::make_shared<ngraph::opset1::Maximum>(data, input_low);
+            const auto min = std::make_shared<ngraph::opset1::Minimum>(max, input_high);
+            decomp_ops.push_back(max);
+            decomp_ops.push_back(min);
 
-        // x * (levels-1) / (input_high - input_low)
-        const auto after_isc_apply = std::make_shared<ngraph::opset1::Multiply>(min, isc);
-        // x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)
-        const auto after_ish_apply = std::make_shared<ngraph::opset1::Subtract>(after_isc_apply, ish);
-        decomp_ops.push_back(after_isc_apply);
-        decomp_ops.push_back(after_ish_apply);
+            // (levels-1)
+            const auto levels_minus_one =
+                std::make_shared<ngraph::opset1::Constant>(input_type, Shape{}, fake_quantize_node->get_levels() - 1);
+            decomp_ops.push_back(levels_minus_one);
+            // (input_high - input_low)
+            const auto subInHighLow = std::make_shared<ngraph::opset1::Subtract>(input_high, input_low);
+            // (levels-1) / (input_high - input_low)
+            const auto isc = std::make_shared<ngraph::opset1::Divide>(levels_minus_one, subInHighLow);
+            // input_low * (levels-1) / (input_high - input_low)
+            const auto ish = std::make_shared<ngraph::opset1::Multiply>(input_low, isc);
+            decomp_ops.push_back(subInHighLow);
+            decomp_ops.push_back(isc);
+            decomp_ops.push_back(ish);
 
-        // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low))
-        const auto round =
-            std::make_shared<ngraph::opset5::Round>(after_ish_apply, ngraph::opset5::Round::RoundMode::HALF_TO_EVEN);
-        decomp_ops.push_back(round);
+            // x * (levels-1) / (input_high - input_low)
+            const auto after_isc_apply = std::make_shared<ngraph::opset1::Multiply>(min, isc);
+            // x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)
+            const auto after_ish_apply = std::make_shared<ngraph::opset1::Subtract>(after_isc_apply, ish);
+            decomp_ops.push_back(after_isc_apply);
+            decomp_ops.push_back(after_ish_apply);
 
-        // (output_high - output_low)
-        const auto sub_out_high_low = std::make_shared<ngraph::opset1::Subtract>(output_high, output_low);
-        // (output_high - output_low) / (levels-1)
-        const auto osc = std::make_shared<ngraph::opset1::Divide>(sub_out_high_low, levels_minus_one);
-        decomp_ops.push_back(sub_out_high_low);
-        decomp_ops.push_back(osc);
+            // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low))
+            const auto round =
+                std::make_shared<ngraph::opset5::Round>(after_ish_apply, ngraph::opset5::Round::RoundMode::HALF_TO_EVEN);
+            decomp_ops.push_back(round);
 
-        // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)) *
-        // (output_high - output_low) / (levels-1)
-        const auto after_osc_apply = std::make_shared<ngraph::opset1::Multiply>(round, osc);
-        // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)) *
-        // (output_high - output_low) / (levels-1) + output_low
-        std::shared_ptr<Node> result = std::make_shared<ngraph::opset1::Add>(after_osc_apply, output_low);
-        decomp_ops.push_back(after_osc_apply);
-        decomp_ops.push_back(result);
+            // (output_high - output_low)
+            const auto sub_out_high_low = std::make_shared<ngraph::opset1::Subtract>(output_high, output_low);
+            // (output_high - output_low) / (levels-1)
+            const auto osc = std::make_shared<ngraph::opset1::Divide>(sub_out_high_low, levels_minus_one);
+            decomp_ops.push_back(sub_out_high_low);
+            decomp_ops.push_back(osc);
+
+            // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)) *
+            // (output_high - output_low) / (levels-1)
+            const auto after_osc_apply = std::make_shared<ngraph::opset1::Multiply>(round, osc);
+            // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)) *
+            // (output_high - output_low) / (levels-1) + output_low
+            result = std::make_shared<ngraph::opset1::Add>(after_osc_apply, output_low);
+            decomp_ops.push_back(after_osc_apply);
+            decomp_ops.push_back(result);
+        }
 
         if (result->get_output_element_type(0) != fake_quantize_node->get_output_element_type(0)) {
             result = std::make_shared<ngraph::opset1::Convert>(result, fake_quantize_node->get_output_element_type(0));
@@ -148,4 +161,79 @@ bool ngraph::pass::FakeQuantizeDecomposition::isAllScalarConstant(const std::sha
            is_scalar_constant(node->get_input_node_shared_ptr(2)) &&
            is_scalar_constant(node->get_input_node_shared_ptr(3)) &&
            is_scalar_constant(node->get_input_node_shared_ptr(4));
+}
+
+std::vector<float> ngraph::pass::FakeQuantizeDecomposition::simplifyToScale(const std::shared_ptr<const ngraph::opset1::FakeQuantize>& fq_node) {
+    std::vector<float> out_scales;
+    auto input_low_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(fq_node->get_input_node_shared_ptr(1));
+    auto input_high_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(fq_node->get_input_node_shared_ptr(2));
+    auto output_low_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(fq_node->get_input_node_shared_ptr(3));
+    auto output_high_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(fq_node->get_input_node_shared_ptr(4));
+    if (!input_low_constant || !input_high_constant || !output_low_constant || !output_high_constant)
+        return out_scales;
+
+    auto input_low = input_low_constant->cast_vector<float>();
+    auto input_high = input_high_constant->cast_vector<float>();
+    auto output_low = output_low_constant->cast_vector<float>();
+    auto output_high = output_high_constant->cast_vector<float>();
+    auto levels = fq_node->get_levels();
+
+    const auto input_size = std::max(input_low.size(), input_high.size());
+    const auto output_size = std::max(output_low.size(), output_high.size());
+
+    std::vector<float> cl = input_low;
+    std::vector<float> ch = input_high;
+    std::vector<float> isc(input_size);
+    std::vector<float> ish(input_size);
+    std::vector<float> osc(output_size);
+    std::vector<float> osh(output_size);
+
+    for (int i = 0; i < input_size; i++) {
+        float il = input_low[input_low.size() == 1 ? 0 : i];
+        float ih = input_high[input_high.size() == 1 ? 0 : i];
+
+        isc[i] = (levels - 1) / (ih - il);
+        ish[i] = -il * isc[i];
+    }
+
+    for (int i = 0; i < output_size; i++) {
+        float ol = output_low[output_low.size() == 1 ? 0 : i];
+        float oh = output_high[output_high.size() == 1 ? 0 : i];
+
+        osc[i] = (oh - ol) / (levels - 1);
+        osh[i] = ol;
+    }
+
+    if (fq_node->get_element_type() == ngraph::element::u8 &&
+            std::all_of(cl.cbegin(), cl.cend(), [](float val) { return val == 0.0f; }) &&
+            std::all_of(ish.cbegin(), ish.cend(), [](float val) { return val == 0.0f; }) &&
+            std::all_of(osc.cbegin(), osc.cend(), [](float val) { return val == 1.0f; }) &&
+            std::all_of(osh.cbegin(), osh.cend(), [](float val) { return val == 0.0f; })) {
+        out_scales = isc;
+    }
+
+    static const float thr = 0.0001f;
+    if (fq_node->get_element_type() == ngraph::element::i8 &&
+            std::all_of(ish.cbegin(), ish.cend(), [](float val) { return std::abs(val - 128.f) < thr; }) &&
+            std::all_of(osc.cbegin(), osc.cend(), [](float val) { return val == 1.f; }) &&
+            std::all_of(osh.cbegin(), osh.cend(), [](float val) { return std::abs(val + 128.f) < thr; })) {
+        bool is_crop_aligned = true;
+        for (int i = 0; i < std::max(cl.size(), isc.size()); i++) {
+            if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] + 128.f) > thr) {
+                is_crop_aligned = false;
+            }
+        }
+
+        for (int i = 0; i < std::max(ch.size(), isc.size()); i++) {
+            if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - 127.f) > thr) {
+                is_crop_aligned = false;
+            }
+        }
+
+        if (is_crop_aligned) {
+            out_scales = isc;
+        }
+    }
+
+    return out_scales;
 }

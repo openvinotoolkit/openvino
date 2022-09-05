@@ -13,6 +13,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/op/loop.hpp>
 #include "transformations/utils/utils.hpp"
+#include "transformations/op_conversions/fq_decomposition.hpp"
 
 #include <memory>
 #include <vector>
@@ -155,31 +156,36 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
     return result;
 }
 auto get_potentional_non_scalar_constants_count(const std::shared_ptr<ov::Model> body) -> size_t {
-    auto get_additional_param_count_for_fq = [](std::shared_ptr<ov::Node> fq) -> size_t {
-        const bool il = ngraph::shape_size(fq->input(1).get_shape()) != 1lu;
-        const bool ih = ngraph::shape_size(fq->input(2).get_shape()) != 1lu;
-        const bool ol = ngraph::shape_size(fq->input(3).get_shape()) != 1lu;
-        const bool oh = ngraph::shape_size(fq->input(4).get_shape()) != 1lu;
-
-        if (ol && il && ih)
-            return 6;
-        else if ((ol && (il || ih)) || (il && ih && oh))
-            return 5;
-        else if ((il && oh) || (ih && oh) || (il && ih))
-            return 4;
-        else if (il || ih)
-            return 3;
-        else if (ol)
-            return 2;
-        else if (oh)
+    auto get_additional_param_count_for_fq = [](const std::shared_ptr<ngraph::opset1::FakeQuantize>& fq) -> size_t {
+        const auto scales = ngraph::pass::FakeQuantizeDecomposition::simplifyToScale(fq);
+        if (scales.size() != 0) {
             return 1;
-        return 0;
+        } else {
+            const bool il = ngraph::shape_size(fq->input(1).get_shape()) != 1lu;
+            const bool ih = ngraph::shape_size(fq->input(2).get_shape()) != 1lu;
+            const bool ol = ngraph::shape_size(fq->input(3).get_shape()) != 1lu;
+            const bool oh = ngraph::shape_size(fq->input(4).get_shape()) != 1lu;
+
+            if (ol && il && ih)
+                return 6;
+            else if ((ol && (il || ih)) || (il && ih && oh))
+                return 5;
+            else if ((il && oh) || (ih && oh) || (il && ih))
+                return 4;
+            else if (il || ih)
+                return 3;
+            else if (ol)
+                return 2;
+            else if (oh)
+                return 1;
+            return 0;
+        }
     };
 
     size_t count = 0;
     for (const auto& op : body->get_ops()) {
-        if (ov::is_type<ov::op::v0::FakeQuantize>(op)) {
-            count += get_additional_param_count_for_fq(op);
+        if (auto node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(op)) {
+            count += get_additional_param_count_for_fq(node);
         }
     }
     return count;

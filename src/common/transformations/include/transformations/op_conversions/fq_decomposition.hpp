@@ -6,6 +6,7 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
+#include <ngraph/op/fake_quantize.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -48,4 +49,5 @@ public:
     FakeQuantizeDecomposition(const bool constant_weights = true);
 
     static bool isAllScalarConstant(const std::shared_ptr<const ngraph::Node>& node);
+    static std::vector<float> simplifyToScale(const std::shared_ptr<const ngraph::op::v0::FakeQuantize>& fq_node);
 };
