@@ -30,6 +30,7 @@ find_package(TBB
     CONFIG
     PATHS ${TBBROOT}/cmake
           ${IEDevScripts_DIR}/${IE_OWN_TBB_CONFIG}
-    NO_DEFAULT_PATH)
+    NO_DEFAULT_PATH
+    NO_CMAKE_FIND_ROOT_PATH)
 
 find_package_handle_standard_args(TBB CONFIG_MODE)
