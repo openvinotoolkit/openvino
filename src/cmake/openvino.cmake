@@ -239,7 +239,7 @@ if(LINUX)
     endif()
 
     # detect <multiarch-triplet>
-    if(CPACK_GENERATOR STREQUAL "DEB" AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    if(CPACK_GENERATOR STREQUAL "DEB")
         # TODO: find a better way to detect <multiarch-triplet>
         if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             # note: clang provides different output like 'x86_64-pc-linux-gnu', so it's not used
