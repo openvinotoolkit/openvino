@@ -37,10 +37,8 @@ endif()
 # create plugin
 
 ie_add_plugin(NAME ${TARGET_NAME}
-              DEVICE_NAME "Intel_CPU"
+              DEVICE_NAME "CPU"
               AS_EXTENSION
-              DEFAULT_CONFIG 
-                  ALIAS:CPU
               SOURCES ${SOURCES} ${HEADERS})
 
 set_ie_threading_interface_for(${TARGET_NAME})
