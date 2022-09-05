@@ -381,13 +381,12 @@ void Convolution::getSupportedDescriptors() {
                  (withBiases ? (getParentEdgeAt(2)->getParent()->isConstant() && getParentEdgeAt(2)->getParent()->getType() == Type::Input) : true);
 
         // AVX512 brconv may be disabled by heuristics due to performance issues. User can force it via Primitives priority mechanism.
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
-            std::for_each(implPriorities.begin(), implPriorities.end(), [&](const impl_desc_type& desc_type) {
-                if (desc_type & impl_desc_type::brgconv_avx512) {
-                    shouldTryBrgconv = true;
-                    userForceBrgconv = true;
-                }
-            });
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+            std::any_of(implPriorities.begin(), implPriorities.end(), [](const impl_desc_type& desc_type) {
+                return static_cast<bool>(desc_type & impl_desc_type::brgconv_avx512);
+            })) {
+            shouldTryBrgconv = true;
+            userForceBrgconv = true;
         }
     }
 
