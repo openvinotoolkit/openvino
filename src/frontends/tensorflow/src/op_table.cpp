@@ -28,6 +28,9 @@ OP_CONVERTER(translate_avg_pool_op);
 OP_CONVERTER(translate_batch_mat_mul_op);
 OP_CONVERTER(translate_batch_nd_and_space_nd_op);
 OP_CONVERTER(translate_bias_add_op);
+OP_CONVERTER(translate_broadcast_args_op);
+OP_CONVERTER(translate_broadcast_to_op);
+OP_CONVERTER(translate_bucketize_op);
 OP_CONVERTER(translate_cast_op);
 OP_CONVERTER(translate_concat_op);
 OP_CONVERTER(translate_const_op);
@@ -39,6 +42,7 @@ OP_CONVERTER(translate_cumsum_op);
 OP_CONVERTER(translate_crop_and_resize_op);
 OP_CONVERTER(translate_depth_to_space_op);
 OP_CONVERTER(translate_depthwise_conv_2d_native_op);
+OP_CONVERTER(translate_einsum_op);
 OP_CONVERTER(translate_elu_op);
 OP_CONVERTER(translate_expand_dims_op);
 OP_CONVERTER(translate_extract_image_patches_op);
@@ -115,10 +119,12 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Ceil", translate_unary_op<opset8::Ceiling>},
         {"Cos", translate_unary_op<opset8::Cos>},
         {"Cosh", translate_unary_op<opset8::Cosh>},
+        {"Erf", translate_unary_op<opset8::Erf>},
         {"Exp", translate_unary_op<opset8::Exp>},
         {"Floor", translate_unary_op<opset8::Floor>},
         {"Log", translate_unary_op<opset8::Log>},
         {"LogicalNot", translate_unary_op<opset8::LogicalNot>},
+        {"Mish", translate_unary_op<opset8::Mish>},
         {"Neg", translate_unary_op<opset8::Negative>},
         {"Relu", translate_unary_op<opset8::Relu>},
         {"Sigmoid", translate_unary_op<opset8::Sigmoid>},
@@ -155,6 +161,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         // note: ReduceOp translator declaration for each op must to be added in reduce.cpp file
         {"Any", translate_direct_reduce_op<opset8::ReduceLogicalOr>},
         {"All", translate_direct_reduce_op<opset8::ReduceLogicalAnd>},
+        {"EuclideanNorm", translate_direct_reduce_op<opset8::ReduceL2>},
         {"Max", translate_direct_reduce_op<opset8::ReduceMax>},
         {"Mean", translate_direct_reduce_op<opset8::ReduceMean>},
         {"Min", translate_direct_reduce_op<opset8::ReduceMin>},
@@ -170,6 +177,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"BatchMatMul", translate_batch_mat_mul_op},
         {"BatchMatMulV2", translate_batch_mat_mul_op},
         {"BatchToSpaceND", translate_batch_nd_and_space_nd_op},
+        {"BroadcastArgs", translate_broadcast_args_op},
+        {"BroadcastTo", translate_broadcast_to_op},
+        {"Bucketize", translate_bucketize_op},
         {"BiasAdd", translate_bias_add_op},
         {"Cast", translate_cast_op},
         {"Concat", translate_concat_op},
@@ -183,6 +193,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Cumsum", translate_cumsum_op},
         {"DepthToSpace", translate_depth_to_space_op},
         {"DepthwiseConv2dNative", translate_depthwise_conv_2d_native_op},
+        {"Einsum", translate_einsum_op},
         {"Elu", translate_elu_op},
         {"ExpandDims", translate_expand_dims_op},
         {"ExtractImagePatches", translate_extract_image_patches_op},
