@@ -136,5 +136,17 @@ std::string convert_path_to_string(const py::object& path) {
            "Examples:\n(1) '/home/user/models/model.onnx'\n(2) Path('/home/user/models/model/model.onnx')";
     throw ov::Exception(str.str());
 }
+
+void deprecation_warning(const std::string& function_name, const std::string& version, const std::string& message) {
+    std::stringstream ss;
+    ss << function_name << " is deprecated";
+    if (!version.empty()) {
+        ss << " and will be removed in version " << version;
+    }
+    if (!message.empty()) {
+        ss << ". " << message;
+    }
+    PyErr_WarnEx(PyExc_DeprecationWarning, ss.str().data(), 2);
+}
 };  // namespace utils
 };  // namespace Common
