@@ -343,7 +343,7 @@ else()
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-dead_strip")
         set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,-dead_strip")
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-dead_strip")
-        if (CMAKE_OSX_ARCHITECTURES STREQUAL "x86_64")
+        if(CMAKE_OSX_ARCHITECTURES STREQUAL "x86_64" AND AARCH64)
             # Disable -mcpu=native
             ie_add_compiler_flags(-Wno-error=unused-command-line-argument)
         endif()
