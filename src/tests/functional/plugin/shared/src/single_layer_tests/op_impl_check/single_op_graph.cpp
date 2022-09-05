@@ -1604,6 +1604,10 @@ std::shared_ptr<ov::Model> generateFFTBase(const std::shared_ptr<ov::op::Op> &no
         FFTBaseNode = std::make_shared<ov::op::v7::DFT>(params.at(0), axes);
     } else if (ov::is_type<ov::op::v7::IDFT>(node)) {
         FFTBaseNode = std::make_shared<ov::op::v7::IDFT>(params.at(0), axes);
+    } else if (ov::is_type<ov::op::v9::RDFT>(node)) {
+        FFTBaseNode = std::make_shared<ov::op::v9::RDFT>(params.at(0), axes);
+    } else if (ov::is_type<ov::op::v9::IRDFT>(node)) {
+        FFTBaseNode = std::make_shared<ov::op::v9::IRDFT>(params.at(0), axes);
     } else {
         return nullptr;
     }
