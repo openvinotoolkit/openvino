@@ -6,7 +6,6 @@ from functools import singledispatch
 from typing import Any, Union, Dict
 from pathlib import Path
 
-import pathlib
 import numpy as np
 
 from openvino.pyopenvino import Model
@@ -438,11 +437,11 @@ class Core(CoreBase):
         )
 
 
-def compile_model(model_path: Union[str, pathlib.Path]) -> CompiledModel:
+def compile_model(model_path: Union[str, Path]) -> CompiledModel:
     """Compact method to compile model with AUTO plugin.
 
     :param model_path: Path to file with model.
-    :type model_path: str
+    :type model_path: str, pathlib.Path
     :return: A compiled model
     :rtype: openvino.runtime.CompiledModel
 
