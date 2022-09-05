@@ -1779,13 +1779,24 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
                 src_fmt = format::get_default_format(node.get_input_layouts()[0].get_rank(), false, false);
             }
 
-            node.set_preferred_input_fmt(idx, src_fmt);
-
             auto dst_fmt = onednn::find_data_format(prim_desc.dst_desc());
             if (node.get_preferred_output_fmt() == format::any) {
                 for (size_t usr = 0 ; usr < node.get_users().size() ; usr++)
                     node.set_preferred_output_fmt(usr, dst_fmt);
             }
+
+            /// WA: It could not choose jit:ir for first conv with zero-point ops.
+            ///     Than, it tries to choose ocl:xe_lp.
+            if (node.is_type<convolution>()) {
+                auto& conv_node = node.as<convolution>();
+                if (src_fmt == format::byxf && (dst_fmt == format::bs_fs_yx_bsv32_fsv32 || dst_fmt == format::b_fs_yx_fsv32) &&
+                    conv_node.get_dependency(0).get_output_layout().feature() < 8 &&
+                    conv_node.activations_zero_points_term() == 1) {
+                    src_fmt = format::bfyx;
+                }
+            }
+
+            node.set_preferred_input_fmt(idx, src_fmt);
 
             GPU_DEBUG_IF(debug_config->verbose >= 2) {
                 std::cout << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(src_fmt) << " --> " << fmt_to_str(dst_fmt)
