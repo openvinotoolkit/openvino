@@ -8255,10 +8255,10 @@ public:
 
         topo.add(cldnn::data("scale_scale", scale_mem));
         topo.add(cldnn::data("scale_shift", shift_mem));
-        topo.add(cldnn::eltwise("shift", { "conv", "scale_shift" }, eltwise_mode::sum));
-        topo.add(cldnn::eltwise("scale", { "shift", "scale_scale" }, eltwise_mode::prod));
+        topo.add(cldnn::eltwise("scale", { "conv", "scale_scale" }, eltwise_mode::prod));
+        topo.add(cldnn::eltwise("shift", { "scale", "scale_shift" }, eltwise_mode::sum));
         // Work-around since if scale is output it will not be fused
-        topo.add(cldnn::reorder("scale_wa_reorder", "scale", format::bfyx, this->output_type()));
+        topo.add(cldnn::reorder("scale_wa_reorder", "shift", format::bfyx, this->output_type()));
         return topo;
     }
 

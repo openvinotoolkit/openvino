@@ -157,29 +157,29 @@ TEST_P(scatter_update_scale_activation, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, scatter_update_scale_activation, ::testing::ValuesIn(std::vector<scatter_update_test_params>{
-    scatter_update_test_params{ CASE_SCATTER_UPDATE_FP32_1, 2, 4 },
-    scatter_update_test_params{ CASE_SCATTER_UPDATE_FP32_2, 2, 4 },
-    scatter_update_test_params{ CASE_SCATTER_UPDATE_FP32_3, 2, 4 },
-    scatter_update_test_params{ CASE_SCATTER_UPDATE_FP32_4, 2, 4 },
-    scatter_update_test_params{ CASE_SCATTER_UPDATE_FP32_5, 2, 4 },
+    scatter_update_test_params{ CASE_SCATTER_UPDATE_FP32_1, 3, 4 },
+    scatter_update_test_params{ CASE_SCATTER_UPDATE_FP32_2, 3, 4 },
+    scatter_update_test_params{ CASE_SCATTER_UPDATE_FP32_3, 3, 4 },
+    scatter_update_test_params{ CASE_SCATTER_UPDATE_FP32_4, 3, 4 },
+    scatter_update_test_params{ CASE_SCATTER_UPDATE_FP32_5, 3, 4 },
 
-    scatter_update_test_params{ CASE_SCATTER_UPDATE_FP16_1, 2, 4 },
-    scatter_update_test_params{ CASE_SCATTER_UPDATE_FP16_2, 2, 4 },
-    scatter_update_test_params{ CASE_SCATTER_UPDATE_FP16_3, 2, 4 },
-    scatter_update_test_params{ CASE_SCATTER_UPDATE_FP16_4, 2, 4 },
-    scatter_update_test_params{ CASE_SCATTER_UPDATE_FP16_5, 2, 4 },
+    scatter_update_test_params{ CASE_SCATTER_UPDATE_FP16_1, 3, 4 },
+    scatter_update_test_params{ CASE_SCATTER_UPDATE_FP16_2, 3, 4 },
+    scatter_update_test_params{ CASE_SCATTER_UPDATE_FP16_3, 3, 4 },
+    scatter_update_test_params{ CASE_SCATTER_UPDATE_FP16_4, 3, 4 },
+    scatter_update_test_params{ CASE_SCATTER_UPDATE_FP16_5, 3, 4 },
 
-    scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP32_1, 2, 4 },
-    scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP32_2, 2, 4 },
-    scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP32_3, 2, 4 },
-    scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP32_4, 2, 4 },
-    scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP32_5, 2, 4 },
+    scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP32_1, 3, 4 },
+    scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP32_2, 3, 4 },
+    scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP32_3, 3, 4 },
+    scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP32_4, 3, 4 },
+    scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP32_5, 3, 4 },
 
-    scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP16_1, 2, 4 },
-    scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP16_2, 2, 4 },
-    scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP16_3, 2, 4 },
-    scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP16_4, 2, 4 },
-    scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP16_5, 2, 4 },
+    scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP16_1, 3, 4 },
+    scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP16_2, 3, 4 },
+    scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP16_3, 3, 4 },
+    scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP16_4, 3, 4 },
+    scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP16_5, 3, 4 },
 }));
 
 class scatter_update_scale_activation_eltwise : public ScatterUpdatePrimitiveFusingTest {};

@@ -115,6 +115,6 @@ TEST_P(normalize_i8_float, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, normalize_i8_float, ::testing::ValuesIn(std::vector<normalize_test_params>{
-    normalize_test_params{ CASE_NORMALIZE_I8_1, false, 2, 4 },
-    normalize_test_params{ CASE_NORMALIZE_I8_1, true, 2, 4 },
+    normalize_test_params{ CASE_NORMALIZE_I8_1, false, 3, 4 },
+    normalize_test_params{ CASE_NORMALIZE_I8_1, true, 3, 4 },
 }));
