@@ -39,7 +39,6 @@ NamedOutputs p_norm(const NodeContext& node) {
             PADDLE_OP_CHECK(node,
                             input_shape.rank().is_static(),
                             "input rank of p_norm must be static when keepdim=false and p=0.");
-            std::cout << "test" << std::endl;
             const auto input_rank = input_shape.rank().get_length();
             if (input_rank == 1) {
                 const auto one = default_opset::Constant::create(ngraph::element::i64, {1}, {1});
