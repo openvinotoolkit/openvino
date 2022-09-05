@@ -6,6 +6,7 @@ from functools import singledispatch
 from typing import Any, Union, Dict
 from pathlib import Path
 
+import pathlib
 import numpy as np
 
 from openvino.pyopenvino import Model
