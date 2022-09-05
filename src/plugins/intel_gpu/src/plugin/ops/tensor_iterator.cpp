@@ -37,7 +37,7 @@ static DATA_TYPE CreateScalarData(Program &p, const cldnn::primitive_id& id, int
 static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::shared_ptr<ngraph::Node>& op,
                                             const cldnn::primitive_id& id, const cldnn::primitive_id& input,
                                             const int32_t output_idx) {
-    const auto precision = DataTypeFromPrecision(op->get_output_element_type(output_idx));
+    const auto precision = cldnn::element_type_to_data_type(op->get_output_element_type(output_idx));
     const auto format = cldnn::format::get_default_format(op->get_output_shape(output_idx).size());
     const auto tensor = tensor_from_dims(op->get_output_shape(output_idx));
     cldnn::layout output_layout = cldnn::layout(precision, format, tensor);
@@ -97,7 +97,7 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
             {
                 const auto from_prim = body_topology.at(from_id);
                 const auto& to_ngraph_type = to->get_element_type();
-                const auto to_cldnn_type = DataTypeFromPrecision(to_ngraph_type);
+                const auto to_cldnn_type = cldnn::element_type_to_data_type(to_ngraph_type);
                 from_prim->output_data_type = to_cldnn_type;
             }
             back_edges.emplace_back(from_id, to_id);

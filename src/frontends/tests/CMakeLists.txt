@@ -5,7 +5,3 @@
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
 add_subdirectory(frontend/shared)
-
-if (ENABLE_OV_ONNX_FRONTEND)
-    add_subdirectory(onnx)
-endif()

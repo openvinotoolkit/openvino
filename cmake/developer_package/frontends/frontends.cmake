@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(FRONTEND_INSTALL_INCLUDE "${OV_CPACK_INCLUDEDIR}/")
+set(FRONTEND_INSTALL_INCLUDE "${OV_CPACK_INCLUDEDIR}")
 set(FRONTEND_NAME_PREFIX "openvino_")
 set(FRONTEND_NAME_SUFFIX "_frontend")
 
@@ -142,7 +142,7 @@ macro(ov_add_frontend)
         add_custom_command(
                 OUTPUT "${OUTPUT_PB_SRC}" "${OUTPUT_PB_HEADER}"
                 COMMAND ${PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
-                DEPENDS ${PROTOC_EXECUTABLE} ${GENERATED_PROTO}
+                DEPENDS ${PROTOC_DEPENDENCY} ${GENERATED_PROTO}
                 COMMENT "Running C++ protocol buffer compiler (${PROTOC_EXECUTABLE}) on ${GENERATED_PROTO}"
                 VERBATIM
                 COMMAND_EXPAND_LISTS)
@@ -172,6 +172,10 @@ macro(ov_add_frontend)
             "-DGetFrontEndData=GetFrontEndData${OV_FRONTEND_NAME}"
             "-DGetAPIVersion=GetAPIVersion${OV_FRONTEND_NAME}")
     endif()
+
+    # enable LTO
+    set_target_properties(${TARGET_NAME} PROPERTIES
+        INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
     if(OV_FRONTEND_SKIP_NCC_STYLE)
         # frontend's CMakeLists.txt must define its own custom 'ov_ncc_naming_style' step
@@ -261,7 +265,7 @@ macro(ov_add_frontend)
         if(OV_FRONTEND_LINKABLE_FRONTEND)
             # install library development files
             install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/openvino
-                    DESTINATION ${FRONTEND_INSTALL_INCLUDE}/
+                    DESTINATION ${FRONTEND_INSTALL_INCLUDE}
                     COMPONENT ${dev_component}
                     FILES_MATCHING PATTERN "*.hpp")
 

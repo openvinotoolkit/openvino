@@ -88,7 +88,7 @@ jobs:
   - script: |
       brew install cython
       brew install automake
-      python3 -m pip install -r $(REPO_DIR)/src/core/tests/requirements_test_onnx.txt
+      python3 -m pip install -r $(REPO_DIR)/src/frontends/onnx/tests/requirements.txt
       # Speed up build
       brew install ninja
       brew install ccache
@@ -112,7 +112,7 @@ jobs:
         -DCMAKE_C_COMPILER_LAUNCHER=ccache \
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache \
         -DCMAKE_C_LINKER_LAUNCHER=ccache \
-        -DBUILD_cuda_plugin=OFF \
+        -DBUILD_nvidia_plugin=OFF \
         -S $(REPO_DIR) \
         -B $(BUILD_DIR)
     displayName: 'CMake'
@@ -165,8 +165,8 @@ jobs:
     continueOnError: false
     enabled: false
 
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnx_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU*--gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXImportUT.xml
-    displayName: 'ONNX Import UT'
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU*--gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
+    displayName: 'ONNX Frontend Tests'
     continueOnError: false
     enabled: false
 
@@ -187,11 +187,6 @@ jobs:
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-vpuUnitTests.xml
     displayName: 'VPU UT'
-    continueOnError: false
-    enabled: false
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnxImporterUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-onnxImporterUnitTests.xml
-    displayName: 'ONNX Importer UT'
     continueOnError: false
     enabled: false
 
