@@ -11,7 +11,9 @@
 #pragma once
 
 #include "openvino/c/ov_common.h"
-typedef struct ov_rank ov_rank_t;
+#include "openvino/c/ov_dimension.h"
+
+typedef ov_dimension_t ov_rank_t;
 
 // Rank
 /**
@@ -22,28 +24,11 @@ typedef struct ov_rank ov_rank_t;
  */
 
 /**
- * @brief Create a static rank object
+ * @brief Check this rank whether is dynamic
  * @ingroup rank
- * @param rank_value The rank value for this object, it should be not less than 0(>=0)
- * @param ov_status_e a status code.
+ * @param rank The rank pointer that will be checked.
+ * @return bool The return value.
  */
-OPENVINO_C_API(ov_status_e) ov_rank_create(ov_rank_t** rank, int64_t rank_value);
-
-/**
- * @brief Create a dynamic rank object
- * @ingroup rank
- * @param min_rank The lower inclusive limit for the rank
- * @param max_rank The upper inclusive limit for the rank
- * with min_dimension
- * @param ov_status_e a status code.
- */
-OPENVINO_C_API(ov_status_e) ov_rank_create_dynamic(ov_rank_t** rank, int64_t min_rank, int64_t max_rank);
-
-/**
- * @brief Release rank object.
- * @ingroup rank
- * @param ov_status_e a status code.
- */
-OPENVINO_C_API(void) ov_rank_free(ov_rank_t* rank);
+OPENVINO_C_API(bool) ov_rank_is_dynamic(const ov_rank_t rank);
 
 /** @} */  // end of Rank

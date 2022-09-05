@@ -452,15 +452,15 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape) {
     auto test_case = test::TestCase(function, s_device);
 
     test_case.add_input_from_file<float>(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
-                                                              TEST_FILES,
-                                                              "onnx/convtranspose_output_shape/x.bin"));
+                                                              SERIALIZED_ZOO,
+                                                              "onnx/files/convtranspose_output_shape/x.bin"));
     test_case.add_input_from_file<float>(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
-                                                              TEST_FILES,
-                                                              "onnx/convtranspose_output_shape/w.bin"));
+                                                              SERIALIZED_ZOO,
+                                                              "onnx/files/convtranspose_output_shape/w.bin"));
     test_case.add_expected_output_from_file<float>({1, 2, 10, 8},
                                                    file_util::path_join(CommonTestUtils::getExecutableDirectory(),
-                                                                        TEST_FILES,
-                                                                        "onnx/convtranspose_output_shape/y.bin"));
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/files/convtranspose_output_shape/y.bin"));
 
     test_case.run();
 }
