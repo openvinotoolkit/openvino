@@ -7,6 +7,7 @@
 #include <ngraph/ngraph.hpp>
 #include <file_utils.h>
 #include <common_test_utils/test_assertions.hpp>
+#include <common_test_utils/file_utils.hpp>
 
 class CustomAbsKernel : public InferenceEngine::ILayerExecImpl {
 public:
