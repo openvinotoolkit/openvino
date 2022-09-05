@@ -60,7 +60,7 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
             mutable_precision = ngraph::element::i32;
         }
 
-        cldnn::layout mutableLayout = cldnn::layout(DataTypeFromPrecision(mutable_precision),
+        cldnn::layout mutableLayout = cldnn::layout(cldnn::element_type_to_data_type(mutable_precision),
                                                     cldnn::format::get_default_format(op->get_output_shape(1).size()),
                                                     tensor_from_dims(op->get_output_shape(1)));
 

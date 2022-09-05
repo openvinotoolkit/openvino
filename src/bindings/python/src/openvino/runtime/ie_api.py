@@ -67,7 +67,7 @@ def _(
         tensor.data[:] = inputs[:]
 
 
-@update_tensor.register(np.number)
+@update_tensor.register(np.number)  # type: ignore
 @update_tensor.register(float)
 @update_tensor.register(int)
 def _(

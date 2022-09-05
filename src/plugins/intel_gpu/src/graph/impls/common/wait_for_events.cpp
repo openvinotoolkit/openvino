@@ -15,7 +15,8 @@ namespace common {
 
 class wait_for_events_impl : public primitive_impl {
 public:
-    explicit wait_for_events_impl(const program_node& /*node*/) {}
+    explicit wait_for_events_impl(const program_node& /*node*/)
+        : primitive_impl(kernel_selector::weights_reorder_params{}, "wait_for_events") { }
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<wait_for_events_impl>(*this);
