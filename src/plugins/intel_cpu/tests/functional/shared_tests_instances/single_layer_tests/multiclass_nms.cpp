@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
+#include "shared_test_classes/base/benchmark.hpp"
 
 using namespace ov::test::subgraph;
 using namespace InferenceEngine;
@@ -153,3 +154,59 @@ const auto nmsParamsDynamic_smoke2 = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_static2, MulticlassNmsLayerTest, nmsParamsStatic_smoke2, MulticlassNmsLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_dynamic2, MulticlassNmsLayerTest, nmsParamsDynamic_smoke2, MulticlassNmsLayerTest::getTestCaseName);
+
+namespace {
+
+struct MulticlassNmsBenchmarkTest : ov::test::BenchmarkLayerTest<MulticlassNmsLayerTest> {
+    void validate() override {
+        MulticlassNmsLayerTest::validate();
+    }
+};
+
+TEST_P(MulticlassNmsBenchmarkTest, benchmark) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run("MulticlassNmsIEInternal", std::chrono::milliseconds(2000), 100);
+}
+
+const size_t num_batches = 10;
+const size_t num_classes = 100;
+const size_t num_boxes = 1000;
+
+const std::vector<std::vector<ov::Shape>> bmInputShapeParams = {
+    /* input format #1 with 2 inputs: bboxes N, M, 4, scores N, C, M */
+    // {{num_batches, num_boxes, 4}, {num_batches, num_classes, num_boxes}},
+    /* input format #2 with 3 inputs: bboxes C, M, 4, scores C, M, roisnum N */
+    {{num_batches, num_boxes, 4}, {num_batches, num_classes, num_boxes}},
+    {{num_classes, num_boxes, 4}, {num_classes, num_boxes}, {num_batches}}
+};
+
+const std::vector<ov::op::util::MulticlassNmsBase::SortResultType> bmSortResultType = {
+    ov::op::util::MulticlassNmsBase::SortResultType::SCORE,
+    ov::op::util::MulticlassNmsBase::SortResultType::CLASSID,
+    ov::op::util::MulticlassNmsBase::SortResultType::NONE
+};
+
+const auto multiclassNmsBenchmarkParams = ::testing::Combine(
+    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(bmInputShapeParams)),
+    ::testing::Combine(::testing::Values(ov::element::f32),   // input 'boxes' and 'scores' precisions
+                       ::testing::Values(ov::element::i32),   // input 'roisnum' precision
+                       ::testing::Values(ov::element::i32),   // max_output_boxes_per_class precision
+                       ::testing::Values(ov::element::f32)),  // iou_threshold, score_threshold, soft_nms_sigma precisions
+    ::testing::Values(-1, 50),                                // nmsTopK, Max output boxes per class
+    ::testing::Combine(::testing::Values(0.0f, 0.7f),         // iouThreshold, intersection over union threshold
+                       ::testing::Values(0.0f, 0.7f),         // scoreThreshold, minimum score to consider box for the processing
+                       ::testing::Values(0.8f, 1.0f)),        // nmsEta, eta parameter for adaptive NMS
+    ::testing::Values(-1),                                    // background_class, the background class id, `-1` meaning to keep all classes
+    ::testing::Values(-1, 50),                                // keepTopK, maximum number of boxes to be selected per batch element.
+    ::testing::Values(element::i64),                          // outType, Output type
+    ::testing::ValuesIn(bmSortResultType),                    // SortResultType, sort_result
+    ::testing::Combine(::testing::Values(true, false),        // sortResDesc, Sort result across batch
+                       ::testing::Values(true)),              // normalized,
+    ::testing::Values(CommonTestUtils::DEVICE_CPU));
+
+INSTANTIATE_TEST_CASE_P(MulticlassNms_Benchmark,
+                        MulticlassNmsBenchmarkTest,
+                        multiclassNmsBenchmarkParams,
+                        MulticlassNmsBenchmarkTest::getTestCaseName);
+
+}  // namespace
