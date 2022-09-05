@@ -196,7 +196,6 @@ void Snippet::initSupportedPrimitiveDescriptors() {
         } else if (mayiuse(x64::avx2)) {
             impl_type = impl_desc_type::jit_avx2;
         }
-        currentInBlkDims.resize(inputShapes.size());
         return {config, impl_type};
     };
 
@@ -444,10 +443,6 @@ void Snippet::createPrimitive() {
 }
 
 void Snippet::prepareParams() {
-    for (int i = 0; i < inputShapes.size(); i++) {
-        auto inBlockingDesc = getParentEdgeAt(i)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-        currentInBlkDims[i] = inBlockingDesc->getBlockDims();
-    }
     // here must be all the stuff that could only be done for static shapes, e.g. offset calculation
     // Here it must be all the stuff that could be done once for both static and dynamic shapes
     const auto config = getSelectedPrimitiveDescriptor()->getConfig();
@@ -529,13 +524,7 @@ void Snippet::prepareParams() {
 }
 
 bool Snippet::needPrepareParams() const {
-    if (!schedule.ptr)
-        return true;
-    for (size_t i = 0; i < inputShapes.size(); i++) {
-        if (getParentEdgesAtPort(i)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims() != currentInBlkDims[i])
-            return true;
-    }
-    return false;
+    return (!schedule.ptr || isDynamic);
 }
 
 void Snippet::execute(dnnl::stream strm) {

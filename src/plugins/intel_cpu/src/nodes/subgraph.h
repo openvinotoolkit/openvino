@@ -51,8 +51,6 @@ public:
 
 private:
     static const size_t rank6D {6};
-    // blocked dims for which kernel compiled and params prepared
-    std::vector<VectorDims> currentInBlkDims = {};
 
     typedef void (*kernel)(const void *, const void *);
 
