@@ -570,6 +570,8 @@ void MultiClassNms::nmsWithoutEta(const float* boxes,
                             box_is_selected = false;
                             break;
                         }
+                        if (sorted_boxes[box_idx].first == m_scoreThreshold)  // align with ref
+                            break;
                     }
 
                     if (box_is_selected) {
