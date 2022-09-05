@@ -47,7 +47,7 @@ size_t Memory::GetSize() const {
     return size;
 }
 
-void Memory::Create(const dnnl::memory::desc& desc, const void *data, bool pads_zeroing) {
+void Memory::Create(const dnnl::memory::desc& desc, const void *data, bool pads_zeroing) const {
     // OneDNN accepts not a const data, probably need to remove some level of consteness in a call stack
 
     // ========================
@@ -70,6 +70,8 @@ void Memory::Create(const MemoryDesc &desc, const void *data, bool pads_zeroing)
 
 void Memory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
     pMemDesc = desc;
+    padsZeroing = pads_zeroing;
+    resetDnnlPrim();
 
     size_t memSize = MemoryDesc::UNDEFINED_SIZE;
     if (pMemDesc->isDefined()) {
@@ -83,20 +85,13 @@ void Memory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
     } else {
         mgrHandle->resize(memSize);
     }
-
-    if (pMemDesc->isDefined()) {
-        Create(MemoryDescUtils::convertToDnnlMemoryDesc(pMemDesc)->getDnnlDesc(), mgrHandle->getRawPtr(), pads_zeroing);
-    } else {
-        //delayed dynamic allocation
-        DnnlBlockedMemoryDesc dummyDesc(InferenceEngine::Precision::U8, Shape(VectorDims{memSize}));
-        Create(dummyDesc.getDnnlDesc(), mgrHandle->getRawPtr(), false);  // no pads zeroing
-    }
 }
 
 void Memory::SetData(const Memory& src, bool ftz) const {
     node::Reorder::reorderData(src, *this);
 
-    dnnl::impl::memory_desc_wrapper wrapper(prim.get_desc().get());
+    auto localPrim = GetPrimitive();
+    dnnl::impl::memory_desc_wrapper wrapper(localPrim.get_desc().get());
 
     if (ftz
         && src.GetDataType() == memory::data_type::f32
@@ -119,10 +114,7 @@ void Memory::FillZero() {
 
 void *Memory::GetPtr() const  {
     auto ptr = static_cast<uint8_t*>(GetData());
-    const memory::desc desc = prim.get_desc();
-    const dnnl_memory_desc_t md = desc.get();
-    dnnl::impl::memory_desc_wrapper wrapper(md);
-    ptr += wrapper.offset0() * wrapper.data_type_size();
+    ptr += pMemDesc->getOffsetPadding() * pMemDesc->getPrecision().size();
     return ptr;
 }
 
@@ -148,11 +140,13 @@ void Memory::setDataHandle(void *data) {
 
     size_t maxMemSize = pMemDesc->hasDefinedMaxSize() ?  pMemDesc->getMaxMemSize() : 0;
     mgrHandle->setExtBuff(data, maxMemSize);
-    prim.set_data_handle(mgrHandle->getRawPtr()); // for pads zeroing, to preserve dnnl::memory::set_data_handle behaviour
+    if (testDnnlPrim()) {
+        prim.set_data_handle(mgrHandle->getRawPtr()); // for pads zeroing, to preserve dnnl::memory::set_data_handle behaviour
+    }
 }
 
 void Memory::update() {
-    if (isAllocated()) {
+    if (testDnnlPrim()) {
         prim.set_data_handle_no_pads_proc(mgrHandle->getRawPtr());
     }
 }
@@ -171,6 +165,25 @@ void Memory::Create(MemoryDescPtr desc, DnnlMemoryMngrPtr memMgr) {
 template<>
 BlockedMemoryDescPtr Memory::GetDescWithType<BlockedMemoryDesc, 0, 0>() const {
     return MemoryDescUtils::convertToBlockedMemoryDesc(pMemDesc);
+}
+
+bool Memory::testDnnlPrim() const {
+    return prim.get(true) != nullptr;
+}
+
+void Memory::resetDnnlPrim() {
+    prim = dnnl::memory();
+}
+
+dnnl::memory Memory::GetPrimitive() const {
+    if (!testDnnlPrim()) {
+        if (pMemDesc->isDefined()) {
+            Create(MemoryDescUtils::convertToDnnlMemoryDesc(pMemDesc)->getDnnlDesc(), mgrHandle->getRawPtr(), padsZeroing);
+        } else {
+            IE_THROW() << "Can not create oneDNN memory from undefined memory descriptor";
+        }
+    }
+    return prim;
 }
 
 void* MemoryMngrWithReuse::getRawPtr() const noexcept {
