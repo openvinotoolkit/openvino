@@ -477,7 +477,8 @@ TokenizeSnippets::TokenizeSnippets() {
                 internal_inputs.push_back(source_result->input_value(0));
             } else {
                 // TODO COMMENT
-                if (op::is_scalar_constant(input_node) || ov::is_type<ov::op::v0::FakeQuantize>(node)) {
+                if ((op::is_scalar_constant(input_node)) ||
+                    (ov::is_type<ov::op::v0::Constant>(input_node) && ov::is_type<ov::op::v0::FakeQuantize>(node))) {
                     internal_inputs.push_back(input_node->output(0));
                 } else {
                     external_inputs.push_back(input_value);
