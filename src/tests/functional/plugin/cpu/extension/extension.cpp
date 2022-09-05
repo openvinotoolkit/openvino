@@ -146,7 +146,8 @@ static void infer_model(InferenceEngine::Core& ie, InferenceEngine::CNNNetwork& 
 }
 
 static std::string model_full_path(const char* path) {
-    return FileUtils::makePath<char>(TEST_MODELS, path);
+    return FileUtils::makePath<char>(
+        FileUtils::makePath<char>(CommonTestUtils::getExecutableDirectory(), TEST_MODELS), path);
 }
 
 TEST(Extension, XmlModelWithCustomAbs) {
