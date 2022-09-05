@@ -8,7 +8,7 @@ import onnx.backend.test
 import unittest
 import dataclasses
 
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from onnx import numpy_helper, NodeProto, ModelProto
 from onnx.backend.base import Backend, BackendRep
 from onnx.backend.test.case.test_case import TestCase as OnnxTestCase
