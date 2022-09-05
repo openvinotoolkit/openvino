@@ -8,7 +8,7 @@ import onnx.backend.test
 import unittest
 import dataclasses
 
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from onnx import numpy_helper, NodeProto, ModelProto
 from onnx.backend.base import Backend, BackendRep
 from onnx.backend.test.case.test_case import TestCase as OnnxTestCase
@@ -31,9 +31,11 @@ from typing import (
 
 # add post-processing function as part of test data
 if getattr(OnnxTestCase, "_fields", None):
-    ExtOnnxTestCase = OnnxTestCase._fields + ("post_processing",)
+    ExtOnnxTestCase = namedtuple("TestCaseExt", OnnxTestCase._fields + ("post_processing",))
 else:  # for ONNX >= 1.12
-    ExtOnnxTestCase = tuple((field.name for field in dataclasses.fields(OnnxTestCase))) + ("post_processing",)
+    ExtOnnxTestCase = namedtuple("TestCaseExt", 
+                                 tuple((field.name for field in dataclasses.fields(OnnxTestCase))) + ("post_processing",),
+                                 rename=True)
 
 
 class ModelImportRunner(onnx.backend.test.BackendTest):
