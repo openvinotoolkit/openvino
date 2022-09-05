@@ -31,6 +31,9 @@ Affinities can be set in one of two ways, used separately or in combination: wit
 #### The Manual Option
 It assumes setting affinities explicitly for all operations in the model using `ov::Node::get_rt_info` with the `"affinity"` key. 
 
+If you assign specific operation to a specific device, make sure that the device actually supports the operation. 
+Randomly selecting operations and setting affinities may lead to decrease in model accuracy. To avoid that, try to set the related operations or subgraphs of this operation to the same affinity, such as the constant operation that will be folded into this operation.
+
 @sphinxtabset
 
 @sphinxtab{C++}
