@@ -15,8 +15,8 @@
 namespace ov {
 namespace intel_gpu {
 
-static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node>& op) {
-    p.ValidateInputs(op, {1, 2});
+static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::reshape::reshape_mode mode) {
+    validate_inputs_count(op, {1, 2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -39,39 +39,33 @@ static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node
         default: break;
         }
 
-        cldnn::layout outputLayout(DataTypeFromPrecision(op->get_output_element_type(0)), outputFormat, outTensor);
-        p.AddPrimitive(cldnn::reorder(reorderId,
-                                      reshapeInputId,
-                                      outputLayout,
-                                      std::vector<float>(),
-                                      cldnn::reorder_mean_mode::subtract,
-                                      op->get_friendly_name()));
-        p.InitProfileInfo(reorderId, "Reorder", false, InferenceEngine::InferenceEngineProfileInfo::EXECUTED, layerName);
-        p.primitiveIDs[layerName + "_reorder"] = reorderId;
-        p.primitiveIDs[reorderId] = reorderId;
-        p.profilingIDs.push_back(reorderId);
+        cldnn::layout outputLayout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outTensor);
+        p.add_primitive(*op, cldnn::reorder(reorderId,
+                                            reshapeInputId,
+                                            outputLayout,
+                                            std::vector<float>(),
+                                            cldnn::reorder_mean_mode::subtract));
         reshapeInputId = reorderId;
     }
 
     auto reshapePrim = cldnn::reshape(layerName,
                                       reshapeInputId,
                                       outTensor,
-                                      op->get_friendly_name());
+                                      mode);
 
-    p.AddPrimitive(reshapePrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, reshapePrim);
 }
 
 static void CreateReshapeOp(Program& p, const std::shared_ptr<ngraph::op::v1::Reshape>& op) {
-    CreateCommonReshapeOp(p, op);
+    CreateCommonReshapeOp(p, op, cldnn::reshape::reshape_mode::base);
 }
 
 static void CreateSqueezeOp(Program& p, const std::shared_ptr<ngraph::op::v0::Squeeze>& op) {
-    CreateCommonReshapeOp(p, op);
+    CreateCommonReshapeOp(p, op, cldnn::reshape::reshape_mode::squeeze);
 }
 
 static void CreateUnsqueezeOp(Program& p, const std::shared_ptr<ngraph::op::v0::Unsqueeze>& op) {
-    CreateCommonReshapeOp(p, op);
+    CreateCommonReshapeOp(p, op, cldnn::reshape::reshape_mode::unsqueeze);
 }
 
 REGISTER_FACTORY_IMPL(v1, Reshape);

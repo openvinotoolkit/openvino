@@ -320,11 +320,12 @@ void network::validate_primitives() {
 }
 
 void network::set_arguments() {
-    if (!_reset_arguments || is_dynamic())
+    if (!_reset_arguments)
         return;
 
     for (auto const& prim : _exec_order) {
-        prim->set_arguments();
+        if (!prim->is_dynamic())
+            prim->set_arguments();
     }
     _reset_arguments = false;
 }
@@ -796,7 +797,7 @@ const program::graph_optimizer_info& network::get_optimizer_passes_info() const 
 std::map<primitive_id, primitive_id> network::get_ext_id_mapping() const {
     std::map<primitive_id, primitive_id> result;
     for (auto& prim : _primitives) {
-        result.emplace(prim.first, prim.second->get_ext_prim_id());
+        result.emplace(prim.first, prim.second->get_node().get_primitive()->origin_op_name);
     }
     for (auto& opt_id : _program->get_optimized_out()) {
         std::string ext_id = opt_id;

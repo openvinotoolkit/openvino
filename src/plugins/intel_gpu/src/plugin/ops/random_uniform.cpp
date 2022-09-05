@@ -20,13 +20,12 @@ void CreateRandomUniformOp(Program &p, const std::shared_ptr<ngraph::op::v8::Ran
 
     auto random_uniform_prim = cldnn::random_uniform(layer_type_name_ID(op),
                                                      input_primitives,
-                                                     DataTypeFromPrecision(op->get_out_type()),
+                                                     cldnn::element_type_to_data_type(op->get_out_type()),
                                                      op->get_global_seed(),
                                                      op->get_op_seed(),
                                                      tensor_from_dims(output_shape),
                                                      outputFormat);
-    p.AddPrimitive(random_uniform_prim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, random_uniform_prim);
 }
 
 } // namespace
