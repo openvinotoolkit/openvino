@@ -243,7 +243,11 @@ else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json/nlohmann_json
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            REGEX .*json/nlohmann_json/test/.* EXCLUDE)
+            REGEX .*json/nlohmann_json/.github/.* EXCLUDE
+            REGEX .*json/nlohmann_json/benchmarks/.* EXCLUDE
+            REGEX .*json/nlohmann_json/doc/.* EXCLUDE
+            REGEX .*json/nlohmann_json/test/.* EXCLUDE
+            REGEX .*json/nlohmann_json/cpplint/.* EXCLUDE)
 endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
