@@ -224,9 +224,9 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     # For C++ frontends there are no specific Python installation requirements, check only generic ones
     if moc_front_end:
-        ret_code = check_requirements()
+        ret_code = check_requirements(silent=argv.silent)
     else:
-        ret_code = check_requirements(framework=argv.framework)
+        ret_code = check_requirements(framework=argv.framework, silent=argv.silent)
     if ret_code:
         raise Error('check_requirements exited with return code {}'.format(ret_code))
 
