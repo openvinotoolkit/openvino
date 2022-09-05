@@ -24,6 +24,7 @@ def parse_arguments():
     """
     out_help = "Path where to save html report"
     report_tag = "Report tag"
+    report_version = "Report version"
     output_filename_help = "Output report filename"
     conformance_mode_help = "Allow to align test number"
     csv_help = "Allow to serialize report as csv file"
@@ -32,6 +33,7 @@ def parse_arguments():
     parser.add_argument("--out", help=out_help, default="")
     parser.add_argument("--output_filename", help=output_filename_help, default="report")
     parser.add_argument("--report_tag", help=report_tag, default="")
+    parser.add_argument("--report_version", help=report_version, default="")
     parser.add_argument("--conformance_mode", help=conformance_mode_help, default=False)
     parser.add_argument("--csv", help=csv_help, default=False)
 
@@ -189,7 +191,7 @@ def serialize_to_csv(report_filename: str, output_dir: os.path, op_list: list, d
     logger.info(f'Final CSV report is saved to {csv_filename}')
 
 
-def create_summary(summary_root: ET.Element, output_folder: os.path, report_tag: str,
+def create_summary(summary_root: ET.Element, output_folder: os.path, report_tag: str, report_version: str,
                    is_conformance_mode: bool,  is_serialize_to_csv: bool, output_filename='report'):
     if is_conformance_mode:
         utils.update_conformance_test_counters(summary_root, logger)
@@ -212,7 +214,7 @@ def create_summary(summary_root: ET.Element, output_folder: os.path, report_tag:
     res_summary = template.render(ordered_ops=op_list, devices=device_list, results=results, timestamp=timestamp,
                                   general_pass_rate=general_pass_rate, pass_rate_avg=pass_rate_avg,
                                   trusted_ops=trusted_ops, covered_ops=covered_ops,
-                                  general_test_count=general_test_count, report_tag=report_tag)
+                                  general_test_count=general_test_count, report_tag=report_tag, report_version=report_version)
 
     report_path = os.path.join(output_folder, f'{output_filename}.html')
     with open(report_path, "w") as f:
@@ -225,4 +227,4 @@ def create_summary(summary_root: ET.Element, output_folder: os.path, report_tag:
 if __name__ == "__main__":
     args = parse_arguments()
     summary_root = merge_xmls(args.xml)
-    create_summary(summary_root, args.out, args.report_tag, args.conformance_mode, args.csv, args.output_filename)
+    create_summary(summary_root, args.out, args.report_tag, args.report_version, args.conformance_mode, args.csv, args.output_filename)
