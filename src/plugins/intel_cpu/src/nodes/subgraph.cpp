@@ -208,6 +208,10 @@ bool Snippet::canBeInPlace() const {
         return false;
     }
 
+    if (getChildEdges().size() != 1) {
+        return false;
+    }
+
     for (auto& parentEdge : getParentEdges()) {
         auto parent = parentEdge.lock()->getParent();
         if (parent->getChildEdges().size() != 1)
