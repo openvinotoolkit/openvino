@@ -20,6 +20,7 @@
 #include "nodes/reduce.h"
 #include "nodes/input.h"
 #include "nodes/rnn.h"
+#include "nodes/matmul.h"
 #include "nodes/common/cpu_convert.h"
 
 #include "onednn/dnnl.h"
@@ -131,6 +132,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseMatMulAndSimpleOperation");
     FuseMatMulAndSimpleOperation(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseMatMulAndTransposeOperation");
+    FuseMatMulAndTransposeOperation(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseMVNAndSimpleOperation");
@@ -809,6 +814,103 @@ void GraphOptimizer::FuseMatMulAndSimpleOperation(Graph &graph) {
         }
 
         graph.DropNode(childNode);
+    }
+}
+
+void GraphOptimizer::FuseMatMulAndTransposeOperation(Graph& graph) {
+    auto getTransposeOrder = [](std::vector<int32_t>& order, const NodePtr& node) {
+        auto transposeInput1 = dynamic_cast<node::Input*>(node->getParentEdgesAtPort(1)[0]->getParent().get());
+        if (!transposeInput1 || !transposeInput1->isConstant())
+            return;
+
+        auto dataPtr = static_cast<const int32_t*>(transposeInput1->getMemoryPtr()->GetPtr());
+        auto inDims = node->inputShapes[1].getDims();
+        std::vector<int> format = {0, 2, 1, 3};
+        if (inDims[0] != 4) {
+            return;
+        }
+
+        for (int i = 0; i < inDims[0]; i++) {
+            if (dataPtr[i] != format[i]) {
+                return;
+            }
+        }
+
+        for (int i = 0; i < 4; i++) {
+            order.push_back(dataPtr[i]);
+        }
+    };
+
+    auto& graphNodes = graph.GetNodes();
+    auto graphNode = graphNodes.begin();
+    while (graphNode != graphNodes.end()) {
+        auto currentNode = *graphNode;
+        if (currentNode->getType() != Type::MatMul) {
+            graphNode++;
+            continue;
+        }
+
+        auto parent1 = currentNode->getParentEdgesAtPort(0)[0]->getParent();
+        auto parent2 = currentNode->getParentEdgesAtPort(1)[0]->getParent();
+        auto child = currentNode->getChildEdgeAt(0)->getChild();
+
+        auto matmulNode = std::dynamic_pointer_cast<MatMul>(currentNode);
+        if (parent1->getType() == Type::Transpose && parent1->getChildEdges().size() == 1) {
+            std::vector<int32_t> order;
+            getTransposeOrder(order, parent1);
+            if (order.size() != 0) {
+                matmulNode->setPermutation(0, order);
+                matmulNode->inputShapes[0] = parent1->inputShapes[0];
+                auto parentEdges = parent1->parentEdges;
+                for (auto &parentEdge : parentEdges) {
+                    auto p_edge = parentEdge.lock();
+                    if (p_edge->getParent()->isConstant()) {
+                        graph.RemoveEdge(p_edge);
+                        break;
+                    }
+                }
+                graph.DropNode(parent1);
+            }
+        }
+
+        if (parent2->getType() == Type::Transpose && parent2->getChildEdges().size() == 1) {
+            std::vector<int32_t> order;
+            getTransposeOrder(order, parent2);
+            if (order.size() != 0) {
+                matmulNode->setPermutation(1, order);
+                matmulNode->inputShapes[1] = parent2->inputShapes[0];
+                auto parentEdges = parent2->parentEdges;
+                for (auto &parentEdge : parentEdges) {
+                    auto p_edge = parentEdge.lock();
+                    if (p_edge->getParent()->isConstant()) {
+                        graph.RemoveEdge(p_edge);
+                        break;
+                    }
+                }
+                graph.DropNode(parent2);
+            }
+        }
+
+        if (child->getType() == Type::Transpose && currentNode->getChildEdges().size() == 1) {
+            std::vector<int32_t> order;
+            getTransposeOrder(order, child);
+            if (order.size() != 0) {
+                matmulNode->setPermutation(2, order);
+                matmulNode->outputShapes[0] = child->outputShapes[0];
+                auto parentEdges = child->parentEdges;
+                for (auto &parentEdge : parentEdges) {
+                    auto p_edge = parentEdge.lock();
+                    if (p_edge->getParent()->isConstant()) {
+                        graph.RemoveEdge(p_edge);
+                        break;
+                    }
+                }
+                graph.DropNode(child);
+            }
+        }
+
+        graphNode++;
+        continue;
     }
 }
 

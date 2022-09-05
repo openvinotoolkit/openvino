@@ -24,6 +24,7 @@ public:
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     void initSupportedPrimitiveDescriptors() override;
     MemoryDescPtr getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    MemoryDescPtr getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     bool canFuse(const NodePtr& node) const override;
     bool created() const override;
     size_t getMaxBatch() const override;
@@ -43,6 +44,11 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     const std::vector<impl_desc_type>& getPrimitivesPriority() override;
 
+    void setPermutation(int idx, std::vector<int32_t>& permutationOrder) {
+        permutation[idx].assign(permutationOrder.begin(), permutationOrder.end());
+    }
+    std::vector<VectorDims> shapeInfer() const override;
+
 protected:
     AttrPtr initPrimitiveAttr() override;
     AttrPtr initPrimitiveAttr(const VectorDims& dims);
@@ -59,6 +65,9 @@ private:
 
     /* whether to transpose input */
     std::array<bool, 2> transposeIn;
+
+    /* Permutation order of input0, input1, output.*/
+    std::array<std::vector<size_t>, 3> permutation;
 
     std::array<DnnlBlockedMemoryDescPtr, 2> inDataDesc;
     DnnlBlockedMemoryDescPtr outDataDesc;

@@ -211,7 +211,7 @@ Node::AttrPtr MatMul::initPrimitiveAttr() {
  * - change shapes configuration as if input already transposed (2x128x512) -> (2x512x128)
  * - provide transposed strides (66536, 128, 1) -> (66536, 1, 512)
  */
-static VectorDims getStridesAndModifyShape(Shape& shape, const bool transpose) {
+static VectorDims getStridesAndModifyShape(Shape& shape, const bool transpose, std::vector<size_t> permute) {
     const auto getRank = shape.getRank();
 
     VectorDims strides(getRank, 1);
@@ -228,8 +228,15 @@ static VectorDims getStridesAndModifyShape(Shape& shape, const bool transpose) {
         // update strides
         strides[getRank - 1] = staticDims[getRank - 2];
         strides[getRank - 2] = 1;
+    } else if (permute.size() != 0) {
+        auto dims = staticDims;
+        auto stridesToUpdate = strides;
+        for (int i = 0; i < dims.size(); i++) {
+            dims[permute[i]] = staticDims[i];
+            strides[permute[i]] = stridesToUpdate[i];
+        }
+        shape = Shape{dims};
     }
-
     return strides;
 }
 
@@ -280,12 +287,30 @@ void MatMul::getSupportedDescriptors() {
         IE_THROW()  << errorPrefix << " has invalid dims count";
 
     const int nDims = inputShape0.getRank();
-    const auto xAxis = nDims - 1;
-    const auto yAxis = nDims - 2;
-    const auto xAxis0 = transposeIn[0] ? yAxis : xAxis;
-    const auto yAxis0 = transposeIn[0] ? xAxis : yAxis;
-    const auto xAxis1 = transposeIn[1] ? yAxis : xAxis;
-    const auto yAxis1 = transposeIn[1] ? xAxis : yAxis;
+
+    auto transposeOrder = [&](const bool transposeIn, const std::vector<size_t>& permute) {
+        std::vector<size_t> transposedOrder(nDims);
+        std::iota(transposedOrder.begin(), transposedOrder.end(), 0);
+        if (transposeIn) {
+            std::swap(transposedOrder[nDims - 1], transposedOrder[nDims - 2]);
+        } else if (permute.size() != 0) {
+            for (int i = 0; i < nDims; i++) {
+                transposedOrder[permute[i]] = i;
+            }
+        }
+        return transposedOrder;
+    };
+
+    auto orderIn0 = transposeOrder(transposeIn[0], permutation[0]);
+    auto orderIn1 = transposeOrder(transposeIn[1], permutation[1]);
+    auto orderOut = transposeOrder(false, permutation[2]);
+
+    const auto xAxis0 = orderIn0[nDims - 1];
+    const auto yAxis0 = orderIn0[nDims - 2];
+    const auto xAxis1 = orderIn1[nDims - 1];
+    const auto yAxis1 = orderIn1[nDims - 2];
+    const auto xAxisOut = orderOut[nDims - 1];
+    const auto yAxisOut = orderOut[nDims - 2];
 
     const auto& inDims0 = getInputShapeAtPort(0).getDims();
     const auto& inDims1 = getInputShapeAtPort(1).getDims();
@@ -293,32 +318,65 @@ void MatMul::getSupportedDescriptors() {
 
     // coverity[copy_paste_error]
     if (!dimsEqualWeak(inDims0[xAxis0], inDims1[yAxis1]) ||
-        !dimsEqualWeak(inDims0[yAxis0], outDims[yAxis]) ||
-        !dimsEqualWeak(inDims1[xAxis1], outDims[xAxis]))
+        !dimsEqualWeak(inDims0[yAxis0], outDims[yAxisOut]) ||
+        !dimsEqualWeak(inDims1[xAxis1], outDims[xAxisOut]))
         IE_THROW()  << errorPrefix << " has incorrect spatial input and output dimensions";
 
     for (int dim_idx = nDims - 3; dim_idx >= 0; dim_idx--) {
-        if ((!dimsEqualWeak(inDims0[dim_idx], outDims[dim_idx]) &&
-             !dimsEqualWeak(inDims0[dim_idx], 1)) ||
-            (!dimsEqualWeak(inDims1[dim_idx], outDims[dim_idx]) &&
-             !dimsEqualWeak(inDims1[dim_idx], 1))) {
+        if ((!dimsEqualWeak(inDims0[orderIn0[dim_idx]], outDims[orderOut[dim_idx]]) &&
+             !dimsEqualWeak(inDims0[orderIn0[dim_idx]], 1)) ||
+            (!dimsEqualWeak(inDims1[orderIn1[dim_idx]], outDims[orderOut[dim_idx]]) &&
+             !dimsEqualWeak(inDims1[orderIn1[dim_idx]], 1))) {
             IE_THROW()  << errorPrefix << " has incorrect input batch dimensions";
         }
     }
+
+    auto permuteShape = [](Shape& shape, const std::vector<size_t>& permute) {
+        if (permute.size() == 0)
+            return shape;
+        auto& dims = shape.getDims();
+        auto newDims = dims;
+        for (int i = 0; i < dims.size(); i++) {
+            newDims[permute[i]] = dims[i];
+        }
+        return Shape(newDims);
+    };
 
     std::vector<Shape> staticInputShapes{inputShape0, inputShape1};
     if (inputShape0.isDynamic() || inputShape1.isDynamic()) {
         std::tie(staticInputShapes[0], staticInputShapes[1]) = makeDummyInputShapes(inputShape0, inputShape1);
     }
 
-    auto staticOutputShape = outputShape.isStatic() ? outputShape : Shape(shapeInferGeneric(staticInputShapes).front());
+    Shape staticOutputShape = outputShape;
+    if (outputShape.isDynamic()) {
+        if (permutation[0].size() == 0 && permutation[1].size() == 0) {
+            staticOutputShape = Shape(shapeInferGeneric(staticInputShapes).front());
+        } else {
+            auto permutedInputShape0 = permuteShape(staticInputShapes[0], permutation[0]);
+            auto permutedInputShape1 = permuteShape(staticInputShapes[1], permutation[1]);
+            std::vector<Shape> permutedInputShapes{permutedInputShape0, permutedInputShape1};
+            staticOutputShape = Shape(shapeInferGeneric(permutedInputShapes).front());
+        }
 
-    const VectorDims inStrides0 = getStridesAndModifyShape(staticInputShapes[0], transposeIn[0]);
-    const VectorDims inStrides1 = getStridesAndModifyShape(staticInputShapes[1], transposeIn[1]);
+        if (permutation[2].size() != 0) {
+            auto& dims = staticOutputShape.getDims();
+            auto updatedDims = dims;
+            for (int i = 0; i < staticOutputShape.getRank(); i++) {
+                updatedDims[i] = dims[permutation[2][i]];
+            }
+            staticOutputShape = Shape(updatedDims);
+        }
+    }
 
+    const VectorDims inStrides0 = getStridesAndModifyShape(staticInputShapes[0], transposeIn[0], permutation[0]);
+    const VectorDims inStrides1 = getStridesAndModifyShape(staticInputShapes[1], transposeIn[1], permutation[1]);
+
+    const VectorDims outStride = getStridesAndModifyShape(staticOutputShape, false, permutation[2]);
+
+    // staticInputShapes[0]: [1, 16, 384, 64], inStrides0: [393216, 64, 1024, 1]
     inDataDesc[0] = std::make_shared<DnnlBlockedMemoryDesc>(firstInPortPrec, staticInputShapes[0], inStrides0);
     inDataDesc[1] = std::make_shared<DnnlBlockedMemoryDesc>(secondInPortPrec, staticInputShapes[1], inStrides1);
-    outDataDesc   = std::make_shared<DnnlBlockedMemoryDesc>(outPortPrec, staticOutputShape);
+    outDataDesc = std::make_shared<DnnlBlockedMemoryDesc>(outPortPrec, staticOutputShape, outStride);
 
     createDescriptor({inDataDesc[0], inDataDesc[1]}, {outDataDesc});
 }
@@ -341,6 +399,36 @@ std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Sha
         }
     };
 
+    auto permuteDims = [&](VectorDims& in0, VectorDims& in1) {
+        if (permutation[0].size() != 0) {
+            auto dims = in0;
+            for (int i = 0; i < in0.size() - 1; i++) {
+                in0[permutation[0][i]] = dims[i];
+            }
+        }
+        if (permutation[1].size() != 0) {
+            auto dims = in1;
+            for (int i = 0; i < in1.size() - 1; i++) {
+                in1[permutation[1][i]] = dims[i];
+            }
+        }
+    };
+
+    auto permuteBack = [&](VectorDims& in0, VectorDims& in1) {
+        if (permutation[0].size() != 0) {
+            auto dims = in0;
+            for (int i = 0; i < in0.size() - 1; i++) {
+                in0[i] = dims[permutation[0][i]];
+            }
+        }
+        if (permutation[1].size() != 0) {
+            auto dims = in1;
+            for (int i = 0; i < in1.size() - 1; i++) {
+                in1[i] = dims[permutation[1][i]];
+            }
+        }
+    };
+
     auto inDims0 = in0.getDims();
     auto inDims1 = in1.getDims();
 
@@ -352,6 +440,10 @@ std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Sha
     swapTranspDims(inDims0, inDims1);
     swapTranspDims(minDims0, minDims1);
     swapTranspDims(maxDims0, maxDims1);
+
+    permuteDims(inDims0, inDims1);
+    permuteDims(minDims0, minDims1);
+    permuteDims(maxDims0, maxDims1);
 
     auto fillDummy = [&](size_t idx0, size_t idx1) {
         if (inDims0[idx0] == Shape::UNDEFINED_DIM && inDims1[idx1] == Shape::UNDEFINED_DIM) {
@@ -393,6 +485,7 @@ std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Sha
     }
 
     swapTranspDims(inDims0, inDims1);
+    permuteBack(inDims0, inDims1);
 
     return {Shape(inDims0), Shape(inDims1)};
 }
@@ -463,6 +556,14 @@ MemoryDescPtr MatMul::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_des
         return DnnlExtensionUtils::makeDescriptor(desc);
 }
 
+MemoryDescPtr MatMul::getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+    // return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(idx), getOutputShapeAtPort(idx));
+    auto desc = primitive_desc_it.dst_desc(idx);
+    return std::make_shared<CpuBlockedMemoryDesc>(
+            DnnlExtensionUtils::DataTypeToIEPrecision(static_cast<dnnl::memory::data_type>(desc.data.data_type)),
+            getOutputShapeAtPort(idx)); /* provide initial shapes, so hide transpose effect */
+}
+
 bool MatMul::created() const {
     return getType() == Type::MatMul;
 }
@@ -492,6 +593,7 @@ void MatMul::prepareParams() {
 
     DnnlMemoryDescPtr src0TransposedDesc;
     DnnlMemoryDescPtr src1TransposedDesc;
+    DnnlMemoryDescPtr dstTransposedDesc;
 
     AttrPtr attr;
 
@@ -500,21 +602,26 @@ void MatMul::prepareParams() {
 
         const auto& src0Desc = src0MemPtr->getDesc();
         const auto& src1Desc = src1MemPtr->getDesc();
+        const auto& dstDesc = dstMemPtr->getDesc();
 
         auto src0Shape = src0Desc.getShape();
-        auto src0Strides = getStridesAndModifyShape(src0Shape, transposeIn[0]);
+        auto src0Strides = getStridesAndModifyShape(src0Shape, transposeIn[0], permutation[0]);
         src0TransposedDesc = std::make_shared<DnnlBlockedMemoryDesc>(src0Desc.getPrecision(), src0Shape, src0Strides);
 
         auto src1Shape = src1Desc.getShape();
-        auto src1Strides = getStridesAndModifyShape(src1Shape, transposeIn[1]);
+        auto src1Strides = getStridesAndModifyShape(src1Shape, transposeIn[1], permutation[1]);
         src1TransposedDesc = std::make_shared<DnnlBlockedMemoryDesc>(src1Desc.getPrecision(), src1Shape, src1Strides);
+
+        auto dstShape = dstDesc.getShape();
+        auto dstStrides = getStridesAndModifyShape(dstShape, false, permutation[2]);
+        dstTransposedDesc = std::make_shared<DnnlBlockedMemoryDesc>(dstDesc.getPrecision(), dstShape, dstStrides);
+
     } else {
         attr = initPrimitiveAttr();
         src0TransposedDesc = inDataDesc[0];
         src1TransposedDesc = inDataDesc[1];
+        dstTransposedDesc = outDataDesc;;
     }
-
-    auto dstDnnlDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
 
     DnnlMemoryDescPtr dnnlBiasMemDesc = nullptr;
     if (withBiases) {
@@ -525,7 +632,7 @@ void MatMul::prepareParams() {
     }
 
     MatMulKey key = {src0TransposedDesc, src1TransposedDesc, dnnlBiasMemDesc,
-                     dstDnnlDesc, *attr, selected_pd->getImplementationType()};
+                     dstTransposedDesc, *attr, selected_pd->getImplementationType()};
 
     auto engine = getEngine();
 
@@ -576,6 +683,30 @@ void MatMul::prepareParams() {
         primArgs[DNNL_ARG_BIAS] = getParentEdgeAt(2)->getMemoryPtr()->GetPrimitive();
 
     appendPostOpArgs(*attr, primArgs, postOpsArgs);
+}
+
+std::vector<VectorDims> MatMul::shapeInfer() const {
+    std::vector<Shape> inputShapes;
+    inputShapes.reserve(2);
+    for (size_t port = 0; port < 2; port++) {
+        auto dims = getParentEdgesAtPort(port)[0]->getMemory().getStaticDims();
+        if (permutation[port].size() != 0) {
+            auto transposedDims = dims;
+            for (size_t i = 0; i < permutation[port].size(); i++) {
+                dims[permutation[port][i]] = transposedDims[i];
+            }
+        }
+        inputShapes.emplace_back(Shape(dims));
+    }
+    auto outputShapes = Node::shapeInferGeneric(inputShapes);
+    if (permutation[2].size() != 0) {
+        auto& transposedDims = outputShapes[0];
+        auto dims = transposedDims;
+        for (size_t i = 0; i < permutation[2].size(); i++) {
+            transposedDims[permutation[2][i]] = dims[i];
+        }
+    }
+    return outputShapes;
 }
 
 void MatMul::executeDynamicImpl(dnnl::stream strm) {
