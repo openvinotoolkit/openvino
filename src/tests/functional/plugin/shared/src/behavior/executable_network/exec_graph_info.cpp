@@ -459,11 +459,7 @@ TEST_P(ExecGraphSerializationTest, ExecutionGraph) {
 
     pugi::xml_document expected;
     pugi::xml_document result;
-    const char * expected_xml_str = expected_serialized_model;
-    if (deviceName.compare(0, 3, "CPU") == 0) {
-        expected_xml_str = expected_serialized_model_cpu;
-    }
-    ASSERT_TRUE(expected.load_string(expected_xml_str));
+    ASSERT_TRUE(expected.load_string(expected_serialized_model));
     ASSERT_TRUE(result.load_file(m_out_xml_path.c_str()));
 
     bool status;
