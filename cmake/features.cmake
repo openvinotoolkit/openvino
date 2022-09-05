@@ -120,7 +120,7 @@ set(IE_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include i
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the Inference Engine binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
 get_linux_name(LINUX_OS_NAME)
-if(LINUX_OS_NAME MATCHES "^Ubuntu [0-9]+\.[0-9]+$")
+if(LINUX_OS_NAME MATCHES "(Ubuntu|Debian)")
     # Debian packages are enabled on Ubuntu systems
     # so, system TBB / pugixml can be tried for usage
     set(ENABLE_SYSTEM_LIBS_DEFAULT ON)
@@ -151,10 +151,10 @@ else()
 endif()
 
 find_host_package(PythonInterp 3 QUIET)
-ie_dependent_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ${PYTHONINTERP_FOUND} "protoc_available" OFF)
-ie_dependent_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON "protoc_available" OFF)
+ie_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ${PYTHONINTERP_FOUND})
+ie_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON)
 ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
-ie_dependent_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON "protoc_available" OFF)
+ie_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
 ie_dependent_option(ENABLE_SYSTEM_PROTOBUF "Use system protobuf" OFF
     "ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_TF_FRONTEND;BUILD_SHARED_LIBS" OFF)
 

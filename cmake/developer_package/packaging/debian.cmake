@@ -91,7 +91,6 @@ macro(ov_debian_specific_settings)
     # with current WA automatic deps detection via dpkg-shlibdeps for "our libraries"
     # is ignored; but dependencies between our components are here because of
     # CPACK_COMPONENT_<UCOMP>_DEPENDS variables
-    # More proper WA is try to enable INSTALL_RPATH
 
     if(DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
         set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
@@ -252,7 +251,7 @@ macro(ov_debian_add_latest_component comp)
 
     set(CPACK_COMPONENT_${upper_case}_DESCRIPTION "${CPACK_COMPONENT_${ucomp}_DESCRIPTION}")
     set(CPACK_COMPONENT_${upper_case}_ARCHITECTURE "${CPACK_COMPONENT_${ucomp}_ARCHITECTURE}")
-    set(CPACK_COMPONENT_${upper_case}_DEPENDS "${ucomp}")
+    set(CPACK_COMPONENT_${upper_case}_DEPENDS "${comp}")
 
     # take package name
     if(DEFINED CPACK_DEBIAN_${ucomp}_PACKAGE_NAME)

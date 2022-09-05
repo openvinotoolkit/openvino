@@ -486,7 +486,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
             auto f_size = toCodeString(_tensor.Feature().v);
             definitions.push_back({ safe_index_func_name, "(" + offset + " + ((f) % " + f_size + ")  * " + f_pitch + ")" });
             definitions.push_back({ index_func_name, "(" + offset + " + (f) * " + f_pitch + ")" });
-        } else if (_tensor.PitchesDifferFromLogicalDims()) {
+        } else if (_tensor.PitchesDifferFromLogicalDims() || _tensor.DoubleBlockedLayout()) {
             // TODO This should be solved differently, by setting the macro arguments to zero
             definitions.push_back({ safe_index_func_name, safe_index_func_val });
             definitions.push_back({ index_func_name, index_func_val });
@@ -1877,10 +1877,13 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
 
     bool safe_load = conf.boundary_check == FusedOpsConfiguration::BoundaryCheck::ENABLED;
 
+    // Fsv16 Eltwise whcih requires f axis broadcast such as input[1,1,z,1,1], output[b,f,z,y,x] need to use LT unligned read.
+    // In this case, intel_sub_group_block_read() introduces increasing index in feature block.
+    bool f_axis_broadcast = ((input_tensor.Feature().v != prim_output.Feature().v) && (input_tensor.Feature().v == 1) && (vec_size == 1));
     // Change JitLoad to ignore LT_ALIGNED_READ LoadType if this input tensor has a planar format(SimpleLayout)
     if (desc.GetType() == KernelType::ELTWISE && input_tensor.SimpleLayout() && input_tensor.GetLayout() != orig_output_layout &&
         conf.load_type == FusedOpsConfiguration::LoadType::LT_ALIGNED_READ &&
-        input_tensor.SameDimsSizes(prim_output) && input_tensor.LogicalSize() != 1) {
+        (input_tensor.SameDimsSizes(prim_output) || f_axis_broadcast) && input_tensor.LogicalSize() != 1) {
         std::string sub_group_local_id_str = "get_sub_group_local_id";
         size_t found_sub = conf.bfzyx_idx_order[1].rfind(sub_group_local_id_str);
         if (found_sub != std::string::npos) {

@@ -54,6 +54,7 @@ OP_CONVERTER(translate_interpolate_op);
 OP_CONVERTER(translate_is_finite_op);
 OP_CONVERTER(translate_l2_loss_op);
 OP_CONVERTER(translate_linspace_op);
+OP_CONVERTER(translate_list_diff_op);
 OP_CONVERTER(translate_leaky_relu_op);
 OP_CONVERTER(translate_log_softmax_op);
 OP_CONVERTER(translate_log_1p_op);
@@ -186,6 +187,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ExpandDims", translate_expand_dims_op},
         {"ExtractImagePatches", translate_extract_image_patches_op},
         {"FakeQuantWithMinMaxVars", translate_fake_quant_op},
+        {"FakeQuantWithMinMaxVarsPerChannel", translate_fake_quant_op},
         {"Fill", translate_fill_op},
         {"FloorDiv", translate_floor_div_op},
         {"FusedBatchNorm", translate_fused_batch_norm_op},
@@ -200,6 +202,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"L2Loss", translate_l2_loss_op},
         {"LeakyRelu", translate_leaky_relu_op},
         {"LinSpace", translate_linspace_op},
+        {"ListDiff", translate_list_diff_op},
         {"LogSoftmax", translate_log_softmax_op},
         {"Log1p", translate_log_1p_op},
         {"LRN", translate_lrn_op},
