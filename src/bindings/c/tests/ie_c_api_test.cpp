@@ -41,13 +41,13 @@ const char* plugins_xml = plugins_xml_std.c_str();
 #define IE_ASSERT_OK(...) ASSERT_EQ(IEStatusCode::OK, __VA_ARGS__)
 #define IE_EXPECT_NOT_OK(...) EXPECT_NE(IEStatusCode::OK, __VA_ARGS__)
 
-size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_t size) {
+inline size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_t size) {
     FILE *fp = fopen(img_path, "rb+");
     size_t read_size = 0;
 
     if (fp) {
         fseek(fp, 0, SEEK_END);
-        if (ftell(fp) >= size) {
+        if (ftell(fp) >= static_cast<long int>(size)) {
             fseek(fp, 0, SEEK_SET);
             read_size = fread(img_data, 1, size, fp);
         }
@@ -56,7 +56,7 @@ size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_
     return read_size;
 }
 
-size_t find_device(ie_available_devices_t avai_devices, const char *device_name) {
+inline size_t find_device(ie_available_devices_t avai_devices, const char *device_name) {
     for (size_t i = 0; i < avai_devices.num_devices; ++i) {
         if (strstr(avai_devices.devices[i], device_name))
             return i;
@@ -74,7 +74,7 @@ TEST(ie_c_api_version, apiVersion) {
     ie_version_free(&version);
 }
 
-void completion_callback(void *args) {
+static void completion_callback(void *args) {
     ie_infer_request_t *infer_request = (ie_infer_request_t *)args;
     ie_blob_t *output_blob = nullptr;
 

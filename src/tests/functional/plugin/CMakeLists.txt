@@ -4,10 +4,6 @@
 
 add_subdirectory(shared)
 
-if (ENABLE_INTEL_CPU)
-    add_subdirectory(cpu)
-endif()
-
 if (ENABLE_INTEL_GPU)
     add_subdirectory(gpu)
 endif()
