@@ -11,8 +11,8 @@ namespace kernel_selector {
 
 permute_kernel_selector::permute_kernel_selector() {
     Attach<PermuteKernelRef>();
-    Attach<PermuteKernel_tile_8x8_4x4>();
-    Attach<PermuteKernel_tile_8x8_4x4_fsv>();
+    // Attach<PermuteKernel_tile_8x8_4x4>();
+    // Attach<PermuteKernel_tile_8x8_4x4_fsv>();
 }
 
 KernelsData permute_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {

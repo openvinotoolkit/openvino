@@ -636,58 +636,6 @@ auto StringRightTrim = [](std::string string, std::string substring, bool case_s
     return ret_str;
 };
 
-static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
-    auto freqGHz = info.gpu_frequency / 1000.f;
-    auto numEUs = info.execution_units_count;
-    auto opsPerComputeBlock = 0;
-    auto computeBlockIPC = 1.0f;
-    switch (dt) {
-    case cldnn::data_types::u8:
-    case cldnn::data_types::i8: {
-        if (info.supports_immad) {
-            if (info.gfx_ver.major == 12) {
-                if (info.gfx_ver.minor == 5)
-                    opsPerComputeBlock = 512;
-                else if (info.gfx_ver.minor == 7)
-                    opsPerComputeBlock = 256;
-            }
-        } else if (info.supports_imad) {
-            // fma * simd size
-            opsPerComputeBlock = 2 * 32;
-        } else {
-            // separate mul + add instructions for int8 data type
-            opsPerComputeBlock = 2 * 16;
-            // mul/add instructions can't be executed in parallel, so we need 2 clocks to execute compute block
-            computeBlockIPC = 0.5f;
-        }
-        break;
-    }
-    case cldnn::data_types::f16: {
-        if (info.supports_immad) {
-            if (info.gfx_ver.major == 12) {
-                if (info.gfx_ver.minor == 5)
-                    opsPerComputeBlock = 256;
-                else if (info.gfx_ver.minor == 7)
-                    opsPerComputeBlock = 128;
-            }
-        } else {
-            // fma * simd size
-            opsPerComputeBlock = 2 * 16;
-        }
-        break;
-    }
-    case cldnn::data_types::f32: {
-        // fma * simd size
-        opsPerComputeBlock = 2 * 8;
-        break;
-    }
-
-    default: throw std::runtime_error("GetGOPS: Unsupported precision");
-    }
-
-    return freqGHz * opsPerComputeBlock * computeBlockIPC * numEUs;
-}
-
 Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::GetMetric");
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -768,17 +716,17 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     } else if (name == ov::device::gops) {
         if (is_new_api) {
             std::map<element::Type, float> gops;
-            gops[element::i8] = GetGOPS(device_info, cldnn::data_types::i8);
-            gops[element::u8] = GetGOPS(device_info, cldnn::data_types::u8);
-            gops[element::f16] = GetGOPS(device_info, cldnn::data_types::f16);
-            gops[element::f32] = GetGOPS(device_info, cldnn::data_types::f32);
+            gops[element::i8] = device->get_gops(cldnn::data_types::i8);
+            gops[element::u8] = device->get_gops(cldnn::data_types::u8);
+            gops[element::f16] = device->get_gops(cldnn::data_types::f16);
+            gops[element::f32] = device->get_gops(cldnn::data_types::f32);
             return decltype(ov::device::gops)::value_type {gops};
         } else {
             std::map<InferenceEngine::Precision, float> gops;
-            gops[InferenceEngine::Precision::I8] = GetGOPS(device_info, cldnn::data_types::i8);
-            gops[InferenceEngine::Precision::U8] = GetGOPS(device_info, cldnn::data_types::u8);
-            gops[InferenceEngine::Precision::FP16] = GetGOPS(device_info, cldnn::data_types::f16);
-            gops[InferenceEngine::Precision::FP32] = GetGOPS(device_info, cldnn::data_types::f32);
+            gops[InferenceEngine::Precision::I8] = device->get_gops(cldnn::data_types::i8);
+            gops[InferenceEngine::Precision::U8] = device->get_gops(cldnn::data_types::u8);
+            gops[InferenceEngine::Precision::FP16] = device->get_gops(cldnn::data_types::f16);
+            gops[InferenceEngine::Precision::FP32] = device->get_gops(cldnn::data_types::f32);
             IE_SET_METRIC_RETURN(DEVICE_GOPS, gops);
         }
     } else if (name == ov::intel_gpu::execution_units_count) {

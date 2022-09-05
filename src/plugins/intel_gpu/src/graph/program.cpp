@@ -1503,7 +1503,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto& engine = get_engine();
-    if (engine.get_device_info().supports_immad && engine.configuration().queue_type == queue_types::in_order)
+    if (engine.get_device_info().supports_immad &&
+        engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
+        engine.configuration().queue_type == queue_types::in_order)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
 #endif
 }

@@ -10,7 +10,7 @@ namespace kernel_selector {
 
 reduce_kernel_selector::reduce_kernel_selector() {
     Attach<ReduceKernelRef>();
-    Attach<ReduceKernel_b_fs_yx_fsv16>();
+    // Attach<ReduceKernel_b_fs_yx_fsv16>();
 }
 
 KernelsData reduce_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
