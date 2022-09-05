@@ -149,6 +149,11 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::en
         dyn_shape_batch_found = IsDynBatchModel(func, shapes, batch_dim);
         if (dyn_shape_batch_found) {
             m_config.max_dynamic_batch = batch_dim.begin()->second.second;
+        } else {
+            if (!batch_dim.empty() && shapes.empty()) {
+                // more than on dynamic dim or dynamic rank
+                IE_THROW() << "Only dynamic batch is supported!";
+            }
         }
     }
 

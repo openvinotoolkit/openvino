@@ -76,12 +76,14 @@ activation_inst::typed_primitive_inst(network& network, activation_node const& n
     if (is_parameterized()) {
         /// Slope input x dimension should be equal to input feature size (one slope per channel).
         auto slope_layout = node.slope_input().get_output_layout();
+        auto slope_input_size = slope_layout.get_tensor();
+        auto input_feature_size = input_layout.feature();
 
         CLDNN_ERROR_LESS_THAN(node.id(),
                               "Slope x size",
-                              slope_layout.feature(),
+                              slope_input_size.feature[0],
                               "input feature size",
-                              input_layout.feature(),
+                              input_feature_size,
                               "Dimensions mismatch between input and slope input in Activation layer(slope x size "
                               "should be equal to input feature size)!");
     }

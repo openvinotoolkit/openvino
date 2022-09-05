@@ -36,7 +36,7 @@ input_layout_node::typed_program_node(const std::shared_ptr<input_layout> dprim,
 }
 
 input_layout_inst::typed_primitive_inst(network& network, input_layout_node const& node)
-    : parent(network, node, !node.is_dynamic() && (!network.is_internal() || has_optimized_users(node))) {
+    : parent(network, node,  !node.is_dynamic() && (!network.is_internal() || has_optimized_users(node))) {
     _has_valid_input = false;  // by default input for 'input_layout' is invalid as long as user doesn't call set_data
 }
 

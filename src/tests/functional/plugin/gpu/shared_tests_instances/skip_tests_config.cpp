@@ -83,9 +83,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_Auto_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
             // need dynamic shapes
             R"(.*RangeLayerTest.*)",
-            R"(.*smoke_BehaviorTests_1/OVInferRequestDynamicTests.GetSameTensor2times.*)",
-            R"(.*smoke_BehaviorTests_1/OVInferRequestDynamicTests.Infer(Upper|Fully).*)",
-            R"(.*smoke_BehaviorTests_1/OVInferRequestDynamicTests.InferDynamicNetwork(Set|With).*)",
             // Issue: 76197
             R"(.*registerPluginsXMLUnicodePath.*)",
             // Not supported yet
