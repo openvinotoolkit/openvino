@@ -16,7 +16,7 @@ TEST_P(ov_compiled_model, get_runtime_model) {
     EXPECT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, nullptr));
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), nullptr, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
     ov_model_t* runtime_model = nullptr;
@@ -40,7 +40,7 @@ TEST_P(ov_compiled_model, get_runtime_model_error_handling) {
     EXPECT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, nullptr));
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), nullptr, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
     ov_model_t* runtime_model = nullptr;
@@ -64,7 +64,7 @@ TEST_P(ov_compiled_model, get_inputs) {
     EXPECT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, nullptr));
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), nullptr, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
     ov_output_node_list_t input_nodes;
@@ -91,7 +91,7 @@ TEST_P(ov_compiled_model, get_inputs_error_handling) {
     EXPECT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, nullptr));
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), nullptr, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
     ov_output_node_list_t input_nodes;
@@ -117,7 +117,7 @@ TEST_P(ov_compiled_model, get_outputs) {
     EXPECT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, nullptr));
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), nullptr, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
     ov_output_node_list_t output_nodes;
@@ -144,7 +144,7 @@ TEST_P(ov_compiled_model, get_outputs_error_handling) {
     EXPECT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, nullptr));
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), nullptr, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
     ov_output_node_list_t output_nodes;
@@ -170,7 +170,7 @@ TEST_P(ov_compiled_model, create_infer_request) {
     EXPECT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, nullptr));
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), nullptr, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
     ov_infer_request_t* infer_request = nullptr;
@@ -194,7 +194,7 @@ TEST_P(ov_compiled_model, create_infer_request_error_handling) {
     EXPECT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, nullptr));
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), nullptr, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
     ov_infer_request_t* infer_request = nullptr;

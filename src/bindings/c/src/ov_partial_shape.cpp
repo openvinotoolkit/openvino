@@ -5,80 +5,101 @@
 
 #include "common.h"
 
-ov_status_e ov_partial_shape_create(ov_partial_shape_t** partial_shape_obj, ov_rank_t* rank, ov_dimensions_t* dims) {
-    if (!partial_shape_obj || !rank) {
+inline bool check_dimension(const ov_dimension_t* dims, int64_t size) {
+    for (auto i = 0; i < size; i++) {
+        auto& _dim = dims[i];
+        if (_dim.max < -1 || _dim.min < -1 || _dim.max < _dim.min)
+            return false;
+    }
+    return true;
+}
+
+ov_status_e ov_partial_shape_create(int64_t rank, ov_dimension_t* dims, ov_partial_shape_t* partial_shape_obj) {
+    if (!partial_shape_obj || rank <= 0 || !dims || !check_dimension(dims, rank)) {
         return ov_status_e::INVALID_C_PARAM;
     }
-    *partial_shape_obj = nullptr;
+
     try {
-        std::unique_ptr<ov_partial_shape_t> partial_shape(new ov_partial_shape_t);
-        if (rank->object.is_dynamic()) {
-            partial_shape->rank = rank->object;
+        std::unique_ptr<ov_dimension_t> _dims(new ov_dimension_t[rank]);
+        partial_shape_obj->dims = _dims.release();
+        std::memcpy(partial_shape_obj->dims, dims, rank * sizeof(ov_dimension_t));
+        partial_shape_obj->rank.max = rank;
+        partial_shape_obj->rank.min = rank;
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_partial_shape_create_dynamic(ov_rank_t rank,
+                                            ov_dimension_t* dims,
+                                            ov_partial_shape_t* partial_shape_obj) {
+    if (!partial_shape_obj || rank.min < -1 || rank.max < -1 || rank.min > rank.max) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        partial_shape_obj->rank = rank;
+        if (ov_rank_is_dynamic(rank)) {
+            // Dynamic rank
+            partial_shape_obj->dims = nullptr;
         } else {
-            if (static_cast<size_t>(rank->object.get_length()) != dims->object.size()) {
+            // Static rank
+            if (!dims || !check_dimension(dims, rank.max)) {
                 return ov_status_e::INVALID_C_PARAM;
             }
-            partial_shape->rank = rank->object;
-            partial_shape->dims = dims->object;
+            auto size = rank.max;
+            std::unique_ptr<ov_dimension_t> _dims(new ov_dimension_t[size]);
+            partial_shape_obj->dims = _dims.release();
+            std::memcpy(partial_shape_obj->dims, dims, size * sizeof(ov_dimension_t));
         }
-        *partial_shape_obj = partial_shape.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_partial_shape_create_static(int64_t rank, int64_t* dims, ov_partial_shape_t* partial_shape_obj) {
+    if (!partial_shape_obj || rank < 0 || !dims) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        std::unique_ptr<ov_dimension_t> _dims(new ov_dimension_t[rank]);
+        partial_shape_obj->dims = _dims.release();
+        partial_shape_obj->rank.max = rank;
+        partial_shape_obj->rank.min = rank;
+        for (auto i = 0; i < rank; i++) {
+            if (dims[i] <= 0) {
+                return ov_status_e::INVALID_C_PARAM;
+            }
+            partial_shape_obj->dims[i].min = dims[i];
+            partial_shape_obj->dims[i].max = dims[i];
+        }
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
 
 void ov_partial_shape_free(ov_partial_shape_t* partial_shape) {
-    if (partial_shape)
-        delete partial_shape;
+    if (partial_shape && partial_shape->dims)
+        delete[] partial_shape->dims;
 }
 
-const char* ov_partial_shape_to_string(ov_partial_shape_t* partial_shape) {
-    if (!partial_shape) {
-        return str_to_char_array("Error: null partial_shape!");
-    }
-
-    // dynamic rank
-    if (partial_shape->rank.is_dynamic()) {
-        return str_to_char_array("?");
-    }
-
-    // static rank
-    auto rank = partial_shape->rank.get_length();
-    if (static_cast<size_t>(rank) != partial_shape->dims.size()) {
-        return str_to_char_array("rank error");
-    }
-    std::string str = std::string("{");
-    int i = 0;
-    for (auto& item : partial_shape->dims) {
-        std::ostringstream out;
-        out.str("");
-        out << item;
-        str += out.str();
-        if (i++ < rank - 1)
-            str += ",";
-    }
-    str += std::string("}");
-    const char* res = str_to_char_array(str);
-
-    return res;
-}
-
-ov_status_e ov_partial_shape_to_shape(ov_partial_shape_t* partial_shape, ov_shape_t* shape) {
-    if (!partial_shape || !shape) {
+ov_status_e ov_partial_shape_to_shape(const ov_partial_shape_t partial_shape, ov_shape_t* shape) {
+    if (!shape) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
-        if (partial_shape->rank.is_dynamic()) {
+        if (ov_rank_is_dynamic(partial_shape.rank)) {
             return ov_status_e::PARAMETER_MISMATCH;
         }
-        auto rank = partial_shape->rank.get_length();
-        ov_shape_init(shape, rank);
+        auto rank = partial_shape.rank.max;
+        ov_shape_create(rank, nullptr, shape);
 
         for (auto i = 0; i < rank; ++i) {
-            auto& ov_dim = partial_shape->dims[i];
-            if (ov_dim.is_static())
-                shape->dims[i] = ov_dim.get_length();
+            auto& ov_dim = partial_shape.dims[i];
+            if (!ov_dimension_is_dynamic(ov_dim))
+                shape->dims[i] = ov_dim.max;
             else
                 return ov_status_e::PARAMETER_MISMATCH;
         }
@@ -88,19 +109,61 @@ ov_status_e ov_partial_shape_to_shape(ov_partial_shape_t* partial_shape, ov_shap
     return ov_status_e::OK;
 }
 
-ov_status_e ov_shape_to_partial_shape(ov_shape_t* shape, ov_partial_shape_t** partial_shape) {
-    if (!partial_shape || !shape || shape->rank <= 0 || !shape->dims) {
+ov_status_e ov_shape_to_partial_shape(const ov_shape_t shape, ov_partial_shape_t* partial_shape) {
+    if (!partial_shape || shape.rank <= 0 || !shape.dims) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
-        std::unique_ptr<ov_partial_shape_t> _partial_shape(new ov_partial_shape_t);
-        _partial_shape->rank = ov::Dimension(shape->rank);
-        for (int i = 0; i < shape->rank; i++) {
-            _partial_shape->dims.emplace_back(shape->dims[i]);
+        partial_shape->rank.min = shape.rank;
+        partial_shape->rank.max = shape.rank;
+        auto size = shape.rank;
+        std::unique_ptr<ov_dimension_t> _dims(new ov_dimension_t[size]);
+        partial_shape->dims = _dims.release();
+        for (auto i = 0; i < size; i++) {
+            partial_shape->dims[i].min = shape.dims[i];
+            partial_shape->dims[i].max = shape.dims[i];
         }
-        *partial_shape = _partial_shape.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
+}
+
+bool ov_partial_shape_is_dynamic(const ov_partial_shape_t partial_shape) {
+    if (ov_rank_is_dynamic(partial_shape.rank)) {
+        return true;
+    }
+    auto rank = partial_shape.rank.max;
+    for (auto i = 0; i < rank; i++) {
+        auto dim = partial_shape.dims[i];
+        if (ov_dimension_is_dynamic(dim)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+const char* ov_partial_shape_to_string(const ov_partial_shape_t partial_shape) {
+    // Dynamic rank
+    if (ov_rank_is_dynamic(partial_shape.rank)) {
+        return str_to_char_array("?");
+    }
+
+    // Static rank
+    auto rank = partial_shape.rank.max;
+    std::string str = std::string("{");
+    for (auto i = 0; i < rank; i++) {
+        auto _dim = &partial_shape.dims[i];
+        ov::Dimension item(_dim->min, _dim->max);
+        std::ostringstream out;
+        out.str("");
+        out << item;
+        str += out.str();
+        if (i < rank - 1)
+            str += ",";
+    }
+    str += std::string("}");
+    const char* res = str_to_char_array(str);
+
+    return res;
 }

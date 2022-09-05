@@ -92,7 +92,7 @@ ov_status_e ov_tensor_get_shape(const ov_tensor_t* tensor, ov_shape_t* shape) {
     }
     try {
         auto tmp_shape = tensor->object->get_shape();
-        ov_shape_init(shape, tmp_shape.size());
+        ov_shape_create(tmp_shape.size(), nullptr, shape);
         std::copy_n(tmp_shape.begin(), tmp_shape.size(), shape->dims);
     }
     CATCH_OV_EXCEPTIONS
