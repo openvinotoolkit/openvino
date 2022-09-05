@@ -10,7 +10,7 @@ namespace subgraph {
 
 TEST_P(OpImplCheckTest, checkPluginImplementation) {
         if (function == nullptr) {
-        GTEST_FAIL() << "Target function is empty!";
+        GTEST_FAIL() << "Target model is empty!";
     }
 
     // in case of crash jump will be made and work will be continued
