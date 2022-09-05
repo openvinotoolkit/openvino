@@ -236,7 +236,7 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
             assert(xmm_index.getKind() == xmm_mask.getKind());
 
             std::vector<Xbyak::Reg> not_available_reg{reg_addr};
-            std::vector<Xbyak::Xmm> not_available_xmm{xmm_index, xmm_val, Xbyak::Xmm{reg_mask.getIdx()}};
+            std::vector<Xbyak::Xmm> not_available_xmm{xmm_index, xmm_val, xmm_mask};
             const Xbyak::Reg64 idx = this->get_free_reg<Xbyak::Reg64>(not_available_reg);
             const Xbyak::Reg64 mask = this->get_free_reg<Xbyak::Reg64>(not_available_reg);
             const Xbyak::Reg64 val = this->get_free_reg<Xbyak::Reg64>(not_available_reg);
@@ -245,7 +245,7 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
             push(idx);
             push(mask);
             push(val);
-            push_xmm(xmm_val_temp);
+            push_vmm(Vmm{xmm_val_temp.getIdx()});
             xor_(idx, idx);
             xor_(mask, mask);
             xor_(val, val);
@@ -275,7 +275,7 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
                 }
                 L(scatter_end);
             }
-            pop_xmm(xmm_val_temp);
+            pop_vmm(Vmm{xmm_val_temp.getIdx()});
             pop(val);
             pop(mask);
             pop(idx);

@@ -4,7 +4,7 @@
 
 #include "jit_refine_anchors_kernel.hpp"
 #include "nodes/kernels/registers_pool.hpp"
-#include "nodes/kernels/jit_stack_allocator.hpp"
+#include "nodes/kernels/stack_allocator.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -75,8 +75,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
 
     this->preamble();
 
-    mov(rbp, rsp);
-    StackAllocator allocator{*this, rbp};
+    StackAllocator allocator{*this};
 
     xor_(reg_anchors_loop, reg_anchors_loop);
     xor_(reg_anchors_chunk, reg_anchors_chunk);
@@ -89,11 +88,6 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
     mov(reg_proposals_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposals)]);
     mov(reg_img_w.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_w)]);
     mov(reg_img_h.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_h)]);
-    sub(reg_img_w.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, coordinates_offset)]);
-    sub(reg_img_h.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, coordinates_offset)]);
-//    mov(reg_anchors_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchors_idx_offset)]);
-//    mov(reg_delta_index_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_idx)]);
-//    mov(reg_delta_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_idx_offset)]);
 
     const size_t& vmm_reg_size_in_bytes = this->SIMD_WIDTH * sizeof(float);
     std::vector<Xbyak::Xmm> not_available_vmm;
@@ -345,10 +339,12 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
              */
             mov(reg_img_w_addr, reg_img_w.cvt32());
             uni_vbroadcastss(vmm_temp, reg_img_w_addr);
+            uni_vsubps(vmm_temp, vmm_temp, vmm_coordinates_offset_addr);
             uni_vmovdqu(vmm_img_w_addr, vmm_temp);
 
             mov(reg_img_h_addr, reg_img_h.cvt32());
             uni_vbroadcastss(vmm_temp, reg_img_h_addr);
+            uni_vsubps(vmm_temp, vmm_temp, vmm_coordinates_offset_addr);
             uni_vmovdqu(vmm_img_h_addr, vmm_temp);
 
             mov(rax.cvt32(), dnnl::impl::float2int(0.0f));
@@ -389,9 +385,9 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
             Vmm vmm_proposals_idx = this->get_free_vmm<Vmm>(not_available_vmm);
             Vmm vmm_proposals_anchor_offset = this->get_free_vmm<Vmm>(not_available_vmm);
             Vmm vmm_proposals_idx_offset = this->get_free_vmm<Vmm>(not_available_vmm);
-            uni_vbroadcastss(vmm_proposals_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_start_idx)]);
+            uni_vbroadcastss(vmm_proposals_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_start_idx)]);
             uni_vbroadcastss(vmm_proposals_anchor_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_anchor_offset)]);
-            uni_vbroadcastss(vmm_anchor_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_idx_offset)]);
+            uni_vbroadcastss(vmm_proposals_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_idx_offset)]);
             mov(rbx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, refine_anchor_indices)]);
             uni_vpmulld(vmm_proposals_anchor_offset, vmm_proposals_anchor_offset, ptr[rbx]);
             uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_anchor_offset);
@@ -480,7 +476,8 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
             uni_vbroadcastss(vmm_min_box_h, ptr[reg_params + offsetof(jit_refine_anchors_call_args, min_box_h)]);
             uni_vcmpps(vmm_box_w, vmm_min_box_w, vmm_box_w, VCMPPS_LE);
             uni_vcmpps(vmm_box_h, vmm_min_box_h, vmm_box_h, VCMPPS_LE);
-            uni_vmulps(vmm_box_h, vmm_box_w, vmm_box_h);
+            uni_vpmulld(vmm_box_h, vmm_box_w, vmm_box_h);
+            uni_vcvtdq2ps(vmm_box_h, vmm_box_h);
 
             {
                 // proposals[p_idx + 5] = (min_box_w <= box_w) * (min_box_h <= box_h) * 1.0;
