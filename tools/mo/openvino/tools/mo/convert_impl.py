@@ -498,10 +498,24 @@ def driver(argv: argparse.Namespace):
     return res_ngraph_function
 
 
+def args_dict_to_list(cli_parser, **kwargs):
+    result = []
+    for key, value in kwargs.items():
+        if value is not None and cli_parser.get_default(key) != value:
+            # skip parser checking for non str objects
+            if key is 'extensions' and not isinstance(value, str):
+                continue
+            result.append('--{}'.format(key))
+            if not isinstance(value, bool):
+                result.append(value)
+
+    return result
+
+
 def pack_params_to_args_namespace(**kwargs):
     fe_manager = FrontEndManager()
     cli_parser = get_all_cli_parser(fe_manager)
-    argv = cli_parser.parse_args([])
+    argv = cli_parser.parse_args(args_dict_to_list(cli_parser, **kwargs))
     for key, value in kwargs.items():
         if key not in argv and key not in mo_convert_params.keys():
             raise Error("Unrecognized argument: {}".format(key))
