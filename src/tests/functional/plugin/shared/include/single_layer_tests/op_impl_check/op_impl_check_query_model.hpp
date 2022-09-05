@@ -9,12 +9,12 @@ namespace test {
 namespace subgraph {
 
 TEST_P(OpImplCheckTest, checkPluginImplementation) {
-        if (function == nullptr) {
+    if (function == nullptr) {
         GTEST_FAIL() << "Target model is empty!";
     }
 
     // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+    CommonTestUtils::CrashHandler crashHandler;
 
     // place to jump in case of a crash
     int jmpRes = 0;
@@ -24,7 +24,7 @@ TEST_P(OpImplCheckTest, checkPluginImplementation) {
     jmpRes = sigsetjmp(CommonTestUtils::env, 1);
 #endif
     if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
-        crashHandler->StartTimer();
+        crashHandler.StartTimer();
         summary.setDeviceName(targetDevice);
         try {
             auto queryNetworkResult = core->query_model(function, targetDevice);
@@ -48,10 +48,10 @@ TEST_P(OpImplCheckTest, checkPluginImplementation) {
         }
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
         summary.updateOPsImplStatus(function, false);
-        IE_THROW() << "Crash happens";
+        GTEST_FAIL() << "Crash happens";
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
         summary.updateOPsImplStatus(function, false);
-        IE_THROW() << "Hange happens";
+        GTEST_FAIL() << "Hang happens";
     }
 }
 
