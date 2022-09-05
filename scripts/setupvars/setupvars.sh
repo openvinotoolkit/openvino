@@ -108,7 +108,7 @@ if [ -n "$ZSH_VERSION" ]; then
         python_version_minor=${version_arr[2]}
     fi
 else
-    version_arr=("${python_version//./ }")
+    IFS='.' read -r -a version_arr <<< "${python_version}"
     if [ "${#version_arr[@]}" -ge "2" ]; then
         python_version_major=${version_arr[0]}
         python_version_minor=${version_arr[1]}
