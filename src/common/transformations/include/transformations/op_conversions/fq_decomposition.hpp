@@ -4,9 +4,9 @@
 
 #pragma once
 
+#include <ngraph/op/fake_quantize.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
-#include <ngraph/op/fake_quantize.hpp>
 
 namespace ngraph {
 namespace pass {

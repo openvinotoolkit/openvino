@@ -7,8 +7,8 @@
 #include <ngraph/builder/autobroadcast.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset5.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/partial_shape.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
 
@@ -84,15 +84,18 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
         const auto out_scales = simplifyToScale(fake_quantize_node);
         if (out_scales.size() != 0) {
             PartialShape scale_shape = input_low.get_partial_shape();
-            ov::PartialShape::broadcast_merge_into(scale_shape, input_high.get_partial_shape(), op::AutoBroadcastType::NUMPY);
-            const auto scales = std::make_shared<ngraph::opset1::Constant>(ov::element::f32, scale_shape.get_shape(), out_scales);
+            ov::PartialShape::broadcast_merge_into(scale_shape,
+                                                   input_high.get_partial_shape(),
+                                                   op::AutoBroadcastType::NUMPY);
+            const auto scales =
+                std::make_shared<ngraph::opset1::Constant>(ov::element::f32, scale_shape.get_shape(), out_scales);
             decomp_ops.push_back(scales);
 
             result = std::make_shared<ngraph::opset1::Multiply>(data, scales);
             decomp_ops.push_back(result);
         } else {
-            // if we set input_low or input_high in formula we got output = output_low and output = output_high respectively
-            // so we just clamp x
+            // if we set input_low or input_high in formula we got output = output_low and output = output_high
+            // respectively so we just clamp x
             const auto max = std::make_shared<ngraph::opset1::Maximum>(data, input_low);
             const auto min = std::make_shared<ngraph::opset1::Minimum>(max, input_high);
             decomp_ops.push_back(max);
@@ -120,8 +123,8 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
             decomp_ops.push_back(after_ish_apply);
 
             // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low))
-            const auto round =
-                std::make_shared<ngraph::opset5::Round>(after_ish_apply, ngraph::opset5::Round::RoundMode::HALF_TO_EVEN);
+            const auto round = std::make_shared<ngraph::opset5::Round>(after_ish_apply,
+                                                                       ngraph::opset5::Round::RoundMode::HALF_TO_EVEN);
             decomp_ops.push_back(round);
 
             // (output_high - output_low)
@@ -163,12 +166,17 @@ bool ngraph::pass::FakeQuantizeDecomposition::isAllScalarConstant(const std::sha
            is_scalar_constant(node->get_input_node_shared_ptr(4));
 }
 
-std::vector<float> ngraph::pass::FakeQuantizeDecomposition::simplifyToScale(const std::shared_ptr<const ngraph::opset1::FakeQuantize>& fq_node) {
+std::vector<float> ngraph::pass::FakeQuantizeDecomposition::simplifyToScale(
+    const std::shared_ptr<const ngraph::opset1::FakeQuantize>& fq_node) {
     std::vector<float> out_scales;
-    auto input_low_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(fq_node->get_input_node_shared_ptr(1));
-    auto input_high_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(fq_node->get_input_node_shared_ptr(2));
-    auto output_low_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(fq_node->get_input_node_shared_ptr(3));
-    auto output_high_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(fq_node->get_input_node_shared_ptr(4));
+    auto input_low_constant =
+        std::dynamic_pointer_cast<ngraph::opset1::Constant>(fq_node->get_input_node_shared_ptr(1));
+    auto input_high_constant =
+        std::dynamic_pointer_cast<ngraph::opset1::Constant>(fq_node->get_input_node_shared_ptr(2));
+    auto output_low_constant =
+        std::dynamic_pointer_cast<ngraph::opset1::Constant>(fq_node->get_input_node_shared_ptr(3));
+    auto output_high_constant =
+        std::dynamic_pointer_cast<ngraph::opset1::Constant>(fq_node->get_input_node_shared_ptr(4));
     if (!input_low_constant || !input_high_constant || !output_low_constant || !output_high_constant)
         return out_scales;
 
@@ -205,18 +213,42 @@ std::vector<float> ngraph::pass::FakeQuantizeDecomposition::simplifyToScale(cons
     }
 
     if (fq_node->get_element_type() == ngraph::element::u8 &&
-            std::all_of(cl.cbegin(), cl.cend(), [](float val) { return val == 0.0f; }) &&
-            std::all_of(ish.cbegin(), ish.cend(), [](float val) { return val == 0.0f; }) &&
-            std::all_of(osc.cbegin(), osc.cend(), [](float val) { return val == 1.0f; }) &&
-            std::all_of(osh.cbegin(), osh.cend(), [](float val) { return val == 0.0f; })) {
+        std::all_of(cl.cbegin(),
+                    cl.cend(),
+                    [](float val) {
+                        return val == 0.0f;
+                    }) &&
+        std::all_of(ish.cbegin(),
+                    ish.cend(),
+                    [](float val) {
+                        return val == 0.0f;
+                    }) &&
+        std::all_of(osc.cbegin(),
+                    osc.cend(),
+                    [](float val) {
+                        return val == 1.0f;
+                    }) &&
+        std::all_of(osh.cbegin(), osh.cend(), [](float val) {
+            return val == 0.0f;
+        })) {
         out_scales = isc;
     }
 
     static const float thr = 0.0001f;
     if (fq_node->get_element_type() == ngraph::element::i8 &&
-            std::all_of(ish.cbegin(), ish.cend(), [](float val) { return std::abs(val - 128.f) < thr; }) &&
-            std::all_of(osc.cbegin(), osc.cend(), [](float val) { return val == 1.f; }) &&
-            std::all_of(osh.cbegin(), osh.cend(), [](float val) { return std::abs(val + 128.f) < thr; })) {
+        std::all_of(ish.cbegin(),
+                    ish.cend(),
+                    [](float val) {
+                        return std::abs(val - 128.f) < thr;
+                    }) &&
+        std::all_of(osc.cbegin(),
+                    osc.cend(),
+                    [](float val) {
+                        return val == 1.f;
+                    }) &&
+        std::all_of(osh.cbegin(), osh.cend(), [](float val) {
+            return std::abs(val + 128.f) < thr;
+        })) {
         bool is_crop_aligned = true;
         for (int i = 0; i < std::max(cl.size(), isc.size()); i++) {
             if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] + 128.f) > thr) {
