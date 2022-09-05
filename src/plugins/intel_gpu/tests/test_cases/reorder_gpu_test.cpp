@@ -2467,8 +2467,6 @@ public:
     std::vector<primitive_id> executed_prims;
 
     void execute(T& p) {
-        if (!engine.get_device_info().supports_immad)
-            return;
         auto input_prim = this->get_mem(get_input_layout(p));
         network network_test(this->engine, this->topology_test, this->bo_test);
         network_test.set_input_data("input", input_prim);
