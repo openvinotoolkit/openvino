@@ -35,13 +35,13 @@
 #include "test_utils/test_utils.h"
 #include "gflags/gflags.h"
 
-DEFINE_int32(device_id, -1, "GPU Device ID (currently, a number)");
+DEFINE_int32(device_id, -1, "GPU Device ID (a number starts from 0)");
 
 GTEST_API_ int main(int argc, char** argv) {
     printf("Running main() from %s\n", __FILE__);
     testing::InitGoogleTest(&argc, argv);
     gflags::ParseCommandLineFlags(&argc, &argv, true);
-    if (FLAGS_device_id!=-1)
+    if (FLAGS_device_id != -1)
         cldnn::debug_configuration::device_id = FLAGS_device_id;
     return RUN_ALL_TESTS();
 }
