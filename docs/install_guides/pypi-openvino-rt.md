@@ -80,7 +80,7 @@ For general troubleshooting steps and issues, see [Troubleshooting Guide for Ope
 
 ### Errors with Installing via PIP for Users in China
 
-Users in China might encounter errors while downloading sources via PIP during OpenVINO™ installation. To resolve the issues, try one of the following options:
+Users in China might encounter errors while downloading sources via PIP during OpenVINO™ installation. To resolve the issues, try the following solution:
    
 * Add the download source using the ``-i`` parameter with the Python ``pip`` command. For example: 
 
@@ -92,11 +92,6 @@ Users in China might encounter errors while downloading sources via PIP during O
    
    ```
    pip install openvino-dev[tensorflow2] -i https://mirrors.aliyun.com/pypi/simple/
-   ```
-
-* For C++ developers, if you have installed OpenVINO Runtime via APT, YUM, or the installer, and then installed OpenVINO Development Tools via PyPI, you may run into issues. To resolve that, install the components in ``requirements.txt`` by using the following command: 
-   ``` sh
-   pip install -r <INSTALL_DIR>/tools/requirements.txt
    ```
 
 ### ERROR:root:Could not find the Inference Engine or nGraph Python API.
