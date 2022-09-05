@@ -29,6 +29,7 @@ from typing import (
     Sequence,
 )
 
+# add post-processing function as part of test data
 if getattr(OnnxTestCase, "_fields", None):
     ExtOnnxTestCase = OnnxTestCase._fields + ("post_processing",)
 else:  # for ONNX >= 1.12

@@ -17,7 +17,10 @@ from typing import Any, Dict, List, Optional, Pattern, Set, Text, Type, Union, C
 
 
 # add post-processing function as part of test data
-ExtOnnxTestCase = namedtuple("TestCaseExt", OnnxTestCase._fields + ("post_processing",))
+if getattr(OnnxTestCase, "_fields", None):
+    ExtOnnxTestCase = OnnxTestCase._fields + ("post_processing",)
+else:  # for ONNX >= 1.12
+    ExtOnnxTestCase = tuple((field.name for field in dataclasses.fields(OnnxTestCase))) + ("post_processing",)
 
 
 class ModelImportRunner(onnx.backend.test.BackendTest):
