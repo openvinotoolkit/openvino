@@ -7,24 +7,22 @@ include(cmake/ie_parallel.cmake)
 # pre-find TBB: need to provide TBB_IMPORTED_TARGETS used for installation
 ov_find_package_tbb()
 
-function(_ov_get_tbb_library_path tbb_lib tbb_libs_dir)
+function(_ov_get_tbb_location tbb_target _tbb_lib_location_var)
     if(NOT TBB_FOUND)
         return()
     endif()
 
     # i.e. yocto case
-    get_target_property(_tbb_lib_location ${tbb_lib} INTERFACE_LINK_LIBRARIES)
+    get_target_property(_tbb_lib_location ${tbb_target} INTERFACE_LINK_LIBRARIES)
     if(_tbb_lib_location)
-        get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
-        set(${tbb_libs_dir} "${_tbb_libs_dir}" PARENT_SCOPE)
+        set(${_tbb_lib_location_var} "${_tbb_lib_location}" PARENT_SCOPE)
         return()
-   endif()
+    endif()
 
     # usual imported library
-    get_target_property(_tbb_lib_location ${tbb_lib} IMPORTED_LOCATION_RELEASE)
+    get_target_property(_tbb_lib_location ${tbb_target} IMPORTED_LOCATION_RELEASE)
     if(_tbb_lib_location)
-        get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
-        set(${tbb_libs_dir} "${_tbb_libs_dir}" PARENT_SCOPE)
+        set(${_tbb_lib_location_var} "${_tbb_lib_location}" PARENT_SCOPE)
         return()
     endif()
 
@@ -39,7 +37,8 @@ function(_ov_detect_dynamic_tbbbind_2_5 var)
     endif()
 
     # try to select proper library directory
-    _ov_get_tbb_library_path(TBB::tbb _tbb_libs_dir)
+    _ov_get_tbb_location(TBB::tbb _tbb_lib_location)
+    get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
 
     # unset for cases if user specified different TBB_DIR / TBBROOT
     unset(_ov_tbbbind_2_5 CACHE)
@@ -99,7 +98,7 @@ endif()
 # install only downloaded | custom TBB, system one is not installed
 # - downloaded TBB should be a part of all packages
 # - custom TBB provided by users, needs to be a part of wheel packages
-# - TODO: system TBB also needs to be a part of wheel packages
+# - system TBB also needs to be a part of wheel packages
 if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
        ( (DEFINED TBB AND TBB MATCHES ${TEMP}) OR
          (DEFINED TBBROOT OR DEFINED TBB_DIR OR DEFINED ENV{TBBROOT} OR
@@ -121,18 +120,18 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
     if(ENABLE_SYSTEM_TBB)
         # TODO: what's about tbbbind for cases U22 with >= TBB 20221
         # it seems that oneTBB from U22 distro does not contains tbbbind library
-        # message(FATAL_ERROR "TBB_IMPORTED_TARGETS - ${TBB_IMPORTED_TARGETS}")
+        # the same situation for conda-forge distribution of TBB / oneTBB
 
         # for system libraries we still need to install TBB libraries
         # so, need to take locations of actual libraries and install them
-        foreach(tbb_lib IN LISTS TBB_IMPORTED_TARGETS)
-            _ov_get_tbb_library_path(${tbb_lib} tbb_loc)
-            # depending on the TBB, tbb_loc can be in form:
+        foreach(tbb_target IN LISTS TBB_IMPORTED_TARGETS)
+            _ov_get_tbb_location(${tbb_target} tbb_lib_location)
+            # depending on the TBB, tbb_lib_location can be in form:
             # - libtbb.so.x.y
             # - libtbb.so.x
             # We need to install such files
-            get_filename_component(name_we "${tbb_loc}" NAME_WE)
-            get_filename_component(dir "${tbb_loc}" DIRECTORY)
+            get_filename_component(name_we "${tbb_lib_location}" NAME_WE)
+            get_filename_component(dir "${tbb_lib_location}" DIRECTORY)
             # grab all tbb files matching pattern
             file(GLOB tbb_files "${dir}/${name_we}.*")
             foreach(tbb_file IN LISTS tbb_files)
