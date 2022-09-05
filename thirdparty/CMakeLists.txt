@@ -50,7 +50,10 @@ if(ENABLE_SYSTEM_PUGIXML)
     # try system pugixml first
     find_package(PugiXML QUIET)
     if(PugiXML_FOUND)
-        if(TARGET pugixml::static)
+        if(TARGET pugixml::shared)
+            # example: cross-compilation on debian
+            set(pugixml_target pugixml::shared)
+        elseif(TARGET pugixml::static)
             # sometimes pugixml::static target already exists, just need to make it global
             # example: building using conda environment
             set(pugixml_target pugixml::static)
