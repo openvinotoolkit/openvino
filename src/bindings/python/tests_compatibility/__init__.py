@@ -24,6 +24,7 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
 xfail_accuracy = xfail_test(reason="Accuracy")
+xfail_unsupported_by_legacy_api = xfail_test(reason="RuntimeError: This feature is not supported via legacy API.")
 xfail_issue_69444 = xfail_test(reason="ONNX Resize - AssertionError: Mismatched elements.")
 xfail_issue_67415 = xfail_test(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "

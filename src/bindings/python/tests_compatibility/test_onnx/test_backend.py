@@ -7,6 +7,7 @@ import onnx.backend.test
 from tests_compatibility import (
     BACKEND_NAME,
     skip_rng_tests,
+    xfail_unsupported_by_legacy_api,
     xfail_issue_33488,
     xfail_issue_33581,
     xfail_issue_33589,
@@ -291,7 +292,6 @@ tests_expected_to_fail = [
     (
         xfail_issue_63039,
         "OnnxBackendNodeModelTest.test_div_uint8_cpu",
-        "OnnxBackendNodeModelTest.test_mul_uint8_cpu",
         "OnnxBackendNodeModelTest.test_sub_uint8_cpu",
     ),
     (
@@ -445,27 +445,13 @@ tests_expected_to_fail = [
         skip_segfault,
         "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_mean_weight_cpu",  # ticket: 81976
         "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_mean_weight_log_prob_cpu",  # ticket: 81976
+        "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_none_no_weight_cpu",  # ticket: 81976
+        "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_none_no_weight_log_prob_cpu",  # ticket: 81976
     ),
     (
         xfail_issue_81976,  # SoftmaxCrossEntropyLoss operator
-        "OnnxBackendNodeModelTest.test_sce_NCd1d2d3_none_no_weight_negative_ii_cpu",
-        "OnnxBackendNodeModelTest.test_sce_NCd1d2d3_none_no_weight_negative_ii_log_prob_cpu",
-        "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_none_no_weight_cpu",
-        "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_none_no_weight_log_prob_cpu",
         "OnnxBackendNodeModelTest.test_sce_mean_3d_cpu",
         "OnnxBackendNodeModelTest.test_sce_mean_3d_log_prob_cpu",
-        "OnnxBackendNodeModelTest.test_sce_mean_cpu",
-        "OnnxBackendNodeModelTest.test_sce_mean_log_prob_cpu",
-        "OnnxBackendNodeModelTest.test_sce_mean_no_weight_ii_3d_cpu",
-        "OnnxBackendNodeModelTest.test_sce_mean_no_weight_ii_3d_log_prob_cpu",
-        "OnnxBackendNodeModelTest.test_sce_mean_no_weight_ii_4d_cpu",
-        "OnnxBackendNodeModelTest.test_sce_mean_no_weight_ii_4d_log_prob_cpu",
-        "OnnxBackendNodeModelTest.test_sce_mean_no_weight_ii_cpu",
-        "OnnxBackendNodeModelTest.test_sce_mean_no_weight_ii_log_prob_cpu",
-        "OnnxBackendNodeModelTest.test_sce_none_cpu",
-        "OnnxBackendNodeModelTest.test_sce_none_log_prob_cpu",
-        "OnnxBackendNodeModelTest.test_sce_sum_cpu",
-        "OnnxBackendNodeModelTest.test_sce_sum_log_prob_cpu",
     ),
     (
         xfail_issue_82038,
@@ -527,6 +513,15 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_quantizelinear_cpu",
         "OnnxBackendNodeModelTest.test_dequantizelinear_cpu",
     ),
+    (
+        xfail_unsupported_by_legacy_api,
+        "OnnxBackendNodeModelTest.test_blackmanwindow_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_blackmanwindow_symmetric_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_hammingwindow_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_hammingwindow_symmetric_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_hannwindow_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_hannwindow_symmetric_expanded_cpu",
+    )
 ]
 
 for test_group in tests_expected_to_fail:
