@@ -63,6 +63,13 @@ public:
     virtual MemoryDescPtr clone() const = 0;
 
     /**
+     * @brief Returns the offset to the current memory block
+     *
+     * @return offset
+     */
+    virtual size_t getOffsetPadding() const = 0;
+
+    /**
      * @brief Clone descriptor with new dims.
      * Throws an exception if relaxedCheck is false and some of the new dims conflicts with the internal shape (i.e. its defined dims ,rank, upper bounds)
      * or if internal shape and dims have different ranks
