@@ -1,28 +1,27 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#if 0
+#    include <algorithm>
+#    include <cinttypes>
+#    include <cmath>
+#    include <cstdlib>
+#    include <random>
+#    include <string>
 
-#include <algorithm>
-#include <cinttypes>
-#include <cmath>
-#include <cstdlib>
-#include <random>
-#include <string>
-
-#include "engines_util/execute_tools.hpp"
-#include "engines_util/test_case.hpp"
-#include "engines_util/test_engines.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "util/test_control.hpp"
+#    include "engines_util/execute_tools.hpp"
+#    include "engines_util/test_case.hpp"
+#    include "engines_util/test_engines.hpp"
+#    include "gtest/gtest.h"
+#    include "ngraph/ngraph.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-static string s_manifest = "${MANIFEST}";
-static string s_device = test::backend_name_to_device("${BACKEND_NAME}");
+static string s_manifest;
+static string s_device{"TEMPLATE"};
 
-NGRAPH_TEST(${BACKEND_NAME}, sqrt_basic) {
+TEST(smoke_Sqrt, sqrt_basic) {
     Shape shape{2, 3};
     auto input_param = make_shared<op::Parameter>(element::f32, shape);
     auto function = make_shared<Function>(make_shared<op::Sqrt>(input_param), ParameterVector{input_param});
@@ -36,7 +35,7 @@ NGRAPH_TEST(${BACKEND_NAME}, sqrt_basic) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, sqrt_negative_inputs) {
+TEST(smoke_Sqrt, sqrt_negative_inputs) {
     Shape shape{4};
     auto input_param = make_shared<op::Parameter>(element::f32, shape);
     auto function = make_shared<Function>(make_shared<op::Sqrt>(input_param), ParameterVector{input_param});
@@ -50,7 +49,7 @@ NGRAPH_TEST(${BACKEND_NAME}, sqrt_negative_inputs) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, sqrt_integral_inputs) {
+TEST(smoke_Sqrt, sqrt_integral_inputs) {
     Shape shape{2, 7};
     auto input_param = make_shared<op::Parameter>(element::i32, shape);
     auto function = make_shared<Function>(make_shared<op::Sqrt>(input_param), ParameterVector{input_param});
@@ -64,7 +63,7 @@ NGRAPH_TEST(${BACKEND_NAME}, sqrt_integral_inputs) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, sqrt_floating_inputs) {
+TEST(smoke_Sqrt, sqrt_floating_inputs) {
     Shape shape{2, 7};
     auto input_param = make_shared<op::Parameter>(element::f32, shape);
     auto function = make_shared<Function>(make_shared<op::Sqrt>(input_param), ParameterVector{input_param});
@@ -90,3 +89,4 @@ NGRAPH_TEST(${BACKEND_NAME}, sqrt_floating_inputs) {
     test_case.add_expected_output<float>(shape, expected_result);
     test_case.run();
 }
+#endif
