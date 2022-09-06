@@ -126,7 +126,7 @@ ie_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS
 
 ie_dependent_option (ENABLE_SAMPLES "console samples are part of inference engine package" ON "NOT MINGW" OFF)
 
-ie_option (ENABLE_OPENCV "enables OpenCV" ON)
+ie_option (ENABLE_OPENCV "enables OpenCV" OFF)
 
 ie_option (ENABLE_V7_SERIALIZE "enables serialization to IR v7" OFF)
 
@@ -136,16 +136,7 @@ ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are link
 
 ie_dependent_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF "BUILD_SHARED_LIBS" OFF)
 
-get_linux_name(LINUX_OS_NAME)
-if(LINUX_OS_NAME MATCHES "^Ubuntu [0-9]+\.[0-9]+$" AND NOT DEFINED ENV{TBBROOT})
-    # Debian packages are enabled on Ubuntu systems
-    # so, system TBB can be tried for usage
-    set(ENABLE_SYSTEM_TBB_DEFAULT ON)
-else()
-    set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
-endif()
-
-ie_dependent_option (ENABLE_SYSTEM_TBB  "use the system version of TBB" ${ENABLE_SYSTEM_TBB_DEFAULT} "THREADING MATCHES TBB;LINUX" OFF)
+ie_dependent_option (ENABLE_SYSTEM_TBB  "use the system version of TBB" OFF "THREADING MATCHES TBB;LINUX" OFF)
 
 ie_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
 

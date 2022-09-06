@@ -4,6 +4,7 @@
 
 #include "op_table.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/util/log.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -14,6 +15,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
+    default_op_checks(node, 5, {"FusedBatchNorm", "FusedBatchNormV2", "FusedBatchNormV3"});
     auto ng_input = node.get_input(0);
     auto ng_scale = node.get_input(1);
     auto ng_offset = node.get_input(2);
@@ -34,11 +36,11 @@ OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
 
     OPENVINO_DEBUG << "epsilon: " << tf_epsilon;
 
-    convert_nhwc_to_nchw(node.get_name(), is_nhwc, ng_input);
+    convert_nhwc_to_nchw(is_nhwc, ng_input, ov::Rank(4));
 
     auto ng_batch_norm =
         make_shared<BatchNormInference>(ng_input, ng_scale, ng_offset, ng_mean, ng_variance, tf_epsilon)->output(0);
-    convert_nchw_to_nhwc(node.get_name(), is_nhwc, ng_batch_norm);
+    convert_nchw_to_nhwc(is_nhwc, ng_batch_norm, ov::Rank(4));
 
     // TODO: Why are there so many? Is it correct?
     OutputVector result = {ng_batch_norm, ng_mean, ng_variance, ng_mean, ng_variance};

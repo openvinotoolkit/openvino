@@ -13,7 +13,7 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
-    ref: master
+    ref: releases/2022/2
 
 jobs:
 - job: android_arm64
@@ -110,11 +110,11 @@ jobs:
         -DANDROID_ABI=$(ANDROID_ABI_CONFIG)
         -DANDROID_STL=c++_shared
         -DANDROID_PLATFORM=$(ANDROID_SDK_VERSION)
-        -DENABLE_OPENCV=OFF
         -DENABLE_TESTS=ON
         -DENABLE_SAMPLES=ON
         -DENABLE_INTEL_MYRIAD=OFF
         -DBUILD_java_api=ON
+        -DBUILD_cuda_plugin=OFF
         -DTHREADING=SEQ
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
