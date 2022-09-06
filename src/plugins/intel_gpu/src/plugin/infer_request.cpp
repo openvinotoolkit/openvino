@@ -891,22 +891,19 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
 
 void InferRequest::prepare_output(const cldnn::primitive_id& outputName, Blob::Ptr& outputBlob) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::prepare_output");
+    Blob::Ptr reqBlob = _deviceOutputs.at(outputName);
+    cldnn::primitive_id internalName = outputsMap[outputName];
+    auto _nw_ptr = m_graph->GetNetwork();
     auto remote_ptr = outputBlob->as<gpu::ClBlob>();
-    bool is_remote = remote_ptr != nullptr;
-    if (is_remote) {
-        Blob::Ptr reqBlob = _deviceOutputs.at(outputName);
-        cldnn::primitive_id internalName = outputsMap[outputName];
-        auto _nw_ptr = m_graph->GetNetwork();
-        auto output_blob_ptr = (reqBlob != outputBlob && remote_ptr != nullptr)
-            ? remote_ptr
-            : reqBlob->as<gpu::ClBlob>();
-        auto impl = getBlobImpl(output_blob_ptr);
-        if (!impl->is_allocated()) {
-            IE_THROW(NotAllocated) << str_output_not_allocated;
-        }
-        auto outputMem = impl->getMemory();
-        _nw_ptr->set_output_memory(internalName, outputMem);
+    auto output_blob_ptr = (reqBlob != outputBlob && remote_ptr != nullptr)
+        ? remote_ptr
+        : reqBlob->as<gpu::ClBlob>();
+    auto impl = getBlobImpl(output_blob_ptr);
+    if (!impl->is_allocated()) {
+        IE_THROW(NotAllocated) << str_output_not_allocated;
     }
+    auto outputMem = impl->getMemory();
+    _nw_ptr->set_output_memory(internalName, outputMem);
 }
 
 InferenceEngine::Blob::Ptr InferRequest::create_device_blob(const InferenceEngine::TensorDesc& desc) {
