@@ -44,7 +44,11 @@ ngraph::Output<ngraph::Node> get_masked_value(const std::shared_ptr<ngraph::opse
     // Create mask node deciding whether or not to mask batch data.
     auto data_shape = ngraph::op::util::make_try_fold<ngraph::opset5::ShapeOf>(data);
     auto axis = ngraph::opset5::Constant::create(data_shape->get_element_type(), {1}, {0});
-    auto batch_seq_length = ngraph::op::util::make_try_fold<ngraph::opset5::Broadcast>(seq_lengths, data_shape, axis, ngraph::op::BroadcastType::EXPLICIT);
+    auto batch_seq_length =
+        ngraph::op::util::make_try_fold<ngraph::opset5::Broadcast>(seq_lengths,
+                                                                   data_shape,
+                                                                   axis,
+                                                                   ngraph::op::BroadcastType::EXPLICIT);
 
     auto mask_condition = std::make_shared<ngraph::opset5::Greater>(current_iter, batch_seq_length);
     auto mask_Y_h = std::make_shared<ngraph::opset5::Equal>(current_iter, batch_seq_length);
