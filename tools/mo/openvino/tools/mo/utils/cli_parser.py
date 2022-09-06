@@ -46,16 +46,20 @@ def transformations_config_to_str(value):
 def extensions_to_str_or_extensions_class(extensions):
     if extensions is None:
         return [import_extensions.default_path()]
+    extensions_list = []
     if isinstance(extensions, str):
-        return extensions.split(',')
-    if isinstance(extensions, list):
-        ext_list = []
+        extensions_list = extensions.split(',')
+    elif isinstance(extensions, list):
         for ext in extensions:
             ext = extension_path_to_str_or_extensions_class(ext)
-            ext_list.append(ext)
-        return ext_list
+            extensions_list.append(ext)
     else:
-        return [extension_path_to_str_or_extensions_class(extensions)]
+        extensions_list = [extension_path_to_str_or_extensions_class(extensions)]
+
+    for ext in extensions_list:
+        if isinstance(ext, str):
+            readable_file_or_dir(ext)
+    return extensions_list
 
 
 def path_to_str(path):
