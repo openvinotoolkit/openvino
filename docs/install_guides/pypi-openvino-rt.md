@@ -87,6 +87,7 @@ Users in China might encounter errors while downloading sources via PIP during O
    ``` sh
    pip install openvino -i https://mirrors.aliyun.com/pypi/simple/
    ```
+   Use the ``--trusted-host`` parameter if the URL above is ``http`` instead of ``https``.
 
 ### ERROR:root:Could not find the Inference Engine or nGraph Python API.
 
