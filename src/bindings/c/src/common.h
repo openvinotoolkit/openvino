@@ -243,4 +243,3 @@ ov_element_type_e find_ov_element_type_e(ov::element::Type type);
 ov::element::Type get_element_type(ov_element_type_e type);
 
 ov::Any get_property_enum_value(std::string key, int value);
-std::vector<std::string>& get_rw_property_keys();

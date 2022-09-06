@@ -67,27 +67,8 @@ TEST_P(ov_compiled_model, set_and_get_property) {
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), false, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
-#if 0
-    // Test enum
-    const char* key_1 = ov_property_key_affinity;
-    const char* type_1 = ov_property_value_type_enum;
-    ov_affinity_e affinity = ov_affinity_e::HYBRID_AWARE;
-    OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, key_1, type_1, affinity));
-    char* result_1 = nullptr;
-    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key_1, &result_1));
-    EXPECT_STREQ(result_1, "HYBRID_AWARE");
-    ov_free(result_1);
-
-    // Test uint32
-    const char* key_2 = ov_property_key_inference_num_threads;
-    const char* type_2 = ov_property_value_type_int32;
-    int num = 7;
-    OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, key_2, type_2, num));
-    char* result_2 = nullptr;
-    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key_2, &result_2));
-    EXPECT_STREQ(result_2, "7");
-    ov_free(result_2);
-#endif
+    // TODO: add set_property test case
+    //  It seems that all property set is not implement in compiled_model.
 
     char* result_3 = nullptr;
     const char* key_3 = ov_property_key_supported_properties;

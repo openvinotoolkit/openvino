@@ -64,20 +64,3 @@ ov::Any get_property_enum_value(std::string key, int value) {
     }
     return ret;
 }
-
-std::vector<std::string>& get_rw_property_keys() {
-    static std::vector<std::string> property_keys;
-    if (property_keys.size() == 0) {
-        property_keys.emplace_back(ov_property_key_cache_dir);
-        property_keys.emplace_back(ov_property_key_num_streams);
-        property_keys.emplace_back(ov_property_key_affinity);
-        property_keys.emplace_back(ov_property_key_inference_num_threads);
-        property_keys.emplace_back(ov_property_key_hint_performance_mode);
-        property_keys.emplace_back(ov_property_key_hint_inference_precision);
-        property_keys.emplace_back(ov_property_key_hint_num_requests);
-        property_keys.emplace_back(ov_property_key_hint_model_priority);
-        property_keys.emplace_back(ov_property_key_log_level);
-        property_keys.emplace_back(ov_property_key_log_level);
-    }
-    return property_keys;
-}

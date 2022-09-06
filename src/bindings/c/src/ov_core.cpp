@@ -122,17 +122,12 @@ ov_status_e ov_core_compile_model(const ov_core_t* core,
         if (with_property) {
             va_list args_ptr;
             va_start(args_ptr, compiled_model);
-            auto& keys_map = get_rw_property_keys();
             std::vector<ov::Any> value_vec;
 
             // Only support one or none property key.
             // Each key can be followed by single data type or compound type
             std::string property_key = va_arg(args_ptr, char*);
-            std::vector<std::string>::iterator it;
-            it = std::find(keys_map.begin(), keys_map.end(), property_key);
-            if (it != keys_map.end()) {
-                GET_ONE_PROPERTY_FROM_ARGS_LIST(1)
-            }
+            GET_ONE_PROPERTY_FROM_ARGS_LIST(1)
         }
         std::string dev_name = "";
         ov::CompiledModel object;
@@ -165,17 +160,12 @@ ov_status_e ov_core_compile_model_from_file(const ov_core_t* core,
         if (with_property) {
             va_list args_ptr;
             va_start(args_ptr, compiled_model);
-            auto& keys_map = get_rw_property_keys();
             std::vector<ov::Any> value_vec;
 
-            // Only support one or none property key.
+            // Only support one or zero property key.
             // Each key can be followed by single data type or compound type
             std::string property_key = va_arg(args_ptr, char*);
-            std::vector<std::string>::iterator it;
-            it = std::find(keys_map.begin(), keys_map.end(), property_key);
-            if (it != keys_map.end()) {
-                GET_ONE_PROPERTY_FROM_ARGS_LIST(1)
-            }
+            GET_ONE_PROPERTY_FROM_ARGS_LIST(1)
         }
 
         ov::CompiledModel object;
