@@ -322,8 +322,7 @@ int main(int argc, char* argv[]) {
                                                "<dev1>:<nstreams1>,<dev2>:<nstreams2>" +
                                                " or via configuration file.");
                     }
-                } else if (!isFlagSetInCommandLine("hint") && !device_config.count(key) &&
-                           (FLAGS_api == "async")) {
+                } else if (!isFlagSetInCommandLine("hint") && !device_config.count(key) && (FLAGS_api == "async")) {
                     slog::warn << "-nstreams default value is determined automatically for " << device
                                << " device. "
                                   "Although the automatic selection usually provides a "
