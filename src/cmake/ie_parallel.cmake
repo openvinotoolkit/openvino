@@ -24,7 +24,7 @@ macro(ov_find_package_tbb)
             unset(_no_cmake_install_prefix)
         endif()
 
-        find_package(TBB QUIET COMPONENTS tbb tbbmalloc
+        find_package(TBB 2017.0 QUIET COMPONENTS tbb tbbmalloc
                      ${_find_package_no_args})
 
         if(NOT TBB_FOUND)
@@ -36,6 +36,7 @@ macro(ov_find_package_tbb)
             if(NOT ANDROID AND ENABLE_SYSTEM_TBB)
                 find_package(PkgConfig QUIET)
                 if(PkgConfig_FOUND)
+                    # TODO: fix to work with version as well
                     pkg_search_module(tbb QUIET
                                       IMPORTED_TARGET GLOBAL
                                       tbb)
@@ -76,7 +77,7 @@ macro(ov_find_package_tbb)
                 endif()
 
                 # try to find one more time
-                find_package(TBB QUIET COMPONENTS tbb tbbmalloc
+                find_package(TBB 2017.0 QUIET COMPONENTS tbb tbbmalloc
                             # can be provided by ov_download_tbb
                             HINTS ${TBB_DIR}
                             ${_tbb_paths}
