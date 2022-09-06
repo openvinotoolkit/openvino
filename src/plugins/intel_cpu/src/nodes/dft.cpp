@@ -68,8 +68,8 @@ bool DFT::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
             errorMessage = "Doesn't support op with dynamic shapes";
             return false;
         }
-        const auto interpDFT = std::dynamic_pointer_cast<const ngraph::opset7::DFT>(op);
-        const auto interpIDFT = std::dynamic_pointer_cast<const ngraph::opset7::IDFT>(op);
+        const auto interpDFT = ov::is_type<const op::v7::DFT>(op);
+        const auto interpIDFT = ov::is_type<const op::v7::IDFT>(op);
 
         if (!interpDFT && !interpIDFT) {
             errorMessage = "Only opset7 DFT/IDFT operation is supported";
@@ -114,7 +114,7 @@ DFT::DFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, Weigh
         }
     }
 
-    inverse = std::dynamic_pointer_cast<ngraph::opset7::DFT>(op) == nullptr;
+    inverse = !ov::is_type<op::v7::DFT>(op);
     lastInverse = !inverse;
 }
 
