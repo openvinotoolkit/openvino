@@ -503,7 +503,7 @@ def args_dict_to_list(cli_parser, **kwargs):
     for key, value in kwargs.items():
         if value is not None and cli_parser.get_default(key) != value:
             # skip parser checking for non str objects
-            if key is 'extensions' and not isinstance(value, str):
+            if not isinstance(value, str):
                 continue
             result.append('--{}'.format(key))
             if not isinstance(value, bool):
