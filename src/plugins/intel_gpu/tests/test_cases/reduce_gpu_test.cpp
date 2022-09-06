@@ -1848,6 +1848,8 @@ protected:
 
 public:
     void execute_onednn() {
+        if (!engine.get_device_info().supports_immad)
+            return;
         int input_dim = static_cast<int>(input_format.dimension());
         cldnn::format layout_format = input_format;
 
