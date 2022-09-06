@@ -416,13 +416,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
             /** @code
                 const float score = scores[score_idx(anchor, 0, h, w)];
              */
-            not_available_vmm = {vmm_proposals_idx, vmm_proposals_mask, vmm_proposals_idx_offset};
-
             Vmm vmm_score = this->get_free_vmm<Vmm>(not_available_vmm);
-            Vmm vmm_box_w = this->get_free_vmm<Vmm>(not_available_vmm);
-            Vmm vmm_box_h = this->get_free_vmm<Vmm>(not_available_vmm);
-            Vmm vmm_min_box_w = this->get_free_vmm<Vmm>(not_available_vmm);
-            Vmm vmm_min_box_h = this->get_free_vmm<Vmm>(not_available_vmm);
 
             // Prepare indexes
             Vmm vmm_score_idx = this->get_free_vmm<Vmm>(not_available_vmm);
@@ -460,12 +454,17 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
                 const float box_w = x1 - x0 + coordinates_offset;
                 const float box_h = y1 - y0 + coordinates_offset;
              */
+            Vmm vmm_box_w = this->get_free_vmm<Vmm>(not_available_vmm);
+            Vmm vmm_box_h = this->get_free_vmm<Vmm>(not_available_vmm);
+            Vmm vmm_min_box_w = this->get_free_vmm<Vmm>(not_available_vmm);
+            Vmm vmm_min_box_h = this->get_free_vmm<Vmm>(not_available_vmm);
+
             // const float box_w = x1 - x0 + coordinates_offset;
             uni_vsubps(vmm_box_w, vmm_x1, vmm_x0);
-            uni_vaddps(vmm_box_w, vmm_x1, vmm_coordinates_offset_addr);
+            uni_vaddps(vmm_box_w, vmm_box_w, vmm_coordinates_offset_addr);
             // const float box_h = y1 - y0 + coordinates_offset;
             uni_vsubps(vmm_box_h, vmm_y1, vmm_y0);
-            uni_vaddps(vmm_box_h, vmm_y1, vmm_coordinates_offset_addr);
+            uni_vaddps(vmm_box_h, vmm_box_h, vmm_coordinates_offset_addr);
 
             /** @code
                 int p_idx = proposal_idx(h, w, anchor, 0);
