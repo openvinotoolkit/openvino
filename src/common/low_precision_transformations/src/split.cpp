@@ -90,7 +90,7 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
         }
 
         if (dequantization.subtract) {
-            const auto subtract = std::make_shared<opset1::Subtract>(parent, splitedSub[i]);
+            const auto subtract = NetworkHelper::makeDequantizationSubtract(parent, splitedSub[i]);
             copy_runtime_info({ newSplit, subtract }, subtract);
             parent = subtract;
         }

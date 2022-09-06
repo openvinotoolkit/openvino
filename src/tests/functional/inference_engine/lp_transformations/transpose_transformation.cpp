@@ -168,6 +168,68 @@ const std::vector<TransposeTransformationTestValues> testValues = {
             }
         }
     },
+    // U8: per-channel quantization with the same values,
+    // subtraction with Convert from u8 to fp32, transpose channel dimension
+    {
+        { 0, 3, 1, 2 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32 },
+                {{128.f}, element::undefined, {1, 3, 1, 1}, false, 1ul, element::u8, true},
+                {{0.1}, ngraph::element::f32, { 1, 3, 1, 1 }}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32 },
+                {{128.f}, element::undefined, {1, 1, 3, 1}, false, 1ul, element::u8, true},
+                {{0.1}, ngraph::element::f32, {1, 1, 3, 1}}
+            }
+        }
+    },
+    // U8: per-tensor quantization, transpose channel dimension
+    {
+        { 0, 3, 1, 2 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128}, {0.1f}}
+        }
+    },
+    // U8: per-channel quantization, transpose channel dimension
+    {
+        { 0, 2, 1, 3 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32 },
+                {{ 128, 64, 32 }, ngraph::element::f32, { 1, 3, 1, 1 }},
+                {{ 0.3f, 0.2f, 0.1f }, ngraph::element::f32, { 1, 3, 1, 1 }}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {
+                { ngraph::element::f32 },
+                {{ 128, 64, 32 }, ngraph::element::f32, { 1, 3, 1, 1 }},
+                {{ 0.3f, 0.2f, 0.1f }, ngraph::element::f32, { 1, 3, 1, 1 }}
+            },
+            ngraph::element::f32,
+            {{}, {}, {}},
+        }
+    },
     // empty
     {
         { 0, 1, 3, 2 },

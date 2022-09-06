@@ -128,6 +128,10 @@ public:
         const element::Type deqPrecision = element::f32,
         std::shared_ptr<ngraph::Node> input = nullptr);
 
+    static std::shared_ptr<ngraph::Node> makeDequantizationSubtract(
+        const ngraph::Output<ngraph::Node>& parent,
+        const ngraph::Output<ngraph::Node>& subtract_constant);
+
     static FakeQuantizeDequantization createDequantizationFromFakeQuantize(
         std::shared_ptr<opset1::FakeQuantize> fq,
         element::Type precision,
@@ -156,7 +160,7 @@ public:
 
     static std::shared_ptr<opset1::Constant> normalizeDequantizationShape(
             const std::shared_ptr<Node>& eltwise,
-            const bool convertIsExpected = false);
+            const bool convertIsExpected = true);
 
     // 1. remove Convert if possible
     // 2. optimize Constant if possible
