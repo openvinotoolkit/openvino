@@ -57,7 +57,6 @@ protected:
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ACTIVATION,
                  FusedOpType::ELTWISE,
-                 FusedOpType::SCALE,
                  FusedOpType::QUANTIZE };
     }
     JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
