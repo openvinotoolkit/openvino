@@ -19,7 +19,7 @@ using handler_callback = std::function<bool(const std::shared_ptr<Node>& node)>;
 namespace pass {
 /// \brief Register openvino node pointers into container.
 /// Can create and/or add existing node pointers into register
-class OPENVINO_API NodeRegistry {
+class NodeRegistry {
 public:
     /// \brief Make new node and add it to register.
     ///
