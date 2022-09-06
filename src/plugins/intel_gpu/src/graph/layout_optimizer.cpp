@@ -216,13 +216,10 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         return true;
 
     // Do not remove reorder if it is necessary to fulfill required_input
-    if (next.is_type<convolution>()) {
-        auto &conv = next.as<convolution>();
-        auto reorder_layout = next.get_dependency(0).get_output_layout();
-        if (reorder_layout.format == conv.get_required_input0()
-                && !reorder_layout.data_padding)
-            return false;
-    }
+    auto reorder_layout = next.get_dependency(0).get_output_layout();
+    if (reorder_layout.format == next.get_required_input0()
+            && !reorder_layout.data_padding)
+        return false;
 
     // resample_opt kernel can work cross-layout between fsv16 and fsv32
     if (next.is_type<resample>() &&
@@ -318,13 +315,10 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             return true;
 
         // Remove Reorder for Convolution if mixed layout.
-        if (next.is_type<convolution>()) {
-            auto &conv = next.as<convolution>();
-            auto& node = prev.get_users().front();
-            if (prev.get_output_layout().format == conv.get_required_input0() &&
-                    node->get_output_layout().data_padding == prev.get_output_layout().data_padding)
-                return true;
-        }
+        auto& node = prev.get_users().front();
+        if (prev.get_output_layout().format == next.get_required_input0() &&
+                node->get_output_layout().data_padding == prev.get_output_layout().data_padding)
+            return true;
 
         if (next.is_type<convolution>() &&
             (fmt_prev == format::bfyx && fmt_next == format::bs_fs_yx_bsv32_fsv32) &&
@@ -421,13 +415,11 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
 
     // Remove Reorder after convolution if possible.
     if (use_onednn_impls) {
-        if (prev.is_type<convolution>()) {
-            auto &conv = prev.as<convolution>();
-            auto reorder_layout = next->get_dependency(0).get_output_layout();
-            if (reorder_layout.format == conv.get_required_output() &&
-                    reorder_layout.data_padding == conv.get_output_layout().data_padding)
-                return true;
-        }
+        auto reorder_layout = next->get_dependency(0).get_output_layout();
+        if (reorder_layout.format == prev.get_required_output() &&
+                reorder_layout.data_padding == prev.get_output_layout().data_padding)
+            return true;
+
         if (prev.is_type<eltwise>() &&
             is_mixed_layout(prev, *next, false, {{ format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv16 }}))
             return true;
@@ -1606,9 +1598,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         };
 
         if (use_onednn_impls) {
-            if (node.get_users().front()->is_type<convolution>() && node.get_users().front()->as<convolution>().get_required_input0() != format::any) {
-                auto &conv = node.get_users().front()->as<convolution>();
-                expected = conv.get_required_input0();
+            if (node.get_users().front()->get_required_input0() != format::any) {
+                expected = node.get_users().front()->get_required_input0();
             } else {
                 expected = format::any;
             }

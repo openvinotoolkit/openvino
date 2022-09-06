@@ -26,9 +26,7 @@ public:
           transposed(false),
           groups(this->get_primitive()->groups),
           deformable_groups(this->get_primitive()->deformable_groups),
-          deformable_mode(this->get_primitive()->deformable_mode),
-          required_input0(format::type::any),
-          required_output(format::type::any) {
+          deformable_mode(this->get_primitive()->deformable_mode) {
         support_padding_all(true);
     }
 
@@ -137,11 +135,6 @@ public:
         return params;
     }
 
-    format::type get_required_input0() const { return required_input0; }
-    format::type get_required_output() const { return required_output; }
-    void set_required_input0(format::type type) { required_input0 = type; }
-    void set_required_output(format::type type) { required_output = type; }
-
 private:
     int32_t split;
     bool depthwise_sep_opt;
@@ -149,8 +142,6 @@ private:
     uint32_t groups;
     uint32_t deformable_groups;
     bool deformable_mode;
-    format::type required_input0;
-    format::type required_output;
 };
 
 using convolution_node = typed_program_node<convolution>;

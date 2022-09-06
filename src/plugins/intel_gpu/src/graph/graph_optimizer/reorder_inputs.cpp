@@ -374,12 +374,9 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
 
 static format get_target_output_format(layout_optimizer& lo, const std::map<program_node*, format::type>& fmt_map, program_node *node) {
     // 1. Check required_output
-    if (lo.get_optimization_attributes().use_onednn_impls && node->is_type<convolution>()) {
-        auto &conv = node->as<convolution>();
-        auto ret = conv.get_required_output();
-        if (ret != format::any)
-            return ret;
-    }
+    auto ret = node->get_required_output();
+    if (ret != format::any)
+        return ret;
 
     // 2. Check fmt
     if (fmt_map.count(node) > 0)
@@ -391,12 +388,9 @@ static format get_target_output_format(layout_optimizer& lo, const std::map<prog
 
 static format get_target_input0_format(layout_optimizer& lo, const std::map<program_node*, format::type>& fmt_map, program_node *node) {
     // 1. Check required_input
-    if (lo.get_optimization_attributes().use_onednn_impls && node->is_type<convolution>()) {
-        auto &conv = node->as<convolution>();
-        auto ret = conv.get_required_input0();
-        if (ret != format::any)
-            return ret;
-    }
+    auto ret = node->get_required_input0();
+    if (ret != format::any)
+        return ret;
 
     // 2. Check fmt
     if (fmt_map.count(node) > 0)
