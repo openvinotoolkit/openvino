@@ -406,9 +406,17 @@ static format get_target_input0_format(layout_optimizer& lo, const std::map<prog
     return node->get_output_layout().format;
 }
 
+const char *dir_msg(direction_e dir) {
+    if (dir == direction_e::forwards)
+        return "forward";
+    else
+        return "backward";
+}
+
 // If there is layout mismatch between two layers, add reorder
 template <direction_e dir>
 void insert_reorders_in_dir(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, layout_optimizer& lo, program_node* node) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     auto fmt = fmt_map.at(node);
 
     auto next_cpy = travel_direction_wrapper<dir>::next_nodes(node);
@@ -430,11 +438,11 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         in_layout.format = get_target_output_format(lo, fmt_map, travel_direction_wrapper<dir>::first(node, next));
         auto target_input0_format = get_target_input0_format(lo, fmt_map, travel_direction_wrapper<dir>::second(node, next));
 
-        // If the dimensions are different, use the original dimension. For example: bfzyx -> bfyz
-        // It is to conserve the size on z-axis.
-        if (out_layout.format != format::any && target_input0_format != format::any &&
-            out_layout.format.dimension() == target_input0_format.dimension())
-            out_layout.format = target_input0_format;
+        out_layout.format = target_input0_format;
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << __func__ << ":" << __LINE__ << ":" << dir_msg(dir) << "  " << node->id() << " --> " << next->id() << " ## "
+                    << fmt_to_str(in_layout.format) << " --> " << fmt_to_str(out_layout.format) << std::endl;
+        }
 
         auto reorder_pair = rf.get_reorder(travel_direction_wrapper<dir>::first(node, next)->id(),
                                            in_layout,
@@ -443,10 +451,9 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
 
         if (reorder) {
             auto& reorder_node = p.get_or_create(reorder);
-            GPU_DEBUG_GET_INSTANCE(debug_config);
             GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                GPU_DEBUG_COUT << __func__ << "" << node->id() << "(" << ") --> " << next->id() << "(" << "): " << reorder_node.id() << " ## "
-                          << fmt_to_str(in_layout.format) << " --> " << fmt_to_str(out_layout.format) << std::endl;
+                GPU_DEBUG_COUT << __func__ << ":" << __LINE__ << ":" << dir_msg(dir) << "  " << reorder_node.id()
+                        << "  Reorder is added" << std::endl;
             }
             p.add_intermediate(reorder_node,
                                *travel_direction_wrapper<dir>::second(node, next),
