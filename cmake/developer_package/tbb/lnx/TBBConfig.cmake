@@ -118,7 +118,6 @@ if (_tbb_def_header)
     string(REGEX MATCH "[0-9][0-9]*" _tbb_version_minor ${_tbb_version_minor})
 
     set(TBB_VERSION "${_tbb_version_major}.${_tbb_version_minor}")
-    set(TBB_VERSION "2019.0")
 else()
     set(TBB_VERSION "")
 endif()
