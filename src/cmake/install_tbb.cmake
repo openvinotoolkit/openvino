@@ -12,19 +12,16 @@ function(_ov_get_tbb_location tbb_target _tbb_lib_location_var)
         return()
     endif()
 
-    # i.e. yocto case
-    get_target_property(_tbb_lib_location ${tbb_target} INTERFACE_LINK_LIBRARIES)
-    if(_tbb_lib_location)
-        set(${_tbb_lib_location_var} "${_tbb_lib_location}" PARENT_SCOPE)
-        return()
-    endif()
-
-    # usual imported library
-    get_target_property(_tbb_lib_location ${tbb_target} IMPORTED_LOCATION_RELEASE)
-    if(_tbb_lib_location)
-        set(${_tbb_lib_location_var} "${_tbb_lib_location}" PARENT_SCOPE)
-        return()
-    endif()
+    foreach(properties INTERFACE_LINK_LIBRARIES
+                       IMPORTED_LOCATION_RELEASE
+                       IMPORTED_LOCATION_NONE
+                       IMPORTED_LOCATION)
+        get_target_property(_tbb_lib_location ${tbb_target} ${properties})
+        if(_tbb_lib_location)
+            set(${_tbb_lib_location_var} "${_tbb_lib_location}" PARENT_SCOPE)
+            return()
+        endif()
+    endforeach()
 
    message(FATAL_ERROR "Failed to detect TBB library location")
 endfunction()
@@ -146,6 +143,8 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                 endif()
             endforeach()
         endforeach()
+
+        set(pkg_config_tbb_lib_dir "runtime/3rdparty/tbb/lib")
     elseif(tbb_custom)
         # for custom TBB we need to install it to our package
         # to simplify life for our customers
@@ -190,6 +189,8 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                         COMPONENT tbb)
             endif()
         endforeach()
+
+        set(pkg_config_tbb_lib_dir "${IE_TBBROOT_INSTALL}/${tbb_libs_dir}")
     elseif(tbb_downloaded)
         set(IE_TBB_DIR_INSTALL "runtime/3rdparty/tbb/")
 
@@ -228,6 +229,8 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                     DESTINATION "${IE_TBB_DIR_INSTALL}"
                     COMPONENT tbb_dev)
         endif()
+
+        set(pkg_config_tbb_lib_dir "${IE_TBB_DIR_INSTALL}/lib")
     else()
         message(WARNING "TBB of unknown origin. TBB files are not installed")
     endif()
