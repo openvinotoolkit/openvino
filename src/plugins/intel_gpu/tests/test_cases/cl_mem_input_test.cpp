@@ -4,6 +4,7 @@
 
 #include "test_utils.h"
 #include "opencl_helper_instance.hpp"
+#include "ocl/ocl_device.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/activation.hpp>
@@ -76,7 +77,8 @@ TEST(cl_mem_check, check_2_inputs) {
     auto iter = devices.find(std::to_string(debug_configuration::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
-    auto ocl_instance = std::make_shared<OpenCL>(device->get_device());
+
+    auto ocl_instance = std::make_shared<OpenCL>(std::dynamic_pointer_cast<ocl::ocl_device>(device)->get_device());
     int width = 224;
     int height = 224;
     cl_int err;
@@ -144,7 +146,7 @@ TEST(cl_mem_check, check_input) {
     auto iter = devices.find(std::to_string(debug_configuration::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
-    auto ocl_instance = std::make_shared<OpenCL>(device->get_device());
+    auto ocl_instance = std::make_shared<OpenCL>(std::dynamic_pointer_cast<ocl::ocl_device>(device)->get_device());
 
     int width = 224;
     int height = 224;

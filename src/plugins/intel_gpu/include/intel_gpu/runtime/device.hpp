@@ -9,10 +9,6 @@
 
 #include <memory>
 
-namespace cl {
-class Device;
-}
-
 namespace cldnn {
 
 /// @brief Represents detected GPU device object. Use device_query to get list of available objects.
@@ -23,7 +19,6 @@ public:
     virtual memory_capabilities get_mem_caps() const = 0;
 
     virtual bool is_same(const device::ptr other) = 0;
-    virtual const cl::Device& get_device() const = 0;
 
     virtual ~device() = default;
 };

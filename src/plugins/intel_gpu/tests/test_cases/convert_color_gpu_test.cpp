@@ -4,6 +4,7 @@
 
 #include "test_utils.h"
 #include "opencl_helper_instance.hpp"
+#include "ocl/ocl_device.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/data.hpp>
@@ -299,7 +300,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_surface_u8) {
     auto iter = devices.find(std::to_string(debug_configuration::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
-    auto ocl_instance = std::make_shared<OpenCL>(device->get_device());
+    auto ocl_instance = std::make_shared<OpenCL>(std::dynamic_pointer_cast<ocl::ocl_device>(device)->get_device());
 
     if (!engine->get_device_info().supports_image) {
         GTEST_SKIP() << "Device doesn't support images";
@@ -379,7 +380,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_surface_u8) {
     auto iter = devices.find(std::to_string(debug_configuration::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
-    auto ocl_instance = std::make_shared<OpenCL>(device->get_device());
+    auto ocl_instance = std::make_shared<OpenCL>(std::dynamic_pointer_cast<ocl::ocl_device>(device)->get_device());
 
     if (!engine->get_device_info().supports_image) {
         GTEST_SKIP() << "Device doesn't support images";
@@ -534,7 +535,7 @@ TEST(convert_color, i420_to_rgb_three_planes_surface_u8) {
     auto iter = devices.find(std::to_string(debug_configuration::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
-    auto ocl_instance = std::make_shared<OpenCL>(device->get_device());
+    auto ocl_instance = std::make_shared<OpenCL>(std::dynamic_pointer_cast<ocl::ocl_device>(device)->get_device());
 
     if (!engine->get_device_info().supports_image) {
         GTEST_SKIP() << "Device doesn't support images";

@@ -23,7 +23,7 @@ public:
     device_info get_info() const override { return _info; }
     memory_capabilities get_mem_caps() const override { return _mem_caps; }
 
-    const cl::Device& get_device() const override { return _device; }
+    const cl::Device& get_device() const { return _device; }
     cl::Device& get_device() { return _device; }
     const cl::Context& get_context() const { return _context; }
     cl_platform_id get_platform() const { return _platform; }
