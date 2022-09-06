@@ -1677,6 +1677,8 @@ TEST(fully_connected_onednn_gpu, no_biases_int8) {
                   weight_b = 4, weight_x = 3;   // size of the whole weights buffer
 
     auto& engine = get_onednn_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
 
     // Change input data of fully-connected node from bx to bf
     auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { input_b, 1, input_x, 1 } });

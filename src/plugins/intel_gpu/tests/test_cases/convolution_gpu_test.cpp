@@ -8847,6 +8847,8 @@ INSTANTIATE_TEST_SUITE_P(conv_onednn_cases,
 
 TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     auto& engine = get_onednn_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
 
     if (!engine.get_device_info().supports_fp16)
     {
@@ -8988,6 +8990,8 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
 
 TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
     auto& engine = get_onednn_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
 
     int input_b = 1, input_f = 16, input_y = 3, input_x = 3;
     int output_b = 1, output_f = 16, output_y = 6, output_x = 6;
