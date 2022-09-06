@@ -30,14 +30,15 @@ LIBS_DIR = "bin" if platform.system() == "Windows" else "lib"
 CONFIG = "Release" if platform.system() in {"Windows", "Darwin"} else ""
 
 machine = platform.machine()
-if machine == "x86_64" or machine == "AMD64":
-    ARCH = "intel64"
-elif machine == "X86":
-    ARCH = "ia32"
-elif machine == "arm" or machine == "armv7l":
-    ARCH = "arm"
-elif machine == "aarch64" or machine == "arm64":
-    ARCH = "arm64"
+ARCH = "arm64"
+# if machine == "x86_64" or machine == "AMD64":
+#     ARCH = "intel64"
+# elif machine == "X86":
+#     ARCH = "ia32"
+# elif machine == "arm" or machine == "armv7l":
+#     ARCH = "arm"
+# elif machine == "aarch64" or machine == "arm64":
+#     ARCH = "arm64"
 
 # The following variables can be defined in environment or .env file
 SCRIPT_DIR = Path(__file__).resolve().parents[0]
