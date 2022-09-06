@@ -1584,8 +1584,9 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
                     for (size_t xi = 0; xi < x; ++xi) {
                         auto ref_out_val = ref_ptr[ref_out_offset + xi * ref_x_pitch];
                         auto opt_out_val = opt_ptr[opt_out_offset + xi * opt_x_pitch];
-                        if (ref_out_val != opt_out_val)
+                        if (ref_out_val != opt_out_val) {
                             EXPECT_NEAR(ref_out_val, opt_out_val, 1e-4);
+                        }
                     }
                 }
             }
