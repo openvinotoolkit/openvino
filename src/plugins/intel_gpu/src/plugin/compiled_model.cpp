@@ -98,10 +98,8 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequestImpl(InputsDataMap n
 IInferRequestInternal::Ptr CompiledModel::CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                                                  const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::CreateInferRequestImpl");
-    if (m_graphs.front()->GetMaxDynamicBatchSize() > 1)
-        return GetInferRequestImpl<InferRequestLegacy>(inputs, outputs);
-    else
-        return GetInferRequestImpl<InferRequest>(inputs, outputs);
+    // TODO: Need to fix performance regression for the new infer request on models @DG2
+    return GetInferRequestImpl<InferRequestLegacy>(inputs, outputs);
 }
 
 IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
