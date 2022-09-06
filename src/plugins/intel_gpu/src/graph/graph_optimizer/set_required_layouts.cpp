@@ -46,7 +46,7 @@ void set_required_layouts::run(program& p) {
         auto dst_fmt = onednn::find_data_format(prim_desc.dst_desc());
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            std::cout << __FILE__ << ":" << node.id() << ": " << fmt_to_str(src_fmt) << " --> " << fmt_to_str(dst_fmt) << std::endl;
+            std::cout << "set_required_layouts:" << node.id() << ": " << fmt_to_str(src_fmt) << " --> " << fmt_to_str(dst_fmt) << std::endl;
         }
         node.set_required_input0(src_fmt);
         node.set_required_output(dst_fmt);
