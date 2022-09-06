@@ -125,7 +125,6 @@ public:
 };
 
 TEST_F(MetaData, get_meta_data_from_model_without_info) {
-    ov::Core core;
     auto model = core.read_model(ir_without_meta, ov::Tensor());
 
     auto& rt_info = model->get_rt_info();
@@ -133,7 +132,6 @@ TEST_F(MetaData, get_meta_data_from_model_without_info) {
 }
 
 TEST_F(MetaData, get_meta_data_as_map_from_model_without_info) {
-    ov::Core core;
     auto model = core.read_model(ir_without_meta, ov::Tensor());
 
     auto& rt_info = model->get_rt_info();
@@ -145,7 +143,6 @@ TEST_F(MetaData, get_meta_data_as_map_from_model_without_info) {
 }
 
 TEST_F(MetaData, get_meta_data) {
-    ov::Core core;
     auto model = core.read_model(ir_with_meta, ov::Tensor());
 
     auto& rt_info = model->get_rt_info();
@@ -153,7 +150,6 @@ TEST_F(MetaData, get_meta_data) {
 }
 
 TEST_F(MetaData, get_meta_data_as_map) {
-    ov::Core core;
     auto model = core.read_model(ir_with_meta, ov::Tensor());
 
     ov::AnyMap meta;
