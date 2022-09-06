@@ -689,14 +689,6 @@ std::vector<int32_t> DFT::getAxes() const {
     return axes;
 }
 
-void DFT::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
-}
-
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

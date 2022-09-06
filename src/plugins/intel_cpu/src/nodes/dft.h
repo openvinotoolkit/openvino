@@ -21,7 +21,6 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
 
