@@ -130,31 +130,6 @@ JitConstants BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants(cons
         std::string e_mul = "e_mul" + toCodeString(op_id);
 
         switch (fused_dep.GetType()) {
-            case KernelType::SCALE: {
-                std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float2" : "as_half2";
-                if (fused_dep.tensors.size() == 1) {
-                    std::string var_name = fused_dep_codegen.GetInputVarName(0);
-                    prepare_data += vec_data_type + " " + var_name + " = " + cast_type +
-                                    get_aligned_load2(fused_dep_codegen.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
-                    eltwise_fused_ops += data_type + " " + sc + " = (i < 16) ? " + var_name + ".s0" + " : " + var_name + ".s1;";
-                    eltwise_fused_ops += "res = res*" + sc +";";
-                } else {
-                    std::string var0_name = fused_dep_codegen.GetInputVarName(0);
-                    std::string var1_name = fused_dep_codegen.GetInputVarName(1);
-                    prepare_data += vec_data_type + " " + var0_name + " = " + cast_type +
-                                    get_aligned_load2(fused_dep_codegen.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
-                    prepare_data += vec_data_type + " " + var1_name + " = " + cast_type +
-                                    get_aligned_load2(fused_dep_codegen.GetInputPtrName(1), "f_block*OC_BLOCK_SIZE") + ";";
-                    eltwise_fused_ops +=
-                        data_type + " " + sc + " = (i < 16) ? " + var0_name + ".s0" + " : " + var0_name + ".s1;";
-                    eltwise_fused_ops +=
-                        data_type + " " + sh + " = (i < 16) ? " + var1_name + ".s0" + " : " + var1_name + ".s1;";
-                    eltwise_fused_ops += "res = res*" + sc + " + " + sh + ";";
-                }
-
-                break;
-            }
-
             case KernelType::QUANTIZE: {
                 std::string var_name_in = fused_dep_codegen.GetInputVarName(0);
                 std::string var_name_out = fused_dep_codegen.GetInputVarName(3);

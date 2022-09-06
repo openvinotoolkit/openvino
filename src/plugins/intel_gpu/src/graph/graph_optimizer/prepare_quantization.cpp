@@ -9,7 +9,6 @@
 #include "reshape_inst.h"
 #include "reorder_inst.h"
 #include "binary_convolution_inst.h"
-#include "scale_inst.h"
 #include "eltwise_inst.h"
 #include "data_inst.h"
 #include "pass_manager.h"

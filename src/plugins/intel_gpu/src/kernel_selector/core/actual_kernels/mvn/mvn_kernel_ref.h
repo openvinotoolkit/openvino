@@ -25,8 +25,7 @@ protected:
         return {
             FusedOpType::ACTIVATION,
             FusedOpType::QUANTIZE,
-            FusedOpType::ELTWISE,
-            FusedOpType::SCALE
+            FusedOpType::ELTWISE
         };
     }
     std::string GetKernelName(const mvn_params&) const override;

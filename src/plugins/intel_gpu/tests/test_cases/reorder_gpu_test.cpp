@@ -1406,7 +1406,7 @@ TEST(reorder_gpu_opt, remove_redundant_activation_fuse)
         reorder("r1", "in", format::bfyx, data_types::f32),
         activation("relu", "r1", activation_func::relu_negative_slope, { 0.01f, 0.0f }),
         data("scale_data", scale_mem),
-        scale("output", "relu", "scale_data")
+        eltwise("output", { "relu", "scale_data" }, eltwise_mode::prod)
     };
 
     build_options opts;

@@ -19,7 +19,6 @@ public:
     JitConstants GetJitConstants(const reduce_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
-                 FusedOpType::SCALE,
                  FusedOpType::ELTWISE,
                  FusedOpType::ACTIVATION };
     }

@@ -24,7 +24,6 @@ protected:
     DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
-                 FusedOpType::SCALE,
                  FusedOpType::ACTIVATION,
                  FusedOpType::ELTWISE };
     }
