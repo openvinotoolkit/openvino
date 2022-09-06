@@ -135,32 +135,6 @@ JitConstants BinaryConvolutionKernel1x1::GetFusedPrimitivesJitConstants(const bi
         std::string e_mul = "e_mul" + toCodeString(op_id);
 
         switch (fused_dep.GetType()) {
-            case KernelType::SCALE: {
-                std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float2" : "as_half2";
-                if (fused_dep.tensors.size() == 1) {
-                    std::string var_name = fused_dep_codegen.GetInputVarName(0);
-                    prepare_data += "\\\n\t" + vec_data_type + " " + var_name + " = " + cast_type +
-                                    get_aligned_load2(fused_dep_codegen.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
-                    eltwise_fused_ops += "\\\n\t" + data_type + " " + sc + " = (oc < 16) ? " +
-                                    get_shuffle(var_name + ".s0", "oc") + " : " + get_shuffle(var_name + ".s1", "oc") + ";";
-                    eltwise_fused_ops += "\\\n\tres = res*" + sc + ";";
-                } else {
-                    std::string var0_name = fused_dep_codegen.GetInputVarName(0);
-                    std::string var1_name = fused_dep_codegen.GetInputVarName(1);
-                    prepare_data += "\\\n\t" + vec_data_type + " " + var0_name + " = " + cast_type +
-                                    get_aligned_load2(fused_dep_codegen.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
-                    prepare_data += "\\\n\t" + vec_data_type + " " + var1_name + " = " + cast_type +
-                                    get_aligned_load2(fused_dep_codegen.GetInputPtrName(1), "f_block*OC_BLOCK_SIZE") + ";";
-                    eltwise_fused_ops += "\\\n\t" + data_type + " " + sc +" = (oc < 16) ? " +
-                                    get_shuffle(var0_name + ".s0", "oc") + " : " + get_shuffle(var0_name + ".s1", "oc") + ";";
-                    eltwise_fused_ops += "\\\n\t" + data_type + " " + sh + " = (oc < 16) ? " +
-                                    get_shuffle(var1_name + ".s0", "oc") + " : " + get_shuffle(var1_name + ".s1", "oc") + ";";
-                    eltwise_fused_ops += "\\\n\tres = res*" + sc + " + " + sh + ";";
-                }
-
-                break;
-            }
-
             case KernelType::QUANTIZE: {
                 std::string var_name_in = fused_dep_codegen.GetInputVarName(0);
                 std::string var_name_out = fused_dep_codegen.GetInputVarName(3);

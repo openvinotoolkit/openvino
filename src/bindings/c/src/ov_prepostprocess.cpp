@@ -5,10 +5,10 @@
 
 #include "common.h"
 
-const std::map<ov_preprocess_resizealgorithm_e, ov::preprocess::ResizeAlgorithm> resize_algorithm_map = {
-    {ov_preprocess_resizealgorithm_e::RESIZE_CUBIC, ov::preprocess::ResizeAlgorithm::RESIZE_CUBIC},
-    {ov_preprocess_resizealgorithm_e::RESIZE_LINEAR, ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR},
-    {ov_preprocess_resizealgorithm_e::RESIZE_NEAREST, ov::preprocess::ResizeAlgorithm::RESIZE_NEAREST}};
+const std::map<ov_preprocess_resize_algorithm_e, ov::preprocess::ResizeAlgorithm> resize_algorithm_map = {
+    {ov_preprocess_resize_algorithm_e::RESIZE_CUBIC, ov::preprocess::ResizeAlgorithm::RESIZE_CUBIC},
+    {ov_preprocess_resize_algorithm_e::RESIZE_LINEAR, ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR},
+    {ov_preprocess_resize_algorithm_e::RESIZE_NEAREST, ov::preprocess::ResizeAlgorithm::RESIZE_NEAREST}};
 
 const std::map<ov_color_format_e, ov::preprocess::ColorFormat> color_format_map = {
     {ov_color_format_e::UNDEFINE, ov::preprocess::ColorFormat::UNDEFINED},
@@ -45,13 +45,13 @@ void ov_preprocess_prepostprocessor_free(ov_preprocess_prepostprocessor_t* prepr
         delete preprocess;
 }
 
-ov_status_e ov_preprocess_prepostprocessor_input(const ov_preprocess_prepostprocessor_t* preprocess,
-                                                 ov_preprocess_inputinfo_t** preprocess_input_info) {
+ov_status_e ov_preprocess_prepostprocessor_get_input_info(const ov_preprocess_prepostprocessor_t* preprocess,
+                                                          ov_preprocess_input_info_t** preprocess_input_info) {
     if (!preprocess || !preprocess_input_info) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
-        std::unique_ptr<ov_preprocess_inputinfo_t> _preprocess_input_info(new ov_preprocess_inputinfo_t);
+        std::unique_ptr<ov_preprocess_input_info_t> _preprocess_input_info(new ov_preprocess_input_info_t);
         _preprocess_input_info->object = &(preprocess->object->input());
         *preprocess_input_info = _preprocess_input_info.release();
     }
@@ -60,14 +60,14 @@ ov_status_e ov_preprocess_prepostprocessor_input(const ov_preprocess_prepostproc
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_prepostprocessor_input_by_name(const ov_preprocess_prepostprocessor_t* preprocess,
-                                                         const char* tensor_name,
-                                                         ov_preprocess_inputinfo_t** preprocess_input_info) {
+ov_status_e ov_preprocess_prepostprocessor_get_input_info_by_name(const ov_preprocess_prepostprocessor_t* preprocess,
+                                                                  const char* tensor_name,
+                                                                  ov_preprocess_input_info_t** preprocess_input_info) {
     if (!preprocess || !tensor_name || !preprocess_input_info) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
-        std::unique_ptr<ov_preprocess_inputinfo_t> _preprocess_input_info(new ov_preprocess_inputinfo_t);
+        std::unique_ptr<ov_preprocess_input_info_t> _preprocess_input_info(new ov_preprocess_input_info_t);
         _preprocess_input_info->object = &(preprocess->object->input(tensor_name));
         *preprocess_input_info = _preprocess_input_info.release();
     }
@@ -76,14 +76,14 @@ ov_status_e ov_preprocess_prepostprocessor_input_by_name(const ov_preprocess_pre
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_prepostprocessor_input_by_index(const ov_preprocess_prepostprocessor_t* preprocess,
-                                                          const size_t tensor_index,
-                                                          ov_preprocess_inputinfo_t** preprocess_input_info) {
+ov_status_e ov_preprocess_prepostprocessor_get_input_info_by_index(const ov_preprocess_prepostprocessor_t* preprocess,
+                                                                   const size_t tensor_index,
+                                                                   ov_preprocess_input_info_t** preprocess_input_info) {
     if (!preprocess || !preprocess_input_info) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
-        std::unique_ptr<ov_preprocess_inputinfo_t> _preprocess_input_info(new ov_preprocess_inputinfo_t);
+        std::unique_ptr<ov_preprocess_input_info_t> _preprocess_input_info(new ov_preprocess_input_info_t);
         _preprocess_input_info->object = &(preprocess->object->input(tensor_index));
         *preprocess_input_info = _preprocess_input_info.release();
     }
@@ -92,19 +92,19 @@ ov_status_e ov_preprocess_prepostprocessor_input_by_index(const ov_preprocess_pr
     return ov_status_e::OK;
 }
 
-void ov_preprocess_inputinfo_free(ov_preprocess_inputinfo_t* preprocess_input_info) {
+void ov_preprocess_input_info_free(ov_preprocess_input_info_t* preprocess_input_info) {
     if (preprocess_input_info)
         delete preprocess_input_info;
 }
 
-ov_status_e ov_preprocess_inputinfo_tensor(const ov_preprocess_inputinfo_t* preprocess_input_info,
-                                           ov_preprocess_inputtensorinfo_t** preprocess_input_tensor_info) {
+ov_status_e ov_preprocess_input_info_get_tensor_info(const ov_preprocess_input_info_t* preprocess_input_info,
+                                                     ov_preprocess_input_tensor_info_t** preprocess_input_tensor_info) {
     if (!preprocess_input_info || !preprocess_input_tensor_info) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
-        std::unique_ptr<ov_preprocess_inputtensorinfo_t> _preprocess_input_tensor_info(
-            new ov_preprocess_inputtensorinfo_t);
+        std::unique_ptr<ov_preprocess_input_tensor_info_t> _preprocess_input_tensor_info(
+            new ov_preprocess_input_tensor_info_t);
         _preprocess_input_tensor_info->object = &(preprocess_input_info->object->tensor());
         *preprocess_input_tensor_info = _preprocess_input_tensor_info.release();
     }
@@ -113,18 +113,18 @@ ov_status_e ov_preprocess_inputinfo_tensor(const ov_preprocess_inputinfo_t* prep
     return ov_status_e::OK;
 }
 
-void ov_preprocess_inputtensorinfo_free(ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info) {
+void ov_preprocess_input_tensor_info_free(ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info) {
     if (preprocess_input_tensor_info)
         delete preprocess_input_tensor_info;
 }
 
-ov_status_e ov_preprocess_inputinfo_preprocess(const ov_preprocess_inputinfo_t* preprocess_input_info,
-                                               ov_preprocess_preprocesssteps_t** preprocess_input_steps) {
+ov_status_e ov_preprocess_input_info_get_preprocess_steps(const ov_preprocess_input_info_t* preprocess_input_info,
+                                                          ov_preprocess_preprocess_steps_t** preprocess_input_steps) {
     if (!preprocess_input_info || !preprocess_input_steps) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
-        std::unique_ptr<ov_preprocess_preprocesssteps_t> _preprocess_input_steps(new ov_preprocess_preprocesssteps_t);
+        std::unique_ptr<ov_preprocess_preprocess_steps_t> _preprocess_input_steps(new ov_preprocess_preprocess_steps_t);
         _preprocess_input_steps->object = &(preprocess_input_info->object->preprocess());
         *preprocess_input_steps = _preprocess_input_steps.release();
     }
@@ -133,13 +133,13 @@ ov_status_e ov_preprocess_inputinfo_preprocess(const ov_preprocess_inputinfo_t* 
     return ov_status_e::OK;
 }
 
-void ov_preprocess_preprocesssteps_free(ov_preprocess_preprocesssteps_t* preprocess_input_process_steps) {
+void ov_preprocess_preprocess_steps_free(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps) {
     if (preprocess_input_process_steps)
         delete preprocess_input_process_steps;
 }
 
-ov_status_e ov_preprocess_preprocesssteps_resize(ov_preprocess_preprocesssteps_t* preprocess_input_process_steps,
-                                                 const ov_preprocess_resizealgorithm_e resize_algorithm) {
+ov_status_e ov_preprocess_preprocess_steps_resize(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+                                                  const ov_preprocess_resize_algorithm_e resize_algorithm) {
     if (!preprocess_input_process_steps) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -151,8 +151,8 @@ ov_status_e ov_preprocess_preprocesssteps_resize(ov_preprocess_preprocesssteps_t
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_inputtensorinfo_set_element_type(
-    ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
+ov_status_e ov_preprocess_input_tensor_info_set_element_type(
+    ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
     const ov_element_type_e element_type) {
     if (!preprocess_input_tensor_info) {
         return ov_status_e::INVALID_C_PARAM;
@@ -165,8 +165,8 @@ ov_status_e ov_preprocess_inputtensorinfo_set_element_type(
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_inputtensorinfo_set_from(ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
-                                                   const ov_tensor_t* tensor) {
+ov_status_e ov_preprocess_input_tensor_info_set_from(ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
+                                                     const ov_tensor_t* tensor) {
     if (!preprocess_input_tensor_info || !tensor) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -178,8 +178,8 @@ ov_status_e ov_preprocess_inputtensorinfo_set_from(ov_preprocess_inputtensorinfo
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_inputtensorinfo_set_layout(ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
-                                                     ov_layout_t* layout) {
+ov_status_e ov_preprocess_input_tensor_info_set_layout(ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
+                                                       ov_layout_t* layout) {
     if (!preprocess_input_tensor_info || !layout) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -191,8 +191,8 @@ ov_status_e ov_preprocess_inputtensorinfo_set_layout(ov_preprocess_inputtensorin
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_inputtensorinfo_set_color_format(
-    ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
+ov_status_e ov_preprocess_input_tensor_info_set_color_format(
+    ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
     const ov_color_format_e colorFormat) {
     if (!preprocess_input_tensor_info) {
         return ov_status_e::INVALID_C_PARAM;
@@ -205,8 +205,8 @@ ov_status_e ov_preprocess_inputtensorinfo_set_color_format(
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_inputtensorinfo_set_spatial_static_shape(
-    ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
+ov_status_e ov_preprocess_input_tensor_info_set_spatial_static_shape(
+    ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
     const size_t input_height,
     const size_t input_width) {
     if (!preprocess_input_tensor_info) {
@@ -220,8 +220,8 @@ ov_status_e ov_preprocess_inputtensorinfo_set_spatial_static_shape(
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_preprocesssteps_convert_element_type(
-    ov_preprocess_preprocesssteps_t* preprocess_input_process_steps,
+ov_status_e ov_preprocess_preprocess_steps_convert_element_type(
+    ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
     const ov_element_type_e element_type) {
     if (!preprocess_input_process_steps) {
         return ov_status_e::INVALID_C_PARAM;
@@ -234,8 +234,9 @@ ov_status_e ov_preprocess_preprocesssteps_convert_element_type(
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_preprocesssteps_convert_color(ov_preprocess_preprocesssteps_t* preprocess_input_process_steps,
-                                                        const ov_color_format_e colorFormat) {
+ov_status_e ov_preprocess_preprocess_steps_convert_color(
+    ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+    const ov_color_format_e colorFormat) {
     if (!preprocess_input_process_steps) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -247,13 +248,13 @@ ov_status_e ov_preprocess_preprocesssteps_convert_color(ov_preprocess_preprocess
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_prepostprocessor_output(const ov_preprocess_prepostprocessor_t* preprocess,
-                                                  ov_preprocess_outputinfo_t** preprocess_output_info) {
+ov_status_e ov_preprocess_prepostprocessor_get_output_info(const ov_preprocess_prepostprocessor_t* preprocess,
+                                                           ov_preprocess_output_info_t** preprocess_output_info) {
     if (!preprocess || !preprocess_output_info) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
-        std::unique_ptr<ov_preprocess_outputinfo_t> _preprocess_output_info(new ov_preprocess_outputinfo_t);
+        std::unique_ptr<ov_preprocess_output_info_t> _preprocess_output_info(new ov_preprocess_output_info_t);
         _preprocess_output_info->object = &(preprocess->object->output());
         *preprocess_output_info = _preprocess_output_info.release();
     }
@@ -262,14 +263,15 @@ ov_status_e ov_preprocess_prepostprocessor_output(const ov_preprocess_prepostpro
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_prepostprocessor_output_by_index(const ov_preprocess_prepostprocessor_t* preprocess,
-                                                           const size_t tensor_index,
-                                                           ov_preprocess_outputinfo_t** preprocess_output_info) {
+ov_status_e ov_preprocess_prepostprocessor_get_output_info_by_index(
+    const ov_preprocess_prepostprocessor_t* preprocess,
+    const size_t tensor_index,
+    ov_preprocess_output_info_t** preprocess_output_info) {
     if (!preprocess || !preprocess_output_info) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
-        std::unique_ptr<ov_preprocess_outputinfo_t> _preprocess_output_info(new ov_preprocess_outputinfo_t);
+        std::unique_ptr<ov_preprocess_output_info_t> _preprocess_output_info(new ov_preprocess_output_info_t);
         _preprocess_output_info->object = &(preprocess->object->output(tensor_index));
         *preprocess_output_info = _preprocess_output_info.release();
     }
@@ -278,14 +280,15 @@ ov_status_e ov_preprocess_prepostprocessor_output_by_index(const ov_preprocess_p
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_prepostprocessor_output_by_name(const ov_preprocess_prepostprocessor_t* preprocess,
-                                                          const char* tensor_name,
-                                                          ov_preprocess_outputinfo_t** preprocess_output_info) {
+ov_status_e ov_preprocess_prepostprocessor_get_output_info_by_name(
+    const ov_preprocess_prepostprocessor_t* preprocess,
+    const char* tensor_name,
+    ov_preprocess_output_info_t** preprocess_output_info) {
     if (!preprocess || !tensor_name || !preprocess_output_info) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
-        std::unique_ptr<ov_preprocess_outputinfo_t> _preprocess_output_info(new ov_preprocess_outputinfo_t);
+        std::unique_ptr<ov_preprocess_output_info_t> _preprocess_output_info(new ov_preprocess_output_info_t);
         _preprocess_output_info->object = &(preprocess->object->output(tensor_name));
         *preprocess_output_info = _preprocess_output_info.release();
     }
@@ -294,19 +297,20 @@ ov_status_e ov_preprocess_prepostprocessor_output_by_name(const ov_preprocess_pr
     return ov_status_e::OK;
 }
 
-void ov_preprocess_outputinfo_free(ov_preprocess_outputinfo_t* preprocess_output_info) {
+void ov_preprocess_output_info_free(ov_preprocess_output_info_t* preprocess_output_info) {
     if (preprocess_output_info)
         delete preprocess_output_info;
 }
 
-ov_status_e ov_preprocess_outputinfo_tensor(ov_preprocess_outputinfo_t* preprocess_output_info,
-                                            ov_preprocess_outputtensorinfo_t** preprocess_output_tensor_info) {
+ov_status_e ov_preprocess_output_info_get_tensor_info(
+    ov_preprocess_output_info_t* preprocess_output_info,
+    ov_preprocess_output_tensor_info_t** preprocess_output_tensor_info) {
     if (!preprocess_output_info || !preprocess_output_tensor_info) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
-        std::unique_ptr<ov_preprocess_outputtensorinfo_t> _preprocess_output_tensor_info(
-            new ov_preprocess_outputtensorinfo_t);
+        std::unique_ptr<ov_preprocess_output_tensor_info_t> _preprocess_output_tensor_info(
+            new ov_preprocess_output_tensor_info_t);
         _preprocess_output_tensor_info->object = &(preprocess_output_info->object->tensor());
         *preprocess_output_tensor_info = _preprocess_output_tensor_info.release();
     }
@@ -315,12 +319,12 @@ ov_status_e ov_preprocess_outputinfo_tensor(ov_preprocess_outputinfo_t* preproce
     return ov_status_e::OK;
 }
 
-void ov_preprocess_outputtensorinfo_free(ov_preprocess_outputtensorinfo_t* preprocess_output_tensor_info) {
+void ov_preprocess_output_tensor_info_free(ov_preprocess_output_tensor_info_t* preprocess_output_tensor_info) {
     if (preprocess_output_tensor_info)
         delete preprocess_output_tensor_info;
 }
 
-ov_status_e ov_preprocess_output_set_element_type(ov_preprocess_outputtensorinfo_t* preprocess_output_tensor_info,
+ov_status_e ov_preprocess_output_set_element_type(ov_preprocess_output_tensor_info_t* preprocess_output_tensor_info,
                                                   const ov_element_type_e element_type) {
     if (!preprocess_output_tensor_info) {
         return ov_status_e::INVALID_C_PARAM;
@@ -333,14 +337,14 @@ ov_status_e ov_preprocess_output_set_element_type(ov_preprocess_outputtensorinfo
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_inputinfo_model(ov_preprocess_inputinfo_t* preprocess_input_info,
-                                          ov_preprocess_inputmodelinfo_t** preprocess_input_model_info) {
+ov_status_e ov_preprocess_input_info_get_model_info(ov_preprocess_input_info_t* preprocess_input_info,
+                                                    ov_preprocess_input_model_info_t** preprocess_input_model_info) {
     if (!preprocess_input_info || !preprocess_input_model_info) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
-        std::unique_ptr<ov_preprocess_inputmodelinfo_t> _preprocess_input_model_info(
-            new ov_preprocess_inputmodelinfo_t);
+        std::unique_ptr<ov_preprocess_input_model_info_t> _preprocess_input_model_info(
+            new ov_preprocess_input_model_info_t);
         _preprocess_input_model_info->object = &(preprocess_input_info->object->model());
         *preprocess_input_model_info = _preprocess_input_model_info.release();
     }
@@ -349,13 +353,13 @@ ov_status_e ov_preprocess_inputinfo_model(ov_preprocess_inputinfo_t* preprocess_
     return ov_status_e::OK;
 }
 
-void ov_preprocess_inputmodelinfo_free(ov_preprocess_inputmodelinfo_t* preprocess_input_model_info) {
+void ov_preprocess_input_model_info_free(ov_preprocess_input_model_info_t* preprocess_input_model_info) {
     if (preprocess_input_model_info)
         delete preprocess_input_model_info;
 }
 
-ov_status_e ov_preprocess_inputmodelinfo_set_layout(ov_preprocess_inputmodelinfo_t* preprocess_input_model_info,
-                                                    ov_layout_t* layout) {
+ov_status_e ov_preprocess_input_model_info_set_layout(ov_preprocess_input_model_info_t* preprocess_input_model_info,
+                                                      ov_layout_t* layout) {
     if (!preprocess_input_model_info || !layout) {
         return ov_status_e::INVALID_C_PARAM;
     }
