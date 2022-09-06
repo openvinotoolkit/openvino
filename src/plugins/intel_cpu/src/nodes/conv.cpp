@@ -721,7 +721,6 @@ void Convolution::initSupportedPrimitiveDescriptors() {
             continue;
         for (int i = 0; i < attrs.size(); i++) {
             auto &attr = attrs[i];
-            addZeroPoints(attr);
             auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
             while (static_cast<bool>(itpd)) {
                 NodeConfig config;
