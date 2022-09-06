@@ -491,7 +491,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     auto executor = executorManager()->getIdleCPUStreamsExecutor(
             IStreamsExecutor::Config{"MultiDeviceAsyncLoad",
                                      static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
-                                     1 /*single thread per stream*/,
+                                     0 /*single thread per stream*/,
                                      IStreamsExecutor::ThreadBindingType::NONE});
     executor->runAndWait(loads);
     if (executableNetworkPerDevice.empty())
