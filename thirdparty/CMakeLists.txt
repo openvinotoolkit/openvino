@@ -50,7 +50,10 @@ if(ENABLE_SYSTEM_PUGIXML)
     # try system pugixml first
     find_package(PugiXML QUIET)
     if(PugiXML_FOUND)
-        if(TARGET pugixml::static)
+        if(TARGET pugixml::shared)
+            # example: cross-compilation on debian
+            set(pugixml_target pugixml::shared)
+        elseif(TARGET pugixml::static)
             # sometimes pugixml::static target already exists, just need to make it global
             # example: building using conda environment
             set(pugixml_target pugixml::static)
@@ -243,7 +246,11 @@ else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json/nlohmann_json
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            REGEX .*json/nlohmann_json/test/.* EXCLUDE)
+            REGEX .*json/nlohmann_json/.github/.* EXCLUDE
+            REGEX .*json/nlohmann_json/benchmarks/.* EXCLUDE
+            REGEX .*json/nlohmann_json/doc/.* EXCLUDE
+            REGEX .*json/nlohmann_json/test/.* EXCLUDE
+            REGEX .*json/nlohmann_json/cpplint/.* EXCLUDE)
 endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
