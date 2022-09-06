@@ -33,7 +33,7 @@ if(NOT ANDROID)
                           zlib)
         if(zlib_FOUND)
             add_library(zlib::zlib ALIAS PkgConfig::zlib)
-            message(STATUS "zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
+            message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
         endif()
     endif()
 endif()
@@ -50,7 +50,10 @@ if(ENABLE_SYSTEM_PUGIXML)
     # try system pugixml first
     find_package(PugiXML QUIET)
     if(PugiXML_FOUND)
-        if(TARGET pugixml::static)
+        if(TARGET pugixml::shared)
+            # example: cross-compilation on debian
+            set(pugixml_target pugixml::shared)
+        elseif(TARGET pugixml::static)
             # sometimes pugixml::static target already exists, just need to make it global
             # example: building using conda environment
             set(pugixml_target pugixml::static)
@@ -169,10 +172,9 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         find_package(Protobuf 3.18.2 REQUIRED)
         set(Protobuf_LITE_LIBRARIES protobuf::libprotobuf-lite)
         set(Protobuf_LIBRARIES protobuf::libprotobuf)
-        set(SYSTEM_PROTOC protobuf::protoc)
-        set(PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
+        set(PROTOC_EXECUTABLE protobuf::protoc)
 
-        foreach(target ${SYSTEM_PROTOC} ${Protobuf_LIBRARIES} ${Protobuf_LITE_LIBRARIES})
+        foreach(target ${PROTOC_EXECUTABLE} ${Protobuf_LIBRARIES} ${Protobuf_LITE_LIBRARIES})
             set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL ON)
         endforeach()
     else()
@@ -180,7 +182,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
     endif()
 
     # forward variables used in the other places
-    set(SYSTEM_PROTOC ${SYSTEM_PROTOC} PARENT_SCOPE)
+    set(PROTOC_DEPENDENCY ${PROTOC_DEPENDENCY} PARENT_SCOPE)
     set(PROTOC_EXECUTABLE ${PROTOC_EXECUTABLE} PARENT_SCOPE)
     set(Protobuf_LIBRARIES ${Protobuf_LIBRARIES} PARENT_SCOPE)
     set(Protobuf_LITE_LIBRARIES ${Protobuf_LITE_LIBRARIES} PARENT_SCOPE)
@@ -244,7 +246,11 @@ else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json/nlohmann_json
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            REGEX .*json/nlohmann_json/test/.* EXCLUDE)
+            REGEX .*json/nlohmann_json/.github/.* EXCLUDE
+            REGEX .*json/nlohmann_json/benchmarks/.* EXCLUDE
+            REGEX .*json/nlohmann_json/doc/.* EXCLUDE
+            REGEX .*json/nlohmann_json/test/.* EXCLUDE
+            REGEX .*json/nlohmann_json/cpplint/.* EXCLUDE)
 endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy

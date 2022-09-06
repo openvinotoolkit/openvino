@@ -6,36 +6,82 @@ macro(ov_find_package_tbb)
     if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
 
         if(NOT ENABLE_SYSTEM_TBB)
-            set(_find_package_no_args NO_SYSTEM_ENVIRONMENT_PATH
-                                      NO_CMAKE_SYSTEM_PATH)
+            if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
+                set(_no_cmake_install_prefix NO_CMAKE_INSTALL_PREFIX)
+            endif()
+
+            # Note, we explicitly:
+            # don't set NO_CMAKE_PATH to allow -DTBB_DIR=XXX
+            # don't set NO_CMAKE_ENVIRONMENT_PATH to allow env TBB_DIR=XXX
+            set(_find_package_no_args NO_PACKAGE_ROOT_PATH
+                                      NO_CMAKE_ENVIRONMENT_PATH
+                                      NO_SYSTEM_ENVIRONMENT_PATH
+                                      NO_CMAKE_PACKAGE_REGISTRY
+                                      NO_CMAKE_SYSTEM_PATH
+                                      ${_no_cmake_install_prefix}
+                                      NO_CMAKE_SYSTEM_PACKAGE_REGISTRY)
+
+            unset(_no_cmake_install_prefix)
         endif()
 
         find_package(TBB QUIET COMPONENTS tbb tbbmalloc
                      ${_find_package_no_args})
 
         if(NOT TBB_FOUND)
-            # system TBB failed to be found
-            set(ENABLE_SYSTEM_TBB OFF)
-
             # remove invalid TBB_DIR=TBB_DIR-NOTFOUND from cache
             unset(TBB_DIR CACHE)
             unset(TBB_DIR)
 
-            # TBB on system is not found, download prebuilt one
-            # if TBBROOT env variable is not defined
-            ov_download_tbb()
+            # try tbb.pc from system
+            if(NOT ANDROID AND ENABLE_SYSTEM_TBB)
+                find_package(PkgConfig QUIET)
+                if(PkgConfig_FOUND)
+                    pkg_search_module(tbb QUIET
+                                      IMPORTED_TARGET GLOBAL
+                                      tbb)
+                    if(tbb_FOUND)
+                        if(TARGET PkgConfig::tbb)
+                            add_library(TBB::tbb ALIAS PkgConfig::tbb)
+                            set(TBB_VERSION ${tbb_VERSION})
+                            set(TBB_FOUND ${tbb_FOUND})
+                            message(STATUS "${PKG_CONFIG_EXECUTABLE}: tbb (${tbb_VERSION}) is found at ${tbb_PREFIX}")
+                        else()
+                            # unset since it affects OpenVINOConfig.cmake.in
+                            unset(tbb_FOUND)
+                            unset(tbb_FOUND CACHE)
 
-            # fallback variant for TBB 2018 and older where TBB have not had cmake interface
-            if(DEFINED TBBROOT OR DEFINED ENV{TBBROOT})
-                set(_tbb_paths PATHS ${IEDevScripts_DIR})
+                            if(CPACK_GENERATOR STREQUAL "DEB")
+                                # debian cpack generator requires system TBB
+                                set(message_type FATAL_ERROR)
+                            else()
+                                set(message_type WARNING)
+                            endif()
+                            message(${message_type} "cmake v${CMAKE_VERSION} contains bug in function 'pkg_search_module', need to update to at least v3.16.0 version")
+                        endif()
+                    endif()
+                endif()
             endif()
 
-            # try to find one more time
-            find_package(TBB QUIET COMPONENTS tbb tbbmalloc
-                         # can be provided by ov_download_tbb
-                         HINTS ${TBB_DIR}
-                         ${_tbb_paths}
-                         ${_find_package_no_args})
+            if(NOT TBB_FOUND)
+                # system TBB failed to be found
+                set(ENABLE_SYSTEM_TBB OFF)
+
+                # TBB on system is not found, download prebuilt one
+                # if TBBROOT env variable is not defined
+                ov_download_tbb()
+
+                # fallback variant for TBB 2018 and older where TBB have not had cmake interface
+                if(DEFINED TBBROOT OR DEFINED ENV{TBBROOT})
+                    set(_tbb_paths PATHS ${IEDevScripts_DIR})
+                endif()
+
+                # try to find one more time
+                find_package(TBB QUIET COMPONENTS tbb tbbmalloc
+                            # can be provided by ov_download_tbb
+                            HINTS ${TBB_DIR}
+                            ${_tbb_paths}
+                            ${_find_package_no_args})
+            endif()
         endif()
 
         # WA for oneTBB: it does not define TBB_IMPORTED_TARGETS
@@ -50,7 +96,7 @@ macro(ov_find_package_tbb)
         if(NOT TBB_FOUND)
             set(THREADING "SEQ")
             set(ENABLE_TBBBIND_2_5 OFF)
-            message(WARNING "TBB was not found by the configured TBB_DIR/TBBROOT path.\
+            message(WARNING "TBB was not found by the configured TBB_DIR / TBBROOT path.\
                              SEQ method will be used.")
         else()
             message(STATUS "TBB (${TBB_VERSION}) is found at ${TBB_DIR}")
