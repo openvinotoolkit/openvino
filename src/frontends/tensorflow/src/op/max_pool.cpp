@@ -19,10 +19,10 @@ OutputVector translate_max_pool_util(const NodeContext& node,
                                      size_t spatial_dims_num,
                                      const std::vector<int64_t>& tf_kernel_sizes,
                                      const std::vector<int64_t>& tf_strides) {
-    default_op_checks(node, 1, {"MaxPool2D", "MaxPool3D"});
+    default_op_checks(node, 1, {"MaxPool", "MaxPoolV2", "MaxPool3D"});
     TENSORFLOW_OP_VALIDATION(node,
                              spatial_dims_num == 2 || spatial_dims_num == 3,
-                             "Only MaxPool2D and MaxPool3D are supported.");
+                             "Only MaxPool, MaxPoolV2 and MaxPool3D are supported.");
     auto input = node.get_input(0);
 
     auto tf_padding_type = node.get_attribute<std::string>("padding");
@@ -38,7 +38,7 @@ OutputVector translate_max_pool_util(const NodeContext& node,
     if (spatial_dims_num == 2) {
         TENSORFLOW_OP_VALIDATION(node,
                                  tf_data_format == "NHWC" || tf_data_format == "NCHW",
-                                 "MaxPool2D or MaxPoolV2 data format is neither NHWC nor NCHW");
+                                 "MaxPool or MaxPoolV2 data format is neither NHWC nor NCHW");
         is_nhwc = (tf_data_format == "NHWC");
     } else {
         TENSORFLOW_OP_VALIDATION(node,

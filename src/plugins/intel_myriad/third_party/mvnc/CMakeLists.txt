@@ -23,7 +23,7 @@ target_include_directories(${TARGET_NAME}
                 ${XLINK_PLATFORM_INCLUDE})
 
 target_compile_definitions(${TARGET_NAME}
-        PRIVATE
+    PRIVATE
         __PC__
         HAVE_STRUCT_TIMESPEC
         _CRT_SECURE_NO_WARNINGS
@@ -35,17 +35,17 @@ endif()
 
 if(NOT WIN32)
     target_compile_options(${TARGET_NAME}
-            PRIVATE
+        PRIVATE
             -Wformat
             -Wformat-security
             -Wall)
     if(CMAKE_C_COMPILER_VERSION VERSION_GREATER 4.8.5)
         target_compile_options(${TARGET_NAME}
-                PRIVATE
+            PRIVATE
                 -fstack-protector-strong)
     else()
         target_compile_options(${TARGET_NAME}
-                PRIVATE
+            PRIVATE
                 -fstack-protector)
     endif()
 
@@ -57,19 +57,17 @@ if(NOT WIN32)
 endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES
-        POSITION_INDEPENDENT_CODE TRUE
         COMPILE_PDB_NAME ${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME}
-        PRIVATE
+    PRIVATE
         XLink)
 
 if(NOT WIN32)
     target_link_libraries(${TARGET_NAME}
-            PUBLIC
+        PUBLIC
             Threads::Threads
-            ${CMAKE_DL_LIBS}
-            ${LIBUSB_LIBRARY})
+            ${CMAKE_DL_LIBS})
 endif()
 
 openvino_developer_export_targets(COMPONENT vpu TARGETS ${TARGET_NAME})

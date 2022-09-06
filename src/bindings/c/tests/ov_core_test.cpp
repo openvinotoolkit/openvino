@@ -264,8 +264,56 @@ TEST_P(ov_core, ov_core_set_multiple_common_properties) {
     OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key_4, &property_value_4));
     EXPECT_STREQ(property_value_4, "YES");
     ov_free(property_value_4);
-
     ov_core_free(core);
+}
+
+TEST_P(ov_core, ov_core_set_multiple_properties) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    ov_properties_t properties;
+    OV_ASSERT_OK(ov_properties_create(&properties, 3));
+
+    const char* key_1 = ov_property_key_hint_performance_mode;
+    ov_performance_mode_e mode = ov_performance_mode_e::THROUGHPUT;
+    ov_any_t value_1 = {(void*)&mode, 1, ov_any_type_e::ENUM};
+    properties.list[0].key = key_1;
+    properties.list[0].value = value_1;
+
+    const char* key_2 = ov_property_key_cache_dir;
+    const char cache_dir[] = "./cache_dir";
+    ov_any_t value_2 = {(void*)cache_dir, sizeof(cache_dir), ov_any_type_e::CHAR};
+    properties.list[1].key = key_2;
+    properties.list[1].value = value_2;
+
+    const char* key_3 = ov_property_key_hint_num_requests;
+    int32_t num = 8;
+    ov_any_t value_3 = {(void*)&num, 1, ov_any_type_e::UINT32};
+    properties.list[2].key = key_3;
+    properties.list[2].value = value_3;
+
+    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), &properties));
+
+    ov_any_t property_value_1;
+    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key_1, &property_value_1));
+    int32_t res_1 = *(ov_performance_mode_e*)property_value_1.ptr;
+    EXPECT_EQ(mode, res_1);
+    ov_any_free(&property_value_1);
+
+    ov_any_t property_value_2;
+    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key_2, &property_value_2));
+    EXPECT_STREQ(cache_dir, (char*)property_value_2.ptr);
+    ov_any_free(&property_value_2);
+
+    ov_any_t property_value_3;
+    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key_3, &property_value_3));
+    int32_t res_3 = *(int32_t*)property_value_3.ptr;
+    EXPECT_EQ(num, res_3);
+    ov_any_free(&property_value_3);
+
+    ov_properties_free(&properties);
 }
 
 TEST(ov_core, ov_core_get_available_devices) {

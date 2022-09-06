@@ -7,6 +7,9 @@
 
 #include "common.h"
 
+//!<  Read-only property<char *> to get a string list of supported read-only properties.
+const char* ov_property_key_supported_properties_ = "SUPPORTED_PROPERTIES";
+
 ov_status_e ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compiled_model, ov_model_t** model) {
     if (!compiled_model || !model) {
         return ov_status_e::INVALID_C_PARAM;
