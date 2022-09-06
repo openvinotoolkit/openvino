@@ -100,7 +100,14 @@ bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inpu
         ov::Shape output_shape = output_shapes[split_pos++].get_shape();
         upper_bounds[axis] += output_shape[axis];
         output->set_shape(output_shape);
-        variadic_split::evaluate(data_tensor, output, lower_bounds, upper_bounds);
+
+        auto has_nonzero_dims = std::all_of(output_shape.begin(), output_shape.end(), [](size_t dim) {
+            return dim != 0;
+        });
+
+        if (has_nonzero_dims) {
+            variadic_split::evaluate(data_tensor, output, lower_bounds, upper_bounds);
+        }
         lower_bounds.at(axis) = upper_bounds.at(axis);
     }
 
