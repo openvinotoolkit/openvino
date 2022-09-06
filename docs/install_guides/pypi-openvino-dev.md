@@ -136,6 +136,7 @@ Users in China might encounter errors while downloading sources via PIP during O
    ``` sh
    pip install openvino-dev -i https://mirrors.aliyun.com/pypi/simple/
    ```
+   Use the ``--trusted-host`` parameter if the URL above is ``http`` instead of ``https``.
    You can also run the following command to install openvino-dev with specific frameworks. For example:
    
    ```
