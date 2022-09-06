@@ -36,7 +36,7 @@ TEST(ov_model, ov_model_const_input_by_name) {
 
     ov_shape_t shape;
     OV_ASSERT_OK(ov_const_port_get_shape(input_port, &shape));
-    ov_shape_deinit(&shape);
+    ov_shape_free(&shape);
 
     ov_output_const_port_free(input_port);
     ov_model_free(model);
@@ -58,7 +58,7 @@ TEST(ov_model, ov_model_const_input_by_index) {
 
     ov_shape_t shape;
     OV_ASSERT_OK(ov_const_port_get_shape(input_port, &shape));
-    ov_shape_deinit(&shape);
+    ov_shape_free(&shape);
 
     ov_output_const_port_free(input_port);
     ov_model_free(model);
@@ -160,7 +160,7 @@ TEST(ov_model, ov_model_const_output_by_index) {
 
     ov_shape_t shape;
     OV_ASSERT_OK(ov_const_port_get_shape(output_port, &shape));
-    ov_shape_deinit(&shape);
+    ov_shape_free(&shape);
 
     ov_output_const_port_free(output_port);
     ov_model_free(model);
@@ -182,7 +182,7 @@ TEST(ov_model, ov_model_const_output_by_name) {
 
     ov_shape_t shape;
     OV_ASSERT_OK(ov_const_port_get_shape(output_port, &shape));
-    ov_shape_deinit(&shape);
+    ov_shape_free(&shape);
 
     ov_output_const_port_free(output_port);
     ov_model_free(model);
@@ -222,7 +222,7 @@ TEST(ov_model, ov_model_output_by_index) {
 
     ov_shape_t shape;
     OV_ASSERT_OK(ov_port_get_shape(output_port, &shape));
-    ov_shape_deinit(&shape);
+    ov_shape_free(&shape);
 
     ov_output_port_free(output_port);
     ov_model_free(model);
@@ -244,7 +244,7 @@ TEST(ov_model, ov_model_output_by_name) {
 
     ov_shape_t shape;
     OV_ASSERT_OK(ov_port_get_shape(output_port, &shape));
-    ov_shape_deinit(&shape);
+    ov_shape_free(&shape);
 
     ov_output_port_free(output_port);
     ov_model_free(model);

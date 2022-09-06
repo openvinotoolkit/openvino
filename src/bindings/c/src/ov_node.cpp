@@ -35,7 +35,7 @@ ov_status_e ov_port_get_shape(ov_output_port_t* port, ov_shape_t* tensor_shape) 
     return ov_status_e::OK;
 }
 
-ov_status_e ov_port_get_any_name(ov_output_const_port_t* port, char** tensor_name) {
+ov_status_e ov_port_get_any_name(const ov_output_const_port_t* port, char** tensor_name) {
     if (!port || !tensor_name) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -48,7 +48,7 @@ ov_status_e ov_port_get_any_name(ov_output_const_port_t* port, char** tensor_nam
     return ov_status_e::OK;
 }
 
-ov_status_e ov_port_get_partial_shape(const ov_output_const_port_t* port, ov_partial_shape_t** partial_shape) {
+ov_status_e ov_port_get_partial_shape(const ov_output_const_port_t* port, ov_partial_shape_t* partial_shape) {
     if (!port || !partial_shape) {
         return ov_status_e::INVALID_C_PARAM;
     }

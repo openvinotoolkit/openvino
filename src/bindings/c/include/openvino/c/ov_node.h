@@ -61,7 +61,7 @@ ov_port_get_any_name(const ov_output_const_port_t* port, char** tensor_name);
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_port_get_partial_shape(const ov_output_const_port_t* port, ov_partial_shape_t** partial_shape);
+ov_port_get_partial_shape(const ov_output_const_port_t* port, ov_partial_shape_t* partial_shape);
 
 /**
  * @brief Get the tensor type of port.

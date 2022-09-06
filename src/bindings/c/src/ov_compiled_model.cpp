@@ -24,49 +24,6 @@ ov_status_e ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compi
     return ov_status_e::OK;
 }
 
-<<<<<<< HEAD
-ov_status_e ov_compiled_model_inputs(const ov_compiled_model_t* compiled_model,
-                                     ov_output_const_node_list_t* input_ports) {
-    if (!compiled_model || !input_ports) {
-        return ov_status_e::INVALID_C_PARAM;
-    }
-
-    try {
-        auto inputs = compiled_model->object->inputs();
-        size_t num = inputs.size();
-        input_ports->size = num;
-        std::unique_ptr<ov_output_const_port_t[]> _output_ports(new ov_output_const_port_t[num]);
-        for (size_t i = 0; i < num; i++) {
-            _output_ports[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(inputs[i]));
-        }
-        input_ports->ports = _output_ports.release();
-    }
-    CATCH_OV_EXCEPTIONS
-
-    return ov_status_e::OK;
-}
-
-ov_status_e ov_compiled_model_outputs(const ov_compiled_model_t* compiled_model,
-                                      ov_output_const_node_list_t* output_ports) {
-    if (!compiled_model || !output_ports) {
-        return ov_status_e::INVALID_C_PARAM;
-    }
-
-    try {
-        auto outputs = compiled_model->object->outputs();
-        size_t num = outputs.size();
-        output_ports->size = num;
-        std::unique_ptr<ov_output_const_port_t[]> _output_ports(new ov_output_const_port_t[num]);
-        for (size_t i = 0; i < num; i++) {
-            _output_ports[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(outputs[i]));
-        }
-        output_ports->ports = _output_ports.release();
-    }
-    CATCH_OV_EXCEPTIONS
-
-    return ov_status_e::OK;
-}
-
 ov_status_e ov_compiled_model_create_infer_request(const ov_compiled_model_t* compiled_model,
                                                    ov_infer_request_t** infer_request) {
     if (!compiled_model || !infer_request) {
