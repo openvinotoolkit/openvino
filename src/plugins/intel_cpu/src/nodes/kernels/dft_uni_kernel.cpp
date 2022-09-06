@@ -49,12 +49,15 @@ void jit_uni_dft_kernel_f32<isa>::generate() {
         cmp(aux_reg_work_amount, step);
         jl(main_loop_end_label, T_NEAR);
 
-        uni_vpshufd(vmm_data, ptr[reg_src], 0b01000001);
-        uni_vpshufd(vmm_twiddles, ptr[reg_twiddles], 0b01000100);
+        uni_vmovups(vmm_data_cache, ptr[reg_src]);
+        uni_vmovups(vmm_twiddles_cache, ptr[reg_twiddles]);
+
+        uni_vshufps(vmm_data, vmm_data_cache, vmm_data_cache, 0b01000001);
+        uni_vshufps(vmm_twiddles, vmm_twiddles_cache, vmm_twiddles_cache, 0b01000100);
         uni_vfmadd231ps(vmm_sum, vmm_data, vmm_twiddles);
 
-        uni_vpshufd(vmm_data, ptr[reg_src], 0b11101011);
-        uni_vpshufd(vmm_twiddles, ptr[reg_twiddles], 0b11101110);
+        uni_vshufps(vmm_data, vmm_data_cache, vmm_data_cache, 0b11101011);
+        uni_vshufps(vmm_twiddles, vmm_twiddles_cache, vmm_twiddles_cache, 0b11101110);
         uni_vfmadd231ps(vmm_sum, vmm_data, vmm_twiddles);
 
         add(reg_twiddles, 2 * step * sizeof(float));
@@ -85,8 +88,10 @@ void jit_uni_dft_kernel_f32<isa>::generate() {
         cmp(aux_reg_work_amount, 1);
         jl(tail_loop_end_label, T_NEAR);
 
-        uni_vpshufd(xmm_data, ptr[reg_src], 0b01000001);
-        uni_vpshufd(xmm_twiddles, ptr[reg_twiddles], 0b01000100);
+        uni_vmovups(xmm_data, ptr[reg_src]);
+        uni_vmovups(xmm_twiddles, ptr[reg_twiddles]);
+        uni_vshufps(xmm_data, xmm_data, xmm_data, 0b01000001);
+        uni_vshufps(xmm_twiddles, xmm_twiddles, xmm_twiddles, 0b01000100);
         uni_vfmadd231ps(xmm_sum, xmm_data, xmm_twiddles);
 
         add(reg_twiddles, 2 * sizeof(float));
@@ -211,7 +216,7 @@ void jit_uni_fft_kernel_f32<isa>::loop_process(int step) {
         jl(loop_end_label, T_NEAR);
 
         move_data(reg_data_odd_1, ptr[reg_src + reg_even_in_diff], step);
-        uni_vpshufd(reg_data_odd_2, reg_data_odd_1, 0b10110001);
+        uni_vshufps(reg_data_odd_2, reg_data_odd_1, reg_data_odd_1, 0b10110001);
         uni_vmulps(reg_data_odd_2, reg_data_odd_2, reg_twiddle_imag);
 
         if (mayiuse(cpu::x64::avx512_core)) {

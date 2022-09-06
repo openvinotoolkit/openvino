@@ -90,6 +90,8 @@ private:
     Vmm vmm_twiddles = Vmm(1);
     Vmm vmm_sum = Vmm(2);
     Vmm vmm_sum_2 = vmm_data;
+    Vmm vmm_data_cache = Vmm(3);
+    Vmm vmm_twiddles_cache = Vmm(4);
 
     Xbyak::Xmm xmm_data = Xbyak::Xmm(0);
     Xbyak::Xmm xmm_twiddles = Xbyak::Xmm(1);
