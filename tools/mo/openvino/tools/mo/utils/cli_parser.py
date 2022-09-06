@@ -12,6 +12,7 @@ from itertools import zip_longest
 from pathlib import Path
 from operator import xor
 from typing import List, Union
+import numbers
 
 import numpy as np
 from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type
@@ -96,7 +97,7 @@ def str_list_to_str(values):
                 raise Error("Incorrect argument. {} expected to string, got type {}.".format(value, type(value)))
         return ','.join(values)
     else:
-        Error("Incorrect argument. {} expected to string or list of strings, got type {}.".format(values, type(values)))
+        raise Error("Incorrect argument. {} expected to string or list of strings, got type {}.".format(values, type(values)))
 
 
 def dimension_to_str(dim: Dimension):
@@ -180,6 +181,8 @@ def value_to_str(value, separator):
     if isinstance(value, list):
         values = []
         for x in value:
+            if not isinstance(x, numbers.Number):
+                raise Exception("Incorrect value type. Expected numeric value, got {}".format(type(x)))
             values.append(str(x))
         return "[" + separator.join(values) + "]"
     if isinstance(value, bool):
@@ -202,6 +205,7 @@ def single_input_to_str(input):
         if input.value is not None:
             input_str += "->" + value_to_str(input.value, " ")
         return input_str
+    raise Exception("Unexpected type of input. Expected openvino.tools.mo.InputCutInfo or str. Got {}".format(type(input)))
 
 
 def input_to_str(input):
@@ -234,6 +238,7 @@ def mean_scale_value_to_str(value):
         for val in value:
             if isinstance(val, list) or isinstance(val, tuple):
                 list_of_lists = True
+                break
         if list_of_lists:
             values_str = []
             for val in value:

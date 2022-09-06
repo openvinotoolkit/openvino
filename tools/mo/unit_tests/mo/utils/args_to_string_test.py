@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+from generator import generator, generate
 from openvino.runtime import Layout, PartialShape, Dimension, Shape
 
 from openvino.tools.mo import InputCutInfo, LayoutMap
@@ -10,6 +11,7 @@ from openvino.tools.mo.utils.cli_parser import input_to_str, mean_scale_value_to
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 
 
+@generator
 class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
     def test_input_to_str(self):
         inp1 = InputCutInfo(name="data:0", shape=None, type=None, value=None)
@@ -148,3 +150,18 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
 
         self.assertTrue(layout_param_to_str(layout) == "input1([N,?,?]),input2([N,H,W,C]->nchw),"
                                                        "input3(abc->cab),input4([N,H,W,C]),input5(n?)")
+
+    @generate(*[
+                (input_to_str, 'input'),
+                (mean_scale_value_to_str, 'value'),
+                (transform_param_to_str, 'value'),
+                (input_shape_to_str, 'input_shape'),
+                (str_list_to_str, 'values'),
+                (source_target_layout_to_str, 'value'),
+                (layout_param_to_str, 'value'),
+                ])
+    def test_negative(self, method, param_name):
+        self.assertRaises(Exception, method, **{param_name: ('inp', (1, 2, 3))})
+        self.assertRaises(Exception, method, **{param_name: [InputCutInfo("inp", None, None, None), ('inp', (1, 2, 3))]})
+        self.assertRaises(Exception, method, **{param_name: {'inp', LayoutMap('ab', 'ba')}})
+        self.assertRaises(Exception, method, **{param_name: [None, None]})
