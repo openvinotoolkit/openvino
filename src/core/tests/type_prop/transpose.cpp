@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "dimension_tracker.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
@@ -252,6 +253,37 @@ protected:
     void SetUp() override {
         std::tie(transpose_order, input_p_shape, exp_p_shape) = GetParam();
     }
+
+    vector<size_t> make_sqe_labels(const size_t first, const size_t count) {
+        vector<size_t> labels;
+        generate_n(std::back_inserter(labels), count, SeqGen<size_t>(first));
+        return labels;
+    }
+
+    vector<size_t> make_seq_labels_by_order(const size_t first, const vector<int64_t> order) {
+        vector<size_t> labels;
+        transform(order.cbegin(), order.cend(), back_inserter(labels), [&first](const int64_t& dim) {
+            return dim + first;
+        });
+        return labels;
+    }
+
+    void set_labels(const vector<size_t>& labels, PartialShape& p_shape) {
+        ASSERT_EQ(labels.size(), p_shape.size());
+        auto label_it = labels.begin();
+
+        std::for_each(p_shape.begin(), p_shape.end(), [&label_it](Dimension& dim) {
+            ov::DimensionTracker::set_label(dim, *label_it++);
+        });
+    }
+
+    vector<size_t> get_labels(const PartialShape& p_shape) {
+        vector<size_t> labels;
+        transform(p_shape.cbegin(), p_shape.cend(), back_inserter(labels), [](const Dimension& dim) {
+            return ov::DimensionTracker::get_label(dim);
+        });
+        return labels;
+    }
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -285,4 +317,24 @@ TEST_P(TransposeTest, propagate_interval_shape) {
 
     EXPECT_EQ(output->get_output_element_type(0), exp_type);
     EXPECT_EQ(output->get_output_partial_shape(0), exp_p_shape);
+}
+
+/**
+ * \brief Check labels propagation for all dimensions.
+ *
+ * The labels should be moved accordingly to transpose order.
+ */
+TEST_P(TransposeTest, propagate_labels) {
+    constexpr size_t first_label = 33;
+
+    const auto labels = make_sqe_labels(first_label, transpose_order.size());
+    const auto exp_labels = make_seq_labels_by_order(first_label, transpose_order);
+
+    set_labels(labels, input_p_shape);
+
+    const auto input = make_shared<op::Parameter>(exp_type, input_p_shape);
+    const auto order = op::Constant::create(element::i64, Shape{transpose_order.size()}, transpose_order);
+    const auto output = make_shared<op::Transpose>(input, order);
+
+    ASSERT_EQ(get_labels(output->get_output_partial_shape(0)), exp_labels);
 }

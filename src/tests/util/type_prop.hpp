@@ -14,3 +14,22 @@ struct PrintToDummyParamName {
         return "dummy" + std::to_string(info.index);
     }
 };
+
+/**
+ * \brief Infinite generator of sequence increasing values.
+ *
+ * Start value can be specified.
+ *
+ * \tparam T Type of sequence values (must support `++` operator).
+ */
+template <class T>
+class SeqGen {
+    T _counter;
+
+public:
+    SeqGen(const T& start) : _counter{start} {}
+
+    T operator()() {
+        return _counter++;
+    }
+};
