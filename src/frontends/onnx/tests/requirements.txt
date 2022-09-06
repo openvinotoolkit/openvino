@@ -1,5 +1,5 @@
 # ONNX - generate test models
 docopt~=0.6.2
-onnx==1.11.0; python_version == "3.6"
-onnx==1.12.0; python_version > "3.6"
+onnx==1.11.0; python_version == "3.6*"
+onnx==1.12.0; python_version >= "3.7"
 protobuf>=3.18.1,<4.0.0

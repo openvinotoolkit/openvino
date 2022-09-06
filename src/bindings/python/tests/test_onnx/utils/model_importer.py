@@ -33,9 +33,9 @@ from typing import (
 if getattr(OnnxTestCase, "_fields", None):
     ExtOnnxTestCase = namedtuple("TestCaseExt", OnnxTestCase._fields + ("post_processing",))
 else:  # for ONNX >= 1.12
-    ExtOnnxTestCase = namedtuple("TestCaseExt",
-                                 tuple((field.name for field in dataclasses.fields(OnnxTestCase))) + ("post_processing",),
-                                 rename=True)
+    OnnxTestCase_fields = [field.name for field in dataclasses.fields(OnnxTestCase)]
+    ExtOnnxTestCase = dataclasses.make_dataclass(cls_name="TestCaseExt",
+                                                 fields=[*OnnxTestCase_fields, "post_processing"])
 
 
 class ModelImportRunner(onnx.backend.test.BackendTest):
