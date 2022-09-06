@@ -29,6 +29,7 @@ using namespace dnnl::impl::cpu;
 class RegistersPool {
 public:
     using Ptr = std::shared_ptr<RegistersPool>;
+    static constexpr int anyIdx = -1;
 
     /**
      * The scoped wrapper for the Xbyak registers.
@@ -36,15 +37,21 @@ public:
      * It could be created by using constructor with RegistersPool as an argument, like the next:
      *      const RegistersPool::Reg<Xbyak::Reg64> reg {regPool};
      * The destructor will return the register to the pool. Or it could be returned manually:
-     *      reg.returnToPool();
+     *      reg.release();
      * @tparam TReg Xbyak register class
      */
     template<typename TReg>
     class Reg {
         friend class RegistersPool;
     public:
-        Reg(const RegistersPool::Ptr& regPool);
-        ~Reg() { returnToPool(); }
+        Reg() {
+            static_assert(std::is_same<TReg, Xbyak::Xmm>::value || std::is_same<TReg, Xbyak::Ymm>::value || std::is_same<TReg, Xbyak::Zmm>::value ||
+                          std::is_same<TReg, Xbyak::Reg64>::value || std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Opmask>::value,
+                          "The type is not supported for the RegistersPool::Reg template");
+        }
+        Reg(const RegistersPool::Ptr& regPool) { initialize(regPool); }
+        Reg(const RegistersPool::Ptr& regPool, int requestedIdx) { initialize(regPool, requestedIdx); }
+        ~Reg() { release(); }
         Reg& operator=(Reg&& other)  noexcept {
             reg = other.reg;
             regPool = std::move(other.regPool);
@@ -59,18 +66,24 @@ public:
             lhs.ensureValid();
             return lhs.operator Xbyak::RegExp() + rhs;
         }
-        void returnToPool() {
+        void release() {
             if (regPool) {
                 regPool->returnToPool(reg);
+                regPool.reset();
             }
-            regPool.reset();
         }
 
     private:
         void ensureValid() const {
             if (!regPool) {
-                IE_THROW() << "Invalid instance of RegistersPool::Reg was used";
+                IE_THROW() << "RegistersPool::Reg is either not initialized or released";
             }
+        }
+
+        void initialize(const RegistersPool::Ptr& pool, int requestedIdx = anyIdx) {
+            release();
+            reg = TReg(pool->template getFree<TReg>(requestedIdx));
+            regPool = pool;
         }
 
     private:
@@ -99,48 +112,68 @@ public:
 protected:
     class PhysicalSet {
     public:
-        PhysicalSet(int size)
-                : size(size) {
-            for (int i = 0; i < size; ++i) {
-                unusedIndexes.emplace(i);
-            }
-        }
+        PhysicalSet(int size) : isFreeIndexVector(size, true) {}
 
         void setAsUsed(int regIdx) {
-            assert(regIdx < size && regIdx >= 0);
-            auto it = unusedIndexes.find(regIdx);
-            if (it == unusedIndexes.end()) {
+            if (regIdx >= isFreeIndexVector.size() || regIdx < 0) {
+                IE_THROW() << "regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()";
+            }
+            if (!isFreeIndexVector[regIdx]) {
                 IE_THROW() << "Inconsistency in RegistersPool::PhysicalSet::setAsUsed()";
             }
-            unusedIndexes.erase(it);
+            isFreeIndexVector[regIdx] = false;
         }
 
         void setAsUnused(int regIdx) {
-            assert(regIdx < size && regIdx >= 0);
-            unusedIndexes.insert(regIdx);
+            if (regIdx >= isFreeIndexVector.size() || regIdx < 0) {
+                IE_THROW() << "regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()";
+            }
+            if (isFreeIndexVector[regIdx]) {
+                IE_THROW() << "Inconsistency in RegistersPool::PhysicalSet::setAsUnused()";
+            }
+            isFreeIndexVector[regIdx] = true;
         }
 
-        int getUnused() {
-            if (unusedIndexes.empty()) {
-                IE_THROW() << "Not enough registers in the RegistersPool";
+        int getUnused(int requestedIdx) {
+            if (requestedIdx == anyIdx) {
+                return getFirstFreeIndex();
+            } else {
+                if (!isFreeIndexVector[requestedIdx]) {
+                    IE_THROW() << "The register with index #" << requestedIdx << " already used in the RegistersPool";
+                }
+                return requestedIdx;
             }
-            return *unusedIndexes.begin();
         }
 
         void exclude(Xbyak::Reg reg) {
-            unusedIndexes.erase(reg.getIdx());
+            isFreeIndexVector.at(reg.getIdx()) = false;
         }
 
         size_t countUnused() const {
-            return unusedIndexes.size();
+            size_t count = 0;
+            for (const auto& isFree : isFreeIndexVector) {
+                if (isFree) {
+                    ++count;
+                }
+            }
+            return count;
         }
 
     private:
-        std::unordered_set<int> unusedIndexes;
-        int size;
+        int getFirstFreeIndex() {
+            for (int c = 0; c < isFreeIndexVector.size(); ++c) {
+                if (isFreeIndexVector[c]) {
+                    return c;
+                }
+            }
+            IE_THROW() << "Not enough registers in the RegistersPool";
+        }
+
+    private:
+        std::vector<bool> isFreeIndexVector;
     };
 
-    virtual int getFreeOpmask() { IE_THROW() << "getFreeOpmask: The Opmask is not supported in current instruction set"; }
+    virtual int getFreeOpmask(int requestedIdx) { IE_THROW() << "getFreeOpmask: The Opmask is not supported in current instruction set"; }
     virtual void returnOpmaskToPool(int idx) { IE_THROW() << "returnOpmaskToPool: The Opmask is not supported in current instruction set"; }
     virtual size_t countUnusedOpmask() const { IE_THROW() << "countUnusedOpmask: The Opmask is not supported in current instruction set"; }
 
@@ -164,20 +197,20 @@ protected:
 
 private:
     template<typename TReg>
-    int getFree() {
+    int getFree(int requestedIdx) {
         static_assert(std::is_same<TReg, Xbyak::Xmm>::value || std::is_same<TReg, Xbyak::Ymm>::value || std::is_same<TReg, Xbyak::Zmm>::value ||
                       std::is_same<TReg, Xbyak::Reg64>::value || std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Opmask>::value,
-                      "The AvxRegistersGuardPool::getFree() method unsupported type");
+                      "Unsupported TReg by RegistersPool. Please, use the following registers either Reg32, Reg64, Xmm, Ymm, Zmm or Opmask");
         if (std::is_same<TReg, Xbyak::Xmm>::value || std::is_same<TReg, Xbyak::Ymm>::value || std::is_same<TReg, Xbyak::Zmm>::value) {
-            auto idx = simdSet.getUnused();
+            auto idx = simdSet.getUnused(requestedIdx);
             simdSet.setAsUsed(idx);
             return idx;
         } else if (std::is_same<TReg, Xbyak::Reg64>::value || std::is_same<TReg, Xbyak::Reg32>::value) {
-            auto idx = generalSet.getUnused();
+            auto idx = generalSet.getUnused(requestedIdx);
             generalSet.setAsUsed(idx);
             return idx;
         } else if (std::is_same<TReg, Xbyak::Opmask>::value) {
-            return getFreeOpmask();
+            return getFreeOpmask(requestedIdx);
         }
     }
 
@@ -208,15 +241,6 @@ private:
     PhysicalSet simdSet;
 };
 
-template<typename TReg>
-RegistersPool::Reg<TReg>::Reg(const RegistersPool::Ptr& regPool) {
-    static_assert(std::is_same<TReg, Xbyak::Xmm>::value || std::is_same<TReg, Xbyak::Ymm>::value || std::is_same<TReg, Xbyak::Zmm>::value ||
-                  std::is_same<TReg, Xbyak::Reg64>::value || std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Opmask>::value,
-                  "The type is not supported for the RegistersPool::Reg template");
-    reg = TReg(regPool->template getFree<TReg>());
-    this->regPool = regPool;
-}
-
 template <x64::cpu_isa_t isa>
 class IsaRegistersPool : public RegistersPool {
 public:
@@ -229,8 +253,8 @@ public:
     IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude)
             : RegistersPool(regsToExclude, x64::cpu_isa_traits<x64::avx512_core>::n_vregs) {}
 
-    int getFreeOpmask() override {
-        auto idx = opmaskSet.getUnused();
+    int getFreeOpmask(int requestedIdx) override {
+        auto idx = opmaskSet.getUnused(requestedIdx);
         opmaskSet.setAsUsed(idx);
         return idx;
     }
