@@ -255,7 +255,6 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
     GPU_DEBUG_IF(debug_config->verbose >= 1) {
         const auto& info = device->get_info();
         GPU_DEBUG_COUT << "Selected Device: " << info.dev_name << std::endl;
-        GPU_DEBUG_COUT << "Device support immad: " << (info.supports_immad ? "YES" : "NO") << std::endl;
     }
     return ret;
 }
