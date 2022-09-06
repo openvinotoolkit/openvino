@@ -85,7 +85,7 @@ Users in China might encounter errors while downloading sources via PIP during O
 * Add the download source using the ``-i`` parameter with the Python ``pip`` command. For example: 
 
    ``` sh
-   pip install openvino-dev -i https://mirrors.aliyun.com/pypi/simple/
+   pip install openvino -i https://mirrors.aliyun.com/pypi/simple/
    ```
 
 ### ERROR:root:Could not find the Inference Engine or nGraph Python API.
