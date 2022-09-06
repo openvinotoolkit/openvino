@@ -637,7 +637,7 @@ bool DFT::created() const {
 }
 
 bool DFT::needPrepareParams() const {
-    return lastInverse != inverse;
+    return inputShapesModified() || lastInverse != inverse;
 }
 
 void DFT::prepareParams() {
