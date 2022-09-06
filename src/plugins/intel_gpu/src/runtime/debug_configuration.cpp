@@ -12,7 +12,7 @@
 
 namespace cldnn {
 
-int debug_configuration::device_id = 0;
+int debug_configuration::device_id = -1;
 const char *debug_configuration::prefix = "GPU_Debug: ";
 
 // Default policy is that dump_configuration will override other configuration from IE.
