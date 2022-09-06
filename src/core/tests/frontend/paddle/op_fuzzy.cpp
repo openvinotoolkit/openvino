@@ -162,7 +162,7 @@ static const std::vector<std::string> models{
     std::string("gather_nd_float32"),
     std::string("gather_nd_int64"),
     std::string("gather_nd_int32"),
-    // Not support index zero dimension
+    // Not support indices zero rank
     // std::string("gather_nd_empty"),
     std::string("gather_nd_low_index"),
     std::string("gather_nd_high_rank1"),

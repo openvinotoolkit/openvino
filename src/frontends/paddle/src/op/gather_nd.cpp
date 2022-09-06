@@ -13,10 +13,8 @@ NamedOutputs gather_nd(const NodeContext& node) {
     const auto data_node = node.get_input("X");
     const auto index_node = node.get_input("Index");
     auto shape = index_node.get_partial_shape();
-    for (const auto& dim : shape) {
-        if (dim.is_static() && dim.get_length() == 0)
-            PADDLE_OP_CHECK(node, false, "zero dimension is not allowed for gather_nd Index");
-    }
+    if (shape.is_static() && shape.rank().get_length() == 0)
+        PADDLE_OP_CHECK(node, false, "zero 'indices' input rank is not allowed for gather_nd");
     return node.default_single_output_mapping({std::make_shared<default_opset::GatherND>(data_node, index_node)},
                                               {"Out"});
 }
