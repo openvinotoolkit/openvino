@@ -36,8 +36,6 @@ struct jit_mul_add_softmax_kernel : public jit_uni_mul_add_softmax_kernel, publi
 
     explicit jit_mul_add_softmax_kernel(const jit_mul_add_softmax_compile_params& jcp) : jit_uni_mul_add_softmax_kernel(jcp), jit_generator() {
         exp_emitter = std::make_shared<jit_dnnl_aux_emitter>(this, isa, dnnl_eltwise_exp, 0.f, 0.f);
-        load_emitter.reset(new jit_load_emitter(this, isa));
-        store_emitter.reset(new jit_store_emitter(this, isa));
 
         vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float);
     }
@@ -187,8 +185,11 @@ private:
 
         this->postamble();
 
-        load_emitter->emit_data();
-        store_emitter->emit_data();
+        for (const auto& emitter : emitters) {
+            if (emitter.second)
+                emitter.second->emit_data();
+        }
+
         exp_emitter->emit_data();
     }
 
@@ -277,14 +278,22 @@ private:
     }
 
     inline void load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, Precision src_prc, const int& elt_num, bool fill) {
-        load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())},
-            std::make_shared<load_emitter_context>(src_prc, Precision::FP32, elt_num, 0, fill, "float_min"),
-            pool_aux_vmm_idxs, pool_aux_gpr_idxs);
+        const auto seed = load_emitter_params(src_prc, Precision::FP32, elt_num, fill, "float_min").hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, Precision::FP32, elt_num, Precision::FP32, fill, "float_min"));
+        }
+
+        emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0}, {static_cast<size_t>(vmm_dst.getIdx())},
+                                  pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
     inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, Precision dst_prc, const int& elt_num) {
-        store_emitter->emit_code({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
-            std::make_shared<store_emitter_context>(Precision::FP32, dst_prc, elt_num, 0),
-            pool_aux_vmm_idxs, pool_aux_gpr_idxs);
+        const auto seed = store_emitter_params(Precision::FP32, dst_prc, elt_num).hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_store_emitter(this, isa, Precision::FP32, dst_prc, elt_num));
+        }
+
+        emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx()), 0}, {static_cast<size_t>(reg_dst.getIdx())},
+                                  pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
 
     size_t unroll_factor = 3;
@@ -335,10 +344,11 @@ private:
     Reg64 reg_params = abi_param1;
 
     const std::vector<size_t> pool_aux_gpr_idxs = { static_cast<size_t>(rsi.getIdx()), static_cast<size_t>(rbp.getIdx()) };
-    const std::vector<size_t> pool_aux_vmm_idxs = { 12, 13, 14, 15};
+    const std::vector<size_t> pool_aux_vmm_idxs = { 12, 13, 14, 15 };
 
-    std::shared_ptr<jit_dnnl_aux_emitter> exp_emitter;
+    std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
 
+    std::shared_ptr<jit_dnnl_aux_emitter> exp_emitter = nullptr;
     std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
 };
@@ -348,9 +358,6 @@ struct jit_convert_reorder_kernel : public jit_uni_convert_reorder_kernel, publi
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_convert_reorder_kernel)
 
     explicit jit_convert_reorder_kernel(const jit_convert_reorder_compile_params& jcp) : jit_uni_convert_reorder_kernel(jcp), jit_generator() {
-        load_emitter.reset(new jit_load_emitter(this, isa));
-        store_emitter.reset(new jit_store_emitter(this, isa));
-
         vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float);
     }
     virtual ~jit_convert_reorder_kernel() {}
@@ -424,8 +431,10 @@ private:
 
         this->postamble();
 
-        load_emitter->emit_data();
-        store_emitter->emit_data();
+        for (const auto& emitter : emitters) {
+            if (emitter.second)
+                emitter.second->emit_data();
+        }
     }
 
     void convert_reorder(size_t step) {
@@ -451,14 +460,22 @@ private:
 #undef GET_OFF
 
     inline void load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, Precision src_prc, const int& elt_num, bool fill) {
-        load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())},
-            std::make_shared<load_emitter_context>(src_prc, Precision::FP32, elt_num, 0, fill, "float_min"),
-            pool_aux_vmm_idxs, pool_aux_gpr_idxs);
+        const auto seed = load_emitter_params(src_prc, Precision::FP32, elt_num, fill, "float_min").hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, Precision::FP32, elt_num, Precision::FP32, fill, "float_min"));
+        }
+
+        emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0}, {static_cast<size_t>(vmm_dst.getIdx())},
+                                  pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
     inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, Precision dst_prc, const int& elt_num) {
-        store_emitter->emit_code({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
-            std::make_shared<store_emitter_context>(Precision::FP32, dst_prc, elt_num, 0),
-            pool_aux_vmm_idxs, pool_aux_gpr_idxs);
+        const auto seed = store_emitter_params(Precision::FP32, dst_prc, elt_num).hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_store_emitter(this, isa, Precision::FP32, dst_prc, elt_num));
+        }
+
+        emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx()), 0}, {static_cast<size_t>(reg_dst.getIdx())},
+                                  pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
 
     size_t vec_size;
@@ -479,8 +496,7 @@ private:
     const std::vector<size_t> pool_aux_gpr_idxs = { static_cast<size_t>(rsi.getIdx()), static_cast<size_t>(rbp.getIdx()) };
     const std::vector<size_t> pool_aux_vmm_idxs = { static_cast<size_t>(xmm_tmp.getIdx()) };
 
-    std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
-    std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
+    std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
 };
 
 template <cpu_isa_t isa>
@@ -488,9 +504,6 @@ struct jit_convert_transpose_kernel : public jit_uni_convert_transpose_kernel, p
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_convert_transpose_kernel)
 
     explicit jit_convert_transpose_kernel(const jit_convert_transpose_compile_params& jcp) : jit_uni_convert_transpose_kernel(jcp), jit_generator() {
-        load_emitter.reset(new jit_load_emitter(this, isa));
-        store_emitter.reset(new jit_store_emitter(this, isa));
-
         interm_prc = jcp_.with_scales ? Precision(Precision::FP32) : jcp_.src_prc;
         vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / interm_prc.size();
     }
@@ -564,8 +577,10 @@ private:
 
         this->postamble();
 
-        load_emitter->emit_data();
-        store_emitter->emit_data();
+        for (const auto& emitter : emitters) {
+            if (emitter.second)
+                emitter.second->emit_data();
+        }
     }
 
     void convert_transpose(size_t step) {
@@ -603,16 +618,23 @@ private:
         }
     }
 #undef GET_OFF
-
     inline void load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, Precision src_prc, Precision dst_prc, const int& elt_num, bool fill) {
-        load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())},
-            std::make_shared<load_emitter_context>(src_prc, dst_prc, elt_num, 0, fill, "float_min"),
-            pool_aux_vmm_idxs, pool_aux_gpr_idxs);
+        const auto seed = load_emitter_params(src_prc, dst_prc, elt_num, fill, "float_min").hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num, Precision::FP32, fill, "float_min"));
+        }
+
+        emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0}, {static_cast<size_t>(vmm_dst.getIdx())},
+                                  pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
     inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, Precision src_prc, Precision dst_prc, const int& elt_num) {
-        store_emitter->emit_code({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
-            std::make_shared<store_emitter_context>(src_prc, dst_prc, elt_num, 0),
-            pool_aux_vmm_idxs, pool_aux_gpr_idxs);
+        const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
+        }
+
+        emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx()), 0}, {static_cast<size_t>(reg_dst.getIdx())},
+                                  pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
 
     size_t vec_size;
@@ -637,8 +659,7 @@ private:
     const std::vector<size_t> pool_aux_gpr_idxs = { static_cast<size_t>(rsi.getIdx()), static_cast<size_t>(rbp.getIdx()) };
     const std::vector<size_t> pool_aux_vmm_idxs = { static_cast<size_t>(xmm_tmp.getIdx()) };
 
-    std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
-    std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
+    std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
 };
 
 bool MHA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {

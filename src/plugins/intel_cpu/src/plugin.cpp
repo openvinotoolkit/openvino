@@ -603,7 +603,9 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
     postLPTPassManager.register_pass<ngraph::pass::ConstantFolding>();
 
-    auto isMHASupported = [_enableBF16](const std::shared_ptr<const ov::Node>& n) -> bool {
+    // Snippets may brake MHA patterns so the fusion has to performed before
+    postLPTPassManager.register_pass<MHAFusion>();
+    postLPTPassManager.get_pass_config()->set_callback<MHAFusion>([_enableBF16](const std::shared_ptr<const ov::Node>& n) -> bool {
         std::string errorMessage;
 
         if (!node::MHA::isSupportedOperation(n, errorMessage))
@@ -619,17 +621,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         }
 
         return false;
-    };
-
-    // Snippets may brake MHA patterns so the fusion has to performed before
-    postLPTPassManager.register_pass<MHAFusion>();
-    postLPTPassManager.get_pass_config()->set_callback<MHAFusion>(isMHASupported);
-    postLPTPassManager.register_pass<MHAFusion2>();
-    postLPTPassManager.get_pass_config()->set_callback<MHAFusion2>(isMHASupported);
-    postLPTPassManager.register_pass<MHAQuantFusion>();
-    postLPTPassManager.get_pass_config()->set_callback<MHAQuantFusion>(isMHASupported);
-    postLPTPassManager.register_pass<MHAQuantFusion2>();
-    postLPTPassManager.get_pass_config()->set_callback<MHAQuantFusion2>(isMHASupported);
+    });
     postLPTPassManager.run_passes(nGraphFunc);
 
     if (!useLpt && _enableSnippets && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {

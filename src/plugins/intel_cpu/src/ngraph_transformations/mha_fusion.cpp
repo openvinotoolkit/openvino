@@ -14,8 +14,8 @@
 #include "itt.hpp"
 
 // TODO: draw pattern
-ov::intel_cpu::MHAFusion::MHAFusion() {
-    MATCHER_SCOPE(MHAFusion);
+ov::intel_cpu::MHAFloatFusion::MHAFloatFusion() {
+    MATCHER_SCOPE(MHAFloatFusion);
 
     auto in0 = ngraph::pattern::any_input(ngraph::pattern::has_static_shape());
     auto in1 = ngraph::pattern::any_input(ngraph::pattern::has_static_shape());
@@ -48,15 +48,44 @@ ov::intel_cpu::MHAFusion::MHAFusion() {
         auto add_in1 = pattern_to_output.at(in3);
         auto transpose2_in = pattern_to_output.at(in8);
 
-        // TODO: check transpose order
-
-        auto const_node = std::dynamic_pointer_cast<ngraph::opset3::Constant>(mul_in1.get_node_shared_ptr());
-        if (!const_node)
+        if (transpose0_in.get_shape() != transpose1_in.get_shape() || transpose0_in.get_shape() != transpose2_in.get_shape()) {
             return false;
+        }
+
+        if (transpose0_in.get_shape().size() != 4) {
+            return false;
+        }
+
+        auto expected_add_shape = Shape({transpose0_in.get_shape()[0], 1, 1, transpose0_in.get_shape()[1]});
+        if (add_in1.get_shape() != expected_add_shape) {
+            return false;
+        }
+
+        auto valid_transpose_order = [&](std::shared_ptr<Node> node, const std::vector<int64_t>& expected_order) {
+            if (auto transpose_pattern = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(node).get_node_shared_ptr())) {
+                if (transpose_pattern->cast_vector<int64_t>() != expected_order) {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+
+            return true;
+        };
+
+        if (!valid_transpose_order(in4, {0, 2, 1, 3})) return false;
+        if (!valid_transpose_order(in5, {0, 2, 3, 1})) return false;
+        if (!valid_transpose_order(in9, {0, 2, 1, 3})) return false;
+        if (!valid_transpose_order(in10, {0, 2, 1, 3})) return false;
 
         std::vector<float> mul_scales;
         if (auto mul_node = std::dynamic_pointer_cast<ngraph::opset3::Multiply>(pattern_to_output.at(mul).get_node_shared_ptr())) {
             mul_scales = std::dynamic_pointer_cast<ngraph::opset4::Constant>(mul_node->get_input_node_shared_ptr(1))->cast_vector<float>();
+
+            auto expected_shape = ngraph::Shape({1, transpose0_in.get_shape()[2], 1, 1});
+            if (mul_scales.size() != 1 && mul_node->get_input_shape(1) != expected_shape) {
+                return false;
+            }
         } else {
             return false;
         }
@@ -71,26 +100,30 @@ ov::intel_cpu::MHAFusion::MHAFusion() {
         if (!reshape0_node)
             return false;
 
-        if (auto reshape0_pattern = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(in6).get_node_shared_ptr())) {
-            // TODO: add valid condition based on reshape pattern
-            auto reshape0_pattern_values = reshape0_pattern->cast_vector<int64_t>();
+        if (auto reshape_pattern = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(in6).get_node_shared_ptr())) {
+            if (reshape0_node->get_input_shape(0).size() != 4) {
+                return false;
+            }
+
+            std::vector<int64_t> reshapeConstData = {static_cast<int64_t>(reshape0_node->get_input_shape(0)[0] *
+                                                                          reshape0_node->get_input_shape(0)[1] *
+                                                                          reshape0_node->get_input_shape(0)[2]),
+                                                     -1};
+
+            if (reshape_pattern->cast_vector<int64_t>() != reshapeConstData) {
+                return false;
+            }
         } else {
             return false;
         }
 
-        auto reshape1_node = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(pattern_to_output.at(reshape1).get_node_shared_ptr());
-        if (!reshape1_node)
-            return false;
-
-        if (auto reshape1_pattern = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(in7).get_node_shared_ptr())) {
-            // TODO: add valid condition based on reshape pattern
-            auto reshape1_pattern_values = reshape1_pattern->cast_vector<int64_t>();
+        if (auto reshape1_node = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(pattern_to_output.at(reshape1).get_node_shared_ptr())) {
+            if (reshape0_node->get_input_shape(0) != reshape1_node->get_output_shape(0)) {
+                return false;
+            }
         } else {
             return false;
         }
-
-        if (reshape0_node->get_output_partial_shape(0).rank() != 2 || reshape0_node->get_input_partial_shape(0) != reshape1_node->get_output_partial_shape(0))
-            return false;
 
         auto softmax_node = std::dynamic_pointer_cast<ngraph::opset1::Softmax>(pattern_to_output.at(softmax).get_node_shared_ptr());
         if (!softmax_node)
@@ -107,7 +140,7 @@ ov::intel_cpu::MHAFusion::MHAFusion() {
         bool is_mul_first = true;
         auto transpose3_node = pattern_to_output.at(transpose3).get_node_shared_ptr();
         auto mha = std::make_shared<ov::intel_cpu::MHANode>(transpose0_in, transpose1_in, add_in1, transpose2_in, mul_scales, is_mul_first,
-                                                            transpose3_node->output(0).get_element_type());
+                                                            transpose3_node->get_output_element_type(0));
         mha->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info({pattern_to_output.at(transpose0).get_node_shared_ptr(),
                                    pattern_to_output.at(transpose1).get_node_shared_ptr(),
@@ -136,8 +169,8 @@ ov::intel_cpu::MHAFusion::MHAFusion() {
     this->register_matcher(m, callback);
 }
 
-ov::intel_cpu::MHAFusion2::MHAFusion2() {
-    MATCHER_SCOPE(MHAFusion2);
+ov::intel_cpu::MHAFloatFusion2::MHAFloatFusion2() {
+    MATCHER_SCOPE(MHAFloatFusion2);
 
     auto in0 = ngraph::pattern::any_input(ngraph::pattern::has_static_shape());
     auto in1 = ngraph::pattern::any_input(ngraph::pattern::has_static_shape());
@@ -165,7 +198,35 @@ ov::intel_cpu::MHAFusion2::MHAFusion2() {
         auto add_in1 = pattern_to_output.at(in3);
         auto transpose2_in = pattern_to_output.at(in8);
 
-        // TODO: check transpose order
+        if (transpose0_in.get_shape() != transpose1_in.get_shape() || transpose0_in.get_shape() != transpose2_in.get_shape()) {
+            return false;
+        }
+
+        if (transpose0_in.get_shape().size() != 4) {
+            return false;
+        }
+
+        auto expected_add_shape = Shape({transpose0_in.get_shape()[0], 1, 1, transpose0_in.get_shape()[1]});
+        if (add_in1.get_shape() != expected_add_shape) {
+            return false;
+        }
+
+        auto valid_transpose_order = [&](std::shared_ptr<Node> node, const std::vector<int64_t>& expected_order) {
+            if (auto transpose_pattern = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(node).get_node_shared_ptr())) {
+                if (transpose_pattern->cast_vector<int64_t>() != expected_order) {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+
+            return true;
+        };
+
+        if (!valid_transpose_order(in4, {0, 2, 1, 3})) return false;
+        if (!valid_transpose_order(in5, {0, 2, 3, 1})) return false;
+        if (!valid_transpose_order(in9, {0, 2, 1, 3})) return false;
+        if (!valid_transpose_order(in10, {0, 2, 1, 3})) return false;
 
         auto matmul0_node = std::dynamic_pointer_cast<ngraph::opset3::MatMul>(pattern_to_output.at(matmul0).get_node_shared_ptr());
         if (!matmul0_node)
@@ -187,7 +248,7 @@ ov::intel_cpu::MHAFusion2::MHAFusion2() {
 
         auto transpose3_node = pattern_to_output.at(transpose3).get_node_shared_ptr();
         auto mha = std::make_shared<ov::intel_cpu::MHANode>(transpose0_in, transpose1_in, add_in1, transpose2_in, std::vector<float>(), false,
-                                                            transpose3_node->output(0).get_element_type());
+                                                            transpose3_node->get_output_element_type(0));
         mha->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info({pattern_to_output.at(transpose0).get_node_shared_ptr(),
                                    pattern_to_output.at(transpose1).get_node_shared_ptr(),
@@ -328,15 +389,48 @@ ov::intel_cpu::MHAQuantFusion::MHAQuantFusion() {
         auto add_in1 = pattern_to_output.at(in3);
         auto transpose2_in = pattern_to_output.at(in8);
 
-        // todo: check mul shape
+        if (transpose0_in.get_shape() != transpose1_in.get_shape() || transpose0_in.get_shape() != transpose2_in.get_shape()) {
+            return false;
+        }
+
+        if (transpose0_in.get_shape().size() != 4) {
+            return false;
+        }
+
+        auto expected_add_shape = Shape({transpose0_in.get_shape()[0], 1, 1, transpose0_in.get_shape()[1]});
+        if (add_in1.get_shape() != expected_add_shape) {
+            return false;
+        }
+
         std::vector<float> mul_scales;
         if (auto mul_node = std::dynamic_pointer_cast<ngraph::opset3::Multiply>(pattern_to_output.at(mul).get_node_shared_ptr())) {
             mul_scales = std::dynamic_pointer_cast<ngraph::opset4::Constant>(mul_node->get_input_node_shared_ptr(1))->cast_vector<float>();
+
+            auto expected_shape = ngraph::Shape({1, transpose0_in.get_shape()[2], 1, 1});
+            if (mul_scales.size() != 1 && mul_node->get_input_shape(1) != expected_shape) {
+                return false;
+            }
         } else {
             return false;
         }
 
-        // TODO: check transpose order
+        auto valid_transpose_order = [&](std::shared_ptr<Node> node, const std::vector<int64_t>& expected_order) {
+            if (auto transpose_pattern = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(node).get_node_shared_ptr())) {
+                if (transpose_pattern->cast_vector<int64_t>() != expected_order) {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+
+            return true;
+        };
+
+        if (!valid_transpose_order(in4, {0, 2, 1, 3})) return false;
+        if (!valid_transpose_order(in5, {0, 2, 3, 1})) return false;
+        if (!valid_transpose_order(in9, {0, 2, 1, 3})) return false;
+        if (!valid_transpose_order(in10, {0, 2, 1, 3})) return false;
+
         auto matmul0_node = std::dynamic_pointer_cast<ngraph::opset3::MatMul>(pattern_to_output.at(matmul0).get_node_shared_ptr());
         if (!matmul0_node)
             return false;
@@ -355,26 +449,30 @@ ov::intel_cpu::MHAQuantFusion::MHAQuantFusion() {
         if (!reshape0_node)
             return false;
 
-        if (auto reshape0_pattern = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(in6).get_node_shared_ptr())) {
-            // TODO: add valid condition based on reshape pattern
-            auto reshape0_pattern_values = reshape0_pattern->cast_vector<int64_t>();
+        if (auto reshape_pattern = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(in6).get_node_shared_ptr())) {
+            if (reshape0_node->get_input_shape(0).size() != 4) {
+                return false;
+            }
+
+            std::vector<int64_t> reshapeConstData = {static_cast<int64_t>(reshape0_node->get_input_shape(0)[0] *
+                                                                          reshape0_node->get_input_shape(0)[1] *
+                                                                          reshape0_node->get_input_shape(0)[2]),
+                                                     -1};
+
+            if (reshape_pattern->cast_vector<int64_t>() != reshapeConstData) {
+                return false;
+            }
         } else {
             return false;
         }
 
-        auto reshape1_node = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(pattern_to_output.at(reshape1).get_node_shared_ptr());
-        if (!reshape1_node)
-            return false;
-
-        if (auto reshape1_pattern = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(in7).get_node_shared_ptr())) {
-            // TODO: add valid condition based on reshape pattern
-            auto reshape1_pattern_values = reshape1_pattern->cast_vector<int64_t>();
+        if (auto reshape1_node = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(pattern_to_output.at(reshape1).get_node_shared_ptr())) {
+            if (reshape0_node->get_input_shape(0) != reshape1_node->get_output_shape(0)) {
+                return false;
+            }
         } else {
             return false;
         }
-
-        if (reshape0_node->get_output_partial_shape(0).rank() != 2 || reshape0_node->get_input_partial_shape(0) != reshape1_node->get_output_partial_shape(0))
-            return false;
 
         auto softmax_node = std::dynamic_pointer_cast<ngraph::opset1::Softmax>(pattern_to_output.at(softmax).get_node_shared_ptr());
         if (!softmax_node)
@@ -411,7 +509,7 @@ ov::intel_cpu::MHAQuantFusion::MHAQuantFusion() {
                                                             std::vector<float>(), fq0_scale, fq1_scale, fq2_scale,
                                                             ngraph::element::undefined,
                                                             fq0_node ? fq0_node->get_output_element_type(0) : ngraph::element::undefined,
-                                                            fq1_node->get_output_element_type(0), transpose3_node->output(0).get_element_type());
+                                                            fq1_node->get_output_element_type(0), transpose3_node->get_output_element_type(0));
         mha->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info({pattern_to_output.at(transpose0).get_node_shared_ptr(),
                                    pattern_to_output.at(transpose1).get_node_shared_ptr(),
@@ -483,15 +581,48 @@ ov::intel_cpu::MHAQuantFusion2::MHAQuantFusion2() {
         auto add_in1 = pattern_to_output.at(in3);
         auto transpose2_in = pattern_to_output.at(in8);
 
-        // todo: check mul shape
+        if (transpose0_in.get_shape() != transpose1_in.get_shape() || transpose0_in.get_shape() != transpose2_in.get_shape()) {
+            return false;
+        }
+
+        if (transpose0_in.get_shape().size() != 4) {
+            return false;
+        }
+
+        auto expected_add_shape = Shape({transpose0_in.get_shape()[0], 1, 1, transpose0_in.get_shape()[1]});
+        if (add_in1.get_shape() != expected_add_shape) {
+            return false;
+        }
+
         std::vector<float> mul_scales;
         if (auto mul_node = std::dynamic_pointer_cast<ngraph::opset3::Multiply>(pattern_to_output.at(mul).get_node_shared_ptr())) {
             mul_scales = std::dynamic_pointer_cast<ngraph::opset4::Constant>(mul_node->get_input_node_shared_ptr(1))->cast_vector<float>();
+
+            auto expected_shape = ngraph::Shape({1, transpose0_in.get_shape()[2], 1, 1});
+            if (mul_scales.size() != 1 && mul_node->get_input_shape(1) != expected_shape) {
+                return false;
+            }
         } else {
             return false;
         }
 
-        // TODO: check transpose order
+        auto valid_transpose_order = [&](std::shared_ptr<Node> node, const std::vector<int64_t>& expected_order) {
+            if (auto transpose_pattern = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(node).get_node_shared_ptr())) {
+                if (transpose_pattern->cast_vector<int64_t>() != expected_order) {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+
+            return true;
+        };
+
+        if (!valid_transpose_order(in4, {0, 2, 1, 3})) return false;
+        if (!valid_transpose_order(in5, {0, 2, 3, 1})) return false;
+        if (!valid_transpose_order(in9, {0, 2, 1, 3})) return false;
+        if (!valid_transpose_order(in10, {0, 2, 1, 3})) return false;
+
         auto matmul0_node = std::dynamic_pointer_cast<ngraph::opset3::MatMul>(pattern_to_output.at(matmul0).get_node_shared_ptr());
         if (!matmul0_node)
             return false;
@@ -532,7 +663,7 @@ ov::intel_cpu::MHAQuantFusion2::MHAQuantFusion2() {
         auto mha = std::make_shared<ov::intel_cpu::MHANode>(transpose0_in, transpose1_in, add_in1, transpose2_in, mul_scales, is_mul_first,
                                                             fq0_scale, std::vector<float>(), std::vector<float>(), fq1_scale,
                                                             fq0_node->get_output_element_type(0), ngraph::element::undefined, ngraph::element::undefined,
-                                                            transpose3_node->output(0).get_element_type());
+                                                            transpose3_node->get_output_element_type(0));
         mha->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info({pattern_to_output.at(transpose0).get_node_shared_ptr(),
                                    pattern_to_output.at(transpose1).get_node_shared_ptr(),
