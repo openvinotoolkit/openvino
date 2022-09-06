@@ -522,7 +522,6 @@ add_clang_format_target(unit-test_clang FOR_SOURCES ${full_src_names})
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
     string(REGEX REPLACE "([a-z0-9]+):(.*)" "\\1" BACKEND_DIR ${BACKEND_DIR})
-    set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/runtime/${BACKEND_DIR}/unit_test.manifest)
 
     foreach(TEST_SRC ${MULTI_TEST_SRC})
         string(REPLACE ":" "_" BACKEND_NAME ${BACKEND_NAME})
@@ -533,8 +532,6 @@ foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
 
     message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
 endforeach()
-
-set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/runtime/${BACKEND_DIR}/unit_test.manifest)
 
 foreach(TEST_SRC ${OP_EVAL_TEST_SRC})
     configure_file(${TEST_SRC} ${TEST_SRC})
