@@ -184,11 +184,11 @@ int main(int argc, char** argv) {
     ov_model_t* model = NULL;
     ov_tensor_t* tensor = NULL;
     ov_preprocess_prepostprocessor_t* preprocess = NULL;
-    ov_preprocess_inputinfo_t* input_info = NULL;
+    ov_preprocess_input_info_t* input_info = NULL;
     ov_model_t* new_model = NULL;
-    ov_preprocess_inputtensorinfo_t* input_tensor_info = NULL;
-    ov_preprocess_preprocesssteps_t* input_process = NULL;
-    ov_preprocess_inputmodelinfo_t* p_input_model = NULL;
+    ov_preprocess_input_tensor_info_t* input_tensor_info = NULL;
+    ov_preprocess_preprocess_steps_t* input_process = NULL;
+    ov_preprocess_input_model_info_t* p_input_model = NULL;
     ov_compiled_model_t* compiled_model = NULL;
     ov_infer_request_t* infer_request = NULL;
     ov_tensor_t* output_tensor = NULL;
@@ -240,38 +240,39 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_preprocess_prepostprocessor_create(model, &preprocess));
 
     // 1) Select input with 'input_tensor_name' tensor name
-    CHECK_STATUS(ov_preprocess_prepostprocessor_input_by_name(preprocess, input_tensor_name, &input_info));
+    CHECK_STATUS(ov_preprocess_prepostprocessor_get_input_info_by_name(preprocess, input_tensor_name, &input_info));
 
     // 2) Set input type
     // - as 'u8' precision
     // - set color format to NV12 (single plane)
     // - static spatial dimensions for resize preprocessing operation
-    CHECK_STATUS(ov_preprocess_inputinfo_tensor(input_info, &input_tensor_info));
-    CHECK_STATUS(ov_preprocess_inputtensorinfo_set_element_type(input_tensor_info, U8));
-    CHECK_STATUS(ov_preprocess_inputtensorinfo_set_color_format(input_tensor_info, NV12_SINGLE_PLANE));
-    CHECK_STATUS(ov_preprocess_inputtensorinfo_set_spatial_static_shape(input_tensor_info, input_height, input_width));
+    CHECK_STATUS(ov_preprocess_input_info_get_tensor_info(input_info, &input_tensor_info));
+    CHECK_STATUS(ov_preprocess_input_tensor_info_set_element_type(input_tensor_info, U8));
+    CHECK_STATUS(ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, NV12_SINGLE_PLANE));
+    CHECK_STATUS(
+        ov_preprocess_input_tensor_info_set_spatial_static_shape(input_tensor_info, input_height, input_width));
 
     // 3) Pre-processing steps:
     //    a) Convert to 'float'. This is to have color conversion more accurate
     //    b) Convert to BGR: Assumes that model accepts images in BGR format. For RGB, change it manually
     //    c) Resize image from tensor's dimensions to model ones
-    CHECK_STATUS(ov_preprocess_inputinfo_preprocess(input_info, &input_process));
-    CHECK_STATUS(ov_preprocess_preprocesssteps_convert_element_type(input_process, F32));
-    CHECK_STATUS(ov_preprocess_preprocesssteps_convert_color(input_process, BGR));
-    CHECK_STATUS(ov_preprocess_preprocesssteps_resize(input_process, RESIZE_LINEAR));
+    CHECK_STATUS(ov_preprocess_input_info_get_preprocess_steps(input_info, &input_process));
+    CHECK_STATUS(ov_preprocess_preprocess_steps_convert_element_type(input_process, F32));
+    CHECK_STATUS(ov_preprocess_preprocess_steps_convert_color(input_process, BGR));
+    CHECK_STATUS(ov_preprocess_preprocess_steps_resize(input_process, RESIZE_LINEAR));
 
     // 4) Set model data layout (Assuming model accepts images in NCHW layout)
-    CHECK_STATUS(ov_preprocess_inputinfo_model(input_info, &p_input_model));
+    CHECK_STATUS(ov_preprocess_input_info_get_model_info(input_info, &p_input_model));
 
     const char* model_layout_desc = "NCHW";
-    CHECK_STATUS(ov_layout_create(&model_layout, model_layout_desc));
-    CHECK_STATUS(ov_preprocess_inputmodelinfo_set_layout(p_input_model, model_layout));
+    CHECK_STATUS(ov_layout_create(model_layout_desc, &model_layout));
+    CHECK_STATUS(ov_preprocess_input_model_info_set_layout(p_input_model, model_layout));
 
     // 5) Apply preprocessing to an input with 'input_tensor_name' name of loaded model
     CHECK_STATUS(ov_preprocess_prepostprocessor_build(preprocess, &new_model));
 
     // -------- Step 4. Loading a model to the device --------
-    CHECK_STATUS(ov_core_compile_model(core, new_model, device_name, &compiled_model, NULL));
+    CHECK_STATUS(ov_core_compile_model(core, new_model, device_name, NULL, &compiled_model));
 
     // -------- Step 5. Create an infer request --------
     CHECK_STATUS(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
@@ -293,11 +294,8 @@ int main(int argc, char** argv) {
     }
     ov_element_type_e input_type = U8;
     size_t batch = 1;
-    ov_shape_init(&input_shape, 4);
-    input_shape.dims[0] = batch;
-    input_shape.dims[1] = input_height * 3 / 2;
-    input_shape.dims[2] = input_width;
-    input_shape.dims[3] = 1;
+    int64_t dims[4] = {batch, input_height * 3 / 2, input_width, 1};
+    ov_shape_create(4, dims, &input_shape);
     CHECK_STATUS(ov_tensor_create_from_host_ptr(input_type, input_shape, img_data, &tensor));
 
     // -------- Step 6. Set input tensor  --------
@@ -328,7 +326,7 @@ int main(int argc, char** argv) {
 err:
     free(results);
     free(img_data);
-    ov_shape_deinit(&input_shape);
+    ov_shape_free(&input_shape);
     ov_free(input_tensor_name);
     ov_free(output_tensor_name);
     ov_output_node_list_free(&output_nodes);
@@ -340,15 +338,15 @@ err:
     if (compiled_model)
         ov_compiled_model_free(compiled_model);
     if (p_input_model)
-        ov_preprocess_inputmodelinfo_free(p_input_model);
+        ov_preprocess_input_model_info_free(p_input_model);
     if (input_process)
-        ov_preprocess_preprocesssteps_free(input_process);
+        ov_preprocess_preprocess_steps_free(input_process);
     if (model_layout)
         ov_layout_free(model_layout);
     if (input_tensor_info)
-        ov_preprocess_inputtensorinfo_free(input_tensor_info);
+        ov_preprocess_input_tensor_info_free(input_tensor_info);
     if (input_info)
-        ov_preprocess_inputinfo_free(input_info);
+        ov_preprocess_input_info_free(input_info);
     if (preprocess)
         ov_preprocess_prepostprocessor_free(preprocess);
     if (new_model)
