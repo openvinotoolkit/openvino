@@ -8,6 +8,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "default_meta_data.hpp"
 #include "itt.hpp"
 #include "layout_utils.hpp"
 #include "ngraph/evaluator.hpp"
@@ -975,6 +976,28 @@ std::shared_ptr<ov::Model> ov::Model::clone() const {
     return ov::clone_model(*this);
 }
 
+ov::AnyMap& ov::Model::get_meta_data() {
+    auto it = m_rt_info.find("meta_data");
+    if (it == m_rt_info.end()) {
+        std::shared_ptr<ov::Meta> meta = std::make_shared<DefaultMetaData>();
+        m_rt_info["meta_data"] = meta;
+        it = m_rt_info.find("meta_data");
+    }
+    OPENVINO_ASSERT(it->second.is<std::shared_ptr<ov::Meta>>());
+    return *it->second.as<std::shared_ptr<ov::Meta>>();
+}
+
+const ov::AnyMap& ov::Model::get_meta_data() const {
+    auto it = m_rt_info.find("meta_data");
+    if (it == m_rt_info.end()) {
+        std::shared_ptr<ov::Meta> meta = std::make_shared<DefaultMetaData>();
+        m_rt_info["meta_data"] = meta;
+        it = m_rt_info.find("meta_data");
+    }
+    OPENVINO_ASSERT(it->second.is<std::shared_ptr<ov::Meta>>());
+    return *it->second.as<std::shared_ptr<ov::Meta>>();
+}
+
 namespace bs_util {
 static int64_t get_batch(const ov::Layout& layout, const ov::PartialShape& shape) {
     auto batch_idx = ov::layout::batch_idx(layout);
@@ -1093,3 +1116,4 @@ void ov::set_batch(const std::shared_ptr<ov::Model>& f, ov::Dimension batch_size
         OPENVINO_ASSERT(false, stream.str());
     }
 }
+

@@ -7,6 +7,7 @@
 #include <pugixml.hpp>
 
 #include "ie_ngraph_utils.hpp"
+#include "meta_data.hpp"
 #include "ngraph/op/util/framework_node.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "rt_info_deserializer.hpp"
@@ -541,7 +542,64 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
         }
     }
 
+    // Read meta data
+    read_meta_data(function, root.child("meta_data"));
+
     return function;
+}
+
+class MetaDataParser : public ov::Meta {
+public:
+    MetaDataParser(const pugi::xml_node& meta) : m_meta_section(meta) {}
+
+    operator const ov::AnyMap&() const override {
+        parse();
+        return m_parsed_data;
+    }
+
+    operator ov::AnyMap&() override {
+        parse();
+        return m_parsed_data;
+    }
+
+private:
+    ov::AnyMap parse_node(const pugi::xml_node& node) const {
+        ov::AnyMap result;
+        auto has_value = [](const pugi::xml_node& node) {
+            auto attr = node.attribute("value");
+            return !attr.empty();
+        };
+        for (const auto& data : node.children()) {
+            if (has_value(data)) {
+                result[data.name()] = XMLParseUtils::GetStrAttr(data, "value");
+            } else {
+                result[data.name()] = parse_node(data);
+            }
+        }
+        return result;
+    }
+
+    void parse() const {
+        if (parsed)
+            return;
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (parsed)
+            return;
+        m_parsed_data = parse_node(m_meta_section);
+        parsed = true;
+    }
+    const pugi::xml_node m_meta_section;
+    mutable ov::AnyMap m_parsed_data;
+    mutable std::mutex m_mutex;
+    mutable bool parsed = false;
+};
+
+void XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section) {
+    if (meta_section.empty())
+        return;
+    auto& rt_info = model->get_rt_info();
+    std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>(meta_section);
+    rt_info["meta_data"] = meta;
 }
 
 GenericLayerParams XmlDeserializer::parseGenericParams(const pugi::xml_node& node) {

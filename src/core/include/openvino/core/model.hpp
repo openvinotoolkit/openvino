@@ -317,6 +317,9 @@ public:
         return m_rt_info;
     }
 
+    ov::AnyMap& get_meta_data();
+    const ov::AnyMap& get_meta_data() const;
+
     Model(const Model&) = delete;
     Model(Model&&) = delete;
     Model& operator=(const Model&) = delete;
@@ -346,7 +349,7 @@ private:
     ov::SinkVector m_sinks;
     ov::ParameterVector m_parameters;
     ov::op::util::VariableVector m_variables;
-    RTMap m_rt_info;
+    mutable RTMap m_rt_info;
 
     // Cache of topologically sorted nodes which is stored as a vector
     // of weak_ptr not to increase node ref counter to prevent the situation when

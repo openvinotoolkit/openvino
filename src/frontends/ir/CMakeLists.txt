@@ -7,3 +7,7 @@ ov_add_frontend(NAME ir
                 LINK_LIBRARIES openvino::pugixml
                                # TODO: remove dependency below in CVS-69781
                                openvino::runtime::dev)
+
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()
