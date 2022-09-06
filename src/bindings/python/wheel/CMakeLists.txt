@@ -77,6 +77,7 @@ add_custom_target(ie_wheel ALL DEPENDS ${openvino_wheel_path})
 
 ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_WHEELS} HIDDEN)
 
+# to w ogóle nie jest to
 message("LEO DEBUG: Destination:.")
 message("${OV_CPACK_WHEELSDIR}")
 
