@@ -72,6 +72,7 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
                 kind="OnnxBackendRealModelTest",
                 rtol=model.get("rtol", 0.001),
                 atol=model.get("atol", 1e-07),
+                __test__=True,
                 post_processing=model.get("post_processing", None),
             )
             self._add_model_import_test(test_case)
