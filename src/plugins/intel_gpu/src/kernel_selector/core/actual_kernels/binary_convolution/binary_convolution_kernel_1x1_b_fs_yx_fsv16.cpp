@@ -139,27 +139,6 @@ JitConstants BinaryConvolutionKernel1x1_b_fs_yx_fsv16::GetFusedPrimitivesJitCons
         std::string e_mul = "e_mul" + toCodeString(op_id);
 
         switch (fused_dep.GetType()) {
-            case KernelType::SCALE: {
-                std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float" : "as_half";
-                if (fused_dep.tensors.size() == 1) {
-                    std::string var_name = fused_dep_codegen.GetInputVarName(0);
-                    prepare_data += "\\\n\t" + vec_data_type + " " + var_name + " = " + cast_type +
-                                    get_aligned_load(fused_dep_codegen.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
-                    eltwise_fused_ops += "\\\n\t" + data_type + " " + sc + " = " + get_shuffle(var_name, "oc") + ";";
-                    eltwise_fused_ops += "\\\n\tres = res*" + var_name + ";";
-                } else {
-                    std::string var0_name = fused_dep_codegen.GetInputVarName(0);
-                    std::string var1_name = fused_dep_codegen.GetInputVarName(1);
-                    prepare_data += "\\\n\t" + vec_data_type + " " + var0_name + " = " + cast_type +
-                                    get_aligned_load(fused_dep_codegen.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
-                    prepare_data += "\\\n\t" + vec_data_type + " " + var1_name + " = " + cast_type +
-                                    get_aligned_load(fused_dep_codegen.GetInputPtrName(1), "f_block*OC_BLOCK_SIZE") + ";";
-                    eltwise_fused_ops += "\\\n\tres = res*" + var0_name + " + " + var1_name + ";";
-                }
-
-                break;
-            }
-
             case KernelType::ACTIVATION: {
                 auto p = fused_dep.GetOpParams<activation_fuse_params>();
                 base_activation_params activation = p->param;
