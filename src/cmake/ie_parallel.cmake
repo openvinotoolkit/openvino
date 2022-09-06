@@ -4,6 +4,7 @@
 
 macro(ov_find_package_tbb)
     if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
+        set(_ov_minimal_tbb_version 2017.0)
 
         if(NOT ENABLE_SYSTEM_TBB)
             if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
@@ -24,7 +25,7 @@ macro(ov_find_package_tbb)
             unset(_no_cmake_install_prefix)
         endif()
 
-        find_package(TBB 2017.0 QUIET COMPONENTS tbb tbbmalloc
+        find_package(TBB ${_ov_minimal_tbb_version} QUIET COMPONENTS tbb tbbmalloc
                      ${_find_package_no_args})
 
         if(NOT TBB_FOUND)
@@ -36,20 +37,27 @@ macro(ov_find_package_tbb)
             if(NOT ANDROID AND ENABLE_SYSTEM_TBB)
                 find_package(PkgConfig QUIET)
                 if(PkgConfig_FOUND)
-                    # TODO: fix to work with version as well
+                    macro(_ov_pkg_config_tbb_unset)
+                        # unset since it affects OpenVINOConfig.cmake.in
+                        unset(tbb_FOUND)
+                        unset(tbb_FOUND CACHE)
+                    endmacro()
                     pkg_search_module(tbb QUIET
                                       IMPORTED_TARGET GLOBAL
                                       tbb)
                     if(tbb_FOUND)
-                        if(TARGET PkgConfig::tbb)
+                        # parse version
+                        string(REGEX REPLACE "~.*" "" tbb_VERSION_PATCHED "${tbb_VERSION}")
+                        if(tbb_VERSION_PATCHED VERSION_LESS _ov_minimal_tbb_version)
+                            _ov_pkg_config_tbb_unset()
+                            message(WARNING "Found TBB ${tbb_VERSION} via ${PKG_CONFIG_EXECUTABLE} while OpenVINO requies ${_ov_minimal_tbb_version} at least")
+                        elseif(TARGET PkgConfig::tbb)
                             add_library(TBB::tbb ALIAS PkgConfig::tbb)
                             set(TBB_VERSION ${tbb_VERSION})
                             set(TBB_FOUND ${tbb_FOUND})
                             message(STATUS "${PKG_CONFIG_EXECUTABLE}: tbb (${tbb_VERSION}) is found at ${tbb_PREFIX}")
                         else()
-                            # unset since it affects OpenVINOConfig.cmake.in
-                            unset(tbb_FOUND)
-                            unset(tbb_FOUND CACHE)
+                            _ov_pkg_config_tbb_unset()
 
                             if(CPACK_GENERATOR STREQUAL "DEB")
                                 # debian cpack generator requires system TBB
