@@ -11,11 +11,13 @@
 #include "intel_gpu/runtime/engine.hpp"
 #include "runtime/cldnn_itt.hpp"
 #include <iostream>
-#include <oneapi/dnnl/dnnl.hpp>
-#include "impls/onednn/utils.hpp"
 #include "to_string_utils.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <oneapi/dnnl/dnnl.hpp>
+#include "impls/onednn/utils.hpp"
 #include "impls/onednn/convolution_onednn.hpp"
+#endif
 
 using namespace cldnn;
 
@@ -25,10 +27,13 @@ void set_required_layouts::run(program& p) {
     auto& engine = p.get_engine();
     const auto& device_info = engine.get_device_info();
 
+    if (!device_info.supports_immad)
+        return;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
     for (auto n : p.get_processing_order()) {
         if (!n->is_type<convolution>()
-            || !layout_optimizer::are_data_types_suitable_for_onednn(*n)
-            || !device_info.supports_immad) {
+            || !layout_optimizer::are_data_types_suitable_for_onednn(*n)) {
             // only care for onednn convolutions
             continue;
         }
@@ -46,4 +51,5 @@ void set_required_layouts::run(program& p) {
         node.set_required_input0(src_fmt);
         node.set_required_output(dst_fmt);
     }
+#endif
 }
