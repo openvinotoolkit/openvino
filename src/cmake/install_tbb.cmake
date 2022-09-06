@@ -151,6 +151,8 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         # to simplify life for our customers
         set(IE_TBBROOT_INSTALL "runtime/3rdparty/tbb")
 
+        message("DEBUG: IE_TBBROOT_INSTALL = ${IE_TBBROOT_INSTALL}")
+
         # TBBROOT is not defined if ENV{TBBROOT} is not found
         # so, we have to deduce this value outselves
         if(NOT DEFINED TBBROOT AND DEFINED ENV{TBBROOT})
@@ -159,28 +161,34 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         if(NOT DEFINED TBBROOT)
             get_target_property(_tbb_include_dir TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
             get_filename_component(TBBROOT ${_tbb_include_dir} PATH)
+            message("DEBUG (NOT DEFINED TBBROOT): _tbb_include_dir = ${_tbb_include_dir}")
         endif()
         if(DEFINED TBBROOT)
             set(TBBROOT "${TBBROOT}" CACHE PATH "TBBROOT path" FORCE)
         else()
             message(FATAL_ERROR "Failed to deduce TBBROOT, please define env var TBBROOT")
         endif()
+        message("DEBUG: TBBROOT = ${TBBROOT}")
 
         if(TBB_DIR MATCHES "^${TBBROOT}.*")
             file(RELATIVE_PATH IE_TBB_DIR_INSTALL "${TBBROOT}" "${TBB_DIR}")
+            message("DEBUG (RELATIVE_PATH): IE_TBB_DIR_INSTALL = ${IE_TBB_DIR_INSTALL}")
             set(IE_TBB_DIR_INSTALL "${IE_TBBROOT_INSTALL}/${IE_TBB_DIR_INSTALL}")
+            message("DEBUG total: IE_TBB_DIR_INSTALL = ${IE_TBB_DIR_INSTALL}")
         else()
             # TBB_DIR is not a subdirectory of TBBROOT
             # example: old TBB 2017 with no cmake support at all
             # - TBBROOT point to actual root of TBB
             # - TBB_DIR points to cmake/developer_package/tbb/<lnx|mac|win>
             set(IE_TBB_DIR_INSTALL "${TBB_DIR}")
+            message("DEBUG (via TBB_DIR): IE_TBB_DIR_INSTALL = ${IE_TBB_DIR_INSTALL}")
         endif()
 
         # try to select proper library directory
         _ov_get_tbb_location(TBB::tbb _tbb_lib_location)
         get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
         file(RELATIVE_PATH tbb_libs_dir "${TBBROOT}" "${_tbb_libs_dir}")
+        message("DEBUG: tbb_libs_dir = ${tbb_libs_dir}")
 
         # install only meaningful directories
         foreach(dir include ${tbb_libs_dir} cmake lib/cmake)
@@ -192,6 +200,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         endforeach()
 
         set(pkg_config_tbb_lib_dir "${IE_TBBROOT_INSTALL}/${tbb_libs_dir}")
+        message("DEBUG: pkg_config_tbb_lib_dir = ${pkg_config_tbb_lib_dir}")
     elseif(tbb_downloaded)
         set(IE_TBB_DIR_INSTALL "runtime/3rdparty/tbb/")
 

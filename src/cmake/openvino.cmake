@@ -150,6 +150,8 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOCo
 
 set(IE_INCLUDE_DIR "${OV_CPACK_INCLUDEDIR}/ie")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
+message("DEBUG openvino config: IE_TBB_DIR_INSTALL = ${IE_TBB_DIR_INSTALL}")
+message("DEBUG openvino config: IE_TBB_DIR = ${IE_TBB_DIR}")
 set(IE_TBBBIND_DIR "${IE_TBBBIND_DIR_INSTALL}")
 set(GNA_PATH "${OV_CPACK_RUNTIMEDIR}")
 if(WIN32)
