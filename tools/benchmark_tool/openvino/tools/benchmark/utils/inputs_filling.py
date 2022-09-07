@@ -2,14 +2,25 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import cv2
+
 import re
+import warnings
 import numpy as np
 from collections import defaultdict
 from pathlib import Path
 
 from openvino.runtime import Tensor, PartialShape
 from openvino.runtime.utils.types import get_dtype
+
+try:
+    import cv2
+except ImportError:
+    cv2 = None
+
+try:
+    from pip._internal import main as pip_main
+except ImportError:
+    from pip import main as pip_main
 
 from .constants import IMAGE_EXTENSIONS, BINARY_EXTENSIONS
 from .logging import logger
@@ -127,6 +138,11 @@ def get_input_data(paths_to_input, app_input_info):
 
 
 def get_image_tensors(image_paths, info, batch_sizes):
+    if cv2 is None:
+        warnings.warn('failed to import opencv. opencv-python-headless package will be installed')
+        pip_main(['install', 'opencv-python-headless'])
+        import cv2
+        
     processed_frames = 0
     widthes = info.widthes if info.is_dynamic else [info.width]
     heights = info.heights if info.is_dynamic else [info.height]
