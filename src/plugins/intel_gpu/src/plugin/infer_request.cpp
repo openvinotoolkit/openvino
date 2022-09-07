@@ -522,15 +522,15 @@ void InferRequest::wait() {
 
     // wait for completion & collect outputs as requested by the model
     for (auto& no : _networkOutputs) {
-        std::string outputID = m_graph->MapOutputName(no.first);
+        // In dynamic case, graph API must be used to retrieve outputID
+        // because it does not create outputsMap during SetGraph
+        std::string outputID = outputsMap.empty() ? m_graph->MapOutputName(no.first) : outputsMap.at(no.first);
         auto outputMemory = internal_outputs.at(outputID).get_memory();
 
-        auto node = findOutputByNodeName(no.first);
-
-        auto out_partial_shape = node->get_output_partial_shape(0);
-        size_t out_rank = out_partial_shape.rank().get_length();
-
         if (_outputs.find(no.first) == _outputs.end()) {
+            auto node = findOutputByNodeName(no.first);
+            auto out_partial_shape = node->get_output_partial_shape(0);
+            size_t out_rank = out_partial_shape.rank().get_length();
             auto mem_dims = outputMemory->get_layout().get_shape();
             auto precision = InferenceEngine::Precision::FP32;
             auto dims = SizeVector(mem_dims.begin(), mem_dims.end());
