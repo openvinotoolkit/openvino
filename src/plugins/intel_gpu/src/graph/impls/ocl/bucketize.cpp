@@ -2,16 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// We have problem with includes when ENABLE_ONEDNN_FOR_GPU is OFF,
-// "impl_types" enum is not accessible if "implementation_map.hpp" is included first
-// so, a "fix" for now is to turn off clang-format for these include
-// clang-format off
-#include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-// clang-format on
 #include "bucketize/bucketize_kernel_ref.hpp"
 #include "bucketize/bucketize_kernel_selector.hpp"
 #include "bucketize_inst.hpp"
+#include "impls/implementation_map.hpp"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
