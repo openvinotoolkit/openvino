@@ -15,6 +15,8 @@ Before you start the installation, check the supported operating systems and req
 |   macOS* 10.15.x versions                                    | 3.6, 3.7, 3.8, 3.9                                  |
 |   Windows 10*, 64-bit                                        | 3.6, 3.7, 3.8, 3.9                                  |
 
+**C++ libraries** are also required for the installation on Windows*. To install that, you can [download the Visual Studio Redistributable file (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe).
+
 > **NOTE**: This package can be installed on other versions of Linux and Windows OSes, but only the specific versions above are fully validated.
 
 > **NOTE**: The current version of the OpenVINO™ Runtime for macOS* supports inference on Intel® CPUs only.
@@ -91,7 +93,7 @@ Users in China might encounter errors while downloading sources via PIP during O
 
 ### ERROR:root:Could not find the Inference Engine or nGraph Python API.
 
-On Windows* some dependencies may require compilation from source when installing. To resolve this issue, you need to install [Build Tools for Visual Studio* 2019](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019) and repeat package installation.
+On Windows*, some libraries are necessary to run OpenVINO. To resolve this issue, install the [C++ redistributable (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe). You can also view a full download list on the [official support page](https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
 
 ### ImportError: libpython3.7m.so.1.0: cannot open shared object file: No such file or directory
 

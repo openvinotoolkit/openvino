@@ -6,6 +6,7 @@
    :maxdepth: 3
    :hidden:
 
+   From Archive <openvino_docs_install_guides_installing_openvino_from_archive_windows>
    From PyPI <openvino_docs_install_guides_installing_openvino_pip>
    Using Docker <openvino_docs_install_guides_installing_openvino_docker_windows>
 
@@ -13,5 +14,6 @@
 
 If you want to install Intel® Distribution of OpenVINO™ toolkit on Windows, you have the following options: 
 
+* [Install OpenVINO Runtime from an Archive File](installing-openvino-from-archive-windows.md)
 * [Install OpenVINO from PyPI](installing-openvino-pip.md)
 * [Install OpenVINO with Docker](installing-openvino-docker-windows.md)
