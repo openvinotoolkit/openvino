@@ -1302,8 +1302,9 @@ private:
             L(loop_c_end);
         }
 
-        if (tail_step != 0) {
-            linear_c_gathered_block_next(diaOD, diaOH, diaOW, tail_step, save_weights);
+        if (tail_step != 0 || jcp_.C == vector_step) {
+            int step = tail_step != 0 ? tail_step : vector_step;
+            linear_c_gathered_block_next(diaOD, diaOH, diaOW, step, save_weights);
         }
         if (jcp_.C > vector_step) {
             int src_diff = rnd_up(jcp_.C - vector_step + 1, vector_step);
