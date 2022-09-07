@@ -374,9 +374,13 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
 
 static format get_target_output_format(layout_optimizer& lo, const std::map<program_node*, format::type>& fmt_map, program_node *node) {
     // 1. Check required_output
-    auto ret = node->get_required_output();
-    if (ret != format::any)
-        return ret;
+    if (lo.get_optimization_attributes().use_onednn_impls) {
+        // If onednn is not used, need to ignore get_required_layout result as it is from onednn
+        auto ret = node->get_required_output();
+
+        if (ret != format::any)
+            return ret;
+    }
 
     // 2. Check fmt
     if (fmt_map.count(node) > 0)
@@ -388,9 +392,12 @@ static format get_target_output_format(layout_optimizer& lo, const std::map<prog
 
 static format get_target_input0_format(layout_optimizer& lo, const std::map<program_node*, format::type>& fmt_map, program_node *node) {
     // 1. Check required_input
-    auto ret = node->get_required_input0();
-    if (ret != format::any)
-        return ret;
+    if (lo.get_optimization_attributes().use_onednn_impls) {
+        // If onednn is not used, need to ignore get_required_layout result as it is from onednn
+        auto ret = node->get_required_input0();
+        if (ret != format::any)
+            return ret;
+    }
 
     // 2. Check fmt
     if (fmt_map.count(node) > 0)
