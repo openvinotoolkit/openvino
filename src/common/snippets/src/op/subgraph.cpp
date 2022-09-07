@@ -62,6 +62,36 @@ std::shared_ptr<Node> snippets::op::Subgraph::clone_with_new_inputs(const Output
     return make_shared<Subgraph>(inputs, ov::clone_model(*m_body.get()));
 }
 
+std::vector<PartialShape> snippets::op::Subgraph::reshape_body(const std::vector<PartialShape>& input_shapes) {
+    auto& params = m_body->get_parameters();
+    OPENVINO_ASSERT(params.size() == input_shapes.size(), "Got invalid number of input shapes to reshape subgraph body");
+    for (size_t i = 0; i < params.size(); ++i) {
+        params[i]->set_partial_shape(input_shapes[i]);
+    }
+    m_body->validate_nodes_and_infer_types();
+    std::vector<PartialShape> output_shapes;
+    for (const auto& res : m_body->get_results()) {
+        output_shapes.emplace_back(res->get_input_partial_shape(0));
+    }
+    return output_shapes;
+}
+
+std::vector<Shape> snippets::op::Subgraph::reshape_body(const std::vector<Shape>& input_shapes) {
+    auto& params = m_body->get_parameters();
+    OPENVINO_ASSERT(params.size() == input_shapes.size(), "Got invalid number of input shapes to reshape subgraph body");
+    for (size_t i = 0; i < params.size(); ++i) {
+        params[i]->set_partial_shape(input_shapes[i]);
+    }
+    m_body->validate_nodes_and_infer_types();
+    std::vector<Shape> output_shapes;
+    for (const auto& res : m_body->get_results()) {
+        auto pshape = res->get_input_partial_shape(0);
+        OPENVINO_ASSERT(pshape.is_static(), "Subgraph inferred dynamic output shape during reshape with static inputs");
+        output_shapes.emplace_back(res->get_input_partial_shape(0).get_shape());
+    }
+    return output_shapes;
+}
+
 void snippets::op::Subgraph::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::validate_and_infer_types")

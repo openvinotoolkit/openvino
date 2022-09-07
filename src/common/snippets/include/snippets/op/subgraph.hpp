@@ -107,6 +107,8 @@ public:
     snippets::Schedule generate(const void* compile_params = nullptr);
     ov::PartialShape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, const ov::element::Type exec_type);
     ov::PartialShape get_master_shape();
+    std::vector<PartialShape> reshape_body(const std::vector<PartialShape>& input_shapes);
+    std::vector<Shape> reshape_body(const std::vector<Shape>& input_shapes);
 
     // plugin sets generator for a snippet to some specific generator.
     // it's going to be replaced with Jitters table later

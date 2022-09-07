@@ -78,7 +78,6 @@ private:
     std::shared_ptr<ngraph::snippets::op::Subgraph> original_snippet;
     // Local copy of subgraph node for canonization & code generation
     std::shared_ptr<ngraph::snippets::op::Subgraph> snippet;
-    NodeVector snippet_inputs;  // dummy inputs used to simplify reshape in dynamic scenario
 
     // Holds generated snippet with information about how to schedule it
     ngraph::snippets::Schedule schedule;
