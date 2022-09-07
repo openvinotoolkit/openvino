@@ -41,7 +41,7 @@ std::map<program_node*, format::type> get_preferred_formats(program& p, layout_o
 #ifdef ENABLE_ONEDNN_FOR_GPU
     size_t onednn_impls_counter = 0;
     size_t all_impls_counter = 0;
-    const float onednn_min_threshold = 0.1f;
+    const float onednn_min_threshold = 0.09f;
     bool should_update_fmt_map = false;
 
     // Calculate onednn kernels number and all kernels number inside the network
@@ -274,7 +274,9 @@ reorder_cnt count_reorders_in_dir(const std::map<program_node*, format::type>& f
                                   travel_direction_wrapper<dir>::first(sel_fmt, next_fmt),
                                   travel_direction_wrapper<dir>::second(sel_fmt, next_fmt)))) {
             cnt += 1;
-            size += travel_direction_wrapper<dir>::first(node, next)->get_output_layout().count();
+            auto l = travel_direction_wrapper<dir>::first(node, next)->get_output_layout();
+            if (l.is_static())
+                size += l.count();
         }
     }
 
@@ -780,7 +782,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         }
 
         // Change input data of fully-connected node from bx to bf
-        if (format::is_simple_data_format(input_layout.format) && weights.is_constant() && input_layout.format.dimension() == 4 &&
+        if (input_layout.is_static() && format::is_simple_data_format(input_layout.format) && weights.is_constant() && input_layout.format.dimension() == 4 &&
             input_layout.feature() == 1 && input_layout.spatial(0) != 1 && input_layout.spatial(1) == 1) {
             auto new_tensor = input_layout.get_tensor();
             new_tensor.feature[0] = input_layout.spatial(0);

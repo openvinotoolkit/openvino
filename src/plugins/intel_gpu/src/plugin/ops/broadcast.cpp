@@ -32,16 +32,14 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
         auto targetFormat = cldnn::format::get_default_format(outputRank);
         if (targetFormat.value != cldnn::format::get_default_format(inputRank).value) {
             auto reorderName = layerName + "_cldnn_in_reorder";
-            auto targetDatatype = DataTypeFromPrecision(op->get_input_element_type(0));
+            auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(0));
             auto reorderPrim = cldnn::reorder(reorderName,
                                               inputPrimitive,
                                               targetFormat,
                                               targetDatatype,
                                               std::vector<float>(),
-                                              cldnn::reorder_mean_mode::subtract,
-                                              op->get_friendly_name());
-            p.AddPrimitive(reorderPrim);
-            p.AddInnerPrimitiveToProfiler(reorderName, layerName, op);
+                                              cldnn::reorder_mean_mode::subtract);
+            p.add_primitive(*op, reorderPrim);
 
             inputPrimitive = reorderName;
         }
@@ -73,9 +71,8 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
 
         auto targetShape = tensor_from_dims(inputShape);
 
-        auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitive, targetShape, op->get_friendly_name());
-        p.AddPrimitive(reshapePrim);
-        p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
+        auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitive, targetShape);
+        p.add_primitive(*op, reshapePrim);
 
         inputPrimitive = reshapeName;
     }
@@ -99,15 +96,13 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
                                           inputPrimitive,
                                           outputShape,
                                           axis_mapping,
-                                          mode,
-                                          op->get_friendly_name());
+                                          mode);
 
-    p.AddPrimitive(broadcastPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, broadcastPrim);
 }
 
 static void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v1::Broadcast>& op) {
-    p.ValidateInputs(op, {2, 3});
+    validate_inputs_count(op, {2, 3});
     if (op->get_broadcast_spec().m_type == ngraph::op::AutoBroadcastType::NONE && op->get_input_size() == 3) {
         auto axis_mapping_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
         if (!axis_mapping_node)
@@ -122,7 +117,7 @@ static void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v1::
 }
 
 static void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v3::Broadcast>& op) {
-    p.ValidateInputs(op, {2, 3});
+    validate_inputs_count(op, {2, 3});
     ngraph::AxisSet axis_mapping;
     if (op->get_input_size() == 3) {
         auto axis_mapping_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));

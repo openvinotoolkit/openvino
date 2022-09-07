@@ -23,32 +23,6 @@ message(STATUS "MODELS_PATH=" ${MODELS_PATH})
 
 fetch_models_and_validation_set()
 
-get_linux_name(LINUX_OS_NAME)
-
-if(CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES Linux AND CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "amd64.*|x86_64.*|AMD64.*")
-    set(protoc_version "3.18.2")
-
-    RESOLVE_DEPENDENCY(SYSTEM_PROTOC_ROOT
-        ARCHIVE_LIN "protoc-${protoc_version}-linux-x86_64.tar.gz"
-        TARGET_PATH "${TEMP}/protoc-${protoc_version}-linux-x86_64"
-        SHA256 "42fde2b6044c1f74c7e86d4e03b43aac87128ddf57ac6ed8c4eab7a1e21bbf21"
-    )
-    debug_message(STATUS "host protoc-${protoc_version} root path = " ${SYSTEM_PROTOC_ROOT})
-
-    reset_deps_cache(SYSTEM_PROTOC)
-
-    find_host_program(
-        SYSTEM_PROTOC
-        NAMES protoc
-        PATHS "${SYSTEM_PROTOC_ROOT}/bin"
-        NO_DEFAULT_PATH)
-    if(NOT SYSTEM_PROTOC)
-        message(FATAL_ERROR "[ONNX IMPORTER] Missing host protoc binary")
-    endif()
-
-    update_deps_cache(SYSTEM_PROTOC "${SYSTEM_PROTOC}" "Path to host protoc for ONNX Importer")
-endif()
-
 if(ENABLE_INTEL_MYRIAD)
     include(${OpenVINO_SOURCE_DIR}/src/plugins/intel_myriad/myriad_dependencies.cmake)
 endif()
@@ -119,7 +93,7 @@ function(ov_download_tbb)
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
-    elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
+    elseif(ANDROID AND X86_64)  # Should be before LINUX due LINUX is detected as well
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
                 TARGET_PATH "${TEMP}/tbb"
@@ -144,7 +118,7 @@ function(ov_download_tbb)
                 ENVIRONMENT "TBBROOT"
                 SHA256 "ad9cf52e657660058aa6c6844914bc0fc66241fec89a392d8b79a7ff69c3c7f6")
     else()
-        message(WARNING "TBB is not available on current platform")
+        message(WARNING "Prebuilt TBB is not available on current platform")
         return()
     endif()
 
