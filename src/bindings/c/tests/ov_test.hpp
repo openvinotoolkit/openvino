@@ -43,7 +43,7 @@ inline static std::vector<uint8_t> content_from_file(const char* filename, bool 
             is.seekg(0, std::ifstream::end);
             size_t file_len = is.tellg();
             result.resize(file_len + 1);
-            if (result.size() > 0) {
+            if (file_len > 0) {
                 is.seekg(0, std::ifstream::beg);
                 is.read(reinterpret_cast<char*>(&result[0]), file_len);
             }
