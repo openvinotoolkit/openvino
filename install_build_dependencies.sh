@@ -50,6 +50,7 @@ if [ -f /etc/lsb-release ]; then
             shellcheck \
             patchelf \
             lintian \
+            file \
             gzip \
             `# openvino` \
             libtbb-dev \
