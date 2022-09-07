@@ -26,17 +26,11 @@ ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
     }
     auto concat_m = wrap_type<ngraph::opset8::Concat>(features_output);
     auto reshape_m = wrap_type<ngraph::opset8::Reshape>({concat_m->output(0), any_input()->output(0)});
-    // This transpose is moved due to TransposeMatmul Transformation
-    // auto transpose_m = wrap_type<ngraph::opset8::Transpose>({reshape_m->output(0), any_input()->output(0)});
     auto matmul_m = wrap_type<ngraph::opset1::MatMul>({reshape_m, reshape_m});
     auto transpose2_m = wrap_type<ngraph::opset1::Transpose>({matmul_m->output(0), any_input()->output(0)});
     auto reshape2_m = wrap_type<ngraph::opset1::Reshape>({transpose2_m->output(0), any_input()->output(0)});
     auto gather_m = wrap_type<ngraph::opset8::Gather>({reshape2_m->output(0), any_input()->output(0), any_input()->output(0)});
-    // This reshape is moved to to EliminateReshape
-    // auto reshape3_m = wrap_type<ngraph::opset1::Reshape>({gather_m->output(0), any_input()->output(0)});
     auto transpose3_m = wrap_type<ngraph::opset1::Transpose>({gather_m->output(0), any_input()->output(0)});
-    // This reshape is moved to to EliminateReshape
-    // auto reshape4_m = wrap_type<ngraph::opset1::Reshape>({transpose3_m->output(0), any_input()->output(0)});
     auto final_concat_m = wrap_type<ngraph::opset1::Concat>({dense_feature_m->output(0), transpose3_m->output(0)});
 
     matcher_pass_callback callback = [=](Matcher& m) {

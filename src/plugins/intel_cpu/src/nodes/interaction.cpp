@@ -14,12 +14,12 @@
 #include "utils/general_utils.h"
 #include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
-#include <immintrin.h>
 #include "nodes/common/cpu_convert.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "common/bfloat16.hpp"
 #include "common/cpu_memcpy.h"
+#include <cpu/x64/cpu_isa_traits.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -40,8 +40,13 @@ void Interaction::initSupportedPrimitiveDescriptors() {
         return;
     dataPrecision = getOriginalInputPrecisionAtPort(0);
     // if parent precision is not bf16/fp32, then set it to fp32. Current impl only support FP32 BF16
-    if (!one_of(dataPrecision, InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP32))
-        dataPrecision = InferenceEngine::Precision::FP32;
+    if (!one_of(dataPrecision, InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP32)) {
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
+            dataPrecision = InferenceEngine::Precision::BF16;
+        } else {
+            dataPrecision = InferenceEngine::Precision::FP32;
+        }
+    }
     // initialize input ports
     std::vector<PortConfigurator> inPortConfigs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
