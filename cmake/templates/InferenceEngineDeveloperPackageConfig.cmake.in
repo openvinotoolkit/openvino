@@ -79,9 +79,28 @@ if(TARGET IE::runtime::dev AND NOT TARGET openvino::runtime::dev)
 endif()
 
 if(ENABLE_SYSTEM_PUGIXML)
+    find_package(PkgConfig QUIET)
     find_dependency(PugiXML)
-    set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
-    add_library(IE::pugixml ALIAS pugixml)
+    if(PugiXML_FOUND)
+        set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
+        add_library(IE::pugixml ALIAS pugixml)
+    elseif(PkgConfig_FOUND)
+        if(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY)
+            set(pkg_config_quiet_arg QUIET)
+        endif()
+        if(${CMAKE_FIND_PACKAGE_NAME}_FIND_REQUIRED)
+            set(pkg_config_required_arg REQUIRED)
+        endif()
+
+        pkg_search_module(pugixml
+                          ${pkg_config_quiet_arg}
+                          ${pkg_config_required_arg}
+                          IMPORTED_TARGET GLOBAL
+                          pugixml)
+        if(pugixml_FOUND)
+            add_library(IE::pugixml ALIAS PkgConfig::pugixml)
+        endif()
+    endif()
 endif()
 
 # inherit OpenCV from main IE project if enabled

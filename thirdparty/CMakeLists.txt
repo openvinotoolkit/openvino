@@ -117,7 +117,7 @@ if(ENABLE_SYSTEM_PUGIXML)
         add_library(openvino::pugixml ALIAS ${pugixml_target})
     else()
         # reset to prevent improper code generation in OpenVINODeveloperPackage
-        set(ENABLE_SYSTEM_PUGIXML OFF CACHE BOOL "" FORCE)
+        set(ENABLE_SYSTEM_PUGIXML OFF PARENT_SCOPE)
     endif()
 endif()
 
