@@ -65,28 +65,28 @@ void snippets::op::Subgraph::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::validate_and_infer_types")
     ngraph::ParameterVector old_parameters;
-    for (auto op : body().get_parameters()) {
+    for (auto op : body_ptr()->get_parameters()) {
         old_parameters.push_back(op);
     }
 
     for (size_t i = 0; i < get_input_size(); ++i) {
-        body().replace_parameter(i, std::make_shared<opset1::Parameter>(get_input_element_type(i), get_input_partial_shape(i)));
+        body_ptr()->replace_parameter(i, std::make_shared<opset1::Parameter>(get_input_element_type(i), get_input_partial_shape(i)));
     }
 
-    body().validate_nodes_and_infer_types();
+    body_ptr()->validate_nodes_and_infer_types();
 
-    for (size_t i = 0; i < body().get_parameters().size(); i++) {
-        body().get_parameters()[i]->set_friendly_name(old_parameters[i]->get_friendly_name());
+    for (size_t i = 0; i < body_ptr()->get_parameters().size(); i++) {
+        body_ptr()->get_parameters()[i]->set_friendly_name(old_parameters[i]->get_friendly_name());
     }
 
-    set_output_size(body().get_output_size());
+    set_output_size(body_ptr()->get_output_size());
     for (size_t i = 0; i < get_output_size(); ++i) {
-        set_output_type(i, body().get_output_element_type(i), body().get_output_partial_shape(i));
+        set_output_type(i, body_ptr()->get_output_element_type(i), body_ptr()->get_output_partial_shape(i));
     }
 }
 
 bool snippets::op::Subgraph::visit_attributes(AttributeVisitor& visitor) {
-    visitor.on_attribute("body", m_bodies[0]);
+    visitor.on_attribute("body", body_ptr());
     visitor.on_attribute("input_descriptions", m_input_descriptions[0]);
     visitor.on_attribute("output_descriptions", m_output_descriptions[0]);
     return true;
@@ -169,11 +169,11 @@ void snippets::op::Subgraph::fill_empty_output_names(const Output<Node>& target_
 Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::canonicalize")
-    NODE_VALIDATION_CHECK(this, inputShapes.size() == body().get_parameters().size(),
-        "Number of parameters for snippet doesn't match passed to generate method: ", inputShapes.size(), " vs ", body().get_parameters().size(), ".");
+    NODE_VALIDATION_CHECK(this, inputShapes.size() == body_ptr()->get_parameters().size(),
+        "Number of parameters for snippet doesn't match passed to generate method: ", inputShapes.size(), " vs ", body_ptr()->get_parameters().size(), ".");
 
-    NODE_VALIDATION_CHECK(this, outputShapes.size() == body().get_results().size(),
-        "number of results for snippet doesn't match passed to generate method: ", outputShapes.size(), " vs ", body().get_results().size(), ".");
+    NODE_VALIDATION_CHECK(this, outputShapes.size() == body_ptr()->get_results().size(),
+        "number of results for snippet doesn't match passed to generate method: ", outputShapes.size(), " vs ", body_ptr()->get_results().size(), ".");
 
     auto getMaxRankBlockedShape = [](const BlockedShapeVector& blockedShapes) -> const BlockedShape& {
         return *std::max_element(blockedShapes.begin(), blockedShapes.end(),
@@ -216,13 +216,13 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
         NODE_VALIDATION_CHECK(this,
                               PartialShape::broadcast_merge_into(tmpPShape, inShape, ::ngraph::op::AutoBroadcastType::NUMPY),
                               "Failed to create broadcastable shapes in snippets canonicalization");
-        const auto paramShape = body().get_parameters()[i]->get_shape();
-        const auto paramType =  body().get_parameters()[i]->get_element_type();
+        const auto paramShape = body_ptr()->get_parameters()[i]->get_shape();
+        const auto paramType =  body_ptr()->get_parameters()[i]->get_element_type();
         if (paramShape.size() != inShape.size() || !equal(paramShape.begin(), paramShape.end(), inShape.begin()) || paramType != inType)
-                body().replace_parameter(i, std::make_shared<opset1::Parameter>(inType, inShape));
+                body_ptr()->replace_parameter(i, std::make_shared<opset1::Parameter>(inType, inShape));
     }
 
-    body().validate_nodes_and_infer_types();
+    body_ptr()->validate_nodes_and_infer_types();
     auto skipStartEndOnes = [](const Shape& shape) {
         auto begin = shape.begin();
         auto end = shape.end();
@@ -236,7 +236,7 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
     };
 
     // Check that output shapes are broadcastable => can be scheduled
-    const auto& body_results = body().get_results();
+    const auto& body_results = body_ptr()->get_results();
     PartialShape outPShape = body_results[0]->get_shape();
     for (size_t i = 0; i < body_results.size(); i++) {
         auto shape_i = body_results[i]->get_shape();
@@ -271,9 +271,9 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
 
     ngraph::pass::Manager p_manager;
     p_manager.register_pass<snippets::pass::TransformConvertToConvertTruncation>();
-    p_manager.run_passes(m_bodies[0]);
+    p_manager.run_passes(body_ptr());
 
-    const auto& body_results = body().get_results();
+    const auto& body_results = body_ptr()->get_results();
     for (size_t i = 0; i < outputShapes.size(); i++) {
         const auto needed_out_type = std::get<2>(outputShapes[i]);
 
@@ -310,7 +310,7 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
     manager.register_pass<snippets::pass::ResetTypeRelaxedNodePrecision>(execution_element_type);
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::EliminateConvert>();
-    manager.run_passes(m_bodies[0]);
+    manager.run_passes(body_ptr());
 }
 
 void snippets::op::Subgraph::convert_to_snippet_dialect() {
@@ -394,7 +394,7 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
 
     // check that body doesn't have constants for scheduling
     std::vector<std::shared_ptr<opset1::Constant>> constants;
-    for (auto op : body().get_ordered_ops()) {
+    for (auto op : body_ptr()->get_ordered_ops()) {
         if (auto constant = ov::as_type_ptr<opset1::Constant>(op)) {
             if (ngraph::shape_size(constant->get_shape()) != 1 && constant->get_shape() != Shape()) {
                 constants.push_back(constant);
@@ -410,10 +410,10 @@ void snippets::op::Subgraph::print() const {
     INTERNAL_OP_SCOPE(Subgraph);
     remark(13) << "subgraph " << this->get_friendly_name() << " "
         << this->get_type_name()
-        << " which contains " << body().get_ops().size() << " nodes" << std::endl;
+        << " which contains " << body_ptr()->get_ops().size() << " nodes" << std::endl;
 
     int qqq = 0;
-    for (auto op : body().get_ordered_ops()) {
+    for (auto op : body_ptr()->get_ordered_ops()) {
         remark(13) << "op " << qqq++ << " " << op->get_friendly_name() << " (" << op->get_type_name() << ") " << op << std::endl;
     }
 
@@ -444,7 +444,7 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
         }
 
         if (auto subgraph = ngraph::as_type_ptr<op::Subgraph>(n)) {
-            for (auto op : subgraph->body().get_ordered_ops()) {
+            for (auto op : subgraph->body_ptr()->get_ordered_ops()) {
                 if (ngraph::as_type_ptr<ngraph::opset1::Constant>(op)) {
                     total += op->output(0).get_tensor().size();
                 }
@@ -479,9 +479,9 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
 
     std::cout << get_friendly_name()
                 << ";" << this
-                << ";" << body().get_ops().size()
-                << ";" << body().get_parameters().size()
-                << ";" << body().get_results().size()
+                << ";" << body_ptr()->get_ops().size()
+                << ";" << body_ptr()->get_parameters().size()
+                << ";" << body_ptr()->get_results().size()
                 << ";" << countConstants(body())
                 << ";" << getModelInventory(body())
                 << ";" << getNodeInventory(shared_from_this()) << std::endl;
