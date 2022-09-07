@@ -15,7 +15,6 @@
 #include <string>
 #include <vector>
 
-#include "ie_plugin_config.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/op_extension.hpp"
@@ -518,6 +517,18 @@ public:
      * @return Value of a property corresponding to the property name.
      */
     Any get_property(const std::string& device_name, const std::string& name, const AnyMap& arguments) const;
+
+    /**
+     * @brief Gets properties related to core behaviour.
+     *
+     * The method extracts information that can be set via the set_property method.
+     *
+     * @param name  Property name.
+     * @return Value of a property corresponding to the property name.
+     */
+    Any get_property(const std::string& name) const {
+        return get_property(std::string(), name);
+    }
 
     /**
      * @brief Gets properties related to device behaviour.

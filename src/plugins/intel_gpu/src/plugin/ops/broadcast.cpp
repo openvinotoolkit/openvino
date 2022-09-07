@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/except.hpp"
 #include "intel_gpu/plugin/program.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
@@ -28,19 +29,17 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
 
     if (inputRank != outputRank) {
         // Add reorder if changing number of dimensions requires changing format
-        auto targetFormat = DefaultFormatForDims(outputRank);
-        if (targetFormat.value != DefaultFormatForDims(inputRank).value) {
+        auto targetFormat = cldnn::format::get_default_format(outputRank);
+        if (targetFormat.value != cldnn::format::get_default_format(inputRank).value) {
             auto reorderName = layerName + "_cldnn_in_reorder";
-            auto targetDatatype = DataTypeFromPrecision(op->get_input_element_type(0));
+            auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(0));
             auto reorderPrim = cldnn::reorder(reorderName,
                                               inputPrimitive,
                                               targetFormat,
                                               targetDatatype,
                                               std::vector<float>(),
-                                              cldnn::reorder_mean_mode::subtract,
-                                              op->get_friendly_name());
-            p.AddPrimitive(reorderPrim);
-            p.AddInnerPrimitiveToProfiler(reorderName, layerName, op);
+                                              cldnn::reorder_mean_mode::subtract);
+            p.add_primitive(*op, reorderPrim);
 
             inputPrimitive = reorderName;
         }
@@ -72,25 +71,38 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
 
         auto targetShape = tensor_from_dims(inputShape);
 
-        auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitive, targetShape, op->get_friendly_name());
-        p.AddPrimitive(reshapePrim);
-        p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
+        auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitive, targetShape);
+        p.add_primitive(*op, reshapePrim);
 
         inputPrimitive = reshapeName;
     }
 
+    ov::op::BroadcastModeSpec mode = ov::op::BroadcastType::NONE;
+    if (auto broadcast_v3 = std::dynamic_pointer_cast<ngraph::op::v3::Broadcast>(op)) {
+        mode = broadcast_v3->get_broadcast_spec();
+    } else if (auto broadcast_v1 = std::dynamic_pointer_cast<ngraph::op::v1::Broadcast>(op)) {
+        switch (broadcast_v1->get_broadcast_spec().m_type) {
+            case ov::op::AutoBroadcastType::NONE: mode = ov::op::BroadcastType::NONE; break;
+            case ov::op::AutoBroadcastType::NUMPY: mode = ov::op::BroadcastType::NUMPY; break;
+            case ov::op::AutoBroadcastType::PDPD: mode = ov::op::BroadcastType::PDPD; break;
+            default:
+                throw ov::Exception("[GPU] Can't match Broadcast v1 mode with v3 version");
+        }
+    } else {
+        throw ov::Exception("[GPU] Can't cast Broadcast operation to any supported version");
+    }
+
     auto broadcastPrim = cldnn::broadcast(layerName,
                                           inputPrimitive,
-                                          tensor_from_dims(op->get_output_shape(0)),
-                                          {},
-                                          op->get_friendly_name());
+                                          outputShape,
+                                          axis_mapping,
+                                          mode);
 
-    p.AddPrimitive(broadcastPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, broadcastPrim);
 }
 
 static void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v1::Broadcast>& op) {
-    p.ValidateInputs(op, {2, 3});
+    validate_inputs_count(op, {2, 3});
     if (op->get_broadcast_spec().m_type == ngraph::op::AutoBroadcastType::NONE && op->get_input_size() == 3) {
         auto axis_mapping_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
         if (!axis_mapping_node)
@@ -105,7 +117,7 @@ static void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v1::
 }
 
 static void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v3::Broadcast>& op) {
-    p.ValidateInputs(op, {2, 3});
+    validate_inputs_count(op, {2, 3});
     ngraph::AxisSet axis_mapping;
     if (op->get_input_size() == 3) {
         auto axis_mapping_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));

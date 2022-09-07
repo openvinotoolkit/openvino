@@ -43,21 +43,18 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
         auto inputRank = inputShape.size();
         if (inputRank != outRank) {
             // Add reorder if changing number of dimensions requires changing format
-            auto targetFormat = DefaultFormatForDims(outRank);
-            if (targetFormat.value != DefaultFormatForDims(inputRank).value) {
+            auto targetFormat = cldnn::format::get_default_format(outRank);
+            if (targetFormat.value != cldnn::format::get_default_format(inputRank).value) {
                 auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
-                auto targetDatatype = DataTypeFromPrecision(op->get_input_element_type(i));
+                auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(i));
                 auto reorderPrim = cldnn::reorder(reorderName,
                                                   inputPrimitives[i],
                                                   targetFormat,
                                                   targetDatatype,
                                                   std::vector<float>(),
-                                                  cldnn::reorder_mean_mode::subtract,
-                                                  op->get_friendly_name());
+                                                  cldnn::reorder_mean_mode::subtract);
 
-                p.AddPrimitive(reorderPrim);
-                p.AddInnerPrimitiveToProfiler(reorderName, layerName, op);
-
+                p.add_primitive(*op, reorderPrim);
                 inputPrimitives[i] = reorderName;
             }
 
@@ -68,24 +65,21 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
 
             auto targetShape = tensor_from_dims(inputShape);
 
-            auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, op->get_friendly_name());
-            p.AddPrimitive(reshapePrim);
-            p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
+            auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
+            p.add_primitive(*op, reshapePrim);
 
             inputPrimitives[i] = reshapeName;
         }
     }
 
-    auto out_dt = DataTypeFromPrecision(op->get_output_element_type(0));
+    auto out_dt = cldnn::element_type_to_data_type(op->get_output_element_type(0));
     auto eltwisePrim = cldnn::eltwise(layerName,
                                       inputPrimitives,
                                       mode,
                                       {},
-                                      out_dt,
-                                      op->get_friendly_name());
+                                      out_dt);
 
-    p.AddPrimitive(eltwisePrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, eltwisePrim);
 }
 
 static void CreateAddOp(Program& p, const std::shared_ptr<ngraph::op::v1::Add>& op) {
@@ -153,7 +147,7 @@ static void CreateLogicalXorOp(Program& p, const std::shared_ptr<ngraph::op::v1:
 }
 
 static void CreatePowerOp(Program& p, const std::shared_ptr<ngraph::op::v1::Power>& op) {
-    p.ValidateInputs(op, {2});
+    validate_inputs_count(op, {2});
     auto power_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     if (power_node) {
         if (ngraph::shape_size(power_node->get_output_shape(0)) == 1) {

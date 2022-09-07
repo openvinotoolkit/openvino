@@ -19,7 +19,7 @@ function(frontend_module TARGET FRAMEWORK INSTALL_COMPONENT)
 
     # create target
 
-    pybind11_add_module(${TARGET_NAME} MODULE ${SOURCES})
+    pybind11_add_module(${TARGET_NAME} MODULE NO_EXTRAS ${SOURCES})
 
     add_dependencies(${TARGET_NAME} pyopenvino)
     add_dependencies(py_ov_frontends ${TARGET_NAME})
@@ -27,6 +27,8 @@ function(frontend_module TARGET FRAMEWORK INSTALL_COMPONENT)
     target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
                                                       "${PYTHON_SOURCE_DIR}/pyopenvino/utils/")
     target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime openvino::frontend::${FRAMEWORK})
+
+    set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
     # Compatibility with python 2.7 which has deprecated "register" specifier
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -39,6 +41,6 @@ function(frontend_module TARGET FRAMEWORK INSTALL_COMPONENT)
                                               ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py)
 
     install(TARGETS ${TARGET_NAME}
-            DESTINATION ${OV_CPACK_PYTHONDIR}/${PYTHON_VERSION}/openvino/frontend/${FRAMEWORK}
+            DESTINATION ${OV_CPACK_PYTHONDIR}/${pyversion}/openvino/frontend/${FRAMEWORK}
             COMPONENT ${INSTALL_COMPONENT})
 endfunction()

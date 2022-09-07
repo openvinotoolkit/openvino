@@ -11,7 +11,6 @@
 #include "crop_inst.h"
 #include "eltwise_inst.h"
 #include "reshape_inst.h"
-#include "scale_inst.h"
 #include "depth_to_space_inst.h"
 #include "resample_inst.h"
 #include "loop_inst.h"
@@ -166,7 +165,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         // todo: we need add padding support for all optimized kernels to remove this condition
         if (!input->is_type<pooling>() && !input->is_type<convolution>() && !input->is_type<quantize>() &&
             !input->is_type<activation>() && !input->is_type<deconvolution>() &&
-            !input->is_type<concatenation>() && !input->is_type<crop>() && !input->is_type<scale>() && !input->is_type<eltwise>() &&
+            !input->is_type<concatenation>() && !input->is_type<crop>() && !input->is_type<eltwise>() &&
             !input->is_type<resample>())
             return false;
 
@@ -407,6 +406,7 @@ void prepare_buffer_fusing::run(program& p) {
         auto& node = (*node_itr++);
         if (!can_optimize(node))
             continue;
+
         program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
             node.get_output_layout();
             node.can_be_optimized(can_reshape_be_optimized(node));

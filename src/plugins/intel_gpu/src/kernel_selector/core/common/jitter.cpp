@@ -237,8 +237,8 @@ public:
 
         definitions.push_back({_name + "_SIZE", toCodeString(t.GetDims().size())});
         definitions.push_back(
-            {_name + "_SIZES",
-             toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 1, [](const Tensor::Dim& d) { return d.v; })});
+            {_name + "_SIZES_DATA",
+             toVectorString(t.GetDims(), "", KERNEL_SELECTOR_TENSOR_DIM_MAX, 1, [](const Tensor::Dim& d) { return d.v; })});
         definitions.push_back(
             {_name + "_PITCHES",
              toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 1, [](const Tensor::Dim& d) { return d.pitch; })});
@@ -340,6 +340,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                        layout == DataLayout::fs_b_yx_fsv32 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
                        layout == DataLayout::bs_fs_yx_bsv4_fsv4 ||
+                       layout == DataLayout::bs_fs_yx_bsv16_fsv4 ||
+                       layout == DataLayout::bs_fs_yx_bsv16_fsv2 ||
                        layout == DataLayout::bs_fs_yx_bsv8_fsv4 ||
                        layout == DataLayout::bs_fs_yx_bsv8_fsv2 ||
                        layout == DataLayout::bs_fs_yx_bsv4_fsv2 ||
@@ -348,21 +350,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                 auto layout_str = toString(layout);
                 index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
                 raw_index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
-                if (layout == DataLayout::b_fs_yx_fsv16 ||
-                    layout == DataLayout::b_fs_yx_fsv32 ||
-                    layout == DataLayout::b_fs_yx_fsv2  ||
-                    layout == DataLayout::b_fs_yx_fsv4  ||
-                    layout == DataLayout::bs_fs_yx_bsv32_fsv32  ||
-                    layout == DataLayout::bs_fs_yx_bsv32_fsv16  ||
-                    layout == DataLayout::bs_fs_yx_bsv4_fsv4  ||
-                    layout == DataLayout::bs_fs_yx_bsv8_fsv4  ||
-                    layout == DataLayout::bs_fs_yx_bsv8_fsv2  ||
-                    layout == DataLayout::bs_fs_yx_bsv4_fsv2  ||
-                    layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
-                    layout == DataLayout::fs_b_yx_fsv32)
-                    safe_index_func_val = "GET_DATA_" + layout_str + "_INDEX_SAFE(" + _name + ", b, f, y, x)";
-                else
-                    safe_index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
+                safe_index_func_val = "GET_DATA_" + layout_str + "_INDEX_SAFE(" + _name + ", b, f, y, x)";
             } else if (layout == DataLayout::bs_f_bsv8__af8 ||
                        layout == DataLayout::bs_f_bsv16__af8) {
                 size_t sub_group_size = layout == DataLayout::bs_f_bsv16__af8 ? 16 : 8;
@@ -420,10 +408,18 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                 index_func_val = "GET_DATA_B_FS_ZYX_FSV32_INDEX(" + _name + ", b, f, z, y, x)";
                 raw_index_func_val = "GET_DATA_B_FS_ZYX_FSV32_INDEX(" + _name + ", b, f, z, y, x)";
                 safe_index_func_val = "GET_DATA_B_FS_ZYX_FSV32_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
+            } else if (layout == DataLayout::bs_fs_zyx_bsv16_fsv4) {
+                index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV4_INDEX(" + _name + ", b, f, z, y, x)";
+                raw_index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV4_INDEX(" + _name + ", b, f, z, y, x)";
+                safe_index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV4_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
             } else if (layout == DataLayout::bs_fs_zyx_bsv8_fsv4) {
                 index_func_val = "GET_DATA_BS_FS_ZYX_BSV8_FSV4_INDEX(" + _name + ", b, f, z, y, x)";
                 raw_index_func_val = "GET_DATA_BS_FS_ZYX_BSV8_FSV4_INDEX(" + _name + ", b, f, z, y, x)";
                 safe_index_func_val = "GET_DATA_BS_FS_ZYX_BSV8_FSV4_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
+            } else if (layout == DataLayout::bs_fs_zyx_bsv16_fsv2) {
+                index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV2_INDEX(" + _name + ", b, f, z, y, x)";
+                raw_index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV2_INDEX(" + _name + ", b, f, z, y, x)";
+                safe_index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV2_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
             } else if (layout == DataLayout::bs_fs_zyx_bsv8_fsv2) {
                 index_func_val = "GET_DATA_BS_FS_ZYX_BSV8_FSV2_INDEX(" + _name + ", b, f, z, y, x)";
                 raw_index_func_val = "GET_DATA_BS_FS_ZYX_BSV8_FSV2_INDEX(" + _name + ", b, f, z, y, x)";
@@ -490,7 +486,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
             auto f_size = toCodeString(_tensor.Feature().v);
             definitions.push_back({ safe_index_func_name, "(" + offset + " + ((f) % " + f_size + ")  * " + f_pitch + ")" });
             definitions.push_back({ index_func_name, "(" + offset + " + (f) * " + f_pitch + ")" });
-        } else if (_tensor.PitchesDifferFromLogicalDims()) {
+        } else if (_tensor.PitchesDifferFromLogicalDims() || _tensor.DoubleBlockedLayout()) {
             // TODO This should be solved differently, by setting the macro arguments to zero
             definitions.push_back({ safe_index_func_name, safe_index_func_val });
             definitions.push_back({ index_func_name, index_func_val });
@@ -1489,7 +1485,6 @@ bool FusedOpsCodeGenerator::CanPreloadData(const FusedOpsConfiguration& conf) co
 std::string FusedOpsCodeGenerator::GetTypeStr() const {
     switch (desc.GetType()) {
         case KernelType::ELTWISE: return "eltwise";
-        case KernelType::SCALE: return "scale";
         case KernelType::QUANTIZE: return "quantize";
         case KernelType::ACTIVATION: return "activation";
         case KernelType::UNKNOWN: throw std::runtime_error("Invalid type of fused operation. Fused op can't have type UNKNOWN");
@@ -1582,7 +1577,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
     const auto& out_type = desc.output_tensor.GetDType();
 
     if (conf.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE &&
-        (desc.GetType() == KernelType::SCALE || desc.GetType() == KernelType::QUANTIZE)) {
+        desc.GetType() == KernelType::QUANTIZE) {
         is_shuffled = true;
     }
 
@@ -1631,18 +1626,6 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
     }
 
     switch (desc.GetType()) {
-        case KernelType::SCALE: {
-            auto tmp_var = out_var + "_tmp";
-            if (desc.tensors.size() > 1) {
-                op_decls += "\\\n\t" + GetType(get_acc_t(), vec_size) + " " + tmp_var + " = "
-                          + input_vars[0] + " * " + input_vars[1] + " + " + input_vars[2] + ";";
-            } else {
-                op_decls += "\\\n\t" + GetType(get_acc_t(), vec_size) + " " + tmp_var + " = "
-                          + input_vars[0] + " * " + input_vars[1] + ";";
-            }
-            op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputType(tmp_var, vec_size) + ";";
-            break;
-        }
         case KernelType::ELTWISE: {
             auto p = desc.GetOpParams<eltwise_fuse_params>();
             if (!p)
@@ -1881,10 +1864,13 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
 
     bool safe_load = conf.boundary_check == FusedOpsConfiguration::BoundaryCheck::ENABLED;
 
+    // Fsv16 Eltwise whcih requires f axis broadcast such as input[1,1,z,1,1], output[b,f,z,y,x] need to use LT unligned read.
+    // In this case, intel_sub_group_block_read() introduces increasing index in feature block.
+    bool f_axis_broadcast = ((input_tensor.Feature().v != prim_output.Feature().v) && (input_tensor.Feature().v == 1) && (vec_size == 1));
     // Change JitLoad to ignore LT_ALIGNED_READ LoadType if this input tensor has a planar format(SimpleLayout)
     if (desc.GetType() == KernelType::ELTWISE && input_tensor.SimpleLayout() && input_tensor.GetLayout() != orig_output_layout &&
         conf.load_type == FusedOpsConfiguration::LoadType::LT_ALIGNED_READ &&
-        input_tensor.SameDimsSizes(prim_output) && input_tensor.LogicalSize() != 1) {
+        (input_tensor.SameDimsSizes(prim_output) || f_axis_broadcast) && input_tensor.LogicalSize() != 1) {
         std::string sub_group_local_id_str = "get_sub_group_local_id";
         size_t found_sub = conf.bfzyx_idx_order[1].rfind(sub_group_local_id_str);
         if (found_sub != std::string::npos) {

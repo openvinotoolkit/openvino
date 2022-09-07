@@ -324,7 +324,8 @@ void network::set_arguments() {
         return;
 
     for (auto const& prim : _exec_order) {
-        prim->set_arguments();
+        if (!prim->is_dynamic())
+            prim->set_arguments();
     }
     _reset_arguments = false;
 }
@@ -522,21 +523,29 @@ memory::ptr network::get_output_memory(const primitive_id& output_id) {
 
 void network::allocate_primitives() {
     std::vector<std::shared_ptr<program_node>> nodes_to_allocate{};
-    for (auto node : _program->get_processing_order()) {
+    auto& po = _program->get_processing_order();
+    for (auto node : po) {
         nodes_to_allocate.push_back(_program->get_node_ptr(node->id()));
     }
 
     std::sort(nodes_to_allocate.begin(),
               nodes_to_allocate.end(),
-              [](std::shared_ptr<program_node> const& lhs, std::shared_ptr<program_node> const& rhs) {
-                  return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
+              [&po](std::shared_ptr<program_node> const& lhs, std::shared_ptr<program_node> const& rhs) {
+                    if (rhs->get_output_layout().is_dynamic() && lhs->get_output_layout().is_dynamic())
+                        return po.get_processing_number(lhs.get()) < po.get_processing_number(rhs.get());
+                    if (rhs->get_output_layout().is_dynamic())
+                        return true;
+                    if (lhs->get_output_layout().is_dynamic())
+                        return false;
+
+                    return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
               });
 
     for (auto const& node : nodes_to_allocate) {
         allocate_primitive_instance(*node);
     }
 
-    for (auto const& node : _program->get_processing_order()) {
+    for (auto const& node : po) {
         if (node->get_preferred_impl_type() == impl_types::onednn) {
             size_t eltw_dep = 0;
             for (auto& fused_op : node->get_fused_primitives()) {
@@ -559,7 +568,7 @@ void network::allocate_primitives() {
         }
     }
     // allocate intermediate buffers
-    for (auto const& node : _program->get_processing_order()) {
+    for (auto const& node : po) {
         auto prim = _primitives[node->id()];
         prim->allocate_internal_buffers();
     }
@@ -638,16 +647,28 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     GPU_DEBUG_IF(debug_config->verbose >= 1)
         GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
 
-    std::vector<memory::ptr> in_out_mem;
-    for (auto& inst : _inputs) {
-        in_out_mem.push_back(inst->output_memory_ptr());
-    }
+    std::unique_ptr<cldnn::surfaces_lock> surf_lock;
+    bool shared_mem_found = std::any_of(_in_out_shared_mem_types.begin(),
+                                        _in_out_shared_mem_types.end(),
+                                        [](const shared_mem_type& shared_mem_type) {
+                                            return shared_mem_type == shared_mem_type::shared_mem_vasurface ||
+                                                   shared_mem_type == shared_mem_type::shared_mem_dxbuffer;
+                                        });
 
-    for (auto& inst : _outputs) {
-        in_out_mem.push_back(inst->output_memory_ptr());
-    }
+    if (shared_mem_found) {
+        std::vector<memory::ptr> in_out_mem;
+        for (auto& inst : _inputs) {
+            if (inst->output_memory_ptr())
+                in_out_mem.push_back(inst->output_memory_ptr());
+        }
 
-    auto surf_lock = surfaces_lock::create(get_engine().type(), in_out_mem, get_stream());
+        for (auto& inst : _outputs) {
+            if (inst->output_memory_ptr())
+                in_out_mem.push_back(inst->output_memory_ptr());
+        }
+
+        surf_lock = surfaces_lock::create(get_engine().type(), in_out_mem, get_stream());
+    }
 
     set_arguments();
     for (auto& inst : _exec_order) {
@@ -667,29 +688,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             }
         }
 
-        GPU_DEBUG_IF(debug_config->verbose >= 1) {
-            std::ostringstream in_addr;
-            // buffer_ptr() only support usm_memory
-            for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
-                auto& in_mem = get_primitive(inst->id())->dep_memory(i);
-                in_addr << in_mem.buffer_ptr();
-                if (i < get_primitive(inst->id())->dependencies().size() - 1) {
-                    in_addr << ", ";
-                }
-            }
-            auto& out_mem = get_primitive(inst->id())->output_memory();
-
-            GPU_DEBUG_COUT << "Execute " << inst->id() << ", memory type: "
-                           << inst->output_memory().get_allocation_type() << ", in_usm("
-                           << in_addr.str() << "), out_usm("
-                           << out_mem.buffer_ptr() << ")" << std::endl;
-        }
-
-        // If a node has mutable input or it's an output, then the input/output buffers might be changed
-        // So we need to set arguments on each execution.
-        if (inst->has_mutable_input() || inst->is_output()) {
-            inst->set_arguments();
-        }
         execute_primitive(inst, events);
 
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
@@ -799,7 +797,7 @@ const program::graph_optimizer_info& network::get_optimizer_passes_info() const 
 std::map<primitive_id, primitive_id> network::get_ext_id_mapping() const {
     std::map<primitive_id, primitive_id> result;
     for (auto& prim : _primitives) {
-        result.emplace(prim.first, prim.second->get_ext_prim_id());
+        result.emplace(prim.first, prim.second->get_node().get_primitive()->origin_op_name);
     }
     for (auto& opt_id : _program->get_optimized_out()) {
         std::string ext_id = opt_id;
@@ -850,6 +848,11 @@ void network::allocate_primitive_instance(program_node const& node) {
     if (_primitives.count(node.id()))
         return;
 
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->verbose >= 4) {
+        GPU_DEBUG_COUT << node.id() << ": allocate primitive instance" << std::endl;
+    }
+
     auto inst = node.type()->create_instance(*this, node);
 
     std::function<bool(const program_node&)> is_mutable_input = [&is_mutable_input](const program_node& node) {
@@ -870,10 +873,19 @@ void network::allocate_primitive_instance(program_node const& node) {
         inst->set_mutable_input(true);
     }
 
+    if (node.is_dynamic()) {
+        _is_dynamic = true;
+    }
+
     _primitives[node.id()] = inst;
-    if (node.is_input())
+    if (node.is_input()) {
+        if (inst->output_memory_ptr())
+            _in_out_shared_mem_types.push_back(inst->output_memory_ptr()->get_internal_params().mem_type);
         _inputs.push_back(inst);
+    }
     if (node.is_output()) {
+        if (inst->output_memory_ptr())
+            _in_out_shared_mem_types.push_back(inst->output_memory_ptr()->get_internal_params().mem_type);
         _outputs.push_back(inst);
         if (node.is_type<data>())
             _data_outputs.push_back(inst);
