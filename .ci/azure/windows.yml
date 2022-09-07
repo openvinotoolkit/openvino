@@ -66,7 +66,7 @@ jobs:
   steps:
   - script: |
       powershell -command "Invoke-RestMethod -Headers @{\"Metadata\"=\"true\"} -Method GET -Uri http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01 | format-custom"
-      ls C:\hostedtoolcache\windows\Python
+      tree C:\hostedtoolcache\windows\Python
       C:\hostedtoolcache\windows\Python\3.10\x64\python.exe -m venv $(PYTHON_VENV_DIR)
       call $(PYTHON_VENV_DIR)\Scripts\activate.bat
       where python3
