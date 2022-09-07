@@ -56,7 +56,7 @@ ov_status_e ov_infer_request_set_tensor_by_const_port(ov_infer_request_t* infer_
 }
 
 ov_status_e ov_infer_request_set_input_tensor_by_index(ov_infer_request_t* infer_request,
-                                                       size_t idx,
+                                                       const size_t idx,
                                                        const ov_tensor_t* tensor) {
     if (!infer_request || !tensor) {
         return ov_status_e::INVALID_C_PARAM;
@@ -84,7 +84,7 @@ ov_status_e ov_infer_request_set_input_tensor(ov_infer_request_t* infer_request,
 }
 
 ov_status_e ov_infer_request_set_output_tensor_by_index(ov_infer_request_t* infer_request,
-                                                        size_t idx,
+                                                        const size_t idx,
                                                         const ov_tensor_t* tensor) {
     if (!infer_request || !tensor) {
         return ov_status_e::INVALID_C_PARAM;
@@ -166,7 +166,7 @@ ov_status_e ov_infer_request_get_tensor_by_port(const ov_infer_request_t* infer_
 }
 
 ov_status_e ov_infer_request_get_input_tensor_by_index(const ov_infer_request_t* infer_request,
-                                                       size_t idx,
+                                                       const size_t idx,
                                                        ov_tensor_t** tensor) {
     if (!infer_request || !tensor) {
         return ov_status_e::INVALID_C_PARAM;
@@ -200,7 +200,7 @@ ov_status_e ov_infer_request_get_input_tensor(const ov_infer_request_t* infer_re
 }
 
 ov_status_e ov_infer_request_get_output_tensor_by_index(const ov_infer_request_t* infer_request,
-                                                        size_t idx,
+                                                        const size_t idx,
                                                         ov_tensor_t** tensor) {
     if (!infer_request || !tensor) {
         return ov_status_e::INVALID_C_PARAM;

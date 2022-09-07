@@ -71,10 +71,10 @@ OPENVINO_C_API(ov_status_e)
 ov_infer_request_set_tensor(ov_infer_request_t* infer_request, const char* tensor_name, const ov_tensor_t* tensor);
 
 /**
- * @brief Sets an input/output tensor to infer on by the port of input/output tensor.
+ * @brief Sets an input/output tensor to infer request for the port.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
- * @param port Port of the input or output tensor, which can be got by call interface from ov_model_t/ov_compiled_model_t.
+ * @param port Port of the input or output tensor, which can be got by calling ov_model_t/ov_compiled_model_t interface.
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -82,7 +82,7 @@ OPENVINO_C_API(ov_status_e)
 ov_infer_request_set_tensor_by_port(ov_infer_request_t* infer_request, const ov_output_node_t* port, const ov_tensor_t* tensor);
 
 /**
- * @brief Sets an input/output tensor to infer on by the const port of input/output tensor.
+ * @brief Sets an input/output tensor to infer request for the port.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param port Const port of the input or output tensor, which can be got by call interface from ov_model_t/ov_compiled_model_t.
@@ -101,7 +101,7 @@ ov_infer_request_set_tensor_by_const_port(ov_infer_request_t* infer_request, con
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_infer_request_set_input_tensor_by_index(ov_infer_request_t* infer_request, size_t idx, const ov_tensor_t* tensor);
+ov_infer_request_set_input_tensor_by_index(ov_infer_request_t* infer_request, const size_t idx, const ov_tensor_t* tensor);
 
 /**
  * @brief Sets an input tensor for the model with single input to infer on.
@@ -124,7 +124,7 @@ ov_infer_request_set_input_tensor(ov_infer_request_t* infer_request, const ov_te
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_infer_request_set_output_tensor_by_index(ov_infer_request_t* infer_request, size_t idx, const ov_tensor_t* tensor);
+ov_infer_request_set_output_tensor_by_index(ov_infer_request_t* infer_request, const size_t idx, const ov_tensor_t* tensor);
 
 /**
  * @brief Sets an output tensor to infer models with single output.
@@ -180,7 +180,7 @@ ov_infer_request_get_tensor_by_port(const ov_infer_request_t* infer_request, con
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_infer_request_get_input_tensor_by_index(const ov_infer_request_t* infer_request, size_t idx, ov_tensor_t** tensor);
+ov_infer_request_get_input_tensor_by_index(const ov_infer_request_t* infer_request, const size_t idx, ov_tensor_t** tensor);
 
 /**
  * @brief Gets an input tensor from the model with only one input tensor.
@@ -202,7 +202,7 @@ ov_infer_request_get_input_tensor(const ov_infer_request_t* infer_request, ov_te
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_infer_request_get_output_tensor_by_index(const ov_infer_request_t* infer_request, size_t idx, ov_tensor_t** tensor);
+ov_infer_request_get_output_tensor_by_index(const ov_infer_request_t* infer_request, const size_t idx, ov_tensor_t** tensor);
 
 /**
  * @brief Gets an output tensor from the model with only one output tensor.
