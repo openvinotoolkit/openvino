@@ -39,13 +39,11 @@ void Interaction::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
     dataPrecision = getOriginalInputPrecisionAtPort(0);
-    // if parent precision is not bf16/fp32, then set it to fp32. Current impl only support FP32 BF16
-    if (!one_of(dataPrecision, InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP32)) {
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
-            dataPrecision = InferenceEngine::Precision::BF16;
-        } else {
-            dataPrecision = InferenceEngine::Precision::FP32;
-        }
+    // Current impl only support FP32 BF16, BF16 is preferred
+    if (dataPrecision != InferenceEngine::Precision::FP32 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
+        dataPrecision = InferenceEngine::Precision::BF16;
+    } else {
+        dataPrecision = InferenceEngine::Precision::FP32;
     }
     // initialize input ports
     std::vector<PortConfigurator> inPortConfigs;
