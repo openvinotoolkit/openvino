@@ -258,8 +258,6 @@ struct Params {
     std::vector<int64_t> repeats;
     tensor output_tensor;
     std::vector<T> outputs;
-    int output_axis;
-    int num_tiles;
 };
 
 template<typename T>
@@ -315,8 +313,6 @@ std::vector<Params<T>> generateTileParams2D() {
                              2.f, 0.f,
                              6.f, 5.2f,
                          }),
-            0,
-            2,
         },
         {
             tensor(1, 2, 2, 2),
@@ -336,8 +332,6 @@ std::vector<Params<T>> generateTileParams2D() {
                              2.f, 0.f,
                              6.f, 5.2f,
                          }),
-            1,
-            2,
         },
         {
             tensor(1, 2, 2, 2),
@@ -357,8 +351,6 @@ std::vector<Params<T>> generateTileParams2D() {
                              2.f, 0.f, 6.f, 5.2f,
                              2.f, 0.f, 6.f, 5.2f,
                          }),
-            3,
-            2,
         },
         {
             tensor(1, 2, 2, 2),
@@ -382,8 +374,6 @@ std::vector<Params<T>> generateTileParams2D() {
                              6.f, 5.2f,
                              6.f, 5.2f,
                          }),
-            4,
-            2,
         },
         {
             tensor(1, 2, 1, 2),
@@ -399,8 +389,6 @@ std::vector<Params<T>> generateTileParams2D() {
 
                              1.5f, 1.5f, 1.5f, 1.5f,
                          }),
-            4,
-            4,
         },
     };
     return result;
@@ -436,8 +424,6 @@ std::vector<Params<T>> generateTileParams3D() {
                                  2.f, 0.f,
                                  6.f, 5.2f,
                              }),
-                0,
-                2,
             },
             {
                 tensor(1, 2, 2, 2, 2),
@@ -465,8 +451,6 @@ std::vector<Params<T>> generateTileParams3D() {
                                  2.f, 0.f,
                                  6.f, 5.2f,
                              }),
-                1,
-                2,
             },
             {
                 tensor(1, 2, 2, 2, 2),
@@ -502,8 +486,6 @@ std::vector<Params<T>> generateTileParams3D() {
                                  6.f, 5.2f,
                                  6.f, 5.2f,
                              }),
-                4,
-                2,
             },
             {
                 tensor(1, 2, 2, 2, 2),
@@ -531,9 +513,6 @@ std::vector<Params<T>> generateTileParams3D() {
                                  2.f, 0.f, 6.f, 5.2f,
                                  2.f, 0.f, 6.f, 5.2f,
                              }),
-
-                3,
-                2,
             },
             {
                 tensor(1, 2, 2, 2, 2),
@@ -557,8 +536,6 @@ std::vector<Params<T>> generateTileParams3D() {
                                  1.f, 0.f, 5.f, 1.5f, 2.f, 0.f, 6.f, 5.2f,
                                  1.f, 0.f, 5.f, 1.5f, 2.f, 0.f, 6.f, 5.2f,
                              }),
-                2,
-                2,
             },
         }
     };
@@ -576,9 +553,7 @@ struct PrintToStringParamName {
         buf << " input tensor " << p.input_tensor.to_string()
             << " output tensor " << p.output_tensor.to_string()
             << " plain layout " << plain_layout
-            << " target layout " << target_layout
-            << " number Tiles " << p.num_tiles
-            << " axis " << p.output_axis;
+            << " target layout " << target_layout;
         return buf.str();
     }
 };
