@@ -4,7 +4,6 @@
 import os
 
 import re
-import warnings
 import numpy as np
 from collections import defaultdict
 from pathlib import Path
@@ -16,11 +15,6 @@ try:
     import cv2
 except ImportError:
     cv2 = None
-
-try:
-    from pip._internal import main as pip_main
-except ImportError:
-    from pip import main as pip_main
 
 from .constants import IMAGE_EXTENSIONS, BINARY_EXTENSIONS
 from .logging import logger
@@ -139,9 +133,7 @@ def get_input_data(paths_to_input, app_input_info):
 
 def get_image_tensors(image_paths, info, batch_sizes):
     if cv2 is None:
-        warnings.warn('failed to import opencv. opencv-python-headless package will be installed')
-        pip_main(['install', 'opencv-python-headless'])
-        import cv2
+        raise ImportError('opencv required for image processing in benchmark_app, please install it')
         
     processed_frames = 0
     widthes = info.widthes if info.is_dynamic else [info.width]
