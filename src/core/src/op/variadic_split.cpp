@@ -58,16 +58,23 @@ inline bool evaluate(const HostTensorPtr& in,
                      const HostTensorPtr& out,
                      const Coordinate& lower_bounds,
                      const Coordinate& upper_bounds) {
-    runtime::reference::slice(in->get_data_ptr<const char>(),
-                              out->get_data_ptr<char>(),
-                              in->get_shape(),
-                              lower_bounds,
-                              upper_bounds,
-                              Strides(lower_bounds.size(), 1),
-                              out->get_shape(),
-                              in->get_element_type().size());
+    const auto& output_shape = out->get_shape();
+    auto has_nonzero_dims = std::all_of(output_shape.begin(), output_shape.end(), [](size_t dim) {
+        return dim != 0;
+    });
 
-    return true;
+    if (has_nonzero_dims) {
+        runtime::reference::slice(in->get_data_ptr<const char>(),
+                                  out->get_data_ptr<char>(),
+                                  in->get_shape(),
+                                  lower_bounds,
+                                  upper_bounds,
+                                  Strides(lower_bounds.size(), 1),
+                                  out->get_shape(),
+                                  in->get_element_type().size());
+        return true;
+    }
+    return false;
 }
 }  // namespace
 }  // namespace variadic_split
@@ -100,14 +107,7 @@ bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inpu
         ov::Shape output_shape = output_shapes[split_pos++].get_shape();
         upper_bounds[axis] += output_shape[axis];
         output->set_shape(output_shape);
-
-        auto has_nonzero_dims = std::all_of(output_shape.begin(), output_shape.end(), [](size_t dim) {
-            return dim != 0;
-        });
-
-        if (has_nonzero_dims) {
-            variadic_split::evaluate(data_tensor, output, lower_bounds, upper_bounds);
-        }
+        variadic_split::evaluate(data_tensor, output, lower_bounds, upper_bounds);
         lower_bounds.at(axis) = upper_bounds.at(axis);
     }
 
