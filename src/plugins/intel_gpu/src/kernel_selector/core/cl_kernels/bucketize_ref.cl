@@ -4,16 +4,23 @@
 
 #include "include/algorithm.cl"
 
-#ifdef WITH_RIGHT_BOUND
-DECLARE_LOWER_BOUND(search, const __global INPUT1_TYPE, INPUT0_TYPE)
-#else
-DECLARE_UPPER_BOUND(search, const __global INPUT1_TYPE, INPUT0_TYPE)
-#endif
-
 #define GET_INDEX(prefix, ORDER) CAT(prefix, _GET_INDEX)(ORDER)
 
-KERNEL(bucketize_ref)
-(const __global INPUT0_TYPE* input, const __global INPUT1_TYPE* buckets, __global OUTPUT_TYPE* output) {
+#if INPUT1_DIMS == 4
+#    define BUCKET_GET_INDEX(local) INPUT1_GET_INDEX(local, 0, 0, 0)
+#elif INPUT1_DIMS == 5
+#    define BUCKET_GET_INDEX(local) INPUT1_GET_INDEX(local, 0, 0, 0, 0)
+#elif INPUT1_DIMS == 6
+#    define BUCKET_GET_INDEX(local) INPUT1_GET_INDEX(local, 0, 0, 0, 0, 0)
+#endif
+
+#ifdef WITH_RIGHT_BOUND
+DECLARE_LOWER_BOUND(search, __global INPUT1_TYPE, INPUT0_TYPE, BUCKET_GET_INDEX)
+#else
+DECLARE_UPPER_BOUND(search, __global INPUT1_TYPE, INPUT0_TYPE, BUCKET_GET_INDEX)
+#endif
+
+KERNEL(bucketize_ref)(const __global INPUT0_TYPE* input, const __global INPUT1_TYPE* buckets, __global OUTPUT_TYPE* output) {
     const uint dim0 = get_global_id(0);
     const uint dim1 = get_global_id(1);
     const uint dim2 = get_global_id(2);
@@ -38,11 +45,12 @@ KERNEL(bucketize_ref)
     const uint b = dim2 / OUTPUT_FEATURE_NUM;
 
     const uint index = GET_INDEX(INPUT0, ORDER);
+    const uint bound_index = FUNC_CALL(search)(buckets, 0, INPUT1_LENGTH, input[index]);
 
-    const __global INPUT1_TYPE* bound = FUNC_CALL(search)(buckets, buckets + INPUT1_LENGTH, input[index]);
-
-    output[index] = bound - buckets;
+    const uint out_index = GET_INDEX(OUTPUT, ORDER);
+    output[out_index] = bound_index;
 }
 
 #undef GET_INDEX
 #undef ORDER
+#undef BUCKET_GET_INDEX
