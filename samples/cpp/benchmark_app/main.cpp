@@ -699,6 +699,20 @@ int main(int argc, char* argv[]) {
         // ----------------- 8. Querying optimal runtime parameters
         // -----------------------------------------------------
         next_step();
+        slog::info << "Model: " << slog::endl;
+        auto model_name = compiledModel.get_property(ov::model_name);
+        auto optimal_nr_req = compiledModel.get_property(ov::optimal_number_of_infer_requests);
+
+        try {
+            slog::info << "  " << ov::model_name << ": " << model_name << slog::endl;
+        } catch (const ov::Exception&) {
+        }
+
+        try {
+            slog::info << "  " << ov::optimal_number_of_infer_requests << ": " << optimal_nr_req << slog::endl;
+        } catch (const ov::Exception&) {
+        }
+        
         // output of the actual settings that the device selected
         for (const auto& device : devices) {
             auto supported_properties = core.get_property(device, ov::supported_properties);
@@ -714,21 +728,6 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-
-        auto supported_properties = compiledModel.get_property(ov::supported_properties);
-        slog::info << "Model: " << slog::endl;
-        for (const auto& cfg : supported_properties) {
-            try {
-                if (cfg == ov::supported_properties)
-                    continue;
-
-                auto prop = compiledModel.get_property(cfg);
-                slog::info << "  " << cfg << ": " << prop.as<std::string>() << slog::endl;
-            } catch (const ov::Exception&) {
-            }
-        }
-
-        
 
         // Update number of streams
         for (auto&& ds : device_nstreams) {
