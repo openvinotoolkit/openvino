@@ -821,7 +821,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_corner_Layout_Test, InterpolateLayerC
 const std::vector<ShapeParams> shapeParams5D_LinearAntialias = {
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
-        InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 10, 10}, {2, 7, 6, 12, 20}, {1, 11, 4, 10, 10}}},
+        InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 10, 10}, {2, 17, 6, 12, 20}, {1, 11, 4, 10, 10}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{1.f, 1.f, 1.25f, 0.2f, 0.25f}},
         defaultAxes5D.front()

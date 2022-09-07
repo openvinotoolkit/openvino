@@ -2338,6 +2338,13 @@ private:
             }
         }
     }
+
+    // TODO: move into jit_base
+    using jit_generator::uni_vmovdqu;
+
+    void uni_vmovdqu(const Xbyak::Zmm& x1, const Xbyak::Zmm& x2) {
+        vmovdqu32(x1, x2);
+    }
 };
 
 namespace {
