@@ -5583,19 +5583,71 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_concat_empty_init) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_castlike) {
-    printf(">>>>>>>>>>>>>>>  === Own test\n");
+NGRAPH_TEST(${BACKEND_NAME}, castlike_float16_to_uint32) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/add_abc.onnx"));
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/castlike_float16_to_uint32.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
+    
+    test_case.add_input<ngraph::float16>(Shape{1,1,2,2},std::vector<ngraph::float16>{1.5, 2.3, 3, 4});
+    test_case.add_input<uint32_t>(Shape{4},{1, 2, 3, 4});
+    test_case.add_expected_output<uint32_t>(std::vector<uint32_t>{1,2,3,4});
+    
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, castlike_float16_to_int64) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/castlike_float16_to_int64.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    
+    test_case.add_input<ngraph::float16>(Shape{1,1,2,2},std::vector<ngraph::float16>{1.5, 2.3, 3, 4});
+    test_case.add_input<int64_t>(Shape{4},{1, 2, 3, 4});
+    test_case.add_expected_output<int64_t>(std::vector<int64_t>{1,2,3,4});
+    
+    test_case.run();
+}
+
+// NGRAPH_TEST(${BACKEND_NAME}, castlike_int8_to_uint16) {
+    //     auto function = onnx_import::import_onnx_model(
+    //         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/castlike_int8_to_uint16.onnx"));
+            
+    //     auto test_case = test::TestCase(function, s_device);
         
-    // test_case.add_expected_output(Shape{1}, std::vector<double>{1});    
+    //     test_case.add_input<int8_t>(Shape{1,1,2,2},std::vector<int8_t>{-1, -2, 3, 4});
+    //     test_case.add_input<uint16_t>(Shape{4},{1, 2, 3, 4});
+    //     test_case.add_expected_output<uint16_t>(std::vector<uint16_t>{65535, 65534, 3, 4});
+        
+    //     test_case.run();
+    // }
+
+    // [ RUN      ] INTERPRETER.castlike_int8_to_uint16
+    // >>>>>>>>>>>>>>>  === castlike_int8_to_uint16 test
+    // [       OK ] INTERPRETER.castlike_int8_to_uint16 (39 ms)
+
+    // [ RUN      ] IE_CPU.castlike_int8_to_uint16
+    // >>>>>>>>>>>>>>>  === castlike_int8_to_uint16 test
+    // 65535 is not close to 0 at index 0
+    // 65534 is not close to 0 at index 1
+
+    // /home/vzilkov/openvino/src/tests/engines_util/../engines_util/test_case.hpp:190: Failure
+    // Value of: res
+    //   Actual: false (65535 is not close to 0 at index 0
+    // 65534 is not close to 0 at index 1
+    // )
+    // Expected: true
+    // [  FAILED  ] IE_CPU.castlike_int8_to_uint16 (75 ms)
+
+NGRAPH_TEST(${BACKEND_NAME}, castlike_float64_to_int64) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/castlike_float64_to_int64.onnx"));
     
+    auto test_case = test::TestCase(function, s_device);
     
-    test_case.add_input<float>(std::vector<float>{1});
-    test_case.add_input<float>(std::vector<float>{2});
-    test_case.add_expected_output<float>(std::vector<float>{3});
+    test_case.add_input<float>(Shape{1,1,2,2},std::vector<float>{1.5, 2.3, 3, 4});
+    test_case.add_input<int64_t>(Shape{4},{1, 2, 3, 4});
+    test_case.add_expected_output<int64_t>(std::vector<int64_t>{1,2,3,4});
     
     test_case.run();
 }
