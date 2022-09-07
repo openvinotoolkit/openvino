@@ -321,7 +321,7 @@ protected:
     std::vector<std::shared_ptr<Model>> m_bodies;
     std::vector<MultiSubgraphInputDescriptionVector> m_input_descriptions;
     std::vector<MultiSubgraphOutputDescriptionVector> m_output_descriptions;
-    bool m_transformations_allowed = true;
+    bool m_transformations_allowed = false;
 };
 }  // namespace util
 }  // namespace op
