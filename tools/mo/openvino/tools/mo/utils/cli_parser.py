@@ -126,6 +126,19 @@ def partial_shape_to_str(shape: PartialShape, separator: str):
     return "[" + separator.join(dims) + "]"
 
 
+def is_shape_type(value):
+    if isinstance(value, PartialShape):
+        return True
+    if isinstance(value, Shape):
+        return True
+    if isinstance(value, list) or isinstance(value, tuple):
+        for dim in value:
+            if not (isinstance(dim, Dimension) or isinstance(dim, int)):
+                return False
+        return True
+    return False
+
+
 def shape_to_str(shape, separator):
     if isinstance(shape, str):
         return shape
@@ -205,7 +218,36 @@ def single_input_to_str(input):
         if input.value is not None:
             input_str += "->" + value_to_str(input.value, " ")
         return input_str
-    raise Exception("Unexpected type of input. Expected openvino.tools.mo.InputCutInfo or str. Got {}".format(type(input)))
+    if isinstance(input, tuple):
+        name = None
+        inp_type = None
+        shape = None
+        for val in input:
+            if isinstance(val, str):
+                if name is not None:
+                    raise Exception("More than one input name provided: {}".format(input))
+                name = val
+            elif isinstance(val, type) or isinstance(val, Type):
+                if inp_type is not None:
+                    raise Exception("More than one input type provided: {}".format(input))
+                inp_type = type_to_str(val)
+            elif is_shape_type(val):
+                if shape is not None:
+                    raise Exception("More than one input shape provided: {}".format(input))
+                shape = shape_to_str(val, " ")
+            else:
+                raise Exception("Incorrect input parameters provided. Expected input name and "
+                                "optionally input type or input shape. Got unknown object: {}".format(val))
+        if name is None:
+            raise Exception("Input name was not provided for following input {}.".format(input))
+        if shape is not None:
+            name += shape
+        if inp_type is not None:
+            name += "{" + inp_type + "}"
+        return name
+
+    raise Exception("Unexpected object provided for input. Expected openvino.tools.mo.InputCutInfo "
+                    "or tuple or str. Got {}".format(type(input)))
 
 
 def input_to_str(input):
@@ -348,7 +390,7 @@ def transform_to_str(value):
 
     if isinstance(value, tuple):
         assert 1 <= len(value) <= 2, "Incorrect definition of transformation in transform argument: " \
-                                     "expect two elements in tuple, provided {}. " \
+                                     "expected two elements in tuple, provided {}. " \
                                      "Supported transforms are: {}".format(
             len(value),
             list(get_available_transformations().keys()))
@@ -453,7 +495,10 @@ mo_convert_params = {
         '`node_name1` with the shape [3 4] as an input node and freeze output port 1 '
         'of the node `node_name2` with the value [20 15] of the int32 type and shape [2]: '
         '"0:node_name1[3 4],node_name2:1[2]{{i32}}->[20 15]".', '',
-        'Input can be set by passing a list of InputInfo objects or by a string or list of string of following format. ',
+        'Input can be set by passing a list of InputCutInfo objects or by a list of tuples. '
+        'Each tuple should contain input name and optionally input type or input shape. '
+        'Example: input=("op_name", PartialShape([-1, 3, 100, 100]), Type(np.float32)). '
+        'Alternatively input can be set by a string or list of strings of the following format. ',
         input_to_str),
     'output': ParamDescription(
         'The name of the output operation of the model or list of names. ' +

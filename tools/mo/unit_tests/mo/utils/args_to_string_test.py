@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-from generator import generator, generate
-from openvino.runtime import Layout, PartialShape, Dimension, Shape
+from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type
 
 from openvino.tools.mo import InputCutInfo, LayoutMap
 from openvino.tools.mo.utils.cli_parser import input_to_str, mean_scale_value_to_str, \
@@ -11,7 +10,6 @@ from openvino.tools.mo.utils.cli_parser import input_to_str, mean_scale_value_to
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 
 
-@generator
 class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
     def test_input_to_str(self):
         inp1 = InputCutInfo(name="data:0", shape=None, type=None, value=None)
@@ -71,6 +69,56 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
                                              "data3[4 5 6]{i64}->[5 4 3 2 1],"
                                              "data4[...]")
 
+        inp1 = ("data:0")
+        self.assertTrue(input_to_str(inp1) == "data:0")
+
+        inp2 = ([1, 3, 100, 100], "data:0")
+        self.assertTrue(input_to_str(inp2) == "data:0[1 3 100 100]")
+
+        inp3 = ("data:0", np.int32)
+        self.assertTrue(input_to_str(inp3) == "data:0{i32}")
+
+        inp4 = (np.uint8, [1, 3, 100, 100], "data:0")
+        self.assertTrue(input_to_str(inp4) == "data:0[1 3 100 100]{u8}")
+
+        inp = [inp1, inp2, inp3, inp4]
+        self.assertTrue(input_to_str(inp) == "data:0," 
+                                             "data:0[1 3 100 100],"
+                                             "data:0{i32},"
+                                             "data:0[1 3 100 100]{u8}")
+
+        inp5 = ("data1", PartialShape([Dimension(-1), Dimension(2, -1), Dimension(-1, 10), 100, Dimension(2, 12)]))
+        self.assertTrue(input_to_str(inp5) == "data1[? 2.. ..10 100 2..12]")
+
+        inp6 = ("data2", [Dimension(-1), Dimension(2, -1), Dimension(-1, 10), 100, Dimension(2, 12)], np.uint8)
+        self.assertTrue(input_to_str(inp6) == "data2[? 2.. ..10 100 2..12]{u8}")
+
+        inp7 = ("data3", Shape([4, 5, 6]), np.int64)
+        self.assertTrue(input_to_str(inp7) == "data3[4 5 6]{i64}")
+
+        inp8 = ("data4", PartialShape.dynamic())
+        self.assertTrue(input_to_str(inp8) == "data4[...]")
+
+        inp = [inp5, inp6, inp7, inp8]
+        self.assertTrue(input_to_str(inp) == "data1[? 2.. ..10 100 2..12],"
+                                             "data2[? 2.. ..10 100 2..12]{u8},"
+                                             "data3[4 5 6]{i64},"
+                                             "data4[...]")
+
+        self.assertRaises(Exception, input_to_str, **{"input": InputCutInfo(0.5, [1, 2, 3], None, None)})
+        self.assertRaises(Exception, input_to_str, **{"input": InputCutInfo("name", 0.5, None, None)})
+        self.assertRaises(Exception, input_to_str, **{"input": InputCutInfo("name", [1, 2, 3], 0.5, None)})
+        self.assertRaises(Exception, input_to_str, **{"input": InputCutInfo("name", [1, 2, 3], None, np.int)})
+        self.assertRaises(Exception, input_to_str, **{"input": InputCutInfo("name", [1, 2, 3], None, np.int)})
+        self.assertRaises(Exception, input_to_str, **{"input": ([2, 3], Shape([1, 2]))})
+        self.assertRaises(Exception, input_to_str, **{"input": ("name", [np.int, 2, 3])})
+        self.assertRaises(Exception, input_to_str, **{"input": ("name", "name1", [2, 3])})
+        self.assertRaises(Exception, input_to_str, **{"input": ("name", [2, 3], Shape([1, 2]))})
+        self.assertRaises(Exception, input_to_str, **{"input": ("name", np.int, Type(np.float))})
+        self.assertRaises(Exception, input_to_str, **{"input": Exception})
+        self.assertRaises(Exception, input_to_str, **{"input": ("name", Exception)})
+        self.assertRaises(Exception, input_to_str, **{"input": ("name", Dimension(1))})
+
     def test_mean_scale_value_to_str(self):
         values = [0.5, 1.3, 0.67]
         self.assertTrue(mean_scale_value_to_str(values) == "[0.5,1.3,0.67]")
@@ -81,6 +129,10 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
         values = {"input1": [0.5, 1.3, 0.67], "input2": [4.2, 6.7, 3.15], "input3": [0.757, 4.6, 7.3]}
         self.assertTrue(mean_scale_value_to_str(values) ==
                         "input1[0.5,1.3,0.67],input2[4.2,6.7,3.15],input3[0.757,4.6,7.3]")
+
+        self.assertRaises(Exception, mean_scale_value_to_str, **{"value": {("a", "b"): [0.5, 1.3, 0.67]}})
+        self.assertRaises(Exception, mean_scale_value_to_str, **{"value": {"name": Dimension(1)}})
+        self.assertRaises(Exception, mean_scale_value_to_str, **{"value": Dimension(1)})
 
     def test_transform_param_to_str(self):
         transform = 'MakeStateful'
@@ -102,6 +154,15 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
                                                              "MakeStateful[param_res_names={"
                                                              "\'input_name_1\':\'output_name_1\',"
                                                              "\'input_name_2\':\'output_name_2\'}]")
+
+        self.assertRaises(Exception, transform_param_to_str, **{"value": ('LowLatency2',
+                                                                          {'use_const_initializer': False},
+                                                                          "param")})
+        self.assertRaises(Exception, transform_param_to_str, **{"value": (("a", "b"), {})})
+        self.assertRaises(Exception, transform_param_to_str, **{"value": ('LowLatency2', Dimension(1))})
+        self.assertRaises(Exception, transform_param_to_str, **{"value": ('LowLatency2',
+                                                                          {('a', 'b'): False})})
+        self.assertRaises(Exception, transform_param_to_str, **{"value": Dimension(1)})
 
     def test_input_shape_to_str(self):
         input_shape1 = [1, 3, 100, 100]
@@ -126,6 +187,9 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
         self.assertTrue(input_shape_to_str(input_shape) == "[1,3,100,100],[1,3,100,100],[?,2..,..10,100,2..12],"
                                                            "[...],[1,2,3,4],[?,2..,..10,100,2..12]")
 
+        self.assertRaises(Exception, input_shape_to_str, **{"input_shape": [np.int, 1]})
+        self.assertRaises(Exception, input_shape_to_str, **{"input_shape": Dimension(1)})
+
     def test_str_list_to_str(self):
         list_str = ["data1", "data2", "data3"]
         self.assertTrue(str_list_to_str(list_str) == "data1,data2,data3")
@@ -133,9 +197,16 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
         list_str = "data1"
         self.assertTrue(str_list_to_str(list_str) == "data1")
 
+        self.assertRaises(Exception, str_list_to_str, **{"values": [np.int, 1]})
+        self.assertRaises(Exception, str_list_to_str, **{"values": Dimension(1)})
+
     def test_source_target_layout_to_str(self):
         layout = {"input1": Layout("nhwc"), "input2": Layout("n??"), "input3": "nchw"}
         self.assertTrue(source_target_layout_to_str(layout) == "input1([N,H,W,C]),input2([N,?,?]),input3(nchw)")
+
+        self.assertRaises(Exception, source_target_layout_to_str, **{"value": {"op": Dimension(1)}})
+        self.assertRaises(Exception, source_target_layout_to_str, **{"value": {("a", "b"): Layout("nhwc")}})
+        self.assertRaises(Exception, source_target_layout_to_str, **{"value": Dimension(1)})
 
     def test_layout_param_to_str_to_str(self):
         layout = {"input1": Layout("nhwc"), "input2": Layout("n??"), "input3": "nchw"}
@@ -151,17 +222,6 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
         self.assertTrue(layout_param_to_str(layout) == "input1([N,?,?]),input2([N,H,W,C]->nchw),"
                                                        "input3(abc->cab),input4([N,H,W,C]),input5(n?)")
 
-    @generate(*[
-                (input_to_str, 'input'),
-                (mean_scale_value_to_str, 'value'),
-                (transform_param_to_str, 'value'),
-                (input_shape_to_str, 'input_shape'),
-                (str_list_to_str, 'values'),
-                (source_target_layout_to_str, 'value'),
-                (layout_param_to_str, 'value'),
-                ])
-    def test_negative(self, method, param_name):
-        self.assertRaises(Exception, method, **{param_name: ('inp', (1, 2, 3))})
-        self.assertRaises(Exception, method, **{param_name: [InputCutInfo("inp", None, None, None), ('inp', (1, 2, 3))]})
-        self.assertRaises(Exception, method, **{param_name: {'inp', LayoutMap('ab', 'ba')}})
-        self.assertRaises(Exception, method, **{param_name: [None, None]})
+        self.assertRaises(Exception, layout_param_to_str, **{"value": {"op": Dimension(1)}})
+        self.assertRaises(Exception, layout_param_to_str, **{"value": {("a", "b"): Layout("nhwc")}})
+        self.assertRaises(Exception, layout_param_to_str, **{"value": Dimension(1)})
