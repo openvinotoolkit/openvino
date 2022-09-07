@@ -41,7 +41,7 @@ std::map<program_node*, format::type> get_preferred_formats(program& p, layout_o
 #ifdef ENABLE_ONEDNN_FOR_GPU
     size_t onednn_impls_counter = 0;
     size_t all_impls_counter = 0;
-    const float onednn_min_threshold = 0.1f;
+    const float onednn_min_threshold = 0.09f;
     bool should_update_fmt_map = false;
 
     // Calculate onednn kernels number and all kernels number inside the network

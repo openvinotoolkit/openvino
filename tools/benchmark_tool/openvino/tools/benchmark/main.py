@@ -408,7 +408,10 @@ def run(args):
                 input_tensor = request.get_input_tensor(port)
                 if not static_mode:
                     input_tensor.shape = data_tensor.shape
-                input_tensor.data[:] = data_tensor.data
+                if not len(input_tensor.shape):
+                    input_tensor.data.flat[:] = data_tensor.data
+                else:
+                    input_tensor.data[:] = data_tensor.data
 
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,

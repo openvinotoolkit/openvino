@@ -269,7 +269,8 @@ def fill_tensors_with_random(layer):
         if shape:
             input_tensors.append(Tensor(rs.uniform(rand_min, rand_max, list(shape)).astype(dtype)))
         else:
-            input_tensors.append(Tensor(rs.uniform(rand_min, rand_max)))
+            scalar = rs.uniform(rand_min, rand_max)
+            input_tensors.append(Tensor(np.ndarray([], dtype, np.array(scalar).astype(dtype))))
     return input_tensors
 
 
