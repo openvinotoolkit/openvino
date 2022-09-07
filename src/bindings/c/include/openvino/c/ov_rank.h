@@ -10,7 +10,6 @@
 
 #pragma once
 
-#include "openvino/c/ov_common.h"
 #include "openvino/c/ov_dimension.h"
 
 typedef ov_dimension_t ov_rank_t;

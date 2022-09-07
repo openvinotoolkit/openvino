@@ -44,6 +44,6 @@ OPENVINO_C_API(void) ov_layout_free(ov_layout_t* layout);
  * @param layout will be converted.
  * @return string that describes the layout content.
  */
-OPENVINO_C_API(const char*) ov_layout_to_string(ov_layout_t* layout);
+OPENVINO_C_API(const char*) ov_layout_to_string(const ov_layout_t* layout);
 
 /** @} */  // end of Layout

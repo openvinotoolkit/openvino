@@ -14,7 +14,9 @@ inline bool check_dimension(const ov_dimension_t* dims, int64_t size) {
     return true;
 }
 
-ov_status_e ov_partial_shape_create(int64_t rank, ov_dimension_t* dims, ov_partial_shape_t* partial_shape_obj) {
+ov_status_e ov_partial_shape_create(const int64_t rank,
+                                    const ov_dimension_t* dims,
+                                    ov_partial_shape_t* partial_shape_obj) {
     if (!partial_shape_obj || rank <= 0 || !dims || !check_dimension(dims, rank)) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -30,8 +32,8 @@ ov_status_e ov_partial_shape_create(int64_t rank, ov_dimension_t* dims, ov_parti
     return ov_status_e::OK;
 }
 
-ov_status_e ov_partial_shape_create_dynamic(ov_rank_t rank,
-                                            ov_dimension_t* dims,
+ov_status_e ov_partial_shape_create_dynamic(const ov_rank_t rank,
+                                            const ov_dimension_t* dims,
                                             ov_partial_shape_t* partial_shape_obj) {
     if (!partial_shape_obj || rank.min < -1 || rank.max < -1 || rank.min > rank.max) {
         return ov_status_e::INVALID_C_PARAM;
@@ -57,7 +59,9 @@ ov_status_e ov_partial_shape_create_dynamic(ov_rank_t rank,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_partial_shape_create_static(int64_t rank, int64_t* dims, ov_partial_shape_t* partial_shape_obj) {
+ov_status_e ov_partial_shape_create_static(const int64_t rank,
+                                           const int64_t* dims,
+                                           ov_partial_shape_t* partial_shape_obj) {
     if (!partial_shape_obj || rank < 0 || !dims) {
         return ov_status_e::INVALID_C_PARAM;
     }

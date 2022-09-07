@@ -293,7 +293,7 @@ OPENVINO_C_API(void) ov_preprocess_output_info_free(ov_preprocess_output_info_t*
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_preprocess_output_info_get_tensor_info(ov_preprocess_output_info_t* preprocess_output_info,
+ov_preprocess_output_info_get_tensor_info(const ov_preprocess_output_info_t* preprocess_output_info,
                                           ov_preprocess_output_tensor_info_t** preprocess_output_tensor_info);
 
 /**
@@ -322,7 +322,7 @@ ov_preprocess_output_set_element_type(ov_preprocess_output_tensor_info_t* prepro
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_preprocess_input_info_get_model_info(ov_preprocess_input_info_t* preprocess_input_info,
+ov_preprocess_input_info_get_model_info(const ov_preprocess_input_info_t* preprocess_input_info,
                                         ov_preprocess_input_model_info_t** preprocess_input_model_info);
 
 /**

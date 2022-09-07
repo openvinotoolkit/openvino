@@ -127,7 +127,7 @@ ov_model_reshape_single_input(const ov_model_t* model, const ov_partial_shape_t 
  */
 OPENVINO_C_API(ov_status_e)
 ov_model_reshape_by_port_indexes(const ov_model_t* model,
-                                 size_t* port_indexes,
+                                 const size_t* port_indexes,
                                  const ov_partial_shape_t* partial_shape,
                                  size_t size);
 
