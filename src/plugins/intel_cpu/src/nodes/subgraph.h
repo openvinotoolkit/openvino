@@ -39,6 +39,7 @@ public:
     // Here we convert to canonical for & jit everything
     void createPrimitive() override;
     void prepareParams() override;
+    std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override;
 
     bool canBeInPlace() const override;
@@ -77,6 +78,7 @@ private:
     std::shared_ptr<ngraph::snippets::op::Subgraph> original_snippet;
     // Local copy of subgraph node for canonization & code generation
     std::shared_ptr<ngraph::snippets::op::Subgraph> snippet;
+    NodeVector snippet_inputs;  // dummy inputs used to simplify reshape in dynamic scenario
 
     // Holds generated snippet with information about how to schedule it
     ngraph::snippets::Schedule schedule;
@@ -115,12 +117,14 @@ private:
     bool masterShapeIsBlocked = false;
     //
 
-    // body Input & output shapes anre optimized and not necessarily the same as inputShapes and outputShapes
-    std::vector<PartialShape> normInputShapes = {};
-    std::vector<PartialShape> normOutputShapes = {};
     // need to remember the original ones to avoid reshaping body in dynamic case
     std::vector<PartialShape> originalNormOutputShapes = {};
-    PartialShape masterShape = {};
+    // master shape is mutable since we need to modify it inside const shapeInfer method
+    mutable PartialShape masterShape = {};
+    // body Input & output shapes anre optimized and not necessarily the same as inputShapes and outputShapes
+    mutable std::vector<PartialShape> normInputShapes = {};
+    mutable std::vector<PartialShape> normOutputShapes = {};
+
     std::vector<ptrdiff_t> start_offset_in = {};
     std::vector<ptrdiff_t> start_offset_out = {};
 

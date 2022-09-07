@@ -419,6 +419,7 @@ void Snippet::normalizeShapes() {
     for (const auto& r : body->get_results()) {
         originalNormOutputShapes.emplace_back(prependWithOnes(r->get_input_partial_shape(0), tensorRank));
     }
+    normOutputShapes = originalNormOutputShapes;
 }
 void Snippet::createPrimitive() {
     // determine canonicalize, determine master_shape and prepend up to 6D
@@ -442,10 +443,58 @@ void Snippet::createPrimitive() {
     }
 }
 
+std::vector<VectorDims> Snippet::shapeInfer() const {
+    masterShape = getParentEdgesAtPort(0)[0]->getMemory().GetShape().toPartialShape();
+    std::vector<PartialShape> layoutNormalizedInputs(getParentEdges().size());
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        auto inShape = getParentEdgesAtPort(i)[0]->getMemory().GetShape().toPartialShape();
+        if (masterShapeIsBlocked && !inputShapeIsBlocked[i])
+            inShape.insert(inShape.end(), 1);
+//        inShape = prependWithOnes(inShape, tensorRank);
+        // todo: this is a simple master_shape inference for shape-agnostic operations,
+        //  we'll need to account for body operations semantics in the future
+        ov::PartialShape::broadcast_merge_into(masterShape, inShape, ov::op::AutoBroadcastType::NUMPY);
+        layoutNormalizedInputs[i] = inShape;
+//        normInputShapes[i] = inShape;
+    }
+    if (masterShape.is_dynamic()) {
+        std::ostringstream errorMessage;
+        errorMessage << "Can't compute static master shape for Snippet node with name: " << getName();
+        errorMessage << ". Input shapes = ( ";
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            errorMessage << i << " port = " << getParentEdgesAtPort(i)[0]->getMemory().GetShape().toString() << ", ";
+        }
+        errorMessage << "). Master shape = ( " << masterShape << " )";
+        IE_THROW() << errorMessage.str();
+    }
+    std::vector<VectorDims> outputShapes;
+    if (originalNormOutputShapes.size() == 1) {
+        outputShapes.emplace_back(masterShape.get_shape());
+    } else {
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            auto par = as_type_ptr<ov::op::v0::Parameter>(snippet_inputs[i]);
+            par->set_partial_shape(layoutNormalizedInputs[i]);
+            par->validate_and_infer_types();
+        }
+        snippet->set_arguments(snippet_inputs);
+        snippet->validate_and_infer_types();
+//        ov::pass::Serialize("shape_infer.xml", "shape_infer.bin").run_on_model(snippet->get_body());
+
+        for (const auto& out : snippet->get_body()->get_results()) {
+            auto& pshape = out->get_input_partial_shape(0);
+            if (pshape.is_dynamic())
+                IE_THROW() << "Snippet " << getName() << " failed to obtain static output shapes during shape inference";
+            outputShapes.emplace_back(pshape.get_shape());
+        }
+    }
+    return outputShapes;
+}
+
 void Snippet::prepareParams() {
     // here must be all the stuff that could only be done for static shapes, e.g. offset calculation
     // Here it must be all the stuff that could be done once for both static and dynamic shapes
     const auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    // todo: can datasize change between executions? Looks like we should move it to createPrimitive
     auto initDataSizes = [this, config]() {
         const size_t numInputs = inputShapes.size();
         const size_t numOutputs = outputShapes.size();
