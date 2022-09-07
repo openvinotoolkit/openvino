@@ -25,9 +25,11 @@ typedef struct ov_layout ov_layout_t;
 /**
  * @brief Create a layout object.
  * @ingroup layout
- * @param ov_status_e a status code, return OK if successful
+ * @param layout The layout input pointer.
+ * @param layout_desc The description of layout.
+ * @return ov_status_e a status code, return OK if successful
  */
-OPENVINO_C_API(ov_status_e) ov_layout_create(ov_layout_t** layout, const char* layout_desc);
+OPENVINO_C_API(ov_status_e) ov_layout_create(const char* layout_desc, ov_layout_t** layout);
 
 /**
  * @brief Free layout object.

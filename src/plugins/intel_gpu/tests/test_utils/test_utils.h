@@ -17,7 +17,6 @@
 #include <intel_gpu/primitives/concatenation.hpp>
 #include <intel_gpu/primitives/lrn.hpp>
 #include <intel_gpu/primitives/roi_pooling.hpp>
-#include <intel_gpu/primitives/scale.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/normalize.hpp>
@@ -33,6 +32,7 @@
 #include "random_gen.h"
 #include "uniform_quantized_real_distribution.hpp"
 #include "to_string_utils.h"
+#include "program_node.h"
 
 #include <iostream>
 #include <limits>
@@ -58,6 +58,16 @@ cldnn::engine& get_test_engine();
 cldnn::engine& get_onednn_test_engine();
 #endif
 cldnn::stream& get_test_stream();
+
+template<typename T>
+bool has_node_with_type(cldnn::program& prog) {
+    for (auto node : prog.get_processing_order()) {
+        if (node->is_type<T>())
+            return true;
+    }
+
+    return false;
+}
 
 #define USE_RANDOM_SEED 0
 #if USE_RANDOM_SEED
@@ -517,11 +527,8 @@ inline void PrintTupleTo(const std::tuple<std::shared_ptr<test_params>, std::sha
             << " Spatial bins x: " << p->spatial_bins_x
             << " Spatial bins y: " << p->spatial_bins_y
             << " Output dim: " << p->output_dim;
-    } else if(primitive->type == cldnn::scale::type_id()) {
-        auto s = std::static_pointer_cast<cldnn::scale >(primitive);
-        (void)s;
     } else if(primitive->type == cldnn::softmax::type_id()) {
-        auto sm = std::static_pointer_cast<cldnn::softmax >(primitive);
+        auto sm = std::static_pointer_cast<cldnn::softmax>(primitive);
         (void)sm;
     } else if (primitive->type == cldnn::reorder::type_id()) {
         auto reorder = std::static_pointer_cast<cldnn::reorder>(primitive);

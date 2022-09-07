@@ -31,7 +31,6 @@
 #include "reshape_inst.h"
 #include "quantize_inst.h"
 #include "activation_inst.h"
-#include "scale_inst.h"
 #include "depth_to_space_inst.h"
 #include "convolution_inst.h"
 #include "concatenation_inst.h"
@@ -950,7 +949,8 @@ void program::replace(program_node& old_node, program_node& new_node) {
     new_node.constant = old_node.constant;
     new_node.data_flow = old_node.data_flow;
     new_node.user_mark = old_node.user_mark;
-    const_cast<primitive_id&>(new_node.desc->ext_prim_id) = old_node.desc->ext_prim_id;
+    const_cast<std::string&>(new_node.desc->origin_op_name) = old_node.desc->origin_op_name;
+    const_cast<std::string&>(new_node.desc->origin_op_type_name) = old_node.desc->origin_op_type_name;
 
     processing_order.insert(&old_node, &new_node);
     if (processing_order.get_processing_iterator(old_node) != processing_order.end())
@@ -1402,7 +1402,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::border::type_id() &&
             prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::crop::type_id() &&
-            prim.type() != cldnn::scale::type_id() &&
             prim.type() != cldnn::depth_to_space::type_id() &&
             prim.type() != cldnn::shuffle_channels::type_id() &&
             (prim.type() != cldnn::mvn::type_id()
@@ -1442,7 +1441,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::reshape::type_id() &&
             prim.type() != cldnn::input_layout::type_id() &&
             prim.type() != cldnn::activation::type_id() &&
-            prim.type() != cldnn::scale::type_id() &&
             prim.type() != cldnn::softmax::type_id() &&
             prim.type() != cldnn::fully_connected::type_id() &&
             prim.type() != cldnn::generic_layer::type_id() &&

@@ -121,8 +121,8 @@ if(NOT TARGET gflags)
 endif()
 
 if(NOT TARGET zlib::zlib)
-    if(NOT CMAKE_CROSSCOMPILING)
-        find_host_package(PkgConfig QUIET)
+    if(NOT ANDROID)
+        find_package(PkgConfig QUIET)
         if(PkgConfig_FOUND)
             pkg_search_module(zlib QUIET
                               IMPORTED_TARGET
@@ -135,7 +135,7 @@ if(NOT TARGET zlib::zlib)
     endif()
 
     if(zlib_FOUND)
-        message(STATUS "zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
+        message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
     elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib")
         add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
     endif()
@@ -228,6 +228,9 @@ macro(ie_add_sample)
         set(folder_name c_samples)
     endif()
 
+    # for cross-compilation with gflags
+    find_package(Threads REQUIRED)
+
     find_package(OpenVINO REQUIRED COMPONENTS Runtime)
     if(c_sample)
         set(ov_link_libraries openvino::runtime::c)
@@ -243,7 +246,7 @@ macro(ie_add_sample)
     endif()
     target_include_directories(${IE_SAMPLE_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../common")
 
-    target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${ov_link_libraries} ${IE_SAMPLE_DEPENDENCIES})
+    target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${ov_link_libraries} Threads::Threads ${IE_SAMPLE_DEPENDENCIES})
     if(NOT c_sample)
         target_link_libraries(${IE_SAMPLE_NAME} PRIVATE gflags)
     endif()
