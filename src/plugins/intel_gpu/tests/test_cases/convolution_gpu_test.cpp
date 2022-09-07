@@ -6078,7 +6078,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32_fused_ops)
     set_values(scale_mem, { scalar });
 
     topology.add(data("scalar", scale_mem));
-    topology.add(scale("scale", "conv_bsv16_fsv16", "scalar"));
+    topology.add(eltwise("scale", { "conv_bsv16_fsv16", "scalar" }, eltwise_mode::prod));
 
     topology.add(reorder("reorder_bfzyx", "scale", format::bfzyx, data_types::f32));
 
@@ -6517,7 +6517,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32_fused_ops)
     set_values(scale_mem, { scalar });
 
     topology.add(data("scalar", scale_mem));
-    topology.add(scale("scale", "conv_bsv16_fsv16", "scalar"));
+    topology.add(eltwise("scale", { "conv_bsv16_fsv16", "scalar" }, eltwise_mode::prod));
 
     topology.add(reorder("reorder_bfyx", "scale", format::bfyx, data_types::f32));
 
@@ -8255,9 +8255,10 @@ public:
 
         topo.add(cldnn::data("scale_scale", scale_mem));
         topo.add(cldnn::data("scale_shift", shift_mem));
-        topo.add(cldnn::scale("scale", "conv", "scale_scale", "scale_shift"));
+        topo.add(cldnn::eltwise("scale", { "conv", "scale_scale" }, eltwise_mode::prod));
+        topo.add(cldnn::eltwise("shift", { "scale", "scale_shift" }, eltwise_mode::sum));
         // Work-around since if scale is output it will not be fused
-        topo.add(cldnn::reorder("scale_wa_reorder", "scale", format::bfyx, this->output_type()));
+        topo.add(cldnn::reorder("scale_wa_reorder", "shift", format::bfyx, this->output_type()));
         return topo;
     }
 
@@ -8847,6 +8848,8 @@ INSTANTIATE_TEST_SUITE_P(conv_onednn_cases,
 
 TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     auto& engine = get_onednn_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
 
     if (!engine.get_device_info().supports_fp16)
     {
@@ -8988,6 +8991,8 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
 
 TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
     auto& engine = get_onednn_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
 
     int input_b = 1, input_f = 16, input_y = 3, input_x = 3;
     int output_b = 1, output_f = 16, output_y = 6, output_x = 6;
