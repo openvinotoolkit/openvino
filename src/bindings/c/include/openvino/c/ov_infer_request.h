@@ -159,7 +159,7 @@ OPENVINO_C_API(void) ov_infer_request_free(ov_infer_request_t* infer_request);
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_infer_request_get_profiling_info(ov_infer_request_t* infer_request, ov_profiling_info_list_t* profiling_infos);
+ov_infer_request_get_profiling_info(const ov_infer_request_t* infer_request, ov_profiling_info_list_t* profiling_infos);
 
 /**
  * @brief Release the memory allocated by ov_profiling_info_list_t.
