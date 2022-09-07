@@ -59,7 +59,6 @@ if(ENABLE_SYSTEM_PUGIXML)
             # example: libpugixml-dev debian package
             set(pugixml_target pugixml)
         elseif(TARGET pugixml::static)
-            message(FATAL_ERROR "!!!!!!!!!!!!!!!!!!!!!! test check")
             # sometimes pugixml::static target already exists, just need to make it global
             # example: building using conda environment
             set(pugixml_target pugixml::static)
@@ -117,7 +116,7 @@ if(ENABLE_SYSTEM_PUGIXML)
         add_library(openvino::pugixml ALIAS ${pugixml_target})
     else()
         # reset to prevent improper code generation in OpenVINODeveloperPackage
-        set(ENABLE_SYSTEM_PUGIXML OFF PARENT_SCOPE)
+        set(ENABLE_SYSTEM_PUGIXML OFF CACHE BOOL "" FORCE)
     endif()
 endif()
 
