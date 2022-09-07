@@ -109,7 +109,7 @@ For example, to install and configure the components for working with TensorFlow
    ```
    If installation was successful, you will not see any error messages (no console output).
 
-<a name="whats-in-the-package"></a>
+<a id="whats-in-the-package"></a>
 
 ## What's in the Package?
 
