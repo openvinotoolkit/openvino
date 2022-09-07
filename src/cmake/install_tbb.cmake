@@ -14,6 +14,7 @@ function(_ov_get_tbb_location tbb_target _tbb_lib_location_var)
 
     foreach(properties INTERFACE_LINK_LIBRARIES
                        IMPORTED_LOCATION_RELEASE
+                       IMPORTED_LOCATION_RELWITHDEBINFO
                        IMPORTED_LOCATION_NONE
                        IMPORTED_LOCATION)
         get_target_property(_tbb_lib_location ${tbb_target} ${properties})
@@ -177,16 +178,25 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         endif()
 
         # try to select proper library directory
-        get_target_property(_tbb_lib_location TBB::tbb IMPORTED_LOCATION_RELEASE)
+        _ov_get_tbb_location(TBB::tbb _tbb_lib_location)
         get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
         file(RELATIVE_PATH tbb_libs_dir "${TBBROOT}" "${_tbb_libs_dir}")
 
         # install only meaningful directories
-        foreach(dir include ${tbb_libs_dir} cmake lib/cmake)
+        foreach(dir include ${tbb_libs_dir} cmake lib/cmake lib/pkgconfig)
             if(EXISTS "${TBBROOT}/${dir}")
+                if(dir STREQUAL "include" OR dir MATCHES ".*(cmake|pkgconfig)$")
+                    set(tbb_component tbb_dev)
+                    set(core_dev_components tbb_dev)
+                    unset(exclude_pattern)
+                else()
+                    set(tbb_component tbb)
+                    set(exclude_pattern REGEX ".*(cmake|pkgconfig)$" EXCLUDE)
+                endif()
                 install(DIRECTORY "${TBBROOT}/${dir}/"
                         DESTINATION "${IE_TBBROOT_INSTALL}/${dir}"
-                        COMPONENT tbb)
+                        COMPONENT ${tbb_component}
+                        ${exclude_pattern})
             endif()
         endforeach()
 
