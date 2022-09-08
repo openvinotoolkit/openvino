@@ -228,6 +228,29 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
             {{ngraph::element::f32}, { 128.f }, { 0.1f }}
         }
     },
+    // U8: channel slice, per-channel quantization with the same values, subtraction with Convert from u8 to fp32
+    {
+        LayerTransformation::createParamsU8I8(),
+        channelSlice,
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{128.f}, element::undefined, {1, 3, 1, 1}, false, 1ul, element::u8, true},
+                {3.f}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{128.f}, element::undefined, {}, false, 1ul, element::u8, true},
+                {3.f}
+            }
+        }
+    },
     // U8: channel slice, per-channel quantization with different values
     {
         LayerTransformation::createParamsU8I8(),
