@@ -676,7 +676,7 @@ private:
             } else {
                 uni_vmovd(xmm_weights, ptr[aux_reg_weight_ow]);
             }
-            vucomiss(xmm_weights, xmm_zero_const);
+            uni_vucomiss(xmm_weights, xmm_zero_const);
             je(skip_loop_ix, T_NEAR);
 
             uni_vaddss(xmm_weights_sum, xmm_weights_sum, xmm_weights);
@@ -724,7 +724,7 @@ private:
             } else {
                 uni_vmovd(xmm_weightsDH, ptr[aux_reg_weight_oh]);
             }
-            vucomiss(xmm_weightsDH, xmm_zero_const);
+            uni_vucomiss(xmm_weightsDH, xmm_zero_const);
             je(skip_loop_iy, T_NEAR);
 
             linear_planar_scalar_1sp(sizeOW, indexOffset);
@@ -755,7 +755,7 @@ private:
             jge(loop_iz_end, T_NEAR);
 
             uni_vmovd(xmm_weightsD, ptr[aux_reg_weight_od]);
-            vucomiss(xmm_weightsD, xmm_zero_const);
+            uni_vucomiss(xmm_weightsD, xmm_zero_const);
             je(skip_loop_iz, T_NEAR);
 
             mov(reg_index_od, ptr[aux_reg_weight_od + indexOffset * sizeof(float)]);
@@ -835,7 +835,7 @@ private:
             jge(loop_iy_end, T_NEAR);
 
             uni_vbroadcastss(vmm_weightsDH, ptr[aux_reg_weight_oh]);
-            vucomiss(xmm_weightsDH, xmm_zero_const);
+            uni_vucomiss(xmm_weightsDH, xmm_zero_const);
             je(skip_loop_iy, T_NEAR);
 
             uni_vpbroadcastd(vmm_indexDH, ptr[aux_reg_weight_oh + indexOffset * sizeof(float)]);
@@ -872,7 +872,7 @@ private:
             jge(loop_iz_end, T_NEAR);
 
             uni_vbroadcastss(vmm_weightsD, ptr[aux_reg_weight_od]);
-            vucomiss(xmm_weightsD, xmm_zero_const);
+            uni_vucomiss(xmm_weightsD, xmm_zero_const);
             je(skip_loop_iz, T_NEAR);
 
             uni_vpbroadcastd(vmm_indexD, ptr[aux_reg_weight_od + indexOffset * sizeof(float)]);
@@ -1059,7 +1059,7 @@ private:
             jge(loop_ix_end, T_NEAR);
 
             uni_vbroadcastss(vmm_weights, ptr[aux_reg_weight_ow]);
-            vucomiss(xmm_weights, xmm_zero_const);
+            uni_vucomiss(xmm_weights, xmm_zero_const);
             je(skip_loop_ix, T_NEAR);
 
             mov(reg_index_ow, ptr[aux_reg_weight_ow + indexOffset * sizeof(float)]);
@@ -1082,7 +1082,7 @@ private:
                     Xbyak::Label skip_reg_save;
                     Xbyak::Xmm xmm_weights_saved_1 = Xbyak::Xmm(vmm_weights_saved_1.getIdx());
 
-                    vucomiss(xmm_weights_saved_1, xmm_invalid_weights);
+                    uni_vucomiss(xmm_weights_saved_1, xmm_invalid_weights);
                     je(skip_reg_save, T_NEAR);
 
                     uni_vmovdqu(vmm_index_saved_2, vmm_index_saved_1);
@@ -1092,7 +1092,7 @@ private:
                     L(skip_reg_save);
                 }
 
-                vmovd(xmm_tmp, reg_index_ow);
+                uni_vmovd(xmm_tmp, reg_index_ow);
                 if (isa == cpu::x64::avx512_core) {
                     mov(reg_tmp_32, 1);
                     kmovw(k_mask, reg_tmp_32);
@@ -1100,7 +1100,12 @@ private:
                     vpblendmd(vmm_index_saved_1 | k_mask, vmm_index_saved_1, vmm_tmp);
                     vblendmps(vmm_weights_saved_1 | k_mask, vmm_weights_saved_1, vmm_weights);
                 } else {
-                    vpblendd(vmm_index_saved_1, vmm_index_saved_1, vmm_tmp, 1);
+                    if (isa == cpu::x64::avx2) {
+                        vpblendd(vmm_index_saved_1, vmm_index_saved_1, vmm_tmp, 1);
+                    } else {
+                        Xbyak::Xmm xmm_index_saved_1 = Xbyak::Xmm(vmm_index_saved_1.getIdx());
+                        uni_vpblendw(xmm_index_saved_1, xmm_index_saved_1, xmm_tmp, 3);
+                    }
                     uni_vblendps(vmm_weights_saved_1, vmm_weights_saved_1, vmm_weights, 1);
                 }
 
@@ -1140,7 +1145,7 @@ private:
             jge(loop_iy_end, T_NEAR);
 
             uni_vbroadcastss(vmm_weightsDH, ptr[aux_reg_weight_oh]);
-            vucomiss(xmm_weightsDH, xmm_zero_const);
+            uni_vucomiss(xmm_weightsDH, xmm_zero_const);
             je(skip_loop_iy, T_NEAR);
 
             mov(reg_index_oh, ptr[aux_reg_weight_oh + indexOffset * sizeof(float)]);
@@ -1177,7 +1182,7 @@ private:
             jge(loop_iz_end, T_NEAR);
 
             uni_vbroadcastss(vmm_weightsD, ptr[aux_reg_weight_od]);
-            vucomiss(xmm_weightsD, xmm_zero_const);
+            uni_vucomiss(xmm_weightsD, xmm_zero_const);
             je(skip_loop_iz, T_NEAR);
 
             mov(reg_index_od, ptr[aux_reg_weight_od + indexOffset * sizeof(float)]);
@@ -1249,7 +1254,7 @@ private:
             Xbyak::Xmm xmm_index_saved = Xbyak::Xmm(vmm_index_saved.getIdx());
 
             rotate_float(vmm_weights_saved, true);
-            vucomiss(xmm_weights_saved, xmm_invalid_weights);
+            uni_vucomiss(xmm_weights_saved, xmm_invalid_weights);
             je(main_loop_end, T_NEAR);
 
             uni_vbroadcastss(vmm_weights, xmm_weights_saved);
@@ -2345,6 +2350,27 @@ private:
     void uni_vmovdqu(const Xbyak::Zmm& x1, const Xbyak::Zmm& x2) {
         vmovdqu32(x1, x2);
     }
+
+    void uni_vucomiss(const Xbyak::Xmm& x, const Xbyak::Operand& op) {
+        if (mayiuse(cpu::x64::avx)) {
+            vucomiss(x, op);
+        } else {
+            ucomiss(x, op);
+        }
+    }
+
+    void uni_vpblendw(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2, const Xbyak::Operand& op, const int imm) {
+        assert(!x1.isZMM() && !x2.isZMM());
+        if (mayiuse(cpu::x64::avx)) {
+            vpblendw(x1, x2, op, imm);
+        } else {
+            assert(x1.getIdx() == x2.getIdx());
+            pblendw(x1, op, imm);
+        }
+    }
+
+    // NOTE: Add in future support for Zmm registers if there will be appropriate instruction
+    void uni_vpblendw(const Xbyak::Zmm& x1, const Xbyak::Zmm& x2, const Xbyak::Operand& op, const int imm) = delete;
 };
 
 namespace {
