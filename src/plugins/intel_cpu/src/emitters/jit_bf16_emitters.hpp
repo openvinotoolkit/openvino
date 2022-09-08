@@ -53,26 +53,17 @@ private:
             h->vfixupimmps(aux, in, table_val("selector"), 0);
             h->vpsrad(aux, aux, 16);
             h->vpmovdw(out, aux);
-        } else if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx2) {  // round_to_nearest_even emulation
-            Ymm aux = Ymm(aux_vec_idxs[0]);
+        } else {  // round_to_nearest_even emulation
+            Vmm aux = Vmm(aux_vec_idxs[0]);
             Xmm out = Xmm(out_vec_idxs[0]);
 
-            h->uni_vandps(aux, in, table_val("rounding"));
-            h->uni_vpsrld(aux, aux, 1);
-            h->uni_vpaddd(aux, in, aux);
-            h->uni_vpsrld(aux, aux, 16);
+            if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx2) {
+                h->uni_vandps(aux, in, table_val("rounding"));
+            } else {
+                h->uni_vmovups(aux, in);
+                h->uni_vandps(aux, aux, table_val("rounding"));
+            }
 
-            // dword to word using truncation
-            h->uni_vandps(aux, aux, table_val("mask_truncation_word"));
-            h->uni_vpackusdw(aux, aux, aux);
-
-            h->vextracti128(out, aux, 0);
-        } else if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::sse41) {  // round_to_nearest_even emulation
-            Xmm aux = Xmm(aux_vec_idxs[0]);
-            Xmm out = Xmm(out_vec_idxs[0]);
-
-            h->uni_vmovups(aux, in);
-            h->uni_vandps(aux, aux, table_val("rounding"));
             h->uni_vpsrld(aux, aux, 1);
             h->uni_vpaddd(aux, aux, in);
             h->uni_vpsrld(aux, aux, 16);
@@ -81,9 +72,11 @@ private:
             h->uni_vandps(aux, aux, table_val("mask_truncation_word"));
             h->uni_vpackusdw(aux, aux, aux);
 
-            h->uni_vmovups(out, aux);
-        } else {
-            assert(!"unsupported isa");
+            if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx2) {
+                h->vextracti128(out, Ymm(aux.getIdx()), 0);
+            } else {
+                h->uni_vmovups(out, aux);
+            }
         }
     }
 
@@ -117,11 +110,7 @@ private:
     }
 
     size_t aux_vecs_count() const override {
-        if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
-            return 2;
-        } else {
-            return 1;
-        }
+        return host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 2 : 1;
     }
 };
 
