@@ -163,6 +163,7 @@
 #include "op/tile.hpp"
 #include "op/topk.hpp"
 #include "op/transpose.hpp"
+#include "op/trilu.hpp"
 #include "op/unsqueeze.hpp"
 #include "op/upsample.hpp"
 #include "op/where.hpp"
@@ -457,6 +458,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("TopK", 10, topk);
     REGISTER_OPERATOR("TopK", 11, topk);
     REGISTER_OPERATOR("Transpose", 1, transpose);
+    REGISTER_OPERATOR("Trilu", 1, trilu);
     REGISTER_OPERATOR("Unsqueeze", 1, unsqueeze);
     REGISTER_OPERATOR("Unsqueeze", 13, unsqueeze);
     REGISTER_OPERATOR("Where", 1, where);
@@ -507,6 +509,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "FusedGemm", 1, fusedgemm);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Trilu", 1, trilu);
 }
 
 #undef REGISTER_OPERATOR
