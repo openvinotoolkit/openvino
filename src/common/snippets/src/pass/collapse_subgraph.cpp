@@ -159,7 +159,7 @@ auto get_potentional_non_scalar_constants_count(const std::shared_ptr<ov::Model>
     auto get_additional_param_count_for_fq = [](const std::shared_ptr<ngraph::opset1::FakeQuantize>& fq) -> size_t {
         const auto scales = ngraph::pass::FakeQuantizeDecomposition::simplifyToScale(fq);
         if (scales.size() != 0) {
-            return 1;
+            return static_cast<bool>(scales.size() != 1);
         } else {
             const bool il = ngraph::shape_size(fq->input(1).get_shape()) != 1lu;
             const bool ih = ngraph::shape_size(fq->input(2).get_shape()) != 1lu;
