@@ -44,6 +44,7 @@ endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE dnnl
                                              ov_shape_inference
+                                             openvino::pugixml
                                              inference_engine_snippets)
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)

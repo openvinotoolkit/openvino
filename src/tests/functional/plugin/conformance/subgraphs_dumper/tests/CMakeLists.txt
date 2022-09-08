@@ -14,7 +14,6 @@ addIeTargetTest(
             PRIVATE
                 funcTestUtils
                 openvino::runtime
-                pugixml::static
         ADD_CPPLINT
 )
 

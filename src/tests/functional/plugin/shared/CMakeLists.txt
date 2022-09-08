@@ -49,7 +49,6 @@ addIeTarget(
                 ${PUBLIC_HEADERS_DIR}
         LINK_LIBRARIES
             PUBLIC
-                pugixml::static
                 funcTestUtils
                 ngraph_test_util
                 ngraphFunctions

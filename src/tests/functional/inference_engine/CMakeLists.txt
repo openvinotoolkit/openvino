@@ -16,7 +16,6 @@ set(LINK_LIBRARIES
     openvino::conditional_compilation
     sharedTestClasses
     offline_transformations
-    pugixml::static
     openvino::runtime::dev
 )
 
@@ -195,9 +194,9 @@ function(ie_headers_compilation_with_custom_flags)
     target_compile_definitions(${target_name} PRIVATE $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>)
 
     if(IE_TEST_PLUGIN_API)
-        # ngraph, pugixml::static, openvino::itt, openvino_gapi_preproc headers
+        # ngraph, openvino::pugixml, openvino::itt, openvino_gapi_preproc headers
         target_include_directories(${target_name} SYSTEM PRIVATE
-            $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
         target_include_directories(${target_name} PRIVATE
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)

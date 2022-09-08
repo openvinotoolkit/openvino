@@ -8,7 +8,6 @@ list(APPEND LIBRARIES
         gflags
         inference_engine
         funcTestUtils
-        pugixml::static
 )
 
 list(APPEND DEFINITIONS)

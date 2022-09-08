@@ -29,10 +29,6 @@
 #include "legacy/details/ie_cnn_network_tools.h"
 #include <legacy/cnn_network_impl.hpp>
 
-#ifdef ENABLE_V7_SERIALIZE
-# include "network_serializer_v7.hpp"
-#endif
-
 using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -390,22 +386,6 @@ StatusCode CNNNetworkImpl::reshape(const std::map<std::string, std::vector<size_
 
 StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
     noexcept {
-    try {
-#ifdef ENABLE_V7_SERIALIZE
-        IE_SUPPRESS_DEPRECATED_START
-        Serialization::Serialize(xmlPath, binPath, CNNNetwork(
-            std::const_pointer_cast<ICNNNetwork>(shared_from_this())));
-        IE_SUPPRESS_DEPRECATED_END
-        return OK;
-#endif
-    } catch (const Exception& e) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
-    } catch (const std::exception& e) {
-        return DescriptionBuffer(UNEXPECTED, resp) << e.what();
-    } catch (...) {
-        return DescriptionBuffer(UNEXPECTED, resp);
-    }
-
     return DescriptionBuffer(NOT_IMPLEMENTED, resp) << "The CNNNetworkImpl::serialize is not implemented";
 }
 
