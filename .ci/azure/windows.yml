@@ -66,9 +66,16 @@ jobs:
   steps:
   - script: |
       rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
-      curl.exe -o $(WORK_DIR)\python-3.10.7-amd64.exe https://www.python.org/ftp/python/3.10.7/python-3.10.7-amd64.exe
-      $(WORK_DIR)\python-3.10.7-amd64.exe /passive InstallAllUsers=0 TargetDir=C:\hostedtoolcache\windows\Python\3.10.7\x64 Include_launcher=0
+      rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
+      rd /Q /S $(BUILD_SAMPLES_DIR) & mkdir $(BUILD_SAMPLES_DIR)
+      rd /Q /S $(BUILD_SAMPLES_TESTS_DIR) & mkdir $(BUILD_SAMPLES_TESTS_DIR)
+    displayName: 'Make dir'
+  
+  - script: |
+      curl -O https://www.python.org/ftp/python/3.10.7/python-3.10.7-amd64.exe
+      call python-3.10.7-amd64.exe /passive InstallAllUsers=0 TargetDir=C:\hostedtoolcache\windows\Python\3.10.7\x64 Include_launcher=0
     displayName: 'Install Python'
+    workingDirectory: $(WORK_DIR)
     continueOnError: false
   
   - task: UsePythonVersion@0
@@ -94,13 +101,6 @@ jobs:
       wmic VOLUME list
       set
     displayName: 'System info'
-
-  - script: |
-      rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
-      rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
-      rd /Q /S $(BUILD_SAMPLES_DIR) & mkdir $(BUILD_SAMPLES_DIR)
-      rd /Q /S $(BUILD_SAMPLES_TESTS_DIR) & mkdir $(BUILD_SAMPLES_TESTS_DIR)
-    displayName: 'Make dir'
 
   - script: |
       curl -O https://openvinoweb.z5.web.core.windows.net/incredibuild/install_ib_console.bat
