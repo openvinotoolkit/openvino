@@ -472,6 +472,7 @@ std::vector<VectorDims> Snippet::shapeInfer() const {
         if (masterShapeIsBlocked && !inputShapeIsBlocked[i])
             inDims.insert(inDims.end(), 1);
         layoutNormalizedInputs.emplace_back(inDims);
+        normInputShapes[i] = ov::PartialShape(inDims);
         // todo: this is a simple master_shape inference for shape-agnostic operations,
         //  we'll need to account for body operations semantics in the future
         if (i == 0)
@@ -489,15 +490,20 @@ std::vector<VectorDims> Snippet::shapeInfer() const {
         errorMessage << "). Master shape = ( " << masterDims << " )";
         IE_THROW() << errorMessage.str();
     }
+    masterShape = ov::PartialShape(masterDims);
 
     if (originalNormOutputShapes.size() == 1) {
+        normOutputShapes[0] = ov::PartialShape(masterDims);
         return {masterDims};
     }
-    std::vector<VectorDims> outputShapes;
-    for (const auto& outPshape : snippet->reshape_body(layoutNormalizedInputs)) {
-            outputShapes.emplace_back(outPshape);
+    std::vector<VectorDims> outputDims;
+    const auto& outputShapes = snippet->reshape_body(layoutNormalizedInputs);
+    for (size_t i = 0; i < outputShapes.size(); i++) {
+            const auto& out = outputShapes[i];
+            normOutputShapes[i] = out;
+            outputDims.emplace_back(out);
     }
-    return outputShapes;
+    return outputDims;
 }
 
 void Snippet::prepareParams() {
@@ -516,25 +522,13 @@ void Snippet::prepareParams() {
     };
     initDataSizes();
     if (isDynamic) {
-        masterShape = getParentEdgesAtPort(0)[0]->getMemory().GetShape().toPartialShape();
-        for (size_t i = 0; i < inputShapes.size(); i++) {
-            auto inShape = getParentEdgesAtPort(i)[0]->getMemory().GetShape().toPartialShape();
-            if (masterShapeIsBlocked && !inputShapeIsBlocked[i])
-                inShape.insert(inShape.end(), 1);
-            inShape = prependWithOnes(inShape, tensorRank);
-            // todo: this is a simple master_shape inference for shape-agnostic operations,
-            //  we'll need to account for body operations semantics in the future
-            ov::PartialShape::broadcast_merge_into(masterShape, inShape, ov::op::AutoBroadcastType::NUMPY);
-            normInputShapes[i] = inShape;
-        }
-        // this is a simple way to update output shapes without doing honest (and expensive) m_body->reshape()
-        normOutputShapes.resize(outputShapes.size());
-        for (size_t i = 0; i < outputShapes.size(); i++) {
-            auto outShape = getChildEdgesAtPort(i)[0]->getMemory().GetShape().toPartialShape();
-            if (masterShapeIsBlocked && !outputShapeIsBlocked[i])
-                outShape.insert(outShape.end(), 1);
-            normOutputShapes[i] = prependWithOnes(outShape, tensorRank);
-        }
+        // shapes were recordered during ShapeInfer call, so can simply prepend now
+        masterShape = prependWithOnes(masterShape, tensorRank);
+        for (auto& pshape : normInputShapes)
+            pshape = prependWithOnes(pshape, tensorRank);
+        for (auto& pshape : normOutputShapes)
+            pshape = prependWithOnes(pshape, tensorRank);
+
     } else {
         normOutputShapes = originalNormOutputShapes;
     }
