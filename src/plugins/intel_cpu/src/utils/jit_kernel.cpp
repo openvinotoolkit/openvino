@@ -129,6 +129,11 @@ InferenceEngine::Precision type2precision<float>() {
 }
 
 template<>
+InferenceEngine::Precision type2precision<int32_t>() {
+    return InferenceEngine::Precision::I32;
+}
+
+template<>
 InferenceEngine::Precision type2precision<bfloat16_t>() {
     return InferenceEngine::Precision::BF16;
 }
