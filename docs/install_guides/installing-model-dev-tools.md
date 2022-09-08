@@ -98,7 +98,7 @@ Note the following things:
 
 * To install OpenVINO Development Tools, you must have OpenVINO Runtime installed first. You can install OpenVINO Runtime through the following ways:
   * For OpenVINO 2022.1: [Install OpenVINO on Linux Using the Installer](installing-openvino-linux.md), [Install OpenVINO on Linux from APT](installing-openvino-apt.md), [Install OpenVINO on Linux from YUM](installing-openvino-yum.md), [Install OpenVINO on Windows Using the Installer](installing-openvino-windows.md), or [Install OpenVINO on macOS Using the Installer](installing-openvino-macos.md). 
-  * For OpenVINO 2022.1.1: [Install OpenVINO on Linux from Archive](installing-openvino-from-archive-linux.md), [Install OpenVINO on Windows from Archive](installing-openvino-from-archive-windows.md), or [Install OpenVINO on macOS from Archive](installing-openvino-from-archive-macos.md).
+  * For OpenVINO 2022.1.1: [Install OpenVINO on Linux from Archive](2022.1.1/installing-openvino-from-archive-linux.md), [Install OpenVINO on Windows from Archive](2022.1.1/installing-openvino-from-archive-windows.md), or [Install OpenVINO on macOS from Archive](2022.1.1/installing-openvino-from-archive-macos.md).
 * Ensure that the version of OpenVINO Development Tools you are installing matches that of OpenVINO Runtime. 
 
 Use either of the following ways to install OpenVINO Development Tools:

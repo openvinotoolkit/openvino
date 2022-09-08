@@ -110,7 +110,7 @@ The environment variables are set. Next, you can download some additional tools.
 
 ### <a name="model-optimizer">Step 3 (Optional): Install Additional Components
 
-Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can only be installed via PyPI. See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps.
+Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can only be installed via PyPI. See [Install OpenVINO™ Development Tools](../installing-model-dev-tools.md) for detailed steps.
 
 OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on Github](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
 
