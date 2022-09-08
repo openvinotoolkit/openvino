@@ -71,12 +71,14 @@ jobs:
       rd /Q /S $(BUILD_SAMPLES_TESTS_DIR) & mkdir $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'Make dir'
     
-  - script: curl -v -O https://www.python.org/ftp/python/3.10.7/python-3.10.7-amd64.exe
+  - script: curl -O https://www.python.org/ftp/python/3.10.7/python-3.10.7-amd64.exe
     displayName: 'Download Python'
     workingDirectory: $(WORK_DIR)
     continueOnError: false
   
-  - script: python-3.10.7-amd64.exe /passive InstallAllUsers=0 TargetDir=C:\hostedtoolcache\windows\Python\3.10.7\x64 Include_launcher=0
+  - script: |
+      python-3.10.7-amd64.exe /uninstall
+      python-3.10.7-amd64.exe /passive InstallAllUsers=0 TargetDir=C:\hostedtoolcache\windows\Python\3.10.7\x64 Include_launcher=0
     displayName: 'Install Python'
     workingDirectory: $(WORK_DIR)
     continueOnError: false
