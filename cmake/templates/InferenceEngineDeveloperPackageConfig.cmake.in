@@ -79,8 +79,12 @@ if(TARGET IE::runtime::dev AND NOT TARGET openvino::runtime::dev)
 endif()
 
 if(ENABLE_SYSTEM_PUGIXML)
-    find_package(PkgConfig QUIET)
-    find_dependency(PugiXML)
+    set(_ov_pugixml_pkgconfig_interface "@pugixml_FOUND@")
+    if(_ov_pugixml_pkgconfig_interface)
+        find_dependency(PkgConfig)
+    else()
+        find_dependency(PugiXML)
+    endif()
     if(PugiXML_FOUND)
         set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
         add_library(IE::pugixml ALIAS pugixml)
@@ -97,6 +101,10 @@ if(ENABLE_SYSTEM_PUGIXML)
                           ${pkg_config_required_arg}
                           IMPORTED_TARGET GLOBAL
                           pugixml)
+
+        unset(pkg_config_quiet_arg)
+        unset(pkg_config_required_arg)
+
         if(pugixml_FOUND)
             add_library(IE::pugixml ALIAS PkgConfig::pugixml)
         endif()
