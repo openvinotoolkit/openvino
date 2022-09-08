@@ -25,6 +25,7 @@
 #include "multi_executable_network.hpp"
 #include "auto_schedule.hpp"
 #include "auto_executable_network.hpp"
+#include "ie_system_conf.h"
 
 #include "itt.hpp"
 // ------------------------------MultiDeviceInferencePlugin----------------------------
@@ -550,7 +551,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     executor->runAndWait(loads);
 
     if (iterCPU != metaDevices.end()) {
-        int nCPUCores = parallel_get_max_threads();
+        int nCPUCores = getNumberOfCPUCores();
         int nRemainThreads = nCPUCores - nTotalGPUStreamsNum;
         // no idle threads for cpu
         if (nRemainThreads <= 0) {
