@@ -79,6 +79,7 @@ void PriorBoxLayerTest::SetUp() {
     attributes.offset = offset;
     attributes.clip = clip;
     attributes.flip = flip;
+    attributes.scale_all_sizes = scale_all_sizes;
     attributes.min_max_aspect_ratios_order = min_max_aspect_ratios_order;
 
     auto shape_of_1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0]);
