@@ -588,6 +588,10 @@ size_t jit_store_emitter::aux_vecs_count() const {
         (src_prc_ == Precision::FP32 && dst_prc_ == Precision::BF16))
         count++;
 
+    // for data swapping to avoid using Xmm(0) as I/O xmm for jit_emu_vcvtneps2bf16
+    if ((host_isa_ == cpu::x64::sse41) && (src_prc_ == Precision::FP32 && dst_prc_ == Precision::BF16))
+        count++;
+
     // zero value, zeroed and passed from caller from performance standpoint(zeroed one time and not need preserve and restore status)
     if (mayiuse(cpu::x64::avx512_core) && one_of(dst_prc_, Precision::U8, Precision::U16))
         count++;
@@ -1015,18 +1019,28 @@ void jit_store_emitter::store_dword_to_word_extension(const Vmm &vmm, const Xbya
 
     if (is_bf16) {
         // to avoid src vmm pollution
-        if (src_prc_ == Precision::FP32) {
-            ymm = Ymm(aux_vec_idxs[0]);
-        }
+        auto vmm_tmp = src_prc_ == Precision::FP32 ? Vmm(aux_vec_idxs[0]) : vmm;
         if (mayiuse(cpu::x64::avx512_core_bf16)) {
-            h->vcvtneps2bf16(ymm, zmm);
+            h->vcvtneps2bf16(vmm_tmp, zmm);
+        } else if (mayiuse(cpu::x64::avx2)) {
+            emu_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(vmm_tmp.getIdx())});
         } else {
-            emu_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(ymm.getIdx())});
+            // For sse41 mask register has to be Xmm(0) so we cannot use Xmm(0) as I/O vmm in emu_vcvtneps2bf16_
+            if (src_prc_ == Precision::FP32) {
+                auto xmm_aux1 = Xmm(aux_vec_idxs[1]);
+                h->uni_vmovups(xmm_aux1, vmm);
+                emu_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(vmm.getIdx())},
+                                              {static_cast<size_t>(vmm_tmp.getIdx())});
+                h->uni_vmovups(vmm_tmp, vmm);
+                h->uni_vmovups(vmm, xmm_aux1);  // return original data to src vmm
+            } else {
+                emu_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(vmm_tmp.getIdx())});
+            }
         }
         if (store_num == 16 && mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::avx512_core)) {
-            h->vmovdqu16(ptr[reg + offset], ymm);
+            h->vmovdqu16(ptr[reg + offset], vmm_tmp);
         } else {
-            store_bytes(ymm, reg, offset, store_num * 2);
+            store_bytes(vmm_tmp, reg, offset, store_num * 2);
         }
     } else {
         switch (store_num) {
