@@ -14,12 +14,13 @@
 #define _OPENVINO_RTTI_OP_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME) \
     _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT(TYPE_NAME, VERSION_NAME, ::ov::op::Op)
 
-#define OPENVINO_OP(...)                                                                               \
-    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                              \
-                                                             _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT, \
-                                                             _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT,  \
-                                                             _OPENVINO_RTTI_OP_WITH_TYPE_VERSION,      \
-                                                             _OPENVINO_RTTI_OP_WITH_TYPE)(__VA_ARGS__))
+#define OPENVINO_OP(...)                                                                                \
+    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                               \
+                                                             _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT,  \
+                                                             _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT,   \
+                                                             _OPENVINO_RTTI_OP_WITH_TYPE_VERSION,       \
+                                                             _OPENVINO_RTTI_OP_WITH_TYPE)(__VA_ARGS__)) \
+    using ov::op::Op::evaluate;
 
 namespace ov {
 namespace op {
