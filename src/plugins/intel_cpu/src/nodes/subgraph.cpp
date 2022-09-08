@@ -80,6 +80,14 @@ ov::PartialShape Snippet::prependWithOnes(const PartialShape& dims, size_t rank)
     return PartialShape {result};
 }
 
+VectorDims Snippet::prependWithOnes(const VectorDims& dims, size_t rank) {
+    if (rank <= dims.size())
+        return dims;
+    VectorDims result(rank, 1);
+    std::copy(dims.begin(), dims.end(), &result[rank - dims.size()]);
+    return result;
+}
+
 void Snippet::initSupportedPrimitiveDescriptors() {
     copy_snippet();
     if (!supportedPrimitiveDescriptors.empty())
@@ -223,21 +231,18 @@ InferenceEngine::Precision Snippet::getRuntimePrecision() const {
 
 void Snippet::calcJITParams(std::vector<int64_t>& offsets, std::vector<int64_t>& sch_offsets, std::vector<bool>& bmask,
                             std::vector<int64_t>& vector_tile_inc, std::vector<int64_t>& scalar_tile_inc) const {
-    const auto &inputShapes = normInputShapes;
-    const auto &outputShapes = normOutputShapes;
-    const auto& static_master_shape = masterShape.get_shape();
     const size_t numInputs = normInputShapes.size();
     const size_t numParams = numInputs + normOutputShapes.size();
     // todo: check that this vector_size is Ok for different precisions
     const int64_t vector_size = snippet->get_generator()->get_target_machine()->get_lanes();
 
     int io_index = 0;
-    bmask.resize(inputShapes.size() + outputShapes.size());
-    for (const auto& ps : inputShapes)
+    bmask.resize(normInputShapes.size() + normOutputShapes.size());
+    for (const auto& s : normInputShapes)
         // bmask is true if the input/output is broadcasted
-        bmask[io_index++] = static_master_shape.back() != 1 && ps.rbegin()->get_length() == 1;
-    for (const auto& ps : outputShapes)
-        bmask[io_index++] = static_master_shape.back() != 1 && ps.rbegin()->get_length() == 1;
+        bmask[io_index++] = masterShape.back() != 1 && s.back() == 1;
+    for (const auto& s : normOutputShapes)
+        bmask[io_index++] = masterShape.back() != 1 && s.back() == 1;
 
     // explicit tile increments are needed only for dynamic case
     if (isDynamic) {
@@ -251,25 +256,25 @@ void Snippet::calcJITParams(std::vector<int64_t>& offsets, std::vector<int64_t>&
     }
 
     // Note that wen don't need offset for the last dim, since it's handled directly by Load/Store emitters
-    const size_t offset_rank = static_master_shape.size() - 1;
+    const size_t offset_rank = masterShape.size() - 1;
     offsets.resize(numParams * (offset_rank), 1);
-    auto offset_calculation = [offset_rank, static_master_shape](int64_t *off, const std::vector<size_t>& dims, const size_t data_size) {
+    auto offset_calculation = [offset_rank, this](int64_t *off, const std::vector<size_t>& dims, const size_t data_size) {
         size_t k = dims.back();
         for (int i = offset_rank - 1; i >= 0; i--) {
-            auto tmp = (dims[i] == static_master_shape[i]) ? k : 0;
+            auto tmp = (dims[i] == masterShape[i]) ? k : 0;
             off[i] = tmp * data_size;
             k *= dims[i];
         }
     };
     for (size_t i = 0; i < numParams; i++) {
         offset_calculation(offsets.data() + i * offset_rank,
-                           i < numInputs ? inputShapes[i].get_shape() : outputShapes[i - numInputs].get_shape(),
+                           i < numInputs ? normInputShapes[i] : normOutputShapes[i - numInputs],
                            dataSize[i]);
     }
     // zero-out offsets that wouldn't be applied anyway, see  "if (jcp.master_shape[k] != 1 && offsets[k] != 0)"
     // in TileSchedulerEmitter
     for (size_t i = 0; i < offset_rank; i++) {
-        if (static_master_shape[i] == 1) {
+        if (masterShape[i] == 1) {
             for (size_t j = i; j < numParams * offset_rank; j += offset_rank)
                 offsets[j] = 0;
         }
@@ -283,7 +288,7 @@ void Snippet::calcJITParams(std::vector<int64_t>& offsets, std::vector<int64_t>&
         for (size_t i = 0; i < numParams; i++) {
             // the last offset is ignored, so offsets[offset_rank - 1] is actually outer tile offset
             int64_t off = offsets[(i + 1) * offset_rank - 1];
-            const auto& io_shape = i < numInputs ? inputShapes[i].get_shape() : outputShapes[i - numInputs].get_shape();
+            const auto& io_shape = i < numInputs ? normInputShapes[i] : normOutputShapes[i - numInputs];
             if (off > dataSize[i] * vector_size) {
                 sch_offsets[i] = 0;
             } else if (off == dataSize[i] * vector_size) {
@@ -297,7 +302,7 @@ void Snippet::calcJITParams(std::vector<int64_t>& offsets, std::vector<int64_t>&
                 // NB! we don't need to step back if scalar/vector tile is executed only once,
                 // because increments are not emitted in this case. See jit_snippets_emitters.cpp for more details
                 // If the lower Tile is broadcasted, then no step back is needed
-            } else if (io_shape[io_shape.size() - 2] != static_master_shape[static_master_shape.size() - 2]
+            } else if (io_shape[io_shape.size() - 2] != masterShape[masterShape.size() - 2]
                        && !bmask[i]
 //                       io_shape.back() != 1 &&
 //                       io_shape.back() != vector_size
@@ -312,10 +317,10 @@ void Snippet::calcJITParams(std::vector<int64_t>& offsets, std::vector<int64_t>&
         }
     }
 }
-void Snippet::optimizeExecDomain(std::vector<PartialShape>& inputShapes, std::vector<PartialShape>& outputShapes,
-                                 PartialShape &domain, size_t& TileRank) const {
+void Snippet::optimizeExecDomain(std::vector<VectorDims>& inputShapes, std::vector<VectorDims>& outputShapes,
+                                 VectorDims &domain, size_t& TileRank) const {
     auto findDimsToCollapse = [&]() {
-        auto collapseLastDims = [](PartialShape& dims, size_t dimsToCollapse) {
+        auto collapseLastDims = [](VectorDims& dims, size_t dimsToCollapse) {
             if (dimsToCollapse >= dims.size() - 1)
                 IE_THROW() << "Got invalid number of dims to collapse. Expected < " << dims.size() - 1 << " got " << dimsToCollapse;
             for (int i = dims.size() - 2; i > dims.size() - dimsToCollapse - 2; i--) {
@@ -333,7 +338,7 @@ void Snippet::optimizeExecDomain(std::vector<PartialShape>& inputShapes, std::ve
         int collapsedDims = 0;
         size_t minimalConcurrency = parallel_get_max_threads();
         size_t minimalJitWorkAmount = 256;
-        size_t currentJitWorkAmount = domain[domain.size() - 1].get_length();
+        size_t currentJitWorkAmount = domain[domain.size() - 1];
         while (currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount) {
             if (static_cast<int>(domain.size()) - collapsedDims - 2 < 0)
                 break;
@@ -348,7 +353,7 @@ void Snippet::optimizeExecDomain(std::vector<PartialShape>& inputShapes, std::ve
                 }
             }
 
-            size_t nextJitWorkAmount = currentJitWorkAmount * domain[domain.size() - 2].get_length();
+            size_t nextJitWorkAmount = currentJitWorkAmount * domain[domain.size() - 2];
             if (fullWorkAmount / nextJitWorkAmount >= minimalConcurrency) {
                 currentJitWorkAmount = nextJitWorkAmount;
                 // if we cannot use dim collapsing we should use tile2D
@@ -370,11 +375,11 @@ void Snippet::optimizeExecDomain(std::vector<PartialShape>& inputShapes, std::ve
                 break;
             }
         }
-        return domain.get_shape();
+        return domain;
     };
     findDimsToCollapse();
 }
-void Snippet::normalizeShapes() {
+ov::PartialShape Snippet::canonicalizeBody() {
     auto edgeToBlockedShape = [](const EdgePtr& edge) {
         const auto blockedDesc = edge->getMemory().GetDescWithType<BlockedMemoryDesc>();
         std::vector<Dimension> dims;
@@ -405,30 +410,28 @@ void Snippet::normalizeShapes() {
     }
 
     const auto supported_exec_type = snippet->get_generator()->get_supported_exec_precision();
-    masterShape = snippet->canonicalize(output_blocked_shapes, input_blocked_shapes, supported_exec_type);
-
+    const auto canonicalShape = snippet->canonicalize(output_blocked_shapes, input_blocked_shapes, supported_exec_type);
     // initialize by maximum output dimension. Dimensions of outputs should be broadcastable
-    tensorRank = std::max(static_cast<size_t>(rank6D), masterShape.size());
-    // Canonicalization broadcasts inputs and outputs to max input rank, which can be smaller than tensorRank
-    // prepend to enable 6D scheduler
-    masterShape = prependWithOnes(masterShape, tensorRank);
-    const auto &body = snippet->get_body();
-    for (const auto& p : body->get_parameters()) {
-        normInputShapes.emplace_back(prependWithOnes(p->get_output_partial_shape(0), tensorRank));
-    }
-    for (const auto& r : body->get_results()) {
-        originalNormOutputShapes.emplace_back(prependWithOnes(r->get_input_partial_shape(0), tensorRank));
-    }
-    normOutputShapes = originalNormOutputShapes;
+    tensorRank = std::max(static_cast<size_t>(rank6D), canonicalShape.size());
+    return canonicalShape;
 }
 void Snippet::createPrimitive() {
     // determine canonicalize, determine master_shape and prepend up to 6D
     // NB! normInputShapes are updated, so body reshape might be needed
-    normalizeShapes();
+    const auto& canonicalShape = canonicalizeBody();
     if (!isDynamic) {
+        if (canonicalShape.is_dynamic())
+            IE_THROW() << "Snippets: Canonicalization returned dynamic shape in static pipeline";
+        masterShape = canonicalShape.get_shape();
+        const auto &body = snippet->get_body();
+        for (const auto& p : body->get_parameters())
+            normInputShapes.emplace_back(p->get_output_shape(0));
+        for (const auto& r : body->get_results())
+            normOutputShapes.emplace_back(r->get_input_shape(0));
+
         prepareParams();
         jit_snippets_compile_args jcp;
-        jcp.master_shape = masterShape.get_shape();
+        jcp.master_shape = masterShape;
         std::copy(data_offsets.begin(), data_offsets.end(), jcp.data_offsets);
         std::copy(scheduler_offsets.begin(), scheduler_offsets.end(), jcp.scheduler_offsets);
         std::copy(scheduler_work_amounts.begin(), scheduler_work_amounts.end(), jcp.scheduler_work_amounts);
@@ -439,6 +442,8 @@ void Snippet::createPrimitive() {
         // Here kernel is generated for most warying dimension by default.
         schedule = snippet->generate(reinterpret_cast<const void*>(&jcp));
     } else {
+        normInputShapes.resize(snippet->get_body()->get_parameters().size());
+        normOutputShapes.resize(snippet->get_body()->get_results().size());
         schedule = snippet->generate(nullptr);
     }
 }
@@ -465,45 +470,41 @@ std::vector<VectorDims> Snippet::shapeInfer() const {
         }
         return success;
     };
-    VectorDims masterDims;
-    std::vector<ov::Shape> layoutNormalizedInputs;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         VectorDims inDims {getParentEdgesAtPort(i)[0]->getMemory().GetShape().getDims()};
         if (masterShapeIsBlocked && !inputShapeIsBlocked[i])
             inDims.insert(inDims.end(), 1);
-        layoutNormalizedInputs.emplace_back(inDims);
-        normInputShapes[i] = ov::PartialShape(inDims);
         // todo: this is a simple master_shape inference for shape-agnostic operations,
         //  we'll need to account for body operations semantics in the future
         if (i == 0)
-            masterDims = inDims;
+            masterShape = inDims;
         else
-            broadcast_merge(masterDims, inDims);
+            broadcast_merge(masterShape, inDims);
+        normInputShapes[i] = std::move(inDims);
     }
-    if (std::any_of(masterDims.begin(), masterDims.end(), [](const Dim& d){ return d == Shape::UNDEFINED_DIM;})) {
+    if (std::any_of(masterShape.begin(), masterShape.end(), [](const Dim& d){ return d == Shape::UNDEFINED_DIM;})) {
         std::ostringstream errorMessage;
         errorMessage << "Can't compute static master shape for Snippet node with name: " << getName();
         errorMessage << ". Input shapes = ( ";
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             errorMessage << i << " port = " << getParentEdgesAtPort(i)[0]->getMemory().GetShape().toString() << ", ";
         }
-        errorMessage << "). Master shape = ( " << masterDims << " )";
+        errorMessage << "). Master shape = ( " << masterShape << " )";
         IE_THROW() << errorMessage.str();
     }
-    masterShape = ov::PartialShape(masterDims);
 
-    if (originalNormOutputShapes.size() == 1) {
-        normOutputShapes[0] = ov::PartialShape(masterDims);
-        return {masterDims};
+    if (normOutputShapes.size() == 1) {
+        normOutputShapes[0] = masterShape;
+        return {masterShape};
     }
     std::vector<VectorDims> outputDims;
-    const auto& outputShapes = snippet->reshape_body(layoutNormalizedInputs);
-    for (size_t i = 0; i < outputShapes.size(); i++) {
-            const auto& out = outputShapes[i];
-            normOutputShapes[i] = out;
-            outputDims.emplace_back(out);
-    }
-    return outputDims;
+    std::vector<ov::Shape> new_shapes;
+    for (const auto& s : normInputShapes)
+        new_shapes.emplace_back(s);
+    const auto& outputShapes = snippet->reshape_body(new_shapes);
+    for (size_t i = 0; i < outputShapes.size(); i++)
+            normOutputShapes[i] = outputShapes[i];
+    return normOutputShapes;
 }
 
 void Snippet::prepareParams() {
@@ -521,24 +522,18 @@ void Snippet::prepareParams() {
             dataSize[i + numInputs] = config.outConfs[i].getMemDesc()->getPrecision().size();
     };
     initDataSizes();
-    if (isDynamic) {
-        // shapes were recordered during ShapeInfer call, so can simply prepend now
-        masterShape = prependWithOnes(masterShape, tensorRank);
-        for (auto& pshape : normInputShapes)
-            pshape = prependWithOnes(pshape, tensorRank);
-        for (auto& pshape : normOutputShapes)
-            pshape = prependWithOnes(pshape, tensorRank);
 
-    } else {
-        normOutputShapes = originalNormOutputShapes;
-    }
+    masterShape = prependWithOnes(masterShape, tensorRank);
+    for (auto& pshape : normInputShapes)
+        pshape = prependWithOnes(pshape, tensorRank);
+    for (auto& pshape : normOutputShapes)
+        pshape = prependWithOnes(pshape, tensorRank);
 
-    const auto& tmpShape = masterShape.get_shape();
     tileRank = 1;
-    fullWorkAmount = std::accumulate(tmpShape.begin(), tmpShape.end(), 1, std::multiplies<size_t>());
+    fullWorkAmount = std::accumulate(masterShape.begin(), masterShape.end(), 1, std::multiplies<size_t>());
     // optimizeExecDomain will collapse shape dimensions and adjust tile Rank
     optimizeExecDomain(normInputShapes, normOutputShapes, masterShape, tileRank);
-    exec_domain = masterShape.get_shape();
+    exec_domain = masterShape;
 
     // todo: probably better to pass a call_args instance
     calcJITParams(data_offsets, scheduler_offsets, broadcasting_mask, vector_tile_increments, scalar_tile_increments);
@@ -577,6 +572,7 @@ void Snippet::prepareParams() {
 }
 
 bool Snippet::needPrepareParams() const {
+    // todo: update to avoid excessive prepareparams. Subject to benchmarking.
     return (!schedule.ptr || isDynamic);
 }
 

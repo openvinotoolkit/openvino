@@ -62,8 +62,9 @@ private:
 
     void define_schedule();
     static  ov::PartialShape prependWithOnes(const PartialShape& dims, size_t rank);
-    void normalizeShapes();
-    void optimizeExecDomain(std::vector<PartialShape>&, std::vector<PartialShape>&, PartialShape&, size_t&) const;
+    static  VectorDims prependWithOnes(const VectorDims& dims, size_t rank);
+    ov::PartialShape canonicalizeBody();
+    void optimizeExecDomain(std::vector<VectorDims>&, std::vector<VectorDims>&, VectorDims&, size_t&) const;
     void calcJITParams(std::vector<int64_t>& offsets, std::vector<int64_t>& sch_offsets, std::vector<bool>& broadcasting_mask,
                        std::vector<int64_t>& vector_tile_increments, std::vector<int64_t>& scalar_tile_increments) const;
 
@@ -116,13 +117,10 @@ private:
     bool masterShapeIsBlocked = false;
     //
 
-    // need to remember the original ones to avoid reshaping body in dynamic case
-    std::vector<PartialShape> originalNormOutputShapes = {};
     // master shape is mutable since we need to modify it inside const shapeInfer method
-    mutable PartialShape masterShape = {};
-    // body Input & output shapes anre optimized and not necessarily the same as inputShapes and outputShapes
-    mutable std::vector<PartialShape> normInputShapes = {};
-    mutable std::vector<PartialShape> normOutputShapes = {};
+    mutable VectorDims masterShape = {};
+    mutable std::vector<VectorDims> normInputShapes = {};
+    mutable std::vector<VectorDims> normOutputShapes = {};
 
     std::vector<ptrdiff_t> start_offset_in = {};
     std::vector<ptrdiff_t> start_offset_out = {};
