@@ -12,6 +12,7 @@
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
+#include "strided_slice_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 
 #include "intel_gpu/graph/network.hpp"
@@ -156,7 +157,19 @@ void primitive_inst::update_shape() {
     if (_node.is_type<shape_of>())
         return;
 
-    if (!input_shape_changed && !_node.generates_dynamic_output() && _impl_params->output_layout.is_static())
+    // Strided slice loads data from {1,2,3} dependencies in impl::create method.
+    // It means that this data must be put into impl_params map
+    // Thus we treat it as "dynamic" case
+    // TODO: Remove once strided slice impl support runtime tensors for begin/end/stride
+    bool strided_slice_wa = false;
+    if (_node.is_type<strided_slice>()) {
+        for (size_t i = 1; i < _node.get_dependencies().size(); i++) {
+            if (!_node.get_dependency(i).is_type<data>())
+                strided_slice_wa = true;
+        }
+    }
+
+    if (!strided_slice_wa && !input_shape_changed && !_node.generates_dynamic_output() && _impl_params->output_layout.is_static())
         return;
 
     auto memory_deps = _node.get_const_memory_deps();
