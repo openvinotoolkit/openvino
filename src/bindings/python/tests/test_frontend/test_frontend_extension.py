@@ -28,7 +28,7 @@ fem = FrontEndManager()
 
 
 def skip_if_frontend_is_disabled(frontend):
-    if not frontend in imported_frontends:
+    if frontend not in imported_frontends:
         return pytest.mark.skip(reason=f"Cannot import frontend {frontend}")
 
     return pytest.mark.skipif(frontend not in fem.get_available_front_ends(),
