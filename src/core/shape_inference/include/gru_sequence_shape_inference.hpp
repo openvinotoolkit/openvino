@@ -11,11 +11,6 @@ namespace ov {
 namespace op {
 
 namespace rnn_seq {
-// template <class OpType, class ShapeType>
-// void gru_shape_infer(const OpType* op,
-//                      const std::vector<ShapeType>& input_shapes,
-//                      std::vector<ShapeType>& output_shapes) {}
-
 template <class OpType, class ShapeType>
 void validate_inputs_rank(const OpType* op, const std::vector<ShapeType>& input_shapes, const std::vector<Rank>& expected_ranks) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == expected_ranks.size(), "Can't validate inputs rank.");
@@ -31,14 +26,12 @@ void validate_inputs_rank(const OpType* op, const std::vector<ShapeType>& input_
     }
 }
 
-}  // namespace rnn_seq
-namespace v5 {
-template <class ShapeType>
-void shape_infer(const ov::op::v5::GRUSequence* op,
-                 const std::vector<ShapeType>& input_shapes,
-                 std::vector<ShapeType>& output_shapes) {
+template <class OpType, class ShapeType>
+void gru_shape_infer(const OpType* op,
+                     const std::vector<ShapeType>& input_shapes,
+                     std::vector<ShapeType>& output_shapes) {
 
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 6 && output_shapes.size() == 2);
+   NODE_VALIDATION_CHECK(op, input_shapes.size() == 6 && output_shapes.size() == 2);
 
     auto& y_out_shape = output_shapes[0];
     auto& ho_out_shape = output_shapes[1];
@@ -160,6 +153,15 @@ void shape_infer(const ov::op::v5::GRUSequence* op,
     // Final output shapes:
     // y_out_shape: [batch_size, num_directions, seq_length, hidden_size] // Rank always 4
     // ho_out_shape:  [batch_size, num_directions, hidden_size] // Rank always 3
+
+}
+}  // namespace rnn_seq
+namespace v5 {
+template <class ShapeType>
+void shape_infer(const ov::op::v5::GRUSequence* op,
+                 const std::vector<ShapeType>& input_shapes,
+                 std::vector<ShapeType>& output_shapes) {
+    rnn_seq::gru_shape_infer(op, input_shapes, output_shapes);
 }
 }  // namespace v5
 }  // namespace op

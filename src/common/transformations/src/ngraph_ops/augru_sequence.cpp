@@ -3,6 +3,8 @@
 //
 
 #include "ngraph_ops/augru_sequence.hpp"
+// #include "augru_sequence_shape_inference.hpp" // TODO: Resolve proper include
+#include "../../core/shape_inference/include/augru_sequence_shape_inference.hpp"
 
 #include "itt.hpp"
 #include "ngraph/op/util/recurrent_sequence.hpp"
@@ -36,28 +38,16 @@ ov::op::internal::AUGRUSequence::AUGRUSequence(const Output<Node>& X,
 
 void ov::op::internal::AUGRUSequence::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(internal_AUGRUSequence_validate_and_infer_types);
-    for (const auto& input : inputs()) {
-        if (input.get_partial_shape().rank().is_dynamic()) {
-            set_output_type(0, get_input_element_type(0), PartialShape::dynamic(4));
-            set_output_type(1, get_input_element_type(0), PartialShape::dynamic(3));
-            return;
-        }
-    }
-
-    auto gru_seq_gates_count = 3;
-    auto merged_batch_size = Dimension::dynamic();
-    auto merged_hidden_size = Dimension::dynamic();
-    auto merged_num_directions = Dimension::dynamic();
+  // Validate input types and save result for output type
     auto result_et = element::dynamic;
-
-    auto x_pshape = get_input_partial_shape(0);
-    auto ht_pshape = get_input_partial_shape(1);
-    auto sl_pshape = get_input_partial_shape(2);
-    auto w_pshape = get_input_partial_shape(3);
-    auto r_pshape = get_input_partial_shape(4);
-    auto b_pshape = get_input_partial_shape(5);
-    auto a_pshape = get_input_partial_shape(6);
-
+    NODE_VALIDATION_CHECK(this,
+                          element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(5)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(6)),
+                          "Element types for inputs do not match.");
     NODE_VALIDATION_CHECK(this, m_clip == 0.f, "AUGRUSequence doesn't support clip other than 0.");
     NODE_VALIDATION_CHECK(this,
                           m_activations.size() == 2 && m_activations[0] == "sigmoid" && m_activations[1] == "tanh",
@@ -72,27 +62,15 @@ void ov::op::internal::AUGRUSequence::validate_and_infer_types() {
                           m_linear_before_reset == false,
                           "AUGRUSequence supports only linear_before_reset equals false.");
 
-    ngraph::op::util::validate_seq_input_rank_dimension(
-        {x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape, a_pshape});
+    const auto& x_pshape = get_input_partial_shape(0);
+    const auto& ht_pshape = get_input_partial_shape(1);
+    const auto& sl_pshape = get_input_partial_shape(2);
+    const auto& w_pshape = get_input_partial_shape(3);
+    const auto& r_pshape = get_input_partial_shape(4);
+    const auto& b_pshape = get_input_partial_shape(5);
+    const auto& a_pshape = get_input_partial_shape(6);
 
-    // Validate input types and save result for output type
-    NODE_VALIDATION_CHECK(this,
-                          element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(5)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(6)),
-                          "Element types for inputs do not match.");
-
-    // Merge batch_size dimension across all inputs to evaluate output[0] dimension
-    NODE_VALIDATION_CHECK(this,
-                          Dimension::merge(merged_batch_size, merged_batch_size, ht_pshape[0]) &&
-                              Dimension::merge(merged_batch_size, merged_batch_size, a_pshape[0]) &&
-                              Dimension::merge(merged_batch_size, merged_batch_size, x_pshape[0]) &&
-                              Dimension::merge(merged_batch_size, merged_batch_size, sl_pshape[0]),
-                          "Dimension batch_size is not matched between inputs.");
-
+    // TODO: Move to shape_infer
     // A input shape validation // [batch_size, seq_length, 1]
     NODE_VALIDATION_CHECK(this, a_pshape.rank().compatible(3), "'A' input must be a 3D tensor.");
     if (a_pshape.rank().is_static()) {
@@ -102,70 +80,20 @@ void ov::op::internal::AUGRUSequence::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this, a_pshape[2].compatible(1), "The last dimension of `A` shape must be equal to `1`.");
     }
 
-    // Merge hidden_size dimension across all inputs to evaluate output dimension
-    NODE_VALIDATION_CHECK(this,
-                          Dimension::merge(merged_hidden_size, merged_hidden_size, ht_pshape[2]) &&
-                              Dimension::merge(merged_hidden_size, merged_hidden_size, r_pshape[2]),
-                          "Parameter hidden_size not matched AUGRUSequence.");
 
-    // Merge num_directions dimension across all inputs to evaluate output dimension
-    NODE_VALIDATION_CHECK(this,
-                          Dimension::merge(merged_num_directions, merged_num_directions, ht_pshape[1]) &&
-                              Dimension::merge(merged_num_directions, merged_num_directions, w_pshape[0]) &&
-                              Dimension::merge(merged_num_directions, merged_num_directions, r_pshape[0]) &&
-                              Dimension::merge(merged_num_directions, merged_num_directions, b_pshape[0]),
-                          "Parameter num_directions not matched in AUGRUSequence.");
 
-    auto valid_num_directions = 1;  // AUGRUSequence supports only Forward direction
-    NODE_VALIDATION_CHECK(this,
-                          Dimension::merge(merged_num_directions, merged_num_directions, valid_num_directions),
-                          "Parameter 'num_directions' doesn't match with direction '",
-                          m_direction,
-                          "' in AUGRUSequence. Expected ",
-                          valid_num_directions,
-                          ", actual ",
-                          merged_num_directions);
+    std::vector<ov::PartialShape> input_shapes = {x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape};
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{4}, ov::PartialShape{3}};
+    shape_infer(this, input_shapes, output_shapes);
 
-    // Validate hidden_size value for W, R, B inputs
-    if (merged_hidden_size.is_static()) {
-        if (w_pshape[1].is_static()) {
-            NODE_VALIDATION_CHECK(this,
-                                  w_pshape[1].compatible(merged_hidden_size * gru_seq_gates_count),
-                                  "Parameter hidden_size mistmatched in W input. Current value is: ",
-                                  w_pshape[1].get_length(),
-                                  ", expected: ",
-                                  merged_hidden_size.get_length() * gru_seq_gates_count,
-                                  ".");
-        }
-
-        if (r_pshape[1].is_static()) {
-            NODE_VALIDATION_CHECK(this,
-                                  r_pshape[1].compatible(merged_hidden_size * gru_seq_gates_count),
-                                  "Parameter hidden_size mistmatched in R input. Current value is: ",
-                                  r_pshape[1].get_length(),
-                                  ", expected: ",
-                                  merged_hidden_size.get_length() * gru_seq_gates_count,
-                                  ".");
-        }
-
-        if (b_pshape[1].is_static()) {
-            NODE_VALIDATION_CHECK(
-                this,
-                b_pshape[1].compatible(merged_hidden_size *
-                                       (m_linear_before_reset ? (gru_seq_gates_count + 1) : gru_seq_gates_count)),
-                "Parameter hidden_size mistmatched in B input. Current value is: ",
-                b_pshape[1].get_length(),
-                ", expected: ",
-                merged_hidden_size.get_length() *
-                    (m_linear_before_reset ? (gru_seq_gates_count + 1) : gru_seq_gates_count),
-                ".");
-        }
-    }
+    // Mark inputs which are relevant to output parameters
+    for (size_t i = 0; i <= 6; ++i)
+        set_input_is_relevant_to_shape(i);
 
     // Set output size, type and shape
     set_output_size(2);
-    set_output_type(0, result_et, {merged_batch_size, merged_num_directions, x_pshape[1], merged_hidden_size});
-    set_output_type(1, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
+    set_output_type(0, result_et, output_shapes[0]);
+    set_output_type(1, result_et, output_shapes[1]);
 }
 
 bool ov::op::internal::AUGRUSequence::visit_attributes(AttributeVisitor& visitor) {
