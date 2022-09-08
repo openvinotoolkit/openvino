@@ -108,12 +108,11 @@ std::vector<float> split_float(const std::string& s, char delim) {
 std::vector<std::string> parse_devices(const std::string& device_string) {
     std::string comma_separated_devices = device_string;
     auto colon = comma_separated_devices.find(":");
+    std::vector<std::string> result;
     if (colon != std::string::npos) {
         auto target_device = comma_separated_devices.substr(0, colon);
         if (target_device == "AUTO" || target_device == "MULTI") {
-            std::vector<std::string> result;
             result.push_back(target_device);
-            return result;
         }
         auto bracket = comma_separated_devices.find("(");  // e.g. in BATCH:GPU(4)
         comma_separated_devices = comma_separated_devices.substr(colon + 1, bracket - colon - 1);
@@ -122,7 +121,8 @@ std::vector<std::string> parse_devices(const std::string& device_string) {
         return std::vector<std::string>();
 
     auto devices = split(comma_separated_devices, ',');
-    return devices;
+    result.insert(result.end(), devices.begin(), devices.end());
+    return result;
 }
 
 std::map<std::string, std::string> parse_value_per_device(const std::vector<std::string>& devices,
@@ -130,6 +130,8 @@ std::map<std::string, std::string> parse_value_per_device(const std::vector<std:
     //  Format: <device1>:<value1>,<device2>:<value2> or just <value>
     std::map<std::string, std::string> result;
     auto device_value_strings = split(values_string, ',');
+    auto if_auto = std::find(devices.begin(), devices.end(), "AUTO") != devices.end();
+    auto if_multi = std::find(devices.begin(), devices.end(), "MULTI") != devices.end();
     for (auto& device_value_string : device_value_strings) {
         auto device_value_vec = split(device_value_string, ':');
         if (device_value_vec.size() == 2) {
@@ -137,16 +139,28 @@ std::map<std::string, std::string> parse_value_per_device(const std::vector<std:
             auto nstreams = device_value_vec.at(1);
             auto it = std::find(devices.begin(), devices.end(), device_name);
             if (it != devices.end()) {
-                result[device_name] = nstreams;
+                if (!if_auto && !if_multi) {
+                    result[device_name] = nstreams;
+                } else {
+                    if (if_auto)
+                        result["AUTO"] = device_name + " " + nstreams;
+                    if (if_multi)
+                        result["MULTI"] = device_name + " " + nstreams;
+                }
             } else {
                 throw std::logic_error("Can't set nstreams value " + std::string(nstreams) + " for device '" +
                                        device_name + "'! Incorrect device name!");
             }
         } else if (device_value_vec.size() == 1) {
             auto value = device_value_vec.at(0);
-            for (auto& device : devices) {
-                result[device] = value;
-            }
+            if (!if_auto && !if_multi) {
+                for (auto& device : devices) {
+                    result[device] = value;
+                }
+            } else if (if_auto)
+                result["AUTO"] = value;
+            else
+                result["MULTI"] = value;
         } else if (device_value_vec.size() != 0) {
             throw std::runtime_error("Unknown string format: " + values_string);
         }

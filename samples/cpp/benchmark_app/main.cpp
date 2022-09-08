@@ -263,6 +263,16 @@ int main(int argc, char* argv[]) {
         }
 
         bool perf_counts = false;
+        auto if_auto = std::find(devices.begin(), devices.end(), "AUTO") != devices.end();
+        auto if_multi = std::find(devices.begin(), devices.end(), "MULTI") != devices.end();
+        // Remove the hardware devices if AUTO/MULTI appears in the devices list.
+        if (if_auto || if_multi) {
+            devices.clear();
+            if (if_auto)
+                devices.push_back("AUTO");
+            if (if_multi)
+                devices.push_back("MULTI");
+        }
         // Update config per device according to command line parameters
         for (auto& device : devices) {
             auto& device_config = config[device];
@@ -311,10 +321,19 @@ int main(int argc, char* argv[]) {
                     // set to user defined value
                     if (supported(key)) {
                         device_config[key] = it_device_nstreams->second;
-                    } else if (device == "MULTI" || supported(ov::num_streams.name())) {
+                    } else if (supported(ov::num_streams.name())) {
                         // Use API 2.0 key for streams
                         key = ov::num_streams.name();
                         device_config[key] = it_device_nstreams->second;
+                    } else if (device == "MULTI" || device == "AUTO") {
+                        // set device nstreams properties in the AUTO/MULTI plugin
+                        std::stringstream strm(it_device_nstreams->second);
+                        std::map<std::string, std::string> devices_property;
+                        ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
+                        for (auto it : devices_property) {
+                            device_config.insert(
+                                ov::device::properties(it.first, ov::num_streams(std::stoi(it.second))));
+                        }
                     } else {
                         throw std::logic_error("Device " + device + " doesn't support config key '" + key + "' " +
                                                "and '" + ov::num_streams.name() + "'!" +
@@ -411,6 +430,7 @@ int main(int argc, char* argv[]) {
                         }
                     }
                 }
+                device_nstreams.erase(device);
             }
         }
 
