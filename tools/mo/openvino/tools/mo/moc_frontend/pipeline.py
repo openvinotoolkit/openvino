@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import io
 import logging as log
 from typing import List
 import sys
@@ -27,7 +28,11 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     :param: moc_front_end: Loaded Frontend for converting input model
     :return: converted nGraph function ready for serialization
     """
-    input_model = moc_front_end.load(argv.input_model)
+    if isinstance(argv.input_model, io.BytesIO):
+        raise Exception("ONNX frontend does not support input model as BytesIO object. "
+                        "Please use use_legacy_frontend=True to convert the model.")
+    else:
+        input_model = moc_front_end.load(argv.input_model)
 
     user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
         input_model, argv.placeholder_shapes, argv.placeholder_data_types,

@@ -74,6 +74,15 @@ def path_to_str(path):
         raise Exception("Incorrect type of {} expected str or Path, got {}".format(path, type(path)))
 
 
+def path_to_str_or_object(value):
+    if value is None or isinstance(value, str):
+        return value
+    elif isinstance(value, Path):
+        return str(value)
+    else:
+        return value
+
+
 def paths_to_str(paths):
     if paths is None:
         return None
@@ -431,7 +440,7 @@ mo_convert_params = {
         'Tensorflow*: a file with a pre-trained model ' +
         ' (binary or text .pb file after freezing).\n' +
         ' Caffe*: a model proto file with model weights', '', '',
-        path_to_str),
+        path_to_str_or_object),
     'framework': ParamDescription(
         'Name of the framework used to train the input model.', '', '', None),
     'model_name': ParamDescription(

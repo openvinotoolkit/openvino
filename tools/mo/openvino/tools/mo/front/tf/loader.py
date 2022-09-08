@@ -175,9 +175,21 @@ def deducing_metagraph_path(meta_graph_file: str):
     return meta_graph_file
 
 
+def prepare_graph_def(model):
+    if isinstance(model, tf_v1.GraphDef):
+        nodes_to_clear_device = model.node
+        for node in nodes_to_clear_device:
+            node.device = ""
+        return model, {}, "tf", None
+    raise Exception("Unknown model type {}.".format(type(model)))
+
+
 def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpoint: str = "",
                       model_dir: str = "", saved_model_tags: list = [], meta_graph_file: str = "",
                       user_output_node_names_list: list = []):
+
+    if not isinstance(graph_file_name, str):
+        return prepare_graph_def(graph_file_name)
     # As a provisional solution, use a native TF methods to load a model protobuf
     graph_def = tf_v1.GraphDef()
     if isinstance(graph_file_name, str) and (re.match(r'.*\.(ckpt|meta)$', graph_file_name)):
