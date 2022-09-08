@@ -545,7 +545,6 @@ void jit_load_emitter::register_table_entries() {
     }
 }
 
-
 /// STORE ///
 jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                      Precision src_prc, Precision dst_prc, int store_num, arithmetic_mode mode, Precision exec_prc,
