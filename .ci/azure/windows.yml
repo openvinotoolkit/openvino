@@ -73,7 +73,7 @@ jobs:
   
   - script: |
       curl -O https://www.python.org/ftp/python/3.10.7/python-3.10.7-amd64.exe
-      call python-3.10.7-amd64.exe /passive InstallAllUsers=0 TargetDir=C:\hostedtoolcache\windows\Python\3.10.7\x64 Include_launcher=0
+      python-3.10.7-amd64.exe /passive InstallAllUsers=0 TargetDir=C:\hostedtoolcache\windows\Python\3.10.7\x64 Include_launcher=0
     displayName: 'Install Python'
     workingDirectory: $(WORK_DIR)
     continueOnError: false
