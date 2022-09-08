@@ -28,8 +28,13 @@ class ExperimentalDetectronROIFeatureExtractorLayerTest : public testing::WithPa
 protected:
     void SetUp() override;
 
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ExperimentalDetectronROIFeatureExtractorTestParams>& obj);
+
+private:
+    uint32_t mainPyramidScale;
 };
 } // namespace subgraph
 } // namespace test
