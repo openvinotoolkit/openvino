@@ -11,7 +11,7 @@
 namespace ngraph {
 namespace onnx_import {
 namespace op {
-namespace set_14 {
+namespace set_1 {
 
 OutputVector trilu(const Node& node) {
     const auto inputs = node.get_ng_inputs();
@@ -98,7 +98,7 @@ OutputVector trilu(const Node& node) {
         default_opset::Constant::create(input.get_element_type(), Shape{}, {0}))};
 }
 
-}  // namespace set_14
+}  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph

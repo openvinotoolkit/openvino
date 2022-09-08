@@ -37,7 +37,6 @@
 #include "op/com.microsoft/embed_layer_normalization.hpp"
 #include "op/com.microsoft/fusedgemm.hpp"
 #include "op/com.microsoft/skip_layer_normalization.hpp"
-#include "op/com.microsoft/trilu.hpp"
 #include "op/compress.hpp"
 #include "op/concat.hpp"
 #include "op/constant.hpp"
@@ -243,9 +242,10 @@ OperatorSet OperatorsBridge::get_operator_set(const std::string& domain, int64_t
     }
     for (const auto& op : dm->second) {
         const auto& it = find(version, op.second);
-        if (it != std::end(op.second)) {
-            result.emplace(op.first, it->second);
+        if (it == std::end(op.second)) {
+            throw error::UnsupportedVersion{op.first, version, domain};
         }
+        result.emplace(op.first, it->second);
     }
     return result;
 }
@@ -458,7 +458,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("TopK", 10, topk);
     REGISTER_OPERATOR("TopK", 11, topk);
     REGISTER_OPERATOR("Transpose", 1, transpose);
-    REGISTER_OPERATOR("Trilu", 14, trilu);
+    REGISTER_OPERATOR("Trilu", 1, trilu);
     REGISTER_OPERATOR("Unsqueeze", 1, unsqueeze);
     REGISTER_OPERATOR("Unsqueeze", 13, unsqueeze);
     REGISTER_OPERATOR("Where", 1, where);

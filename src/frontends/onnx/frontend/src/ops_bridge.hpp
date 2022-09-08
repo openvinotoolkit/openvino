@@ -25,6 +25,12 @@ struct UnknownDomain : ngraph_error {
     explicit UnknownDomain(const std::string& domain) : ngraph_error{domain} {}
 };
 
+struct UnsupportedVersion : ngraph_error {
+    UnsupportedVersion(const std::string& name, std::int64_t version, const std::string& domain)
+        : ngraph_error{"Unsupported operator version: " + (domain.empty() ? "" : domain + ".") + name + ":" +
+                       std::to_string(version)} {}
+};
+
 }  // namespace error
 
 class OperatorsBridge {
