@@ -5,14 +5,15 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include <string>
 #include <tuple>
 
 using namespace CPUTestUtils;
 using namespace ov::test;
-using namespace ngraph;
+using namespace ov;
 
 namespace CPULayerTestsDefinitions {
 using InteractionLayerCPUTestParams = std::tuple<ElementType, InputShape>;
@@ -31,7 +32,7 @@ public:
         return result.str();
     }
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (int i = 0; i < funcInputs.size(); ++i) {
@@ -57,16 +58,16 @@ protected:
             targetStaticShapes.push_back(std::vector<ov::Shape>(27, targetInput[i]));
         }
 
-        auto dense_feature = std::make_shared<ngraph::opset1::Parameter>(element::f32, inputShape.first);
-        NodeVector features{dense_feature};
-        ParameterVector inputs_params{dense_feature};
+        auto denseFeature = std::make_shared<ov::opset1::Parameter>(inType, inputShape.first);
+        NodeVector features{denseFeature};
+        ParameterVector inputsParams{denseFeature};
         const size_t sparse_feature_num = 26;
         for (size_t i = 0; i < sparse_feature_num; i++) {
-            auto sparse_feat = std::make_shared<ngraph::opset1::Parameter>(element::f32, inputShape.first);
+            auto sparse_feat = std::make_shared<ov::opset1::Parameter>(inType, inputShape.first);
             features.push_back(sparse_feat);
-            inputs_params.push_back(sparse_feat);
+            inputsParams.push_back(sparse_feat);
         }
-        auto shapeof = std::make_shared<opset8::ShapeOf>(dense_feature);
+        auto shapeof = std::make_shared<opset8::ShapeOf>(denseFeature);
         auto gather_batch_indices =  std::make_shared<opset1::Constant>(element::i32, Shape{1}, std::vector<int32_t>{0});
         auto gather_batch_axis =  std::make_shared<opset1::Constant>(element::i32, Shape{}, 0);
         auto gather_batch = std::make_shared<opset8::Gather>(shapeof, gather_batch_indices, gather_batch_axis);
@@ -100,8 +101,8 @@ protected:
         auto gather_indices =  std::make_shared<opset1::Constant>(element::i32, Shape{351}, gather_indices_value);
         auto gather_axis =  std::make_shared<opset1::Constant>(element::i32, Shape{}, 0);
         auto gather = std::make_shared<opset8::Gather>(reshape2, gather_indices, gather_axis);
-        std::vector<int32_t> reshape3_value = {-1, 3};
-        auto reshape3_shape =  std::make_shared<opset1::Constant>(element::i32, Shape{2}, reshape3_value);
+        auto reshape3_dim1 = std::make_shared<opset1::Constant>(element::i64, Shape{1}, std::vector<int64_t>{-1});
+        auto reshape3_shape = std::make_shared<opset1::Concat>(NodeVector{reshape3_dim1, gather_batch}, 0);
         auto reshape3 = std::make_shared<opset1::Reshape>(gather, reshape3_shape, true);
 
         std::vector<int32_t> transpose3_value = {1, 0};
@@ -111,9 +112,9 @@ protected:
         std::vector<int32_t> reshape4_value = {-1, 351};
         auto reshape4_shape =  std::make_shared<opset1::Constant>(element::i32, Shape{2}, reshape4_value);
         auto reshape4 = std::make_shared<opset1::Reshape>(transpose3, reshape4_shape, true);
-        auto concat2 = std::make_shared<opset1::Concat>(NodeVector{dense_feature, reshape4}, 1);
+        auto concat2 = std::make_shared<opset1::Concat>(NodeVector{denseFeature, reshape4}, 1);
         auto relu = std::make_shared<opset1::Relu>(concat2);
-        function = std::make_shared<ov::Model>(relu, inputs_params, "interaction");
+        function = std::make_shared<ov::Model>(relu, inputsParams, "interaction");
     }
 };
 
@@ -134,7 +135,7 @@ const std::vector<InputShape> input_shapes = {
     // dynamic batch
     {
         {-1, 4},
-        {{3, 4}, {5, 4}, {6, 4}}
+        {{6, 4}, {5, 4}, {3, 4}}
     },
     // dynamic shape
     {
@@ -143,8 +144,8 @@ const std::vector<InputShape> input_shapes = {
     },
     // static shape
     {
-        {3, 4},
-        {{3, 4}}
+        {6, 4},
+        {{6, 4}}
     }
 };
 

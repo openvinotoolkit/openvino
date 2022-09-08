@@ -28,11 +28,10 @@ void ov::intel_cpu::InteractionNode::validate_and_infer_types() {
     const auto& dense_pshape = get_input_partial_shape(0);
     NODE_VALIDATION_CHECK(this,
         dense_pshape.rank().is_static() &&
-        dense_pshape.rank() == 2 &&
-        dense_pshape.is_static(),
-        "feature shape must be static");
-    const auto batch = dense_pshape[0].get_length();
-    const auto feature = dense_pshape[1].get_length();
+        dense_pshape.rank() == 2,
+        "feature shape rank must be 2");
+    const auto batch = dense_pshape[0];
+    const auto feature = dense_pshape[1];
     for (size_t i = 1; i < input_size; i++) {
         const auto& sparse_pshape = get_input_partial_shape(i);
         NODE_VALIDATION_CHECK(this,
@@ -40,16 +39,22 @@ void ov::intel_cpu::InteractionNode::validate_and_infer_types() {
             sparse_pshape.rank() == 2,
             "sparse shape must be static");
         NODE_VALIDATION_CHECK(this,
-            batch == sparse_pshape[0].get_length() &&
-            feature == sparse_pshape[1].get_length(),
-            "all shape must be same");
+            batch.compatible(sparse_pshape[0]) &&
+            feature.compatible(sparse_pshape[1]),
+            "dense & sparse shape must be compatible");
     }
-    const auto batch_size = dense_pshape[0];
-    const auto feature_size = dense_pshape[1];
-    int64_t output_feature_size = input_size * (input_size - 1) / 2 + feature_size.get_length();
+
+    Dimension output_feature_size;
+    // only set output when feature is static
+    if (feature.is_static()) {
+        output_feature_size = input_size * (input_size - 1) / 2 + feature.get_length();
+    }
     auto output_type = m_output_type == ngraph::element::undefined ? get_input_element_type(0) : m_output_type;
     m_output_type = output_type;
-    set_output_type(0, output_type, PartialShape{batch_size, output_feature_size});
+    PartialShape output_shape = ov::PartialShape::dynamic(2);
+    output_shape[0] = batch;
+    output_shape[1] = output_feature_size;
+    set_output_type(0, output_type, output_shape);
     return;
 }
 

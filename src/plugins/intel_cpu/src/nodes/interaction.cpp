@@ -170,7 +170,7 @@ void Interaction::prepareParams() {
     primitive_attr matmul_attr;
     auto matmul_pd = matmul::primitive_desc(matmul_d, matmul_attr, getEngine());
     prim.reset(new matmul(matmul_pd));
-    featureSizes.resize(inputSizes, featureSize);
+    featureSizes.assign(inputSizes, featureSize);
     std::vector<InferenceEngine::TensorDesc> internalMemDesc = {
         InferenceEngine::TensorDesc(
             dataPrecision,
