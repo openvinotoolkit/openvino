@@ -75,7 +75,7 @@ if(ENABLE_SYSTEM_PUGIXML)
             # PATCH: on Ubuntu 18.04 pugixml.pc contains incorrect include directories
             get_target_property(interface_include_dir ${pugixml_target} INTERFACE_INCLUDE_DIRECTORIES)
             if(interface_include_dir AND NOT EXISTS "${interface_include_dir}")
-                set_target_properties(PkgConfig::pugixml PROPERTIES
+                set_target_properties(${pugixml_target} PROPERTIES
                     INTERFACE_INCLUDE_DIRECTORIES "")
             endif()
         endif()
