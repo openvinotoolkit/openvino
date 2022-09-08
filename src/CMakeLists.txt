@@ -8,14 +8,13 @@ include(cmake/install_tbb.cmake)
 
 # CC library should be registered before other cc targets
 add_subdirectory(common)
-# TODO: Fix Wall for core, frontends, tests and  c binding
+# TODO: Fix Wall for core, frontends and tests
 add_subdirectory(core)
 add_subdirectory(frontends)
 # TODO: remove ngraph/ngraph.hpp usage
 if(ENABLE_TESTS)
     add_subdirectory(core/tests)
 endif()
-add_subdirectory(bindings)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wall)
@@ -27,6 +26,7 @@ add_subdirectory(inference)
 include(cmake/openvino.cmake)
 # preprocessing has dependency on `openvino` for static build
 add_subdirectory(common/preprocessing)
+add_subdirectory(bindings)
 
 if(ENABLE_TESTS)
     add_subdirectory(tests_deprecated)

@@ -144,7 +144,7 @@ ov_status_e ov_infer_request_set_callback(ov_infer_request_t* infer_request, con
     return ov_status_e::OK;
 }
 
-ov_status_e ov_infer_request_get_profiling_info(ov_infer_request_t* infer_request,
+ov_status_e ov_infer_request_get_profiling_info(const ov_infer_request_t* infer_request,
                                                 ov_profiling_info_list_t* profiling_infos) {
     if (!infer_request || !profiling_infos) {
         return ov_status_e::INVALID_C_PARAM;
@@ -175,7 +175,7 @@ void ov_profiling_info_list_free(ov_profiling_info_list_t* profiling_infos) {
     if (!profiling_infos) {
         return;
     }
-    for (int i = 0; i < profiling_infos->size; i++) {
+    for (size_t i = 0; i < profiling_infos->size; i++) {
         if (profiling_infos->profiling_infos[i].node_name)
             delete[] profiling_infos->profiling_infos[i].node_name;
         if (profiling_infos->profiling_infos[i].exec_type)
