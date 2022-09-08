@@ -219,6 +219,95 @@ TEST_P(RemoteBlob_Test, smoke_canInputPluginRemoteBlob) {
     }
 }
 
+TEST_P(RemoteBlob_Test, NV12toGrayscale) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    const int num_batch = 1;
+    const int num_channels = 1;
+    const int height = 8;
+    const int width = 8;
+    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvertTranspose({num_batch, num_channels, height, width});
+
+    CNNNetwork net_remote(fn_ptr_remote);
+
+    net_remote.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
+    net_remote.getInputsInfo().begin()->second->setPrecision(Precision::U8);
+    net_remote.getInputsInfo().begin()->second->getPreProcess().setColorFormat(ColorFormat::NV12);
+    auto fake_image_data_y = FuncTestUtils::createAndFillBlob(net_remote.getInputsInfo().begin()->second->getTensorDesc(), 50, 0, 1);
+    auto fake_image_data_uv = FuncTestUtils::createAndFillBlob(net_remote.getInputsInfo().begin()->second->getTensorDesc(), 256, 0, 1);
+
+    auto ie = InferenceEngine::Core();
+    auto exec_net = ie.LoadNetwork(net_remote, CommonTestUtils::DEVICE_GPU,
+                { { GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS, PluginConfigParams::YES} });
+
+    // inference using remote blob
+    auto inf_req = exec_net.CreateInferRequest();
+    auto cldnn_context = exec_net.GetContext();
+    cl_context ctx = std::dynamic_pointer_cast<ClContext>(cldnn_context)->get();
+    auto ocl_instance = std::make_shared<OpenCL>(ctx);
+    cl_int err;
+
+    cl_image_format image_format;
+    cl_image_desc image_desc = { 0 };
+    image_format.image_channel_order = CL_R;
+    image_format.image_channel_data_type = CL_UNORM_INT8;
+    image_desc.image_type = CL_MEM_OBJECT_IMAGE2D;
+    image_desc.image_width = width;
+    image_desc.image_height = height;
+    cl_mem nv12_image_plane_y = clCreateImage(ocl_instance->_context.get(), CL_MEM_READ_WRITE, &image_format, &image_desc, NULL, &err);
+    ASSERT_EQ(err, 0);
+
+    image_format.image_channel_order = CL_RG;
+    image_desc.image_width = width / 2;
+    image_desc.image_height = height / 2;
+    cl_mem nv12_image_plane_uv = clCreateImage(ocl_instance->_context.get(), CL_MEM_READ_WRITE, &image_format, &image_desc, NULL, &err);
+    ASSERT_EQ(err, 0);
+
+    size_t origin[3] = { 0, 0, 0 };
+    size_t y_region[3] = { (size_t)width, (size_t)height, 1 };
+    size_t uv_region[3] = { (size_t)width / 2, (size_t)height / 2, 1 };
+
+    err = clEnqueueWriteImage(ocl_instance->_queue.get(), nv12_image_plane_y,
+        true, origin, y_region, 0, 0, fake_image_data_y->buffer(), 0, NULL, NULL);
+    ASSERT_EQ(err, 0);
+
+    err = clEnqueueWriteImage(ocl_instance->_queue.get(), nv12_image_plane_uv,
+        true, origin, uv_region, 0, 0, fake_image_data_uv->buffer(), 0, NULL, NULL);
+    ASSERT_EQ(err, 0);
+
+    cl::Image2D img_y = cl::Image2D(nv12_image_plane_y);
+    cl::Image2D img_uv = cl::Image2D(nv12_image_plane_uv);
+
+    auto nv12_blob = make_shared_blob_nv12(cldnn_context, img_y, img_uv);
+
+    inf_req.SetBlob(net_remote.getInputsInfo().begin()->first, nv12_blob);
+    inf_req.Infer();
+    auto outputBlob_shared = inf_req.GetBlob(net_remote.getOutputsInfo().begin()->first);
+
+    // regular inference
+    CNNNetwork net_regular(fn_ptr_remote);
+    net_regular.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
+    net_regular.getInputsInfo().begin()->second->setPrecision(Precision::FP32);
+    auto exec_net_regular = ie.LoadNetwork(net_regular, deviceName);
+    auto inf_req_regular = exec_net_regular.CreateInferRequest();
+
+    auto fake_image_data = FuncTestUtils::createAndFillBlob(net_regular.getInputsInfo().begin()->second->getTensorDesc());
+    for (size_t i = 0; i < fake_image_data_y->size(); i++) {
+        uint8_t data = fake_image_data_y->buffer().as<uint8_t*>()[i];
+        fake_image_data->buffer().as<float*>()[i] = static_cast<float>(data) / 255;
+    }
+    inf_req_regular.SetBlob(net_regular.getInputsInfo().begin()->first, fake_image_data);
+
+    inf_req_regular.Infer();
+    auto outputBlob_regular = inf_req_regular.GetBlob(net_regular.getOutputsInfo().begin()->first);
+    {
+        ASSERT_EQ(net_regular.getOutputsInfo().begin()->second->getPrecision(), InferenceEngine::Precision::FP32);
+        ASSERT_EQ(outputBlob_regular->size(), outputBlob_shared->size());
+        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+        FuncTestUtils::compareBlobs(outputBlob_regular, outputBlob_shared, thr);
+    }
+}
 
 TEST_P(RemoteBlob_Test, smoke_canInferOnUserContext) {
     CNNNetwork net(fn_ptr);

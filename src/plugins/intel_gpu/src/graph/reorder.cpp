@@ -33,7 +33,8 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
     }
 
     if (ifmt.is_nv12()) {
-        auto data_size = tensor{ input_layout.batch(), input_layout.feature() * 3,
+        auto output_feature = node.get_primitive()->nv12_to_grayscale ? 1 : input_layout.feature() * 3;
+        auto data_size = tensor{ input_layout.batch(), output_feature,
                                  input_layout.spatial(0), input_layout.spatial(1) };
         if (ofmt != ifmt)
             return layout(odt, ofmt, data_size, op);
@@ -177,6 +178,7 @@ std::string reorder_inst::to_string(reorder_node const& node) {
     json_composite reorder_info;
     reorder_info.add("input id", input.id());
     reorder_info.add("mean", mean);
+    reorder_info.add("nv12_to_grayscale", desc->nv12_to_grayscale);
     if (desc->subtract_per_feature.size() > 0) {
         reorder_info.add("subtract per feature", desc->subtract_per_feature);
     }
