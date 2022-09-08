@@ -65,8 +65,8 @@ jobs:
 
   steps:
   - script: |
-      powershell -command "Invoke-WebRequest -Uri https://www.python.org/ftp/python/3.10.7/python-3.10.7-amd64.exe -OutFile $(WORK_DIR)\python-3.10.7-amd64.exe"
-      powershell -command "python-3.10.7-amd64.exe /quiet InstallAllUsers=0 TargetDir=C:\hostedtoolcache\windows\Python\3.10\x64 Include_launcher=0
+      powershell -command "Invoke-WebRequest -Uri https://www.python.org/ftp/python/3.10.7/python-3.10.7-amd64.exe -OutFile python-3.10.7-amd64.exe"
+      powershell -command "python-3.10.7-amd64.exe /quiet InstallAllUsers=0 TargetDir=C:\hostedtoolcache\windows\Python\3.10\x64 Include_launcher=0"
     displayName: 'Install Python'
   
   - task: UsePythonVersion@0
