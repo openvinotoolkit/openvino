@@ -26,6 +26,7 @@ public:
     bool created() const override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
+    std::shared_ptr<dnnl::primitive_attr> initPrimitiveAttr() override;
 
     void execute(dnnl::stream strm) override;
 
@@ -41,6 +42,7 @@ protected:
     void executeDynamicImpl(dnnl::stream strm) override;
 
 private:
+    void configurePortDataTypes();
     void initCell();
     void initSequence();
     void fillCellDesc();
@@ -104,22 +106,36 @@ private:
     std::vector<DnnlBlockedMemoryDescPtr> outDataDescs;
     std::vector<dnnl::memory::desc> wDescs;
 
+    std::array<dnnl::memory::data_type, 7> inDataTypes;
+    std::array<dnnl::memory::data_type, 3> outDataTypes;
+
     enum RNNInOutKind {
         Layer       = 0,
         HiddenState = 1,
         CellState   = 2
     };
 
+    const size_t xIdx = 0;
+    const size_t hIdx = 1;
+    const size_t cIdx = 2;
+    size_t sIdx = 0;
     size_t wIdx = 0;
     size_t rIdx = 0;
     size_t bIdx = 0;
+    size_t yIdx = 0;
+    size_t hoIdx = 0;
+    size_t coIdx = 0;
 
-    static const std::map<InferenceEngine::Precision, InferenceEngine::Precision> weightsByLayerPrec;
+    static const std::map<dnnl::memory::data_type, dnnl::memory::data_type> weightsByinputDataType;
 
     static constexpr size_t optimalBatchSize = 16lu;
     static constexpr size_t batchDimDummyValue = 64lu;
 
     bool wasMemoryPrepared = false;
+
+    float inputScale    = 0.f;
+    float inputShift    = 0.f;
+    std::vector<float> weightsScales;
 };
 
 }   // namespace node

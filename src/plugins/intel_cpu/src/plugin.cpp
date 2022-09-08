@@ -553,6 +553,12 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 {{0}, {ngraph::element::u8, ngraph::element::i8}},
                 {{1}, {ngraph::element::i8}}
             }),
+            PrecisionsRestriction::create<ngraph::opset5::LSTMSequence>({
+                {{0, 1}, {ngraph::element::u8, ngraph::element::i8}},
+            }),
+            PrecisionsRestriction::create<ngraph::opset6::GRUSequence>({
+                {{0, 1}, {ngraph::element::u8, ngraph::element::i8}},
+            }),
         });
 
         auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>({
@@ -626,6 +632,8 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
         return false;
     });
+
+    postLPTPassManager.register_pass<ConvertFqRnnToQuantizedRnn>();
     postLPTPassManager.run_passes(nGraphFunc);
 
     if (_enableSnippets && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {

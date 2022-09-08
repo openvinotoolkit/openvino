@@ -19,6 +19,7 @@
 #include "transformations/utils/utils.hpp"
 #include "rnn_sequences_optimization.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
+#include "convert_fq_rnn_to_quantized_rnn.hpp"
 
 #include "itt.hpp"
 
