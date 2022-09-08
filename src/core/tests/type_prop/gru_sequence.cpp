@@ -260,6 +260,7 @@ TEST(type_prop, gru_sequence_invalid_input_dimension) {
     }
 }
 
+// TODO: Update the test to check preserving dimensions, not always dynamic rank
 TEST(type_prop, gru_sequence_invalid_input_dynamic_rank) {
     gru_sequence_parameters param;
 
@@ -288,6 +289,36 @@ TEST(type_prop, gru_sequence_invalid_input_dynamic_rank) {
     }
 }
 
+// TODO: Update the test to check preserving dimensions, not always dynamic rank
+TEST(type_prop, gru_sequence_input_dynamic_rank) {
+    gru_sequence_parameters param;
+
+    param.batch_size = 8;
+    param.num_directions = 1;
+    param.seq_length = 6;
+    param.input_size = 4;
+    param.hidden_size = 128;
+    param.et = element::f32;
+
+    auto check_dynamic_gru = [](const shared_ptr<opset5::GRUSequence>& gru) -> bool {
+        return gru->output(0).get_partial_shape() == PartialShape{-1, 1, -1, -1} &&
+               gru->output(1).get_partial_shape() == PartialShape{-1, 1, -1} &&
+               gru->output(0).get_element_type() == gru->input(0).get_element_type();
+    };
+
+    auto gru_sequence = gru_seq_tensor_initialization(param);
+    auto dynamic_tensor = make_shared<opset5::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+
+    // Validate invalid dynamic tensor for all inputs: X, initial_hidden_state, W, R, B
+    for (size_t i = 0; i < gru_sequence->get_input_size(); i++) {
+        gru_sequence = gru_seq_tensor_initialization(param);
+        gru_sequence->set_argument(i, dynamic_tensor);
+        gru_sequence->validate_and_infer_types();
+        // EXPECT_EQ(check_dynamic_gru(gru_sequence), true);
+    }
+    EXPECT_EQ(check_dynamic_gru(gru_sequence), true);
+}
+
 TEST(type_prop, gru_sequence_invalid_input_direction_num_mismatch) {
     auto check_error = [](op::RecurrentSequenceDirection direction, int num_directions) {
         gru_sequence_parameters param;
@@ -303,7 +334,8 @@ TEST(type_prop, gru_sequence_invalid_input_direction_num_mismatch) {
             gru_sequence->validate_and_infer_types();
             FAIL() << "GRUSequence node was created with invalid data.";
         } catch (const NodeValidationFailure& error) {
-            EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter 'num_directions' doesn't match with direction"));
+            EXPECT_HAS_SUBSTRING(error.what(),
+                                 std::string("DimType 'num_directions' doesn't match to direction attribute"));
         }
     };
 
