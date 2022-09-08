@@ -183,18 +183,7 @@ install(FILES "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
 
 # Generate and install openvino.pc pkg-config file
 
-# TODO: fix apple later
-if(LINUX)
-    find_package(PkgConfig QUIET)
-    if(PkgConfig_FOUND)
-        set(generate_pkgconfig ON)
-    endif()
-
-    # temporary skip generator of pkg-config file for static libraries
-    if(NOT BUILD_SHARED_LIBS)
-        set(generate_pkgconfig OFF)
-    endif()
-
+if(ENABLE_PKGCONFIG_GEN)
     # fill in PKGCONFIG_OpenVINO_FRONTENDS
     get_target_property(PKGCONFIG_OpenVINO_FRONTENDS_LIST ov_frontends MANUALLY_ADDED_DEPENDENCIES)
     if(ENABLE_OV_IR_FRONTEND)
@@ -250,18 +239,18 @@ if(LINUX)
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
             if(NOT exit_code EQUAL 0)
                 message(WARNING "Internal error: failed to detect library <multiarch-triplet> ${error_message}")
-                set(generate_pkgconfig OFF)
+                set(ENABLE_PKGCONFIG_GEN OFF)
             endif()
         else()
             # cannot detect <multiarch-triplet>
-            set(generate_pkgconfig OFF)
+            set(ENABLE_PKGCONFIG_GEN OFF)
         endif()
     endif()
 
     # define relative paths
     file(RELATIVE_PATH PKGCONFIG_OpenVINO_PREFIX "/${OV_CPACK_RUNTIMEDIR}/pkgconfig" "/")
 
-    if(generate_pkgconfig)
+    if(ENABLE_PKGCONFIG_GEN)
         set(pkgconfig_in "${OpenVINO_SOURCE_DIR}/cmake/templates/openvino.pc.in")
         set(pkgconfig_out "${OpenVINO_BINARY_DIR}/share/openvino.pc")
         configure_file("${pkgconfig_in}" "${pkgconfig_out}" @ONLY)
