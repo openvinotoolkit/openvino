@@ -325,10 +325,7 @@ def find_fqs_to_unify(model, config):
     def _get_unified_scales_ops(hw_ops_):
         unified_scales_ops_ = []
         for hw_op in hw_ops_:
-            if 'attributes' in hw_op and hw_op['attributes'].get('unified_scales', False) == True:
-                del hw_op['attributes']['unified_scales']
-                if not hw_op['attributes']:
-                    del hw_op['attributes']
+            if 'quantization' in hw_op and hw_op['quantization'].get('unified_scales', None) == 'all':
                 unified_scales_ops_.append(hw_op)
         return unified_scales_ops_
 
@@ -412,6 +409,13 @@ def find_fqs_to_unify(model, config):
     def _has_const_input(layer):
         return 'Const' in [parent.type for parent in get_node_inputs(layer) if parent]
 
+    def _get_unified_reccurent_scales_ops(hw_ops_):
+        unified_scales_ops_ = {}
+        for hw_op in hw_ops_:
+            if hw_op['type'] in RECURRENT_TYPES and 'unified_scales' in hw_op['quantization']:
+                unified_scales_ops_[hw_op['type']] = hw_op['quantization']['unified_scales']
+        return unified_scales_ops_
+
     def _process_node(node_, stack_, visited_, to_unify_):
         visited_[node_.fullname] = True
         if _is_unified_scales_op(node_) or _is_agnostic_branching_op(node_):
@@ -458,16 +462,6 @@ def find_fqs_to_unify(model, config):
                     any([_is_unified_scales_op(get_node_by_name(model, bridge)) for bridge in to_unify[0]]) and \
                     len(to_unify[1]) > 1:
                 fqs_to_unify.append(to_unify)
-
-    def _get_unified_reccurent_scales_ops(hw_ops_):
-        unified_scales_ops_ = {}
-        for hw_op in hw_ops_:
-            if hw_op['type'] in RECURRENT_TYPES and 'attributes' in hw_op and 'unified_scales' in hw_op['attributes']:
-                unified_scales_ops_[hw_op['type']] = hw_op['attributes']['unified_scales']
-                del hw_op['attributes']['unified_scales']
-                if not hw_op['attributes']:
-                    del hw_op['attributes']
-        return unified_scales_ops_
 
     reccurent_hw_ops = _get_unified_reccurent_scales_ops(hw_ops)
     reccurent_fqs = unify_reccurent_fqs(model, reccurent_hw_ops)

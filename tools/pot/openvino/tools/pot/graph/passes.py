@@ -879,7 +879,7 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
         fq_configs = []
         if hw_config is not None:
             node_type = get_hardware_config_operation_type(node, list(hw_config.keys()))
-            if hw_config[node_type]:
+            if hw_config[node_type] and hw_config[node_type][fq_group]:
                 fq_configs = hw_config[node_type][fq_group]
         else:
             node_type = None

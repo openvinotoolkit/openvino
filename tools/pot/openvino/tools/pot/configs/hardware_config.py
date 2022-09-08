@@ -62,14 +62,10 @@ class HardwareConfig(list):
 
                         tmp_config[name] = []
                         for config_item in algorithm_config:
-                            if isinstance(config_item, str):
+                            if isinstance(config_item, str) and config_item in configs[algorithm_name]:
                                 tmp_config[name].extend(configs[algorithm_name][config_item])
                             else:
-                                for key, val in config_item.items():
-                                    if not isinstance(val, list):
-                                        config_item[key] = [val]
-
-                                tmp_config[name].extend(list(product_dict(config_item)))
+                                tmp_config[name].append(config_item)
 
                     op_config[algorithm_name] = tmp_config
 

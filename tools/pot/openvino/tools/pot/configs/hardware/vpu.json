@@ -72,162 +72,130 @@
         },
         {
             "type": "Add",
-            "attributes": {
-                "unified_scales": true
-            },
             "quantization": {
                 "activations": ["q8_tn", "q4_tn", "q8_tn"],
-                "weights": ["q8_ch", "q4_tn", "q8_ch"]
+                "weights": ["q8_ch", "q4_tn", "q8_ch"],
+                "unified_scales": "all"
             }
         },
         {
             "type": "Multiply",
-            "attributes": {
-                "unified_scales": true
-            },
             "quantization": {
                 "activations": ["q8_tn", "q4_tn", "q8_tn"],
-                "weights": ["q8_ch", "q4_tn", "q8_ch"]
+                "weights": ["q8_ch", "q4_tn", "q8_ch"],
+                "unified_scales": "all"
             }
         },
         {
             "type": "Maximum",
-            "attributes": {
-                "unified_scales": true
-            },
             "quantization": {
                 "activations": ["q8_tn", "q4_tn", "q8_tn"],
-                "weights": ["q8_ch", "q4_tn", "q8_ch"]
+                "weights": ["q8_ch", "q4_tn", "q8_ch"],
+                "unified_scales": "all"
             }
         },
         {
             "type": "Less",
-            "attributes": {
-                "unified_scales": true
-            },
             "quantization": {
                 "activations": "q8_tn",
-                "weights": "q8_ch"
+                "weights": "q8_ch",
+                "unified_scales": "all"
             }
         },
         {
             "type": "LessEqual",
-            "attributes": {
-                "unified_scales": true
-            },
             "quantization": {
                 "activations": "q8_tn",
-                "weights": "q8_ch"
+                "weights": "q8_ch",
+                "unified_scales": "all"
             }
         },
         {
             "type": "Greater",
-            "attributes": {
-                "unified_scales": true
-            },
             "quantization": {
                 "activations": "q8_tn",
-                "weights": "q8_ch"
+                "weights": "q8_ch",
+                "unified_scales": "all"
             }
         },
         {
             "type": "GreaterEqual",
-            "attributes": {
-                "unified_scales": true
-            },
             "quantization": {
                 "activations": "q8_tn",
-                "weights": "q8_ch"
+                "weights": "q8_ch",
+                "unified_scales": "all"
             }
         },
         {
             "type": "Divide",
-            "attributes": {
-                "unified_scales": true
-            },
             "quantization": {
                 "activations": "q8_tn",
-                "weights": "q8_ch"
+                "weights": "q8_ch",
+                "unified_scales": "all"
             }
         },
         {
             "type": "Minimum",
-            "attributes": {
-                "unified_scales": true
-            },
             "quantization": {
                 "activations": ["q8_tn", "q4_tn", "q8_tn"],
-                "weights": ["q8_ch", "q4_tn", "q8_ch"]
+                "weights": ["q8_ch", "q4_tn", "q8_ch"],
+                "unified_scales": "all"
             }
         },
         {
             "type": "Equal",
-            "attributes": {
-                "unified_scales": true
-            },
             "quantization": {
                 "activations": "q8_tn",
-                "weights": "q8_ch"
+                "weights": "q8_ch",
+                "unified_scales": "all"
             }
         },
         {
             "type": "Subtract",
-            "attributes": {
-                "unified_scales": true
-            },
             "quantization": {
                 "activations": ["q8_tn", "q4_tn", "q8_tn"],
-                "weights": ["q8_ch", "q4_tn", "q8_ch"]
+                "weights": ["q8_ch", "q4_tn", "q8_ch"],
+                "unified_scales": "all"
             }
         },
         {
             "type": "NotEqual",
-            "attributes": {
-                "unified_scales": true
-            },
             "quantization": {
                 "activations": "q8_tn",
-                "weights": "q8_ch"
+                "weights": "q8_ch",
+                "unified_scales": "all"
             }
         },
         {
             "type": "FloorMod",
-            "attributes": {
-                "unified_scales": true
-            },
             "quantization": {
                 "activations": "q8_tn",
-                "weights": "q8_ch"
+                "weights": "q8_ch",
+                "unified_scales": "all"
             }
         },
         {
             "type": "LogicalOr",
-            "attributes": {
-                "unified_scales": true
-            },
             "quantization": {
                 "activations": "q8_tn",
-                "weights": "q8_ch"
+                "weights": "q8_ch",
+                "unified_scales": "all"
             }
         },
         {
             "type": "LogicalXor",
-            "attributes": {
-                "unified_scales": true
-            },
             "quantization": {
                 "activations": "q8_tn",
-                "weights": "q8_ch"
+                "weights": "q8_ch",
+                "unified_scales": "all"
             }
         },
         {
             "type": "LogicalAnd",
-            "attributes": {
-                "unified_scales": true
-            },
             "quantization": {
                 "activations": "q8_tn",
-                "weights": "q8_ch"
+                "weights": "q8_ch",
+                "unified_scales": "all"
             }
         },
         {
@@ -293,7 +261,7 @@
         {"type": "ShuffleChannels"},
         {"type": "Broadcast"},
         {"type": "Pad"},
-        {"type": "ConvertLike"}, 
+        {"type": "ConvertLike"},
         {"type": "DepthToSpace"}
     ]
 }
