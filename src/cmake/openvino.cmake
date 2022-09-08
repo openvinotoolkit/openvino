@@ -239,18 +239,22 @@ if(ENABLE_PKGCONFIG_GEN)
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
             if(NOT exit_code EQUAL 0)
                 message(WARNING "Internal error: failed to detect library <multiarch-triplet> ${error_message}")
-                set(ENABLE_PKGCONFIG_GEN OFF)
+                set(failed_to_detect_triplet ON)
             endif()
         else()
             # cannot detect <multiarch-triplet>
-            set(ENABLE_PKGCONFIG_GEN OFF)
+            set(failed_to_detect_triplet ON)
         endif()
+    endif()
+
+    if(failed_to_detect_triplet)
+        message(WARNING "Unable to detect <triplet> using 'gcc --dumpmachine'. Pkg-config 'openvino.pc' generation is skipped")
     endif()
 
     # define relative paths
     file(RELATIVE_PATH PKGCONFIG_OpenVINO_PREFIX "/${OV_CPACK_RUNTIMEDIR}/pkgconfig" "/")
 
-    if(ENABLE_PKGCONFIG_GEN)
+    if(NOT failed_to_detect_triplet)
         set(pkgconfig_in "${OpenVINO_SOURCE_DIR}/cmake/templates/openvino.pc.in")
         set(pkgconfig_out "${OpenVINO_BINARY_DIR}/share/openvino.pc")
         configure_file("${pkgconfig_in}" "${pkgconfig_out}" @ONLY)
