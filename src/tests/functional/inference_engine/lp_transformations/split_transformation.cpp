@@ -334,6 +334,59 @@ const std::vector<SplitTransformationTestValues> testValues = {
             }
         }
     },
+    // per channel quantization with different values, split by batch
+    {
+        { 2, 3, 16, 16 }, std::int64_t{0}, size_t{2},
+        LayerTransformation::createParamsI8I8(),
+        {
+            ngraph::element::i8,
+            {{ngraph::element::f32},
+            {{2.f, 3.f}, ngraph::element::f32, {2, 1, 1, 1}},
+            {{22.f, 33.f}, ngraph::element::f32, {2, 1, 1, 1}}}
+        },
+        {
+            ngraph::element::i8,
+            {},
+            ngraph::element::i8,
+            {
+                {{ngraph::element::f32}, {2.f}, {22.f}},
+                {{ngraph::element::f32}, {3.f}, {33.f}},
+            }
+        }
+    },
+    // per channel quantization with different values, split by spatial dimension
+    {
+        { -1, -1, -1, -1 }, std::int64_t{2}, size_t{3},
+        LayerTransformation::createParamsI8I8(),
+        {
+            ngraph::element::i8,
+            {{ngraph::element::f32},
+            {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 1, 6, 1}},
+            {{11.f, 22.f, 33.f, 44.f, 55.f, 66.f}, ngraph::element::f32, {1, 1, 6, 1}}}
+        },
+        {
+            ngraph::element::i8,
+            {},
+            ngraph::element::i8,
+            {
+                {
+                    {ngraph::element::f32},
+                    {{1.f, 2.f}, ngraph::element::f32, {1, 1, 2, 1}},
+                    {{11.f, 22.f}, ngraph::element::f32, {1, 1, 2, 1}}
+                },
+                {
+                    {ngraph::element::f32},
+                    {{3.f, 4.f}, ngraph::element::f32, {1, 1, 2, 1}},
+                    {{33.f, 44.f}, ngraph::element::f32, {1, 1, 2, 1}}
+                },
+                {
+                    {ngraph::element::f32},
+                    {{5.f, 6.f}, ngraph::element::f32, {1, 1, 2, 1}},
+                    {{55.f, 66.f}, ngraph::element::f32, {1, 1, 2, 1}}
+                },
+            }
+        }
+    },
     // U8 per channel quantization with the same values
     {
         { 1, 3, 16, 16 }, std::int64_t{1}, size_t{3},

@@ -153,7 +153,8 @@ bool SplitTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) cons
 }
 
 bool SplitTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!LayerTransformation::canBeTransformed(context, layer) || NetworkHelper::getDequantization(layer, defaultPrecisions).empty()) {
+    const auto& inputRank = layer->get_input_partial_shape(0).rank();
+    if (inputRank.is_dynamic() || inputRank.get_length() < 2 || NetworkHelper::getDequantization(layer, defaultPrecisions).empty()) {
         return false;
     }
 
