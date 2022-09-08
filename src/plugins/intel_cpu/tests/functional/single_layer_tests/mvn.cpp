@@ -433,13 +433,15 @@ const std::vector<ov::Shape> inputShapesStatic_3D = {
 const std::vector<ov::Shape> inputShapesStatic_4D = {
         {1, 7, 3, 5},
         {1, 15, 9, 5},
-        {4, 41, 6, 9}
+        {4, 41, 6, 9},
+        {1, 4 * 16 * 2 + 16 + 3, 2, 2}
 };
 
 const std::vector<ov::Shape> inputShapesStatic_5D = {
         {1, 32, 8, 1, 6},
         {1, 9, 1, 15, 9},
-        {6, 64, 6, 1, 18}
+        {6, 64, 6, 1, 18},
+        {6, 4 * 16 * 2 + 16 + 9, 2, 2, 2}
 };
 
 const auto Mvn2DStatic = ::testing::Combine(
