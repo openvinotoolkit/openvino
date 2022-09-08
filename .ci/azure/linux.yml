@@ -239,8 +239,8 @@ jobs:
   - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_LAYER_TESTS_DIR)/cmake_install.cmake
     displayName: 'Install Layer Tests'
   - script: |
-    . $(PY_VENV)/bin/activate
-    python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
+      . $(PY_VENV)/bin/activate
+      python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
     displayName: 'Install python wheels'
   - script: |
       set -e
