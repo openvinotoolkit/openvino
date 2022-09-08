@@ -230,7 +230,7 @@ jobs:
   - script: ninja -C $(BUILD_LAYER_TESTS_DIR)
     displayName: 'Build Layer Tests'
 
-- script: sudo apt-get remove libtbb2 -y
+  - script: sudo apt-get remove libtbb2 -y
     displayName: 'Remove debian dependencies'
     condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     continueOnError: false
