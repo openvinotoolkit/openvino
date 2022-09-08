@@ -5,14 +5,11 @@
 #include "engines_util/test_case.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/test_control.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-static string s_manifest = "${MANIFEST}";
-
-NGRAPH_TEST(op_eval, bucketize_empty_buckets) {
+TEST(op_eval, DISABLED_bucketize_empty_buckets) {
     Shape data_shape{1, 1, 3};
     Shape bucket_shape{0};
 

@@ -9,14 +9,9 @@
 
 #include "engines_util/test_case.hpp"
 #include "gtest/gtest.h"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/validation_util.hpp"
-#include "util/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-static string s_manifest = "${MANIFEST}";
 
 template <typename T>
 static void aux_einsum_test(const std::vector<std::vector<T>>& inputs,
