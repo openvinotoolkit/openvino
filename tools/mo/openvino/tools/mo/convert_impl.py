@@ -469,10 +469,46 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     return func
 
 
+def check_model_framework(model):
+    model_name = 'model'
+    try:
+        import onnx
+        import io
+        #TODO: is it only onnx can by in BytesIO?
+        if isinstance(model, io.BytesIO):
+            if hasattr(model, 'producer_name') and model.producer_name is not None and model.producer_name != '':
+                model_name = model.producer_name
+            return 'onnx', model_name
+    except ImportError:
+        pass
+
+    try:
+        import tensorflow as tf
+        if isinstance(model, tf.compat.v1.GraphDef):
+            return "tf", model_name
+    except ImportError:
+        pass
+
+    raise Error('Unknown model type: {}'.format(type(model)))
+
+
 def driver(argv: argparse.Namespace):
     init_logger(argv.log_level.upper(), argv.silent)
 
     start_time = datetime.datetime.now()
+    if not isinstance(argv.input_model, str):
+        model_framework, model_name = check_model_framework(argv.input_model)
+        if argv.framework is not None:
+            if argv.framework != model_framework:
+                raise Error("Provided model is not corresponds to provided framework. The provided "
+                            "framework is {}, the model type is {} which is expected to be {} framework.".format(
+                                argv.framework,
+                                type(argv.input_model),
+                                model_framework))
+        else:
+            argv.framework = model_framework
+        if argv.model_name is None:
+            argv.model_name = model_name
 
     graph, ngraph_function = prepare_ir(argv)
     if graph is not None:
@@ -552,7 +588,7 @@ def _convert(**args):
     args = params_to_string(**args)
     argv = pack_params_to_args_namespace(**args)
 
-    if argv.model_name is None:
+    if argv.model_name is None and isinstance(argv.input_model, str):
         argv.model_name = get_model_name_from_args(argv)
 
     try:
