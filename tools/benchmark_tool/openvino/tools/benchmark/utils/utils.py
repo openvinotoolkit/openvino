@@ -537,18 +537,18 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
         elif inputs[i].node.layout != Layout():
             info.layout = inputs[i].node.layout
         else:
-            image_colors_dim = Dimension(3)
+            image_colors_dim_max = 4
             shape = info.partial_shape
             num_dims = len(shape)
             if num_dims == 4:
-                if(shape[1]) == image_colors_dim:
+                if shape[1].get_max_length() <= image_colors_dim_max and shape[3].get_max_length() > image_colors_dim_max:
                     info.layout = Layout("NCHW")
-                elif(shape[3] == image_colors_dim):
+                elif shape[3].get_max_length() <= image_colors_dim_max and shape[1].get_max_length() > image_colors_dim_max:
                     info.layout = Layout("NHWC")
             elif num_dims == 3:
-                if(shape[0]) == image_colors_dim:
+                if shape[0].get_max_length() <= image_colors_dim_max and shape[2].get_max_length() > image_colors_dim_max:
                     info.layout = Layout("CHW")
-                elif(shape[2] == image_colors_dim):
+                elif shape[2].get_max_length() <= image_colors_dim_max and shape[0].get_max_length() > image_colors_dim_max:
                     info.layout = Layout("HWC")
 
         # Update shape with batch if needed
