@@ -158,12 +158,3 @@ TEST(op_eval, non_zero_dynamic) {
         ASSERT_EQ(result_data, expected_result[i]);
     }
 }
-
-TEST(op_eval, non_zero_1D_evaluate_tensor_vector) {
-    Shape p_shape{5};
-    auto p = make_shared<op::Parameter>(element::f32, p_shape);
-    auto non_zero = make_shared<op::v3::NonZero>(p, element::i32);
-    ov::TensorVector inputs = {ov::Tensor(element::f32, p_shape)};
-    ov::TensorVector outputs = {ov::Tensor(element::i64, Shape{1, 2})};
-    ASSERT_TRUE(non_zero->evaluate(outputs, inputs));
-}
