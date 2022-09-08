@@ -24,14 +24,15 @@ try:
         clear_place_stat,
     )
 except Exception:
-    print("No mock frontend available")
     mock_available = False
 
 # FrontEndManager shall be initialized and destroyed after all tests finished
 # This is because destroy of FrontEndManager will unload all plugins, no objects shall exist after this
 fem = FrontEndManager()
 
-mock_needed = pytest.mark.skipif(not mock_available, reason="mock fe is not available")
+mock_needed = pytest.mark.skipif(not mock_available, reason="Mock frontend is not available")
+
+MOCK_PY_FRONTEND_NAME = "mock_py"
 
 
 def clear_all_stat():
@@ -59,7 +60,7 @@ def test_load_by_unknown_framework():
 @mock_needed
 def test_load():
     clear_all_stat()
-    fe = fem.load_by_framework(framework="mock_py")
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
     assert fe is not None
     model = fe.load("abc.bin")
     assert model is not None
@@ -70,7 +71,7 @@ def test_load():
 @mock_needed
 def test_load_str():
     clear_all_stat()
-    fe = fem.load_by_framework(framework="mock_py")
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
     assert fe is not None
     model = fe.load(Path("abc.bin"))
     assert model is not None
@@ -79,7 +80,7 @@ def test_load_str():
 @mock_needed
 def test_load_pathlib():
     clear_all_stat()
-    fe = fem.load_by_framework(framework="mock_py")
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
     assert fe is not None
     model = fe.load(Path("abc.bin"))
     assert model is not None
@@ -92,7 +93,7 @@ def test_load_wrong_path():
     class TestClass:
         def __str__(self):
             return "test class"
-    fe = fem.load_by_framework(framework="mock_py")
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
     assert fe is not None
     with pytest.raises(RuntimeError) as e:
         fe.load(TestClass())
@@ -104,7 +105,7 @@ def test_load_by_model():
     clear_all_stat()
     fe = fem.load_by_model(model_path="abc.test_mock_py_mdl")
     assert fe is not None
-    assert fe.get_name() == "mock_py"
+    assert fe.get_name() == MOCK_PY_FRONTEND_NAME
     stat = get_fe_stat()
     assert stat.get_name == 1
     assert stat.supported == 1
@@ -113,7 +114,7 @@ def test_load_by_model():
 @mock_needed
 def test_convert_model():
     clear_all_stat()
-    fe = fem.load_by_framework(framework="mock_py")
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
     assert fe is not None
     model = fe.load(path="")
     func = fe.convert(model=model)
@@ -125,7 +126,7 @@ def test_convert_model():
 @mock_needed
 def test_convert_partially():
     clear_all_stat()
-    fe = fem.load_by_framework(framework="mock_py")
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
     assert fe is not None
     model = fe.load(path="")
     func = fe.convert_partially(model=model)
@@ -139,7 +140,7 @@ def test_convert_partially():
 @mock_needed
 def test_decode_and_normalize():
     clear_all_stat()
-    fe = fem.load_by_framework(framework="mock_py")
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
     assert fe is not None
     model = fe.load(path="")
     func = fe.decode(model=model)
@@ -154,10 +155,10 @@ def test_decode_and_normalize():
 @mock_needed
 def test_get_name():
     clear_all_stat()
-    fe = fem.load_by_framework(framework="mock_py")
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
     assert fe is not None
     name = fe.get_name()
-    assert name == "mock_py"
+    assert name == MOCK_PY_FRONTEND_NAME
     stat = get_fe_stat()
     assert stat.get_name == 1
 
@@ -166,7 +167,7 @@ def test_get_name():
 @mock_needed
 def init_model():
     clear_all_stat()
-    fe = fem.load_by_framework(framework="mock_py")
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
     model = fe.load(path="")
     return model
 
@@ -453,7 +454,7 @@ def test_model_telemetry():
 
     clear_all_stat()
     tel_stat = {}
-    fe = fem.load_by_framework(framework="mock_py")
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
     # Ensure that MockTelemetry object is alive and can receive events (due to callbacks hold the object)
     add_ext(fe, tel_stat)
     model = fe.load(path="")
@@ -467,7 +468,7 @@ def test_model_telemetry():
 @mock_needed
 def init_place():
     clear_all_stat()
-    fe = fem.load_by_framework(framework="mock_py")
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
     model = fe.load(path="")
     place = model.get_place_by_tensor_name(tensor_name="")
     return model, place

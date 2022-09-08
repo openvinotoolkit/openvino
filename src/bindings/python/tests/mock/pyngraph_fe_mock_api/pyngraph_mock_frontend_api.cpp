@@ -12,10 +12,6 @@ namespace py = pybind11;
 using namespace ngraph;
 using namespace ov::frontend;
 
-FeStat FrontEndMockPy::m_stat = {};
-ModelStat InputModelMockPy::m_stat = {};
-PlaceStat PlaceMockPy::m_stat = {};
-
 static void register_mock_frontend_stat(py::module m) {
     m.def("get_fe_stat", &FrontEndMockPy::get_stat);
     m.def("clear_fe_stat", &FrontEndMockPy::clear_stat);
