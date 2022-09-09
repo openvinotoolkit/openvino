@@ -124,6 +124,30 @@ OPENVINO_C_API(void) ov_core_free(ov_core_t* core);
 OPENVINO_C_API(ov_status_e)
 ov_core_read_model(const ov_core_t* core, const char* model_path, const char* bin_path, ov_model_t** model);
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+/**
+ * @brief Reads models from IR/ONNX/PDPD formats, path is unicode.
+ * @ingroup Core
+ * @param core A pointer to the ie_core_t instance.
+ * @param model_path Path to a model.
+ * @param bin_path Path to a data file.
+ * For IR format (*.bin):
+ *  * if path is empty, will try to read a bin file with the same name as xml and
+ *  * if the bin file with the same name is not found, will load IR without weights.
+ * For ONNX format (*.onnx):
+ *  * the bin_path parameter is not used.
+ * For PDPD format (*.pdmodel)
+ *  * the bin_path parameter is not used.
+ * @param model A pointer to the newly created model.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_read_model_unicode(const ov_core_t* core,
+                           const wchar_t* model_path,
+                           const wchar_t* bin_path,
+                           ov_model_t** model);
+#endif
+
 /**
  * @brief Reads models from IR/ONNX/PDPD formats.
  * @ingroup Core

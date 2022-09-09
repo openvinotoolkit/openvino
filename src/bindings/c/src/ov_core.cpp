@@ -150,6 +150,29 @@ ov_status_e ov_core_read_model(const ov_core_t* core,
     return ov_status_e::OK;
 }
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+ov_status_e ov_core_read_model_unicode(const ov_core_t* core,
+                                       const wchar_t* model_path,
+                                       const wchar_t* bin_path,
+                                       ov_model_t** model) {
+    if (!core || !model_path || !model) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        std::wstring model_path_ws = model_path;
+        std::wstring bin_path_ws = {};
+        if (bin_path) {
+            bin_path_ws = bin_path;
+        }
+        std::unique_ptr<ov_model_t> _model(new ov_model_t);
+        _model->object = core->object->read_model(model_path_ws, bin_path_ws);
+        *model = _model.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+#endif
+
 ov_status_e ov_core_read_model_from_memory(const ov_core_t* core,
                                            const char* model_str,
                                            const ov_tensor_t* weights,
