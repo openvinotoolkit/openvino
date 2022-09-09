@@ -36,6 +36,7 @@ public:
 
 private:
     size_t axis = 0;
+    size_t reorderedAxis = 0;
     bool canBeInPlace = false;
     bool canOptimizeNspc = false;
     void execRef();
@@ -43,6 +44,7 @@ private:
     void execNspcSpecCase();
     std::vector<VectorDims> inputDims;
     std::vector<size_t> inputSize;
+    std::vector<MemoryDescPtr> srcMemDescVector;
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
 
