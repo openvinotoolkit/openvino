@@ -4,7 +4,6 @@
 
 #include "ngraph_ops/augru_sequence.hpp"
 #include "augru_sequence_shape_inference.hpp"
-
 #include "itt.hpp"
 #include "ngraph/op/util/recurrent_sequence.hpp"
 
@@ -37,16 +36,7 @@ ov::op::internal::AUGRUSequence::AUGRUSequence(const Output<Node>& X,
 
 void ov::op::internal::AUGRUSequence::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(internal_AUGRUSequence_validate_and_infer_types);
-  // Validate input types and save result for output type
-    auto result_et = element::dynamic;
-    NODE_VALIDATION_CHECK(this,
-                          element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(5)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(6)),
-                          "Element types for inputs do not match.");
+
     NODE_VALIDATION_CHECK(this, m_clip == 0.f, "AUGRUSequence doesn't support clip other than 0.");
     NODE_VALIDATION_CHECK(this,
                           m_activations.size() == 2 && m_activations[0] == "sigmoid" && m_activations[1] == "tanh",
@@ -61,6 +51,17 @@ void ov::op::internal::AUGRUSequence::validate_and_infer_types() {
                           m_linear_before_reset == false,
                           "AUGRUSequence supports only linear_before_reset equals false.");
 
+    // Validate input types and save result for output type
+    auto result_et = element::dynamic;
+    NODE_VALIDATION_CHECK(this,
+                          element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(5)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(6)),
+                          "Element types for inputs do not match.");
+
     const auto& x_pshape = get_input_partial_shape(0);
     const auto& ht_pshape = get_input_partial_shape(1);
     const auto& sl_pshape = get_input_partial_shape(2);
@@ -69,19 +70,8 @@ void ov::op::internal::AUGRUSequence::validate_and_infer_types() {
     const auto& b_pshape = get_input_partial_shape(5);
     const auto& a_pshape = get_input_partial_shape(6);
 
-    // TODO: Move to shape_infer
-    // A input shape validation // [batch_size, seq_length, 1]
-    NODE_VALIDATION_CHECK(this, a_pshape.rank().compatible(3), "'A' input must be a 3D tensor.");
-    if (a_pshape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              a_pshape[1].compatible(x_pshape[1]),
-                              "Dimension `seq_length` must be the same for `X` and `A` inputs.");
-        NODE_VALIDATION_CHECK(this, a_pshape[2].compatible(1), "The last dimension of `A` shape must be equal to `1`.");
-    }
-
-
-
-    std::vector<ov::PartialShape> input_shapes = {x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape};
+    std::vector<ov::PartialShape> input_shapes =
+        {x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape, a_pshape};
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{4}, ov::PartialShape{3}};
     shape_infer(this, input_shapes, output_shapes);
 

@@ -15,8 +15,28 @@ template <class ShapeType>
 void shape_infer(const ov::op::internal::AUGRUSequence* op,
                  const std::vector<ShapeType>& input_shapes,
                  std::vector<ShapeType>& output_shapes) {
+
+    constexpr int expected_in_shapes_count = 7;
+    NODE_VALIDATION_CHECK(op,
+                          input_shapes.size() == expected_in_shapes_count,
+                          "Incorrect number of input shapes has been provided. Expected: ",
+                          expected_in_shapes_count,
+                          ", got: ",
+                          input_shapes.size(),
+                          ".");
+
     rnn_seq::gru_shape_infer(op, input_shapes, output_shapes);
-    // TODO: Add attention input validation
+
+    // A input shape validation // [batch_size, seq_length, 1]
+    const auto& a_shape = input_shapes[6];
+    const auto& x_shape = input_shapes[0];
+    NODE_VALIDATION_CHECK(op, a_shape.rank().compatible(3), "'A' input must be a 3D tensor.");
+    if (a_shape.rank().is_static()) {
+        NODE_VALIDATION_CHECK(op,
+                              a_shape[1].compatible(x_shape[1]),
+                              "Dimension `seq_length` must be the same for `X` and `A` inputs.");
+        NODE_VALIDATION_CHECK(op, a_shape[2].compatible(1), "The last dimension of `A` shape must be equal to `1`.");
+    }
 }
 }  // namespace internal
 }  // namespace op
