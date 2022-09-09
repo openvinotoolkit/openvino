@@ -142,10 +142,11 @@ class StatisticGraphBuilder:
         out_port = self.get_out_port(node_name)
         if out_port is not None:
             node_name = f'{node_name[0]}.{out_port}'
-        abs_node = Abs(node.graph, {"name": f'abs_{node_name.split("|")[-1]}'}). \
+        clean_name = node_name.split("|")[-1]
+        abs_node = Abs(node.graph, {"name": f'abs_{clean_name}'}). \
                     create_node_with_data([node.out_node(out_port if out_port else 0)]).in_node(0)
         max_op = create_op_node_with_second_input(node.graph, ReduceMax, int64_array(axis_const),
-                                                  dict(name=f'{type_stat}_{node_name.split("|")[-1]}'))
+                                                  dict(name=f'{type_stat}_{clean_name}'))
 
         if node.graph != model_graph:
             Op.create_data_node(max_op.graph, max_op, {'shape': [1]})

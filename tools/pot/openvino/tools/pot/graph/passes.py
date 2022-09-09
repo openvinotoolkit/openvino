@@ -835,6 +835,7 @@ def create_fake_quantize_node(graph: Graph, name, data_type=np.float32, **kwargs
 
 def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_config=None, input_priority_types=[]):
     blobs_as_inputs_nodes_type = ['Convolution', 'Deconvolution', 'MatMul']
+    gru_node_types = ['GRUCell', 'GRUSequence']
 
     port_name = None
     if ports is not None and names is not None:
@@ -853,6 +854,10 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
         if node.type in blobs_as_inputs_nodes_type:
             if 'bin' in node.in_edges()[idx]:
                 del node.in_edges()[idx]['bin']
+
+        # Temporary WA until oneDNN supports it (ticket 82164)
+        if node.type in gru_node_types and node.linear_before_reset:
+            continue
 
         if ports is not None and idx not in ports:
             continue
