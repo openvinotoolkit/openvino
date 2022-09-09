@@ -44,6 +44,8 @@ private:
     void execNspcSpecCase();
     std::vector<VectorDims> inputDims;
     std::vector<size_t> inputSize;
+    std::vector<size_t> nelemToCopy;
+    std::vector<size_t> dstOffset;
     std::vector<MemoryDescPtr> srcMemDescVector;
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;

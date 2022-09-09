@@ -22,7 +22,7 @@
 #include "common/cpu_memcpy.h"
 #include "common/blocked_desc_creator.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
-
+#include "common/dnnl_thread.hpp"
 using namespace dnnl;
 using namespace InferenceEngine;
 
@@ -102,7 +102,8 @@ void Concat::getSupportedDescriptors() {
     inputDims.resize(getParentEdges().size());
     inputSize.resize(getParentEdges().size());
     srcMemDescVector.resize(getParentEdges().size());
-    std::cout << getName() << "|input_size|" <<  getParentEdges().size() << std::endl;
+    nelemToCopy.resize(getParentEdges().size());
+    dstOffset.resize(getParentEdges().size());
 }
 
 void Concat::initSupportedPrimitiveDescriptors() {
@@ -397,19 +398,28 @@ void Concat::prepareParams() {
         inputSize[i] = tmp;
     }
 
-     std::vector<memory::desc> srcs_d;
-     for (size_t i = 0; i < getParentEdges().size(); i++) {
-         const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
-         srcMemDescVector[i] = srcMemPtr->getDescPtr();
-     }
-
-    const auto& outputOrder = srcMemDescVector[0]->as<BlockedMemoryDesc>()->getOrder();
+    const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemPtr->GetDataType());
+    const auto& outputOrder = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getDescPtr()->as<BlockedMemoryDesc>()->getOrder();
     for (int64_t i = 0; i < outputOrder.size(); i++) {
         if (outputOrder[i] == axis) {
             reorderedAxis = i;
             break;
         }
     }
+    auto outputStride = dstMemPtr->getDescPtr()->as<BlockedMemoryDesc>()->getStrides();
+    size_t curConcatOffset = 0;
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
+        srcMemDescVector[i] = srcMemPtr->getDescPtr();
+        const auto& inputShape = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>()->getBlockDims();
+        size_t nElem = 1;
+        for (size_t j = reorderedAxis; j < inputShape.size(); j++) {
+            nElem *= inputShape[j];
+        }
+        nelemToCopy[i] = nElem * elemSize;
+        dstOffset[i] = outputStride[reorderedAxis] * curConcatOffset * elemSize;
+        curConcatOffset += inputShape[reorderedAxis];
+     }
 }
 
 size_t Concat::inverseOrder(const SizeVector& order, size_t axis) {
@@ -565,47 +575,53 @@ void Concat::execNspcSpecCase() {
 
 void Concat::execRef() {
     const size_t num_src = getParentEdges().size();
-    std::vector<const uint8_t*> src_ptrs;
+    std::vector<const uint8_t*> srcPtrs;
     const Memory& dstMemory = getChildEdgeAt(0)->getMemory();
-    const size_t dataSize = DnnlExtensionUtils::sizeOfDataType(dstMemory.GetDataType());
+    const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemory.GetDataType());
     const auto& outputShape = dstMemory.getDescPtr()->as<BlockedMemoryDesc>()->getBlockDims();
     uint8_t* dstPtr = reinterpret_cast<uint8_t*>(dstMemory.GetData());
     for (size_t i = 0; i < num_src; i++) {
         const Memory& src_mem = getParentEdgesAtPort(i)[0]->getMemory();
-        src_ptrs.push_back(reinterpret_cast<const uint8_t*>(src_mem.GetData()));
+        srcPtrs.push_back(reinterpret_cast<const uint8_t*>(src_mem.GetData()));
     }
-    auto concat_impl = [this](const std::vector<const uint8_t*>& args,
-                              uint8_t* out,
-                              const VectorDims& outShape,
-                              int64_t concatenation_axis,
-                              size_t elemSize) {
-        if (concatenation_axis == 0) {
-            size_t outOffset = 0;
-            for (size_t i = 0; i < args.size(); ++i) {
-                const auto inData = args[i];
-                auto outputData = &out[outOffset];
+
+    if (reorderedAxis == 0) {
+        int nthr = parallel_get_max_threads();
+        if (nthr == 1) {
+            for (size_t i = 0; i < srcPtrs.size(); ++i) {
+                const auto inData = srcPtrs[i];
+                auto outputData = &dstPtr[dstOffset[i]];
                 std::memcpy(outputData, inData, inputSize[i] * elemSize);
-                outOffset+= inputSize[i] * elemSize;
             }
         } else {
-            size_t steps = 1;
-            for (int i = 0; i < concatenation_axis; ++i) {
-                steps *= outShape[i];
-            }
-            size_t outOffset = 0;
-            for (size_t step = 0; step < steps; ++step) {
-                for (size_t i = 0; i < args.size(); ++i) {
-                    const size_t size = inputSize[i] / steps;
-                    const size_t inOffset = step * size;
-
-                    std::memcpy(&out[outOffset * elemSize], &args[i][inOffset * elemSize], size * elemSize);
-                    outOffset += size;
+            parallel_nt(nthr, [&](int ithr, int nthr) {
+                for (size_t a = 0; a < srcPtrs.size(); ++a) {
+                    size_t start = 0, end = 0;
+                    splitter(nelemToCopy[a], nthr, ithr, start, end);
+                    const uint8_t* i = srcPtrs[a] + start;
+                    uint8_t* o = dstPtr + dstOffset[a] + start;
+                    PRAGMA_OMP_SIMD()
+                    for (size_t e = 0; e < end - start; ++e)
+                        o[e] = i[e];
                 }
+            });
+        }
+    } else {
+        size_t steps = 1;
+        for (int i = 0; i < reorderedAxis; ++i) {
+            steps *= outputShape[i];
+        }
+        size_t outOffset = 0;
+        for (size_t step = 0; step < steps; ++step) {
+            for (size_t i = 0; i < srcPtrs.size(); ++i) {
+                const size_t size = inputSize[i] / steps;
+                const size_t inOffset = step * size;
+
+                std::memcpy(&dstPtr[outOffset * elemSize], &srcPtrs[i][inOffset * elemSize], size * elemSize);
+                outOffset += size;
             }
         }
-    };
-
-    concat_impl(src_ptrs, dstPtr, outputShape, reorderedAxis, dataSize);
+    }
 }
 
 }   // namespace node
