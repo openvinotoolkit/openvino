@@ -31,9 +31,9 @@ jobs:
      Dynamic:
        CMAKE_BUILD_SHARED_LIBS: 'ON'
        USE_TOOLCHAIN: 'OFF'
-    #  OneCore:
-    #    CMAKE_BUILD_SHARED_LIBS: 'OFF'
-    #    USE_TOOLCHAIN: 'ON'
+     OneCore:
+       CMAKE_BUILD_SHARED_LIBS: 'OFF'
+       USE_TOOLCHAIN: 'ON'
     maxParallel: 2
 
   # About 150% of total time
@@ -142,7 +142,7 @@ jobs:
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
       call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -G "Ninja Multi-Config" ^
-        -DENABLE_ONEDNN_FOR_GPU=$(USE_TOOLCHAIN) ^
+        -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS) ^
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) ^
         -DENABLE_REQUIREMENTS_INSTALL=OFF ^
         -DENABLE_FASTER_BUILD=ON ^
@@ -235,7 +235,9 @@ jobs:
     displayName: 'Paddle Frontend UT'
     continueOnError: true
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\tensorflow_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Tensorflow.xml
+  - script: |
+      set PATH=$(INSTALL_TEST_DIR);%PATH%
+      call $(SETUPVARS) && $(INSTALL_TEST_DIR)\tensorflow_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Tensorflow.xml
     displayName: 'Tensorflow Frontend UT'
     continueOnError: false
 
