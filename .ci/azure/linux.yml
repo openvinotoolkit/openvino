@@ -172,6 +172,7 @@ jobs:
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
+        -DCPACK_GENERATOR=$(CMAKE_CPACK_GENERATOR)
         -S $(REPO_DIR)
         -B $(BUILD_DIR)
 
@@ -205,12 +206,12 @@ jobs:
   - script: ninja -C $(BUILD_LAYER_TESTS_DIR)
     displayName: 'Build Layer Tests'
 
-  - script: sudo apt-get remove libtbb2 libpugixml1v5 libgflags2.2 zlib1g nlohmann-json3-dev libusb-1.0-0 -y
+  - script: sudo apt-get remove libtbb2 libpugixml1v5 -y
     displayName: 'Remove debian dependencies'
     condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     continueOnError: true
 
-  - script: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_LAYER_TESTS_DIR)/cmake_install.cmake
+  - script: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install wheel packages'
 
   - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_LAYER_TESTS_DIR)/cmake_install.cmake
@@ -257,7 +258,7 @@ jobs:
     continueOnError: true
 
   - script: |
-      cmake -DCPACK_GENERATOR=DEB -DENABLE_PYTHON=OFF -DENABLE_WHEEL=OFF $(BUILD_DIR)
+      sudo apt-get install libtbb-dev libpugixml-dev -y
       cmake --build $(BUILD_DIR) --target package -j8
     condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     displayName: 'Build Debian packages'
@@ -273,7 +274,7 @@ jobs:
       # install our local one and make sure the conflicts are resolved
       sudo apt-get install --no-install-recommends dpkg-dev -y
       dpkg-scanpackages -m . | gzip > Packages.gz
-      sudo echo "deb [trusted=yes] file:/path/to/repository /" >> /etc/apt/sources.list.d/openvino-local.list
+      echo "deb [trusted=yes] file:/path/to/repository /" | sudo tee -a /etc/apt/sources.list.d/openvino-local.list
       sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/openvino-local.list
       sudo apt-get install openvino -y
     workingDirectory: $(BUILD_DIR)

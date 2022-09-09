@@ -29,7 +29,8 @@ macro(ov_debian_cpack_set_dirs)
     set(OV_CPACK_DEVREQDIR ${OV_CPACK_SHAREDIR})
     unset(OV_CPACK_SHAREDIR)
 
-    set(OV_CPACK_WHEELSDIR .) # TODO
+    # skipped during debian packaging
+    set(OV_CPACK_WHEELSDIR "tools")
 
     # for BW compatibility
     set(IE_CPACK_LIBRARY_PATH ${OV_CPACK_LIBRARYDIR})
