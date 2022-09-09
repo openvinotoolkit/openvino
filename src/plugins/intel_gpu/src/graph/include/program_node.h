@@ -266,8 +266,6 @@ public:
     }
     void unmark() { user_mark = 0; }
     bool is_marked() const { return user_mark != 0; }
-    bool is_marked(uint8_t val) const { return user_mark == val; }
-    uint8_t get_user_mark() const { return user_mark; }
 
     void add_fused_activation(activation_func activation_func,
                               activation_additional_params additional_params) {
