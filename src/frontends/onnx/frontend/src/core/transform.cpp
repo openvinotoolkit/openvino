@@ -112,14 +112,12 @@ void ngraph::onnx_import::transform::update_external_data_paths(ONNX_NAMESPACE::
     if (model_path.empty()) {
         return;
     }
-    const auto model_dir_path = file_util::get_directory(model_path);
-    auto graph_proto = model_proto.mutable_graph();
-    for (auto& initializer_tensor : *graph_proto->mutable_initializer()) {
+
+    auto update_tensor_path = [](ONNX_NAMESPACE::TensorProto& tensor, const std::string& model_dir_path) {
         const auto location_key_value_index = 0;
-        if (initializer_tensor.has_data_location() &&
-            initializer_tensor.data_location() ==
-                ONNX_NAMESPACE::TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL) {
-            const auto external_data_relative_path = initializer_tensor.external_data(location_key_value_index).value();
+        if (tensor.has_data_location() &&
+            tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL) {
+            const auto external_data_relative_path = tensor.external_data(location_key_value_index).value();
             const auto santized_external_data_relative_path = file_util::sanitize_path(external_data_relative_path);
             auto external_data_full_path = file_util::path_join(model_dir_path, santized_external_data_relative_path);
 
@@ -128,9 +126,30 @@ void ngraph::onnx_import::transform::update_external_data_paths(ONNX_NAMESPACE::
 #endif
 
             // Set full paths to the external file
-            initializer_tensor.mutable_external_data(location_key_value_index)->set_value(external_data_full_path);
+            tensor.mutable_external_data(location_key_value_index)->set_value(external_data_full_path);
+        }
+    };
+
+    const auto model_dir_path = file_util::get_directory(model_path);
+    auto graph_proto = model_proto.mutable_graph();
+    for (auto& initializer_tensor : *graph_proto->mutable_initializer()) {
+        update_tensor_path(initializer_tensor, model_dir_path);
+    }
+
+    for (auto& node : *graph_proto->mutable_node()) {
+        if (node.op_type() != "Constant") {
+            continue;
+        }
+
+        for (auto& attribute : *node.mutable_attribute()) {
+            if (attribute.type() != ONNX_NAMESPACE::AttributeProto_AttributeType_TENSOR) {
+                continue;
+            }
+            auto tensor = attribute.mutable_t();
+            update_tensor_path(*tensor, model_dir_path);
         }
     }
+
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
