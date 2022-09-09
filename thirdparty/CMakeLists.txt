@@ -78,7 +78,7 @@ if(ENABLE_SYSTEM_PUGIXML)
                 set_target_properties(${pugixml_target} PROPERTIES
                     INTERFACE_INCLUDE_DIRECTORIES "")
                 # buggy pugixml.pc does not allow to work with openvino.pc well
-                set(ENABLE_PKGCONFIG_GEN OFF CACHE BOOL "" FORCE)
+                set(pugixml_buggy_pkgconfig ON CACHE INTERNAL "" FORCE)
                 message(WARNING "openvino.pc pkg-config file generation has turned off because it should have to depend on pugixml.pc")
             endif()
             message(STATUS "${PKG_CONFIG_EXECUTABLE}: pugixml (${pugixml_VERSION}) is found at ${pugixml_PREFIX}")

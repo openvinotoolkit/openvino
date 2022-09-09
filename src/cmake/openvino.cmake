@@ -213,17 +213,25 @@ if(ENABLE_PKGCONFIG_GEN)
         set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "-L\${prefix}/${pkg_config_tbb_lib_dir} -ltbb")
     endif()
 
-    if(ENABLE_SYSTEM_PUGIXML AND PkgConfig_FOUND)
+    if(ENABLE_SYSTEM_PUGIXML)
         pkg_check_modules(PKGCONFIG_pugixml QUIET
                           NO_CMAKE_PATH
                           NO_CMAKE_ENVIRONMENT_PATH
                           pugixml)
         set(pugixml_dep "pugixml = ${PKGCONFIG_pugixml_VERSION}")
 
-        if(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE)
-            set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "${PKGCONFIG_OpenVINO_REQUIRES_PRIVATE}, ${pugixml_dep}")
+        if(pugixml_buggy_pkgconfig)
+            if(PKGCONFIG_OpenVINO_PRIVATE_DEPS)
+                set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "${PKGCONFIG_OpenVINO_PRIVATE_DEPS} -lpugixml")
+            else()
+                set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "-lpugixml")
+            endif()
         else()
-            set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "${pugixml_dep}")
+            if(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE)
+                set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "${PKGCONFIG_OpenVINO_REQUIRES_PRIVATE}, ${pugixml_dep}")
+            else()
+                set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "${pugixml_dep}")
+            endif()
         endif()
     endif()
 
