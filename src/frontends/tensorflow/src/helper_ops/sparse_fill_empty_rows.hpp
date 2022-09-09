@@ -41,7 +41,7 @@ public:
         // 2) empty_row_indicator, 1D whether the dense row was missing in the input sparse tensor
         // 3) reverse_index_map, 1D a map from the input indices to the output indices
         ov::PartialShape output_indices_shape({ov::Dimension::dynamic(), 2});
-        ov::PartialShape output_values_shape({ov::Dimension::dynamic()}); 
+        ov::PartialShape output_values_shape({ov::Dimension::dynamic()});
         ov::PartialShape empty_row_indicator_shape({ov::Dimension::dynamic()});
         ov::PartialShape reverse_index_map_shape({ov::Dimension::dynamic()});
 
