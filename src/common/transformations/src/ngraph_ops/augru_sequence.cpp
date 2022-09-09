@@ -3,8 +3,7 @@
 //
 
 #include "ngraph_ops/augru_sequence.hpp"
-// #include "augru_sequence_shape_inference.hpp" // TODO: Resolve proper include
-#include "../../core/shape_inference/include/augru_sequence_shape_inference.hpp"
+#include "augru_sequence_shape_inference.hpp"
 
 #include "itt.hpp"
 #include "ngraph/op/util/recurrent_sequence.hpp"
