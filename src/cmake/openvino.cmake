@@ -227,45 +227,20 @@ if(ENABLE_PKGCONFIG_GEN)
         endif()
     endif()
 
-    # detect <multiarch-triplet>
-    if(CPACK_GENERATOR STREQUAL "DEB")
-        # TODO: find a better way to detect <multiarch-triplet>
-        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-            # note: clang provides different output like 'x86_64-pc-linux-gnu', so it's not used
-            execute_process(COMMAND "${CMAKE_C_COMPILER}" -dumpmachine
-                OUTPUT_VARIABLE PKGCONFIG_OpenVINO_TRIPLET
-                ERROR_VARIABLE error_message
-                RESULT_VARIABLE exit_code
-                OUTPUT_STRIP_TRAILING_WHITESPACE)
-            if(NOT exit_code EQUAL 0)
-                message(WARNING "Internal error: failed to detect library <multiarch-triplet> ${error_message}")
-                set(failed_to_detect_triplet ON)
-            endif()
-        else()
-            # cannot detect <multiarch-triplet>
-            set(failed_to_detect_triplet ON)
-        endif()
-    endif()
-
-    if(failed_to_detect_triplet)
-        message(WARNING "Unable to detect <triplet> using 'gcc --dumpmachine'. Pkg-config 'openvino.pc' generation is skipped")
-    endif()
-
     # define relative paths
     file(RELATIVE_PATH PKGCONFIG_OpenVINO_PREFIX "/${OV_CPACK_RUNTIMEDIR}/pkgconfig" "/")
 
-    if(NOT failed_to_detect_triplet)
-        set(pkgconfig_in "${OpenVINO_SOURCE_DIR}/cmake/templates/openvino.pc.in")
-        set(pkgconfig_out "${OpenVINO_BINARY_DIR}/share/openvino.pc")
-        configure_file("${pkgconfig_in}" "${pkgconfig_out}" @ONLY)
+    set(pkgconfig_in "${OpenVINO_SOURCE_DIR}/cmake/templates/openvino.pc.in")
+    set(pkgconfig_out "${OpenVINO_BINARY_DIR}/share/openvino.pc")
+    configure_file("${pkgconfig_in}" "${pkgconfig_out}" @ONLY)
 
-        install(FILES "${pkgconfig_out}"
-                DESTINATION "${OV_CPACK_RUNTIMEDIR}/pkgconfig"
-                COMPONENT ${OV_CPACK_COMP_CORE_DEV})
+    install(FILES "${pkgconfig_out}"
+            DESTINATION "${OV_CPACK_RUNTIMEDIR}/pkgconfig"
+            COMPONENT ${OV_CPACK_COMP_CORE_DEV})
 
-        add_custom_command(TARGET openvino PRE_BUILD
-            COMMAND "${PKG_CONFIG_EXECUTABLE}" --validate "${pkgconfig_out}"
-            COMMENT "[pkg-config] validating openvino.pc"
-            VERBATIM)
-    endif()
+    add_custom_command(TARGET openvino PRE_BUILD
+        COMMAND "${PKG_CONFIG_EXECUTABLE}" --validate "${pkgconfig_out}"
+        COMMAND cat "${pkgconfig_out}"
+        COMMENT "[pkg-config] validating openvino.pc"
+        VERBATIM)
 endif()
