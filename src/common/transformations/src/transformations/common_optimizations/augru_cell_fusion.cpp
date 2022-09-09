@@ -62,30 +62,36 @@ ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
         auto hidden_size = h_pshape[1].get_length();
         auto input_size = x_pshape[1].get_length();
 
+        auto axis_0 = rg.make<Constant>(i64, Shape{}, 0);
+        auto axis_1 = rg.make<Constant>(i64, Shape{}, 1);
+
         auto A = pattern_map.at(subtract_1)->input_value(1);
         // biases are required
         auto bias_add_1 = pattern_map.at(add_1);
+        auto split_bias_r_z = rg.make<Split>(bias_add_1->input_value(1), axis_1, 2);
         auto bias_add_2 = pattern_map.at(add_2);
 
-        auto axis_0 = rg.make<Constant>(i64, Shape{}, 0);
-        auto axis_1 = rg.make<Constant>(i64, Shape{}, 1);
-        auto B = rg.make<Concat>(OutputVector{bias_add_1->input_value(1), bias_add_2->input_value(1)}, 1);
+        auto B = rg.make<Concat>(
+            OutputVector{split_bias_r_z->output(1), split_bias_r_z->output(0), bias_add_2->input_value(1)},
+            1);
 
-        auto WRzr = pattern_map.at(matmul_1)->input_value(1);
+        auto WRrz = pattern_map.at(matmul_1)->input_value(1);
         auto WRh = pattern_map.at(matmul_2)->input_value(1);
 
         auto split_lenghts = rg.make<Constant>(i64, Shape{2}, vector<int64_t>{input_size, hidden_size});
-        auto split_WRzr = rg.make<VariadicSplit>(WRzr, axis_1, split_lenghts);
+        auto split_WRrz = rg.make<VariadicSplit>(WRrz, axis_1, split_lenghts);
+        auto split_W_r_z = rg.make<Split>(split_WRrz->output(0), axis_0, 2);
+        auto split_R_r_z = rg.make<Split>(split_WRrz->output(1), axis_0, 2);
         auto split_WRh = rg.make<VariadicSplit>(WRh, axis_1, split_lenghts);
-        auto Wzrh = rg.make<Concat>(OutputVector{split_WRzr->output(0), split_WRh->output(0)}, 0);
-        auto Rzrh = rg.make<Concat>(OutputVector{split_WRzr->output(1), split_WRh->output(1)}, 0);
+        auto Wzrh =
+            rg.make<Concat>(OutputVector{split_W_r_z->output(1), split_W_r_z->output(0), split_WRh->output(0)}, 0);
+        auto Rzrh =
+            rg.make<Concat>(OutputVector{split_R_r_z->output(1), split_R_r_z->output(0), split_WRh->output(1)}, 0);
 
         auto squeeze_B = rg.make<Squeeze>(B, axis_0);
-        auto cell = rg.make<op::internal::AUGRUCell>(X, H, Wzrh, Rzrh, squeeze_B, A, H.get_shape()[1]);
+        auto cell =
+            rg.make<op::internal::AUGRUCell>(X, H, Wzrh, Rzrh, squeeze_B, A, H.get_partial_shape()[1].get_length());
 
-        NodeVector new_nodes;
-        new_nodes.insert(new_nodes.end(),
-                         {axis_1, axis_0, split_lenghts, split_WRzr, split_WRh, Wzrh, Rzrh, B, squeeze_B, cell});
         cell->set_friendly_name(m.get_match_root()->get_friendly_name());
         copy_runtime_info(m.get_matched_nodes(), rg.get());
         replace_node(m.get_match_root(), cell);

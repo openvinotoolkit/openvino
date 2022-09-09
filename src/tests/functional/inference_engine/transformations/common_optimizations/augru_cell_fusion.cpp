@@ -58,22 +58,27 @@ shared_ptr<Model> gen_model(size_t batch, size_t hidden_size, size_t input_size,
 shared_ptr<Model> gen_reference(size_t batch, size_t hidden_size, size_t input_size) {
     auto X = make_shared<Parameter>(f32, Shape{batch, input_size});
     auto H = make_shared<Parameter>(f32, Shape{batch, hidden_size});
-    auto WRzr = make_shared<Parameter>(f32, Shape{2 * hidden_size, input_size + hidden_size});
+    auto WRrz = make_shared<Parameter>(f32, Shape{2 * hidden_size, input_size + hidden_size});
     auto WRh = make_shared<Parameter>(f32, Shape{hidden_size, input_size + hidden_size});
-    auto Bzr = make_shared<Parameter>(f32, Shape{1, 2 * hidden_size});
+    auto Brz = make_shared<Parameter>(f32, Shape{1, 2 * hidden_size});
     auto Bh = make_shared<Parameter>(f32, Shape{1, hidden_size});
     auto A = make_shared<Parameter>(f32, Shape{batch, 1});
-    ParameterVector params = {X, H, WRzr, WRh, Bzr, Bh, A};
+    ParameterVector params = {X, H, WRrz, WRh, Brz, Bh, A};
 
     auto axis_0 = make_shared<Constant>(i64, Shape{}, 0);
     auto axis_1 = make_shared<Constant>(i64, Shape{}, 1);
     auto split_lenghts = make_shared<Constant>(i64, Shape{2}, vector<size_t>{input_size, hidden_size});
-    auto split_WRzr = make_shared<VariadicSplit>(WRzr, axis_1, split_lenghts);
+    auto split_WRrz = make_shared<VariadicSplit>(WRrz, axis_1, split_lenghts);
+    auto split_W_r_z = make_shared<Split>(split_WRrz->output(0), axis_0, 2);
+    auto split_R_r_z = make_shared<Split>(split_WRrz->output(1), axis_0, 2);
     auto split_WRh = make_shared<VariadicSplit>(WRh, axis_1, split_lenghts);
-    auto Wzrh = make_shared<Concat>(OutputVector{split_WRzr->output(0), split_WRh->output(0)}, 0);
-    auto Rzrh = make_shared<Concat>(OutputVector{split_WRzr->output(1), split_WRh->output(1)}, 0);
+    auto Wzrh =
+            make_shared<Concat>(OutputVector{split_W_r_z->output(1), split_W_r_z->output(0), split_WRh->output(0)}, 0);
+    auto Rzrh =
+            make_shared<Concat>(OutputVector{split_R_r_z->output(1), split_R_r_z->output(0), split_WRh->output(1)}, 0);
 
-    auto B = make_shared<Concat>(OutputVector{Bzr, Bh}, 1);
+    auto split_bias_r_z = make_shared<Split>(Brz, axis_1, 2);
+    auto B = make_shared<Concat>(OutputVector{split_bias_r_z->output(1), split_bias_r_z->output(0), Bh}, 1);
 
     auto squeeze_B = make_shared<Squeeze>(B, axis_0);
     auto cell = make_shared<op::internal::AUGRUCell>(X, H, Wzrh, Rzrh, squeeze_B, A, hidden_size);
