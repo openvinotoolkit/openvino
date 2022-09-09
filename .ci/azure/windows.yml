@@ -81,7 +81,7 @@ jobs:
   - script: |
       tar -xf $(WORK_DIR)\python-3.10.7-embed-amd64.zip
       powershell -command "(Get-Content python310._pth) -Replace '#import site', 'import site' | Set-Content python310._pth"
-      curl https://bootstrap.pypa.io/get-pip.py
+      curl -O https://bootstrap.pypa.io/get-pip.py
       .\python get-pip.py
     displayName: 'Install Python'
     workingDirectory: $(PYTHON_DIR)
