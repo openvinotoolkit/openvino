@@ -32,12 +32,13 @@ const std::vector<int64_t> num_classes = {2};
 const std::vector<int64_t> post_nms_count = {5, 25};
 
 // specifies maximual number of detections per image
-const std::vector<size_t> max_detections_per_image = {5, 25};
+const std::vector<size_t> max_detections_per_image = {16};
 
 // a flag specifies whether to delete background classes or not
 // `true`  means background classes should be deleted,
 // `false` means background classes shouldn't be deleted.
-const std::vector<bool> class_agnostic_box_regression = {true, false};
+const bool class_agnostic_box_regression_true = true;
+const bool class_agnostic_box_regression_false = false;
 
 // specifies deltas of weights
 const std::vector<std::vector<float>> deltas_weights = {{10.0f, 10.0f, 5.0f, 5.0f}};
@@ -46,6 +47,22 @@ const std::vector<std::vector<InputShape>> inputShapes = {
     // inputRois / inputDeltas / inputScores / inputImInfos
     static_shapes_to_test_representation({{16, 4}, {16, 8}, {16, 2}, {1, 3}}),
 };
+
+
+INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronDetectionOutput,
+                         ExperimentalDetectronDetectionOutputLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes),
+                                            ::testing::ValuesIn(score_threshold),
+                                            ::testing::ValuesIn(nms_threshold),
+                                            ::testing::ValuesIn(max_delta_log_wh),
+                                            ::testing::ValuesIn(num_classes),
+                                            ::testing::ValuesIn(post_nms_count),
+                                            ::testing::ValuesIn(max_detections_per_image),
+                                            ::testing::Values(class_agnostic_box_regression_true),
+                                            ::testing::ValuesIn(deltas_weights),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         ExperimentalDetectronDetectionOutputLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ExperimentalDetectronDetectionOutput,
                          ExperimentalDetectronDetectionOutputLayerTest,
@@ -56,7 +73,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ExperimentalDetectronDetectionOutput,
                                             ::testing::ValuesIn(num_classes),
                                             ::testing::ValuesIn(post_nms_count),
                                             ::testing::ValuesIn(max_detections_per_image),
-                                            ::testing::ValuesIn(class_agnostic_box_regression),
+                                            ::testing::Values(class_agnostic_box_regression_false),
                                             ::testing::ValuesIn(deltas_weights),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GPU)),
