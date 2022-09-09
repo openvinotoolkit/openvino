@@ -19,7 +19,6 @@ public:
         return {
             FusedOpType::QUANTIZE,
             FusedOpType::ACTIVATION,
-            FusedOpType::SCALE,
             FusedOpType::ELTWISE
         };
     }

@@ -92,7 +92,7 @@ struct Tensor {
 };
 
 ///
-/// Class which should helps build test parameters.
+/// Class which helps build test parameters.
 ///
 /// e.g.:
 /// struct Params {
