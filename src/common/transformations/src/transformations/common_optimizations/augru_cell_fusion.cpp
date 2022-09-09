@@ -28,7 +28,7 @@ ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
     };
 
     auto concat_1 = wrap_type<Concat>({any_input(is_first_dim_static), any_input(is_first_dim_static)});
-    auto matmul_1 = wrap_type<MatMul>({concat_1, any_input()});
+    auto matmul_1 = wrap_type<MatMul>({concat_1, any_input(is_first_dim_static)});
     auto add_1 = wrap_type<Add>({matmul_1, any_input()});
     // only Sigmoid is supported in the current version of AUGRUCell
     auto sigmoid = wrap_type<Sigmoid>({add_1});
@@ -36,7 +36,7 @@ ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
     auto multiply = wrap_type<Multiply>({split, any_input()});
 
     auto concat_2 = wrap_type<Concat>({any_input(), multiply});
-    auto matmul_2 = wrap_type<MatMul>({concat_2, any_input()});
+    auto matmul_2 = wrap_type<MatMul>({concat_2, any_input(is_first_dim_static)});
     auto add_2 = wrap_type<Add>({matmul_2, any_input()});
     // only Tanh is supported in the current version of AUGRUCell
     auto tanh = wrap_type<Tanh>({add_2});
