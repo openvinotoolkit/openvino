@@ -67,6 +67,8 @@ jobs:
   - script: |
       rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
       rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
+      rd /Q /S $(WORK_DIR) & mkdir C:\hostedtoolcache\windows\Python\3.10.7
+      rd /Q /S $(BUILD_DIR) & mkdir C:\hostedtoolcache\windows\Python\3.10.7\x64
       rd /Q /S $(BUILD_SAMPLES_DIR) & mkdir $(BUILD_SAMPLES_DIR)
       rd /Q /S $(BUILD_SAMPLES_TESTS_DIR) & mkdir $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'Make dir'
