@@ -155,9 +155,17 @@ int main(int argc, char** argv) {
 
     ov_output_const_port_t* output_port;
     CHECK_STATUS(ov_model_const_output(model, &output_port));
+    if (!output_port) {
+        fprintf(stderr,"[ERROR] Sample supports models with 1 output only %d\n", __LINE__);
+        goto err;
+    }
 
     ov_output_const_port_t* input_port;
     CHECK_STATUS(ov_model_const_input(model, &input_port));
+    if (!input_port) {
+        fprintf(stderr,"[ERROR] Sample supports models with 1 input only %d\n", __LINE__);
+        goto err;
+    }
 
     // -------- Step 3. Set up input
     c_mat_t img;
