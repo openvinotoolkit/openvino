@@ -1039,7 +1039,6 @@ struct EltwiseKey {
     dnnl::post_ops postOps;
     bool useDynBatch;
     bool useJit;
-    std::string name;
 
     size_t hash() const {
         using namespace dnnl::impl;
@@ -1069,7 +1068,6 @@ struct EltwiseKey {
         seed = get_post_op_hash(seed, *postOps.get());
         seed = hash_combine(seed, useDynBatch);
         seed = hash_combine(seed, useJit);
-        seed = hash_combine(seed, name);
         return seed;
     }
 
@@ -1968,9 +1966,7 @@ void Eltwise::prepareParams() {
 
     EltwiseData thisOp{getAlgorithm(), getOneDnnAlgorithm(), getAlpha(), getBeta(), getGamma()};
 
-    EltwiseKey key =
-            {{thisOp},
-             {getType()}, currentOutBlkDims, outOrder, dims_in, inpPrc, outPrc, dnnl::post_ops(), isDynBatchEnabled, canUseOptimizedImpl, getName()};
+    EltwiseKey key = {{thisOp}, {getType()}, currentOutBlkDims, outOrder, dims_in, inpPrc, outPrc, dnnl::post_ops(), isDynBatchEnabled, canUseOptimizedImpl};
 
     fqDataPtrs.clear();
     for (const auto &node : fusedWith) {
@@ -2021,12 +2017,7 @@ void Eltwise::execute(dnnl::stream strm) {
         }
 
         args_ptrs.post_op_data = fqDataPtrs.data();
-//        if (getName() == "413") {
-//            std::cerr << "413 is executed with shape: ";
-//            for (auto d : dims_out)
-//                std::cerr << d << " ";
-//            std::cerr << "\n";
-//        }
+
         execPtr->exec(args_ptrs, dims_out);
     } else {
         IE_THROW() << "Can't execute eltwise node with name: " << getName() << ". Primitive isn't created";
