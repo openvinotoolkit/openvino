@@ -139,6 +139,30 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
             {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
         }
     },
+    // subtraction with Convert from u8 to fp32
+    {
+        LayerTransformation::createParamsU8I8(),
+        1,
+        1,
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{128.f}, element::undefined, {1, 3, 1, 1}, false, 1ul, element::u8, true},
+                {3.f}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{128.f}, element::undefined, {1, 3, 1, 1}, false, 1ul, element::u8, true},
+                {3.f}
+            }
+        }
+    },
     // U8 quantization by spatial dimension, shuffling by the same dimension
     {
         LayerTransformation::createParamsU8I8(),

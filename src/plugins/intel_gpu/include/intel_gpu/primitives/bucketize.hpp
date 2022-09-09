@@ -26,9 +26,8 @@ struct bucketize : primitive_base<bucketize> {
               const std::vector<primitive_id>& inputs,
               data_types output_type = data_types::i64,
               bool with_right_bound = true,
-              const primitive_id& ext_prim_id = {},
               const padding& output_padding = {})
-        : primitive_base(id, inputs, ext_prim_id, output_padding, optional_data_type(output_type)),
+        : primitive_base(id, inputs, output_padding, optional_data_type(output_type)),
           with_right_bound(with_right_bound) {}
 
     bool with_right_bound;

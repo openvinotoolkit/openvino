@@ -31,11 +31,6 @@ public:
     explicit base_pass(const std::string& pass_name) : name(pass_name) {}
     virtual void run(program& p) = 0;
     std::string get_name() { return name; }
-    void clean_marks(program& p) {
-        for (auto& node : p.get_processing_order()) {
-            node->unmark();
-        }
-    }
 
 private:
     const std::string name;

@@ -1472,7 +1472,6 @@ TEST(convolution_f32_fw_gpu, basic_convolution_input_padding) {
             { 1, 1 },
             { 2, 1 },
             { 1, 1 },
-            "",
             padding{ { 0, 0, 0, 0 }, 0 })
     );
 
@@ -1575,7 +1574,6 @@ TEST(convolution_f32_fw_gpu, basic_convolution_sym_input_padding) {
             { 1, 1 },
             { 2, 1 },
             { 2, 1 },
-            "",
             padding{ { 0, 0, 0, 0 }, 0 })
     );
 
@@ -1673,7 +1671,6 @@ TEST(convolution_f32_fw_gpu, basic_convolution_asym_input_padding) {
             { 1, 1 },
             { 2, 1 },
             { 3, 2 },
-            "",
             padding{ { 0, 0, 0, 0 }, 0 }));
 
     network network(engine, topology);
@@ -1780,7 +1777,6 @@ TEST(convolution_f32_fw_gpu, basic_convolution_sym_input_padding_with_pad) {
             { 1, 1 },
             { 2, 1 },
             { 2, 1 },
-            "",
             padding{ { 0, 0, 0, 0 }, 0 })
     );
 
@@ -1891,7 +1887,6 @@ TEST(convolution_f32_fw_gpu, basic_convolution_asym_input_padding_with_pad) {
             { 1, 1 },
             { 2, 1 },
             { 3, 2 },
-            "",
             padding{ { 0, 0, 0, 0 }, 0 }));
 
     network network(engine, topology);
@@ -1989,7 +1984,6 @@ TEST(convolution_f32_fw_gpu, basic_convolution_input_and_output_padding) {
             { 1, 1 },
             { 2, 1 },
             { 1, 1 },
-            "",
             padding{ { 0,0,x_pad,y_pad }, 0 })
     );
 
@@ -2561,7 +2555,6 @@ TEST(convolution_f32_fw_gpu, offsets_wsiz3x3_wstr2x2_in2x2x1x1_zeropad) {
             { 2, 2 },
             { 1, 1 },
             { 1, 1 },
-            "",
             padding{ { 0, 0, 1, 1 }, 0 })
     );
 
@@ -5423,7 +5416,7 @@ TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4_to_bfyx) {
         reorder("to_int", "input", { data_types::i8, format::bfyx, { batch_num, input_f, input_size_x, input_size_y } }),
         data("weights", weights),
         data("biases", biases),
-        convolution("conv", "to_int", { "weights" }, { "biases" }, { 1, 1 }, { 2, 2 }, { 1, 1 }, "",
+        convolution("conv", "to_int", { "weights" }, { "biases" }, { 1, 1 }, { 2, 2 }, { 1, 1 },
                     padding{ { 0, 0, output_padding, output_padding }, 0 }),
         reorder("output", "conv", { data_types::f32, format::bfyx, { batch_num, input_f, input_size_x, input_size_y } }));
 
@@ -5445,7 +5438,7 @@ TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4_to_bfyx) {
         reorder("to_int", "input", { data_types::i8,format::b_fs_yx_fsv4, { batch_num, input_f, input_size_x, input_size_y } }),
         data("weights", weights),
         data("biases", biases),
-        convolution("conv", "to_int", { "weights" }, { "biases" }, { 1, 1 }, { 2, 2 }, { 1, 1 }, "",
+        convolution("conv", "to_int", { "weights" }, { "biases" }, { 1, 1 }, { 2, 2 }, { 1, 1 },
             padding{ { 0, 0, output_padding, output_padding }, 0 }),
         reorder("output", "conv", { data_types::f32,format::bfyx, { batch_num, input_f, input_size_x, input_size_y } }));
 
@@ -6085,7 +6078,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32_fused_ops)
     set_values(scale_mem, { scalar });
 
     topology.add(data("scalar", scale_mem));
-    topology.add(scale("scale", "conv_bsv16_fsv16", "scalar"));
+    topology.add(eltwise("scale", { "conv_bsv16_fsv16", "scalar" }, eltwise_mode::prod));
 
     topology.add(reorder("reorder_bfzyx", "scale", format::bfzyx, data_types::f32));
 
@@ -6524,7 +6517,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32_fused_ops)
     set_values(scale_mem, { scalar });
 
     topology.add(data("scalar", scale_mem));
-    topology.add(scale("scale", "conv_bsv16_fsv16", "scalar"));
+    topology.add(eltwise("scale", { "conv_bsv16_fsv16", "scalar" }, eltwise_mode::prod));
 
     topology.add(reorder("reorder_bfyx", "scale", format::bfyx, data_types::f32));
 
@@ -8262,9 +8255,10 @@ public:
 
         topo.add(cldnn::data("scale_scale", scale_mem));
         topo.add(cldnn::data("scale_shift", shift_mem));
-        topo.add(cldnn::scale("scale", "conv", "scale_scale", "scale_shift"));
+        topo.add(cldnn::eltwise("scale", { "conv", "scale_scale" }, eltwise_mode::prod));
+        topo.add(cldnn::eltwise("shift", { "scale", "scale_shift" }, eltwise_mode::sum));
         // Work-around since if scale is output it will not be fused
-        topo.add(cldnn::reorder("scale_wa_reorder", "scale", format::bfyx, this->output_type()));
+        topo.add(cldnn::reorder("scale_wa_reorder", "shift", format::bfyx, this->output_type()));
         return topo;
     }
 
@@ -8549,12 +8543,12 @@ public:
         all_layer_params.emplace_back(new convolution("convolution_no_relu", "reorder0", weights, bias, stride_sizes[3], pad_sizes[3], dilation_sizes[3]));
 
         // Output padding
-        all_layer_params.emplace_back(new convolution("convolution_no_relu", "input0", weights, bias, stride_sizes[1], pad_sizes[1], dilation_sizes[1], "", { { 0, 0, 2, 4 }, { 0, 0, 0, 19 } }));
-        all_layer_params.emplace_back(new convolution("convolution_no_relu", "input0", weights, bias, stride_sizes[2], pad_sizes[2], dilation_sizes[2], "", { { 0, 0, 1, 0 }, { 0, 0, 13, 9 } }));
+        all_layer_params.emplace_back(new convolution("convolution_no_relu", "input0", weights, bias, stride_sizes[1], pad_sizes[1], dilation_sizes[1], { { 0, 0, 2, 4 }, { 0, 0, 0, 19 } }));
+        all_layer_params.emplace_back(new convolution("convolution_no_relu", "input0", weights, bias, stride_sizes[2], pad_sizes[2], dilation_sizes[2], { { 0, 0, 1, 0 }, { 0, 0, 13, 9 } }));
 
         // Input + Output padding
-        all_layer_params.emplace_back(new convolution("convolution_no_relu", "reorder0", weights, bias, stride_sizes[0], pad_sizes[0], dilation_sizes[0], "", { { 0, 0, 1, 5 }, { 0, 0, 19, 4 } }));
-        all_layer_params.emplace_back(new convolution("convolution_no_relu", "reorder0", weights, bias, stride_sizes[3], pad_sizes[3], dilation_sizes[3], "", { { 0, 0, 1, 2 }, { 0, 0, 3, 4 } }));
+        all_layer_params.emplace_back(new convolution("convolution_no_relu", "reorder0", weights, bias, stride_sizes[0], pad_sizes[0], dilation_sizes[0], { { 0, 0, 1, 5 }, { 0, 0, 19, 4 } }));
+        all_layer_params.emplace_back(new convolution("convolution_no_relu", "reorder0", weights, bias, stride_sizes[3], pad_sizes[3], dilation_sizes[3], { { 0, 0, 1, 2 }, { 0, 0, 3, 4 } }));
 
         return all_layer_params;
     }
@@ -8854,6 +8848,8 @@ INSTANTIATE_TEST_SUITE_P(conv_onednn_cases,
 
 TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     auto& engine = get_onednn_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
 
     if (!engine.get_device_info().supports_fp16)
     {
@@ -8954,7 +8950,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     }
     build_options options;
     options.set_option(build_option::optimize_data(true));
-    implementation_desc conv_impl = { input_data_format, impl_name, prim_impl_types };
+    implementation_desc conv_impl = { format::byxf, impl_name, prim_impl_types };
     options.set_option(build_option::force_implementations({ { "conv_fsv", conv_impl } }));
     network network(engine, topology, options);
 
@@ -8968,7 +8964,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     mem_lock<FLOAT16> out_ptr{ out_mem, get_test_stream() };
     auto out_lay = out_mem->get_layout();
 
-    ASSERT_EQ(out_mem->get_layout().format, input_data_format);
+    ASSERT_EQ(out_mem->get_layout().format, format::byxf);
     ASSERT_EQ(out_lay.batch(), expected_result.size());
     ASSERT_EQ(out_lay.feature(), expected_result[0].size());
     ASSERT_EQ(out_lay.spatial(1), expected_result[0][0].size());
@@ -8995,6 +8991,8 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
 
 TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
     auto& engine = get_onednn_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
 
     int input_b = 1, input_f = 16, input_y = 3, input_x = 3;
     int output_b = 1, output_f = 16, output_y = 6, output_x = 6;
@@ -9022,7 +9020,7 @@ TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
     topology topology_ref(input, weights, input_reorder, conv1, conv2, output_reorder);
 
     build_options options_test;
-    implementation_desc conv1_impl_test = { format::b_fs_yx_fsv16, "", impl_types::onednn };
+    implementation_desc conv1_impl_test = { format::byxf, "", impl_types::onednn };
     implementation_desc conv2_impl_test = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16", impl_types::ocl };
     options_test.set_option(build_option::force_implementations({ { "conv1", conv1_impl_test }, { "conv2", conv2_impl_test } }));
     options_test.set_option(build_option::optimize_data(true));

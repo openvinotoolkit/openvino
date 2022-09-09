@@ -133,8 +133,6 @@ jobs:
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/requirements.txt
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
-      # For running Paddle frontend unit tests
-      python3 -m pip install -r $(REPO_DIR)/src/core/tests/frontend/paddle/requirements_dev.txt
       # For MO unit tests
       python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_dev.txt
@@ -171,7 +169,7 @@ jobs:
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache
         -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCPACK_GENERATOR=$(CMAKE_CPACK_GENERATOR)
-        -DBUILD_cuda_plugin=OFF
+        -DBUILD_nvidia_plugin=OFF
         -S $(REPO_DIR)
         -B $(BUILD_DIR)
 
@@ -297,39 +295,37 @@ jobs:
     condition: ne(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     displayName: 'List install files'
 
-  - script: rm -fr $(BUILD_DIR)
-    displayName: 'Clean build dir'
-    continueOnError: false
-
-  - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR)
+  - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR) -b $(BUILD_DIR)/cpp_samples
     displayName: 'Build cpp samples'
     continueOnError: false
 
   - script: |
       export CC=clang
       export CXX=clang++
-      $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR)
+      $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -b $(BUILD_DIR)/cpp_samples_clang
     displayName: 'Build cpp samples - clang'
     continueOnError: false
 
-  - script: $(SAMPLES_INSTALL_DIR)/c/build_samples.sh -i $(INSTALL_DIR)
+  - script: |
+      export VERBOSE=1
+      $(SAMPLES_INSTALL_DIR)/c/build_samples.sh -i $(INSTALL_DIR) -b $(BUILD_DIR)/c_samples
     displayName: 'Build c samples'
+    continueOnError: false
+
+  - script: rm -fr $(BUILD_DIR)
+    displayName: 'Clean build dir'
     continueOnError: false
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-NGraphUT.xml
     displayName: 'OV Core UT'
     continueOnError: false
 
-  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/onnx_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXImportUT.xml
-    displayName: 'ONNX Frontend UT'
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
+    displayName: 'ONNX Frontend Tests'
     continueOnError: false
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
-    continueOnError: false
-
-  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/onnx_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
-    displayName: 'ONNX Frontend UT'
     continueOnError: false
 
   - script: |
@@ -366,10 +362,6 @@ jobs:
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
-    continueOnError: false
-
-  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/onnxImporterUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-onnxImporterUnitTests.xml
-    displayName: 'ONNX Importer UT'
     continueOnError: false
 
   - script: |

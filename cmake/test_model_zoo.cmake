@@ -13,7 +13,7 @@ ov_create_virtualenv(REQUIREMENTS_FILE "${OpenVINO_SOURCE_DIR}/src/core/tests/re
                      MESSAGE_MODE WARNING)
 
 function(ov_model_convert SRC DST OUT)
-    set(onnx_gen_script "${OpenVINO_SOURCE_DIR}/src/core/tests/models/onnx/onnx_prototxt_converter.py")
+    set(onnx_gen_script ${OpenVINO_SOURCE_DIR}/src/frontends/onnx/tests/onnx_prototxt_converter.py)
 
     file(GLOB_RECURSE xml_models RELATIVE "${SRC}" "${SRC}/*.xml")
     file(GLOB_RECURSE bin_models RELATIVE "${SRC}" "${SRC}/*.bin")
@@ -75,7 +75,7 @@ endfunction()
 
 ov_model_convert("${CMAKE_CURRENT_SOURCE_DIR}/src/core/tests"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/core"
-                  onnx_out_files)
+                  core_tests_out_files)
 
 set(rel_path "src/tests/functional/plugin/shared/models")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
@@ -92,17 +92,17 @@ ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/ir_serialization"
                  ie_serialize_out_files)
 
-set(rel_path "src/tests/unit/frontends/onnx_import/models")
+set(rel_path "src/frontends/onnx/tests/models")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
-                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx_import"
-                 ie_onnx_import_out_files)
+                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx"
+                 onnx_fe_out_files)
 
 if(ENABLE_TESTS)
-    add_custom_target(test_model_zoo DEPENDS ${onnx_out_files}
+    add_custom_target(test_model_zoo DEPENDS ${core_tests_out_files}
                                              ${ft_out_files}
                                              ${ie_onnx_out_files}
                                              ${ie_serialize_out_files}
-                                             ${ie_onnx_import_out_files})
+                                             ${onnx_fe_out_files})
 
     install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo"
             DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)

@@ -25,15 +25,15 @@ ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
 # zlib
 #
 
-if(NOT CMAKE_CROSSCOMPILING)
-    find_host_package(PkgConfig QUIET)
+if(NOT ANDROID)
+    find_package(PkgConfig QUIET)
     if(PkgConfig_FOUND)
         pkg_search_module(zlib QUIET
-                        IMPORTED_TARGET GLOBAL
-                        zlib)
+                          IMPORTED_TARGET GLOBAL
+                          zlib)
         if(zlib_FOUND)
             add_library(zlib::zlib ALIAS PkgConfig::zlib)
-            message(STATUS "zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
+            message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
         endif()
     endif()
 endif()
@@ -50,7 +50,10 @@ if(ENABLE_SYSTEM_PUGIXML)
     # try system pugixml first
     find_package(PugiXML QUIET)
     if(PugiXML_FOUND)
-        if(TARGET pugixml::static)
+        if(TARGET pugixml::shared)
+            # example: cross-compilation on debian
+            set(pugixml_target pugixml::shared)
+        elseif(TARGET pugixml::static)
             # sometimes pugixml::static target already exists, just need to make it global
             # example: building using conda environment
             set(pugixml_target pugixml::static)
@@ -66,8 +69,12 @@ if(ENABLE_SYSTEM_PUGIXML)
         get_target_property(target_type ${pugixml_target} TYPE)
         if(target_type STREQUAL "SHARED_LIBRARY")
             ie_cpack_add_component(pugixml HIDDEN)
-            get_target_property(pugixml_loc ${pugixml_target} IMPORTED_LOCATION_NOCONFIG)
-            install(FILES ${pugixml_loc}
+            get_target_property(imported_config ${pugixml_target} IMPORTED_CONFIGURATIONS)
+            get_target_property(pugixml_loc ${pugixml_target} IMPORTED_LOCATION_${imported_config})
+            get_target_property(pugixml_soname_loc ${pugixml_target} IMPORTED_SONAME_${imported_config})
+            get_filename_component(pugixml_dir "${pugixml_loc}" DIRECTORY)
+            install(FILES "${pugixml_loc}"
+                          "${pugixml_dir}/${pugixml_soname_loc}"
                     DESTINATION runtime/3rdparty/pugixml/lib
                     COMPONENT pugixml EXCLUDE_FROM_ALL)
         endif()
@@ -128,7 +135,14 @@ if(NOT APPLE)
 endif()
 
 if(gflags_FOUND)
-    set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
+    if(TARGET gflags_nothreads-static)
+        set_target_properties(gflags_nothreads-static PROPERTIES IMPORTED_GLOBAL ON)
+        add_library(gflags ALIAS gflags_nothreads-static)
+    elseif(TARGET gflags)
+        set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
+    else()
+        message(FATAL_ERROR "Internal error: failed to find imported target 'gflags'")
+    endif()
     message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
 else()
     add_subdirectory(gflags EXCLUDE_FROM_ALL)
@@ -159,18 +173,17 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         find_package(Protobuf 3.18.2 REQUIRED)
         set(Protobuf_LITE_LIBRARIES protobuf::libprotobuf-lite)
         set(Protobuf_LIBRARIES protobuf::libprotobuf)
-        set(SYSTEM_PROTOC protobuf::protoc)
-        set(PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
+        set(PROTOC_EXECUTABLE protobuf::protoc)
 
-        foreach(target ${SYSTEM_PROTOC} ${Protobuf_LIBRARIES} ${Protobuf_LITE_LIBRARIES})
-            set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL TRUE)
+        foreach(target ${PROTOC_EXECUTABLE} ${Protobuf_LIBRARIES} ${Protobuf_LITE_LIBRARIES})
+            set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL ON)
         endforeach()
     else()
         add_subdirectory(protobuf EXCLUDE_FROM_ALL)
     endif()
 
     # forward variables used in the other places
-    set(SYSTEM_PROTOC ${SYSTEM_PROTOC} PARENT_SCOPE)
+    set(PROTOC_DEPENDENCY ${PROTOC_DEPENDENCY} PARENT_SCOPE)
     set(PROTOC_EXECUTABLE ${PROTOC_EXECUTABLE} PARENT_SCOPE)
     set(Protobuf_LIBRARIES ${Protobuf_LIBRARIES} PARENT_SCOPE)
     set(Protobuf_LITE_LIBRARIES ${Protobuf_LITE_LIBRARIES} PARENT_SCOPE)
@@ -234,7 +247,11 @@ else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json/nlohmann_json
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            REGEX .*json/nlohmann_json/test/.* EXCLUDE)
+            REGEX .*json/nlohmann_json/.github/.* EXCLUDE
+            REGEX .*json/nlohmann_json/benchmarks/.* EXCLUDE
+            REGEX .*json/nlohmann_json/doc/.* EXCLUDE
+            REGEX .*json/nlohmann_json/test/.* EXCLUDE
+            REGEX .*json/nlohmann_json/cpplint/.* EXCLUDE)
 endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
