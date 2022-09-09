@@ -91,7 +91,7 @@ jobs:
   - task: UsePythonVersion@0
     displayName: 'Use Python'
     inputs:
-      versionSpec: '3.10'
+      versionSpec: '3.10.7'
       disableDownloadFromRegistry: true
     
   - script: |
@@ -176,8 +176,8 @@ jobs:
         -DENABLE_PYTHON=ON ^
         -DBUILD_nvidia_plugin=OFF ^
         -DPYTHON_EXECUTABLE="$(PYTHON_VENV_DIR)\Scripts\python.exe" ^
-        -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.10\x64\include" ^
-        -DPYTHON_LIBRARY="C:\hostedtoolcache\windows\Python\3.10\x64\libs\python310.lib" ^
+        -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.10.7\x64\include" ^
+        -DPYTHON_LIBRARY="C:\hostedtoolcache\windows\Python\3.10.7\x64\libs\python310.lib" ^
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
