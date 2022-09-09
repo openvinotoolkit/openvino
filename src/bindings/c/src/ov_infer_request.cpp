@@ -25,15 +25,86 @@ ov_status_e ov_infer_request_set_tensor(ov_infer_request_t* infer_request,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_infer_request_set_input_tensor(ov_infer_request_t* infer_request,
-                                              size_t idx,
-                                              const ov_tensor_t* tensor) {
+ov_status_e ov_infer_request_set_tensor_by_port(ov_infer_request_t* infer_request,
+                                                const ov_output_node_t* port,
+                                                const ov_tensor_t* tensor) {
+    if (!infer_request || !port || !tensor) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        infer_request->object->set_tensor(*port->object, *tensor->object);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_infer_request_set_tensor_by_const_port(ov_infer_request_t* infer_request,
+                                                      const ov_output_const_node_t* port,
+                                                      const ov_tensor_t* tensor) {
+    if (!infer_request || !port || !tensor) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        infer_request->object->set_tensor(*port->object, *tensor->object);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_infer_request_set_input_tensor_by_index(ov_infer_request_t* infer_request,
+                                                       const size_t idx,
+                                                       const ov_tensor_t* tensor) {
     if (!infer_request || !tensor) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
         infer_request->object->set_input_tensor(idx, *tensor->object);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_infer_request_set_input_tensor(ov_infer_request_t* infer_request, const ov_tensor_t* tensor) {
+    if (!infer_request || !tensor) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        infer_request->object->set_input_tensor(*tensor->object);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_infer_request_set_output_tensor_by_index(ov_infer_request_t* infer_request,
+                                                        const size_t idx,
+                                                        const ov_tensor_t* tensor) {
+    if (!infer_request || !tensor) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        infer_request->object->set_output_tensor(idx, *tensor->object);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_infer_request_set_output_tensor(ov_infer_request_t* infer_request, const ov_tensor_t* tensor) {
+    if (!infer_request || !tensor) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        infer_request->object->set_output_tensor(*tensor->object);
     }
     CATCH_OV_EXCEPTIONS
 
@@ -58,9 +129,79 @@ ov_status_e ov_infer_request_get_tensor(const ov_infer_request_t* infer_request,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_infer_request_get_output_tensor(const ov_infer_request_t* infer_request,
-                                               size_t idx,
-                                               ov_tensor_t** tensor) {
+ov_status_e ov_infer_request_get_tensor_by_const_port(const ov_infer_request_t* infer_request,
+                                                      const ov_output_const_node_t* port,
+                                                      ov_tensor_t** tensor) {
+    if (!infer_request || !port || !tensor) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        std::unique_ptr<ov_tensor_t> _tensor(new ov_tensor_t);
+        ov::Tensor tensor_get = infer_request->object->get_tensor(*port->object);
+        _tensor->object = std::make_shared<ov::Tensor>(std::move(tensor_get));
+        *tensor = _tensor.release();
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_infer_request_get_tensor_by_port(const ov_infer_request_t* infer_request,
+                                                const ov_output_node_t* port,
+                                                ov_tensor_t** tensor) {
+    if (!infer_request || !port || !tensor) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        std::unique_ptr<ov_tensor_t> _tensor(new ov_tensor_t);
+        ov::Tensor tensor_get = infer_request->object->get_tensor(*port->object);
+        _tensor->object = std::make_shared<ov::Tensor>(std::move(tensor_get));
+        *tensor = _tensor.release();
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_infer_request_get_input_tensor_by_index(const ov_infer_request_t* infer_request,
+                                                       const size_t idx,
+                                                       ov_tensor_t** tensor) {
+    if (!infer_request || !tensor) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        std::unique_ptr<ov_tensor_t> _tensor(new ov_tensor_t);
+        ov::Tensor tensor_get = infer_request->object->get_input_tensor(idx);
+        _tensor->object = std::make_shared<ov::Tensor>(std::move(tensor_get));
+        *tensor = _tensor.release();
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_infer_request_get_input_tensor(const ov_infer_request_t* infer_request, ov_tensor_t** tensor) {
+    if (!infer_request || !tensor) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        std::unique_ptr<ov_tensor_t> _tensor(new ov_tensor_t);
+        ov::Tensor tensor_get = infer_request->object->get_input_tensor();
+        _tensor->object = std::make_shared<ov::Tensor>(std::move(tensor_get));
+        *tensor = _tensor.release();
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_infer_request_get_output_tensor_by_index(const ov_infer_request_t* infer_request,
+                                                        const size_t idx,
+                                                        ov_tensor_t** tensor) {
     if (!infer_request || !tensor) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -68,6 +209,22 @@ ov_status_e ov_infer_request_get_output_tensor(const ov_infer_request_t* infer_r
     try {
         std::unique_ptr<ov_tensor_t> _tensor(new ov_tensor_t);
         ov::Tensor tensor_get = infer_request->object->get_output_tensor(idx);
+        _tensor->object = std::make_shared<ov::Tensor>(std::move(tensor_get));
+        *tensor = _tensor.release();
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_infer_request_get_output_tensor(const ov_infer_request_t* infer_request, ov_tensor_t** tensor) {
+    if (!infer_request || !tensor) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        std::unique_ptr<ov_tensor_t> _tensor(new ov_tensor_t);
+        ov::Tensor tensor_get = infer_request->object->get_output_tensor();
         _tensor->object = std::make_shared<ov::Tensor>(std::move(tensor_get));
         *tensor = _tensor.release();
     }
@@ -128,6 +285,19 @@ ov_status_e ov_infer_request_wait(ov_infer_request_t* infer_request) {
     return ov_status_e::OK;
 }
 
+ov_status_e ov_infer_request_wait_for(ov_infer_request_t* infer_request, const int64_t timeout) {
+    if (!infer_request) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        infer_request->object->wait_for(std::chrono::milliseconds(timeout));
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
 ov_status_e ov_infer_request_set_callback(ov_infer_request_t* infer_request, const ov_callback_t* callback) {
     if (!infer_request || !callback) {
         return ov_status_e::INVALID_C_PARAM;
@@ -144,7 +314,7 @@ ov_status_e ov_infer_request_set_callback(ov_infer_request_t* infer_request, con
     return ov_status_e::OK;
 }
 
-ov_status_e ov_infer_request_get_profiling_info(ov_infer_request_t* infer_request,
+ov_status_e ov_infer_request_get_profiling_info(const ov_infer_request_t* infer_request,
                                                 ov_profiling_info_list_t* profiling_infos) {
     if (!infer_request || !profiling_infos) {
         return ov_status_e::INVALID_C_PARAM;
@@ -175,7 +345,7 @@ void ov_profiling_info_list_free(ov_profiling_info_list_t* profiling_infos) {
     if (!profiling_infos) {
         return;
     }
-    for (int i = 0; i < profiling_infos->size; i++) {
+    for (size_t i = 0; i < profiling_infos->size; i++) {
         if (profiling_infos->profiling_infos[i].node_name)
             delete[] profiling_infos->profiling_infos[i].node_name;
         if (profiling_infos->profiling_infos[i].exec_type)

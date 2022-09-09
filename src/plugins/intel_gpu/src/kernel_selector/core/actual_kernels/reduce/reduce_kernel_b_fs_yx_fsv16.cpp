@@ -211,7 +211,14 @@ JitConstants ReduceKernel_b_fs_yx_fsv16::GetJitConstants(const reduce_params& pa
 }
 
 KernelsData ReduceKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+    KernelsData kds = GetCommonKernelsData(params, options);
+    const reduce_params& orgParams = static_cast<const reduce_params&>(params);
+
+    if (orgParams.inputs[0].Feature().v % 16 != 0) {
+        kds[0].can_reuse_memory = false;
+    }
+
+    return kds;
 }
 
 KernelsPriority ReduceKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {

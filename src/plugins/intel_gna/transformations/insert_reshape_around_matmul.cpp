@@ -13,7 +13,7 @@
 
 #include "gna_plugin_log.hpp"
 
-namespace GNAPluginNS {
+using namespace ov::intel_gna::pass;
 
 static bool InsertReshape(
     ngraph::pattern::Matcher &matcher,
@@ -276,4 +276,3 @@ InsertReshapeAroundMatmulWithTranspose::InsertReshapeAroundMatmulWithTranspose()
     auto matcher = std::make_shared<ngraph::pattern::Matcher>(transpose, matcher_name);
     this->register_matcher(matcher, callback);
 }
-} // namespace GNAPluginNS
