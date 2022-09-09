@@ -22,12 +22,12 @@ ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
     MATCHER_SCOPE(AUGRUCellFusion);
 
     // we can't determine hidden_size or input_size in this case
-    const auto is_first_dim_dynamic = [](const Output<Node>& output) -> bool {
+    const auto is_first_dim_static = [](const Output<Node>& output) -> bool {
         const auto& p_shape = output.get_partial_shape();
         return !(p_shape.rank().is_dynamic() || p_shape[1].is_dynamic());
     };
 
-    auto concat_1 = wrap_type<Concat>({any_input(is_first_dim_dynamic), any_input(is_first_dim_dynamic)});
+    auto concat_1 = wrap_type<Concat>({any_input(is_first_dim_static), any_input(is_first_dim_static)});
     auto matmul_1 = wrap_type<MatMul>({concat_1, any_input()});
     auto add_1 = wrap_type<Add>({matmul_1, any_input()});
     // only Sigmoid is supported in the current version of AUGRUCell
