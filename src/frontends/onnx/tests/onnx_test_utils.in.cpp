@@ -45,9 +45,8 @@ NGRAPH_TEST(${BACKEND_NAME}, add_abc_from_ir) {
 NGRAPH_TEST(${BACKEND_NAME}, add_abc_from_ir_with_bin_path) {
     const auto ir_xml =
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), TEST_MODEL_ZOO, "core/models/ir/add_abc.xml");
-    const auto ir_bin = file_util::path_join(CommonTestUtils::getExecutableDirectory(),
-                                             TEST_MODEL_ZOO,
-                                             "core/models/ir/weights/add_abc.bin");
+    const auto ir_bin =
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), TEST_MODEL_ZOO, "core/models/ir/add_abc.bin");
     const auto function = test::function_from_ir(ir_xml, ir_bin);
 
     auto test_case = test::TestCase(function, s_device);
