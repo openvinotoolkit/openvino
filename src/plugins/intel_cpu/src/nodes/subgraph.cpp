@@ -319,6 +319,13 @@ void Snippet::calcJITParams(std::vector<int64_t>& offsets, std::vector<int64_t>&
 }
 void Snippet::optimizeExecDomain(std::vector<VectorDims>& inputShapes, std::vector<VectorDims>& outputShapes,
                                  VectorDims &domain, size_t& TileRank) const {
+    const size_t minimalConcurrency = parallel_get_max_threads();
+    const size_t minimalJitWorkAmount = 256;
+    const size_t ds = domain.size();
+    if ( ds <= 2 || // not enough dimensions to collapse
+         domain[ds-1] >= minimalJitWorkAmount || // There is enough work for 1D Tiles, no need to collapse
+         domain[ds-1] * domain[ds-2] >= fullWorkAmount / minimalConcurrency) // There won't be enough work for every thread (even one iter) if we collapse
+        return;
     auto findDimsToCollapse = [&]() {
         auto collapseLastDims = [](VectorDims& dims, size_t dimsToCollapse) {
             if (dimsToCollapse >= dims.size() - 1)
@@ -336,8 +343,6 @@ void Snippet::optimizeExecDomain(std::vector<VectorDims>& inputShapes, std::vect
             }
         };
         int collapsedDims = 0;
-        size_t minimalConcurrency = parallel_get_max_threads();
-        size_t minimalJitWorkAmount = 256;
         size_t currentJitWorkAmount = domain[domain.size() - 1];
         while (currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount) {
             if (static_cast<int>(domain.size()) - collapsedDims - 2 < 0)
@@ -410,14 +415,27 @@ ov::PartialShape Snippet::canonicalizeBody() {
     }
 
     const auto canonicalShape = snippet->canonicalize(output_blocked_shapes, input_blocked_shapes);
-    // initialize by maximum output dimension. Dimensions of outputs should be broadcastable
-    tensorRank = std::max(static_cast<size_t>(rank6D), canonicalShape.size());
     return canonicalShape;
 }
 void Snippet::createPrimitive() {
     // determine canonicalize, determine master_shape and prepend up to 6D
     // NB! normInputShapes are updated, so body reshape might be needed
     const auto& canonicalShape = canonicalizeBody();
+    // initialize by maximum output dimension. Dimensions of outputs should be broadcastable
+    tensorRank = std::max(static_cast<size_t>(rank6D), canonicalShape.size());
+
+    const auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    auto initDataSizes = [this, config]() {
+        const size_t numInputs = inputShapes.size();
+        const size_t numOutputs = outputShapes.size();
+        dataSize.resize(numInputs + numOutputs);
+        for (size_t i = 0; i < numInputs; i++)
+            dataSize[i] = config.inConfs[i].getMemDesc()->getPrecision().size();
+        for (size_t i = 0; i < numOutputs; i++)
+            dataSize[i + numInputs] = config.outConfs[i].getMemDesc()->getPrecision().size();
+    };
+    initDataSizes();
+
     if (!isDynamic) {
         if (canonicalShape.is_dynamic())
             IE_THROW() << "Snippets: Canonicalization returned dynamic shape in static pipeline";
@@ -448,6 +466,7 @@ void Snippet::createPrimitive() {
 }
 
 std::vector<VectorDims> Snippet::shapeInfer() const {
+    // todo: it's very strange that we don't have broadcast_merge_into for cpu shapes
     auto broadcast_merge = [](VectorDims& dst, const VectorDims& src){
         // Ranks are both static.
         auto dst_rank = dst.size();
@@ -509,18 +528,6 @@ std::vector<VectorDims> Snippet::shapeInfer() const {
 void Snippet::prepareParams() {
     // here must be all the stuff that could only be done for static shapes, e.g. offset calculation
     // Here it must be all the stuff that could be done once for both static and dynamic shapes
-    const auto config = getSelectedPrimitiveDescriptor()->getConfig();
-    // todo: can datasize change between executions? Looks like we should move it to createPrimitive
-    auto initDataSizes = [this, config]() {
-        const size_t numInputs = inputShapes.size();
-        const size_t numOutputs = outputShapes.size();
-        dataSize.resize(numInputs + numOutputs);
-        for (size_t i = 0; i < numInputs; i++)
-            dataSize[i] = config.inConfs[i].getMemDesc()->getPrecision().size();
-        for (size_t i = 0; i < numOutputs; i++)
-            dataSize[i + numInputs] = config.outConfs[i].getMemDesc()->getPrecision().size();
-    };
-    initDataSizes();
 
     masterShape = prependWithOnes(masterShape, tensorRank);
     for (auto& pshape : normInputShapes)
@@ -571,8 +578,7 @@ void Snippet::prepareParams() {
 }
 
 bool Snippet::needPrepareParams() const {
-    // todo: update to avoid excessive prepareparams. Subject to benchmarking.
-    return (!schedule.ptr || isDynamic);
+    return inputShapesModified() || !schedule.ptr;
 }
 
 void Snippet::execute(dnnl::stream strm) {
