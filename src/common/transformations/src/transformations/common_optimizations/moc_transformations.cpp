@@ -179,7 +179,6 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     common_fusions->add_matcher<ngraph::pass::PReluFusion>();
     common_fusions->add_matcher<ngraph::pass::DepthToSpaceFusion>();
     common_fusions->add_matcher<ngraph::pass::ShuffleChannelsFusion>(!m_use_shapes);
-    common_fusions->add_matcher<ov::pass::SequenceFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::BinarizeWeights>();
