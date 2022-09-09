@@ -41,6 +41,7 @@
 #include "gna_itt.hpp"
 #include "gna2_model_export_helper.hpp"
 #include "gna2_model_helper.hpp"
+#include "orientation_helper.hpp"
 #include "request/model_wrapper_factory.hpp"
 #include "request/worker_pool_impl.hpp"
 #include "request/worker_factory.hpp"
@@ -673,6 +674,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         const auto& graph = clonedNetwork.getFunction();
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
+
         fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
         // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
         // and we need to run the ConvertPrecision transformation to support old networks.
@@ -1082,59 +1084,23 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     // calculating input orientation without memory layers, since their orientation not changed during infer right now
     std::unordered_map<string, std::vector<string>> skippedLayers;
 
-    bool withConv = false;
-    for (auto& layer : sortedNet) {
-        auto layerInfo = LayerInfo(layer);
-        if (layerInfo.isConvolution()) {
-            withConv = true;
-            break;
+    // update orientation of model intput layer
+    for (auto& inputLayer : inputLayers) {
+        if (LayerInfo(inputLayer).isInput()) {
+            ov::intela_gna::helpers::updateModelInputOrientationWithoutConvolution(*inputLayer,
+                                                                                   graphCompiler.dnnComponents,
+                                                                                   *inputs_ptr_);
         }
     }
-    if (withConv) {
-        for (auto& inputLayer : sortedNet) {
-            if (!LayerInfo(inputLayer).isInput()) {
-                continue;
-            }
-            auto doesntHaveGnaMapping = [this](CNNLayerPtr l) {
-                auto dnnLayer = graphCompiler.dnnComponents.findComponent(l);
-                return dnnLayer == nullptr;
-            };
 
-            auto nextLayers = CNNNetGetAllNextLayersSkipCertain(inputLayer, -1, doesntHaveGnaMapping);
-
-            std::vector<intel_dnn_orientation_t> orientations;
-            for (auto& nextLayer : nextLayers) {
-                auto dnnLayer = graphCompiler.dnnComponents.findComponent(nextLayer);
-                // non functional layer - skipped by gna
-                if (nullptr == dnnLayer) {
-                    THROW_GNA_LAYER_EXCEPTION(inputLayer) << " gna mapped layer search connection failed";
-                }
-                // Orientation of an input doesn't make sense for components transposing the data and
-                // components with identity dimensions, so skip them
-                if (dnnLayer->operation != kDnnInterleaveOp && dnnLayer->operation != kDnnDeinterleaveOp &&
-                    dnnLayer->num_rows_in > 1 && dnnLayer->num_columns_in > 1) {
-                    orientations.push_back(dnnLayer->orientation_in);
-                }
-            }
-
-            if (orientations.empty()) {
-                // in this case orientation doesn't make a sense
-                inputs_ptr_->at(inputLayer->name).orientation = kDnnNonInterleavedOrientation;
-            } else if (std::adjacent_find(orientations.begin(),
-                                          orientations.end(),
-                                          std::not_equal_to<intel_dnn_orientation_t>()) == orientations.end()) {
-                // all orientations are equal
-                inputs_ptr_->at(inputLayer->name).orientation = orientations.front();
-            } else {
-                // unsupported case: orientations are different and they are important for these components
-                THROW_GNA_EXCEPTION << "orientation for input layer: " << inputLayer->name << " cannot be calculated";
-            }
-        }
-    } else {
-        for (auto& inputLayer : inputLayers) {
-            if (LayerInfo(inputLayer).isInput()) {
-                inputs_ptr_->at(inputLayer->name).orientation = kDnnInterleavedOrientation;
-            }
+    // update orientation of model output layer
+    for (auto&& outPort : outputs_data_map_) {
+        auto outLayer = getCreatorLayer(outPort.second).lock();
+        if (outLayer && LayerInfo(outLayer).isOutput()) {
+            ov::intela_gna::helpers::updateModelOutputOrientation(outPort.first,
+                                                                  outLayer->name,
+                                                                  graphCompiler.dnnComponents,
+                                                                  outputs_);
         }
     }
 
@@ -1317,7 +1283,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
         }
 
         auto dims = input.second->getTensorDesc().getDims();
-        auto importedElements = is1D ? dims[0] : InferenceEngine::details::product(++std::begin(dims), std::end(dims));
+        auto importedElements = is1D ? dims[0] : InferenceEngine::details::product(std::next(std::begin(dims)), std::end(dims));
         auto importedFrames = (is3D || is1D) ? 1 : dims[0];
         auto targetGroups = is1D ? 1 : dims[0];  // TODO: no proper support for groups yet
 
@@ -1829,3 +1795,4 @@ InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(const InferenceEngin
 
     return res;
 }
+

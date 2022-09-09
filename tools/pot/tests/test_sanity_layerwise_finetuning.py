@@ -52,6 +52,7 @@ def run_algo(model, model_name, algorithm_config, tmp_path, reference_name):
 @pytest.mark.parametrize('model_params', SPARSITY_MODELS,
                          ids=['{}_{}_sparse_tuning'.format(m[0], m[1]) for m in SPARSITY_MODELS])
 def test_sparsity_with_finetuning_algo(models, tmp_path, model_params):
+    pytest.skip()
     model_name, model_framework, algo_name, preset, sparsity_level, expected_accuracy = model_params
 
     if not TORCH_AVAILABLE:
@@ -91,6 +92,7 @@ QUANTIZATION_MODELS = [
 @pytest.mark.parametrize('model_params', QUANTIZATION_MODELS,
                          ids=['{}_{}_quantize_tuned'.format(m[0], m[1]) for m in QUANTIZATION_MODELS])
 def test_quantization_with_finetuning_algo(models, tmp_path, model_params):
+    pytest.skip()
     model_name, model_framework, algo_name, preset, expected_accuracy = model_params
 
     if not TORCH_AVAILABLE:

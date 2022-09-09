@@ -58,7 +58,6 @@ TEST(concat_gpu, mixed_input_types) {
                           { "input0", "input1", "input2", "input3", "input4" },
                           1,
                           data_types::f32,
-                          "",
                           padding{ { 0,0,0,0 }, 0 })
     );
 
@@ -132,7 +131,6 @@ TEST(concat_gpu, mixed_input_types_5d) {
                           { "input0", "input1", "input2", "input3" },
                           1,
                           data_types::f32,
-                          "",
                           padding{ { 0,0,0,0 }, 0 })
     );
 
@@ -207,7 +205,6 @@ TEST(concat_gpu, i8_optimization_with_pool) {
                                     {"pool0", "pool1"},
                                     1,
                                     data_types::i8,
-                                    "",
                                     padding{{0, 0, 0, 0}, 0}),
                       reorder("reorder", "concat", reorder_layout));
     cldnn::build_options options;
@@ -308,7 +305,6 @@ TEST(concat_gpu, i8_optimization_with_conv) {
                                     {"input0", "input1", "input2"},
                                     1,
                                     data_types::i8,
-                                    "",
                                     padding{{0, 0, 0, 0}, 0}),
                       data("weights", weights),
                       convolution("conv", "concat", { "weights" }, { 2, 1 }),
@@ -410,7 +406,6 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
                                     {"pool0", "pool1"},
                                     1,
                                     data_types::i8,
-                                    "",
                                     padding{{0, 0, 0, 0}, 0}),
                       data("weights", weights),
                       convolution("conv", "concat", {"weights"}, {1, 1}, {0, 1}),
@@ -922,6 +917,8 @@ TEST_P(concat_implicit_gpu_4d_i8, input_order_opt_b_fs_yx_fsv32) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(concat_gpu_onednn, basic_input_types) {
     auto& engine = get_onednn_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
 
     auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 3 } });
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 3 } });
@@ -952,7 +949,6 @@ TEST(concat_gpu_onednn, basic_input_types) {
                           { "input0", "input1", "input2", "input3", "input4" },
                           1,
                           data_types::f32,
-                          "",
                           padding{ { 0,0,0,0 }, 0 })
     );
 
