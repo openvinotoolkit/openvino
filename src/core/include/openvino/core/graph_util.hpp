@@ -226,7 +226,6 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
     std::unordered_set<Node*> nodes_done;
     std::vector<std::shared_ptr<Node>> result;
 
-    std::cout << "=====toposort start=====" << std::endl;
     for (auto& node : root_nodes) {
         nodes_to_do.push(node.get());        
     }
@@ -237,6 +236,9 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
             size_t arg_count = node->get_input_size();
             for (size_t i = 0; i < arg_count; ++i) {
                 Node* dep = node->get_input_node_ptr(arg_count - i - 1);
+                if (dep == node) {
+                    std::cerr << "!!!===================TOPOSORT ISSUE=========================!!! " << node << std::endl;
+                }                
                 if (nodes_done.count(dep) == 0 && dep != node) {
                     can_add = false;
                     nodes_to_do.push(dep);
@@ -252,14 +254,12 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
             if (can_add) {
                 result.push_back(node->shared_from_this());
                 nodes_to_do.pop();
-                std::cout << node << std::endl;
                 nodes_done.insert(node);
             }
         } else {
             nodes_to_do.pop();
         }
     }
-    std::cout << "=====toposort end=====" << std::endl;
     return result;
 }
 

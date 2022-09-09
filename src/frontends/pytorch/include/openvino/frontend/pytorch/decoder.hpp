@@ -63,6 +63,9 @@ public:
     // Decide whether we need an equivalent member for integer representation (in this case a map is required to understand what it means)
     virtual std::string get_op_type() const = 0;
 
+    // Returns PT node schema as a string
+    virtual std::string get_schema() const = 0;
+
     // TODO: use canonical name output_size 
     virtual size_t num_of_outputs () const = 0;
 

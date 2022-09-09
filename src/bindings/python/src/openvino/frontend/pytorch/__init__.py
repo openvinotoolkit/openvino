@@ -51,8 +51,8 @@ try:
         def inputs (self):
             return [x.unique() for x in self.pt_module.inputs()]
 
-        def input (self, index):
-            return self.inputs()[index] # TODO: find specialized method
+        def input (self, index): # TODO: remove
+            return self.inputs()[index] # TODO: find specialized method 
 
         def get_input_shape (self, index):
             input = self._raw_input(index)
@@ -130,6 +130,9 @@ try:
 
         def get_op_type (self):
             return self.pt_module.kind()
+
+        def get_schema (self):
+            return self.pt_module.schema()
 
         def outputs (self):
             return [x.unique() for x in self.pt_module.outputs()]
