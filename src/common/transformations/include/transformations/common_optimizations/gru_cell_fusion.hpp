@@ -29,6 +29,7 @@ class TRANSFORMATIONS_API GRUCellFusion;
  * Supported activations: Relu, Sigmoid, Tanh
  * Clip attribute is not supported.
  * Linear_before_reset attribute is not supported.
+ * Supported weights formats: zr, rz
  *
  */
 

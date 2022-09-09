@@ -17,20 +17,34 @@ using namespace ov::element;
 using namespace testing;
 
 namespace {
-Output<Node> create_activation_by_name(const string& activation_name, const Output<Node>& input) {
-    if (activation_name == "sigmoid") {
-        return make_shared<Sigmoid>(input);
-    } else if (activation_name == "tanh") {
-        return make_shared<Tanh>(input);
-    } else if (activation_name == "relu") {
-        return make_shared<Relu>(input);
-    } else {
-        OPENVINO_ASSERT("Unsupported activation function");
-        return {};
+
+enum class WeightsFormat {
+    zr,
+    rz
+};
+
+Output<Node> create_activation_by_name(const string& activation_name, const Output<Node>& input);
+
+    Output <Node> create_activation_by_name(const string &activation_name, const Output <Node> &input) {
+        if (activation_name == "sigmoid") {
+            return make_shared<Sigmoid>(input);
+        } else if (activation_name == "tanh") {
+            return make_shared<Tanh>(input);
+        } else if (activation_name == "relu") {
+            return make_shared<Relu>(input);
+        } else {
+            OPENVINO_ASSERT("Unsupported activation function");
+            return {};
+        }
     }
-}
-shared_ptr<Model> gen_model(const string& activation_1, const string& activation_2, size_t batch, size_t hidden_size, size_t input_size,
+
+    shared_ptr<Model> gen_model(WeightsFormat format, const string& activation_1, const string& activation_2,
+                                size_t batch, size_t hidden_size, size_t input_size,
                                 bool use_bias_add_1, bool use_bias_add_2, bool use_dyn_shapes) {
+    int r_idx = 0, z_idx = 1;
+    if (format == WeightsFormat::zr) {
+        swap(r_idx, z_idx);
+    }
     auto X = make_shared<Parameter>(f32, Shape{batch, input_size});
     if (use_dyn_shapes) {
         X = make_shared<Parameter>(f32, PartialShape{static_cast<int64_t>(batch), Dimension::dynamic()});
@@ -51,7 +65,7 @@ shared_ptr<Model> gen_model(const string& activation_1, const string& activation
     auto axis_1 = make_shared<Constant>(i64, Shape{}, 1);
     auto split = make_shared<Split>(act_1, axis_1, 2);
 
-    auto multiply_1 = make_shared<Multiply>(split, H);
+    auto multiply_1 = make_shared<Multiply>(split->output(r_idx), H);
     auto concat_2 = make_shared<Concat>(OutputVector{X, multiply_1}, 1);
     auto matmul_2 = make_shared<MatMul>(concat_2, WRh, false, true);
     Output<Node> in_to_activation_2 = matmul_2;
@@ -61,20 +75,20 @@ shared_ptr<Model> gen_model(const string& activation_1, const string& activation
 
     auto act_2 = create_activation_by_name(activation_2, in_to_activation_2);
     auto one = make_shared<Constant>(f32, Shape{1}, 1);
-    auto subtract = make_shared<Subtract>(one, split);
+    auto subtract = make_shared<Subtract>(one, split->output(z_idx));
     auto multiply_2 = make_shared<Multiply>(subtract, act_2);
-    auto multiply_3 = make_shared<Multiply>(split->output(1), H);
+    auto multiply_3 = make_shared<Multiply>(split->output(z_idx), H);
     auto add = make_shared<Add>(multiply_2, multiply_3);
     return make_shared<Model>(OutputVector{add}, ParameterVector{X, H, WRzr, WRh, Bzr, Bh});
 }
 
-shared_ptr<Model> gen_reference(const string& activation_1, const string& activation_2, size_t batch, size_t hidden_size,
+shared_ptr<Model> gen_reference(WeightsFormat format, const string& activation_1, const string& activation_2, size_t batch, size_t hidden_size,
                                     size_t input_size, bool use_bias_add_1, bool use_bias_add_2) {
     auto X = make_shared<Parameter>(f32, Shape{batch, input_size});
     auto H = make_shared<Parameter>(f32, Shape{batch, hidden_size});
-    auto WRzr = make_shared<Parameter>(f32, Shape{2 * hidden_size, input_size + hidden_size});
+    auto WR = make_shared<Parameter>(f32, Shape{2 * hidden_size, input_size + hidden_size});
     auto WRh = make_shared<Parameter>(f32, Shape{hidden_size, input_size + hidden_size});
-    ParameterVector params = {X, H, WRzr, WRh};
+    ParameterVector params = {X, H, WR, WRh};
 
     shared_ptr<Node> Bzr = make_shared<Constant>(f32, Shape{1, 2 * hidden_size}, 0);
     if (use_bias_add_1) {
@@ -90,11 +104,22 @@ shared_ptr<Model> gen_reference(const string& activation_1, const string& activa
     auto axis_0 = make_shared<Constant>(i64, Shape{}, 0);
     auto axis_1 = make_shared<Constant>(i64, Shape{}, 1);
     auto split_lenghts = make_shared<Constant>(i64, Shape{2}, vector<size_t>{input_size, hidden_size});
-    auto split_WRzr = make_shared<VariadicSplit>(WRzr, axis_1, split_lenghts);
     auto split_WRh = make_shared<VariadicSplit>(WRh, axis_1, split_lenghts);
-    auto Wzrh = make_shared<Concat>(OutputVector{split_WRzr->output(0), split_WRh->output(0)}, 0);
-    auto Rzrh = make_shared<Concat>(OutputVector{split_WRzr->output(1), split_WRh->output(1)}, 0);
 
+    Output<Node> Wzrh, Rzrh;
+    if (format == WeightsFormat::zr) {
+        auto split_WRzr = make_shared<VariadicSplit>(WR, axis_1, split_lenghts);
+        Wzrh = make_shared<Concat>(OutputVector{split_WRzr->output(0), split_WRh->output(0)}, 0);
+        Rzrh = make_shared<Concat>(OutputVector{split_WRzr->output(1), split_WRh->output(1)}, 0);
+    } else {
+        auto split_WRrz = make_shared<VariadicSplit>(WR, axis_1, split_lenghts);
+        auto split_W_r_z = make_shared<Split>(split_WRrz->output(0), axis_0, 2);
+        auto split_R_r_z = make_shared<Split>(split_WRrz->output(1), axis_0, 2);
+        Wzrh =
+                make_shared<Concat>(OutputVector{split_W_r_z->output(1), split_W_r_z->output(0), split_WRh->output(0)}, 0);
+        Rzrh =
+                make_shared<Concat>(OutputVector{split_R_r_z->output(1), split_R_r_z->output(0), split_WRh->output(1)}, 0);
+    }
     auto B = make_shared<Concat>(OutputVector{Bzr, Bh}, 1);
 
     auto squeeze_B = make_shared<Squeeze>(B, axis_0);
@@ -104,6 +129,7 @@ shared_ptr<Model> gen_reference(const string& activation_1, const string& activa
 } // namespace
 
 struct GRUFusionParams {
+    WeightsFormat format;
     string activation_1;
     string activation_2;
     size_t batch;
@@ -121,13 +147,13 @@ class GRUFusionTest
 TEST_P(GRUFusionTest, GRUCellPattern) {
     const auto& p = GetParam();
     {
-        model = gen_model(p.activation_1, p.activation_2, p.batch,
+        model = gen_model(p.format, p.activation_1, p.activation_2, p.batch,
                              p.hidden_size, p.input_size, p.use_bias_add_1, p.use_bias_add_2, false);
         manager.register_pass<pass::GRUCellFusion>();
     }
 
     {
-        model_ref = gen_reference(p.activation_1, p.activation_2, p.batch,
+        model_ref = gen_reference(p.format, p.activation_1, p.activation_2, p.batch,
                                      p.hidden_size, p.input_size, p.use_bias_add_1, p.use_bias_add_2);
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -142,18 +168,23 @@ class GRUFusionTestDyn
 TEST_P(GRUFusionTestDyn, GRUCellPatternDynamicShapes) {
     const auto& p = GetParam();
     {
-        model = gen_model(p.activation_1, p.activation_2, p.batch, p.hidden_size, p.input_size, false, false, true);
+        model = gen_model(p.format, p.activation_1, p.activation_2, p.batch, p.hidden_size, p.input_size, false, false, true);
         manager.register_pass<pass::GRUCellFusion>(); // the transformation won't be applied
     }
 }
 
 static const vector<GRUFusionParams> params = {
-        GRUFusionParams{"sigmoid", "tanh", 1, 1, 1, true, true},
-        GRUFusionParams{"tanh", "sigmoid", 2, 128, 32, true, true},
-        GRUFusionParams{"tanh", "tanh", 2, 128, 32, true, false},
-        GRUFusionParams{"sigmoid", "relu", 2, 128, 32, false, false},
+        GRUFusionParams{WeightsFormat::zr, "sigmoid", "tanh", 1, 1, 1, true, true},
+        GRUFusionParams{WeightsFormat::zr, "tanh", "sigmoid", 2, 128, 32, true, true},
+        GRUFusionParams{WeightsFormat::zr, "tanh", "tanh", 2, 128, 32, true, false},
+        GRUFusionParams{WeightsFormat::zr, "sigmoid", "relu", 2, 128, 32, false, false},
+        GRUFusionParams{WeightsFormat::rz, "sigmoid", "tanh", 1, 1, 1, true, true},
+        GRUFusionParams{WeightsFormat::rz, "tanh", "sigmoid", 2, 128, 32, true, true},
+        GRUFusionParams{WeightsFormat::rz, "tanh", "tanh", 2, 128, 32, true, false},
+        GRUFusionParams{WeightsFormat::rz, "sigmoid", "relu", 2, 128, 32, false, false},
         // accuracy issue, it looks like the test infrastructure issue, the graphs are the same.
-        // GRUFusionParams{"relu", "tanh", 2, 128, 32, false, true},
+        // GRUFusionParams{WeightsFormat::zr, "relu", "tanh", 2, 128, 32, false, true},
+        // GRUFusionParams{WeightsFormat::rz, "relu", "tanh", 2, 128, 32, false, true},
 };
 
 INSTANTIATE_TEST_SUITE_P(GRUFusionTest, GRUFusionTest, ValuesIn(params));

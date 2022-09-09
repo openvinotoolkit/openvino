@@ -19,16 +19,62 @@ using namespace ov::pass;
 using namespace ov::opset9;
 using namespace ov::pass::pattern;
 
+namespace {
+
+/**
+ * \brief Splits Weights from WRzr or WRrz form to Wzr, Rzr or {Wz, Wr}, {Rz, Rr} depends on the format and
+ * concatenate it to Wzrh and Rzrh format.
+ *
+ * \param rg            NodeRegistry to store information about created ops.
+ * \param is_zr_format  Format indicator. We assume the format is rz, if it's false.
+ * \param WR            Weights in zr or rz format to process.
+ * \param WRh           Additional weights to process.
+ * \param input_size    1st length to split weights:WR [input_size+hidden_size]-> W [input_size], R [hidden_size]
+ * \param hidden_size   2nd length to split weights:WR [input_size+hidden_size]-> W [input_size], R [hidden_size]
+ * \param axis_0        Axis along weights to split. Constant with value = 0.
+ * \param axis_1        Axis along weights to split. Constant with value = 1.
+ *
+ * \return Tuple of {Wzrh, Rzrh}
+ */
+tuple<ov::Output<ov::Node>, ov::Output<ov::Node>> process_weights(NodeRegistry& rg,
+                                                                  bool is_zr_format,
+                                                                  const ov::Output<ov::Node>& WR,
+                                                                  const ov::Output<ov::Node>& WRh,
+                                                                  int64_t input_size,
+                                                                  int64_t hidden_size,
+                                                                  const shared_ptr<Constant>& axis_0,
+                                                                  const shared_ptr<Constant>& axis_1) {
+    using namespace ov;
+    auto split_lenghts = rg.make<Constant>(i64, Shape{2}, vector<int64_t>{input_size, hidden_size});
+    auto split_WRh = rg.make<VariadicSplit>(WRh, axis_1, split_lenghts);
+    if (is_zr_format) {
+        auto split_WRzr = rg.make<VariadicSplit>(WR, axis_1, split_lenghts);
+        auto Wzrh = rg.make<Concat>(ov::OutputVector{split_WRzr->output(0), split_WRh->output(0)}, 0);
+        auto Rzrh = rg.make<Concat>(ov::OutputVector{split_WRzr->output(1), split_WRh->output(1)}, 0);
+        return {Wzrh, Rzrh};
+    } else {
+        auto split_WRrz = rg.make<VariadicSplit>(WR, axis_1, split_lenghts);
+        auto split_W_r_z = rg.make<Split>(split_WRrz->output(0), axis_0, 2);
+        auto split_R_r_z = rg.make<Split>(split_WRrz->output(1), axis_0, 2);
+        auto Wzrh =
+            rg.make<Concat>(OutputVector{split_W_r_z->output(1), split_W_r_z->output(0), split_WRh->output(0)}, 0);
+        auto Rzrh =
+            rg.make<Concat>(OutputVector{split_R_r_z->output(1), split_R_r_z->output(0), split_WRh->output(1)}, 0);
+        return {Wzrh, Rzrh};
+    }
+}
+}  // namespace
+
 ov::pass::GRUCellFusion::GRUCellFusion() {
     MATCHER_SCOPE(GRUCellFusion);
 
     // we can't determine hidden_size or input_size in this case
-    const auto is_first_dim_dynamic = [](const Output<Node>& output) -> bool {
+    const auto is_first_dim_static = [](const Output<Node>& output) -> bool {
         const auto& p_shape = output.get_partial_shape();
         return !(p_shape.rank().is_dynamic() || p_shape[1].is_dynamic());
     };
 
-    auto concat_1 = wrap_type<Concat>({any_input(is_first_dim_dynamic), any_input(is_first_dim_dynamic)});
+    auto concat_1 = wrap_type<Concat>({any_input(is_first_dim_static), any_input(is_first_dim_static)});
     auto matmul_1 = wrap_type<MatMul>({concat_1, any_input()});
     auto add_1 = wrap_type<Add>({matmul_1, any_input()});
     auto optional_bias_add_1 = make_shared<pattern::op::Or>(OutputVector{matmul_1, add_1});
@@ -63,28 +109,41 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
         auto axis_0 = rg.make<Constant>(i64, Shape{}, 0);
         auto axis_1 = rg.make<Constant>(i64, Shape{}, 1);
 
-        auto WRzr = pattern_map.at(matmul_1)->input_value(1);
+        // we assume this WR can have zr or rz format
+        auto WR = pattern_map.at(matmul_1)->input_value(1);
         auto WRh = pattern_map.at(matmul_2)->input_value(1);
 
-        auto WRzr_pshape = WRzr.get_partial_shape();
+        auto WR_pshape = WR.get_partial_shape();
         auto WRh_pshape = WRh.get_partial_shape();
-        if (WRzr_pshape.rank().is_dynamic() || WRh_pshape.rank().is_dynamic() || WRzr_pshape[1].is_dynamic() ||
+        if (WR_pshape.rank().is_dynamic() || WRh_pshape.rank().is_dynamic() || WR_pshape[1].is_dynamic() ||
             WRh_pshape[1].is_dynamic()) {
             // split dim must be static.
             return false;
         }
 
-        auto split_lenghts = rg.make<Constant>(i64, Shape{2}, vector<int64_t>{input_size, hidden_size});
-        auto split_WRzr = rg.make<VariadicSplit>(WRzr, axis_1, split_lenghts);
-        auto split_WRh = rg.make<VariadicSplit>(WRh, axis_1, split_lenghts);
-        auto Wzrh = rg.make<Concat>(OutputVector{split_WRzr->output(0), split_WRh->output(0)}, 0);
-        auto Rzrh = rg.make<Concat>(OutputVector{split_WRzr->output(1), split_WRh->output(1)}, 0);
+        auto pattern_split = pattern_map.at(split);
+        if (pattern_split->outputs().size() != 2) {
+            return false;
+        }
+
+        auto cnt_of_consumers_of_zero_out = pattern_split->get_output_target_inputs(0).size();
+        auto cnt_of_consumers_of_first_out = pattern_split->get_output_target_inputs(1).size();
+
+        Output<Node> Wzrh, Rzrh;
+        if (cnt_of_consumers_of_zero_out == 1 && cnt_of_consumers_of_first_out == 2) {
+            tie(Wzrh, Rzrh) = process_weights(rg, false, WR, WRh, input_size, hidden_size, axis_0, axis_1);
+        } else if (cnt_of_consumers_of_zero_out == 2 && cnt_of_consumers_of_first_out == 1) {
+            tie(Wzrh, Rzrh) = process_weights(rg, true, WR, WRh, input_size, hidden_size, axis_0, axis_1);
+        } else {
+            // we can't detect the weights format
+            return false;
+        }
 
         Output<Node> bias_add_1;
         if (pattern_map.find(add_1) != pattern_map.end()) {
             bias_add_1 = pattern_map[add_1]->input_value(1);
         } else {
-            bias_add_1 = rg.make<Constant>(WRzr.get_element_type(), Shape{1, static_cast<size_t>(2 * hidden_size)}, 0);
+            bias_add_1 = rg.make<Constant>(WR.get_element_type(), Shape{1, static_cast<size_t>(2 * hidden_size)}, 0);
         }
 
         Output<Node> bias_add_2;
