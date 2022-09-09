@@ -171,7 +171,6 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     if (m_use_shapes) {
         common_fusions->add_matcher<ngraph::pass::NearestNeighborUpsamplingFusion>();
     }
-    common_fusions->add_matcher<ov::pass::GRUCellFusion>();
     common_fusions->add_matcher<ngraph::pass::DivideFusion>();
     common_fusions->add_matcher<ngraph::pass::SubtractFusion>();
     common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();

@@ -75,7 +75,7 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
     };
 
     auto concat_1 = wrap_type<Concat>({any_input(is_first_dim_static), any_input(is_first_dim_static)});
-    auto matmul_1 = wrap_type<MatMul>({concat_1, any_input()});
+    auto matmul_1 = wrap_type<MatMul>({concat_1, any_input(is_first_dim_static)});
     auto add_1 = wrap_type<Add>({matmul_1, any_input()});
     auto optional_bias_add_1 = make_shared<pattern::op::Or>(OutputVector{matmul_1, add_1});
     auto activation_1 = wrap_type<Relu, Tanh, Sigmoid>({optional_bias_add_1});
@@ -83,7 +83,7 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
 
     auto multiply_1 = wrap_type<Multiply>({split, any_input()});
     auto concat_2 = wrap_type<Concat>({any_input(), multiply_1});
-    auto matmul_2 = wrap_type<MatMul>({concat_2, any_input()});
+    auto matmul_2 = wrap_type<MatMul>({concat_2, any_input(is_first_dim_static)});
     auto add_2 = wrap_type<Add>({matmul_2, any_input()});
     auto optional_bias_add_2 = make_shared<pattern::op::Or>(OutputVector{matmul_2, add_2});
     auto activation_2 = wrap_type<Relu, Tanh, Sigmoid>({optional_bias_add_2});
@@ -112,14 +112,6 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
         // we assume this WR can have zr or rz format
         auto WR = pattern_map.at(matmul_1)->input_value(1);
         auto WRh = pattern_map.at(matmul_2)->input_value(1);
-
-        auto WR_pshape = WR.get_partial_shape();
-        auto WRh_pshape = WRh.get_partial_shape();
-        if (WR_pshape.rank().is_dynamic() || WRh_pshape.rank().is_dynamic() || WR_pshape[1].is_dynamic() ||
-            WRh_pshape[1].is_dynamic()) {
-            // split dim must be static.
-            return false;
-        }
 
         auto pattern_split = pattern_map.at(split);
         if (pattern_split->outputs().size() != 2) {
