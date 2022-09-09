@@ -16,10 +16,6 @@ endif()
 
 set(PYTHON_SOURCE_DIR ${OpenVINOPython_SOURCE_DIR}/src)
 
-# TODO: Remove this condition as 76672 will be fixed
-if(CMAKE_CROSSCOMPILING AND DEFINED ENV{OE_CMAKE_TOOLCHAIN_FILE})
-    set(DISABLE_PYBIND11 ON CACHE BOOL "Whether pybind11 can be used in python bindings")
-endif()
 
 #
 # Check python requirements
@@ -159,18 +155,18 @@ ie_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_
 # Build the code
 #
 
-if(ie_python_req_FOUND)
-    add_subdirectory(src/compatibility/openvino)
-else()
-    message(WARNING "NOTE: Python API for OpenVINO 1.0 is disabled")
-endif()
-
 if(DISABLE_PYBIND11)
     message(WARNING "NOTE: Python API for OpenVINO 2.0 is disabled")
 else()
     add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
     add_subdirectory(src/compatibility/pyngraph)
     add_subdirectory(src/pyopenvino)
+endif()
+
+if(ie_python_req_FOUND)
+    add_subdirectory(src/compatibility/openvino)
+else()
+    message(WARNING "NOTE: Python API for OpenVINO 1.0 is disabled")
 endif()
 
 if(ENABLE_WHEEL)
