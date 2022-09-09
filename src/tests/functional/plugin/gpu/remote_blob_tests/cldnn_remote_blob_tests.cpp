@@ -227,6 +227,12 @@ TEST_P(RemoteBlob_Test, NV12toGrayscale) {
     const int num_channels = 1;
     const int height = 8;
     const int width = 8;
+
+    const InferenceEngine::TensorDesc y_plane_desc(InferenceEngine::Precision::U8, {1, 1, height, width},
+        InferenceEngine::Layout::NCHW);
+    const InferenceEngine::TensorDesc uv_plane_desc(InferenceEngine::Precision::U8, {1, 2, height / 2, width / 2},
+        InferenceEngine::Layout::NCHW);
+
     auto fn_ptr_remote = ngraph::builder::subgraph::makeConvertTranspose({num_batch, num_channels, height, width});
 
     CNNNetwork net_remote(fn_ptr_remote);
@@ -234,8 +240,8 @@ TEST_P(RemoteBlob_Test, NV12toGrayscale) {
     net_remote.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
     net_remote.getInputsInfo().begin()->second->setPrecision(Precision::U8);
     net_remote.getInputsInfo().begin()->second->getPreProcess().setColorFormat(ColorFormat::NV12);
-    auto fake_image_data_y = FuncTestUtils::createAndFillBlob(net_remote.getInputsInfo().begin()->second->getTensorDesc(), 50, 0, 1);
-    auto fake_image_data_uv = FuncTestUtils::createAndFillBlob(net_remote.getInputsInfo().begin()->second->getTensorDesc(), 256, 0, 1);
+    auto fake_image_data_y = FuncTestUtils::createAndFillBlob(y_plane_desc, 50, 0, 1);
+    auto fake_image_data_uv = FuncTestUtils::createAndFillBlob(uv_plane_desc, 256, 0, 1);
 
     auto ie = InferenceEngine::Core();
     auto exec_net = ie.LoadNetwork(net_remote, CommonTestUtils::DEVICE_GPU,
