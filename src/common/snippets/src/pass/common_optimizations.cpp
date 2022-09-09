@@ -45,6 +45,7 @@ CommonOptimizations::CommonOptimizations() {
         manager.register_pass<ngraph::pass::Validate>();
         manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertSaturation>();
         manager.register_pass<ngraph::snippets::pass::InsertReverseConvert>();
+        manager.register_pass<ngraph::pass::Validate>();
         manager.run_passes(body);
         return true;
     };
