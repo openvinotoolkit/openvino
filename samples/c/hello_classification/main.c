@@ -207,13 +207,13 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
 
     // -------- Step 7. Prepare input --------
-    CHECK_STATUS(ov_infer_request_set_input_tensor(infer_request, 0, tensor));
+    CHECK_STATUS(ov_infer_request_set_input_tensor_by_index(infer_request, 0, tensor));
 
     // -------- Step 8. Do inference synchronously --------
     CHECK_STATUS(ov_infer_request_infer(infer_request));
 
     // -------- Step 9. Process output
-    CHECK_STATUS(ov_infer_request_get_output_tensor(infer_request, 0, &output_tensor));
+    CHECK_STATUS(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
     // Print classification results
     size_t results_num;
     results = tensor_to_infer_result(output_tensor, &results_num);
