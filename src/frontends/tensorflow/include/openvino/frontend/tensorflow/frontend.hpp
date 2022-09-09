@@ -62,6 +62,10 @@ public:
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
 
 protected:
+    /// \brief Runs middle transformations to convert sub-graphs with intermediate (frontend internal) operations
+    /// into sub-graphs with only OpenVINO operations
+    void apply_middle_transformations(const std::shared_ptr<ov::Model>& function) const;
+
     /// \brief Check if FrontEndTensorflow can recognize model from given parts
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
 

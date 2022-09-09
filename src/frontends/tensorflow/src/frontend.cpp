@@ -5,6 +5,7 @@
 #include "openvino/frontend/tensorflow/frontend.hpp"
 
 #include "graph_iterator_proto.hpp"
+#include "helper_transforms/embedding_segments_feature_fusing.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
@@ -364,6 +365,15 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
 
     std::shared_ptr<ov::Model> f;
     translate_graph(model_tf, "TensorFlow_Frontend_IR", true, false, f);
+    apply_middle_transformations(f);
+
+    for (const auto& node : f->get_ordered_ops()) {
+        if (const auto& fw_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(node)) {
+            FRONT_END_OP_CONVERSION_CHECK(false,
+                                          "The translation is incomplete due to operation: " + fw_node->get_name());
+        }
+    }
+
     normalize(f);
     // TODO: check that OV function does not contain operations which are not in the opset
 
@@ -417,6 +427,12 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     // TODO: reimplement TransposeSinking that does not corrupt filters for Convolution
     // and preserve tensor names in case of sinking
     // manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
+    manager.run_passes(function);
+}
+
+void FrontEnd::apply_middle_transformations(const std::shared_ptr<ov::Model>& function) const {
+    ov::pass::Manager manager;
+    manager.register_pass<ov::frontend::tensorflow::pass::EmbeddingSegmentSingleFeatureFusion>();
     manager.run_passes(function);
 }
 
