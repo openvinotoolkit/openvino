@@ -468,7 +468,7 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
                     // Handle fusings for both MatMul and FullyConnected
                     NodeFusingType updatedChainType = fusingChainType;
                     if (isSuitableChildForFusingMatMul(node, isExecutedInINT8, updatedChainType))
-                        PropagateIfHasOnlyChild(node, updatedChainType);                  
+                        PropagateIfHasOnlyChild(node, updatedChainType);
                 } else if (fusingChainType == NodeFusingType::IgnoredAfterInputs && (snippets::pass::AppropriateForSubgraph(node) ||
                             ov::is_type<ngraph::op::v0::Convert>(node) || ov::is_type<ngraph::op::v1::Transpose>(node))) {
                     // In OV_API 2.0 after Input node with I8/U8 precisions incerts Convert node, moreother on TF models inserts
