@@ -357,9 +357,10 @@ protected:
      */
     std::unordered_set<std::string> GetRemovedNodes(const std::shared_ptr<const ov::Model>& originalFunction,
                                                     const std::shared_ptr<const ov::Model>& transformedFunction) const;
-    std::unordered_set<std::string> GetSupportedNodes(const CNNNetwork& network,
-                                                      std::function<void(std::shared_ptr<ov::Model>&)> transform,
-                                                      std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported) const;
+    std::unordered_set<std::string> GetSupportedNodes(
+        const CNNNetwork& network,
+        std::function<void(std::shared_ptr<ov::Model>&)> transform,
+        std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported) const;
 
     std::string _pluginName;                            //!< A device name that plugins enables
     std::map<std::string, std::string> _config;         //!< A map config keys -> values

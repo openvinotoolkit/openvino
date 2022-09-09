@@ -330,7 +330,8 @@ std::unordered_set<std::string> IInferencePlugin::GetRemovedNodes(
     return result;
 }
 
-std::unordered_set<std::string> IInferencePlugin::GetSupportedNodes(const CNNNetwork& network,
+std::unordered_set<std::string> IInferencePlugin::GetSupportedNodes(
+    const CNNNetwork& network,
     std::function<void(std::shared_ptr<ov::Model>&)> transform,
     std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported) const {
     auto model = network.getFunction();
@@ -350,7 +351,8 @@ std::unordered_set<std::string> IInferencePlugin::GetSupportedNodes(const CNNNet
     auto ops = transformed_model->get_ordered_ops();
 
     // Mark removed nodes as supported
-    std::unordered_set<std::string> supported = GetRemovedNodes(model, transformed_model);;
+    std::unordered_set<std::string> supported = GetRemovedNodes(model, transformed_model);
+    ;
     std::unordered_set<std::string> unsupported;
 
     for (auto&& op : ops) {
@@ -386,7 +388,8 @@ std::unordered_set<std::string> IInferencePlugin::GetSupportedNodes(const CNNNet
     for (auto&& node : model->get_ops()) {
         if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
             for (auto&& inputNodeOutput : node->input_values()) {
-                if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
+                if (ngraph::op::is_constant(inputNodeOutput.get_node()) ||
+                    ngraph::op::is_parameter(inputNodeOutput.get_node())) {
                     supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
                 }
             }
@@ -400,11 +403,14 @@ std::unordered_set<std::string> IInferencePlugin::GetSupportedNodes(const CNNNet
         }
 
         if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
-            if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
+            if (!InferenceEngine::details::contains(
+                    supported,
+                    node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
                 supported.erase(node->get_friendly_name());
             }
         } else if (ngraph::op::is_output(node)) {
-            if (!InferenceEngine::details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name())) {
+            if (!InferenceEngine::details::contains(supported,
+                                                    node->input_values().begin()->get_node()->get_friendly_name())) {
                 supported.erase(node->get_friendly_name());
             }
         }
