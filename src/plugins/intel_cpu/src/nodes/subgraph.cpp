@@ -23,6 +23,7 @@
 #include <snippets/op/subgraph.hpp>
 #include "emitters/cpu_generator.hpp"
 #include "snippets_transformations/fuse_load_store_and_convert.hpp"
+#include "ngraph_transformations/convert_to_swish_cpu.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
@@ -488,6 +489,7 @@ void Snippet::generate() {
     ov::pass::Manager optManager;
     optManager.register_pass<ov::intel_cpu::pass::FuseLoadConvert>();
     optManager.register_pass<ov::intel_cpu::pass::FuseStoreConvert>();
+    optManager.register_pass<ConvertToSwishCPU>();
 
     // LoadConvert uses Load emitter that support conversion from any type to only f32
     optManager.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseLoadConvert>(

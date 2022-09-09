@@ -5,6 +5,7 @@
 #pragma once
 
 #include "ngraph/opsets/opset5.hpp"
+#include "ngraph_transformations/op/swish_cpu.hpp"
 #include "jit_dnnl_emitters.hpp"
 
 namespace ov {
@@ -108,7 +109,8 @@ public:
                         InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32)
             : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
         kind = dnnl_eltwise_swish;
-        alpha = 0.f;
+        auto op = ngraph::as_type_ptr<ov::intel_cpu::SwishNode>(n);
+        alpha = op->get_alpha();
         beta = 0.f;
 
         set_injector();
