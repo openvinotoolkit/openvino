@@ -8,7 +8,6 @@ from datetime import datetime
 from openvino.runtime import Dimension
 
 from openvino.tools.benchmark.benchmark import Benchmark
-from openvino.tools.benchmark.parameters import parse_args
 from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, \
     GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, GNA_DEVICE_NAME, BLOB_EXTENSION
 from openvino.tools.benchmark.utils.inputs_filling import get_input_data
@@ -18,19 +17,20 @@ from openvino.tools.benchmark.utils.utils import next_step, get_number_iteration
     process_help_inference_string, print_perf_counters, dump_exec_graph, get_duration_in_milliseconds, \
     get_command_line_arguments, parse_value_per_device, parse_devices, get_inputs_info, \
     print_inputs_and_outputs_info, get_network_batch_size, load_config, dump_config, get_latency_groups, \
-    check_for_static, can_measure_as_static
+    check_for_static, can_measure_as_static, parse_and_check_command_line
 from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
 
 
 def main():
-    # ------------------------------ 1. Parsing and validating input arguments -------------------------------------
-    next_step()
-    run(parse_args())
-
-
-def run(args):
     statistics = None
     try:
+        # ------------------------------ 1. Parsing and validating input arguments ------------------------------
+        next_step()
+        args, is_network_compiled, parse_status = parse_and_check_command_line()
+
+        if parse_status == False:
+            return
+
         if args.number_streams is None:
                 logger.warning(" -nstreams default value is determined automatically for a device. "
                                "Although the automatic selection usually provides a reasonable performance, "
@@ -54,11 +54,7 @@ def run(args):
         if args.load_config:
             load_config(args.load_config, config)
 
-        is_network_compiled = False
-        _, ext = os.path.splitext(args.path_to_model)
-
-        if ext == BLOB_EXTENSION:
-            is_network_compiled = True
+        if is_network_compiled:
             print("Model is compiled")
 
         # ------------------------------ 2. Loading OpenVINO ---------------------------------------------------
@@ -170,7 +166,7 @@ def run(args):
                     else:
                         raise Exception(f"Device {device} doesn't support config key '{key}'! " +
                                         "Please specify -nstreams for correct devices in format  <dev1>:<nstreams1>,<dev2>:<nstreams2>")
-                elif key not in config[device].keys() and args.api_type == "async" and not is_flag_set_in_command_line('hint'):
+                elif key not in config[device].keys() and args.api_type == "async" and config[device]['PERFORMANCE_HINT'] == "":
                     ## set the _AUTO value for the #streams
                     logger.warning(f"-nstreams default value is determined automatically for {device} device. " +
                                    "Although the automatic selection usually provides a reasonable performance, "
