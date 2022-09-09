@@ -119,6 +119,7 @@ def run(args):
             supported_properties = benchmark.core.get_property(device, 'SUPPORTED_PROPERTIES')
             if device not in config.keys():
                 config[device] = {}
+
             ## Set performance counter
             if is_flag_set_in_command_line('pc'):
                 ## set to user defined value
@@ -156,6 +157,7 @@ def run(args):
             ## the rest are individual per-device settings (overriding the values the device will deduce from perf hint)
             def set_throughput_streams():
                 key = get_device_type_from_name(device) + "_THROUGHPUT_STREAMS"
+                print('PERFORMANCE_HINT' in config[device].keys())
                 if device in device_number_streams.keys():
                     ## set to user defined value
                     if key in supported_properties:
@@ -166,7 +168,7 @@ def run(args):
                     else:
                         raise Exception(f"Device {device} doesn't support config key '{key}'! " +
                                         "Please specify -nstreams for correct devices in format  <dev1>:<nstreams1>,<dev2>:<nstreams2>")
-                elif key not in config[device].keys() and args.api_type == "async" and not is_flag_set_in_command_line('hint'):
+                elif key not in config[device].keys() and args.api_type == "async" and config[device]['PERFORMANCE_HINT'] == "":
                     ## set the _AUTO value for the #streams
                     logger.warning(f"-nstreams default value is determined automatically for {device} device. " +
                                    "Although the automatic selection usually provides a reasonable performance, "

@@ -1012,7 +1012,9 @@ public:
         }
 
         auto parsed = parseDeviceNameIntoConfig(device_name, arguments);
-        return GetCPPPluginByName(parsed._deviceName).get_property(name, parsed._config);
+        auto plugin_ = GetCPPPluginByName(parsed._deviceName);
+        auto prop_ = plugin_.get_property(name, parsed._config);
+        return prop_;
     }
 
     Any GetConfig(const std::string& deviceName, const std::string& name) const override {

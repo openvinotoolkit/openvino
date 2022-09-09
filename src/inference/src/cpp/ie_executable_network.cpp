@@ -213,7 +213,7 @@ void CompiledModel::set_property(const AnyMap& config) {
 }
 
 Any CompiledModel::get_property(const std::string& name) const {
-    auto supported_propertiess = _impl->GetMetric("OPTIMAL_NUMBER_OF_INFER_REQUESTS").as<std::vector<PropertyName>>();
+    _impl->GetMetric(name);
     OV_EXEC_NET_CALL_STATEMENT({
         if (ov::supported_properties == name) {
             try {

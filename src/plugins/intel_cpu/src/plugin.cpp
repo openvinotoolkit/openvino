@@ -964,7 +964,8 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
 
         return decltype(ov::supported_properties)::value_type(supportedProperties);
     } else if (name == ov::device::full_name) {
-        return decltype(ov::device::full_name)::value_type(deviceFullName);
+        auto name = decltype(ov::device::full_name)::value_type(deviceFullName);
+        return name.substr(0,name.find("\\000"));
     } else if (name == ov::available_devices) {
         const std::vector<std::string> availableDevices = { "" };
         return decltype(ov::available_devices)::value_type(availableDevices);
