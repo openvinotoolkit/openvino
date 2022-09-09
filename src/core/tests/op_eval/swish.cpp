@@ -12,6 +12,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/opsets/opset9.hpp"
 #include "util/test_tools.hpp"
 
 using namespace std;
@@ -80,7 +81,7 @@ TEST(op_eval, swish_new_evaluate) {
     Shape shape{3};
     auto p = make_shared<op::Parameter>(element::f32, shape);
     auto beta = make_shared<op::Parameter>(element::f32, Shape{});
-    auto swish = make_shared<op::v4::Swish>(p, beta);
+    auto swish = make_shared<ov::opset9::Swish>(p, beta);
     ov::TensorVector inputs = {ov::Tensor(element::f32, shape)};
     ov::TensorVector outputs = {ov::Tensor(element::f32, shape)};
 
