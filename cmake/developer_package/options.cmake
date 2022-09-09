@@ -6,6 +6,10 @@
 
 include (CMakeDependentOption)
 
+if(POLICY CMP0127)
+    cmake_policy(SET CMP0127 NEW)
+endif()
+
 macro (ie_option variable description value)
     option(${variable} "${description}" ${value})
     list(APPEND IE_OPTIONS ${variable})

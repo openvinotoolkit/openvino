@@ -48,11 +48,26 @@ function(ie_add_onednn)
         # xbyak compilation fails
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
     endif()
+    if(CMAKE_OSX_ARCHITECTURES STREQUAL "x86_64")
+        ie_add_compiler_flags(-Wno-undef)
+        set(DNNL_TARGET_ARCH "X64")
+    endif()
     if(CMAKE_COMPILER_IS_GNUCXX)
         ie_add_compiler_flags(-Wno-undef)
         ie_add_compiler_flags(-Wno-missing-declarations)
     elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable=10121")
+    endif()
+
+    # WA for old TBBConfig.cmake like tbb2019_20180718oss
+    # they don't check that imported target is already created
+    if(TBB_FOUND)
+        set(TBB_cmake_included ON)
+        set(DNNL_CPU_THREADING_RUNTIME "${THREADING}")
+        function(find_package_tbb)
+            # dummy
+        endfunction()
+        link_libraries(TBB::tbb)
     endif()
 
     add_subdirectory(onednn EXCLUDE_FROM_ALL)

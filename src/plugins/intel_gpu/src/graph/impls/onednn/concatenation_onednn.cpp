@@ -62,7 +62,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const concatenation_node& arg, std::shared_ptr<kernel_impl_params>) {
+    static primitive_impl* create(const concatenation_node& arg, const kernel_impl_params&) {
         if (arg.can_be_optimized())
             return new concatenation_onednn(arg);
         auto desc = get_concatenation_descriptor(arg);
@@ -82,6 +82,11 @@ attach_concatenation_onednn::attach_concatenation_onednn() {
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),
+
+        std::make_tuple(data_types::f32, format::byxf),
+        std::make_tuple(data_types::f16, format::byxf),
+        std::make_tuple(data_types::u8, format::byxf),
+        std::make_tuple(data_types::i8, format::byxf),
 
         std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),

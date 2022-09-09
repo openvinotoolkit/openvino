@@ -16,7 +16,7 @@ set(LINK_LIBRARIES
     openvino::conditional_compilation
     sharedTestClasses
     offline_transformations
-    pugixml::static
+    openvino::pugixml
     openvino::runtime::dev
 )
 
@@ -31,10 +31,6 @@ set(DEPENDENCIES
 
 if(ENABLE_OV_IR_FRONTEND)
     list(APPEND DEPENDENCIES openvino_ir_frontend)
-endif()
-
-if(ENABLE_IR_V7_READER)
-    list(APPEND DEPENDENCIES inference_engine_ir_v7_reader)
 endif()
 
 if(ENABLE_HETERO)
@@ -77,14 +73,14 @@ if(ENABLE_OV_ONNX_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         ENABLE_OV_ONNX_FRONTEND
         ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx_reader/models/"
-        TEST_ONNX_MODELS_DIRNAME="${TEST_MODEL_ZOO}/core/models/onnx")
+        TEST_ONNX_MODELS_DIRNAME="${TEST_MODEL_ZOO}/onnx")
     add_dependencies(${TARGET_NAME} openvino_onnx_frontend)
 endif()
 
 if(ENABLE_OV_PADDLE_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         PADDLE_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader/models/"
-        TEST_PADDLE_MODELS_DIRNAME="test_model_zoo/paddle_test_models")
+        TEST_PADDLE_MODELS_DIRNAME="${TEST_MODEL_ZOO}/paddle_test_models")
     add_dependencies(${TARGET_NAME} openvino_paddle_frontend)
 endif()
 
@@ -163,7 +159,14 @@ function(ie_headers_compilation_with_custom_flags)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_dx.hpp"
                                                 "openvino/runtime/intel_gpu/ocl/dx.hpp")
         endif()
-        if(NOT LIBVA_FOUND)
+        # try to find VA libraries
+        if(NOT CMAKE_CROSSCOMPILING)
+            find_host_package(PkgConfig QUIET)
+            if(PkgConfig_FOUND)
+                pkg_search_module(libva QUIET IMPORTED_TARGET libva)
+            endif()
+        endif()
+        if(NOT libva_FOUND)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_va.hpp"
                                                 "openvino/runtime/intel_gpu/ocl/va.hpp")
         endif()
@@ -199,9 +202,9 @@ function(ie_headers_compilation_with_custom_flags)
     target_compile_definitions(${target_name} PRIVATE $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>)
 
     if(IE_TEST_PLUGIN_API)
-        # ngraph, pugixml::static, openvino::itt, openvino_gapi_preproc headers
+        # ngraph, openvino::pugixml, openvino::itt, openvino_gapi_preproc headers
         target_include_directories(${target_name} SYSTEM PRIVATE
-            $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
         target_include_directories(${target_name} PRIVATE
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)

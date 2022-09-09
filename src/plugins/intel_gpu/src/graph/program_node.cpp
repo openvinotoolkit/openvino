@@ -226,7 +226,19 @@ bool program_node::is_detached(bool whole_branch) {
 }
 
 layout program_node::calc_output_layout() const {
+    bool allow_new_shape_infer =
+        get_program().get_options().get<build_option_type::allow_new_shape_infer>()->enabled();
+    if (allow_new_shape_infer) {
+        auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
+        if (!out_layouts.empty()) {
+            return out_layouts[0];
+        }
+    }
     return type()->calc_output_layout(*this, *get_kernel_impl_params());
+}
+
+std::vector<layout> program_node::calc_output_layouts() const {
+    return type()->calc_output_layouts(*this, *get_kernel_impl_params());
 }
 
 layout program_node::get_output_layout(bool invalidate_users_if_changed) {
@@ -269,12 +281,21 @@ bool program_node::recalc_output_layout(bool invalidate_users_if_changed) {
 }
 
 bool program_node::is_dynamic() const {
-    for (auto& input : get_dependencies()) {
+    for (const auto* input : get_dependencies()) {
         if (input->get_output_layout().is_dynamic())
             return true;
     }
 
     return get_output_layout().is_dynamic();
+}
+
+bool program_node::is_dynamic() {
+    for (auto& input : get_dependencies()) {
+        if (input->get_output_layout(true).is_dynamic())
+            return true;
+    }
+
+    return get_output_layout(true).is_dynamic();
 }
 
 bool program_node::has_padded_dependency() {
@@ -287,6 +308,21 @@ bool program_node::has_padded_dependency() const {
     return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const program_node* node) {
         return node->is_padded();
     });
+}
+
+std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
+    std::map<size_t, memory::ptr> mem_deps;
+    for (auto& i : get_shape_infer_dependencies()) {
+        // Some primitives may have flexible count of deps (e.g. reshape), thus allow skipping some deps
+        if (i >= get_dependencies().size())
+            continue;
+
+        auto& dep = get_dependency(i);
+        if (dep.is_type<data>()) {
+            mem_deps.insert({i, dep.as<data>().get_attached_memory_ptr()});
+        }
+    }
+    return mem_deps;
 }
 
 void program_node::invalidate_users() const {
@@ -337,7 +373,8 @@ bool program_node::is_padding_supported(int axis, int padding) const {
 
 bool program_node::need_lockable_memory() const {
     bool need_lockable_mem = get_users().empty() || std::any_of(get_users().begin(), get_users().end(), [](const program_node* n) {
-        return n->get_selected_impl()->is_cpu();
+        auto impl = n->get_selected_impl();
+        return impl ? impl->is_cpu() : n->get_preferred_impl_type() == impl_types::cpu;
     });
 
     return need_lockable_mem;
@@ -927,7 +964,9 @@ void program_node::init_onednn_primitive_attributes() {
             } else {
                 if (in.spatial(0) > 1 || in.spatial(1) > 1 || in.batch() > 1)
                     throw std::runtime_error("Unsupported eltwise mode for fused onednn op");
-                if (idx == 0 && !has_out_scales(attrs) && !is_type<pooling>() && !is_type<reduce>()) {
+                // convolution using post-op output scales can only be int8/uint8
+                if (idx == 0 && !has_out_scales(attrs) && !is_type<pooling>() && !is_type<reduce>() &&
+                    !(is_type<convolution>() && data_type_traits::is_floating_point(output_layout.data_type))) {
                     int mask = in.count() > 1 ? 2 : 0;
                     attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
                     update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);

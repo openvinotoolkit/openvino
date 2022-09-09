@@ -253,6 +253,9 @@ public:
     const InterpolateAttrs& get_attrs() const {
         return m_attrs;
     }
+    void set_attrs(const InterpolateAttrs& attrs) {
+        this->m_attrs = attrs;
+    }
 
 protected:
     /// \return The interpolation axes.

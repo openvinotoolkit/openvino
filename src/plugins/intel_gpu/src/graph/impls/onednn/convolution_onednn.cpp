@@ -158,20 +158,9 @@ protected:
         cldnn::format out_fmt = onednn::find_format(pd.weights_desc(0), grouped_weights);
         kernel_selector::WeightsLayout reqLayout = to_weights_layout(out_fmt, cldnn_prim->grouped_weights_shape);
 
-        const auto& param_info = kernel_impl_params(arg.get_program(), cldnn_prim, arg.get_unique_id(),
-                                                    arg.get_input_layouts(), arg.get_output_layout(),
-                                                    arg.get_fused_primitives(),
-                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params(),
-                                                    optional_layout(weights_layout),
-                                                    arg.bias_term() ? optional_layout(arg.bias().get_output_layout()) : optional_layout(),
-                                                    arg.weights_zero_points_term() ? optional_layout(arg.weights_zero_points().get_output_layout())
-                                                        : optional_layout(),
-                                                    arg.activations_zero_points_term() ? optional_layout(arg.activations_zero_points().get_output_layout())
-                                                        : optional_layout(),
-                                                    arg.compensation_term() ? optional_layout(arg.compensation().get_output_layout())
-                                                        : optional_layout());
+        const auto& param_info = arg.get_kernel_impl_params();
 
-        set_params(param_info, r_params);
+        set_params(*param_info, r_params);
         r_params.layerID = arg.id() + "_reorder_";
         r_params.input = convert_weights_tensor(weights_layout, cldnn_prim->grouped_weights_shape);
         r_params.output = r_params.input.TransformIgnorePadding(reqLayout, r_params.input.GetDType(), arg.get_groups(), false);
@@ -247,7 +236,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const convolution_node& arg, std::shared_ptr<kernel_impl_params>) {
+    static primitive_impl* create(const convolution_node& arg, const kernel_impl_params&) {
         auto& engine = arg.get_program().get_engine();
         auto desc = get_convolution_descriptor(arg);
         auto attr = get_primitive_attributes(arg);
@@ -275,6 +264,11 @@ attach_convolution_onednn::attach_convolution_onednn() {
         std::make_tuple(data_types::f16, format::byxf),
         std::make_tuple(data_types::u8, format::byxf),
         std::make_tuple(data_types::i8, format::byxf),
+
+        std::make_tuple(data_types::f32, format::bzyxf),
+        std::make_tuple(data_types::f16, format::bzyxf),
+        std::make_tuple(data_types::u8, format::bzyxf),
+        std::make_tuple(data_types::i8, format::bzyxf),
 
         std::make_tuple(data_types::f32, format::b_fs_yx_fsv2),
         std::make_tuple(data_types::f16, format::b_fs_yx_fsv2),
@@ -321,6 +315,11 @@ attach_convolution_onednn::attach_convolution_onednn() {
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
 
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
+        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
+        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv16_fsv16),
+        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv16),
+
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
@@ -351,10 +350,30 @@ attach_convolution_onednn::attach_convolution_onednn() {
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv8_fsv4),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv8_fsv4),
 
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv4),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv4),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv4),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv4),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv2),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv2),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv2),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv2),
+
         std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv8_fsv4),
         std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv8_fsv4),
         std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv8_fsv4),
         std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv8_fsv4),
+
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv4),
+        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv4),
+        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv16_fsv4),
+        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv4),
+
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv2),
+        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv2),
+        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv16_fsv2),
+        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv2),
 
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv8_fsv2),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv8_fsv2),

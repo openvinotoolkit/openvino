@@ -1128,7 +1128,6 @@ TEST_P(conv_fp32_multi_eltwise_concat, basic) {
             { "eltwise1", "eltwise2" },
             1,
             data_types::i8,
-            "",
             padding{ { 0, 0, 0, 0 }, 0 }),
         reorder("reorder_bfyx", "concat", p.default_format, data_types::f32)
     );
@@ -1843,6 +1842,9 @@ TEST_P(conv_int8_activation_eltwise_quantize, fsv16) {
         // TODO Add 5D int8 optimized convolution implementations
         return;
     }
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives += 2;
 
     tolerance = 1.f;
     execute(p);
@@ -1873,6 +1875,9 @@ TEST_P(conv_int8_activation_eltwise_quantize, fsv32) {
         // TODO Add 5D int8 optimized convolution implementations
         return;
     }
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives += 2;
 
     tolerance = 1.f;
     execute(p);
@@ -1914,6 +1919,9 @@ TEST_P(conv_int8_activation_eltwise, fsv16) {
         // TODO Add 5D int8 optimized convolution implementations
         return;
     }
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives += 2;
 
     tolerance = 1e-5f;
     execute(p);
@@ -1939,6 +1947,9 @@ TEST_P(conv_int8_activation_eltwise, fsv32) {
         // TODO Add 5D int8 optimized convolution implementations
         return;
     }
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives += 2;
 
     tolerance = 1e-5f;
     execute(p);
@@ -2230,7 +2241,7 @@ TEST_P(conv_int8_scale_activation_quantize_i8_eltwise_fp32, basic) {
         reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
     );
 
-    tolerance = 1.f;
+    tolerance = 2.f;
     execute(p);
 }
 
@@ -2502,9 +2513,11 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_asymmetric_weights, ::testing::V
 class conv_int8_asymmetric_data : public ConvFusingTest {};
 TEST_P(conv_int8_asymmetric_data, basic) {
     auto p = GetParam();
-    auto weights_format = (p.weights_format == format::goiyx) ? format::bfyx : format::bfzyx;
-    auto weights_layout = (p.groups > 1) ? get_weights_layout(p, 1, weights_format) :
-                          get_weights_layout(p);
+    layout weights_layout = get_weights_layout(p);
+    if (!engine.get_device_info().supports_immad) {
+        auto weights_format = (p.weights_format == format::goiyx) ? format::bfyx : format::bfzyx;
+        weights_layout = (p.groups > 1) ? get_weights_layout(p, 1, weights_format) : get_weights_layout(p);
+    }
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(weights_layout)),

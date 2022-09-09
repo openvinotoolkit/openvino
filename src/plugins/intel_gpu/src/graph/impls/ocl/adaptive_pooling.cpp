@@ -3,14 +3,13 @@
 //
 
 #include "intel_gpu/primitives/adaptive_pooling.hpp"
+
+#include "adaptive_pooling/adaptive_pooling_kernel_ref.h"
+#include "adaptive_pooling/adaptive_pooling_kernel_selector.h"
 #include "adaptive_pooling_inst.h"
-#include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
 #include "kernel_selector_helper.h"
-
-#include "adaptive_pooling/adaptive_pooling_kernel_selector.h"
-#include "adaptive_pooling/adaptive_pooling_kernel_ref.h"
-
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -35,8 +34,8 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const adaptive_pooling_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
-        auto params = get_default_params<kernel_selector::adaptive_pooling_params>(*impl_param);
+    static primitive_impl* create(const adaptive_pooling_node& arg, const kernel_impl_params& impl_param) {
+        auto params = get_default_params<kernel_selector::adaptive_pooling_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::adaptive_pooling_optional_params>(arg.get_program());
 
         const auto& primitive = arg.get_primitive();

@@ -53,23 +53,20 @@ if (NOT (OpenCL_FOUND AND OpenCL_HEADERS))
 endif()
 
 # try to find VA libraries
-if(NOT CMAKE_CROSSCOMPILING)
-    find_host_package(PkgConfig QUIET)
+if(NOT ANDROID)
+    find_package(PkgConfig QUIET)
     if(PkgConfig_FOUND)
         pkg_search_module(libva QUIET IMPORTED_TARGET libva)
+        if(libva_FOUND)
+            message(STATUS "${PKG_CONFIG_EXECUTABLE}: libva (${libva_VERSION}) is found at ${libva_PREFIX}")
+        endif()
     endif()
 endif()
 
 # remove OpenCV related sources
-if (ENABLE_OPENCV)
-    find_package(OpenCV QUIET)
-else()
-    set(OpenCV_FOUND OFF)
-endif()
-
+find_package(OpenCV QUIET COMPONENTS core imgcodecs)
 if(NOT OpenCV_FOUND)
-    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide5.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/ShapeInference.cpp")
+    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ShapeInference.cpp")
 endif()
 
 # requires mfxFrameSurface1 and MSS API

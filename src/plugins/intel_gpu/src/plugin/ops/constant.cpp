@@ -143,7 +143,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
 
 void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::shared_ptr<ngraph::op::v0::Constant>& op, const ConstProperties& props) {
     cldnn::tensor constTensor = getConstTensor(constDims);
-    auto constFormat = DefaultFormatForDims(constDims.size());
+    auto constFormat = cldnn::format::get_default_format(constDims.size());
 
     if (props.needsBatchInterpretation) {
         constTensor.batch[0] = constTensor.count();
@@ -179,7 +179,7 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
         constTensor = getConstTensor(newDims);
     }
 
-    cldnn::layout constLayout = cldnn::layout(DataTypeFromPrecision(op->get_output_element_type(0)),
+    cldnn::layout constLayout = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                               constFormat,
                                               constTensor);
 
@@ -191,6 +191,8 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
 
     if (bufIter != p.blobMemCache.end()) {
         constPrimID = bufIter->second;
+        p.primitive_ids[initialconstPrimID] = constPrimID;
+        p.profiling_ids.push_back(initialconstPrimID);
     } else {
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
@@ -226,12 +228,10 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
         } else {
             std::memcpy(&buf[0], &data[0], bufSize);
         }
-        p.AddPrimitive(cldnn::data(initialconstPrimID, mem, op->get_friendly_name()));
+        p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
         p.blobMemCache[std::make_pair(data, newDims)] = initialconstPrimID;
         constPrimID = initialconstPrimID;
     }
-
-    p.AddPrimitiveToProfiler(op, constPrimID);
 }
 
 REGISTER_FACTORY_IMPL(v0, Constant);

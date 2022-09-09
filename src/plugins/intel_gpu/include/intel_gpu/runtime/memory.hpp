@@ -9,6 +9,8 @@
 #include "event.hpp"
 #include "engine_configuration.hpp"
 
+#include "ngraph/runtime/host_tensor.hpp"
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <oneapi/dnnl/dnnl.hpp>
 #endif
@@ -166,7 +168,7 @@ struct surfaces_lock {
 };
 
 template<typename T>
-inline std::vector<T> read_vector(cldnn::memory::ptr mem, cldnn::stream& stream) {
+inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& stream) {
     std::vector<T> out_vecs;
     if (mem->get_allocation_type() == allocation_type::usm_host || mem->get_allocation_type() == allocation_type::usm_shared) {
         switch (mem->get_layout().data_type) {
@@ -184,22 +186,30 @@ inline std::vector<T> read_vector(cldnn::memory::ptr mem, cldnn::stream& stream)
                 }
                 break;
             }
-            default: throw ov::Exception("[GPU] read_vector: unsupported data type");
+            default: OPENVINO_ASSERT(false, "[GPU] read_vector: unsupported data type");
         }
     } else {
         switch (mem->get_layout().data_type) {
             case data_types::i32: {
                 mem_lock<int32_t, mem_lock_type::read> lock{mem, stream};
                 out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
+                break;
             }
             case data_types::i64: {
                 mem_lock<int64_t, mem_lock_type::read> lock{mem, stream};
                 out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
+                break;
             }
-            default: throw ov::Exception("[GPU] read_vector: unsupported data type");
+            default: OPENVINO_ASSERT(false, "[GPU] read_vector: unsupported data type");
         }
     }
     return out_vecs;
+}
+
+inline std::shared_ptr<ngraph::runtime::HostTensor> make_host_tensor(layout l, void* memory_pointer) {
+    ov::element::Type et = data_type_to_element_type(l.data_type);
+
+    return std::make_shared<ngraph::runtime::HostTensor>(et, l.get_shape(), memory_pointer);
 }
 
 }  // namespace cldnn

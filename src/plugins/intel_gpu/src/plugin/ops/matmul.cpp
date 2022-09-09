@@ -54,7 +54,7 @@ static std::pair<ngraph::Shape, ngraph::Shape> get_aligned_shapes(const ngraph::
 }
 
 static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& op) {
-    p.ValidateInputs(op, {2});
+    validate_inputs_count(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -89,10 +89,8 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             auto permuteName = op->get_friendly_name() + "/transpose_b";
             auto permutePrim = cldnn::permute(permuteName,
                                               weightsName,
-                                              transpose_order,
-                                              op->get_friendly_name());
-            p.AddPrimitive(permutePrim);
-            p.AddInnerPrimitiveToProfiler(permuteName, layerName, op);
+                                              transpose_order);
+            p.add_primitive(*op, permutePrim);
             weightsName = permuteName;
         }
 
@@ -108,10 +106,8 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             auto permuteName = op->get_friendly_name() + "/transpose_a";
             auto permutePrim = cldnn::permute(permuteName,
                                               inputName,
-                                              transpose_order,
-                                              op->get_friendly_name());
-            p.AddPrimitive(permutePrim);
-            p.AddInnerPrimitiveToProfiler(permuteName, layerName, op);
+                                              transpose_order);
+            p.add_primitive(*op, permutePrim);
             inputName = permuteName;
         }
 
@@ -127,10 +123,8 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             auto reshapeInName = op->get_friendly_name() + suffix;
             auto reshapeInPrim = cldnn::reshape(reshapeInName,
                                                 inputName,
-                                                tensor_from_dims(reshapeSize),
-                                                op->get_friendly_name());
-            p.AddPrimitive(reshapeInPrim);
-            p.AddInnerPrimitiveToProfiler(reshapeInName, layerName, op);
+                                                tensor_from_dims(reshapeSize));
+            p.add_primitive(*op, reshapeInPrim);
             return reshapeInName;
         };
 
@@ -147,12 +141,11 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                                              inputName,
                                              weightsName,
                                              "",
-                                             DataTypeFromPrecision(op->get_output_element_type(0)),
-                                             op->get_friendly_name(),
+                                             cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                              cldnn::padding(),
                                              input_rank);
 
-        p.AddPrimitive(fcPrim);
+        p.add_primitive(*op, fcPrim);
 
         auto lastLayerName = layerName;
         if (reshape_fc) {
@@ -171,28 +164,23 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                 }
 
                 cldnn::primitive_id reorderId = "reorder:" + outReshapeName + "_reorder";
-                cldnn::layout outputLayout(DataTypeFromPrecision(op->get_output_element_type(0)), outputFormat, outTensor);
-                p.AddPrimitive(cldnn::reorder(reorderId,
+                cldnn::layout outputLayout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outTensor);
+                auto reorder_prim = cldnn::reorder(reorderId,
                                             layerName,
                                             outputLayout,
                                             std::vector<float>(),
-                                            cldnn::reorder_mean_mode::subtract,
-                                            op->get_friendly_name()));
-                p.InitProfileInfo(reorderId, "Reorder", false, InferenceEngine::InferenceEngineProfileInfo::EXECUTED, layerName);
-                p.AddInnerPrimitiveToProfiler(reorderId, layerName, op);
+                                            cldnn::reorder_mean_mode::subtract);
+                p.add_primitive(*op, reorder_prim);
                 lastLayerName = reorderId;
             }
 
             // add reshape
-            auto outReshapePrim = cldnn::reshape(outReshapeName, lastLayerName, outTensor, op->get_friendly_name());
+            auto outReshapePrim = cldnn::reshape(outReshapeName, lastLayerName, outTensor);
 
-            p.AddPrimitive(outReshapePrim);
-            p.AddInnerPrimitiveToProfiler(outReshapeName, lastLayerName, op);
+            p.add_primitive(*op, outReshapePrim);
 
             lastLayerName = outReshapeName;
         }
-
-        p.AddPrimitiveToProfiler(op, lastLayerName);
     } else {
         auto outDims = op->get_output_shape(0);
         auto outDimsN = outDims.size();
@@ -214,21 +202,19 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             auto inputDimsN = inputDims.size();
 
             // Add reorder if changing number of dimensions requires changing format
-            auto targetFormat = DefaultFormatForDims(outDimsN);
+            auto targetFormat = cldnn::format::get_default_format(outDimsN);
 
-            if (targetFormat.value != DefaultFormatForDims(inputDimsN).value) {
+            if (targetFormat.value != cldnn::format::get_default_format(inputDimsN).value) {
                 auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
-                auto targetDatatype = DataTypeFromPrecision(op->get_output_element_type(0));
+                auto targetDatatype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
                 auto reorderPrim = cldnn::reorder(reorderName,
                                                   inputPrimitives[i],
                                                   targetFormat,
                                                   targetDatatype,
                                                   std::vector<float>(),
-                                                  cldnn::reorder_mean_mode::subtract,
-                                                  op->get_friendly_name());
+                                                  cldnn::reorder_mean_mode::subtract);
 
-                p.AddPrimitive(reorderPrim);
-                p.AddInnerPrimitiveToProfiler(reorderName, layerName, op);
+                p.add_primitive(*op, reorderPrim);
 
                 inputPrimitives[i] = reorderName;
             }
@@ -264,10 +250,9 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
                 auto targetShape = gemmSpecificTensor(inputDims);
 
-                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, op->get_friendly_name());
+                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
 
-                p.AddPrimitive(reshapePrim);
-                p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
+                p.add_primitive(*op, reshapePrim);
 
                 inputPrimitives[i] = reshapeName;
             }
@@ -281,14 +266,13 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
         auto gemmPrim = cldnn::gemm(layerName,
                                     inputPrimitives,
-                                    DataTypeFromPrecision(op->get_output_element_type(0)),
+                                    cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                     transA,
                                     transB,
                                     alpha,
-                                    beta,
-                                    op->get_friendly_name());
+                                    beta);
 
-        p.AddPrimitive(gemmPrim);
+        p.add_primitive(*op, gemmPrim);
 
         auto lastLayerName = layerName;
 
@@ -296,15 +280,12 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
         if (outDimsN < 4) {
             auto outputShape = tensor_from_dims(outDims);
             auto outReshapeName = layerName + "_cldnn_out_reshape";
-            auto outReshapePrim = cldnn::reshape(outReshapeName, layerName, outputShape, op->get_friendly_name());
+            auto outReshapePrim = cldnn::reshape(outReshapeName, layerName, outputShape);
 
-            p.AddPrimitive(outReshapePrim);
-            p.AddInnerPrimitiveToProfiler(outReshapeName, layerName, op);
+            p.add_primitive(*op, outReshapePrim);
 
             lastLayerName = outReshapeName;
         }
-
-        p.AddPrimitiveToProfiler(op, lastLayerName);
     }
 }
 
