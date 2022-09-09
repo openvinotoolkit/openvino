@@ -28,6 +28,9 @@ OP_CONVERTER(translate_avg_pool_op);
 OP_CONVERTER(translate_batch_mat_mul_op);
 OP_CONVERTER(translate_batch_nd_and_space_nd_op);
 OP_CONVERTER(translate_bias_add_op);
+OP_CONVERTER(translate_broadcast_args_op);
+OP_CONVERTER(translate_broadcast_to_op);
+OP_CONVERTER(translate_bucketize_op);
 OP_CONVERTER(translate_cast_op);
 OP_CONVERTER(translate_concat_op);
 OP_CONVERTER(translate_const_op);
@@ -39,6 +42,7 @@ OP_CONVERTER(translate_cumsum_op);
 OP_CONVERTER(translate_crop_and_resize_op);
 OP_CONVERTER(translate_depth_to_space_op);
 OP_CONVERTER(translate_depthwise_conv_2d_native_op);
+OP_CONVERTER(translate_einsum_op);
 OP_CONVERTER(translate_elu_op);
 OP_CONVERTER(translate_expand_dims_op);
 OP_CONVERTER(translate_extract_image_patches_op);
@@ -50,10 +54,12 @@ OP_CONVERTER(translate_gather_op);
 OP_CONVERTER(translate_gather_v2_op);
 OP_CONVERTER(translate_gather_nd_op);
 OP_CONVERTER(translate_identity_op);
+OP_CONVERTER(translate_identity_n_op);
 OP_CONVERTER(translate_interpolate_op);
 OP_CONVERTER(translate_is_finite_op);
 OP_CONVERTER(translate_l2_loss_op);
 OP_CONVERTER(translate_linspace_op);
+OP_CONVERTER(translate_list_diff_op);
 OP_CONVERTER(translate_leaky_relu_op);
 OP_CONVERTER(translate_log_softmax_op);
 OP_CONVERTER(translate_log_1p_op);
@@ -62,6 +68,7 @@ OP_CONVERTER(translate_mat_mul_op);
 OP_CONVERTER(translate_matrix_diag_op);
 OP_CONVERTER(translate_max_pool_op);
 OP_CONVERTER(translate_non_max_suppression_op);
+OP_CONVERTER(translate_normalize_l2_op);
 OP_CONVERTER(translate_pad_op);
 OP_CONVERTER(translate_placeholder_op);
 OP_CONVERTER(translate_placeholder_with_default_op);
@@ -77,6 +84,7 @@ OP_CONVERTER(translate_reciprocal_op);
 OP_CONVERTER(translate_reshape_op);
 OP_CONVERTER(translate_resource_gather_op);
 OP_CONVERTER(translate_reverse_op);
+OP_CONVERTER(translate_reverse_sequence_op);
 OP_CONVERTER(translate_roll_op);
 OP_CONVERTER(translate_round_op);
 OP_CONVERTER(translate_rsqrt_op);
@@ -94,6 +102,7 @@ OP_CONVERTER(translate_squeeze_op);
 OP_CONVERTER(translate_strided_slice_op);
 OP_CONVERTER(translate_sqrt_op);
 OP_CONVERTER(translate_tile_op);
+OP_CONVERTER(translate_top_k_op);
 OP_CONVERTER(translate_top_k_v2_op);
 OP_CONVERTER(translate_transpose_op);
 OP_CONVERTER(translate_unpack_op);
@@ -114,10 +123,12 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Ceil", translate_unary_op<opset8::Ceiling>},
         {"Cos", translate_unary_op<opset8::Cos>},
         {"Cosh", translate_unary_op<opset8::Cosh>},
+        {"Erf", translate_unary_op<opset8::Erf>},
         {"Exp", translate_unary_op<opset8::Exp>},
         {"Floor", translate_unary_op<opset8::Floor>},
         {"Log", translate_unary_op<opset8::Log>},
         {"LogicalNot", translate_unary_op<opset8::LogicalNot>},
+        {"Mish", translate_unary_op<opset8::Mish>},
         {"Neg", translate_unary_op<opset8::Negative>},
         {"Relu", translate_unary_op<opset8::Relu>},
         {"Sigmoid", translate_unary_op<opset8::Sigmoid>},
@@ -154,6 +165,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         // note: ReduceOp translator declaration for each op must to be added in reduce.cpp file
         {"Any", translate_direct_reduce_op<opset8::ReduceLogicalOr>},
         {"All", translate_direct_reduce_op<opset8::ReduceLogicalAnd>},
+        {"EuclideanNorm", translate_direct_reduce_op<opset8::ReduceL2>},
         {"Max", translate_direct_reduce_op<opset8::ReduceMax>},
         {"Mean", translate_direct_reduce_op<opset8::ReduceMean>},
         {"Min", translate_direct_reduce_op<opset8::ReduceMin>},
@@ -169,6 +181,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"BatchMatMul", translate_batch_mat_mul_op},
         {"BatchMatMulV2", translate_batch_mat_mul_op},
         {"BatchToSpaceND", translate_batch_nd_and_space_nd_op},
+        {"BroadcastArgs", translate_broadcast_args_op},
+        {"BroadcastTo", translate_broadcast_to_op},
+        {"Bucketize", translate_bucketize_op},
         {"BiasAdd", translate_bias_add_op},
         {"Cast", translate_cast_op},
         {"Concat", translate_concat_op},
@@ -182,6 +197,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Cumsum", translate_cumsum_op},
         {"DepthToSpace", translate_depth_to_space_op},
         {"DepthwiseConv2dNative", translate_depthwise_conv_2d_native_op},
+        {"Einsum", translate_einsum_op},
         {"Elu", translate_elu_op},
         {"ExpandDims", translate_expand_dims_op},
         {"ExtractImagePatches", translate_extract_image_patches_op},
@@ -196,11 +212,12 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"GatherV2", translate_gather_v2_op},
         {"GatherNd", translate_gather_nd_op},
         {"Identity", translate_identity_op},
-        {"IdentityN", translate_identity_op},
+        {"IdentityN", translate_identity_n_op},
         {"IsFinite", translate_is_finite_op},
         {"L2Loss", translate_l2_loss_op},
         {"LeakyRelu", translate_leaky_relu_op},
         {"LinSpace", translate_linspace_op},
+        {"ListDiff", translate_list_diff_op},
         {"LogSoftmax", translate_log_softmax_op},
         {"Log1p", translate_log_1p_op},
         {"LRN", translate_lrn_op},
@@ -216,6 +233,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"NonMaxSuppressionV4", translate_non_max_suppression_op},
         {"NonMaxSuppressionV5", translate_non_max_suppression_op},
         {"NoOp", translate_no_op},  // do nothing
+        {"NormalizeL2", translate_normalize_l2_op},
         {"OneHot", translate_one_hot_op},
         {"Pack", translate_pack_op},
         {"Pad", translate_pad_op},
@@ -231,6 +249,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Relu6", translate_relu_6_op},
         {"Reshape", translate_reshape_op},
         {"Reverse", translate_reverse_op},
+        {"ReverseSequence", translate_reverse_sequence_op},
         {"ReverseV2", translate_reverse_op},
         {"ResizeBilinear", translate_interpolate_op},
         {"ResizeNearestNeighbor", translate_interpolate_op},
@@ -256,6 +275,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"SpaceToBatchND", translate_batch_nd_and_space_nd_op},
         {"StridedSlice", translate_strided_slice_op},
         {"Tile", translate_tile_op},
+        {"TopK", translate_top_k_op},
         {"TopKV2", translate_top_k_v2_op},
         {"Transpose", translate_transpose_op},
         {"Unpack", translate_unpack_op},
