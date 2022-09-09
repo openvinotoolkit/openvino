@@ -603,8 +603,9 @@ TEST(reshape_gpu_f32, shrink_chain_partial) {
     topology.add(reshape("reshape", "relu", tensor(spatial(2, 2))));
     topology.add(reorder("reorder", "reshape", format::bfyx, data_types::f32));
     topology.add(reshape("reshape1", "reorder", tensor(feature(4))));
-    topology.add(scale("scale", "reshape1", "scale_in", "shift_in"));
-    topology.add(reorder("out_reorder", "scale", format::yxfb, data_types::f32));
+    topology.add(eltwise("scale", { "reshape1", "scale_in" }, eltwise_mode::prod));
+    topology.add(eltwise("shift", { "scale", "shift_in" }, eltwise_mode::sum));
+    topology.add(reorder("out_reorder", "shift", format::yxfb, data_types::f32));
 
     std::vector<float> input_vec = {-1.f, 2.f, -3.f, 4.f};
     std::vector<float> out = {5.f, 12.f, 15.f, 32.0f};
@@ -642,8 +643,9 @@ TEST(reshape_gpu_f32, shrink_chain_full) {
     topology.add(reshape("reshape", "relu", tensor(spatial(2, 2))));
     topology.add(reorder("reorder", "reshape", format::bfyx, data_types::f32));
     topology.add(reshape("reshape1", "reorder", tensor(feature(4))));
-    topology.add(scale("scale", "reshape1", "scale_in", "shift_in"));
-    topology.add(reorder("out_reorder", "scale", format::yxfb, data_types::f32));
+    topology.add(eltwise("scale", { "reshape1", "scale_in" }, eltwise_mode::prod));
+    topology.add(eltwise("shift", { "scale", "shift_in" }, eltwise_mode::sum));
+    topology.add(reorder("out_reorder", "shift", format::yxfb, data_types::f32));
 
     std::vector<float> input_vec = {-1.f, 2.f, -3.f, 4.f};
     std::vector<float> out = {5.f, 12.f, 15.f, 32.0f};

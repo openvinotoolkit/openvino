@@ -31,7 +31,6 @@
 #include "reshape_inst.h"
 #include "quantize_inst.h"
 #include "activation_inst.h"
-#include "scale_inst.h"
 #include "depth_to_space_inst.h"
 #include "convolution_inst.h"
 #include "concatenation_inst.h"
@@ -1403,7 +1402,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::border::type_id() &&
             prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::crop::type_id() &&
-            prim.type() != cldnn::scale::type_id() &&
             prim.type() != cldnn::depth_to_space::type_id() &&
             prim.type() != cldnn::shuffle_channels::type_id() &&
             (prim.type() != cldnn::mvn::type_id()
@@ -1421,7 +1419,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::scatter_nd_update::type_id() &&
             prim.type() != cldnn::broadcast::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
-            prim.type() != cldnn::roi_align::type_id()) {
+            prim.type() != cldnn::roi_align::type_id() &&
+            prim.type() != cldnn::bucketize::type_id()) {
             can_use_fsv16 = false;
         }
 
@@ -1443,7 +1442,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::reshape::type_id() &&
             prim.type() != cldnn::input_layout::type_id() &&
             prim.type() != cldnn::activation::type_id() &&
-            prim.type() != cldnn::scale::type_id() &&
             prim.type() != cldnn::softmax::type_id() &&
             prim.type() != cldnn::fully_connected::type_id() &&
             prim.type() != cldnn::generic_layer::type_id() &&
@@ -1451,7 +1449,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::broadcast::type_id() &&
             prim.type() != cldnn::quantize::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
-            prim.type() != cldnn::roi_align::type_id()) {
+            prim.type() != cldnn::roi_align::type_id() &&
+            prim.type() != cldnn::bucketize::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
     }
