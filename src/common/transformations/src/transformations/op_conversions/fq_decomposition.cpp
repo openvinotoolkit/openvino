@@ -80,6 +80,13 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
             decomp_ops.push_back(data.get_node_shared_ptr());
         }
 
+        // if we set input_low or input_high in formula we got output = output_low and output = output_high
+        // respectively so we just clamp x
+        const auto max = std::make_shared<ngraph::opset1::Maximum>(data, input_low);
+        const auto min = std::make_shared<ngraph::opset1::Minimum>(max, input_high);
+        decomp_ops.push_back(max);
+        decomp_ops.push_back(min);
+
         std::shared_ptr<Node> result = nullptr;
         const auto out_scales = simplifyToScale(fake_quantize_node);
         if (out_scales.size() != 0) {
@@ -91,16 +98,12 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
                 std::make_shared<ngraph::opset1::Constant>(ov::element::f32, scale_shape.get_shape(), out_scales);
             decomp_ops.push_back(scales);
 
-            result = std::make_shared<ngraph::opset1::Multiply>(data, scales);
+            auto mul = std::make_shared<ngraph::opset1::Multiply>(min, scales);
+            decomp_ops.push_back(mul);
+
+            result = std::make_shared<ngraph::opset5::Round>(mul, ngraph::opset5::Round::RoundMode::HALF_TO_EVEN);
             decomp_ops.push_back(result);
         } else {
-            // if we set input_low or input_high in formula we got output = output_low and output = output_high
-            // respectively so we just clamp x
-            const auto max = std::make_shared<ngraph::opset1::Maximum>(data, input_low);
-            const auto min = std::make_shared<ngraph::opset1::Minimum>(max, input_high);
-            decomp_ops.push_back(max);
-            decomp_ops.push_back(min);
-
             // (levels-1)
             const auto levels_minus_one =
                 std::make_shared<ngraph::opset1::Constant>(input_type, Shape{}, fake_quantize_node->get_levels() - 1);
