@@ -47,36 +47,72 @@ endif()
 #
 
 if(ENABLE_SYSTEM_PUGIXML)
+    find_package(PkgConfig QUIET)
     # try system pugixml first
     find_package(PugiXML QUIET)
     if(PugiXML_FOUND)
         if(TARGET pugixml::shared)
             # example: cross-compilation on debian
             set(pugixml_target pugixml::shared)
-        elseif(TARGET pugixml::static)
-            # sometimes pugixml::static target already exists, just need to make it global
-            # example: building using conda environment
-            set(pugixml_target pugixml::static)
         elseif(TARGET pugixml)
             # or create an alias for pugixml shared library
             # example: libpugixml-dev debian package
             set(pugixml_target pugixml)
+        elseif(TARGET pugixml::static)
+            # sometimes pugixml::static target already exists, just need to make it global
+            # example: building using conda environment
+            set(pugixml_target pugixml::static)
         else()
             message(FATAL_ERROR "Failed to detect pugixml library target name")
         endif()
+    elseif(PkgConfig_FOUND)
+        # U18 case when cmake interface is not available
+        pkg_search_module(pugixml QUIET
+                          IMPORTED_TARGET GLOBAL
+                          pugixml)
+        if(pugixml_FOUND)
+            set(pugixml_target PkgConfig::pugixml)
+            # PATCH: on Ubuntu 18.04 pugixml.pc contains incorrect include directories
+            get_target_property(interface_include_dir ${pugixml_target} INTERFACE_INCLUDE_DIRECTORIES)
+            if(interface_include_dir AND NOT EXISTS "${interface_include_dir}")
+                set_target_properties(${pugixml_target} PROPERTIES
+                    INTERFACE_INCLUDE_DIRECTORIES "")
+                # buggy pugixml.pc does not allow to work with openvino.pc well
+                set(pugixml_buggy_pkgconfig ON CACHE INTERNAL "" FORCE)
+                message(WARNING "openvino.pc pkg-config file generation has turned off because it should have to depend on pugixml.pc")
+            endif()
+            message(STATUS "${PKG_CONFIG_EXECUTABLE}: pugixml (${pugixml_VERSION}) is found at ${pugixml_PREFIX}")
+        endif()
+    endif()
 
+    if(TARGET ${pugixml_target})
         # we need to install dynamic library for wheel package
         get_target_property(target_type ${pugixml_target} TYPE)
         if(target_type STREQUAL "SHARED_LIBRARY")
-            ie_cpack_add_component(pugixml HIDDEN)
             get_target_property(imported_config ${pugixml_target} IMPORTED_CONFIGURATIONS)
             get_target_property(pugixml_loc ${pugixml_target} IMPORTED_LOCATION_${imported_config})
-            get_target_property(pugixml_soname_loc ${pugixml_target} IMPORTED_SONAME_${imported_config})
             get_filename_component(pugixml_dir "${pugixml_loc}" DIRECTORY)
-            install(FILES "${pugixml_loc}"
-                          "${pugixml_dir}/${pugixml_soname_loc}"
+            get_target_property(pugixml_soname_loc ${pugixml_target} IMPORTED_SONAME_${imported_config})
+            set(pugixml_libs "${pugixml_loc}" "${pugixml_dir}/${pugixml_soname_loc}")
+        elseif(target_type STREQUAL "INTERFACE_LIBRARY")
+            get_target_property(pugixml_loc ${pugixml_target} INTERFACE_LINK_LIBRARIES)
+            file(GLOB pugixml_libs_all "${pugixml_loc}.*")
+            foreach(pugixml_lib IN LISTS pugixml_libs_all)
+                if(pugixml_lib MATCHES "^${pugixml_loc}(\.[0-9]+)+$")
+                    list(APPEND pugixml_libs "${pugixml_lib}")
+                endif()
+            endforeach()
+        endif()
+
+        # if dynamic libpugixml.so.1 and libpugixml.so.1.X are found
+        if(pugixml_libs)
+            ie_cpack_add_component(pugixml HIDDEN)
+            install(FILES ${pugixml_libs}
                     DESTINATION runtime/3rdparty/pugixml/lib
-                    COMPONENT pugixml EXCLUDE_FROM_ALL)
+                    COMPONENT pugixml
+                    EXCLUDE_FROM_ALL)
+        elseif(CPACK_GENERATOR STREQUAL "DEB")
+            message(FATAL_ERROR "Debian package build requires shared Pugixml library")
         endif()
 
         set_target_properties(${pugixml_target} PROPERTIES IMPORTED_GLOBAL ON)
@@ -234,6 +270,9 @@ if(CPACK_GENERATOR STREQUAL "DEB")
     endif()
     if(NOT zlib_FOUND)
         message(FATAL_ERROR "zlib must be used as a debian package. Install zlib1g-dev")
+    endif()
+    if(NOT ENABLE_SYSTEM_PUGIXML)
+        message(FATAL_ERROR "Pugixml must be used as a debian package. Install libpugixml-dev")
     endif()
 else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
