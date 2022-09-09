@@ -9,7 +9,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "conversion_extension.hpp"
-#include "utils.hpp"
+#include "frontend_test_utils.hpp"
 
 using namespace ov::frontend;
 

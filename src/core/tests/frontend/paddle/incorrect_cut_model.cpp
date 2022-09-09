@@ -7,8 +7,8 @@
 #include <openvino/frontend/exception.hpp>
 #include <openvino/frontend/manager.hpp>
 
+#include "frontend_test_utils.hpp"
 #include "paddle_utils.hpp"
-#include "utils.hpp"
 
 using namespace ngraph;
 using namespace ov::frontend;

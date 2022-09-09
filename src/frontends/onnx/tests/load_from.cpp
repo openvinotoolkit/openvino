@@ -8,8 +8,8 @@
 #include <fstream>
 #include <ngraph/file_util.hpp>
 
+#include "frontend_test_utils.hpp"
 #include "onnx_utils.hpp"
-#include "utils.hpp"
 
 using namespace ngraph;
 using namespace ov::frontend;

@@ -5,7 +5,7 @@
 #include <string>
 
 #include "gtest/gtest.h"
-#include "utils.hpp"
+#include "frontend_test_utils.hpp"
 
 static const std::string manifest{
 #ifdef MANIFEST

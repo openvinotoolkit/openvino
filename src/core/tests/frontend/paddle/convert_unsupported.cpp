@@ -6,8 +6,8 @@
 #include <openvino/frontend/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "frontend_test_utils.hpp"
 #include "paddle_utils.hpp"
-#include "utils.hpp"
 
 using namespace ngraph;
 using namespace ov::frontend;

@@ -5,7 +5,7 @@
 #include "convert_model.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "utils.hpp"
+#include "frontend_test_utils.hpp"
 
 using namespace ngraph;
 using namespace ov::frontend;

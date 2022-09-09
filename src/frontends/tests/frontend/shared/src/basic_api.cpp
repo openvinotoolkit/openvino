@@ -4,7 +4,7 @@
 
 #include "basic_api.hpp"
 
-#include "utils.hpp"
+#include "frontend_test_utils.hpp"
 
 using namespace ngraph;
 using namespace ov::frontend;

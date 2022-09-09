@@ -7,8 +7,8 @@
 #include <openvino/op/util/framework_node.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "frontend_test_utils.hpp"
 #include "tf_utils.hpp"
-#include "utils.hpp"
 
 using namespace ngraph;
 using namespace ov::frontend;

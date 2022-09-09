@@ -6,8 +6,8 @@
 
 #include <fstream>
 
+#include "frontend_test_utils.hpp"
 #include "openvino/core/runtime_attribute.hpp"
-#include "utils.hpp"
 
 using namespace ngraph;
 using namespace ov::frontend;

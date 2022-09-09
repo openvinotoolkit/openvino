@@ -8,8 +8,8 @@
 
 #include "engines_util/test_case.hpp"
 #include "engines_util/test_engines.hpp"
+#include "frontend_test_utils.hpp"
 #include "util/test_control.hpp"
-#include "utils.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;

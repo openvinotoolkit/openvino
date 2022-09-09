@@ -10,7 +10,7 @@
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/runtime/core.hpp>
 
-#include "utils.hpp"
+#include "frontend_test_utils.hpp"
 
 using namespace ov::frontend;
 

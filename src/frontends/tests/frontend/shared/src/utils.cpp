@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "utils.hpp"
+#include "frontend_test_utils.hpp"
 
 std::string FrontEndTestUtils::get_disabled_tests(const std::string& manifest_path) {
     std::string result = ":-";

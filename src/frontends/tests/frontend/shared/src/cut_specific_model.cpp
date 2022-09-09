@@ -4,8 +4,8 @@
 
 #include "cut_specific_model.hpp"
 
+#include "frontend_test_utils.hpp"
 #include "ngraph/opsets/opset7.hpp"
-#include "utils.hpp"
 
 using namespace ngraph;
 using namespace ov::frontend;

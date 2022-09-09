@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <frontend/shared/include/utils.hpp>
+#include <frontend_test_utils.hpp>
 #include <openvino/frontend/manager.hpp>
 
 #include "gtest/gtest.h"

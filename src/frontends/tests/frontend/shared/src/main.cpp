@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "frontend_test_utils.hpp"
 #include "gtest/gtest.h"
-#include "utils.hpp"
 
 using namespace std;
 
