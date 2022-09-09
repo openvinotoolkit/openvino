@@ -56,7 +56,7 @@ jobs:
     SETUPVARS: $(INSTALL_DIR)\setupvars.bat
     IB_DIR: C:\Program Files (x86)\IncrediBuild
     IB_TESTCONSOLE: $(IB_DIR)\IBTestConsole.exe
-    PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.10\x64
+    PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.10.7\x64
     CMAKE_VERSION: 3.21.0
     CMAKE_CMD: $(WORK_DIR)\cmake-$(CMAKE_VERSION)-windows-x86_64\cmake-$(CMAKE_VERSION)-windows-x86_64\bin\cmake.exe
     OV_CMAKE_TOOLCHAIN_FILE: $(REPO_DIR)\cmake\toolchains\mt.runtime.win32.toolchain.cmake
@@ -71,16 +71,18 @@ jobs:
       rd /Q /S $(BUILD_SAMPLES_TESTS_DIR) & mkdir $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'Make dir'
     
-  - script: curl -O https://www.python.org/ftp/python/3.10.7/python-3.10.7-amd64.exe
+  - script: curl -O https://www.python.org/ftp/python/3.10.7/python-3.10.7-embed-amd64.zip
     displayName: 'Download Python'
     workingDirectory: $(WORK_DIR)
     continueOnError: false
   
   - script: |
-      python-3.10.7-amd64.exe /uninstall
-      python-3.10.7-amd64.exe /passive InstallAllUsers=0 TargetDir=C:\hostedtoolcache\windows\Python\3.10.7\x64 Include_launcher=0
+      tar -xf $(WORK_DIR)\python-3.10.7-embed-amd64.zip
+      powershell -command "(Get-Content python310._pth) -Replace '#import site', 'import site' | Set-Content python310._pth"
+      curl https://bootstrap.pypa.io/get-pip.py
+      .\python get-pip.py
     displayName: 'Install Python'
-    workingDirectory: $(WORK_DIR)
+    workingDirectory: $(PYTHON_DIR)
     continueOnError: false
   
   - task: UsePythonVersion@0
