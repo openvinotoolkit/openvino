@@ -32,7 +32,7 @@ typedef struct ov_output_port ov_output_port_t;
  * @param tensor_shape tensor shape.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_const_port_get_shape(ov_output_const_port_t* port, ov_shape_t* tensor_shape);
+OPENVINO_C_API(ov_status_e) ov_const_port_get_shape(const ov_output_const_port_t* port, ov_shape_t* tensor_shape);
 
 /**
  * @brief Get the shape of port object.
@@ -41,7 +41,7 @@ OPENVINO_C_API(ov_status_e) ov_const_port_get_shape(ov_output_const_port_t* port
  * @param tensor_shape tensor shape.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_port_get_shape(ov_output_port_t* port, ov_shape_t* tensor_shape);
+OPENVINO_C_API(ov_status_e) ov_port_get_shape(const ov_output_port_t* port, ov_shape_t* tensor_shape);
 
 /**
  * @brief Get the tensor name of port.

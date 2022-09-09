@@ -181,6 +181,30 @@ ov_status_e ov_model_output_by_name(const ov_model_t* model, const char* tensor_
     return ov_status_e::OK;
 }
 
+ov_status_e ov_model_inputs_size(const ov_model_t* model, size_t* input_size) {
+    if (!model || !input_size) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        auto input_ports = model->object->inputs();
+        *input_size = input_ports.size();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_model_outputs_size(const ov_model_t* model, size_t* output_size) {
+    if (!model || !output_size) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        auto output_ports = model->object->outputs();
+        *output_size = output_ports.size();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
 bool ov_model_is_dynamic(const ov_model_t* model) {
     if (!model) {
         printf("[ERROR] The model is NULL!!!\n");

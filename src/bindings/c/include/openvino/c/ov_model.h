@@ -32,7 +32,7 @@ typedef struct ov_model ov_model_t;
 OPENVINO_C_API(void) ov_model_free(ov_model_t* model);
 
 /**
- * @brief Get a const input port of ov_model_t.
+ * @brief Get a const input port of ov_model_t,which only support single input model.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
  * @param input_port A pointer to the ov_output_const_port_t.
@@ -154,6 +154,24 @@ ov_model_output_by_index(const ov_model_t* model, const size_t index, ov_output_
  */
 OPENVINO_C_API(ov_status_e)
 ov_model_output_by_name(const ov_model_t* model, const char* tensor_name, ov_output_port_t** output_port);
+
+/**
+ * @brief Get the input size of ov_model_t.
+ * @ingroup model
+ * @param model A pointer to the ov_model_t.
+ * @param input_size the model's input size.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e) ov_model_inputs_size(const ov_model_t* model, size_t* input_size);
+
+/**
+ * @brief Get the output size of ov_model_t.
+ * @ingroup model
+ * @param model A pointer to the ov_model_t.
+ * @param output_size the model's output size.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e) ov_model_outputs_size(const ov_model_t* model, size_t* output_size);
 
 /**
  * @brief Returns true if any of the ops defined in the model is dynamic shape..

@@ -251,6 +251,40 @@ TEST(ov_model, ov_model_output_by_name) {
     ov_core_free(core);
 }
 
+TEST(ov_model, ov_model_inputs_size) {
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
+    ASSERT_NE(nullptr, model);
+
+    size_t input_size;
+    OV_ASSERT_OK(ov_model_inputs_size(model, &input_size));
+    ASSERT_NE(0, input_size);
+
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST(ov_model, ov_model_outputs_size) {
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
+    ASSERT_NE(nullptr, model);
+
+    size_t output_size;
+    OV_ASSERT_OK(ov_model_outputs_size(model, &output_size));
+    ASSERT_NE(0, output_size);
+
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
 TEST(ov_model, ov_model_is_dynamic) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create(&core));

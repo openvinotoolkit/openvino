@@ -5,7 +5,7 @@
 
 #include "common.h"
 
-ov_status_e ov_const_port_get_shape(ov_output_const_port_t* port, ov_shape_t* tensor_shape) {
+ov_status_e ov_const_port_get_shape(const ov_output_const_port_t* port, ov_shape_t* tensor_shape) {
     if (!port || !tensor_shape) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -20,7 +20,7 @@ ov_status_e ov_const_port_get_shape(ov_output_const_port_t* port, ov_shape_t* te
     return ov_status_e::OK;
 }
 
-ov_status_e ov_port_get_shape(ov_output_port_t* port, ov_shape_t* tensor_shape) {
+ov_status_e ov_port_get_shape(const ov_output_port_t* port, ov_shape_t* tensor_shape) {
     if (!port || !tensor_shape) {
         return ov_status_e::INVALID_C_PARAM;
     }
