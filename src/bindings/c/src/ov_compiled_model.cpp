@@ -83,19 +83,18 @@ ov_status_e ov_compiled_model_create_infer_request(const ov_compiled_model_t* co
     return ov_status_e::OK;
 }
 
-ov_status_e ov_compiled_model_set_property(const ov_compiled_model_t* compiled_model, const char* property_key, ...) {
-    if (!compiled_model || !property_key) {
+ov_status_e ov_compiled_model_set_property(const ov_compiled_model_t* compiled_model, ...) {
+    if (!compiled_model) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
-        va_list args_ptr;
-        va_start(args_ptr, property_key);
-
-        std::vector<ov::Any> value_vec;
         ov::AnyMap property = {};
 
-        GET_ONE_PROPERTY_FROM_ARGS_LIST(1)
+        va_list args_ptr;
+        va_start(args_ptr, compiled_model);
+        GET_PROPERTY_FROM_ARGS_LIST;
+        va_end(args_ptr);
 
         compiled_model->object->set_property(property);
     }

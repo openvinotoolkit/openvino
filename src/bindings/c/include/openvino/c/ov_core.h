@@ -151,9 +151,9 @@ ov_core_read_model_from_memory(const ov_core_t* core,
  * @param core A pointer to the ie_core_t instance.
  * @param model Model object acquired from Core::read_model.
  * @param device_name Name of a device to load a model to.
- * @param with_property Whether with property data.
+ * @param property_size How many properties will be passed.
  * @param compiled_model A pointer to the newly created compiled_model.
- * @param property paramater: Optional pack of pairs: (property key, property value type, property value) relevant only
+ * @param property paramater: Optional pack of pairs: (property key, property value) relevant only
  * for this load operation operation.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -161,7 +161,7 @@ OPENVINO_C_API(ov_status_e)
 ov_core_compile_model(const ov_core_t* core,
                       const ov_model_t* model,
                       const char* device_name,
-                      bool with_property,
+                      const size_t property_size,
                       ov_compiled_model_t** compiled_model,
                       ...);
 
@@ -173,9 +173,9 @@ ov_core_compile_model(const ov_core_t* core,
  * @param core A pointer to the ie_core_t instance.
  * @param model_path Path to a model.
  * @param device_name Name of a device to load a model to.
- * @param with_property Whether with property data.
+ * @param property_size How many properties will be passed.
  * @param compiled_model A pointer to the newly created compiled_model.
- * @param property paramater: Optional pack of pairs: (property key, property value type, property value) relevant only
+ * @param property paramater: Optional pack of pairs: (property key, property value) relevant only
  * for this load operation operation.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -183,7 +183,7 @@ OPENVINO_C_API(ov_status_e)
 ov_core_compile_model_from_file(const ov_core_t* core,
                                 const char* model_path,
                                 const char* device_name,
-                                bool with_property,
+                                const size_t property_size,
                                 ov_compiled_model_t** compiled_model,
                                 ...);
 
@@ -193,12 +193,11 @@ ov_core_compile_model_from_file(const ov_core_t* core,
  * @param core A pointer to the ie_core_t instance.
  * @param device_name Name of a device.
  * @param property_key The property key.
- * @param ... variadic paramaters The format is <ov_property_value_type, value_data_1> <ov_property_value_type,
- * value_data2>,...
+ * @param ... variadic paramaters The format is <ov_property_key, ov_property_key>.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_core_set_property(const ov_core_t* core, const char* device_name, const char* property_key, ...);
+ov_core_set_property(const ov_core_t* core, const char* device_name, ...);
 
 /**
  * @brief Gets properties related to device behaviour.

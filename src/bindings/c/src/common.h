@@ -40,39 +40,17 @@
         return ov_status_e::UNKNOW_EXCEPTION;                 \
     }
 
-#define GET_ONE_PROPERTY_FROM_ARGS_LIST(count)                                    \
-    for (size_t i = 0; i < count; i++) {                                          \
-        std::string data_type = va_arg(args_ptr, char*);                          \
-        ov::Any value;                                                            \
-        if (data_type == ov_property_value_type_bool) {                           \
-            value = static_cast<bool>(va_arg(args_ptr, int));                     \
-        } else if (data_type == ov_property_value_type_int32) {                   \
-            value = va_arg(args_ptr, int);                                        \
-        } else if (data_type == ov_property_value_type_uint32) {                  \
-            value = va_arg(args_ptr, unsigned int);                               \
-        } else if (data_type == ov_property_value_type_float) {                   \
-            value = static_cast<float>(va_arg(args_ptr, double));                 \
-        } else if (data_type == ov_property_value_type_double) {                  \
-            value = va_arg(args_ptr, double);                                     \
-        } else if (data_type == ov_property_value_type_string) {                  \
-            std::string value_str = va_arg(args_ptr, char*);                      \
-            value = value_str;                                                    \
-        } else if (data_type == ov_property_value_type_ptr) {                     \
-            void* value_ptr = va_arg(args_ptr, void*);                            \
-            value = value_ptr;                                                    \
-        } else if (data_type == ov_property_value_type_enum) {                    \
-            value = get_property_enum_value(property_key, va_arg(args_ptr, int)); \
-        } else {                                                                  \
-            break;                                                                \
-        }                                                                         \
-        value_vec.push_back(value);                                               \
-    }                                                                             \
-    va_end(args_ptr);                                                             \
-    if (value_vec.size() == 1) {                                                  \
-        property[property_key] = value_vec[0];                                    \
-    } else if (value_vec.size() > 1) {                                            \
-        return ov_status_e::NOT_IMPLEMENT_C_METHOD;                               \
-    }
+#define GET_PROPERTY_FROM_ARGS_LIST                                \
+    std::string property_key = va_arg(args_ptr, char*);            \
+    ov::Any value = {};                                            \
+    if (check_enum_property(property_key)) {                       \
+        int enum_value = va_arg(args_ptr, int);                    \
+        value = get_property_enum_value(property_key, enum_value); \
+    } else {                                                       \
+        std::string _value = va_arg(args_ptr, char*);              \
+        value = _value;                                            \
+    }                                                              \
+    property[property_key] = value;
 
 /**
  * @struct ov_core
@@ -243,3 +221,4 @@ ov_element_type_e find_ov_element_type_e(ov::element::Type type);
 ov::element::Type get_element_type(ov_element_type_e type);
 
 ov::Any get_property_enum_value(std::string key, int value);
+bool check_enum_property(std::string key);

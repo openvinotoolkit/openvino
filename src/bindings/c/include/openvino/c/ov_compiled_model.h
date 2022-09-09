@@ -72,12 +72,11 @@ ov_compiled_model_create_infer_request(const ov_compiled_model_t* compiled_model
  * @ingroup compiled_model
  * @param compiled_model A pointer to the ov_compiled_model_t.
  * @param property_key The property key.
- * @param ... variadic paramaters The format is <ov_property_value_type, value_data_1> <ov_property_value_type,
- * value_data2>,...
+ * @param ... variadic paramaters The format is <ov_property_key, ov_property_key>.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_set_property(const ov_compiled_model_t* compiled_model, const char* property_key, ...);
+ov_compiled_model_set_property(const ov_compiled_model_t* compiled_model, ...);
 
 /**
  * @brief Gets properties for current compiled model.

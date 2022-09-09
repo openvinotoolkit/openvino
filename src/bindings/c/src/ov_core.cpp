@@ -110,7 +110,7 @@ ov_status_e ov_core_read_model_from_memory(const ov_core_t* core,
 ov_status_e ov_core_compile_model(const ov_core_t* core,
                                   const ov_model_t* model,
                                   const char* device_name,
-                                  bool with_property,
+                                  const size_t property_size,
                                   ov_compiled_model_t** compiled_model,
                                   ...) {
     if (!core || !model || !compiled_model) {
@@ -119,16 +119,13 @@ ov_status_e ov_core_compile_model(const ov_core_t* core,
 
     try {
         ov::AnyMap property = {};
-        if (with_property) {
-            va_list args_ptr;
-            va_start(args_ptr, compiled_model);
-            std::vector<ov::Any> value_vec;
-
-            // Only support one or none property key.
-            // Each key can be followed by single data type or compound type
-            std::string property_key = va_arg(args_ptr, char*);
-            GET_ONE_PROPERTY_FROM_ARGS_LIST(1)
+        va_list args_ptr;
+        va_start(args_ptr, compiled_model);
+        for (size_t i = 0; i < property_size; i++) {
+            GET_PROPERTY_FROM_ARGS_LIST;
         }
+        va_end(args_ptr);
+
         std::string dev_name = "";
         ov::CompiledModel object;
         if (device_name) {
@@ -148,7 +145,7 @@ ov_status_e ov_core_compile_model(const ov_core_t* core,
 ov_status_e ov_core_compile_model_from_file(const ov_core_t* core,
                                             const char* model_path,
                                             const char* device_name,
-                                            bool with_property,
+                                            const size_t property_size,
                                             ov_compiled_model_t** compiled_model,
                                             ...) {
     if (!core || !model_path || !compiled_model) {
@@ -157,16 +154,12 @@ ov_status_e ov_core_compile_model_from_file(const ov_core_t* core,
 
     try {
         ov::AnyMap property = {};
-        if (with_property) {
-            va_list args_ptr;
-            va_start(args_ptr, compiled_model);
-            std::vector<ov::Any> value_vec;
-
-            // Only support one or zero property key.
-            // Each key can be followed by single data type or compound type
-            std::string property_key = va_arg(args_ptr, char*);
-            GET_ONE_PROPERTY_FROM_ARGS_LIST(1)
+        va_list args_ptr;
+        va_start(args_ptr, compiled_model);
+        for (size_t i = 0; i < property_size; i++) {
+            GET_PROPERTY_FROM_ARGS_LIST;
         }
+        va_end(args_ptr);
 
         ov::CompiledModel object;
         std::string dev_name = "";
@@ -190,18 +183,17 @@ const std::map<ov_performance_mode_e, ov::hint::PerformanceMode> performance_mod
     {ov_performance_mode_e::LATENCY, ov::hint::PerformanceMode::LATENCY},
     {ov_performance_mode_e::CUMULATIVE_THROUGHPUT, ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT}};
 
-ov_status_e ov_core_set_property(const ov_core_t* core, const char* device_name, const char* property_key, ...) {
-    if (!core || !property_key) {
+ov_status_e ov_core_set_property(const ov_core_t* core, const char* device_name, ...) {
+    if (!core) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
         ov::AnyMap property = {};
         va_list args_ptr;
-        va_start(args_ptr, property_key);
-
-        std::vector<ov::Any> value_vec;
-        GET_ONE_PROPERTY_FROM_ARGS_LIST(1)
+        va_start(args_ptr, device_name);
+        GET_PROPERTY_FROM_ARGS_LIST;
+        va_end(args_ptr);
 
         if (property.size() == 0) {
             return ov_status_e::INVALID_C_PARAM;

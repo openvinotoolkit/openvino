@@ -99,7 +99,7 @@ TEST_P(ov_core, ov_core_compile_model) {
     ASSERT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_ASSERT_OK(ov_core_compile_model(core, model, device_name.c_str(), false, &compiled_model));
+    OV_ASSERT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
     ASSERT_NE(nullptr, compiled_model);
 
     ov_compiled_model_free(compiled_model);
@@ -119,9 +119,8 @@ TEST_P(ov_core, ov_core_compile_model_with_property) {
 
     ov_compiled_model_t* compiled_model = nullptr;
     const char* key = ov_property_key_num_streams;
-    const char* type = ov_property_value_type_uint32;
-    uint32_t num = 11;
-    OV_ASSERT_OK(ov_core_compile_model(core, model, device_name.c_str(), true, &compiled_model, key, type, num));
+    const char* num = "11";
+    OV_ASSERT_OK(ov_core_compile_model(core, model, device_name.c_str(), 1, &compiled_model, key, num));
     ASSERT_NE(nullptr, compiled_model);
 
     char* property_value = nullptr;
@@ -141,7 +140,7 @@ TEST_P(ov_core, ov_core_compile_model_from_file) {
     ASSERT_NE(nullptr, core);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), false, &compiled_model));
+    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), 0, &compiled_model));
     ASSERT_NE(nullptr, compiled_model);
 
     ov_compiled_model_free(compiled_model);
@@ -155,10 +154,9 @@ TEST_P(ov_core, ov_core_set_property) {
     ASSERT_NE(nullptr, core);
 
     const char* key = ov_property_key_hint_performance_mode;
-    const char* type = ov_property_value_type_enum;
     ov_performance_mode_e mode = ov_performance_mode_e::THROUGHPUT;
 
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, type, mode));
+    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, mode));
     ov_core_free(core);
 }
 
@@ -182,10 +180,9 @@ TEST_P(ov_core, ov_core_set_get_property_str) {
     ASSERT_NE(nullptr, core);
 
     const char* key = ov_property_key_cache_dir;
-    const char* type = ov_property_value_type_string;
     const char cache_dir[] = "./cache_dir";
 
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, type, cache_dir));
+    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, cache_dir));
 
     char* property_value = nullptr;
     OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &property_value));
@@ -202,14 +199,12 @@ TEST_P(ov_core, ov_core_set_get_property_int) {
     ASSERT_NE(nullptr, core);
 
     const char* key = ov_property_key_inference_num_threads;
-    const char* type = ov_property_value_type_int32;
-    int32_t num = 8;
-
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, type, num));
+    const char* num = "8";
+    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, num));
 
     char* property_value = nullptr;
     OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &property_value));
-    EXPECT_STREQ("8", property_value);
+    EXPECT_STREQ(num, property_value);
     ov_free(property_value);
 
     ov_core_free(core);
@@ -223,9 +218,8 @@ TEST_P(ov_core, ov_core_set_multiple_common_properties) {
 
     // Test enum
     const char* key_1 = ov_property_key_hint_performance_mode;
-    const char* type_1 = ov_property_value_type_enum;
     ov_performance_mode_e mode = ov_performance_mode_e::THROUGHPUT;
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key_1, type_1, mode));
+    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key_1, mode));
 
     char* property_value_1 = nullptr;
     OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key_1, &property_value_1));
@@ -234,9 +228,8 @@ TEST_P(ov_core, ov_core_set_multiple_common_properties) {
 
     // Test string
     const char* key_2 = ov_property_key_cache_dir;
-    const char* type_2 = ov_property_value_type_string;
     const char cache_dir[] = "./cache_dir";
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key_2, type_2, cache_dir));
+    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key_2, cache_dir));
 
     char* property_value_2 = nullptr;
     OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key_2, &property_value_2));
@@ -245,20 +238,18 @@ TEST_P(ov_core, ov_core_set_multiple_common_properties) {
 
     // Test int32
     const char* key_3 = ov_property_key_hint_num_requests;
-    const char* type_3 = ov_property_value_type_int32;
-    int32_t num = 8;
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key_3, type_3, num));
+    const char* num = "8";
+    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key_3, num));
 
     char* property_value_3 = nullptr;
     OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key_3, &property_value_3));
-    EXPECT_STREQ(property_value_3, "8");
+    EXPECT_STREQ(property_value_3, num);
     ov_free(property_value_3);
 
     // Test bool
     const char* key_4 = ov_property_key_enable_profiling;
-    const char* type_4 = ov_property_value_type_bool;
-    bool enable = 1;
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key_4, type_4, enable));
+    const char* enable = "YES";
+    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key_4, enable));
 
     char* property_value_4 = nullptr;
     OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key_4, &property_value_4));
@@ -286,7 +277,7 @@ TEST_P(ov_core, ov_compiled_model_export_model) {
     ASSERT_NE(nullptr, core);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), false, &compiled_model));
+    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), 0, &compiled_model));
     ASSERT_NE(nullptr, compiled_model);
 
     std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
@@ -304,7 +295,7 @@ TEST_P(ov_core, ov_core_import_model) {
     ASSERT_NE(nullptr, core);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), false, &compiled_model));
+    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), 0, &compiled_model));
     ASSERT_NE(nullptr, compiled_model);
 
     std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");

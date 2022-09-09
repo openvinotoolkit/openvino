@@ -45,7 +45,7 @@ const char* ov_property_value_type_map = "MAP";
 const char* ov_property_value_type_vector = "VECTOR";
 
 ov::Any get_property_enum_value(std::string key, int value) {
-    ov::Any ret = value;
+    ov::Any ret = {};
     if (key == ov_property_key_hint_performance_mode) {
         ov::hint::PerformanceMode mode = static_cast<ov::hint::PerformanceMode>(value);
         ret = mode;
@@ -63,4 +63,14 @@ ov::Any get_property_enum_value(std::string key, int value) {
         ret = priority;
     }
     return ret;
+}
+
+bool check_enum_property(std::string key) {
+    ov::Any ret = {};
+    if (key == ov_property_key_hint_performance_mode || key == ov_property_key_affinity ||
+        key == ov_property_key_hint_inference_precision || key == ov_property_key_log_level ||
+        key == ov_property_key_hint_model_priority) {
+        return true;
+    }
+    return false;
 }

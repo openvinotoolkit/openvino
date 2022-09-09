@@ -147,20 +147,6 @@ OPENVINO_C_VAR(const char*) ov_property_key_enable_profiling;
 //!< listed in the desired priority
 OPENVINO_C_VAR(const char*) ov_property_key_device_priorities;
 
-/**
- * @brief property data type
- */
-OPENVINO_C_VAR(const char*) ov_property_value_type_int32;
-OPENVINO_C_VAR(const char*) ov_property_value_type_uint32;
-OPENVINO_C_VAR(const char*) ov_property_value_type_bool;
-OPENVINO_C_VAR(const char*) ov_property_value_type_enum;
-OPENVINO_C_VAR(const char*) ov_property_value_type_ptr;
-OPENVINO_C_VAR(const char*) ov_property_value_type_string;
-OPENVINO_C_VAR(const char*) ov_property_value_type_float;
-OPENVINO_C_VAR(const char*) ov_property_value_type_double;
-OPENVINO_C_VAR(const char*) ov_property_value_type_map;
-OPENVINO_C_VAR(const char*) ov_property_value_type_vector;
-
 // Property
 /**
  * @defgroup Property Property
