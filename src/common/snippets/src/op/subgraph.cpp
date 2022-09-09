@@ -200,8 +200,7 @@ void snippets::op::Subgraph::fill_empty_output_names(const Output<Node>& target_
 ///             * Planar + blocked: some inputs have blocked, and some have planar layouts, e.g. <N, C, H, W, c> + <N, C, H, W>
 ///         Also there is precision aligning inside body of subgraph during canonicalization
 ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShapes,
-                                                      const BlockedShapeVector& inputShapes,
-                                                      const ov::element::Type exec_type) {
+                                                      const BlockedShapeVector& inputShapes) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::canonicalize")
     NODE_VALIDATION_CHECK(this, inputShapes.size() == m_body->get_parameters().size(),

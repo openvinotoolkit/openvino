@@ -409,8 +409,7 @@ ov::PartialShape Snippet::canonicalizeBody() {
         output_blocked_shapes.push_back(blockedShape);
     }
 
-    const auto supported_exec_type = snippet->get_generator()->get_supported_exec_precision();
-    const auto canonicalShape = snippet->canonicalize(output_blocked_shapes, input_blocked_shapes, supported_exec_type);
+    const auto canonicalShape = snippet->canonicalize(output_blocked_shapes, input_blocked_shapes);
     // initialize by maximum output dimension. Dimensions of outputs should be broadcastable
     tensorRank = std::max(static_cast<size_t>(rank6D), canonicalShape.size());
     return canonicalShape;
