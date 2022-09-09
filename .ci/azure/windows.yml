@@ -83,6 +83,7 @@ jobs:
       powershell -command "(Get-Content python310._pth) -Replace '#import site', 'import site' | Set-Content python310._pth"
       curl -O https://bootstrap.pypa.io/get-pip.py
       .\python get-pip.py
+      call>..\x64.complete
     displayName: 'Install Python'
     workingDirectory: $(PYTHON_DIR)
     continueOnError: false
