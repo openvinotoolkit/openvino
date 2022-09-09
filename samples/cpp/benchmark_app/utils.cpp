@@ -148,6 +148,8 @@ std::map<std::string, std::string> parse_value_per_device(const std::vector<std:
                         result["MULTI"] = device_name + " " + nstreams;
                 }
             } else {
+                if (devices.size() == 1 && if_auto)
+                    continue;
                 throw std::logic_error("Can't set nstreams value " + std::string(nstreams) + " for device '" +
                                        device_name + "'! Incorrect device name!");
             }
@@ -157,9 +159,12 @@ std::map<std::string, std::string> parse_value_per_device(const std::vector<std:
                 for (auto& device : devices) {
                     result[device] = value;
                 }
-            } else if (if_auto)
-                result["AUTO"] = value;
-            else
+            } else if (if_auto) {
+                slog::warn << "nstreams will be ignored because this property is not supported by AUTO. "
+                           << "Please setting nstreams for hardware devices following the format like "
+                              "'<device1>:<value1>,<device2>:<value2>,..."
+                           << slog::endl;
+            } else
                 result["MULTI"] = value;
         } else if (device_value_vec.size() != 0) {
             throw std::runtime_error("Unknown string format: " + values_string);

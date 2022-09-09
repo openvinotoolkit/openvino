@@ -263,8 +263,9 @@ int main(int argc, char* argv[]) {
         }
 
         bool perf_counts = false;
-        auto if_auto = std::find(devices.begin(), devices.end(), "AUTO") != devices.end();
-        auto if_multi = std::find(devices.begin(), devices.end(), "MULTI") != devices.end();
+        // check if using the virtual device
+        auto if_auto = device_name.find("AUTO") != std::string::npos;
+        auto if_multi = device_name.find("MULTI") != std::string::npos;
         // Remove the hardware devices if AUTO/MULTI appears in the devices list.
         if (if_auto || if_multi) {
             devices.clear();
@@ -408,6 +409,8 @@ int main(int argc, char* argv[]) {
             } else if (device.find("GNA") != std::string::npos) {
                 set_infer_precision();
             } else if (device.find("AUTO") != std::string::npos) {
+                setThroughputStreams();
+                set_infer_precision();
                 device_nstreams.erase(device);
             } else if (device.find("MULTI") != std::string::npos) {
                 setThroughputStreams();
