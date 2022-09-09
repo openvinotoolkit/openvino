@@ -177,17 +177,12 @@ protected:
     virtual void returnOpmaskToPool(int idx) { IE_THROW() << "returnOpmaskToPool: The Opmask is not supported in current instruction set"; }
     virtual size_t countUnusedOpmask() const { IE_THROW() << "countUnusedOpmask: The Opmask is not supported in current instruction set"; }
 
-    virtual void excludeOpmask(const Xbyak::Opmask& reg) {
-    }
-
     RegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude, int simdRegistersNumber)
             : simdSet(simdRegistersNumber) {
         checkUniqueAndUpdate();
         for (auto& reg : regsToExclude) {
             if (reg.isXMM() || reg.isYMM() || reg.isZMM()) {
                 simdSet.exclude(reg);
-            } else if (reg.isOPMASK()) {
-                excludeOpmask(Xbyak::Opmask{reg.getIdx()});
             } else if (reg.isREG()) {
                 generalSet.exclude(reg);
             }
@@ -251,7 +246,13 @@ template <>
 class IsaRegistersPool<x64::avx512_core> : public RegistersPool {
 public:
     IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude)
-            : RegistersPool(regsToExclude, x64::cpu_isa_traits<x64::avx512_core>::n_vregs) {}
+            : RegistersPool(regsToExclude, x64::cpu_isa_traits<x64::avx512_core>::n_vregs) {
+        for (auto& reg : regsToExclude) {
+            if (reg.isOPMASK()) {
+                opmaskSet.exclude(reg);
+            }
+        }
+    }
 
     int getFreeOpmask(int requestedIdx) override {
         auto idx = opmaskSet.getUnused(requestedIdx);
@@ -261,10 +262,6 @@ public:
 
     void returnOpmaskToPool(int idx) override {
         opmaskSet.setAsUnused(idx);
-    }
-
-    void excludeOpmask(const Xbyak::Opmask& reg) override {
-        opmaskSet.exclude(reg);
     }
 
     size_t countUnusedOpmask() const override {
