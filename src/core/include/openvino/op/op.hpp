@@ -20,6 +20,7 @@
                                                              _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT,   \
                                                              _OPENVINO_RTTI_OP_WITH_TYPE_VERSION,       \
                                                              _OPENVINO_RTTI_OP_WITH_TYPE)(__VA_ARGS__)) \
+    /* add accessibility for Op to the method: evaluate from the base class */                          \
     using ov::op::Op::evaluate;
 
 namespace ov {
