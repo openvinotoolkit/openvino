@@ -94,8 +94,8 @@ jobs:
   - script: |
       powershell -command "Invoke-RestMethod -Headers @{\"Metadata\"=\"true\"} -Method GET -Uri http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01 | format-custom"
       tree C:\hostedtoolcache\windows\Python
-      C:\hostedtoolcache\windows\Python\3.10.7\x64\python.exe -m venv $(PYTHON_VENV_DIR)
-      call $(PYTHON_VENV_DIR)\Scripts\activate.bat
+      # C:\hostedtoolcache\windows\Python\3.10.7\x64\python.exe -m venv $(PYTHON_VENV_DIR)
+      # call $(PYTHON_VENV_DIR)\Scripts\activate.bat
       # where python3
       # python3 --version
       where python
@@ -133,7 +133,7 @@ jobs:
     path: testdata
 
   - script: |
-      call $(PYTHON_VENV_DIR)\Scripts\activate.bat
+      # call $(PYTHON_VENV_DIR)\Scripts\activate.bat
       python -m pip install --upgrade pip
       rem For running Python API tests
       python -m pip install -r $(REPO_DIR)\src\bindings\python\src\compatibility\openvino\requirements-dev.txt
@@ -160,7 +160,7 @@ jobs:
     displayName: "Set cmake toolchain"
 
   - script: |
-      call $(PYTHON_VENV_DIR)\Scripts\activate.bat
+      # call $(PYTHON_VENV_DIR)\Scripts\activate.bat
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
       call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -G "Ninja Multi-Config" ^
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS) ^
@@ -185,7 +185,7 @@ jobs:
     displayName: 'List temp SDKs'
 
   - script: |
-      call $(PYTHON_VENV_DIR)\Scripts\activate.bat
+      # call $(PYTHON_VENV_DIR)\Scripts\activate.bat
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
       call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="$(CMAKE_CMD) --build $(BUILD_DIR) --config Release"
     displayName: 'Build Win - IB'
@@ -194,7 +194,7 @@ jobs:
     displayName: 'List bin files'
 
   - script: |
-      call $(PYTHON_VENV_DIR)\Scripts\activate.bat
+      # call $(PYTHON_VENV_DIR)\Scripts\activate.bat
       $(CMAKE_CMD) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install'
 
@@ -202,12 +202,12 @@ jobs:
     displayName: 'List install files'
 
   - script: |
-      call $(PYTHON_VENV_DIR)\Scripts\activate.bat
+      # call $(PYTHON_VENV_DIR)\Scripts\activate.bat
       python -m pip install openvino-dev --find-links=$(INSTALL_DIR)\tools
     displayName: 'Install Wheels'
 
   - script: |
-      call $(PYTHON_VENV_DIR)\Scripts\activate.bat
+      # call $(PYTHON_VENV_DIR)\Scripts\activate.bat
       call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
@@ -216,7 +216,7 @@ jobs:
     displayName: 'CMake'
 
   - script: |
-      call $(PYTHON_VENV_DIR)\Scripts\activate.bat
+      # call $(PYTHON_VENV_DIR)\Scripts\activate.bat
       $(CMAKE_CMD) -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)\cmake_install.cmake
     displayName: 'Install Samples Tests'
 
@@ -229,13 +229,13 @@ jobs:
     continueOnError: false
 
   - script: |
-      call $(PYTHON_VENV_DIR)\Scripts\activate.bat
+      # call $(PYTHON_VENV_DIR)\Scripts\activate.bat
       python -m pip install -r $(INSTALL_TEST_DIR)\smoke_tests\requirements.txt
     displayName: 'Install dependencies for samples smoke tests'
     continueOnError: false
 
   - script: |
-      call $(PYTHON_VENV_DIR)\Scripts\activate.bat
+      # call $(PYTHON_VENV_DIR)\Scripts\activate.bat
       call $(SETUPVARS) && set IE_APP_PATH=$(INSTALL_DIR)\samples_bin
       set IE_APP_PYTHON_PATH=$(INSTALL_DIR)\samples\python\
       set SHARE=$(INSTALL_DIR)\tests\smoke_tests\samples_smoke_tests_data\
