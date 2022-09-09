@@ -154,14 +154,9 @@ ie_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_
 #
 # Build the code
 #
-
-if(DISABLE_PYBIND11)
-    message(WARNING "NOTE: Python API for OpenVINO 2.0 is disabled")
-else()
-    add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
-    add_subdirectory(src/compatibility/pyngraph)
-    add_subdirectory(src/pyopenvino)
-endif()
+add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
+add_subdirectory(src/compatibility/pyngraph)
+add_subdirectory(src/pyopenvino)
 
 if(ie_python_req_FOUND)
     add_subdirectory(src/compatibility/openvino)
@@ -173,7 +168,7 @@ if(ENABLE_WHEEL)
     add_subdirectory(wheel)
 endif()
 
-if(ENABLE_TESTS AND NOT DISABLE_PYBIND11)
+if(ENABLE_TESTS)
     add_subdirectory(tests/mock/mock_py_frontend)
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
 endif()
