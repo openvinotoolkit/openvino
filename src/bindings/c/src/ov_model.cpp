@@ -287,7 +287,7 @@ ov_status_e ov_model_reshape(const ov_model_t* model,
 }
 
 ov_status_e ov_model_reshape_by_port_indexes(const ov_model_t* model,
-                                             size_t* port_indexes,
+                                             const size_t* port_indexes,
                                              const ov_partial_shape_t* partial_shapes,
                                              size_t size) {
     if (!model || !port_indexes || !partial_shapes || size < 1) {
