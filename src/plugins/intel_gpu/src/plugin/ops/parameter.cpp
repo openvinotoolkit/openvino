@@ -240,6 +240,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
             }
             int height = inputDims[2];
             int width = inputDims[3];
+            bool grayscale_mode = inputDims[1] == 1;
             std::vector<cldnn::primitive_id> reorders;
 
             for (auto i = 0; i < inputDims[0]; i++) {
@@ -267,6 +268,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                                                   networkInputLayout,
                                                   meanValues,
                                                   cldnn::reorder_mean_mode::subtract,
+                                                  grayscale_mode,
                                                   inputInfo->name()));
                     break;
                 }
@@ -277,6 +279,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                                                   networkInputLayout,
                                                   meanBlobID,
                                                   cldnn::reorder_mean_mode::subtract,
+                                                  grayscale_mode,
                                                   inputInfo->name()));
                     break;
                 }

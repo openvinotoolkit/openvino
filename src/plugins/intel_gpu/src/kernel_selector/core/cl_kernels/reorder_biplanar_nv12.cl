@@ -69,6 +69,13 @@ KERNEL(reorder_biplanar_nv12)(
 #endif
 
     float4 Y = read_imagef(input, (int2)(x, y));
+#if defined GRAYSCALE_OUTPUT
+    float gray = Y.x;
+
+    uint8 ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 0, w, z, y, x);
+    uint output_idx = FUNC_CALL(get_output_index)(ov[1], ov[2], ov[3], ov[4], ov[5], ov[6]);
+    output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(gray), NL_M, NL_N);
+#else
     float4 UV = read_imagef(input_uv, (int2)(x / 2, y / 2));
 
     float Ycomponent = mad(Y.x, 296.82f, -18.624f);
@@ -105,6 +112,6 @@ KERNEL(reorder_biplanar_nv12)(
     ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 2, w, z, y, x);
     output_idx = FUNC_CALL(get_output_index)(ov[1], ov[2], ov[3], ov[4], ov[5], ov[6]);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(B), NL_M, NL_N);
-
+#endif
 
     }
