@@ -93,8 +93,7 @@ void AddSinhDynamic::SetUp() {
     std::tie(inputShape1, inputShape2, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes({inputShape1, inputShape2});
 
-//    auto f = ov::test::snippets::AddSinhFunction({inputShape1.first, inputShape2.first});
-    auto f = ov::test::snippets::EltwisePerfFunction({inputShape1.first, inputShape2.first});
+    auto f = ov::test::snippets::AddSinhFunction({inputShape1.first, inputShape2.first});
     function = f.getOriginal();
 }
 
@@ -114,7 +113,6 @@ TEST_P(AddSinhConst, CompareWithRefImpl) {
 }
 
 TEST_P(AddSinhDynamic, CompareWithRefImpl) {
-    ov::pass::Serialize("eltwise_perf.xml", "eltwise_perf.bin").run_on_model(function);
     run();
     validateNumSubgraphs();
 }
