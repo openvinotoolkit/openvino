@@ -83,7 +83,7 @@ jobs:
       powershell -command "(Get-Content python310._pth) -Replace '#import site', 'import site' | Set-Content python310._pth"
       curl -O https://bootstrap.pypa.io/get-pip.py
       .\python get-pip.py
-      call>..\x64.complete
+      cp C:\hostedtoolcache\windows\Python\3.8.2\x64.complete C:\hostedtoolcache\windows\Python\3.10.7\x64.complete
     displayName: 'Install Python'
     workingDirectory: $(PYTHON_DIR)
     continueOnError: false
@@ -97,7 +97,7 @@ jobs:
   - script: |
       powershell -command "Invoke-RestMethod -Headers @{\"Metadata\"=\"true\"} -Method GET -Uri http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01 | format-custom"
       tree C:\hostedtoolcache\windows\Python
-      C:\hostedtoolcache\windows\Python\3.10\x64\python.exe -m venv $(PYTHON_VENV_DIR)
+      C:\hostedtoolcache\windows\Python\3.10.7\x64\python.exe -m venv $(PYTHON_VENV_DIR)
       call $(PYTHON_VENV_DIR)\Scripts\activate.bat
       where python3
       python3 --version
