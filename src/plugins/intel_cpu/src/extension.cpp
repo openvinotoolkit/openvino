@@ -7,6 +7,7 @@
 #include "ngraph_transformations/op/leaky_relu.hpp"
 #include "ngraph_transformations/op/power_static.hpp"
 #include "ngraph_transformations/op/swish_cpu.hpp"
+#include "ngraph_transformations/op/mha.hpp"
 #include "snippets_transformations/op/load_convert.hpp"
 #include "snippets_transformations/op/store_convert.hpp"
 
@@ -44,6 +45,7 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(LeakyReluNode, ov::intel_cpu)
         NGRAPH_OP(PowerStaticNode, ov::intel_cpu)
         NGRAPH_OP(SwishNode, ov::intel_cpu)
+        NGRAPH_OP(MHANode, ov::intel_cpu)
         NGRAPH_OP(LoadConvertSaturation, ov::intel_cpu)
         NGRAPH_OP(LoadConvertTruncation, ov::intel_cpu)
         NGRAPH_OP(StoreConvertSaturation, ov::intel_cpu)

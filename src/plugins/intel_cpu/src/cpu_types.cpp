@@ -197,6 +197,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "Subgraph", Type::Subgraph},
         { "PriorBox", Type::PriorBox},
         { "PriorBoxClustered", Type::PriorBoxClustered},
+        { "MHA", Type::MHA},
 };
 
 Type TypeFromName(const std::string& type) {
@@ -388,6 +389,8 @@ std::string NameFromType(const Type type) {
             return "Reference";
         case Type::Subgraph:
             return "Subgraph";
+        case Type::MHA:
+            return "MHA";
         default:
             return "Unknown";
     }
