@@ -509,8 +509,11 @@ private:
 #    pragma GCC diagnostic push
 #    pragma GCC diagnostic ignored "-Wsign-compare"
 #endif
-        OPENVINO_ASSERT(!std::numeric_limits<T>::is_signed || std::numeric_limits<StorageDataType>::lowest() <= value);
-        OPENVINO_ASSERT(value <= std::numeric_limits<StorageDataType>::max());
+        if (!std::is_same<T, StorageDataType>::value) {
+            OPENVINO_ASSERT(!std::numeric_limits<T>::is_signed ||
+                            std::numeric_limits<StorageDataType>::lowest() <= value);
+            OPENVINO_ASSERT(value <= std::numeric_limits<StorageDataType>::max());
+        }
 #ifdef __GNUC__
 #    pragma GCC diagnostic pop
 #endif
