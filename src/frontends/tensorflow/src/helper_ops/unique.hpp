@@ -25,7 +25,7 @@ public:
         validate_and_infer_types();
     }
 
-    void validate_and_infer_types() {
+    void validate_and_infer_types() override {
         auto t = get_input_element_type(0);
         // Unique finds unique elements in a 1-D tensor.
         // Inputs:

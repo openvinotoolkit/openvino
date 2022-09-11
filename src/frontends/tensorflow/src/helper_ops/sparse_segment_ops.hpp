@@ -30,7 +30,7 @@ public:
                      const Output<Node>& num_segments)
         : ov::op::util::FrameworkNode(OutputVector{data, indices, segment_ids, num_segments}, 1) {}
 
-    void validate_and_infer_types() {
+    void validate_and_infer_types() override {
         // SparseSegmentSum computes the sum along sparse segments of a tensor.
         // Inputs:
         // 0) data - A Tensor with data that will be assembled in the output

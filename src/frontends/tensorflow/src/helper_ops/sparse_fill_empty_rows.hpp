@@ -27,7 +27,7 @@ public:
         validate_and_infer_types();
     }
 
-    void validate_and_infer_types() {
+    void validate_and_infer_types() override {
         // SparseFillEmptyRows fills empty rows in the input 2-D SparseTensor with a default value.
         // Inputs:
         // 0) indices: 2D. the indices of the sparse tensor
