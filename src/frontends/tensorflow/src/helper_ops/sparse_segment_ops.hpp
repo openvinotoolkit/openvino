@@ -19,12 +19,15 @@ class SparseSegmentSum : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("SparseSegmentSum", "util", ov::op::util::FrameworkNode);
 
-    SparseSegmentSum(Output<Node> data, Output<Node>& indices, Output<Node>& segment_ids)
+    SparseSegmentSum(const Output<Node>& data, const Output<Node>& indices, const Output<Node>& segment_ids)
         : ov::op::util::FrameworkNode(OutputVector{data, indices, segment_ids}, 1) {
         validate_and_infer_types();
     }
 
-    SparseSegmentSum(Output<Node> data, Output<Node>& indices, Output<Node>& segment_ids, Output<Node>& num_segments)
+    SparseSegmentSum(const Output<Node>& data,
+                     const Output<Node>& indices,
+                     const Output<Node>& segment_ids,
+                     const Output<Node>& num_segments)
         : ov::op::util::FrameworkNode(OutputVector{data, indices, segment_ids, num_segments}, 1) {}
 
     void validate_and_infer_types() {

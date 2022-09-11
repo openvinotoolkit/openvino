@@ -19,10 +19,10 @@ class SparseFillEmptyRows : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("SparseFillEmptyRows", "util", ov::op::util::FrameworkNode);
 
-    SparseFillEmptyRows(Output<Node> indices,
-                        Output<Node>& values,
-                        Output<Node>& dense_shape,
-                        Output<Node>& default_value)
+    SparseFillEmptyRows(const Output<Node>& indices,
+                        const Output<Node>& values,
+                        const Output<Node>& dense_shape,
+                        const Output<Node>& default_value)
         : ov::op::util::FrameworkNode(OutputVector{indices, values, dense_shape, default_value}, 4) {
         validate_and_infer_types();
     }

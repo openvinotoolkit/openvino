@@ -19,7 +19,7 @@ class Unique : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("Unique", "util", ov::op::util::FrameworkNode);
 
-    Unique(Output<Node> input_values, ov::element::Type output_indices_type)
+    Unique(const Output<Node>& input_values, ov::element::Type output_indices_type)
         : ov::op::util::FrameworkNode(OutputVector{input_values}, 2),
           out_idx(output_indices_type) {
         validate_and_infer_types();
