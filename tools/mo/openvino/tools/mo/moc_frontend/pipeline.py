@@ -123,11 +123,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 data_type = get_element_type(user_shape['data_type'])
                 log.debug('Set data type: {}'.format(data_type))
                 input_model.set_element_type(user_shape['node'], data_type)
-            else:
-                # if type is not specified in case of graph cutting, the default type is FP32 according to the MO help
-                data_type = get_element_type(np.float32)
-                log.debug('Set data type: {}'.format(data_type))
-                input_model.set_element_type(user_shape['node'], data_type)
 
     if freeze_placeholder:
         for name, value in freeze_placeholder.items():
