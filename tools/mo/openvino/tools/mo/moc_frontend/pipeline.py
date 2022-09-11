@@ -3,21 +3,19 @@
 
 import argparse
 import logging as log
-from typing import List
 import sys
-from os import environ
-
-from openvino.tools.mo.moc_frontend.analysis import json_model_analysis_dump
-from openvino.tools.mo.moc_frontend.extractor import fe_user_data_repack
-from openvino.tools.mo.middle.passes.infer import validate_batch_in_shape
-from openvino.tools.mo.utils.class_registration import get_enabled_and_disabled_transforms
-from openvino.tools.mo.utils.error import Error
-
-from openvino.runtime import Dimension, PartialShape, Type        # pylint: disable=no-name-in-module,import-error
-from openvino.frontend import FrontEnd, InputModel, NotImplementedFailure, Place # pylint: disable=no-name-in-module,import-error
-from openvino.runtime.utils.types import get_element_type   # pylint: disable=no-name-in-module,import-error
+from typing import List
 
 import numpy as np
+from openvino.frontend import FrontEnd, InputModel, NotImplementedFailure, \
+    Place  # pylint: disable=no-name-in-module,import-error
+from openvino.runtime import Dimension, PartialShape, Type  # pylint: disable=no-name-in-module,import-error
+from openvino.runtime.utils.types import get_element_type  # pylint: disable=no-name-in-module,import-error
+
+from openvino.tools.mo.middle.passes.infer import validate_batch_in_shape
+from openvino.tools.mo.moc_frontend.analysis import json_model_analysis_dump
+from openvino.tools.mo.moc_frontend.extractor import fe_user_data_repack
+from openvino.tools.mo.utils.class_registration import get_enabled_and_disabled_transforms
 
 
 def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
@@ -123,6 +121,11 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                     user_shape['node'], partial_shape_from_tuple(user_shape['shape']))
             if user_shape.get('data_type') is not None:
                 data_type = get_element_type(user_shape['data_type'])
+                log.debug('Set data type: {}'.format(data_type))
+                input_model.set_element_type(user_shape['node'], data_type)
+            else:
+                # if type is not specified in case of graph cutting, the default type is FP32 according to the MO help
+                data_type = get_element_type(np.float32)
                 log.debug('Set data type: {}'.format(data_type))
                 input_model.set_element_type(user_shape['node'], data_type)
 
