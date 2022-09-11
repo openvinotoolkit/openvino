@@ -45,6 +45,10 @@ ie_option(ENABLE_ERROR_HIGHLIGHT "Highlight errors and warnings during compile t
 
 ie_option (ENABLE_DOCS "Build docs using Doxygen" OFF)
 
+# TODO: fix apple later
+find_package(PkgConfig QUIET)
+ie_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file generation" ON "LINUX;PkgConfig_FOUND;BUILD_SHARED_LIBS" OFF)
+
 #
 # Inference Engine specific options
 #
