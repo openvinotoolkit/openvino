@@ -6,15 +6,13 @@ import datetime
 from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type, serialize
 from openvino.preprocess import PrePostProcessor
 
-from .constants import BLOB_EXTENSION, DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
+from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
     CPU_DEVICE_NAME, GPU_DEVICE_NAME
 from .logging import logger
 
-import os
 import json
 import re
 import numpy as np
-
 
 def static_vars(**kwargs):
     def decorate(func):

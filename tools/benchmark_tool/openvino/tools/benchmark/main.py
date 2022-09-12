@@ -102,7 +102,6 @@ def main():
                 if is_flag_set_in_command_line('hint'):
                     if args.perf_hint=='none':
                         logger.warning(f"No device {device} performance hint is set.")
-                        args.perf_hint = ""
                 else:
                     args.perf_hint = "THROUGHPUT" if benchmark.api_type == "async" else "LATENCY"
                     logger.warning(f"PerformanceMode was not explicitly specified in command line. " +
@@ -160,10 +159,8 @@ def main():
 
             ## high-level performance hints
             if is_flag_set_in_command_line('hint') or args.perf_hint:
-                if not args.perf_hint == None:
+                if not args.perf_hint == "none":
                     config[device]['PERFORMANCE_HINT'] = args.perf_hint.upper()
-                # else:
-                #     config[device]['PERFORMANCE_HINT'] = ""
                 if is_flag_set_in_command_line('nireq'):
                     config[device]['PERFORMANCE_HINT_NUM_REQUESTS'] = str(args.number_infer_requests)
 
@@ -188,7 +185,7 @@ def main():
                     else:
                         raise Exception(f"Device {device} doesn't support config key '{key}'! " +
                                         "Please specify -nstreams for correct devices in format  <dev1>:<nstreams1>,<dev2>:<nstreams2>")
-                elif key not in config[device].keys() and args.api_type == "async" and 'PERFORMANCE_HINT' in config[device].keys():
+                elif key not in config[device].keys() and args.api_type == "async" and 'PERFORMANCE_HINT' not in config[device].keys():
                     ## set the _AUTO value for the #streams
                     logger.warning(f"-nstreams default value is determined automatically for {device} device. " +
                                    "Although the automatic selection usually provides a reasonable performance, "

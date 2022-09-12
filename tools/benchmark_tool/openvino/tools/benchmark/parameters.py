@@ -154,5 +154,4 @@ def parse_args():
                            "Example: -imean data[255,255,255],info[255,255,255]\n")
     parsed_args = parser.parse_args()
 
-
     return parsed_args
