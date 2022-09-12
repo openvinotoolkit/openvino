@@ -145,7 +145,7 @@ public:
         auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(), in_layouts, out_layout,
                                                                                  get_fused_primitives(),
                                                                                  get_fused_activations_funcs(), get_fused_activations_params()));
-
+        params->memory_deps = get_const_memory_deps();
         return params;
     }
 
@@ -266,8 +266,6 @@ public:
     }
     void unmark() { user_mark = 0; }
     bool is_marked() const { return user_mark != 0; }
-    bool is_marked(uint8_t val) const { return user_mark == val; }
-    uint8_t get_user_mark() const { return user_mark; }
 
     void add_fused_activation(activation_func activation_func,
                               activation_additional_params additional_params) {

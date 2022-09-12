@@ -73,7 +73,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             std::stringstream ss(val);
             ss >> inference_precision;
             OPENVINO_ASSERT(inference_precision == ov::element::f16 ||
-                            inference_precision == ov::element::f32,
+                            inference_precision == ov::element::f32 ||
+                            inference_precision == ov::element::undefined,
                             "Unexpected inference precision set: ", inference_precision);
         } else if (key.compare(PluginConfigParams::KEY_PERF_COUNT) == 0 || key == ov::enable_profiling) {
             if (val.compare(PluginConfigParams::YES) == 0) {

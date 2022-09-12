@@ -486,7 +486,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
             auto f_size = toCodeString(_tensor.Feature().v);
             definitions.push_back({ safe_index_func_name, "(" + offset + " + ((f) % " + f_size + ")  * " + f_pitch + ")" });
             definitions.push_back({ index_func_name, "(" + offset + " + (f) * " + f_pitch + ")" });
-        } else if (_tensor.PitchesDifferFromLogicalDims()) {
+        } else if (_tensor.PitchesDifferFromLogicalDims() || _tensor.DoubleBlockedLayout()) {
             // TODO This should be solved differently, by setting the macro arguments to zero
             definitions.push_back({ safe_index_func_name, safe_index_func_val });
             definitions.push_back({ index_func_name, index_func_val });
@@ -1485,7 +1485,6 @@ bool FusedOpsCodeGenerator::CanPreloadData(const FusedOpsConfiguration& conf) co
 std::string FusedOpsCodeGenerator::GetTypeStr() const {
     switch (desc.GetType()) {
         case KernelType::ELTWISE: return "eltwise";
-        case KernelType::SCALE: return "scale";
         case KernelType::QUANTIZE: return "quantize";
         case KernelType::ACTIVATION: return "activation";
         case KernelType::UNKNOWN: throw std::runtime_error("Invalid type of fused operation. Fused op can't have type UNKNOWN");
@@ -1578,7 +1577,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
     const auto& out_type = desc.output_tensor.GetDType();
 
     if (conf.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE &&
-        (desc.GetType() == KernelType::SCALE || desc.GetType() == KernelType::QUANTIZE)) {
+        desc.GetType() == KernelType::QUANTIZE) {
         is_shuffled = true;
     }
 
@@ -1627,18 +1626,6 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
     }
 
     switch (desc.GetType()) {
-        case KernelType::SCALE: {
-            auto tmp_var = out_var + "_tmp";
-            if (desc.tensors.size() > 1) {
-                op_decls += "\\\n\t" + GetType(get_acc_t(), vec_size) + " " + tmp_var + " = "
-                          + input_vars[0] + " * " + input_vars[1] + " + " + input_vars[2] + ";";
-            } else {
-                op_decls += "\\\n\t" + GetType(get_acc_t(), vec_size) + " " + tmp_var + " = "
-                          + input_vars[0] + " * " + input_vars[1] + ";";
-            }
-            op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputType(tmp_var, vec_size) + ";";
-            break;
-        }
         case KernelType::ELTWISE: {
             auto p = desc.GetOpParams<eltwise_fuse_params>();
             if (!p)
