@@ -23,16 +23,8 @@ public:
     SparseFillEmptyRows(const Output<Node>& indices,
                         const Output<Node>& values,
                         const Output<Node>& dense_shape,
-                        const Output<Node>& default_value)
-        : ov::frontend::tensorflow::InternalOperation(OutputVector{indices, values, dense_shape, default_value}, 4) {
-        validate_and_infer_types();
-    }
-
-    SparseFillEmptyRows(const std::shared_ptr<DecoderBase>& decoder,
-                        const Output<Node>& indices,
-                        const Output<Node>& values,
-                        const Output<Node>& dense_shape,
-                        const Output<Node>& default_value)
+                        const Output<Node>& default_value,
+                        const std::shared_ptr<DecoderBase>& decoder = nullptr)
         : ov::frontend::tensorflow::InternalOperation(decoder,
                                                       OutputVector{indices, values, dense_shape, default_value},
                                                       4) {

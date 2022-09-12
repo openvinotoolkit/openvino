@@ -82,7 +82,8 @@ OutputVector translate_sparse_fill_empty_rows_op(const NodeContext& node) {
     auto sparse_fill_empty_rows = make_shared<ov::frontend::tensorflow::SparseFillEmptyRows>(input_indices,
                                                                                              input_values,
                                                                                              dense_shape,
-                                                                                             default_value);
+                                                                                             default_value,
+                                                                                             node.get_decoder());
     set_node_name(node.get_name(), sparse_fill_empty_rows);
     return sparse_fill_empty_rows->outputs();
 }
@@ -98,12 +99,16 @@ OutputVector translate_sparse_segment_sum_op(const NodeContext& node) {
 
     std::shared_ptr<ov::frontend::tensorflow::SparseSegmentSum> sparse_segment_sum = nullptr;
     if (input_size == 3) {
-        sparse_segment_sum = make_shared<ov::frontend::tensorflow::SparseSegmentSum>(data, indices, segment_ids);
+        sparse_segment_sum =
+            make_shared<ov::frontend::tensorflow::SparseSegmentSum>(data, indices, segment_ids, node.get_decoder());
 
     } else {
         auto num_segments = node.get_input(3);
-        sparse_segment_sum =
-            make_shared<ov::frontend::tensorflow::SparseSegmentSum>(data, indices, segment_ids, num_segments);
+        sparse_segment_sum = make_shared<ov::frontend::tensorflow::SparseSegmentSum>(data,
+                                                                                     indices,
+                                                                                     segment_ids,
+                                                                                     num_segments,
+                                                                                     node.get_decoder());
     }
 
     set_node_name(node.get_name(), sparse_segment_sum);
@@ -117,7 +122,7 @@ OutputVector translate_unique_op(const NodeContext& node) {
     // retrieve attribute
     auto output_indices_type = node.get_attribute<ov::element::Type>("out_idx", ov::element::i32);
 
-    auto unique = make_shared<ov::frontend::tensorflow::Unique>(input_values, output_indices_type);
+    auto unique = make_shared<ov::frontend::tensorflow::Unique>(input_values, output_indices_type, node.get_decoder());
     set_node_name(node.get_name(), unique);
     return unique->outputs();
 }
