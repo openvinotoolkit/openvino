@@ -9,7 +9,6 @@
 
 namespace ov {
 namespace op {
-
 namespace rnn_seq {
 template <class OpType, class ShapeType>
 void validate_inputs_rank(const OpType* op,
@@ -29,6 +28,9 @@ void validate_inputs_rank(const OpType* op,
     }
 }
 
+// Output shapes layout:
+// output_shapes[0]: [batch_size, num_directions, seq_length, hidden_size] // Rank always 4
+// output_shapes[1]: [batch_size, num_directions, hidden_size] // Rank always 3
 template <class OpType, class ShapeType>
 void gru_shape_infer(const OpType* op,
                      const std::vector<ShapeType>& input_shapes,
@@ -41,17 +43,6 @@ void gru_shape_infer(const OpType* op,
     auto& ho_out_shape = output_shapes[1];
     y_out_shape.resize(4);   // Rank always 4
     ho_out_shape.resize(3);  // Rank always 3
-
-    auto valid_num_directions = 0;
-    const auto m_direction = op->get_direction();
-    if (m_direction == op::RecurrentSequenceDirection::FORWARD ||
-        m_direction == op::RecurrentSequenceDirection::REVERSE) {
-        valid_num_directions = 1;
-    } else if (m_direction == op::RecurrentSequenceDirection::BIDIRECTIONAL) {
-        valid_num_directions = 2;
-    } else {
-        NODE_VALIDATION_CHECK(op, false, "Attribute direction must be FORWARD or REVERSE or BIDIRECTIONAL.");
-    }
 
     rnn_seq::validate_inputs_rank(op, input_shapes, {3, 3, 1, 3, 3, 2});
 
@@ -91,6 +82,17 @@ void gru_shape_infer(const OpType* op,
                           "DimType `hidden_size` is not matched between inputs.");
 
     // Validate num_directions dimension across all inputs
+    auto valid_num_directions = 0;
+    const auto m_direction = op->get_direction();
+    if (m_direction == op::RecurrentSequenceDirection::FORWARD ||
+        m_direction == op::RecurrentSequenceDirection::REVERSE) {
+        valid_num_directions = 1;
+    } else if (m_direction == op::RecurrentSequenceDirection::BIDIRECTIONAL) {
+        valid_num_directions = 2;
+    } else {
+        NODE_VALIDATION_CHECK(op, false, "Attribute direction must be FORWARD or REVERSE or BIDIRECTIONAL.");
+    }
+
     DimType merged_num_directions = DimType(valid_num_directions);
     NODE_VALIDATION_CHECK(op,
                           DimType::merge(merged_num_directions,
@@ -162,9 +164,6 @@ void gru_shape_infer(const OpType* op,
     y_out_shape[3] = merged_hidden_size;
     ho_out_shape[2] = merged_hidden_size;
 
-    // Final output shapes:
-    // y_out_shape: [batch_size, num_directions, seq_length, hidden_size] // Rank always 4
-    // ho_out_shape:  [batch_size, num_directions, hidden_size] // Rank always 3
 }
 }  // namespace rnn_seq
 namespace v5 {
