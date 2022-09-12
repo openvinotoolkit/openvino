@@ -7,26 +7,6 @@ include(cmake/ie_parallel.cmake)
 # pre-find TBB: need to provide TBB_IMPORTED_TARGETS used for installation
 ov_find_package_tbb()
 
-function(_ov_get_tbb_location tbb_target _tbb_lib_location_var)
-    if(NOT TBB_FOUND)
-        return()
-    endif()
-
-    foreach(properties INTERFACE_LINK_LIBRARIES
-                       IMPORTED_LOCATION_RELEASE
-                       IMPORTED_LOCATION_RELWITHDEBINFO
-                       IMPORTED_LOCATION_NONE
-                       IMPORTED_LOCATION)
-        get_target_property(_tbb_lib_location ${tbb_target} ${properties})
-        if(_tbb_lib_location)
-            set(${_tbb_lib_location_var} "${_tbb_lib_location}" PARENT_SCOPE)
-            return()
-        endif()
-    endforeach()
-
-   message(FATAL_ERROR "Failed to detect TBB library location")
-endfunction()
-
 # check whether TBB has TBBBind 2.5 with hwloc 2.5 or higher which is required
 # to detect hybrid cores
 function(_ov_detect_dynamic_tbbbind_2_5 var)
