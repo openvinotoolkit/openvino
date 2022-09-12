@@ -254,7 +254,7 @@ Engine::~Engine() {
 }
 
 static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT, const bool _enableBF16,
-                                               const bool _enableSnippets, const bool isLegacyApi) {
+                                               const bool _enableSnippets, const bool _enableSnippetsDynamism, const bool isLegacyApi) {
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -625,13 +625,12 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         snippetsManager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
         snippetsManager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
         snippetsManager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(
-                [](const std::shared_ptr<const ov::Node>& n) -> bool {
+                [_enableSnippetsDynamism](const std::shared_ptr<const ov::Node>& n) -> bool {
                     // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant
                     if (ov::is_type<const ov::op::v4::Swish>(n)) {
                         if (n->inputs().size() > 1 && !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)))
                             return true;
                     }
-
                     const auto& inputs = n->inputs();
                     // todo: clarify whether we can evaluate snippets on const paths
                     const bool has_only_const_inputs = std::all_of(inputs.begin(), inputs.end(),
@@ -648,7 +647,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                     const auto& outputs = n->outputs();
                     const bool bad_output_rank = std::any_of(outputs.begin(), outputs.end(),
                                                              [&](const ov::Output<const ov::Node>& out) {return  rank_is_too_large(out.get_tensor());});
-                    return has_only_const_inputs || bad_input_rank || bad_output_rank;
+                    return has_only_const_inputs || bad_input_rank || bad_output_rank || (n->is_dynamic() && !_enableSnippetsDynamism);
                 });
         snippetsManager.register_pass<ngraph::snippets::pass::CommonOptimizations>();
         snippetsManager.run_passes(nGraphFunc);
@@ -799,9 +798,11 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const auto& dynamicBatchProp = config.find(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED);
     const bool enableDynamicBatch = (dynamicBatchProp != config.end() && dynamicBatchProp->second == PluginConfigParams::YES)
             || engConfig.enableDynamicBatch;
-    const bool enableSnippets = !(enableModelCache || enableDynamicBatch || enableBF16);
+    const auto& snippetsDynamismProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_DYNAMISM_ENABLED);
+    const bool enableSnippetsDynamism = (snippetsDynamismProp != config.end() && snippetsDynamismProp->second == PluginConfigParams::YES);
+    bool enableSnippets = !(enableModelCache || enableDynamicBatch || enableBF16);
     auto nGraphFunc = clonedNetwork.getFunction();
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableBF16, enableSnippets, isLegacyAPI());
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableBF16, enableSnippets, enableSnippetsDynamism, isLegacyAPI());
 
     // need to check that all outputs have static shapes
     // checking that all inputs have static shapes is performed in the common part
@@ -1032,9 +1033,37 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     Config conf = engConfig;
     conf.readProperties(config);
 
+<<<<<<< HEAD
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
+=======
+        auto clonedNetwork = InferenceEngine::details::cloneNetwork(network);
+        auto clonnedFunction = clonedNetwork.getFunction();
+        const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
+        const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
+                               || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
+        const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch || (conf.enforceBF16
+                && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)));
+        const auto& snippetsDynamismProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_DYNAMISM_ENABLED);
+        const bool enableSnippetsDynamism = (snippetsDynamismProp != config.end() && snippetsDynamismProp->second == PluginConfigParams::YES);
+        Transformation(clonedNetwork, enableLPT, conf.enforceBF16, enableSnippets, enableSnippetsDynamism, isLegacyAPI());
+        auto ops = clonnedFunction->get_ordered_ops();
+
+        //Mark removed nodes as supported
+        std::unordered_set<std::string> supported = GetRemovedNodes(function, clonnedFunction);;
+        std::unordered_set<std::string> unsupported;
+
+        auto layerIsSupported = [&](const std::shared_ptr<ngraph::Node>& op) {
+            std::unique_ptr<Node> ptr;
+            try {
+                ptr.reset(Node::factory().create(op, {dnnl::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
+            } catch (const InferenceEngine::Exception&) {
+                return false;
+            }
+            return true;
+        };
+>>>>>>> Disable snippets dynamism by default. Use config to enable. Dynamic tests fixed.
 
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/

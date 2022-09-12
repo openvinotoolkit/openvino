@@ -34,6 +34,7 @@ void TwoInputsAndOutputs::SetUp() {
 }
 
 TEST_P(TwoInputsAndOutputs, CompareWithRefImpl) {
+    enableSnippetsDynamismSupport();
     run();
     validateNumSubgraphs();
 }

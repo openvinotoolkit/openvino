@@ -113,6 +113,7 @@ TEST_P(AddSinhConst, CompareWithRefImpl) {
 }
 
 TEST_P(AddSinhDynamic, CompareWithRefImpl) {
+    enableSnippetsDynamismSupport();
     run();
     validateNumSubgraphs();
 }

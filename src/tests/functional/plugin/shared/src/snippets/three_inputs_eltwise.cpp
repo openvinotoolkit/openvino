@@ -91,6 +91,7 @@ TEST_P(ThreeInputsEltwiseSinh, CompareWithRefImpl) {
 }
 
 TEST_P(ThreeInputsEltwiseSinhDynamic, CompareWithRefImpl) {
+    enableSnippetsDynamismSupport();
     run();
     validateNumSubgraphs();
 }
