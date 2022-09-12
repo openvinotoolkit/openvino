@@ -54,7 +54,24 @@ protected:
             virtual bool AddPrimitive(cldnn::topology& topology, cldnn::primitive_id id, cldnn::layout output_layout, std::deque<named_layout>& input_layouts) = 0;
             virtual ~topology_layer_type() = default;
         };
-        static std::vector<std::shared_ptr<topology_layer_type>> layer_types;
+        static std::vector<std::shared_ptr<topology_layer_type>>& layer_types(){
+            static std::vector<std::shared_ptr<topology_test::topology_generator::topology_layer_type>>* ret = nullptr;
+            if(!ret)
+                ret=new std::vector<std::shared_ptr<topology_test::topology_generator::topology_layer_type>>{
+                    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::normalization_layer_type()),
+                    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::pooling_layer_type()),
+                    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::convolution_layer_type()),
+                    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::fully_connected_layer_type()),
+                    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::reorder_layer_type()),
+                    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::activation_layer_type()),
+                    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::depth_concatenate_layer_type()),
+                    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::eltwise_layer_type()),
+                    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::scale_layer_type()),
+                    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::softmax_layer_type()),
+                    // Only add new types at the end
+                };
+            return *ret;
+        }
         static cldnn::topology* CreateTopology(cldnn::layout output_layout, const std::vector<unsigned> generator_vec)
         {
             if (generator_vec.size() < 2)
@@ -93,13 +110,13 @@ protected:
         static const cldnn::primitive_id output_layer_id;
         static bool AddSinglePrimitive(cldnn::topology& topology, cldnn::primitive_id id, cldnn::layout output_layout, std::deque<named_layout>& input_layouts, unsigned type_index, unsigned max_type)
         {
-            if (layer_types.size() < max_type)
+            if (layer_types().size() < max_type)
             {
                 return false;//shouldn't happen
             }
             for (unsigned t = 0; t < max_type; t++)
             {
-                if (layer_types.at((type_index + t) % max_type)->AddPrimitive(topology, id, output_layout, input_layouts))
+                if (layer_types().at((type_index + t) % max_type)->AddPrimitive(topology, id, output_layout, input_layouts))
                 {
                     return true;
                 }
@@ -110,7 +127,7 @@ protected:
         static void AddRandomMemory(cldnn::topology& topology, cldnn::primitive_id id, cldnn::layout layout)
         {
             //todo: allocate mem, randomize values by type, add to topology
-            auto mem_primitive = topology_test::engine.allocate_memory(layout);
+            auto mem_primitive = topology_test::get_engine()->allocate_memory(layout);
             switch (layout.data_type)
             {
             case cldnn::data_types::f32:
@@ -386,7 +403,7 @@ public:
         std::uniform_int_distribution<unsigned> distribution(0, 0xFF);//assuming we won't exceed 256 total layer types
 
         const unsigned Initial_layer_types = 10;//don't change this - starting with this index ensures adding layers won't alter previously generated tests
-        for (unsigned types = Initial_layer_types; types <= topology_test::topology_generator::layer_types.size(); types++)
+        for (unsigned types = Initial_layer_types; types <= topology_test::topology_generator::layer_types().size(); types++)
         {
             for (unsigned i = 0; i < topologies_per_type_size; i++)
             {
@@ -421,46 +438,41 @@ public:
 
         return ss.str();
     }
+
+    static std::shared_ptr<cldnn::engine> get_engine(){
+        if(!engine){
+            //getting pointer of return value of tests::get_test_engine() is safe because it's memory is allocated in static memory.
+            engine=std::shared_ptr<cldnn::engine>(&tests::get_test_engine());
+        }
+        return engine;
+    }
 protected:
     cldnn::layout output_layout;
     std::vector<unsigned> generator;
 
-    static cldnn::engine& engine;
+    static std::shared_ptr<cldnn::engine> engine;
     static std::vector<cldnn::layout> all_output_layouts;//just for tear-down
 };
 
-cldnn::engine& topology_test::engine = tests::get_test_engine();
+std::shared_ptr<cldnn::engine> topology_test::engine;
 std::vector<cldnn::layout> topology_test::all_output_layouts = {};
-
-std::vector<std::shared_ptr<topology_test::topology_generator::topology_layer_type>> topology_test::topology_generator::layer_types = {
-    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::normalization_layer_type()),
-    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::pooling_layer_type()),
-    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::convolution_layer_type()),
-    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::fully_connected_layer_type()),
-    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::reorder_layer_type()),
-    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::activation_layer_type()),
-    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::depth_concatenate_layer_type()),
-    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::eltwise_layer_type()),
-    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::softmax_layer_type()),
-    // Only add new types at the end
-};
 const cldnn::primitive_id topology_test::topology_generator::output_layer_id("tg_output_layer");
 
 TEST_P(topology_test, TOPOLOGY)
 {
-     try
-     {
-         run_single_test();
-         if (::testing::Test::HasFailure())
-         {
-             PrintTupleTo(GetParam(), &std::cout);
-         }
-     }
-     catch (...)
-     {
-         PrintTupleTo(GetParam(), &std::cout);
-         throw;
-     }
+    try
+    {
+        run_single_test();
+        if (::testing::Test::HasFailure())
+        {
+            PrintTupleTo(GetParam(), &std::cout);
+        }
+    }
+    catch (...)
+    {
+        PrintTupleTo(GetParam(), &std::cout);
+        throw;
+    }
 }
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_TOPOLOGY,
