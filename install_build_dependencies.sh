@@ -50,10 +50,13 @@ if [ -f /etc/lsb-release ]; then
             shellcheck \
             patchelf \
             lintian \
+            file \
             gzip \
             `# openvino` \
             libtbb-dev \
             libpugixml-dev \
+            `# gpu plugin extensions` \
+            libva-dev \
             `# python` \
             python3-pip \
             python3-venv \
