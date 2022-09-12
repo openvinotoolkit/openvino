@@ -63,7 +63,7 @@ void gru_shape_infer(const OpType* op,
             DimType::merge(merged_batch_size,
                            merged_batch_size,
                            sl_pshape.rank().is_static() ? sl_pshape[0] : DimType()),
-        "DimType `batch_size` is not matched between inputs.");
+        "Dimension `batch_size` is not matched between inputs.");
 
     // Set batch_size dimension
     y_out_shape[0] = merged_batch_size;
@@ -79,7 +79,7 @@ void gru_shape_infer(const OpType* op,
                               DimType::merge(merged_hidden_size,
                                              merged_hidden_size,
                                              r_pshape.rank().is_static() ? r_pshape[2] : DimType()),
-                          "DimType `hidden_size` is not matched between inputs.");
+                          "Dimension `hidden_size` is not matched between inputs.");
 
     // Validate num_directions dimension across all inputs
     auto valid_num_directions = 0;
@@ -107,16 +107,7 @@ void gru_shape_infer(const OpType* op,
                               DimType::merge(merged_num_directions,
                                              merged_num_directions,
                                              b_pshape.rank().is_static() ? b_pshape[0] : DimType()),
-                          "DimType `num_directions` is not matched between inputs.");
-
-    NODE_VALIDATION_CHECK(op,
-                          DimType::merge(merged_num_directions, merged_num_directions, valid_num_directions),
-                          "DimType 'num_directions' doesn't match to direction attribute '",
-                          m_direction,
-                          "' Expected: ",
-                          valid_num_directions,
-                          ", actual: ",
-                          merged_num_directions);
+                          "Dimension `num_directions` doesn't match to other inputs or `direction` attribute.");
 
     // Set num_directions dimension
     y_out_shape[1] = merged_num_directions;

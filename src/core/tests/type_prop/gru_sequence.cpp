@@ -357,8 +357,9 @@ TEST(type_prop, gru_sequence_invalid_input_direction_num_mismatch) {
             gru_sequence->validate_and_infer_types();
             FAIL() << "GRUSequence node was created with invalid data.";
         } catch (const NodeValidationFailure& error) {
-            EXPECT_HAS_SUBSTRING(error.what(),
-                                 std::string("DimType 'num_directions' doesn't match to direction attribute"));
+            EXPECT_HAS_SUBSTRING(
+                error.what(),
+                std::string("Dimension `num_directions` doesn't match to other inputs or `direction` attribute"));
         }
     };
 
