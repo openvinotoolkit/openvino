@@ -66,7 +66,6 @@ protected:
                     std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::activation_layer_type()),
                     std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::depth_concatenate_layer_type()),
                     std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::eltwise_layer_type()),
-                    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::scale_layer_type()),
                     std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::softmax_layer_type()),
                     // Only add new types at the end
                 };
