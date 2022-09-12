@@ -40,18 +40,12 @@ public:
     /// \brief Insert OP_TYPE into the opset with a special name and the default factory
     template <typename OP_TYPE, typename std::enable_if<!ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
     void insert(const std::string& name) {
-        auto builder = []() {
-            return new OP_TYPE();
-        };
-        insert(name, OP_TYPE::get_type_info_static(), std::move(builder));
+        insert(name, OP_TYPE::get_type_info_static(), std::move(get_default_builder<OP_TYPE>()));
     }
     template <typename OP_TYPE, typename std::enable_if<ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
     void insert(const std::string& name) {
         OPENVINO_SUPPRESS_DEPRECATED_START
-        auto builder = []() {
-            return new OP_TYPE();
-        };
-        insert(name, OP_TYPE::type_info, std::move(builder));
+        insert(name, OP_TYPE::type_info, std::move(get_default_builder<OP_TYPE>()));
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
@@ -114,6 +108,11 @@ public:
 
     const std::set<NodeTypeInfo>& get_type_info_set() const {
         return m_op_types;
+    }
+
+    template<typename OP_TYPE>
+    std::function<ov::Node*()> get_default_builder() {
+        return []() {return new OP_TYPE();};
     }
 
 protected:
