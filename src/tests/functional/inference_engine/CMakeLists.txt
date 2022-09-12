@@ -160,7 +160,7 @@ function(ie_headers_compilation_with_custom_flags)
                                                 "openvino/runtime/intel_gpu/ocl/dx.hpp")
         endif()
         # try to find VA libraries
-        if(NOT CMAKE_CROSSCOMPILING)
+        if(NOT ANDROID)
             find_host_package(PkgConfig QUIET)
             if(PkgConfig_FOUND)
                 pkg_search_module(libva QUIET IMPORTED_TARGET libva)

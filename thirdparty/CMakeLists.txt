@@ -65,7 +65,7 @@ if(ENABLE_SYSTEM_PUGIXML)
         else()
             message(FATAL_ERROR "Failed to detect pugixml library target name")
         endif()
-    elseif(PkgConfig_FOUND)
+    elseif(PkgConfig_FOUND AND NOT ANDROID)
         # U18 case when cmake interface is not available
         pkg_search_module(pugixml QUIET
                           IMPORTED_TARGET GLOBAL

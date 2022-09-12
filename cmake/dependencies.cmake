@@ -105,7 +105,7 @@ function(ov_download_tbb)
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
-    elseif(LINUX AND AARCH64)
+    elseif((LINUX AND NOT ANDROID) AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
                 TARGET_PATH "${TEMP}/tbb_yocto"
@@ -173,9 +173,7 @@ function(ov_download_tbbbind_2_5)
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
                 SHA256 "a67afeea8cf194f97968c800dab5b5459972908295242e282045d6b8953573c1")
-    elseif(ANDROID)
-        # don't have TBBBIND_2_5
-    elseif(LINUX AND X86_64)
+    elseif((LINUX AND NOT ANDROID) AND X86_64)
         RESOLVE_DEPENDENCY(TBBBIND_2_5
                 ARCHIVE_LIN "tbbbind_2_5_static_lin_v2.tgz"
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
@@ -184,6 +182,7 @@ function(ov_download_tbbbind_2_5)
     else()
         message(WARNING "prebuilt TBBBIND_2_5 is not available.
 Build oneTBB from sources and set TBBROOT environment var before OpenVINO cmake configure")
+        return()
     endif()
 
     update_deps_cache(TBBBIND_2_5_DIR "${TBBBIND_2_5}/cmake" "Path to TBBBIND_2_5 cmake folder")
