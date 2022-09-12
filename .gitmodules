@@ -46,7 +46,8 @@
 	url = https://github.com/protocolbuffers/protobuf.git
 [submodule "src/bindings/python/thirdparty/pybind11"]
 	path = src/bindings/python/thirdparty/pybind11
-	url = https://github.com/pybind/pybind11.git
+	url = https://github.com/mmikolajcz/pybind11.git
+	branch = test
 [submodule "thirdparty/ittapi/ittapi"]
 	path = thirdparty/ittapi/ittapi
 	url = https://github.com/intel/ittapi.git
