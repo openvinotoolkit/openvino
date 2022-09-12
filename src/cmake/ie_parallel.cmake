@@ -90,7 +90,7 @@ macro(ov_find_package_tbb)
                             _ov_get_tbb_location(PkgConfig::tbb tbb_loc)
                             string(REPLACE "tbb" "tbbmalloc" tbbmalloc_loc "${tbb_loc}")
                             if(EXISTS "${tbbmalloc_loc}")
-                                add_library(TBB::tbbmalloc SHARED IMPORTED GLOBAL)
+                                add_library(TBB::tbbmalloc SHARED IMPORTED)
                                 set_target_properties(TBB::tbbmalloc PROPERTIES IMPORTED_LOCATION ${tbbmalloc_loc})
                             endif()
 
