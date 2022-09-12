@@ -3,6 +3,9 @@
 //
 
 #include "test_utils.h"
+#include "ngraph/runtime/reference/adaptive_avg_pool.hpp"
+#include "ngraph/runtime/reference/adaptive_max_pool.hpp"
+
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/adaptive_pooling.hpp>
@@ -15,18 +18,13 @@ using namespace cldnn;
 using namespace ::tests;
 
 namespace {
-template<typename T>
 struct AdaptiveMaxPoolingParams {
     tensor inputTensor;
-    std::vector<T> inputs;
     tensor outputTensor;
-    std::vector<T> outputs;
-    std::vector<int32_t> output_indices;
 };
 
-template<typename T>
 using AdaptiveMaxPoolingParamsWithLayout = std::tuple<
-    AdaptiveMaxPoolingParams<T>,
+    AdaptiveMaxPoolingParams,
     format::type,   // source (plain) layout - bfyx or bfzyx
     format::type    // target (blocked) layout
 >;
@@ -56,82 +54,50 @@ std::vector<T> getValues(const std::vector<float>& values) {
     return result;
 }
 
-template<typename T>
-std::vector<AdaptiveMaxPoolingParams<T>> generateAdaptiveMaxPoolingParams2D() {
-    static const std::vector<AdaptiveMaxPoolingParams<T>> result = {
-        {
-            tensor(2, 3, 1, 7),
-            getValues<T>({0, 4, 1, 3, -2, -5, -2, -2, 1, -3, 1, -3, -4, 0, -2, 1, -1, -2, 3, -1, -3,
-                          -1, -2, 3, 4, -3, -4, 1, 2, 0, -4, -5, -2, -2, -3, 2, 3, 1, -5, 2, -4, -2}),
-            tensor(2, 3, 1, 3),
-            getValues<T>({4, 3, -2, 1, 1, 0, 1, 3, 3, 3, 4, 1, 2, -2, -2, 3, 2, 2}),
-            std::vector<int32_t>{1, 3, 4, 1, 3, 6, 1, 4, 4, 2, 3, 6, 0, 4, 4, 1, 4, 4}
-        },
-        {
-            tensor(1, 3, 10, 7),
-            getValues<T>(
-                    {0, -2, -5, -5, 2, 3, 2, -3, 1, -2, -4, -1, -1, -1, 2, -4, 3, -5, -1, -1, 1, 2, 4, -2,
-                     -3, -2, 0, -5, 2, -4, -1, -4, 4, 2, 1, -2, 2, -3, 0, 1, -3, 3, -1, 4, 0, 2, 0, 3,
-                     4, -4, 1, 4, -1, -5, -2, 4, -3, 3, 2, 1, 0, 4, 2, -5, 2, -5, -2, -1, 4, 2,
+ov::Shape tensorToShape(const tensor& t, const format f)
+{
+    std::vector<int> vec(cldnn::format::dimension(f));
+    for (size_t i = 0; i < vec.size(); ++i) {
+        vec[i] = t.sizes()[i];
+    }
+    std::reverse(vec.begin() + 2, vec.end());
 
-                     0, 4, -2, 0, -5, -3, 4, -4, -2, -2, 2, 1, 4, 3, 2, -5, -4, -4, 0, 1, 4, -4, -3, 3,
-                     3, 4, -2, -3, -4, -2, 0, 1, -1, 3, -2, 2, 0, -3, -1, -1, 0, 0, 2, 2, -2, 1, -3, 1,
-                     2, 4, 3, -5, -4, 1, -4, 2, 0, -2, -5, 2, -3, -2, -3, -4, 2, -2, -4, 2, -4, -3,
-
-                     1, -5, -1, -5, 2, 1, 3, 4, 3, 0, -5, 4, -3, -4, -1, 2, -4, 2, 0, -5, -3, 0, 2, -3,
-                     -5, 3, -2, -1, -5, -4, -5, 0, -5, -1, -3, 3, 3, -4, -3, -4, -5, 4, -1, 1, -1, -4, 1,
-                     -3,
-                     -4, -1, -2, -3, -5, 2, 2, -5, 1, 1, -5, -4, 0, 2, 4, 2, 0, 2, 4, 0, -5, 2}),
-            tensor(1, 3, 3, 3),
-            getValues<T>({4, 3, 3, 4, 4, 4, 4, 4, 4,
-                          4, 4, 4, 4, 4, 4, 3, 2, 4,
-                          4, 3, 4, 4, 3, 3, 4, 4, 4}),
-            std::vector<int32_t>{22, 5, 16, 22, 43, 48, 43, 43, 48,
-                                 1, 6, 6, 20, 25, 49, 50, 43, 49,
-                                 11, 6, 7, 41, 25, 36, 41, 66, 66}
-        }
-    };
-    return result;
+    return ov::Shape(vec.begin(), vec.end());
 }
 
 template<typename T>
-std::vector<AdaptiveMaxPoolingParams<T>> generateAdaptiveMaxPoolingParams3D() {
-    static const std::vector<AdaptiveMaxPoolingParams<T>> result = {
-        {
-            tensor(2, 2, 3, 3, 3),
-            getValues<T>(
-                    {-5, 1, -3, -4, 4, -4, 3, -3, -1, 0, 0, -2, -4, 2, 0, -4, -5, -2, -4, -4, 0, -2, 3, -3,
-                     4,
-                     -1, -4,
-                     -1, -1, -5, 4, -1, -2, -3, 0, 4, -1, -5, -4, 1, 1, 4, -5, -5, -5, 4, -3, -3, -3, 4, 0,
-                     -3,
-                     -5, 1,
-                     4, 2, 1, -5, -5, 1, 0, -4, -1, 2, -4, -2, 4, 3, 1, -3, -3, -2, -4, -3, -3, 3, -1, 1, 2,
-                     2,
-                     -4,
-                     -5, -4, 1, 3, -4, -1, 2, 4, -5, 0, 1, -2, 0, 0, -2, 3, -2, -5, -3, -5, -2, -1, 3, -2,
-                     4, 3,
-                     -3}),
-            tensor(2, 2, 2, 2, 2),
-            getValues<T>({4, 4, 4, 4, 3, 3, 4, 3,
-                          4, 4, 4, 4, 4, 4, 4, 4,
-                          4, 3, 4, 3, 4, 3, 4, 3,
-                          3, 1, 4, 4, 3, 3, 4, 3}),
-            std::vector<int32_t>{4, 4, 4, 4, 22, 22, 24, 22,
-                                 3, 14, 3, 8, 18, 14, 22, 14,
-                                 0, 13, 12, 13, 12, 13, 12, 13,
-                                 3, 2, 7, 7, 22, 22, 24, 22}
-        }
-    };
-    return result;
+void generateTestData(const AdaptiveMaxPoolingParams& p, const format fmt,
+                      std::vector<T>& inputs, std::vector<T>& outputs, std::vector<int32_t>& indices) {
+    const auto in = generate_random_1d<float>(p.inputTensor.count(), -127, 127, 1);
+    std::vector<float> out(p.outputTensor.count());
+    std::vector<int32_t> ind(p.outputTensor.count());
+
+    const auto inShape = tensorToShape(p.inputTensor, fmt);
+    const auto outShape = tensorToShape(p.outputTensor, fmt);
+
+    ngraph::runtime::reference::adaptive_max_pool<float, int32_t>(in.data(), out.data(), ind.data(), inShape, outShape);
+
+    inputs = getValues<T>(in);
+    outputs = getValues<T>(out);
+    indices = ind;
 }
 
+template <typename T> float getError();
+
+template<>
+float getError<float>() {
+    return 0.001;
+}
+
+template<>
+float getError<half_t>() {
+    return 0.5;
+}
 
 struct PrintToStringParamName {
-    template<class T>
-    std::string operator()(const testing::TestParamInfo<AdaptiveMaxPoolingParamsWithLayout<T>>& param) {
+    std::string operator()(const testing::TestParamInfo<AdaptiveMaxPoolingParamsWithLayout>& param) {
         std::stringstream buf;
-        AdaptiveMaxPoolingParams<T> p;
+        AdaptiveMaxPoolingParams p;
         format::type plain_layout;
         format::type target_layout;
         std::tie(p, plain_layout, target_layout) = param.param;
@@ -146,23 +112,27 @@ struct PrintToStringParamName {
 
 template<typename T>
 struct adaptive_max_pooling_test
-        : public ::testing::TestWithParam<AdaptiveMaxPoolingParamsWithLayout<T>> {
+        : public ::testing::TestWithParam<AdaptiveMaxPoolingParamsWithLayout> {
 public:
     void test() {
         const auto data_type = type_to_data_type<T>::value;
-        AdaptiveMaxPoolingParams<T> params;
+        AdaptiveMaxPoolingParams params;
         format::type plain_layout;
         format::type target_layout;
         std::tie(params, plain_layout, target_layout) = this->GetParam();
         const bool need_reorder = target_layout != plain_layout;
 
+        std::vector<T> input_data;
+        std::vector<T> expected;
+        std::vector<int32_t> expected_indices;
+        generateTestData<T>(params, plain_layout, input_data, expected, expected_indices);
         auto& engine = get_test_engine();
 
         auto input_mem = engine.allocate_memory({data_type, plain_layout, params.inputTensor});
         const layout indices_layout{data_types::i32, target_layout, params.outputTensor};
         auto indices_mem = engine.allocate_memory(indices_layout);
 
-        set_values(input_mem, params.inputs);
+        set_values(input_mem, input_data);
 
         const std::string input_data_id = "adaptive_max_input_id";
         const std::string adaptive_max_pooling_id = "adaptive_max_pooling_id";
@@ -198,11 +168,12 @@ public:
         cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
 
         ASSERT_EQ(params.outputTensor.count(), out_ptr.size());
-        for (size_t i = 0; i < params.outputs.size(); ++i) {
-            EXPECT_NEAR(params.outputs[i], out_ptr[i], 0.005) << "at i = " << i;
+        ASSERT_EQ(params.outputTensor.count(), expected.size());
+        for (size_t i = 0; i < expected.size(); ++i) {
+            EXPECT_NEAR(expected[i], out_ptr[i], getError<T>())
+                << "i = " << i << ", format=" << fmt_to_str(target_layout);
         }
 
-        const auto& expected_indices = params.output_indices;
         const auto block_sizes = format::traits(target_layout).block_sizes;
         const auto index_offset = std::accumulate(block_sizes.begin(), block_sizes.end(), 1u,
                                                   [](size_t total, const std::pair<size_t, int>& b) {
@@ -223,8 +194,10 @@ public:
 
         cldnn::mem_lock<int32_t> indices_ptr(need_reorder ? get_reordered_indices_mem() : indices_mem, get_test_stream());
         ASSERT_EQ(params.outputTensor.count(), indices_ptr.size());
+        ASSERT_EQ(params.outputTensor.count(), expected_indices.size());
         for (size_t i = 0; i < expected_indices.size(); ++i) {
-            EXPECT_EQ(index_offset * expected_indices[i], indices_ptr[i]) << "at i = " << i;
+            EXPECT_EQ(index_offset * expected_indices[i], indices_ptr[i]) 
+                << "i = " << i << ", format=" << fmt_to_str(target_layout);
         }
     }
 };
@@ -241,35 +214,68 @@ TEST_P(adaptive_max_pooling_test_f16, adaptive_max_pooling_test_f16) {
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
-
 INSTANTIATE_TEST_SUITE_P(smoke_adaptive_max_pooling_test_f32_2d,
                          adaptive_max_pooling_test_f32,
                          ::testing::Combine(
-                            ::testing::ValuesIn(generateAdaptiveMaxPoolingParams2D<float>()),
-                            ::testing::Values(format::bfyx),
-                            ::testing::ValuesIn(layouts_2d)),
+                                 ::testing::ValuesIn(std::vector<AdaptiveMaxPoolingParams>{
+                                        { tensor(1, 2, 7, 3), tensor(1, 2, 3, 3) },
+                                        { tensor(2, 3, 7, 3), tensor(2, 3, 3, 3) },
+                                    }),
+                                 ::testing::Values(format::bfyx),
+                                 ::testing::Values(format::bfyx)),
                          PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(smoke_adaptive_max_pooling_test_f32_3d,
                          adaptive_max_pooling_test_f32,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(generateAdaptiveMaxPoolingParams3D<float>()),
+                                 ::testing::ValuesIn(std::vector<AdaptiveMaxPoolingParams>{
+                                        { tensor(2, 2, 7, 3, 3), tensor(2, 2, 2, 2, 2) },
+                                        { tensor(2, 2, 8, 5, 4), tensor(2, 2, 3, 3, 3) },
+                                    }),
                                  ::testing::Values(format::bfzyx),
-                                 ::testing::ValuesIn(layouts_3d)),
+                                 ::testing::Values(format::bfzyx)),
                          PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(smoke_adaptive_max_pooling_test_f16_2d,
                          adaptive_max_pooling_test_f16,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(generateAdaptiveMaxPoolingParams2D<half_t>()),
+                                 ::testing::ValuesIn(std::vector<AdaptiveMaxPoolingParams>{
+                                        { tensor(1, 2, 7, 3), tensor(1, 2, 3, 3) },
+                                        { tensor(2, 3, 7, 3), tensor(2, 3, 3, 3) },
+                                    }),
                                  ::testing::Values(format::bfyx),
-                                 ::testing::ValuesIn(layouts_2d)),
+                                 ::testing::Values(format::bfyx)),
                          PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(smoke_adaptive_max_pooling_test_f16_3d,
                          adaptive_max_pooling_test_f16,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(generateAdaptiveMaxPoolingParams2D<half_t>()),
+                                 ::testing::ValuesIn(std::vector<AdaptiveMaxPoolingParams>{
+                                        { tensor(2, 2, 7, 3, 3), tensor(2, 2, 2, 2, 2) },
+                                        { tensor(2, 2, 8, 5, 4), tensor(2, 2, 3, 3, 3) },
+                                    }),
+                                 ::testing::Values(format::bfzyx),
+                                 ::testing::Values(format::bfzyx)),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(smoke_adaptive_max_pooling_test_2d_all_formats,
+                         adaptive_max_pooling_test_f32,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(std::vector<AdaptiveMaxPoolingParams>{
+                                        { tensor(20, 20, 7, 3), tensor(20, 20, 3, 3) },
+                                        { tensor(32, 32, 7, 3), tensor(32, 32, 3, 3) },
+                                    }),
+                                 ::testing::Values(format::bfyx),
+                                 ::testing::ValuesIn(layouts_2d)),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(smoke_adaptive_max_pooling_test_3d_all_formats,
+                         adaptive_max_pooling_test_f32,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(std::vector<AdaptiveMaxPoolingParams>{
+                                        { tensor(20, 20, 7, 3, 3), tensor(20, 20, 3, 3, 2) },
+                                        { tensor(32, 32, 7, 3, 3), tensor(32, 32, 3, 3, 2) },
+                                    }),
                                  ::testing::Values(format::bfzyx),
                                  ::testing::ValuesIn(layouts_3d)),
                          PrintToStringParamName());
