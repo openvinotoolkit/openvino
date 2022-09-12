@@ -12,17 +12,20 @@ namespace op {
 
 namespace rnn_seq {
 template <class OpType, class ShapeType>
-void validate_inputs_rank(const OpType* op, const std::vector<ShapeType>& input_shapes, const std::vector<Rank>& expected_ranks) {
+void validate_inputs_rank(const OpType* op,
+                          const std::vector<ShapeType>& input_shapes,
+                          const std::vector<Rank>& expected_ranks) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() >= expected_ranks.size(), "Can't validate inputs rank.");
     for (auto i = 0; i < expected_ranks.size(); ++i) {
         NODE_VALIDATION_CHECK(op,
-                    input_shapes[i].rank().compatible(expected_ranks[i]),
-                    "Shape rank of input at ",
-                    i,
-                    " is incompatible. Expected rank: ",
-                    expected_ranks[i],
-                    ", actual shape: ",
-                    input_shapes[i], ".");
+                              input_shapes[i].rank().compatible(expected_ranks[i]),
+                              "Shape rank of input at ",
+                              i,
+                              " is incompatible. Expected rank: ",
+                              expected_ranks[i],
+                              ", actual shape: ",
+                              input_shapes[i],
+                              ".");
     }
 }
 
@@ -30,9 +33,9 @@ template <class OpType, class ShapeType>
 void gru_shape_infer(const OpType* op,
                      const std::vector<ShapeType>& input_shapes,
                      std::vector<ShapeType>& output_shapes) {
-
-   NODE_VALIDATION_CHECK(op, input_shapes.size() >= 6 && output_shapes.size() == 2,
-   "Incorrect number of shapes has been provided.");
+    NODE_VALIDATION_CHECK(op,
+                          input_shapes.size() >= 6 && output_shapes.size() == 2,
+                          "Incorrect number of shapes has been provided.");
 
     auto& y_out_shape = output_shapes[0];
     auto& ho_out_shape = output_shapes[1];
@@ -50,11 +53,7 @@ void gru_shape_infer(const OpType* op,
         NODE_VALIDATION_CHECK(op, false, "Attribute direction must be FORWARD or REVERSE or BIDIRECTIONAL.");
     }
 
-    using DimType = typename std::iterator_traits<typename ShapeType::iterator>::value_type;
-
-    DimType merged_batch_size;
-    DimType merged_hidden_size;
-    DimType merged_num_directions;
+    rnn_seq::validate_inputs_rank(op, input_shapes, {3, 3, 1, 3, 3, 2});
 
     auto x_pshape = input_shapes[0];
     auto ht_pshape = input_shapes[1];
@@ -63,18 +62,16 @@ void gru_shape_infer(const OpType* op,
     auto r_pshape = input_shapes[4];
     auto b_pshape = input_shapes[5];
 
-    rnn_seq::validate_inputs_rank(op, input_shapes, {3, 3, 1, 3, 3, 2});
+    using DimType = typename std::iterator_traits<typename ShapeType::iterator>::value_type;
 
     // Merge batch_size dimension across all inputs to evaluate output[0] dimension
+    DimType merged_batch_size = x_pshape.rank().is_static() ? x_pshape[0] : DimType();
     NODE_VALIDATION_CHECK(
         op,
-        DimType::merge(merged_batch_size, merged_batch_size, ht_pshape.rank().is_static() ? ht_pshape[0] : DimType{}) &&
+        DimType::merge(merged_batch_size, merged_batch_size, ht_pshape.rank().is_static() ? ht_pshape[0] : DimType()) &&
             DimType::merge(merged_batch_size,
                            merged_batch_size,
-                           x_pshape.rank().is_static() ? x_pshape[0] : DimType{}) &&
-            DimType::merge(merged_batch_size,
-                           merged_batch_size,
-                           sl_pshape.rank().is_static() ? sl_pshape[0] : DimType{}),
+                           sl_pshape.rank().is_static() ? sl_pshape[0] : DimType()),
         "DimType `batch_size` is not matched between inputs.");
 
     // Set batch_size dimension
@@ -83,17 +80,31 @@ void gru_shape_infer(const OpType* op,
 
     // Merge hidden_size dimension across all inputs to evaluate output dimension
     // `hidden_size` attribute is not used for backward compatibility
+    DimType merged_hidden_size = ht_pshape.rank().is_static() ? ht_pshape[2] : DimType();
     NODE_VALIDATION_CHECK(op,
-                          DimType::merge(merged_hidden_size, merged_hidden_size, ht_pshape.rank().is_static() ? ht_pshape[2] : DimType{}) &&
-                              DimType::merge(merged_hidden_size, merged_hidden_size, r_pshape.rank().is_static() ? r_pshape[2] : DimType{}),
+                          DimType::merge(merged_hidden_size,
+                                         merged_hidden_size,
+                                         ht_pshape.rank().is_static() ? ht_pshape[2] : DimType()) &&
+                              DimType::merge(merged_hidden_size,
+                                             merged_hidden_size,
+                                             r_pshape.rank().is_static() ? r_pshape[2] : DimType()),
                           "DimType `hidden_size` is not matched between inputs.");
 
     // Validate num_directions dimension across all inputs
+    DimType merged_num_directions = DimType(valid_num_directions);
     NODE_VALIDATION_CHECK(op,
-                          DimType::merge(merged_num_directions, merged_num_directions, ht_pshape.rank().is_static() ? ht_pshape[1] : DimType{}) &&
-                              DimType::merge(merged_num_directions, merged_num_directions, w_pshape.rank().is_static() ? w_pshape[0] : DimType{}) &&
-                              DimType::merge(merged_num_directions, merged_num_directions, r_pshape.rank().is_static() ? r_pshape[0] : DimType{}) &&
-                              DimType::merge(merged_num_directions, merged_num_directions, b_pshape.rank().is_static() ? b_pshape[0] : DimType{}),
+                          DimType::merge(merged_num_directions,
+                                         merged_num_directions,
+                                         ht_pshape.rank().is_static() ? ht_pshape[1] : DimType()) &&
+                              DimType::merge(merged_num_directions,
+                                             merged_num_directions,
+                                             w_pshape.rank().is_static() ? w_pshape[0] : DimType()) &&
+                              DimType::merge(merged_num_directions,
+                                             merged_num_directions,
+                                             r_pshape.rank().is_static() ? r_pshape[0] : DimType()) &&
+                              DimType::merge(merged_num_directions,
+                                             merged_num_directions,
+                                             b_pshape.rank().is_static() ? b_pshape[0] : DimType()),
                           "DimType `num_directions` is not matched between inputs.");
 
     NODE_VALIDATION_CHECK(op,
@@ -106,11 +117,11 @@ void gru_shape_infer(const OpType* op,
                           merged_num_directions);
 
     // Set num_directions dimension
-    y_out_shape[1] = DimType(valid_num_directions);
-    ho_out_shape[1] = DimType(valid_num_directions);
+    y_out_shape[1] = merged_num_directions;
+    ho_out_shape[1] = merged_num_directions;
 
     // Set seq_len dimension
-    y_out_shape[2] = x_pshape.rank().is_static() ? x_pshape[1] : DimType{};
+    y_out_shape[2] = x_pshape.rank().is_static() ? x_pshape[1] : DimType();
 
     // Validate dimensions related to hidden_size for W, R, B inputs
     if (merged_hidden_size.is_static()) {
@@ -119,7 +130,7 @@ void gru_shape_infer(const OpType* op,
             NODE_VALIDATION_CHECK(op,
                                   w_pshape[1].compatible(merged_hidden_size * gru_seq_gates_count),
                                   "Second dimension of W input shape is required to be compatible with ",
-                                  merged_hidden_size* gru_seq_gates_count,
+                                  merged_hidden_size * gru_seq_gates_count,
                                   ". Got shape: ",
                                   w_pshape[1],
                                   ".");
@@ -154,7 +165,6 @@ void gru_shape_infer(const OpType* op,
     // Final output shapes:
     // y_out_shape: [batch_size, num_directions, seq_length, hidden_size] // Rank always 4
     // ho_out_shape:  [batch_size, num_directions, hidden_size] // Rank always 3
-
 }
 }  // namespace rnn_seq
 namespace v5 {
@@ -162,7 +172,6 @@ template <class ShapeType>
 void shape_infer(const ov::op::v5::GRUSequence* op,
                  const std::vector<ShapeType>& input_shapes,
                  std::vector<ShapeType>& output_shapes) {
-
     constexpr int expected_in_shapes_count = 6;
     NODE_VALIDATION_CHECK(op,
                           input_shapes.size() == expected_in_shapes_count,
