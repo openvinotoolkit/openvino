@@ -6,7 +6,6 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "snippets/pass/common_optimizations.hpp"
-#include "snippets/pass/constant_folding.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "fake_quantize_function.hpp"
 #include "function_helper.hpp"
@@ -19,7 +18,6 @@ class FakeQuantizeDecompositionTest : public TransformationTestsF {
 public:
     void register_passes() {
         manager.register_pass<ngraph::snippets::pass::CommonOptimizations>();
-        manager.register_pass<ngraph::snippets::pass::ConstantFolding>();
     }
 
     void TearDown() override {
