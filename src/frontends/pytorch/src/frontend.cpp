@@ -553,7 +553,6 @@ const std::map<std::string, std::function<OutputVector(NodeContext& context)>> C
          auto inputs = subgraph_decoder->inputs();
          std::set<size_t> input_idxs(inputs.begin(), inputs.end());
          std::map<size_t, ParameterVector> inputs_map;
-         std::map<size_t, std::shared_ptr<opset8::Result>> outputs_map;
 
          auto body_parameters = body->get_parameters();
          // #0 parameter is counter
@@ -567,14 +566,6 @@ const std::map<std::string, std::function<OutputVector(NodeContext& context)>> C
                  inputs_map[input_idx].push_back(param);
              }
          }
-         // TODO: Connect back edges, and out condition
-         for (auto result : body->get_results()) {
-             auto name = result->input(0).get_tensor().get_any_name();
-             size_t out_idx = (size_t)std::stoll(name);
-             FRONT_END_OP_CONVERSION_CHECK(outputs_map.count(out_idx) == 0,
-                                           "More then one body output with same tensor name.");
-             outputs_map[out_idx] = result;
-         }
          for (auto input : inputs_map) {
              if (!input_idxs.count(input.first)) {
                  auto external_output = context.get_tensor_from_ext_or_create_ext_input(input.first);
@@ -586,8 +577,20 @@ const std::map<std::string, std::function<OutputVector(NodeContext& context)>> C
                  }
              }
          }
-         for (auto output : outputs_map) {
-             context.add_tensor_to_external_context(output.first, loop->set_body_outputs({output.second}));
+         // TODO: Connect back edges (merged inputs)
+         auto body_results = body->get_results();
+         FRONT_END_OP_CONVERSION_CHECK(body_results.size() > 0,
+                                       "At least one output from loop is required - condition.");
+         std::set<size_t> output_idxs;
+         // 0 output is condition, do not need to connect it
+         for (int i = 1; i < body_results.size(); i++) {
+             auto result = body_results[i];
+             auto name = result->input(0).get_tensor().get_any_name();
+             size_t out_idx = (size_t)std::stoll(name);
+             FRONT_END_OP_CONVERSION_CHECK(output_idxs.count(out_idx) == 0,
+                                           "More then one body output with same tensor name.");
+             output_idxs.insert(out_idx);
+             context.add_tensor_to_external_context(out_idx, loop->get_iter_value(result, -1));
          }
          loop->validate_and_infer_types();
          return {context.mark_node(loop)->outputs()};
@@ -756,7 +759,14 @@ OutputVector convert_node(NodeContext* context) {
             // std::cout << "FOUND converter for " << context.get_op_type() << "\n";
             return it->second(*context);
         } else {
-            std::cout << "DIDN'T FIND converter for " << context->get_op_type() << "\n";
+            std::cout << "DIDN'T FIND converter for " << context->get_op_type() << " with inputs:";
+            if (context->inputs().size() == 0) {
+                std::cout << " None";
+            }
+            for (auto input : context->inputs()) {
+                std::cout << " " << input;
+            }
+            std::cout << " with schema: " << context->get_schema() << std::endl;
         }
 
     }
@@ -764,7 +774,8 @@ OutputVector convert_node(NodeContext* context) {
     //     std::cout << "Python exception: " << e << "\n";
     // }
     catch (std::runtime_error& e) {
-        std::cout << "Exception happened during conversion of op: " << context->get_op_type() << ": " << e.what() << '\n';
+        std::cout << "Exception happened during conversion of op: " << context->get_op_type() << ": " << e.what()
+                  << '\n';
         // throw;
     } catch (...) {
         std::cout << "Some exception happened during conversion of node of type: " << context->get_op_type()
@@ -875,7 +886,8 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
             } else {
                 tensor_map[pytorch_model->input(i)] = parameter;
             }
-            // std::cout << "Level:" << LEVEL << " Added model input: " << tensor_map[pytorch_model->input(i)] << std::endl;
+            // std::cout << "Level:" << LEVEL << " Added model input: " << tensor_map[pytorch_model->input(i)] <<
+            // std::endl;
         }
 
         auto node_visitor = [&](std::shared_ptr<Decoder> node) {

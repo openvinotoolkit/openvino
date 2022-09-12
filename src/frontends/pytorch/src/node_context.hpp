@@ -1,3 +1,4 @@
+#include <openvino/frontend/exception.hpp>
 #include <openvino/frontend/node_context.hpp>
 #include <openvino/opsets/opset8.hpp>
 
@@ -153,8 +154,9 @@ private:
 
 std::shared_ptr<opset8::Constant> NodeContext::get_constant_at_input(size_t index) const {
     OV_FRONTEND_REQUIRE(!input_is_none(index));
-    auto input = std::dynamic_pointer_cast<opset8::Constant>(get_input(index).get_node_shared_ptr());
-    OV_FRONTEND_REQUIRE(input);
+    auto input_node = get_input(index).get_node_shared_ptr();
+    auto input = std::dynamic_pointer_cast<opset8::Constant>(input_node);
+    FRONT_END_GENERAL_CHECK(input, "Input with index ", index, " cannot be interpretted as Constant: ", input_node);
     return input;
 }
 

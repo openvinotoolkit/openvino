@@ -227,7 +227,7 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
     std::vector<std::shared_ptr<Node>> result;
 
     for (auto& node : root_nodes) {
-        nodes_to_do.push(node.get());        
+        nodes_to_do.push(node.get());
     }
     while (nodes_to_do.size() > 0) {
         Node* node = nodes_to_do.top();
@@ -236,10 +236,7 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
             size_t arg_count = node->get_input_size();
             for (size_t i = 0; i < arg_count; ++i) {
                 Node* dep = node->get_input_node_ptr(arg_count - i - 1);
-                if (dep == node) {
-                    std::cerr << "!!!===================TOPOSORT ISSUE=========================!!! " << node << std::endl;
-                }                
-                if (nodes_done.count(dep) == 0 && dep != node) {
+                if (nodes_done.count(dep) == 0) {
                     can_add = false;
                     nodes_to_do.push(dep);
                 }
