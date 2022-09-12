@@ -32,9 +32,11 @@ void shape_infer(const ov::op::internal::AUGRUSequence* op,
     const auto& x_shape = input_shapes[0];
     NODE_VALIDATION_CHECK(op, a_shape.rank().compatible(3), "'A' input must be a 3D tensor.");
     if (a_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(op,
-                              a_shape[1].compatible(x_shape[1]),
-                              "Dimension `seq_length` must be the same for `X` and `A` inputs.");
+        if (x_shape.rank().is_static()) {
+            NODE_VALIDATION_CHECK(op, x_shape.rank().get_length() > 1 &&
+                                a_shape[1].compatible(x_shape[1]),
+                                "Dimension `seq_length` must be the same for `X` and `A` inputs.");
+        }
         NODE_VALIDATION_CHECK(op, a_shape[2].compatible(1), "The last dimension of `A` shape must be equal to `1`.");
     }
 }

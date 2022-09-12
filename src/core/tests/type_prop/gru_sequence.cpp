@@ -260,7 +260,7 @@ TEST(type_prop, gru_sequence_invalid_input_dimension) {
     }
 }
 
-TEST(type_prop, gru_sequence_input_dynamic_rank_shape_ranges) {
+TEST(type_prop, gru_sequence_input_dynamic_shape_ranges) {
     gru_sequence_parameters param;
 
     param.batch_size = Dimension(1, 8);
@@ -293,22 +293,21 @@ TEST(type_prop, gru_sequence_input_dynamic_rank) {
     auto gru_sequence = gru_seq_tensor_initialization(param);
     auto dynamic_tensor = make_shared<opset5::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
 
-    // Validate invalid dynamic tensor for all inputs: X, initial_hidden_state, W, R, B
     for (size_t i = 0; i < gru_sequence->get_input_size(); i++) {
         gru_sequence = gru_seq_tensor_initialization(param);
         gru_sequence->set_argument(i, dynamic_tensor);
         gru_sequence->validate_and_infer_types();
-        if (i == 0) {  // X input dynamic rank
+        if (i == 0) {  // X input
             EXPECT_EQ(gru_sequence->get_output_partial_shape(0),
                       (PartialShape{param.batch_size, param.num_directions, -1, param.hidden_size}));
         } else {
             EXPECT_EQ(gru_sequence->get_output_partial_shape(0),
                       (PartialShape{param.batch_size, param.num_directions, param.seq_length, param.hidden_size}));
-            EXPECT_EQ(gru_sequence->get_output_partial_shape(1),
-                      (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
-            EXPECT_EQ(gru_sequence->get_output_element_type(0), param.et);
-            EXPECT_EQ(gru_sequence->get_output_element_type(1), param.et);
         }
+        EXPECT_EQ(gru_sequence->get_output_partial_shape(1),
+                  (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
+        EXPECT_EQ(gru_sequence->get_output_element_type(0), param.et);
+        EXPECT_EQ(gru_sequence->get_output_element_type(1), param.et);
     }
 }
 
