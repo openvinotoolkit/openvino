@@ -29,7 +29,7 @@ if(NOT ANDROID)
     find_package(PkgConfig QUIET)
     if(PkgConfig_FOUND)
         pkg_search_module(zlib QUIET
-                          IMPORTED_TARGET GLOBAL
+                          IMPORTED_TARGET
                           zlib)
         if(zlib_FOUND)
             add_library(zlib::zlib ALIAS PkgConfig::zlib)
@@ -68,7 +68,7 @@ if(ENABLE_SYSTEM_PUGIXML)
     elseif(PkgConfig_FOUND AND NOT ANDROID)
         # U18 case when cmake interface is not available
         pkg_search_module(pugixml QUIET
-                          IMPORTED_TARGET GLOBAL
+                          IMPORTED_TARGET
                           pugixml)
         if(pugixml_FOUND)
             set(pugixml_target PkgConfig::pugixml)
