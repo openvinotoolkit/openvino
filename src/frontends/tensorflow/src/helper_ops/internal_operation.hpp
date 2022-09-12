@@ -38,13 +38,16 @@ public:
 
     const std::string& get_op_type() const override {
         // this method must not throw an exception since it is used by TF FE FrameworkNode constructor
-        return std::string("fake");
+        return op_type;
     }
 
     const std::string& get_op_name() const override {
         FRONT_END_OP_CONVERSION_CHECK(false,
                                       "Internal error: the get_op_name method of the fake node decoder is invoked.");
     }
+
+private:
+    const std::string op_type = "fake";
 };
 
 class InternalOperation : public ov::frontend::tensorflow::FrameworkNode {
