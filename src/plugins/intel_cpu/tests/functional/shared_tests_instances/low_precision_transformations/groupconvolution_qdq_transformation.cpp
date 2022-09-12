@@ -259,7 +259,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
     //  |FP32
     //  |
     // Convert    Convert   Constant  Constant
-    //  |U8        |U8       |U8       |U8
+    //  |U8        |U8       |I8       |I8
     //  |          |         |         |
     // Convert    Convert   Convert   Convert
     //   \FP32    /FP32      \FP32    /FP32
@@ -316,7 +316,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
     //  |FP32
     //  |
     // Convert    Convert   Constant  Constant
-    //  |U8        |U8       |U8       |U8
+    //  |U8        |U8       |I8       |I8
     //  |          |         |         |
     // Convert    Convert   Convert   Convert
     //   \FP32    /FP32      \FP32    /FP32
