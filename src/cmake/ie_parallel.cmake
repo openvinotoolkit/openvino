@@ -73,7 +73,7 @@ macro(ov_find_package_tbb)
                         unset(tbb_FOUND CACHE)
                     endmacro()
                     pkg_search_module(tbb QUIET
-                                      IMPORTED_TARGET
+                                      IMPORTED_TARGET GLOBAL
                                       tbb)
                     if(tbb_FOUND)
                         # parse version

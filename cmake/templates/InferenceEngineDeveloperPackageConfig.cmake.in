@@ -99,7 +99,7 @@ if(ENABLE_SYSTEM_PUGIXML)
         pkg_search_module(pugixml
                           ${pkg_config_quiet_arg}
                           ${pkg_config_required_arg}
-                          IMPORTED_TARGET
+                          IMPORTED_TARGET GLOBAL
                           pugixml)
 
         unset(pkg_config_quiet_arg)
