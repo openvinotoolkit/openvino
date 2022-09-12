@@ -35,7 +35,7 @@ protected:
             ov::element::u8
     };
 
-    std::shared_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16 = nullptr;
+    std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16 = nullptr;
 };
 
 // This emitter is covered by specification of "Convert" operation. The implementation uses a "warp-around" conversion.

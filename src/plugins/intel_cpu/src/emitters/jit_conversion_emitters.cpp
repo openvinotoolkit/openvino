@@ -22,8 +22,8 @@ jit_convert_emitter::jit_convert_emitter(jit_generator *host, cpu_isa_t host_isa
     input_type = node->get_input_element_type(0);
     output_type = node->get_output_element_type(0);
 
-    if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-       emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(host, host_isa));
+    if (mayiuse(avx512_core))
+       uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(host, host_isa));
 }
 
 void jit_convert_emitter::validate_types() const {
@@ -42,22 +42,17 @@ size_t jit_convert_emitter::get_inputs_num() const { return 1; }
 
 void jit_convert_emitter::emit_data() const {
     jit_emitter::emit_data();
-    if (emu_vcvtneps2bf16)
-        emu_vcvtneps2bf16->emit_data();
+    if (uni_vcvtneps2bf16)
+        uni_vcvtneps2bf16->emit_data();
 }
 
 void jit_convert_emitter::float2bfloat(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     Zmm zmm_src = Zmm(in_vec_idxs[0]);
     Zmm zmm_dst  = Zmm(out_vec_idxs[0]);
-
-    if (mayiuse(avx512_core_bf16)) {
-        h->vcvtneps2bf16(zmm_dst, zmm_src);
-    } else {
-        if (!emu_vcvtneps2bf16)
+    if (!uni_vcvtneps2bf16)
             IE_THROW() << "Converter from float to bf16 isn't initialized!";
 
-        emu_vcvtneps2bf16->emit_code({static_cast<size_t>(zmm_src.getIdx())}, {static_cast<size_t>(zmm_dst.getIdx())});
-    }
+    uni_vcvtneps2bf16->emit_code({static_cast<size_t>(zmm_src.getIdx())}, {static_cast<size_t>(zmm_dst.getIdx())});
 }
 
 jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator *host, cpu_isa_t host_isa,

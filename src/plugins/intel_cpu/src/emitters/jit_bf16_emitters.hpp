@@ -9,11 +9,12 @@
 namespace ov {
 namespace intel_cpu {
 
-class jit_emu_vcvtneps2bf16 : public jit_emitter {
+class jit_uni_vcvtneps2bf16 : public jit_emitter {
 public:
-    jit_emu_vcvtneps2bf16(dnnl::impl::cpu::x64::jit_generator* host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+    jit_uni_vcvtneps2bf16(dnnl::impl::cpu::x64::jit_generator* host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
         InferenceEngine::Precision exec_prc = InferenceEngine::Precision::BF16) : jit_emitter(host, host_isa, exec_prc) {
-        prepare_table();
+        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
+            prepare_table();
     }
 
     size_t get_inputs_num() const override { return 1; }
@@ -40,7 +41,10 @@ private:
 
         Vmm in = Vmm(in_vec_idxs[0]);
 
-        if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx512_core) {
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
+            Ymm out = Ymm(out_vec_idxs[0]);
+            h->vcvtneps2bf16(out, in);
+        } else if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx512_core) {
             Zmm aux = Zmm(aux_vec_idxs[0]);
             Zmm aux1 = Zmm(aux_vec_idxs[1]);
             Ymm out = Ymm(out_vec_idxs[0]);
@@ -110,6 +114,8 @@ private:
     }
 
     size_t aux_vecs_count() const override {
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
+            return 0;
         return host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 2 : 1;
     }
 };
