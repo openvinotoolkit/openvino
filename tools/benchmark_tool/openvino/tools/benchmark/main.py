@@ -8,6 +8,7 @@ from datetime import datetime
 from openvino.runtime import Dimension
 
 from openvino.tools.benchmark.benchmark import Benchmark
+from openvino.tools.benchmark.parameters import parse_args
 from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, \
     GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, GNA_DEVICE_NAME, BLOB_EXTENSION
 from openvino.tools.benchmark.utils.inputs_filling import get_input_data
@@ -17,9 +18,30 @@ from openvino.tools.benchmark.utils.utils import next_step, get_number_iteration
     process_help_inference_string, print_perf_counters, dump_exec_graph, get_duration_in_milliseconds, \
     get_command_line_arguments, parse_value_per_device, parse_devices, get_inputs_info, \
     print_inputs_and_outputs_info, get_network_batch_size, load_config, dump_config, get_latency_groups, \
-    check_for_static, can_measure_as_static, parse_and_check_command_line
+    check_for_static, can_measure_as_static
 from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
 
+def parse_and_check_command_line():
+    args = parse_args()
+
+    if not args.perf_hint == "none" and (not args.number_streams == "" or not args.number_threads == 0 or not args.infer_threads_pinning == ""):
+        raise Exception("-nstreams, -nthreads and -pin options are fine tune options. To use them you " \
+                        "should explicitely set -hint option to none. This is not OpenVINO limitation " \
+                        "(those options can be used in OpenVINO together), but a benchmark_app UI rule.")
+    
+    if args.report_type == "average_counters" and args.target_device.contains("MULTI"):
+        raise Exception("only detailed_counters report type is supported for MULTI device")
+    
+    _, ext = os.path.splitext(args.path_to_model)
+    is_network_compiled = True if ext == BLOB_EXTENSION else False
+    is_precisiton_set = not (args.input_precision == "" and args.output_precision == "" and args.input_output_precision == "")
+
+    if is_network_compiled and is_precisiton_set:
+        raise Exception("Cannot set precision for a compiled network. " \
+                        "Please re-compile your network with required precision " \
+                        "using compile_tool")
+    
+    return args, is_network_compiled
 
 def main():
     statistics = None
@@ -138,7 +160,10 @@ def main():
 
             ## high-level performance hints
             if is_flag_set_in_command_line('hint') or args.perf_hint:
-                config[device]['PERFORMANCE_HINT'] = args.perf_hint.upper()
+                if not args.perf_hint == None:
+                    config[device]['PERFORMANCE_HINT'] = args.perf_hint.upper()
+                # else:
+                #     config[device]['PERFORMANCE_HINT'] = ""
                 if is_flag_set_in_command_line('nireq'):
                     config[device]['PERFORMANCE_HINT_NUM_REQUESTS'] = str(args.number_infer_requests)
 
@@ -163,7 +188,7 @@ def main():
                     else:
                         raise Exception(f"Device {device} doesn't support config key '{key}'! " +
                                         "Please specify -nstreams for correct devices in format  <dev1>:<nstreams1>,<dev2>:<nstreams2>")
-                elif key not in config[device].keys() and args.api_type == "async" and config[device]['PERFORMANCE_HINT'] == "":
+                elif key not in config[device].keys() and args.api_type == "async" and 'PERFORMANCE_HINT' in config[device].keys():
                     ## set the _AUTO value for the #streams
                     logger.warning(f"-nstreams default value is determined automatically for {device} device. " +
                                    "Although the automatic selection usually provides a reasonable performance, "

@@ -5,7 +5,6 @@ from collections import defaultdict
 import datetime
 from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type, serialize
 from openvino.preprocess import PrePostProcessor
-from openvino.tools.benchmark.parameters import parse_args
 
 from .constants import BLOB_EXTENSION, DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
     CPU_DEVICE_NAME, GPU_DEVICE_NAME
@@ -16,29 +15,6 @@ import json
 import re
 import numpy as np
 
-
-def parse_and_check_command_line():
-    args = parse_args()
-
-    if not args.perf_hint == "none" and (not args.number_streams == "" or not args.number_threads == 0 or not args.infer_threads_pinning == ""):
-        raise Exception("-nstreams, -nthreads and -pin options are fine tune options. To use them you " \
-                        "should explicitely set -hint option to none. This is not OpenVINO limitation " \
-                        "(those options can be used in OpenVINO together), but a benchmark_app UI rule.")
-    
-    if args.report_type == "average_counters" and args.target_device.contains("MULTI"):
-        raise Exception("only detailed_counters report type is supported for MULTI device")
-    
-    _, ext = os.path.splitext(args.path_to_model)
-    is_network_compiled = True if ext == BLOB_EXTENSION else False
-    is_precisiton_set = not (args.input_precision == "" and args.output_precision == "" and args.input_output_precision == "")
-
-    if is_network_compiled and is_precisiton_set:
-        raise Exception("Cannot set precision for a compiled network. " \
-                        "Please re-compile your network with required precision " \
-                        "using compile_tool")
-    
-    return args, is_network_compiled
-    
 
 def static_vars(**kwargs):
     def decorate(func):
