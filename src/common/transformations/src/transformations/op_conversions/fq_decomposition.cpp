@@ -37,7 +37,117 @@ bool isValidRangesInputs(const std::shared_ptr<ngraph::opset1::FakeQuantize>& fq
 bool is_scalar_constant(const std::shared_ptr<ngraph::Node>& source_output_node) {
     return ngraph::is_type<ngraph::opset1::Constant>(source_output_node) &&
            ngraph::shape_size(source_output_node->get_shape()) == 1;
-};
+}
+
+bool getScalesAndShifts(const std::shared_ptr<const ngraph::opset1::FakeQuantize>& fq_node,
+                        std::vector<float>& cl,
+                        std::vector<float>& ch,
+                        std::vector<float>& isc,
+                        std::vector<float>& ish,
+                        std::vector<float>& osc,
+                        std::vector<float>& osh) {
+    auto input_low_constant =
+        std::dynamic_pointer_cast<ngraph::opset1::Constant>(fq_node->get_input_node_shared_ptr(1));
+    auto input_high_constant =
+        std::dynamic_pointer_cast<ngraph::opset1::Constant>(fq_node->get_input_node_shared_ptr(2));
+    auto output_low_constant =
+        std::dynamic_pointer_cast<ngraph::opset1::Constant>(fq_node->get_input_node_shared_ptr(3));
+    auto output_high_constant =
+        std::dynamic_pointer_cast<ngraph::opset1::Constant>(fq_node->get_input_node_shared_ptr(4));
+    if (!input_low_constant || !input_high_constant || !output_low_constant || !output_high_constant)
+        return false;
+
+    auto input_low = input_low_constant->cast_vector<float>();
+    auto input_high = input_high_constant->cast_vector<float>();
+    auto output_low = output_low_constant->cast_vector<float>();
+    auto output_high = output_high_constant->cast_vector<float>();
+    auto levels = fq_node->get_levels();
+
+    const auto input_size = std::max(input_low.size(), input_high.size());
+    const auto output_size = std::max(output_low.size(), output_high.size());
+
+    cl = input_low;
+    ch = input_high;
+    isc.resize(input_size, 0);
+    ish.resize(input_size, 0);
+    osc.resize(output_size, 0);
+    osh.resize(output_size, 0);
+
+    for (int i = 0; i < input_size; i++) {
+        float il = input_low[input_low.size() == 1 ? 0 : i];
+        float ih = input_high[input_high.size() == 1 ? 0 : i];
+
+        isc[i] = (levels - 1) / (ih - il);
+        ish[i] = -il * isc[i];
+    }
+
+    for (int i = 0; i < output_size; i++) {
+        float ol = output_low[output_low.size() == 1 ? 0 : i];
+        float oh = output_high[output_high.size() == 1 ? 0 : i];
+
+        osc[i] = (oh - ol) / (levels - 1);
+        osh[i] = ol;
+    }
+
+    return true;
+}
+
+std::vector<float> calculateScales(
+    const ngraph::element::Type& out_type,
+    const std::vector<float>& cl,
+    const std::vector<float>& ch,
+    const std::vector<float>& isc,
+    const std::vector<float>& ish,
+    const std::vector<float>& osc,
+    const std::vector<float>& osh) {
+    std::vector<float> out_scales;
+    if (out_type == ngraph::element::u8 &&
+        std::all_of(cl.cbegin(), cl.cend(), [](float val) {
+            return val == 0.0f;
+        }) &&
+        std::all_of(ish.cbegin(), ish.cend(), [](float val) {
+            return val == 0.0f;
+        }) &&
+        std::all_of(osc.cbegin(), osc.cend(), [](float val) {
+            return val == 1.0f;
+        }) &&
+        std::all_of(osh.cbegin(), osh.cend(), [](float val) {
+            return val == 0.0f;
+        })) {
+        out_scales = isc;
+    }
+
+    static const float thr = 0.0001f;
+    if (out_type == ngraph::element::i8 &&
+        std::all_of(ish.cbegin(), ish.cend(), [](float val) {
+            return std::abs(val - 128.f) < thr;
+        }) &&
+        std::all_of(osc.cbegin(), osc.cend(), [](float val) {
+            return val == 1.f;
+        }) &&
+        std::all_of(osh.cbegin(), osh.cend(), [](float val) {
+            return std::abs(val + 128.f) < thr;
+        })) {
+        bool is_crop_aligned = true;
+        for (int i = 0; i < std::max(cl.size(), isc.size()); i++) {
+            if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] + 128.f) > thr) {
+                is_crop_aligned = false;
+            }
+        }
+
+        for (int i = 0; i < std::max(ch.size(), isc.size()); i++) {
+            if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - 127.f) > thr) {
+                is_crop_aligned = false;
+            }
+        }
+
+        if (is_crop_aligned) {
+            out_scales = isc;
+        }
+    }
+
+    return out_scales;
+}
 
 }  // namespace
 
@@ -61,7 +171,7 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
         const auto fake_quantize_node = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(
             pattern_to_output.at(fake_quantize).get_node_shared_ptr());
 
-        if (fake_quantize_node == nullptr || transformation_callback(fake_quantize_node) ||
+        if (!fake_quantize_node || transformation_callback(fake_quantize_node) ||
             (constant_weights && !isValidRangesInputs(fake_quantize_node))) {
             return false;
         }
@@ -72,6 +182,19 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
         const Output<Node> output_low{fake_quantize_node->input_value(3)};
         const Output<Node> output_high{fake_quantize_node->input_value(4)};
         auto input_type = data.get_element_type();
+
+        std::vector<float> out_scales;
+        std::vector<float> cl, ch, isc, ish, osc, osh;
+        const bool status = getScalesAndShifts(fake_quantize_node, cl, ch, isc, ish, osc, osh);
+        if (status) {
+            out_scales = calculateScales(fake_quantize_node->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
+        }
+        const bool only_quantized = status && std::all_of(osc.cbegin(), osc.cend(),
+                                                    [](float val) { return val == 1.f; }) &&
+                                              std::all_of(osh.cbegin(), osh.cend(),
+                                                    [](float val) { return val == 0.f; }) &&
+                                              out_scales.size() == 0;
+        const bool do_rounding = !only_quantized || fake_quantize_node->get_output_element_type(0) == ngraph::element::f32;
 
         ngraph::NodeVector decomp_ops;
         if (input_type != input_low.get_element_type()) {
@@ -87,8 +210,7 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
         decomp_ops.push_back(max);
         decomp_ops.push_back(min);
 
-        std::shared_ptr<Node> result = nullptr;
-        const auto out_scales = simplifyToScale(fake_quantize_node);
+        std::shared_ptr<ngraph::Node> result = nullptr;
         if (out_scales.size() != 0) {
             PartialShape scale_shape = input_low.get_partial_shape();
             ov::PartialShape::broadcast_merge_into(scale_shape,
@@ -98,10 +220,7 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
                 std::make_shared<ngraph::opset1::Constant>(ov::element::f32, scale_shape.get_shape(), out_scales);
             decomp_ops.push_back(scales);
 
-            auto mul = std::make_shared<ngraph::opset1::Multiply>(min, scales);
-            decomp_ops.push_back(mul);
-
-            result = std::make_shared<ngraph::opset5::Round>(mul, ngraph::opset5::Round::RoundMode::HALF_TO_EVEN);
+            result = std::make_shared<ngraph::opset1::Multiply>(min, scales);
             decomp_ops.push_back(result);
         } else {
             // (levels-1)
@@ -121,15 +240,21 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
             // x * (levels-1) / (input_high - input_low)
             const auto after_isc_apply = std::make_shared<ngraph::opset1::Multiply>(min, isc);
             // x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)
-            const auto after_ish_apply = std::make_shared<ngraph::opset1::Subtract>(after_isc_apply, ish);
+            result = std::make_shared<ngraph::opset1::Subtract>(after_isc_apply, ish);
             decomp_ops.push_back(after_isc_apply);
-            decomp_ops.push_back(after_ish_apply);
+            decomp_ops.push_back(result);
+        }
 
+        if (do_rounding) {
             // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low))
-            const auto round = std::make_shared<ngraph::opset5::Round>(after_ish_apply,
-                                                                       ngraph::opset5::Round::RoundMode::HALF_TO_EVEN);
-            decomp_ops.push_back(round);
+            result = std::make_shared<ngraph::opset5::Round>(result, ngraph::opset5::Round::RoundMode::HALF_TO_EVEN);
+            decomp_ops.push_back(result);
+        }
 
+        if (!only_quantized) {
+            // (levels-1)
+            const auto levels_minus_one =
+                std::make_shared<ngraph::opset1::Constant>(input_type, Shape{}, fake_quantize_node->get_levels() - 1);
             // (output_high - output_low)
             const auto sub_out_high_low = std::make_shared<ngraph::opset1::Subtract>(output_high, output_low);
             // (output_high - output_low) / (levels-1)
@@ -139,7 +264,7 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
 
             // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)) *
             // (output_high - output_low) / (levels-1)
-            const auto after_osc_apply = std::make_shared<ngraph::opset1::Multiply>(round, osc);
+            const auto after_osc_apply = std::make_shared<ngraph::opset1::Multiply>(result, osc);
             // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low)) *
             // (output_high - output_low) / (levels-1) + output_low
             result = std::make_shared<ngraph::opset1::Add>(after_osc_apply, output_low);
@@ -171,103 +296,12 @@ bool ngraph::pass::FakeQuantizeDecomposition::isAllScalarConstant(const std::sha
 
 std::vector<float> ngraph::pass::FakeQuantizeDecomposition::simplifyToScale(
     const std::shared_ptr<const ngraph::opset1::FakeQuantize>& fq_node) {
+    std::vector<float> cl, ch, isc, ish, osc, osh;
+    auto status = getScalesAndShifts(fq_node, cl, ch, isc, ish, osc, osh);
+
     std::vector<float> out_scales;
-    auto input_low_constant =
-        std::dynamic_pointer_cast<ngraph::opset1::Constant>(fq_node->get_input_node_shared_ptr(1));
-    auto input_high_constant =
-        std::dynamic_pointer_cast<ngraph::opset1::Constant>(fq_node->get_input_node_shared_ptr(2));
-    auto output_low_constant =
-        std::dynamic_pointer_cast<ngraph::opset1::Constant>(fq_node->get_input_node_shared_ptr(3));
-    auto output_high_constant =
-        std::dynamic_pointer_cast<ngraph::opset1::Constant>(fq_node->get_input_node_shared_ptr(4));
-    if (!input_low_constant || !input_high_constant || !output_low_constant || !output_high_constant)
-        return out_scales;
-
-    auto input_low = input_low_constant->cast_vector<float>();
-    auto input_high = input_high_constant->cast_vector<float>();
-    auto output_low = output_low_constant->cast_vector<float>();
-    auto output_high = output_high_constant->cast_vector<float>();
-    auto levels = fq_node->get_levels();
-
-    const auto input_size = std::max(input_low.size(), input_high.size());
-    const auto output_size = std::max(output_low.size(), output_high.size());
-
-    std::vector<float> cl = input_low;
-    std::vector<float> ch = input_high;
-    std::vector<float> isc(input_size);
-    std::vector<float> ish(input_size);
-    std::vector<float> osc(output_size);
-    std::vector<float> osh(output_size);
-
-    for (int i = 0; i < input_size; i++) {
-        float il = input_low[input_low.size() == 1 ? 0 : i];
-        float ih = input_high[input_high.size() == 1 ? 0 : i];
-
-        isc[i] = (levels - 1) / (ih - il);
-        ish[i] = -il * isc[i];
-    }
-
-    for (int i = 0; i < output_size; i++) {
-        float ol = output_low[output_low.size() == 1 ? 0 : i];
-        float oh = output_high[output_high.size() == 1 ? 0 : i];
-
-        osc[i] = (oh - ol) / (levels - 1);
-        osh[i] = ol;
-    }
-
-    if (fq_node->get_element_type() == ngraph::element::u8 &&
-        std::all_of(cl.cbegin(),
-                    cl.cend(),
-                    [](float val) {
-                        return val == 0.0f;
-                    }) &&
-        std::all_of(ish.cbegin(),
-                    ish.cend(),
-                    [](float val) {
-                        return val == 0.0f;
-                    }) &&
-        std::all_of(osc.cbegin(),
-                    osc.cend(),
-                    [](float val) {
-                        return val == 1.0f;
-                    }) &&
-        std::all_of(osh.cbegin(), osh.cend(), [](float val) {
-            return val == 0.0f;
-        })) {
-        out_scales = isc;
-    }
-
-    static const float thr = 0.0001f;
-    if (fq_node->get_element_type() == ngraph::element::i8 &&
-        std::all_of(ish.cbegin(),
-                    ish.cend(),
-                    [](float val) {
-                        return std::abs(val - 128.f) < thr;
-                    }) &&
-        std::all_of(osc.cbegin(),
-                    osc.cend(),
-                    [](float val) {
-                        return val == 1.f;
-                    }) &&
-        std::all_of(osh.cbegin(), osh.cend(), [](float val) {
-            return std::abs(val + 128.f) < thr;
-        })) {
-        bool is_crop_aligned = true;
-        for (int i = 0; i < std::max(cl.size(), isc.size()); i++) {
-            if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] + 128.f) > thr) {
-                is_crop_aligned = false;
-            }
-        }
-
-        for (int i = 0; i < std::max(ch.size(), isc.size()); i++) {
-            if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - 127.f) > thr) {
-                is_crop_aligned = false;
-            }
-        }
-
-        if (is_crop_aligned) {
-            out_scales = isc;
-        }
+    if (status) {
+       out_scales = calculateScales(fq_node->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
     }
 
     return out_scales;
