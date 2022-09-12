@@ -26,10 +26,7 @@ def main():
     try:
         # ------------------------------ 1. Parsing and validating input arguments ------------------------------
         next_step()
-        args, is_network_compiled, parse_status = parse_and_check_command_line()
-
-        if parse_status == False:
-            return
+        args, is_network_compiled = parse_and_check_command_line()
 
         if args.number_streams is None:
                 logger.warning(" -nstreams default value is determined automatically for a device. "

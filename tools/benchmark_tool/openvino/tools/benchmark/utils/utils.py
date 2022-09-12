@@ -19,7 +19,6 @@ import numpy as np
 
 def parse_and_check_command_line():
     args = parse_args()
-    parse_status = True
 
     if not args.perf_hint == "none" and (not args.number_streams == "" or not args.number_threads == 0 or not args.infer_threads_pinning == ""):
         raise Exception("-nstreams, -nthreads and -pin options are fine tune options. To use them you " \
@@ -38,7 +37,7 @@ def parse_and_check_command_line():
                         "Please re-compile your network with required precision " \
                         "using compile_tool")
     
-    return args, is_network_compiled, parse_status
+    return args, is_network_compiled
     
 
 def static_vars(**kwargs):
