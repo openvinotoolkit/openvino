@@ -143,7 +143,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*CUSTOM.*)",
         R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*UNSPECIFIED.*)",
         // Issue:
-        R"(.*smoke_VariadicSplit4D_CPU_zero_dims.*)",
         // New API tensor tests
         R"(.*OVInferRequestCheckTensorPrecision.*type=i4.*)",
         R"(.*OVInferRequestCheckTensorPrecision.*type=u1.*)",

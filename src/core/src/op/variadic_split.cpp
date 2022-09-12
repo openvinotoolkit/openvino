@@ -58,16 +58,23 @@ inline bool evaluate(const HostTensorPtr& in,
                      const HostTensorPtr& out,
                      const Coordinate& lower_bounds,
                      const Coordinate& upper_bounds) {
-    runtime::reference::slice(in->get_data_ptr<const char>(),
-                              out->get_data_ptr<char>(),
-                              in->get_shape(),
-                              lower_bounds,
-                              upper_bounds,
-                              Strides(lower_bounds.size(), 1),
-                              out->get_shape(),
-                              in->get_element_type().size());
+    const auto& output_shape = out->get_shape();
+    auto has_nonzero_dims = std::all_of(output_shape.begin(), output_shape.end(), [](size_t dim) {
+        return dim != 0;
+    });
 
-    return true;
+    if (has_nonzero_dims) {
+        runtime::reference::slice(in->get_data_ptr<const char>(),
+                                  out->get_data_ptr<char>(),
+                                  in->get_shape(),
+                                  lower_bounds,
+                                  upper_bounds,
+                                  Strides(lower_bounds.size(), 1),
+                                  out->get_shape(),
+                                  in->get_element_type().size());
+        return true;
+    }
+    return false;
 }
 }  // namespace
 }  // namespace variadic_split
