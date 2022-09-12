@@ -132,7 +132,7 @@ const std::vector<DisableConvertOnConstPathTransformationValues> testValues = {
             },
             {
                 { ngraph::element::f32, false },
-                { {128.f}, element::f32, {}, false, 1ul, element::u8, true },
+                { {127.f}, element::f32, {}, false, 1ul, element::i8, true },
                 { {0.03f}, element::f32, {}, false }
             },
             { std::vector<float>{ 1.f }, ngraph::element::f32},
