@@ -151,7 +151,7 @@ const std::vector<DisableConvertOnConstPathTransformationValues> testValues = {
             },
             {
                 { ngraph::element::f32, false },
-                { {128.f}, element::f32, {}, false, 1ul, element::u8, true, {},
+                { {127.f}, element::f32, {}, false, 1ul, element::i8, true, {},
                   {{ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()} } },
                 { {0.03f}, element::f32, {}, false }
             },
