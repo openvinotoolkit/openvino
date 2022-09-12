@@ -482,7 +482,8 @@ TokenizeSnippets::TokenizeSnippets() {
                 // Result op has a single input
                 internal_inputs.push_back(source_result->input_value(0));
             } else {
-                // TODO COMMENT
+                // We have to save explicitly FQ Constants to call ConstantFolding after Tokenization.
+                // After ConstantFolding we will move remaining non-scalar Constants from body using ConvertConstantsToParameters pass
                 if ((op::is_scalar_constant(input_node)) ||
                     (ov::is_type<ov::op::v0::Constant>(input_node) && ov::is_type<ov::op::v0::FakeQuantize>(node))) {
                     internal_inputs.push_back(input_node->output(0));
