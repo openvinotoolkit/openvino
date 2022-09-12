@@ -131,7 +131,7 @@ jobs:
       $(REPO_DIR)/install_build_dependencies.sh
       # Move jdk into contrib
       # 'clang' compiler is to check that samples can be built using it
-      sudo apt --assume-yes install openjdk-11-jdk clang
+      sudo apt --assume-yes install openjdk-11-jdk libbz2-dev
       # For opencv-python: python3-setuptools and pip upgrade
       wget https://www.python.org/ftp/python/"$PYTHON_VERSION"/Python-"$PYTHON_VERSION".tgz
       tar -xzf Python-"$PYTHON_VERSION".tgz
