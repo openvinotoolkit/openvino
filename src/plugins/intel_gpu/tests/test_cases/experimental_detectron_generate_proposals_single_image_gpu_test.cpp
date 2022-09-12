@@ -283,27 +283,57 @@ using experimental_detectron_generate_proposals_single_image_test_f32 = experime
 TEST_P(experimental_detectron_generate_proposals_single_image_test_f32, basic) {
     ASSERT_NO_FATAL_FAILURE(test());
 }
+using experimental_detectron_generate_proposals_single_image_test_f16 = experimental_detectron_generate_proposals_single_image_test<half_t>;
+TEST_P(experimental_detectron_generate_proposals_single_image_test_f16, basic) {
+    ASSERT_NO_FATAL_FAILURE(test());
+}
+
 INSTANTIATE_TEST_SUITE_P(
         experimental_detectron_generate_proposals_single_image_gpu_test,
         experimental_detectron_generate_proposals_single_image_test_f32,
         ::testing::Combine(
                 ::testing::ValuesIn(getExperimentalDetectronGenerateProposalsSingleImageParams<float>()),
-                ::testing::ValuesIn(layouts)
+                ::testing::Values(format::bfyx)
         ),
         PrintToStringParamName()
 );
 
-using experimental_detectron_generate_proposals_single_image_test_f16 = experimental_detectron_generate_proposals_single_image_test<half_t>;
-TEST_P(experimental_detectron_generate_proposals_single_image_test_f16, basic) {
-    ASSERT_NO_FATAL_FAILURE(test());
-}
 INSTANTIATE_TEST_SUITE_P(
         experimental_detectron_generate_proposals_single_image_gpu_test,
         experimental_detectron_generate_proposals_single_image_test_f16,
         ::testing::Combine(
                 ::testing::ValuesIn(getExperimentalDetectronGenerateProposalsSingleImageParams<half_t>()),
-                ::testing::ValuesIn(layouts)
+                ::testing::Values(format::bfyx)
         ),
         PrintToStringParamName()
 );
 
+INSTANTIATE_TEST_SUITE_P(
+        experimental_detectron_generate_proposals_single_image_gpu_test_all_formats,
+        experimental_detectron_generate_proposals_single_image_test_f32,
+        ::testing::Combine(
+                ::testing::Values(
+                    ExperimentalDetectronGenerateProposalsSingleImageParams<float>{
+                        5.0f, 0.71f, 10, 15,
+                        {43.171, 0.31823, 53.5592, 149,
+                         0, 75.2272, 149, 87.2278,
+                         141.058, 114.876, 149, 149,
+                         149, 149, 149, 149,
+                         30.2866, 149, 149, 149,
+                         149, 149, 149, 149,
+                         149, 126.679, 149, 149,
+                         149, 6.53844, 149, 149,
+                         149, 0, 149, 149,
+                         149, 149, 149, 149,
+                         0, 0, 0, 0,
+                         0, 0, 0, 0,
+                         0, 0, 0, 0,
+                         0, 0, 0, 0,
+                         0, 0, 0, 0},
+                        {0.695249, 0.411288, 0.0941284, 0.0, 0.0, 0.0,
+                         0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}}
+                    ),
+                ::testing::ValuesIn(layouts)
+        ),
+        PrintToStringParamName()
+);
