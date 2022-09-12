@@ -174,6 +174,18 @@ const auto specificParams = ::testing::Combine(::testing::Values(dataLowBounds),
                                                ::testing::Values(outputHigh),
                                                ::testing::ValuesIn(levels));
 
+// Optimized FakeQuantize decomposition
+const std::vector<std::pair<std::vector<float>, std::vector<float>>> input_ranges_optimized = {
+    {{.0f}, {5.f}},
+    {{.0f}, {}}
+};
+
+const auto specificOptimizedParams = ::testing::Combine(::testing::Values(dataLowBounds),
+                                               ::testing::Values(dataHighBounds),
+                                               ::testing::Values(outputLow),
+                                               ::testing::Values(outputHigh),
+                                               ::testing::ValuesIn(levels));
+
 namespace fqImpl {
 
 std::vector<CPUSpecificParams> memForm4D_jit = {
@@ -211,7 +223,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_4D_jit, FakeQuantizeLaye
 
 
 std::vector<CPUSpecificParams> memForm4D_ref = {
-        CPUSpecificParams({nchw}, {nchw}, {"ref_FP32"}, {"ref_FP32"})
+        CPUSpecificParams({}, {}, {"ref_FP32"}, {"ref_FP32"})
 };
 
 std::vector<inputShapes> rangesShapes4D_ref = {
@@ -270,7 +282,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_5D_jit, FakeQuantizeLaye
 
 
 std::vector<CPUSpecificParams> memForm5D_ref = {
-        CPUSpecificParams({ncdhw}, {ncdhw}, {"ref_FP32"}, {"ref_FP32"})
+        CPUSpecificParams({}, {}, {"ref_FP32"}, {"ref_FP32"})
 };
 
 std::vector<inputShapes> rangesShapes5D_ref = {
