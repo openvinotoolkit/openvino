@@ -31,14 +31,13 @@ ov::frontend::tensorflow::pass::EmbeddingSegmentSingleFeatureFusion::EmbeddingSe
     auto dense_shape_pattern = ov::pass::pattern::any_input();
     auto default_value_pattern = ov::pass::pattern::any_input();
 
-    auto greaterequal0 =
-        std::make_shared<GreaterEqual>(input_values_pattern,
-                                       make_shared<Constant>(element::i64, Shape{}, vector<int64_t>{0}));
+    auto greaterequal0_const = make_shared<Constant>(element::i64, Shape{}, vector<int64_t>{0});
+    auto greaterequal0 = std::make_shared<GreaterEqual>(input_values_pattern, greaterequal0_const);
     auto where0 = make_shared<Transpose>(make_shared<NonZero>(greaterequal0),
                                          make_shared<Constant>(element::i64, Shape{2}, vector<int64_t>{1, 0}));
 
-    auto reshape0 =
-        make_shared<Reshape>(where0, make_shared<Constant>(element::i32, Shape{1}, vector<int32_t>{-1}), false);
+    auto reshape0_shape = make_shared<Constant>(element::i32, Shape{1}, vector<int32_t>{-1});
+    auto reshape0 = make_shared<Reshape>(where0, reshape0_shape, false);
     auto gather0_1 = make_shared<Gather>(input_indices_pattern,
                                          reshape0,
                                          make_shared<Constant>(element::i32, Shape{}, vector<int32_t>{0}));
@@ -46,6 +45,9 @@ ov::frontend::tensorflow::pass::EmbeddingSegmentSingleFeatureFusion::EmbeddingSe
                                          reshape0,
                                          make_shared<Constant>(element::i32, Shape{}, vector<int32_t>{0}));
 
+    // SparseFillEmptyRows outputs segment ids along with indices for each segment. Indices correspond to vectors from
+    // embedding table if some segment ids are not specified, SparseFillEmptyRows generate default indice for this
+    // segment
     auto sparse_fill_empty_rows = make_shared<SparseFillEmptyRows>(gather0_1->output(0),
                                                                    gather0_2->output(0),
                                                                    dense_shape_pattern->output(0),
@@ -64,18 +66,21 @@ ov::frontend::tensorflow::pass::EmbeddingSegmentSingleFeatureFusion::EmbeddingSe
                                       unique->output(0),
                                       make_shared<Constant>(element::i64, Shape{}, vector<int64_t>{0}));
 
+    // SparseSegmentSum sums-up extracted embedding vectors by indices for each segment
     auto sparse_segment_op = make_shared<SparseSegmentSum>(gather->output(0), unique->output(1), cast->output(0));
 
     auto shape = make_shared<ShapeOf>(sparse_segment_op, ov::element::i32);
-    auto strided_slice_for_shape =
-        make_shared<StridedSlice>(shape,
-                                  make_shared<Constant>(element::i32, Shape{1}, vector<int32_t>{1}),
-                                  make_shared<Constant>(element::i32, Shape{1}, vector<int32_t>{2}),
-                                  make_shared<Constant>(element::i32, Shape{1}, vector<int32_t>{1}),
-                                  std::vector<int64_t>{0},
-                                  std::vector<int64_t>{0},
-                                  std::vector<int64_t>{},
-                                  std::vector<int64_t>{1});
+    auto strided_slice_for_shape_begin = make_shared<Constant>(element::i32, Shape{1}, vector<int32_t>{1});
+    auto strided_slice_for_shape_end = make_shared<Constant>(element::i32, Shape{1}, vector<int32_t>{2});
+    auto strided_slice_for_shape_step = make_shared<Constant>(element::i32, Shape{1}, vector<int32_t>{1});
+    auto strided_slice_for_shape = make_shared<StridedSlice>(shape,
+                                                             strided_slice_for_shape_begin,
+                                                             strided_slice_for_shape_end,
+                                                             strided_slice_for_shape_step,
+                                                             std::vector<int64_t>{0},
+                                                             std::vector<int64_t>{0},
+                                                             std::vector<int64_t>{},
+                                                             std::vector<int64_t>{1});
     auto pack = make_shared<Concat>(
         OutputVector{make_shared<Unsqueeze>(make_shared<Constant>(element::i32, Shape{}, 1),
                                             make_shared<Constant>(element::i64, Shape{}, 0)),
@@ -105,17 +110,17 @@ ov::frontend::tensorflow::pass::EmbeddingSegmentSingleFeatureFusion::EmbeddingSe
         auto cast_indices = make_shared<Convert>(input_values, ov::element::i32);
 
         // prepare input of segment indices for EmbeddingSegment operation
-        auto split_for_indices =
-            make_shared<Split>(input_indices, make_shared<Constant>(ov::element::i64, ov::Shape{}, 1), 2);
+        auto split_for_indices_axis = make_shared<Constant>(ov::element::i64, ov::Shape{}, 1);
+        auto split_for_indices = make_shared<Split>(input_indices, split_for_indices_axis, 2);
         auto squeeze_for_indices = make_shared<Squeeze>(split_for_indices->output(0),
                                                         make_shared<Constant>(ov::element::i64, ov::Shape{1}, 1));
         auto cast_segment_ids = make_shared<Convert>(squeeze_for_indices, ov::element::i32);
 
         // prepare input of a number of segments for EmbeddingSegment operation
-        auto split_for_dense_shape =
-            make_shared<Split>(dense_shape, make_shared<Constant>(ov::element::i64, ov::Shape{}, 0), 2);
-        auto squeeze_to_scalar =
-            make_shared<Squeeze>(split_for_dense_shape, make_shared<Constant>(ov::element::i64, ov::Shape{1}, 0));
+        auto split_for_dense_shape_axis = make_shared<Constant>(ov::element::i64, ov::Shape{}, 0);
+        auto split_for_dense_shape = make_shared<Split>(dense_shape, split_for_dense_shape_axis, 2);
+        auto squeeze_to_scalar_axis = make_shared<Constant>(ov::element::i64, ov::Shape{1}, 0);
+        auto squeeze_to_scalar = make_shared<Squeeze>(split_for_dense_shape, squeeze_to_scalar_axis);
         auto cast_num_segments = make_shared<Convert>(squeeze_to_scalar, ov::element::i32);
 
         // prepare the default value for EmbeddingSegment operation
