@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "file_utils.h"
 #include "openvino/openvino.hpp"
 
 class MetaData : public ::testing::Test {
@@ -128,7 +129,7 @@ TEST_F(MetaData, get_meta_data_from_model_without_info) {
     auto model = core.read_model(ir_without_meta, ov::Tensor());
 
     auto& rt_info = model->get_rt_info();
-    EXPECT_EQ(rt_info.find("meta_data"), rt_info.end());
+    ASSERT_EQ(rt_info.find("meta_data"), rt_info.end());
 }
 
 TEST_F(MetaData, get_meta_data_as_map_from_model_without_info) {
@@ -138,23 +139,70 @@ TEST_F(MetaData, get_meta_data_as_map_from_model_without_info) {
     auto it = rt_info.find("meta_data");
     EXPECT_EQ(it, rt_info.end());
     ov::AnyMap meta;
-    EXPECT_NO_THROW(meta = model->get_meta_data());
-    EXPECT_TRUE(meta.empty());
+    ASSERT_NO_THROW(meta = model->get_meta_data());
+    ASSERT_TRUE(meta.empty());
 }
 
 TEST_F(MetaData, get_meta_data) {
     auto model = core.read_model(ir_with_meta, ov::Tensor());
 
     auto& rt_info = model->get_rt_info();
-    EXPECT_NE(rt_info.find("meta_data"), rt_info.end());
+    ASSERT_NE(rt_info.find("meta_data"), rt_info.end());
 }
 
 TEST_F(MetaData, get_meta_data_as_map) {
     auto model = core.read_model(ir_with_meta, ov::Tensor());
 
     ov::AnyMap meta;
-    EXPECT_NO_THROW(meta = model->get_meta_data());
-    EXPECT_TRUE(!meta.empty());
+    ASSERT_NO_THROW(meta = model->get_meta_data());
+    ASSERT_TRUE(!meta.empty());
+    auto it = meta.find("MO_version");
+    EXPECT_NE(it, meta.end());
+    EXPECT_TRUE(it->second.is<std::string>());
+    EXPECT_EQ(it->second.as<std::string>(), "TestVersion");
+
+    it = meta.find("Runtime_version");
+    EXPECT_NE(it, meta.end());
+    EXPECT_TRUE(it->second.is<std::string>());
+    EXPECT_EQ(it->second.as<std::string>(), "TestVersion");
+
+    auto it_cli = meta.find("cli_parameters");
+    EXPECT_NE(it_cli, meta.end());
+    EXPECT_TRUE(it_cli->second.is<ov::AnyMap>());
+
+    auto cli_map = it_cli->second.as<ov::AnyMap>();
+    it = cli_map.find("input_shape");
+    EXPECT_NE(it, cli_map.end());
+    EXPECT_TRUE(it->second.is<std::string>());
+    EXPECT_EQ(it->second.as<std::string>(), "[1, 3, 22, 22]");
+
+    it = cli_map.find("transform");
+    EXPECT_NE(it, cli_map.end());
+    EXPECT_TRUE(it->second.is<std::string>());
+    EXPECT_EQ(it->second.as<std::string>(), "");
+
+    it = cli_map.find("use_new_frontend");
+    EXPECT_NE(it, cli_map.end());
+    EXPECT_TRUE(it->second.is<std::string>());
+    EXPECT_EQ(it->second.as<std::string>(), "False");
+}
+
+TEST_F(MetaData, get_meta_data_from_removed_file) {
+    std::string file_path =
+        InferenceEngine::getIELibraryPath() + ov::util::FileTraits<char>::file_separator + "test_model.xml";
+    // Create file
+    {
+        std::ofstream ir(file_path);
+        ir << ir_with_meta;
+    }
+    auto model = core.read_model(file_path);
+
+    // Remove file (meta section wasn't read)
+    std::remove(file_path.c_str());
+
+    ov::AnyMap meta;
+    ASSERT_NO_THROW(meta = model->get_meta_data());
+    ASSERT_TRUE(!meta.empty());
     auto it = meta.find("MO_version");
     EXPECT_NE(it, meta.end());
     EXPECT_TRUE(it->second.is<std::string>());

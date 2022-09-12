@@ -12,7 +12,7 @@ ov_add_test_target(
         LINK_LIBRARIES 
             gtest
             gtest_main
-            openvino::runtime
+            openvino::runtime::dev
         INCLUDES
             "${CMAKE_CURRENT_SOURCE_DIR}/../include"
         ADD_CLANG_FORMAT

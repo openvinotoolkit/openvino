@@ -4,6 +4,7 @@
 
 #include "ir_deserializer.hpp"
 
+#include <atomic>
 #include <pugixml.hpp>
 
 #include "ie_ngraph_utils.hpp"
@@ -580,10 +581,10 @@ private:
     }
 
     void parse() const {
-        if (parsed)
+        if (parsed.load())
             return;
         std::lock_guard<std::mutex> lock(m_mutex);
-        if (parsed)
+        if (parsed.load())
             return;
         m_parsed_data = parse_node(m_meta_section);
         parsed = true;
@@ -591,7 +592,7 @@ private:
     const pugi::xml_node m_meta_section;
     mutable ov::AnyMap m_parsed_data;
     mutable std::mutex m_mutex;
-    mutable bool parsed = false;
+    mutable std::atomic<bool> parsed{false};
 };
 
 void XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section) {
