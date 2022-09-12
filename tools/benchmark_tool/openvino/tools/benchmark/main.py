@@ -23,7 +23,7 @@ from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, a
 
 def parse_and_check_command_line():
     def arg_not_empty(arg_value,empty_value):
-        return not arg_value == None and not arg_value == empty_value
+        return not arg_value is None and not arg_value == empty_value
 
     args = parse_args()
 
@@ -105,7 +105,7 @@ def main():
                 if is_flag_set_in_command_line('hint'):
                     if args.perf_hint=='none':
                         logger.warning(f"No device {device} performance hint is set.")
-                        args.perf_hint=''
+                        args.perf_hint = ''
                 else:
                     args.perf_hint = "THROUGHPUT" if benchmark.api_type == "async" else "LATENCY"
                     logger.warning(f"PerformanceMode was not explicitly specified in command line. " +
