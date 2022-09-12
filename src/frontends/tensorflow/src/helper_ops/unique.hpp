@@ -15,12 +15,20 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-class Unique : public ov::op::util::FrameworkNode {
+class Unique : public ov::frontend::tensorflow::InternalOperation {
 public:
-    OPENVINO_OP("Unique", "util", ov::op::util::FrameworkNode);
+    OPENVINO_OP("Unique", "ov::frontend::tensorflow::util", ov::frontend::tensorflow::InternalOperation);
 
     Unique(const Output<Node>& input_values, ov::element::Type output_indices_type)
-        : ov::op::util::FrameworkNode(OutputVector{input_values}, 2),
+        : ov::frontend::tensorflow::InternalOperation(OutputVector{input_values}, 2),
+          out_idx(output_indices_type) {
+        validate_and_infer_types();
+    }
+
+    Unique(const std::shared_ptr<DecoderBase>& decoder,
+           const Output<Node>& input_values,
+           ov::element::Type output_indices_type)
+        : ov::frontend::tensorflow::InternalOperation(decoder, OutputVector{input_values}, 2),
           out_idx(output_indices_type) {
         validate_and_infer_types();
     }

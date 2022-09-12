@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "helper_ops/internal_operation.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
 #include "tf_framework_node.hpp"
@@ -15,15 +16,26 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-class SparseFillEmptyRows : public ov::op::util::FrameworkNode {
+class SparseFillEmptyRows : public ov::frontend::tensorflow::InternalOperation {
 public:
-    OPENVINO_OP("SparseFillEmptyRows", "util", ov::op::util::FrameworkNode);
+    OPENVINO_OP("SparseFillEmptyRows", "ov::frontend::tensorflow::util", ov::frontend::tensorflow::InternalOperation);
 
     SparseFillEmptyRows(const Output<Node>& indices,
                         const Output<Node>& values,
                         const Output<Node>& dense_shape,
                         const Output<Node>& default_value)
-        : ov::op::util::FrameworkNode(OutputVector{indices, values, dense_shape, default_value}, 4) {
+        : ov::frontend::tensorflow::InternalOperation(OutputVector{indices, values, dense_shape, default_value}, 4) {
+        validate_and_infer_types();
+    }
+
+    SparseFillEmptyRows(const std::shared_ptr<DecoderBase>& decoder,
+                        const Output<Node>& indices,
+                        const Output<Node>& values,
+                        const Output<Node>& dense_shape,
+                        const Output<Node>& default_value)
+        : ov::frontend::tensorflow::InternalOperation(decoder,
+                                                      OutputVector{indices, values, dense_shape, default_value},
+                                                      4) {
         validate_and_infer_types();
     }
 

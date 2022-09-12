@@ -15,12 +15,12 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-class SparseSegmentSum : public ov::op::util::FrameworkNode {
+class SparseSegmentSum : public ov::frontend::tensorflow::InternalOperation {
 public:
-    OPENVINO_OP("SparseSegmentSum", "util", ov::op::util::FrameworkNode);
+    OPENVINO_OP("SparseSegmentSum", "ov::frontend::tensorflow::util", ov::frontend::tensorflow::InternalOperation);
 
     SparseSegmentSum(const Output<Node>& data, const Output<Node>& indices, const Output<Node>& segment_ids)
-        : ov::op::util::FrameworkNode(OutputVector{data, indices, segment_ids}, 1) {
+        : ov::frontend::tensorflow::InternalOperation(OutputVector{data, indices, segment_ids}, 1) {
         validate_and_infer_types();
     }
 
@@ -28,7 +28,28 @@ public:
                      const Output<Node>& indices,
                      const Output<Node>& segment_ids,
                      const Output<Node>& num_segments)
-        : ov::op::util::FrameworkNode(OutputVector{data, indices, segment_ids, num_segments}, 1) {}
+        : ov::frontend::tensorflow::InternalOperation(OutputVector{data, indices, segment_ids, num_segments}, 1) {
+        validate_and_infer_types();
+    }
+
+    SparseSegmentSum(const std::shared_ptr<DecoderBase>& decoder,
+                     const Output<Node>& data,
+                     const Output<Node>& indices,
+                     const Output<Node>& segment_ids)
+        : ov::frontend::tensorflow::InternalOperation(decoder, OutputVector{data, indices, segment_ids}, 1) {
+        validate_and_infer_types();
+    }
+
+    SparseSegmentSum(const std::shared_ptr<DecoderBase>& decoder,
+                     const Output<Node>& data,
+                     const Output<Node>& indices,
+                     const Output<Node>& segment_ids,
+                     const Output<Node>& num_segments)
+        : ov::frontend::tensorflow::InternalOperation(decoder,
+                                                      OutputVector{data, indices, segment_ids, num_segments},
+                                                      1) {
+        validate_and_infer_types();
+    }
 
     void validate_and_infer_types() override {
         // SparseSegmentSum computes the sum along sparse segments of a tensor.
