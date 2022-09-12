@@ -16,7 +16,7 @@ namespace ov {
 namespace intel_cpu {
 
 template <cpu::x64::cpu_isa_t isa>
-jit_uni_dft_kernel_f32<isa>::jit_uni_dft_kernel_f32(jit_dft_config_params jcp) : jcp_(jcp), jit_uni_dft_kernel(), jit_generator() {}
+jit_uni_dft_kernel_f32<isa>::jit_uni_dft_kernel_f32() : jit_uni_dft_kernel(), jit_generator() {}
 
 template <cpu::x64::cpu_isa_t isa>
 void jit_uni_dft_kernel_f32<isa>::create_ker() {
@@ -39,14 +39,13 @@ void jit_uni_dft_kernel_f32<isa>::generate() {
     Xbyak::Label tail_loop_label;
     Xbyak::Label tail_loop_end_label;
 
-    mov(aux_reg_work_amount, reg_work_amount);
     uni_vpxor(vmm_sum, vmm_sum, vmm_sum);
 
     int step = vlen / 8;
 
     L(main_loop_label);
     {
-        cmp(aux_reg_work_amount, step);
+        cmp(reg_work_amount, step);
         jl(main_loop_end_label, T_NEAR);
 
         uni_vmovups(vmm_data_cache, ptr[reg_src]);
@@ -63,7 +62,7 @@ void jit_uni_dft_kernel_f32<isa>::generate() {
         add(reg_twiddles, 2 * step * sizeof(float));
         add(reg_src, 2 * step * sizeof(float));
 
-        sub(aux_reg_work_amount, step);
+        sub(reg_work_amount, step);
         jmp(main_loop_label, T_NEAR);
     }
     L(main_loop_end_label);
@@ -85,7 +84,7 @@ void jit_uni_dft_kernel_f32<isa>::generate() {
 
     L(tail_loop_label);
     {
-        cmp(aux_reg_work_amount, 1);
+        cmp(reg_work_amount, 1);
         jl(tail_loop_end_label, T_NEAR);
 
         uni_vmovups(xmm_data, ptr[reg_src]);
@@ -97,25 +96,14 @@ void jit_uni_dft_kernel_f32<isa>::generate() {
         add(reg_twiddles, 2 * sizeof(float));
         add(reg_src, 2 * sizeof(float));
 
-        sub(aux_reg_work_amount, 1);
+        sub(reg_work_amount, 1);
         jmp(tail_loop_label, T_NEAR);
     }
     L(tail_loop_end_label);
 
     uni_vmovhlps(xmm_sum_2, xmm_sum_2, xmm_sum);
-
-    if (!jcp_.inverse) {
-        uni_vhsubps(xmm_sum_2, xmm_sum_2, xmm_sum_2);
-        uni_vhaddps(xmm_sum, xmm_sum, xmm_sum);
-    } else {
-        uni_vhaddps(xmm_sum_2, xmm_sum_2, xmm_sum_2);
-        uni_vhsubps(xmm_sum, xmm_sum, xmm_sum);
-
-        uni_vmovq(xmm_div, reg_work_amount);
-        uni_vcvtdq2ps(xmm_div, xmm_div);
-        uni_vdivss(xmm_sum, xmm_sum, xmm_div);
-        uni_vdivss(xmm_sum_2, xmm_sum_2, xmm_div);
-    }
+    uni_vhsubps(xmm_sum_2, xmm_sum_2, xmm_sum_2);
+    uni_vhaddps(xmm_sum, xmm_sum, xmm_sum);
 
     uni_vmovss(ptr[reg_dst], xmm_sum_2);
     uni_vmovss(ptr[reg_dst + sizeof(float)], xmm_sum);
@@ -129,10 +117,9 @@ template struct jit_uni_dft_kernel_f32<cpu::x64::avx512_core>;
 
 
 template <cpu::x64::cpu_isa_t isa>
-jit_uni_fft_kernel_f32<isa>::jit_uni_fft_kernel_f32(jit_dft_config_params jcp)
-    : jcp_(jcp),
-        jit_uni_fft_kernel(),
-        jit_generator() {}
+jit_uni_fft_kernel_f32<isa>::jit_uni_fft_kernel_f32()
+    : jit_uni_fft_kernel(),
+      jit_generator() {}
 
 template <cpu::x64::cpu_isa_t isa>
 void jit_uni_fft_kernel_f32<isa>::create_ker() {
@@ -157,15 +144,6 @@ void jit_uni_fft_kernel_f32<isa>::generate() {
 
     mov(reg_even_in_diff, sizeof(float));
     mul(reg_work_amount);
-
-    if (jcp_.inverse) {
-        Xbyak::Reg32 reg_negative_mask = Xbyak::Reg32(aux_reg_work_amount.getIdx());
-        Xbyak::Xmm xmm_negative_mask = Xbyak::Xmm(vmm_negative_mask.getIdx());
-
-        mov(reg_negative_mask, 0x80000000);
-        uni_vmovd(xmm_negative_mask, reg_negative_mask);
-        uni_vpbroadcastd(vmm_negative_mask, xmm_negative_mask);
-    }
 
     Xbyak::Label block_loop_label;
     Xbyak::Label block_loop_end_label;
@@ -205,7 +183,6 @@ void jit_uni_fft_kernel_f32<isa>::loop_process(int step) {
     T reg_twiddle_real = T(vmm_twiddle_real.getIdx());
     T reg_data_even = T(vmm_data_even.getIdx());
     T reg_data_result = T(vmm_data_result.getIdx());
-    T reg_negative_mask = T(vmm_negative_mask.getIdx());
 
     Xbyak::Label loop_label;
     Xbyak::Label loop_end_label;
@@ -220,16 +197,8 @@ void jit_uni_fft_kernel_f32<isa>::loop_process(int step) {
         uni_vmulps(reg_data_odd_2, reg_data_odd_2, reg_twiddle_imag);
 
         if (mayiuse(cpu::x64::avx512_core)) {
-            if (!jcp_.inverse) {
-                vfmaddsub213ps(reg_data_odd_1, reg_twiddle_real, reg_data_odd_2);
-            } else {
-                vfmsubadd213ps(reg_data_odd_1, reg_twiddle_real, reg_data_odd_2);
-            }
+            vfmaddsub213ps(reg_data_odd_1, reg_twiddle_real, reg_data_odd_2);
         } else {
-            if (jcp_.inverse) {
-                uni_vxorps(reg_data_odd_2, reg_data_odd_2, reg_negative_mask);
-            }
-
             uni_vmulps(reg_data_odd_1, reg_data_odd_1, reg_twiddle_real);
             uni_vaddsubps(reg_data_odd_1, reg_data_odd_1, reg_data_odd_2);
         }

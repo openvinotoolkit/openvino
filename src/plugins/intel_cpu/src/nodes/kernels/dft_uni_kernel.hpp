@@ -10,10 +10,6 @@
 namespace ov {
 namespace intel_cpu {
 
-struct jit_dft_config_params {
-    bool inverse;
-};
-
 struct jit_args_dft {
     const float* src;
     float* dst;
@@ -65,7 +61,7 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 struct jit_uni_dft_kernel_f32 : public jit_uni_dft_kernel, public dnnl::impl::cpu::x64::jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_dft_kernel_f32)
 
-    jit_uni_dft_kernel_f32(jit_dft_config_params jcp);
+    jit_uni_dft_kernel_f32();
 
     void create_ker() override;
     void generate() override;
@@ -82,8 +78,7 @@ private:
     Xbyak::Reg64 reg_dst = r9;
     Xbyak::Reg64 reg_twiddles = r10;
     Xbyak::Reg64 reg_work_amount = r11;
-    Xbyak::Reg64 aux_reg_work_amount = r12;
-    Xbyak::Reg64 reg_index = r13;
+    Xbyak::Reg64 reg_index = r12;
     Xbyak::Reg64 reg_params = Xbyak::Reg64(dnnl::impl::cpu::x64::abi_param_regs[0]);
 
     Vmm vmm_data = Vmm(0);
@@ -97,16 +92,13 @@ private:
     Xbyak::Xmm xmm_twiddles = Xbyak::Xmm(1);
     Xbyak::Xmm xmm_sum = Xbyak::Xmm(2);
     Xbyak::Xmm xmm_sum_2 = xmm_data;
-    Xbyak::Xmm xmm_div = xmm_twiddles;
-
-    jit_dft_config_params jcp_ = {};
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 struct jit_uni_fft_kernel_f32 : public jit_uni_fft_kernel, public dnnl::impl::cpu::x64::jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_fft_kernel_f32)
 
-    jit_uni_fft_kernel_f32(jit_dft_config_params jcp);
+    jit_uni_fft_kernel_f32();
 
     void create_ker() override;
     void generate() override;
@@ -118,8 +110,6 @@ private:
                                                          Xbyak::Ymm,
                                                          Xbyak::Zmm>::type;
     const size_t vlen = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen;
-
-    Xbyak::Reg32 aux_negative_mask = r8d;
 
     Xbyak::Reg64 reg_even_in_diff = rax;
     Xbyak::Reg64 reg_even_out_diff = rbx;
@@ -136,12 +126,9 @@ private:
     Vmm vmm_data_odd_2 = Vmm(1);
     Vmm vmm_twiddle_real = Vmm(2);
     Vmm vmm_twiddle_imag = Vmm(3);
-    Vmm vmm_negative_mask = Vmm(4);
-    Vmm vmm_data_even = Vmm(5);
+    Vmm vmm_data_even = Vmm(4);
 
     Vmm vmm_data_result = vmm_data_odd_2;
-
-    jit_dft_config_params jcp_ = {};
 
 
     template <typename T>
