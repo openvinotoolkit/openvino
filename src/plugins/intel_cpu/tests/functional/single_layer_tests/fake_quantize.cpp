@@ -174,18 +174,6 @@ const auto specificParams = ::testing::Combine(::testing::Values(dataLowBounds),
                                                ::testing::Values(outputHigh),
                                                ::testing::ValuesIn(levels));
 
-// Optimized FakeQuantize decomposition
-const std::vector<std::pair<std::vector<float>, std::vector<float>>> input_ranges_optimized = {
-    {{.0f}, {5.f}},
-    {{.0f}, {}}
-};
-
-const auto specificOptimizedParams = ::testing::Combine(::testing::Values(dataLowBounds),
-                                               ::testing::Values(dataHighBounds),
-                                               ::testing::Values(outputLow),
-                                               ::testing::Values(outputHigh),
-                                               ::testing::ValuesIn(levels));
-
 namespace fqImpl {
 
 std::vector<CPUSpecificParams> memForm4D_jit = {
