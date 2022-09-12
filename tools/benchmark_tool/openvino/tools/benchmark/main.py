@@ -22,9 +22,12 @@ from openvino.tools.benchmark.utils.utils import next_step, get_number_iteration
 from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
 
 def parse_and_check_command_line():
+    def arg_not_empty(arg_value,empty_value):
+        return not arg_value == None and not arg_value == empty_value
+
     args = parse_args()
 
-    if not args.perf_hint == "none" and (not args.number_streams == "" or not args.number_threads == 0 or not args.infer_threads_pinning == ""):
+    if not args.perf_hint == "none" and (arg_not_empty(args.number_streams, "") or arg_not_empty(args.number_threads, 0) or arg_not_empty(args.infer_threads_pinning, "")):
         raise Exception("-nstreams, -nthreads and -pin options are fine tune options. To use them you " \
                         "should explicitely set -hint option to none. This is not OpenVINO limitation " \
                         "(those options can be used in OpenVINO together), but a benchmark_app UI rule.")
@@ -102,6 +105,7 @@ def main():
                 if is_flag_set_in_command_line('hint'):
                     if args.perf_hint=='none':
                         logger.warning(f"No device {device} performance hint is set.")
+                        args.perf_hint=''
                 else:
                     args.perf_hint = "THROUGHPUT" if benchmark.api_type == "async" else "LATENCY"
                     logger.warning(f"PerformanceMode was not explicitly specified in command line. " +
@@ -159,8 +163,7 @@ def main():
 
             ## high-level performance hints
             if is_flag_set_in_command_line('hint') or args.perf_hint:
-                if not args.perf_hint == "none":
-                    config[device]['PERFORMANCE_HINT'] = args.perf_hint.upper()
+                config[device]['PERFORMANCE_HINT'] = args.perf_hint.upper() 
                 if is_flag_set_in_command_line('nireq'):
                     config[device]['PERFORMANCE_HINT_NUM_REQUESTS'] = str(args.number_infer_requests)
 
@@ -185,7 +188,8 @@ def main():
                     else:
                         raise Exception(f"Device {device} doesn't support config key '{key}'! " +
                                         "Please specify -nstreams for correct devices in format  <dev1>:<nstreams1>,<dev2>:<nstreams2>")
-                elif key not in config[device].keys() and args.api_type == "async" and 'PERFORMANCE_HINT' not in config[device].keys():
+                elif key not in config[device].keys() and args.api_type == "async" \
+                    and 'PERFORMANCE_HINT' in config[device].keys() and config[device]['PERFORMANCE_HINT'] == '':
                     ## set the _AUTO value for the #streams
                     logger.warning(f"-nstreams default value is determined automatically for {device} device. " +
                                    "Although the automatic selection usually provides a reasonable performance, "
