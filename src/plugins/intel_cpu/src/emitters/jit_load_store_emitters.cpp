@@ -553,9 +553,7 @@ jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator *host, 
     prepare_table();
     v_len_elt_ = get_vec_length() / exec_prc.size();
     store_size_ = store_num * dst_prc.size();
-    if (!mayiuse(cpu::x64::avx512_core_bf16)) {
-        emu_vcvtneps2bf16_.reset(new jit_emu_vcvtneps2bf16(host, host_isa));
-    }
+    uni_vcvtneps2bf16_.reset(new jit_uni_vcvtneps2bf16(host, host_isa));
 }
 
 inline bool jit_store_emitter::is_saturation() const {
@@ -588,7 +586,7 @@ size_t jit_store_emitter::aux_vecs_count() const {
         (src_prc_ == Precision::FP32 && dst_prc_ == Precision::BF16))
         count++;
 
-    // for data swapping to avoid using Xmm(0) as I/O xmm for jit_emu_vcvtneps2bf16
+    // for data swapping to avoid using Xmm(0) as I/O xmm for jit_uni_vcvtneps2bf16
     if ((host_isa_ == cpu::x64::sse41) && (src_prc_ == Precision::FP32 && dst_prc_ == Precision::BF16))
         count++;
 
@@ -603,8 +601,8 @@ size_t jit_store_emitter::get_inputs_num() const { return 1; }
 
 void jit_store_emitter::emit_data() const {
     jit_emitter::emit_data();
-    if (emu_vcvtneps2bf16_)
-        emu_vcvtneps2bf16_->emit_data();
+    if (uni_vcvtneps2bf16_)
+        uni_vcvtneps2bf16_->emit_data();
 }
 
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
@@ -1023,11 +1021,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Vmm &vmm, const Xbya
             if (src_prc_ == Precision::FP32) {
                 ymm = Ymm(aux_vec_idxs[0]);
             }
-            if (mayiuse(cpu::x64::avx512_core_bf16)) {
-                h->vcvtneps2bf16(ymm, zmm);
-            } else {
-                emu_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(ymm.getIdx())});
-            }
+            uni_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(ymm.getIdx())});
             if (store_num == 16) {
                 h->vmovdqu16(ptr[reg + offset], ymm);
             } else {
@@ -1038,16 +1032,16 @@ void jit_store_emitter::store_dword_to_word_extension(const Vmm &vmm, const Xbya
             if (src_prc_ == Precision::FP32) {
                 xmm = Xmm(aux_vec_idxs[0]);
             }
-            // For sse41 mask register has to be Xmm(0) so we cannot use Xmm(0) as I/O vmm in emu_vcvtneps2bf16_
+            // For sse41 mask register has to be Xmm(0) so we cannot use Xmm(0) as I/O vmm in uni_vcvtneps2bf16_
             if (host_isa_ == cpu::x64::sse41 && src_prc_ == Precision::FP32) {
                 auto xmm_aux1 = Xmm(aux_vec_idxs[1]);
                 h->uni_vmovups(xmm_aux1, vmm);
-                emu_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(vmm.getIdx())},
+                uni_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(vmm.getIdx())},
                                               {static_cast<size_t>(xmm.getIdx())});
                 h->uni_vmovups(xmm, vmm);
                 h->uni_vmovups(vmm, xmm_aux1);  // return original data to src vmm
             } else {
-                emu_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(xmm.getIdx())});
+                uni_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(xmm.getIdx())});
             }
 
             store_bytes(xmm, reg, offset, store_num * 2);
