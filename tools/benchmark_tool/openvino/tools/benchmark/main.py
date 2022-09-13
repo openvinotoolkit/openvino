@@ -161,8 +161,7 @@ def main():
 
             ## high-level performance hints
             if is_flag_set_in_command_line('hint') or args.perf_hint:
-                if not args.perf_hint == "none":
-                    config[device]['PERFORMANCE_HINT'] = args.perf_hint.upper()
+                config[device]['PERFORMANCE_HINT'] = args.perf_hint.upper()
                 if is_flag_set_in_command_line('nireq'):
                     config[device]['PERFORMANCE_HINT_NUM_REQUESTS'] = str(args.number_infer_requests)
 
