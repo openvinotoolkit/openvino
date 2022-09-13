@@ -425,15 +425,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
 
                 return true;
             }
-            if (ngraph::is_type<const ngraph::op::v0::PriorBox>(node) ||
-                ngraph::is_type<const ngraph::op::v0::PriorBoxClustered>(node) ||
-                ngraph::is_type<const ngraph::op::v0::Proposal>(node)) {
-                return false;
-            }
-            return prog.IsOpSupported(network, node) ||
-                ngraph::op::is_parameter(node) ||
-                ngraph::op::is_output(node) ||
-                ngraph::op::is_constant(node);
+            return prog.IsOpSupported(network, node);
     });
 
     for (auto&& layerName : supported) {

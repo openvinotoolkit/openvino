@@ -352,7 +352,6 @@ std::unordered_set<std::string> IInferencePlugin::GetSupportedNodes(
 
     // Mark removed nodes as supported
     std::unordered_set<std::string> supported = GetRemovedNodes(model, transformed_model);
-    ;
     std::unordered_set<std::string> unsupported;
 
     for (auto&& op : ops) {
