@@ -79,11 +79,17 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
         if (status) {
             out_scales = calculateScales(fake_quantize_node->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
         }
-        const bool only_quantized = status && (std::all_of(osc.cbegin(), osc.cend(),
-                                                    [](float val) { return val == 1.f; }) &&
-                                              std::all_of(osh.cbegin(), osh.cend(),
-                                                    [](float val) { return val == 0.f; }) ||
-                                              out_scales.size() != 0);
+        const bool only_quantized = status && (std::all_of(osc.cbegin(),
+                                                           osc.cend(),
+                                                           [](float val) {
+                                                               return val == 1.f;
+                                                           }) &&
+                                                   std::all_of(osh.cbegin(),
+                                                               osh.cend(),
+                                                               [](float val) {
+                                                                   return val == 0.f;
+                                                               }) ||
+                                               out_scales.size() != 0);
 
         ngraph::NodeVector decomp_ops;
         if (input_type != input_low.get_element_type()) {
@@ -235,25 +241,30 @@ bool ngraph::pass::FakeQuantizeDecomposition::getScalesAndShifts(
     return true;
 }
 
-std::vector<float> ngraph::pass::FakeQuantizeDecomposition::calculateScales(
-    const ngraph::element::Type& out_type,
-    const std::vector<float>& cl,
-    const std::vector<float>& ch,
-    const std::vector<float>& isc,
-    const std::vector<float>& ish,
-    const std::vector<float>& osc,
-    const std::vector<float>& osh) {
+std::vector<float> ngraph::pass::FakeQuantizeDecomposition::calculateScales(const ngraph::element::Type& out_type,
+                                                                            const std::vector<float>& cl,
+                                                                            const std::vector<float>& ch,
+                                                                            const std::vector<float>& isc,
+                                                                            const std::vector<float>& ish,
+                                                                            const std::vector<float>& osc,
+                                                                            const std::vector<float>& osh) {
     std::vector<float> out_scales;
     if (out_type == ngraph::element::u8 &&
-        std::all_of(cl.cbegin(), cl.cend(), [](float val) {
-            return val == 0.0f;
-        }) &&
-        std::all_of(ish.cbegin(), ish.cend(), [](float val) {
-            return val == 0.0f;
-        }) &&
-        std::all_of(osc.cbegin(), osc.cend(), [](float val) {
-            return val == 1.0f;
-        }) &&
+        std::all_of(cl.cbegin(),
+                    cl.cend(),
+                    [](float val) {
+                        return val == 0.0f;
+                    }) &&
+        std::all_of(ish.cbegin(),
+                    ish.cend(),
+                    [](float val) {
+                        return val == 0.0f;
+                    }) &&
+        std::all_of(osc.cbegin(),
+                    osc.cend(),
+                    [](float val) {
+                        return val == 1.0f;
+                    }) &&
         std::all_of(osh.cbegin(), osh.cend(), [](float val) {
             return val == 0.0f;
         })) {
@@ -262,12 +273,16 @@ std::vector<float> ngraph::pass::FakeQuantizeDecomposition::calculateScales(
 
     static const float thr = 0.0001f;
     if (out_type == ngraph::element::i8 &&
-        std::all_of(ish.cbegin(), ish.cend(), [](float val) {
-            return std::abs(val - 128.f) < thr;
-        }) &&
-        std::all_of(osc.cbegin(), osc.cend(), [](float val) {
-            return val == 1.f;
-        }) &&
+        std::all_of(ish.cbegin(),
+                    ish.cend(),
+                    [](float val) {
+                        return std::abs(val - 128.f) < thr;
+                    }) &&
+        std::all_of(osc.cbegin(),
+                    osc.cend(),
+                    [](float val) {
+                        return val == 1.f;
+                    }) &&
         std::all_of(osh.cbegin(), osh.cend(), [](float val) {
             return std::abs(val + 128.f) < thr;
         })) {
