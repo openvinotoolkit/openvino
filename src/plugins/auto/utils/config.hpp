@@ -216,6 +216,7 @@ struct PluginConfig {
                                                      "CUDA",
                                                      "NVIDIA",
                                                      "HPU_GOYA",
-                                                     "mock"};
+                                                     "mock",
+                                                     "HPU"};
 };
 } // namespace MultiDevicePlugin
