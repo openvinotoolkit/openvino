@@ -204,7 +204,7 @@ void regclass_Core(py::module m) {
 
             :param model_path: A path to a model in IR / ONNX / PDPD format.
             :type model_path: Union[str, pathlib.Path]
-            :param device_name: N   ame of the device to load the model to.
+            :param device_name: Name of the device to load the model to.
             :type device_name: str
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict

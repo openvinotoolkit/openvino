@@ -1012,9 +1012,7 @@ public:
         }
 
         auto parsed = parseDeviceNameIntoConfig(device_name, arguments);
-        auto plugin_ = GetCPPPluginByName(parsed._deviceName);
-        auto prop_ = plugin_.get_property(name, parsed._config);
-        return prop_;
+        return GetCPPPluginByName(parsed._deviceName).get_property(name, parsed._config);
     }
 
     Any GetConfig(const std::string& deviceName, const std::string& name) const override {
@@ -1908,6 +1906,7 @@ Version Core::get_version() const {
         return ov::get_openvino_version();
     })
 }
+
 std::map<std::string, Version> Core::get_versions(const std::string& deviceName) const {
     OV_CORE_CALL_STATEMENT({
         std::map<std::string, Version> versions;

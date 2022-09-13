@@ -125,7 +125,7 @@ inline std::string fileExt(const std::string& filename) {
 
 inline slog::LogStream& operator<<(slog::LogStream& os, const ov::Version& version) {
     os << version.description << " version ";
-    for(int i = 0; i<40-strlen(version.description)-10; i++){
+    for(int i = 0; i<30-strlen(version.description); i++){
         os << ".";
     } 
     os << " " << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH << slog::endl;

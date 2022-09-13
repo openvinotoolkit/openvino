@@ -213,7 +213,6 @@ void CompiledModel::set_property(const AnyMap& config) {
 }
 
 Any CompiledModel::get_property(const std::string& name) const {
-    _impl->GetMetric(name);
     OV_EXEC_NET_CALL_STATEMENT({
         if (ov::supported_properties == name) {
             try {

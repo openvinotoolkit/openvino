@@ -206,7 +206,7 @@ class Benchmark:
         if self.api_type == 'sync':
             fps = len(batch_size) * 1000 / median_latency_ms
 
-        if pcseq:   
+        if pcseq:
             for group in self.latency_groups:
                 if group.times:
                     group.times.sort()
