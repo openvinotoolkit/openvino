@@ -40,6 +40,7 @@ OP_CONVERTER(fill_constant);
 OP_CONVERTER(flatten_contiguous_range);
 OP_CONVERTER(floor);
 OP_CONVERTER(gather);
+OP_CONVERTER(gather_nd);
 OP_CONVERTER(gelu);
 OP_CONVERTER(greater_than);
 OP_CONVERTER(group_norm);
@@ -134,6 +135,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"flatten_contiguous_range", op::flatten_contiguous_range},
             {"floor", op::floor},
             {"gather", op::gather},
+            {"gather_nd", op::gather_nd},
             {"gelu", op::gelu},
             {"greater_equal", op::elementwise_greater_equal},
             {"greater_than", op::greater_than},
