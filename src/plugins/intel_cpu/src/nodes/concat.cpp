@@ -38,11 +38,6 @@ bool Concat::isExecutable() const {
 }
 
 bool Concat::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
-    if (getenv("USE_REF_CONCAT"))
-        return false;
-    // if (op->get_friendly_name().find("Concat") != std::string::npos || op->get_friendly_name().find("v") != std::string::npos
-    //     || op->get_friendly_name().find("r_att_cache") != std::string::npos)
-    //     return false;
     try {
         const auto concatOp = ngraph::as_type_ptr<const ngraph::op::v0::Concat>(op);
         if (!concatOp) {
@@ -99,11 +94,9 @@ void Concat::getSupportedDescriptors() {
         if (std::all_of(childDims.begin(), childDims.begin() + axis, [](size_t dim) { return  dim == 1; }))
             canBeInPlace = true;
     }
-    inputDims.resize(getParentEdges().size());
-    inputSize.resize(getParentEdges().size());
-    srcMemDescVector.resize(getParentEdges().size());
     nelemToCopy.resize(getParentEdges().size());
     dstOffset.resize(getParentEdges().size());
+    inputStrides.resize(getParentEdges().size());
 }
 
 void Concat::initSupportedPrimitiveDescriptors() {
@@ -390,12 +383,7 @@ void Concat::prepareParams() {
 
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
-        const auto& dims = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>()->getBlockDims();
-        inputDims[i] = dims;
-        size_t tmp = 1;
-        for (auto& a : dims)
-            tmp *= a;
-        inputSize[i] = tmp;
+        inputStrides[i] = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>()->getStrides();
     }
 
     const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemPtr->GetDataType());
@@ -410,7 +398,6 @@ void Concat::prepareParams() {
     size_t curConcatOffset = 0;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
-        srcMemDescVector[i] = srcMemPtr->getDescPtr();
         const auto& inputShape = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>()->getBlockDims();
         size_t nElem = 1;
         for (size_t j = reorderedAxis; j < inputShape.size(); j++) {
@@ -574,24 +561,25 @@ void Concat::execNspcSpecCase() {
 }
 
 void Concat::execRef() {
-    const size_t num_src = getParentEdges().size();
+    const size_t numSrc = getParentEdges().size();
     std::vector<const uint8_t*> srcPtrs;
     const Memory& dstMemory = getChildEdgeAt(0)->getMemory();
     const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemory.GetDataType());
     const auto& outputShape = dstMemory.getDescPtr()->as<BlockedMemoryDesc>()->getBlockDims();
     uint8_t* dstPtr = reinterpret_cast<uint8_t*>(dstMemory.GetData());
-    for (size_t i = 0; i < num_src; i++) {
+    for (size_t i = 0; i < numSrc; i++) {
         const Memory& src_mem = getParentEdgesAtPort(i)[0]->getMemory();
         srcPtrs.push_back(reinterpret_cast<const uint8_t*>(src_mem.GetData()));
     }
+    const auto& outputStride = dstMemory.getDescPtr()->as<BlockedMemoryDesc>()->getStrides();
 
     if (reorderedAxis == 0) {
         int nthr = parallel_get_max_threads();
         if (nthr == 1) {
-            for (size_t i = 0; i < srcPtrs.size(); ++i) {
-                const auto inData = srcPtrs[i];
-                auto outputData = &dstPtr[dstOffset[i]];
-                std::memcpy(outputData, inData, inputSize[i] * elemSize);
+            for (size_t a = 0; a < srcPtrs.size(); ++a) {
+                const auto inData = srcPtrs[a];
+                auto outputData = &dstPtr[dstOffset[a]];
+                std::memcpy(outputData, inData, nelemToCopy[a]);
             }
         } else {
             parallel_nt(nthr, [&](int ithr, int nthr) {
@@ -600,27 +588,76 @@ void Concat::execRef() {
                     splitter(nelemToCopy[a], nthr, ithr, start, end);
                     const uint8_t* i = srcPtrs[a] + start;
                     uint8_t* o = dstPtr + dstOffset[a] + start;
-                    PRAGMA_OMP_SIMD()
-                    for (size_t e = 0; e < end - start; ++e)
-                        o[e] = i[e];
+                    std::memcpy(o, i, end - start);
                 }
             });
         }
     } else {
-        size_t steps = 1;
-        for (int i = 0; i < reorderedAxis; ++i) {
-            steps *= outputShape[i];
+        size_t physDims[5] = {1, 1, 1, 1, 1};
+        for (size_t i = 0; i < reorderedAxis; i++) {
+            physDims[i] = outputShape[i];
         }
-        size_t outOffset = 0;
-        for (size_t step = 0; step < steps; ++step) {
-            for (size_t i = 0; i < srcPtrs.size(); ++i) {
-                const size_t size = inputSize[i] / steps;
-                const size_t inOffset = step * size;
+        const auto L1Size = dnnl::utils::get_cache_size(1, true);
+        UNUSED(L1Size); // for Windows
+        dnnl::impl::parallel_nd(physDims[0], physDims[1], physDims[2], physDims[3], physDims[4], numSrc,
+                                [&](size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t a) {
+            // check if zero memory
+            if (srcPtrs[a] == nullptr) return;
 
-                std::memcpy(&dstPtr[outOffset * elemSize], &srcPtrs[i][inOffset * elemSize], size * elemSize);
-                outOffset += size;
+            // XXX: this code may access uninitialized values in is[*][0-4] --
+            // that's why we have to set them to zero although this is
+            // probably benign
+            size_t inOff = inputStrides[a][0] * n0 + inputStrides[a][1] * n1 + inputStrides[a][2] * n2
+                            + inputStrides[a][3] * n3 + inputStrides[a][4] * n4;
+            size_t outOff = outputStride[0] * n0 + outputStride[1] * n1 + outputStride[2] * n2
+                             + outputStride[3] * n3 + outputStride[4] * n4;
+            const uint8_t *i = srcPtrs[a] + inOff * elemSize;
+            uint8_t *o = dstPtr + dstOffset[a] + outOff * elemSize;
+
+#if defined(__GNUC__)
+            // Heuristic:
+            // memcpy works generally faster for data sizes not
+            // exceeding L1 cache.
+            if (nelemToCopy[a] > L1Size) {
+                // The code below performs data copying: o[e] = i[e]
+                // and uses a workaround to make GNU compilers optimize it
+                uint8_t *ptro = o;
+                const uint8_t *ptri = i;
+                // head part: bytes before 4 byte-align's address
+                const size_t headPart = sizeof(uint32_t)
+                                         - reinterpret_cast<uint64_t>(ptro)
+                                           % sizeof(uint32_t);
+
+                // main part: bytes in 4 byte-align
+                const size_t mainPart
+                        = (nelemToCopy[a] - headPart) / sizeof(uint32_t);
+                // tail part: bytes after 4 byte-align
+                const size_t tailPart
+                        = (nelemToCopy[a]) - headPart
+                          - (mainPart * sizeof(uint32_t));
+                // copy head part
+                for (size_t e = 0; e < headPart; ++e) {
+                    *ptro = *ptri;
+                    ++ptro;
+                    ++ptri;
+                }
+                // copy main part
+                std::memcpy(ptro, ptri, mainPart * sizeof(uint32_t));
+                ptro += mainPart * sizeof(uint32_t);
+                ptri += mainPart * sizeof(uint32_t);
+                // copy tail part
+                for (size_t e = 0; e < tailPart; ++e) {
+                    *ptro = *ptri;
+                    ++ptro;
+                    ++ptri;
+                }
+            } else {
+                std::memcpy(o, i, nelemToCopy[a]);
             }
-        }
+#else
+            std::memcpy(o, i, nelemToCopy[a]);
+#endif
+        });
     }
 }
 

@@ -42,11 +42,9 @@ private:
     void execRef();
     size_t inverseOrder(const InferenceEngine::SizeVector& order, size_t axis);
     void execNspcSpecCase();
-    std::vector<VectorDims> inputDims;
-    std::vector<size_t> inputSize;
-    std::vector<size_t> nelemToCopy;
-    std::vector<size_t> dstOffset;
-    std::vector<MemoryDescPtr> srcMemDescVector;
+    std::vector<VectorDims> inputStrides;
+    std::vector<size_t> nelemToCopy; // byte moved in each iter
+    std::vector<size_t> dstOffset; // dst offset for each input
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
 

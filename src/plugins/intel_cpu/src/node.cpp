@@ -518,14 +518,8 @@ void Node::execute(dnnl::stream strm) {
 }
 
 void Node::executeDynamic(dnnl::stream strm) {
-    // auto begin = std::chrono::high_resolution_clock::now();
-    // auto end1 = std::chrono::high_resolution_clock::now();
-    // auto end2 = std::chrono::high_resolution_clock::now();
-    // auto end3 = std::chrono::high_resolution_clock::now();
-
     if (needShapeInfer()) {
         redefineOutputMemory(shapeInfer());
-        // end1 = std::chrono::high_resolution_clock::now();
     }
     if (isExecutable()) {
         if (needPrepareParams()) {
@@ -535,18 +529,9 @@ void Node::executeDynamic(dnnl::stream strm) {
                       " ", getName(), " ", getOriginalLayers());
             prepareParams();
         }
-        // end2 = std::chrono::high_resolution_clock::now();
         executeDynamicImpl(strm);
     }
     updateLastInputDims();
-    // end3 = std::chrono::high_resolution_clock::now();
-    // auto time1 = std::chrono::duration_cast<std::chrono::microseconds>(end1 - begin).count();
-    // auto time2 = std::chrono::duration_cast<std::chrono::microseconds>(end2 - begin).count();
-    // auto time3 = std::chrono::duration_cast<std::chrono::microseconds>(end3 - begin).count();
-    // auto kernel_time = std::chrono::duration_cast<std::chrono::microseconds>(end3 - end2).count();
-    // if (getenv("OPENVINO_PROFILE"))
-    //     std::cout << "DYNAMIC|" << getName()  << "|" << getTypeStr()  << "|"<< time1 << "|" << time3 << "|"
-    //     << time2  << "|" << kernel_time << std::endl;
 }
 
 void Node::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) {
@@ -1518,9 +1503,7 @@ std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<StaticShape>& 
 
     // call shape inference API
     std::vector<StaticShape> output_shapes = shapeInference->infer(input_shapes, input_values);
-    // if (getType() == Type::Transpose) {
-    //     std::cout << getName() << "|" << input_shapes[0] << "|" << output_shapes[0] << std::endl;
-    // }
+
     std::vector<VectorDims> result(output_shapes.size());
     std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const StaticShape& s) {
         return s.to_shape();
