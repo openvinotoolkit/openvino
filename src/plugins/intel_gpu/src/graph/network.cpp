@@ -587,6 +587,10 @@ memory::ptr network::get_output_memory(const primitive_id& output_id) {
     return get_primitive(output_id)->output_memory_ptr();
 }
 
+layout network::get_output_layout(const primitive_id& output_id) const {
+    return get_primitive(output_id)->get_node().get_output_layout();
+}
+
 void network::allocate_primitives() {
     std::vector<std::shared_ptr<program_node>> nodes_to_allocate{};
     auto& po = _program->get_processing_order();
@@ -884,6 +888,11 @@ std::shared_ptr<primitive_inst> network::get_primitive(const primitive_id& id) {
     if (!_primitives.count(id))
         allocate_primitive_instance(_program->get_node(id));
 
+    return _primitives.at(id);
+}
+
+std::shared_ptr<const primitive_inst> network::get_primitive(const primitive_id& id) const {
+    OPENVINO_ASSERT(_primitives.count(id) == 1, "[GPU] Can't get primitive with ", id, " id: primitive with such name hasn't been found in processing order");
     return _primitives.at(id);
 }
 
