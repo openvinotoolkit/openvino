@@ -47,7 +47,7 @@ public:
         for (const auto& shape : inputShape.second) {
             result << CommonTestUtils::vec2str(shape) << "_";
         }
-        result << ")_";
+        result << ")";
         return result.str();
     }
 protected:
