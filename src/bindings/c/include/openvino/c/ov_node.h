@@ -52,7 +52,7 @@ OPENVINO_C_API(ov_status_e) ov_node_get_shape(ov_output_const_node_t* node, ov_s
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_node_list_get_any_name_by_index(ov_output_node_list_t* nodes, size_t idx, char** tensor_name);
+ov_node_list_get_any_name_by_index(const ov_output_node_list_t* nodes, size_t idx, char** tensor_name);
 
 /**
  * @brief Get the shape of ov_output_node.
@@ -63,7 +63,7 @@ ov_node_list_get_any_name_by_index(ov_output_node_list_t* nodes, size_t idx, cha
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_node_list_get_shape_by_index(ov_output_node_list_t* nodes, size_t idx, ov_shape_t* shape);
+ov_node_list_get_shape_by_index(const ov_output_node_list_t* nodes, size_t idx, ov_shape_t* shape);
 
 /**
  * @brief Get the partial shape of ov_output_node.
@@ -74,7 +74,9 @@ ov_node_list_get_shape_by_index(ov_output_node_list_t* nodes, size_t idx, ov_sha
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_node_list_get_partial_shape_by_index(ov_output_node_list_t* nodes, size_t idx, ov_partial_shape_t** partial_shape);
+ov_node_list_get_partial_shape_by_index(const ov_output_node_list_t* nodes,
+                                        size_t idx,
+                                        ov_partial_shape_t* partial_shape);
 
 /**
  * @brief Get the tensor type of ov_output_node.
@@ -85,7 +87,7 @@ ov_node_list_get_partial_shape_by_index(ov_output_node_list_t* nodes, size_t idx
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_node_list_get_element_type_by_index(ov_output_node_list_t* nodes, size_t idx, ov_element_type_e* tensor_type);
+ov_node_list_get_element_type_by_index(const ov_output_node_list_t* nodes, size_t idx, ov_element_type_e* tensor_type);
 
 /**
  * @brief free ov_output_node_list_t

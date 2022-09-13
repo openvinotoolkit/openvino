@@ -28,19 +28,31 @@ if(WIN32)
 else()
     find_package(Threads REQUIRED)
 
-    find_path(LIBUSB_INCLUDE_DIR NAMES libusb.h PATH_SUFFIXES "include" "libusb" "libusb-1.0")
-    find_library(LIBUSB_LIBRARY NAMES usb-1.0 PATH_SUFFIXES "lib")
+    # TODO: need to pre-detect libusb before enabling ENABLE_INTEL_MYRIAD_COMMON
 
-    # TODO: need to detect libusb before enabling ENABLE_INTEL_MYRIAD_COMMON
-    if(NOT LIBUSB_INCLUDE_DIR OR NOT LIBUSB_LIBRARY)
-        message(FATAL_ERROR "libusb is required, please install it")
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND AND NOT ANDROID)
+        pkg_search_module(libusb REQUIRED
+                          IMPORTED_TARGET
+                          libusb-1.0)
+        if(libusb_FOUND)
+            set(LIBUSB_LIBRARY "PkgConfig::libusb" CACHE STRING "libusb-1.0 imported target")
+            set(LIBUSB_INCLUDE_DIR "" CACHE PATH "libusb-1.0 include dirs")
+
+            message(STATUS "libusb-1.0 (${libusb_VERSION}) is found at ${libusb_PREFIX}")
+        endif()
+    else()
+        find_path(LIBUSB_INCLUDE_DIR NAMES libusb.h PATH_SUFFIXES "include" "libusb" "libusb-1.0")
+        find_library(LIBUSB_LIBRARY NAMES usb-1.0 PATH_SUFFIXES "lib")
+
+        if(NOT LIBUSB_INCLUDE_DIR OR NOT LIBUSB_LIBRARY)
+            message(FATAL_ERROR "libusb is required, please install it")
+        endif()
     endif()
 
     set(XLINK_PLATFORM_INCLUDE ${XLINK_ROOT_DIR}/pc/MacOS)
     list(APPEND XLINK_SOURCES "${XLINK_ROOT_DIR}/pc/MacOS/pthread_semaphore.c")
 endif()
 
-#This is for the Movidius team
-set(XLINK_INCLUDE_DIRECTORIES
-        ${XLINK_INCLUDE}
-        ${LIBUSB_INCLUDE_DIR})
+# This is for the Movidius team
+set(XLINK_INCLUDE_DIRECTORIES ${XLINK_INCLUDE})

@@ -24,7 +24,7 @@ if(OpenCV_FOUND)
 endif()
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::core openvino::runtime)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
 
 if(OpenVINO_Frontend_ONNX_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE openvino::frontend::onnx)

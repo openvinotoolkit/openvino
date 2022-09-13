@@ -71,11 +71,11 @@ ov_compiled_model_create_infer_request(const ov_compiled_model_t* compiled_model
  * @brief Sets properties for the current compiled model.
  * @ingroup compiled_model
  * @param compiled_model A pointer to the ov_compiled_model_t.
- * @param property ov_property_t.
+ * @param property ov_properties_t.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_set_property(const ov_compiled_model_t* compiled_model, const ov_property_t* property);
+ov_compiled_model_set_property(const ov_compiled_model_t* compiled_model, const ov_properties_t* property);
 
 /**
  * @brief Gets properties for current compiled model.
@@ -86,9 +86,7 @@ ov_compiled_model_set_property(const ov_compiled_model_t* compiled_model, const 
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_get_property(const ov_compiled_model_t* compiled_model,
-                               const ov_property_key_e key,
-                               ov_property_value_t* value);
+ov_compiled_model_get_property(const ov_compiled_model_t* compiled_model, const char* key, ov_any_t* value);
 
 /**
  * @brief Exports the current compiled model to an output stream `std::ostream`.

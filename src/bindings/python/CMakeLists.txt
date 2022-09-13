@@ -16,10 +16,6 @@ endif()
 
 set(PYTHON_SOURCE_DIR ${OpenVINOPython_SOURCE_DIR}/src)
 
-# TODO: Remove this condition as 76672 will be fixed
-if(CMAKE_CROSSCOMPILING AND DEFINED ENV{OE_CMAKE_TOOLCHAIN_FILE})
-    set(DISABLE_PYBIND11 ON CACHE BOOL "Whether pybind11 can be used in python bindings")
-endif()
 
 #
 # Check python requirements
@@ -38,11 +34,21 @@ function(ov_check_python_build_conditions)
         set(message_mode WARNING)
     endif()
 
-    # Try to find python3
-    find_package(PythonInterp 3 ${find_package_mode})
+    # Try to find python3 and its libs
+    find_host_package(PythonInterp 3 ${find_package_mode})
     if(PYTHONINTERP_FOUND)
-        # use libraries with the same version as python itself
-        find_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT ${find_package_mode})
+        function(_ov_find_python_libs_new)
+            set(PYBIND11_PYTHON_VERSION ${PYTHON_VERSION_STRING})
+            list(APPEND CMAKE_MODULE_PATH "${OpenVINOPython_SOURCE_DIR}/thirdparty/pybind11/tools")
+            # use libraries with the same version as python itself
+            find_package(PythonLibsNew ${PYBIND11_PYTHON_VERSION} EXACT ${find_package_mode})
+            set(PYTHONLIBSNEW_FOUND ${PYTHONLIBS_FOUND} PARENT_SCOPE)
+        endfunction()
+        # try to find python libraries
+        _ov_find_python_libs_new()
+        if(PYTHONLIBSNEW_FOUND)
+            find_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT ${find_package_mode})
+        endif()
         if(NOT PYTHONLIBS_FOUND)
             message(${message_mode} "Python development libraries are not found. OpenVINO Python API will be turned off (ENABLE_PYTHON is OFF)")
         endif()
@@ -149,18 +155,18 @@ ie_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_
 # Build the code
 #
 
-if(ie_python_req_FOUND)
-    add_subdirectory(src/compatibility/openvino)
-else()
-    message(WARNING "NOTE: Python API for OpenVINO 1.0 is disabled")
-endif()
-
 if(DISABLE_PYBIND11)
     message(WARNING "NOTE: Python API for OpenVINO 2.0 is disabled")
 else()
     add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
     add_subdirectory(src/compatibility/pyngraph)
     add_subdirectory(src/pyopenvino)
+endif()
+
+if(ie_python_req_FOUND)
+    add_subdirectory(src/compatibility/openvino)
+else()
+    message(WARNING "NOTE: Python API for OpenVINO 1.0 is disabled")
 endif()
 
 if(ENABLE_WHEEL)

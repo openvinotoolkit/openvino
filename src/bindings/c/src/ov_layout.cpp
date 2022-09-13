@@ -5,7 +5,7 @@
 
 #include "common.h"
 
-ov_status_e ov_layout_create(ov_layout_t** layout, const char* layout_desc) {
+ov_status_e ov_layout_create(const char* layout_desc, ov_layout_t** layout) {
     if (!layout || !layout_desc) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -24,7 +24,7 @@ void ov_layout_free(ov_layout_t* layout) {
         delete layout;
 }
 
-const char* ov_layout_to_string(ov_layout_t* layout) {
+const char* ov_layout_to_string(const ov_layout_t* layout) {
     if (!layout) {
         return str_to_char_array("Error: null layout!");
     }

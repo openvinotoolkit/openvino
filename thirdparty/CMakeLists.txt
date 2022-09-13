@@ -25,15 +25,15 @@ ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
 # zlib
 #
 
-if(NOT CMAKE_CROSSCOMPILING)
-    find_host_package(PkgConfig QUIET)
+if(NOT ANDROID)
+    find_package(PkgConfig QUIET)
     if(PkgConfig_FOUND)
         pkg_search_module(zlib QUIET
-                        IMPORTED_TARGET GLOBAL
-                        zlib)
+                          IMPORTED_TARGET GLOBAL
+                          zlib)
         if(zlib_FOUND)
             add_library(zlib::zlib ALIAS PkgConfig::zlib)
-            message(STATUS "zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
+            message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
         endif()
     endif()
 endif()
@@ -47,29 +47,72 @@ endif()
 #
 
 if(ENABLE_SYSTEM_PUGIXML)
+    find_package(PkgConfig QUIET)
     # try system pugixml first
     find_package(PugiXML QUIET)
     if(PugiXML_FOUND)
-        if(TARGET pugixml::static)
-            # sometimes pugixml::static target already exists, just need to make it global
-            # example: building using conda environment
-            set(pugixml_target pugixml::static)
+        if(TARGET pugixml::shared)
+            # example: cross-compilation on debian
+            set(pugixml_target pugixml::shared)
         elseif(TARGET pugixml)
             # or create an alias for pugixml shared library
             # example: libpugixml-dev debian package
             set(pugixml_target pugixml)
+        elseif(TARGET pugixml::static)
+            # sometimes pugixml::static target already exists, just need to make it global
+            # example: building using conda environment
+            set(pugixml_target pugixml::static)
         else()
             message(FATAL_ERROR "Failed to detect pugixml library target name")
         endif()
+    elseif(PkgConfig_FOUND AND NOT ANDROID)
+        # U18 case when cmake interface is not available
+        pkg_search_module(pugixml QUIET
+                          IMPORTED_TARGET GLOBAL
+                          pugixml)
+        if(pugixml_FOUND)
+            set(pugixml_target PkgConfig::pugixml)
+            # PATCH: on Ubuntu 18.04 pugixml.pc contains incorrect include directories
+            get_target_property(interface_include_dir ${pugixml_target} INTERFACE_INCLUDE_DIRECTORIES)
+            if(interface_include_dir AND NOT EXISTS "${interface_include_dir}")
+                set_target_properties(${pugixml_target} PROPERTIES
+                    INTERFACE_INCLUDE_DIRECTORIES "")
+                # buggy pugixml.pc does not allow to work with openvino.pc well
+                set(pugixml_buggy_pkgconfig ON CACHE INTERNAL "" FORCE)
+                message(WARNING "openvino.pc pkg-config file generation has turned off because it should have to depend on pugixml.pc")
+            endif()
+            message(STATUS "${PKG_CONFIG_EXECUTABLE}: pugixml (${pugixml_VERSION}) is found at ${pugixml_PREFIX}")
+        endif()
+    endif()
 
+    if(TARGET ${pugixml_target})
         # we need to install dynamic library for wheel package
         get_target_property(target_type ${pugixml_target} TYPE)
         if(target_type STREQUAL "SHARED_LIBRARY")
+            get_target_property(imported_config ${pugixml_target} IMPORTED_CONFIGURATIONS)
+            get_target_property(pugixml_loc ${pugixml_target} IMPORTED_LOCATION_${imported_config})
+            get_filename_component(pugixml_dir "${pugixml_loc}" DIRECTORY)
+            get_target_property(pugixml_soname_loc ${pugixml_target} IMPORTED_SONAME_${imported_config})
+            set(pugixml_libs "${pugixml_loc}" "${pugixml_dir}/${pugixml_soname_loc}")
+        elseif(target_type STREQUAL "INTERFACE_LIBRARY")
+            get_target_property(pugixml_loc ${pugixml_target} INTERFACE_LINK_LIBRARIES)
+            file(GLOB pugixml_libs_all "${pugixml_loc}.*")
+            foreach(pugixml_lib IN LISTS pugixml_libs_all)
+                if(pugixml_lib MATCHES "^${pugixml_loc}(\.[0-9]+)+$")
+                    list(APPEND pugixml_libs "${pugixml_lib}")
+                endif()
+            endforeach()
+        endif()
+
+        # if dynamic libpugixml.so.1 and libpugixml.so.1.X are found
+        if(pugixml_libs)
             ie_cpack_add_component(pugixml HIDDEN)
-            get_target_property(pugixml_loc ${pugixml_target} IMPORTED_LOCATION_NOCONFIG)
-            install(FILES ${pugixml_loc}
+            install(FILES ${pugixml_libs}
                     DESTINATION runtime/3rdparty/pugixml/lib
-                    COMPONENT pugixml EXCLUDE_FROM_ALL)
+                    COMPONENT pugixml
+                    EXCLUDE_FROM_ALL)
+        elseif(CPACK_GENERATOR STREQUAL "DEB")
+            message(FATAL_ERROR "Debian package build requires shared Pugixml library")
         endif()
 
         set_target_properties(${pugixml_target} PROPERTIES IMPORTED_GLOBAL ON)
@@ -128,7 +171,14 @@ if(NOT APPLE)
 endif()
 
 if(gflags_FOUND)
-    set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
+    if(TARGET gflags_nothreads-static)
+        set_target_properties(gflags_nothreads-static PROPERTIES IMPORTED_GLOBAL ON)
+        add_library(gflags ALIAS gflags_nothreads-static)
+    elseif(TARGET gflags)
+        set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
+    else()
+        message(FATAL_ERROR "Internal error: failed to find imported target 'gflags'")
+    endif()
     message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
 else()
     add_subdirectory(gflags EXCLUDE_FROM_ALL)
@@ -159,18 +209,17 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         find_package(Protobuf 3.18.2 REQUIRED)
         set(Protobuf_LITE_LIBRARIES protobuf::libprotobuf-lite)
         set(Protobuf_LIBRARIES protobuf::libprotobuf)
-        set(SYSTEM_PROTOC protobuf::protoc)
-        set(PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
+        set(PROTOC_EXECUTABLE protobuf::protoc)
 
-        foreach(target ${SYSTEM_PROTOC} ${Protobuf_LIBRARIES} ${Protobuf_LITE_LIBRARIES})
-            set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL TRUE)
+        foreach(target ${PROTOC_EXECUTABLE} ${Protobuf_LIBRARIES} ${Protobuf_LITE_LIBRARIES})
+            set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL ON)
         endforeach()
     else()
         add_subdirectory(protobuf EXCLUDE_FROM_ALL)
     endif()
 
     # forward variables used in the other places
-    set(SYSTEM_PROTOC ${SYSTEM_PROTOC} PARENT_SCOPE)
+    set(PROTOC_DEPENDENCY ${PROTOC_DEPENDENCY} PARENT_SCOPE)
     set(PROTOC_EXECUTABLE ${PROTOC_EXECUTABLE} PARENT_SCOPE)
     set(Protobuf_LIBRARIES ${Protobuf_LIBRARIES} PARENT_SCOPE)
     set(Protobuf_LITE_LIBRARIES ${Protobuf_LITE_LIBRARIES} PARENT_SCOPE)
@@ -222,6 +271,9 @@ if(CPACK_GENERATOR STREQUAL "DEB")
     if(NOT zlib_FOUND)
         message(FATAL_ERROR "zlib must be used as a debian package. Install zlib1g-dev")
     endif()
+    if(NOT ENABLE_SYSTEM_PUGIXML)
+        message(FATAL_ERROR "Pugixml must be used as a debian package. Install libpugixml-dev")
+    endif()
 else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
@@ -234,7 +286,11 @@ else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json/nlohmann_json
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            REGEX .*json/nlohmann_json/test/.* EXCLUDE)
+            REGEX .*json/nlohmann_json/.github/.* EXCLUDE
+            REGEX .*json/nlohmann_json/benchmarks/.* EXCLUDE
+            REGEX .*json/nlohmann_json/doc/.* EXCLUDE
+            REGEX .*json/nlohmann_json/test/.* EXCLUDE
+            REGEX .*json/nlohmann_json/cpplint/.* EXCLUDE)
 endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
