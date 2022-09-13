@@ -355,7 +355,7 @@ jobs:
     continueOnError: false
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_cpu_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_unit_tests.xml
-    displayName: 'CPU UT'
+    displayName: 'Intel CPU Unit Tests'
     continueOnError: false
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/gnaUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-gnaUnitTests.xml
