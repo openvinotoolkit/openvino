@@ -17,20 +17,20 @@ CommonDispatchData SetDefault(const bucketize_params& kernel_params) {
     const auto out_layout = output.GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    switch (out_layout) {
-    case DataLayout::bfyx:
+    switch (output.Dimentions()) {
+    case 4:
         dispatch_data.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
         dims_by_gws = {{Tensor::DataChannelName::X},
                        {Tensor::DataChannelName::Y},
                        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
         break;
-    case DataLayout::bfzyx:
+    case 5:
         dispatch_data.gws = {output.X().v * output.Y().v, output.Z().v, output.Feature().v * output.Batch().v};
         dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
                        {Tensor::DataChannelName::Z},
                        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
         break;
-    case DataLayout::bfwzyx:
+    case 6:
         dispatch_data.gws = {output.X().v * output.Y().v,
                              output.Z().v * output.W().v,
                              output.Feature().v * output.Batch().v};

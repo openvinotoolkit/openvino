@@ -13,7 +13,6 @@
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/crop.hpp>
-#include <intel_gpu/primitives/scale.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -475,8 +474,8 @@ TEST(memory_pool, non_opt_intermidate_opt_after) {
     auto reshape = cldnn::reshape("reshape", "concat", reshape_tensor);
     auto crop1 = cldnn::crop("crop1", "reshape", { 1, 1, 1, 1 }, { 0, 0, 0, 0 });
     auto crop2 = cldnn::crop("crop2", "reshape", { 1, 1, 1, 1 }, { 1, 0, 0, 0 });
-    auto eltwise1 = cldnn::scale("elt1", "crop1", "scale_mem");
-    auto eltwise2 = cldnn::scale("elt2", "crop2", "scale_mem");
+    auto eltwise1 = cldnn::eltwise("elt1", { "crop1", "scale_mem" }, eltwise_mode::prod);
+    auto eltwise2 = cldnn::eltwise("elt2", { "crop2", "scale_mem" }, eltwise_mode::prod);
 
     auto topology = cldnn::topology(
         input, input2,
@@ -522,8 +521,8 @@ TEST(memory_pool, add_mem_dep_test) {
     auto actv2 = cldnn::activation("input_activ2", "input1", activation_func::abs);
     auto crop1 = cldnn::crop("crop1", "input_activ1", { 1, 1, 2, 2 }, { 0, 0, 0, 0 });
     auto crop2 = cldnn::crop("crop2", "input_activ2", { 1, 1, 2, 2 }, { 0, 1, 0, 0 });
-    auto eltwise1 = cldnn::scale("elt1", "crop1", "scale_mem");
-    auto eltwise2 = cldnn::scale("elt2", "crop2", "scale_mem");
+    auto eltwise1 = cldnn::eltwise("elt1", { "crop1", "scale_mem" }, eltwise_mode::prod);
+    auto eltwise2 = cldnn::eltwise("elt2", { "crop2", "scale_mem" }, eltwise_mode::prod);
     auto actv3 = cldnn::activation("out3", "elt1", activation_func::abs);
     auto actv4 = cldnn::activation("out4", "elt2", activation_func::abs);
 
