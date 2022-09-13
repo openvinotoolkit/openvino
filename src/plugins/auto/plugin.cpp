@@ -553,10 +553,12 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     multiSContext->_LogTag = _LogTag;
     IExecutableNetworkInternal::Ptr impl;
     auto tmpiter = fullConfig.find(ov::intel_auto::device_bind_buffer.name());
-    if (tmpiter != fullConfig.end() && tmpiter->second == PluginConfigParams::YES)
+    if (tmpiter != fullConfig.end() && tmpiter->second == PluginConfigParams::YES) {
+        multiSContext->_bindBuffer = true;
         impl = std::make_shared<MultiExecutableNetwork>(multiSContext, std::make_shared<BinderMultiSchedule>());
-    else
+    } else {
         impl = std::make_shared<MultiExecutableNetwork>(multiSContext, std::make_shared<MultiSchedule>());
+    }
     if (!modelPath.empty()) {
         SetExeNetworkInfo(impl,
                           executableNetworkPerDevice.begin()->second->GetInputsInfo(),
