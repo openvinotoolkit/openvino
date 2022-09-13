@@ -3,6 +3,7 @@
 
 import inspect
 import logging as log
+import os
 from pathlib import Path
 
 import pytest
@@ -19,12 +20,15 @@ def pytest_generate_tests(metafunc):
 @pytest.fixture(scope='session', autouse=True)
 def rename_tf_fe_libs(request):
     # code before 'yield' statement is equal to 'set_up' function
-    try:
-        import openvino.runtime as rt
-    except ImportError as err:
-        raise Exception("Please set PYTHONPATH to OpenVINO Python") from err
+    if os.getenv('LD_LIBRARY_PATH'):
+        openvino_lib_path = os.getenv('LD_LIBRARY_PATH')
+    else:
+        try:
+            import openvino.runtime as rt
+            openvino_lib_path = Path(rt.__file__).parent.parent.parent.parent.parent
+        except ImportError as err:
+            raise Exception("Please set PYTHONPATH to OpenVINO Python") from err
 
-    openvino_lib_path = Path(rt.__file__).parent.parent.parent.parent.parent
     tf_fe_lib_names = ['libopenvino_tensorflow_fe', 'libopenvino_tensorflow_frontend']
 
     # in case of usual test run we should check names of libs and rename back them if applicable
