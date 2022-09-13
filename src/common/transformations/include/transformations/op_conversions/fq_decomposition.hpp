@@ -49,5 +49,18 @@ public:
     FakeQuantizeDecomposition(const bool constant_weights = true);
 
     static bool isAllScalarConstant(const std::shared_ptr<const ngraph::Node>& node);
-    static std::vector<float> simplifyToScale(const std::shared_ptr<const ngraph::op::v0::FakeQuantize>& fq_node);
+    static bool getScalesAndShifts(const std::shared_ptr<const ngraph::op::v0::FakeQuantize>& fq_node,
+                                   std::vector<float>& cl,
+                                   std::vector<float>& ch,
+                                   std::vector<float>& isc,
+                                   std::vector<float>& ish,
+                                   std::vector<float>& osc,
+                                   std::vector<float>& osh);
+    static std::vector<float> calculateScales(const ngraph::element::Type& out_type,
+                                              const std::vector<float>& cl,
+                                              const std::vector<float>& ch,
+                                              const std::vector<float>& isc,
+                                              const std::vector<float>& ish,
+                                              const std::vector<float>& osc,
+                                              const std::vector<float>& osh);
 };

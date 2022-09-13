@@ -156,30 +156,41 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
     return result;
 }
 auto get_potentional_non_scalar_constants_count(const std::shared_ptr<ov::Model> body) -> size_t {
+    // get potentional count of non-scalar constants that will be moved up from body
     auto get_additional_param_count_for_fq = [](const std::shared_ptr<ngraph::opset1::FakeQuantize>& fq) -> size_t {
-        const auto scales = ngraph::pass::FakeQuantizeDecomposition::simplifyToScale(fq);
-        if (scales.size() != 0) {
-            return static_cast<bool>(scales.size() != 1);
-        } else {
-            const bool il = ngraph::shape_size(fq->input(1).get_shape()) != 1lu;
-            const bool ih = ngraph::shape_size(fq->input(2).get_shape()) != 1lu;
-            const bool ol = ngraph::shape_size(fq->input(3).get_shape()) != 1lu;
-            const bool oh = ngraph::shape_size(fq->input(4).get_shape()) != 1lu;
-
-            if (ol && il && ih)
-                return 6;
-            else if ((ol && (il || ih)) || (il && ih && oh))
-                return 5;
-            else if ((il && oh) || (ih && oh) || (il && ih))
-                return 4;
-            else if (il || ih)
-                return 3;
-            else if (ol)
-                return 2;
-            else if (oh)
-                return 1;
-            return 0;
+        std::vector<float> out_scales;
+        std::vector<float> cl, ch, isc, ish, osc, osh;
+        const bool status = ngraph::pass::FakeQuantizeDecomposition::getScalesAndShifts(fq, cl, ch, isc, ish, osc, osh);
+        if (status) {
+            out_scales = ngraph::pass::FakeQuantizeDecomposition::calculateScales(fq->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
         }
+        const bool only_quantized = status && out_scales.size() == 0 &&
+                                    std::all_of(osc.cbegin(), osc.cend(),
+                                        [](float val) { return val == 1.f; }) &&
+                                    std::all_of(osh.cbegin(), osh.cend(),
+                                        [](float val) { return val == 0.f; });
+        if (out_scales.size() != 0) {
+            return static_cast<bool>(out_scales.size() != 1);
+        }
+
+        const bool il = ngraph::shape_size(fq->input(1).get_shape()) != 1lu;
+        const bool ih = ngraph::shape_size(fq->input(2).get_shape()) != 1lu;
+        const bool ol = !only_quantized && ngraph::shape_size(fq->input(3).get_shape()) != 1lu;
+        const bool oh = !only_quantized && ngraph::shape_size(fq->input(4).get_shape()) != 1lu;
+
+        if (ol && il && ih)
+            return 6;
+        else if ((ol && (il || ih)) || (il && ih && oh))
+            return 5;
+        else if ((il && oh) || (ih && oh) || (il && ih))
+            return 4;
+        else if (il || ih)
+            return 3;
+        else if (ol)
+            return 2;
+        else if (oh)
+            return 1;
+        return 0;
     };
 
     size_t count = 0;
