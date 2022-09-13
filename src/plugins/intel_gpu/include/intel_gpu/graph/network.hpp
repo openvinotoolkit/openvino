@@ -121,6 +121,7 @@ public:
     }
 
     memory::ptr get_output_memory(const primitive_id& output_id);
+    layout get_output_layout(const primitive_id& output_id) const;
 
     /// @brief Returns the list of primitive ids before and after graph optimization.
     /// @details If primitive was not optimized, the old and actual id will be the same.
@@ -178,6 +179,7 @@ public:
     void set_arguments();
     // Implementation specific calls
     std::shared_ptr<primitive_inst> get_primitive(const primitive_id& id);
+    std::shared_ptr<const primitive_inst> get_primitive(const primitive_id& id) const;
     std::string get_primitive_info(const primitive_id& id) const;
     std::string get_implementation_info(const primitive_id& id) const;
     const event::ptr& get_primitive_event(const primitive_id& id) const { return _events.at(id); }
