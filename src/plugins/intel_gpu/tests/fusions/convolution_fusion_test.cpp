@@ -448,6 +448,7 @@ TEST_P(conv_fp32_activation, basic) {
         reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
     );
 
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -477,7 +478,7 @@ TEST_P(conv_fp32_scale, basic) {
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -507,7 +508,7 @@ TEST_P(conv_fp32_bias, basic) {
         reorder("reorder_bfyx", "add_bias", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -539,7 +540,7 @@ TEST_P(conv_fp32_double_bias, basic) {
         reorder("reorder_bfyx", "add_bias2", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -563,7 +564,7 @@ TEST_P(conv_fp32_prelu_eltwise, basic_sum) {
         reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -581,7 +582,7 @@ TEST_P(conv_fp32_prelu_eltwise, basic_sum_slope_2) {
         reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -599,7 +600,7 @@ TEST_P(conv_fp32_prelu_eltwise, basic_prod) {
         reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -617,7 +618,7 @@ TEST_P(conv_fp32_prelu_eltwise, basic_prod_slope_2) {
         reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -636,7 +637,7 @@ TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_sum) {
         reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -655,7 +656,7 @@ TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_sum_slope_2) {
         reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -674,7 +675,7 @@ TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_prod) {
         reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -693,7 +694,7 @@ TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_prod_slope_2) {
         reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -715,7 +716,7 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops) {
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
     bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -736,7 +737,7 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops_slope_2) {
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
     bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -758,7 +759,7 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types) {
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
     bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -780,7 +781,7 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types_slope_2) {
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
     bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -816,7 +817,7 @@ TEST_P(conv_fp32_multi_eltwise_2, basic) {
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
     bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -852,7 +853,7 @@ TEST_P(conv_fp32_multi_eltwise_2_clamp, basic) {
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
     bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -892,7 +893,7 @@ TEST_P(conv_fp32_multi_eltwise_4_clamp, basic) {
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
     bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -931,7 +932,7 @@ TEST_P(conv_fp32_eltwise_fusing_extend_ops, pattern01_simple_sub) {
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
     bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -959,7 +960,7 @@ TEST_P(conv_fp32_eltwise_fusing_extend_ops, pattern02_sub_scale) {
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
     bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -988,7 +989,7 @@ TEST_P(conv_fp32_eltwise_fusing_extend_ops, pattern03_sub_div) {
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
     bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -1026,7 +1027,7 @@ TEST_P(conv_fp32_eltwise_fusing_2conv, basic) {
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
     bo_fused.set_option(build_option::force_implementations({ { "conv_prim0", conv_impl }, { "conv_prim", conv_impl }  }));
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -1063,7 +1064,7 @@ TEST_P(conv_fp32_multi_eltwise_3_fusing, basic) {
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
     bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -1134,7 +1135,7 @@ TEST_P(conv_fp32_multi_eltwise_concat, basic) {
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
     bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -1165,7 +1166,7 @@ TEST_P(conv_fp32_eltwise_b_fs_zyx_fsv16, vector_ops) {
     implementation_desc conv_impl = { format::b_fs_zyx_fsv16, "" };
     bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -1182,7 +1183,7 @@ TEST_P(conv_fp32_swish, basic) {
         reorder("reorder_bfyx", "mul", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -1218,7 +1219,7 @@ TEST_P(conv_fp32_eltwise_b_fs_zyx_fsv16, splitted_vector_ops) {
     implementation_desc conv_impl = { format::b_fs_zyx_fsv16, "" };
     bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     //  commented because split mode is disabled
     //  execute(p);
 }
@@ -1257,7 +1258,7 @@ TEST_P(conv_fp32_quantize_u8_first_conv, basic) {
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = 1.f;
     execute(p);
 }
 
@@ -1281,7 +1282,7 @@ TEST_P(conv_fp32_quantize_u8, basic) {
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = 1.f;
     execute(p);
 }
 
@@ -1314,7 +1315,7 @@ TEST_P(conv_fp32_scale_quantize_i8, basic) {
     // Output elements are in range [-127, 127]
     // 1.0f difference is allowed, since quantize can return different values in ref and scale_shift kernels
     // due to big error of division (in ref kernel).
-    tolerance = 1.0f;
+    tolerance = 1.f;
     execute(p);
 }
 
@@ -1346,7 +1347,7 @@ TEST_P(conv_fp32_scale_activation_quantize_i8, basic) {
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = 1.f;
     execute(p);
 }
 
@@ -1380,7 +1381,7 @@ TEST_P(conv_fp32_scale_activation_quantize_u8_eltwise_fp32, basic) {
         reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = 1.f;
     execute(p);
 }
 
@@ -1414,7 +1415,7 @@ TEST_P(conv_fp32_scale_activation_quantize_i8_activation, basic) {
         reorder("reorder_bfyx", "activation_quantize", p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = 1.f;
     execute(p);
 }
 
@@ -1507,7 +1508,7 @@ TEST_P(conv_fp32_activation_eltwise_diff_sizes, basic) {
         reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -1575,7 +1576,7 @@ TEST_P(conv_int8_scale, basic) {
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -1591,7 +1592,7 @@ TEST_P(conv_int8_scale, fp16_scale_out) {
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -1630,7 +1631,7 @@ TEST_P(conv_int8_eltwise, fp16_eltwise_out) {
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -1675,7 +1676,7 @@ TEST_P(conv_int8_scale_shift_swish, basic) {
         reorder("reorder_bfyx", "mul", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-3f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -1716,7 +1717,7 @@ TEST_P(conv_int8_prelu_eltwise, basic) {
         reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -1734,7 +1735,7 @@ TEST_P(conv_int8_prelu_eltwise, basic_slope_2) {
         reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -1760,7 +1761,7 @@ TEST_P(conv_int8_prelu_eltwise, fsv16) {
         return;
     }
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -1786,7 +1787,7 @@ TEST_P(conv_int8_prelu_eltwise, fsv16_slope_2) {
         return;
     }
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -1923,7 +1924,7 @@ TEST_P(conv_int8_activation_eltwise, fsv16) {
     if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives += 2;
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -1951,7 +1952,7 @@ TEST_P(conv_int8_activation_eltwise, fsv32) {
     if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives += 2;
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -1986,7 +1987,7 @@ TEST_P(conv_int8_quantize_u8, per_channel) {
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = 1.f;
     execute(p);
 }
 
@@ -2005,7 +2006,7 @@ TEST_P(conv_int8_quantize_u8, per_tensor) {
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = 1.f;
     execute(p);
 }
 
@@ -2052,7 +2053,7 @@ TEST_P(conv_int8_scale_quantize_i8, basic) {
     // Output elements are in range [-127, 127]
     // 1.0f difference is allowed, since quantize can return different values in ref and scale_shift kernels
     // due to big error of division (in ref kernel).
-    tolerance = 1.0f;
+    tolerance = 1.f;
     execute(p);
 }
 
@@ -2102,7 +2103,7 @@ TEST_P(conv_int8_scale_quantize_i8_conv_b_fs_yx_fsv4_int8, basic) {
     implementation_desc conv_impl = { format::b_fs_yx_fsv4, "convolution_gpu_b_fs_yx_fsv4_int8" };
     bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
 
-    tolerance = 1.0f;
+    tolerance = 1.f;
     execute(p);
 }
 
@@ -2129,7 +2130,7 @@ TEST_P(conv_int8_relu_quantize, i8) {
     // Output elements are in range [-127, 127]
     // 1.0f difference is allowed, since quantize can return different values in ref and scale_shift kernels
     // due to big error of division (in ref kernel).
-    tolerance = 1.0f;
+    tolerance = 1.f;
     execute(p);
 }
 
@@ -2149,7 +2150,7 @@ TEST_P(conv_int8_relu_quantize, u8) {
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = 1.f;
     execute(p);
 }
 
@@ -2669,7 +2670,7 @@ TEST_P(conv_i8_activation_eltwise_diff_sizes, basic) {
         reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -2718,7 +2719,7 @@ TEST_P(conv_fp16_scale, basic) {
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -2947,19 +2948,19 @@ TEST_P(conv_int8_eltwise_onednn, u8_eltwise_prod_out) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 3, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 3, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 3, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 3, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 3, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 3, 4 },
 
-    convolution_test_params{ CASE_CONV_U8S8_11, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_12, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_13, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_12, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_13, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_14, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_11, 3, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_12, 3, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_13, 3, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_12, 3, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_13, 3, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_14, 3, 4 },
 
     convolution_test_params{ CASE_CONV3D_U8S8_1, 3, 4 },
     convolution_test_params{ CASE_CONV3D_U8S8_2, 3, 4 },
@@ -2983,7 +2984,7 @@ TEST_P(conv_fp32_activation_abs_onednn, basic) {
         reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-2f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -3006,7 +3007,7 @@ TEST_P(conv_fp32_activation_mish_onednn, basic) {
         reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-2f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -3029,7 +3030,7 @@ TEST_P(conv_fp32_activation_swish_onednn, basic) {
         reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-2f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -3052,7 +3053,7 @@ TEST_P(conv_fp32_activation_hswish_onednn, basic) {
         reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-2f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -3075,7 +3076,7 @@ TEST_P(conv_fp32_activation_exp_onednn, basic) {
         reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-2f;
+    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
     execute(p);
 }
 
@@ -3102,7 +3103,7 @@ TEST_P(conv_int8_quantize_u8_onednn, per_channel) {
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = 1.f;
     execute(p);
 }
 
@@ -3121,7 +3122,7 @@ TEST_P(conv_int8_quantize_u8_onednn, per_tensor) {
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = 1.f;
     execute(p);
 }
 
@@ -3707,8 +3708,8 @@ TEST_P(onednn_binary_add_full_tensor, basic) {
 }
 
 // in_shape; out_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; eltw_type; eltw_format; out_type; out_format; default_type; default_format;
-#define CASE_CONV_ELTW_SUM_BINARY_ADD_1 { 1, 32, 4, 4 }, { 1, 16, 4, 4 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::u8, format::b_fs_yx_fsv32, data_types::i8, format::bfyx, data_types::u8, format::b_fs_yx_fsv32, data_types::f16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
-#define CASE_CONV_ELTW_SUM_SUM_1        { 1, 32, 4, 4 }, { 1, 16, 4, 4 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::u8, format::b_fs_yx_fsv32, data_types::i8, format::bfyx, data_types::u8, format::b_fs_yx_fsv32, data_types::u8, format::b_fs_yx_fsv32, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_SUM_BINARY_ADD_1     { 1, 32, 4, 4 }, { 1, 16, 4, 4 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::u8, format::b_fs_yx_fsv32, data_types::i8, format::bfyx, data_types::u8, format::b_fs_yx_fsv32, data_types::f16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_SUM_SUM_1            { 1, 32, 4, 4 }, { 1, 16, 4, 4 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::u8, format::b_fs_yx_fsv32, data_types::i8, format::bfyx, data_types::u8, format::b_fs_yx_fsv32, data_types::u8, format::b_fs_yx_fsv32, data_types::f32, format::bfyx
 #define CASE_CONV_ELTW_SUM_SUM_DIFF_DTYPE_1 { 1, 32, 4, 4 }, { 1, 16, 4, 4 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::u8, format::b_fs_yx_fsv32, data_types::i8, format::bfyx, data_types::i8, format::b_fs_yx_fsv32, data_types::u8, format::b_fs_yx_fsv32, data_types::f32, format::bfyx
 
 INSTANTIATE_TEST_SUITE_P(eltwise_sum_fusings_gpu, onednn_binary_add_full_tensor, ::testing::ValuesIn(std::vector<convolution_eltw_sum_test_params>{
