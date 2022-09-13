@@ -42,6 +42,7 @@ OP_CONVERTER(floor);
 OP_CONVERTER(gather);
 OP_CONVERTER(gelu);
 OP_CONVERTER(greater_than);
+OP_CONVERTER(group_norm);
 OP_CONVERTER(hard_sigmoid);
 OP_CONVERTER(hard_swish);
 OP_CONVERTER(layer_norm);
@@ -136,6 +137,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"gelu", op::gelu},
             {"greater_equal", op::elementwise_greater_equal},
             {"greater_than", op::greater_than},
+            {"group_norm", op::group_norm},
             {"hard_sigmoid", op::hard_sigmoid},
             {"hard_swish", op::hard_swish},
             {"layer_norm", op::layer_norm},
