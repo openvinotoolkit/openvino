@@ -632,7 +632,7 @@ int main(int argc, char* argv[]) {
             startTime = Time::now();
             compiledModel = core.compile_model(model, device_name);
             duration_ms = get_duration_ms_till_now(startTime);
-            slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Load model took " << double_to_string(duration_ms) << " ms" << slog::endl;
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
@@ -703,15 +703,8 @@ int main(int argc, char* argv[]) {
         auto model_name = compiledModel.get_property(ov::model_name);
         auto optimal_nr_req = compiledModel.get_property(ov::optimal_number_of_infer_requests);
 
-        try {
-            slog::info << "  " << ov::model_name << ": " << model_name << slog::endl;
-        } catch (const ov::Exception&) {
-        }
-
-        try {
-            slog::info << "  " << ov::optimal_number_of_infer_requests << ": " << optimal_nr_req << slog::endl;
-        } catch (const ov::Exception&) {
-        }
+        slog::info << "  " << ov::model_name << ": " << model_name << slog::endl;
+        slog::info << "  " << ov::optimal_number_of_infer_requests << ": " << optimal_nr_req << slog::endl;
         
         // output of the actual settings that the device selected
         for (const auto& device : devices) {

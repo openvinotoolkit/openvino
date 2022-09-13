@@ -9,8 +9,9 @@ from openvino.runtime import Dimension
 
 from openvino.tools.benchmark.benchmark import Benchmark
 from openvino.tools.benchmark.parameters import parse_args
-from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, \
-    GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, GNA_DEVICE_NAME, BLOB_EXTENSION
+from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, \
+    HETERO_DEVICE_NAME, CPU_DEVICE_NAME, GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, \
+    GNA_DEVICE_NAME, BLOB_EXTENSION
 from openvino.tools.benchmark.utils.inputs_filling import get_input_data
 from openvino.tools.benchmark.utils.logging import logger
 from openvino.tools.benchmark.utils.progress_bar import ProgressBar
@@ -54,11 +55,6 @@ def main():
         next_step()
         logger.info("Parsing input parameters")
         args, is_network_compiled = parse_and_check_command_line()
-
-        if args.number_streams is None:
-                logger.warning(" -nstreams default value is determined automatically for a device. "
-                               "Although the automatic selection usually provides a reasonable performance, "
-                               "but it still may be non-optimal for some cases, for more information look at README. ")
 
         command_line_arguments = get_command_line_arguments(sys.argv)
         if args.report_type:
@@ -165,7 +161,8 @@ def main():
 
             ## high-level performance hints
             if is_flag_set_in_command_line('hint') or args.perf_hint:
-                config[device]['PERFORMANCE_HINT'] = args.perf_hint.upper()
+                if not args.perf_hint == "none":
+                    config[device]['PERFORMANCE_HINT'] = args.perf_hint.upper()
                 if is_flag_set_in_command_line('nireq'):
                     config[device]['PERFORMANCE_HINT_NUM_REQUESTS'] = str(args.number_infer_requests)
 
@@ -180,7 +177,6 @@ def main():
             ## the rest are individual per-device settings (overriding the values the device will deduce from perf hint)
             def set_throughput_streams():
                 key = get_device_type_from_name(device) + "_THROUGHPUT_STREAMS"
-                print('PERFORMANCE_HINT' in config[device].keys())
                 if device in device_number_streams.keys():
                     ## set to user defined value
                     if key in supported_properties:
@@ -261,7 +257,7 @@ def main():
             start_time = datetime.utcnow()
             compiled_model = benchmark.core.compile_model(args.path_to_model, benchmark.device)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
-            logger.info(f"Compile model took {duration_ms} ms")
+            logger.info(f"Load model took {duration_ms} ms")
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
@@ -279,7 +275,7 @@ def main():
             model = benchmark.read_model(args.path_to_model)
             topology_name = model.get_name()
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
-            logger.info(f"Read network took {duration_ms} ms")
+            logger.info(f"Import network took {duration_ms} ms")
             logger.info("Original network I/O parameters:")
             print_inputs_and_outputs_info(model)
 
@@ -293,6 +289,11 @@ def main():
             next_step()
 
             app_inputs_info, reshape = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, model.inputs)
+
+            # use batch size according to provided layout and shapes
+            batch_size = get_network_batch_size(app_inputs_info)
+            logger.info(f'Network batch size: {batch_size}')
+
             if reshape:
                 start_time = datetime.utcnow()
                 shapes = { info.name : info.partial_shape for info in app_inputs_info }
@@ -306,10 +307,6 @@ def main():
                                               [
                                                   ('reshape network time (ms)', duration_ms)
                                               ])
-
-            # use batch size according to provided layout and shapes
-            batch_size = get_network_batch_size(app_inputs_info)
-            logger.info(f'Network batch size: {batch_size}')
 
             # --------------------- 6. Configuring inputs and outputs of the model --------------------------------------------------
             next_step()
@@ -354,6 +351,13 @@ def main():
 
         # --------------------- 8. Querying optimal runtime parameters --------------------------------------------------
         next_step()
+        logger.info("Model: ")
+        model_name = compiled_model.get_property('NETWORK_NAME')
+        optimal_nr_req = compiled_model.get_property('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
+
+        logger.info(f"  NETWORK_NAME: {model_name}")
+        logger.info(f"  OPTIMAL_NUMBER_OF_INFER_REQUESTS: {optimal_nr_req}")
+
         ## actual device-deduced settings
         for device in devices:
             keys = benchmark.core.get_property(device, 'SUPPORTED_PROPERTIES')

@@ -583,7 +583,9 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
                     reshape = True
                     batch_found = True
                 elif batch_index == -1 and not batch_found and i == len(inputs) - 1:
-                    raise Exception(f"Batch dimension is not specified for this model!")
+                    raise Exception("-b option is provided in command line, but there's no inputs with batch(B) " \
+                            "dimension in input layout, so batch cannot be set. " \
+                            "You may specify layout explicitly using -layout option.")
 
         # Data shape
         if (info.name in data_shape_map or info.node_name in data_shape_map) and info.is_dynamic:
@@ -601,7 +603,7 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
 
         input_info.append(info)
 
-    # Update scale, mean
+    # Update scale and mean
     scale_map = parse_scale_or_mean(scale_string, input_info)
     mean_map = parse_scale_or_mean(mean_string, input_info)
 

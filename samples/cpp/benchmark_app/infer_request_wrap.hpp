@@ -190,7 +190,7 @@ public:
                 try {
                     std::rethrow_exception(inferenceException);
                 } catch (const std::exception& ex) {
-                    throw ex;
+                    throw;
                 }
             }
             return _idleIds.size() == requests.size();
