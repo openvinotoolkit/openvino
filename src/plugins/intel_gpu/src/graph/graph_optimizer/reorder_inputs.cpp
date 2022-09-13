@@ -434,10 +434,27 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         //    node.get_required_input0/output  : If it is valid(!= any), it is up-to-date. It has input format, too.
         // So the priority is required_input0/output --> fmt_map --> output_layout().format
 
-        auto in_layout = travel_direction_wrapper<dir>::first(node, next)->get_output_layout();
+        auto predecessor = travel_direction_wrapper<dir>::first(node, next);
+        auto successor = travel_direction_wrapper<dir>::second(node, next);
+        auto in_layout = predecessor->get_output_layout();
         auto out_layout = in_layout;
-        in_layout.format = get_target_output_format(lo, fmt_map, travel_direction_wrapper<dir>::first(node, next));
-        auto target_input0_format = get_target_input0_format(lo, fmt_map, travel_direction_wrapper<dir>::second(node, next));
+        in_layout.format = get_target_output_format(lo, fmt_map, predecessor);
+        auto target_input0_format = get_target_input0_format(lo, fmt_map, successor);
+
+        for (auto& fused_prim : successor->get_fused_primitives()) {
+            // If it is input of fused node, use output layout instead of input layout
+            if (successor->get_dependencies().size() <= fused_prim.dep_start_idx)
+                continue;
+            auto& dependency = successor->get_dependency(fused_prim.dep_start_idx);
+            if (&dependency == predecessor) {
+                target_input0_format = get_target_output_format(lo, fmt_map, successor);
+                GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                    GPU_DEBUG_COUT << __func__ << ":" << __LINE__ << ": Use output format of successor " << successor->id() << " : "
+                                << fmt_to_str(target_input0_format) << std::endl;
+                }
+                break;
+            }
+        }
 
         out_layout.format = target_input0_format;
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
