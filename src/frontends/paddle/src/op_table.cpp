@@ -59,6 +59,7 @@ OP_CONVERTER(matrix_nms);
 OP_CONVERTER(meshgrid);
 OP_CONVERTER(multiclass_nms);
 OP_CONVERTER(nearest_interp_v2);
+OP_CONVERTER(p_norm);
 OP_CONVERTER(pad3d);
 OP_CONVERTER(pow);
 OP_CONVERTER(pool2d);
@@ -155,6 +156,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"multiclass_nms3", op::multiclass_nms},
             {"nearest_interp_v2", op::nearest_interp_v2},
             {"nearest_interp", op::nearest_interp_v2},
+            {"p_norm", op::p_norm},
             {"pad3d", op::pad3d},
             {"pow", op::pow},
             {"pool2d", op::pool2d},
