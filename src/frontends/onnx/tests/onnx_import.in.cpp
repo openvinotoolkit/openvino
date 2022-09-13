@@ -5609,18 +5609,18 @@ NGRAPH_TEST(${BACKEND_NAME}, castlike_float16_to_int64) {
     test_case.run();
 }
 
-// NGRAPH_TEST(${BACKEND_NAME}, castlike_int8_to_uint16) {
-    //     auto function = onnx_import::import_onnx_model(
-    //         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/castlike_int8_to_uint16.onnx"));
+NGRAPH_TEST(${BACKEND_NAME}, castlike_int8_to_uint16) {
+        auto function = onnx_import::import_onnx_model(
+            file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/castlike_int8_to_uint16.onnx"));
             
-    //     auto test_case = test::TestCase(function, s_device);
+        auto test_case = test::TestCase(function, s_device);
         
-    //     test_case.add_input<int8_t>(Shape{1,1,2,2},std::vector<int8_t>{-1, -2, 3, 4});
-    //     test_case.add_input<uint16_t>(Shape{4},{1, 2, 3, 4});
-    //     test_case.add_expected_output<uint16_t>(std::vector<uint16_t>{65535, 65534, 3, 4});
+        test_case.add_input<int8_t>(Shape{1,1,2,2},std::vector<int8_t>{-1, -2, 3, 4});
+        test_case.add_input<uint16_t>(Shape{4},{1, 2, 3, 4});
+        test_case.add_expected_output<uint16_t>(std::vector<uint16_t>{65535, 65534, 3, 4});
         
-    //     test_case.run();
-    // }
+        test_case.run();
+    }
 
     // [ RUN      ] INTERPRETER.castlike_int8_to_uint16
     // >>>>>>>>>>>>>>>  === castlike_int8_to_uint16 test
@@ -5651,3 +5651,85 @@ NGRAPH_TEST(${BACKEND_NAME}, castlike_float64_to_int64) {
     
     test_case.run();
 }
+// ===============================
+NGRAPH_TEST(${BACKEND_NAME}, castlike_int8_to_float16) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/castlike_int8_to_float16.onnx"));
+    
+    auto test_case = test::TestCase(function, s_device);
+        
+    test_case.add_input<int8_t>(Shape{1,1,2,2},std::vector<int8_t>{-127, -2, 3, 4});
+    test_case.add_input<ngraph::float16>(Shape{4},{1, 2, 3, 4});
+    test_case.add_expected_output<ngraph::float16>(std::vector<ngraph::float16>{-127.0,-2.0,3.0,4.0});
+    
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, castlike_int32_to_float) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/castlike_int32_to_float64.onnx"));
+    
+    auto test_case = test::TestCase(function, s_device);
+        
+    test_case.add_input<int32_t>(Shape{1,1,2,2},std::vector<int32_t>{-1, 2, 3, 4});
+    test_case.add_input<float>(Shape{4},{1, 2, 3, 4});
+    test_case.add_expected_output<float>(std::vector<float>{-1.0,2.0,3.0,4.0});
+    
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, castlike_float64_to_int32) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/castlike_float64_to_int32.onnx"));
+    
+    auto test_case = test::TestCase(function, s_device);
+        
+    test_case.add_input<float>(Shape{1,1,2,2},std::vector<float>{-107374.9876543, -2.2, 3.3, 4.4});
+    test_case.add_input<int32_t>(Shape{4},{1, 2, 3, 4});
+    test_case.add_expected_output<int32_t>(std::vector<int32_t>{-107374,-2,3,4});
+    
+    test_case.run();
+}
+
+// NGRAPH_TEST(${BACKEND_NAME}, castlike_float32_to_bfloat16) {
+//     auto function = onnx_import::import_onnx_model(
+//         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/castlike_float32_to_bfloat16.onnx"));
+    
+//     auto test_case = test::TestCase(function, s_device);
+    
+//     test_case.add_input<float>(Shape{3,4},std::vector<float>{1.5, 2.4, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+//     test_case.add_input<bfloat16>(Shape{3,4},{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+//     test_case.add_expected_output<bfloat16>(std::vector<bfloat16>{1.5, 2.4, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    
+//     test_case.run();
+// }
+
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_castlike_bfloat16_to_float32) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/castlike_bfloat16_to_float32.onnx"));
+    
+    auto test_case = test::TestCase(function, s_device);
+    
+    test_case.add_input<bfloat16>(Shape{3,4},std::vector<bfloat16>{121.5, 122.7, 3, 4, 5, 6, 7, 8.8, 9, 10, 11, 12}); // 122.7 is not 122.5, might be a bug, create a ticket in JIRA for CPU team
+    test_case.add_input<float>(Shape{3,4},{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    test_case.add_expected_output<float>(       std::vector<float>{121.5, 122.7, 3, 4, 5, 6, 7, 8.75, 9, 10, 11, 12});
+    
+    test_case.run();
+}
+
+//double -> float32
+
+/**
+ * castlike_float16_to_uint32
+ * castlike_float16_to_int64
+ * castlike_int8_to_uint16      // trouble with IE_CPU.castlike_int8_to_uint16, INTERPRETER.castlike_int8_to_uint16 is OK
+ * castlike_float64_to_int64
+ * castlike_int8_to_float16
+ * castlike_int32_to_float64
+ * castlike_float64_to_int32
+ * castlike_float32_to_bfloat16 <--
+ * castlike_bfloat16_to_float32
+ * 
+ * add double, bfloat, string, bool
+**/
+// create a BUG in jira, assign to CPU team (auto, component field ... dmitry gorohov)
