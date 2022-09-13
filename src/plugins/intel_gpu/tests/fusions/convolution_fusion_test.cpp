@@ -1676,7 +1676,8 @@ TEST_P(conv_int8_scale_shift_swish, basic) {
         reorder("reorder_bfyx", "mul", p.default_format, data_types::f32)
     );
 
-    tolerance = p.default_type==data_types::f16 ? 1e-3f : 1e-5f;
+    // high tolerance because many eltwise operations
+    tolerance = (p.default_type == data_types::f16 ? 1e-3f : 1e-5f) * 10;
     execute(p);
 }
 
