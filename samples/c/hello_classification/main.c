@@ -153,14 +153,14 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_core_read_model(core, input_model, NULL, &model));
     print_model_input_output_info(model);
 
-    ov_output_const_port_t* output_port;
+    ov_output_const_port_t* output_port = NULL;
     CHECK_STATUS(ov_model_const_output(model, &output_port));
     if (!output_port) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 output only %d\n", __LINE__);
         goto err;
     }
 
-    ov_output_const_port_t* input_port;
+    ov_output_const_port_t* input_port = NULL;
     CHECK_STATUS(ov_model_const_input(model, &input_port));
     if (!input_port) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 input only %d\n", __LINE__);

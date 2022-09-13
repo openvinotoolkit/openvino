@@ -195,8 +195,8 @@ int main(int argc, char** argv) {
     struct infer_result* results = NULL;
     char* input_tensor_name = NULL;
     char* output_tensor_name = NULL;
-    ov_output_const_port_t* input_port;
-    ov_output_const_port_t* output_port;
+    ov_output_const_port_t* input_port = NULL;
+    ov_output_const_port_t* output_port = NULL;
     ov_layout_t* model_layout = NULL;
     ov_shape_t input_shape;
 
