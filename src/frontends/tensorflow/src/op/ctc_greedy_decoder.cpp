@@ -20,7 +20,6 @@ OutputVector translate_ctc_greedy_decoder_op(const NodeContext& node) {
     default_op_checks(node, 2, {"CTCGreedyDecoder"});
     auto inputs = node.get_input(0);
     auto sequence_length = node.get_input(1);
-    auto input_size = node.get_input_size();
 
     // retrieve attribute for CTCGreedyDecoder
     auto merge_repeated = node.get_attribute<bool>("merge_repeated", true);

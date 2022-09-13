@@ -27,7 +27,6 @@ OutputVector translate_ctc_loss_op(const NodeContext& node) {
     // retrieve all attributes for CTCLoss
     auto preprocess_collapse_repeated = node.get_attribute<bool>("preprocess_collapse_repeated", false);
     auto ctc_merge_repeated = node.get_attribute<bool>("preprocess_collapse_repeated", true);
-    auto ignore_longer_outputs_than_inputs = node.get_attribute<bool>("ignore_longer_outputs_than_inputs", false);
     auto time_major = node.get_attribute<bool>("time_major", true);
 
     if (time_major) {
