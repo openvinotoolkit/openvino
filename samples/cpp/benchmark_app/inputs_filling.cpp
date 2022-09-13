@@ -349,7 +349,9 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
     } else if (type == ov::element::i8) {
         // uniform_int_distribution<int8_t> is not allowed in the C++17 standard
         // and vs2017/19
-        return create_tensor_random<int8_t, int32_t>(inputInfo.second);
+        return create_tensor_random<int8_t, int32_t>(inputInfo.second,
+                                                     std::numeric_limits<int8_t>::min(),
+                                                     std::numeric_limits<int8_t>::max());
     } else if (type == ov::element::u16) {
         return create_tensor_random<uint16_t, uint16_t>(inputInfo.second);
     } else if (type == ov::element::i16) {
