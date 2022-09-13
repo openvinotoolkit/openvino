@@ -557,15 +557,10 @@ IInferPtr AutoSchedule::CreateInferRequest() {
         } catch(...) {
             LOG_INFO("query perf hint from passthrough network failed");
         }
-        if (_autoSContext->_batchingDisabled || perfmode != CONFIG_VALUE(THROUGHPUT)) {
+        if (_autoSContext->_batchingDisabled || perfmode != CONFIG_VALUE(THROUGHPUT))
             syncRequestImpl->setPointerToSo(_passthroughExeNet._so);
-        } else {
-            auto so = _passthroughExeNet._ptr->GetPointerToSo();
-            // Get the _so from passthrough executable network when batch plugin is disable.
-            if (!so)
-                so = _passthroughExeNet._so;
-            syncRequestImpl->setPointerToSo(so);
-        }
+        else
+            syncRequestImpl->setPointerToSo(_passthroughExeNet._ptr->GetPointerToSo());
     }
     return std::make_shared<AsyncInferRequest>(shared_from_this(),
                                                syncRequestImpl,

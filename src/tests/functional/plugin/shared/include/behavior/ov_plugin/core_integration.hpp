@@ -1086,7 +1086,7 @@ TEST_P(OVClassLoadNetworkWithDefaultPropertiesTest, LoadNetworkWithDefaultProper
     ov::Core ie = createCoreWithTemplate();
     ov::CompiledModel model;
     OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, target_device, configuration));
-    ov::hint::PerformanceMode value = ov::hint::PerformanceMode::UNDEFINED;
+    ov::hint::PerformanceMode value;
     OV_ASSERT_NO_THROW(value = model.get_property(ov::hint::performance_mode));
     ASSERT_EQ(value, ov::hint::PerformanceMode::THROUGHPUT);
 }
@@ -1095,9 +1095,9 @@ TEST_P(OVClassLoadNetworkWithDefaultIncorrectPropertiesTest, LoadNetworkWithDefa
     ov::Core ie = createCoreWithTemplate();
     ov::CompiledModel model;
     OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, target_device, configuration));
-    ov::hint::PerformanceMode value = ov::hint::PerformanceMode::THROUGHPUT;
+    ov::hint::PerformanceMode value;
     OV_ASSERT_NO_THROW(value = model.get_property(ov::hint::performance_mode));
-    ASSERT_NE(value, ov::hint::PerformanceMode::THROUGHPUT);
+    ASSERT_EQ(value, ov::hint::PerformanceMode::UNDEFINED);
 }
 
 TEST_P(OVClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {

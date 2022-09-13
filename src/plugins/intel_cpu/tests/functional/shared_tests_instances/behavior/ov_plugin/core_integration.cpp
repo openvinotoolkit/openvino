@@ -278,30 +278,20 @@ const std::vector<ov::AnyMap> default_properties = {{ov::device::priorities("CPU
 const std::vector<ov::AnyMap> auto_default_properties = {{}};
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkWithDefaultPropertiesTest,
                          OVClassLoadNetworkWithDefaultPropertiesTest,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_MULTI),
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                             ::testing::ValuesIn(default_properties)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_AUTO_OVClassLoadNetworkWithDefaultPropertiesTest,
                          OVClassLoadNetworkWithDefaultPropertiesTest,
-                         ::testing::Combine(::testing::Values("AUTO:CPU", "MULTI:CPU"),
+                         ::testing::Combine(::testing::Values("AUTO:CPU"),
                                             ::testing::ValuesIn(auto_default_properties)));
 
 const std::vector<ov::AnyMap> default_incorrect_properties = {
-        {ov::device::priorities("CPU"), ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
-        {ov::device::priorities("CPU"), ov::device::properties("CPU", ov::hint::allow_auto_batching(true))}
+        {ov::device::priorities("CPU"), ov::device::properties("CPU", ov::hint::allow_auto_batching(true))},
         };
-const std::vector<ov::AnyMap> default_multi_incorrect_properties = {
-        {ov::device::priorities("CPU"), ov::affinity(ov::Affinity::NONE)},
-        {ov::device::priorities("CPU"), ov::num_streams(ov::streams::AUTO)},
-        {ov::device::priorities("CPU"), ov::inference_num_threads(1)}
-        };
+const std::vector<ov::AnyMap> auto_default_incorrect_properties = {{}};
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkWithDefaultIncorrectPropertiesTest,
                          OVClassLoadNetworkWithDefaultIncorrectPropertiesTest,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_MULTI),
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                             ::testing::ValuesIn(default_incorrect_properties)));
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_OVClassLoadNetworkWithDefaultIncorrectPropertiesTest,
-                         OVClassLoadNetworkWithDefaultIncorrectPropertiesTest,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(default_multi_incorrect_properties)));
 } // namespace
