@@ -131,6 +131,8 @@ int main(int argc, char** argv) {
     ov_layout_t* input_layout = NULL;
     ov_layout_t* model_layout = NULL;
     ov_shape_t input_shape;
+    ov_output_const_port_t* output_port = NULL;
+    ov_output_const_port_t* input_port = NULL;
 
     // -------- Get OpenVINO runtime version --------
     ov_version_t version;
@@ -153,14 +155,12 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_core_read_model(core, input_model, NULL, &model));
     print_model_input_output_info(model);
 
-    ov_output_const_port_t* output_port = NULL;
     CHECK_STATUS(ov_model_const_output(model, &output_port));
     if (!output_port) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 output only %d\n", __LINE__);
         goto err;
     }
 
-    ov_output_const_port_t* input_port = NULL;
     CHECK_STATUS(ov_model_const_input(model, &input_port));
     if (!input_port) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 input only %d\n", __LINE__);
