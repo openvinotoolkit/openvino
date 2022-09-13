@@ -40,7 +40,6 @@ from tests import (
     xfail_issue_63036,
     xfail_issue_63039,
     xfail_issue_63043,
-    xfail_issue_63044,
     xfail_issue_63137,
     xfail_issue_63138,
     xfail_issue_69444,
@@ -48,6 +47,7 @@ from tests import (
     skip_segfault,
     xfail_issue_82038,
     xfail_issue_82039,
+    xfail_issue_91490,
 )
 from tests.test_onnx.utils.onnx_backend import OpenVinoTestBackend
 
@@ -297,24 +297,8 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_reshape_allowzero_reordered_cpu",
     ),
     (
-        xfail_issue_63044,
-        "OnnxBackendNodeModelTest.test_tril_cpu",
-        "OnnxBackendNodeModelTest.test_tril_neg_cpu",
-        "OnnxBackendNodeModelTest.test_tril_one_row_neg_cpu",
-        "OnnxBackendNodeModelTest.test_tril_out_neg_cpu",
-        "OnnxBackendNodeModelTest.test_tril_out_pos_cpu",
-        "OnnxBackendNodeModelTest.test_tril_pos_cpu",
-        "OnnxBackendNodeModelTest.test_tril_square_cpu",
-        "OnnxBackendNodeModelTest.test_tril_square_neg_cpu",
+        xfail_issue_91490,
         "OnnxBackendNodeModelTest.test_tril_zero_cpu",
-        "OnnxBackendNodeModelTest.test_triu_cpu",
-        "OnnxBackendNodeModelTest.test_triu_neg_cpu",
-        "OnnxBackendNodeModelTest.test_triu_one_row_cpu",
-        "OnnxBackendNodeModelTest.test_triu_out_neg_out_cpu",
-        "OnnxBackendNodeModelTest.test_triu_out_pos_cpu",
-        "OnnxBackendNodeModelTest.test_triu_pos_cpu",
-        "OnnxBackendNodeModelTest.test_triu_square_cpu",
-        "OnnxBackendNodeModelTest.test_triu_square_neg_cpu",
         "OnnxBackendNodeModelTest.test_triu_zero_cpu",
     ),
     (

@@ -225,6 +225,13 @@ ov::Tensor get_image_tensor(const std::vector<std::string>& files,
                                                inputInfo.second,
                                                inputInfo.first,
                                                filenames_used);
+    } else if (type == ov::element::f64) {
+        return create_tensor_from_image<double>(files,
+                                                inputId,
+                                                batchSize,
+                                                inputInfo.second,
+                                                inputInfo.first,
+                                                filenames_used);
     } else if (type == ov::element::i32) {
         return create_tensor_from_image<int32_t>(files,
                                                  inputId,
@@ -257,6 +264,8 @@ ov::Tensor get_im_info_tensor(const std::pair<size_t, size_t>& image_size,
     auto type = inputInfo.second.type;
     if (type == ov::element::f32) {
         return create_tensor_im_info<float>(image_size, batchSize, inputInfo.second, inputInfo.first);
+    } else if (type == ov::element::f64) {
+        return create_tensor_im_info<double>(image_size, batchSize, inputInfo.second, inputInfo.first);
     } else if (type == ov::element::f16) {
         return create_tensor_im_info<short>(image_size, batchSize, inputInfo.second, inputInfo.first);
     } else if (type == ov::element::i32) {
@@ -281,6 +290,13 @@ ov::Tensor get_binary_tensor(const std::vector<std::string>& files,
                                                 inputInfo.second,
                                                 inputInfo.first,
                                                 filenames_used);
+    } else if (type == ov::element::f64) {
+        return create_tensor_from_binary<double>(files,
+                                                 inputId,
+                                                 batchSize,
+                                                 inputInfo.second,
+                                                 inputInfo.first,
+                                                 filenames_used);
     } else if (type == ov::element::f16) {
         return create_tensor_from_binary<short>(files,
                                                 inputId,
@@ -318,6 +334,8 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
     auto type = inputInfo.second.type;
     if (type == ov::element::f32) {
         return create_tensor_random<float, float>(inputInfo.second);
+    } else if (type == ov::element::f64) {
+        return create_tensor_random<double, double>(inputInfo.second);
     } else if (type == ov::element::f16) {
         return create_tensor_random<short, short>(inputInfo.second);
     } else if (type == ov::element::i32) {
@@ -331,7 +349,9 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
     } else if (type == ov::element::i8) {
         // uniform_int_distribution<int8_t> is not allowed in the C++17 standard
         // and vs2017/19
-        return create_tensor_random<int8_t, int32_t>(inputInfo.second);
+        return create_tensor_random<int8_t, int32_t>(inputInfo.second,
+                                                     std::numeric_limits<int8_t>::min(),
+                                                     std::numeric_limits<int8_t>::max());
     } else if (type == ov::element::u16) {
         return create_tensor_random<uint16_t, uint16_t>(inputInfo.second);
     } else if (type == ov::element::i16) {

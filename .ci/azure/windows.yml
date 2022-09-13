@@ -145,7 +145,6 @@ jobs:
         -DENABLE_TESTS=ON ^
         -DENABLE_STRICT_DEPENDENCIES=OFF ^
         -DENABLE_PYTHON=ON ^
-        -DBUILD_cuda_plugin=OFF ^
         -DBUILD_nvidia_plugin=OFF ^
         -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.7.6\x64\python.exe" ^
         -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.7.6\x64\include" ^
@@ -222,8 +221,8 @@ jobs:
     displayName: 'OV Core UT'
     continueOnError: false
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_onnx_frontend_test --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ONNXFrontend.xml
-    displayName: 'ONNX Frontend Test'
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ONNXFrontend.xml
+    displayName: 'ONNX Frontend Tests'
     continueOnError: false
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Paddle.xml
