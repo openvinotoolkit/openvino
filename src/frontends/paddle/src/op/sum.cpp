@@ -11,8 +11,6 @@ namespace paddle {
 namespace op {
 NamedOutputs sum(const NodeContext& node) {
     auto data = node.get_ng_inputs("X");
-    const auto input_type = data[0].get_element_type();
-    const auto shape = data[0].get_shape();
     auto sum = data[0].get_node_shared_ptr();
     for (int i = 1; i < data.size(); i++) {
         sum = std::make_shared<default_opset::Add>(sum, data[i]);
