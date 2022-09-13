@@ -14,6 +14,34 @@
 
 using namespace cldnn;
 
+namespace {
+template <typename T, typename DT, typename = typename std::enable_if<std::is_convertible<DT, T>::value>::type>
+std::vector<T>& pad_vector_to_size(std::vector<T>& data, size_t size, DT value) {
+    for (size_t i = data.size(); i < size; ++i) {
+        data.push_back(static_cast<T>(value));
+    }
+    return data;
+}
+
+template <typename T, typename MT>
+std::vector<T>& vector_assign_if_not_mask(std::vector<T>& dst, const T& src, const std::vector<MT>& mask) {
+    for (size_t i = 0; i < dst.size(); ++i) {
+        if (!mask[i])
+            dst[i] = src;
+    }
+    return dst;
+}
+
+template <typename T, typename MT>
+std::vector<T>& vector_assign_if_not_mask(std::vector<T>& dst, const std::vector<T>& src, const std::vector<MT>& mask) {
+    for (size_t i = 0; i < dst.size(); ++i) {
+        if (!mask[i])
+            dst[i] = src[i];
+    }
+    return dst;
+}
+}  // namespace
+
 namespace cldnn {
 namespace ocl {
 
@@ -27,16 +55,16 @@ struct strided_slice_impl : typed_primitive_impl_ocl<strided_slice> {
 
 public:
     static primitive_impl* create(const strided_slice_node& arg, const kernel_impl_params& impl_param) {
-        const auto& prim = arg.get_primitive();
+        const auto& prim = impl_param.typed_desc<strided_slice>();
         auto params = get_default_params<kernel_selector::strided_slice_params>(impl_param);
         auto op_params = get_default_optional_params<kernel_selector::strided_slice_optional_params>(arg.get_program());
         const size_t dims_num = params.inputs[0].Dimentions();
 
         // Getting data from constant inputs. There are 3 args: Begin, End, Stride
         for (size_t i = 1; i < arg.get_dependencies().size(); ++i) {
-            auto& input = arg.get_dependency(i).as<data>();
-            auto mem = input.get_attached_memory_ptr();
-            std::vector<int32_t> sizes = read_vector<int32_t>(mem, arg.get_program().get_stream());
+            OPENVINO_ASSERT(impl_param.memory_deps.count(i) > 0, "[GPU] Can't find StridedSlice memory dependency");
+            auto mem = impl_param.memory_deps.at(i);
+            std::vector<int32_t> sizes = read_vector<int32_t>(mem, impl_param.prog.get_stream());
             pad_vector_to_size(sizes, dims_num, i != 1);  // for "begin" completion used 0 value, for other - 1
             params.striding_params.push_back(sizes);
         }
