@@ -46,7 +46,9 @@ public:
     public:
         Reg() {
             static_assert(std::is_same<TReg, Xbyak::Xmm>::value || std::is_same<TReg, Xbyak::Ymm>::value || std::is_same<TReg, Xbyak::Zmm>::value ||
-                          std::is_same<TReg, Xbyak::Reg64>::value || std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Opmask>::value,
+                          std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
+                          std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Reg64>::value ||
+                          std::is_same<TReg, Xbyak::Opmask>::value,
                           "The type is not supported for the RegistersPool::Reg template");
         }
         Reg(const RegistersPool::Ptr& regPool) { initialize(regPool); }
@@ -102,7 +104,8 @@ public:
     size_t countFree() const {
         if (std::is_same<TReg, Xbyak::Xmm>::value || std::is_same<TReg, Xbyak::Ymm>::value || std::is_same<TReg, Xbyak::Zmm>::value) {
             return simdSet.countUnused();
-        } else if (std::is_same<TReg, Xbyak::Reg64>::value || std::is_same<TReg, Xbyak::Reg32>::value) {
+        } else if (std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
+                   std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Reg64>::value) {
             return generalSet.countUnused();
         } else if (std::is_same<TReg, Xbyak::Opmask>::value) {
             return countUnusedOpmask();
@@ -138,6 +141,9 @@ protected:
             if (requestedIdx == anyIdx) {
                 return getFirstFreeIndex();
             } else {
+                if (requestedIdx >= isFreeIndexVector.size() || requestedIdx < 0) {
+                    IE_THROW() << "requestedIdx is out of bounds in RegistersPool::PhysicalSet::getUnused()";
+                }
                 if (!isFreeIndexVector[requestedIdx]) {
                     IE_THROW() << "The register with index #" << requestedIdx << " already used in the RegistersPool";
                 }
@@ -194,13 +200,17 @@ private:
     template<typename TReg>
     int getFree(int requestedIdx) {
         static_assert(std::is_same<TReg, Xbyak::Xmm>::value || std::is_same<TReg, Xbyak::Ymm>::value || std::is_same<TReg, Xbyak::Zmm>::value ||
-                      std::is_same<TReg, Xbyak::Reg64>::value || std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Opmask>::value,
-                      "Unsupported TReg by RegistersPool. Please, use the following registers either Reg32, Reg64, Xmm, Ymm, Zmm or Opmask");
+                      std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
+                      std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Reg64>::value ||
+                      std::is_same<TReg, Xbyak::Opmask>::value,
+                      "Unsupported TReg by RegistersPool. Please, use the following Xbyak registers either "
+                      "Reg8, Reg16, Reg32, Reg64, Xmm, Ymm, Zmm or Opmask");
         if (std::is_same<TReg, Xbyak::Xmm>::value || std::is_same<TReg, Xbyak::Ymm>::value || std::is_same<TReg, Xbyak::Zmm>::value) {
             auto idx = simdSet.getUnused(requestedIdx);
             simdSet.setAsUsed(idx);
             return idx;
-        } else if (std::is_same<TReg, Xbyak::Reg64>::value || std::is_same<TReg, Xbyak::Reg32>::value) {
+        } else if (std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
+                   std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Reg64>::value) {
             auto idx = generalSet.getUnused(requestedIdx);
             generalSet.setAsUsed(idx);
             return idx;
@@ -213,7 +223,8 @@ private:
     void returnToPool(TReg reg) {
         if (std::is_same<TReg, Xbyak::Xmm>::value || std::is_same<TReg, Xbyak::Ymm>::value || std::is_same<TReg, Xbyak::Zmm>::value) {
             simdSet.setAsUnused(reg.getIdx());
-        } else if (std::is_same<TReg, Xbyak::Reg64>::value || std::is_same<TReg, Xbyak::Reg32>::value) {
+        } else if (std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
+                   std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Reg64>::value) {
             generalSet.setAsUnused(reg.getIdx());
         } else if (std::is_same<TReg, Xbyak::Opmask>::value) {
             returnOpmaskToPool(reg.getIdx());
@@ -276,6 +287,18 @@ template <x64::cpu_isa_t isa>
 RegistersPool::Ptr RegistersPool::create(std::initializer_list<Xbyak::Reg> regsToExclude) {
     return std::make_shared<IsaRegistersPool<isa>>(regsToExclude);
 }
+
+template <>
+class IsaRegistersPool<x64::avx512_core_vnni> : public IsaRegistersPool<x64::avx512_core> {
+public:
+    IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude) : IsaRegistersPool<x64::avx512_core>(regsToExclude) {}
+};
+
+template <>
+class IsaRegistersPool<x64::avx512_core_bf16> : public IsaRegistersPool<x64::avx512_core> {
+public:
+    IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude) : IsaRegistersPool<x64::avx512_core>(regsToExclude) {}
+};
 
 }   // namespace intel_cpu
 }   // namespace ov
