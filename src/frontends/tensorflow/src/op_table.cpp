@@ -84,12 +84,14 @@ OP_CONVERTER(translate_round_op);
 OP_CONVERTER(translate_rsqrt_op);
 OP_CONVERTER(translate_scatter_nd_op);
 OP_CONVERTER(translate_segment_sum_op);
+OP_CONVERTER(translate_sparse_to_dense_op);
 OP_CONVERTER(translate_select_op);
 OP_CONVERTER(translate_shape_op);
 OP_CONVERTER(translate_size_op);
 OP_CONVERTER(translate_slice_op);
 OP_CONVERTER(translate_softmax_op);
 OP_CONVERTER(translate_space_to_depth_op);
+OP_CONVERTER(translate_sparse_reshape_op);
 OP_CONVERTER(translate_split_op);
 OP_CONVERTER(translate_split_v_op);
 OP_CONVERTER(translate_square_op);
@@ -103,6 +105,11 @@ OP_CONVERTER(translate_unpack_op);
 OP_CONVERTER(translate_where_op);
 OP_CONVERTER(translate_x_div_y_op);
 OP_CONVERTER(translate_zeros_like_op);
+
+// Translators for internal operations
+OP_CONVERTER(translate_sparse_fill_empty_rows_op);
+OP_CONVERTER(translate_sparse_segment_sum_op);
+OP_CONVERTER(translate_unique_op);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
@@ -245,6 +252,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Rsqrt", translate_rsqrt_op},
         {"ScatterNd", translate_scatter_nd_op},
         {"SegmentSum", translate_segment_sum_op},
+        {"SparseToDense", translate_sparse_to_dense_op},
         {"Select", translate_select_op},
         {"SelectV2", translate_select_op},
         {"Shape", translate_shape_op},
@@ -253,6 +261,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Snapshot", translate_identity_op},
         {"Softmax", translate_softmax_op},
         {"SpaceToDepth", translate_space_to_depth_op},
+        {"SparseReshape", translate_sparse_reshape_op},
         {"Split", translate_split_op},
         {"SplitV", translate_split_v_op},
         {"StopGradient", translate_identity_op},
@@ -268,6 +277,11 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Where", translate_where_op},
         {"Xdivy", translate_x_div_y_op},
         {"ZerosLike", translate_zeros_like_op},
+
+        // Translators for internal operations
+        {"SparseFillEmptyRows", translate_sparse_fill_empty_rows_op},
+        {"SparseSegmentSum", translate_sparse_segment_sum_op},
+        {"Unique", translate_unique_op},
     };
 };
 }  // namespace op
