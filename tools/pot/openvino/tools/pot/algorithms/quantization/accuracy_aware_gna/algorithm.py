@@ -26,7 +26,6 @@ class AccuracyAwareGNA(AccuracyAwareCommon):
         super().__init__(config, engine)
         self._config['annotation_free'] = False
         self._config['convert_to_mixed_preset'] = False
-        self._config['unify_conv_activation_weight'] = self._config.get('unify_conv_activation_weight', True)
 
         self._precision_change_to = 'INT16'
         self._default_fq_bit = 8
@@ -73,8 +72,6 @@ class AccuracyAwareGNA(AccuracyAwareCommon):
          :param nodes_names: fq names in the model
          :return list of target nodes as pair (activation, weight)
          """
-        unify_conv_activation_weight = self._config['unify_conv_activation_weight']
-
         target_nodes = []
         for fq_name in nodes_names:
             fq = mu.get_node_by_name(model, fq_name)
@@ -94,13 +91,14 @@ class AccuracyAwareGNA(AccuracyAwareCommon):
                     continue
 
                 target_nodes.append((None, fq))
-            elif self._config['target_device'] == 'GNA3':
+            elif self._config['target_device'] == 'GNA3' or self._config['target_device'] == 'GNA3.5':
+                unify_qbit_of_convolution_inputs = False if self._config['target_device'] == 'GNA3.5' else True
                 fq_output = nu.get_node_output(fq, 0)[0]
                 is_fq_for_conv = fq_output.type == 'Convolution'
 
                 # Since GNA3.0 support convolution layer of 8/8 or 16/16 (activation/weight),
                 # we should convert them simultaneously
-                if unify_conv_activation_weight:
+                if unify_qbit_of_convolution_inputs:
                     if not is_fq_for_weights:
                         logger.debug('Skipping %s because it\'s not weight FQ', fq_name)
                         continue
