@@ -142,8 +142,6 @@ function(ov_download_tbb)
     debug_message(STATUS "tbb=" ${TBB})
     debug_message(STATUS "tbb_dir=" ${TBB_DIR})
     debug_message(STATUS "tbbroot=" ${TBBROOT})
-
-    set(TBB "${TBB}" PARENT_SCOPE)
 endfunction()
 
 ## TBBBind_2_5 package
@@ -159,7 +157,7 @@ function(ov_download_tbbbind_2_5)
     endif()
     set(_ov_download_tbbbind_2_5_done ON CACHE BOOL "Whether prebuilt TBBBind_2_5 is already downloaded")
 
-    reset_deps_cache(TBBBIND_2_5_DIR)
+    reset_deps_cache(TBBBIND_2_5_ROOT TBBBIND_2_5_DIR)
 
     if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
         set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
@@ -185,9 +183,8 @@ Build oneTBB from sources and set TBBROOT environment var before OpenVINO cmake 
         return()
     endif()
 
+    update_deps_cache(TBBBIND_2_5_ROOT "${TBBBIND_2_5}" "Path to TBBBIND_2_5 root folder")
     update_deps_cache(TBBBIND_2_5_DIR "${TBBBIND_2_5}/cmake" "Path to TBBBIND_2_5 cmake folder")
-
-    set(TBBBIND_2_5 "${TBBBIND_2_5}" PARENT_SCOPE)
 endfunction()
 
 ## OpenCV
