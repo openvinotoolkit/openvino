@@ -1750,8 +1750,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::Values(dataTypes[0]),
                        ::testing::Values(types[0]),
                        ::testing::Values(inputShapes[0]),
-                       ::testing::ValuesIn(std::vector<activation_func>(activationFunctions.begin() + activationFunctions.size()/4*0,
-                                                                        activationFunctions.begin() + activationFunctions.size()/4*1)),
+                       ::testing::ValuesIn(activationFunctions),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{})));
 INSTANTIATE_TEST_SUITE_P(
@@ -1760,8 +1759,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::Values(dataTypes[1]),
                        ::testing::Values(types[1]),
                        ::testing::Values(inputShapes[1]),
-                       ::testing::ValuesIn(std::vector<activation_func>(activationFunctions.begin() + activationFunctions.size()/4*1,
-                                                                        activationFunctions.begin() + activationFunctions.size()/4*2)),
+                       ::testing::ValuesIn(activationFunctions),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{})));
 INSTANTIATE_TEST_SUITE_P(
@@ -1770,8 +1768,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::Values(dataTypes[0]),
                        ::testing::Values(types[2]),
                        ::testing::Values(inputShapes[2]),
-                       ::testing::ValuesIn(std::vector<activation_func>(activationFunctions.begin() + activationFunctions.size()/4*2,
-                                                                        activationFunctions.begin() + activationFunctions.size()/4*3)),
+                       ::testing::ValuesIn(activationFunctions),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{})));
 INSTANTIATE_TEST_SUITE_P(
@@ -1780,7 +1777,6 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::Values(dataTypes[1]),
                        ::testing::Values(types[3]),
                        ::testing::Values(inputShapes[2]),
-                       ::testing::ValuesIn(std::vector<activation_func>(activationFunctions.begin() + activationFunctions.size()/4*3,
-                                                                        activationFunctions.end())),
+                       ::testing::ValuesIn(activationFunctions),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{})));
