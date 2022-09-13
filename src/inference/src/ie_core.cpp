@@ -756,7 +756,7 @@ public:
                 if (disabled)
                     return;
             }
-            if (!coreConfig.flag_allow_auto_batching) {
+            else if (!coreConfig.flag_allow_auto_batching) {
                 return;
             }
             // check whether if the Auto-Batching is applicable to the device
