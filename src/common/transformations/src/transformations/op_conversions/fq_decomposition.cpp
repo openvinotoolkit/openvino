@@ -79,7 +79,7 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
         if (status) {
             out_scales = calculateScales(fake_quantize_node->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
         }
-        const bool only_quantized = status && (std::all_of(osc.cbegin(),
+        const bool do_dequantize = !(status && (std::all_of(osc.cbegin(),
                                                            osc.cend(),
                                                            [](float val) {
                                                                return val == 1.f;
@@ -89,7 +89,8 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
                                                                [](float val) {
                                                                    return val == 0.f;
                                                                }) ||
-                                               out_scales.size() != 0);
+                                               out_scales.size() != 0));
+        const bool do_rounding = do_dequantize || fake_quantize_node->get_output_element_type(0) == ngraph::element::f32;
 
         ngraph::NodeVector decomp_ops;
         if (input_type != input_low.get_element_type()) {
@@ -108,11 +109,11 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
         std::shared_ptr<ngraph::Node> result = nullptr;
         if (out_scales.size() != 0) {
             PartialShape scale_shape = input_low.get_partial_shape();
-            ov::PartialShape::broadcast_merge_into(scale_shape,
+            ngraph::PartialShape::broadcast_merge_into(scale_shape,
                                                    input_high.get_partial_shape(),
                                                    op::AutoBroadcastType::NUMPY);
             const auto scales =
-                std::make_shared<ngraph::opset1::Constant>(ov::element::f32, scale_shape.get_shape(), out_scales);
+                std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, scale_shape.get_shape(), out_scales);
             decomp_ops.push_back(scales);
 
             result = std::make_shared<ngraph::opset1::Multiply>(min, scales);
@@ -140,11 +141,13 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
             decomp_ops.push_back(result);
         }
 
+        if (do_rounding) {
         // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low))
         result = std::make_shared<ngraph::opset5::Round>(result, ngraph::opset5::Round::RoundMode::HALF_TO_EVEN);
         decomp_ops.push_back(result);
+        }
 
-        if (!only_quantized) {
+        if (do_dequantize) {
             // (levels-1)
             const auto levels_minus_one =
                 std::make_shared<ngraph::opset1::Constant>(input_type, Shape{}, fake_quantize_node->get_levels() - 1);
