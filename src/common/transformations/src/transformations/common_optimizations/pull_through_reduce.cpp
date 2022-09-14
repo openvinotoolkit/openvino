@@ -48,7 +48,8 @@ const std::vector<int64_t> adjust_axes(const std::vector<int64_t>& axes_to_align
 // Try to represent given Reshape node via Unsqueeze and calculate axes of such Unsqueeze
 // For example if we have Reshape(input_shape={5,10,15}, target_shape={1,5,10,15,1}),
 // it can be represented via Unsqueeze with axes=[0,3]
-std::vector<int64_t> try_get_unsqueeze_axes_from_reshape(const ov::Shape& reshape_shape, const ov::Shape& reduce_shape) {
+std::vector<int64_t> try_get_unsqueeze_axes_from_reshape(const ov::Shape& reshape_shape,
+                                                         const ov::Shape& reduce_shape) {
     if (reshape_shape.size() < reduce_shape.size()) {
         return {};
     }
@@ -76,7 +77,7 @@ std::vector<int64_t> try_get_unsqueeze_axes_from_reshape(const ov::Shape& reshap
 
 // Update given reshape_input_shape by inserting "1" dimension on the postion represented by axes_to_insert
 std::shared_ptr<ov::opset9::Constant> update_reshape_target_shape(const ov::Shape& reshape_input_shape,
-                                                              const std::vector<int64_t>& axes_to_insert) {
+                                                                  const std::vector<int64_t>& axes_to_insert) {
     auto result = std::vector<int64_t>(std::begin(reshape_input_shape), std::end(reshape_input_shape));
     for (const auto& axis : axes_to_insert) {
         result.insert(std::next(std::begin(result), axis), 1);
