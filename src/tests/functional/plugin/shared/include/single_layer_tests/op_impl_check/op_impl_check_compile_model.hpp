@@ -30,7 +30,7 @@ TEST_P(OpImplCheckTest, checkPluginImplementation) {
         try {
             auto executableNetwork = core->compile_model(function, targetDevice, configuration);
             summary.updateOPsImplStatus(function, true);
-        } catch (const std::exception& e) {
+        } catch (const std::exception &e) {
             summary.updateOPsImplStatus(function, false);
             GTEST_FAIL() << "Exception in the Core::compile_model() method call: " << e.what();
         } catch (...) {
@@ -46,4 +46,6 @@ TEST_P(OpImplCheckTest, checkPluginImplementation) {
     }
 }
 
-}   // namespace sub
+}   // namespace subgraph
+}   // namespace test
+}   // namespace ov

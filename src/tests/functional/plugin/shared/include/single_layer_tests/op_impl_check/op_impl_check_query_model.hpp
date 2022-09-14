@@ -30,12 +30,12 @@ TEST_P(OpImplCheckTest, checkPluginImplementation) {
         try {
             auto queryNetworkResult = core->query_model(function, targetDevice);
             std::set<std::string> expected;
-            for (auto&& node : function->get_ops()) {
+            for (auto &&node : function->get_ops()) {
                 expected.insert(node->get_friendly_name());
             }
 
             std::set<std::string> actual;
-            for (auto&& res : queryNetworkResult) {
+            for (auto &&res : queryNetworkResult) {
                 actual.insert(res.first);
             }
 
@@ -43,7 +43,7 @@ TEST_P(OpImplCheckTest, checkPluginImplementation) {
                 IE_THROW() << "Expected and actual results are different";
             }
             summary.updateOPsImplStatus(function, true);
-        } catch (const std::exception& e) {
+        } catch (const std::exception &e) {
             summary.updateOPsImplStatus(function, false);
             GTEST_FAIL() << "Exception in the Core::compile_model() method call: " << e.what();
         } catch (...) {
@@ -59,4 +59,6 @@ TEST_P(OpImplCheckTest, checkPluginImplementation) {
     }
 }
 
-}   // namespace sub
+}   // namespace subgraph
+}   //namespace test
+}   // namespace ov
