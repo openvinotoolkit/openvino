@@ -74,6 +74,10 @@ public:
 
     size_t get_inputs_num() const override;
 
+protected:
+    void emitter_preamble(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                          const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const override;
+
 private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const Xbyak::Reg64 &reg_src,  const int out_vec_idx, const int offset) const;
@@ -136,6 +140,10 @@ public:
     std::shared_ptr<jit_uni_vcvtneps2bf16> get_uni_vcvtneps2bf16() const {
         return uni_vcvtneps2bf16_;
     }
+
+protected:
+    void emitter_preamble(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                          const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const override;
 
 private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>

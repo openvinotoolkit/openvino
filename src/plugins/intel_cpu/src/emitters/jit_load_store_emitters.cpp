@@ -77,6 +77,18 @@ size_t jit_load_emitter::aux_gprs_count() const {
     return count;
 }
 
+/**
+ * @brief Removes offset value from in_idxs and then calls parent's function
+ */
+void jit_load_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
+    std::vector<size_t> in_idxs_clean = in_idxs;
+    if (in_idxs.size() == 2) {
+        in_idxs_clean.pop_back();
+    }
+    jit_emitter::emitter_preamble(in_idxs_clean, out_idxs, pool_vec_idxs, pool_gpr_idxs);
+}
+
 void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
                                  const emitter_context *emit_context) const {
@@ -618,6 +630,18 @@ void jit_store_emitter::emit_data() const {
     jit_emitter::emit_data();
     if (uni_vcvtneps2bf16_)
         uni_vcvtneps2bf16_->emit_data();
+}
+
+/**
+ * @brief Removes offset value from in_idxs and then calls parent's function
+ */
+void jit_store_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
+    std::vector<size_t> in_idxs_clean = in_idxs;
+    if (in_idxs.size() == 2) {
+        in_idxs_clean.pop_back();
+    }
+    jit_emitter::emitter_preamble(in_idxs_clean, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 }
 
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
