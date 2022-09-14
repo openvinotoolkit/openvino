@@ -131,6 +131,14 @@ inline bool is_gna_non_functional_node(const std::shared_ptr<ngraph::Node>& node
             is_trivial_transpose(node);
 }
 
+inline bool is_one_dim_shape(const ov::Shape& dims) {
+    return std::count_if(std::begin(dims), std::end(dims), [](size_t dim) { return dim != 1; }) <= 1;
+}
+
+inline bool is_one_dim_shapes(const ov::Shape& in_dims, const ov::Shape& out_dims) {
+    return is_one_dim_shape(in_dims) && is_one_dim_shape(out_dims);
+}
+
 } // namespace ngraph_util
 } // namespace intel_gna
 } // namespace ov

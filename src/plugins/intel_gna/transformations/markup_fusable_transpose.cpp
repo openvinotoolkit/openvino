@@ -40,8 +40,7 @@ bool MarkupFusableTranspose::run_on_model(const std::shared_ptr<ngraph::Function
         auto in_dims = node->input(0).get_shape();
         auto out_dims = node->output(0).get_shape();
 
-        if (std::count_if(std::begin(in_dims), std::end(in_dims), [](size_t dim) { return dim != 1; }) <= 1 &&
-            std::count_if(std::begin(out_dims), std::end(out_dims), [](size_t dim) { return dim != 1; }) <= 1) {
+        if (is_one_dim_shapes(in_dims, out_dims)) {
             continue;
         }
 

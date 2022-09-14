@@ -32,9 +32,6 @@ public:
     bool is_copyable() const override {
         return false;
     }
-    std::string to_string() const override {
-        return std::string();
-    }
 };
 } // namespace rt_info
 } // namespace intel_gna
