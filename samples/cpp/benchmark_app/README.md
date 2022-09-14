@@ -217,56 +217,66 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
 The application outputs the number of executed iterations, total duration of execution, latency, and throughput.
 Additionally, if you set the `-report_type` parameter, the application outputs statistics report. If you set the `-pc` parameter, the application outputs performance counters. If you set `-exec_graph_path`, the application reports executable graph information serialized. All measurements including per-layer PM counters are reported in milliseconds.
 
-Below are fragments of sample output static and dynamic networks:
+An example of the information output when running benchmark_app is shown below:
 
-* For static network:
-   ```
-   [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, limits: 60000 ms duration)
-   [ INFO ] BENCHMARK IS IN INFERENCE ONLY MODE.
-   [ INFO ] Input blobs will be filled once before performance measurements.
-   [ INFO ] First inference took 26.26 ms
-   Progress: [................... ]  99% done
+```
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading Inference Engine
+[ INFO ] OpenVINO: OpenVINO Runtime version ......... 2022.1.0
+[ INFO ] Build ........... 2022.1.0-7019-cdb9bec7210-releases/2022/1
+[ INFO ]
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] openvino_intel_cpu_plugin version ......... 2022.1.0
+[ INFO ] Build ........... 2022.1.0-7019-cdb9bec7210-releases/2022/1
+[ INFO ]
+[ INFO ]
+[Step 3/11] Setting device configuration
+[ WARNING ] Device(CPU) performance hint is set to LATENCY
+[Step 4/11] Reading network files
+[ INFO ] Loading network files
+[ INFO ] Read network took 49.01 ms
+[Step 5/11] Resizing network to match image sizes and given batch
+[Step 6/11] Configuring input of the model
+[ INFO ] Network batch size: 1
+Network inputs:
+    input (node: input) : f32 / [N,C,D,H,W]
+Network outputs:
+    output (node: output) : f32 / [...]
+[Step 7/11] Loading the model to the device
+[ INFO ] Load network took 170.30 ms
+[Step 8/11] Setting optimal runtime parameters
+[ INFO ] Device: CPU
+[ INFO ]   { NETWORK_NAME , torch-jit-export }
+[ INFO ]   { OPTIMAL_NUMBER_OF_INFER_REQUESTS , 1 }
+[ INFO ]   { NUM_STREAMS , 1 }
+[ INFO ]   { AFFINITY , HYBRID_AWARE }
+[ INFO ]   { INFERENCE_NUM_THREADS , 0 }
+[ INFO ]   { PERF_COUNT , NO }
+[ INFO ]   { INFERENCE_PRECISION_HINT , f32 }
+[ INFO ]   { PERFORMANCE_HINT , LATENCY }
+[ INFO ]   { PERFORMANCE_HINT_NUM_REQUESTS , 0 }
+[Step 9/11] Creating infer requests and preparing input blobs with data
+[ WARNING ] No input files were given: all inputs will be filled with random values!
+[ INFO ] Test Config 0
+[ INFO ] input  ([N,C,D,H,W], f32, {1, 3, 16, 224, 224}, static):       random (binary data is expected)
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] BENCHMARK IS IN INFERENCE ONLY MODE.
+[ INFO ] Input blobs will be filled once before performance measurements.
+[ INFO ] First inference took 22.48 ms
+Progress: [....................] 100% done
 
-   [Step 11/11] Dumping statistics report
-   [ INFO ] Count:      6640 iterations
-   [ INFO ] Duration:   60039.70 ms
-   [ INFO ] Latency:
-   [ INFO ]        Median:  35.36 ms
-   [ INFO ]        Avg:    36.12 ms
-   [ INFO ]        Min:    18.55 ms
-   [ INFO ]        Max:    88.96 ms
-   [ INFO ] Throughput: 110.59 FPS
-   ```
-
-* For dynamic network:
-   ```
-   [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, limits: 60000 ms duration)
-   [ INFO ] BENCHMARK IS IN FULL MODE.
-   [ INFO ] Inputs setup stage will be included in performance measurements.
-   [ INFO ] First inference took 26.80 ms
-   Progress: [................... ]  99% done
-
-   [Step 11/11] Dumping statistics report
-   [ INFO ] Count:      5199 iterations
-   [ INFO ] Duration:   60043.34 ms
-   [ INFO ] Latency:
-   [ INFO ]        Median:  41.58 ms
-   [ INFO ]        Avg:    46.07 ms
-   [ INFO ]        Min:    8.44 ms
-   [ INFO ]        Max:    115.65 ms
-   [ INFO ] Latency for each data shape group:
-   [ INFO ] 1. data : [1, 3, 224, 224]
-   [ INFO ]        Median:  38.37 ms
-   [ INFO ]        Avg:    30.29 ms
-   [ INFO ]        Min:    8.44 ms
-   [ INFO ]        Max:    61.30 ms
-   [ INFO ] 2. data : [1, 3, 448, 448]
-   [ INFO ]        Median:  68.21 ms
-   [ INFO ]        Avg:    61.85 ms
-   [ INFO ]        Min:    29.58 ms
-   [ INFO ]        Max:    115.65 ms
-   [ INFO ] Throughput: 86.59 FPS
-   ```
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:      4806 iterations
+[ INFO ] Duration:   60017.40 ms
+[ INFO ] Latency:
+[ INFO ]        Median:     12.24 ms
+[ INFO ]        Average:    12.46 ms
+[ INFO ]        Min:        11.50 ms
+[ INFO ]        Max:        19.97 ms
+[ INFO ] Throughput: 80.08 FPS
+```
 
 ## See Also
 * [Using OpenVINO Runtime Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
