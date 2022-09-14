@@ -114,9 +114,9 @@ TEST_P(OVHoldersTestWithConfig, LoadedTensor) {
         ov::Core core = createCoreWithTemplate();
         ov::AnyMap property;
         property[ov::intel_auto::device_bind_buffer.name()] = true;
-        if (targetDevice.find("AUTO") != std::string::npos)
+        if (target_device.find("AUTO") != std::string::npos)
             property[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
-        auto compiled_model = core.compile_model(function, targetDevice, property);
+        auto compiled_model = core.compile_model(function, target_device, property);
         auto request = compiled_model.create_infer_request();
         tensor = request.get_input_tensor();
     }
