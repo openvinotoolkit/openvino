@@ -80,17 +80,18 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
             out_scales = calculateScales(fake_quantize_node->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
         }
         const bool do_dequantize = !(status && (std::all_of(osc.cbegin(),
-                                                           osc.cend(),
-                                                           [](float val) {
-                                                               return val == 1.f;
-                                                           }) &&
-                                                   std::all_of(osh.cbegin(),
-                                                               osh.cend(),
-                                                               [](float val) {
-                                                                   return val == 0.f;
-                                                               }) ||
-                                               out_scales.size() != 0));
-        const bool do_rounding = do_dequantize || fake_quantize_node->get_output_element_type(0) == ngraph::element::f32;
+                                                            osc.cend(),
+                                                            [](float val) {
+                                                                return val == 1.f;
+                                                            }) &&
+                                                    std::all_of(osh.cbegin(),
+                                                                osh.cend(),
+                                                                [](float val) {
+                                                                    return val == 0.f;
+                                                                }) ||
+                                                out_scales.size() != 0));
+        const bool do_rounding =
+            do_dequantize || fake_quantize_node->get_output_element_type(0) == ngraph::element::f32;
 
         ngraph::NodeVector decomp_ops;
         if (input_type != input_low.get_element_type()) {
@@ -110,8 +111,8 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
         if (out_scales.size() != 0) {
             PartialShape scale_shape = input_low.get_partial_shape();
             ngraph::PartialShape::broadcast_merge_into(scale_shape,
-                                                   input_high.get_partial_shape(),
-                                                   op::AutoBroadcastType::NUMPY);
+                                                       input_high.get_partial_shape(),
+                                                       op::AutoBroadcastType::NUMPY);
             const auto scales =
                 std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, scale_shape.get_shape(), out_scales);
             decomp_ops.push_back(scales);
