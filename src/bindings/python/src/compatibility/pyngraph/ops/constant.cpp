@@ -30,11 +30,11 @@ std::vector<size_t> _get_byte_strides(const ngraph::Shape& s) {
 template <typename T>
 py::buffer_info _get_buffer_info(const ngraph::op::Constant& c) {
     ngraph::Shape shape = c.get_shape();
-    return py::buffer_info(const_cast<void*>(c.get_data_ptr()),               /* Pointer to buffer */
+    return py::buffer_info(const_cast<void*>(c.get_data_ptr()),              /* Pointer to buffer */
                            static_cast<size_t>(c.get_element_type().size()), /* Size of one scalar */
                            py::format_descriptor<T>::format(),               /* Python struct-style format descriptor */
-                           static_cast<size_t>(shape.size()),               /* Number of dimensions */
-                           std::vector<size_t>{shape.begin(), shape.end()}, /* Buffer dimensions */
+                           static_cast<size_t>(shape.size()),                /* Number of dimensions */
+                           std::vector<size_t>{shape.begin(), shape.end()},  /* Buffer dimensions */
                            _get_byte_strides<T>(shape)                       /* Strides (in bytes) for each index */
     );
 }
@@ -42,11 +42,11 @@ py::buffer_info _get_buffer_info(const ngraph::op::Constant& c) {
 template <>
 py::buffer_info _get_buffer_info<ngraph::float16>(const ngraph::op::Constant& c) {
     ngraph::Shape shape = c.get_shape();
-    return py::buffer_info(const_cast<void*>(c.get_data_ptr()),               /* Pointer to buffer */
+    return py::buffer_info(const_cast<void*>(c.get_data_ptr()),              /* Pointer to buffer */
                            static_cast<size_t>(c.get_element_type().size()), /* Size of one scalar */
                            std::string(1, 'H'),                              /* Python struct-style format descriptor */
-                           static_cast<size_t>(shape.size()),               /* Number of dimensions */
-                           std::vector<size_t>{shape.begin(), shape.end()}, /* Buffer dimensions */
+                           static_cast<size_t>(shape.size()),                /* Number of dimensions */
+                           std::vector<size_t>{shape.begin(), shape.end()},  /* Buffer dimensions */
                            _get_byte_strides<ngraph::float16>(shape)         /* Strides (in bytes) for each index */
     );
 }
