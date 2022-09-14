@@ -34,7 +34,6 @@ from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
 
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.find_ie_version import find_ie_version
-from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message
 from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
 from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
@@ -561,17 +560,8 @@ def _convert(**args):
         init_logger('ERROR', False)
 
         argv.feManager = FrontEndManager()
-
-        ov_update_message = None
-        ov_api20_message = None
-        if not hasattr(argv, 'silent') or not argv.silent:
-            ov_update_message = get_ov_update_message()
-            ov_api20_message = get_ov_api20_message()
         ngraph_function = driver(argv)
-        if ov_update_message:
-            print(ov_update_message)
-        if ov_api20_message and ngraph_function is not None:
-            print(ov_api20_message)
+
         telemetry.send_event('mo', 'conversion_result', 'success')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
