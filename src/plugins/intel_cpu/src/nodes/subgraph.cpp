@@ -233,8 +233,6 @@ void Snippet::calcJITParams(std::vector<int64_t>& offsets, std::vector<int64_t>&
                             std::vector<int64_t>& vector_tile_inc, std::vector<int64_t>& scalar_tile_inc) const {
     const size_t numInputs = normInputShapes.size();
     const size_t numParams = numInputs + normOutputShapes.size();
-    // todo: check that this vector_size is Ok for different precisions
-    const int64_t vector_size = snippet->get_generator()->get_target_machine()->get_lanes();
 
     int io_index = 0;
     bmask.resize(normInputShapes.size() + normOutputShapes.size());
@@ -289,23 +287,19 @@ void Snippet::calcJITParams(std::vector<int64_t>& offsets, std::vector<int64_t>&
             // the last offset is ignored, so offsets[offset_rank - 1] is actually outer tile offset
             int64_t off = offsets[(i + 1) * offset_rank - 1];
             const auto& io_shape = i < numInputs ? normInputShapes[i] : normOutputShapes[i - numInputs];
-            if (off >= dataSize[i] * vector_size) {
-                sch_offsets[i] = 0;
-                // If a lower dimension is broadcasted then it's not incremented in the lower Tile
-                // so we need to increment it in the upper Tile
-                // todo: (unless upper Tile is broadcasted as well)
-            } else if (off == dataSize[i]) {
-                sch_offsets[i] = bmask[i] ? dataSize[i] : 0;
-                // if outer tile is broadcasted then we need to step back to read the same data once again
-                // If the lower Tile is broadcasted, then no step back is needed
+            // off == dataSize[i] only if
+            // io_shape[io_shape.size() - 1] == 1 and io_shape[io_shape.size() - 2] == masterShape[io_shape.size() - 2]
+            // So the upper Tile is not broadcasted, and the lower Tile is brodcasted if bmask[i] == True.
+            // If the lower Tile is broadcasted it doesn't increment data pointer, so we have to shift it in the upper Tile
+            // If the lower Tile is NOT broadcasted it shifts data pointers in a normal way
+            if (off == dataSize[i] && bmask[i]) {
+                sch_offsets[i] = dataSize[i];
+            // if outer tile is broadcasted then we need to step back to read the same data once again
+            // However, if the lower Tile is also broadcasted, then no step back is needed, since
+            // the lower Tile doesn't increment data pointer in this case.
             } else if (io_shape[io_shape.size() - 2] != masterShape[masterShape.size() - 2]
                        && !bmask[i]) {
                 sch_offsets[i] = -1 * io_shape.back() * dataSize[i];
-                // If scalar tile executes one time, ptr doesn't move on 1 value
-                // so we should absolutelly decrease offset
-//                if (static_master_shape.back() % vector_size == 1) {
-//                    sch_offsets[i] += dataSize[i];
-//                }
             }
         }
     }
