@@ -33,6 +33,21 @@ layout shape_of_inst::calc_output_layout(shape_of_node const& node, kernel_impl_
     return layout{dt, format::bfyx, out_size};
 }
 
+template<typename ShapeType>
+std::vector<layout> shape_of_inst::calc_output_layouts(shape_of_node const& /*node*/, const kernel_impl_params& impl_param) {
+    auto prim = impl_param.typed_desc<shape_of>();
+
+    data_types output_dt = prim->output_data_type.value_or(data_types::i32);
+    if (impl_param.has_fused_primitives()) {
+        output_dt = impl_param.get_fused_output_layout().data_type;
+    }
+
+    auto in_shape = impl_param.get_input_layout(0).get<ShapeType>();
+    auto output_shape = ShapeType{static_cast<int64_t>(in_shape.size())};
+
+    return { layout{output_shape, output_dt, format::bfyx} };
+}
+
 std::string shape_of_inst::to_string(shape_of_node const& node) {
     auto node_info = node.desc_to_json();
     auto desc = node.get_primitive();
@@ -40,7 +55,8 @@ std::string shape_of_inst::to_string(shape_of_node const& node) {
     std::stringstream primitive_description;
 
     json_composite shape_of_info;
-    shape_of_info.add("out dt: ", dt_to_str(*desc->output_data_type));
+    if (desc->output_data_type.has_value())
+        shape_of_info.add("out dt: ", dt_to_str(*desc->output_data_type));
     node_info->add("shape_of info", shape_of_info);
     node_info->dump(primitive_description);
 
