@@ -101,6 +101,7 @@ TEST(Paddle_Places, check_input_outputs) {
 
 // all existed in the model ops have "Out" port
 TEST(Paddle_Places, check_out_port_of_all_ops) {
+    GTEST_SKIP();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
