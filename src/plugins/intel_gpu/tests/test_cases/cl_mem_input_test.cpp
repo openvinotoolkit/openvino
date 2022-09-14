@@ -132,7 +132,7 @@ TEST(cl_mem_check, check_2_inputs) {
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
     int size = width * height * 3;
     for (auto i = 0; i < size; i++) {
-        EXPECT_NEAR(reference_results[i], output_ptr[i], 1.001f);
+        ASSERT_NEAR(reference_results[i], output_ptr[i], 1.001f);
     }
     checkStatus(clReleaseMemObject(nv12_image_plane_uv), "clReleaseMemObject");
     checkStatus(clReleaseMemObject(nv12_image_plane_y), "clReleaseMemObject");
@@ -240,7 +240,7 @@ TEST(cl_mem_check, check_input) {
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
     int size = width * height * 3;
     for (auto i = 0; i < size; i++) {
-        EXPECT_NEAR(reference_results[i], output_ptr[i], 1.001f);
+        ASSERT_NEAR(reference_results[i], output_ptr[i], 1.001f);
     }
     checkStatus(clReleaseMemObject(img), "clReleaseMemObject");
 }

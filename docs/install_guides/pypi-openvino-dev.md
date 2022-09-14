@@ -40,7 +40,7 @@ On Linux and macOS:
 python3 -m venv openvino_env
 ```
 
-> **NOTE**: On Linux and macOS, you may need to [install pip](https://pip.pypa.io/en/stable/installing/). For example, on Ubuntu execute the following command to get pip installed: `sudo apt install python3-venv python3-pip`.
+> **NOTE**: On Linux and macOS, you may need to [install pip](https://pip.pypa.io/en/stable/installation/). For example, on Ubuntu execute the following command to get pip installed: `sudo apt install python3-venv python3-pip`.
 
 ### Step 2. Activate Virtual Environment
 
@@ -109,7 +109,7 @@ For example, to install and configure the components for working with TensorFlow
    ```
    If installation was successful, you will not see any error messages (no console output).
 
-<a name="whats-in-the-package"></a>
+<a id="whats-in-the-package"></a>
 
 ## What's in the Package?
 

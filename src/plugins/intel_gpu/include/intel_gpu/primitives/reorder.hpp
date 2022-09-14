@@ -115,12 +115,14 @@ struct reorder : public primitive_base<reorder> {
             const layout& output_layout,
             const std::vector<float>& values_to_subtract = {},
             const reorder_mean_mode mode = reorder_mean_mode::subtract,
+            const bool nv12_to_grayscale = false,
             const primitive_id& ext_prim_id = "")
         : primitive_base(id, { input, input2 }, ext_prim_id, output_layout.data_padding, optional_data_type { output_layout.data_type }),
           output_format(output_layout.format),
           mean(""),
           subtract_per_feature(values_to_subtract),
-          mean_mode(mode) {}
+          mean_mode(mode),
+          nv12_to_grayscale(nv12_to_grayscale) {}
 
     /// @brief Constructs reorder primitive with two inputs, which takes mean subtract values from another primitive.
     /// @param id This primitive id.
@@ -134,11 +136,13 @@ struct reorder : public primitive_base<reorder> {
             const layout& output_layout,
             primitive_id const& mean,
             const reorder_mean_mode mode = reorder_mean_mode::subtract,
+            const bool nv12_to_grayscale = false,
             const primitive_id& ext_prim_id = "")
         : primitive_base(id, { input, input2 }, ext_prim_id, output_layout.data_padding, optional_data_type{ output_layout.data_type }),
         output_format(output_layout.format),
         mean(mean),
-        mean_mode(mode) {}
+        mean_mode(mode),
+        nv12_to_grayscale(nv12_to_grayscale) {}
 
     /// @brief Requested memory format.
     format output_format;
@@ -148,6 +152,8 @@ struct reorder : public primitive_base<reorder> {
     std::vector<float> subtract_per_feature;
     /// @brief Mode of mean execution
     reorder_mean_mode mean_mode;
+    /// @brief Mode of nv12 format reordering
+    bool nv12_to_grayscale = false;
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {

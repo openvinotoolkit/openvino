@@ -100,6 +100,8 @@ public:
 
         reorder_params.winograd = input_layout.format.is_winograd() || output_layout.format.is_winograd();
 
+        reorder_params.nv12_to_grayscale = arg.get_primitive()->nv12_to_grayscale;
+
         auto& kernel_selector = kernel_selector::reorder_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(reorder_params, reorder_optional_params);
 

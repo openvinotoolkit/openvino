@@ -1798,7 +1798,11 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 expected = format::get_default_format(layout.get_rank(), false, false);
         }
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
-        expected = node.get_output_layout().format;
+        // Mark as nv12 reorder as this is the only case where two inputs exist
+        if (node.get_primitive()->input.size() == 2)
+            expected = format::nv12;
+        else
+            expected = node.get_output_layout().format;
     } else if (node.is_type<reshape>()) {
         if (node.get_output_layout().format.dimension() == 6) {
             expected = format::bfwzyx;
