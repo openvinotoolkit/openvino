@@ -16,4 +16,12 @@ namespace {
                                         //CommonTestUtils::DEVICE_BATCH,
                                         "HETERO:GPU"),
             OVHoldersTest::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests, OVHoldersTestWithConfig,
+                    ::testing::Values("AUTO:GPU,CPU",
+                                        "AUTO:CPU,GPU",
+                                        "MULTI:GPU",
+                                        "MULTI:GPU,CPU",
+                                        "MULTI:CPU,GPU"),
+            OVHoldersTestWithConfig::getTestCaseName);
 }  // namespace
