@@ -627,10 +627,15 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
                 if (Shape::UNDEFINED_DIM == zeroPointDataSize) {
                     return false;
                 }
+                bool zpIsPerTensor = true;
 
                 for (int j = 0; j < zeroPointDataSize; j++) {
                     convNode->inputZeroPoints.push_back(zeroPointsData[j]);
+                    if (zeroPointsData[j] != zeroPointsData[0])
+                        zpIsPerTensor = false;
                 }
+                if (!zpIsPerTensor)
+                    printf("%s zp is per channel, channel number %zu\n", convNode->getName().c_str(), zeroPointDataSize);
             } else {
                 return false;
             }

@@ -612,10 +612,12 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
             const Dim OC = dims[1];
             auto scale = fakeQuantizeNode->simplifyToScale(outputDataType, OC);
-            if (!scale.empty())
-                printf("conv: %s fq:%s simplify fq success\n", getName().c_str(), fakeQuantizeNode->getName().c_str());
-            else
-                printf("conv: %s fq:%s simplify fq fail\n", getName().c_str(), fakeQuantizeNode->getName().c_str());
+            if (createPostOps) {
+                if (!scale.empty())
+                    printf("conv: %s fq:%s simplify fq success\n", getName().c_str(), fakeQuantizeNode->getName().c_str());
+                else
+                    printf("conv: %s fq:%s simplify fq fail\n", getName().c_str(), fakeQuantizeNode->getName().c_str());
+            }
             if (i == 0) {
                 bool hasSubsequentSum = false;
                 bool hasSubsequentFQ = false;
@@ -1267,6 +1269,7 @@ void Convolution::prepareParams() {
         biasDesc = biasMemPtr->GetDescWithType<DnnlMemoryDesc>();
     }
 
+    createPostOps = true;
     auto initPrimitiveAttr = [&]() {
         dnnl::primitive_attr attr;
         addZeroPoints(attr);
@@ -1411,6 +1414,8 @@ void Convolution::prepareParams() {
 
         appendZeroPointsArgs();
         Node::appendPostOpArgs(*pAttrLocal, primArgs, convPostOpsArgs[preferLegacyPostOps]);
+        createPostOps = false;
+
     } else {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
