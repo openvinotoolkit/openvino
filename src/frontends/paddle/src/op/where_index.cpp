@@ -4,7 +4,6 @@
 
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
-#include "openvino/opsets/opset6.hpp"
 
 namespace ov {
 namespace frontend {
