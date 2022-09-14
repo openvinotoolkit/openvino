@@ -248,6 +248,7 @@ public:
     void load_tuning_cache();
     std::shared_ptr<kernel_selector::TuningCache> get_tuning_cache() const { return tuning_cache; }
     ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
+    KernelsCache& get_in_mem_kernels_cache() const { return *_in_mem_kernels_cache; }
 
     // returns {-1, -1} if it failed to estimate by allocating given batch size
     std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
@@ -261,6 +262,10 @@ private:
     // TODO: Consider moving it to engine
     std::unique_ptr<kernels_cache> _kernels_cache;
     std::unique_ptr<ImplementationsCache> _impls_cache;
+    std::unique_ptr<KernelsCache> _in_mem_kernels_cache;
+    // TODO: initial version use unlimited caches. Need to adjust it once dynamic flow works on wide set of models.
+    const size_t _impls_cache_capacity = 0;
+    const size_t _in_mem_kernels_cache_capacity = 0;
     build_options options;
     std::list<program_node*> inputs;
     std::vector<program_node*> outputs;
