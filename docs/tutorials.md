@@ -124,6 +124,8 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
    | `114-quantization-simplified-mode <notebooks/114-quantization-simplified-mode-with-output.html>`__                           | Quantize Image Classification Models with POT in Simplified Mode                                                                 |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+   | `115-async-api <notebooks/115-async-api-with-output.html>`__                                                                 | Use Asynchronous Execution to Improve Data Pipelining                                                                            |
+   +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
 
 .. raw:: html
 
@@ -161,6 +163,8 @@ Demos that demonstrate inference on a particular model.
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
    | `202-vision-superresolution-video <notebooks/202-vision-superresolution-video-with-output.html>`__ |br| |n202v|               | Turn 360p into 1080p video using a super resolution model.                                                                                 | |n202v-img1| → |n202v-img2|               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `203-meter-reader <notebooks/203-meter-reader-with-output.html>`__ |br| |n203|                                                | PaddlePaddle pre-trained models to read industrial meter's value                                                                           | |n203-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
    | `204-named-entity-recognition <notebooks/204-named-entity-recognition-with-output.html>`__ |br| |n204|                        | Perform named entity recognition on simple text.                                                                                           | |n204-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
    | `205-vision-background-removal <notebooks/205-vision-background-removal-with-output.html>`__ |br| |n205|                      | Remove and replace the background in an image using salient object detection.                                                              | |n205-img1|                               |
@@ -179,6 +183,17 @@ Demos that demonstrate inference on a particular model.
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
    | `217-vision-deblur <notebooks/217-vision-deblur-with-output.html>`__ |br| |n217|                                              | Deblur Images with DeblurGAN-v2.                                                                                                           | |n217-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `219-knowledge-graphs-conve <notebooks/219-knowledge-graphs-conve-with-output.html>`__                                        | Optimize the knowledge graph embeddings model (ConvE) with OpenVINO                                                                        |                                           |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `220-yolov5-accuracy-check-and-quantization <notebooks/220-yolov5-accuracy-check-and-quantization-with-output.html>`__        | Quantize the Ultralytics YOLOv5 model and check accuracy using the OpenVINO POT API                                                        | |n220-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `221-machine-translation <notebooks/221-machine-translation-with-output.html>`__                                              | Real-time translation from English to German                                                                                               |                                           |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `222-vision-image-colorization <notebooks/222-vision-image-colorization-with-output.html>`__                                  | Use pre-trained models to colorize black & white images using OpenVINO                                                                     | |n222-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `223-gpt2-text-prediction <notebooks/223-gpt2-text-prediction-with-output.html>`__                                            | Use GPT-2 to perform text prediction on an input sequence                                                                                  | |n223-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+
 
 .. raw:: html
 
@@ -289,7 +304,6 @@ Made with `contributors-img <https://contrib.rocks>`__.
 
 .. |contributors| image:: https://contrib.rocks/image?repo=openvinotoolkit/openvino_notebooks
    :target: https://github.com/openvinotoolkit/openvino_notebooks/graphs/contributors
-
 .. |n001-img1| image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
    :target: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
 .. |n002-img1| image:: https://user-images.githubusercontent.com/15709723/127787560-d8ec4d92-b4a0-411f-84aa-007e90faba98.png
@@ -308,7 +322,6 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://user-images.githubusercontent.com/10940214/157541917-c5455105-b0d9-4adf-91a7-fbc142918015.png
 .. |n210-img1| image:: https://user-images.githubusercontent.com/15709723/134784204-cf8f7800-b84c-47f5-a1d8-25a9afab88f8.gif
    :target: https://user-images.githubusercontent.com/15709723/134784204-cf8f7800-b84c-47f5-a1d8-25a9afab88f8.gif
-
 .. |n211-img1| image:: https://user-images.githubusercontent.com/36741649/140987347-279de058-55d7-4772-b013-0f2b12deaa61.png
    :target: https://user-images.githubusercontent.com/36741649/140987347-279de058-55d7-4772-b013-0f2b12deaa61.png
 .. |n213-img1| image:: https://user-images.githubusercontent.com/4547501/152571639-ace628b2-e3d2-433e-8c28-9a5546d76a86.gif
@@ -331,6 +344,8 @@ Made with `contributors-img <https://contrib.rocks>`__.
 .. |n202v-img2| image:: https://user-images.githubusercontent.com/15709723/127269258-a8e2c03e-731e-4317-b5b2-ed2ee767ff5e.gif
    :width: 125
    :target: https://user-images.githubusercontent.com/15709723/127269258-a8e2c03e-731e-4317-b5b2-ed2ee767ff5e.gif
+.. |n203-img1| image:: https://user-images.githubusercontent.com/91237924/166135627-194405b0-6c25-4fd8-9ad1-83fb3a00a081.jpg
+   :target: https://user-images.githubusercontent.com/91237924/166135627-194405b0-6c25-4fd8-9ad1-83fb3a00a081.jpg
 .. |n204-img1| image:: https://user-images.githubusercontent.com/33627846/169470030-0370963e-6ad8-49e3-be7a-f02a2c677733.gif
    :target: https://user-images.githubusercontent.com/33627846/169470030-0370963e-6ad8-49e3-be7a-f02a2c677733.gif
 .. |n205-img1| image:: https://user-images.githubusercontent.com/15709723/125184237-f4b6cd00-e1d0-11eb-8e3b-d92c9a728372.png
@@ -357,6 +372,12 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://user-images.githubusercontent.com/41332813/158430181-05d07f42-cdb8-4b7a-b7dc-e7f7d9391877.png
 .. |n218-img1| image:: https://user-images.githubusercontent.com/47499836/163544861-fa2ad64b-77df-4c16-b065-79183e8ed964.png
    :target: https://user-images.githubusercontent.com/47499836/163544861-fa2ad64b-77df-4c16-b065-79183e8ed964.png
+.. |n220-img1| image:: https://user-images.githubusercontent.com/44352144/177097174-cfe78939-e946-445e-9fce-d8897417ef8e.png
+   :target: https://user-images.githubusercontent.com/44352144/177097174-cfe78939-e946-445e-9fce-d8897417ef8e.png
+.. |n222-img1| image:: https://user-images.githubusercontent.com/18904157/166343139-c6568e50-b856-4066-baef-5cdbd4e8bc18.png
+   :target: https://user-images.githubusercontent.com/18904157/166343139-c6568e50-b856-4066-baef-5cdbd4e8bc18.png
+.. |n223-img1| image:: https://user-images.githubusercontent.com/91228207/185105225-0f996b0b-0a3b-4486-872d-364ac6fab68b.png
+   :target: https://user-images.githubusercontent.com/91228207/185105225-0f996b0b-0a3b-4486-872d-364ac6fab68b.png
 .. |n301-img1| image:: https://user-images.githubusercontent.com/15709723/127779607-8fa34947-1c35-4260-8d04-981c41a2a2cc.png
    :target: https://user-images.githubusercontent.com/15709723/127779607-8fa34947-1c35-4260-8d04-981c41a2a2cc.png
 .. |n401-img1| image:: https://user-images.githubusercontent.com/4547501/141471665-82b28c86-cf64-4bfe-98b3-c314658f2d96.gif
@@ -407,6 +428,8 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F202-vision-superresolution%2F202-vision-superresolution-image.ipynb
 .. |n202v| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F202-vision-superresolution%2F202-vision-superresolution-video.ipynb
+.. |n203| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F203-meter-reader%2F203-meter-reader.ipynb
 .. |n204| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F204-named-entity-recognition%2F204-named-entity-recognition.ipynb
 .. |n205| image:: https://mybinder.org/badge_logo.svg
@@ -421,8 +444,6 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F214-vision-paddle-classification%2F214-vision-paddle-classification.ipynb
 .. |n217| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/ThanosM97/openvino_notebooks/217-vision-deblur?labpath=notebooks%2F217-vision-deblur%2F217-vision-deblur.ipynb
-
-
 .. |n401| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F401-object-detection-webcam%2F401-object-detection.ipynb
 .. |n402| image:: https://mybinder.org/badge_logo.svg
@@ -434,6 +455,7 @@ Made with `contributors-img <https://contrib.rocks>`__.
 
 .. |binder logo| image:: https://mybinder.org/badge_logo.svg
    :alt: Binder button
+
 
 @endsphinxdirective
 
