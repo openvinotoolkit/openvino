@@ -21,7 +21,7 @@ def pytest_generate_tests(metafunc):
 def rename_tf_fe_libs(request):
     # code before 'yield' statement is equal to 'set_up' function
     if os.getenv('LD_LIBRARY_PATH'):
-        openvino_lib_path = os.getenv('LD_LIBRARY_PATH')
+        openvino_lib_path = Path(os.getenv('LD_LIBRARY_PATH'))
     else:
         try:
             import openvino.runtime as rt
