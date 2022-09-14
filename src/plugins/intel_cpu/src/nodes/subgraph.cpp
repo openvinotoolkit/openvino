@@ -289,24 +289,17 @@ void Snippet::calcJITParams(std::vector<int64_t>& offsets, std::vector<int64_t>&
             // the last offset is ignored, so offsets[offset_rank - 1] is actually outer tile offset
             int64_t off = offsets[(i + 1) * offset_rank - 1];
             const auto& io_shape = i < numInputs ? normInputShapes[i] : normOutputShapes[i - numInputs];
-            if (off > dataSize[i] * vector_size) {
+            if (off >= dataSize[i] * vector_size) {
                 sch_offsets[i] = 0;
-            } else if (off == dataSize[i] * vector_size) {
-                sch_offsets[i] = 0;//off;
-                // offset == data_size only if input_shape.back() == 1, but ScalarLoadEmitter doesn't perform increment
-                // in such cases, because it thinks it's broadcasting.
+                // If a lower dimension is broadcasted then it's not incremented in the lower Tile
+                // so we need to increment it in the upper Tile
+                // todo: (unless upper Tile is broadcasted as well)
             } else if (off == dataSize[i]) {
-//                sch_offsets[i] = bmask[i] || *static_master_shape.rbegin() == 1 ? dataSize[i] : 0;
                 sch_offsets[i] = bmask[i] ? dataSize[i] : 0;
                 // if outer tile is broadcasted then we need to step back to read the same data once again
-                // NB! we don't need to step back if scalar/vector tile is executed only once,
-                // because increments are not emitted in this case. See jit_snippets_emitters.cpp for more details
                 // If the lower Tile is broadcasted, then no step back is needed
             } else if (io_shape[io_shape.size() - 2] != masterShape[masterShape.size() - 2]
-                       && !bmask[i]
-//                       io_shape.back() != 1 &&
-//                       io_shape.back() != vector_size
-                       ) {
+                       && !bmask[i]) {
                 sch_offsets[i] = -1 * io_shape.back() * dataSize[i];
                 // If scalar tile executes one time, ptr doesn't move on 1 value
                 // so we should absolutelly decrease offset
@@ -436,6 +429,8 @@ void Snippet::createPrimitive() {
     };
     initDataSizes();
 
+    jit_snippets_compile_args jcp;
+    jcp.is_static = !isDynamic;
     if (!isDynamic) {
         if (canonicalShape.is_dynamic())
             IE_THROW() << "Snippets: Canonicalization returned dynamic shape in static pipeline";
@@ -447,22 +442,17 @@ void Snippet::createPrimitive() {
             normOutputShapes.emplace_back(r->get_input_shape(0));
 
         prepareParams();
-        jit_snippets_compile_args jcp;
         jcp.master_shape = masterShape;
         std::copy(data_offsets.begin(), data_offsets.end(), jcp.data_offsets);
         std::copy(scheduler_offsets.begin(), scheduler_offsets.end(), jcp.scheduler_offsets);
         std::copy(scheduler_work_amounts.begin(), scheduler_work_amounts.end(), jcp.scheduler_work_amounts);
-        // code generation part
-        // it might be worth to generate explicitly for scheduler work amount for now,
-        // but in future some interface should be defined in order to communicate schedule for a kernel
-        // or generate schedule for a kernel.
-        // Here kernel is generated for most warying dimension by default.
-        schedule = snippet->generate(reinterpret_cast<const void*>(&jcp));
     } else {
         normInputShapes.resize(snippet->get_body()->get_parameters().size());
         normOutputShapes.resize(snippet->get_body()->get_results().size());
-        schedule = snippet->generate(nullptr);
+        // master_shape size can't change after canonicalization, use this info during dynamic kernel generation
+        jcp.master_shape = VectorDims(tensorRank, 0);
     }
+    schedule = snippet->generate(reinterpret_cast<const void*>(&jcp));
 }
 
 std::vector<VectorDims> Snippet::shapeInfer() const {

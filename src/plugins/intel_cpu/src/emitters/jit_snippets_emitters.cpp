@@ -84,10 +84,10 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
         IE_THROW() << "KernelEmitter invoked with invalid op argument";
     if (kernel->region.empty())
         IE_THROW() << "KernelEmitter invoked with empty body";
+    if (kernel->compile_params == nullptr)
+        IE_THROW() << "KernelEmitter invoked with op::Kernel that contains no compile_params";
     body = kernel->region;
-    is_static = kernel->compile_params != nullptr;
-    if (is_static)
-        jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
+    jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     // Initialize pools of gp and vec registers
     gp_regs_pool.resize(16);
     vec_regs_pool.resize(16);
@@ -131,12 +131,10 @@ void KernelEmitter::validate_arguments(const std::vector<size_t> &in,
 
 void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params,
                                               const Reg64& reg_indexes, const Reg64& reg_const_params, const std::vector<Reg64>& data_ptr_regs) const {
-    // Todo: is it safe to rely on 6? At least add a check in the node
-    //  maybe pass some params as jcp even in dynamic case?
-//    const int64_t offsetRank = jcp.master_shape.size() - 1;
-    const int64_t offsetRank = 6 - 1;
+    // master_shape size must be valid in both static and dynamic cases
+    const int64_t offsetRank = jcp.master_shape.size() - 1;
     std::function<void(Reg64, size_t, Reg64)> init_ptr_with_offset;
-    if (is_static) {
+    if (jcp.is_static) {
         init_ptr_with_offset = [&](Reg64 pointer, size_t offset_start_index, Reg64 reg_tmp) {
             const int64_t *offsets =  jcp.data_offsets + offset_start_index;
             for (int j = 0; j < offsetRank; j++) {
@@ -176,7 +174,7 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params,
     // a rare case when num_params is maximal, so we have no spare gprs
     if (last_iter_explicitly) {
         h->mov(data_ptr_regs[i], h->ptr[reg_const_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
-        if (is_static) {
+        if (jcp.is_static) {
             // can corrupt reg_const_params, since we won't use it anymore
             init_ptr_with_offset(data_ptr_regs[i], i * offsetRank, reg_const_params);
         } else {
@@ -209,7 +207,7 @@ void KernelEmitter::emit_impl(const std::vector<size_t>& in,
     auto local_gpr_pool = gp_regs_pool;
     // we won't need indexes in both static and dynamic cases, since offsets are already calculated
     local_gpr_pool.push_back(static_cast<size_t>(reg_indexes.getIdx()));
-    if (is_static) {
+    if (jcp.is_static) {
         local_gpr_pool.push_back(static_cast<size_t>(reg_const_params.getIdx()));
     }
     for (const auto& c : body) {
@@ -218,7 +216,7 @@ void KernelEmitter::emit_impl(const std::vector<size_t>& in,
         std::tie(in_regs, out_regs) = c.second;
         if (auto tile_scheduler = std::dynamic_pointer_cast<TileSchedulerEmitter>(emitter)) {
             // dynamic TileScheduler needs const runtime params
-            if (!is_static) {
+            if (!jcp.is_static) {
                 in_regs.push_back(static_cast<size_t>(abi_param2.getIdx()));
             }
             out_regs = gp_regs_used;
@@ -233,10 +231,10 @@ TileSchedulerEmitter::TileSchedulerEmitter(dnnl::impl::cpu::x64::jit_generator* 
     const auto tile_scheduler = ov::as_type_ptr<ngraph::snippets::op::TileScheduler>(n);
     if (!tile_scheduler)
         IE_THROW() << "TileSchedulerEmitter invoked with invalid op argument";
+    if (tile_scheduler->compile_params == nullptr)
+        IE_THROW() << "TileSchedulerEmitter invoked with op::TileScheduler that contains no compile_params";
     body = {tile_scheduler->vector_region, tile_scheduler->scalar_region};
-    is_static = tile_scheduler->compile_params != nullptr;
-    if (is_static)
-        jcp = *reinterpret_cast<const jit_snippets_compile_args*>(tile_scheduler->compile_params);
+    jcp = *reinterpret_cast<const jit_snippets_compile_args*>(tile_scheduler->compile_params);
 }
 void TileSchedulerEmitter::emit_code(const std::vector<size_t> &in,
                                      const std::vector<size_t> &out,
@@ -249,9 +247,9 @@ void TileSchedulerEmitter::validate_arguments(const std::vector<size_t> &in,
                                      const std::vector<size_t> &out,
                                      const std::vector<size_t> &pool,
                                      const std::vector<size_t> &gpr) const {
-    if (is_static && in.size() != 3)
+    if (jcp.is_static && in.size() != 3)
         IE_THROW() << "TileSchedulerEmitter (static) got invalid number of inputs. Expected 3, got " << in.size();
-    if (!is_static && in.size() != 4)
+    if (!jcp.is_static && in.size() != 4)
         IE_THROW() << "TileSchedulerEmitter (dynamic) got invalid number of inputs. Expected 4, got " << in.size();
     if (out.size() != in[0] + in[1])
         IE_THROW() << "TileSchedulerEmitter got invalid number of outputs. Expected " << in[0] + in[1] << " , got " << out.size();
@@ -261,7 +259,7 @@ void TileSchedulerEmitter::validate_arguments(const std::vector<size_t> &in,
         IE_THROW() << "TileSchedulerEmitter can contain only TileEmitters inside its body";
 }
 
-void TileSchedulerEmitter::emit_tiles(const Reg64& reg_inner_amount, const std::vector<Reg64>& data_ptr_regs, size_t vector_size,
+void TileSchedulerEmitter::emit_static_tiles(const Reg64& reg_inner_amount, const std::vector<Reg64>& data_ptr_regs, size_t vector_size,
                                       const std::vector<size_t>& vec_pool, const std::vector<size_t>& gpr_pool) const {
     // TileAllocatedEmitter is just an alias to perform dynamic_pointer_cast only once and reuse it below several times
     using TileAllocatedEmitter = std::pair<std::shared_ptr<TileEmitter>, const ngraph::snippets::RegInfo&>;
@@ -314,7 +312,7 @@ void TileSchedulerEmitter::emit_impl(const std::vector<size_t>& in,
                                      const std::vector<size_t>& vec_pool,
                                      const std::vector<size_t>& gpr_pool,
                                      const ov::intel_cpu::emitter_context *emit_context) const {
-    if (is_static)
+    if (jcp.is_static)
         emit_static_impl(in, out, vec_pool, gpr_pool, emit_context);
     else
         emit_dynamic_impl(in, out, vec_pool, gpr_pool, emit_context);
@@ -343,13 +341,13 @@ void TileSchedulerEmitter::emit_static_impl(const std::vector<size_t>& in,
     const size_t outer_work_amount = jcp.scheduler_work_amounts[0];
     if (outer_work_amount == 1) {
         // emit code directly without looping over external dim
-        emit_tiles(reg_inner_amount, data_ptr_regs, vector_size, vec_pool, local_gpr_pool);
+        emit_static_tiles(reg_inner_amount, data_ptr_regs, vector_size, vec_pool, local_gpr_pool);
     } else if (outer_work_amount > 1) {
         // We need to create a Loop in this case
         h->mov(reg_outer_amount, outer_work_amount);
         h->L(for_body);
         {
-            emit_tiles(reg_inner_amount, data_ptr_regs, vector_size, vec_pool, local_gpr_pool);
+            emit_static_tiles(reg_inner_amount, data_ptr_regs, vector_size, vec_pool, local_gpr_pool);
 
             // Todo: Load and Store emitters are currently implemented so they ALWAYS increment appropriate pointers
             //   after reading/writing. This might be a problem if we need to read the same data multiple times (broadcasting shapes).

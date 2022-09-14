@@ -43,7 +43,7 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
                                                              const void* compile_params) const {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator::generate")
     if (!target->is_supported())
-        throw ngraph_error("unsupported architecture for code genration");
+        throw ngraph_error("unsupported architecture for code generation");
 
     auto params = m->get_parameters();
     auto results = m->get_results();

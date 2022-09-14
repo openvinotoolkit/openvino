@@ -38,11 +38,11 @@ struct jit_snippets_call_args {
 };
 
 struct jit_snippets_compile_args {
-//    int64_t scheduler_dims[SNIPPETS_MAX_TILE_RANK] = {};
+    bool is_static = true;
+    std::vector<size_t> master_shape{};
     int64_t scheduler_offsets[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
     size_t scheduler_work_amounts[SNIPPETS_MAX_TILE_RANK] = {};
     int64_t data_offsets[SNIPPETS_MAX_SNIPPETS_DIMS * SNIPPETS_MAX_HARNESS_DIMS] = {};
-    std::vector<size_t> master_shape{};
 };
 ///
 /// \brief jit_container_emitter designed to wrap Emitters that contain other Emitters (presently KernelEmitter,
@@ -100,7 +100,6 @@ private:
     void init_data_pointers(size_t, size_t, const Reg64&, const Reg64&, const std::vector<Reg64>&) const;
 
     jit_snippets_compile_args jcp;
-    bool is_static;
     std::vector<size_t> gp_regs_pool;
     std::vector<size_t> gp_regs_used;
     std::vector<size_t> vec_regs_pool;
@@ -137,7 +136,7 @@ private:
                    const std::vector<size_t>& gpr,
                    const ov::intel_cpu::emitter_context *emit_context) const override;
 
-    void emit_tiles(const Reg64&, const std::vector<Reg64>&, size_t, const std::vector<size_t>& , const std::vector<size_t>&) const;
+    void emit_static_tiles(const Reg64&, const std::vector<Reg64>&, size_t, const std::vector<size_t>& , const std::vector<size_t>&) const;
 
     void emit_static_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out,
@@ -152,7 +151,6 @@ private:
                           const ov::intel_cpu::emitter_context *emit_context) const;
 
     jit_snippets_compile_args jcp;
-    bool is_static;
 };
 
 ///
