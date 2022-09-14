@@ -43,11 +43,14 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
         }
     }
 
+    // Dynamic path will do shape infer internally, so no need to pass valid out shape for that case
+    ov::Shape out_shape = op->get_output_partial_shape(0).is_static() ? op->get_output_shape(0) : ov::Shape{};
+
     auto gatherPrim = cldnn::gather(layerName,
                                     reorderedInputs[0],
                                     reorderedInputs[1],
                                     axis,
-                                    op->get_output_shape(0),
+                                    out_shape,
                                     batch_dim,
                                     support_neg_ind);
 
