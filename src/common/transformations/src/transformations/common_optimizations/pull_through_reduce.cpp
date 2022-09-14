@@ -15,8 +15,6 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov;
-
 namespace {
 // Adjust axes of Unsqueeze/Reduce ops after Unsqueeze pulling
 // For example if we have:
@@ -50,7 +48,7 @@ const std::vector<int64_t> adjust_axes(const std::vector<int64_t>& axes_to_align
 // Try to represent given Reshape node via Unsqueeze and calculate axes of such Unsqueeze
 // For example if we have Reshape(input_shape={5,10,15}, target_shape={1,5,10,15,1}),
 // it can be represented via Unsqueeze with axes=[0,3]
-std::vector<int64_t> try_get_unsqueeze_axes_from_reshape(const Shape& reshape_shape, const Shape& reduce_shape) {
+std::vector<int64_t> try_get_unsqueeze_axes_from_reshape(const ov::Shape& reshape_shape, const ov::Shape& reduce_shape) {
     if (reshape_shape.size() < reduce_shape.size()) {
         return {};
     }
@@ -77,13 +75,13 @@ std::vector<int64_t> try_get_unsqueeze_axes_from_reshape(const Shape& reshape_sh
 }
 
 // Update given reshape_input_shape by inserting "1" dimension on the postion represented by axes_to_insert
-std::shared_ptr<opset9::Constant> update_reshape_target_shape(const Shape& reshape_input_shape,
+std::shared_ptr<ov::opset9::Constant> update_reshape_target_shape(const ov::Shape& reshape_input_shape,
                                                               const std::vector<int64_t>& axes_to_insert) {
     auto result = std::vector<int64_t>(std::begin(reshape_input_shape), std::end(reshape_input_shape));
     for (const auto& axis : axes_to_insert) {
         result.insert(std::next(std::begin(result), axis), 1);
     }
-    return opset9::Constant::create(element::i64, Shape{result.size()}, result);
+    return ov::opset9::Constant::create(ov::element::i64, ov::Shape{result.size()}, result);
 }
 
 // Return true if given inputs have some common elements, otherwise return false.
