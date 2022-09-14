@@ -32,17 +32,12 @@ bool is_skip_operation(const std::shared_ptr<ngraph::Node>& node) {
 bool MarkupFusableTranspose::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(MarkupFusableTranspose);
 
-    bool is_graph_modified = false;
     for (auto& node : f->get_ordered_ops()) {
         if (!std::dynamic_pointer_cast<ngraph::opset9::Convolution>(node) &&
             !std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node)) {
             continue;
         }
         auto in_dims = node->input(0).get_shape();
-
-        if (node->outputs().size() != 1) {
-            continue;
-        }
         auto out_dims = node->output(0).get_shape();
 
         if (std::count_if(std::begin(in_dims), std::end(in_dims), [](size_t dim) { return dim != 1; }) <= 1 &&
@@ -55,8 +50,7 @@ bool MarkupFusableTranspose::run_on_model(const std::shared_ptr<ngraph::Function
             continue;
         }
         add_transpose_fusable(current_node);
-        is_graph_modified = true;
     }
 
-    return is_graph_modified;
+    return false;
 }
