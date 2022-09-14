@@ -467,7 +467,7 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
                                            out_layout);
         auto reorder = reorder_pair.first;
 
-        if (reorder) {
+        if (reorder && (in_layout.format != format::any && out_layout.format != format::any)) {
             auto& reorder_node = p.get_or_create(reorder);
             GPU_DEBUG_IF(debug_config->verbose >= 2) {
                 GPU_DEBUG_COUT << __func__ << ":" << __LINE__ << ":" << dir_msg(dir) << "  " << reorder_node.id()
