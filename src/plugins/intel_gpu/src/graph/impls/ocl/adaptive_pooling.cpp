@@ -74,16 +74,24 @@ public:
 
 namespace detail {
 attach_adaptive_pooling_impl::attach_adaptive_pooling_impl() {
-    implementation_map<adaptive_pooling>::add(impl_types::ocl, adaptive_pooling_impl::create, {
-            std::make_tuple(data_types::f16, format::bfyx),
-            std::make_tuple(data_types::f16, format::bfzyx),
-            std::make_tuple(data_types::f32, format::bfyx),
-            std::make_tuple(data_types::f32, format::bfzyx),
-            std::make_tuple(data_types::i32, format::bfyx),
-            std::make_tuple(data_types::i32, format::bfzyx),
-            std::make_tuple(data_types::i64, format::bfyx),
-            std::make_tuple(data_types::i64, format::bfzyx),
-    });
+    auto types = {data_types::f16, data_types::f32, data_types::i32, data_types::i64};
+    auto formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::b_fs_zyx_fsv16,
+        format::b_fs_zyx_fsv32,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
+        format::bs_fs_zyx_bsv16_fsv32,
+        format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv32_fsv32,
+        format::bs_fs_zyx_bsv32_fsv16
+    };
+
+    implementation_map<adaptive_pooling>::add(impl_types::ocl, adaptive_pooling_impl::create, types, formats);
 }
 }  // namespace detail
 }  // namespace ocl

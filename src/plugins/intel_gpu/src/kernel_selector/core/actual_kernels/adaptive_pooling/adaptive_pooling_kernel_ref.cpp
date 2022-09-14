@@ -23,6 +23,8 @@ ParamsKey AdaptivePoolingRef::GetSupportedKey() const {
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
     k.EnableBatching();
+    k.EnableTensorPitches();
+
     return k;
 }
 

@@ -29,13 +29,9 @@ KERNEL(adaptive_pooling_gpu)(
 #if OUTPUT_DIMS == 5
     const uint y   = (uint)get_global_id(1) % OUTPUT_SIZE_Y;
     const uint z   = (uint)get_global_id(1) / OUTPUT_SIZE_Y;
-
-    const uint batch_and_feature_offset = INPUT0_GET_INDEX(b, f, 0, 0, 0);
 #else
     const uint y   = (uint)get_global_id(1);
     const uint z   = 0;
-
-    const uint batch_and_feature_offset = INPUT0_GET_INDEX(b, f, 0, 0);
 #endif
 
     ACCUMULATOR_TYPE result = INIT_VAL;
@@ -68,13 +64,21 @@ KERNEL(adaptive_pooling_gpu)(
             uint y_offset = z_offset + j * INPUT0_SIZE_X;
 
             for (uint i = x_start; i < x_end; ++i) {
-                uint idx_within_feature = y_offset + i;
+                #if OUTPUT_DIMS == 5
+                    const uint idx = INPUT0_GET_INDEX(b, f, k, j, i);
+                #else
+                    const uint idx = INPUT0_GET_INDEX(b, f, j, i);
+                #endif
 
-                const current_input_value = TO_ACCUMULATOR_TYPE(input[batch_and_feature_offset + idx_within_feature]);
+                const current_input_value = TO_ACCUMULATOR_TYPE(input[idx]);
 #if MAX_POOLING
                 if (current_input_value > result) {
                     result = current_input_value;
-                    result_idx = idx_within_feature;
+                    #if OUTPUT_DIMS == 5
+                        result_idx = INPUT0_GET_INDEX(0, 0, k, j, i);
+                    #else
+                        result_idx = INPUT0_GET_INDEX(0, 0, j, i);
+                    #endif
                 }
 #elif AVG_POOLING
                 result += TO_ACCUMULATOR_TYPE(current_input_value);
@@ -95,8 +99,14 @@ KERNEL(adaptive_pooling_gpu)(
 #endif
 
 #if MAX_POOLING
+    #if OUTPUT_DIMS == 5
+        const uint index_pos = INPUT1_GET_INDEX(b, f, z, y, x);
+    #else
+        const uint index_pos = INPUT1_GET_INDEX(b, f, y, x);
+    #endif
+
     output[output_pos] = result;
-    indices[output_pos] = result_idx;
+    indices[index_pos] = result_idx;
 #elif AVG_POOLING
     output[output_pos] = result / TO_ACCUMULATOR_TYPE(max(num_elements, (uint)1));
 #else
