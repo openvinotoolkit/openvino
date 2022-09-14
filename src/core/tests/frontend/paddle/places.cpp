@@ -67,6 +67,7 @@ TEST(Paddle_Places, check_tensor_names) {
 }
 
 TEST(Paddle_Places, check_input_outputs) {
+    GTEST_SKIP();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
