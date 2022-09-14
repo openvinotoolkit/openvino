@@ -16,7 +16,6 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
-using namespace std;
 
 namespace {
 // Adjust axes of Unsqueeze/Reduce ops after Unsqueeze pulling
@@ -116,13 +115,13 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
                                      : pattern_map.at(logical_reduce).get_node_shared_ptr();
         const auto unsqueeze_node = pattern_map.at(unsqueeze).get_node_shared_ptr();
         auto unsqueeze_axes_input =
-            dynamic_pointer_cast<opset9::Constant>(pattern_map.at(unsqueeze_axes).get_node_shared_ptr());
+            std::dynamic_pointer_cast<opset9::Constant>(pattern_map.at(unsqueeze_axes).get_node_shared_ptr());
         auto reduce_axes_input =
-            dynamic_pointer_cast<opset9::Constant>(pattern_map.at(reduce_axes).get_node_shared_ptr());
+            std::dynamic_pointer_cast<opset9::Constant>(pattern_map.at(reduce_axes).get_node_shared_ptr());
         const bool keep_dims =
-            dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(reduce_node)
-                ? dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(reduce_node)->get_keep_dims()
-                : dynamic_pointer_cast<ov::op::util::LogicalReductionKeepDims>(reduce_node)->get_keep_dims();
+            std::dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(reduce_node)
+                ? std::dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(reduce_node)->get_keep_dims()
+                : std::dynamic_pointer_cast<ov::op::util::LogicalReductionKeepDims>(reduce_node)->get_keep_dims();
 
         if (!unsqueeze_axes_input || !reduce_axes_input) {
             return false;
@@ -132,13 +131,14 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
         normalize_axes(unsqueeze_node.get(),
                        unsqueeze_node->get_output_partial_shape(0).rank().get_length(),
                        unsqueeze_axes_val);
-        const auto reduce_axes_val = dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(reduce_node)
-                                         ? dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(reduce_node)
-                                               ->get_reduction_axes()
-                                               .to_vector()
-                                         : dynamic_pointer_cast<ov::op::util::LogicalReductionKeepDims>(reduce_node)
-                                               ->get_reduction_axes()
-                                               .to_vector();
+        const auto reduce_axes_val =
+            std::dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(reduce_node)
+                ? std::dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(reduce_node)
+                      ->get_reduction_axes()
+                      .to_vector()
+                : std::dynamic_pointer_cast<ov::op::util::LogicalReductionKeepDims>(reduce_node)
+                      ->get_reduction_axes()
+                      .to_vector();
 
         if (have_same_axes(unsqueeze_axes_val, reduce_axes_val)) {
             return false;
@@ -196,7 +196,7 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
                                      : pattern_map.at(logical_reduce).get_node_shared_ptr();
         const auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
         auto reduce_axes_input =
-            dynamic_pointer_cast<opset9::Constant>(pattern_map.at(reduce_axes).get_node_shared_ptr());
+            std::dynamic_pointer_cast<opset9::Constant>(pattern_map.at(reduce_axes).get_node_shared_ptr());
 
         if (!reduce_axes_input) {
             return false;
@@ -208,13 +208,14 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
             return false;
         }
 
-        const auto reduce_axes_val = dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(reduce_node)
-                                         ? dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(reduce_node)
-                                               ->get_reduction_axes()
-                                               .to_vector()
-                                         : dynamic_pointer_cast<ov::op::util::LogicalReductionKeepDims>(reduce_node)
-                                               ->get_reduction_axes()
-                                               .to_vector();
+        const auto reduce_axes_val =
+            std::dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(reduce_node)
+                ? std::dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(reduce_node)
+                      ->get_reduction_axes()
+                      .to_vector()
+                : std::dynamic_pointer_cast<ov::op::util::LogicalReductionKeepDims>(reduce_node)
+                      ->get_reduction_axes()
+                      .to_vector();
 
         if (have_same_axes(unsqueeze_axes, reduce_axes_val)) {
             return false;
