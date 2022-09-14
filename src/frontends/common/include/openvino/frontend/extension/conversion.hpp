@@ -29,23 +29,15 @@ private:
 class FRONTEND_API ConversionExtension : public ConversionExtensionBase {
 public:
     using Ptr = std::shared_ptr<ConversionExtension>;
-    ConversionExtension(const std::string& op_type, const CreatorFunction& converter)
-        : ConversionExtensionBase(op_type),
-          m_converter(converter) {}
+    ConversionExtension(const std::string& op_type, const CreatorFunction& converter);
 
-    ConversionExtension(const std::string& op_type, const CreatorFunctionNamed& converter)
-        : ConversionExtensionBase(op_type),
-          m_converter_named(converter) {}
+    ConversionExtension(const std::string& op_type, const CreatorFunctionNamed& converter);
 
-    const CreatorFunction& get_converter() const {
-        return m_converter;
-    };
+    const CreatorFunction& get_converter() const;
 
-    const CreatorFunctionNamed& get_converter_named() const {
-        return m_converter_named;
-    };
+    const CreatorFunctionNamed& get_converter_named() const;
 
-    ~ConversionExtension() override = default;
+    ~ConversionExtension() override;
 
 private:
     CreatorFunction m_converter;

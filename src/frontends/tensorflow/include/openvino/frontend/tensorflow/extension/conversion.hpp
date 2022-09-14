@@ -19,13 +19,11 @@ public:
 
     ConversionExtension() = delete;
 
-    ConversionExtension(const std::string& op_type, const ov::frontend::CreatorFunction& converter)
-        : ConversionExtensionBase(op_type),
-          m_converter(converter) {}
+    ConversionExtension(const std::string& op_type, const ov::frontend::CreatorFunction& converter);
 
-    const ov::frontend::CreatorFunction& get_converter() const {
-        return m_converter;
-    }
+    const ov::frontend::CreatorFunction& get_converter() const;
+
+    ~ConversionExtension() override;
 
 private:
     ov::frontend::CreatorFunction m_converter;
