@@ -50,7 +50,12 @@ protected:
         ElementType inType;
         InputShape inputShape;
         std::tie(inType, inputShape) = this->GetParam();
-        selectedType = makeSelectedTypeStr("ref_any", inType);
+        bool with_bf16 = InferenceEngine::with_cpu_x86_bfloat16();
+        if (with_bf16 && (inType == ov::element::bf16 || inType == ov::element::i32)) {
+            selectedType = makeSelectedTypeStr("ref_any", ov::element::bf16);
+        } else {
+            selectedType = makeSelectedTypeStr("ref_any", ov::element::f32);
+        }
         targetDevice = CommonTestUtils::DEVICE_CPU;
         inputDynamicShapes.push_back(inputShape.first);
         const auto& targetInput = inputShape.second;
@@ -121,7 +126,7 @@ protected:
 TEST_P(IntertactionLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    CheckPluginRelatedResults(compiledModel, "interaction");
+    CheckPluginRelatedResults(compiledModel, "Interaction");
 }
 
 namespace {

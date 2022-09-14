@@ -66,6 +66,7 @@ ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
             }
         }
         auto interaction_node = std::make_shared<InteractionNode>(features_node);
+        interaction_node->set_friendly_name(final_concat_node->get_friendly_name());
         replace_node(final_concat_node, interaction_node);
 
         return true;
