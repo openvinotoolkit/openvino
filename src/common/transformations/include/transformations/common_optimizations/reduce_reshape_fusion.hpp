@@ -4,10 +4,8 @@
 
 #pragma once
 
-#include <memory>
 #include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
-#include <vector>
 
 namespace ov {
 namespace pass {
