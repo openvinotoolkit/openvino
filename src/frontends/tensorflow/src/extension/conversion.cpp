@@ -6,4 +6,4 @@
 
 using namespace ov::frontend::tensorflow;
 
-ConversionExtension ::~ConversionExtension() = default;
+ConversionExtension::~ConversionExtension() = default;
