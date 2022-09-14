@@ -48,7 +48,7 @@ def parse_and_check_command_line():
     return args, is_network_compiled
 
 def main():
-
+    
     statistics = None
     try:
         # ------------------------------ 1. Parsing and validating input arguments ------------------------------
