@@ -98,6 +98,19 @@ OPENVINO_C_API(ov_status_e) ov_core_create(ov_core_t** core);
  */
 OPENVINO_C_API(ov_status_e) ov_core_create_with_config(const char* xml_config_file, ov_core_t** core);
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+/**
+ * @brief Constructs OpenVINO Core instance using XML configuration file with devices description.
+ * See RegisterPlugins for more details.
+ * @ingroup Core
+ * @param xml_config_file A path to .xml file with devices to load from. If XML configuration file is not specified,
+ * then default plugin.xml file will be used.
+ * @param core A pointer to the newly created ov_core_t.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e) ov_core_create_with_config_unicode(const wchar_t* xml_config_file_ws, ov_core_t** core);
+#endif
+
 /**
  * @brief Release the memory allocated by ov_core_t.
  * @ingroup Core
@@ -206,6 +219,29 @@ ov_core_compile_model_from_file(const ov_core_t* core,
                                 const char* device_name,
                                 const ov_properties_t* property,
                                 ov_compiled_model_t** compiled_model);
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+/**
+ * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file with unicode.
+ * This can be more efficient than using the ov_core_read_model_from_XXX + ov_core_compile_model flow,
+ * especially for cases when caching is enabled and a cached model is available.
+ * @ingroup Core
+ * @param core A pointer to the ie_core_t instance.
+ * @param model_path Path to a model, which is unicode path.
+ * @param device_name Name of a device to load a model to.
+ * @param property Optional pack of pairs: (property name, property value) relevant only for this load operation
+ * operation.
+ * @param compiled_model A pointer to the newly created compiled_model.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_compile_model_from_file_unicode(const ov_core_t* core,
+                                        const wchar_t* model_path,
+                                        const char* device_name,
+                                        const ov_properties_t* property,
+                                        ov_compiled_model_t** compiled_model);
+
+#endif
 
 /**
  * @brief Sets properties for a device, acceptable keys can be found in ov_property_key_e.

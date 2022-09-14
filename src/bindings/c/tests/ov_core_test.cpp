@@ -330,3 +330,73 @@ TEST_P(ov_core, ov_core_get_versions_by_device_name) {
     ov_core_versions_free(&version_list);
     ov_core_free(core);
 }
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+TEST(ov_core, ov_core_create_with_config_unicode) {
+    ov_core_t* core = nullptr;
+
+    for (std::size_t index = 0; index < test_unicode_postfix_vector.size(); index++) {
+        std::wstring postfix = L"_" + test_unicode_postfix_vector[index];
+        std::wstring plugins_xml_ws = add_unicode_postfix_to_path(plugins_xml, postfix);
+        ASSERT_EQ(true, copy_file(plugins_xml, plugins_xml_ws));
+
+        OV_ASSERT_OK(ov_core_create_with_config_unicode(plugins_xml_ws.c_str(), &core));
+        ASSERT_NE(nullptr, core);
+        remove_file_ws(plugins_xml_ws);
+        ov_core_free(core);
+    }
+}
+
+TEST(ov_core, ov_core_read_model_unicode) {
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    for (std::size_t index = 0; index < test_unicode_postfix_vector.size(); index++) {
+        std::wstring postfix = L"_" + test_unicode_postfix_vector[index];
+        std::wstring xml_ws = add_unicode_postfix_to_path(xml, postfix);
+        std::wstring bin_ws = add_unicode_postfix_to_path(bin, postfix);
+
+        ASSERT_EQ(true, copy_file(xml, xml_ws));
+        ASSERT_EQ(true, copy_file(bin, bin_ws));
+
+        OV_ASSERT_OK(ov_core_read_model_unicode(core, xml_ws.c_str(), bin_ws.c_str(), &model));
+        ASSERT_NE(nullptr, model);
+        remove_file_ws(xml_ws);
+        remove_file_ws(bin_ws);
+
+        ov_model_free(model);
+    }
+
+    ov_core_free(core);
+}
+
+TEST_P(ov_core, ov_core_compile_model_from_file_unicode) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    ov_compiled_model_t* compiled_model = nullptr;
+    for (std::size_t index = 0; index < test_unicode_postfix_vector.size(); index++) {
+        std::wstring postfix = L"_" + test_unicode_postfix_vector[index];
+        std::wstring xml_ws = add_unicode_postfix_to_path(xml, postfix);
+        std::wstring bin_ws = add_unicode_postfix_to_path(bin, postfix);
+        ASSERT_EQ(true, copy_file(xml, xml_ws));
+        ASSERT_EQ(true, copy_file(bin, bin_ws));
+
+        OV_ASSERT_OK(ov_core_compile_model_from_file_unicode(core,
+                                                             xml_ws.c_str(),
+                                                             device_name.c_str(),
+                                                             nullptr,
+                                                             &compiled_model));
+        ASSERT_NE(nullptr, compiled_model);
+        remove_file_ws(xml_ws);
+        remove_file_ws(bin_ws);
+        ov_compiled_model_free(compiled_model);
+    }
+
+    ov_core_free(core);
+}
+#endif
