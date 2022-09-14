@@ -36,9 +36,15 @@ extern const char* plugins_xml;
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 #    define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    include <wchar.h>
+#endif
 
-#    include <codecvt>
-#    include <locale>
+#ifdef _WIN32
+#    include <windows.h>
+#else
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#        include <codecvt>
+#        include <locale>
+#    endif
 #endif
 
 extern std::map<ov_element_type_e, size_t> element_type_size_map;

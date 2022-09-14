@@ -7,11 +7,14 @@
 
 #include "common.h"
 
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#    include <codecvt>
-#    include <locale>
+#ifdef _WIN32
+#    include <windows.h>
+#else
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#        include <codecvt>
+#        include <locale>
+#    endif
 #endif
-
 //!<  Read-only property<char *> to get a string list of supported read-only properties.
 const char* ov_property_key_supported_properties = "SUPPORTED_PROPERTIES";
 
