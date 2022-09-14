@@ -55,19 +55,19 @@ python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
 
 2. Download a pre-trained model:
 ```
-omz_downloader --name ssdlite_mobilenet_v2
+omz_downloader --name mobilenet-ssd
 ```
 
 3. If a model is not in the IR or ONNX format, it must be converted. You can do this using the model converter:
 
 ```
-omz_converter --name ssdlite_mobilenet_v2
+omz_converter --name mobilenet-ssd
 ```
 
 4. Perform inference of `banana.jpg` using `ssdlite_mobilenet_v2` model on a `GPU`, for example:
 
 ```
-python hello_reshape_ssd.py ssdlite_mobilenet_v2.xml banana.jpg GPU
+python hello_reshape_ssd.py mobilenet-ssd.xml banana.jpg GPU
 ```
 
 ## Sample Output
