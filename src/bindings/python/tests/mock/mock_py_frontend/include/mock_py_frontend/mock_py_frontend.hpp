@@ -411,5 +411,5 @@ public:
 }  // namespace frontend
 }  // namespace ov
 
-OPENVINO_EXTERN_C MOCK_API ov::frontend::FrontEndVersion GetAPIVersion();
-OPENVINO_EXTERN_C MOCK_API void* GetFrontEndData();
+MOCK_C_API ov::frontend::FrontEndVersion GetAPIVersion();
+MOCK_C_API void* GetFrontEndData();
