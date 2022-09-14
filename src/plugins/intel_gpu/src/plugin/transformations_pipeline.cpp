@@ -162,6 +162,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ngraph::pass::ConvertGather0D>();
 
         precisions_array convert_precision_list {
+                {ngraph::element::f64, ngraph::element::f32},
                 {ngraph::element::i64, ngraph::element::i32},
                 {ngraph::element::u64, ngraph::element::i32},
                 {ngraph::element::u16, ngraph::element::i32},

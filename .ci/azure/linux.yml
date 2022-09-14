@@ -179,7 +179,6 @@ jobs:
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache
         -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCPACK_GENERATOR=$(CMAKE_CPACK_GENERATOR)
-        -DBUILD_cuda_plugin=OFF
         -DBUILD_nvidia_plugin=OFF
         -S $(REPO_DIR)
         -B $(BUILD_DIR)
@@ -306,31 +305,33 @@ jobs:
     condition: ne(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     displayName: 'List install files'
 
-  - script: rm -fr $(BUILD_DIR)
-    displayName: 'Clean build dir'
-    continueOnError: false
-
-  - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR)
+  - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR) -b $(BUILD_DIR)/cpp_samples
     displayName: 'Build cpp samples'
     continueOnError: false
 
   - script: |
       export CC=clang
       export CXX=clang++
-      $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR)
+      $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -b $(BUILD_DIR)/cpp_samples_clang
     displayName: 'Build cpp samples - clang'
     continueOnError: false
 
-  - script: $(SAMPLES_INSTALL_DIR)/c/build_samples.sh -i $(INSTALL_DIR)
+  - script: |
+      export VERBOSE=1
+      $(SAMPLES_INSTALL_DIR)/c/build_samples.sh -i $(INSTALL_DIR) -b $(BUILD_DIR)/c_samples
     displayName: 'Build c samples'
+    continueOnError: false
+
+  - script: rm -fr $(BUILD_DIR)
+    displayName: 'Clean build dir'
     continueOnError: false
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-NGraphUT.xml
     displayName: 'OV Core UT'
     continueOnError: false
 
-  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_onnx_frontend_test --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
-    displayName: 'ONNX Frontend Test'
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
+    displayName: 'ONNX Frontend Tests'
     continueOnError: false
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
@@ -353,8 +354,8 @@ jobs:
     displayName: 'IE UT'
     continueOnError: false
 
-  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/cpuUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-cpuUnitTests.xml
-    displayName: 'CPU UT'
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_cpu_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_unit_tests.xml
+    displayName: 'Intel CPU Unit Tests'
     continueOnError: false
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/gnaUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-gnaUnitTests.xml
@@ -384,7 +385,7 @@ jobs:
     displayName: 'TEMPLATE FuncTests'
     continueOnError: false
 
-  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-cpuFuncTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_cpu_func_tests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_func_tests.xml
     displayName: 'CPU FuncTests'
     continueOnError: false
     condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF'))

@@ -69,16 +69,25 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
 namespace detail {
 
 attach_softmax_impl::attach_softmax_impl() {
-    implementation_map<softmax>::add(impl_types::ocl, softmax_impl::create, {
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-    });
+    auto types = {data_types::f16, data_types::f32};
+    auto formats = {
+            format::bfyx,
+            format::yxfb,
+            format::b_fs_yx_fsv16,
+            format::b_fs_yx_fsv32,
+            format::bs_fs_yx_bsv16_fsv16,
+            format::bs_fs_yx_bsv32_fsv16,
+            format::bs_fs_yx_bsv32_fsv32,
+            format::bfzyx,
+            format::b_fs_zyx_fsv16,
+            format::b_fs_zyx_fsv32,
+            format::bs_fs_zyx_bsv16_fsv32,
+            format::bs_fs_zyx_bsv16_fsv16,
+            format::bs_fs_zyx_bsv32_fsv32,
+            format::bs_fs_zyx_bsv32_fsv16
+    };
+
+    implementation_map<softmax>::add(impl_types::ocl, softmax_impl::create, types, formats);
 }
 
 }  // namespace detail
