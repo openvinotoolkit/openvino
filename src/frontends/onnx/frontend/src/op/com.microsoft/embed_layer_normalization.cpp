@@ -15,8 +15,8 @@ OutputVector embed_layer_normalization(const Node& node) {
     auto nodes = node.get_ng_inputs();
     auto num_nodes = nodes.size();
 
-    NGRAPH_CHECK(num_nodes >= 7 && num_nodes <= 8,
-                 "EmbedLayerNormalization takes 7 or 8 inputs. Provided " + std::to_string(num_nodes));
+    NGRAPH_CHECK(num_nodes >= 7 && num_nodes <= 9,
+                 "EmbedLayerNormalization takes 7 or 9 inputs. Provided " + std::to_string(num_nodes));
     NGRAPH_CHECK(nodes[0].get_element_type() == element::i32, "input_ids must have int32 type");
 
     const auto& input_ids = nodes[0];
