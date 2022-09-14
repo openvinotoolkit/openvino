@@ -52,11 +52,13 @@ endif()
 
 file(GLOB_RECURSE SOURCES *.cpp)
 
-pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
+pybind11_add_module(_${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
 
 target_include_directories(_${PROJECT_NAME} PRIVATE "../" "${OpenVINO_SOURCE_DIR}/src/common/transformations/include")
 
 target_link_libraries(_${PROJECT_NAME} PRIVATE openvino::runtime)
+
+set_target_properties(_${PROJECT_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)

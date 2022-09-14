@@ -21,18 +21,22 @@
 
 #if defined(OPENVINO_STATIC_LIBRARY) || defined(__GNUC__) && (__GNUC__ < 4)
 #    define OPENVINO_C_API(...) OPENVINO_C_API_EXTERN __VA_ARGS__
+#    define OPENVINO_C_VAR(...) OPENVINO_C_API_EXTERN __VA_ARGS__
 #    define OV_NODISCARD
 #else
 #    if defined(_WIN32)
 #        define OPENVINO_C_API_CALLBACK __cdecl
 #        ifdef openvino_c_EXPORTS
 #            define OPENVINO_C_API(...) OPENVINO_C_API_EXTERN __declspec(dllexport) __VA_ARGS__ __cdecl
+#            define OPENVINO_C_VAR(...) OPENVINO_C_API_EXTERN __declspec(dllexport) __VA_ARGS__
 #        else
 #            define OPENVINO_C_API(...) OPENVINO_C_API_EXTERN __declspec(dllimport) __VA_ARGS__ __cdecl
+#            define OPENVINO_C_VAR(...) OPENVINO_C_API_EXTERN __declspec(dllimport) __VA_ARGS__
 #        endif
 #        define OV_NODISCARD
 #    else
 #        define OPENVINO_C_API(...) OPENVINO_C_API_EXTERN __attribute__((visibility("default"))) __VA_ARGS__
+#        define OPENVINO_C_VAR(...) OPENVINO_C_API_EXTERN __attribute__((visibility("default"))) __VA_ARGS__
 #        define OV_NODISCARD        __attribute__((warn_unused_result))
 #    endif
 #endif
@@ -97,6 +101,38 @@ typedef enum {
     U32,             //!< u32 element type
     U64,             //!< u64 element type
 } ov_element_type_e;
+
+/**
+ * @enum ov_any_type_e
+ * @brief Enum to define ov_any data type.
+ */
+typedef enum {
+    BOOL = 0U,  //!< boolean data
+    CHAR,       //!< char data
+    INT32,      //!< int32 data
+    UINT32,     //!< uint32 data
+    INT64,      //!< int64 data
+    UINT64,     //!< uint64 data
+    ENUM,       //!< enum data, must define U32 data for enumeration
+    FLOAT,      //!< float data
+    DOUBLE,     //!< double data
+} ov_any_type_e;
+
+/**
+ * @struct ov_any_t
+ * @brief Represent a property value
+ */
+typedef struct {
+    void* ptr;
+    size_t size;
+    ov_any_type_e type;
+} ov_any_t;
+
+/**
+ * @brief Free ov_any data.
+ * @param value The ov_any data will be freed.
+ */
+OPENVINO_C_API(void) ov_any_free(ov_any_t* value);
 
 /**
  * @brief Print the error info.
