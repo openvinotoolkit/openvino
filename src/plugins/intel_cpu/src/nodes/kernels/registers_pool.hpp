@@ -55,6 +55,7 @@ public:
         Reg(const RegistersPool::Ptr& regPool, int requestedIdx) { initialize(regPool, requestedIdx); }
         ~Reg() { release(); }
         Reg& operator=(Reg&& other)  noexcept {
+            release();
             reg = other.reg;
             regPool = std::move(other.regPool);
             return *this;

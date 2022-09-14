@@ -80,7 +80,12 @@ TYPED_TEST_P(RegPoolTest, move) {
     RegistersPool::Reg<XbyakRegT> reg{regPool};
     ASSERT_NO_THROW(static_cast<XbyakRegT &>(reg));
     ASSERT_EQ(regPool->countFree<XbyakRegT>(), this->regNumber - 1);
-    RegistersPool::Reg<XbyakRegT> reg2 = std::move(reg);
+    RegistersPool::Reg<XbyakRegT> reg2{regPool};
+    ASSERT_EQ(regPool->countFree<XbyakRegT>(), this->regNumber - 2);
+    auto regIdx = reg.getIdx();
+    reg2 = std::move(reg);
+    ASSERT_EQ(reg2.getIdx(), regIdx);
+    ASSERT_EQ(regPool->countFree<XbyakRegT>(), this->regNumber - 1);
     ASSERT_ANY_THROW(static_cast<XbyakRegT &>(reg));
     ASSERT_NO_THROW(static_cast<XbyakRegT &>(reg2));
     ASSERT_EQ(regPool->countFree<XbyakRegT>(), this->regNumber - 1);
