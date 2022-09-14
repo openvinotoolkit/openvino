@@ -230,6 +230,7 @@ jobs:
       export MODELS_PATH=$(MODELS_PATH)
       # for libopenvino_template_extension.so
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
+      export OV_FRONTEND_PATH=$(INSTALL_TEST_DIR)
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
