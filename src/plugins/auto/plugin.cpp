@@ -496,83 +496,99 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     std::mutex load_mutex;
     std::vector<Task> loads;
     std::once_flag readNetworkFlag;
+    std::vector<DeviceInformation> gpuDevices;
     int nTotalGPUStreamsNum = 0;
 
-    //Check if CPU in device list
+    auto loadInferEngTask = [&](DeviceInformation& p) {
+        auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
+        if (tmpiter != fullConfig.end()) {
+            if (tmpiter->second == PluginConfigParams::NO)
+                multiSContext->_batchingDisabled = true;
+            p.config.insert({tmpiter->first, tmpiter->second});
+        }
+        insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), p.deviceName, p.config);
+        const auto& deviceName = p.deviceName;
+        const auto& deviceConfig = p.config;
+        SoExecutableNetworkInternal exec_net;
+        if (modelPath.empty()) {
+            exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+        } else if (GetCore()->DeviceSupportsImportExport(deviceName)) {
+            exec_net = GetCore()->LoadNetwork(modelPath, deviceName, deviceConfig);
+        } else {
+            std::call_once(readNetworkFlag, [&]() {
+                network = GetCore()->ReadNetwork(modelPath, std::string());
+            });
+            exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+        }
+
+        std::string key_streamsNums = "";
+        std::string key_threadsNums = "";
+        if (deviceName.find("CPU") != std::string::npos) {
+            key_streamsNums = PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS;
+            key_threadsNums = PluginConfigParams::KEY_CPU_THREADS_NUM;
+        } else if (deviceName.find("GPU") != std::string::npos) {
+            key_streamsNums = PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS;
+            key_threadsNums = GPUConfigParams::KEY_GPU_MAX_NUM_THREADS;
+        }
+        // print CPU or GPU streams num and threads num
+        if (!key_streamsNums.empty() && !key_threadsNums.empty()) {
+            std::string sStreamNums = exec_net->GetConfig(key_streamsNums).as<std::string>();
+            std::string sMaxThreadNums = exec_net->GetConfig(key_threadsNums).as<std::string>();
+            LOG_INFO_TAG("deviceName:%s after load network, streamNums:%s, maxThreadNums:%s",
+                         deviceName.c_str(),
+                         sStreamNums.c_str(),
+                         sMaxThreadNums.c_str());
+            if (deviceName.find("GPU") != std::string::npos) {
+                nTotalGPUStreamsNum += std::atoi(sStreamNums.c_str());
+            }
+        }
+
+        std::unique_lock<std::mutex> lock{load_mutex};
+        executableNetworkPerDevice.insert({deviceName, exec_net});
+        multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
+    };
+    // Push GPU Devices to gpuDevices
+    for (auto iterGPU = metaDevices.begin(); iterGPU != metaDevices.end();) {
+        if (iterGPU->deviceName.find("GPU") != std::string::npos) {
+            gpuDevices.push_back(*iterGPU);
+            iterGPU = metaDevices.erase(iterGPU);
+        } else {
+            iterGPU++;
+        }
+    }
+    // load GPU Devices first
+    for (auto& p : gpuDevices) {
+        loads.push_back([&] {
+            loadInferEngTask(p);
+        });
+    }
+
+    auto executor = executorManager()->getIdleCPUStreamsExecutor(
+        IStreamsExecutor::Config{"MultiDeviceAsyncLoad",
+                                 static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
+                                 0 /*default threads per stream, workaround for ticket 62376*/,
+                                 IStreamsExecutor::ThreadBindingType::NONE});
+    if (loads.size() > 0) {
+        // load GPU Devices first
+        executor->runAndWait(loads);
+        loads.clear();
+    }
+
+    // Check if CPU in device list
     auto iterCPU = std::find_if(metaDevices.begin(), metaDevices.end(), [&](DeviceInformation& d) {
         return d.deviceName.find("CPU") != std::string::npos;
     });
-
-    for (auto& p : metaDevices) {
-        loads.push_back([&]() {
-            auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
-            if (tmpiter != fullConfig.end()) {
-                if (tmpiter->second == PluginConfigParams::NO)
-                    multiSContext->_batchingDisabled = true;
-                p.config.insert({tmpiter->first, tmpiter->second});
-            }
-            insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), p.deviceName, p.config);
-            const auto& deviceName = p.deviceName;
-            const auto& deviceConfig = p.config;
-            SoExecutableNetworkInternal exec_net;
-            if (modelPath.empty()) {
-                exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
-            } else if (GetCore()->DeviceSupportsImportExport(deviceName)) {
-                exec_net = GetCore()->LoadNetwork(modelPath, deviceName, deviceConfig);
-            } else {
-                std::call_once(readNetworkFlag, [&]() {
-                    network = GetCore()->ReadNetwork(modelPath, std::string());
-                });
-                exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
-            }
-
-            if (deviceName.find("GPU") == 0 && iterCPU != metaDevices.end()) {
-                std::string sGPUStreamNums =
-                    exec_net->GetConfig(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS).as<std::string>();
-                std::string sGPUMaxThreadNums =
-                    exec_net->GetConfig(GPUConfigParams::KEY_GPU_MAX_NUM_THREADS).as<std::string>();
-                LOG_INFO_TAG("deviceName:%s after load network, streamNums:%s, maxThreadNums:%s",
-                             deviceName.c_str(),
-                             sGPUStreamNums.c_str(),
-                             sGPUMaxThreadNums.c_str());
-                nTotalGPUStreamsNum += std::atoi(sGPUStreamNums.c_str());
-            }
-
-            std::unique_lock<std::mutex> lock{load_mutex};
-            executableNetworkPerDevice.insert({deviceName, exec_net});
-            multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
-        });
-    }
-    auto executor = executorManager()->getIdleCPUStreamsExecutor(
-            IStreamsExecutor::Config{"MultiDeviceAsyncLoad",
-                                     static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
-                                     0 /*default threads per stream, workaround for ticket 62376*/,
-                                     IStreamsExecutor::ThreadBindingType::NONE});
-    executor->runAndWait(loads);
-
-    if (iterCPU != metaDevices.end()) {
+    if (iterCPU != metaDevices.end() &&
+        iterCPU->config.find(ov::inference_num_threads.name()) == iterCPU->config.end()) {
         int nCPUCores = getNumberOfCPUCores();
-        int nRemainThreads = nCPUCores - nTotalGPUStreamsNum;
+        int nHalfCPUCores = nCPUCores >> 1;
+        int nRemainThreads =
+            (nCPUCores - nTotalGPUStreamsNum) > nHalfCPUCores ? nHalfCPUCores : (nCPUCores - nTotalGPUStreamsNum);
         // no idle threads for cpu
         if (nRemainThreads <= 0) {
             LOG_INFO_TAG("CPUCores:%d, totalGPUStreams nums:%d, no threas for CPU, remove CPU",
                          nCPUCores,
                          nTotalGPUStreamsNum);
-            {
-                std::unique_lock<std::mutex> lock{load_mutex};
-                // remove cpu from executableNetworkPerDevice
-                auto itExec = executableNetworkPerDevice.find(iterCPU->deviceName);
-                if (itExec != executableNetworkPerDevice.end()) {
-                    executableNetworkPerDevice.erase(itExec);
-                }
-                // remove cpu from multiNetworkConfig
-                for (auto& cpuConfig : iterCPU->config) {
-                    auto itCfg = multiNetworkConfig.find(cpuConfig.first);
-                    if (itCfg != multiNetworkConfig.end()) {
-                        multiNetworkConfig.erase(cpuConfig.first);
-                    }
-                }
-            }
             // remove cpu from metaDevices
             metaDevices.erase(iterCPU);
         } else {
@@ -581,8 +597,17 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                          nTotalGPUStreamsNum,
                          nRemainThreads);
             GetCore()->set_property(iterCPU->deviceName,
-                                    {{PluginConfigParams::KEY_CPU_THREADS_NUM, std::to_string(nRemainThreads)}});
+                                    {{PluginConfigParams::KEY_CPU_THREADS_NUM, std::to_string(nRemainThreads)},
+                                     {CONFIG_KEY(CPU_THROUGHPUT_STREAMS), std::to_string(nRemainThreads)}});
         }
+    }
+    for (auto& p : metaDevices) {
+        loads.push_back([&]() {
+            loadInferEngTask(p);
+        });
+    }
+    if (loads.size() > 0) {
+        executor->runAndWait(loads);
     }
 
     if (executableNetworkPerDevice.empty())
