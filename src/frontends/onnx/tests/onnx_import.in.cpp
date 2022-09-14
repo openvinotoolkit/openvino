@@ -5634,7 +5634,7 @@ NGRAPH_TEST(${BACKEND_NAME}, castlike_float64_to_int64) {
     
     test_case.run();
 }
-// ===============================
+
 NGRAPH_TEST(${BACKEND_NAME}, castlike_int8_to_float16) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/castlike_int8_to_float16.onnx"));
