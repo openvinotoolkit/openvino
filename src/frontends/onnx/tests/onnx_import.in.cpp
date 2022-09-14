@@ -6040,3 +6040,4 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_castlike_bfloat16_to_float32) {
     test_case.add_expected_output<float>(std::vector<float>{121.5, 122.7, 3, 4, 5, 6, 7, 8.75, 9, 10, 11, 12});
 
     test_case.run();
+}
