@@ -229,25 +229,33 @@ InferenceEngine::Precision Snippet::getRuntimePrecision() const {
     return getMaxPrecision(inputPrecisions);
 }
 
-void Snippet::calcJITParams(std::vector<int64_t>& offsets, std::vector<int64_t>& sch_offsets, std::vector<bool>& bmask,
+void Snippet::calcJITParams(std::vector<int64_t>& offsets, std::vector<int64_t>& sch_offsets, std::vector<bool>& bmask_lower,
                             std::vector<int64_t>& vector_tile_inc, std::vector<int64_t>& scalar_tile_inc) const {
     const size_t numInputs = normInputShapes.size();
     const size_t numParams = numInputs + normOutputShapes.size();
 
     int io_index = 0;
-    bmask.resize(normInputShapes.size() + normOutputShapes.size());
-    for (const auto& s : normInputShapes)
+    bmask_lower.resize(normInputShapes.size() + normOutputShapes.size());
+    // todo: consider using bmask_upper to simplify offset logics in outer Tile
+    //  it might be also a good idea to compress bool array and to pass only indexes that are broadcasted
+    std::vector<bool> bmask_upper(bmask_lower);
+    const size_t last = masterShape.size() - 1;
+    for (const auto& s : normInputShapes) {
         // bmask is true if the input/output is broadcasted
-        bmask[io_index++] = masterShape.back() != 1 && s.back() == 1;
-    for (const auto& s : normOutputShapes)
-        bmask[io_index++] = masterShape.back() != 1 && s.back() == 1;
+        bmask_upper[io_index] = masterShape[last - 1] != 1 && s[last - 1] == 1;
+        bmask_lower[io_index++] = masterShape[last] != 1 && s[last] == 1;
+    }
+    for (const auto& s : normOutputShapes) {
+        bmask_upper[io_index] = masterShape[last - 1] != 1 && s[last - 1] == 1;
+        bmask_lower[io_index++] = masterShape[last] != 1 && s[last] == 1;
+    }
 
     // explicit tile increments are needed only for dynamic case
     if (isDynamic) {
         vector_tile_inc.resize(io_index);
         scalar_tile_inc.resize(io_index);
         for (int i = 0; i < io_index; i++) {
-            const bool not_broadcasted = !bmask[i];
+            const bool not_broadcasted = !bmask_lower[i];
             vector_tile_inc[i] = isa_num_lanes * dataSize[i] * not_broadcasted;
             scalar_tile_inc[i] = dataSize[i] * not_broadcasted;
         }
@@ -280,27 +288,22 @@ void Snippet::calcJITParams(std::vector<int64_t>& offsets, std::vector<int64_t>&
 
     sch_offsets = std::vector<int64_t>(numParams, 0);
     if (tileRank > 1) {
-        // todo: simplify pointer increment logics. Currently some increments are performed by emitters
-        //  (not always, but on condition), and some - by TileScheduler.
-        // update offsets for tile 2D because loaders have ptr shifts in some cases and stores have always ptrs shifts
+        // todo: move all the increment logics inside emitters
         for (size_t i = 0; i < numParams; i++) {
-            // the last offset is ignored, so offsets[offset_rank - 1] is actually outer tile offset
-            int64_t off = offsets[(i + 1) * offset_rank - 1];
             const auto& io_shape = i < numInputs ? normInputShapes[i] : normOutputShapes[i - numInputs];
-            // off == dataSize[i] only if
-            // io_shape[io_shape.size() - 1] == 1 and io_shape[io_shape.size() - 2] == masterShape[io_shape.size() - 2]
-            // So the upper Tile is not broadcasted, and the lower Tile is brodcasted if bmask[i] == True.
-            // If the lower Tile is broadcasted it doesn't increment data pointer, so we have to shift it in the upper Tile
-            // If the lower Tile is NOT broadcasted it shifts data pointers in a normal way
-            if (off == dataSize[i] && bmask[i]) {
-                sch_offsets[i] = dataSize[i];
-            // if outer tile is broadcasted then we need to step back to read the same data once again
-            // However, if the lower Tile is also broadcasted, then no step back is needed, since
-            // the lower Tile doesn't increment data pointer in this case.
-            } else if (io_shape[io_shape.size() - 2] != masterShape[masterShape.size() - 2]
-                       && !bmask[i]) {
+            // The upper Tile IS broadcasted, but the lower Tile is NOT
+            // => need to step back to read the same data once again in the lower Tile
+            if (bmask_upper[i] && !bmask_lower[i]) {
                 sch_offsets[i] = -1 * io_shape.back() * dataSize[i];
+            // The upper Tile is NOT broadcasted, but the lower Tile is
+            // => the lower Tile skips pointer increments due to broadcasting,
+            // so we need to shift the pointers in the upper Tile
+            } else if (!bmask_upper[i] && bmask_lower[i]) {
+                sch_offsets[i] = dataSize[i];
             }
+            // else:
+            //  * both upper and lower Tiles are broadcasted => no increment required and non are made
+            //  * neither upper nor lower Tile is broadcasted => all the necessary increments are performed by lower Tile
         }
     }
 }
