@@ -1,0 +1,89 @@
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "transformations/common_optimizations/reduce_reshape_fusion.hpp"
+
+#include <memory>
+#include <ngraph/pattern/op/or.hpp>
+#include <openvino/op/util/reduction_base.hpp>
+#include <openvino/opsets/opset9.hpp>
+#include <vector>
+
+#include "itt.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
+
+using namespace ov;
+using namespace std;
+
+ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {
+    MATCHER_SCOPE(ReduceReshapeFusion);
+
+    const auto reduce_axes = pattern::wrap_type<opset9::Constant>();
+    const auto arithmetic_reduce =
+        pattern::wrap_type<ov::op::util::ArithmeticReductionKeepDims>({pattern::any_input(), reduce_axes},
+                                                                      pattern::has_static_shape());
+    const auto logical_reduce =
+        pattern::wrap_type<ov::op::util::LogicalReductionKeepDims>({pattern::any_input(), reduce_axes},
+                                                                   pattern::has_static_shape());
+    const auto reduce = std::make_shared<pattern::op::Or>(OutputVector{arithmetic_reduce, logical_reduce});
+    const auto reshape =
+        pattern::wrap_type<opset9::Reshape>({reduce, pattern::any_input()}, pattern::has_static_shape());
+
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto& pattern_map = m.get_pattern_value_map();
+        auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
+        const auto reduce_axes_input =
+            dynamic_pointer_cast<opset9::Constant>(pattern_map.at(reduce_axes).get_node_shared_ptr());
+        const auto reduce_node = pattern_map.find(arithmetic_reduce) != std::end(pattern_map)
+                                     ? pattern_map.at(arithmetic_reduce).get_node_shared_ptr()
+                                     : pattern_map.at(logical_reduce).get_node_shared_ptr();
+        const bool keep_dims =
+            dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(reduce_node)
+                ? dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(reduce_node)->get_keep_dims()
+                : dynamic_pointer_cast<ov::op::util::LogicalReductionKeepDims>(reduce_node)->get_keep_dims();
+
+        if (keep_dims) {
+            return false;
+        }
+
+        if (!reduce_axes_input) {
+            return false;
+        }
+
+        const auto reduce_axes_val = dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(reduce_node)
+                                         ? dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(reduce_node)
+                                               ->get_reduction_axes()
+                                               .to_vector()
+                                         : dynamic_pointer_cast<ov::op::util::LogicalReductionKeepDims>(reduce_node)
+                                               ->get_reduction_axes()
+                                               .to_vector();
+        const auto& reshape_shape = reshape_node->get_shape();
+
+        auto reduce_shape_if_keep_dims = reduce_node->get_shape();
+        for (const auto& axis : reduce_axes_val) {
+            reduce_shape_if_keep_dims.insert(std::next(std::begin(reduce_shape_if_keep_dims), axis), 1);
+        }
+
+        if (reduce_shape_if_keep_dims != reshape_shape) {
+            return false;
+        }
+
+        if (auto arithmetic_reduce_node =
+                dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(reduce_node)) {
+            arithmetic_reduce_node->set_keep_dims(true);
+        } else if (auto logical_reduce_node =
+                       dynamic_pointer_cast<ov::op::util::LogicalReductionKeepDims>(reduce_node)) {
+            logical_reduce_node->set_keep_dims(true);
+        }
+        reduce_node->set_friendly_name(reshape_node->get_friendly_name());
+        ov::copy_runtime_info(reshape_node, reduce_node);
+        ov::replace_node(m.get_match_root(), reduce_node);
+
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(reshape, matcher_name);
+    this->register_matcher(m, callback);
+}
