@@ -56,7 +56,9 @@ class TestKerasConv1D(CommonTF2LayerTest):
 
     @pytest.mark.parametrize("params", test_data_float32)
     @pytest.mark.nightly
-    def test_keras_conv_1d_float32(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_keras_conv_1d_float32(self, params, ie_device, precision, ir_version, temp_dir, api_2,
+                                   use_new_frontend):
         self._test(*self.create_keras_conv1d_net(**params, ir_version=ir_version), ie_device,
                    precision,
-                   temp_dir=temp_dir, api_2=api_2, ir_version=ir_version, **params)
+                   temp_dir=temp_dir, api_2=api_2, ir_version=ir_version,
+                   use_new_frontend=use_new_frontend, **params)

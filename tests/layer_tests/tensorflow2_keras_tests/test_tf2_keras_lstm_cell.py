@@ -51,7 +51,7 @@ class TestKerasLSTMCell(CommonTF2LayerTest):
     @pytest.mark.precommit
     @pytest.mark.xfail(reason="49537")
     def test_keras_lstmcell_float32(self, params, ie_device, precision, temp_dir, ir_version,
-                                    api_2):
+                                    api_2, use_new_frontend):
         self._test(*self.create_keras_lstmcell_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, api_2=api_2, ir_version=ir_version,
-                   **params)
+                   use_new_frontend=use_new_frontend, **params)

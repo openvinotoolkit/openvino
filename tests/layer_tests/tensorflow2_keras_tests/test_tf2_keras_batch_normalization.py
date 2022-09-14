@@ -30,11 +30,11 @@ class TestKerasBatchNormalization(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_batch_normalization_float32(self, params, ie_device, precision, ir_version,
-                                               temp_dir, api_2):
+                                               temp_dir, api_2, use_new_frontend):
         self._test(*self.create_keras_batch_normalization_net(**params, ir_version=ir_version),
                    ie_device, precision,
                    temp_dir=temp_dir, api_2=api_2, ir_version=ir_version,
-                   **params)
+                   use_new_frontend=use_new_frontend, **params)
 
     test_data_extended_float32 = [dict(axis=1, momentum=0.5, epsilon=1e-4, center=True, scale=False,
                                        input_names=["x1"], input_shapes=[[3, 4]],
@@ -54,7 +54,7 @@ class TestKerasBatchNormalization(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_extended_float32)
     @pytest.mark.nightly
     def test_keras_batch_normalization_extended_float32(self, params, ie_device, precision,
-                                                        ir_version, temp_dir, api_2):
+                                                        ir_version, temp_dir, api_2, use_new_frontend):
         self._test(*self.create_keras_batch_normalization_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, api_2=api_2, ir_version=ir_version,
-                   **params)
+                   use_new_frontend=use_new_frontend, **params)

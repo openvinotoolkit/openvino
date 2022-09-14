@@ -46,10 +46,10 @@ class TestKerasLocallyConnected1D(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_locally_connected1D_float32(self, params, ie_device, precision, temp_dir,
-                                               ir_version, api_2):
+                                               ir_version, api_2, use_new_frontend):
         self._test(*self.create_keras_locally_connected1D_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, api_2=api_2,
-                   **params)
+                   use_new_frontend=use_new_frontend, **params)
 
     test_data_simple_channels_first = [
         dict(input_names=["x"], input_shapes=[[5, 14, 14]], input_type=tf.float32, filters=3,
@@ -70,7 +70,8 @@ class TestKerasLocallyConnected1D(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_locally_connected1D_channels_first_float32(self, params, ie_device, precision,
-                                                              temp_dir, ir_version, api_2):
+                                                              temp_dir, ir_version, api_2,
+                                                              use_new_frontend):
         self._test(*self.create_keras_locally_connected1D_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, api_2=api_2,
-                   **params)
+                   use_new_frontend=use_new_frontend, **params)

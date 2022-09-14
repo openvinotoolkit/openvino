@@ -50,9 +50,10 @@ class TestMapFN(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_basic(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_basic(self, params, ie_device, precision, ir_version, temp_dir, api_2, use_new_frontend):
         self._test(*self.create_map_fn_net(**params, ir_version=ir_version), ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, api_2=api_2, **params)
+                   temp_dir=temp_dir, ir_version=ir_version, api_2=api_2, use_new_frontend=use_new_frontend,
+                   **params)
 
     test_multiple_inputs = [
         dict(fn=lambda x: x[0] * x[1], input_type=tf.float32,
@@ -67,9 +68,10 @@ class TestMapFN(CommonTF2LayerTest):
 
     @pytest.mark.parametrize("params", test_multiple_inputs)
     @pytest.mark.nightly
-    def test_multiple_inputs(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_multiple_inputs(self, params, ie_device, precision, ir_version, temp_dir, api_2, use_new_frontend):
         self._test(*self.create_map_fn_net(**params, ir_version=ir_version), ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, api_2=api_2, **params)
+                   temp_dir=temp_dir, ir_version=ir_version, api_2=api_2, use_new_frontend=use_new_frontend,
+                   **params)
 
     test_multiple_outputs = [
         pytest.param(dict(fn=lambda x: (x[0] * x[1], x[0] + x[1]), input_type=tf.float32,
@@ -86,9 +88,10 @@ class TestMapFN(CommonTF2LayerTest):
 
     @pytest.mark.parametrize("params", test_multiple_outputs)
     @pytest.mark.nightly
-    def test_multiple_outputs(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_multiple_outputs(self, params, ie_device, precision, ir_version, temp_dir, api_2, use_new_frontend):
         self._test(*self.create_map_fn_net(**params, ir_version=ir_version), ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, api_2=api_2, **params)
+                   temp_dir=temp_dir, ir_version=ir_version, api_2=api_2, use_new_frontend=use_new_frontend,
+                   **params)
 
     test_multiple_inputs_outputs_int32 = [
         dict(fn=lambda x: x[0] * x[1] + x[2],
@@ -107,6 +110,7 @@ class TestMapFN(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_multiple_inputs_outputs_int32)
     @pytest.mark.nightly
     def test_multiple_inputs_outputs_int32(self, params, ie_device, precision, ir_version, temp_dir,
-                                           api_2):
+                                           api_2, use_new_frontend):
         self._test(*self.create_map_fn_net(**params, ir_version=ir_version), ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, api_2=api_2, **params)
+                   temp_dir=temp_dir, ir_version=ir_version, api_2=api_2, use_new_frontend=use_new_frontend,
+                   **params)

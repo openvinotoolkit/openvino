@@ -52,10 +52,10 @@ class TestKerasLSTM(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_lstm_with_bias_float32(self, params, ie_device, precision, temp_dir, ir_version,
-                                          api_2):
+                                          api_2, use_new_frontend):
         self._test(*self.create_keras_lstm_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, api_2=api_2,
-                   **params)
+                   use_new_frontend=use_new_frontend, **params)
 
     test_data_without_bias = [
         dict(input_names=["x"], input_shapes=[[2, 2, 7]], input_type=tf.float32, units=1,
@@ -75,10 +75,10 @@ class TestKerasLSTM(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_lstm_without_bias_float32(self, params, ie_device, precision, temp_dir,
-                                             ir_version, api_2):
+                                             ir_version, api_2, use_new_frontend):
         self._test(*self.create_keras_lstm_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, api_2=api_2,
-                   **params)
+                   use_new_frontend=use_new_frontend, **params)
 
     test_data_different_flags = [
         dict(input_names=["x"], input_shapes=[[2, 3, 2]], input_type=tf.float32, units=1,
@@ -96,7 +96,7 @@ class TestKerasLSTM(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_lstm_flags_float32(self, params, ie_device, precision, temp_dir, ir_version,
-                                      api_2):
+                                      api_2, use_new_frontend):
         self._test(*self.create_keras_lstm_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, api_2=api_2,
-                   **params)
+                   use_new_frontend=use_new_frontend, **params)

@@ -29,10 +29,11 @@ class TestKerasDropout(CommonTF2LayerTest):
 
     @pytest.mark.parametrize("params", test_data_float32_precommit)
     @pytest.mark.precommit
-    def test_keras_dropout_float32(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_keras_dropout_float32(self, params, ie_device, precision, ir_version, temp_dir, api_2,
+                                   use_new_frontend):
         self._test(*self.create_keras_dropout_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, api_2=api_2, ir_version=ir_version,
-                   **params)
+                   use_new_frontend=use_new_frontend, **params)
 
     test_data_float32 = [
         dict(input_names=["x"], input_shapes=[[5, 2]], input_type=tf.float32, rate=0.1,
@@ -51,7 +52,8 @@ class TestKerasDropout(CommonTF2LayerTest):
 
     @pytest.mark.parametrize("params", test_data_float32)
     @pytest.mark.nightly
-    def test_keras_dropout_float32(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_keras_dropout_float32(self, params, ie_device, precision, ir_version, temp_dir, api_2,
+                                   use_new_frontend):
         self._test(*self.create_keras_dropout_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, api_2=api_2, ir_version=ir_version,
-                   **params)
+                   use_new_frontend=use_new_frontend, **params)

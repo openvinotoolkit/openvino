@@ -34,10 +34,10 @@ class TestKerasUpSampling2D(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_upsampling2d_nearest(self, params, ie_device, precision, ir_version, temp_dir,
-                                        api_2):
+                                        api_2, use_new_frontend):
         self._test(*self.create_keras_upsampling2d_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, api_2=api_2, ir_version=ir_version,
-                   **params)
+                   use_new_frontend=use_new_frontend, **params)
 
     # Tests for bilinear interpolation
     test_data_bilinear = [
@@ -50,10 +50,10 @@ class TestKerasUpSampling2D(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_bilinear)
     @pytest.mark.nightly
     def test_keras_upsampling2d_bilinear(self, params, ie_device, precision, ir_version, temp_dir,
-                                         api_2):
+                                         api_2, use_new_frontend):
         self._test(*self.create_keras_upsampling2d_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, api_2=api_2, ir_version=ir_version,
-                   **params)
+                   use_new_frontend=use_new_frontend, **params)
 
     test_data_channels_first = [
         dict(input_names=["x1"], input_shapes=[[5, 4, 5, 3]], input_type=tf.float32,
@@ -67,7 +67,7 @@ class TestKerasUpSampling2D(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_channels_first)
     @pytest.mark.nightly
     def test_keras_upsampling2d_channels_first(self, params, ie_device, precision, ir_version,
-                                               temp_dir, api_2):
+                                               temp_dir, api_2, use_new_frontend):
         self._test(*self.create_keras_upsampling2d_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, api_2=api_2, ir_version=ir_version,
-                   **params)
+                   use_new_frontend=use_new_frontend, **params)

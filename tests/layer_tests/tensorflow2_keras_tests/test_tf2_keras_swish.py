@@ -50,10 +50,11 @@ class TestKerasSWish(CommonTF2LayerTest):
 
     @pytest.mark.parametrize("params", test_data_float32_precommit)
     @pytest.mark.precommit
-    def test_keras_swish_float32(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_keras_swish_float32(self, params, ie_device, precision, ir_version, temp_dir, api_2,
+                                 use_new_frontend):
         self._test(*self.create_keras_swish_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, api_2=api_2, ir_version=ir_version,
-                   **params)
+                   use_new_frontend=use_new_frontend, **params)
 
     test_data_float32 = [dict(input_names=["x1"], input_shapes=[[5]], input_type=tf.float32),
                          dict(input_names=["x1"], input_shapes=[[5, 4]], input_type=tf.float32),
@@ -65,7 +66,8 @@ class TestKerasSWish(CommonTF2LayerTest):
 
     @pytest.mark.parametrize("params", test_data_float32)
     @pytest.mark.nightly
-    def test_keras_swish_float32(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_keras_swish_float32(self, params, ie_device, precision, ir_version, temp_dir, api_2,
+                                 use_new_frontend):
         self._test(*self.create_keras_swish_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, api_2=api_2,
-                   **params)
+                   use_new_frontend=use_new_frontend, **params)

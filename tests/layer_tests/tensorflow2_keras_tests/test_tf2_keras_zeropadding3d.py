@@ -31,10 +31,10 @@ class TestKerasZeroPadding3D(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_zeropadding3d_channels_last(self, params, ie_device, precision, ir_version,
-                                               temp_dir, api_2):
+                                               temp_dir, api_2, use_new_frontend):
         self._test(*self.create_keras_zeropadding3d_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, api_2=api_2, ir_version=ir_version,
-                   **params)
+                   use_new_frontend=use_new_frontend, **params)
 
     test_data_channels_first = [
         dict(input_names=["x1"], input_shapes=[[1, 3, 8, 4, 5]], input_type=tf.float32,
@@ -48,7 +48,7 @@ class TestKerasZeroPadding3D(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_channels_first)
     @pytest.mark.nightly
     def test_keras_zeropadding3d_channels_first(self, params, ie_device, precision, ir_version,
-                                                temp_dir, api_2):
+                                                temp_dir, api_2, use_new_frontend):
         self._test(*self.create_keras_zeropadding3d_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, api_2=api_2, ir_version=ir_version,
-                   **params)
+                   use_new_frontend=use_new_frontend, **params)
