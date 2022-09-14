@@ -40,7 +40,7 @@ CommonOptimizations::CommonOptimizations() {
         ngraph::pass::Manager manager;
         manager.set_per_pass_validation(false);
         manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertTruncation>();
-        manager.register_pass<ngraph::pass::FakeQuantizeDecomposition>(false);
+        manager.register_pass<ngraph::pass::FakeQuantizeDecomposition>(false, false);
         manager.register_pass<ngraph::pass::ConstantFolding>();
         manager.register_pass<ngraph::pass::Validate>();
         manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertSaturation>();

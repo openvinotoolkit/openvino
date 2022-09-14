@@ -41,7 +41,7 @@ bool is_scalar_constant(const std::shared_ptr<ngraph::Node>& source_output_node)
 
 }  // namespace
 
-ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool constant_weights) {
+ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool constant_weights, const bool forse_rounding) {
     MATCHER_SCOPE(FakeQuantizeDecomposition);
 
     auto fake_quantize = ngraph::pattern::wrap_type<ngraph::opset1::FakeQuantize>(
@@ -91,7 +91,7 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
                                                                 }) ||
                                                 out_scales.size() != 0));
         const bool do_rounding =
-            do_dequantize || fake_quantize_node->get_output_element_type(0) == ngraph::element::f32;
+            forse_rounding || do_dequantize || fake_quantize_node->get_output_element_type(0) == ngraph::element::f32;
 
         ngraph::NodeVector decomp_ops;
         if (input_type != input_low.get_element_type()) {
