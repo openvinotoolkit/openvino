@@ -146,6 +146,14 @@ public:
                                                                                  get_fused_primitives(),
                                                                                  get_fused_activations_funcs(), get_fused_activations_params()));
         params->memory_deps = get_const_memory_deps();
+
+        auto deps = get_dependencies();
+        for (size_t i = 0; i < deps.size(); i++) {
+            if (!deps[i]->is_constant()) {
+                params->primary_input_idx = i;
+                break;
+            }
+        }
         return params;
     }
 
