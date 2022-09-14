@@ -54,6 +54,7 @@ std::vector<std::string> tensor_names = {
 };
 
 TEST(Paddle_Places, check_tensor_names) {
+    GTEST_SKIP();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -124,6 +125,7 @@ TEST(Paddle_Places, check_out_port_of_all_ops) {
 }
 
 TEST(Paddle_Places, check_in_out_ports_of_model_outputs) {
+    GTEST_SKIP();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -158,6 +160,7 @@ TEST(Paddle_Places, check_in_out_ports_of_model_outputs) {
 }
 
 TEST(Paddle_Places, check_source_target_tensors_of_model_outputs) {
+    GTEST_SKIP();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -192,6 +195,7 @@ TEST(Paddle_Places, check_source_target_tensors_of_model_outputs) {
 }
 
 TEST(Paddle_Places, check_producing_consuming_ops_of_model_outputs) {
+    GTEST_SKIP();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -227,6 +231,7 @@ TEST(Paddle_Places, check_producing_consuming_ops_of_model_outputs) {
 
 // check data flow [ output port -> tensor -> input port ]
 TEST(Paddle_Places, check_data_flow) {
+    GTEST_SKIP();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -266,6 +271,7 @@ TEST(Paddle_Places, check_data_flow) {
 //                -> input_port_N]
 // input_port, input_port_2, ... input_port_N are equal data
 TEST(Paddle_Places, check_tensor_to_multiple_ports) {
+    GTEST_SKIP();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -292,6 +298,7 @@ TEST(Paddle_Places, check_tensor_to_multiple_ports) {
 
 // consuming ops should be equal for tensor place and producing output port
 TEST(Paddle_Places, check_consuming_ops) {
+    GTEST_SKIP();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -333,6 +340,7 @@ TEST(Paddle_Places, check_consuming_ops) {
 }
 
 TEST(Paddle_Places, check_consuming_ops_2) {
+    GTEST_SKIP();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -372,6 +380,7 @@ TEST(Paddle_Places, check_consuming_ops_2) {
 }
 
 TEST(Paddle_Places, check_producing_ops) {
+    GTEST_SKIP();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -394,6 +403,7 @@ TEST(Paddle_Places, check_producing_ops) {
 }
 
 TEST(Paddle_Places, check_input_output_ports_dy_idx) {
+    GTEST_SKIP();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -420,6 +430,7 @@ TEST(Paddle_Places, check_input_output_ports_dy_idx) {
 }
 
 TEST(Paddle_Places, check_ops_tensors_by_idx) {
+    GTEST_SKIP();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
