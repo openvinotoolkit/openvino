@@ -658,27 +658,17 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
             }
 
             if (node == fusedWith[fusedWith.size() - 1] && !scale.empty()) {
-                if ((ops.len() == 1 || ops.len() == 2 ) && ops.kind(0) == primitive::kind::sum &&
-                    (outputDataType == memory::data_type::u8 || outputDataType == memory::data_type::s8) &&
+                if (ops.len() == 1 && ops.kind(0) == primitive::kind::sum &&
+                    outputDataType == memory::data_type::u8 &&
                     std::all_of(scale.cbegin(), scale.cend(), [&](float val) { return val == scale[0]; })) {
                     std::vector<float> outScales;
                     int mask = 1 << 1;
-                    if (ops.len() == 2) {
-                        if (ops.kind(1) != primitive::kind::eltwise)
-                            continue;
-                    }
                     attr.get_output_scales(mask, outScales);
                     for (int j = 0; j < outScales.size(); j++) {
                         outScales[j] *= scale[0];
                     }
                     attr.set_output_scales(mask, outScales);
                     ops.get()->entry_[0].sum.scale = scale[0];
-                    continue;
-                }
-                if (ops.len() == 1 && ops.kind(0) == primitive::kind::eltwise &&
-                    (outputDataType == memory::data_type::u8 || outputDataType == memory::data_type::s8)) {
-                    int mask = 1 << 1;
-                    attr.set_output_scales(mask, scale);
                     continue;
                 }
             }
