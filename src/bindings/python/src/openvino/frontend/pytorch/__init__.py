@@ -178,8 +178,9 @@ try:
                     #print(f'Found int value=  {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
                     return op.Constant(Type.i32, Shape([]), [pt_value.toIValue()]).outputs()
                 if str(pt_value.type()) in ['torch.bool', 'bool']:
-                    #print('Scalar bool detected')
                     return op.Constant(Type.boolean, Shape([]), [pt_value.toIValue()]).outputs()
+                if str(pt_value.type()) in ['torch.float', 'float']:
+                    return op.Constant(Type.f32, Shape([]), [pt_value.toIValue()]).outputs()
                 print(f'Left value not converted to const, value = {pt_value}')
             else:
                 print(f'Not a known type, dtype = {pt_value.type().dtype()}')
@@ -215,7 +216,12 @@ try:
                 return ov_const.outputs()
 
         def input_is_none (self, index):
-            return index >= len(self.inputs()) or self._raw_input(index) is None
+            if index >= len(self.inputs()) or self._raw_input(index) is None:
+                return True
+            else:
+                r_input = self._raw_input(index)
+                return str(r_input.type()) in ['torch.NoneType', 'NoneType']
+
 
 except ImportError as err:
     raise ImportError("OpenVINO Pytorch frontend is not available, please make sure the frontend is built."

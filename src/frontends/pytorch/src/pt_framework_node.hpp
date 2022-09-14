@@ -1,5 +1,7 @@
 #include <openvino/op/util/framework_node.hpp>
 
+#pragma once
+
 namespace ov {
 namespace frontend {
 namespace pytorch {

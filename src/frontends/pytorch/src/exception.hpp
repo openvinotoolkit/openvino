@@ -1,4 +1,6 @@
 
+#pragma once
+
 namespace ov {
 namespace frontend {
 namespace pytorch {
