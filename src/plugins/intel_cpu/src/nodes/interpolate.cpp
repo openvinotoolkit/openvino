@@ -46,10 +46,10 @@ namespace intel_cpu {
 namespace node {
 
 template <cpu_isa_t isa>
-struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, public jit_generator {
-    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_interpolate_kernel_f32)
+struct jit_uni_interpolate_kernel_f32_i8 : public jit_uni_interpolate_kernel, public jit_generator {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_interpolate_kernel_f32_i8)
 
-    explicit jit_uni_interpolate_kernel_f32(jit_interpolate_config_params jcp, const dnnl_primitive_attr &attr)
+    explicit jit_uni_interpolate_kernel_f32_i8(jit_interpolate_config_params jcp, const dnnl_primitive_attr &attr)
     : jit_uni_interpolate_kernel(jcp, attr), jit_generator() {}
 
     void create_ker() override {
@@ -296,6 +296,12 @@ private:
     }
 
     void nn_planar() {
+        const bool is_i8 = jcp_.src_prc == InferenceEngine::Precision::I8
+                           && jcp_.dst_prc == InferenceEngine::Precision::I8;
+
+        if (is_i8 && attr_.post_ops_.len() != 0) {
+            IE_THROW() << "Interpolate I8 doesn't support fusing";
+        }
         Xbyak::Reg64 reg_index_h = reg_src_aux1;
         Xbyak::Reg64 reg_index_w = reg_src_aux2;
         mov(reg_index_h, reg_index);
@@ -309,6 +315,7 @@ private:
 
         Xbyak::Reg64 reg_work_amount_oh = rdi;
         mov(reg_work_amount_oh, jcp_.OH);
+
         L(out_loop_label);
         {
             // outloop status
@@ -327,6 +334,8 @@ private:
             // reset index_w, index_w * dataSize done when built to avoid redundent compute
             mov(reg_index, reg_index_w);
 
+            int step = vlen / (is_i8 ? sizeof(int8_t) : sizeof(float));
+
             Xbyak::Label nn_loop_label;
             Xbyak::Label nn_loop_end_label;
             Xbyak::Label nn_tail_loop_label;
@@ -334,45 +343,54 @@ private:
 
             L(nn_loop_label);   // inner loop
             {
-                cmp(reg_work_amount, vector_step);
+                cmp(reg_work_amount, step);
                 jl(nn_loop_end_label, T_NEAR);
+                if (is_i8) {
+                    gather_i8_i32_indices_store(reg_dst, reg_src_h, reg_index, step);
+                } else {
+                    uni_vmovdqu(vmm_index, ptr[reg_index]);
+                    uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
+                    vgatherdps(vmm_val, ptr[reg_src_h + vmm_index], vmm_mask);
+                    if (attr_.post_ops_.len() != 0)
+                        apply_post_ops(jcp_.dst_prc, 1);
+                    store(vmm_val, reg_dst, step);
+                }
 
-                uni_vmovdqu(vmm_index, ptr[reg_index]);
-                uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
-                vgatherdps(vmm_val, ptr[reg_src_h + vmm_index], vmm_mask);
-                if (attr_.post_ops_.len() != 0)
-                    apply_post_ops(jcp_.dst_prc, 1);
-                store(vmm_val, reg_dst, vector_step);
-
-                add(reg_dst, vector_step * jcp_.dst_data_size);
-                add(reg_index, vector_step * jcp_.indices_size);
-                sub(reg_work_amount, vector_step);
+                add(reg_dst, step * jcp_.dst_data_size);
+                add(reg_index, step * jcp_.indices_size);
+                sub(reg_work_amount, step);
 
                 jmp(nn_loop_label, T_NEAR);
             }
             L(nn_loop_end_label);
 
-            L(nn_tail_loop_label);
-            {
-                cmp(reg_work_amount, 1);
-                jl(nn_tail_loop_end_label, T_NEAR);
+            if (is_i8) {
+                    const int tail_count = jcp_.OW % step;
+                    gather_i8_i32_indices_store(reg_dst, reg_src_h, reg_index, tail_count);
+                    add(reg_dst, tail_count * jcp_.dst_data_size);
+                    add(reg_index, tail_count * jcp_.indices_size);
+            } else {
+                L(nn_tail_loop_label);
+                {
+                    cmp(reg_work_amount, 1);
+                    jl(nn_tail_loop_end_label, T_NEAR);
 
-                mov(reg_src_aux, reg_src_h);
-                mov(reg_index_offset, dword[reg_index]);
-                add(reg_src_aux, reg_index_offset);
+                    mov(reg_src_aux, reg_src_h);
+                    mov(reg_index_offset, dword[reg_index]);
+                    add(reg_src_aux, reg_index_offset);
 
-                load(reg_src_aux, vmm_val, scalar_step);
-                if (attr_.post_ops_.len() != 0)
-                    apply_post_ops(jcp_.dst_prc, 1);
-                store(vmm_val, reg_dst, scalar_step);
+                    load(reg_src_aux, vmm_val, scalar_step);
+                    if (attr_.post_ops_.len() != 0)
+                        apply_post_ops(jcp_.dst_prc, 1);
+                    store(vmm_val, reg_dst, scalar_step);
+                    }
+                    add(reg_dst, scalar_step * jcp_.dst_data_size);
+                    add(reg_index, scalar_step * jcp_.indices_size);
+                    sub(reg_work_amount, scalar_step);
 
-                add(reg_dst, scalar_step * jcp_.dst_data_size);
-                add(reg_index, scalar_step * jcp_.indices_size);
-                sub(reg_work_amount, scalar_step);
-
-                jmp(nn_tail_loop_label, T_NEAR);
-            }
-            L(nn_tail_loop_end_label);    // inner loop end
+                    jmp(nn_tail_loop_label, T_NEAR);
+                }
+                L(nn_tail_loop_end_label);    // inner loop end
 
             //increment index_h to next row
             add(reg_index_h, jcp_.indices_size);
@@ -1317,6 +1335,25 @@ private:
         }
     }
 
+    /**
+     * @brief Emulates vgatherdpd/vgatherdps instruction for byte-sized data with 32-bit indices.
+     * Mask is considered with all bits set.
+     *
+     * @param dest_addr Register with the start destination address
+     * @param source_addr Register with the start source address
+     * @param ind_addr Register with the start index address
+     * @param is_scalar Flag to perform scalar operation instead of vector
+     * @return none.
+     */
+    inline void gather_i8_i32_indices_store(const Xbyak::Reg64 &dest_addr, const Xbyak::Reg64 &source_addr,
+                                            const Xbyak::Reg64 &ind_addr, int gather_num) {
+        for (size_t i = 0; i < gather_num; ++i) {
+            mov(reg_tmp_64.cvt32(), ptr[ind_addr + i * sizeof(int32_t)]);
+            mov(reg_tmp_64.cvt8(), ptr[source_addr + reg_tmp_64]);
+            mov(ptr[dest_addr + i], reg_tmp_64.cvt8());
+        }
+    }
+
     // is_broadcast for broadcasting param for depth_wise and quantize(channel-sensitive post-ops), for fusion with plain layout.
     void apply_post_ops(Precision dst_prc, bool is_broadcast) {
         const auto &p = attr_.post_ops_;
@@ -1752,29 +1789,32 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
     const auto &dataMinDims = getInputShapeAtPort(DATA_ID).getMinDims();
     bool isBlkApplied = getInputShapeAtPort(DATA_ID).getRank() > 1 && dataMinDims[1] != Shape::UNDEFINED_DIM && dataMinDims[1] > 1;
 
+    impl_desc_type impl_type;
+    if (mayiuse(cpu::x64::avx512_core)) {
+        impl_type = impl_desc_type::jit_avx512;
+    } else if (mayiuse(cpu::x64::avx2)) {
+        impl_type = impl_desc_type::jit_avx2;
+    } else if (mayiuse(cpu::x64::sse41)) {
+        impl_type = impl_desc_type::jit_sse42;
+    } else {
+        impl_type = impl_desc_type::ref;
+    }
+
     if (!mayiuse(cpu::x64::sse41) || interpAttrs.mode == InterpolateMode::linear) {
-        pushDesc(LayoutType::ncsp, ref);
+        pushDesc(LayoutType::ncsp, impl_type);
     } else {
         // blk and by_channel JIT kernel on sse41 or above machine
         if (getInputShapeAtPort(DATA_ID).getRank() == 4 || (getInputShapeAtPort(DATA_ID).getRank() == 5 && interpAttrs.mode != InterpolateMode::cubic)) {
-            if (mayiuse(cpu::x64::avx512_core)) {
-                pushDesc(LayoutType::nspc, jit_avx512);
-                if (isBlkApplied)
-                    pushDesc(LayoutType::nCsp16c, jit_avx512);
-            } else if (mayiuse(cpu::x64::avx2)) {
-                pushDesc(LayoutType::nspc, jit_avx2);
-                if (isBlkApplied)
-                    pushDesc(LayoutType::nCsp8c, jit_avx2);
-            } else {
-                pushDesc(LayoutType::nspc, jit_sse42);
-                if (isBlkApplied)
-                    pushDesc(LayoutType::nCsp8c, jit_sse42);
+            pushDesc(LayoutType::nspc, impl_type);
+            if (isBlkApplied) {
+                pushDesc((mayiuse(cpu::x64::avx512_core)) ? LayoutType::nCsp16c : LayoutType::nCsp8c, impl_type);
             }
         }
-
         // planar for 1.ref on machine without sse41(if no sse41, canFuse() is false). 2.JIT kernel for f32 && avx2(gather).(with fuse)
-        if (mayiuse(cpu::x64::avx2) && inputPrecision == Precision::FP32) {
-            pushDesc(LayoutType::ncsp, jit_avx2);
+        const bool allowAvx2NcspFp32 = mayiuse(cpu::x64::avx2) && inputPrecision == Precision::FP32;
+        const bool allowAvx2NcspI8 = inputPrecision == Precision::I8 && outputPrecision == Precision::I8;
+        if (allowAvx2NcspFp32 || allowAvx2NcspI8) {
+            pushDesc(LayoutType::ncsp, impl_type);
         }
     }
 }
@@ -1875,10 +1915,14 @@ void Interpolate::prepareParams() {
 
     auto buildExecutor = [&](const InterpolateKey& key) -> std::shared_ptr<InterpolateExecutor> {
         std::shared_ptr<InterpolateExecutor> executor;
-        if ((key.nodeAttrs.mode == InterpolateMode::nearest || key.nodeAttrs.mode == InterpolateMode::linear_onnx ||
-            key.nodeAttrs.mode == InterpolateMode::cubic) &&
-            ((key.nodeAttrs.layout != InterpolateLayoutType::planar && mayiuse(cpu::x64::sse41)) ||
-                (mayiuse(cpu::x64::avx2) && key.nodeAttrs.inPrc == Precision::FP32))) {
+        const bool isPlanar = key.nodeAttrs.layout == InterpolateLayoutType::planar;
+        const bool allowNearestPlanarI8 = isPlanar && key.nodeAttrs.inPrc == Precision::I8 && key.nodeAttrs.outPrc == Precision::I8;
+        if ((key.nodeAttrs.mode == InterpolateMode::nearest ||
+             key.nodeAttrs.mode == InterpolateMode::linear_onnx ||
+             key.nodeAttrs.mode == InterpolateMode::cubic) &&
+            ((!isPlanar && mayiuse(cpu::x64::sse41)) ||
+             (mayiuse(cpu::x64::avx2) && key.nodeAttrs.inPrc == Precision::FP32) ||
+             allowNearestPlanarI8)) {
             executor = std::make_shared<InterpolateJitExecutor>(key.nodeAttrs,
                                                                key.srcDims,
                                                                key.dstDims,
@@ -3118,17 +3162,28 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
     jcp.ID = srcDimPad5d[2];
     jcp.spatial_dim_size = getSpatialDimsNum(srcDims.size());
     jcp.layout = interpAttrs.layout;
+
+    const bool allowFp32 = interpAttrs.inPrc == InferenceEngine::Precision::FP32;
+    const bool allowI8 = interpAttrs.inPrc == InferenceEngine::Precision::I8 &&
+                         interpAttrs.outPrc == InferenceEngine::Precision::I8;
     if (jcp.layout != InterpolateLayoutType::planar) {
         if (mayiuse(cpu::x64::avx512_core)) {
-            interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx512_core>(jcp, *attr.get()));
+            interpolateKernel.reset(new jit_uni_interpolate_kernel_f32_i8<cpu::x64::avx512_core>(jcp, *attr.get()));
         } else if (mayiuse(cpu::x64::avx2)) {
-            interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
+            interpolateKernel.reset(new jit_uni_interpolate_kernel_f32_i8<cpu::x64::avx2>(jcp, *attr.get()));
         } else if (mayiuse(cpu::x64::sse41)) {
-            interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
+            interpolateKernel.reset(new jit_uni_interpolate_kernel_f32_i8<cpu::x64::sse41>(jcp, *attr.get()));
         }
-    } else if (mayiuse(cpu::x64::avx2) && interpAttrs.inPrc == InferenceEngine::Precision::FP32) {
-        // gather ISA(for planar JIT kernel) for avx2 and fp32
-        interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
+    } else if (mayiuse(cpu::x64::avx2) && allowFp32) {
+        interpolateKernel.reset(new jit_uni_interpolate_kernel_f32_i8<cpu::x64::avx2>(jcp, *attr.get()));
+    } else if (allowI8) {
+        if (mayiuse(cpu::x64::avx512_core)) {
+            interpolateKernel.reset(new jit_uni_interpolate_kernel_f32_i8<cpu::x64::avx512_core>(jcp, *attr.get()));
+        } else if (mayiuse(cpu::x64::avx2)) {
+            interpolateKernel.reset(new jit_uni_interpolate_kernel_f32_i8<cpu::x64::avx2>(jcp, *attr.get()));
+        } else if (mayiuse(cpu::x64::sse41)) {
+           interpolateKernel.reset(new jit_uni_interpolate_kernel_f32_i8<cpu::x64::sse41>(jcp, *attr.get()));
+        }
     } else {
         IE_THROW() << "Can't create InterpolateJitExecutor";
     }
@@ -3226,7 +3281,11 @@ size_t Interpolate::getSpatialDimsNum(const Dim rank) {
 }
 
 bool Interpolate::canFuse(const NodePtr& node) const {
-    if (!mayiuse(cpu::x64::sse41) || interpAttrs.mode == InterpolateMode::linear) {
+    const bool is_i8_nearest_planar = interpAttrs.mode == InterpolateMode::nearest &&
+               interpAttrs.layout == InterpolateLayoutType::planar &&
+               interpAttrs.inPrc == InferenceEngine::Precision::I8 &&
+               interpAttrs.outPrc == InferenceEngine::Precision::I8;
+    if (!mayiuse(cpu::x64::sse41) || is_i8_nearest_planar || interpAttrs.mode == InterpolateMode::linear) {
         return false;
     }
 
