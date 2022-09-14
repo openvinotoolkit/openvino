@@ -8,12 +8,9 @@
 #include "openvino/frontend/manager.hpp"
 #include "visibility.hpp"
 
-// OK to have 'using' in mock header
-using namespace ngraph;
-using namespace ov::frontend;
-
 ////////////////////////////////
-
+namespace ov {
+namespace frontend {
 struct MOCK_API PlaceStat {
     int m_get_names = 0;
     int m_get_consuming_operations = 0;
@@ -192,8 +189,8 @@ struct MOCK_API ModelStat {
     Place::Ptr m_lastArgPlace = nullptr;
     std::vector<Place::Ptr> m_lastArgInputPlaces;
     std::vector<Place::Ptr> m_lastArgOutputPlaces;
-    ngraph::element::Type m_lastArgElementType;
-    ngraph::PartialShape m_lastArgPartialShape;
+    element::Type m_lastArgElementType;
+    PartialShape m_lastArgPartialShape;
 
     // Getters
     int get_inputs() const {
@@ -279,10 +276,10 @@ struct MOCK_API ModelStat {
     std::vector<Place::Ptr> get_lastArgOutputPlaces() const {
         return m_lastArgOutputPlaces;
     }
-    ngraph::element::Type get_lastArgElementType() const {
+    element::Type get_lastArgElementType() const {
         return m_lastArgElementType;
     }
-    ngraph::PartialShape get_lastArgPartialShape() const {
+    PartialShape get_lastArgPartialShape() const {
         return m_lastArgPartialShape;
     }
 };
@@ -332,11 +329,11 @@ public:
     void extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override;
 
     // Setting tensor properties
-    void set_partial_shape(const Place::Ptr& place, const ngraph::PartialShape& shape) override;
+    void set_partial_shape(const Place::Ptr& place, const PartialShape& shape) override;
 
-    ngraph::PartialShape get_partial_shape(const Place::Ptr& place) const override;
+    PartialShape get_partial_shape(const Place::Ptr& place) const override;
 
-    void set_element_type(const Place::Ptr& place, const ngraph::element::Type& type) override;
+    void set_element_type(const Place::Ptr& place, const element::Type& type) override;
 
     //---------------Stat--------------------
     static ModelStat get_stat();
@@ -347,7 +344,7 @@ public:
 /////////////////////////////////////////////////////////
 
 struct MOCK_API FeStat {
-    std::vector<std::string> m_load_paths;
+    std::vector<std::string> m_load_paths{};
     int m_convert_model = 0;
     int m_convert = 0;
     int m_convert_partially = 0;
@@ -407,7 +404,12 @@ public:
     std::string get_name() const override;
 
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
-    static FeStat get_stat();
 
+    static FeStat get_stat();
     static void clear_stat();
 };
+}  // namespace frontend
+}  // namespace ov
+
+OPENVINO_EXTERN_C MOCK_API ov::frontend::FrontEndVersion GetAPIVersion();
+OPENVINO_EXTERN_C MOCK_API void* GetFrontEndData();

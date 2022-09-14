@@ -4,32 +4,12 @@
 
 #include "mock_py_frontend/mock_py_frontend.hpp"
 
-#include "openvino/frontend/manager.hpp"
-#include "openvino/frontend/visibility.hpp"
+namespace ov {
+namespace frontend {
 
 FeStat FrontEndMockPy::m_stat = {};
 ModelStat InputModelMockPy::m_stat = {};
 PlaceStat PlaceMockPy::m_stat = {};
-
-using namespace ngraph;
-using namespace ov::frontend;
-
-extern "C" MOCK_API FrontEndVersion GetAPIVersion();
-extern "C" MOCK_API void* GetFrontEndData();
-
-extern "C" MOCK_API FrontEndVersion GetAPIVersion() {
-    return OV_FRONTEND_API_VERSION;
-}
-
-extern "C" MOCK_API void* GetFrontEndData() {
-    FrontEndPluginInfo* res = new FrontEndPluginInfo();
-    res->m_name = "mock_py";
-    res->m_creator = []() {
-        return std::make_shared<FrontEndMockPy>();
-    };
-
-    return res;
-}
 
 //--
 std::vector<std::string> PlaceMockPy::get_names() const {
@@ -352,19 +332,19 @@ void InputModelMockPy::extract_subgraph(const std::vector<Place::Ptr>& inputs, c
 }
 
 // Setting tensor properties
-void InputModelMockPy::set_partial_shape(const Place::Ptr& place, const ngraph::PartialShape& shape) {
+void InputModelMockPy::set_partial_shape(const Place::Ptr& place, const PartialShape& shape) {
     m_stat.m_set_partial_shape++;
     m_stat.m_lastArgPlace = place;
     m_stat.m_lastArgPartialShape = shape;
 }
 
-ngraph::PartialShape InputModelMockPy::get_partial_shape(const Place::Ptr& place) const {
+PartialShape InputModelMockPy::get_partial_shape(const Place::Ptr& place) const {
     m_stat.m_get_partial_shape++;
     m_stat.m_lastArgPlace = place;
     return {};
 }
 
-void InputModelMockPy::set_element_type(const Place::Ptr& place, const ngraph::element::Type& type) {
+void InputModelMockPy::set_element_type(const Place::Ptr& place, const element::Type& type) {
     m_stat.m_set_element_type++;
     m_stat.m_lastArgPlace = place;
     m_stat.m_lastArgElementType = type;
@@ -385,8 +365,10 @@ InputModel::Ptr FrontEndMockPy::load_impl(const std::vector<ov::Any>& params) co
         m_telemetry->send_error("load_impl_error");
         m_telemetry->send_stack_trace("mock_stack_trace");
     }
-    if (!params.empty() && params[0].is<std::string>())
+    if (!params.empty() && params[0].is<std::string>()) {
         m_stat.m_load_paths.push_back(params[0].as<std::string>());
+    }
+
     return std::make_shared<InputModelMockPy>();
 }
 
@@ -441,4 +423,19 @@ FeStat FrontEndMockPy::get_stat() {
 
 void FrontEndMockPy::clear_stat() {
     m_stat = {};
+}
+}  // namespace frontend
+}  // namespace ov
+
+MOCK_API ov::frontend::FrontEndVersion GetAPIVersion() {
+    return OV_FRONTEND_API_VERSION;
+}
+
+MOCK_API void* GetFrontEndData() {
+    ov::frontend::FrontEndPluginInfo* res = new ov::frontend::FrontEndPluginInfo();
+    res->m_name = "mock_py";
+    res->m_creator = []() {
+        return std::make_shared<ov::frontend::FrontEndMockPy>();
+    };
+    return res;
 }
