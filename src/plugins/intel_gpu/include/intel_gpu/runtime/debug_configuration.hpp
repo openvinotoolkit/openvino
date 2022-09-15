@@ -25,7 +25,6 @@ private:
     debug_configuration();
 
 public:
-    static int device_id;
     static const char *prefix;
     int help;                               // Print help messages
     int verbose;                            // Verbose execution
