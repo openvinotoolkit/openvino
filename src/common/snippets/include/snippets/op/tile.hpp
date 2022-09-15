@@ -43,6 +43,26 @@ public:
     }
 };
 
+class TileBegin : public ngraph::op::Op {
+public:
+    OPENVINO_OP("TileBegin", "SnippetsOpset");
+    explicit TileBegin(const std::vector<Output<Node>>& args);
+    TileBegin() = default;
+    bool visit_attributes(AttributeVisitor& visitor) override;
+    void validate_and_infer_types() override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs)  const override;
+};
+
+class TileEnd : public ngraph::op::Op {
+public:
+    OPENVINO_OP("TileEnd", "SnippetsOpset");
+    explicit TileEnd(const std::vector<Output<Node>>& args);
+    TileEnd() = default;
+    bool visit_attributes(AttributeVisitor& visitor) override;
+    void validate_and_infer_types() override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs)  const override;
+};
+
 } // namespace op
 } // namespace snippets
 } // namespace ngraph

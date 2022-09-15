@@ -436,6 +436,41 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
 
     // generation flow
     snippets::pass::AssignRegisters().run_on_model(m_body);
+    std::cerr << "Tile before is dumped";
+    ov::pass::Serialize("tile_before.xml", "tile_before.bin").run_on_model(m_body);
+
+    OutputVector originalParamOutputs;
+    std::vector<std::set<Input<Node>>> originalParamInputs;
+    for (const auto &p : m_body->get_parameters()) {
+        const auto & out = p->output(0);
+        originalParamOutputs.push_back(out);
+        originalParamInputs.push_back(out.get_target_inputs());
+    }
+    auto tileStart = make_shared<TileBegin>(originalParamOutputs);
+    for (auto& p : originalParamInputs) {
+        for (auto& input : p) {
+            input.replace_source_output(tileStart);
+        }
+    }
+
+    OutputVector originalResultInputs;
+    for (const auto &p : m_body->get_results()) {
+        const auto & out = p->input(0).get_source_output();
+        originalResultInputs.push_back(out);
+    }
+    auto tileEnd = make_shared<TileEnd>(originalResultInputs);
+    for (const auto &p : m_body->get_results()) {
+        p->set_arguments({tileEnd->output(0)});
+    }
+    m_body->validate_nodes_and_infer_types();
+//    for (auto& p : originalParamInputs) {
+//        for (auto& input : p) {
+//            input.replace_source_output(tileStart);
+//        }
+//    }
+
+    std::cerr << "Tile after is dumped";
+    ov::pass::Serialize("tile_after.xml", "tile_after.bin").run_on_model(m_body);
 
     // schedule generation should go here and be target agnostic
     // actual code emission
