@@ -25,9 +25,10 @@ def rename_tf_fe_libs(request):
     else:
         try:
             import openvino.runtime as rt
-            openvino_lib_path = Path(rt.__file__).parent.parent.parent.parent.parent
+            # path below is build considering the use of wheels
+            openvino_lib_path = Path(rt.__file__).parent.parent / 'libs'
         except ImportError as err:
-            raise Exception("Please set PYTHONPATH to OpenVINO Python") from err
+            raise Exception("Please set PYTHONPATH to OpenVINO Python or install wheel package") from err
 
     tf_fe_lib_names = ['libopenvino_tensorflow_fe', 'libopenvino_tensorflow_frontend']
 
