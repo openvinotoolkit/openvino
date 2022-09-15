@@ -318,7 +318,7 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
 
 bool ov::pass::MatcherPass::apply(std::shared_ptr<ov::Node> node) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, pass::perf_counters_graph_rewrite()[get_type_info()]);
-    m_new_nodes.clear();
+    clear_new_nodes();
     if (m_handler)
         return m_handler(node);
     return false;
