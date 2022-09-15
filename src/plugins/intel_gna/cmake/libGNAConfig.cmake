@@ -21,10 +21,9 @@ endforeach()
 set(libGNA_LIBRARIES_BASE_PATH ${GNA_PATH} CACHE STRING "" FORCE)
 
 if(libGNA_FIND_REQUIRED_KERNEL)
-    find_library(GNA_KERNEL_LIBRARY
-            ${GNA_KERNEL_LIB_NAME}
-            HINTS
-            ${libGNA_LIBRARIES_BASE_PATH})
+    find_library(GNA_KERNEL_LIBRARY ${GNA_KERNEL_LIB_NAME}
+                 HINTS ${libGNA_LIBRARIES_BASE_PATH}
+                 NO_CMAKE_FIND_ROOT_PATH)
 
     if(NOT GNA_KERNEL_LIBRARY MATCHES NOTFOUND)
         add_library(libGNA::KERNEL SHARED IMPORTED)
@@ -36,7 +35,9 @@ if(libGNA_FIND_REQUIRED_KERNEL)
 endif()
 
 if(libGNA_FIND_REQUIRED_API)
-    find_path(libGNA_INCLUDE_DIRS gna2-api.h PATHS "${GNA_EXT_DIR}/include")
+    find_path(libGNA_INCLUDE_DIRS gna2-api.h
+              PATHS "${GNA_EXT_DIR}/include"
+              NO_CMAKE_FIND_ROOT_PATH)
     if(NOT libGNA_INCLUDE_DIRS MATCHES NOTFOUND)
         add_library(libGNA::API INTERFACE IMPORTED)
         set_target_properties(libGNA::API PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${libGNA_INCLUDE_DIRS})
