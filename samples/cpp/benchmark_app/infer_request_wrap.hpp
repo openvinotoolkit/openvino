@@ -51,18 +51,21 @@ public:
           _id(id),
           _lat_group_id(0),
           _callbackQueue(callbackQueue),
+          _dump_output(false),
           outputClBuffer() {
         _request.set_callback([&](const std::exception_ptr& ptr) {
             _endTime = Time::now();
-            const auto& compile_model = _request.get_compiled_model();
-            const auto& outputs = compile_model.outputs();
-            auto output_size = outputs.size();
             InferenceResult inference_result;
-            for (size_t i = 0; i < output_size; i++) {
-                const auto& tensor = _request.get_output_tensor(i);
-                inference_result.output_tensors.emplace_back(tensor);
+            if (_dump_output) {
+                const auto& compile_model = _request.get_compiled_model();
+                const auto& outputs = compile_model.outputs();
+                auto output_size = outputs.size();
+                for (size_t i = 0; i < output_size; i++) {
+                    const auto& tensor = _request.get_output_tensor(i);
+                    inference_result.output_tensors.emplace_back(tensor);
+                }
+                inference_result.input_images = get_input_image_name();
             }
-            inference_result.input_images = get_input_image_name();
             _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds(), inference_result, ptr);
         });
     }
@@ -80,14 +83,16 @@ public:
         _startTime = Time::now();
         _request.infer();
         _endTime = Time::now();
-        const auto& model = _request.get_compiled_model();
-        const auto& outputs = model.outputs();
-        auto output_size = outputs.size();
         InferenceResult result;
-        for (size_t i = 0; i < output_size; i++) {
-            result.output_tensors.emplace_back(_request.get_output_tensor(i));
+        if (_dump_output) {
+            const auto& model = _request.get_compiled_model();
+            const auto& outputs = model.outputs();
+            auto output_size = outputs.size();
+            for (size_t i = 0; i < output_size; i++) {
+                result.output_tensors.emplace_back(_request.get_output_tensor(i));
+            }
+            result.input_images = get_input_image_name();
         }
-        result.input_images = get_input_image_name();
         _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds(), result, nullptr);
     }
 
@@ -132,6 +137,10 @@ public:
         return _input_image_name;
     }
 
+    void set_dump_output(bool dump_output) {
+        _dump_output = dump_output;
+    }
+
 private:
     ov::InferRequest _request;
     Time::time_point _startTime;
@@ -139,6 +148,7 @@ private:
     size_t _id;
     size_t _lat_group_id;
     QueueCallbackFunction _callbackQueue;
+    bool _dump_output;
     std::map<std::string, ::gpu::BufferType> outputClBuffer;
     // If input size of model is greater than one, the input_images of inputs are joined with commas
     std::string _input_image_name;
@@ -283,6 +293,12 @@ public:
                                                         output_precision,
                                                         output_max_num,
                                                         binary_max_size);
+        }
+
+        if (_result_dump) {
+            for (auto& infer_req : requests) {
+                infer_req->set_dump_output(true);
+            }
         }
     }
 
