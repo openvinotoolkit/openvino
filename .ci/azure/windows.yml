@@ -263,9 +263,9 @@ jobs:
     displayName: 'ONNX Frontend Tests'
     continueOnError: false
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Paddle.xml
-    displayName: 'Paddle Frontend UT'
-    continueOnError: true
+  # - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Paddle.xml
+  #   displayName: 'Paddle Frontend UT'
+  #   continueOnError: true
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\tensorflow_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Tensorflow.xml
     displayName: 'Tensorflow Frontend UT'
