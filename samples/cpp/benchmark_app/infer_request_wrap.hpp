@@ -171,8 +171,8 @@ public:
             if (inferenceException) {
                 try {
                     std::rethrow_exception(inferenceException);
-                } catch (const std::exception& ex) {
-                    throw ex;
+                } catch (const std::exception&) {
+                    throw;
                 }
             }
             return _idleIds.size() > 0;
@@ -189,7 +189,7 @@ public:
             if (inferenceException) {
                 try {
                     std::rethrow_exception(inferenceException);
-                } catch (const std::exception& ex) {
+                } catch (const std::exception&) {
                     throw;
                 }
             }
