@@ -40,7 +40,7 @@ def main():
 
     # data_y's shape is the continuous subsequence of data_x's shape
     data_x = np.random.randint(1, 5, size=[2, 3, 4, 5]).astype(in_dtype)
-    data_y = np.random.randint(1, 5, size=[3, 4]).astype(in_dtype)
+    data_y = np.random.randint(1, 5, size=[4, 5]).astype(in_dtype)
     elementwise_floordiv("elementwise_floordiv3", data_x, data_y)
 
     data_y = np.random.randint(1, 5, size=[5]).astype(in_dtype)
