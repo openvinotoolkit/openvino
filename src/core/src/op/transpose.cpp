@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/transpose.hpp"
-
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
+#include "ngraph/op/transpose.hpp"
 #include "ngraph/runtime/reference/transpose.hpp"
+#include "transpose_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -25,12 +25,12 @@ bool ngraph::op::v1::Transpose::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::Transpose::validate_and_infer_types() {
     OV_OP_SCOPE(v1_Transpose_validate_and_infer_types);
-    const auto& input_order_et = get_input_element_type(1);
+    const auto& input_order_et = get_input_element_type(TransposeIn::ORDER);
     NODE_VALIDATION_CHECK(this,
                           input_order_et.is_dynamic() || input_order_et.is_integral_number(),
                           "Input order must have an integral number element type.");
 
-    const auto& input_order_shape = get_input_partial_shape(1);
+    const auto& input_order_shape = get_input_partial_shape(TransposeIn::ORDER);
     NODE_VALIDATION_CHECK(this, input_order_shape.rank().compatible(1), "Input order must be a vector.");
 
     const auto& arg_shape = get_input_partial_shape(0);
@@ -40,29 +40,15 @@ void op::v1::Transpose::validate_and_infer_types() {
             (input_order_shape.is_static() && input_order_shape.rank() == 1 && input_order_shape[0] == 0),
         "Input order must have shape [n], where n is the rank of arg.");
 
-    set_input_is_relevant_to_shape(1);
+    set_input_is_relevant_to_shape(TransposeIn::ORDER);
 
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    if (const auto& input_const = get_constant_from_source(input_value(1))) {
-        auto permutation = input_const->get_axis_vector_val();
-        if (permutation.empty()) {
-            for (int64_t i = 1; i <= arg_shape.rank().get_length(); ++i)
-                permutation.emplace_back(arg_shape.rank().get_length() - i);
-        }
-        NODE_VALIDATION_CHECK(this,
-                              is_valid_permutation(permutation, arg_shape.rank()),
-                              "Permutation ",
-                              permutation,
-                              " is not valid for input shape ",
-                              arg_shape);
-        set_output_type(0, get_input_element_type(0), ngraph::apply_permutation(arg_shape, permutation));
-    } else {
-        Rank output_rank = arg_shape.rank();
-        if (output_rank.is_dynamic() && input_order_shape.is_static() && input_order_shape[0].get_length())
-            output_rank = input_order_shape[0];
-        set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic(output_rank));
-    }
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    std::vector<ov::PartialShape> input_shapes{arg_shape, input_order_shape};
+    std::vector<ov::PartialShape> output_shapes(TransposeOut::OUT_COUNT, ov::PartialShape{});
+
+    shape_infer(this, input_shapes, output_shapes);
+
+    set_output_size(output_shapes.size());
+    set_output_type(TransposeIn::ARG, get_input_element_type(TransposeIn::ARG), output_shapes[TransposeOut::ARG_T]);
 }
 
 shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& new_args) const {

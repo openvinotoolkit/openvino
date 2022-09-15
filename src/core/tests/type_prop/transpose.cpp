@@ -5,6 +5,7 @@
 #include "dimension_tracker.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
+#include "sequnce_generator.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
@@ -254,9 +255,10 @@ protected:
         std::tie(transpose_order, input_p_shape, exp_p_shape) = GetParam();
     }
 
-    vector<size_t> make_sqe_labels(const size_t first, const size_t count) {
+    vector<size_t> make_seq_labels(const size_t first, const size_t count) {
         vector<size_t> labels;
-        generate_n(std::back_inserter(labels), count, SeqGen<size_t>(first));
+
+        generate_n(std::back_inserter(labels), count, ov::SeqGen<size_t>(first));
         return labels;
     }
 
@@ -304,6 +306,18 @@ INSTANTIATE_TEST_SUITE_P(
                       PartialShape{interval_dim_2, interval_dim_1, interval_dim_1, interval_dim_2})),
     PrintToStringParamName());
 
+TEST_P(TransposeTest, use_default_ctor) {
+    const auto input = make_shared<op::Parameter>(exp_type, input_p_shape);
+    const auto order = op::Constant::create(element::i64, Shape{transpose_order.size()}, transpose_order);
+
+    const auto output = make_shared<op::Transpose>();
+    output->set_arguments(NodeVector{input, order});
+    output->validate_and_infer_types();
+
+    EXPECT_EQ(output->get_output_element_type(0), exp_type);
+    EXPECT_EQ(output->get_output_partial_shape(0), exp_p_shape);
+}
+
 /**
  * \brief Test interval dimension propagate in transpose.
  *
@@ -327,7 +341,7 @@ TEST_P(TransposeTest, propagate_interval_shape) {
 TEST_P(TransposeTest, propagate_labels) {
     constexpr size_t first_label = 33;
 
-    const auto labels = make_sqe_labels(first_label, transpose_order.size());
+    const auto labels = make_seq_labels(first_label, transpose_order.size());
     const auto exp_labels = make_seq_labels_by_order(first_label, transpose_order);
 
     set_labels(labels, input_p_shape);
