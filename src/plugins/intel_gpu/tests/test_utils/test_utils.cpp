@@ -373,6 +373,21 @@ std::vector<cldnn::data_types> generic_test::test_data_types() {
     return result;
 }
 
+double default_tolerance(data_types dt) {
+    switch (dt) {
+    case data_types::f16:
+        return 1e-3;
+    case data_types::f32:
+        return 1e-5;
+    case data_types::i8:
+    case data_types::u8:
+        return 1.;
+    default:
+        IE_THROW() << "Unknown";
+    }
+    IE_THROW() << "Unknown";
+}
+
 std::vector<cldnn::format> generic_test::test_input_formats = { cldnn::format::bfyx , cldnn::format::yxfb, cldnn::format::fyxb, cldnn::format::byxf };
 std::vector<int32_t> generic_test::test_batch_sizes = { 1, 2 };// 4, 8, 16};
 std::vector<int32_t> generic_test::test_feature_sizes = { 1, 2 };// , 3, 15};

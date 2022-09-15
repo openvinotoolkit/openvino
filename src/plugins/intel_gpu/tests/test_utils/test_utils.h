@@ -565,20 +565,7 @@ T div_up(const T a, const U b) {
     return (a + b - 1) / b;
 }
 
-double get_default_tolerance(data_types dt) {
-    switch (dt) {
-    case data_types::f16:
-        return 1e-3;
-    case data_types::f32:
-        return 1e-5;
-    case data_types::i8:
-    case data_types::u8:
-        return 1.;
-    default:
-        IE_THROW() << "Unknown";
-    }
-    IE_THROW() << "Unknown";
-}
+double default_tolerance(data_types dt);
 
 // inline void print_bin_blob(cldnn::memory& mem, std::string name)
 // {
