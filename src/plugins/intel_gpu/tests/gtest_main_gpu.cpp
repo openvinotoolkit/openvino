@@ -39,15 +39,20 @@ DEFINE_int32(device_id, -1, "GPU Device ID (a number starts from 0)");
 
 GTEST_API_ int main(int argc, char** argv) {
     printf("Running main() from %s\n", __FILE__);
+
+    //gflags
     GFLAGS_NAMESPACE::AllowCommandLineReparsing();
     gflags::ParseCommandLineFlags(&argc, &argv, true);
     if (FLAGS_device_id != -1 && cldnn::debug_configuration::device_id == -1)
         cldnn::debug_configuration::device_id = FLAGS_device_id;
+    //restore cmdline arg for gtest
     auto varg=gflags::GetArgvs();
     int new_argc=varg.size();
     char** new_argv=new char*[new_argc];
     for(int i=0;i<new_argc;i++)
         new_argv[i]=&varg[i][0];
+
+    //gtest
     testing::InitGoogleTest(&new_argc, new_argv);
     return RUN_ALL_TESTS();
 }
