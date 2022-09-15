@@ -46,14 +46,9 @@ protected:
         auto input_layout = input.get_output_layout();
         auto output_layout = arg.get_output_layout();
 
-        for (size_t idx = 0 ; idx < prim->axes.size(); idx++) {
-            if (output_layout.get_dim(prim->axes[idx]) != 1) {
-                // A clDNN Reduce reorders un-reduced axes of its output tensor to b-f and spatial order when keep_dims is false.
-                // oneDNN reduction does not allow this. So this function reverts it.
-                reorder_unreduced_axis_no_fusion(input_layout, output_layout, prim->axes);
-                break;
-            }
-        }
+        // A clDNN Reduce reorders un-reduced axes of its output tensor to b-f and spatial order when keep_dims is false.
+        // oneDNN reduction does not allow this. So this function reverts it.
+        reorder_unreduced_axis_no_fusion(input_layout, output_layout, prim->axes);
 
         auto input_md = onednn::layout_to_memory_desc(input_layout);
         auto output_md = onednn::layout_to_memory_desc(output_layout);
@@ -105,11 +100,6 @@ namespace detail {
 
 attach_reduction_onednn::attach_reduction_onednn() {
     implementation_map<reduce>::add(impl_types::onednn, reduction_onednn::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-
         std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),

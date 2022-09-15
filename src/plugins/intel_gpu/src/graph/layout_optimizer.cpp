@@ -759,7 +759,7 @@ bool layout_optimizer::deconvolution_b_fs_yx_fsv16_opt(layout const &input_layou
     return false;
 }
 
-static bool is_node_for_onednn(reduce_node const& node) {
+static bool is_node_for_onednn(reduce_node const& node, format preferred_format) {
     auto& input = node.input();
     auto reduce_prim = node.get_primitive();
     // oneDNN reduction currently does not support logical_and, logical_or, log_sum and log_sum_exp.
@@ -788,6 +788,11 @@ static bool is_node_for_onednn(reduce_node const& node) {
 
     // redundant reduce is not acceptable on oneDNN reduction
     if (node.get_output_layout() == input_layout) {
+        return false;
+    }
+
+    // oneDNN reduction selects ref kernel for simple formats(bfyx..) which has perf regression with a decent tensor size.
+    if (format::is_simple_data_format(preferred_format)) {
         return false;
     }
 
@@ -1543,7 +1548,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
 
-        if (is_node_for_onednn(node.as<reduce>()))
+        if (is_node_for_onednn(node.as<reduce>(), preferred_format))
             return impl_types::onednn;
         else
             return impl_types::ocl;
