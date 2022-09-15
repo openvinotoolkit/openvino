@@ -116,15 +116,15 @@ public:
         return m_decoder;
     }
 
-    void add_tensor_to_external_context(size_t index, Output<Node> ov_output) {
+    void add_tensor_to_context(size_t index, Output<Node> ov_output) {
         if (m_tensor_map->count(index)) {
-            std::cerr << "[ WARNING ] External context has tensor. Rewriting." << std::endl;
+            std::cerr << "[ WARNING ] Current context has tensor. Rewriting." << std::endl;
         }
         ov_output.get_tensor().add_names({std::to_string(index)});
         (*m_tensor_map)[index] = ov_output;
     }
 
-    Output<Node> get_tensor_from_ext(size_t index) {
+    Output<Node> get_tensor_from_model(size_t index) {
         if (m_tensor_map->find(index) != m_tensor_map->end()) {
             return m_tensor_map->at(index);
         } else {
@@ -132,7 +132,7 @@ public:
         }
     }
 
-    Output<Node> get_tensor_from_ext_or_create_ext_input(size_t index) {
+    Output<Node> get_tensor_from_model_or_create_input(size_t index) {
         if (m_tensor_map->find(index) != m_tensor_map->end()) {
             return m_tensor_map->at(index);
         } else {
@@ -145,6 +145,8 @@ public:
             return parameter;
         }
     }
+
+    std::shared_ptr<ov::Model> convert_subgraph(size_t index);
 
 private:
     std::shared_ptr<opset8::Constant> get_constant_at_input(size_t index) const;

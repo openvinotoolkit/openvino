@@ -5,6 +5,7 @@
 #include <openvino/opsets/opset8.hpp>
 
 #include "exception.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -16,6 +17,23 @@ std::shared_ptr<opset8::Constant> NodeContext::get_constant_at_input(size_t inde
     auto input = std::dynamic_pointer_cast<opset8::Constant>(input_node);
     FRONT_END_GENERAL_CHECK(input, "Input with index ", index, " cannot be interpretted as Constant: ", input_node);
     return input;
+}
+
+std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) {
+    auto subgraph_decoder = m_decoder->get_subgraph_decoder(index);
+    auto model = convert_pytorch_model(subgraph_decoder);
+    // Remove unused parameters, they could be created as inputs to the parts of graph that weren't
+    // used for generating output.
+    // TODO: solve the problem when converters need those parameters unconditionally
+    /*for (auto parameter : model->get_parameters()) {
+        if (parameter->output(0).get_target_inputs().empty()) {
+            // There is no consumers: safe to remove
+            std::cout << "[ WARNING ] Removing parameter " << parameter
+                      << " in converted Pytorch model, because it is never used" << std::endl;
+            model->remove_parameter(parameter);
+        }
+    }*/
+    return model;
 }
 
 template <>

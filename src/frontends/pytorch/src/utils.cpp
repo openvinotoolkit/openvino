@@ -105,6 +105,7 @@ OutputVector convert_node(NodeContext* context) {
         } else {
             const std::set<std::string> known_skips{"prim::RaiseException",
                                                     "aten::warn",
+                                                    // remove all that above
                                                     "prim::TupleConstruct",
                                                     "prim::ListConstruct",
                                                     "aten::format",
@@ -182,7 +183,7 @@ OutputVector convert_node(NodeContext* context) {
         auto subgraph_decoder = context->get_decoder()->get_subgraph_decoder(i);
         auto inputs = subgraph_decoder->inputs();
         input_idxs.insert(inputs.begin(), inputs.end());
-        auto body = convert_pytorch_model(subgraph_decoder);
+        auto body = context->convert_subgraph(i);
         fw_node->set_function(i, body);
         for (auto param : body->get_parameters()) {
             auto name = param->get_output_tensor(0).get_any_name();
@@ -199,22 +200,23 @@ OutputVector convert_node(NodeContext* context) {
     }
     for (auto input : inputs_map) {
         if (!input_idxs.count(input.first)) {
-            auto external_output = context->get_tensor_from_ext_or_create_ext_input(input.first);
+            auto external_output = context->get_tensor_from_model_or_create_input(input.first);
             fw_node->set_invariant_inputs(external_output, input.second);
         } else {
-            auto external_output = context->get_tensor_from_ext(input.first);
+            auto external_output = context->get_tensor_from_model(input.first);
             if (external_output.get_node()) {
                 fw_node->set_invariant_inputs(external_output, input.second);
             }
         }
     }
     for (auto output : outputs_map) {
-        context->add_tensor_to_external_context(output.first, fw_node->set_body_outputs(output.second));
+        context->add_tensor_to_context(output.first, fw_node->set_body_outputs(output.second));
     }
     return context->get_decoder()->mark_node(fw_node)->outputs();
 }
 
-std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorch_model) {
+std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorch_model,
+                                                 const TensorMap& external_tensor_map) {
     LEVEL++;
     // std::cout << "=====Convert model:" << LEVEL << " start=====" << std::endl;
     std::shared_ptr<ov::Model> resulting_model;  // define here to make a conversion in a nested scope
@@ -258,22 +260,6 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
         auto node_visitor = [&](std::shared_ptr<Decoder> node) {
             // std::cerr << "Node convert start" << std::endl;
 
-            // Even if node has no outputs it can mutate input. Remove this
-            /*if (!node->num_of_outputs()) {
-                bool no_subgraph_outputs = true;
-                for (int i = 0; i < node->get_subgraph_size(); i++) {
-                    auto subgraph = node->get_subgraph_decoder(i);
-                    if (subgraph->num_of_outputs() > 0) {
-                        no_subgraph_outputs = false;
-                    }
-                }
-                // TODO: remove this check
-                if (no_subgraph_outputs && node->get_schema().find("!") == std::string::npos) {
-                    std::cout << "Node has no outputs: " << node->get_op_type() << " Skipping." << std::endl;
-                    return;
-                }
-            }*/
-
             // Explore all inputs of node. Node may refer to input value that hasn't been created in the current scope.
             // But this value can be found in the outer scope, for this purpose we need to search node in
             // external_tensor_map as well
@@ -305,7 +291,7 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
             // std::cerr << "Node convert before translator: " << node->get_op_type() << ", schema: " <<
             // node->get_schema() << std::endl;
 
-            auto context = NodeContext(node, &tensor_map, &parameters);
+            auto context = NodeContext(node, &tensor_map, &parameters /*, external_tensor_map*/);
             auto converted_outputs = convert_node(&context);
             // std::cerr << "Node convert before outputs" << std::endl;
 

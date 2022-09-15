@@ -18,12 +18,12 @@ OutputVector translate_if(NodeContext& context) {
     OV_FRONTEND_REQUIRE(decoder->get_subgraph_size() == 2);
 
     auto then_decoder = decoder->get_subgraph_decoder(0);
-    auto then_body = convert_pytorch_model(then_decoder);
+    auto then_body = context.convert_subgraph(0);
     if_node->set_then_body(then_body);
     auto then_inputs = then_decoder->inputs();
 
     auto else_decoder = decoder->get_subgraph_decoder(1);
-    auto else_body = convert_pytorch_model(else_decoder);
+    auto else_body = context.convert_subgraph(1);
     if_node->set_else_body(else_body);
     auto else_inputs = else_decoder->inputs();
 
@@ -113,17 +113,17 @@ OutputVector translate_if(NodeContext& context) {
     // Create prim::If inputs and outputs
     for (auto input : inputs_map) {
         if (!input_idxs.count(input.first)) {
-            auto external_output = context.get_tensor_from_ext_or_create_ext_input(input.first);
+            auto external_output = context.get_tensor_from_model_or_create_input(input.first);
             if_node->set_input(external_output, input.second[0], input.second[1]);
         } else {
-            auto external_output = context.get_tensor_from_ext(input.first);
+            auto external_output = context.get_tensor_from_model(input.first);
             if (external_output.get_node()) {
                 if_node->set_input(external_output, input.second[0], input.second[1]);
             }
         }
     }
     for (auto output_idx : output_idxs) {
-        context.add_tensor_to_external_context(
+        context.add_tensor_to_context(
             output_idx,
             if_node->set_output(then_body_results.at(output_idx), else_body_results.at(output_idx)));
     }

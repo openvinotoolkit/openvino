@@ -16,7 +16,7 @@ OutputVector translate_loop(NodeContext& context) {
     auto decoder = context.get_decoder();
     OV_FRONTEND_REQUIRE(decoder->get_subgraph_size() == 1);
     auto subgraph_decoder = decoder->get_subgraph_decoder(0);
-    auto body = convert_pytorch_model(subgraph_decoder);
+    auto body = context.convert_subgraph(0);
     loop->set_function(body);
     opset8::Loop::SpecialBodyPorts spec_ports{0, 0};
     loop->set_special_body_ports(spec_ports);
@@ -39,10 +39,10 @@ OutputVector translate_loop(NodeContext& context) {
     }
     for (auto input : inputs_map) {
         if (!input_idxs.count(input.first)) {
-            auto external_output = context.get_tensor_from_ext_or_create_ext_input(input.first);
+            auto external_output = context.get_tensor_from_model_or_create_input(input.first);
             loop->set_invariant_inputs(external_output, input.second);
         } else {
-            auto external_output = context.get_tensor_from_ext(input.first);
+            auto external_output = context.get_tensor_from_model(input.first);
             if (external_output.get_node()) {
                 loop->set_invariant_inputs(external_output, input.second);
             }
@@ -60,7 +60,7 @@ OutputVector translate_loop(NodeContext& context) {
         FRONT_END_OP_CONVERSION_CHECK(output_idxs.count(out_idx) == 0,
                                       "More then one body output with same tensor name.");
         output_idxs.insert(out_idx);
-        context.add_tensor_to_external_context(out_idx, loop->get_iter_value(result, -1));
+        context.add_tensor_to_context(out_idx, loop->get_iter_value(result, -1));
     }
     loop->validate_and_infer_types();
     return {context.mark_node(loop)->outputs()};

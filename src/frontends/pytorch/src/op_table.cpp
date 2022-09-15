@@ -18,19 +18,39 @@ namespace op {
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_if);
 
-const auto relu = [](NodeContext& context) -> OutputVector {
+OutputVector relu(NodeContext& context) {
     return {context.mark_node(std::make_shared<opset8::Relu>(context.get_input(0)))};
 };
-const auto add = [](NodeContext& context) -> OutputVector {
+OutputVector add(NodeContext& context) {
     return {context.mark_node(std::make_shared<opset8::Add>(context.get_input(0), context.get_input(1)))};
 };
+
+OutputVector mul(NodeContext& context) {
+    return {context.mark_node(std::make_shared<opset8::Multiply>(context.get_input(0), context.get_input(1)))};
+}
+
+OutputVector hardtanh(NodeContext& context) {
+    float min = -1;
+    float max = 1;
+    if (!context.input_is_none(1)) {
+        min = context.const_input<float>(1);
+    }
+    if (!context.input_is_none(2)) {
+        max = context.const_input<float>(2);
+    }
+    return {context.mark_node(std::make_shared<opset8::Clamp>(context.get_input(0), min, max))};
+}
+
+OutputVector hardswish(NodeContext& context) {
+    return {context.mark_node(std::make_shared<opset8::HSwish>(context.get_input(0)))};
+}
 
 }  // namespace op
 
 std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
         {"aten::relu", op::relu},
-        {"aten::relu_", op::relu},  // inplace version of relu, for us it is identical to regular relu
+        {"aten::relu_", inplace_op<op::relu>},
 
         {"aten::conv2d",
          [](NodeContext& context) -> OutputVector {
@@ -138,12 +158,10 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
          }},
 
         {"aten::add", op::add},
-        {"aten::add_", op::add},  // inplace version of add, for us it is identical to regular add
+        {"aten::add_", inplace_op<op::add>},
 
-        {"aten::mul",
-         [](NodeContext& context) -> OutputVector {
-             return {context.mark_node(std::make_shared<opset8::Multiply>(context.get_input(0), context.get_input(1)))};
-         }},
+        {"aten::mul", op::mul},
+        {"aten::mul_", inplace_op<op::mul>},
 
         {"aten::div",
          [](NodeContext& context) -> OutputVector {
@@ -199,44 +217,16 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
              return {context.mark_node(std::make_shared<opset8::Power>(input_0, const_2))};
          }},
 
-        {"aten::hardtanh",
-         [](NodeContext& context) -> OutputVector {
-             auto min = context.const_input<float>(1);
-             auto max = context.const_input<float>(2);
-             return {context.mark_node(std::make_shared<opset8::Clamp>(context.get_input(0), min, max))};
-         }},
-
-        {"aten::hardtanh_",
-         [](NodeContext& context) -> OutputVector {
-             float min = -1;
-             float max = 1;
-             if (!context.input_is_none(1)) {
-                 min = context.const_input<float>(1);
-             }
-             if (!context.input_is_none(2)) {
-                 max = context.const_input<float>(2);
-             }
-             auto clamp = std::make_shared<opset8::Clamp>(context.get_input(0), min, max);
-             context.mutate_input(0, clamp);
-             return {context.mark_node(clamp)};
-         }},
+        {"aten::hardtanh", op::hardtanh},
+        {"aten::hardtanh_", inplace_op<op::hardtanh>},
 
         {"aten::hardsigmoid",
          [](NodeContext& context) -> OutputVector {
              return {context.mark_node(std::make_shared<opset8::HSigmoid>(context.get_input(0)))};
          }},
 
-        {"aten::hardswish",
-         [](NodeContext& context) -> OutputVector {
-             return {context.mark_node(std::make_shared<opset8::HSwish>(context.get_input(0)))};
-         }},
-
-        {"aten::hardswish_",
-         [](NodeContext& context) -> OutputVector {
-            auto hswish = std::make_shared<opset8::HSwish>(context.get_input(0));
-             context.mutate_input(0, hswish);
-             return {context.mark_node(hswish)};
-         }},
+        {"aten::hardswish", op::hardswish},
+        {"aten::hardswish_", inplace_op<op::hardswish>},
 
         {"aten::silu_",
          [](NodeContext& context) -> OutputVector {
@@ -284,8 +274,8 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
              }
              auto result = context.mark_node(std::make_shared<opset8::Concat>(inputs, axis));
              // TODO: do we really need to do that?
-             /*auto list_set = listConstruct_fw_node->get_rt_info()["pt_node"].as<std::set<const Node*>>();
-             result->get_rt_info()["pt_node"].as<std::set<const Node*>>().insert(list_set.begin(), list_set.end());*/
+             // auto list_set = listConstruct_fw_node->get_rt_info()["pt_node"].as<std::set<const Node*>>();
+             // result->get_rt_info()["pt_node"].as<std::set<const Node*>>().insert(list_set.begin(), list_set.end());
              return {result};
          }},
 
@@ -473,7 +463,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
 
         {"aten::size",
          [](NodeContext& context) -> OutputVector {
-             auto shape = context.mark_node(std::make_shared<opset8::ShapeOf>(context.get_input(0) /*, element::i32*/));
+             auto shape = context.mark_node(std::make_shared<opset8::ShapeOf>(context.get_input(0)));
              if (context.input_is_none(1)) {
                  return shape->outputs();
              } else {
@@ -562,15 +552,6 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
              return {context.mark_node(std::make_shared<opset8::Slice>(context.get_input(0), start, end, step, dim))};
          }},
 
-        // TODO: Don't know how to change it quickly to be compiled, consult with Maxim
-        /*{ "prim::ConstantChunk", [&]() -> OutputVector {
-            auto chunks = node->i(attr::chunks); // FIXME: create actual attribute function
-            auto dim = node->i(attr::dim);
-            auto dim_const = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {dim}));
-            auto split = context.mark_node(std::make_shared<opset8::Split>(context.get_input(0), dim_const, chunks));
-            return split->outputs();
-        }},*/
-
         {"prim::Loop", op::translate_loop},
         {"prim::If", op::translate_if},
 
@@ -590,8 +571,9 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::reciprocal",
          [](NodeContext& context) -> OutputVector {
              auto x = context.get_input(0);
-             auto const_neg_1 = context.mark_node(opset8::Constant::create(x.get_element_type(), Shape{}, {-1}));
-             auto power = std::make_shared<opset8::Power>(x, const_neg_1);
+             auto const_neg_1 = opset8::Constant::create(element::i32, Shape{}, {-1});
+             auto cast = std::make_shared<opset8::ConvertLike>(const_neg_1, x);
+             auto power = std::make_shared<opset8::Power>(x, cast);
              return {context.mark_node(power)};
          }},
 
@@ -626,26 +608,22 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
              return {context.mark_node(std::make_shared<opset8::Greater>(x, y))};
          }},
 
-        /*{"aten::append",
+        {"aten::neg",
          [](NodeContext& context) -> OutputVector {
-            // schema: aten::append.t(t[](a!) self, t(c -> *) el) -> (t[](a!))
-            OutputVector res{context.mark_node(std::make_shared<PtFrameworkNode>(context.get_decoder(),
-        context.inputs(), context.get_decoder()->num_of_outputs()))};
-            // append writes to input 0, so we need to replace this input with output from append
-            context.mutate_input(0, res[0]);
-            return res;
+             auto x = context.get_input(0);
+             auto const_neg_1 = opset8::Constant::create(element::i32, Shape{}, {-1});
+             auto cast = std::make_shared<opset8::ConvertLike>(const_neg_1, x);
+             return {context.mark_node(std::make_shared<opset8::Multiply>(x, cast))};
          }},
 
-        {"aten::update",
-         [](NodeContext& context) -> OutputVector {
-            // schema: aten::update.str(Dict(str, t)(a!) self, Dict(str, t)(a!) to_add) -> ()
-            // pt node has no outputs, need to add one
-            auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), context.inputs(),
-        context.get_decoder()->num_of_outputs() + 1); OutputVector res{context.mark_node(fw_node)->output(0)};
-            // update writes to input 0, so we need to replace this input with output from update
-            context.mutate_input(0, res[0]);
-            return {};
-         }}*/
+        // TODO: Don't know how to change it quickly to be compiled, consult with Maxim
+        /*{ "prim::ConstantChunk", [&]() -> OutputVector {
+            auto chunks = node->i(attr::chunks); // FIXME: create actual attribute function
+            auto dim = node->i(attr::dim);
+            auto dim_const = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {dim}));
+            auto split = context.mark_node(std::make_shared<opset8::Split>(context.get_input(0), dim_const, chunks));
+            return split->outputs();
+        }},*/
 
     };
 };
