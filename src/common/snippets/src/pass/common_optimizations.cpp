@@ -37,6 +37,9 @@ CommonOptimizations::CommonOptimizations() {
         // Before FQ decomposition we should transform all original Converts inside body to ConvertTruncation to save original behavior.
         // After FQ decomposition we should transform new Converts to ConvertSaturation to save saturation behavior.
         // Also we have to insert reverse converts after ConvertSaturation (after FQ decompoisition) to return FP32 calculation inside body
+        // TODO: We disable forse rounding inside Subgraph because ConvertSaturation after decomposition correctly round values (half to even).
+        //       But original Convert from specification uses truncation rounding. So when plugin supports all FQ as Subgraphs (limitations on inputs)
+        //       we should remove this force rounding
         ngraph::pass::Manager manager;
         manager.set_per_pass_validation(false);
         manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertTruncation>();
