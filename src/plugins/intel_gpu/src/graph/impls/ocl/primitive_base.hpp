@@ -25,14 +25,14 @@ For example, all gpu convolution implementations should derive from typed_primit
 */
 template <class PType>
 struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
-    const typed_program_node<PType>& _outer;
+    const primitive_id& _node_id;
     kernel_selector::kernel_data _kernel_data;
     std::vector<kernel_id> _kernel_ids;
     std::vector<kernel::ptr> _kernels;
 
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
     : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name)
-    , _outer(other._outer)
+    , _node_id(other._node_id)
     , _kernel_data(other._kernel_data)
     , _kernel_ids(other._kernel_ids)
     , _kernels({}) {
@@ -44,7 +44,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 
     typed_primitive_impl_ocl(const typed_program_node<PType>& arg, const kernel_selector::kernel_data& kd)
         : typed_primitive_impl<PType>(kd.weightsReorderParams, kd.kernelName),
-          _outer(arg),
+          _node_id(arg.id()),
           _kernel_data(kd) {
         // weights reorder params got copied to parent, clear in _kernel_data to release shared ptr
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
@@ -54,7 +54,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         _kernel_ids.reserve(kd.kernels.size());
         // Add selected kernels to kernels_cache for the following compilation and save output ids
         for (size_t i = 0; i < kd.kernels.size(); ++i) {
-            _kernel_ids.emplace_back(_outer.get_program().add_kernel(kd.kernels[i].code.kernelString));
+            _kernel_ids.emplace_back(arg.get_program().add_kernel(kd.kernels[i].code.kernelString));
         }
     }
 
@@ -96,7 +96,7 @@ protected:
         return stream.enqueue_marker(events, is_output);
     }
 
-    void init_kernels() override {
+    void init_kernels(const kernels_cache& kernels_cache) override {
         if (is_cpu()) {
             return;
         }
@@ -104,8 +104,12 @@ protected:
 
         _kernels.reserve(_kernel_ids.size());
         for (size_t k = 0; k < _kernel_ids.size(); ++k) {
-            _kernels.emplace_back(std::move(_outer.get_program().get_kernel(_kernel_ids[k])));
+            _kernels.emplace_back(std::move(kernels_cache.get_kernel(_kernel_ids[k])));
         }
+    }
+
+    std::vector<std::string> get_kernel_ids() override {
+        return _kernel_ids;
     }
 
     std::vector<layout> get_internal_buffer_layouts_impl() const override {

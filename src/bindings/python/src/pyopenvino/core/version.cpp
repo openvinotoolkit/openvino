@@ -6,6 +6,8 @@
 
 #include <pybind11/stl.h>
 
+#include "pyopenvino/core/version.hpp"
+
 namespace py = pybind11;
 
 void regclass_Version(py::module m) {

@@ -94,6 +94,8 @@ set(SRC
     type_prop/assign.cpp
     type_prop/atan.cpp
     type_prop/atanh.cpp
+    type_prop/augru_cell.cpp
+    type_prop/augru_sequence.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
     type_prop/batch_to_space.cpp
@@ -433,74 +435,34 @@ endif()
 
 list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_extension)
 
-if (ENABLE_INTEL_CPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
-    message(STATUS "OV_CORE_TESTS: IE:CPU enabled")
-    set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
-    if (ENABLE_STRICT_DEPENDENCIES)
-        # For convinience add a runtime dependency to build along with this target.
-        # Warning: Parallel build with -GNinja may not be efficient.
-        list(APPEND UNIT_TESTS_DEPENDENCIES openvino_intel_cpu_plugin)
-    endif()
+if (ENABLE_TEMPLATE)
+    list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_plugin)
+    set(OP_EVAL_TEST_SRC
+        # It should be a part of template plugin
+        op_eval/binary_convolution.cpp
+        op_eval/bucketize.cpp
+        op_eval/clamp.cpp
+        op_eval/einsum.cpp
+        op_eval/floor_mod.cpp
+        op_eval/gelu.cpp
+        op_eval/hsigmoid.cpp
+        op_eval/hswish.cpp
+        op_eval/interpolate.cpp
+        op_eval/loop.cpp
+        op_eval/matmul.cpp
+        op_eval/memory.cpp
+        op_eval/mish.cpp
+        op_eval/non_zero.cpp
+        op_eval/roi_align.cpp
+        op_eval/roi_pooling.cpp
+        op_eval/round.cpp
+        op_eval/softplus.cpp
+        op_eval/split.cpp
+        op_eval/swish.cpp
+        op_eval/strided_slice.cpp
+        op_eval/transpose.cpp
+        op_eval/variadic_split.cpp)
 endif()
-
-if (ENABLE_INTEL_GPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
-    message(STATUS "OV_CORE_TESTS: IE:GPU enabled")
-    set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
-    if (ENABLE_STRICT_DEPENDENCIES)
-        # For convinience add a runtime dependency to build along with this target.
-        # Warning: Parallel build with -GNinja may not be efficient.
-        list(APPEND UNIT_TESTS_DEPENDENCIES openvino_intel_gpu_plugin)
-    endif()
-endif()
-
-if (ENABLE_TEMPLATE AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
-    message(STATUS "OV_CORE_TESTS: INTERPRETER enabled")
-    set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
-    if (ENABLE_STRICT_DEPENDENCIES)
-        list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_plugin)
-    endif()
-endif()
-
-# backend specific test files must meet the following requirements:
-# 1) The must be named <name>.in.cpp
-# 2) They must be in the `test/backend` directory
-# 3) Include "util/test_control.hpp" in your cpp file
-# 4) add the line `static string s_manifest = "${MANIFEST}";` to your cpp file
-# 5) Use the `OV_CORE_TEST` macro in place of `TEST`.
-# All such files are configured via cmake which replaces all instances of cmake variables
-# such as ${BACKEND_NAME} with their values, such as CPU, GPU, or INTERPRETER.
-
-# TODO: Enable these tests in new infrastructure
-set(MULTI_TEST_SRC
-    backend/abc.in.cpp
-    backend/sqrt.in.cpp
-)
-
-set(OP_EVAL_TEST_SRC
-    # It should be a part of template plugin
-    op_eval/binary_convolution.cpp
-    op_eval/bucketize.cpp
-    op_eval/clamp.cpp
-    op_eval/einsum.cpp
-    op_eval/floor_mod.cpp
-    op_eval/gelu.cpp
-    op_eval/hsigmoid.cpp
-    op_eval/hswish.cpp
-    op_eval/interpolate.cpp
-    op_eval/loop.cpp
-    op_eval/matmul.cpp
-    op_eval/memory.cpp
-    op_eval/mish.cpp
-    op_eval/non_zero.cpp
-    op_eval/roi_align.cpp
-    op_eval/roi_pooling.cpp
-    op_eval/round.cpp
-    op_eval/softplus.cpp
-    op_eval/split.cpp
-    op_eval/swish.cpp
-    op_eval/strided_slice.cpp
-    op_eval/transpose.cpp
-    op_eval/variadic_split.cpp)
 
 # SOURCE FOR FRONTEND TESTING
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp
@@ -508,7 +470,7 @@ file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manag
         ${CMAKE_CURRENT_SOURCE_DIR}/frontend/progress_reporter.cpp)
 list(APPEND SRC ${FRONTEND_TESTS_SRC})
 
-foreach(src IN LISTS SRC MULTI_TEST_SRC OP_EVAL_TEST_SRC)
+foreach(src IN LISTS SRC OP_EVAL_TEST_SRC)
     if(IS_ABSOLUTE "${src}")
         list(APPEND full_src_names ${src})
     else()
@@ -517,34 +479,11 @@ foreach(src IN LISTS SRC MULTI_TEST_SRC OP_EVAL_TEST_SRC)
 endforeach()
 add_clang_format_target(unit-test_clang FOR_SOURCES ${full_src_names})
 
-foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
-    string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
-    string(REGEX REPLACE "([a-z0-9]+):(.*)" "\\1" BACKEND_DIR ${BACKEND_DIR})
-    set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/runtime/${BACKEND_DIR}/unit_test.manifest)
-
-    foreach(TEST_SRC ${MULTI_TEST_SRC})
-        string(REPLACE ":" "_" BACKEND_NAME ${BACKEND_NAME})
-        string(REPLACE ".in." "_${BACKEND_NAME}." TARGET_NAME ${TEST_SRC})
-        configure_file(${TEST_SRC} ${TARGET_NAME})
-        set(SRC ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME} ${SRC})
-    endforeach()
-
-    message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
-endforeach()
-
-set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/runtime/${BACKEND_DIR}/unit_test.manifest)
-
-foreach(TEST_SRC ${OP_EVAL_TEST_SRC})
-    configure_file(${TEST_SRC} ${TEST_SRC})
-    set(SRC ${CMAKE_CURRENT_BINARY_DIR}/${TEST_SRC} ${SRC})
-endforeach()
-
-add_executable(ov_core_unit_tests ${SRC})
+add_executable(ov_core_unit_tests ${SRC} ${OP_EVAL_TEST_SRC})
 
 add_dependencies(ov_core_unit_tests template_extension)
 
-target_include_directories(ov_core_unit_tests PRIVATE ".")
-target_include_directories(ov_core_unit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
+target_include_directories(ov_core_unit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 get_target_property(OV_CORE_SRC_DIR ngraph_obj SOURCE_DIR)
 target_include_directories(ov_core_unit_tests PRIVATE ${OV_CORE_SRC_DIR}/src)
@@ -554,18 +493,15 @@ target_compile_definitions(ov_core_unit_tests
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
-if(UNIT_TESTS_DEPENDENCIES)
-    add_dependencies(ov_core_unit_tests ${UNIT_TESTS_DEPENDENCIES})
-endif()
+add_dependencies(ov_core_unit_tests ${UNIT_TESTS_DEPENDENCIES})
 
-target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
+target_link_libraries(ov_core_unit_tests PRIVATE
                                         engines_test_util
                                         commonTestUtils
                                         ngraph_reference
                                         ngraph::builder
                                         openvino::util
                                         ov_shape_inference
-                                        pugixml::static
                                         ${CMAKE_DL_LIBS}
                                         Threads::Threads
                                         openvino::conditional_compilation

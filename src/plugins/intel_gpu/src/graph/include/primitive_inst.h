@@ -14,6 +14,7 @@
 #include "meta_utils.h"
 #include "program_node.h"
 #include "primitive_type.h"
+#include "runtime/kernels_cache.hpp"
 
 #include <memory>
 #include <vector>
@@ -39,6 +40,7 @@ struct primitive_impl {
     virtual ~primitive_impl() = default;
 
     virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
+    virtual void set_node_params(const program_node&) {}
     virtual void set_arguments(primitive_inst& instance) = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
     virtual bool validate(const primitive_inst& instance) const = 0;
@@ -47,8 +49,14 @@ struct primitive_impl {
     kernel_selector::weights_reorder_params _weights_reorder_params;
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }
-    virtual void init_kernels() = 0;
+    virtual void init_kernels(const kernels_cache&) = 0;
     virtual std::unique_ptr<primitive_impl> clone() const = 0;
+    virtual std::vector<std::string> get_kernel_ids() {
+        return {};
+    }
+
+    // If this flag is set as false, the memory allocated for this primitive is not allowed to be reused
+    bool can_reuse_memory = true;
 
 protected:
     std::string _kernel_name;
@@ -79,7 +87,6 @@ public:
     primitive_type_id type() const { return _node.type(); }
     primitive_id id() const { return _node.id(); }
     primitive_id org_id() const { return _node.get_org_primitive_id(); }
-    const primitive_id& get_ext_prim_id() const { return _node.get_ext_prim_id(); }
     bool can_be_optimized() const { return _node.can_be_optimized(); }
     std::shared_ptr<const primitive> desc() const { return _node.get_primitive(); }
     program_node const& get_node() const { return _node; }
@@ -109,12 +116,18 @@ public:
     void set_arguments();
 
     bool validate() const {
-        if (_impl == nullptr)
-            throw std::invalid_argument("[Internal cldnn error].  Validation method for nullptr impl is not allowed.");
-        return _impl->validate(*this);
+        OPENVINO_ASSERT(_impl != nullptr || is_dynamic(), "[GPU] Invalid impl object for ", id(), " primitive");
+        if (_impl)
+            return _impl->validate(*this);
+
+        return true;
     }
     bool output_changed() const { return _output_changed; }
     void reset_output_change() { _output_changed = false; }
+
+    bool shape_changed() const { return _shape_changed; }
+    void reset_shape_change() { _shape_changed = false; }
+    void set_shape_change() { _shape_changed = true; }
 
     void build_deps();
 
@@ -142,9 +155,13 @@ public:
         return _mem_allocated;
     }
 
+    bool is_dynamic() const {
+        return _is_dynamic;
+    }
+
     void allocate_internal_buffers();
-    static memory::ptr allocate_output(engine& engine, memory_pool& pool,
-                                        const program_node& _node, uint32_t net_id, bool is_internal);
+    static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node,
+                                       const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal);
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
 
@@ -154,6 +171,7 @@ protected:
     network& _network;
     program_node const& _node;
 
+    std::unique_ptr<kernel_impl_params> _impl_params;
     std::unique_ptr<primitive_impl> _impl;
 
     // this is a set of dependencies in terms of memory, if execution of this primitive requires data from another one,
@@ -177,10 +195,14 @@ protected:
     std::vector<memory::cptr> _intermediates_memory;
 
     bool _output_changed;  // todo: implement output reuse if neither of inputs has changed
+    bool _shape_changed = false;
     bool _has_valid_input =
         true;  // by default all primitives has valid inputs, exception is input_layout (see input_layout_inst)
     bool _has_mutable_input = false;
     bool _mem_allocated = false;
+    bool _is_dynamic = false;
+
+    size_t max_output_layout_size = 0;
 
     memory::ptr allocate_output();
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
@@ -189,6 +211,11 @@ protected:
     // event function called by primitive_inst::execute after checking if primitive should rerun and before calling
     // _impl->execute() mainly for reshape (to update output memory if reshape_node.is_in_place() == true)
     virtual void on_execute() {}
+
+    virtual void update_shape();
+    virtual event::ptr update_weights();
+    void update_impl();
+    void realloc_if_needed();
 
     static std::string generic_to_string(program_node const& node, const char* type_name);
 };
@@ -206,8 +233,7 @@ struct typed_primitive_impl : public primitive_impl {
     using primitive_impl::primitive_impl;
 
 private:
-    event::ptr execute(const std::vector<event::ptr>& event,
-                            primitive_inst& instance) override {
+    event::ptr execute(const std::vector<event::ptr>& event, primitive_inst& instance) override {
         if (instance.type() != PType::type_id())
             throw std::invalid_argument("Implementation type does not match primitive type");
         if (instance.get_impl() != this)
@@ -260,6 +286,9 @@ public:
     const typed_node& node;
     const PType& argument;
 
+    template<typename T>
+    static std::vector<layout> calc_output_layouts(const typed_node& node, const kernel_impl_params& impl_param) { return {}; }
+
     typed_primitive_inst_base(network& network, typed_node const& node)
         : typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}
 
@@ -274,6 +303,9 @@ protected:
 
 private:
     bool do_allocate_memory(typed_node const& typ_node) {
+        if (typ_node.is_dynamic())
+            return false;
+
         if (typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
             typ_node.get_users().front()->can_be_optimized()) {  // check if the only user is concat
             return false;

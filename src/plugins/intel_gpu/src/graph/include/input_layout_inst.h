@@ -28,10 +28,12 @@ class typed_primitive_inst<input_layout> : public typed_primitive_inst_base<inpu
     using parent = typed_primitive_inst_base<input_layout>;
 
 public:
-    static layout calc_output_layout(input_layout_node const& node) { return node.get_primitive()->layout; }
+    static layout calc_output_layout(input_layout_node const& node, kernel_impl_params const& impl_param) {
+        return impl_param.typed_desc<input_layout>()->layout;
+    }
     static std::string to_string(input_layout_node const& node);
 
-public:
+    void update_shape() override;
     typed_primitive_inst(network& network, input_layout_node const& node);
 
     void set_data(memory::ptr mem);

@@ -8,10 +8,13 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/log.hpp"
+#include "openvino_conversions.hpp"
 #include "utils.hpp"
 
 using namespace std;
 using namespace ov;
+using namespace ov::frontend::tensorflow;
 using namespace opset8;
 
 using TransposeMap = unordered_map<string, shared_ptr<Transpose>>;
@@ -56,15 +59,8 @@ static string describe(shared_ptr<Node> node) {
     return ss.str();
 }
 
-static shared_ptr<Transpose> make_transpose(const Output<Node>& arg, const AxisVector& input_order) {
-    auto order = std::make_shared<Constant>(element::u64, Shape{input_order.size()}, input_order);
-    auto transpose = make_shared<Transpose>(arg, order);
-    OPENVINO_DEBUG << "Make Transpose " << describe<Transpose>(transpose);
-    return transpose;
-}
-
 static shared_ptr<Reshape> make_reshape(const Output<Node>& arg, const AxisVector& input_order) {
-    auto order = std::make_shared<Constant>(element::u64, Shape{input_order.size()}, input_order);
+    auto order = std::make_shared<Constant>(element::i64, Shape{input_order.size()}, input_order);
     auto transpose = make_shared<Reshape>(arg, order, false);
     OPENVINO_DEBUG << "Make Reshape " << describe<Reshape>(transpose);
     return transpose;
@@ -132,7 +128,7 @@ static void mark_transpose_for_deletion(const shared_ptr<Node>& transpose,
 
 static shared_ptr<Transpose> create_default_transpose(const Output<Node>& n) {
     auto default_order = get_default_order(n.get_shape().size());
-    auto order = std::make_shared<Constant>(element::u64, Shape{default_order.size()}, default_order);
+    auto order = std::make_shared<Constant>(element::i64, Shape{default_order.size()}, default_order);
     return make_shared<Transpose>(n, order);
 }
 
@@ -160,7 +156,6 @@ static void convert_binary_to_default_order(const shared_ptr<Node>& binary,
         left_shape.insert(left_shape.begin(), perm_to_def.size() - left_shape.size(), 1);
 
         auto new_shape = apply_permutation(left_shape, perm_to_def);
-
         new_node = make_reshape(left, new_shape);
     } else if (left_shape.size() == perm_to_def.size()) {
         new_node = make_transpose(left, perm_to_def);
@@ -353,6 +348,23 @@ static void sink_concat(const shared_ptr<Concat>& n,
     write_transposemap(reorders, new_concat, new_transpose);
 }
 
+static void sink_prelu(const shared_ptr<PRelu>& prelu,
+                       TransposeMap& reorders,
+                       set<shared_ptr<Node>>& transposes_to_delete) {
+    FRONT_END_GENERAL_CHECK(prelu, "Null pointer is given to PRelu node.");
+    FRONT_END_GENERAL_CHECK(prelu->get_input_size() > 1, "The PRelu node must contain at least two inputs.");
+    auto slope_shape = prelu->input_value(1).get_partial_shape();
+    if (slope_shape.is_static() && shape_size(slope_shape.to_shape()) == 1) {
+        // handle a case covering LeakyRelu decomposition
+        auto arg_transpose = read_transposemap(reorders, prelu->input_value(0));
+        OPENVINO_DEBUG << "Propagating " << describe<Transpose>(arg_transpose) << " for " << prelu->get_name();
+        write_transposemap(reorders, prelu, arg_transpose);
+    } else {
+        // TODO: handle other cases with non-scalar slope
+        materialize_shapes(prelu, reorders, transposes_to_delete);
+    }
+}
+
 // The goal of TransposeSinking is to remove
 // round-trip transposes(i.e. nhwc->nchw(nchw-only-op)->nhwc)
 // around nchw-only-op (e.g.Convolution, Batchnorm, Avg/MaxPool)
@@ -377,7 +389,10 @@ bool ov::frontend::tensorflow::pass::TransposeSinking::run_on_model(const shared
             }
             if (auto transpose = as_type_ptr<opset8::Transpose>(n)) {
                 sink_transpose(transpose, reorders, transposes_to_delete);
-            } else if (ov::op::util::is_unary_elementwise_arithmetic(n)) {
+            } else if (ov::op::util::is_unary_elementwise_arithmetic(n) || as_type_ptr<Clamp>(n) ||
+                       as_type_ptr<Elu>(n) || as_type_ptr<SoftPlus>(n) || as_type_ptr<LogicalNot>(n)) {
+                // Some unary operations are inherrited from Op class
+                // so we need explicitly to check them
                 sink_unary(n, reorders, transposes_to_delete);
             } else if (ov::op::util::is_binary_elementwise_arithmetic(n)) {
                 sink_binary(n, reorders, transposes_to_delete);
@@ -385,6 +400,8 @@ bool ov::frontend::tensorflow::pass::TransposeSinking::run_on_model(const shared
                 sink_pad(pad, reorders, transposes_to_delete);
             } else if (auto concat = as_type_ptr<Concat>(n)) {
                 sink_concat(concat, reorders, transposes_to_delete);
+            } else if (auto prelu = as_type_ptr<PRelu>(n)) {
+                sink_prelu(prelu, reorders, transposes_to_delete);
             } else {
                 materialize_shapes(n, reorders, transposes_to_delete);
             }

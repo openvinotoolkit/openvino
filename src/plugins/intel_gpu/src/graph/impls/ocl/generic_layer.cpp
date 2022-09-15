@@ -13,7 +13,6 @@ namespace cldnn {
 namespace ocl {
 
 struct generic_layer_impl : typed_primitive_impl<generic_layer> {
-    const generic_layer_node& outer;
     const kernel_selector::cl_kernel_data& _cl_kernel_data;
     std::vector<kernel::ptr> _kernels;
     kernel_id _kernel_id;
@@ -23,8 +22,7 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
     }
 
     generic_layer_impl(const generic_layer_impl& other)
-    : outer(other.outer)
-    , _cl_kernel_data(other._cl_kernel_data)
+    : _cl_kernel_data(other._cl_kernel_data)
     , _kernels({})
     , _kernel_id(other._kernel_id) {
         if (other._kernels.empty()) {
@@ -34,14 +32,13 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
     }
 
     generic_layer_impl(const generic_layer_node& arg)
-        : outer(arg)
-        , _cl_kernel_data(*outer.get_primitive()->generic_params.clKernel.get())
+        : _cl_kernel_data(*arg.get_primitive()->generic_params.clKernel.get())
         , _kernels() {
-        _kernel_id = outer.get_program().add_kernel(outer.get_primitive()->generic_params.clKernel->code.kernelString);
+        _kernel_id = arg.get_program().add_kernel(arg.get_primitive()->generic_params.clKernel->code.kernelString);
     }
 
-    void init_kernels() override {
-        _kernels.push_back(outer.get_program().get_kernel(_kernel_id));
+    void init_kernels(const kernels_cache& kernels_cache) override {
+        _kernels.push_back(kernels_cache.get_kernel(_kernel_id));
     }
 
     void set_arguments_impl(generic_layer_inst& instance) override {
@@ -102,10 +99,10 @@ struct generic_layer_cpu : typed_primitive_impl<generic_layer> {
         return ev;
     }
 
-    void init_kernels() override {}
+    void init_kernels(const kernels_cache&) override {}
 };
 
-static primitive_impl* create(const generic_layer_node& arg) {
+static primitive_impl* create(const generic_layer_node& arg, const kernel_impl_params&) {
     if (arg.get_primitive()->generic_params.engine == kernel_selector::generic_kernel_params::Engine::GPU) {
         return new generic_layer_impl(arg);
     } else {

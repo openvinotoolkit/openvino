@@ -34,9 +34,12 @@ void OpImplCheckTest::run() {
         try {
             auto executableNetwork = core->compile_model(function, targetDevice, configuration);
             summary.updateOPsImplStatus(function, true);
+        } catch (const std::exception& e) {
+            summary.updateOPsImplStatus(function, false);
+            GTEST_FAIL() << "Exception in the Core::compile_model() method call: " << e.what();
         } catch (...) {
             summary.updateOPsImplStatus(function, false);
-            GTEST_FAIL() << "Error in the LoadNetwork!";
+            GTEST_FAIL() << "Error in the Core::compile_model() method call!";
         }
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
         summary.updateOPsImplStatus(function, false);

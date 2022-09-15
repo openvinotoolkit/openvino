@@ -6,7 +6,6 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/split.hpp>
-#include <intel_gpu/primitives/scale.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 
 #include <sstream>
@@ -112,7 +111,7 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
         primitive_id split_id = "split:" + create_split_id(splitNum);
         cldnn::memory::ptr output = outputs.at(split_id).get_memory();
         auto prim = output->get_layout();
-        EXPECT_EQ(prim.size, expected_sizes[splitNum]);
+        EXPECT_EQ(prim.get_tensor(), expected_sizes[splitNum]);
         cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
         // Output tensor size
@@ -634,9 +633,9 @@ TEST(split_gpu_f32, basic_in2x3x2x2_split_scale_feature_bfyx) {
         { "out1",{ 0, 1, 0, 0 } },
         { "out2",{ 0, 2, 0, 0 } }
     }));
-    topology.add(scale("scale0", "split:out0", "scale_input0"));
-    topology.add(scale("scale1", "split:out1", "scale_input1"));
-    topology.add(scale("scale2", "split:out2", "scale_input2"));
+    topology.add(eltwise("scale0", { "split:out0", "scale_input0" }, eltwise_mode::prod));
+    topology.add(eltwise("scale1", { "split:out1", "scale_input1" }, eltwise_mode::prod));
+    topology.add(eltwise("scale2", { "split:out2", "scale_input2" }, eltwise_mode::prod));
 
     std::vector<float> scale_input_vec0 = { 1.f };
     set_values(scale_input0, scale_input_vec0);

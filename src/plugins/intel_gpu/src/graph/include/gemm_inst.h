@@ -19,6 +19,7 @@ public:
 
     program_node& input(size_t idx = 0) const { return get_dependency(idx); }
     size_t inputs_count() const { return this->get_primitive()->input_size(); }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 
 using gemm_node = typed_program_node<gemm>;
@@ -28,7 +29,9 @@ class typed_primitive_inst<gemm> : public typed_primitive_inst_base<gemm> {
     using parent = typed_primitive_inst_base<gemm>;
 
 public:
-    static layout calc_output_layout(gemm_node const& node);
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(gemm_node const& /*node*/, const kernel_impl_params& impl_param);
+    static layout calc_output_layout(gemm_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(gemm_node const& node);
 
 public:

@@ -119,7 +119,7 @@ TEST(average_unpooling_gpu, basic_in2x2x3x2_with_average_pooling_unpooling) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(pooling("pooling", "input", pooling_mode::average_no_padding, { 2, 2 }, { 2, 2 }));
-    topology.add(average_unpooling("average_unpooling", "pooling", input->get_layout().size, { 1, 1, 2, 2 }, { 1, 1, 2, 2 }));
+    topology.add(average_unpooling("average_unpooling", "pooling", input->get_layout().get_tensor(), { 1, 1, 2, 2 }, { 1, 1, 2, 2 }));
 
     network network(engine, topology);
 
@@ -186,7 +186,7 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_output_padding) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(average_unpooling("average_unpooling", "input", { 2, 2, 3, 2 }, { 1, 1, 2, 2 }, { 1, 1, 1, 1 }, "", padding({ 0, 0, 1, 1 }, 0)));
+    topology.add(average_unpooling("average_unpooling", "input", { 2, 2, 3, 2 }, { 1, 1, 2, 2 }, { 1, 1, 1, 1 }, padding({ 0, 0, 1, 1 }, 0)));
 
     network network(engine, topology);
 

@@ -55,9 +55,8 @@ struct convolution : public primitive_base<convolution> {
                 tensor output_size,
                 data_types output_type,
                 bool grouped_weights_shape,
-                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-            : primitive_base(id, {input}, ext_prim_id, output_padding, optional_data_type{output_type}),
+            : primitive_base(id, {input}, output_padding, optional_data_type{output_type}),
               pad(pad),
               stride(stride),
               dilation(dilation),
@@ -105,9 +104,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::Strides dilation,
                 tensor output_size,
                 bool grouped_weights_shape,
-                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-            : primitive_base(id, {input}, ext_prim_id, output_padding, optional_data_type{output_data_type}),
+            : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type}),
               pad(pad),
               stride(stride),
               dilation(dilation),
@@ -162,9 +160,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::Strides dilation,
                 tensor output_size,
                 bool grouped_weights_shape,
-                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-            : primitive_base(id, {input}, ext_prim_id, output_padding, optional_data_type{output_data_type}),
+            : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type}),
               pad(pad),
               stride(stride),
               dilation(dilation),
@@ -208,9 +205,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::Strides stride = {1, 1},
                 ov::CoordinateDiff pad = {0, 0},
                 ov::Strides dilation = {1, 1},
-                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           pad(pad),
           stride(stride),
           dilation(dilation),
@@ -253,9 +249,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::Strides dilation,
                 ov::CoordinateDiff padding_above,
                 ov::CoordinateDiff padding_below,
-                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           pad(pad),
           stride(stride),
           dilation(dilation),
@@ -300,9 +295,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::Strides dilation,
                 ov::CoordinateDiff padding_above,
                 ov::CoordinateDiff padding_below,
-                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           pad(pad),
           stride(stride),
           dilation(dilation),
@@ -345,9 +339,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::CoordinateDiff pad = {0, 0},
                 ov::Strides dilation = {1, 1},
                 bool grouped_weights_shape = false,
-                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           pad(pad),
           stride(stride),
           dilation(dilation),
@@ -388,9 +381,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::CoordinateDiff pad = {0, 0},
                 ov::Strides dilation = {1, 1},
                 bool grouped_weights_shape = false,
-                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           pad(pad),
           stride(stride),
           dilation(dilation),
@@ -429,9 +421,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::Strides dilation,
                 ov::CoordinateDiff padding_above,
                 ov::CoordinateDiff padding_below,
-                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           pad(pad),
           stride(stride),
           dilation(dilation),
@@ -472,9 +463,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::Strides dilation,
                 ov::CoordinateDiff padding_above,
                 ov::CoordinateDiff padding_below,
-                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           pad(pad),
           stride(stride),
           dilation(dilation),
@@ -511,14 +501,15 @@ struct convolution : public primitive_base<convolution> {
                 ov::Strides stride = {1, 1},
                 ov::CoordinateDiff pad = {0, 0},
                 ov::Strides dilation = {1, 1},
+                tensor output_size = {0, 0, 0, 0},
                 bool grouped_weights_shape = false,
-                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           pad(pad),
           stride(stride),
           dilation(dilation),
-          with_output_size(false),
+          with_output_size(output_size.count() > 0 ? true : false),
+          output_size(output_size),
           groups(groups),
           deformable_groups(1),
           padding_above(stride.size(), 0),
@@ -553,9 +544,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::CoordinateDiff pad,
                 ov::Strides dilation,
                 tensor output_size,
-                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           pad(pad),
           stride(stride),
           dilation(dilation),
@@ -596,9 +586,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::CoordinateDiff pad,
                 ov::Strides dilation,
                 tensor output_size,
-                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           pad(pad),
           stride(stride),
           dilation(dilation),
@@ -645,9 +634,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::Strides dilation,
                 tensor output_size,
                 bool bilinear_interpolation_pad = false,
-                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-    : primitive_base(id, inputs, ext_prim_id, output_padding),
+    : primitive_base(id, inputs, output_padding),
       pad(pad),
       stride(stride),
       dilation(dilation),
@@ -695,7 +683,6 @@ struct convolution : public primitive_base<convolution> {
                                                ov::Strides stride = {1, 1},
                                                ov::CoordinateDiff pad = {0, 0},
                                                ov::Strides dilation = {1, 1},
-                                               const primitive_id& ext_prim_id = "",
                                                const padding& output_padding = padding()) {
         return convolution(id,
                            input,
@@ -705,7 +692,6 @@ struct convolution : public primitive_base<convolution> {
                            pad,
                            dilation,
                            output_size,
-                           ext_prim_id,
                            output_padding);
     }
 
@@ -731,7 +717,6 @@ struct convolution : public primitive_base<convolution> {
                                                ov::Strides stride = {1, 1},
                                                ov::CoordinateDiff pad = {0, 0},
                                                ov::Strides dilation = {1, 1},
-                                               const primitive_id& ext_prim_id = "",
                                                const padding& output_padding = padding()) {
         return convolution(id,
                            input,
@@ -740,7 +725,6 @@ struct convolution : public primitive_base<convolution> {
                            pad,
                            dilation,
                            output_size,
-                           ext_prim_id,
                            output_padding);
     }
 
@@ -814,9 +798,8 @@ struct deformable_interp : public primitive_base<deformable_interp> {
                       tensor output_size,
                       tensor kernel_size,
                       bool bilinear_interpolation_pad,
-                      const primitive_id& ext_prim_id = "",
                       const padding& output_padding = padding())
-    : primitive_base(id, inputs, ext_prim_id, output_padding),
+    : primitive_base(id, inputs, output_padding),
       pad(pad),
       stride(stride),
       dilation(dilation),
@@ -863,9 +846,8 @@ struct deformable_conv : public primitive_base<deformable_conv> {
                     const std::vector<primitive_id>& biases,
                     uint32_t groups,
                     tensor output_size,
-                    const primitive_id& ext_prim_id = "",
                     const padding& output_padding = padding())
-    : primitive_base(id, {input}, ext_prim_id, output_padding),
+    : primitive_base(id, {input}, output_padding),
       output_size(output_size),
       groups(groups),
       weights(weights),

@@ -1,14 +1,8 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-// We have problem with includes when ENABLE_ONEDNN_FOR_GPU is OFF,
-// "impl_types" enum is not accessible if "implementation_map.hpp" is included first
-// so, a "fix" for now is to turn off clang-format for these include
-// clang-format off
-#include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
-// clang-format on
+#include "primitive_base.hpp"
 #include "roll/roll_kernel_ref.hpp"
 #include "roll/roll_kernel_selector.hpp"
 #include "roll_inst.hpp"
@@ -24,8 +18,8 @@ struct roll_impl : typed_primitive_impl_ocl<roll> {
         return make_unique<roll_impl>(*this);
     }
 
-    static primitive_impl* create(const roll_node& arg) {
-        auto roll_params = get_default_params<kernel_selector::roll_params>(arg);
+    static primitive_impl* create(const roll_node& arg, const kernel_impl_params& impl_param) {
+        auto roll_params = get_default_params<kernel_selector::roll_params>(impl_param);
         auto roll_optional_params =
             get_default_optional_params<kernel_selector::roll_optional_params>(arg.get_program());
 

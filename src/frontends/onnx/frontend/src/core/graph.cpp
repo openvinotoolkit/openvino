@@ -312,7 +312,11 @@ std::shared_ptr<Function> Graph::create_function() {
     auto function = std::make_shared<Function>(get_ng_outputs(), m_parameters, get_name());
     const auto& onnx_outputs = m_model->get_graph().output();
     for (std::size_t i{0}; i < function->get_output_size(); ++i) {
-        function->get_output_op(i)->set_friendly_name(onnx_outputs.Get(i).name() + "/sink_port_0");
+        const auto& result_node = function->get_output_op(i);
+        const std::string onnx_output_name = onnx_outputs.Get(i).name();
+        result_node->set_friendly_name(onnx_output_name + "/sink_port_0");
+        const auto& previous_operation = result_node->get_input_node_shared_ptr(0);
+        previous_operation->set_friendly_name(onnx_output_name);
     }
     return function;
 }

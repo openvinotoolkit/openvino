@@ -2,16 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// We have problem with includes when ENABLE_ONEDNN_FOR_GPU is OFF,
-// "impl_types" enum is not accessible if "implementation_map.hpp" is included first
-// so, a "fix" for now is to turn off clang-format for these include
-// clang-format off
-#include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-// clang-format on
 #include "bucketize/bucketize_kernel_ref.hpp"
 #include "bucketize/bucketize_kernel_selector.hpp"
 #include "bucketize_inst.hpp"
+#include "impls/implementation_map.hpp"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -24,8 +19,8 @@ struct bucketize_impl : typed_primitive_impl_ocl<bucketize> {
         return make_unique<bucketize_impl>(*this);
     }
 
-    static primitive_impl* create(const bucketize_node& arg) {
-        auto params = get_default_params<kernel_selector::bucketize_params>(arg);
+    static primitive_impl* create(const bucketize_node& arg, const kernel_impl_params& impl_param) {
+        auto params = get_default_params<kernel_selector::bucketize_params>(impl_param);
         auto optional_params =
             get_default_optional_params<kernel_selector::bucketize_optional_params>(arg.get_program());
 
@@ -48,28 +43,32 @@ struct bucketize_impl : typed_primitive_impl_ocl<bucketize> {
 namespace detail {
 
 attach_bucketize_impl::attach_bucketize_impl() {
-    implementation_map<bucketize>::add(impl_types::ocl,
-                                       bucketize_impl::create,
-                                       {
-                                           std::make_tuple(data_types::u8, format::bfyx),
-                                           std::make_tuple(data_types::u8, format::bfzyx),
-                                           std::make_tuple(data_types::u8, format::bfwzyx),
-                                           std::make_tuple(data_types::i8, format::bfyx),
-                                           std::make_tuple(data_types::i8, format::bfzyx),
-                                           std::make_tuple(data_types::i8, format::bfwzyx),
-                                           std::make_tuple(data_types::f16, format::bfyx),
-                                           std::make_tuple(data_types::f16, format::bfzyx),
-                                           std::make_tuple(data_types::f16, format::bfwzyx),
-                                           std::make_tuple(data_types::f32, format::bfyx),
-                                           std::make_tuple(data_types::f32, format::bfzyx),
-                                           std::make_tuple(data_types::f32, format::bfwzyx),
-                                           std::make_tuple(data_types::i32, format::bfyx),
-                                           std::make_tuple(data_types::i32, format::bfzyx),
-                                           std::make_tuple(data_types::i32, format::bfwzyx),
-                                           std::make_tuple(data_types::i64, format::bfyx),
-                                           std::make_tuple(data_types::i64, format::bfzyx),
-                                           std::make_tuple(data_types::i64, format::bfwzyx),
-                                       });
+    auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::u8, data_types::i32, data_types::i64};
+    auto formats = {
+        format::bfyx,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
+        format::bs_fs_yx_bsv32_fsv16,
+
+        format::bfzyx,
+        format::b_fs_zyx_fsv16,
+        format::b_fs_zyx_fsv32,
+        format::bs_fs_zyx_bsv16_fsv32,
+        format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv32_fsv32,
+        format::bs_fs_zyx_bsv32_fsv16,
+
+        format::bfwzyx
+    };
+    std::set<std::tuple<data_types, format::type>> keys;
+    for (const auto& t : types) {
+        for (const auto& f : formats) {
+            keys.emplace(t, f);
+        }
+    }
+    implementation_map<bucketize>::add(impl_types::ocl, bucketize_impl::create, keys);
 }
 }  // namespace detail
 

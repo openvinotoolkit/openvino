@@ -16,13 +16,50 @@
 #include <memory>
 #include <set>
 #include <stdexcept>
+#include <algorithm>
+
+#if defined(_WIN32) && !defined(__GNUC__)
+#include <windows.h>
+
+static size_t get_cpu_ram_size() {
+    MEMORYSTATUSEX s {};
+    s.dwLength = sizeof(s);
+    GlobalMemoryStatusEx(&s);
+    return s.ullTotalPhys;
+}
+#elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__QNXNTO__)
+#include <unistd.h>
+#include <sys/sysctl.h>
+
+static size_t get_cpu_ram_size() {
+#ifdef __APPLE__
+    int query_ram[] = {CTL_HW, HW_MEMSIZE};
+#else
+    int query_ram[] = {CTL_HW, HW_PHYSMEM};
+#endif
+    int query_ram_len = sizeof(query_ram) / sizeof(*query_ram);
+    size_t totalram = 0;
+    size_t length = sizeof(totalram);
+
+    sysctl(query_ram, query_ram_len, &totalram, &length, NULL, 0);
+    return totalram;
+}
+#else
+#include <sys/sysinfo.h>
+
+static size_t get_cpu_ram_size() {
+    struct sysinfo s {};
+    sysinfo(&s);
+    return s.totalram;
+}
+#endif
 
 namespace cldnn {
 
 engine::engine(const device::ptr device, const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor)
-: _device(device)
-, _configuration(configuration)
-, _task_executor(task_executor) {}
+: _task_executor(task_executor)
+, _device(device)
+, _configuration(configuration) {}
 
 device_info engine::get_device_info() const {
     return _device->get_info();
@@ -43,6 +80,11 @@ bool engine::use_unified_shared_memory() const {
     return false;
 }
 
+uint64_t engine::get_max_memory_size() const {
+    static uint64_t max_device_mem = (std::max)(get_device_info().max_global_mem_size, static_cast<uint64_t>(get_cpu_ram_size()));
+    return max_device_mem;
+}
+
 bool engine::supports_allocation(allocation_type type) const {
     if (memory_capabilities::is_usm_type(type) && !use_unified_shared_memory())
         return false;
@@ -51,7 +93,7 @@ bool engine::supports_allocation(allocation_type type) const {
     return _device->get_mem_caps().support_allocation_type(type);
 }
 
-allocation_type engine::get_lockable_preffered_memory_allocation_type(bool is_image_layout) const {
+allocation_type engine::get_lockable_preferred_memory_allocation_type(bool is_image_layout) const {
     if (!use_unified_shared_memory() || is_image_layout)
         return get_default_allocation_type();
 
@@ -77,7 +119,7 @@ memory::ptr engine::attach_memory(const layout& layout, void* ptr) {
 }
 
 memory::ptr engine::allocate_memory(const layout& layout, bool reset) {
-    allocation_type type = get_lockable_preffered_memory_allocation_type(layout.format.is_image_2d());
+    allocation_type type = get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
     return allocate_memory(layout, type, reset);
 }
 

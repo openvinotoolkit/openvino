@@ -21,16 +21,38 @@ from openvino.tools.benchmark.utils.utils import next_step, get_number_iteration
     check_for_static, can_measure_as_static
 from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
 
+def parse_and_check_command_line():
+    def arg_not_empty(arg_value,empty_value):
+        return not arg_value is None and not arg_value == empty_value
+
+    args = parse_args()
+
+    if not args.perf_hint == "none" and (arg_not_empty(args.number_streams, "") or arg_not_empty(args.number_threads, 0) or arg_not_empty(args.infer_threads_pinning, "")):
+        raise Exception("-nstreams, -nthreads and -pin options are fine tune options. To use them you " \
+                        "should explicitely set -hint option to none. This is not OpenVINO limitation " \
+                        "(those options can be used in OpenVINO together), but a benchmark_app UI rule.")
+    
+    if args.report_type == "average_counters" and args.target_device.contains("MULTI"):
+        raise Exception("only detailed_counters report type is supported for MULTI device")
+    
+    _, ext = os.path.splitext(args.path_to_model)
+    is_network_compiled = True if ext == BLOB_EXTENSION else False
+    is_precisiton_set = not (args.input_precision == "" and args.output_precision == "" and args.input_output_precision == "")
+
+    if is_network_compiled and is_precisiton_set:
+        raise Exception("Cannot set precision for a compiled network. " \
+                        "Please re-compile your network with required precision " \
+                        "using compile_tool")
+    
+    return args, is_network_compiled
 
 def main():
-    # ------------------------------ 1. Parsing and validating input arguments -------------------------------------
-    next_step()
-    run(parse_args())
-
-
-def run(args):
     statistics = None
     try:
+        # ------------------------------ 1. Parsing and validating input arguments ------------------------------
+        next_step()
+        args, is_network_compiled = parse_and_check_command_line()
+
         if args.number_streams is None:
                 logger.warning(" -nstreams default value is determined automatically for a device. "
                                "Although the automatic selection usually provides a reasonable performance, "
@@ -54,11 +76,7 @@ def run(args):
         if args.load_config:
             load_config(args.load_config, config)
 
-        is_network_compiled = False
-        _, ext = os.path.splitext(args.path_to_model)
-
-        if ext == BLOB_EXTENSION:
-            is_network_compiled = True
+        if is_network_compiled:
             print("Model is compiled")
 
         # ------------------------------ 2. Loading OpenVINO ---------------------------------------------------
@@ -87,7 +105,7 @@ def run(args):
                 if is_flag_set_in_command_line('hint'):
                     if args.perf_hint=='none':
                         logger.warning(f"No device {device} performance hint is set.")
-                        args.perf_hint = ""
+                        args.perf_hint = ''
                 else:
                     args.perf_hint = "THROUGHPUT" if benchmark.api_type == "async" else "LATENCY"
                     logger.warning(f"PerformanceMode was not explicitly specified in command line. " +
@@ -170,7 +188,8 @@ def run(args):
                     else:
                         raise Exception(f"Device {device} doesn't support config key '{key}'! " +
                                         "Please specify -nstreams for correct devices in format  <dev1>:<nstreams1>,<dev2>:<nstreams2>")
-                elif key not in config[device].keys() and args.api_type == "async" and not is_flag_set_in_command_line('hint'):
+                elif key not in config[device].keys() and args.api_type == "async" \
+                    and 'PERFORMANCE_HINT' in config[device].keys() and config[device]['PERFORMANCE_HINT'] == '':
                     ## set the _AUTO value for the #streams
                     logger.warning(f"-nstreams default value is determined automatically for {device} device. " +
                                    "Although the automatic selection usually provides a reasonable performance, "
@@ -183,9 +202,6 @@ def run(args):
                             config[device][key] = "-1"  # Set AUTO mode for streams number
                 if key in config[device].keys():
                     device_number_streams[device] = config[device][key]
-
-                if is_flag_set_in_command_line('dopt'):
-                    config[device]['DENORMALS_OPTIMIZATION'] = 'YES'
 
             if CPU_DEVICE_NAME in device: # CPU supports few special performance-oriented keys
                 # limit threading for CPU portion of inference
@@ -411,7 +427,10 @@ def run(args):
                 input_tensor = request.get_input_tensor(port)
                 if not static_mode:
                     input_tensor.shape = data_tensor.shape
-                input_tensor.data[:] = data_tensor.data
+                if not len(input_tensor.shape):
+                    input_tensor.data.flat[:] = data_tensor.data
+                else:
+                    input_tensor.data[:] = data_tensor.data
 
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,

@@ -16,6 +16,7 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
     ${PYTHON_EXECUTABLE} ${SETUP_PY} clean bdist_wheel
         --dist-dir ${openvino_wheels_output_dir}
         --build=${WHEEL_BUILD}
+    DEPENDS ie_wheel
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building Python wheel ${openvino_wheel_name}"
     VERBATIM)
@@ -24,8 +25,8 @@ add_custom_target(openvino_dev_wheel ALL DEPENDS ${openvino_wheel_path})
 
 # install
 
-ie_cpack_add_component(python_wheels)
+ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_WHEELS} HIDDEN)
 
 install(FILES ${openvino_wheel_path}
-        DESTINATION tools
-        COMPONENT python_wheels)
+        DESTINATION ${OV_CPACK_WHEELSDIR}
+        COMPONENT ${OV_CPACK_COMP_PYTHON_WHEELS})

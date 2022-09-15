@@ -10,7 +10,6 @@
 #include <intel_gpu/primitives/pooling.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
-#include <intel_gpu/primitives/scale.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
 #include <intel_gpu/primitives/activation.hpp>
@@ -32,7 +31,7 @@ void PrintTupleTo(const topology_params& t, ::std::ostream* os)
 
     ss << "Topology test failed: ("
         << cldnn::data_type_traits::name(output_layout.data_type) << " "
-        << tests::test_params::print_tensor(output_layout.size) << ") Generator: [";
+        << tests::test_params::print_tensor(output_layout.get_tensor()) << ") Generator: [";
     for (auto v : generator)
     {
         ss << v << ", ";
@@ -179,7 +178,7 @@ protected:
         {
             virtual bool AddPrimitive(cldnn::topology& topology, cldnn::primitive_id id, cldnn::layout output_layout, std::deque<named_layout>& input_layouts)
             {
-                if (output_layout.size.spatial.size() != 2)
+                if (output_layout.get_spatial_rank() != 2)
                 {
                     return false;
                 }
@@ -251,7 +250,7 @@ protected:
             {
                 // for now using just one set of params
                 // todo: randomize params
-                if (output_layout.format != cldnn::format::bfyx// should be "output_layout.size.format.dimension() < 4" but requires too many case handling since tensor is immutable
+                if (output_layout.format != cldnn::format::bfyx// should be "output_layout.get_tensor().format.dimension() < 4" but requires too many case handling since tensor is immutable
                     || output_layout.feature() < 2)
                 {
                     return false;
@@ -296,20 +295,6 @@ protected:
                 cldnn::primitive_id eltwise_params_id = id + "_eltwise_params";
                 AddRandomMemory(topology, eltwise_params_id, output_layout);
                 topology.add(cldnn::eltwise(id, {input_id, eltwise_params_id}, cldnn::eltwise_mode::max));
-                return true;
-            }
-        };
-        class scale_layer_type : public topology_layer_type
-        {
-            virtual bool AddPrimitive(cldnn::topology& topology, cldnn::primitive_id id, cldnn::layout output_layout, std::deque<named_layout>& input_layouts)
-            {
-                // for now using just one set of params
-                // todo: randomize params
-                cldnn::primitive_id input_id = topology_generator::CreateLayerId();
-                input_layouts.push_back({ input_id, output_layout });
-                cldnn::primitive_id scale_params_id = id + "_scale_params";
-                AddRandomMemory(topology, scale_params_id, output_layout);
-                topology.add(cldnn::scale(id, input_id, scale_params_id, ""));
                 return true;
             }
         };
@@ -429,7 +414,7 @@ public:
         }
         ss << cldnn::data_type_traits::name(output_layout.data_type) << "_";
         ss << cldnn::format::traits(output_layout.format).order;
-        for (const auto& d : output_layout.size.raw)
+        for (const auto& d : output_layout.get_tensor().raw)
         {
             ss << "_" << d;
         }
@@ -456,7 +441,6 @@ std::vector<std::shared_ptr<topology_test::topology_generator::topology_layer_ty
     std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::activation_layer_type()),
     std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::depth_concatenate_layer_type()),
     std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::eltwise_layer_type()),
-    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::scale_layer_type()),
     std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::softmax_layer_type()),
     // Only add new types at the end
 };

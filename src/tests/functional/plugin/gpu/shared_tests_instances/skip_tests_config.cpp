@@ -83,6 +83,9 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_Auto_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
             // need dynamic shapes
             R"(.*RangeLayerTest.*)",
+            R"(.*smoke_BehaviorTests_1/OVInferRequestDynamicTests.GetSameTensor2times.*)",
+            R"(.*smoke_BehaviorTests_1/OVInferRequestDynamicTests.Infer(Upper|Fully).*)",
+            R"(.*smoke_BehaviorTests_1/OVInferRequestDynamicTests.InferDynamicNetwork(Set|With).*)",
             // Issue: 76197
             R"(.*registerPluginsXMLUnicodePath.*)",
             // Not supported yet
@@ -93,5 +96,16 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_Auto_BehaviorTests.*InferDynamicNetwork/.*)",
             // Issue: CVS-86976
             R"(.*smoke_VirtualPlugin_BehaviorTests.*LoadedRemoteContext.*)",
+            // Issue: CVS-88667 - Need to verify hetero interoperability
+            R"(.*nightly_OVClassHeteroExecutableNetworlGetMetricTest.*SUPPORTED_(CONFIG_KEYS|METRICS).*)",
+            R"(.*VirtualPlugin.*BehaviorTests.*OVHoldersTest.*LoadedTensor.*target_device=AUTO.*)",
+            // TODO: Issue: 89555
+            R"(.*CoreThreadingTests.*smoke.*Network.*)",
+            // Assign-3/ReadValue-3 does not have evaluate() methods; ref implementation does not save the value across the inferences.
+            R"(smoke_MemoryTestV3.*)",
+            // Unsupported 8d tensors
+            R"(smoke_Basic/SqueezeUnsqueezeLayerTest.CompareWithRefs/OpType=Unsqueeze_IS=\(1.1.1.1\)_Axes=\((0.1.2|0.2.3|1.2.3|0.1.2.3|)\)_.*)",
+            // Issue: 90539
+            R"(smoke_AutoBatch_BehaviorTests/OVInferRequestIOTensorTest.InferStaticNetworkSetInputTensor/targetDevice=BATCH.*)",
     };
 }

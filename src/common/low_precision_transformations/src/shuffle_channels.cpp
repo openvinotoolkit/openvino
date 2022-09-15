@@ -26,7 +26,6 @@ ShuffleChannelsTransformation::ShuffleChannelsTransformation(const Params& param
         if (transformation_callback(op)) {
             return false;
         }
-        MATCHER_SCOPE_ENABLE(ShuffleChannelsTransformation);
         return transform(*context, m);
     };
 
@@ -43,7 +42,7 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ng
     auto dequantization = NetworkHelper::getDequantization(shuffleChannels, defaultPrecisions);
 
     const auto shuffleDequantizationConstant = [&](const std::shared_ptr<Node>& eltwise) {
-        const auto normalizedConst = NetworkHelper::normalizeDequantizationShape(eltwise);
+        const auto normalizedConst = NetworkHelper::normalizeDequantizationShape(eltwise, true);
         const auto constShape = normalizedConst->get_shape();
 
         if (shape_size(constShape) == 1ul) {

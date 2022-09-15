@@ -28,20 +28,21 @@ set(SOURCES_ALL
 
 add_executable(${TARGET_NAME} ${SOURCES_ALL})
 
-if(COMMAND set_ie_threading_interface_for)
-  set_ie_threading_interface_for(${TARGET_NAME})
-endif()
+set_ie_threading_interface_for(${TARGET_NAME})
 
 # Workaround to avoid warnings during LTO build
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized")
 endif()
 
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph
                                              inference_engine
                                              OpenCL
                                              gtest
                                              gtest_main
+                                             ngraph_reference
                                              gmock)
 
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
@@ -49,6 +50,7 @@ target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
                                                   $<TARGET_PROPERTY:openvino_intel_gpu_kernels,INTERFACE_INCLUDE_DIRECTORIES>
                                                   $<TARGET_PROPERTY:openvino_intel_gpu_runtime,INTERFACE_INCLUDE_DIRECTORIES>
                                                   ${CMAKE_HOME_DIRECTORY}/src/core/reference/include/)
+
 if(WIN32)
   target_link_libraries(${TARGET_NAME} PRIVATE setupapi)
 elseif((NOT ANDROID) AND (UNIX))

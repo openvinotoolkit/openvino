@@ -88,6 +88,8 @@
 #include "backend.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/runtime/reference/convert_color_nv12.hpp"
+#include "ngraph_ops/augru_cell.hpp"
+#include "ngraph_ops/augru_sequence.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -2112,11 +2114,11 @@ bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronDetectionOutput>& op
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
     const auto attrs = op->get_attrs();
-    const size_t output_roi_count = attrs.max_detections_per_image;
+    size_t rois_num = attrs.max_detections_per_image;
 
-    const Shape output_boxes_shape = Shape{output_roi_count, 4};
-    const Shape output_classes_shape = Shape{output_roi_count};
-    const Shape output_scores_shape = Shape{output_roi_count};
+    const Shape output_boxes_shape = Shape{rois_num, 4};
+    const Shape output_classes_shape = Shape{rois_num};
+    const Shape output_scores_shape = Shape{rois_num};
 
     const auto output_type = op->get_input_element_type(0);
 
@@ -2124,7 +2126,6 @@ bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronDetectionOutput>& op
     const auto input_deltas_data = get_floats(inputs[1], inputs[1]->get_shape());
     const auto input_scores_data = get_floats(inputs[2], inputs[2]->get_shape());
     const auto input_im_info_data = get_floats(inputs[3], inputs[3]->get_shape());
-    const auto input_roi_count = inputs[0]->get_shape()[0];
 
     std::vector<float> output_boxes(shape_size(output_boxes_shape));
     std::vector<int32_t> output_classes(shape_size(output_classes_shape));
@@ -2141,7 +2142,6 @@ bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronDetectionOutput>& op
                                                                 input_deltas_data.data(),
                                                                 input_scores_data.data(),
                                                                 input_im_info_data.data(),
-                                                                input_roi_count,
                                                                 attrs,
                                                                 output_boxes.data(),
                                                                 output_scores.data(),
@@ -3102,6 +3102,30 @@ bool evaluate(const shared_ptr<op::v3::GRUCell>& op, const HostTensorVector& out
     return true;
 }
 
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<ov::op::internal::AUGRUCell>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+    runtime::reference::gru_cell<T>(inputs[0]->get_data_ptr<ET>(),
+                                    inputs[0]->get_shape(),
+                                    inputs[1]->get_data_ptr<ET>(),
+                                    inputs[1]->get_shape(),
+                                    inputs[2]->get_data_ptr<ET>(),
+                                    inputs[2]->get_shape(),
+                                    inputs[3]->get_data_ptr<ET>(),
+                                    inputs[3]->get_shape(),
+                                    inputs[4]->get_data_ptr<ET>(),
+                                    inputs[4]->get_shape(),
+                                    outputs[0]->get_data_ptr<ET>(),
+                                    op->get_activations()[0],
+                                    op->get_activations()[1],
+                                    op->get_clip(),
+                                    op->get_linear_before_reset(),
+                                    inputs[5]->get_data_ptr<ET>());
+    return true;
+}
+
 namespace rnn_seq_v5 {
 template <element::Type_t t1, element::Type_t t2>
 inline void evaluate(const shared_ptr<op::v5::RNNSequence>& op,
@@ -3374,6 +3398,56 @@ bool evaluate(const shared_ptr<op::v5::GRUSequence>& op,
     }
     return true;
 }
+
+namespace augru_seq {
+template <element::Type_t t1, element::Type_t t2>
+inline void evaluate(const shared_ptr<ov::op::internal::AUGRUSequence>& op,
+                     const HostTensorVector& outputs,
+                     const HostTensorVector& inputs) {
+    using T1 = typename element_type_traits<t1>::value_type;
+    using T2 = typename element_type_traits<t2>::value_type;
+    runtime::reference::gru_sequence<T1, T2>(inputs[0]->get_data_ptr<char>(),
+                                             inputs[0]->get_shape(),
+                                             inputs[1]->get_data_ptr<char>(),
+                                             inputs[1]->get_shape(),
+                                             inputs[2]->get_data_ptr<char>(),
+                                             inputs[2]->get_shape(),
+                                             inputs[3]->get_data_ptr<char>(),
+                                             inputs[3]->get_shape(),
+                                             inputs[4]->get_data_ptr<char>(),
+                                             inputs[4]->get_shape(),
+                                             inputs[5]->get_data_ptr<char>(),
+                                             inputs[5]->get_shape(),
+                                             outputs[0]->get_data_ptr<char>(),
+                                             outputs[1]->get_data_ptr<char>(),
+                                             op->get_activations()[0],
+                                             op->get_activations()[1],
+                                             op->get_clip(),
+                                             op->get_direction(),
+                                             op->get_linear_before_reset(),
+                                             inputs[6]->get_data_ptr<char>());
+}
+}  // namespace augru_seq
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<ov::op::internal::AUGRUSequence>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
+    switch (inputs[2]->get_element_type()) {
+    case element::Type_t::i64:
+    case element::Type_t::u64:
+        augru_seq::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
+        break;
+    case element::Type_t::i32:
+    case element::Type_t::u32:
+        augru_seq::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
+        break;
+    default:
+        return false;
+    }
+    return true;
+}
+
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v9::ROIAlign>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
@@ -3589,7 +3663,7 @@ template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v9::GenerateProposals>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
-    const auto attrs = op->get_attrs();
+    const auto& attrs = op->get_attrs();
 
     size_t post_nms_count = 0;
     if (attrs.post_nms_count < 0) {
@@ -3600,12 +3674,12 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposals>& op,
         post_nms_count = static_cast<size_t>(attrs.post_nms_count);
     }
 
-    const auto output_type = op->get_input_element_type(0);
+    const auto& output_type = op->get_input_element_type(0);
 
-    const auto im_info_shape = inputs[0]->get_shape();
-    const auto anchors_shape = inputs[1]->get_shape();
-    const auto deltas_shape = inputs[2]->get_shape();
-    const auto scores_shape = inputs[3]->get_shape();
+    const auto& im_info_shape = inputs[0]->get_shape();
+    const auto& anchors_shape = inputs[1]->get_shape();
+    const auto& deltas_shape = inputs[2]->get_shape();
+    const auto& scores_shape = inputs[3]->get_shape();
 
     const auto im_info_data = get_floats(inputs[0], im_info_shape);
     const auto anchors_data = get_floats(inputs[1], anchors_shape);
@@ -3639,7 +3713,7 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposals>& op,
     outputs[1]->set_element_type(output_type);
     outputs[1]->set_shape(output_scores_shape);
 
-    const auto roi_num_type = op->get_output_element_type(2);
+    const auto& roi_num_type = op->get_output_element_type(2);
     Shape output_roi_num_shape = Shape{im_info_shape[0]};
     outputs[2]->set_element_type(roi_num_type);
     outputs[2]->set_shape(output_roi_num_shape);

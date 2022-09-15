@@ -399,7 +399,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     auto ops = func->get_ordered_ops();
 
     //Mark removed nodes as supported
-    std::unordered_set<std::string> supported = GetRemovedNodes(function, func);;
+    std::unordered_set<std::string> supported = GetRemovedNodes(function, func);
     std::unordered_set<std::string> unsupported;
 
     std::unordered_set<std::string> supportedNotOriginal;
@@ -574,7 +574,7 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
     }
     Config config = _impl->m_configs.GetConfig(device_id);
 
-    const bool is_new_api = GetCore()->isNewAPI();
+    const bool is_new_api = IsNewAPI();
     if (config.key_config_map.find(name) != config.key_config_map.end()) {
         std::string val = config.key_config_map.find(name)->second;
         if (is_new_api) {
@@ -599,8 +599,9 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
             } else if (name == ov::num_streams) {
                 return ov::util::from_string(val, ov::num_streams);
             } else if (name == ov::hint::num_requests) {
-                auto temp = ov::util::from_string(val, ov::hint::num_requests);;
-                return temp;
+                return ov::util::from_string(val, ov::hint::num_requests);
+            } else if (name == ov::hint::inference_precision) {
+                return ov::util::from_string(val, ov::hint::inference_precision);
             } else if (name == ov::device::id) {
                 return ov::util::from_string(val, ov::device::id);
             } else {
@@ -695,7 +696,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     auto iter = device_map.find(device_id);
     auto device = iter != device_map.end() ? iter->second : device_map.begin()->second;
     auto device_info = device->get_info();
-    bool is_new_api = GetCore()->isNewAPI();
+    bool is_new_api = IsNewAPI();
 
     if (name == ov::supported_properties) {
         return decltype(ov::supported_properties)::value_type {
@@ -728,6 +729,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW},
             ov::PropertyName{ov::num_streams.name(), PropertyMutability::RW},
             ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RW},
+            ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
         };
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
@@ -1000,7 +1002,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         std::shared_ptr<Program> program;
 
         GPU_DEBUG_IF(debug_config->base_batch_for_memory_estimation > 0) {
-            int32_t user_specified_base_batch_size = debug_config->base_batch_for_memory_estimation;
+            size_t user_specified_base_batch_size = debug_config->base_batch_for_memory_estimation;
             base_batch_size = (user_specified_base_batch_size != base_batch_size) ? user_specified_base_batch_size : base_batch_size;
         }
 

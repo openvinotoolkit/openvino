@@ -14,6 +14,11 @@
 
 #include "gflags/gflags.h"
 
+// gflags supports uint32 starting from v2.2 only
+#ifndef DEFINE_uint32
+#    define DEFINE_uint32(name, val, txt) DEFINE_VARIABLE(GFLAGS_NAMESPACE::uint32, U, name, val, txt)
+#endif
+
 /// @brief message for help argument
 static const char help_message[] = "Print a usage message";
 
@@ -199,7 +204,7 @@ static const char load_from_file_message[] = "Optional. Loads model from file di
                                              " All CNNNetwork options (like re-shape) will be ignored";
 
 // @brief message for inference_precision
-static const char inference_precision_message[] = "Optional. Inference precission";
+static const char inference_precision_message[] = "Optional. Inference precision";
 
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of the network.";
 
@@ -229,8 +234,6 @@ static constexpr char inference_only_message[] =
     " inference only mode available for them with single input data shape only."
     " To enable full mode for static models pass \"false\" value to this argument:"
     " ex. \"-inference_only=false\".\n";
-
-static const char denormals_optimization_message[] = "Optional. Denormals is optimized by treating as zero";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
@@ -365,9 +368,6 @@ DEFINE_string(imean, "", input_image_mean_message);
 /// @brief Define flag for inference only mode <br>
 DEFINE_bool(inference_only, true, inference_only_message);
 
-/// @brief Define flag for denormals handling mode <br>
-DEFINE_bool(dopt, false, denormals_optimization_message);
-
 /**
  * @brief This function show a help message
  */
@@ -421,5 +421,4 @@ static void show_usage() {
     std::cout << "    -iscale                   " << input_image_scale_message << std::endl;
     std::cout << "    -imean                    " << input_image_mean_message << std::endl;
     std::cout << "    -inference_only           " << inference_only_message << std::endl;
-    std::cout << "    -dopt                     " << denormals_optimization_message << std::endl;
 }
