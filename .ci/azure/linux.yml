@@ -25,13 +25,13 @@ jobs:
 - job: Lin
   strategy:
     matrix:
-      # Dynamic:
-      #   CMAKE_BUILD_SHARED_LIBS: 'ON'
-      #   PYTHON_STATIC_ARGS:
-      #   CMAKE_CPACK_GENERATOR:
-      #   SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
-      #   PYTHON_SAMPLES_INSTALL_DIR: $(SAMPLES_INSTALL_DIR)/python
-      #   RUN_PREFIX: . $(SETUPVARS) -pyver 3.8 &&
+      Dynamic:
+        CMAKE_BUILD_SHARED_LIBS: 'ON'
+        PYTHON_STATIC_ARGS:
+        CMAKE_CPACK_GENERATOR:
+        SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
+        PYTHON_SAMPLES_INSTALL_DIR: $(SAMPLES_INSTALL_DIR)/python
+        RUN_PREFIX: . $(SETUPVARS) -pyver 3.8 &&
       # Debian:
       #   CMAKE_BUILD_SHARED_LIBS: 'ON'
       #   PYTHON_STATIC_ARGS:
