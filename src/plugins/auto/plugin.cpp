@@ -496,14 +496,17 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     std::mutex load_mutex;
     std::vector<Task> loads;
     std::once_flag readNetworkFlag;
+    std::vector<DeviceInformation> priorityDevices;
     std::vector<DeviceInformation> gpuDevices;
     int nTotalGPUStreamsNum = 0;
 
     auto loadInferEngTask = [&](DeviceInformation& p) {
         auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
         if (tmpiter != fullConfig.end()) {
-            if (tmpiter->second == PluginConfigParams::NO)
+            if (tmpiter->second == PluginConfigParams::NO) {
+                LOG_INFO_TAG("set %s=%s", tmpiter->first.c_str(), tmpiter->second.c_str());
                 multiSContext->_batchingDisabled = true;
+            }
             p.config.insert({tmpiter->first, tmpiter->second});
         }
         insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), p.deviceName, p.config);
@@ -550,7 +553,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     // Push GPU Devices to gpuDevices
     for (auto iterGPU = metaDevices.begin(); iterGPU != metaDevices.end();) {
         if (iterGPU->deviceName.find("GPU") != std::string::npos) {
-            gpuDevices.push_back(*iterGPU);
+            gpuDevices.emplace_back(*iterGPU);
+            priorityDevices.emplace_back(*iterGPU);
             iterGPU = metaDevices.erase(iterGPU);
         } else {
             iterGPU++;
@@ -558,7 +562,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     }
     // load GPU Devices first
     for (auto& p : gpuDevices) {
-        loads.push_back([&] {
+        loads.push_back([&]() {
             loadInferEngTask(p);
         });
     }
@@ -602,6 +606,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         }
     }
     for (auto& p : metaDevices) {
+        priorityDevices.emplace_back(p);
         loads.push_back([&]() {
             loadInferEngTask(p);
         });
@@ -626,8 +631,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     }
     // MULTI can enable the perf counters only if all  devices support/enable that
     bool enablePerfCounters = num_plugins_supporting_perf_counters == executableNetworkPerDevice.size();
-    multiSContext->_devicePriorities = metaDevices;
-    multiSContext->_devicePrioritiesInitial = metaDevices;
+    multiSContext->_devicePriorities = priorityDevices;
+    multiSContext->_devicePrioritiesInitial = priorityDevices;
     multiSContext->_networksPerDevice = executableNetworkPerDevice;
     multiSContext->_config = multiNetworkConfig;
     multiSContext->_needPerfCounters = enablePerfCounters;
