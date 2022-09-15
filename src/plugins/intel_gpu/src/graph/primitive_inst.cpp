@@ -175,7 +175,8 @@ void primitive_inst::update_shape() {
     auto memory_deps = _node.get_const_memory_deps();
     std::vector<event::ptr> dependencies_events;
     for (auto& i : _node.get_shape_infer_dependencies()) {
-        if (memory_deps.count(i) > 0) {
+        // Some primitives may have flexible count of deps (e.g. reshape), thus allow skipping some deps
+        if (memory_deps.count(i) > 0 || i >= _node.get_dependencies().size()) {
             continue;
         }
         auto& dep = _node.get_dependency(i);
