@@ -51,11 +51,24 @@ NamedOutputs elementwise_floordiv(const NodeContext& node_context) {
     auto y = node_context.get_input("Y");
     const auto axis = node_context.get_attribute<int>("axis", -1);
 
-    return node_context.default_single_output_mapping(
-        {std::make_shared<default_opset::Divide>(x,
-                                                 y,
-                                                 ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::PDPD, axis))},
-        {"Out"});
+    PADDLE_OP_CHECK(node_context, x.get_partial_shape().rank().is_static(), "elementwise_ops: X rank must be static!");
+    PADDLE_OP_CHECK(node_context, y.get_partial_shape().rank().is_static(), "elementwise_ops: Y rank must be static!");
+    int64_t x_rank = x.get_partial_shape().rank().get_length();
+    int64_t y_rank = y.get_partial_shape().rank().get_length();
+
+    if ((axis == -1) || (axis == x_rank - 1) || (x_rank == y_rank)) {
+        return node_context.default_single_output_mapping({std::make_shared<default_opset::Divide>(x, y, true)}, {"Out"});
+    } else {
+        std::vector<int64_t> indices;
+        for (int64_t i = 0; i < axis; i++)
+            indices.push_back(i);
+        for (int64_t i = y_rank + axis; i < x_rank; i++)
+            indices.push_back(i);
+
+        auto indices_node = default_opset::Constant::create(ov::element::i64, ov::Shape{indices.size()}, indices);
+        auto y_node = std::make_shared<default_opset::Unsqueeze>(y, indices_node);
+        return node_context.default_single_output_mapping({std::make_shared<default_opset::Divide>(x, y_node, true)}, {"Out"});
+    }
 }
 }
 
