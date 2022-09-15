@@ -14,6 +14,7 @@
 #include "snippets/pass/convert_constants.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
 #include "snippets/pass/vector_to_scalar.hpp"
+#include "snippets/pass/insert_loops.hpp"
 #include "snippets/pass/transform_convert.hpp"
 #include "snippets/pass/align_element_type.hpp"
 #include "snippets/utils.hpp"
@@ -369,8 +370,6 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     //  should be passed as run-time args, so it's a mixed regime: kernel is shape-aware, but some additional runtime args are required
     // Presently Broadcasting is organized in the following way:
     // * ALL last dims are static => broadcasting is handled via MoveBroadcast and pointer arithmetics (even for dynamic upper dims)
-    // * AT LEAST ONE one dim is dynamic => broadcasting is handled dynamically inside the TileScheduler based on runtime
-    //   info, since we can't tell if the `1` dim should be broadcasted beforehand
     if (!inputs_has_dynamic_last_dims) {
         manager.register_pass<snippets::pass::InsertMoveBroadcast>();
         manager.register_pass<snippets::pass::LoadMoveBroadcastToBroadcastLoad>();
@@ -378,7 +377,7 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
         // simple subgraphs where one of the ngraph::op's inputs is broadcasted to match the larger one. However, BroadcastMove
         // could also be inserted after the ngraph::op, if the op input don't need broadcasting, but the output does
         // (for example, to match the larger output of a child node). In such cases, Loads (and Stores) should be replaced
-        // with ScalarLoads (ScalarStores) to avoid invalid read in vector Tile. Graph example:
+        // with ScalarLoads (ScalarStores) to avoid invalid read in vector Loop. Graph example:
         // Parameter_0    Parameter_1        Parameter_2
         // [1,2,5,16]      [1,2,5,1]          [1,2,5,1]
         //   Load        BroadcastLoad         Load*       Scalar
@@ -388,7 +387,7 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
         //                       Multiply
         //                         Store
         //                        Result
-        // Note: Load* should be replaced with ScalarLoad in this example to avoid invalid read in vector Tile.
+        // Note: Load* should be replaced with ScalarLoad in this example to avoid invalid read in vector Loop.
         if (master_shape.size() != 0 && master_shape[master_shape.size() - 1] != 1) {
             manager.register_pass<snippets::pass::SetScalarCountForLoad>();
             manager.register_pass<snippets::pass::SetScalarCountForStore>();
@@ -397,6 +396,10 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
             manager.get_pass_config()->
                     set_callback<ngraph::snippets::pass::SetScalarCountForStore>(skip_matching_domain);
         }
+        // todo: get_lanes() assumes fp32. Could there be any int8 issues?
+        // Note that InsertLoops requires validate_and_infer_types afterwards, so add it manually if
+        // automatic validation will be disabled in the pass manager
+        manager.register_pass<snippets::pass::InsertLoops>(master_shape, m_generator->get_target_machine()->get_lanes());
     }
     manager.run_passes(m_body);
 }
@@ -425,10 +428,11 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
     NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
+
+
     convert_to_snippet_dialect();
     opt.run_passes(m_body);
 
-    // generation flow
     snippets::pass::AssignRegisters().run_on_model(m_body);
 
     // schedule generation should go here and be target agnostic

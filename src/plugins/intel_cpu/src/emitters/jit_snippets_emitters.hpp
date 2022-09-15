@@ -28,51 +28,43 @@ namespace intel_cpu {
 struct jit_snippets_call_args {
     const void *src_ptrs[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
     void *dst_ptrs[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
-    int64_t scheduler_offsets[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
-    size_t scheduler_work_amounts[SNIPPETS_MAX_TILE_RANK] = {};
-    int64_t data_offsets[SNIPPETS_MAX_SNIPPETS_DIMS * SNIPPETS_MAX_HARNESS_DIMS] = {};
-    float* broadcasting_scratchpad = nullptr;
-    bool broadcasting_mask[SNIPPETS_MAX_SNIPPETS_DIMS] = {}; // bit is set if broadcasting over this io takes place
-    int64_t vector_tile_increments[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
-    int64_t scalar_tile_increments[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
 };
 
 struct jit_snippets_compile_args {
-    bool is_static = true;
     std::vector<size_t> master_shape{};
-    int64_t scheduler_offsets[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
-    size_t scheduler_work_amounts[SNIPPETS_MAX_TILE_RANK] = {};
     int64_t data_offsets[SNIPPETS_MAX_SNIPPETS_DIMS * SNIPPETS_MAX_HARNESS_DIMS] = {};
 };
 ///
-/// \brief jit_container_emitter designed to wrap Emitters that contain other Emitters (presently KernelEmitter,
-/// TileSchedulerEmitter and TileEmitter). This is needed to provide common interface for register mapping
+/// \brief jit_container_emitter designed to wrap Emitters that contain other Emitters (for example, KernelEmitter)
+///  This is needed to provide common interface for register mapping
 /// (abstract to physical) and nested code access.
 ///
 class jit_container_emitter: public jit_emitter {
 public:
     jit_container_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                           const std::shared_ptr<ov::Node>& n);
+    // mapping info contains abstract_to_physical map + regs_pool
+    using mapping_info = std::pair<std::map<size_t, size_t>, std::vector<size_t>&>;
 protected:
     // maps gpr and vec abstract registers to physical ones. Physical reg indexes are taken from the provided pools
     // (the first 2 args). All the used gpr and vec registers are also stored in the provided sets (the second 2 args).
-    void map_abstract_registers(const std::vector<size_t>&,  const std::vector<size_t>&,
-                                std::set<size_t>&, std::set<size_t>&);
+    void map_abstract_registers(mapping_info& gpr_map_pool,  mapping_info& vec_map_pool,
+                                std::vector<AllocatedEmitter>& allocated_emitters) const;
     std::vector<AllocatedEmitter> body;
 };
 ///
 /// \brief    Kernel is the only entry point to Codogen Jit compilation. Kernel perform abstract-to-physical register
-/// mapping and creates pools of available gpr and vec registers. Kernel is expected to contain (at least one)
-/// TileSchedulerEmitter. In general the enclosed emitters should be organized in the following way:
-/// KernelEmitter {          /* entry point, maps registers, creates pools of available registers */
-///     TileSchedulerEmitter { /* executes required inner, avoids emitting code that won't be executed */
-///         TileEmitter {    /* inner vector tile */
-///             ...          /* All the necessary Load/Strore/elementwise emitters */
-///         }
-///         TileEmitter {    /* inner scalar tile for tail processing */
-///             ...          /* All the necessary Load/Strore/elementwise emitters */
-///         }
-///     }
+/// mapping and creates pools of available gpr and vec registers. Kernel usually to contains (at least one)
+/// LoopBeginEmitter and LoopEndEmitter pair. In general the enclosed emitters should be organized in the following way:
+/// KernelEmitter {                 /* entry point, maps registers, creates pools of available registers */
+///     1.S LoopBeginEmitter        /* Scalar Loop over the outer dimension [START] */
+///         2.S LoopBeginEmitter    /* inner vector loop [START] */
+///             ...                 /* All the necessary Load/Strore/elementwise emitters */
+///         2.E LoopEndEmitter      /* inner vector loop [END] */
+///         3.S LoopBeginEmitter    /* inner scalar loop for tail processing [START]*/
+///             ...                 /* All the necessary Load/Strore/elementwise emitters */
+///         3.E LoopEndEmitter      /* inner scalar loop for tail processing [END]*/
+///     1.E LoopEndEmitter          /* Scalar Loop over the outer dimension [END] */
 /// }
 /// Note that Kernel doesn't accept any input arguments.
 ///
@@ -101,29 +93,22 @@ private:
 
     jit_snippets_compile_args jcp;
     std::vector<size_t> gp_regs_pool;
-    std::vector<size_t> gp_regs_used;
+    // gpr's used to store data pointers, track them to apply offsets in Kernel
+    std::vector<size_t> data_ptr_regs_idx;
     std::vector<size_t> vec_regs_pool;
+    const size_t reg_indexes_idx = abi_param1.getIdx();
+    const size_t reg_const_params_idx = abi_param2.getIdx();
 };
-///
-/// \brief  TileSchedulerEmitter contains Tiles to be executed (presently vector and scalar). It calculates data offsets
-/// and work amounts, performs data pointer decrements if necessary. It also performs some Tile optimizations: scalar/vector
-/// tiles are emitted only if necessary; Tile body could be emitted directly, if only one Tile evaluation is required.
-///
-/// \param      in[0]      The number of the node inputs
-/// \param      in[1]      The number of the node outputs
-/// \param      in[2]      The number of elements that fits into vector register
-///
 
-class TileSchedulerEmitter : public jit_container_emitter {
+class LoopBeginEmitter : public jit_emitter {
 public:
-    TileSchedulerEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                         const std::shared_ptr<ov::Node>& n);
-
-    size_t get_inputs_num() const override {return 0;}
+    LoopBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
     void emit_code(const std::vector<size_t> &in,
                    const std::vector<size_t> &out,
                    const std::vector<size_t> &pool,
                    const std::vector<size_t> &gpr) const override;
+    // todo: it is purely virtual in the base class, but do we need it?
+    size_t get_inputs_num() const override {return 0;}
 
 private:
     void validate_arguments(const std::vector<size_t> &in,
@@ -136,69 +121,47 @@ private:
                    const std::vector<size_t>& gpr,
                    const ov::intel_cpu::emitter_context *emit_context) const override;
 
-    void emit_static_tiles(const Reg64&, const std::vector<Reg64>&, size_t, const std::vector<size_t>& , const std::vector<size_t>&) const;
-
-    void emit_static_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const;
-
-    void emit_dynamic_impl(const std::vector<size_t>& in,
-                          const std::vector<size_t>& out,
-                          const std::vector<size_t>& pool,
-                          const std::vector<size_t>& gpr,
-                          const ov::intel_cpu::emitter_context *emit_context) const;
-
-    jit_snippets_compile_args jcp;
+    std::shared_ptr<ngraph::snippets::op::LoopBegin> loop_begin;
+    size_t num_inputs = 0;
+    bool evaluate_once = false;
+    size_t work_amount = 0; // need to store work_amount explicitly, since two loops can work on the same dim (e.g. vector + scalar)
 };
 
-///
-/// \brief    Tile is designed to organize loop over the input and output data. It is essentially a for(...) loop:
-/// it performs operations specified by enclosed emitters, advances iteration counters
-/// and breaks when necessary.
-///
-/// \param      in[0]    The number of input entities (or scheduler counts) processed during one iteration of the tile.
-///  It is expected to be 1 for outer or scalar tiles and vlen for vector tiles.
-class TileEmitter : public jit_container_emitter {
+class LoopEndEmitter : public jit_emitter {
 public:
-    TileEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
-
-    size_t get_inputs_num() const override {return 0;}
-    std::vector<AllocatedEmitter>& get_nested_code();
+    LoopEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
     void emit_code(const std::vector<size_t> &in,
                    const std::vector<size_t> &out,
                    const std::vector<size_t> &pool,
                    const std::vector<size_t> &gpr) const override;
-
-    void emit_body(const std::vector<size_t>& vec_pool, const std::vector<size_t>& gpr_pool) const;
-    void emit_ptr_increments_static(const std::vector<Reg64>& data_ptr_regs) const;
-    void emit_ptr_increments_dynamic(const Reg64& reg_const_params, const std::vector<Reg64>& data_ptr_regs) const;
-    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-    void set_increments_and_broadcast_inputs(const Reg64& reg_const_params, const std::vector<Reg64> &data_ptr_regs) const;
-    void cleanup_broadcasting(const Reg64& reg_const_params, const std::vector<Reg64> &data_ptr_regs) const;
+    // todo: it is purely virtual in the base class, but do we need it?
+    size_t get_inputs_num() const override {return 0;}
 
 private:
     void validate_arguments(const std::vector<size_t> &in,
                             const std::vector<size_t> &out,
                             const std::vector<size_t> &pool,
                             const std::vector<size_t> &gpr) const override;
+
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out,
                    const std::vector<size_t>& pool,
                    const std::vector<size_t>& gpr,
                    const ov::intel_cpu::emitter_context *emit_context) const override;
+
+    std::shared_ptr<ngraph::snippets::op::LoopBegin> loop_begin;
+    std::shared_ptr<ngraph::snippets::op::LoopEnd> loop_end;
 
     size_t num_inputs = 0;
     size_t num_outputs = 0;
-    std::vector<size_t> io_dims {};
     std::vector<size_t> io_data_size {};
     size_t increment = 0;
-    std::vector<size_t> static_dims_idx {}; // non-zero io_dims indexes == dims that are not broadcasted
-    std::vector<size_t> dynamic_dims_idx {}; // non-zero io_dims indexes == dims that are not broadcasted
-    mutable std::vector<Label> dynamic_increments;
-    mutable std::vector<Label> dynamic_broadcasting;
+    size_t work_amount = 0;
+    bool evaluate_once = false;
+    std::vector<bool> apply_increments;
+    std::vector<int64_t> finalization_offsets;
 };
+
 
 class NopEmitter : public jit_emitter {
 public:
@@ -267,7 +230,7 @@ private:
 /// it's illigal to load/store to the same address multiple times
 /// Typical application can be if Load and BroadcastLoad are performed from the same pointer.
 /// If Load goes before BroadcastLoad topologicaly the resilt will be incorrect
-/// For scalar loads we can use different tiles. Tiling indeed can be arbitrary and post increment should be somehow coded into ISA.
+/// For scalar loads we can use different loops. Tiling indeed can be arbitrary and post increment should be somehow coded into ISA.
 /// Blocked parameter to tell if input is actually blocked. Broadcast means broadcast by W in other cases no need to substitute load.
 class MemoryEmitter : public jit_emitter  {
 public:

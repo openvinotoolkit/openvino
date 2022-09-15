@@ -16,6 +16,7 @@ snippets::op::Load::Load(const Output<Node>& x, const size_t count) : Op({x}), m
 }
 
 bool snippets::op::Load::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("count", m_count);
     return true;
 }
 

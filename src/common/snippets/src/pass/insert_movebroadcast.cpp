@@ -25,7 +25,7 @@ std::shared_ptr<ngraph::Node> broadcast_node_last_dim(const ngraph::Output<ngrap
         return broadcasted_node;
     }
     // Insert BroadcastMove only if the last dimension needs to be broadcasted. Higher-level dims broadcasting
-    // will be handled by pointer arithmetics in TileScheduler
+    // will be handled by pointer arithmetics inside outer LoopEmitter
     if (*target_shape.rbegin() != *normalized_shape.rbegin()) {
         ov::PartialShape broadcasted_shape = normalized_shape;
         *broadcasted_shape.rbegin() = *target_shape.rbegin();
@@ -79,7 +79,7 @@ ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
             ignore_as_scalar.push_back(is_scalar_constant(val));
             // Do not insert MoveBroadcast if any of the last dims is dynamic,
             // since we don't know if we really need it. In these cases, broadcasting will be performed
-            // by TileSchdeuler based on runtime shapes.
+            // by outer Loop based on runtime shapes.
             if (!ignore_as_scalar.back() && !input_shapes.back().rbegin()->is_static())
                 return false;
         }

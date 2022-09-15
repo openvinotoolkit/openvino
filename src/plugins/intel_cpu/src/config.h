@@ -32,7 +32,6 @@ struct Config {
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
     bool enableDynamicBatch = false;
-    bool snippetsDynamismSupport = false;
     std::string dumpToDot = "";
     int batchLimit = 0;
     size_t rtCacheCapacity = 5000ul;

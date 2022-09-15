@@ -20,3 +20,13 @@ void snippets::op::Scalar::validate_and_infer_types() {
                       "Scalar supports only one-element constants, got ", out_pshape.get_shape(),
                       " shape");
 }
+
+bool snippets::op::Scalar::visit_attributes(AttributeVisitor& visitor) {
+    auto shape = get_output_shape(0);
+    auto type = get_output_element_type(0);
+    auto value = cast_vector<float>();
+    visitor.on_attribute("element_type", type);
+    visitor.on_attribute("shape", shape);
+    visitor.on_attribute("value", value);
+    return true;
+}

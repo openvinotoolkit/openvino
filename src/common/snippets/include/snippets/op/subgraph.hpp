@@ -120,6 +120,7 @@ public:
     void print_statistics(bool verbose);
 
     void serialize() const;
+    void set_master_shape(ov::PartialShape new_shape) {master_shape = std::move(new_shape);}
 
     static auto wrap_node_as_subgraph(const std::shared_ptr<ngraph::Node>& node) -> std::shared_ptr<Subgraph>;
     static void fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node);

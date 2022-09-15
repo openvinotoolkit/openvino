@@ -58,10 +58,5 @@ void SnippetsTestsCommon::setInferenceType(ov::element::Type type) {
     configuration.emplace(ov::hint::inference_precision(type));
 }
 
-void SnippetsTestsCommon::enableSnippetsDynamismSupport() {
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_DYNAMISM_ENABLED)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_DYNAMISM_ENABLED, InferenceEngine::PluginConfigParams::YES});
-    }
-}
 }  // namespace test
 }  // namespace ov

@@ -6,6 +6,7 @@
 #include "snippets/add.hpp"
 #include "subgraph_simple.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 namespace ov {
 namespace test {
@@ -88,33 +89,31 @@ void AddRollConst::SetUp() {
     setInferenceType(type);
 }
 
-std::string AddSinhDynamic::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddDynamicParams> obj) {
-    InputShape inputShape1, inputShape2;
+std::string AddSinhPair::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddParamsPair> obj) {
+    std::vector<ov::Shape> input_shapes;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
-    std::tie(inputShape1, inputShape2, num_nodes, num_subgraphs, targetDevice) = obj.param;
-
+    std::tie(input_shapes, num_nodes, num_subgraphs, targetDevice) = obj.param;
+    if (input_shapes.size() != 2)
+        IE_THROW() << "Invalid input shapes vector size";
     std::ostringstream result;
-    result << "IS[0]=" << CommonTestUtils::partialShape2str({inputShape1.first}) << "_";
-    result << "IS[1]=" << CommonTestUtils::partialShape2str({inputShape2.first}) << "_";
-    result << "TS[0]=";
-    for (const auto& item : inputShape1.second)
-        result << CommonTestUtils::vec2str(item) << "_";
-    result << "TS[1]=";
-    for (const auto& item : inputShape2.second)
-        result << CommonTestUtils::vec2str(item) << "_";
+    result << "IS[0]=" << CommonTestUtils::vec2str(input_shapes[0]) << "_";
+    result << "IS[1]=" << CommonTestUtils::vec2str(input_shapes[1]) << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
     result << "targetDevice=" << targetDevice;
     return result.str();
 }
 
-void AddSinhDynamic::SetUp() {
-    InputShape inputShape1, inputShape2;
-    std::tie(inputShape1, inputShape2, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes({inputShape1, inputShape2});
-
-    auto f = ov::test::snippets::AddSinhFunction({inputShape1.first, inputShape2.first});
+void AddSinhPair::SetUp() {
+    std::vector<ov::Shape> input_shapes;
+    std::tie(input_shapes, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    std::vector<InputShape> is;
+    for (const auto& s : input_shapes) {
+        is.emplace_back(InputShape {{}, {s, }});
+    }
+    init_input_shapes(is);
+    auto f = ov::test::snippets::AddSinhFunction({input_shapes[0], input_shapes[1]});
     function = f.getOriginal();
 }
 
@@ -134,6 +133,11 @@ TEST_P(AddSinhConst, CompareWithRefImpl) {
 }
 
 TEST_P(AddRollConst, CompareWithRefImpl) {
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(AddSinhPair, CompareWithRefImpl) {
     run();
     validateNumSubgraphs();
 }

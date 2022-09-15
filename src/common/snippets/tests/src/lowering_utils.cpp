@@ -30,8 +30,31 @@ DummyTargetMachine::DummyTargetMachine() {
     jitters[ngraph::snippets::op::Scalar::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::BroadcastMove::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::Kernel::get_type_info_static()] = dummy_functor;
-    jitters[ngraph::snippets::op::Tile::get_type_info_static()] = dummy_functor;
-    jitters[ngraph::snippets::op::TileScheduler::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::LoopBegin::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::LoopEnd::get_type_info_static()] = dummy_functor;
+}
+
+void LoweringTests::SetUp() {
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+}
+
+void LoweringTests::TearDown() {
+    auto cloned_function = ngraph::clone_function(*function);
+    if (!function_ref) {
+        function_ref = cloned_function;
+    }
+    manager.run_passes(function);
+        ASSERT_NO_THROW(check_rt_info(function));
+
+    if (comparator.should_compare(FunctionsComparator::ACCURACY)) {
+        auto acc_comparator = FunctionsComparator::no_default();
+        acc_comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+        auto res = acc_comparator.compare(function, cloned_function);
+        ASSERT_TRUE(res.valid) << res.message;
+        comparator.disable(FunctionsComparator::CmpValues::ACCURACY);
+    }
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getSubgraph(const std::shared_ptr<Model>& f) {
@@ -52,9 +75,11 @@ std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getSubgraph(const
     return subgraph;
 }
 
-std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgraph(const std::shared_ptr<Model> &f) {
+std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgraph(const std::shared_ptr<Model> &f,
+                                                                                  const ov::PartialShape& master_shape) {
     auto subgraph = getTokenizedSubgraph(f);
     subgraph->set_generator(std::make_shared<DummyGenerator>());
+    subgraph->set_master_shape(master_shape);
     subgraph->generate();
     return subgraph;
 }
