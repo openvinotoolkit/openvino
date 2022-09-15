@@ -46,7 +46,7 @@ class TRANSFORMATIONS_API FakeQuantizeDecomposition;
 class ngraph::pass::FakeQuantizeDecomposition : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("FakeQuantizeDecomposition", "0");
-    FakeQuantizeDecomposition(const bool constant_weights = true, const bool forse_rounding = true);
+    FakeQuantizeDecomposition(const bool constant_weights = true, const bool force_rounding = true);
 
     static bool isAllScalarConstant(const std::shared_ptr<const ngraph::Node>& node);
     static bool getScalesAndShifts(const std::shared_ptr<const ngraph::op::v0::FakeQuantize>& fq_node,
