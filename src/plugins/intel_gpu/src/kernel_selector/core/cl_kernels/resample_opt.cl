@@ -24,7 +24,7 @@
 #define TO_OUT_VEC_TYPE(x)              CAT(convert_, OUT_VEC_TYPE)(x)
 
 
-#if !defined(SAMPLE_TYPE_LINEAR_ONNX)
+#if !defined(SAMPLE_TYPE_LINEAR_ONNX) && !defined(SAMPLE_TYPE_NEAREST)
 inline uint FUNC(get_input_index)(uint b, uint f, uint y, uint x)
 {
 #if INPUT0_DIMS < 5
@@ -257,8 +257,11 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     unroll_for (uint out_x = 0; out_x < OUTPUT_X_BLOCK_SIZE; out_x++) {
         const int ix = floor((x + out_x) * SCALES[4]);
         const int iy = floor(y * SCALES[3]);
-
+#if OUTPUT_DIMS == 5
+        in_vec_t res = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, iy, ix));
+#else
         in_vec_t res = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, iy, ix));
+#endif // OUTPUT_DIMS == 5
 #elif defined(SAMPLE_TYPE_INTERP)
     unroll_for (uint out_x = 0; out_x < OUTPUT_X_BLOCK_SIZE; out_x++) {
         const ACCUMULATOR_TYPE ix = TO_ACCUMULATOR_TYPE(SCALES[4]) * (x + out_x);

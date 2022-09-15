@@ -2213,6 +2213,20 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_nearest,
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
+                                { data_types::f16, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
+                                { data_types::f32, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
+                                { data_types::f16, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16, {}, {}},
+                                { data_types::f32, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16, {}, {}},
+                                { data_types::f16, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}},
+                                { data_types::f32, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}},
+
+                                { data_types::i8, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}},
+                                { data_types::u8, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}},
+                                { data_types::i8, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}},
+                                { data_types::u8, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}},
+                                { data_types::i8, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}},
+                                { data_types::u8, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}},
+
                             }
                         ));
 
@@ -2247,3 +2261,24 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_perf_linear_5_onnx,
                                 { data_types::u8, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}},
                             }
                         ));
+
+
+INSTANTIATE_TEST_SUITE_P(DISABLED_resample_opt_perf_nearest_5,
+                         resample_opt_random_test_ext,
+                         testing::ValuesIn(
+                             std::vector<resample_opt_random_test_params>{
+                                 { data_types::f16, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
+                                 { data_types::f32, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
+                                 { data_types::f16, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16, {}, {}},
+                                 { data_types::f32, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16, {}, {}},
+                                 { data_types::f16, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}},
+                                 { data_types::f32, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}},
+
+                                 { data_types::i8, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}},
+                                 { data_types::u8, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}},
+                                 { data_types::i8, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}},
+                                 { data_types::u8, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}},
+                                 { data_types::i8, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}},
+                                 { data_types::u8, {1, 32, 64, 64, 5},  {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}},
+                             }
+                             ));

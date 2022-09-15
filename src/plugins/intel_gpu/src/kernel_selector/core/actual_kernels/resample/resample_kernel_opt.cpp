@@ -147,20 +147,6 @@ bool ResampleKernelOpt::Validate(const Params& p, const optional_params& o) cons
         params.resampleType != ResampleType::LINEAR_ONNX)
         return false;
 
-    if (input.GetLayout() != DataLayout::fs_b_yx_fsv32 &&
-        input.GetLayout() != DataLayout::b_fs_yx_fsv16 &&
-        input.GetLayout() != DataLayout::b_fs_yx_fsv32 &&
-        input.GetLayout() != DataLayout::bs_fs_yx_bsv32_fsv16 &&
-        input.GetLayout() != DataLayout::bs_fs_yx_bsv32_fsv32 &&
-
-        input.GetLayout() != DataLayout::b_fs_zyx_fsv16 &&
-        input.GetLayout() != DataLayout::bs_fs_zyx_bsv16_fsv16 &&
-        input.GetLayout() != DataLayout::bs_fs_zyx_bsv32_fsv16 &&
-        input.GetLayout() != DataLayout::b_fs_zyx_fsv32 &&
-        input.GetLayout() != DataLayout::bs_fs_zyx_bsv16_fsv32 &&
-        input.GetLayout() != DataLayout::bs_fs_zyx_bsv32_fsv32)
-        return false;
-
     if (params.resampleType == ResampleType::LINEAR_ONNX &&
         input.Dimentions() == 5 &&
         (input.Batch().v != output.Batch().v ||
