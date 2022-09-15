@@ -1677,7 +1677,7 @@ TEST_P(conv_int8_scale_shift_swish, basic) {
     );
 
     // high tolerance because many eltwise operations
-    tolerance = (p.default_type == data_types::f16 ? 1e-3f : 1e-5f) * 10;
+    tolerance = get_default_tolerance(p.default_type) * 10;
     execute(p);
 }
 
