@@ -262,14 +262,18 @@ public:
 
     std::vector<Tensor> get_tensor_array() const {
         std::vector<Tensor> ret;
-        for (const auto& tensor : m_attribute_proto->tensors())
+        const auto& tensors = m_attribute_proto->tensors();
+        ret.reserve(tensors.size());
+        for (const auto& tensor : tensors)
             ret.emplace_back(tensor, m_model_dir);
         return ret;
     }
 
     std::vector<SparseTensor> get_sparse_tensor_array() const {
         std::vector<SparseTensor> ret;
-        for (const auto& tensor : m_attribute_proto->sparse_tensors())
+        const auto& sparse_tensors = m_attribute_proto->sparse_tensors();
+        ret.reserve(sparse_tensors.size());
+        for (const auto& tensor : sparse_tensors)
             ret.emplace_back(tensor, m_model_dir);
         return ret;
     }
@@ -312,11 +316,7 @@ public:
         if (is_tensor()) {
             return {Tensor{m_attribute_proto->t(), m_model_dir}};
         } else if (is_tensor_array()) {
-            std::vector<Tensor> result;
-            for (const auto& tensor : m_attribute_proto->tensors()) {
-                result.emplace_back(tensor, m_model_dir);
-            }
-            return result;
+            return get_tensor_array();
         }
         throw error::attribute::InvalidData{m_attribute_proto->type()};
     }
@@ -334,11 +334,7 @@ public:
         if (is_sparse_tensor()) {
             return {SparseTensor{m_attribute_proto->sparse_tensor(), m_model_dir}};
         } else if (is_sparse_tensor_array()) {
-            std::vector<SparseTensor> result;
-            for (const auto& tensor : m_attribute_proto->sparse_tensors()) {
-                result.emplace_back(tensor, m_model_dir);
-            }
-            return result;
+            return get_sparse_tensor_array();
         }
         throw error::attribute::InvalidData{m_attribute_proto->type()};
     }

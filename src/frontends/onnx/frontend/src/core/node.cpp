@@ -23,7 +23,9 @@ public:
           m_domain{get_node_domain(node_proto)},
           m_graph{&graph},
           m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())} {
-        for (const auto& attr_proto : node_proto.attribute()) {
+        const auto& attributes = node_proto.attribute();
+        m_attributes.reserve(attributes.size());
+        for (const auto& attr_proto : attributes) {
             m_attributes.emplace_back(attr_proto, m_graph->model_dir());
             const auto& attribute = m_attributes.back();
             if (attribute.is_graph())
