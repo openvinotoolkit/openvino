@@ -83,9 +83,9 @@ for /F "tokens=1,2 delims=. " %%a in ("%python_version%") do (
    set pyversion_minor=%%b
 )
 
-if "%pyversion_major%" equ "%PYTHON_VERSION_MAJOR%" (
-   if "%pyversion_minor%" geq "%MIN_REQUIRED_PYTHON_VERSION_MINOR%" (
-      if "%pyversion_minor%" leq "%MAX_SUPPORTED_PYTHON_VERSION_MINOR%" (
+if %pyversion_major% equ %PYTHON_VERSION_MAJOR% (
+   if %pyversion_minor% geq %MIN_REQUIRED_PYTHON_VERSION_MINOR% (
+      if %pyversion_minor% leq %MAX_SUPPORTED_PYTHON_VERSION_MINOR% (
          set "check_pyversion=true"
       )
    )   
