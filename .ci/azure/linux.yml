@@ -180,7 +180,6 @@ jobs:
         -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCPACK_GENERATOR=$(CMAKE_CPACK_GENERATOR)
         -DBUILD_nvidia_plugin=OFF
-        -DENABLE_COVERAGE=ON
         -S $(REPO_DIR)
         -B $(BUILD_DIR)
 
