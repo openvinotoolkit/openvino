@@ -293,8 +293,6 @@ class AccuracyAwareCommon(Algorithm):
                                      for name, params in self._metrics_config.items()}
             new_accuracy_drop = metrics_accuracy_drop[metric_to_optimize]
             logger.info('Accuracy drop with the new quantization scope is %s', metrics_accuracy_drop)
-            with open('aaq_log.txt', 'a') as f_log:
-                f_log.write(f'{len(changed_nodes), final_metrics[metric_to_optimize]}')
 
             # removed all fake-quantize layers from the model
             if not get_nodes_by_type(model, ['FakeQuantize']):

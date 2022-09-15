@@ -19,7 +19,12 @@ TEST_MODELS = [
         'caffe',
         'AccuracyAwareQuantization',
         'performance',
-        {'accuracy@top1': 0.500},
+        {'accuracy@top1': 0.410},
+        {
+            'num_samples': 100,
+            'image_shape': (227, 227, 3),
+            'seed': 0,
+        },
         {
             'target_device': 'GNA',
             'preset': 'performance',
@@ -30,17 +35,22 @@ TEST_MODELS = [
         }
     ),
     (
-        'squeezenet1.1',
-        'caffe',
+        'hbonet-0.25',
+        'pytorch',
         'AccuracyAwareQuantization',
-        'performance',
-        {'accuracy@top1': 0.490},
+        'accuracy',
+        {'accuracy@top1': 0.48},
+        {
+            'num_samples': 100,
+            'image_shape': (224, 224, 3),
+            'seed': 0,
+        },
         {
             'target_device': 'GNA3',
             'preset': 'performance',
-            'stat_subset_size': 100,
+            'stat_subset_size': 10,
             'seed': 0,
-            'maximal_drop': 0.01,
+            'maximal_drop': 0.5,
             'max_iter_num': 1
         }
     )
@@ -161,18 +171,13 @@ class Accuracy(Metric):
                              'type': 'accuracy'}}
 
 
-def get_configs():
+def get_engine_configs():
     engine_config = {
         'device': 'CPU',
         'stat_requests_number': 1,
         'eval_requests_number': 1,
     }
-    dataset_config = {
-        'num_samples': 100,
-        'image_shape': (227, 227, 3),
-        'seed': 0,
-    }
-    return engine_config, dataset_config
+    return engine_config
 
 
 @pytest.fixture(scope='module', params=TEST_MODELS,
@@ -197,11 +202,11 @@ def get_model(models, model_name, model_framework, tmp_path):
     return model, fp32_model
 
 
-def get_synthetic_dataset(model, compress_algorithms, tmp_path):
+def get_synthetic_dataset(model, compress_algorithms, dataset_config, tmp_path):
     """
     Returns a synthetic dataset to test
     """
-    engine_config, dataset_config = get_configs()
+    engine_config = get_engine_configs()
 
     data_loader = SyntheticDataLoader(dataset_config)
     label_collector = LabelCollector()
@@ -254,7 +259,7 @@ def get_synthetic_dataset(model, compress_algorithms, tmp_path):
 
 
 def optimize_model(fp32_model, data_loader, compress_algorithms):
-    engine_config, _ = get_configs()
+    engine_config = get_engine_configs()
     metric = Accuracy(top_k=1)
     engine = IEEngine(engine_config, data_loader=data_loader, metric=metric)
     pipeline = create_pipeline(compress_algorithms, engine)
@@ -282,7 +287,7 @@ def evaluate_with_synthetic_data(model, model_, model_name, algorithm, preset, t
 
 
 def test_sample_compression(_params, tmp_path, models):
-    model_name, model_framework, algorithm, preset, expected_accuracy, optimize_params = _params
+    model_name, model_framework, algorithm, preset, expected_accuracy, dataset_config, optimize_params = _params
 
     compress_algorithms = [
         {
@@ -292,7 +297,7 @@ def test_sample_compression(_params, tmp_path, models):
     ]
 
     model, fp32_model = get_model(models, model_name, model_framework, tmp_path)
-    data_loader, dataset_info = get_synthetic_dataset(fp32_model, compress_algorithms, tmp_path)
+    data_loader, dataset_info = get_synthetic_dataset(fp32_model, compress_algorithms, dataset_config, tmp_path)
     compress_model = optimize_model(fp32_model, data_loader, compress_algorithms)
     metrics = evaluate_with_synthetic_data(model, compress_model, model_name, algorithm, preset, tmp_path, dataset_info)
 
