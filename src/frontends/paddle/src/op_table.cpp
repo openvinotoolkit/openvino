@@ -40,6 +40,7 @@ OP_CONVERTER(fill_constant);
 OP_CONVERTER(flatten_contiguous_range);
 OP_CONVERTER(floor);
 OP_CONVERTER(gather);
+OP_CONVERTER(gather_nd);
 OP_CONVERTER(gelu);
 OP_CONVERTER(greater_than);
 OP_CONVERTER(group_norm);
@@ -60,6 +61,7 @@ OP_CONVERTER(matrix_nms);
 OP_CONVERTER(meshgrid);
 OP_CONVERTER(multiclass_nms);
 OP_CONVERTER(nearest_interp_v2);
+OP_CONVERTER(p_norm);
 OP_CONVERTER(pad3d);
 OP_CONVERTER(pow);
 OP_CONVERTER(pool2d);
@@ -88,6 +90,7 @@ OP_CONVERTER(stack);
 OP_CONVERTER(strided_slice);
 OP_CONVERTER(swish);
 OP_CONVERTER(tanh);
+OP_CONVERTER(tile);
 OP_CONVERTER(top_k_v2);
 OP_CONVERTER(transpose2);
 OP_CONVERTER(trilinear_interp_v2);
@@ -132,6 +135,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"flatten_contiguous_range", op::flatten_contiguous_range},
             {"floor", op::floor},
             {"gather", op::gather},
+            {"gather_nd", op::gather_nd},
             {"gelu", op::gelu},
             {"greater_equal", op::elementwise_greater_equal},
             {"greater_than", op::greater_than},
@@ -156,6 +160,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"multiclass_nms3", op::multiclass_nms},
             {"nearest_interp_v2", op::nearest_interp_v2},
             {"nearest_interp", op::nearest_interp_v2},
+            {"p_norm", op::p_norm},
             {"pad3d", op::pad3d},
             {"pow", op::pow},
             {"pool2d", op::pool2d},
@@ -185,6 +190,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"swish", op::swish},
             {"sync_batch_norm", op::batch_norm},
             {"tanh", op::tanh},
+            {"tile", op::tile},
             {"top_k_v2", op::top_k_v2},
             {"transpose2", op::transpose2},
             {"trilinear_interp_v2", op::trilinear_interp_v2},

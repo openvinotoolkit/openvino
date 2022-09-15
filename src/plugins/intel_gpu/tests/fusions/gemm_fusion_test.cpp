@@ -222,7 +222,7 @@ TEST_P(gemm_2in_scale, basic) {
         input_layout("input1", get_input_layout(p, 1)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
         gemm("gemm_prim", { "input0", "input1" }, data_types::f32),
-        scale("scale", "gemm_prim", "scale_data"),
+        eltwise("scale", { "gemm_prim", "scale_data" }, eltwise_mode::prod, p.default_type),
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
 
@@ -237,7 +237,7 @@ TEST_P(gemm_2in_scale, fp16_scale_out) {
         input_layout("input1", get_input_layout(p, 1)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
         gemm("gemm_prim", { "input0", "input1" }, data_types::f32),
-        scale("scale", "gemm_prim", "scale_data", optional_data_type{ data_types::f16 }),
+        eltwise("scale", { "gemm_prim", "scale_data" }, eltwise_mode::prod, data_types::f16),
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
 
@@ -272,7 +272,7 @@ TEST_P(gemm_2in_act_scale_quantize_i8, basic) {
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count() / 255)),
         gemm("gemm_prim", { "input0", "input1" }, data_types::f32),
         activation("activation", "gemm_prim", activation_func::exp),
-        scale("scale", "activation", "scale_data"),
+        eltwise("scale", { "activation", "scale_data" }, eltwise_mode::prod, p.default_type),
         quantize("quantize", "scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
@@ -308,7 +308,7 @@ TEST_P(gemm_2in_act_scale_quantize_eltwise_i8, basic) {
         data("eltwise_data", get_mem(get_output_layout(p))),
         gemm("gemm_prim", { "input0", "input1" }, data_types::f32),
         activation("activation", "gemm_prim", activation_func::exp),
-        scale("scale", "activation", "scale_data"),
+        eltwise("scale", { "activation", "scale_data" }, eltwise_mode::prod, p.default_type),
         quantize("quantize", "scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         eltwise("sum", { "quantize", "eltwise_data" }, eltwise_mode::sum,  data_types::f32),
         reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
@@ -334,11 +334,14 @@ TEST_P(gemm_2in_act_scale_eltwise, basic) {
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count() / 255)),
         data("eltwise_data", get_mem(get_output_layout(p))),
         gemm("gemm_prim", { "input0", "input1" }, data_types::f32),
-        scale("scale", "gemm_prim", "scale_data"),
+        eltwise("scale", { "gemm_prim", "scale_data" }, eltwise_mode::prod, p.default_type),
         activation("activation", "scale", activation_func::negative),
         eltwise("sum", { "activation", "eltwise_data" }, eltwise_mode::sum,  data_types::f32),
         reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives += 2;
 
     tolerance = 1e-4f;
     execute(p);
@@ -352,11 +355,14 @@ TEST_P(gemm_2in_act_scale_eltwise, broadcast_eltwise) {
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count() / 255)),
         data("eltwise_data", get_mem(get_single_element_layout(p))),
         gemm("gemm_prim", { "input0", "input1" }, data_types::f32),
-        scale("scale", "gemm_prim", "scale_data"),
+        eltwise("scale", { "gemm_prim", "scale_data" }, eltwise_mode::prod, p.default_type),
         activation("activation", "scale", activation_func::negative),
         eltwise("sum", { "activation", "eltwise_data" }, eltwise_mode::sum,  data_types::f32),
         reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives += 2;
 
     tolerance = 1e-4f;
     execute(p);

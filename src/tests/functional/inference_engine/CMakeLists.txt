@@ -73,14 +73,14 @@ if(ENABLE_OV_ONNX_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         ENABLE_OV_ONNX_FRONTEND
         ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx_reader/models/"
-        TEST_ONNX_MODELS_DIRNAME="${TEST_MODEL_ZOO}/core/models/onnx")
+        TEST_ONNX_MODELS_DIRNAME="${TEST_MODEL_ZOO}/onnx")
     add_dependencies(${TARGET_NAME} openvino_onnx_frontend)
 endif()
 
 if(ENABLE_OV_PADDLE_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         PADDLE_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader/models/"
-        TEST_PADDLE_MODELS_DIRNAME="test_model_zoo/paddle_test_models")
+        TEST_PADDLE_MODELS_DIRNAME="${TEST_MODEL_ZOO}/paddle_test_models")
     add_dependencies(${TARGET_NAME} openvino_paddle_frontend)
 endif()
 
@@ -159,7 +159,14 @@ function(ie_headers_compilation_with_custom_flags)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_dx.hpp"
                                                 "openvino/runtime/intel_gpu/ocl/dx.hpp")
         endif()
-        if(NOT LIBVA_FOUND)
+        # try to find VA libraries
+        if(NOT ANDROID)
+            find_host_package(PkgConfig QUIET)
+            if(PkgConfig_FOUND)
+                pkg_search_module(libva QUIET IMPORTED_TARGET libva)
+            endif()
+        endif()
+        if(NOT libva_FOUND)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_va.hpp"
                                                 "openvino/runtime/intel_gpu/ocl/va.hpp")
         endif()
