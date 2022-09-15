@@ -20,8 +20,8 @@ def pytest_generate_tests(metafunc):
 @pytest.fixture(scope='session', autouse=True)
 def rename_tf_fe_libs(request):
     # code before 'yield' statement is equal to 'set_up' function
-    if os.getenv('LD_LIBRARY_PATH'):
-        openvino_lib_path = Path(os.getenv('LD_LIBRARY_PATH'))
+    if os.getenv('OV_FRONTEND_PATH'):
+        openvino_lib_path = Path(os.getenv('OV_FRONTEND_PATH'))
     else:
         try:
             import openvino.runtime as rt
