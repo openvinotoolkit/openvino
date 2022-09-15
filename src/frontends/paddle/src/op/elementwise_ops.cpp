@@ -58,7 +58,7 @@ NamedOutputs elementwise_floordiv(const NodeContext& node_context) {
     int64_t y_rank = y.get_partial_shape().rank().get_length();
 
     if ((axis == -1) || (axis == x_rank - 1) || (x_rank == y_rank)) {
-        return node_context.default_single_output_mapping({std::make_shared<default_opset::Floor>(std::make_shared<default_opset::Divide>(x, y))}, {"Out"});
+        return node_context.default_single_output_mapping({std::make_shared<default_opset::Divide>(x, y)}, {"Out"});
     } else {
         std::vector<int64_t> indices;
         for (int64_t i = 0; i < axis; i++)
@@ -68,7 +68,7 @@ NamedOutputs elementwise_floordiv(const NodeContext& node_context) {
 
         auto indices_node = default_opset::Constant::create(ov::element::i64, ov::Shape{indices.size()}, indices);
         auto y_node = std::make_shared<default_opset::Unsqueeze>(y, indices_node);
-        return node_context.default_single_output_mapping({std::make_shared<default_opset::Floor>(std::make_shared<default_opset::Divide>(x, y_node))}, {"Out"});
+        return node_context.default_single_output_mapping({std::make_shared<default_opset::Divide>(x, y_node)}, {"Out"});
     }
 }
 
