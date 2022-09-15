@@ -43,6 +43,11 @@ GTEST_API_ int main(int argc, char** argv) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
     if (FLAGS_device_id != -1 && cldnn::debug_configuration::device_id == -1)
         cldnn::debug_configuration::device_id = FLAGS_device_id;
-    testing::InitGoogleTest(&argc, argv);
+    auto varg=gflags::GetArgvs();
+    int new_argc=varg.size();
+    char** new_argv=new char*[new_argc];
+    for(int i=0;i<new_argc;i++)
+        new_argv[i]=&varg[i][0];
+    testing::InitGoogleTest(&new_argc, new_argv);
     return RUN_ALL_TESTS();
 }
