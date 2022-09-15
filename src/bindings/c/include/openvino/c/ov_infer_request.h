@@ -80,7 +80,7 @@ ov_infer_request_set_tensor(ov_infer_request_t* infer_request, const char* tenso
  */
 OPENVINO_C_API(ov_status_e)
 ov_infer_request_set_tensor_by_port(ov_infer_request_t* infer_request,
-                                    const ov_output_node_t* port,
+                                    const ov_output_port_t* port,
                                     const ov_tensor_t* tensor);
 
 /**
@@ -94,7 +94,7 @@ ov_infer_request_set_tensor_by_port(ov_infer_request_t* infer_request,
  */
 OPENVINO_C_API(ov_status_e)
 ov_infer_request_set_tensor_by_const_port(ov_infer_request_t* infer_request,
-                                          const ov_output_const_node_t* port,
+                                          const ov_output_const_port_t* port,
                                           const ov_tensor_t* tensor);
 
 /**
@@ -167,7 +167,7 @@ ov_infer_request_get_tensor(const ov_infer_request_t* infer_request, const char*
  */
 OPENVINO_C_API(ov_status_e)
 ov_infer_request_get_tensor_by_const_port(const ov_infer_request_t* infer_request,
-                                          const ov_output_const_node_t* port,
+                                          const ov_output_const_port_t* port,
                                           ov_tensor_t** tensor);
 
 /**
@@ -180,7 +180,7 @@ ov_infer_request_get_tensor_by_const_port(const ov_infer_request_t* infer_reques
  */
 OPENVINO_C_API(ov_status_e)
 ov_infer_request_get_tensor_by_port(const ov_infer_request_t* infer_request,
-                                    const ov_output_node_t* port,
+                                    const ov_output_port_t* port,
                                     ov_tensor_t** tensor);
 
 /**
