@@ -233,7 +233,7 @@ macro(ov_rpm_add_latest_component comp)
 
     set(CPACK_COMPONENT_${upper_case}_DESCRIPTION "${CPACK_COMPONENT_${ucomp}_DESCRIPTION}")
     set(CPACK_COMPONENT_${upper_case}_ARCHITECTURE "${CPACK_COMPONENT_${ucomp}_ARCHITECTURE}")
-    set(CPACK_COMPONENT_${upper_case}_DEPENDS "${ucomp}")
+    set(CPACK_COMPONENT_${upper_case}_DEPENDS "${comp}")
 
     # take package name
     if(DEFINED CPACK_RPM_${ucomp}_PACKAGE_NAME)
