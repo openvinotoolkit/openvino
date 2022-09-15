@@ -25,7 +25,7 @@ TEST_MODELS = [
     ('densenet121_example', 'pytorch', 'ANY'),
     ('multiple_out_ports_net', 'tf', 'ANY'),
     ('gru_example', 'pytorch', 'GNA'),
-    # ('lstm_example', 'pytorch', 'GNA'),
+    ('lstm_example', 'pytorch', 'GNA'),
     #('multiple_outputs_net_example', 'tf', 'GNA'),
     ('resnet_example', 'pytorch', 'CPU_SPR'),
     #('tensor_iterator_example', 'tf', 'ANY'),
