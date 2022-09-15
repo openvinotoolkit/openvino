@@ -83,17 +83,17 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
                                const std::map<std::string, std::string>& mergedConfig) {
         // Default value of PERFORMACE_HINT is empty string.
         auto iter = mergedConfig.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
-        if (GetName() == "AUTO" && iter->second.empty() &&
+        if (GetName() == "AUTO" && iter->second == PluginConfigParams::UNDEFINED &&
             mergedConfig.find(targetDevice) == mergedConfig.end()) {
-            // setting tput as the default performance mode if no hints setting for AUTO plugin and no properties
-            // specified for target device.
-            deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::THROUGHPUT;
-            return;
+                // setting tput as the default performance mode if no hints setting for AUTO plugin and no properties
+                // specified for target device.
+                deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::THROUGHPUT;
+                return;
         }
 
         // set TPUT for MULTI if no above propertis were set by user
         if (GetName() == "MULTI") {
-            if (!iter->second.empty() || mergedConfig.find(targetDevice) != mergedConfig.end())
+            if (iter->second != PluginConfigParams::UNDEFINED || mergedConfig.find(targetDevice) != mergedConfig.end())
                 return;
             for (auto&& kvp : mergedConfig) {
                 if (kvp.first == ov::affinity || kvp.first == ov::num_streams ||
@@ -117,6 +117,8 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         }
         auto deviceConfig = GetCore()->GetSupportedConfig(deviceName, tconfig);
         setTputAsDefault(deviceName, deviceConfig, tconfig);
+        if (deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] == PluginConfigParams::UNDEFINED)
+            deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = "";
         return deviceConfig;
     };
 
