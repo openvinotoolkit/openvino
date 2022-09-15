@@ -5,7 +5,7 @@
 
 class ov_compiled_model : public ::testing::TestWithParam<std::string> {};
 INSTANTIATE_TEST_SUITE_P(device_name, ov_compiled_model, ::testing::Values("CPU"));
-TEST_P(ov_compiled_model, get_runtime_model) {
+TEST_P(ov_compiled_model, ov_compiled_model_inputs_size) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create(&core));
@@ -19,17 +19,16 @@ TEST_P(ov_compiled_model, get_runtime_model) {
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
-    ov_model_t* runtime_model = nullptr;
-    OV_EXPECT_OK(ov_compiled_model_get_runtime_model(compiled_model, &runtime_model));
-    EXPECT_NE(nullptr, runtime_model);
+    size_t input_size;
+    OV_ASSERT_OK(ov_compiled_model_inputs_size(compiled_model, &input_size));
+    ASSERT_NE(0, input_size);
 
-    ov_model_free(runtime_model);
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST_P(ov_compiled_model, get_runtime_model_error_handling) {
+TEST_P(ov_compiled_model, ov_compiled_model_input) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create(&core));
@@ -43,11 +42,67 @@ TEST_P(ov_compiled_model, get_runtime_model_error_handling) {
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
-    ov_model_t* runtime_model = nullptr;
-    OV_EXPECT_NOT_OK(ov_compiled_model_get_runtime_model(nullptr, &runtime_model));
-    OV_EXPECT_NOT_OK(ov_compiled_model_get_runtime_model(compiled_model, nullptr));
+    ov_output_const_port_t* input_port = nullptr;
+    OV_ASSERT_OK(ov_compiled_model_input(compiled_model, &input_port));
+    ASSERT_NE(nullptr, input_port);
 
-    ov_model_free(runtime_model);
+    ov_output_const_port_free(input_port);
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST_P(ov_compiled_model, ov_compiled_model_input_by_index) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
+    ASSERT_NE(nullptr, model);
+
+    ov_compiled_model_t* compiled_model = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
+    EXPECT_NE(nullptr, compiled_model);
+
+    ov_output_const_port_t* input_port = nullptr;
+    OV_ASSERT_OK(ov_compiled_model_input_by_index(compiled_model, 0, &input_port));
+    ASSERT_NE(nullptr, input_port);
+
+    ov_shape_t shape;
+    OV_ASSERT_OK(ov_const_port_get_shape(input_port, &shape));
+    ov_shape_free(&shape);
+
+    ov_output_const_port_free(input_port);
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST_P(ov_compiled_model, ov_compiled_model_input_by_name) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
+    ASSERT_NE(nullptr, model);
+
+    ov_compiled_model_t* compiled_model = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
+    EXPECT_NE(nullptr, compiled_model);
+
+    ov_output_const_port_t* input_port = nullptr;
+    OV_ASSERT_OK(ov_compiled_model_input_by_name(compiled_model, "data", &input_port));
+    ASSERT_NE(nullptr, input_port);
+
+    ov_shape_t shape;
+    OV_ASSERT_OK(ov_const_port_get_shape(input_port, &shape));
+    ov_shape_free(&shape);
+
+    ov_output_const_port_free(input_port);
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
     ov_core_free(core);
@@ -105,7 +160,7 @@ TEST_P(ov_compiled_model, create_compiled_model_with_property) {
     ov_core_free(core);
 }
 
-TEST_P(ov_compiled_model, get_inputs) {
+TEST_P(ov_compiled_model, ov_compiled_model_outputs_size) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create(&core));
@@ -119,20 +174,16 @@ TEST_P(ov_compiled_model, get_inputs) {
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
-    ov_output_node_list_t input_nodes;
-    input_nodes.output_nodes = nullptr;
-    input_nodes.size = 0;
-    OV_EXPECT_OK(ov_compiled_model_inputs(compiled_model, &input_nodes));
-    EXPECT_NE(nullptr, input_nodes.output_nodes);
-    EXPECT_NE(0, input_nodes.size);
+    size_t output_size;
+    OV_ASSERT_OK(ov_compiled_model_outputs_size(compiled_model, &output_size));
+    ASSERT_NE(0, output_size);
 
-    ov_output_node_list_free(&input_nodes);
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST_P(ov_compiled_model, get_inputs_error_handling) {
+TEST_P(ov_compiled_model, ov_compiled_model_output) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create(&core));
@@ -146,46 +197,73 @@ TEST_P(ov_compiled_model, get_inputs_error_handling) {
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
-    ov_output_node_list_t input_nodes;
-    input_nodes.output_nodes = nullptr;
-    input_nodes.size = 0;
-    OV_EXPECT_NOT_OK(ov_compiled_model_inputs(nullptr, &input_nodes));
-    OV_EXPECT_NOT_OK(ov_compiled_model_inputs(compiled_model, nullptr));
+    ov_output_const_port_t* output_port = nullptr;
+    OV_ASSERT_OK(ov_compiled_model_output(compiled_model, &output_port));
+    ASSERT_NE(nullptr, output_port);
 
-    ov_output_node_list_free(&input_nodes);
+    ov_output_const_port_free(output_port);
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST_P(ov_compiled_model, get_outputs) {
+TEST_P(ov_compiled_model, ov_compiled_model_output_by_index) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
-    EXPECT_NE(nullptr, model);
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
+    ASSERT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
-    ov_output_node_list_t output_nodes;
-    output_nodes.output_nodes = nullptr;
-    output_nodes.size = 0;
-    OV_EXPECT_OK(ov_compiled_model_outputs(compiled_model, &output_nodes));
-    EXPECT_NE(nullptr, output_nodes.output_nodes);
-    EXPECT_NE(0, output_nodes.size);
+    ov_output_const_port_t* output_port = nullptr;
+    OV_ASSERT_OK(ov_compiled_model_output_by_index(compiled_model, 0, &output_port));
+    ASSERT_NE(nullptr, output_port);
 
-    ov_output_node_list_free(&output_nodes);
+    ov_shape_t shape;
+    OV_ASSERT_OK(ov_const_port_get_shape(output_port, &shape));
+    ov_shape_free(&shape);
+
+    ov_output_const_port_free(output_port);
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST_P(ov_compiled_model, get_outputs_error_handling) {
+TEST_P(ov_compiled_model, ov_compiled_model_output_by_name) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
+    ASSERT_NE(nullptr, model);
+
+    ov_compiled_model_t* compiled_model = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
+    EXPECT_NE(nullptr, compiled_model);
+
+    ov_output_const_port_t* output_port = nullptr;
+    OV_ASSERT_OK(ov_compiled_model_output_by_name(compiled_model, "fc_out", &output_port));
+    ASSERT_NE(nullptr, output_port);
+
+    ov_shape_t shape;
+    OV_ASSERT_OK(ov_const_port_get_shape(output_port, &shape));
+    ov_shape_free(&shape);
+
+    ov_output_const_port_free(output_port);
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST_P(ov_compiled_model, get_runtime_model) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create(&core));
@@ -199,13 +277,35 @@ TEST_P(ov_compiled_model, get_outputs_error_handling) {
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
-    ov_output_node_list_t output_nodes;
-    output_nodes.output_nodes = nullptr;
-    output_nodes.size = 0;
-    OV_EXPECT_NOT_OK(ov_compiled_model_outputs(nullptr, &output_nodes));
-    OV_EXPECT_NOT_OK(ov_compiled_model_outputs(compiled_model, nullptr));
+    ov_model_t* runtime_model = nullptr;
+    OV_EXPECT_OK(ov_compiled_model_get_runtime_model(compiled_model, &runtime_model));
+    EXPECT_NE(nullptr, runtime_model);
 
-    ov_output_node_list_free(&output_nodes);
+    ov_model_free(runtime_model);
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST_P(ov_compiled_model, get_runtime_model_error_handling) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_compiled_model_t* compiled_model = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
+    EXPECT_NE(nullptr, compiled_model);
+
+    ov_model_t* runtime_model = nullptr;
+    OV_EXPECT_NOT_OK(ov_compiled_model_get_runtime_model(nullptr, &runtime_model));
+    OV_EXPECT_NOT_OK(ov_compiled_model_get_runtime_model(compiled_model, nullptr));
+
+    ov_model_free(runtime_model);
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
     ov_core_free(core);

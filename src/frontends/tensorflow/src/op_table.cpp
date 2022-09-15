@@ -54,6 +54,7 @@ OP_CONVERTER(translate_gather_op);
 OP_CONVERTER(translate_gather_v2_op);
 OP_CONVERTER(translate_gather_nd_op);
 OP_CONVERTER(translate_identity_op);
+OP_CONVERTER(translate_identity_n_op);
 OP_CONVERTER(translate_interpolate_op);
 OP_CONVERTER(translate_is_finite_op);
 OP_CONVERTER(translate_l2_loss_op);
@@ -67,6 +68,7 @@ OP_CONVERTER(translate_mat_mul_op);
 OP_CONVERTER(translate_matrix_diag_op);
 OP_CONVERTER(translate_max_pool_op);
 OP_CONVERTER(translate_non_max_suppression_op);
+OP_CONVERTER(translate_normalize_l2_op);
 OP_CONVERTER(translate_pad_op);
 OP_CONVERTER(translate_placeholder_op);
 OP_CONVERTER(translate_placeholder_with_default_op);
@@ -82,16 +84,19 @@ OP_CONVERTER(translate_reciprocal_op);
 OP_CONVERTER(translate_reshape_op);
 OP_CONVERTER(translate_resource_gather_op);
 OP_CONVERTER(translate_reverse_op);
+OP_CONVERTER(translate_reverse_sequence_op);
 OP_CONVERTER(translate_roll_op);
 OP_CONVERTER(translate_round_op);
 OP_CONVERTER(translate_rsqrt_op);
 OP_CONVERTER(translate_scatter_nd_op);
+OP_CONVERTER(translate_sparse_to_dense_op);
 OP_CONVERTER(translate_select_op);
 OP_CONVERTER(translate_shape_op);
 OP_CONVERTER(translate_size_op);
 OP_CONVERTER(translate_slice_op);
 OP_CONVERTER(translate_softmax_op);
 OP_CONVERTER(translate_space_to_depth_op);
+OP_CONVERTER(translate_sparse_reshape_op);
 OP_CONVERTER(translate_split_op);
 OP_CONVERTER(translate_split_v_op);
 OP_CONVERTER(translate_square_op);
@@ -99,12 +104,18 @@ OP_CONVERTER(translate_squeeze_op);
 OP_CONVERTER(translate_strided_slice_op);
 OP_CONVERTER(translate_sqrt_op);
 OP_CONVERTER(translate_tile_op);
+OP_CONVERTER(translate_top_k_op);
 OP_CONVERTER(translate_top_k_v2_op);
 OP_CONVERTER(translate_transpose_op);
 OP_CONVERTER(translate_unpack_op);
 OP_CONVERTER(translate_where_op);
 OP_CONVERTER(translate_x_div_y_op);
 OP_CONVERTER(translate_zeros_like_op);
+
+// Translators for internal operations
+OP_CONVERTER(translate_sparse_fill_empty_rows_op);
+OP_CONVERTER(translate_sparse_segment_sum_op);
+OP_CONVERTER(translate_unique_op);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
@@ -208,7 +219,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"GatherV2", translate_gather_v2_op},
         {"GatherNd", translate_gather_nd_op},
         {"Identity", translate_identity_op},
-        {"IdentityN", translate_identity_op},
+        {"IdentityN", translate_identity_n_op},
         {"IsFinite", translate_is_finite_op},
         {"L2Loss", translate_l2_loss_op},
         {"LeakyRelu", translate_leaky_relu_op},
@@ -229,6 +240,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"NonMaxSuppressionV4", translate_non_max_suppression_op},
         {"NonMaxSuppressionV5", translate_non_max_suppression_op},
         {"NoOp", translate_no_op},  // do nothing
+        {"NormalizeL2", translate_normalize_l2_op},
         {"OneHot", translate_one_hot_op},
         {"Pack", translate_pack_op},
         {"Pad", translate_pad_op},
@@ -244,6 +256,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Relu6", translate_relu_6_op},
         {"Reshape", translate_reshape_op},
         {"Reverse", translate_reverse_op},
+        {"ReverseSequence", translate_reverse_sequence_op},
         {"ReverseV2", translate_reverse_op},
         {"ResizeBilinear", translate_interpolate_op},
         {"ResizeNearestNeighbor", translate_interpolate_op},
@@ -252,6 +265,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Round", translate_round_op},
         {"Rsqrt", translate_rsqrt_op},
         {"ScatterNd", translate_scatter_nd_op},
+        {"SparseToDense", translate_sparse_to_dense_op},
         {"Select", translate_select_op},
         {"SelectV2", translate_select_op},
         {"Shape", translate_shape_op},
@@ -260,6 +274,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Snapshot", translate_identity_op},
         {"Softmax", translate_softmax_op},
         {"SpaceToDepth", translate_space_to_depth_op},
+        {"SparseReshape", translate_sparse_reshape_op},
         {"Split", translate_split_op},
         {"SplitV", translate_split_v_op},
         {"StopGradient", translate_identity_op},
@@ -269,12 +284,18 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"SpaceToBatchND", translate_batch_nd_and_space_nd_op},
         {"StridedSlice", translate_strided_slice_op},
         {"Tile", translate_tile_op},
+        {"TopK", translate_top_k_op},
         {"TopKV2", translate_top_k_v2_op},
         {"Transpose", translate_transpose_op},
         {"Unpack", translate_unpack_op},
         {"Where", translate_where_op},
         {"Xdivy", translate_x_div_y_op},
         {"ZerosLike", translate_zeros_like_op},
+
+        // Translators for internal operations
+        {"SparseFillEmptyRows", translate_sparse_fill_empty_rows_op},
+        {"SparseSegmentSum", translate_sparse_segment_sum_op},
+        {"Unique", translate_unique_op},
     };
 };
 }  // namespace op
