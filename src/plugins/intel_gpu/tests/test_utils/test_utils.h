@@ -571,8 +571,6 @@ double get_default_tolerance(data_types dt) {
         return 1e-3;
     case data_types::f32:
         return 1e-5;
-    case data_types::i32:
-    case data_types::i64:
     case data_types::i8:
     case data_types::u8:
         return 1.;
