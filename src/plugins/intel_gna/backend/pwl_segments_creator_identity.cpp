@@ -83,7 +83,7 @@ std::vector<gna_pwl_segment_t> PWLSegmentsCreatorIdentity::CreateSegments(const 
     auto& extra_segment = segments.back();
 
     // adapt xBase for point on the left side of 0,0 to ensure that F(-1) <= F(0)
-    UpdateSegmentOnTheLeftOf0_0(segments[0], segments[1], y0, gna_slope_segment_1.slope_scale_index);
+    //UpdateSegmentOnTheLeftOf0_0(segments[0], segments[1], y0, gna_slope_segment_1.slope_scale_index);
 
     if (INT32_MAX > border_values.x_upper) {
         auto last_segment = CalculcateLastSegmentOnTheRightOf0_0(extra_segment, border_values);
