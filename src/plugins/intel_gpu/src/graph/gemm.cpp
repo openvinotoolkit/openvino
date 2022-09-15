@@ -104,6 +104,9 @@ std::string gemm_inst::to_string(gemm_node const& node) {
 }
 
 gemm_inst::typed_primitive_inst(network& network, gemm_node const& node) : parent(network, node) {
+    if (is_dynamic())
+        return;
+
     auto input0_layout = node.input(0).get_output_layout();
     auto input1_layout = node.input(1).get_output_layout();
     bool transpose_input0 = node.get_primitive()->transpose_input0;
