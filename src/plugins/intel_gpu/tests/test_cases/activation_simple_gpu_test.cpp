@@ -1774,18 +1774,18 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     fp_activation_blocked_tests3,
     activation_random_test,
-    ::testing::Combine(::testing::Values(dataTypes),
-                       ::testing::Values(types),
-                       ::testing::Values(inputShapes),
+    ::testing::Combine(::testing::ValuesIn(dataTypes),
+                       ::testing::ValuesIn(types),
+                       ::testing::ValuesIn(inputShapes),
                        ::testing::Values(activationFunctions.front()),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{})));
 INSTANTIATE_TEST_SUITE_P(
     fp_activation_blocked_tests4,
     activation_random_test,
-    ::testing::Combine(::testing::Values(dataTypes),
-                       ::testing::Values(types),
-                       ::testing::Values(inputShapes),
+    ::testing::Combine(::testing::ValuesIn(dataTypes),
+                       ::testing::ValuesIn(types),
+                       ::testing::ValuesIn(inputShapes),
                        ::testing::Values(activationFunctions.back()),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{})));
