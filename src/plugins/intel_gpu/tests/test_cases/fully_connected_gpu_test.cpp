@@ -1971,3 +1971,88 @@ TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
         ASSERT_EQ(3.0f, output_ptr[3]);
     }
 }
+
+TEST(fully_connected_gpu, dynamic_multi_inference_multiple_shapes) {
+    auto& engine = get_test_engine();
+
+    const int32_t input_f = 3, weight_b = 4;
+
+    auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(1, 10), input_f }, data_types::f32,format::bfyx };
+    auto input_actual_layout1 = layout{ ov::PartialShape{ 2, input_f }, data_types::f32,format::bfyx};
+    auto input_actual_layout2 = layout{ ov::PartialShape{ 1, input_f }, data_types::f32,format::bfyx};
+    auto input_data1 = engine.allocate_memory(input_actual_layout1);
+    auto input_data2 = engine.allocate_memory(input_actual_layout2);
+    auto weights_data = engine.allocate_memory({ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx});
+
+    set_values(input_data1, { 0.5f, -2.0f, -0.5f,
+                              -0.5f, 2.0f, 0.5f });
+    set_values(input_data2, { -0.5f, 2.0f, 0.5f });
+    set_values(weights_data, { 1.5f, 1.0f, 0.5f,
+                              -1.0f, 0.0f, 0.5f,
+                              0.5f, -0.5f, -2.0f,
+                              -0.5f, 1.0f, 1.5f });
+
+    cldnn::topology topology{
+        input_layout("input", input_dyn_layout),
+        data("weights", weights_data),
+        fully_connected("fc", "input", "weights")
+    };
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    network network(engine, topology, options);
+
+    // Call different shape multiple times to ensure caching works fine
+    for (size_t i = 0; i < 2; i++) {
+        {
+            network.set_input_data("input", input_data1);
+
+            auto outputs = network.execute();
+            ASSERT_EQ(outputs.size(), size_t(1));
+            ASSERT_EQ(outputs.begin()->first, "fc");
+
+            auto output_prim = outputs.begin()->second.get_memory();
+
+            auto out_l = output_prim->get_layout();
+            ASSERT_EQ(out_l.batch(), 2);
+            ASSERT_EQ(out_l.feature(), weight_b);
+            ASSERT_EQ(out_l.spatial(0), 1);
+            ASSERT_EQ(out_l.spatial(1), 1);
+
+            cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+
+            ASSERT_EQ(-1.5f, output_ptr[0]);
+            ASSERT_EQ(-0.75f, output_ptr[1]);
+            ASSERT_EQ(2.25f, output_ptr[2]);
+            ASSERT_EQ(-3.0f, output_ptr[3]);
+
+            ASSERT_EQ(1.5f, output_ptr[4]);
+            ASSERT_EQ(0.75f, output_ptr[5]);
+            ASSERT_EQ(-2.25f, output_ptr[6]);
+            ASSERT_EQ(3.0f, output_ptr[7]);
+        }
+
+        {
+            network.set_input_data("input", input_data2);
+
+            auto outputs = network.execute();
+            ASSERT_EQ(outputs.size(), size_t(1));
+            ASSERT_EQ(outputs.begin()->first, "fc");
+
+            auto output_prim = outputs.begin()->second.get_memory();
+
+            auto out_l = output_prim->get_layout();
+            ASSERT_EQ(out_l.batch(), 1);
+            ASSERT_EQ(out_l.feature(), weight_b);
+            ASSERT_EQ(out_l.spatial(0), 1);
+            ASSERT_EQ(out_l.spatial(1), 1);
+
+            cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+
+            ASSERT_EQ(1.5f, output_ptr[0]);
+            ASSERT_EQ(0.75f, output_ptr[1]);
+            ASSERT_EQ(-2.25f, output_ptr[2]);
+            ASSERT_EQ(3.0f, output_ptr[3]);
+        }
+    }
+}
