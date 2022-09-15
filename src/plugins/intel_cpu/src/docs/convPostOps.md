@@ -18,14 +18,14 @@ Legacy post-ops in CONV node include depthwise, fake quantization and dwconv.
 
 **depthwise/FQ post-ops may be implemented with onednn binary post-ops in brgconv(brgconv avx512 core and brgconv amx) kernels. Disable brgconv on avx512 core cpu when having depthwise/FQ post-ops** 
 
-# Legacy input zero point in OpenVINO
+# Legacy per-channel input zero point in OpenVINO
 
 OpenVINO legacy input zero point can support per-channel input tensor zero point. The pre-calculated output compensation would
 be passed into ondnn forked kernel.
 
 |Legacy input zero point                  |Fused into conv                 |kernel support list in forked onednn 2.6
 --- | --- | ---|
-|**Per-channel input zero point**             |on all platform                   |not supported on jit amx kernel, brgconv_amx and brgconv_avx512_core
+|**Per-channel input zero point**             |on all platform                   |not supported on jit amx kernel, brgconv_amx , brgconv_avx512_vnni
 
 Fused legacy input zero point can not supported on amx cpu platforms and will fall back on vnni. The perf would greatly lower than amx.
 The stock onednn supports the per-tensor zero points. **Only on AMX platform, per-tensor zero point is fused into conv**
@@ -45,27 +45,19 @@ On AVX-512 platform, when conv fuses legacy post-ops,conv node would  try using 
 
 **WR attr[1] to use legacy post ops when having per-tensor zero point. Brgconv amx doens't support zero point by now.Switch back to binary postops+per tensor zp when binary perf issue fix in onednn.**
 
-## on AVX512-core with FP32 precision:
+## on AVX512-core non-AMX platform:
 
 **non-AMX kernel will not support per-tensor zero point because of potential conflicts with per-channel zero-point in forked onednn kernel. Only per-channel zero point would be supported.**
 
-|post-ops |without zero point                       |with per-channel zero point|
---- | --- | ---|
-|**without binary**     |attr[0] for all kernels                 |attr[0] for legacy zp kernel |
-|**with binary**        |attr[0] for legacy post-ops,attr[1] for enforced brgconv+binary    |attr[0] for legacy zp + legacy post ops|
-
-
-## on AVX512 wth U8 precision:
-
-**non-AMX kernel can't support per-tensor zero point. Only per-channel zero point would be supported.**
-
-|post-ops |without zero point                  |with per-channel zero point
---- | --- | ---|
-|**without binary post-ops**     |attr[0] for all kernels        |attr[0] for legacy zp kernel|
-|**with binary post-ops**        |attr[0] for legacy post-ops,attr[1] for enforced brgconv+binary       |attr[0] for legacy zp + legacy post ops|
+|post-ops |without zero point                       |with per-channel zero point       |with per-tensor zero point|
+--- | --- | ---| ---|
+|**without binary**     |attr[0] for all kernels                 |attr[0] for legacy zp kernel  |attr[0] for legacy zp kernel, attr[1] for per-tensor stock zp|
+|**with binary**        |attr[0] for legacy post-ops,attr[1] for enforced brgconv+binary    |attr[0] for legacy zp + legacy post ops    |attr[0] for legacy zp + legacy post ops, attr[1] binary post ops + per-tensor stock zp|
 
 
 # attr[0] and attr[1]
 attr[0] is for legacy post-ops or/and legarcy zero point;
-attr[1] is to append binary post-ops or append per-tensor zero point on avx512core-amx platform.
+
+attr[1] is aims to append binary post-ops or/and per tensor zero point. 
+
 **When there is no legagy post ops or legacy zero point, only need attr[0].**

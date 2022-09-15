@@ -52,8 +52,8 @@ public:
     std::vector<float> legacyWeightsZeroPoints;
     //Hold legacy pre-calculated output compensation
     std::vector<int32_t> legacyOutputCompensation;
-    //Hold per-tensor input zero point. Pass to onednn to calculate output compensation.
-    std::vector<int32_t> inputZeroPoints;
+    //Hold stock per-tensor input zero point. Pass to onednn to calculate output compensation.
+    std::vector<int32_t> stockInputZeroPoints;
 
     const InferenceEngine::SizeVector &getWeightDims() { return weightDims; }
     const std::vector<size_t> &getStride() { return stride; }
@@ -119,7 +119,9 @@ private:
     bool withSumBroadcast = false;
     bool preferLegacyPostOps = false;
     bool preferLegacyZeroPoint = false;
-    bool havingZeroPoint = false;
+    bool withInputZeroPoint = false;
+    bool zpPerTensor = false;
+    bool zpPerChannel = false;
     std::vector<size_t> stride;
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
@@ -157,7 +159,7 @@ private:
     MemoryPtr legacyInputZeroPointsMemPtr;
     MemoryPtr legacyWeightsZeroPointsMemPtr;
     MemoryPtr legacyOutputCompensationMemPtr;
-    MemoryPtr inputZeroPointsMemPtr;
+    MemoryPtr stockInputZeroPointsMemPtr;
     dnnl::memory::data_type outputDataType;
     InferenceEngine::Precision sumPrc = InferenceEngine::Precision::UNSPECIFIED;
 };

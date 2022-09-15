@@ -621,25 +621,23 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         if (Shape::UNDEFINED_DIM == zeroPointDataSize) {
             return false;
         }
-        const bool isAMX = impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx);
-        auto zeroPointEqualCnt = 0;
+        bool isPerTensorZP = true;
         for (int j = 0; j < zeroPointDataSize; j++) {
             convNode->legacyInputZeroPoints.push_back(zeroPointsData[j]);
-            if (isAMX && zeroPointsData[j] == zeroPointsData[0])
-                zeroPointEqualCnt++;
+            if (zeroPointsData[j] != zeroPointsData[0])
+                isPerTensorZP = false;
         }
 
-        //Only enable per-tensor zero point on avx512-amx platform.
-        //For per-tensor zeropoint on avx512-amx, legacy output compensation and per-tensor
-        //input zero point would both passed into conv node. The conv node would determine how to create
+        //Only enable per-tensor zero point on avx512-amx and avx512-core.
+        //If zero point is pertensor, both legacy zp and stock zp
+        //would be passed into conv node. The conv node would determine how to create
         //post-ops attribute and prioritize to choose final onednn kernel.
-        if (isAMX && zeroPointEqualCnt == zeroPointDataSize)
-            convNode->inputZeroPoints.push_back(static_cast<int32_t>(zeroPointsData[0]));
+        if (isPerTensorZP &&
+            (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)))
+            convNode->stockInputZeroPoints.push_back(static_cast<int32_t>(zeroPointsData[0]));
 
-        if (convNode->legacyOutputCompensation.empty()) {
+        if (convNode->legacyOutputCompensation.empty())
             convNode->legacyOutputCompensation.resize(OC);
-        }
-
         return true;
     };
 

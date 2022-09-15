@@ -372,7 +372,9 @@ void Convolution::getSupportedDescriptors() {
 
     attrs.reserve(2);
     withBiases = getOriginalInputsNumber() == 3;
-    havingZeroPoint = (!legacyInputZeroPoints.empty());
+    withInputZeroPoint = (!legacyInputZeroPoints.empty());
+    zpPerTensor = (withInputZeroPoint && !stockInputZeroPoints.empty());
+    zpPerChannel = (withInputZeroPoint && stockInputZeroPoints.empty());
     initTryBrgconvFlag();
 
     if (!implPriorities.empty()) {
@@ -884,13 +886,13 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
 }
 
 void Convolution::addZeroPoints(dnnl::primitive_attr& attr) {
-    if (inputZeroPoints.empty())
+    if (stockInputZeroPoints.empty())
         return;
-    attr.set_zero_points(DNNL_ARG_SRC, 0, inputZeroPoints);
-    if (!inputZeroPointsMemPtr) {
-        inputZeroPointsMemPtr.reset(new Memory(getEngine()));
-        DnnlBlockedMemoryDesc memoryDesc(Precision::I32, {inputZeroPoints.size()});
-        inputZeroPointsMemPtr->Create(memoryDesc, inputZeroPoints.data());
+    attr.set_zero_points(DNNL_ARG_SRC, 0, stockInputZeroPoints);
+    if (!stockInputZeroPointsMemPtr) {
+        stockInputZeroPointsMemPtr.reset(new Memory(getEngine()));
+        DnnlBlockedMemoryDesc memoryDesc(Precision::I32, {stockInputZeroPoints.size()});
+        stockInputZeroPointsMemPtr->Create(memoryDesc, stockInputZeroPoints.data());
     }
 }
 
@@ -927,56 +929,35 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
 
 //See the src/plugins/intel_cpu/src/docs/convPostOps.md for details
 void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs) {
-    const bool zpPerTensor = (havingZeroPoint && !inputZeroPoints.empty());
-    const bool zpPerChannel = (havingZeroPoint && inputZeroPoints.empty());
-    //update the preset sum dest data type because eltwisePrecision maybe changes.
-    if (attrs.size() == 1 && attrs[0].get_post_ops().get()) {
-        auto postOps = attrs[0].get_post_ops().get();
-        auto sumEntryIdx = postOps->find(dnnl::impl::primitive_kind::sum);
-        if (sumEntryIdx != -1)
-            postOps->entry_[sumEntryIdx].sum.dt =
-                    dnnl::memory::convert_to_c(DnnlExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
-    }
-    //avx512 already preset attrs[0].
-    //Except application enforces brgconv when having legacy postops/zp, attrs[0] can represent on avx512 platform.
-    //Avoid duplicated attributes on avx512.
-    if (attrs.size()  == 1 && (!(shouldTryBrgconv && hasLegacyPostOpZpOnAvx512)))
+    // attr[0] - Legacy post ops + Legacy zero points.
+    attrs.resize(1);
+    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
+    addLegacyZeroPoints(attrs[0]);
+    //dw-conv would be fused into conv only on AVX2 platform. no need attr[1]. Avoid extra useless attribute.
+    if (attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::convolution) != -1) {
         return;
-    //set attrs[0] if not preset.
-    if (attrs.empty()) {
-        // attr[0] - Legacy post ops + Legacy zero points.
-        attrs.resize(1);
-        setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
-        addLegacyZeroPoints(attrs[0]);
-        //dw-conv would be fused into conv only on AVX2 platform. no need attr[1].
-        if (attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::convolution) != -1) {
-            return;
-        }
-        //2 attributes are not needed when without depthwise/quantization/input_zp;
-        if (!havingZeroPoint && attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::depthwise) == -1 &&
-            attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::quantization) == -1) {
-            // return to avoid duplicated attribute even when shouldTryBrgconv is true;
-            return;
-        }
     }
-    // Per channel zero point can only use attr[0];
+    //no matter whether shouldTryBrgconv is true, 1 attribute is enough. Avoid duplicated attribute
+    if (!withInputZeroPoint && attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::depthwise) == -1 &&
+        attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::quantization) == -1) {
+        return;
+    }
+    // Per channel zero point can only supported on attr[0].Avoid extra useless attribute.
     if (zpPerChannel)
         return;
+    if (!shouldTryBrgconv)
+        return;
     // Try 2 attributes. Consider the shouldTRyBrgconv could be set via RTinfo to enforce brgconv.
-    if (shouldTryBrgconv) {
-        attrs.resize(2);
-        if (!zpPerTensor) {
-            // attr[1] - Binary post ops && without zero point
-            setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
-        } else {
-            // WR:attr[1] - legacy post ops && stock zero points
-            //@todo: Switch back to binary postops when binary perf issue fix.
-            // ONEDNN limitition: BRGCONV_AMX does not support input zeropoint.Only JIT_AMX supports input zp.
-            // So for now, Use JIT AMX with legacy post ops to hanlde pertensor zero point for performance gain.
-            setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
-            addZeroPoints(attrs[1]);
-        }
-    }
+    attrs.resize(2);
+    if (zpPerTensor && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx))
+        //WR to ONEDNN limitation. attr[1] - legacy post ops + stock zero point.
+        //@todo:Unify to use binary postops+stock zero point when limitation is fixed.
+        //ONEDNN limitation: https://jira.devtools.intel.com/browse/MFDNN-8558
+        //Have to switch to JIT_AMX supports input zp for performance.
+        setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
+    else
+        setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
+    addZeroPoints(attrs[1]);
 }
 
 void Convolution::initDescriptor(const NodeConfig& config) {
@@ -1063,10 +1044,12 @@ void Convolution::initDescriptor(const NodeConfig& config) {
                                     << " but got: " << impl_type_to_string(impl_type);
                     }
                     rightConfig = cfg;
-                    // attr[0] is for legacy post ops, legacy zp if having.
-                    // attr[1] is for (Binary post ops && without zero point) or (legacy post ops && per-tensor zero points).
-                    // attr[1] is mostly for binaryPostops except when having per-tensor zp.
-                    preferLegacyPostOps = (n == 0 || (n == 1 && !inputZeroPoints.empty()));
+                    //attr[0] for legacy post ops;
+                    //attr[1] is mostly for binaryPostops except when having per-tensor zp on AMX.
+                    preferLegacyPostOps = (n == 0 || (n == 1 && zpPerTensor &&
+                                                    dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)));
+                    //attr[0] for legacy zero point.
+                    //attr[1] for stock per-tensor zero point.
                     preferLegacyZeroPoint = (n == 0);
                 }
                 if (i == descs.size() - 1 && isStridedBlobsSupported) {
@@ -1615,8 +1598,8 @@ void Convolution::appendLegacyZeroPointsArgs() {
 
 
 void Convolution::appendZeroPointsArgs() {
-    if (inputZeroPointsMemPtr != nullptr) {
-        primArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC] = inputZeroPointsMemPtr->GetPrimitive();
+    if (stockInputZeroPointsMemPtr != nullptr) {
+        primArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC] = stockInputZeroPointsMemPtr->GetPrimitive();
     }
 }
 
@@ -1624,25 +1607,20 @@ void Convolution::appendZeroPointsArgs() {
 void Convolution::initTryBrgconvFlag() {
     // Due to performance issue, brgconv will only be enabled by default:
     // 1, static shape(dynamic shape may change weights layout if the input shape changes and cause performance issue: 86948)
-    // 2, support amx
-    // 3, support avx512 without legacy postops/zero point when avx512
+    // 2, support amx except having input zero point.
+    // 3, support avx512 without legacy postops/per channel zero point when avx512
     if (!isDynamicNode()) {
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
             shouldTryBrgconv = true;
         } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
             shouldTryBrgconv = true;
             // should remove after binary postops performance issue resolved
-            // heuristics: if it's  avx512 ISA  model && it doesn't have legacy depthwise/quantization post ops or zero point.
+            // heuristics: if it's  avx512 ISA model && it doesn't have binary post ops or per channel zero point.
             dnnl::primitive_attr attr;
-            //Pre-set the legacy attr., postop sum data precision need to be updated after preset.
-            setPostOps(attr, MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
-            addLegacyZeroPoints(attr);
-            attrs.push_back(attr);
+            setPostOps(attr, MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
             const auto& ops = attr.get_post_ops();
-            if (havingZeroPoint || ops.get()->find(dnnl::impl::primitive_kind::depthwise) != -1 ||
-                ops.get()->find(dnnl::impl::primitive_kind::quantization) != -1) {
+            if (ops.get()->find(dnnl::impl::primitive_kind::binary) != -1) {
                 shouldTryBrgconv = false;
-                hasLegacyPostOpZpOnAvx512 = true;
             }
         }
     }

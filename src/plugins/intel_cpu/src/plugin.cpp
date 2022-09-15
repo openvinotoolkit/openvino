@@ -520,29 +520,54 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     if (useLpt) {
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
-
-        auto supportedPrecisions = std::vector<PrecisionsRestriction>({
-            PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
-                {1, {ngraph::element::i8}},
-            }),
-            PrecisionsRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
-                {1, {ngraph::element::i8}}
-            }),
-            PrecisionsRestriction::create<ngraph::opset1::GroupConvolution>({
-                {0, {ngraph::element::u8}},
-                {1, {ngraph::element::i8}}
-            }),
-            PrecisionsRestriction::create<ngraph::opset1::Multiply>({
-                {0, {ngraph::element::u8}},
-                {1, {ngraph::element::i8}},
-            }),
-            PrecisionsRestriction::create<ngraph::opset1::MatMul>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
-                {1, {ngraph::element::i8}}
-            }),
-        });
+        std::vector<PrecisionsRestriction> supportedPrecisions{};
+        //Only enable conv/group conv signed input on AMX platform.
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx))
+            supportedPrecisions = std::vector<PrecisionsRestriction>({
+                PrecisionsRestriction::create<ngraph::opset1::Convolution>({
+                    {0, {ngraph::element::u8, ngraph::element::i8}},
+                    {1, {ngraph::element::i8}},
+                }),
+                PrecisionsRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
+                    {0, {ngraph::element::u8, ngraph::element::i8}},
+                    {1, {ngraph::element::i8}}
+                }),
+                PrecisionsRestriction::create<ngraph::opset1::GroupConvolution>({
+                    {0, {ngraph::element::u8, ngraph::element::i8}},
+                    {1, {ngraph::element::i8}}
+                }),
+                PrecisionsRestriction::create<ngraph::opset1::Multiply>({
+                    {0, {ngraph::element::u8}},
+                    {1, {ngraph::element::i8}},
+                }),
+                PrecisionsRestriction::create<ngraph::opset1::MatMul>({
+                    {0, {ngraph::element::u8, ngraph::element::i8}},
+                    {1, {ngraph::element::i8}}
+                }),
+            });
+        else
+            supportedPrecisions = std::vector<PrecisionsRestriction>({
+                PrecisionsRestriction::create<ngraph::opset1::Convolution>({
+                    {0, {ngraph::element::u8}},
+                    {1, {ngraph::element::i8}},
+                }),
+                PrecisionsRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
+                    {0, {ngraph::element::u8, ngraph::element::i8}},
+                    {1, {ngraph::element::i8}}
+                }),
+                PrecisionsRestriction::create<ngraph::opset1::GroupConvolution>({
+                    {0, {ngraph::element::u8}},
+                    {1, {ngraph::element::i8}}
+                }),
+                PrecisionsRestriction::create<ngraph::opset1::Multiply>({
+                    {0, {ngraph::element::u8}},
+                    {1, {ngraph::element::i8}},
+                }),
+                PrecisionsRestriction::create<ngraph::opset1::MatMul>({
+                    {0, {ngraph::element::u8, ngraph::element::i8}},
+                    {1, {ngraph::element::i8}}
+                }),
+            });
 
         auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>({
             QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>({0}),
