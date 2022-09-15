@@ -11,8 +11,6 @@
 #include <sstream>
 
 namespace cldnn {
-
-int debug_configuration::device_id = -1;
 const char *debug_configuration::prefix = "GPU_Debug: ";
 
 // Default policy is that dump_configuration will override other configuration from IE.
@@ -122,7 +120,6 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_ForceImplType", "Force implementation type of a target primitive or layer. [primitive or layout_name]:[impl_type]"
                               "For primitives, fc:onednn, fc:ocl, do:cpu, do:ocl, reduce:ocl and reduce:onednn are supported");
     message_list.emplace_back("OV_GPU_MaxKernelsPerBatch", "Maximum number of kernels in a batch during compiling kernels");
-    message_list.emplace_back("OV_GPU_DeviceID", "Set device id");
 
     auto max_name_length_item = std::max_element(message_list.begin(), message_list.end(),
         [](std::pair<std::string, std::string>& a, std::pair<std::string, std::string>& b){
@@ -169,7 +166,6 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DisableOnednn", disable_onednn);
     get_gpu_debug_env_var("DryRunPath", dry_run_path);
     get_gpu_debug_env_var("BaseBatchForMemEstimation", base_batch_for_memory_estimation);
-    get_gpu_debug_env_var("DeviceID", device_id);
     std::string dump_layers_str;
     get_gpu_debug_env_var("DumpLayers", dump_layers_str);
     std::string after_proc_str;

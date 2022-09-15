@@ -10,7 +10,6 @@
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/runtime/device_query.hpp>
-#include <intel_gpu/runtime/debug_configuration.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -74,7 +73,7 @@ std::vector<float> createReferenceData(std::vector<unsigned char> data, int widt
 TEST(cl_mem_check, check_2_inputs) {
     device_query query(engine_types::ocl, runtime_types::ocl);
     auto devices = query.get_available_devices();
-    auto iter = devices.find(std::to_string(debug_configuration::device_id));
+    auto iter = devices.find(std::to_string(device_query::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
 
@@ -143,7 +142,7 @@ TEST(cl_mem_check, check_2_inputs) {
 TEST(cl_mem_check, check_input) {
     device_query query(engine_types::ocl, runtime_types::ocl);
     auto devices = query.get_available_devices();
-    auto iter = devices.find(std::to_string(debug_configuration::device_id));
+    auto iter = devices.find(std::to_string(device_query::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
     auto ocl_instance = std::make_shared<OpenCL>(std::dynamic_pointer_cast<ocl::ocl_device>(device)->get_device());

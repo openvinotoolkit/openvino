@@ -7,7 +7,6 @@
 #include "intel_gpu/plugin/itt.hpp"
 #include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::gpu;
@@ -334,7 +333,7 @@ ExecutionContextImpl::ExecutionContextImpl(const std::shared_ptr<IInferencePlugi
     cldnn::device_query device_query(engine_type, runtime_type, _context_id, _va_device, ctx_device_id, target_tile_id);
     auto device_map = device_query.get_available_devices();
 
-    auto iter = device_map.find(std::to_string(cldnn::debug_configuration::device_id));
+    auto iter = device_map.find(std::to_string(cldnn::device_query::device_id));
     if (iter == device_map.end())
         iter = device_map.find(m_config.device_id);
     if (iter == device_map.end())

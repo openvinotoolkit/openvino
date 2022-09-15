@@ -30,7 +30,7 @@
 #include <cstdio>
 #include <string>
 
-#include "../../intel_gpu/include/intel_gpu/runtime/debug_configuration.hpp"
+#include "../../intel_gpu/include/intel_gpu/runtime/device_query.hpp"
 #include "gtest/gtest.h"
 #include "test_utils/test_utils.h"
 #include "gflags/gflags.h"
@@ -43,8 +43,8 @@ GTEST_API_ int main(int argc, char** argv) {
     //gflags
     GFLAGS_NAMESPACE::AllowCommandLineReparsing();
     gflags::ParseCommandLineFlags(&argc, &argv, true);
-    if (FLAGS_device_id != -1 && cldnn::debug_configuration::device_id == -1)
-        cldnn::debug_configuration::device_id = FLAGS_device_id;
+    if (FLAGS_device_id != -1 && cldnn::device_query::device_id == -1)
+        cldnn::device_query::device_id = FLAGS_device_id;
     //restore cmdline arg for gtest
     auto varg=gflags::GetArgvs();
     int new_argc=varg.size();

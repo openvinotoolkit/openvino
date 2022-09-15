@@ -10,7 +10,6 @@
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/convert_color.hpp>
 #include <intel_gpu/runtime/device_query.hpp>
-#include <intel_gpu/runtime/debug_configuration.hpp>
 
 #include <ocl/ocl_wrapper.hpp>
 
@@ -297,7 +296,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_surface_u8) {
 
     device_query query(engine_types::ocl, runtime_types::ocl);
     auto devices = query.get_available_devices();
-    auto iter = devices.find(std::to_string(debug_configuration::device_id));
+    auto iter = devices.find(std::to_string(device_query::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
     auto ocl_instance = std::make_shared<OpenCL>(std::dynamic_pointer_cast<ocl::ocl_device>(device)->get_device());
@@ -377,7 +376,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_surface_u8) {
 
     device_query query(engine_types::ocl, runtime_types::ocl);
     auto devices = query.get_available_devices();
-    auto iter = devices.find(std::to_string(debug_configuration::device_id));
+    auto iter = devices.find(std::to_string(device_query::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
     auto ocl_instance = std::make_shared<OpenCL>(std::dynamic_pointer_cast<ocl::ocl_device>(device)->get_device());
@@ -532,7 +531,7 @@ TEST(convert_color, i420_to_rgb_three_planes_surface_u8) {
 
     device_query query(engine_types::ocl, runtime_types::ocl);
     auto devices = query.get_available_devices();
-    auto iter = devices.find(std::to_string(debug_configuration::device_id));
+    auto iter = devices.find(std::to_string(device_query::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
     auto ocl_instance = std::make_shared<OpenCL>(std::dynamic_pointer_cast<ocl::ocl_device>(device)->get_device());
