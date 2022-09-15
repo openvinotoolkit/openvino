@@ -43,8 +43,8 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
 
 1. Select and download the OpenVINO™ archive files from [Intel® Distribution of OpenVINO™ toolkit for macOS download page](https://software.intel.com/en-us/openvino-toolkit/choose-download/free-download-macos). There are typically two files for you to download: 
    ```sh
-   m_openvino_toolkit_<operating system>_<release version>_<package ID>.tgz
-   m_openvino_toolkit_<operating system>_<release version>_<package ID>.tgz.sha256
+   m_openvino_toolkit_<operating system>_<release version>_<package ID>_x86_64.tgz
+   m_openvino_toolkit_<operating system>_<release version>_<package ID>_x86_64.tgz.sha256
    ``` 
    where the `.sha256` file is used to verify the success of the download process.
 

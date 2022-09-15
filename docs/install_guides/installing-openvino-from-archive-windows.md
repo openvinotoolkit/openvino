@@ -59,8 +59,8 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
 1. Select and download the OpenVINO™ archive files from [Intel® Distribution of OpenVINO™ toolkit download page](https://software.intel.com/en-us/openvino-toolkit/choose-download).
    There are typically two files for you to download: 
    ```sh
-   w_openvino_toolkit_<operating system>_<release version>_<package ID>.zip
-   w_openvino_toolkit_<operating system>_<release version>_<package ID>.zip.sha256
+   w_openvino_toolkit_<operating system>_<release version>_<package ID>_x86_64.zip
+   w_openvino_toolkit_<operating system>_<release version>_<package ID>_x86_64.zip.sha256
    ``` 
    where the `.sha256` file is used to verify the success of the download process.
    
