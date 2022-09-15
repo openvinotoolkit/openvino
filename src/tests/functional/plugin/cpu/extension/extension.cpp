@@ -7,6 +7,7 @@
 #include <ngraph/ngraph.hpp>
 #include <file_utils.h>
 #include <common_test_utils/test_assertions.hpp>
+#include <common_test_utils/file_utils.hpp>
 
 class CustomAbsKernel : public InferenceEngine::ILayerExecImpl {
 public:
@@ -146,7 +147,8 @@ static void infer_model(InferenceEngine::Core& ie, InferenceEngine::CNNNetwork& 
 }
 
 static std::string model_full_path(const char* path) {
-    return FileUtils::makePath<char>(TEST_MODELS, path);
+    return FileUtils::makePath<char>(
+        FileUtils::makePath<char>(CommonTestUtils::getExecutableDirectory(), TEST_MODELS), path);
 }
 
 TEST(Extension, XmlModelWithCustomAbs) {

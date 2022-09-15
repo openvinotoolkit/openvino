@@ -40,7 +40,7 @@ On Linux and macOS:
 python3 -m venv openvino_env
 ```
 
-> **NOTE**: On Linux and macOS, you may need to [install pip](https://pip.pypa.io/en/stable/installing/). For example, on Ubuntu execute the following command to get pip installed: `sudo apt install python3-venv python3-pip`.
+> **NOTE**: On Linux and macOS, you may need to [install pip](https://pip.pypa.io/en/stable/installation/). For example, on Ubuntu execute the following command to get pip installed: `sudo apt install python3-venv python3-pip`.
 
 ### Step 2. Activate Virtual Environment
 
@@ -109,7 +109,7 @@ For example, to install and configure the components for working with TensorFlow
    ```
    If installation was successful, you will not see any error messages (no console output).
 
-<a name="whats-in-the-package"></a>
+<a id="whats-in-the-package"></a>
 
 ## What's in the Package?
 
@@ -128,6 +128,22 @@ For example, to install and configure the components for working with TensorFlow
 ## Troubleshooting
 
 For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/2022.2/openvino_docs_get_started_guide_troubleshooting.html). The following sections also provide explanations to several error messages. 
+
+### Errors with Installing via PIP for Users in China
+
+Users in China might encounter errors while downloading sources via PIP during OpenVINO™ installation. To resolve the issues, try the following solution:
+   
+* Add the download source using the ``-i`` parameter with the Python ``pip`` command. For example: 
+
+   ``` sh
+   pip install openvino-dev -i https://mirrors.aliyun.com/pypi/simple/
+   ```
+   Use the ``--trusted-host`` parameter if the URL above is ``http`` instead of ``https``.
+   You can also run the following command to install openvino-dev with specific frameworks. For example:
+   
+   ```
+   pip install openvino-dev[tensorflow2] -i https://mirrors.aliyun.com/pypi/simple/
+   ```
 
 ### zsh: no matches found : openvino-dev[...]
 
