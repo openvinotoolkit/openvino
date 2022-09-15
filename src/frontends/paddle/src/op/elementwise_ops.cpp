@@ -46,6 +46,36 @@ NamedOutputs elementwise_greater_equal(const NodeContext& node_context) {
     return elementwise_ops<default_opset::GreaterEqual>(node_context);
 }
 
+NamedOutputs elementwise_floordiv(const NodeContext& node_context) {
+    auto x = node_context.get_input("X");
+    auto y = node_context.get_input("Y");
+
+    const auto axis = node_context.get_attribute<int>("axis", -1);
+
+    PADDLE_OP_CHECK(node_context, x.get_partial_shape().rank().is_static(), "elementwise_ops: X rank must be static!");
+    PADDLE_OP_CHECK(node_context, y.get_partial_shape().rank().is_static(), "elementwise_ops: Y rank must be static!");
+    int64_t x_rank = x.get_partial_shape().rank().get_length();
+    int64_t y_rank = y.get_partial_shape().rank().get_length();
+
+    if ((axis == -1) || (axis == x_rank - 1) || (x_rank == y_rank)) {
+        std::cout << 1 << std::endl;
+        return node_context.default_single_output_mapping({std::make_shared<default_opset::Divide>(x, y, true)},
+                                                          {"Out"});
+    } else {
+        std::vector<int64_t> indices;
+        for (int64_t i = 0; i < axis; i++)
+            indices.push_back(i);
+        for (int64_t i = y_rank + axis; i < x_rank; i++)
+            indices.push_back(i);
+
+        auto indices_node = default_opset::Constant::create(ov::element::i64, ov::Shape{indices.size()}, indices);
+        auto y_node = std::make_shared<default_opset::Unsqueeze>(y, indices_node);
+        std::cout << 2 << std::endl;
+        return node_context.default_single_output_mapping({std::make_shared<default_opset::Divide>(x, y_node, true)},
+                                                          {"Out"});
+    }
+}
+
 }  // namespace op
 }  // namespace paddle
 }  // namespace frontend

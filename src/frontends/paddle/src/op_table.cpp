@@ -25,6 +25,7 @@ OP_CONVERTER(dropout);
 OP_CONVERTER(elementwise_add);
 OP_CONVERTER(elementwise_div);
 OP_CONVERTER(elementwise_equal);
+OP_CONVERTER(elementwise_floordiv);
 OP_CONVERTER(elementwise_greater_equal);
 OP_CONVERTER(elementwise_max);
 OP_CONVERTER(elementwise_min);
@@ -121,6 +122,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"dropout", op::dropout},
             {"elementwise_add", op::elementwise_add},
             {"elementwise_div", op::elementwise_div},
+            {"elementwise_floordiv", op::elementwise_floordiv},
             {"elementwise_max", op::elementwise_max},
             {"elementwise_min", op::elementwise_min},
             {"elementwise_mul", op::elementwise_mul},
