@@ -434,7 +434,7 @@ jobs:
 
   - script: |
       . $(PY_VENV)/bin/activate
-      python3 -m pip install -r $(INSTALL_TEST_DIR)/tests/smoke_tests/requirements.txt
+      python3 -m pip install -r $(INSTALL_TEST_DIR)/smoke_tests/requirements.txt
     workingDirectory: $(INSTALL_TEST_DIR)
 
     displayName: 'Install dependencies for samples smoke tests'
