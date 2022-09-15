@@ -1757,13 +1757,13 @@ INSTANTIATE_TEST_SUITE_P(
     fp_activation_blocked_tests1,
     activation_random_test,
     ::testing::Combine(::testing::Values(dataTypes[1]),
-                       ::testing::Values(types[4]),
-                       ::testing::Values(inputShapes[3]),
+                       ::testing::Values(types[3]),
+                       ::testing::Values(inputShapes[2]),
                        ::testing::ValuesIn(activationFunctions),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{})));
 INSTANTIATE_TEST_SUITE_P(
-    fp_activation_blocked_tests1,
+    fp_activation_blocked_tests2,
     activation_random_test,
     ::testing::Combine(::testing::Values(dataTypes[0]),
                        ::testing::Values(types[2]),
@@ -1772,7 +1772,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{})));
 INSTANTIATE_TEST_SUITE_P(
-    fp_activation_blocked_tests2,
+    fp_activation_blocked_tests3,
     activation_random_test,
     ::testing::Combine(::testing::Values(dataTypes),
                        ::testing::Values(types),
@@ -1781,7 +1781,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{})));
 INSTANTIATE_TEST_SUITE_P(
-    fp_activation_blocked_tests3,
+    fp_activation_blocked_tests4,
     activation_random_test,
     ::testing::Combine(::testing::Values(dataTypes),
                        ::testing::Values(types),
