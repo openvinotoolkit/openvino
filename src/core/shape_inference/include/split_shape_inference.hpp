@@ -18,7 +18,7 @@ void shape_infer(const Split* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
+    // using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2));
 
     output_shapes.clear();

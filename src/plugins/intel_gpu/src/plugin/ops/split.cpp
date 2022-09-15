@@ -18,39 +18,40 @@ static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>&
     std::string layerName = layer_type_name_ID(op);
 
     auto input_pshape = op->get_input_partial_shape(0);
-    OPENVINO_ASSERT(input_pshape.is_static(),
-                    "Dynamic shapes are not supported yet for v1::Split and v1::VariadicSplit operations");
-
-    auto input_shape = input_pshape.to_shape();
-    InferenceEngine::SizeVector start_offset(input_shape.size());
+    InferenceEngine::SizeVector start_offset(input_pshape.size());
 
     bool is_single_out_split = op->get_output_size() == 1;
 
     for (size_t i = 0; i < op->get_output_size(); i++) {
         std::string outLayerName = layerName + (is_single_out_split ? "" : ".out" + std::to_string(i));
-        const auto outLayerDims = op->get_output_shape(i);
+        const auto outPatialShape = op->get_output_partial_shape(i);
         NGRAPH_SUPPRESS_DEPRECATED_START
-        if (outLayerDims.size() != start_offset.size()) {
+        if (outPatialShape.size() != start_offset.size()) {
             IE_THROW() << "Invalid dimesions in split layer: " << op->get_friendly_name()
                                << " output: " <<  op->get_output_tensor_name(i);
         }
-        for (size_t i = 0; i < input_shape.size(); i++) {
-            if ((outLayerDims[i] + start_offset[i]) > input_shape[i]) {
+        for (size_t i = 0; i < input_pshape.size(); i++) {
+            if ((outPatialShape[i].get_length() + static_cast<ov::Dimension::value_type>(start_offset[i])) > input_pshape[i].get_length()) {
                 IE_THROW() << "Invalid dimesions in split layer: " << op->get_friendly_name()
                                    << " output: " <<  op->get_output_tensor_name(i);
             }
         }
         NGRAPH_SUPPRESS_DEPRECATED_END
 
-        auto outTensor = tensor_from_dims(outLayerDims, 1);
+        auto outTensor = outPatialShape.is_static()? tensor_from_dims(outPatialShape.to_shape(), 1) : cldnn::tensor(1);
         auto offsetTensor = tensor_from_dims(start_offset, 0);
-
-        auto cropPrim = cldnn::crop(outLayerName, inputPrimitives[0], outTensor, offsetTensor);
+        auto cropPrim = cldnn::crop(outLayerName, inputPrimitives, outTensor, offsetTensor, i);
+        if (ngraph::is_type<ngraph::op::v1::Split>(op)) {
+            auto split = ngraph::as_type_ptr<ngraph::op::v1::Split>(op);
+            cropPrim.num_splits = split->get_num_splits();
+        }
         p.add_primitive(*op, cropPrim);
 
-        for (size_t i = 0; i < input_shape.size(); i++) {
-            if (outLayerDims[i] != input_shape[i]) {
-                start_offset[i] += outLayerDims[i];
+        if (outPatialShape.is_static()) {
+            for (size_t i = 0; i < input_pshape.size(); i++) {
+                if (outPatialShape[i] != input_pshape[i]) {
+                    start_offset[i] += outPatialShape.to_shape()[i];
+                }
             }
         }
     }

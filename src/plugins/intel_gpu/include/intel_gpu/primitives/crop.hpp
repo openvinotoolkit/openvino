@@ -91,10 +91,29 @@ struct crop : public primitive_base<crop> {
          const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding), reference_input(xy_borders.negate()), offsets(xy_borders) {}
 
+    /// @brief Constructs crop primitive.
+    /// @param id This primitive id.
+    /// @param inputs Input primitive id vector.
+    /// @param reference_input Reference input tensor with the required dimensions.
+    /// @param offsets Input offsets.
+    /// @param output_idx Output data index of splited output.
+    crop(const primitive_id& id,
+         const std::vector<primitive_id>& inputs,
+         const tensor& reference_input,
+         const tensor& offsets,
+         const int output_idx,
+         const padding& output_padding = padding())
+        : primitive_base(id, inputs, output_padding), reference_input(reference_input),
+            offsets(offsets), output_idx(output_idx) {}
+
     /// @brief Reference input tensor with the required dimensions.
     tensor reference_input;
     /// @brief Input offsets.
     tensor offsets;
+    /// @brief data index of splited output.
+    int output_idx = 0;
+    /// @brief num_splits which Split has number of split as property
+    size_t num_splits = 0;
 };
 /// @}
 /// @}

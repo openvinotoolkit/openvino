@@ -126,6 +126,7 @@ struct kernel_impl_params {
 
     std::map<size_t, memory::ptr> memory_deps = {};
     size_t primary_input_idx = 0;
+    size_t num_splits = 0;
 
     memory::ptr reordered_weights = nullptr;
 
