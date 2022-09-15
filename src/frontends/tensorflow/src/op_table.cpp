@@ -38,6 +38,8 @@ OP_CONVERTER(translate_conv_2d_op);
 OP_CONVERTER(translate_conv_2d_backprop_input_op);
 OP_CONVERTER(translate_conv_3d_op);
 OP_CONVERTER(translate_conv_3d_backprop_input_v2_op);
+OP_CONVERTER(translate_ctc_greedy_decoder_op);
+OP_CONVERTER(translate_ctc_loss_op);
 OP_CONVERTER(translate_cumsum_op);
 OP_CONVERTER(translate_crop_and_resize_op);
 OP_CONVERTER(translate_depth_to_space_op);
@@ -201,6 +203,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Conv3D", translate_conv_3d_op},
         {"Conv3DBackpropInputV2", translate_conv_3d_backprop_input_v2_op},
         {"CropAndResize", translate_crop_and_resize_op},
+        {"CTCGreedyDecoder", translate_ctc_greedy_decoder_op},
+        {"CTCLoss", translate_ctc_loss_op},
         {"Cumsum", translate_cumsum_op},
         {"DepthToSpace", translate_depth_to_space_op},
         {"DepthwiseConv2dNative", translate_depthwise_conv_2d_native_op},
