@@ -1777,7 +1777,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::Values(dataTypes),
                        ::testing::Values(types),
                        ::testing::Values(inputShapes),
-                       ::testing::Values(*activationFunctions.begin()),
+                       ::testing::Values(activationFunctions.front()),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{})));
 INSTANTIATE_TEST_SUITE_P(
@@ -1786,6 +1786,6 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::Values(dataTypes),
                        ::testing::Values(types),
                        ::testing::Values(inputShapes),
-                       ::testing::Values(*prev(activationFunctions.end())),
+                       ::testing::Values(activationFunctions.back()),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{})));
