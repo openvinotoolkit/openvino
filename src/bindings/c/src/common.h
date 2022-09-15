@@ -55,18 +55,18 @@ struct ov_model {
 };
 
 /**
- * @struct ov_output_const_node
+ * @struct ov_output_const_port
  * @brief This is an interface of ov::Output<const ov::Node>
  */
-struct ov_output_const_node {
+struct ov_output_const_port {
     std::shared_ptr<ov::Output<const ov::Node>> object;
 };
 
 /**
- * @struct ov_output_node
+ * @struct ov_output_port
  * @brief This is an interface of ov::Output<ov::Node>
  */
-struct ov_output_node {
+struct ov_output_port {
     std::shared_ptr<ov::Output<ov::Node>> object;
 };
 
