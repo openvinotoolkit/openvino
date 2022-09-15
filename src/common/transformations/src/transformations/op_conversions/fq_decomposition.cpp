@@ -80,7 +80,7 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
         if (status) {
             out_scales = calculateScales(fake_quantize_node->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
         }
-        const bool do_dequantize = !(status && (std::all_of(osc.cbegin(),
+        const bool do_dequantize = !(status && ((std::all_of(osc.cbegin(),
                                                             osc.cend(),
                                                             [](float val) {
                                                                 return val == 1.f;
@@ -89,7 +89,7 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition(const bool co
                                                                 osh.cend(),
                                                                 [](float val) {
                                                                     return val == 0.f;
-                                                                }) ||
+                                                                })) ||
                                                 out_scales.size() != 0));
         const bool do_rounding =
             force_rounding || do_dequantize || fake_quantize_node->get_output_element_type(0) == ngraph::element::f32;
