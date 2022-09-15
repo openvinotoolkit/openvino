@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pickle
+import os
 from pathlib import Path
 
 from openvino.runtime import PartialShape
@@ -30,7 +31,8 @@ except Exception:
 # This is because destroy of FrontEndManager will unload all plugins, no objects shall exist after this
 fem = FrontEndManager()
 
-mock_needed = pytest.mark.skipif(not mock_available, reason="Mock frontend is not available")
+mock_needed = pytest.mark.skipif(not mock_available, reason="Mock frontend is not available."
+                                                            f"\nCheck paths in {os.environ['LD_LIBRARY_PATH']=}")
 
 MOCK_PY_FRONTEND_NAME = "mock_py"
 

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+import os
 from openvino.frontend import FrontEndManager
 
 TENSORFLOW_FRONTEND_NAME = "tf"
@@ -29,7 +30,8 @@ fem = FrontEndManager()
 
 def skip_if_frontend_is_disabled(frontend):
     if frontend not in imported_frontends:
-        return pytest.mark.skip(reason=f"Cannot import frontend {frontend}")
+        return pytest.mark.skip(reason=f"Cannot import frontend {frontend}."
+                                       f"\nCheck paths in {os.environ['LD_LIBRARY_PATH']=}")
 
     return pytest.mark.skipif(frontend not in fem.get_available_front_ends(),
                               reason=f"Frontend {frontend} is disabled")
