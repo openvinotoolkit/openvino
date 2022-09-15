@@ -30,13 +30,23 @@ fem = FrontEndManager()
 
 def skip_if_frontend_is_disabled(frontend):
     if frontend not in imported_frontends:
-        return pytest.mark.skip(reason=f"Cannot import frontend {frontend}."
-                                       f"\nCheck paths in {os.environ['LD_LIBRARY_PATH']=}")
+        return pytest.mark.skip(reason=f"Cannot import frontend {frontend}.  Check paths in:"
+                                       f" {os.environ['LD_LIBRARY_PATH']=}"
+                                       f", {os.environ['PYTHONPATH']=}")
 
     return pytest.mark.skipif(frontend not in fem.get_available_front_ends(),
                               reason=f"Frontend {frontend} is disabled")
 
 
+def skip_if_tensorflow_not_install_by_wheel_pkg(func):
+    try:
+        from openvino.frontend.tensorflow import ConversionExtension
+        return func
+    except ImportError:
+        return pytest.mark.skip(reason="Tensorflow conversion not installed by wheel pkg.")
+
+
+@skip_if_tensorflow_not_install_by_wheel_pkg
 @skip_if_frontend_is_disabled(TENSORFLOW_FRONTEND_NAME)
 def test_tensorflow_conversion_extension_fe_wrapper():
     from openvino.frontend.tensorflow import ConversionExtension
