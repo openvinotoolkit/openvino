@@ -138,3 +138,16 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_sanitize_path) {
 
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_in_constant_node) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/external_data/external_data_in_constant_node.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>({3.f, 5.f, 8.f, 13.f});
+    test_case.add_expected_output<float>(Shape{2, 2}, {4.f, 7.f, 11.f, 17.f});
+
+    test_case.run();
+}

@@ -168,46 +168,6 @@ inline std::vector<std::string> get_value(const ONNX_NAMESPACE::AttributeProto& 
     }
 }
 
-template <>
-inline Tensor get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
-    if (attribute.type() != ONNX_NAMESPACE::AttributeProto_AttributeType_TENSOR) {
-        throw error::attribute::InvalidData{attribute.type()};
-    }
-    return Tensor{attribute.t()};
-}
-
-template <>
-inline std::vector<Tensor> get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
-    switch (attribute.type()) {
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_TENSOR:
-        return {Tensor{attribute.t()}};
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_TENSORS:
-        return {std::begin(attribute.tensors()), std::end(attribute.tensors())};
-    default:
-        throw error::attribute::InvalidData{attribute.type()};
-    }
-}
-
-template <>
-inline SparseTensor get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
-    if (attribute.type() != ONNX_NAMESPACE::AttributeProto_AttributeType_SPARSE_TENSOR) {
-        throw error::attribute::InvalidData{attribute.type()};
-    }
-    return SparseTensor{attribute.sparse_tensor()};
-}
-
-template <>
-inline std::vector<SparseTensor> get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
-    switch (attribute.type()) {
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_SPARSE_TENSOR:
-        return {SparseTensor{attribute.sparse_tensor()}};
-    case ONNX_NAMESPACE::AttributeProto_AttributeType_SPARSE_TENSORS:
-        return {std::begin(attribute.sparse_tensors()), std::end(attribute.sparse_tensors())};
-    default:
-        throw error::attribute::InvalidData{attribute.type()};
-    }
-}
-
 }  // namespace attribute
 
 }  // namespace detail
@@ -231,7 +191,9 @@ public:
     };
 
     Attribute() = delete;
-    explicit Attribute(const ONNX_NAMESPACE::AttributeProto& attribute_proto) : m_attribute_proto{&attribute_proto} {}
+    explicit Attribute(const ONNX_NAMESPACE::AttributeProto& attribute_proto, const std::string& model_dir)
+        : m_attribute_proto{&attribute_proto},
+          m_model_dir{model_dir} {}
 
     Attribute(Attribute&&) noexcept = default;
     Attribute(const Attribute&) = default;
@@ -282,10 +244,10 @@ public:
         return get_type() == Type::graph_array;
     }
     Tensor get_tensor() const {
-        return Tensor{m_attribute_proto->t()};
+        return Tensor{m_attribute_proto->t(), m_model_dir};
     }
     SparseTensor get_sparse_tensor() const {
-        return SparseTensor{m_attribute_proto->sparse_tensor()};
+        return SparseTensor{m_attribute_proto->sparse_tensor(), m_model_dir};
     }
     float get_float() const {
         return m_attribute_proto->f();
@@ -299,11 +261,21 @@ public:
     Subgraph get_subgraph(const Graph* parent_graph) const;
 
     std::vector<Tensor> get_tensor_array() const {
-        return {std::begin(m_attribute_proto->tensors()), std::end(m_attribute_proto->tensors())};
+        std::vector<Tensor> ret;
+        const auto& tensors = m_attribute_proto->tensors();
+        ret.reserve(tensors.size());
+        for (const auto& tensor : tensors)
+            ret.emplace_back(tensor, m_model_dir);
+        return ret;
     }
 
     std::vector<SparseTensor> get_sparse_tensor_array() const {
-        return {std::begin(m_attribute_proto->sparse_tensors()), std::end(m_attribute_proto->sparse_tensors())};
+        std::vector<SparseTensor> ret;
+        const auto& sparse_tensors = m_attribute_proto->sparse_tensors();
+        ret.reserve(sparse_tensors.size());
+        for (const auto& tensor : sparse_tensors)
+            ret.emplace_back(tensor, m_model_dir);
+        return ret;
     }
 
     std::vector<float> get_float_array() const {
@@ -322,15 +294,56 @@ public:
         return m_attribute_proto->type();
     }
 
-    template <typename T>
+    template <typename T,
+              typename std::enable_if<!std::is_same<T, Tensor>::value && !std::is_same<T, std::vector<Tensor>>::value &&
+                                          !std::is_same<T, SparseTensor>::value &&
+                                          !std::is_same<T, std::vector<SparseTensor>>::value,
+                                      bool>::type = true>
     T get_value() const {
         return detail::attribute::get_value<T>(*m_attribute_proto);
+    }
+
+    template <typename T, typename std::enable_if<std::is_same<T, Tensor>::value, bool>::type = true>
+    T get_value() const {
+        if (is_tensor()) {
+            return Tensor{m_attribute_proto->t(), m_model_dir};
+        }
+        throw error::attribute::InvalidData{m_attribute_proto->type()};
+    }
+
+    template <typename T, typename std::enable_if<std::is_same<T, std::vector<Tensor>>::value, bool>::type = true>
+    T get_value() const {
+        if (is_tensor()) {
+            return {Tensor{m_attribute_proto->t(), m_model_dir}};
+        } else if (is_tensor_array()) {
+            return get_tensor_array();
+        }
+        throw error::attribute::InvalidData{m_attribute_proto->type()};
+    }
+
+    template <typename T, typename std::enable_if<std::is_same<T, SparseTensor>::value, bool>::type = true>
+    T get_value() const {
+        if (is_sparse_tensor()) {
+            return SparseTensor{m_attribute_proto->sparse_tensor(), m_model_dir};
+        }
+        throw error::attribute::InvalidData{m_attribute_proto->type()};
+    }
+
+    template <typename T, typename std::enable_if<std::is_same<T, std::vector<SparseTensor>>::value, bool>::type = true>
+    T get_value() const {
+        if (is_sparse_tensor()) {
+            return {SparseTensor{m_attribute_proto->sparse_tensor(), m_model_dir}};
+        } else if (is_sparse_tensor_array()) {
+            return get_sparse_tensor_array();
+        }
+        throw error::attribute::InvalidData{m_attribute_proto->type()};
     }
 
     ov::Any get_any() const;
 
 private:
     const ONNX_NAMESPACE::AttributeProto* m_attribute_proto;
+    std::string m_model_dir;
 };
 
 }  // namespace onnx_import
