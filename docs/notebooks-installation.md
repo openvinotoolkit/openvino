@@ -6,9 +6,12 @@
 .. _notebooks installation:
 
 .. meta::
-   :description: 
-   
-      An installation guide for Jupyter notebooks on which Python tutorials run. The tutorials serve as introduction to the OpenVINO™ toolkit. 
+   :description: An installation guide for Jupyter notebooks on which Python 
+                 tutorials run. The tutorials serve as introduction to the 
+                 OpenVINO™ toolkit. 
+   :keywords: OpenVINO™ toolkit, Jupyter notebooks, Jupyter, Python, Python API, 
+              installation guide, tutorials, install notebooks, local 
+              installation, OpenVINO™ Notebooks, run notebooks
 
 
 The notebooks run almost anywhere, from browsers and desktops to even a cloud VM or a Docker container. 
