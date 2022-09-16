@@ -11,7 +11,6 @@
 #include <sstream>
 
 namespace cldnn {
-
 const char *debug_configuration::prefix = "GPU_Debug: ";
 
 // Default policy is that dump_configuration will override other configuration from IE.

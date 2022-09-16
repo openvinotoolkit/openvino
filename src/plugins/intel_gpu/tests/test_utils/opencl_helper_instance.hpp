@@ -70,6 +70,31 @@ struct OpenCL {
             }
         }
     }
+
+    OpenCL(cl::Device device, bool out_of_order_queue = true)
+    {
+        cl_uint n = 0;
+        cl_int err = clGetPlatformIDs(0, NULL, &n);
+        checkStatus(err, "clGetPlatformIDs");
+
+        // Get platform list
+        std::vector<cl_platform_id> platform_ids(n);
+        err = clGetPlatformIDs(n, platform_ids.data(), NULL);
+        checkStatus(err, "clGetPlatformIDs");
+
+        _device = device;
+        _context = cl::Context(_device);
+        _out_of_order_queue = out_of_order_queue;
+
+        auto extensions = _device.getInfo<CL_DEVICE_EXTENSIONS>();
+        _supports_usm = extensions.find("cl_intel_unified_shared_memory") != std::string::npos;
+
+        _usm_helper = std::make_shared<cl::UsmHelper>(_context, _device, _supports_usm);
+
+        cl_command_queue_properties props = _out_of_order_queue ? CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE : CL_NONE;
+        _queue = cl::CommandQueue(_context, _device, props);
+    }
+
     void releaseOclImage(std::shared_ptr<cl_mem> image) {
         checkStatus(clReleaseMemObject(*image), "clReleaseMemObject");
     }

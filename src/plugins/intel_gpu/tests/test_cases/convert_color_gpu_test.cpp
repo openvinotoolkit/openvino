@@ -4,6 +4,7 @@
 
 #include "test_utils.h"
 #include "opencl_helper_instance.hpp"
+#include "ocl/ocl_device.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/data.hpp>
@@ -293,12 +294,12 @@ TEST(convert_color, nv12_to_rgb_two_planes_surface_u8) {
     int width = 224;
     int height = 448;
 
-    auto ocl_instance = std::make_shared<OpenCL>();
-    device_query query(engine_types::ocl, runtime_types::ocl, static_cast<void*>(ocl_instance->_context.get()));
+    device_query query(engine_types::ocl, runtime_types::ocl);
     auto devices = query.get_available_devices();
-
-    auto engine_config = cldnn::engine_configuration();
-    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, devices.begin()->second, engine_config);
+    auto iter = devices.find(std::to_string(device_query::device_id));
+    auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
+    auto ocl_instance = std::make_shared<OpenCL>(std::dynamic_pointer_cast<ocl::ocl_device>(device)->get_device());
 
     if (!engine->get_device_info().supports_image) {
         GTEST_SKIP() << "Device doesn't support images";
@@ -373,12 +374,12 @@ TEST(convert_color, nv12_to_rgb_single_plane_surface_u8) {
     int height = 448;
     int input_height = height + height / 2;
 
-    auto ocl_instance = std::make_shared<OpenCL>();
-    device_query query(engine_types::ocl, runtime_types::ocl, static_cast<void*>(ocl_instance->_context.get()));
+    device_query query(engine_types::ocl, runtime_types::ocl);
     auto devices = query.get_available_devices();
-
-    auto engine_config = cldnn::engine_configuration();
-    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, devices.begin()->second, engine_config);
+    auto iter = devices.find(std::to_string(device_query::device_id));
+    auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
+    auto ocl_instance = std::make_shared<OpenCL>(std::dynamic_pointer_cast<ocl::ocl_device>(device)->get_device());
 
     if (!engine->get_device_info().supports_image) {
         GTEST_SKIP() << "Device doesn't support images";
@@ -528,12 +529,12 @@ TEST(convert_color, i420_to_rgb_three_planes_surface_u8) {
     int width = 224;
     int height = 448;
 
-    auto ocl_instance = std::make_shared<OpenCL>();
-    device_query query(engine_types::ocl, runtime_types::ocl, static_cast<void*>(ocl_instance->_context.get()));
+    device_query query(engine_types::ocl, runtime_types::ocl);
     auto devices = query.get_available_devices();
-
-    auto engine_config = cldnn::engine_configuration();
-    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, devices.begin()->second, engine_config);
+    auto iter = devices.find(std::to_string(device_query::device_id));
+    auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
+    auto ocl_instance = std::make_shared<OpenCL>(std::dynamic_pointer_cast<ocl::ocl_device>(device)->get_device());
 
     if (!engine->get_device_info().supports_image) {
         GTEST_SKIP() << "Device doesn't support images";

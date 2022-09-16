@@ -42,6 +42,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph
                                              OpenCL
                                              gtest
                                              gtest_main
+                                             gflags
                                              ngraph_reference
                                              gmock)
 
