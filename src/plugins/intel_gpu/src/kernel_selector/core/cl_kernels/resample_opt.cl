@@ -23,27 +23,6 @@
 #define OUT_VEC_TYPE                    MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)
 #define TO_OUT_VEC_TYPE(x)              CAT(convert_, OUT_VEC_TYPE)(x)
 
-
-#if !defined(SAMPLE_TYPE_LINEAR_ONNX) && !defined(SAMPLE_TYPE_NEAREST)
-inline uint FUNC(get_input_index)(uint b, uint f, uint y, uint x)
-{
-#if INPUT0_DIMS < 5
-    return INPUT0_GET_INDEX(b, f, y, x);
-#else
-#error [clDNN resample_ref.cl]: input format - not supported
-#endif
-}
-
-inline uint FUNC(get_output_index)(uint b, uint f, uint y, uint x)
-{
-#if OUTPUT_DIMS < 5
-    return OUTPUT_GET_INDEX(b, f, y, x);
-#else
-#error [clDNN resample_ref.cl]: output format - not supported
-#endif
-}
-#endif
-
 inline float FUNC(get_original_coordinate)(float num, float scale, int length_resized, int length_original)
 {
 #if defined(COORD_TRANS_MODE_HALF_PIXEL)
@@ -172,10 +151,10 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 #endif
                                     {
 #if VEC_BLOCK_SIZE == 8
-                                        MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_BLOCK_SIZE) input_vec = vload8(0, &input[FUNC_CALL(get_input_index)(b, f+fp, y, x)]);
+                                        MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_BLOCK_SIZE) input_vec = vload8(0, &input[INPUT0_GET_INDEX(b, f+fp, y, x)]);
                                         sum = fma(convert_float8(input_vec), (float8)w, sum);
 #else
-                                        MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_BLOCK_SIZE) input_vec = vload16(0, &input[FUNC_CALL(get_input_index)(b, f+fp, y, x)]);
+                                        MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_BLOCK_SIZE) input_vec = vload16(0, &input[INPUT0_GET_INDEX(b, f+fp, y, x)]);
                                         sum = fma(convert_float16(input_vec), (float16)w, sum);
 #endif
                                     }
@@ -217,9 +196,9 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
         }
 
 #if VEC_BLOCK_SIZE == 8
-        vstore8(out, 0, &output[FUNC_CALL(get_output_index)(batch, feature+fp, oy, ox)]);
+        vstore8(out, 0, &output[OUTPUT_GET_INDEX(batch, feature+fp, oy, ox)]);
 #else
-        vstore16(out, 0, &output[FUNC_CALL(get_output_index)(batch, feature+fp, oy, ox)]);
+        vstore16(out, 0, &output[OUTPUT_GET_INDEX(batch, feature+fp, oy, ox)]);
 #endif
     } // fp
 }
@@ -275,11 +254,17 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
         const ACCUMULATOR_TYPE dx = ix - left_x_index;
         const ACCUMULATOR_TYPE dy = iy - top_y_index;
 
+#if OUTPUT_DIMS == 5
+        const in_vec_t top_left     = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, top_y_index, left_x_index));
+        const in_vec_t top_right    = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, top_y_index, right_x_index));
+        const in_vec_t bottom_left  = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, bottom_y_index, left_x_index));
+        const in_vec_t bottom_right = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, bottom_y_index, right_x_index));
+#else
         const in_vec_t top_left     = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, top_y_index, left_x_index));
         const in_vec_t top_right    = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, top_y_index, right_x_index));
         const in_vec_t bottom_left  = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, bottom_y_index, left_x_index));
         const in_vec_t bottom_right = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, bottom_y_index, right_x_index));
-
+#endif
         const acc_vec_t top    = TO_ACC_VEC_TYPE(top_left) + (TO_ACC_VEC_TYPE(top_right) - TO_ACC_VEC_TYPE(top_left)) * dx;
         const acc_vec_t bottom = TO_ACC_VEC_TYPE(bottom_left) + (TO_ACC_VEC_TYPE(bottom_right) - TO_ACC_VEC_TYPE(bottom_left)) * dx;
         acc_vec_t res = top + (bottom - top) * dy;
