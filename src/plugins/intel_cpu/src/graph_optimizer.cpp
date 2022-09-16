@@ -633,7 +633,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         //would be passed into conv node. The conv node would determine how to create
         //post-ops attribute and prioritize to choose final onednn kernel.
         if (isPerTensorZP &&
-            (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)))
+            (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni)))
             convNode->stockInputZeroPoints.push_back(static_cast<int32_t>(zeroPointsData[0]));
 
         if (convNode->legacyOutputCompensation.empty())
