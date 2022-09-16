@@ -101,7 +101,7 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
         {},
         {{ 0, 1 }, false},
         {}
-    }
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReduceMeanTransformation,
@@ -114,3 +114,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReduceMeanTransformation,
     ReduceMeanTransformation::getTestCaseName);
 
 }  // namespace
+
+
+
