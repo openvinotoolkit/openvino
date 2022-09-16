@@ -103,8 +103,6 @@ jobs:
     condition: ne(variables['BUILD_TYPE'], 'Debug')
 
   - script: 
-      sudo apt install software-properties-common
-      sudo apt update
       sudo docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile --build-arg BUILD_TYPE=$(BUILD_TYPE) --build-arg PROTOBUF_LITE=$(PROTOBUF_LITE) .
     displayName: 'Docker build $(BUILD_TYPE)'
 
