@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -93,6 +94,6 @@ def rename_files_by_pattern(directory: Path, pattern_to_find: str, pattern_to_re
         renamed_file = file.parent / (pattern_to_rename + file_extension)
         if not renamed_file.exists() and file.exists():
             logging.info('Renaming library from {} to {}'.format(file, renamed_file))
-            file.rename(renamed_file)
+            shutil.copy(str(file), str(renamed_file))
         else:
             logging.info('File {} already exist or file {} does not exist'.format(renamed_file, file))
