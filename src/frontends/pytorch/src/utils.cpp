@@ -140,8 +140,8 @@ OutputVector convert_node(NodeContext* context) {
     //     std::cout << "Python exception: " << e << "\n";
     // }
     catch (std::runtime_error& e) {
-        std::cout << "Exception happened during conversion of op: " << context->get_op_type() << ": " << e.what()
-                  << '\n';
+        std::cout << "Exception happened during conversion of op: " << context->get_op_type()
+                  << " with schema: " << context->get_schema() << ": " << e.what() << '\n';
         // throw;
     } catch (...) {
         std::cout << "Some exception happened during conversion of node of type: " << context->get_op_type()
@@ -291,7 +291,7 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
             // std::cerr << "Node convert before translator: " << node->get_op_type() << ", schema: " <<
             // node->get_schema() << std::endl;
 
-            auto context = NodeContext(node, &tensor_map, &parameters /*, external_tensor_map*/);
+            auto context = NodeContext(node, &tensor_map, &parameters, external_tensor_map);
             auto converted_outputs = convert_node(&context);
             // std::cerr << "Node convert before outputs" << std::endl;
 

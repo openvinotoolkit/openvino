@@ -15,24 +15,45 @@ std::shared_ptr<opset8::Constant> NodeContext::get_constant_at_input(size_t inde
     OV_FRONTEND_REQUIRE(!input_is_none(index));
     auto input_node = get_input(index).get_node_shared_ptr();
     auto input = std::dynamic_pointer_cast<opset8::Constant>(input_node);
-    FRONT_END_GENERAL_CHECK(input, "Input with index ", index, " cannot be interpretted as Constant: ", input_node);
+    auto param = std::dynamic_pointer_cast<opset8::Parameter>(input_node);
+    if (!input && param) {
+        // We need to look into external context for inputs that would be feed into this parameter
+        auto name = param->get_output_tensor(0).get_any_name();
+        size_t tensor_idx = (size_t)std::stoll(name);
+        if (m_ext_tensor_map.count(tensor_idx)) {
+            auto tensor = m_ext_tensor_map.at(tensor_idx);
+            input_node = tensor.get_node_shared_ptr();
+            input = std::dynamic_pointer_cast<opset8::Constant>(input_node);
+        }
+    }
+    FRONT_END_GENERAL_CHECK(input, "Input with index ", index, " cannot be interpreted as Constant: ", input_node);
     return input;
 }
 
 std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) {
     auto subgraph_decoder = m_decoder->get_subgraph_decoder(index);
-    auto model = convert_pytorch_model(subgraph_decoder);
+
+    // Extend external context with internal tensors except Parameter nodes, because internal Parameters are created to
+    // link internal context with external
+    TensorMap ext_map(m_ext_tensor_map);
+    for (auto tensor : *m_tensor_map) {
+        auto node = tensor.second.get_node_shared_ptr();
+        if (!std::dynamic_pointer_cast<opset8::Parameter>(node))
+            ext_map[tensor.first] = tensor.second;
+    }
+
+    auto model = convert_pytorch_model(subgraph_decoder, ext_map);
     // Remove unused parameters, they could be created as inputs to the parts of graph that weren't
     // used for generating output.
-    // TODO: solve the problem when converters need those parameters unconditionally
-    /*for (auto parameter : model->get_parameters()) {
+    for (int i = subgraph_decoder->inputs().size(); i < model->get_parameters().size(); i++) {
+        auto parameter = model->get_parameters()[i];
         if (parameter->output(0).get_target_inputs().empty()) {
             // There is no consumers: safe to remove
             std::cout << "[ WARNING ] Removing parameter " << parameter
                       << " in converted Pytorch model, because it is never used" << std::endl;
             model->remove_parameter(parameter);
         }
-    }*/
+    }
     return model;
 }
 

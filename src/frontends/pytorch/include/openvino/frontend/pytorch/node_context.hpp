@@ -15,11 +15,15 @@ typedef std::map<size_t, Output<Node>> TensorMap;
 
 class NodeContext : public frontend::NodeContext {
 public:
-    NodeContext(std::shared_ptr<Decoder> decoder, TensorMap* tensor_map, ParameterVector* external_parameters)
+    NodeContext(std::shared_ptr<Decoder> decoder,
+                TensorMap* tensor_map,
+                ParameterVector* external_parameters,
+                const TensorMap& ext_tensor_map)
         :  // TODO: why the following ctor is explicit?
           frontend::NodeContext(decoder->get_op_type()),
           m_decoder(decoder),
           m_tensor_map(tensor_map),
+          m_ext_tensor_map(ext_tensor_map),
           m_external_parameters(external_parameters) {}
 
     // Do not search for input in tensor map; try to access it as a constant of specified type T and return its value
@@ -146,6 +150,21 @@ public:
         }
     }
 
+    Output<Node> get_input_from_visible_context(size_t index) {
+        OV_FRONTEND_REQUIRE(index < get_input_size());
+        auto input_tensor = get_input(index);
+        auto input_node = input_tensor.get_node_shared_ptr();
+        if (std::dynamic_pointer_cast<opset8::Parameter>(input_node)) {
+            // We need to look into external context for inputs that would be feed into this parameter
+            auto name = input_node->get_output_tensor(0).get_any_name();
+            size_t tensor_idx = (size_t)std::stoll(name);
+            if (m_ext_tensor_map.count(tensor_idx)) {
+                input_tensor = m_ext_tensor_map.at(tensor_idx);
+            }
+        }
+        return input_tensor;
+    }
+
     std::shared_ptr<ov::Model> convert_subgraph(size_t index);
 
 private:
@@ -154,6 +173,7 @@ private:
     std::shared_ptr<Decoder> m_decoder;
     std::set<size_t> m_mutated_tensors;
     TensorMap* m_tensor_map;
+    const TensorMap& m_ext_tensor_map;
     ParameterVector* m_external_parameters;
 };
 

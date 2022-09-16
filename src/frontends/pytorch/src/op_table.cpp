@@ -45,9 +45,80 @@ OutputVector hardswish(NodeContext& context) {
     return {context.mark_node(std::make_shared<opset8::HSwish>(context.get_input(0)))};
 }
 
+const std::map<int, element::Type> type_map{
+    {0, element::u8},
+    {6, element::f32},
+};
+
+OutputVector translate_aten_to(NodeContext& context) {
+    int dtype_idx;
+    int non_blocking_idx;
+    int copy_idx;
+    int memory_format_idx;
+    if (context.get_input_size() == 5) {
+        // aten::to.dtype(Tensor(a) self, int dtype, bool non_blocking=False, bool copy=False, int? memory_format=None)
+        // -> (Tensor(a))
+        dtype_idx = 1;
+        non_blocking_idx = 2;
+        copy_idx = 3;
+        memory_format_idx = 4;
+    } else if (context.get_input_size() == 6) {
+        // aten::to.device(Tensor(a) self, Device device, int dtype, bool non_blocking=False, bool copy=False, int?
+        // memory_format=None) -> (Tensor(a)).
+        // Skipping "device" input.
+        dtype_idx = 2;
+        non_blocking_idx = 3;
+        copy_idx = 4;
+        memory_format_idx = 5;
+    } else {
+        FRONT_END_OP_CONVERSION_CHECK(false, "Unknown aten::to format");
+    }
+    // TODO: do we need to check these inputs?
+    // OV_FRONTEND_REQUIRE(context.const_input<bool>(non_blocking_idx) == false);
+    // OV_FRONTEND_REQUIRE(context.const_input<bool>(copy_idx) == false);
+    // OV_FRONTEND_REQUIRE(context.input_is_none(memory_format_idx));
+    auto dtype_ext_node = context.get_input_from_visible_context(dtype_idx).get_node_shared_ptr();
+    auto dtype_tensor = context.get_input(dtype_idx);
+    auto dtype_fw_node = std::dynamic_pointer_cast<PtFrameworkNode>(dtype_tensor.get_node_shared_ptr());
+    Output<Node> cast;
+    if (dtype_fw_node && dtype_fw_node->get_op_type() == "prim::dtype") {
+        auto type_input = dtype_fw_node->input(0).get_source_output();
+        cast = context.mark_node(std::make_shared<opset8::ConvertLike>(context.get_input(0), type_input));
+    } else if (std::dynamic_pointer_cast<opset8::Constant>(dtype_ext_node)) {
+        auto pt_type = context.const_input<int64_t>(dtype_idx);
+        FRONT_END_OP_CONVERSION_CHECK(type_map.count(pt_type), "Unknown type in aten::to: ", pt_type);
+        auto dtype = type_map.at(pt_type);
+        cast = context.mark_node(std::make_shared<opset8::Convert>(context.get_input(0), dtype));
+    } else {
+        cast = context.mark_node(std::make_shared<opset8::ConvertLike>(context.get_input(0), dtype_tensor));
+    }
+    return {cast};
+}
+
+OutputVector translate_as_tensor(NodeContext& context) {
+    auto dtype_ext_node = context.get_input_from_visible_context(1).get_node_shared_ptr();
+    auto dtype_tensor = context.get_input(1);
+    auto dtype_fw_node = std::dynamic_pointer_cast<PtFrameworkNode>(dtype_tensor.get_node_shared_ptr());
+    Output<Node> cast;
+    if (dtype_fw_node && dtype_fw_node->get_op_type() == "prim::dtype") {
+        auto type_input = dtype_fw_node->input(0).get_source_output();
+        cast = context.mark_node(std::make_shared<opset8::ConvertLike>(context.get_input(0), type_input));
+    } else if (std::dynamic_pointer_cast<opset8::Constant>(dtype_ext_node)) {
+        auto pt_type = context.const_input<int64_t>(1);
+        FRONT_END_OP_CONVERSION_CHECK(type_map.count(pt_type), "Unknown type in aten::as_tensor: ", pt_type);
+        auto dtype = type_map.at(pt_type);
+        cast = context.mark_node(std::make_shared<opset8::Convert>(context.get_input(0), dtype));
+    }
+    // OV_FRONTEND_REQUIRE(context.input_is_none(2));  // device: no need to check
+    // auto new_shape_const = context.mark_node(opset8::Constant::create(element::i64, {1}, {1}));
+    // return { context.mark_node(std::make_shared<opset8::Reshape>(cast,
+    // new_shape_const->output(0), true)) };
+    return {cast};
+}
+
 }  // namespace op
 
-std::map<std::string, CreatorFunction> get_supported_ops() {
+const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
         {"aten::relu", op::relu},
         {"aten::relu_", inplace_op<op::relu>},
@@ -266,7 +337,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
              auto listConstruct = context.get_input(0).get_node();
              auto listConstruct_fw_node = dynamic_cast<PtFrameworkNode*>(listConstruct);
              OV_FRONTEND_REQUIRE(listConstruct_fw_node);
-             OV_FRONTEND_REQUIRE(listConstruct_fw_node->get_decoder()->get_op_type() == "prim::ListConstruct");
+             OV_FRONTEND_REQUIRE(listConstruct_fw_node->get_op_type() == "prim::ListConstruct");
              auto axis = context.const_input<int64_t>(1);
              OutputVector inputs;
              for (auto& input : listConstruct->inputs()) {
@@ -396,31 +467,14 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
              return {context.mark_node(context.get_input(0).get_node_shared_ptr())};
          }},
 
-        {"aten::as_tensor",
-         [](NodeContext& context) -> OutputVector {
-             OV_FRONTEND_REQUIRE(context.const_input<int64_t>(1) == 6);
-             OV_FRONTEND_REQUIRE(context.input_is_none(2));
-             // auto new_shape_const = context.mark_node(opset8::Constant::create(element::i64, {1}, {1}));
-             // return { context.mark_node(std::make_shared<opset8::Reshape>(context.get_input(0),
-             // new_shape_const->output(0), true)) };
-             return {context.mark_output(context.get_input(0))};
-         }},
+        {"aten::as_tensor", op::translate_as_tensor},
 
         {"aten::Int",
          [](NodeContext& context) -> OutputVector {
              return {context.mark_node(std::make_shared<opset8::Convert>(context.get_input(0), element::i64))};
          }},
 
-        {"aten::to",
-         [](NodeContext& context) -> OutputVector {
-             auto dtype = element::f32;
-             // TODO: figure out all inputs meaning
-             OV_FRONTEND_REQUIRE(context.const_input<int64_t>(1) == 6);
-             OV_FRONTEND_REQUIRE(context.const_input<bool>(2) == false);
-             OV_FRONTEND_REQUIRE(context.const_input<bool>(3) == false);
-             OV_FRONTEND_REQUIRE(context.input_is_none(4));
-             return {context.mark_node(std::make_shared<opset8::Convert>(context.get_input(0), dtype))};
-         }},
+        {"aten::to", op::translate_aten_to},
 
         {"aten::permute",
          [](NodeContext& context) -> OutputVector {
@@ -581,10 +635,13 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
          [](NodeContext& context) -> OutputVector {
              auto x = context.get_input(0);
              auto y = context.get_input(1);
-             // TODO: support default
-             auto alpha = context.get_input(2);
-             auto alpha_mul_y = std::make_shared<opset8::Multiply>(alpha, y);
-             return {context.mark_node(std::make_shared<opset8::Subtract>(x, alpha_mul_y))};
+             // default is 1 so no need to multiply by alpha
+             if (!context.input_is_none(2)) {
+                 auto alpha = context.get_input(2);
+                 auto casted_alpha = std::make_shared<opset8::ConvertLike>(alpha, y);
+                 y = std::make_shared<opset8::Multiply>(casted_alpha, y);
+             }
+             return {context.mark_node(std::make_shared<opset8::Subtract>(x, y))};
          }},
 
         {"aten::eq",
@@ -606,6 +663,13 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
              auto x = context.get_input(0);
              auto y = context.get_input(1);
              return {context.mark_node(std::make_shared<opset8::Greater>(x, y))};
+         }},
+
+        {"aten::lt",
+         [](NodeContext& context) -> OutputVector {
+             auto x = context.get_input(0);
+             auto y = context.get_input(1);
+             return {context.mark_node(std::make_shared<opset8::Less>(x, y))};
          }},
 
         {"aten::neg",
