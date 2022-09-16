@@ -37,7 +37,7 @@ typedef struct ov_compiled_model ov_compiled_model_t;
 OPENVINO_C_API(ov_status_e) ov_compiled_model_inputs_size(const ov_compiled_model_t* compiled_model, size_t* size);
 
 /**
- * @brief Get a const input port of ov_compiled_model_t.
+ * @brief Get the single const input port of ov_compiled_model_t, which only support single input model.
  * @ingroup compiled_model
  * @param compiled_model A pointer to the ov_compiled_model_t.
  * @param input_port A pointer to the ov_output_const_port_t.
@@ -63,7 +63,7 @@ ov_compiled_model_input_by_index(const ov_compiled_model_t* compiled_model,
  * @brief Get a const input port of ov_compiled_model_t by name.
  * @ingroup compiled_model
  * @param compiled_model A pointer to the ov_compiled_model_t.
- * @param name input name (char *).
+ * @param name input tensor name (char *).
  * @param input_port A pointer to the ov_output_const_port_t.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -83,7 +83,7 @@ OPENVINO_C_API(ov_status_e)
 ov_compiled_model_outputs_size(const ov_compiled_model_t* compiled_model, size_t* size);
 
 /**
- * @brief Get a const output port of ov_compiled_model_t.
+ * @brief Get the single const output port of ov_compiled_model_t, which only support single output model.
  * @ingroup compiled_model
  * @param compiled_model A pointer to the ov_compiled_model_t.
  * @param output_port A pointer to the ov_output_const_port_t.
@@ -109,7 +109,7 @@ ov_compiled_model_output_by_index(const ov_compiled_model_t* compiled_model,
  * @brief Get a const output port of ov_compiled_model_t by name.
  * @ingroup compiled_model
  * @param compiled_model A pointer to the ov_compiled_model_t.
- * @param name input name (char *).
+ * @param name input tensor name (char *).
  * @param output_port A pointer to the ov_output_const_port_t.
  * @return Status code of the operation: OK(0) for success.
  */
