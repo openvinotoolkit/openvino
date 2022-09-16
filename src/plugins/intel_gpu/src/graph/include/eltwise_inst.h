@@ -75,6 +75,7 @@ public:
         kernel_selector::eltwise_mode mode = convert_to_eltwise_mode(get_primitive()->mode);
         return std::make_shared<kernel_selector::eltwise_fuse_params>(mode);
     }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 
 using eltwise_node = typed_program_node<eltwise>;
@@ -85,10 +86,10 @@ class typed_primitive_inst<eltwise> : public typed_primitive_inst_base<eltwise> 
     static void check_inputs_count(eltwise_node const& node);
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(eltwise_node const& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(eltwise_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(eltwise_node const& node);
-
-public:
     typed_primitive_inst(network& network, eltwise_node const& node);
 };
 

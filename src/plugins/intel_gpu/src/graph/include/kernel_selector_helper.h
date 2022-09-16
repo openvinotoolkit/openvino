@@ -125,6 +125,7 @@ struct kernel_impl_params {
     optional_layout compensation_layout = optional_layout();
 
     std::map<size_t, memory::ptr> memory_deps = {};
+    size_t primary_input_idx = 0;
 
     memory::ptr reordered_weights = nullptr;
 
@@ -144,7 +145,8 @@ struct kernel_impl_params {
                        , output_layout(_out_layout)
                        , fused_desc(_fused_descs)
                        , fused_act_funcs(_fused_act_funcs)
-                       , activation_params(_act_params) {}
+                       , activation_params(_act_params)
+                       , primary_input_idx(0) {}
 
     layout get_input_layout(size_t idx = 0) const {
         OPENVINO_ASSERT(input_layouts.size() > idx,

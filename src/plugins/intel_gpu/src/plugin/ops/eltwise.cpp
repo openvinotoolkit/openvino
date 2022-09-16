@@ -82,7 +82,8 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
                                       inputPrimitives,
                                       mode,
                                       {},
-                                      out_dt);
+                                      out_dt,
+                                      op->get_autob());
 
     p.add_primitive(*op, eltwisePrim);
 }

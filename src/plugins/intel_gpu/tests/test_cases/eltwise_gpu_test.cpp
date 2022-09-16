@@ -14,6 +14,8 @@
 using namespace cldnn;
 using namespace ::tests;
 
+#define DEFAULT_BROADCAST_SPEC ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY)
+
 template <typename T>
 T eltwise_execute(cldnn::eltwise_mode mode, T x, T y) {
     switch (mode) {
@@ -91,7 +93,7 @@ void generic_eltwise_test(cldnn::format test_input_fmt, int input_b, int input_f
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(reorder("reorder1", "input1", input1->get_layout().with_padding(padding{{ 0, 0, input_padding_x, input_padding_y }, 0 })));
-    topology.add(eltwise("eltwise", {"reorder1", "input2"}, mode, padding{ { 0, 0, output_padding_x, output_padding_y }, 0 }));
+    topology.add(eltwise("eltwise", {"reorder1", "input2"}, mode, DEFAULT_BROADCAST_SPEC, padding{ { 0, 0, output_padding_x, output_padding_y }, 0 }));
     primitive_id out_id = "eltwise";
     if (relu)
     {
@@ -2795,7 +2797,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
     topology golden_topology;
     golden_topology.add(input_layout("input1", input1->get_layout()));
     golden_topology.add(input_layout("input2", input2->get_layout()));
-    golden_topology.add(eltwise("eltwise", "input1", "input2", eltwise_mode::sum, padding{ {0,0,5,10} , 0 }));
+    golden_topology.add(eltwise("eltwise", "input1", "input2", eltwise_mode::sum, DEFAULT_BROADCAST_SPEC, padding{ {0,0,5,10} , 0 }));
 
     network golden_network(engine, golden_topology);
     golden_network.set_input_data("input1", input1);
@@ -2811,7 +2813,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
     FS_B_YX_FSV32_OUTPUT_topology.add(input_layout("input2", input2->get_layout()));
     FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorder1", "input1", layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor)));
     FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorder2", "input2", layout(data_types::f16, format::byxf, input_tensor)));
-    FS_B_YX_FSV32_OUTPUT_topology.add(eltwise("eltwise", "reorder1", "reorder2", eltwise_mode::sum, padding{ {0,0,5,10} , 0 }));
+    FS_B_YX_FSV32_OUTPUT_topology.add(eltwise("eltwise", "reorder1", "reorder2", eltwise_mode::sum, DEFAULT_BROADCAST_SPEC, padding{ {0,0,5,10} , 0 }));
     FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorderOutput", "eltwise", layout(data_types::f16, format::bfyx, input_tensor,
                                               padding{ {0,0,5,10} , 0 })));
 
@@ -2829,7 +2831,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
     BYXF_OUTPUT_topology.add(input_layout("input2", input2->get_layout()));
     BYXF_OUTPUT_topology.add(reorder("reorder1", "input1", layout(data_types::f16, format::byxf, input_tensor)));
     BYXF_OUTPUT_topology.add(reorder("reorder2", "input2", layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor)));
-    BYXF_OUTPUT_topology.add(eltwise("eltwise", "reorder1", "reorder2", eltwise_mode::sum, padding{ {0,0,5,10} , 0 }));
+    BYXF_OUTPUT_topology.add(eltwise("eltwise", "reorder1", "reorder2", eltwise_mode::sum, DEFAULT_BROADCAST_SPEC, padding{ {0,0,5,10} , 0 }));
     BYXF_OUTPUT_topology.add(reorder("reorderOutput", "eltwise", layout(data_types::f16, format::bfyx, input_tensor,
                                      padding{ {0,0,5,10} , 0 })));
 
@@ -3011,7 +3013,7 @@ void generic_eltwise_bool_test(cldnn::format test_input_fmt, int input_b, int in
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(reorder("reorder1", "input1", input1->get_layout().with_padding(padding{{ 0, 0, input_padding_x, input_padding_y }, 0 })));
-    topology.add(eltwise("eltwise", {"reorder1", "input2"}, mode, padding{ { 0, 0, output_padding_x, output_padding_y }, 0 }));
+    topology.add(eltwise("eltwise", {"reorder1", "input2"}, mode, DEFAULT_BROADCAST_SPEC, padding{ { 0, 0, output_padding_x, output_padding_y }, 0 }));
 
     network network(engine, topology);
     network.set_input_data("input1", input1);
