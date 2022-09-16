@@ -57,19 +57,19 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> b
     return std::find_if_not(std::begin(outputs), std::end(outputs), check_shapes_broadcastable) != std::end(outputs);
 }
 
-auto is_layout_oblivious(const std::shared_ptr<const Node> &n) -> bool {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::is_layout_oblivious")
-    auto is_layout_supported = [](const std::shared_ptr<const Node>& n) -> bool {
+auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::is_supported_op")
+    auto is_supported_specific_op = [](const std::shared_ptr<const Node>& n) -> bool {
         if (ov::is_type<opset1::FakeQuantize>(n)) {
             return is_type<opset1::Constant>(n->get_input_node_shared_ptr(1)) &&
                    is_type<opset1::Constant>(n->get_input_node_shared_ptr(2)) &&
                    is_type<opset1::Constant>(n->get_input_node_shared_ptr(3)) &&
                    is_type<opset1::Constant>(n->get_input_node_shared_ptr(4));
         }
-        return false;
+        return ov::is_type<ngraph::op::v0::Convert>(n);
     };
 
-    auto is_layout_oblivious_binary = [](const std::shared_ptr<const Node> &n) -> bool {
+    auto is_supported_binary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
         return ov::is_type<opset1::Add>(n)
             || ov::is_type<opset1::Divide>(n)
             || ov::is_type<opset1::Equal>(n)
@@ -93,7 +93,7 @@ auto is_layout_oblivious(const std::shared_ptr<const Node> &n) -> bool {
             || ov::is_type<opset1::Xor>(n);
     };
 
-    auto is_layout_oblivious_unary = [](const std::shared_ptr<const Node> &n) -> bool {
+    auto is_supported_unary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
         return ov::is_type<opset1::Abs>(n)
             || ov::is_type<opset1::Clamp>(n)
             || ov::is_type<opset1::Floor>(n)
@@ -111,10 +111,9 @@ auto is_layout_oblivious(const std::shared_ptr<const Node> &n) -> bool {
             || ov::is_type<ngraph::op::v0::Gelu>(n)
             || ov::is_type<ngraph::op::v7::Gelu>(n)
             || ov::is_type<ngraph::op::v4::Swish>(n)
-            || ov::is_type<ngraph::op::v4::HSwish>(n)
-            || ov::is_type<ngraph::op::v0::Convert>(n);
+            || ov::is_type<ngraph::op::v4::HSwish>(n);
     };
-    return is_layout_supported(n) || is_layout_oblivious_unary(n) || is_layout_oblivious_binary(n);
+    return is_supported_specific_op(n) || is_supported_unary_eltwise_op(n) || is_supported_binary_eltwise_op(n);
 }
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
@@ -155,8 +154,10 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
     }
     return result;
 }
+// After some transformations, a different number of Constants for some operations may be created than the actual number of Constants during tokenization.
+// To avoid unsupported number of Constants in the future we should get potentional number of non-scalar Constants that will be moved up from body.
 auto get_potentional_non_scalar_constants_count(const std::shared_ptr<ov::Model> body) -> size_t {
-    // get potentional count of non-scalar constants that will be moved up from body
+    // FakeQuantization decomposition can generate another number of Consants
     auto get_additional_param_count_for_fq = [](const std::shared_ptr<ngraph::opset1::FakeQuantize>& fq) -> size_t {
         std::vector<float> out_scales;
         std::vector<float> cl, ch, isc, ish, osc, osh;
@@ -170,7 +171,7 @@ auto get_potentional_non_scalar_constants_count(const std::shared_ptr<ov::Model>
                                     std::all_of(osh.cbegin(), osh.cend(),
                                         [](float val) { return val == 0.f; });
         if (out_scales.size() != 0) {
-            return static_cast<bool>(out_scales.size() != 1);
+            return out_scales.size() != 1;
         }
 
         const bool il = ngraph::shape_size(fq->input(1).get_shape()) != 1lu;
@@ -220,7 +221,7 @@ auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &sub
 } // namespace
 
 bool AppropriateForSubgraph(const std::shared_ptr<const Node> &node) {
-    return is_layout_oblivious(node) && has_supported_in_out(node);
+    return is_supported_op(node) && has_supported_in_out(node);
 }
 
 void SetSnippetsNodeType(const std::shared_ptr<Node> &node, SnippetsNodeType nodeType) {

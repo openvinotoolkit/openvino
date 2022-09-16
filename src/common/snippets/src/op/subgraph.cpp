@@ -71,6 +71,11 @@ void snippets::op::Subgraph::validate_and_infer_types() {
     for (size_t i = 0; i < get_output_size(); ++i) {
         set_output_type(i, m_body->get_output_element_type(i), m_body->get_output_partial_shape(i));
     }
+
+    const auto ops = m_body->get_ops();
+    m_low_precision = std::any_of(ops.cbegin(), ops.cend(), [](const std::shared_ptr<Node>& op) {
+                                                                return ov::is_type<ov::op::v0::FakeQuantize>(op);
+                                                            });
 }
 
 bool snippets::op::Subgraph::visit_attributes(AttributeVisitor& visitor) {

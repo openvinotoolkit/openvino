@@ -88,6 +88,10 @@ public:
         return m_generator;
     }
 
+    bool is_low_precision() const {
+        return m_low_precision;
+    }
+
 
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, ngraph::pass::Manager& opt,
                                 const void* compile_params = nullptr);
@@ -111,9 +115,11 @@ public:
 private:
     void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
     void convert_to_snippet_dialect();
-    Shape exec_domain;
-    std::shared_ptr<ov::Model> m_body;
-    std::shared_ptr<ngraph::snippets::Generator> m_generator;
+    // True if Subgraph contains FakeQuantize
+    bool m_low_precision = false;
+    Shape exec_domain = {};
+    std::shared_ptr<ov::Model> m_body = nullptr;
+    std::shared_ptr<ngraph::snippets::Generator> m_generator = nullptr;
 };
 
 static inline std::ostream& operator<<(std::ostream& os, const op::Subgraph::BlockedShape& blocked_shape) {

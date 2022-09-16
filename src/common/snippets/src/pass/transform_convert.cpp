@@ -14,15 +14,19 @@
 
 ngraph::snippets::pass::TransformConvertToConvertTruncation::TransformConvertToConvertTruncation() {
     MATCHER_SCOPE(TransformConvertToConvertTruncation);
+    auto convert = std::make_shared<pattern::op::Label>(pattern::any_input(),
+        [](const std::shared_ptr<const Node> &n) {
+            return ov::is_type<ngraph::opset1::Convert>(n) &&
+                !ov::is_type<op::ConvertTruncation>(n) &&
+                !ov::is_type<op::ConvertSaturation>(n);
+        });
+
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(
         ngraph::pattern::wrap_type<ngraph::opset1::Convert>(), matcher_name),
             [this](ngraph::pattern::Matcher &m) {
             OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::TransformConvertToConvertTruncation")
             const auto root = m.get_match_root();
             const auto convert = ngraph::as_type_ptr<ngraph::opset1::Convert>(root);
-            if (!convert)
-                return false;
-
             auto convert_truncation = std::make_shared<op::ConvertTruncation>(convert->get_input_source_output(0),
                                                                               convert->get_destination_type());
             convert_truncation->set_friendly_name(convert->get_friendly_name());
@@ -37,17 +41,15 @@ ngraph::snippets::pass::TransformConvertToConvertSaturation::TransformConvertToC
     MATCHER_SCOPE(TransformConvertToConvertSaturation);
     auto convert_after_fq_decomp = std::make_shared<pattern::op::Label>(pattern::any_input(),
                                                 [](std::shared_ptr<Node> n) {
-                                                    return is_type<ngraph::opset1::Convert>(n) &&
-                                                           !is_type<op::ConvertTruncation>(n);
+                                                    return ov::is_type<ngraph::opset1::Convert>(n) &&
+                                                        !ov::is_type<op::ConvertTruncation>(n) &&
+                                                        !ov::is_type<op::ConvertSaturation>(n);
                                                 });
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(convert_after_fq_decomp, matcher_name),
             [this](ngraph::pattern::Matcher &m) {
             OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::TransformConvertToConvertSaturation")
             const auto root = m.get_match_root();
             const auto convert = ngraph::as_type_ptr<ngraph::opset1::Convert>(root);
-            if (!convert)
-                return false;
-
             auto convert_saturation = std::make_shared<op::ConvertSaturation>(convert->get_input_source_output(0),
                                                                               convert->get_destination_type());
             convert_saturation->set_friendly_name(convert->get_friendly_name());

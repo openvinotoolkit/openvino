@@ -30,25 +30,18 @@ const std::vector<TestValues> testValuesDecompositionPerChannel = {
         1.f,
         {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
     },
+    {
+        ov::element::f32,
+        ngraph::Shape{1, 3, 16, 16},
+        ov::element::f32,
+        1.f,
+        {{}, {}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+    },
 };
 
 std::vector<std::pair<std::shared_ptr<Node>, std::pair<std::string, std::string> >> operations = {
     {std::make_shared<opset1::Abs>(), {"Subgraph", "Abs,fakeQuantize"}},
-    {std::make_shared<opset1::Clamp>(), {"Subgraph", "Clamp,fakeQuantize"}},
-    {std::make_shared<opset1::Floor>(), {"Subgraph", "Floor,fakeQuantize"}},
-    {std::make_shared<opset1::Ceiling>(), {"Subgraph", "Ceiling,fakeQuantize"}},
-    {std::make_shared<opset1::Elu>(), {"Subgraph", "Elu,fakeQuantize"}},
-    {std::make_shared<opset1::Erf>(), {"Subgraph", "Erf,fakeQuantize"}},
-    {std::make_shared<opset1::Exp>(), {"Subgraph", "Exp,fakeQuantize"}},
-    {std::make_shared<opset1::LogicalNot>(), {"Subgraph", "LogicalNot,fakeQuantize"}},
-    {std::make_shared<opset1::Negative>(), {"Subgraph", "Negative,fakeQuantize"}},
-    {std::make_shared<opset1::Relu>(), {"Subgraph", "fakeQuantize"}},
-    {std::make_shared<opset5::Round>(), {"Subgraph", "Round,fakeQuantize"}},
-    {std::make_shared<opset1::Sigmoid>(), {"Subgraph", "Sigmoid,fakeQuantize"}},
-    {std::make_shared<opset1::Tanh>(), {"Subgraph", "Tanh,fakeQuantize"}},
-    {std::make_shared<ngraph::op::v0::Gelu>(), {"Subgraph", "Gelu,fakeQuantize"}},
-    {std::make_shared<ngraph::op::v7::Gelu>(), {"Subgraph", "Gelu,fakeQuantize"}},
-    {std::make_shared<ngraph::op::v4::HSwish>(), {"Subgraph", "HSwish,fakeQuantize"}},
+    {std::make_shared<ngraph::op::v4::Swish>(), {"Subgraph", "Swish,fakeQuantize"}},
 };
 
 INSTANTIATE_TEST_SUITE_P(

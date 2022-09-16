@@ -34,7 +34,8 @@ CommonOptimizations::CommonOptimizations() {
 
         auto body = subgraph->get_body();
 
-        // Before FQ decomposition we should transform all original Converts inside body to ConvertTruncation to save original behavior.
+        // Firsly we should transform all original Converts inside body to ConvertTruncation to save original behavior.
+        // Then if Subgraph contains FakeQuantize we enable low precision specific transformation. Before we should decompose FakeQuantize into simple operations.
         // After FQ decomposition we should transform new Converts to ConvertSaturation to save saturation behavior.
         // Also we have to insert reverse converts after ConvertSaturation (after FQ decompoisition) to return FP32 calculation inside body
         // TODO: We disable forse rounding inside Subgraph because ConvertSaturation after decomposition correctly round values (half to even).
@@ -43,12 +44,14 @@ CommonOptimizations::CommonOptimizations() {
         ngraph::pass::Manager manager;
         manager.set_per_pass_validation(false);
         manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertTruncation>();
-        manager.register_pass<ngraph::pass::FakeQuantizeDecomposition>(false, false);
-        manager.register_pass<ngraph::pass::ConstantFolding>();
-        manager.register_pass<ngraph::pass::Validate>();
-        manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertSaturation>();
-        manager.register_pass<ngraph::snippets::pass::InsertReverseConvert>();
-        manager.register_pass<ngraph::pass::Validate>();
+        if (subgraph->is_low_precision()) {
+            manager.register_pass<ngraph::pass::FakeQuantizeDecomposition>(false, false);
+            manager.register_pass<ngraph::pass::ConstantFolding>();
+            manager.register_pass<ngraph::pass::Validate>();
+            manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertSaturation>();
+            manager.register_pass<ngraph::snippets::pass::InsertReverseConvert>();
+            manager.register_pass<ngraph::pass::Validate>();
+        }
         manager.run_passes(body);
         return true;
     };

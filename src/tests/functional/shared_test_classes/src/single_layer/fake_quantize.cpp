@@ -66,8 +66,6 @@ void FakeQuantizeLayerTest::SetUp() {
     }
     if (fqDirectArg.size() != 0) {
         threshold = (fqDirectArg[3] - fqDirectArg[2]) / levels;
-    } else {
-        threshold = 0.1;
     }
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});

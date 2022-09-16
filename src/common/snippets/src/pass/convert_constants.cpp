@@ -39,9 +39,6 @@ ngraph::snippets::pass::ConvertConstantsToParameters::ConvertConstantsToParamete
         auto root = m.get_match_root();
 
         auto subgraph = ov::as_type_ptr<ngraph::snippets::op::Subgraph>(root);
-        if (!subgraph)
-            return false;
-
         auto body = subgraph->get_body();
 
         ParameterVector new_parameters;
@@ -66,11 +63,7 @@ ngraph::snippets::pass::ConvertConstantsToParameters::ConvertConstantsToParamete
 
         body->add_parameters(new_parameters);
         body->validate_nodes_and_infer_types();
-
-        const auto new_subgraph = subgraph->clone_with_new_inputs(new_external_inputs);
-        replace_node(subgraph, new_subgraph);
-        new_subgraph->set_friendly_name(subgraph->get_friendly_name());
-        copy_runtime_info(subgraph, new_subgraph);
+        subgraph->set_arguments(new_external_inputs);
         return true;
     });
 }

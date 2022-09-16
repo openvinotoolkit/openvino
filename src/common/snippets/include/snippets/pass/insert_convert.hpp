@@ -28,8 +28,9 @@ public:
 
 /**
  * @interface InsertReverseConvert
- * @brief After FakeQuantize there are ConvertSaturations from F32 to U8 inside body. This pass inserts reverse ConvertSaturations
- *        after them to return FP32 calculation inside body if these original ConvertSaturations aren't on Results
+ * @brief After FakeQuantize decomposition there are can be ConvertSaturations [F32->U8/I8] inside body. This pass inserts reverse ConvertSaturations
+ *        after them to return FP32 calculation inside body if these original ConvertSaturations aren't on Results.
+ *        We cannot just remove ConvertSaturation [F32->I8/U8] because we should have really converted quantized data but in format FP32
  * @ingroup snippets
  */
 class InsertReverseConvert: public ngraph::pass::MatcherPass {
