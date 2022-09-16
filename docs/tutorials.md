@@ -2,7 +2,6 @@
 
 @sphinxdirective
 
-:target:`doxid-tutorials_1md_openvino_docs_tutorials`
 
 .. _notebook tutorials:
 
