@@ -75,6 +75,11 @@ jobs:
   - script: |
       set -e
       apt-get update && apt-get install -y lsb-release && apt-get clean all
+      sudo mv openssl-1.0.2u /usr/local/openssl && cd /usr/local/openssl
+      sudo make distclean
+      sudo ./config -fPIC -shared
+      sudo make && sudo install
+      export LD_LIBRARY_PATH="/usr/local/openssl/lib:$LD_LIBRARY_PATH"
       sudo apt-get -y install build-essential
       wget https://www.python.org/ftp/python/3.10.7/Python-3.10.7.tgz
       tar -xzf Python-3.10.7.tgz
