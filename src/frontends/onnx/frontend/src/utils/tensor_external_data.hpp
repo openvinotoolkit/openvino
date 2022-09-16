@@ -21,7 +21,7 @@ public:
     ///             the invalid_external_data exception is thrown.
     ///
     /// \return     External binary data loaded into a std::string
-    std::string load_external_data() const;
+    std::string load_external_data(const std::string& model_dir) const;
 
     /// \brief      Represets parameter of external data as string
     ///
