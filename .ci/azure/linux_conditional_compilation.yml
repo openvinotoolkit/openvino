@@ -66,8 +66,8 @@ jobs:
       tar -xzf Python-3.10.6.tgz
       cd Python-3.10.6 || exit
       ./configure --enable-optimizations --prefix=/usr/local --enable-shared LDFLAGS="-Wl,-rpath /usr/local/lib"
-      make -j "$NUM_PROC" python
-      sudo make -j "$NUM_PROC" install
+      make -j 1 python
+      sudo make -j 1 install
       export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
       /usr/local/bin/python3.10 -m venv $(PY_VENV)
       . $(PY_VENV)/bin/activate
