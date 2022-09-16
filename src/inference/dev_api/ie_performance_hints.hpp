@@ -36,8 +36,6 @@ struct PerfHintsConfig {
      */
     Parameter GetConfig(const std::string& key) {
         if (PluginConfigParams::KEY_PERFORMANCE_HINT == key) {
-            if (ovPerfHint == PluginConfigParams::UNDEFINED)
-                return "";
             return ovPerfHint;
         } else if (PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS == key) {
             return ovPerfHintNumRequests;
@@ -75,13 +73,12 @@ struct PerfHintsConfig {
      */
     static std::string CheckPerformanceHintValue(const std::string& val) {
         if (val == PluginConfigParams::LATENCY || val == PluginConfigParams::THROUGHPUT ||
-            val == PluginConfigParams::CUMULATIVE_THROUGHPUT || val == "" || val == PluginConfigParams::UNDEFINED) {
+            val == PluginConfigParams::CUMULATIVE_THROUGHPUT || val == "")
             return val;
-        } else {
+        else
             IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_PERFORMANCE_HINT
                        << ". Expected only " << PluginConfigParams::LATENCY << "/" << PluginConfigParams::THROUGHPUT
                        << "/" << PluginConfigParams::CUMULATIVE_THROUGHPUT;
-        }
     }
 
     /**
