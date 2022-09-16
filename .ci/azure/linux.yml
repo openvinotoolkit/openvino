@@ -77,8 +77,7 @@ jobs:
     BUILD_PYTHON: $(WORK_DIR)/build_python
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
     PY_VENV: $(WORK_DIR)/.venv
-    PYTHON_VERSION: 3.10.6
-    NUM_PROC: 1
+    PYTHON_VERSION: 3.10.7
 
   steps:
   - script: |
@@ -137,8 +136,8 @@ jobs:
       tar -xzf Python-"$PYTHON_VERSION".tgz
       cd Python-"$PYTHON_VERSION" || exit
       ./configure --enable-optimizations --prefix=/usr/local --enable-shared LDFLAGS="-Wl,-rpath /usr/local/lib"
-      make -j "$NUM_PROC" python
-      sudo make -j "$NUM_PROC" install
+      make python
+      sudo make install
       export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
       /usr/local/bin/python3.10 -m venv $(PY_VENV)
       . $(PY_VENV)/bin/activate
