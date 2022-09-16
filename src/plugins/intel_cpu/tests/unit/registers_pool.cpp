@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 #include "nodes/kernels/registers_pool.hpp"
+#include "common/nstl.hpp"
 
 using namespace ov::intel_cpu;
 
@@ -143,8 +144,13 @@ struct make_case {
 template<class T1, class T2, class Is>
 struct make_combinations;
 
+template<size_t ...> struct index_sequence  { };
+template<size_t N, size_t ...S> struct make_index_sequence_impl : make_index_sequence_impl <N - 1, N - 1, S...> { };
+template<size_t ...S> struct make_index_sequence_impl <0, S...> { using type = index_sequence<S...>; };
+template<size_t N> using make_index_sequence = typename make_index_sequence_impl<N>::type;
+
 template<class TupleType, class TupleParam, std::size_t... Is>
-struct make_combinations<TupleType, TupleParam, tbb::internal::index_sequence<Is...>> {
+struct make_combinations<TupleType, TupleParam, index_sequence<Is...>> {
     using tuples = std::tuple<typename make_case<TupleType, TupleParam, Is>::type...>;
 };
 
@@ -152,7 +158,7 @@ template<class TupleTypes, class... Params>
 using Combinations_t = typename make_combinations
         <TupleTypes,
                 std::tuple<Params...>,
-                tbb::internal::make_index_sequence<(std::tuple_size<TupleTypes>::value) *(sizeof...(Params))>>::tuples;
+                make_index_sequence<(std::tuple_size<TupleTypes>::value) *(sizeof...(Params))>>::tuples;
 
 template<class T>
 struct TestTypesCombiner;

@@ -75,10 +75,11 @@ public:
                 regPool.reset();
             }
         }
+        bool isInitialized() const { return static_cast<bool>(regPool); }
 
     private:
         void ensureValid() const {
-            if (!regPool) {
+            if (!isInitialized()) {
                 IE_THROW() << "RegistersPool::Reg is either not initialized or released";
             }
         }
@@ -184,6 +185,16 @@ protected:
     virtual void returnOpmaskToPool(int idx) { IE_THROW() << "returnOpmaskToPool: The Opmask is not supported in current instruction set"; }
     virtual size_t countUnusedOpmask() const { IE_THROW() << "countUnusedOpmask: The Opmask is not supported in current instruction set"; }
 
+    RegistersPool(int simdRegistersNumber)
+            : simdSet(simdRegistersNumber) {
+        checkUniqueAndUpdate();
+        generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RSP));
+        generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RAX));
+        generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RCX));
+        generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RDI));
+        generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RBP));
+    }
+
     RegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude, int simdRegistersNumber)
             : simdSet(simdRegistersNumber) {
         checkUniqueAndUpdate();
@@ -221,7 +232,7 @@ private:
     }
 
     template<typename TReg>
-    void returnToPool(TReg reg) {
+    void returnToPool(const TReg& reg) {
         if (std::is_same<TReg, Xbyak::Xmm>::value || std::is_same<TReg, Xbyak::Ymm>::value || std::is_same<TReg, Xbyak::Zmm>::value) {
             simdSet.setAsUnused(reg.getIdx());
         } else if (std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
@@ -257,6 +268,10 @@ public:
 template <>
 class IsaRegistersPool<x64::avx512_core> : public RegistersPool {
 public:
+    IsaRegistersPool() : RegistersPool(x64::cpu_isa_traits<x64::avx512_core>::n_vregs) {
+        opmaskSet.exclude(Xbyak::Opmask(0)); // the Opmask(0) has special meaning for some instructions, like gather instruction
+    }
+
     IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude)
             : RegistersPool(regsToExclude, x64::cpu_isa_traits<x64::avx512_core>::n_vregs) {
         for (auto& reg : regsToExclude) {
@@ -293,12 +308,14 @@ template <>
 class IsaRegistersPool<x64::avx512_core_vnni> : public IsaRegistersPool<x64::avx512_core> {
 public:
     IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude) : IsaRegistersPool<x64::avx512_core>(regsToExclude) {}
+    IsaRegistersPool() : IsaRegistersPool<x64::avx512_core>() {}
 };
 
 template <>
 class IsaRegistersPool<x64::avx512_core_bf16> : public IsaRegistersPool<x64::avx512_core> {
 public:
     IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude) : IsaRegistersPool<x64::avx512_core>(regsToExclude) {}
+    IsaRegistersPool() : IsaRegistersPool<x64::avx512_core>() {}
 };
 
 }   // namespace intel_cpu
