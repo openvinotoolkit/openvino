@@ -75,11 +75,7 @@ jobs:
   - script: |
       set -e
       apt-get update && apt-get install -y lsb-release && apt-get clean all
-      curl https://www.openssl.org/source/openssl-1.0.2o.tar.gz | tar xz
-      cd openssl-1.0.2o
-      ./config shared --prefix=/usr/local/
-      sudo make
-      sudo make install
+      sudo apt-get -y install libssl-dev
       sudo apt-get -y install build-essential
       wget https://www.python.org/ftp/python/3.10.7/Python-3.10.7.tgz
       tar -xzf Python-3.10.7.tgz
