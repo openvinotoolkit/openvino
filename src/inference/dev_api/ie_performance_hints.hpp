@@ -13,7 +13,7 @@
 
 namespace InferenceEngine {
 struct PerfHintsConfig {
-    std::string ovPerfHint = PluginConfigParams::UNDEFINED;
+    std::string ovPerfHint = "";
     int ovPerfHintNumRequests = 0;
 
     /**

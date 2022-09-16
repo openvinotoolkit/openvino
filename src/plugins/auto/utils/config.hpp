@@ -25,6 +25,8 @@ struct PluginConfig {
                 _modelPriority(0),
                 _deviceBindBuffer(false),
                 _logLevel("LOG_NONE") {
+        // Set 'UNDEFINED' instead of empty string as the default value of hint in order to handle setting hint with none from user app.
+        _perfHintsConfig.ovPerfHint = PluginConfigParams::UNDEFINED;
         adjustKeyMapValues();
     }
 
