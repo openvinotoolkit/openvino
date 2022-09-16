@@ -177,7 +177,7 @@ size_t snippets::op::Subgraph::get_non_scalar_constant_count(const std::shared_p
     else if (oh)
         return 1;
     return 0;
-};
+}
 
 void snippets::op::Subgraph::fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node) {
     NGRAPH_SUPPRESS_DEPRECATED_START

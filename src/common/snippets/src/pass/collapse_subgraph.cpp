@@ -475,7 +475,8 @@ TokenizeSnippets::TokenizeSnippets() {
             throw ngraph_error("original node outputs size and extracted node outputs size doesn't much");
         }
 
-         // After some transformations, a different number of Constants for some operations may be created than the actual number of Constants during tokenization.
+        // After some transformations, a different number of Constants for some operations may be created
+        // than the actual number of Constants during tokenization.
         // To avoid unsupported number of non-scalar Constants in the future (plugin specific limitation)
         // we should calculate potentional number of non-scalar Constants that will be moved up from body.
         size_t hidden_non_scalar_constant_count = 0;
