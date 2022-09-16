@@ -154,54 +154,6 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
     }
     return result;
 }
-// After some transformations, a different number of Constants for some operations may be created than the actual number of Constants during tokenization.
-// To avoid unsupported number of Constants in the future we should get potentional number of non-scalar Constants that will be moved up from body.
-auto get_potentional_non_scalar_constants_count(const std::shared_ptr<ov::Model> body) -> size_t {
-    // FakeQuantization decomposition can generate another number of Consants
-    auto get_additional_param_count_for_fq = [](const std::shared_ptr<ngraph::opset1::FakeQuantize>& fq) -> size_t {
-        std::vector<float> out_scales;
-        std::vector<float> cl, ch, isc, ish, osc, osh;
-        const bool status = ngraph::pass::FakeQuantizeDecomposition::getScalesAndShifts(fq, cl, ch, isc, ish, osc, osh);
-        if (status) {
-            out_scales = ngraph::pass::FakeQuantizeDecomposition::calculateScales(fq->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
-        }
-        const bool only_quantized = status && out_scales.size() == 0 &&
-                                    std::all_of(osc.cbegin(), osc.cend(),
-                                        [](float val) { return val == 1.f; }) &&
-                                    std::all_of(osh.cbegin(), osh.cend(),
-                                        [](float val) { return val == 0.f; });
-        if (out_scales.size() != 0) {
-            return out_scales.size() != 1;
-        }
-
-        const bool il = ngraph::shape_size(fq->input(1).get_shape()) != 1lu;
-        const bool ih = ngraph::shape_size(fq->input(2).get_shape()) != 1lu;
-        const bool ol = !only_quantized && ngraph::shape_size(fq->input(3).get_shape()) != 1lu;
-        const bool oh = !only_quantized && ngraph::shape_size(fq->input(4).get_shape()) != 1lu;
-
-        if (ol && il && ih)
-            return 6;
-        else if ((ol && (il || ih)) || (il && ih && oh))
-            return 5;
-        else if ((il && oh) || (ih && oh) || (il && ih))
-            return 4;
-        else if (il || ih)
-            return 3;
-        else if (ol)
-            return 2;
-        else if (oh)
-            return 1;
-        return 0;
-    };
-
-    size_t count = 0;
-    for (const auto& op : body->get_ops()) {
-        if (auto node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(op)) {
-            count += get_additional_param_count_for_fq(node);
-        }
-    }
-    return count;
-}
 // Need to update tensor name manually, since intel_cpu::Graph::Replicate() looks at input.get_tensor().get_name();
 // If subgraph->get_output_size() == 1, then the name will be restored correctly from the node name
 auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &subgraph) -> void {
@@ -523,10 +475,22 @@ TokenizeSnippets::TokenizeSnippets() {
             throw ngraph_error("original node outputs size and extracted node outputs size doesn't much");
         }
 
+         // After some transformations, a different number of Constants for some operations may be created than the actual number of Constants during tokenization.
+        // To avoid unsupported number of non-scalar Constants in the future (plugin specific limitation)
+        // we should calculate potentional number of non-scalar Constants that will be moved up from body.
+        size_t hidden_non_scalar_constant_count = 0;
+        if (const auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node)) {
+            hidden_non_scalar_constant_count += ngraph::snippets::op::Subgraph::get_non_scalar_constant_count(fq_node);
+        }
+
         ResultVector body_results;
         std::vector<std::set<Input<Node>>> subgraph_result_inputs;
 
         for (auto subgraph : input_subgraphs) {
+            // we should summurize non-scalar Constants count from all input subgraphs
+            // because we will collapse them with our node and we should get total count of non-scalar Constants
+            hidden_non_scalar_constant_count += ov::as_type_ptr<ngraph::snippets::op::Subgraph>(subgraph)->get_non_scalar_constants_count();
+
             for (auto output : subgraph->outputs()) {
                 bool first_side_consumer = true;
 
@@ -565,9 +529,6 @@ TokenizeSnippets::TokenizeSnippets() {
             throw ngraph_error("body results and node results size mismatch during subgraph collaps");
         }
 
-        auto body = op::create_body(node->get_friendly_name(), body_results, body_parameters);
-        const auto hidden_non_scalar_constant_count = get_potentional_non_scalar_constants_count(body);
-
         // todo: move this plugin-specific constraint to the plugin callback
         if (body_parameters.size() + body_results.size() + hidden_non_scalar_constant_count > 12) {
             const std::string message_reset = "new subgraph is created. Impossible to schedule subgraph with " +
@@ -578,6 +539,8 @@ TokenizeSnippets::TokenizeSnippets() {
             std::to_string(hidden_non_scalar_constant_count) + " non-scalar constants.";
             return abort_with_strategy(message_reset, message_abort);
         }
+
+        auto body = op::create_body(node->get_friendly_name(), body_results, body_parameters);
 
         for (size_t i = 0; i < body->get_parameters().size(); i++) {
             body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
@@ -609,6 +572,7 @@ TokenizeSnippets::TokenizeSnippets() {
             act_body1->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
         subgraph->get_rt_info()["originalLayersNames"] = fusedNames;
+        subgraph->set_non_scalar_constants_count(hidden_non_scalar_constant_count);
 
         remark(1) << "Replacement (merge) done for: "
                     << subgraph->get_friendly_name()

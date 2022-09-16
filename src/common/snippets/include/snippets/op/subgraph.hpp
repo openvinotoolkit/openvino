@@ -88,6 +88,10 @@ public:
         return m_generator;
     }
 
+    size_t get_non_scalar_constants_count() const {
+        return m_non_scalar_constants_count;
+    }
+
     bool is_low_precision() const {
         return m_low_precision;
     }
@@ -103,6 +107,7 @@ public:
     // plugin sets generator for a snippet to some specific generator.
     // it's going to be replaced with Jitters table later
     void set_generator(std::shared_ptr<ngraph::snippets::Generator> generator);
+    void set_non_scalar_constants_count(const size_t count);
 
     void print() const;
     void print_statistics(bool verbose);
@@ -111,12 +116,18 @@ public:
 
     static auto wrap_node_as_subgraph(const std::shared_ptr<ngraph::Node>& node) -> std::shared_ptr<Subgraph>;
     static void fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node);
+    static size_t get_non_scalar_constant_count(const std::shared_ptr<ngraph::opset1::FakeQuantize>& fq);
 
 private:
     void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
     void convert_to_snippet_dialect();
     // True if Subgraph contains FakeQuantize
     bool m_low_precision = false;
+    // Count of potentional non-scalar Consants that will be created after some tranformations
+    // At the moment it's relevant only for FakeQuantize decomposition
+    // NOTE: To avoid overheads in each calcution of this count (for example, in validate_and_type_infer()),
+    //       we should MANUALLY calculate it where it needed.
+    size_t m_non_scalar_constants_count = 0;
     Shape exec_domain = {};
     std::shared_ptr<ov::Model> m_body = nullptr;
     std::shared_ptr<ngraph::snippets::Generator> m_generator = nullptr;
