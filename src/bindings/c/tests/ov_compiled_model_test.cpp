@@ -148,7 +148,7 @@ TEST_P(ov_compiled_model, create_compiled_model_with_property) {
     const char* key = ov_property_key_hint_num_requests;
     const char* num = "9";
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 1, &compiled_model, key, num));
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 2, &compiled_model, key, num));
     EXPECT_NE(nullptr, compiled_model);
     char* result = nullptr;
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));

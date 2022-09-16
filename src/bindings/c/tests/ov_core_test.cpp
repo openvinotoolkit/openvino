@@ -120,7 +120,7 @@ TEST_P(ov_core, ov_core_compile_model_with_property) {
     ov_compiled_model_t* compiled_model = nullptr;
     const char* key = ov_property_key_num_streams;
     const char* num = "11";
-    OV_ASSERT_OK(ov_core_compile_model(core, model, device_name.c_str(), 1, &compiled_model, key, num));
+    OV_ASSERT_OK(ov_core_compile_model(core, model, device_name.c_str(), 2, &compiled_model, key, num));
     ASSERT_NE(nullptr, compiled_model);
 
     char* property_value = nullptr;

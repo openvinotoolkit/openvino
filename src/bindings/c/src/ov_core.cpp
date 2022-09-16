@@ -110,10 +110,10 @@ ov_status_e ov_core_read_model_from_memory(const ov_core_t* core,
 ov_status_e ov_core_compile_model(const ov_core_t* core,
                                   const ov_model_t* model,
                                   const char* device_name,
-                                  const size_t property_size,
+                                  const size_t property_args_size,
                                   ov_compiled_model_t** compiled_model,
                                   ...) {
-    if (!core || !model || !compiled_model) {
+    if (!core || !model || !compiled_model || property_args_size % 2 != 0) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
@@ -121,6 +121,7 @@ ov_status_e ov_core_compile_model(const ov_core_t* core,
         ov::AnyMap property = {};
         va_list args_ptr;
         va_start(args_ptr, compiled_model);
+        size_t property_size = property_args_size / 2;
         for (size_t i = 0; i < property_size; i++) {
             GET_PROPERTY_FROM_ARGS_LIST;
         }
@@ -145,15 +146,16 @@ ov_status_e ov_core_compile_model(const ov_core_t* core,
 ov_status_e ov_core_compile_model_from_file(const ov_core_t* core,
                                             const char* model_path,
                                             const char* device_name,
-                                            const size_t property_size,
+                                            const size_t property_args_size,
                                             ov_compiled_model_t** compiled_model,
                                             ...) {
-    if (!core || !model_path || !compiled_model) {
+    if (!core || !model_path || !compiled_model || property_args_size % 2 != 0) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
         ov::AnyMap property = {};
+        size_t property_size = property_args_size / 2;
         va_list args_ptr;
         va_start(args_ptr, compiled_model);
         for (size_t i = 0; i < property_size; i++) {

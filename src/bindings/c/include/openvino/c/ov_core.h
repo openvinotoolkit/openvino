@@ -151,7 +151,7 @@ ov_core_read_model_from_memory(const ov_core_t* core,
  * @param core A pointer to the ie_core_t instance.
  * @param model Model object acquired from Core::read_model.
  * @param device_name Name of a device to load a model to.
- * @param property_size How many properties will be passed.
+ * @param property_args_size How many properties args will be passed, each property contains 2 args: key and value.
  * @param compiled_model A pointer to the newly created compiled_model.
  * @param property paramater: Optional pack of pairs: (property key, property value) relevant only
  * for this load operation operation.
@@ -161,7 +161,7 @@ OPENVINO_C_API(ov_status_e)
 ov_core_compile_model(const ov_core_t* core,
                       const ov_model_t* model,
                       const char* device_name,
-                      const size_t property_size,
+                      const size_t property_args_size,
                       ov_compiled_model_t** compiled_model,
                       ...);
 
@@ -173,7 +173,7 @@ ov_core_compile_model(const ov_core_t* core,
  * @param core A pointer to the ie_core_t instance.
  * @param model_path Path to a model.
  * @param device_name Name of a device to load a model to.
- * @param property_size How many properties will be passed.
+ * @param property_args_size How many properties args will be passed, each property contains 2 args: key and value.
  * @param compiled_model A pointer to the newly created compiled_model.
  * @param property paramater: Optional pack of pairs: (property key, property value) relevant only
  * for this load operation operation.
@@ -183,7 +183,7 @@ OPENVINO_C_API(ov_status_e)
 ov_core_compile_model_from_file(const ov_core_t* core,
                                 const char* model_path,
                                 const char* device_name,
-                                const size_t property_size,
+                                const size_t property_args_size,
                                 ov_compiled_model_t** compiled_model,
                                 ...);
 

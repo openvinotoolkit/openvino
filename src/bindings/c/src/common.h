@@ -15,10 +15,9 @@
 // TODO: we need to catch ov::Exception instead of ie::Exception
 #include "details/ie_exception.hpp"
 
-#define CATCH_OV_EXCEPTION(StatusCode, ExceptionType)        \
-    catch (const InferenceEngine::ExceptionType& e) {        \
-        std::cout << "Exception: " << e.what() << std::endl; \
-        return ov_status_e::StatusCode;                      \
+#define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) \
+    catch (const InferenceEngine::ExceptionType&) {   \
+        return ov_status_e::StatusCode;               \
     }
 
 #define CATCH_OV_EXCEPTIONS                                   \
@@ -35,8 +34,7 @@
     CATCH_OV_EXCEPTION(INFER_NOT_STARTED, InferNotStarted)    \
     CATCH_OV_EXCEPTION(NETWORK_NOT_READ, NetworkNotRead)      \
     CATCH_OV_EXCEPTION(INFER_CANCELLED, InferCancelled)       \
-    catch (const std::exception& e) {                         \
-        std::cout << "Exception: " << e.what() << std::endl;  \
+    catch (...) {                                             \
         return ov_status_e::UNKNOW_EXCEPTION;                 \
     }
 
