@@ -58,7 +58,7 @@ jobs:
     system.debug: true
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
-    BUILD_TYPE: RelWithDebInfo
+    BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
     MODELS_PATH: $(REPO_DIR)/../testdata
@@ -180,7 +180,7 @@ jobs:
         -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCPACK_GENERATOR=$(CMAKE_CPACK_GENERATOR)
         -DBUILD_nvidia_plugin=OFF
-        -DENABLE_COVERAGE=ON
+        -DENABLE_COVERAGE=$(CMAKE_BUILD_SHARED_LIBS)
         -S $(REPO_DIR)
         -B $(BUILD_DIR)
 
