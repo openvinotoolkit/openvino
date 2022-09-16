@@ -595,11 +595,18 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::LSTMSequence>
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    if (port == 2) {
+    if (port == 3) {
         unsigned int m_max_seq_len = 10;
         return ov::test::utils::create_and_fill_tensor(elemType, targetShape, m_max_seq_len, 0);
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v4::LSTMCell>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return ov::test::utils::create_and_fill_tensor_normal_distribution(elemType, targetShape, 0, 0.3f);
 }
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::NonMaxSuppression>& node,
