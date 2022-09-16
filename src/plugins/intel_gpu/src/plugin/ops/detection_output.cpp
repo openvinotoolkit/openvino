@@ -28,7 +28,7 @@ static cldnn::prior_box_code_type PriorBoxCodeFromString(const std::string& str)
 }
 
 static void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op::v0::DetectionOutput>& op) {
-    p.ValidateInputs(op, {3});
+    validate_inputs_count(op, {3});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -76,11 +76,9 @@ static void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op
                                                  input_height,
                                                  decrease_label_id,
                                                  clip_before_nms,
-                                                 clip_after_nms,
-                                                 op->get_friendly_name());
+                                                 clip_after_nms);
 
-    p.AddPrimitive(detectionPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, detectionPrim);
 }
 
 REGISTER_FACTORY_IMPL(v0, DetectionOutput);
