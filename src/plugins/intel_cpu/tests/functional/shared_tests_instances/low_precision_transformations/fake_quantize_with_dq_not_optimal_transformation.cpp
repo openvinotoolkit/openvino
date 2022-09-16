@@ -42,7 +42,7 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
         {},
         "FP32"
     },
-    {
+/*  {
         { 256ul, {{ 1, 1, 1, 1 }}, { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ngraph::element::f32 },
         { ngraph::element::i8, false },
         {
@@ -60,7 +60,7 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
         },
         {},
         "I8"
-    },
+    },*/
     {
         { 256ul, {{ 1, 1, 1, 1 }}, { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ngraph::element::f32 },
         { ngraph::element::i8, false },
