@@ -75,7 +75,8 @@ jobs:
   - script: |
       set -e
       apt-get update && apt-get install -y lsb-release && apt-get clean all
-      sudo mv openssl-1.0.2u /usr/local/openssl && cd /usr/local/openssl
+      sudo wget https://www.openssl.org/source/openssl-1.1.1q.tar.gz | tar xz
+      sudo mv openssl-1.1.1q /usr/local/openssl && cd /usr/local/openssl
       sudo make distclean
       sudo ./config -fPIC -shared
       sudo make && sudo install
