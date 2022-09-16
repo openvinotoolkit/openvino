@@ -134,7 +134,7 @@ class Benchmark:
               (self.duration_seconds and exec_time < self.duration_seconds) or \
               (iteration % self.nireq):
             idle_id = infer_queue.get_idle_request_id()
-            if idle_id in in_fly:
+            if idle_id in in_fly:       # Is this check neccessary?
                 times.append(infer_queue[idle_id].latency)
             else:
                 in_fly.add(idle_id)
@@ -159,8 +159,8 @@ class Benchmark:
         iteration = 0
         times = []
         num_groups = len(self.latency_groups)
-        in_fly = set()
         start_time = datetime.utcnow()
+        in_fly = set()
         while (self.niter and iteration < self.niter) or \
               (self.duration_seconds and exec_time < self.duration_seconds) or \
               (iteration % num_groups):
@@ -184,8 +184,12 @@ class Benchmark:
 
         infer_queue.wait_all()
         total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
+        
         for infer_request_id in in_fly:
             times.append(infer_queue[infer_request_id].latency)
+            if pcseq:
+                self.latency_groups[infer_queue.userdata[infer_request_id]].times.append(infer_queue[infer_request_id].latency)
+        
         return sorted(times), total_duration_sec, processed_frames, iteration
 
     def main_loop(self, requests, data_queue, batch_size, latency_percentile, progress_bar, pcseq):
@@ -210,6 +214,7 @@ class Benchmark:
             for group in self.latency_groups:
                 if group.times:
                     group.times.sort()
+                    group.median = percentile(group.times, latency_percentile)
                     group.avg = sum(group.times) / len(group.times)
                     group.min = group.times[0]
                     group.max = group.times[-1]

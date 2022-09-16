@@ -98,8 +98,8 @@ static void next_step(const std::string additional_info = "") {
         {5, "Resizing network to match image sizes and given batch"},
         {6, "Configuring input of the model"},
         {7, "Loading the model to the device"},
-        {8, "Setting optimal runtime parameters"},
-        {9, "Creating infer requests and preparing input blobs with data"},
+        {8, "Querying optimal runtime parameters"},
+        {9, "Creating infer requests and preparing input tensors"},
         {10, "Measuring performance"},
         {11, "Dumping statistics report"}};
 
@@ -632,7 +632,7 @@ int main(int argc, char* argv[]) {
             startTime = Time::now();
             compiledModel = core.compile_model(model, device_name);
             duration_ms = get_duration_ms_till_now(startTime);
-            slog::info << "Load model took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
@@ -811,7 +811,15 @@ int main(int argc, char* argv[]) {
         // ----------------------------------------
         next_step();
 
+        auto create_requests_start_time = Time::now();
         InferRequestsQueue inferRequestsQueue(compiledModel, nireq, app_inputs_info.size(), FLAGS_pcseq);
+        auto create_requests_duration_ms = get_duration_ms_till_now(create_requests_start_time);
+        slog::info << "Creating " << nireq << " infer requests took " << create_requests_duration_ms << " ms" << slog::endl;
+
+        if (statistics) {
+            statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                    {StatisticsVariant("create infer requests time (ms)", "create_requests", create_requests_duration_ms)});
+        }
 
         bool inputHasName = false;
         if (inputFiles.size() > 0) {
@@ -1157,7 +1165,7 @@ int main(int argc, char* argv[]) {
         slog::info << "Count:        " << iteration << " iterations" << slog::endl;
         slog::info << "Duration:     " << double_to_string(totalDuration) << " ms" << slog::endl;
         if (device_name.find("MULTI") == std::string::npos) {
-            slog::info << "Latency: " << slog::endl;
+            slog::info << "Latency:" << slog::endl;
             generalLatency.write_to_slog();
 
             if (FLAGS_pcseq && app_inputs_info.size() > 1) {
@@ -1169,7 +1177,7 @@ int main(int argc, char* argv[]) {
                         auto shape = item.second.dataShape;
                         std::copy(shape.begin(), shape.end() - 1, std::ostream_iterator<size_t>(input_shape, ","));
                         input_shape << shape.back();
-                        slog::info << " " << item.first << " : " << get_shape_string(item.second.dataShape);
+                        slog::info << " " << item.first << ": " << get_shape_string(item.second.dataShape);
                     }
                     slog::info << slog::endl;
 

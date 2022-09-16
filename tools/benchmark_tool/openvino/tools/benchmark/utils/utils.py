@@ -34,7 +34,7 @@ def next_step(additional_info='', step_id=0):
         6: "Configuring input of the model",
         7: "Loading the model to the device",
         8: "Querying optimal runtime parameters",
-        9: "Creating infer requests and preparing input data",
+        9: "Creating infer requests and preparing input tensors",
         10: "Measuring performance",
         11: "Dumping statistics report",
     }
@@ -202,12 +202,13 @@ class LatencyGroup:
         self.input_names = input_names
         self.input_shapes = input_shapes
         self.times = list()
+        self.median = 0
         self.avg = 0.
         self.min = 0.
         self.max = 0.
 
     def __str__(self):
-        return str().join(f"{name}: {str(shape)} " for name, shape in zip(self.input_names, self.input_shapes))
+        return str().join(f" {name}: {str(shape)}" for name, shape in zip(self.input_names, self.input_shapes))
 
 
 def get_latency_groups(app_input_info):
@@ -293,7 +294,9 @@ def parse_value_per_device(devices, values_string, value_type):
 def process_help_inference_string(benchmark_app, device_number_streams):
     output_string = f'Start inference {benchmark_app.api_type}hronously'
     if benchmark_app.api_type == 'async':
-        output_string += f', {benchmark_app.nireq} inference requests'
+        output_string += ', ' if output_string else ''
+
+        output_string += f'{benchmark_app.nireq} inference requests'
 
         device_ss = ''
         for device, streams in device_number_streams.items():
@@ -303,17 +306,14 @@ def process_help_inference_string(benchmark_app, device_number_streams):
         if device_ss:
             output_string += ' using ' + device_ss
 
-    output_string += ', '
-
-    limits = ''
-
-    if benchmark_app.niter and not benchmark_app.duration_seconds:
-        limits += f'{benchmark_app.niter} iterations'
+    output_string += ', limits: '
 
     if benchmark_app.duration_seconds:
-        limits += f'{get_duration_in_milliseconds(benchmark_app.duration_seconds)} ms duration'
-    if limits:
-        output_string += ', limits: ' + limits
+        output_string += f'{get_duration_in_milliseconds(benchmark_app.duration_seconds)} ms duration'
+    if benchmark_app.niter:
+        if benchmark_app.duration_seconds > 0:
+            output_string += ', '
+        output_string += f'{benchmark_app.niter} iterations'
 
     return output_string
 

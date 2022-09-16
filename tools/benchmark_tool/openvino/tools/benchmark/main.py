@@ -274,7 +274,7 @@ def main():
             model = benchmark.read_model(args.path_to_model)
             topology_name = model.get_name()
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
-            logger.info(f"Import network took {duration_ms} ms")
+            logger.info(f"Read network took {duration_ms} ms")
             logger.info("Original network I/O parameters:")
             print_inputs_and_outputs_info(model)
 
@@ -572,22 +572,26 @@ def main():
         if MULTI_DEVICE_NAME not in device_name:
             logger.info('Latency:')
             if args.latency_percentile == 50:
-                logger.info(f'\tMedian:     {median_latency_ms:.2f} ms')
+                logger.info(f'   Median:     {median_latency_ms:.2f} ms')
             elif args.latency_percentile != 50:
-                logger.info(f'\t{args.latency_percentile} percentile:     {median_latency_ms:.2f} ms')
-            logger.info(f'\tAverage:    {avg_latency_ms:.2f} ms')
-            logger.info(f'\tMin:        {min_latency_ms:.2f} ms')
-            logger.info(f'\tMax:        {max_latency_ms:.2f} ms')
+                logger.info(f'   {args.latency_percentile} percentile:     {median_latency_ms:.2f} ms')
+            logger.info(f'   Average:    {avg_latency_ms:.2f} ms')
+            logger.info(f'   Min:        {min_latency_ms:.2f} ms')
+            logger.info(f'   Max:        {max_latency_ms:.2f} ms')
 
             if pcseq:
-                logger.info("Latency for each data shape group: ")
-                for group in benchmark.latency_groups:
-                    logger.info(f"\t{str(group)}")
-                    logger.info(f'\tAverage:    {group.avg:.2f} ms')
-                    logger.info(f'\tMin:        {group.min:.2f} ms')
-                    logger.info(f'\tMax:        {group.max:.2f} ms')
+                logger.info("Latency for each data shape group:")
+                for idx,group in enumerate(benchmark.latency_groups):
+                    logger.info(f"{idx+1}.{str(group)}")
+                    if args.latency_percentile == 50:
+                        logger.info(f'   Median:     {group.median:.2f} ms')
+                    elif args.latency_percentile != 50:
+                        logger.info(f'   {args.latency_percentile} percentile:     {group.median:.2f} ms')
+                    logger.info(f'   Average:    {group.avg:.2f} ms')
+                    logger.info(f'   Min:        {group.min:.2f} ms')
+                    logger.info(f'   Max:        {group.max:.2f} ms')
 
-        logger.info(f'Throughput:  {fps:.2f} FPS')
+        logger.info(f'Throughput:   {fps:.2f} FPS')
 
         del compiled_model
 
