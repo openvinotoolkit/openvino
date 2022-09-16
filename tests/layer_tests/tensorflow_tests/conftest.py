@@ -21,14 +21,16 @@ def pytest_generate_tests(metafunc):
 def rename_tf_fe_libs(request):
     # code before 'yield' statement is equal to 'set_up' function
     if os.getenv('OV_FRONTEND_PATH'):
+        # use this env variable to define path to your specific libs
         openvino_lib_path = Path(os.getenv('OV_FRONTEND_PATH'))
     else:
         try:
             import openvino.runtime as rt
-            # path below is build considering the use of wheels
+            # path below is built considering the use of wheels
             openvino_lib_path = Path(rt.__file__).parent.parent / 'libs'
         except ImportError as err:
-            raise Exception("Please set PYTHONPATH to OpenVINO Python or install wheel package") from err
+            raise Exception("Please set PYTHONPATH to OpenVINO Python or install wheel package "
+                            "or use OV_FRONTEND_PATH env variable") from err
 
     tf_fe_lib_names = ['libopenvino_tensorflow_fe', 'libopenvino_tensorflow_frontend']
 
@@ -41,7 +43,6 @@ def rename_tf_fe_libs(request):
         log.info('Using new frontend...')
         rename_files_by_pattern(openvino_lib_path, tf_fe_lib_names[0], tf_fe_lib_names[1])
 
-    # code after 'yield' statement is equal to 'tear_down' function
     yield
 
     # we should rename back names of libs in case of previous renaming

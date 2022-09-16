@@ -62,12 +62,6 @@ class CommonLayerTest:
 
         exit_code, stderr = generate_ir(**mo_params)
 
-        import openvino.runtime as rt
-        print("openvino runtime lib: {}".format(rt.__file__))
-        openvino_lib_path = Path(rt.__file__).parent.parent / 'libs'
-        print("openvino lib path is: {}".format(openvino_lib_path))
-        print([x for x in openvino_lib_path.glob('*')])
-
         del os.environ['MO_ENABLED_TRANSFORMS']
         del os.environ['MO_DISABLED_TRANSFORMS']
         assert not exit_code, (
