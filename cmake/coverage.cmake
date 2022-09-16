@@ -14,11 +14,13 @@ ov_coverage_capture(INFO_FILE "openvino"
                              "${OV_COVERAGE_BASE_DIRECTORY}/*/tests/*" 
                              "${OV_COVERAGE_BASE_DIRECTORY}/*/tests_deprecated/*" 
                              "${OV_COVERAGE_BASE_DIRECTORY}/thirdparty/*") # Skip some pb files, tests and thirdparty
+# Common report
 ov_coverage_genhtml(INFO_FILE "openvino"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
 # Generate reports
 
+##################### Core Components #####################
 ov_coverage_extract(INPUT "openvino" OUTPUT "inference"
                     PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/inference/*")
 ov_coverage_genhtml(INFO_FILE "inference"
@@ -44,20 +46,6 @@ ov_coverage_extract(INPUT "openvino" OUTPUT "legacy"
 ov_coverage_genhtml(INFO_FILE "legacy"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-if(ENABLE_INTEL_CPU)
-    ov_coverage_extract(INPUT "openvino" OUTPUT "hetero_plugin"
-                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/hetero/*")
-    ov_coverage_genhtml(INFO_FILE "hetero_plugin"
-                        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
-endif()
-
-if(ENABLE_AUTO OR ENABLE_MULTI)
-    ov_coverage_extract(INPUT "openvino" OUTPUT "auto_plugin"
-                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/auto/*")
-    ov_coverage_genhtml(INFO_FILE "auto_plugin"
-                        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
-endif()
-
 ov_coverage_extract(INPUT "openvino" OUTPUT "preprocessing"
                     PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}src/common/preprocessing/*")
 ov_coverage_genhtml(INFO_FILE "preprocessing"
@@ -68,10 +56,32 @@ ov_coverage_extract(INPUT "openvino" OUTPUT "snippets"
 ov_coverage_genhtml(INFO_FILE "snippets"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-if(ENABLE_TEMPLATE)
-    ov_coverage_extract(INPUT "openvino" OUTPUT "template_plugin"
-                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/docs/template_plugin/*")
-    ov_coverage_genhtml(INFO_FILE "template_plugin"
+ov_coverage_extract(INPUT "openvino" OUTPUT "frontend_common"
+                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/common/*")
+ov_coverage_genhtml(INFO_FILE "frontend_common"
+                    PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
+##################### Core Components #####################
+
+
+##################### Plugins #####################
+if(ENABLE_AUTO OR ENABLE_MULTI)
+    ov_coverage_extract(INPUT "openvino" OUTPUT "auto_plugin"
+                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/auto/*")
+    ov_coverage_genhtml(INFO_FILE "auto_plugin"
+                        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
+endif()
+
+if(ENABLE_AUTO_BATCH)
+    ov_coverage_extract(INPUT "openvino" OUTPUT "auto_batch_plugin"
+                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/auto_batch/*")
+    ov_coverage_genhtml(INFO_FILE "auto_batch_plugin"
+                        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
+endif()
+
+if(ENABLE_HETERO)
+    ov_coverage_extract(INPUT "openvino" OUTPUT "hetero_plugin"
+                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/hetero/*")
+    ov_coverage_genhtml(INFO_FILE "hetero_plugin"
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 
@@ -82,13 +92,6 @@ if(ENABLE_INTEL_CPU)
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 
-if (ENABLE_INTEL_GPU)
-    ov_coverage_extract(INPUT "openvino" OUTPUT "intel_gpu_plugin"
-                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/intel_gpu/*")
-    ov_coverage_genhtml(INFO_FILE "intel_gpu_plugin"
-                        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
-endif()
-
 if(ENABLE_INTEL_GNA)
     ov_coverage_extract(INPUT "openvino" OUTPUT "intel_gna_plugin"
                         PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/intel_gna/*")
@@ -96,10 +99,54 @@ if(ENABLE_INTEL_GNA)
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 
-if(ENABLE_OV_ONNX_FRONTEND)
-    ov_coverage_extract(INPUT "openvino" OUTPUT "onnx"
-        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/onnx/*"
-        "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/onnx/*")
-    ov_coverage_genhtml(INFO_FILE "onnx"
+if (ENABLE_INTEL_GPU)
+    ov_coverage_extract(INPUT "openvino" OUTPUT "intel_gpu_plugin"
+                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/intel_gpu/*")
+    ov_coverage_genhtml(INFO_FILE "intel_gpu_plugin"
+                        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
+endif()
+
+if(ENABLE_INTEL_MYRIAD)
+    ov_coverage_extract(INPUT "openvino" OUTPUT "intel_myriad_plugin"
+                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/intel_myriad/*")
+    ov_coverage_genhtml(INFO_FILE "intel_myriad_plugin"
+                        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
+endif()
+
+if(ENABLE_TEMPLATE)
+    ov_coverage_extract(INPUT "openvino" OUTPUT "template_plugin"
+                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/docs/template_plugin/*")
+    ov_coverage_genhtml(INFO_FILE "template_plugin"
+                        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
+endif()
+##################### Plugins #####################
+
+##################### Frontends #####################
+if(ENABLE_OV_IR_FRONTEND)
+    ov_coverage_extract(INPUT "openvino" OUTPUT "ir_frontend"
+        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/ir/*")
+    ov_coverage_genhtml(INFO_FILE "ir_frontend"
         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
+
+if(ENABLE_OV_ONNX_FRONTEND)
+    ov_coverage_extract(INPUT "openvino" OUTPUT "onnx_frontend"
+        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/onnx/*")
+    ov_coverage_genhtml(INFO_FILE "onnx_frontend"
+        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
+endif()
+
+if(ENABLE_OV_PADDLE_FRONTEND)
+    ov_coverage_extract(INPUT "openvino" OUTPUT "paddle_frontend"
+        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/paddle/*")
+    ov_coverage_genhtml(INFO_FILE "paddle_frontend"
+        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
+endif()
+
+if(ENABLE_OV_TF_FRONTEND)
+    ov_coverage_extract(INPUT "openvino" OUTPUT "tf_frontend"
+        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/tensorflow/*")
+    ov_coverage_genhtml(INFO_FILE "tf_frontend"
+        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
+endif()
+##################### Frontends #####################
