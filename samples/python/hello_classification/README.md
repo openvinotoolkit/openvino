@@ -47,27 +47,24 @@ To run the sample, you need specify a model and image:
 ### Example
 
 1. Install the `openvino-dev` Python package to use Open Model Zoo Tools:
-
-```
-python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
-```
+   ```
+   python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
+   ```
 
 2. Download a pre-trained model:
-```
-omz_downloader --name alexnet
-```
+   ```
+   omz_downloader --name alexnet
+   ```
 
 3. If a model is not in the IR or ONNX format, it must be converted. You can do this using the model converter:
-
-```
-omz_converter --name alexnet
-```
+   ```
+   omz_converter --name alexnet
+   ```
 
 4. Perform inference of `banana.jpg` using the `alexnet` model on a `GPU`, for example:
-
-```
-python hello_classification.py alexnet.xml banana.jpg GPU
-```
+   ```
+   python hello_classification.py alexnet.xml banana.jpg GPU
+   ```
 
 ## Sample Output
 
