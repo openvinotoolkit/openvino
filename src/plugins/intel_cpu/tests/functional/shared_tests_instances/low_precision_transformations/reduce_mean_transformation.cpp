@@ -142,7 +142,7 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
         {},
         "Output",
         "FP32"
-    },
+    }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReduceMeanTransformation,
