@@ -23,7 +23,7 @@ jobs:
   timeoutInMinutes: 90
 
   pool:
-    name: LIN_VMSS_VENV_ONNX_U22_WU2
+    name: LIN_VMSS_VENV_ONNX_U20_WU2
 
   variables:
     system.debug: true
