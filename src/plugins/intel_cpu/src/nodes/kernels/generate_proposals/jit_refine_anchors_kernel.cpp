@@ -75,7 +75,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
 
     this->preamble();
 
-    StackAllocator allocator{*this};
+    auto allocator = std::make_shared<StackAllocator>(*this);
 
     xor_(reg_anchors_loop, reg_anchors_loop);
     xor_(reg_anchors_chunk, reg_anchors_chunk);
@@ -96,7 +96,6 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
     Xbyak::Label loop_mask;
     Xbyak::Label l_mask;
     {
-//        StackAllocator::Transaction transaction{allocator};
         StackAllocator::Address vmm_anchor_mask_addr{allocator, vmm_reg_size_in_bytes};
         StackAllocator::Address vmm_ww_addr{allocator, vmm_reg_size_in_bytes};
         StackAllocator::Address vmm_hh_addr{allocator, vmm_reg_size_in_bytes};
@@ -117,7 +116,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
         StackAllocator::Address vmm_img_h_addr{allocator, vmm_reg_size_in_bytes};
         StackAllocator::Address reg_0_0_addr{allocator, sizeof(float)};
         StackAllocator::Address vmm_0_0_addr{allocator, vmm_reg_size_in_bytes};
-//        transaction.commit();
+        allocator->commit();
 
         L(anchor_loop);
         {
@@ -494,6 +493,8 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
         }
         ja(anchor_loop);
     }
+
+    allocator->commit();
 
     this->postamble();
 
