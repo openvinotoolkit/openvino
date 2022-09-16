@@ -35,7 +35,7 @@ const std::vector<TestValues> testValuesDecompositionPerChannel = {
         ngraph::Shape{1, 3, 16, 16},
         ov::element::f32,
         1.f,
-        {{}, {}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+        {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
     },
 };
 
@@ -59,10 +59,21 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_FQDecomposition_PerChannel,
     FakeQuantizeDecompositionTest,
     ::testing::Combine(
-        ::testing::ValuesIn(testValuesDecompositionPerChannel),
+        ::testing::Values(testValuesDecompositionPerChannel[0]),
         ::testing::ValuesIn(operations),
         // reorder (nChw[16|8]c) + MaxPool + reorder(nChw[16|8]c) x6 + Subgraph + reorder(nchw)
         ::testing::Values(std::pair<size_t, size_t>{10, 1}),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+    FakeQuantizeDecompositionTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Snippets_FQDecomposition_PerChannel_Input,
+    FakeQuantizeDecompositionTest,
+    ::testing::Combine(
+        ::testing::Values(testValuesDecompositionPerChannel[1]),
+        ::testing::ValuesIn(operations),
+        // reorder (nChw[16|8]c) + MaxPool + reorder(nChw[16|8]c) x4 + Subgraph + reorder(nchw)
+        ::testing::Values(std::pair<size_t, size_t>{8, 1}),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     FakeQuantizeDecompositionTest::getTestCaseName);
 }  // namespace decompositionInSubgraph
