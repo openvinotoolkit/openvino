@@ -23,6 +23,7 @@ from openvino.tools.mo.back.ie_ir_ver_2.emitter import append_ir_info
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager
+from openvino.offline_transformations import generate_mapping_file
 from openvino.runtime import serialize
 
 
@@ -82,6 +83,11 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
 
     # add meta information to IR
     append_ir_info(file=model_path_no_ext, meta_info=get_meta_info(argv))
+
+    # generate .mapping file
+    path_to_mapping = model_path_no_ext + ".mapping"
+    extract_names = argv['framework'] in ['tf', 'mxnet', 'kaldi']
+    generate_mapping_file(ngraph_function, path_to_mapping, extract_names)
 
     print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
     print('[ SUCCESS ] XML file: {}'.format(model_path))
