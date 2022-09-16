@@ -294,7 +294,7 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
                 if (input.is_type<reshape>())
                     return;
                 #ifdef ENABLE_ONEDNN_FOR_GPU
-                // Activation should not fused if it isn't supported in onednn
+                // Activation should not be fused if it isn't supported in onednn
                 try {
                     onednn::convert_activation_func(node.get_primitive()->activation_function);
                 } catch (...) {
