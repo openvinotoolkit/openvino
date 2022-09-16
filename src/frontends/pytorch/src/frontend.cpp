@@ -12,6 +12,7 @@
 #include "openvino/frontend/pytorch/frontend.hpp"
 
 #include "input_model.hpp"
+#include "transforms.hpp"
 
 namespace ov {
 namespace frontend {
@@ -306,7 +307,7 @@ Output<Node> reshape_kernel_for_group(
 
 std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorch_model, const TensorMap& external_tensor_map);
 
-OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMap& tensor_map) {
+OutputVector convert_node(const std::shared_ptr<Decoder> decoder, TensorMap& tensor_map) {
     //std::cout << "[  ----  DEBUG  ---- ] convert_node\n";
     using ints = std::vector<int64_t>;
     using namespace ngraph;
@@ -323,7 +324,9 @@ OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMa
         
     auto relu = [&]() -> OutputVector {
         return { context.mark_node(make_shared<opset7::Relu>(context.get_input(0))) };
-    };    
+    };
+
+    // TODO: there is also the 3rd input for add in some cases, involve it to the conversion
     auto add = [&]() -> OutputVector {
         return { context.mark_node(make_shared<opset7::Add>(context.get_input(0), context.get_input(1))) };
     };
@@ -402,7 +405,7 @@ OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMa
                 );
             }
 
-            // FIXME: Doesn't work for dynamic rank
+            // FIXME: Doesn't work for dynamic rank -- why? It supports only 2D convs, but rank value can be not known in static
             // FIXME: Works for 2D convolutions only
             return { context.mark_output(make_optional_bias(conv, context, 2, {-2, -1})) };
         }},
@@ -796,6 +799,47 @@ OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMa
         }},
         */
 
+        /* TODO: Don't need a special way to handle prim::ListConstruct as it doesn't provide any extra service extra to FW Node at this moment
+        { "prim::ListConstruct", [&]() -> OutputVector {
+            // TODO. Probably need to replace by a constant of size 0 in one of the following transformations that embed Lists to Tensors for OV.
+        }},
+        */
+
+        /* Only makes sence if output type is not deducable, but it is not our case
+        { "aten::__getitem__", [&]() -> OutputVector {
+            // Should be handled in a special way: returned tensor is an alias for a part of input list
+            // Temporary we replace this semantics loosing aliasing and just returning a part of input tensor.
+            // Represent __getitem__ as generic node with only exception for returned type
+            // We can infer output type base on the input type. Also we can verify that input type is really a list (TODO: is only list acceptable for __getitem__?)
+
+            auto fw_node = make_shared<PtFrameworkNode>(decoder, context.inputs());
+            OV_FRONTEND_REQUIRE(fw_node->outputs().size() == 1);
+            // TODO: Deduce output type here; do we need it? Looks like PT has already derived all the types, just need to carefully recognize it in original graph
+        }},
+        */
+
+        { "aten::append", [&]() -> OutputVector {
+            // Returns a modified list but also modifies the original list as well. So it should replace original list entry point in tensor_map
+            // with a new modified value. So returned value becomes a complete alise of input value with a list.
+            // We replace the original entry point and produces new one for new entry point. It helps to maintain correct data dependencies and keep
+            // graph connected.
+
+            // We still using FW node to represent this op and going to call transformation that remakes it to supported sub graph
+
+            auto fw_node = make_shared<PtFrameworkNode>(decoder, context.inputs());
+
+            // Expect only a single output from aten::append
+            OV_FRONTEND_REQUIRE(fw_node->outputs().size() == 1);
+
+            // Next code is a hack to make alias for a value; in the final version it should be handled via something similar to AliasDB from PT
+            auto new_alias = fw_node->output(0);
+            auto input_list = decoder->input(0);
+            OV_FRONTEND_REQUIRE(tensor_map.find(input_list) != tensor_map.end());   // for debug only, should be guaranteed
+            tensor_map[input_list] = new_alias;  // replacing the original value which comes to append by the resulting list
+            // TODO: this code won't work incorrectly if it is in a loop and list comes from outer scope
+            return decoder->mark_node(fw_node)->outputs();
+        }},
+
         { "prim::Constant", [&]() -> OutputVector {
             return context.as_constant();
         }}
@@ -863,13 +907,15 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
     // Go over all pytorch_model inputs and register them in the tensor map:
     auto inputs = pytorch_model->inputs();
     //std::cerr << "+++++after++++++\n";
-    //std::cout << "[  ---  DEBUG --- ] convert_pytorch_model: number of inputs: " << inputs.size() << '\n';
+    std::cout << "[  ---  DEBUG --- ] convert_pytorch_model: number of inputs: " << inputs.size() << '\n';
     for (int i = 0; i < inputs.size(); ++i) {
-        //std::cout << "Input: " << i << ": " << inputs[i] << "\n";
+        std::cout << "Input: " << i << ": " << inputs[i] << "\n";
         PartialShape ps = pytorch_model->get_input_shape(i);
-        //std::cout << "PartialShape = " << ps << "\n";
-        auto parameter = std::make_shared<opset7::Parameter>(ov::element::custom, pytorch_model->get_input_type(i), ps);
-        //std::cout << "Parameter: " << parameter << "\n";
+        std::cout << "PartialShape = " << ps << "\n";
+        Any type = pytorch_model->get_input_type(i);
+        std::cout << "Custom Type = " << type.type_info().name() << std::endl;
+        auto parameter = std::make_shared<opset7::Parameter>(ov::element::custom, type, ps);
+        std::cout << "Parameter: " << parameter << std::endl;
         parameters.push_back(parameter);
         auto order = pytorch_model->get_input_transpose_order(i);
         if (order.size() > 0 && !std::is_sorted(order.begin(), order.end())) {
@@ -1013,6 +1059,7 @@ std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& mo
         // TODO: Remove this super-hack, tensor_map should be local for each conversion activity, see more info where tensor_map is defined now
         TensorMap external_tensor_map; // intentionally empty because there is no external context
         auto model = convert_pytorch_model(pytorch_model->m_model, external_tensor_map);
+        apply_pytorch_conversion_transforms(model);
         return model;
     } catch (const std::runtime_error& e) {
         std::cerr << "[ ERROR ] Error while converting pytorch model: " << e.what() << "\n";

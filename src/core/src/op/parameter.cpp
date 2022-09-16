@@ -29,8 +29,13 @@ op::Parameter::Parameter(const element::Type& element_type, const ov::Any& eleme
     OPENVINO_ASSERT(element_type == element::custom, "Parameter ctor with 3 arguments accept element_type = element::custom only");
     // If element_type is custom, it doesn't mean that it is really custom, it may be just a way to hide normal type under Any
     // In some circumstances it is simpler to wrap a regular type in Any and then pass through multi-layer API that works with Any only
+    std::cout << "Parameter of custom type: attempt to detect simple type\n";
     if(element_custom_type.is<element::Type>()) {
+        std::cout << "Parameter of custom type is simple type: " << element_custom_type.as<element::Type>() << "\n";
         m_element_type = element_custom_type.as<element::Type>();
+    } else {
+        m_element_type = element_type;  // custom
+        m_element_custom_type = element_custom_type;
     }
     constructor_validate_and_infer_types();
 }
@@ -45,7 +50,11 @@ bool op::Parameter::visit_attributes(AttributeVisitor& visitor) {
 void op::Parameter::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_Parameter_validate_and_infer_types);
     Op::validate_and_infer_types();
-    set_output_type(0, m_element_type, m_partial_shape);
+    if(m_element_type == element::custom) {
+        set_custom_output_type(0, m_element_custom_type, m_partial_shape);
+    } else {
+        set_output_type(0, m_element_type, m_partial_shape);
+    }
 }
 
 shared_ptr<Node> op::Parameter::clone_with_new_inputs(const OutputVector& new_args) const {

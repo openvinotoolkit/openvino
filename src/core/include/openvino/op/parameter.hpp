@@ -66,6 +66,7 @@ public:
 protected:
     PartialShape m_partial_shape;
     element::Type m_element_type;
+    Any m_element_custom_type;
     bool m_is_relevant_to_shapes{false};
 };
 }  // namespace v0

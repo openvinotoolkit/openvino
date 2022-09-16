@@ -41,6 +41,7 @@ struct NamedTuple;
 struct Union;
 
 inline void print (const Any& x) {
+    std::cout << "XDecoder.print: {" << x.type_info().name() << "}: ";
     if(x.is<element::Type>()) {
         std::cout << x.as<element::Type>();
     } else if(x.is<Tensor>()) {
@@ -54,6 +55,7 @@ inline void print (const Any& x) {
     } else {
         std::cout << "UNKNWON_ANY_TYPE";
     }
+    std::cout << std::flush;
 }
 
 }

@@ -14,6 +14,7 @@ namespace ov {
 namespace op {
 namespace util {
 
+// TODO: Consider removing this
 class OPENVINO_API FrameworkNodeAttrs {
 public:
     using attrs_t = std::unordered_map<std::string, std::string>;
@@ -60,6 +61,10 @@ public:
 
     bool operator==(const FrameworkNodeAttrs& other) const {
         return m_type_name == other.m_type_name && m_opset_name == other.m_opset_name && m_attrs == other.m_attrs;
+    }
+
+    attrs_t::const_iterator find(const std::string& key) const {
+        return m_attrs.find(key);
     }
 
 private:

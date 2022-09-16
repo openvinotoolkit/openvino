@@ -73,6 +73,9 @@ inline TypeInfo get_type_info(ov::element::Type_t type) {
         return {32, false, false, false, "uint32_t", "u32"};
     case ov::element::Type_t::u64:
         return {64, false, false, false, "uint64_t", "u64"};
+    // This doesn't make sence for custom, but requird for various services
+    case ov::element::Type_t::custom:
+        return {0, false, false, false, "custom", "custom"};
     default:
         OPENVINO_UNREACHABLE("ov::element::Type_t not supported: ", type);
     }
@@ -96,7 +99,8 @@ std::vector<const ov::element::Type*> ov::element::Type::get_known_types() {
                                                 &ov::element::u8,
                                                 &ov::element::u16,
                                                 &ov::element::u32,
-                                                &ov::element::u64};
+                                                &ov::element::u64,
+                                                &ov::element::custom};
     return rc;
 }
 
@@ -361,6 +365,8 @@ inline size_t compiler_byte_size(ov::element::Type_t et) {
         return 0;
     case ov::element::Type_t::dynamic:
         return 0;
+    case ov::element::Type_t::custom:
+        return 0;
     }
 
     throw ov::Exception("compiler_byte_size: Unsupported value of ov::element::Type_t: " +
@@ -373,6 +379,7 @@ NGRAPH_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
     static auto enum_names = EnumNames<element::Type_t>("element::Type_t",
                                                         {{"undefined", element::Type_t::undefined},
                                                          {"dynamic", element::Type_t::dynamic},
+                                                         {"custom", element::Type_t::custom},
                                                          {"boolean", element::Type_t::boolean},
                                                          {"bf16", element::Type_t::bf16},
                                                          {"f16", element::Type_t::f16},

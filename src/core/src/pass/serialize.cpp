@@ -632,9 +632,13 @@ std::string get_precision_name(const ngraph::element::Type& elem_type) {
         return "BIN";
     case ::ngraph::element::Type_t::boolean:
         return "BOOL";
+    case ::ngraph::element::Type_t::custom:
+        return "CUSTOM";
     default:
         std::stringstream msg;
+        std::cerr << "[ ERROR ] Unsupported precision\n";
         msg << "Unsupported precision: " << elem_type;
+        std::cerr << "[ ERROR ] End of unsupported precision " << elem_type << "\n";
         throw ngraph_error(msg.str());
     }
 }

@@ -76,7 +76,7 @@ try:
             return self.get_type_for_value(output)
 
         def _get_known_type_for_value (self, type):
-            return
+            #return
             '''
                 Returns known/unknown types wrapped as OVAny
             '''
@@ -85,12 +85,17 @@ try:
             # TODO: Don't use str, use native types
             if str(type) in pt_to_ov_type_map:
                 print(f'Recognized native type, type.__class__ = {type.__class__}')
-                return OVAny(pt_to_ov_type_map[type])
+                return OVAny(pt_to_ov_type_map[str(type)])
             elif type.__class__ is torch.TensorType:
                 print(f'Recognized Tensor type with type.dtype() = {type.dtype()}')
                 # Tensor type, parse element type
                 # TODO: replace string by native type
+                #return OVAny(PartialShape([1,2,3]))
                 return OVAny(DecoderType.Tensor(self._get_known_type_for_value(type.dtype())))
+            elif type.__class__ is torch.ListType:
+                element_type = type.getElementType()
+                print(f'Recognized torch List type. Type of element is {element_type}')
+                return OVAny(DecoderType.List(self._get_known_type_for_value(element_type)))
             else:
                 print(f'Not a tensor nor native type: {type}')
                 # Not yet recognized
@@ -113,15 +118,27 @@ try:
             return PartialShape.dynamic()
 
         def get_type_for_value (self, value):
-            #DecoderType.print(self._get_known_type_for_value(value.type()))
+            print(f'Decoding value type for value {value}')
+            full_type = self._get_known_type_for_value(value.type())
+            DecoderType.print(full_type)    # new (full) type interpretation
+            return full_type
+            # Old version of this function directly treat Tensor[type] as type
+            # assuming that regular type for vaue is Tensor, so it just
+            # decodes its element type.
+            # In full_type we code a complete type according to PT, it allows
+            # to distiguish int from scalar Tensor[int] in particular.
+            # It is necessary to interpreting some operations converting scalar values (not tensors)
+            # to scalar tensors.
+            # In this new interpretation we leave old beheviout to FE code if it is still needed
             if value.isCompleteTensor():
                 pt_type = str(value.type().dtype())
+                print(f'Trying to decode tensor element type: {pt_type}')
                 if pt_type in pt_to_ov_type_map:
                     ov_type = pt_to_ov_type_map[pt_type]
-                    #print(f'[ DEBUG ] Decoded ov type: {ov_type}', flush=True)
+                    print(f'[ DEBUG ] Decoded ov type: {ov_type}', flush=True)
                     return OVAny(ov_type)
                 else:
-                    #print(f'[ DEBUG ] Unrecognized pt element type for a tensor: {pt_type}. Captured it as custom type.', flush=True)
+                    print(f'[ DEBUG ] Unrecognized pt element type for a tensor: {pt_type}. Captured it as custom type.', flush=True)
                     # TODO: Replace it by Tensor[dynamic]
                     return OVAny(OVType.dynamic)
             else:
@@ -195,6 +212,9 @@ try:
                 return None
             pt_value = self._raw_output(0)
             is_tensor = pt_value.isCompleteTensor()
+            
+            print(f'Decoding value type for constant value {pt_value}')
+            DecoderType.print(self._get_known_type_for_value(pt_value.type()))
 
             if is_tensor and str(pt_value.type().dtype()) in pt_to_py_type_map:
                 return self.as_constant_tensor(pt_value)
@@ -208,6 +228,9 @@ try:
                 if str(pt_value.type()) in ['torch.int32', 'int']:
                     #print(f'Found int value=  {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
                     return op.Constant(OVType.i32, Shape([]), [pt_value.toIValue()]).outputs()
+                if str(pt_value.type()) in ['torch.FloatType', 'float']:
+                    #print(f'Found float value=  {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
+                    return op.Constant(OVType.f32, Shape([]), [pt_value.toIValue()]).outputs()
                 if str(pt_value.type()) in ['torch.bool', 'bool']:
                     #print('Scalar bool detected')
                     return op.Constant(OVType.boolean, Shape([]), [pt_value.toIValue()]).outputs()
@@ -218,6 +241,9 @@ try:
             return None
 
         def as_constant_tensor (self, pt_value):
+            # Constant interpretation doesn't respect new-full type of PT
+            # It recognizes only tensors, and give lists as 1D tensors, and scalars as Tensor scalars
+            # So only tensor-type constants are supported
             ovshape = PartialShape(pt_value.type().sizes())
             ovtype = pt_to_ov_type_map[str(pt_value.type().dtype())]
             np_value = pt_value.toIValue().cpu().detach().numpy().flatten().tolist()  # TODO: find a better/shorter way
