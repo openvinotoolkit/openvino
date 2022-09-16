@@ -705,7 +705,7 @@ int main(int argc, char* argv[]) {
 
         slog::info << "  " << ov::model_name << ": " << model_name << slog::endl;
         slog::info << "  " << ov::optimal_number_of_infer_requests << ": " << optimal_nr_req << slog::endl;
-        
+
         // output of the actual settings that the device selected
         for (const auto& device : devices) {
             auto supported_properties = core.get_property(device, ov::supported_properties);
@@ -715,7 +715,7 @@ int main(int argc, char* argv[]) {
                     if (cfg == ov::supported_properties)
                         continue;
 
-                    auto prop = core.get_property(device,cfg);
+                    auto prop = core.get_property(device, cfg);
                     slog::info << "  " << cfg << ": " << prop.as<std::string>() << slog::endl;
                 } catch (const ov::Exception&) {
                 }
@@ -814,11 +814,13 @@ int main(int argc, char* argv[]) {
         auto create_requests_start_time = Time::now();
         InferRequestsQueue inferRequestsQueue(compiledModel, nireq, app_inputs_info.size(), FLAGS_pcseq);
         auto create_requests_duration_ms = get_duration_ms_till_now(create_requests_start_time);
-        slog::info << "Creating " << nireq << " infer requests took " << create_requests_duration_ms << " ms" << slog::endl;
+        slog::info << "Creating " << nireq << " infer requests took " << create_requests_duration_ms << " ms"
+                   << slog::endl;
 
         if (statistics) {
-            statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                    {StatisticsVariant("create infer requests time (ms)", "create_requests", create_requests_duration_ms)});
+            statistics->add_parameters(
+                StatisticsReport::Category::EXECUTION_RESULTS,
+                {StatisticsVariant("create infer requests time (ms)", "create_requests", create_requests_duration_ms)});
         }
 
         bool inputHasName = false;
@@ -904,7 +906,8 @@ int main(int argc, char* argv[]) {
         next_step(ss.str());
 
         if (inferenceOnly) {
-            slog::info << "Benchmarking in inference only mode (inputs filling are not included in measurement loop)." << slog::endl;
+            slog::info << "Benchmarking in inference only mode (inputs filling are not included in measurement loop)."
+                       << slog::endl;
         } else {
             slog::info << "Benchmarking in full mode (inputs filling are included in measurement loop)." << slog::endl;
         }

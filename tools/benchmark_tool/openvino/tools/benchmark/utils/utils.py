@@ -202,7 +202,7 @@ class LatencyGroup:
         self.input_names = input_names
         self.input_shapes = input_shapes
         self.times = list()
-        self.median = 0
+        self.median = 0.
         self.avg = 0.
         self.min = 0.
         self.max = 0.

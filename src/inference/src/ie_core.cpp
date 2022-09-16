@@ -1901,11 +1901,7 @@ Core::Core(const std::string& xmlConfigFile) {
 #endif
 }
 
-Version Core::get_version() const {
-    OV_CORE_CALL_STATEMENT({
-        return ov::get_openvino_version();
-    })
-}
+Version Core::get_version() const {OV_CORE_CALL_STATEMENT({ return ov::get_openvino_version(); })}
 
 std::map<std::string, Version> Core::get_versions(const std::string& deviceName) const {
     OV_CORE_CALL_STATEMENT({

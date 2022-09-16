@@ -3,13 +3,13 @@
 
 #include <pybind11/pybind11.h>
 
+#include <iostream>
 #include <openvino/core/graph_util.hpp>
 #include <openvino/core/model.hpp>
 #include <openvino/core/node.hpp>
 #include <openvino/core/version.hpp>
+#include <sstream>
 #include <string>
-#include <iostream> 
-#include <sstream> 
 
 #include "openvino/runtime/core.hpp"
 #include "pyopenvino/graph/axis_set.hpp"

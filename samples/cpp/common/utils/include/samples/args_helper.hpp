@@ -78,7 +78,7 @@ void printInputAndOutputsInfoShort(const T& network) {
         }
 
         slog::info << "    " << in_name << " (node: " << node_name << ") : " << input.get_element_type() << " / "
-                  << ov::layout::get_layout(input).to_string() << " / " << input.get_partial_shape() << slog::endl;
+                   << ov::layout::get_layout(input).to_string() << " / " << input.get_partial_shape() << slog::endl;
     }
 
     slog::info << "Network outputs:" << slog::endl;
@@ -107,6 +107,6 @@ void printInputAndOutputsInfoShort(const T& network) {
         }
 
         slog::info << "    " << out_name << " (node: " << node_name << ") : " << output.get_element_type() << " / "
-                  << ov::layout::get_layout(output).to_string() << " / " << output.get_partial_shape() << slog::endl;
+                   << ov::layout::get_layout(output).to_string() << " / " << output.get_partial_shape() << slog::endl;
     }
 }
