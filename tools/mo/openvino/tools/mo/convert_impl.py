@@ -495,7 +495,7 @@ def driver(argv: argparse.Namespace):
     init_logger(argv.log_level.upper(), argv.silent)
 
     start_time = datetime.datetime.now()
-    if not isinstance(argv.input_model, str):
+    if input_model_is_object(argv):
         model_framework, model_name = check_model_framework(argv.input_model)
         if argv.framework is not None:
             if argv.framework != model_framework:
@@ -576,6 +576,14 @@ def show_mo_convert_help():
         print("{}: {}".format(param_name, param_data.description.format(param_data.possible_types_python_api)))
 
 
+def input_model_is_object(argv):
+    if isinstance(argv.input_model, str):
+        return False
+    if argv.input_model is None:
+        return False
+    return True
+
+
 def _convert(**args):
     if 'help' in args and args['help']:
         show_mo_convert_help()
@@ -587,7 +595,7 @@ def _convert(**args):
     args = params_to_string(**args)
     argv = pack_params_to_args_namespace(**args)
 
-    if argv.model_name is None and isinstance(argv.input_model, str):
+    if argv.model_name is None and not input_model_is_object(argv):
         argv.model_name = get_model_name_from_args(argv)
 
     try:

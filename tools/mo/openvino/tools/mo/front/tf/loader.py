@@ -16,10 +16,12 @@ from openvino.tools.mo.utils.versions_checker import get_environment_setup
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 try:
     import tensorflow.compat.v1 as tf_v1
+    tf_v1.reset_default_graph()
 
     # disable eager execution of TensorFlow 2 environment immediately
     tf_v1.disable_eager_execution()
     import tensorflow as tf
+    #tf.keras.backend.clear_session()
     from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
 except ImportError:
     import tensorflow as tf_v1
@@ -188,7 +190,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                       model_dir: str = "", saved_model_tags: list = [], meta_graph_file: str = "",
                       user_output_node_names_list: list = []):
 
-    if not isinstance(graph_file_name, str):
+    if not isinstance(graph_file_name, str) and graph_file_name is not None:
         return prepare_graph_def(graph_file_name)
     # As a provisional solution, use a native TF methods to load a model protobuf
     graph_def = tf_v1.GraphDef()
