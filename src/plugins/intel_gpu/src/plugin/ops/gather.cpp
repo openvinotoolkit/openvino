@@ -24,7 +24,7 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
     reorderedInputs.resize(inputPrimitives.size());
 
     for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
-        auto inputDataType = DataTypeFromPrecision(op->get_input_element_type(portIndex));
+        auto inputDataType = cldnn::element_type_to_data_type(op->get_input_element_type(portIndex));
         if (inputDataType == cldnn::data_types::i64) {
             // GPU primitive does not support i64 inputs,
             // so we need additional reorders to convert them to i32
@@ -43,11 +43,14 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
         }
     }
 
+    // Dynamic path will do shape infer internally, so no need to pass valid out shape for that case
+    ov::Shape out_shape = op->get_output_partial_shape(0).is_static() ? op->get_output_shape(0) : ov::Shape{};
+
     auto gatherPrim = cldnn::gather(layerName,
                                     reorderedInputs[0],
                                     reorderedInputs[1],
                                     axis,
-                                    op->get_output_shape(0),
+                                    out_shape,
                                     batch_dim,
                                     support_neg_ind);
 

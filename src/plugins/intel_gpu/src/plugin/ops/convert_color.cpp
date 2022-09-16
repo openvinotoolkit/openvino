@@ -18,7 +18,7 @@ static void CreateCommonConvertColorOp(Program& p, const std::shared_ptr<ngraph:
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto outDatatype = DataTypeFromPrecision(op->get_input_element_type(0));
+    auto outDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(0));
     auto outShape = tensor_from_dims(op->get_output_shape(0));
     outShape = { outShape.sizes()[0], outShape.sizes()[2], outShape.sizes()[3], outShape.sizes()[1] };
 

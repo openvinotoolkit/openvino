@@ -149,11 +149,6 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::en
         dyn_shape_batch_found = IsDynBatchModel(func, shapes, batch_dim);
         if (dyn_shape_batch_found) {
             m_config.max_dynamic_batch = batch_dim.begin()->second.second;
-        } else {
-            if (!batch_dim.empty() && shapes.empty()) {
-                // more than on dynamic dim or dynamic rank
-                IE_THROW() << "Only dynamic batch is supported!";
-            }
         }
     }
 
@@ -323,6 +318,14 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         options.set_option(cldnn::build_option::graph_dumps_dir(m_config.graph_dumps_dir));
     }
 
+    for (const auto& op : ops) {
+        if (op->is_dynamic()) {
+            allow_new_shape_infer = true;
+            break;
+        }
+    }
+
+    options.set_option(cldnn::build_option::allow_new_shape_infer(allow_new_shape_infer));
     options.set_option(cldnn::build_option::optimize_data(true));
     options.set_option(cldnn::build_option::tuning_config(m_config.tuningConfig));
     if (partialBuild) {
