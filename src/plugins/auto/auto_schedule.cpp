@@ -166,6 +166,10 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERF_COUNT)] =
             _autoSContext->_needPerfCounters ? InferenceEngine::PluginConfigParams::YES
                                              : InferenceEngine::PluginConfigParams::NO;
+        ov::AnyMap option;
+        auto val = _autoSContext->_plugin->GetConfig(CONFIG_KEY(ALLOW_AUTO_BATCHING), option);
+        if (val.as<bool>() == false)
+            _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = PluginConfigParams::NO;
         if (_autoSContext->_bindBuffer)
             _loadContext[ACTUALDEVICE].deviceInfo.config[ov::intel_auto::device_bind_buffer.name()] = InferenceEngine::PluginConfigParams::YES;
     } else {
