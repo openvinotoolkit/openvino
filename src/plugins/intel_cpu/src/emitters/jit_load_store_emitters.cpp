@@ -18,6 +18,12 @@ using namespace Xbyak::util;
 namespace ov {
 namespace intel_cpu {
 
+// heuristic threshold number between mask load and emulation with several simple partial load
+const int threhold_for_mask_emu_load = 14;
+// heuristic threshold number between mask store and emulation with several simple partial store
+// todo: need adjust
+const int threhold_for_mask_emu_store = 8;
+
 size_t load_emitter_params::hash() const {
     size_t seed = 0;
     seed = hash_combine(seed, std::string("jit_load_emitter"));
@@ -184,6 +190,9 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
     const auto addr = [&](int bytes_offset) {
         return ptr[reg + offset + bytes_offset * sizeof(int8_t)];
     };
+    const auto word_addr = [&](int bytes_offset) {
+        return word[reg + offset + bytes_offset * sizeof(int8_t)];
+    };
 
     auto load_byte_base = [&]() {
         int start_bytes = 0;
@@ -207,23 +216,26 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
 
         if (bytes_to_load >= 8 && bytes_to_load < 16)
             h->uni_vmovq(xmm, addr(start_bytes));
-            //  better CPI than h->pinsrq(xmm, addr(start_bytes), 0);
         else if (bytes_to_load == 16)
             h->uni_vmovdqu(xmm, addr(start_bytes));
 
         switch (bytes_to_load) {
             case 0: break;
-            case 1: // h->uni_vpinsrb(xmm, xmm, addr(start_bytes), 0); break;
+            case 1:
                 h->movzx(Reg32(aux_gpr_idxs[0]), addr(start_bytes));
                 h->uni_vmovq(xmm, Reg64(aux_gpr_idxs[0]));
                 break;
-            case 2: h->uni_vpinsrw(xmm, xmm, addr(start_bytes), 0); break;
+            case 2:
+                h->movzx(Reg32(aux_gpr_idxs[0]), word_addr(start_bytes));
+                h->uni_vmovq(xmm, Reg64(aux_gpr_idxs[0]));
+                break;
             case 3:
-                h->uni_vpinsrw(xmm, xmm, addr(start_bytes), 0);
-                h->uni_vpinsrb(xmm, xmm, addr(start_bytes + 2), 2);
+                h->movzx(Reg32(aux_gpr_idxs[0]), addr(start_bytes + 2));
+                h->shl(Reg32(aux_gpr_idxs[0]), 16);
+                h->mov(Reg16(aux_gpr_idxs[0]), word_addr(start_bytes));
+                h->uni_vmovq(xmm, Reg64(aux_gpr_idxs[0]));
                 break;
             case 4: h->uni_vmovss(xmm, addr(start_bytes)); break;
-                    // in most case, better than h->uni_vpinsrd(xmm, xmm, addr(start_bytes), 0);
             case 5:
                 h->uni_vmovss(xmm, addr(start_bytes));
                 h->uni_vpinsrb(xmm, xmm, addr(start_bytes + 4), 4);
@@ -288,9 +300,7 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
             h->uni_vmovdqu(xmm, addr(0));
             break;
         default: {
-            // heuristic threshold number between mask load and emulation with several simple partial load
-            const int threshold = 14;
-            if (mayiuse(cpu::x64::avx512_core) && load_size > threshold) {
+            if (mayiuse(cpu::x64::avx512_core) && load_size > threhold_for_mask_emu_load) {
                 uint64_t mask = 1;
                 mask = (mask << load_size) - mask;
                 h->mov(Reg64(aux_gpr_idxs[0]), mask);
@@ -376,7 +386,7 @@ void jit_load_emitter::load_bytes_to_dword_extension(const Vmm &vmm, const Xbyak
             break;
         }
         default: {
-            if (is_zmm) {
+            if (is_zmm && load_size > threhold_for_mask_emu_load) {
                 unsigned int mask = 1;
                 mask = (mask << load_size) - mask;
                 h->mov(Reg32(aux_gpr_idxs[0]), mask);
@@ -483,7 +493,7 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm &vmm, const Xbyak
             break;
         }
         default: {
-            if (is_zmm) {
+            if (is_zmm && load_size > threhold_for_mask_emu_load) {
                 unsigned int mask = 1;
                 mask = (mask << (load_size / 2)) - mask;
                 h->mov(Reg32(aux_gpr_idxs[0]), mask);
@@ -767,14 +777,12 @@ void jit_store_emitter::store_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int
                     ext8bit = true;
                 h->mov(addr(start_bytes), Reg8(aux_gpr_idxs[0], ext8bit));
                 break;
-                // h->uni_vpextrb(addr(start_bytes), xmm, 0); break;
             case 2: h->uni_vpextrw(addr(start_bytes), xmm, 0); break;
             case 3:
                 h->uni_vpextrw(addr(start_bytes), xmm, 0);
                 h->uni_vpextrb(addr(start_bytes + 2), xmm, 2);
                 break;
             case 4: h->uni_vmovss(addr(start_bytes), xmm); break;
-                    // h->uni_vpextrd(addr(start_bytes), xmm, 0); break;
             case 5:
                 h->uni_vmovss(addr(start_bytes), xmm);
                 h->uni_vpextrb(addr(start_bytes + 4), xmm, 4);
@@ -826,9 +834,7 @@ void jit_store_emitter::store_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int
             h->uni_vmovdqu(addr(0), xmm);
             break;
         default:
-            // heuristic threshold number between mask store and emulation with several simple partial store
-            const int threshold = 14;
-            if (mayiuse(cpu::x64::avx512_core) && store_size > threshold) {
+            if (mayiuse(cpu::x64::avx512_core) && store_size > threhold_for_mask_emu_store) {
                 uint64_t mask = 1;
                 mask = (mask << store_size) - mask;
                 h->mov(Reg64(aux_gpr_idxs[0]), mask);
@@ -954,7 +960,7 @@ void jit_store_emitter::store_dword_to_byte_extension(const Vmm &vmm, const Xbya
         }
         break;
     default:
-        if (is_zmm) {  // avx512F
+        if (is_zmm && store_num > threhold_for_mask_emu_store) {  // avx512F
             unsigned int mask = 1;
             mask = (mask << store_num) - mask;
             h->mov(Reg32(aux_gpr_idxs[0]), mask);
@@ -1113,7 +1119,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Vmm &vmm, const Xbya
             }
             break;
         default:
-            if (is_zmm) {
+            if (is_zmm && ((store_num * 2) > threhold_for_mask_emu_store)) {
                 unsigned int mask = 1;
                 mask = (mask << store_num) - mask;
                 h->mov(Reg32(aux_gpr_idxs[0]), mask);
