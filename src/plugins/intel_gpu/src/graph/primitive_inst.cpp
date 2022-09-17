@@ -10,10 +10,13 @@
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
 #include "convolution_inst.h"
+#include "strided_slice_inst.h"
+#include "crop_inst.h"
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
 #include "strided_slice_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -151,12 +154,18 @@ void primitive_inst::update_shape() {
         }
     }
 
-    if (input_shape_changed)
-        set_shape_change();
-
     // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
-    if (_node.is_type<shape_of>())
+    if (_node.is_type<shape_of>() && !input_shape_changed)
         return;
+
+    // Even though the predecessors' shapes are not changed, the output shape might be udpated by the mem_dep
+    auto memory_deps = _node.get_const_memory_deps();
+    for (auto& i : _node.get_shape_infer_dependencies()) {
+        if (memory_deps.count(i) > 0) {
+            continue;
+        }
+        input_shape_changed = true;
+    }
 
     // Strided slice loads data from {1,2,3} dependencies in impl::create method.
     // It means that this data must be put into impl_params map
@@ -170,10 +179,16 @@ void primitive_inst::update_shape() {
         }
     }
 
-    if (!strided_slice_wa && !input_shape_changed && !_node.generates_dynamic_output() && _impl_params->output_layout.is_static())
+    if (!strided_slice_wa && !input_shape_changed && !_node.generates_dynamic_output() && _impl_params->output_layout.is_static()) {
+        GPU_DEBUG_IF(debug_config->verbose >= 4) {
+            GPU_DEBUG_COUT << "update_shape for " << id() << " was not needed" << std::endl;
+        }
         return;
+    }
 
-    auto memory_deps = _node.get_const_memory_deps();
+    if (input_shape_changed)
+        set_shape_change(); // if input_layout is changed, the choose_impl should be called again
+
     std::vector<event::ptr> dependencies_events;
     auto queue_type = get_network().get_stream().get_queue_type();
     bool has_runtime_deps = false;
@@ -206,8 +221,25 @@ void primitive_inst::update_shape() {
 
     _impl_params->memory_deps = memory_deps;
     auto new_layouts = _node.type()->calc_output_layouts(_node, *_impl_params);
-    auto new_layout = new_layouts.empty() ? _node.type()->calc_output_layout(_node, *_impl_params) : new_layouts[0];
+
+    int output_idx = _node.is_type<crop>() ? _impl_params->typed_desc<crop>()->output_idx : 0;
+    auto new_layout = new_layouts.empty() ? _node.type()->calc_output_layout(_node, *_impl_params) : new_layouts[output_idx];
     new_layout.data_padding = padding::max(_node.get_primitive()->output_padding, new_layout.data_padding);
+
+    // W/A for split offsets... :(
+    if (_node.is_type<crop>() && _node.get_dependencies().size() > 1) {
+        InferenceEngine::SizeVector startOffset(_impl_params->input_layouts[0].get_partial_shape().size());
+        auto input_shape = _impl_params->input_layouts[0].get_partial_shape();
+        auto dims = _impl_params->input_layouts[0].get_partial_shape().size();
+        for (int32_t prev = 0; prev < output_idx; prev++) {
+            auto prev_crop_shape = new_layouts[prev].get_partial_shape().to_shape();
+            for (size_t i = 0; i < dims; ++i) {
+                if (prev_crop_shape[i] != input_shape.to_shape()[i])
+                    startOffset[i] += prev_crop_shape[i];
+            }
+        }
+        _impl_params->input_offsets[0] = ov::intel_gpu::tensor_from_dims(startOffset, 0);
+    }
 
     if (_impl_params->output_layout != new_layout) {
         GPU_DEBUG_IF(debug_config->verbose >= 4) {

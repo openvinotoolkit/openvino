@@ -82,7 +82,7 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
 
         // Split
         ov::op::v1::Split op;
-        op.set_num_splits(impl_param.num_splits);
+        op.set_num_splits(desc->num_splits);
         shape_infer(&op, input_shapes, output_shapes, const_data);
     } else if (impl_param.input_layouts.size() == 1) {
         // Legacy usage
@@ -109,7 +109,11 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
         }
         return {layout({in_layout.data_type, in_layout.format, ref_in_sizes})};
     }
-    return {layout({output_shapes[desc->output_idx], in_layout.data_type, in_layout.format})};
+    std::vector<layout> output_layouts;
+    for (size_t i = 0; i < output_shapes.size(); ++i) {
+        output_layouts.push_back(layout({output_shapes[i], in_layout.data_type, in_layout.format}));
+    }
+    return output_layouts;
 }
 
 std::string crop_inst::to_string(crop_node const& node) {

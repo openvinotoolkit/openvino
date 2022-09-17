@@ -41,8 +41,6 @@ protected:
 
 public:
     static primitive_impl* create(const crop_node& arg, const kernel_impl_params& impl_param) {
-        const auto& primitive = arg.get_primitive();
-
         auto ew_params = get_default_params<kernel_selector::eltwise_params>(impl_param, 1);
         auto ew_optional_params = get_default_optional_params<kernel_selector::eltwise_optional_params>(arg.get_program());
 
@@ -50,7 +48,12 @@ public:
             {{kernel_selector::eltwise_params::InputType::Buffer(0)}, kernel_selector::eltwise_mode::ASSIGN});
 
         const auto& input_layout = impl_param.input_layouts[0];
-        ew_params.inputs[0] = convert_data_tensor(input_layout, 1, primitive->offsets);
+        auto desc = impl_param.typed_desc<crop>();
+        if (arg.get_dependencies().size() > 1) {
+            ew_params.inputs[0] = convert_data_tensor(input_layout, 1, impl_param.input_offsets[0]);
+        } else {
+            ew_params.inputs[0] = convert_data_tensor(input_layout, 1, desc->offsets);
+        }
 
         auto& kernel_selector = kernel_selector::eltwise_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(ew_params, ew_optional_params);
