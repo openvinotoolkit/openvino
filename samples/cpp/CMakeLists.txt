@@ -16,7 +16,8 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 if (NOT BIN_FOLDER)
     string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH)
-    if(ARCH STREQUAL "x86_64" OR ARCH STREQUAL "amd64") # Windows detects Intel's 64-bit CPU as AMD64
+    if(ARCH STREQUAL "x86_64" OR ARCH STREQUAL "amd64" # Windows detects Intel's 64-bit CPU as AMD64
+        OR CMAKE_OSX_ARCHITECTURES STREQUAL "x86_64")
         set(ARCH intel64)
     elseif(ARCH STREQUAL "i386")
         set(ARCH ia32)
@@ -110,6 +111,7 @@ endif()
 if(NOT TARGET gflags)
     if(NOT APPLE)
         # on Apple only dynamic libraries are available
+        # also, we can easily mix arm64 and x86_64 binaries when cross-compile for Intel CPU
         find_package(gflags QUIET COMPONENTS nothreads_static)
     endif()
 
@@ -120,17 +122,17 @@ if(NOT TARGET gflags)
     endif()
 endif()
 
+if(NOT ANDROID)
+    find_package(PkgConfig QUIET)
+endif()
+
 if(NOT TARGET zlib::zlib)
-    if(NOT ANDROID)
-        find_package(PkgConfig QUIET)
-        if(PkgConfig_FOUND)
-            pkg_search_module(zlib QUIET
-                              IMPORTED_TARGET
-                              zlib)
-            if(zlib_FOUND)
-                set_target_properties(PkgConfig::zlib PROPERTIES IMPORTED_GLOBAL ON)
-                add_library(zlib::zlib ALIAS PkgConfig::zlib)
-            endif()
+    if(PkgConfig_FOUND)
+        pkg_search_module(zlib QUIET
+                          IMPORTED_TARGET GLOBAL
+                          zlib)
+        if(zlib_FOUND)
+            add_library(zlib::zlib ALIAS PkgConfig::zlib)
         endif()
     endif()
 
@@ -149,7 +151,16 @@ if(NOT TARGET nlohmann_json::nlohmann_json)
     find_package(nlohmann_json QUIET)
     if(nlohmann_json_FOUND)
         message(STATUS "nlohmann_json (${nlohmann_json_VERSION}) is found at ${nlohmann_json_DIR}")
-    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nlohmann_json")
+    elseif(PkgConfig_FOUND)
+        pkg_search_module(nlohmann_json QUIET
+                          IMPORTED_TARGET GLOBAL
+                          nlohmann_json)
+        if(nlohmann_json_FOUND)
+            add_library(nlohmann_json::nlohmann_json ALIAS PkgConfig::nlohmann_json)
+        endif()
+    endif()
+
+    if(NOT nlohmann_json_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nlohmann_json")
         # suppress shadowing names warning
         set(JSON_SystemInclude ON CACHE BOOL "" FORCE)
         add_subdirectory(thirdparty/nlohmann_json EXCLUDE_FROM_ALL)
