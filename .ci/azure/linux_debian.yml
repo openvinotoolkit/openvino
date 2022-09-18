@@ -296,7 +296,7 @@ jobs:
     continueOnError: false
 
   - script: |
-      export OV_FRONTEND_PATH=$(INSTALL_TEST_DIR):/usr/lib/x86_64-linux-gnu/
+      export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
       $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
     displayName: 'ONNX Frontend Tests'
     continueOnError: false
