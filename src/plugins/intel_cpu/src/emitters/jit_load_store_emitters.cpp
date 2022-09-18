@@ -18,11 +18,10 @@ using namespace Xbyak::util;
 namespace ov {
 namespace intel_cpu {
 
-// heuristic threshold number between mask load and emulation with several simple partial load
+// heuristic threshold number by byte between mask load and emulation with several simple partial load
 const int threhold_for_mask_emu_load = 14;
-// heuristic threshold number between mask store and emulation with several simple partial store
-// todo: need adjust
-const int threhold_for_mask_emu_store = 8;
+// heuristic threshold number by byte between mask store and emulation with several simple partial store
+const int threhold_for_mask_emu_store = 6;
 
 size_t load_emitter_params::hash() const {
     size_t seed = 0;
@@ -761,26 +760,33 @@ void jit_store_emitter::store_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int
 
         if (bytes_to_store >= 8 && bytes_to_store < 16)
             h->uni_vmovq(addr(start_bytes), xmm);
-            // h->pextrq(addr(start_bytes), xmm, 0);
         else if (bytes_to_store == 16)
             h->uni_vmovdqu(addr(start_bytes), xmm);
 
         // 64/32/16/8 with one go
         // tail 7 bytes for lower or upper xmm
-        bool ext8bit = false;
+        auto store_one_byte = [&](int bytes_offset, int gpr_idx) {
+            bool ext8bit = false;
+            if (gpr_idx == Operand::RSP || gpr_idx == Operand::RBP ||
+                gpr_idx == Operand::RSI || gpr_idx == Operand::RDI)
+                ext8bit = true;
+            h->mov(addr(start_bytes + bytes_offset), Reg8(gpr_idx, ext8bit));
+        };
         switch (bytes_to_store) {
             case 0: break;
             case 1:
                 h->uni_vmovq(Reg64(aux_gpr_idxs[0]), xmm);
-                if (aux_gpr_idxs[0] == Operand::RSP || aux_gpr_idxs[0] == Operand::RBP ||
-                    aux_gpr_idxs[0] == Operand::RSI || aux_gpr_idxs[0] == Operand::RDI)
-                    ext8bit = true;
-                h->mov(addr(start_bytes), Reg8(aux_gpr_idxs[0], ext8bit));
+                store_one_byte(0, aux_gpr_idxs[0]);
                 break;
-            case 2: h->uni_vpextrw(addr(start_bytes), xmm, 0); break;
+            case 2:
+                h->uni_vmovq(Reg64(aux_gpr_idxs[0]), xmm);
+                h->mov(addr(start_bytes), Reg16(aux_gpr_idxs[0]));
+                break;
             case 3:
-                h->uni_vpextrw(addr(start_bytes), xmm, 0);
-                h->uni_vpextrb(addr(start_bytes + 2), xmm, 2);
+                h->uni_vmovq(Reg64(aux_gpr_idxs[0]), xmm);
+                h->mov(addr(start_bytes), Reg16(aux_gpr_idxs[0]));
+                h->shr(Reg64(aux_gpr_idxs[0]), 16);
+                store_one_byte(2, aux_gpr_idxs[0]);
                 break;
             case 4: h->uni_vmovss(addr(start_bytes), xmm); break;
             case 5:
@@ -880,28 +886,43 @@ void jit_store_emitter::store_dword_to_byte_extension(const Vmm &vmm, const Xbya
     };
 
     auto store_dword_to_byte_base = [&]() {
-        if (is_saturation()) {
-            // db only available on avx512, need dw+wb to emulate
-            if (is_signed)
-                h->uni_vpackssdw(vmm, vmm, vmm);
-            else
-                h->uni_vpackusdw(vmm, vmm, vmm);
-            // gather 2(cross lane) 64 bits into lower vmm to store when store_num > 4.
-            // [y_3 y_2 y_1 y_0] |--> [y_0 y_0 y_2 y_0]
-            if (is_ymm && (store_num > 4)) {
-                h->vpermq(ymm, ymm, 0x08);  // 00001000
+        if (is_zmm) {
+            if (is_saturation()) {
+                if (is_signed) {
+                    h->vpmovsdb(xmm, vmm);
+                } else {
+                    Vmm zero(aux_vec_idxs[0]);
+                    h->uni_vpxor(zero, zero, zero);
+                    h->uni_vpmaxsd(vmm, vmm, zero);
+                    h->vpmovusdb(xmm, vmm);
+                }
+            } else {
+                h->vpmovdb(xmm, vmm);
             }
-
-            if (is_signed)
-                h->uni_vpacksswb(vmm, vmm, vmm);
-            else
-                h->uni_vpackuswb(vmm, vmm, vmm);
         } else {
-            h->vpand(vmm, vmm, table_val("mask_truncation_byte"));  // to avoid saturation
-            h->uni_vpackssdw(vmm, vmm, vmm);
-            if (is_ymm)
-                h->vpermq(ymm, ymm, 0x08);
-            h->uni_vpackuswb(vmm, vmm, vmm);
+            if (is_saturation()) {
+                // db only available on avx512, need dw+wb to emulate
+                if (is_signed)
+                    h->uni_vpackssdw(vmm, vmm, vmm);
+                else
+                    h->uni_vpackusdw(vmm, vmm, vmm);
+                // gather 2(cross lane) 64 bits into lower vmm to store when store_num > 4.
+                // [y_3 y_2 y_1 y_0] |--> [y_0 y_0 y_2 y_0]
+                if (is_ymm && (store_num > 4)) {
+                    h->vpermq(ymm, ymm, 0x08);  // 00001000
+                }
+
+                if (is_signed)
+                    h->uni_vpacksswb(vmm, vmm, vmm);
+                else
+                    h->uni_vpackuswb(vmm, vmm, vmm);
+            } else {
+                h->vpand(vmm, vmm, table_val("mask_truncation_byte"));  // to avoid saturation
+                h->uni_vpackssdw(vmm, vmm, vmm);
+                if (is_ymm)
+                    h->vpermq(ymm, ymm, 0x08);
+                h->uni_vpackuswb(vmm, vmm, vmm);
+            }
         }
 
         store_bytes(vmm, reg, offset, store_num);
@@ -1015,21 +1036,37 @@ void jit_store_emitter::store_dword_to_word_extension(const Vmm &vmm, const Xbya
     auto zmm = Xbyak::Zmm(vmm.getIdx());
 
     auto store_dword_to_word_base = [&]() {
-        // direct mov_dw available only on avx512
-        if (is_saturation()) {  // emulate with pack_dw + permute + pure store for saturation mode
-            if (is_signed)
-                h->uni_vpackssdw(vmm, vmm, vmm);
-            else
-                h->uni_vpackusdw(vmm, vmm, vmm);
-            // gather 2/4(cross lane) 64 bits into lower vmm to store when store_num > 4
-            // [y_3 y_2 y_1 y_0] |--> [y_0 y_0 y_2 y_0]
-            // [  128  |  128  ] |--> [ 128   |  128  ]
-            if (is_ymm && (store_num > 4)) {
-                h->vpermq(ymm, ymm, 0x08);  // 00001000
+        if (is_zmm) {
+            if (is_saturation()) {
+                if (is_signed) {
+                    h->vpmovsdw(ymm, vmm);  // singed int32 saturate to signed int16.
+                } else {
+                    Vmm zero(aux_vec_idxs[0]);
+                    h->uni_vpxor(zero, zero, zero);
+                    h->uni_vpmaxsd(vmm, zero, vmm);        // if singed bit is 1, set value as 0.
+                    h->vpmovusdw(ymm, vmm); // unsinged int32 saturate to unsigned int16.
+                }
+            } else {
+                // by literally copy low 16 bit
+                h->vpmovdw(ymm, vmm);
             }
-        } else {  // emulate with AND + pure store for truncation mode
-            h->vpand(vmm, vmm, table_val("mask_truncation_word"));
-            h->uni_vpackusdw(vmm, vmm, vmm);
+        } else {
+            // direct mov_dw available only on avx512
+            if (is_saturation()) {  // emulate with pack_dw + permute + pure store for saturation mode
+                if (is_signed)
+                    h->uni_vpackssdw(vmm, vmm, vmm);
+                else
+                    h->uni_vpackusdw(vmm, vmm, vmm);
+                // gather 2/4(cross lane) 64 bits into lower vmm to store when store_num > 4
+                // [y_3 y_2 y_1 y_0] |--> [y_0 y_0 y_2 y_0]
+                // [  128  |  128  ] |--> [ 128   |  128  ]
+                if (is_ymm && (store_num > 4)) {
+                    h->vpermq(ymm, ymm, 0x08);  // 00001000
+                }
+            } else {  // emulate with AND + pure store for truncation mode
+                h->vpand(vmm, vmm, table_val("mask_truncation_word"));
+                h->uni_vpackusdw(vmm, vmm, vmm);
+            }
         }
 
         store_bytes(vmm, reg, offset, store_num * 2);
