@@ -107,48 +107,6 @@ class BlockLSTMtoLSTMSequenceSingleFirstOutput(MiddleReplacementPattern):
 
         LSTM.update_node_stat(block_lstm, new_attrs)
 
-        # TODO: implement for non-constant weights and bias
-        # For this, it requires to unbound from LSTMRNNSequenceToTensorIterator transformation
-        # normalize weights to the format required by OpenVINO LSTMSequence
-        # 1. reshape weights and bias so that to reorder channel dimension
-        # weights_reshape = create_op_with_const_inputs(graph, Reshape, {1: int64_array([0, 4, hidden_size])}, {'special_zero': True})
-        # bias_reshape = create_op_with_const_inputs(graph, Reshape, {1: int64_array([4, hidden_size])}, {'special_zero': True})
-        # block_lstm.in_port(1).get_connection().set_destination(weights_reshape.in_port(0))
-        # block_lstm.in_port(2).get_connection().set_destination(bias_reshape.in_port(0))
-        # 2. reorder gates icfo --> fico for both weights and biases
-        # weights_reorder = create_op_with_const_inputs(graph, Gather, {1: int64_array([2, 0, 1, 3]), 2: int64_array(1)})
-        # weights_reorder.in_port(0).connect(weights_reshape.out_port(0))
-        # bias_reorder = create_op_with_const_inputs(graph, Gather, {1: int64_array([2, 0, 1, 3]), 2: int64_array(0)})
-        # bias_reorder.in_port(0).connect(bias_reshape.out_port(0))
-        # 3. shift_const.value should be added to the first 1/4th part of the biases (f-gate: 0)
-        # Note: in case of moving this code up before gate reordering, the addition
-        # should be applied at different place
-        # shift_const_convert = create_op_with_const_inputs(graph, ConvertLike, {0: int64_array([shift_const])})
-        # shift_const_convert.in_port(1).connect(bias_reorder.out_port(0))
-        # bias_split = create_op_with_const_inputs(graph, VariadicSplit, {1: int64_array(0), 2: int64_array([1, 3])})
-        # bias_split = create_op_with_const_inputs(graph, VariadicSplit, {1: int64_array(0),
-        #                                                           2: int64_array([1, 3])},
-        #                                    {'out_ports_count': 2})
-        # bias_split.in_port(0).connect(bias_reorder.out_port(0))
-        # bias_zero = Add(graph, {'name': block_lstm_name + "/Add"}).create_node()
-        # bias_zero.in_port(0).connect(bias_split.out_port(0))
-        # bias_zero.in_port(1).connect(shift_const_convert.out_port(0))
-        # bias_normalized = Concat(graph, {'axis': 0, 'in_ports_count': 2,
-        #                                'name': block_lstm_name + '/Concat'}).create_node()
-        # bias_normalized.in_port(0).connect(bias_zero.out_port(0))
-        # bias_normalized.in_port(1).connect(bias_split.out_port(1))
-        # 4. return weights and bias to the original shapes
-        # weights_result = create_op_with_const_inputs(graph, Reshape, {1: int64_array([0, -1])}, {'special_zero': True})
-        # weights_result.in_port(0).connect(weights_reorder.out_port(0))
-        # bias_result = create_op_with_const_inputs(graph, Reshape, {1: int64_array([-1])}, {'special_zero': True})
-        # bias_result.in_port(0).connect(bias_normalized.out_port(0))
-        # 5. transpose the weights
-        # weights_transpose = create_op_with_const_inputs(graph, Transpose, {1: int64_array([1, 0])})
-        # weights_transpose.in_port(0).connect(weights_result.out_port(0))
-        # 6. connect the resulted weights and bias to BlockLSTM node
-        # block_lstm.in_port(1).connect(weights_transpose.out_port(0))
-        # block_lstm.in_port(2).connect(bias_result.out_port(0))
-
 
 class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
     """

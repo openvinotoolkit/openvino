@@ -60,7 +60,7 @@ class BlockLSTM(Op):
 
         assert len(node.out_nodes()) in [1, 2]
 
-        # TODO: figure this out - do we need this? - Not sure.
+        # mark-up inputs for LSTMRNNSequenceToTensorIterator transformation
         mark_input_bins(node)
 
         if node.is_out_port_connected(0):
