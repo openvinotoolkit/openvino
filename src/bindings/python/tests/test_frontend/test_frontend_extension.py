@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-#
+# -*- coding: utf-8 -*-  noqa: E999
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
