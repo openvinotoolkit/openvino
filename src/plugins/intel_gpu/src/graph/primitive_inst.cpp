@@ -175,7 +175,8 @@ void primitive_inst::update_shape() {
     auto memory_deps = _node.get_const_memory_deps();
     std::vector<event::ptr> dependencies_events;
     for (auto& i : _node.get_shape_infer_dependencies()) {
-        if (memory_deps.count(i) > 0) {
+        // Some primitives may have flexible count of deps (e.g. reshape), thus allow skipping some deps
+        if (memory_deps.count(i) > 0 || i >= _node.get_dependencies().size()) {
             continue;
         }
         auto& dep = _node.get_dependency(i);
@@ -471,19 +472,50 @@ event::ptr primitive_inst::update_weights() {
     if (requires_reorder) {
         auto weights_idx = _node.get_primitive()->input.size();
         auto original_weights_memory = dep_memory_ptr(weights_idx);
+        auto original_layout = original_weights_memory->get_layout();
         layout expected_layout = from_weights_tensor(weights_params.dest);
+
         auto& program = _node.get_program();
         auto& engine = _network.get_engine();
-        auto& stream = _network.get_stream();
-        auto _kernel_id = program.add_kernel(weights_params.clKernel->code.kernelString);
-        program.compile();
-        auto kernel = program.get_kernel(_kernel_id);
 
-        GPU_DEBUG_IF(debug_config->verbose >= 4) {
-            GPU_DEBUG_COUT << id() << ": reorder weights from " << original_weights_memory->get_layout() << "\nto " << expected_layout << std::endl;
+        auto get_layout_key = [&]() -> std::string {
+            std::string layout_key_str = id() + "_" + std::to_string(_node.get_unique_id());
+            layout_key_str += "_" + expected_layout.to_string();
+            layout_key_str += "_" + original_layout.to_string();
+            return layout_key_str;
+        };
+
+        cldnn::kernel::ptr kernel = nullptr;
+        auto layout_key = get_layout_key();
+        if (layout_key != "") {
+            auto& cache = program.get_in_mem_kernels_cache();
+            if (cache.has(layout_key)) {
+                GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                    GPU_DEBUG_COUT << id() << ": reorder weights (cached) from " << original_layout << "\nto " << expected_layout << std::endl;
+                }
+                kernel = cache.get(layout_key);
+            } else {
+                GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                    GPU_DEBUG_COUT << id() << ": reorder weights from " << original_layout << "\nto " << expected_layout << std::endl;
+                }
+                auto _kernel_id = program.add_kernel(weights_params.clKernel->code.kernelString);
+                program.compile();
+                kernel = program.get_kernel(_kernel_id);
+                cache.add(layout_key, kernel);
+            }
         }
 
-        _impl_params->reordered_weights = engine.allocate_memory(expected_layout, allocation_type::usm_device);
+        auto& stream = _network.get_stream();
+
+        bool can_reuse = _impl_params->reordered_weights != nullptr && _impl_params->reordered_weights->size() <= expected_layout.bytes_count();
+        if (can_reuse) {
+            GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                GPU_DEBUG_COUT << id() << ": reuse weights memory" << std::endl;
+            }
+            _impl_params->reordered_weights = engine.reinterpret_buffer(*_impl_params->reordered_weights, expected_layout);
+        } else {
+            _impl_params->reordered_weights = engine.allocate_memory(expected_layout, allocation_type::usm_device);
+        }
 
         kernel_arguments_data args;
         args.inputs.push_back(original_weights_memory);
@@ -524,6 +556,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
 
     std::function<bool(const program_node&)> user_requesting_mem_reuse_false = [&user_requesting_mem_reuse_false](const program_node& node) {
         for (auto& user : node.get_users()) {
+            if (user->is_dynamic())
+                return true;
             if ((user->get_selected_impl() != nullptr) && (user->get_selected_impl()->can_reuse_memory == false)) {
                 return true;
             } else if (user->get_selected_impl() == nullptr) {
