@@ -301,7 +301,9 @@ jobs:
     displayName: 'ONNX Frontend Tests'
     continueOnError: false
 
-  - script: $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
+  - script: |
+      export OV_FRONTEND_PATH=$(INSTALL_TEST_DIR):/usr/lib/x86_64-linux-gnu/
+      $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
     continueOnError: false
 
