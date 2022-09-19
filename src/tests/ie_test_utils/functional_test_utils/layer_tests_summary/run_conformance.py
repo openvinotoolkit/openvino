@@ -1,23 +1,18 @@
 from asyncio import subprocess
-from turtle import st
 from git import Repo
 from argparse import ArgumentParser
 from utils import utils
 from glob import glob
 from subprocess import Popen
-import os
 from shutil import copytree
+# from summarize import create_summary
+from merge_xmls import merge_xml
 
 import xml.etree.ElementTree as ET
 
-
-
 import os
-import logging
-# from summarize import merge_xmls, create_summary
-from merge_xmls import merge_xml
 
-logger = utils.get_logger('RunConformance')
+logger = utils.get_logger('ConformanceRunner')
 
 OMZ_REPO_URL = "https://github.com/openvinotoolkit/open_model_zoo.git"
 OMZ_REPO_BRANCH = "master"
@@ -27,7 +22,7 @@ GTEST_PARALLEL_BRANCH = "limit_log_name"
 
 API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
 OP_CONFORMANCE_BIN_NAME = "conformanceTests"
-SUBGRAPH_DUMPER_BIN_NAME = "subgraphDumper"
+SUBGRAPH_DUMPER_BIN_NAME = "subgraphsDumper"
 
 
 def parse_arguments():
@@ -79,34 +74,46 @@ class Conformance:
         converted_model_path = os.path.join(self._working_dir, "converted_models")
         converter_path = os.path.join(self._omz_path, "tools", "model_tools", 'converter.py')
         mo_path = os.path.join("openvino", "tools", "mo", ".")
-        install_mo_req_str = self._generate_string(glob(os.path.join(mo_path, "requirements*")))
-        # --name -> --all
+        logger.info(f"Model conversion from {original_model_path} to {converted_model_path} is started")
         command = f'python3 -m venv .env3;'\
             f'source .env3/bin/activate;'\
             f'pip3 install -e "{mo_path}/.[caffe,kaldi,mxnet,onnx,pytorch,tensorflow2]";'\
             f'pip3 install "{omz_tools_path}/."'\
-            f'omz_converter --name=vgg16 --download_dir={original_model_path} --output_dir={converted_model_path};'\
+            f'omz_converter --all --download_dir={original_model_path} --output_dir={converted_model_path};'\
             f'deactivate;'
         process = Popen(command, stdout=subprocess.PIPE, shell=True)
         out, err = process.communicate()
-        for line in out.split('\n'):
-            print(line)
+        if err is None:
+            for line in str(out).split('\n'):
+                logger.info(line)
+        else:
+            logger.error(err)
+            raise Exception("Process failed on step: 'Model conversion'")
+        logger.info(f"Model conversion is successful. Converted models are saved to {converted_model_path}")
         self._model_path = converted_model_path
 
     def download_and_convert_models(self):
+        logger.info("Starting model downloading and conversion")
         self._omz_path = self.__download_repo(OMZ_REPO_URL, OMZ_REPO_BRANCH)
         self._convert_models()
+        logger.info("Model downloading and conversion is finished successful")
 
     def dump_subgraph(self):
         subgraph_dumper_path = os.path.join(self._ov_binaries, SUBGRAPH_DUMPER_BIN_NAME)
         conformance_ir_path = os.path.join(self._working_dir, "conformance_ir")
         if not os.path.exists(conformance_ir_path):
             os.mkdir(conformance_ir_path)
+        logger.info(f"Stating model dumping from {self._model_path}")
         cmd = f'{subgraph_dumper_path} --input_folders={self._model_path} --output_folder={conformance_ir_path}'
         process = Popen(cmd, stdout=subprocess.PIPE, shell=True)
         out, err = process.communicate()
-        # for line in out.split('\n'):
-            # print(line)
+        if err is None:
+            for line in str(out).split('\n'):
+                logger.info(line)
+            logger.info(f"Conformance IRs were saved to {conformance_ir_path}")
+        else:
+            logger.error(err)
+            raise Exception("Process failed on step: 'Subgraph dumping'")
         self._model_path = conformance_ir_path
 
     def run_conformance(self):
@@ -123,21 +130,29 @@ class Conformance:
         parallel_report_dir = os.path.join(report_dir, 'parallel')
         if not os.path.exists(report_dir):
             os.mkdir(report_dir)
-        
-        cmd = f'python3 {gtest_parallel_path}  {conformance_path} -w={worker_num} -d={logs_dir} '\
-            f'-- --input_folders={self._model_path} --device={self._device} --report_unique_name --output_dir={parallel_report_dir}'
+        if not os.path.exists(logs_dir):
+            os.mkdir(logs_dir)
+        cmd = f'python3 {gtest_parallel_path}  {conformance_path} -w {worker_num} -d {logs_dir} '\
+            f'-- --input_folders={self._model_path} --device={self._device} --report_unique_name --output_folder={parallel_report_dir}'
+        logger.info(f"Stating conformance: {cmd}")
         process = Popen(cmd, stdout=subprocess.PIPE, shell=True)
         out, err = process.communicate()
-        for line in out.split('\n'):
-            print(line)
+        if err is None:
+            for line in str(out).split('\n'):
+                logger.info(line)
+        else:
+            logger.error(err)
+            raise Exception("Process failed on step: 'Run conformance'")
         final_report_name = f'report_{self._type}'
-        merge_xml(report_dir, parallel_report_dir, final_report_name, self._type)
+        merge_xml([parallel_report_dir], report_dir, final_report_name, self._type)
+        logger.info(f"Conformance is successful. XML reportwas saved to {report_dir}")
         return (os.path.join(report_dir, final_report_name), report_dir)
 
     # def summarize(self, xml_report_path:os.path, report_dir: os.path):
-        # summary_root = ET.parse(xml_report_path)
-        # create_summary(summary_root, report_dir)
-        # copytree("./template/", report_dir)
+    #     summary_root = ET.parse(xml_report_path)
+    #     create_summary(summary_root, report_dir)
+    #     copytree("./template/", report_dir)
+    #     logger.info(f"Report was saved to {report_dir}/report.html")
 
     def start_pipeline(self, dump_models: bool):
         if dump_models:
@@ -145,7 +160,7 @@ class Conformance:
                 self._model_path = self.download_and_convert_models()
             self.dump_subgraph()
         if not os.path.isdir(self._model_path):
-            raise Exception("Directory does not exist")
+            raise Exception(f"Directory {self._model_path} does not exist")
         xml_report, report_dir = self.run_conformance()
         # self.summarize(xml_report, report_dir)
         
