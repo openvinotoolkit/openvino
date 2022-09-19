@@ -96,22 +96,24 @@ You will see the help message for Model Optimizer if installation finished succe
 
 Note the following things:
 
-* To install OpenVINO Development Tools, you must have OpenVINO Runtime installed first. You can install OpenVINO Runtime through an installer ([Linux](installing-openvino-linux.md), [Windows](installing-openvino-windows.md), or [macOS](installing-openvino-macos.md)), [APT for Linux](installing-openvino-apt.md) or [YUM for Linux](installing-openvino-yum.md). 
+* To install OpenVINO Development Tools, you must have OpenVINO Runtime installed first. You can install OpenVINO Runtime through the following ways:
+  * For OpenVINO 2022.1: [Install OpenVINO on Linux Using the Installer](installing-openvino-linux.md), [Install OpenVINO on Linux from APT](installing-openvino-apt.md), [Install OpenVINO on Linux from YUM](installing-openvino-yum.md), [Install OpenVINO on Windows Using the Installer](installing-openvino-windows.md), or [Install OpenVINO on macOS Using the Installer](installing-openvino-macos.md). 
+  * For OpenVINO 2022.1.1: [Install OpenVINO on Linux from Archive](2022.1.1/installing-openvino-from-archive-linux.md), [Install OpenVINO on Windows from Archive](2022.1.1/installing-openvino-from-archive-windows.md), or [Install OpenVINO on macOS from Archive](2022.1.1/installing-openvino-from-archive-macos.md).
 * Ensure that the version of OpenVINO Development Tools you are installing matches that of OpenVINO Runtime. 
 
 Use either of the following ways to install OpenVINO Development Tools:
 
 ### Recommended: Install Using the Requirements Files
 
-1. After you have installed OpenVINO Runtime from an installer, APT or YUM repository, you can find a set of requirements files in the `<INSTALLDIR>\tools\` directory. Select the most suitable ones to use.
+1. After you have installed OpenVINO Runtime from an installer, APT, YUM, or an archive file (2022.1.1 only), you can find a set of requirements files in the `<INSTALL_DIR>\tools\` directory. Select the most suitable ones to use.
 2. Install the same version of OpenVINO Development Tools by using the requirements files. 
    To install mandatory requirements only, use the following command:
    ```
-   pip install -r <INSTALLDIR>\tools\requirements.txt
+   pip install -r <INSTALL_DIR>\tools\requirements.txt
    ```
 3. Make sure that you also install your additional frameworks with the corresponding requirements files. For example, if you are using a TensorFlow model, use the following command to install requirements for TensorFlow:  
 ```
-pip install -r <INSTALLDIR>\tools\requirements_tensorflow2.txt
+pip install -r <INSTALL_DIR>\tools\requirements_tensorflow2.txt
 ```
 
 ### Alternative: Install from the openvino-dev Package

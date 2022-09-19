@@ -13,7 +13,7 @@
 
 @endsphinxdirective
 
-You can choose how to install OpenVINO™ Runtime according to your operating system: 
+You can choose how to install Intel® Distribution of OpenVINO™ toolkit 2022.1 according to your operating system: 
 
 * [Install OpenVINO Runtime on Linux](installing-openvino-linux-header.md)
 * [Install OpenVINO Runtime on Windows](installing-openvino-windows-header.md)

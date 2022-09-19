@@ -1,8 +1,10 @@
-# Install and Configure Intel® Distribution of OpenVINO™ toolkit for macOS {#openvino_docs_install_guides_installing_openvino_macos}
+# Install Intel® Distribution of OpenVINO™ toolkit on macOS Using the Installer{#openvino_docs_install_guides_installing_openvino_macos}
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
 
 > **NOTE**: The Intel® Distribution of OpenVINO™ toolkit is supported on macOS version 10.15 with Intel® processor-based machines.
+
+You can also check the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes) for more information on updates in this release.
 
 ## System Requirements
 
@@ -70,8 +72,6 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 
    For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2022/`.
 
-To check **Release Notes** please visit: [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes).
-
 The core components are now installed. Continue to the next section to configure environment.
 
 ## <a name="set-the-environment-variables"></a>Step 2: Configure the Environment
@@ -117,15 +117,15 @@ If you want to run inference on Intel® Neural Compute Stick 2 use the following
 
 Now you are ready to try out the toolkit. You can use the following tutorials to write your applications using Python and C++.
 
-Developing in Python:
-   * [Start with tensorflow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
-   * [Start with ONNX and PyTorch models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/102-pytorch-onnx-to-openvino-with-output.html)
-   * [Start with PaddlePaddle models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/103-paddle-onnx-to-openvino-classification-with-output.html)
+Start with some Python tutorials:
+   * [Hello Image Classification](https://docs.openvino.ai/latest/notebooks/001-hello-world-with-output.html)
+   * [Convert TensorFlow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
+   * [Convert a PyTorch model and remove the image background](https://docs.openvino.ai/latest/notebooks/205-vision-background-removal-with-output.html)
 
-Developing in C++:
-   * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
+To start with C++ samples, see [Build Sample Applications on macOS](../OV_Runtime_UG/Samples_Overview.md#build_samples_macos) first, and then you can try the following samples:
    * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
    * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
+   * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
 
 ## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
 

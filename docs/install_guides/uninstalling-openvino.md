@@ -2,7 +2,9 @@
 
 > **NOTE**: Uninstallation procedures remove all Intel® Distribution of OpenVINO™ Toolkit component files but don't affect user files in the installation directory.
 
-## Uninstall Using the Original Installation Package
+## Uninstalling OpenVINO 2022.1
+
+### Uninstalling Using the Original Installation Package
 
 @sphinxdirective
 .. tab:: Windows
@@ -45,7 +47,7 @@
 
 @endsphinxdirective
 
-## Uninstall Using the Intel® Software Installer
+### Uninstalling Using the Intel® Software Installer
 
 @sphinxdirective
 .. tab:: Windows
@@ -111,5 +113,41 @@ Finally, complete the procedure with clicking on **Modify** and then selecting *
   .. image:: _static/images/openvino-uninstall-macos.png
     :width: 500px
     :align: center
+
+@endsphinxdirective
+
+## Uninstalling OpenVINO 2022.1.1
+
+If you have installed OpenVINO Runtime 2022.1.1 from archive files, you can uninstall it by deleting the archive files and the extracted folders.
+
+@sphinxdirective
+.. tab:: Windows
+
+  If you have created the symbolic link, remove the link first.
+
+  Use either of the following methods to delete the files:
+
+  * Use Windows Explorer to remove the files.
+  * Open a Command Prompt and run:
+    
+    .. code-block:: sh
+  
+      rmdir /s <extracted_folder>
+      del <path_to_archive>
+
+    
+.. tab:: Linux & macOS
+  
+  If you have created the symbolic link, remove the link first:
+
+  .. code-block:: sh
+  
+   `rm /home/<USER>/intel/openvino_2022`
+
+  To delete the files:
+
+  .. code-block:: sh
+  
+    rm -r <extracted_folder> && rm <path_to_archive>
 
 @endsphinxdirective

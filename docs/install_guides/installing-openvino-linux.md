@@ -1,6 +1,8 @@
-# Install and Configure Intel® Distribution of OpenVINO™ Toolkit for Linux {#openvino_docs_install_guides_installing_openvino_linux}
+# Install Intel® Distribution of OpenVINO™ Toolkit on Linux Using the Installer{#openvino_docs_install_guides_installing_openvino_linux}
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
+
+You can also check the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes) for more information on updates in this release.
 
 ## System Requirements
 
@@ -104,7 +106,6 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 
    <br>For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2022/` or `/home/<USER>/intel/openvino_2022/`.
 
-To check **Release Notes** please visit: [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes).
 
 The core components are now installed. Continue to the next section to install additional dependencies.
 
@@ -157,10 +158,6 @@ The environment variables are set. Next, you can download some additional tools.
 ## <a name="optional-steps"></a>Step 5 (Optional): Configure Inference on Non-CPU Devices
 
 @sphinxdirective
-.. tab:: GNA
-
-   To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide>`.
-   
 .. tab:: GPU
 
    To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.
@@ -178,21 +175,25 @@ The environment variables are set. Next, you can download some additional tools.
    .. warning::
       While working with either HDDL or NCS, choose one of them as they cannot run simultaneously on the same machine.
 
+.. tab:: GNA
+
+   To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide>`.
+   
 @endsphinxdirective
 
 ## <a name="get-started"></a>Step 6: What's Next?
 
 Now you are ready to try out the toolkit.
 
-Developing in Python:
-   * [Start with TensorFlow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
-   * [Start with ONNX and PyTorch models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/102-pytorch-onnx-to-openvino-with-output.html)
-   * [Start with PaddlePaddle models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/103-paddle-onnx-to-openvino-classification-with-output.html)
+Start with some Python tutorials:
+   * [Hello Image Classification](https://docs.openvino.ai/latest/notebooks/001-hello-world-with-output.html)
+   * [Convert TensorFlow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
+   * [Convert a PyTorch model and remove the image background](https://docs.openvino.ai/latest/notebooks/205-vision-background-removal-with-output.html)
 
-Developing in C++:
-   * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
+To start with C++ samples, see [Build Sample Applications on Linux](../OV_Runtime_UG/Samples_Overview.md#build_samples_linux) first, and then you can try the following samples:
    * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
    * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
+   * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
 
 ## <a name="uninstall"></a>Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
 
