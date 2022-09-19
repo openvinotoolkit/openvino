@@ -62,8 +62,7 @@ std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgrap
     defineBlockedShapes(f, output_shapes, input_shapes);
     auto subgraph = getTokenizedSubgraph(f);
     subgraph->set_generator(std::make_shared<DummyGenerator>());
-    const auto supported_exec_type = subgraph->get_generator()->get_supported_exec_precision();
-    subgraph->canonicalize(output_shapes, input_shapes, supported_exec_type);
+    subgraph->canonicalize(output_shapes, input_shapes);
     subgraph->generate();
     return subgraph;
 }
