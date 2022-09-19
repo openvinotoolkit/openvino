@@ -27,6 +27,7 @@ ov::intel_cpu::ConvertLogSoftmax::ConvertLogSoftmax() {
         auto s = std::make_shared<opset8::ReduceSum>(tmp->get_default_output(), axis->get_default_output(), true);
         auto log = std::make_shared<opset8::Log>(s);
         auto result = std::make_shared<opset8::Subtract>(subtract, log);
+        result->set_friendly_name(logSoftmaxNode->get_friendly_name());
         ov::replace_node(logSoftmaxNode, result);
         return true;
     };
