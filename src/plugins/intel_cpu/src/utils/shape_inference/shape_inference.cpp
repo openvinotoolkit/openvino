@@ -550,7 +550,7 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
     } else if (auto node = ov::as_type_ptr<ov::op::v8::DeformableConvolution>(op)) {
         return std::make_shared<entryFallbackWithPadding<ov::op::v8::DeformableConvolution>>(node);
     } else if (auto node = ov::as_type_ptr<ov::opset8::Transpose>(op)) {
-        return make_shared_entryIO(node);
+        return make_shared_entryIOC(node);
     } else {
         return std::make_shared<entryFallback>(op);
     }

@@ -47,6 +47,21 @@ TEST(type_prop, transpose_arg_static_input_order_constant_invalid_perm) {
     }
 }
 
+TEST(type_prop, transpose_with_not_unique_order) {
+    const auto order = std::vector<size_t>{1, 0, 1};
+    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 4, 300});
+    auto input_order = make_shared<op::Constant>(element::i64, Shape{order.size()}, order);
+
+    try {
+        auto r = make_shared<op::Transpose>(arg, input_order);
+        FAIL() << "Did not detect invalid permutation";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Permutation AxisVector{1, 0, 1} is not valid for input shape"));
+    } catch (...) {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
 TEST(type_prop, transpose_arg_rank_static_dynamic_input_order_static_ok) {
     auto arg = make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), Dimension::dynamic(), 8});
     auto input_order = make_shared<op::Parameter>(element::i64, Shape{4});

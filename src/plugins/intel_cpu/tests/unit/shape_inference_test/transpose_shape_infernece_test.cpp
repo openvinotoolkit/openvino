@@ -12,20 +12,20 @@ using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;
 
+template <class TInput, class TOrder>
+std::shared_ptr<op::v1::Transpose> make_transpose(const TInput& input_shape, const TOrder& transpose_order) {
+    const auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(input_shape.size()));
+    const auto order =
+        std::make_shared<op::v0::Constant>(element::i64, ov::Shape{transpose_order.size()}, transpose_order);
+    return std::make_shared<op::v1::Transpose>(input, order);
+}
+
 using transpose_params = std::tuple<std::vector<size_t>,  // transpose order
                                     StaticShape,          // Input shape
                                     StaticShape           // Expected shape
                                     >;
 
 class StaticShapeInferenceTest : public TestWithParam<transpose_params> {
-    template <class TInput, class TOrder>
-    std::shared_ptr<op::v1::Transpose> make_transpose(const TInput& input_shape, const TOrder& transpose_order) {
-        const auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(input_shape.size()));
-        const auto order =
-            std::make_shared<op::v0::Constant>(element::i64, ov::Shape{transpose_order.size()}, transpose_order);
-        return std::make_shared<op::v1::Transpose>(input, order);
-    }
-
 protected:
     void SetUp() override {
         std::tie(transpose_order, input_shape, exp_shape) = GetParam();
@@ -72,4 +72,35 @@ TEST_P(StaticShapeInferenceTest, transpose_static) {
     shape_infer(transpose.get(), {input_shape, transpose_order}, output_shapes);
 
     ASSERT_EQ(output_shapes[op::TransposeOut::ARG_T], exp_shape);
+}
+
+/** \brief Shape infer when transpose input got dynamic dimensions. */
+TEST(StaticShapeInferenceTest, transpose_input_shape_dim_dynamic) {
+    const auto input_shape = PartialShape{-1, -1, -1};
+    const auto order = std::vector<size_t>{1, 2, 0};
+    const auto transpose = make_transpose(input_shape, order);
+
+    auto output_shapes = std::vector<StaticShape>{StaticShape{}};
+
+    shape_infer(transpose.get(), {StaticShape{2, 6, 3}, order}, output_shapes);
+    ASSERT_EQ(output_shapes[op::TransposeOut::ARG_T], StaticShape({6, 3, 2}));
+}
+
+/** \brief Shape inference when transpose order stored in constant map. */
+TEST(StaticShapeInferenceTest, transpose_order_in_constant_map) {
+    const auto input_shape = PartialShape{2, 4, 6, 8};
+    const auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
+    const auto order = std::make_shared<op::v0::Parameter>(element::i64, Shape{4});
+
+    const auto transpose = std::make_shared<op::v1::Transpose>(input, order);
+
+    const auto axes_order = std::vector<size_t>{1, 2, 0, 3};
+    const auto axes = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{axes_order.size()}, axes_order);
+    const auto const_tensor = std::make_shared<ngraph::runtime::HostTensor>(axes);
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_map = {{1, const_tensor}};
+
+    auto output_shapes = std::vector<StaticShape>{StaticShape{}};
+    shape_infer(transpose.get(), {StaticShape{2, 4, 6, 8}, StaticShape{-1}}, output_shapes, const_map);
+
+    ASSERT_EQ(output_shapes[op::TransposeOut::ARG_T], StaticShape({4, 6, 2, 8}));
 }
