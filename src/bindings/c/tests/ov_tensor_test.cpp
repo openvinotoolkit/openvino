@@ -3,12 +3,9 @@
 //
 #include "ov_test.hpp"
 
-void setup_4d_shape(ov_shape_t* shape, int64_t d0, int64_t d1, int64_t d2, int64_t d3) {
-    ov_shape_init(shape, 4);
-    shape->dims[0] = d0;
-    shape->dims[1] = d1;
-    shape->dims[2] = d2;
-    shape->dims[3] = d3;
+inline void setup_4d_shape(ov_shape_t* shape, int64_t d0, int64_t d1, int64_t d2, int64_t d3) {
+    int64_t dims[4] = {d0, d1, d2, d3};
+    ov_shape_create(4, dims, shape);
 }
 
 TEST(ov_tensor, ov_tensor_create) {
@@ -19,7 +16,7 @@ TEST(ov_tensor, ov_tensor_create) {
     OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
     EXPECT_NE(nullptr, tensor);
     ov_tensor_free(tensor);
-    ov_shape_deinit(&shape);
+    ov_shape_free(&shape);
 }
 
 TEST(ov_tensor, ov_tensor_create_from_host_ptr) {
@@ -31,7 +28,7 @@ TEST(ov_tensor, ov_tensor_create_from_host_ptr) {
     OV_EXPECT_OK(ov_tensor_create_from_host_ptr(type, shape, &host_ptr, &tensor));
     EXPECT_NE(nullptr, tensor);
     ov_tensor_free(tensor);
-    ov_shape_deinit(&shape);
+    ov_shape_free(&shape);
 }
 
 TEST(ov_tensor, ov_tensor_get_shape) {
@@ -50,8 +47,8 @@ TEST(ov_tensor, ov_tensor_get_shape) {
     EXPECT_EQ(shape.dims[2], shape_res.dims[2]);
     EXPECT_EQ(shape.dims[3], shape_res.dims[3]);
 
-    ov_shape_deinit(&shape);
-    ov_shape_deinit(&shape_res);
+    ov_shape_free(&shape);
+    ov_shape_free(&shape_res);
     ov_tensor_free(tensor);
 }
 
@@ -74,9 +71,9 @@ TEST(ov_tensor, ov_tensor_set_shape) {
     EXPECT_EQ(shape_update.dims[2], shape_res.dims[2]);
     EXPECT_EQ(shape_update.dims[3], shape_res.dims[3]);
 
-    ov_shape_deinit(&shape_update);
-    ov_shape_deinit(&shape_res);
-    ov_shape_deinit(&shape);
+    ov_shape_free(&shape_update);
+    ov_shape_free(&shape_res);
+    ov_shape_free(&shape);
     ov_tensor_free(tensor);
 }
 
@@ -92,7 +89,7 @@ TEST(ov_tensor, ov_tensor_get_element_type) {
     OV_EXPECT_OK(ov_tensor_get_element_type(tensor, &type_res));
     EXPECT_EQ(type, type_res);
 
-    ov_shape_deinit(&shape);
+    ov_shape_free(&shape);
     ov_tensor_free(tensor);
 }
 
@@ -102,13 +99,13 @@ static size_t product(const std::vector<size_t>& dims) {
     return std::accumulate(std::begin(dims), std::end(dims), (size_t)1, std::multiplies<size_t>());
 }
 
-size_t calculate_size(ov_shape_t shape) {
+inline size_t calculate_size(ov_shape_t shape) {
     std::vector<size_t> tmp_shape;
     std::copy_n(shape.dims, shape.rank, std::back_inserter(tmp_shape));
     return product(tmp_shape);
 }
 
-size_t calculate_byteSize(ov_shape_t shape, ov_element_type_e type) {
+inline size_t calculate_byteSize(ov_shape_t shape, ov_element_type_e type) {
     return (calculate_size(shape) * GET_ELEMENT_TYPE_SIZE(type) + 7) >> 3;
 }
 
@@ -125,7 +122,7 @@ TEST(ov_tensor, ov_tensor_get_size) {
     OV_EXPECT_OK(ov_tensor_get_size(tensor, &size_res));
     EXPECT_EQ(size_res, size);
 
-    ov_shape_deinit(&shape);
+    ov_shape_free(&shape);
     ov_tensor_free(tensor);
 }
 
@@ -142,7 +139,7 @@ TEST(ov_tensor, ov_tensor_get_byte_size) {
     OV_EXPECT_OK(ov_tensor_get_byte_size(tensor, &size_res));
     EXPECT_EQ(size_res, size);
 
-    ov_shape_deinit(&shape);
+    ov_shape_free(&shape);
     ov_tensor_free(tensor);
 }
 
@@ -158,6 +155,6 @@ TEST(ov_tensor, ov_tensor_data) {
     OV_EXPECT_OK(ov_tensor_data(tensor, &data));
     EXPECT_NE(nullptr, data);
 
-    ov_shape_deinit(&shape);
+    ov_shape_free(&shape);
     ov_tensor_free(tensor);
 }

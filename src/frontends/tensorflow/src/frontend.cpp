@@ -5,6 +5,7 @@
 #include "openvino/frontend/tensorflow/frontend.hpp"
 
 #include "graph_iterator_proto.hpp"
+#include "helper_transforms/embedding_segments_feature_fusing.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
@@ -29,7 +30,7 @@ void translate_framework_node(const std::shared_ptr<FrameworkNode>& node,
     FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
 
     ov::OutputVector ng_inputs = node->input_values();
-    NodeContext node_ctx(*node->get_decoder(), ng_inputs);
+    NodeContext node_ctx(node->get_decoder(), ng_inputs);
     auto new_node_outputs = translator_it->second(node_ctx);
 
     auto new_output = new_node_outputs.begin();
@@ -169,7 +170,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
             auto op_fun = &(translate_map[operation_decoder->get_op_type()]);
             // NodeContext node_context(ng_inputs, operation_decoder, model_inputs);
             // TODO: Check why NodeContextNew doesn't have ngOutputVector ng_inputs input in constructor
-            NodeContext node_context(*operation_decoder, ng_inputs);
+            NodeContext node_context(operation_decoder, ng_inputs);
             // generate OV node output vector using translator for given operation type
             ng_outputs = (*op_fun)(node_context);
         } catch (...) {
@@ -192,7 +193,9 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
                 results.push_back(result);
             } else {
                 auto param = std::dynamic_pointer_cast<ov::opset8::Parameter>(output.get_node_shared_ptr());
-                if (param && operation_decoder->get_op_type() != "Identity") {
+                // avoid duplicating Parameter nodes if they are already in the Parameters vector
+                if (param && operation_decoder->get_op_type() != "Identity" &&
+                    std::find(params.begin(), params.end(), param) == params.end()) {
                     params.push_back(param);
                 }
                 ng_op_map[operation_name].push_back(output);
@@ -363,7 +366,16 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
     std::shared_ptr<ov::Model> f;
     translate_graph(model_tf, "TensorFlow_Frontend_IR", true, false, f);
     normalize(f);
-    // TODO: check that OV function does not contain operations which are not in the opset
+
+    for (const auto& node : f->get_ordered_ops()) {
+        if (const auto& fw_node = ov::as_type_ptr<ov::frontend::tensorflow::FrameworkNode>(node)) {
+            auto op_type = fw_node->get_decoder()->get_op_type();
+            auto op_name = fw_node->get_decoder()->get_op_name();
+            FRONT_END_OP_CONVERSION_CHECK(
+                false,
+                "The translation is incomplete due to operation " + op_name + " of type " + op_type);
+        }
+    }
 
     return f;
 }
@@ -412,6 +424,11 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     ov::pass::Manager manager;
+
+    // Runs middle transformations to convert sub-graphs with intermediate (frontend internal) operations
+    // into sub-graphs with only OpenVINO operations
+    manager.register_pass<ov::frontend::tensorflow::pass::EmbeddingSegmentSingleFeatureFusion>();
+
     // TODO: reimplement TransposeSinking that does not corrupt filters for Convolution
     // and preserve tensor names in case of sinking
     // manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();

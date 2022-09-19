@@ -36,7 +36,6 @@ protected:
         // so that it can decide whether to fuse eltwise along with reorder.
         return { FusedOpType::ELTWISE,
                  FusedOpType::QUANTIZE,
-                 FusedOpType::SCALE,
                  FusedOpType::ACTIVATION,
                  FusedOpType::REORDER };
     }

@@ -6,6 +6,7 @@
 #include "program_helpers.h"
 #include "primitive_inst.h"
 #include "loop_inst.h"
+#include "strided_slice_inst.h"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "convolution_inst.h"
@@ -281,6 +282,16 @@ bool program_node::recalc_output_layout(bool invalidate_users_if_changed) {
 }
 
 bool program_node::is_dynamic() const {
+    // Strided slice loads data from {1,2,3} dependencies in impl::create method.
+    // It means that this data must be put into impl_params map
+    // Thus we treat it as "dynamic" case
+    // TODO: Remove once strided slice impl support runtime tensors for begin/end/stride
+    if (is_type<strided_slice>()) {
+        for (size_t i = 1; i < get_dependencies().size(); i++) {
+            if (!get_dependency(i).is_type<data>())
+                return true;
+        }
+    }
     for (const auto* input : get_dependencies()) {
         if (input->get_output_layout().is_dynamic())
             return true;
@@ -290,6 +301,17 @@ bool program_node::is_dynamic() const {
 }
 
 bool program_node::is_dynamic() {
+    // Strided slice loads data from {1,2,3} dependencies in impl::create method.
+    // It means that this data must be put into impl_params map
+    // Thus we treat it as "dynamic" case
+    // TODO: Remove once strided slice impl support runtime tensors for begin/end/stride
+    if (is_type<strided_slice>()) {
+        for (size_t i = 1; i < get_dependencies().size(); i++) {
+            if (!get_dependency(i).is_type<data>())
+                return true;
+        }
+    }
+
     for (auto& input : get_dependencies()) {
         if (input->get_output_layout(true).is_dynamic())
             return true;
@@ -964,7 +986,9 @@ void program_node::init_onednn_primitive_attributes() {
             } else {
                 if (in.spatial(0) > 1 || in.spatial(1) > 1 || in.batch() > 1)
                     throw std::runtime_error("Unsupported eltwise mode for fused onednn op");
-                if (idx == 0 && !has_out_scales(attrs) && !is_type<pooling>() && !is_type<reduce>()) {
+                // convolution using post-op output scales can only be int8/uint8
+                if (idx == 0 && !has_out_scales(attrs) && !is_type<pooling>() && !is_type<reduce>() &&
+                    !(is_type<convolution>() && data_type_traits::is_floating_point(output_layout.data_type))) {
                     int mask = in.count() > 1 ? 2 : 0;
                     attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
                     update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);

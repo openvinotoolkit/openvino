@@ -93,7 +93,7 @@ bool engine::supports_allocation(allocation_type type) const {
     return _device->get_mem_caps().support_allocation_type(type);
 }
 
-allocation_type engine::get_lockable_preffered_memory_allocation_type(bool is_image_layout) const {
+allocation_type engine::get_lockable_preferred_memory_allocation_type(bool is_image_layout) const {
     if (!use_unified_shared_memory() || is_image_layout)
         return get_default_allocation_type();
 
@@ -119,7 +119,7 @@ memory::ptr engine::attach_memory(const layout& layout, void* ptr) {
 }
 
 memory::ptr engine::allocate_memory(const layout& layout, bool reset) {
-    allocation_type type = get_lockable_preffered_memory_allocation_type(layout.format.is_image_2d());
+    allocation_type type = get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
     return allocate_memory(layout, type, reset);
 }
 
@@ -243,10 +243,20 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
                                               const device::ptr device,
                                               const engine_configuration& configuration,
                                               const InferenceEngine::ITaskExecutor::Ptr task_executor) {
+    std::shared_ptr<cldnn::engine> ret;
     switch (engine_type) {
-        case engine_types::ocl: return ocl::create_ocl_engine(device, runtime_type, configuration, task_executor);
-        default: throw std::runtime_error("Invalid engine type");
+    case engine_types::ocl:
+        ret = ocl::create_ocl_engine(device, runtime_type, configuration, task_executor);
+        break;
+    default:
+        throw std::runtime_error("Invalid engine type");
     }
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->verbose >= 1) {
+        const auto& info = device->get_info();
+        GPU_DEBUG_COUT << "Selected Device: " << info.dev_name << std::endl;
+    }
+    return ret;
 }
 
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
@@ -254,9 +264,12 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
                                               const engine_configuration& configuration,
                                               const InferenceEngine::ITaskExecutor::Ptr task_executor) {
     device_query query(engine_type, runtime_type);
-    device::ptr default_device = query.get_available_devices().begin()->second;
+    auto devices = query.get_available_devices();
 
-    return engine::create(engine_type, runtime_type, default_device, configuration, task_executor);
+    auto iter = devices.find(std::to_string(device_query::device_id));
+    auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
+
+    return engine::create(engine_type, runtime_type, device, configuration, task_executor);
 }
 
 }  // namespace cldnn

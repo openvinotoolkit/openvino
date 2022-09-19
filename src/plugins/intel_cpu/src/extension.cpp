@@ -7,8 +7,13 @@
 #include "ngraph_transformations/op/leaky_relu.hpp"
 #include "ngraph_transformations/op/power_static.hpp"
 #include "ngraph_transformations/op/swish_cpu.hpp"
+#include "ngraph_transformations/op/mha.hpp"
+#include "snippets_transformations/op/load_convert.hpp"
+#include "snippets_transformations/op/store_convert.hpp"
 
 #include <ngraph/ngraph.hpp>
+#include <ngraph_ops/augru_cell.hpp>
+#include <ngraph_ops/augru_sequence.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
 #include <ngraph_ops/nms_ie_internal.hpp>
 #include <ngraph_ops/nms_static_shape_ie.hpp>
@@ -40,6 +45,11 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(LeakyReluNode, ov::intel_cpu)
         NGRAPH_OP(PowerStaticNode, ov::intel_cpu)
         NGRAPH_OP(SwishNode, ov::intel_cpu)
+        NGRAPH_OP(MHANode, ov::intel_cpu)
+        NGRAPH_OP(LoadConvertSaturation, ov::intel_cpu)
+        NGRAPH_OP(LoadConvertTruncation, ov::intel_cpu)
+        NGRAPH_OP(StoreConvertSaturation, ov::intel_cpu)
+        NGRAPH_OP(StoreConvertTruncation, ov::intel_cpu)
 #undef NGRAPH_OP
 
         return opset;
@@ -105,6 +115,8 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
         NGRAPH_OP(NonMaxSuppressionIEInternal, ngraph::op::internal)
         NGRAPH_OP(MulticlassNmsIEInternal, ngraph::op::internal)
+        NGRAPH_OP(AUGRUCell, ov::op::internal)
+        NGRAPH_OP(AUGRUSequence, ov::op::internal)
         NGRAPH_OP(NmsStaticShapeIE<ov::op::v8::MatrixNms>, ngraph::op::internal)
 #undef NGRAPH_OP
 
