@@ -40,24 +40,25 @@ $ ctest -V -L IE
 After sufficient number of tests are executed, the coverage numbers can be calculated. In order to do this, run:
 
 ```bash
-$ make ie_coverage
+$ make ov_coverage
 ```
 
 The following tree of reports are generated:
 
 ```bash
-$ find coverage/ -maxdepth 2 -name index.html
-coverage/hetero_plugin/index.html
-coverage/inference_engine/index.html
-coverage/inference_engine_ir_reader/index.html
-coverage/inference_engine_legacy/index.html
+$ find coverage -maxdepth 2 -name index.html
+coverage/core/index.html
+coverage/transformations/index.html
+coverage/paddle_frontend/index.html
+coverage/tf_frontend/index.html
+coverage/openvino/index.html
+coverage/onnx_frontend/index.html
+coverage/legacy/index.html
+coverage/ir_frontend/index.html
 coverage/low_precision_transformations/index.html
-coverage/mkldnn_plugin/index.html
-coverage/multi_device/index.html
-coverage/preprocessing/index.html
-coverage/inference_engine_transformations/index.html
-coverage/gna_plugin/index.html
-coverage/cldnn_engine/index.html
+coverage/template_plugin/index.html
+coverage/inference/index.html
+coverage/frontend_common/index.html
 ```
 
 ## See also
