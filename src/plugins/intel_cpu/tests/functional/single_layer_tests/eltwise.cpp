@@ -93,6 +93,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
+        isDynamic = std::any_of(shapes.begin(), shapes.end(), [](const InputShape& shape) { return shape.first.is_dynamic(); });
         selectedType = makeSelectedTypeStr(getPrimitiveType(), netType);
 
         shapes.resize(2);
@@ -160,7 +161,8 @@ protected:
         function = makeNgraphFunction(netType, parameters, eltwise, "Eltwise");
     }
 
-private:
+protected:
+    bool isDynamic = false;
     ngraph::helpers::EltwiseTypes eltwiseType;
 };
 
@@ -168,7 +170,7 @@ TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(compiledModel, "Eltwise");
+    CheckPluginRelatedResults(compiledModel, isDynamic ? "Eltwise" : "Subgraph");
 }
 
 namespace {

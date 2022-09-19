@@ -106,6 +106,7 @@ protected:
         activationType = activationTypeAndConstValue.first;
         auto constantsValue = activationTypeAndConstValue.second;
 
+        isDynamic = std::any_of(inputShapes.begin(), inputShapes.end(), [](const InputShape& shape) { return shape.first.is_dynamic(); });
         inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrecision);
         outType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrecision);
         selectedType = getPrimitiveType() + "_" + netPrecision.name();
@@ -119,6 +120,7 @@ protected:
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params, "Activation");
     }
 
+    bool isDynamic = false;
     InferenceEngine::Precision netPrecision;
 };
 
@@ -126,7 +128,7 @@ TEST_P(ActivationLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(compiledModel, "Eltwise");
+    CheckPluginRelatedResults(compiledModel, isDynamic ? "Eltwise" : "Subgraph");
 }
 
 
