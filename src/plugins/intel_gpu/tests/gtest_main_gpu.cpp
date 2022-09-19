@@ -30,29 +30,23 @@
 #include <cstdio>
 #include <string>
 
-#include "../../intel_gpu/include/intel_gpu/runtime/device_query.hpp"
 #include "gtest/gtest.h"
-#include "test_utils/test_utils.h"
 #include "gflags/gflags.h"
+#include "test_utils/test_utils.h"
+#include "../../intel_gpu/include/intel_gpu/runtime/device_query.hpp"
 
 DEFINE_int32(device_id, -1, "GPU Device ID (a number starts from 0)");
 
 GTEST_API_ int main(int argc, char** argv) {
     printf("Running main() from %s\n", __FILE__);
 
-    //gflags
+    // gflags
     GFLAGS_NAMESPACE::AllowCommandLineReparsing();
-    gflags::ParseCommandLineFlags(&argc, &argv, true);
-    if (FLAGS_device_id != -1 && cldnn::device_query::device_id == -1)
-        cldnn::device_query::device_id = FLAGS_device_id;
-    //restore cmdline arg for gtest
-    auto varg=gflags::GetArgvs();
-    int new_argc=varg.size();
-    char** new_argv=new char*[new_argc];
-    for(int i=0;i<new_argc;i++)
-        new_argv[i]=&varg[i][0];
+    gflags::ParseCommandLineFlags(&argc, &argv, false);
+    if (FLAGS_device_id != -1)
+        cldnn::device_query::device_id=FLAGS_device_id;
 
     //gtest
-    testing::InitGoogleTest(&new_argc, new_argv);
+    testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

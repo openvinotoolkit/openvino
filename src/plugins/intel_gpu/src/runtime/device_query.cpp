@@ -7,9 +7,10 @@
 
 #include <map>
 #include <string>
+#include <atomic>
 
 namespace cldnn {
-int device_query::device_id = -1;
+std::atomic<int> device_query::device_id;
 device_query::device_query(engine_types engine_type,
                            runtime_types runtime_type,
                            void* user_context,

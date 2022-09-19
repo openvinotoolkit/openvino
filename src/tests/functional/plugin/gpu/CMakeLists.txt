@@ -4,6 +4,9 @@
 
 set(TARGET_NAME gpuFuncTests)
 
+file(GLOB_RECURSE SOURCES_MAIN
+    "${CMAKE_CURRENT_SOURCE_DIR}/gpu_functest_main.cpp"
+)
 addIeTargetTest(
         NAME
             ${TARGET_NAME}
@@ -16,6 +19,8 @@ addIeTargetTest(
         LINK_LIBRARIES
             funcSharedTests
             OpenCL
+            gflags
+            openvino_intel_gpu_graph
         ADD_CPPLINT
         LABELS
             GPU
