@@ -59,7 +59,7 @@ edge attributes if needed. Meanwhile, most manipulations with nodes connections 
 is strongly not recommended.
 
 Further details and examples related to a model representation in memory are provided in the sections below, in a context
-for a better explanation. Also, for more information on how to use ports and connections, refer to the [Graph Traversal and Modification Using Ports and Connections](#ports-conneсtions) section.
+for a better explanation. Also, for more information on how to use ports and connections, refer to the Graph Traversal and Modification Using [Ports and Connections](#ports-conneсtions) section.
 
 ## Model Conversion Pipeline <a name="model-conversion-pipeline"></a>
 A model conversion pipeline can be represented with the following diagram:
@@ -230,7 +230,7 @@ available in the `mo/ops/reshape.py` file):
 ```
 
 Methods `in_port()` and `output_port()` of the `Node` class are used to get and set data node attributes. For more information on
-how to use them, refer to the [Graph Traversal and Modification Using Ports and Connections](#ports-conneсtions) section.
+how to use them, refer to the Graph Traversal and Modification Using [Ports and Connections](#ports-conneсtions) section.
 
 > **NOTE**: A shape inference function should perform output shape calculation in the original model layout. For
 > example, OpenVINO&trade; supports Convolution operations in NCHW layout only but TensorFlow supports NHWC layout as
@@ -245,7 +245,7 @@ how to use them, refer to the [Graph Traversal and Modification Using Ports and 
 The middle phase starts after partial inference. At this phase, a graph contains data nodes and output shapes of all
 operations in the graph have been calculated. Any transformation implemented at this stage must update the `shape`
 attribute for all newly added operations. It is highly recommended to use API described in the
-[Graph Traversal and Modification Using Ports and Connections](#ports-conneсtions) because modification of
+Graph Traversal and Modification Using [Ports and Connections](#ports-conneсtions) because modification of
 a graph using this API causes automatic re-inference of affected nodes as well as necessary data nodes creation.
 
 More information on how to develop middle transformations and dedicated API description is provided in the
