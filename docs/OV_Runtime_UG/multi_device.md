@@ -1,4 +1,4 @@
-# Running on Multiple Devices Simultaneously {#openvino_docs_OV_UG_Running_on_multiple_devices}
+# Multi-device execution {#openvino_docs_OV_UG_Running_on_multiple_devices}
 
 @sphinxdirective
 
