@@ -87,7 +87,7 @@ TEST_P(ShapeOfLayerCPUTest, CompareWithRefs) {
 namespace {
 
 /* CPU PARAMS */
-std::vector<CPUSpecificParams> filterCPUInfoForDevice(const size_t dimsCount = 3) {
+std::vector<CPUSpecificParams> filterFormatsInfoForDevice(const size_t dimsCount = 3) {
     std::vector<CPUSpecificParams> resCPUParams;
     if (dimsCount == 5) {
         resCPUParams.push_back(CPUSpecificParams{{nCdhw16c}, {x}, {}, {}});
@@ -176,19 +176,19 @@ const auto params5dDynamic = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inShapesDynamic5d),
                 ::testing::ValuesIn(netPrecisions)),
-        ::testing::ValuesIn(filterCPUInfoForDevice(5)));
+        ::testing::ValuesIn(filterFormatsInfoForDevice(5)));
 
 const auto params4dDynamic = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inShapesDynamic4d),
                 ::testing::ValuesIn(netPrecisions)),
-        ::testing::ValuesIn(filterCPUInfoForDevice(4)));
+        ::testing::ValuesIn(filterFormatsInfoForDevice(4)));
 
 const auto params3dDynamic = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inShapesDynamic3d),
                 ::testing::ValuesIn(netPrecisions)),
-        ::testing::ValuesIn(filterCPUInfoForDevice(3)));
+        ::testing::ValuesIn(filterFormatsInfoForDevice(3)));
 
 // We don't check static case, because of constant folding
 INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf3dDynamicLayoutTest, ShapeOfLayerCPUTest,
