@@ -43,6 +43,8 @@ elseif(MSVC AND ARM)
     set(ARCH_FOLDER arm)
 elseif(MSVC AND AARCH64)
     set(ARCH_FOLDER arm64)
+elseif(UNIVERSAL2)
+    set(ARCH_FOLDER universal2)
 endif()
 
 #

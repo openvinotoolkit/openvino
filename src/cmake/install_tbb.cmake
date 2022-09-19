@@ -112,7 +112,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             # grab all tbb files matching pattern
             file(GLOB tbb_files "${dir}/${name_we}.*")
             foreach(tbb_file IN LISTS tbb_files)
-                if(tbb_file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)+$")
+                if(tbb_file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)*$")
                     # since the setup.py for pip installs tbb component
                     # explicitly, it's OK to put EXCLUDE_FROM_ALL to such component
                     # to ignore from IRC / apt / yum distribution;
