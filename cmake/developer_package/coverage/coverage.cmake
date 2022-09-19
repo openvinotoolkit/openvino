@@ -55,10 +55,10 @@ endfunction()
 # ov_coverage_capture(INFO_FILE <info_file>
 #                     BASE_DIRECTORY <base dir>
 #                     DIRECTORY <gcda dir>
-#                     PATTERNS exclude_patterns,...)
+#                     EXCLUDE_PATTERNS exclude_patterns,...)
 #
 function(ov_coverage_capture)
-    cmake_parse_arguments(OV_COVERAGE "" "INFO_FILE;BASE_DIRECTORY;DIRECTORY" "PATTERNS" ${ARGN})
+    cmake_parse_arguments(OV_COVERAGE "" "INFO_FILE;BASE_DIRECTORY;DIRECTORY" "EXCLUDE_PATTERNS" ${ARGN})
 
     set(output_file "${OV_COVERAGE_REPORTS}/${OV_COVERAGE_INFO_FILE}.info")
     set(output_base_file "${OV_COVERAGE_REPORTS}/${OV_COVERAGE_INFO_FILE}_base.info")
@@ -82,7 +82,7 @@ function(ov_coverage_capture)
                        COMMENT "Capture test coverage data ${OV_COVERAGE_INFO_FILE}"
                        VERBATIM)
 
-    if (OV_COVERAGE_PATTERNS)
+    if (OV_COVERAGE_EXCLUDE_PATTERNS)
         set(out_suf ".tmp")
     endif()
 
@@ -95,9 +95,9 @@ function(ov_coverage_capture)
                        DEPENDS ${output_base_file} ${output_tests_file}
                        VERBATIM)
 
-    if (OV_COVERAGE_PATTERNS)
+    if (OV_COVERAGE_EXCLUDE_PATTERNS)
         set(commands lcov --quiet)
-        foreach(pattern IN LISTS OV_COVERAGE_PATTERNS)
+        foreach(pattern IN LISTS OV_COVERAGE_EXCLUDE_PATTERNS)
             list(APPEND commands --remove ${output_file}${out_suf} ${pattern})
         endforeach()
         list(APPEND commands --output-file ${output_file})
