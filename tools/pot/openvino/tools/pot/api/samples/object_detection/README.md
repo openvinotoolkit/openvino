@@ -14,6 +14,7 @@ To run this example, you will need to download the validation part of the [COCO]
 1. Launch [Model Downloader](@ref omz_tools_downloader) tool to download `ssd_mobilenet_v1_fpn_coco` model from the Open Model Zoo repository.
    ```sh
    omz_downloader --name ssd_mobilenet_v1_fpn_coco
+   ```
 2. Launch [Model Converter](@ref omz_tools_downloader) tool to generate Intermediate Representation (IR) files for the model:
    ```sh
    omz_converter --name ssd_mobilenet_v1_fpn_coco --mo <PATH_TO_MODEL_OPTIMIZER>/mo.py
