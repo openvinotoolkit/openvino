@@ -88,12 +88,12 @@ def allclose(cur_array, ref_array, atol, rtol):
     return ((abs_diff < atol) | (abs_diff < rtol * max_val)).all()
 
 
-def rename_files_by_pattern(directory: Path, pattern_to_find: str, pattern_to_rename: str):
+def copy_files_by_pattern(directory: Path, pattern_to_find: str, pattern_to_copy: str):
     for file in directory.glob("{}*".format(pattern_to_find)):
         file_extension = ''.join(file.suffixes)
-        renamed_file = file.parent / (pattern_to_rename + file_extension)
-        if not renamed_file.exists() and file.exists():
-            logging.info('Renaming library from {} to {}'.format(file, renamed_file))
-            shutil.copy(str(file), str(renamed_file))
+        copied_file = file.parent / (pattern_to_copy + file_extension)
+        if not copied_file.exists() and file.exists():
+            logging.info('Copying file from {} to {}'.format(file, copied_file))
+            shutil.copy(str(file), str(copied_file))
         else:
-            logging.info('File {} already exist or file {} does not exist'.format(renamed_file, file))
+            logging.info('File {} already exist or file {} does not exist'.format(copied_file, file))

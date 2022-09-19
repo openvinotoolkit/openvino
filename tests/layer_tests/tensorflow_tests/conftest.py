@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 from common.layer_test_class import get_params
-from common.utils.common_utils import rename_files_by_pattern
+from common.utils.common_utils import copy_files_by_pattern
 
 
 def pytest_generate_tests(metafunc):
@@ -19,7 +19,6 @@ def pytest_generate_tests(metafunc):
 
 @pytest.fixture(scope='session', autouse=True)
 def rename_tf_fe_libs(request):
-    # code before 'yield' statement is equal to 'set_up' function
     if os.getenv('OV_FRONTEND_PATH'):
         # use this env variable to define path to your specific libs
         openvino_lib_path = Path(os.getenv('OV_FRONTEND_PATH'))
@@ -34,16 +33,6 @@ def rename_tf_fe_libs(request):
 
     tf_fe_lib_names = ['libopenvino_tensorflow_fe', 'libopenvino_tensorflow_frontend']
 
-    # in case of usual test run we should check names of libs and rename back them if applicable
-    if not request.config.getoption('use_new_frontend'):
-        rename_files_by_pattern(openvino_lib_path, tf_fe_lib_names[1], tf_fe_lib_names[0])
-
-    # in case of new frontend usage we should rename libs
-    else:
+    if request.config.getoption('use_new_frontend'):
         log.info('Using new frontend...')
-        rename_files_by_pattern(openvino_lib_path, tf_fe_lib_names[0], tf_fe_lib_names[1])
-
-    yield
-
-    # we should rename back names of libs in case of previous renaming
-    rename_files_by_pattern(openvino_lib_path, tf_fe_lib_names[1], tf_fe_lib_names[0])
+        copy_files_by_pattern(openvino_lib_path, tf_fe_lib_names[0], tf_fe_lib_names[1])
