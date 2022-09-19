@@ -22,14 +22,6 @@ public:
     }
 };
 
-TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipAfterInputsEltwise) {
-    const auto &f = EltwiseFunction({{2, 3}, {1, 3}});
-    function = f.getOriginal();
-    // None subgraphs are expected, since the whole graph is an eltwise chain after input
-    function_ref = f.getOriginal();
-    run();
-}
-
 TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipAfterInputsMatMulEltwise) {
     const auto &f = MatMulEltwiseBranchesFunction(std::vector<Shape> {{1, 3, 4, 4}, {1, 3, 4, 4}});
     function = f.getOriginal();
