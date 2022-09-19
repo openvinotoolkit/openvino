@@ -2,21 +2,21 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(NOT DEFINED IE_COVERAGE_REPORTS)
-    message(FATAL_ERROR "IE_COVERAGE_REPORTS variable is not defined")
+if(NOT DEFINED OV_COVERAGE_REPORTS)
+    message(FATAL_ERROR "OV_COVERAGE_REPORTS variable is not defined")
     return()
 endif()
 
-file(REMOVE_RECURSE "${IE_COVERAGE_REPORTS}")
+file(REMOVE_RECURSE "${OV_COVERAGE_REPORTS}")
 
-if(NOT DEFINED IE_COVERAGE_DIRECTORY)
-    message(FATAL_ERROR "IE_COVERAGE_DIRECTORY variable is not defined")
+if(NOT DEFINED OV_COVERAGE_DIRECTORY)
+    message(FATAL_ERROR "OV_COVERAGE_DIRECTORY variable is not defined")
     return()
 endif()
 
 # remove .gcno files which are kept from the previous build
 
-file(GLOB_RECURSE gcno_files "${IE_COVERAGE_DIRECTORY}/*.gcno")
+file(GLOB_RECURSE gcno_files "${OV_COVERAGE_DIRECTORY}/*.gcno")
 foreach(file IN LISTS gcno_files)
     string(REPLACE ".gcno" "" temp_file "${file}")
     string(REGEX REPLACE "CMakeFiles/.+dir/" "" temp_file "${temp_file}")
