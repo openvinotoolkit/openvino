@@ -814,8 +814,8 @@ int main(int argc, char* argv[]) {
         auto create_requests_start_time = Time::now();
         InferRequestsQueue inferRequestsQueue(compiledModel, nireq, app_inputs_info.size(), FLAGS_pcseq);
         auto create_requests_duration_ms = get_duration_ms_till_now(create_requests_start_time);
-        slog::info << "Creating " << nireq << " infer requests took " << double_to_string(create_requests_duration_ms) << " ms"
-                   << slog::endl;
+        slog::info << "Creating " << nireq << " infer requests took " << double_to_string(create_requests_duration_ms)
+                   << " ms" << slog::endl;
 
         if (statistics) {
             statistics->add_parameters(
