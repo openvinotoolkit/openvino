@@ -179,12 +179,6 @@ ov_status_e ov_core_compile_model_from_file(const ov_core_t* core,
     return ov_status_e::OK;
 }
 
-const std::map<ov_performance_mode_e, ov::hint::PerformanceMode> performance_mode_map = {
-    {ov_performance_mode_e::UNDEFINED_MODE, ov::hint::PerformanceMode::UNDEFINED},
-    {ov_performance_mode_e::THROUGHPUT, ov::hint::PerformanceMode::THROUGHPUT},
-    {ov_performance_mode_e::LATENCY, ov::hint::PerformanceMode::LATENCY},
-    {ov_performance_mode_e::CUMULATIVE_THROUGHPUT, ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT}};
-
 ov_status_e ov_core_set_property(const ov_core_t* core, const char* device_name, ...) {
     if (!core) {
         return ov_status_e::INVALID_C_PARAM;

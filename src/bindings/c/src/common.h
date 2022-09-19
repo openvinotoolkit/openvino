@@ -38,16 +38,10 @@
         return ov_status_e::UNKNOW_EXCEPTION;                 \
     }
 
-#define GET_PROPERTY_FROM_ARGS_LIST                                \
-    std::string property_key = va_arg(args_ptr, char*);            \
-    ov::Any value = {};                                            \
-    if (check_enum_property(property_key)) {                       \
-        int enum_value = va_arg(args_ptr, int);                    \
-        value = get_property_enum_value(property_key, enum_value); \
-    } else {                                                       \
-        std::string _value = va_arg(args_ptr, char*);              \
-        value = _value;                                            \
-    }                                                              \
+#define GET_PROPERTY_FROM_ARGS_LIST                     \
+    std::string property_key = va_arg(args_ptr, char*); \
+    std::string _value = va_arg(args_ptr, char*);       \
+    ov::Any value = _value;                             \
     property[property_key] = value;
 
 /**
@@ -217,6 +211,3 @@ struct mem_istream : virtual mem_stringbuf, std::istream {
 char* str_to_char_array(const std::string& str);
 ov_element_type_e find_ov_element_type_e(ov::element::Type type);
 ov::element::Type get_element_type(ov_element_type_e type);
-
-ov::Any get_property_enum_value(std::string key, int value);
-bool check_enum_property(std::string key);

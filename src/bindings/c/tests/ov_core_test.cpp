@@ -147,16 +147,81 @@ TEST_P(ov_core, ov_core_compile_model_from_file) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_property) {
+TEST_P(ov_core, ov_core_set_property_enum) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    const char* key = ov_property_key_log_level;
+    const char* mode = "WARNING";
+
+    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, mode));
+    ov_core_free(core);
+}
+
+TEST_P(ov_core, ov_core_set_property_enum_invalid) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     const char* key = ov_property_key_hint_performance_mode;
-    ov_performance_mode_e mode = ov_performance_mode_e::THROUGHPUT;
-
+    const char* mode = "LATENCY";
     OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, mode));
+    char* ret = nullptr;
+    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
+    EXPECT_STREQ(mode, ret);
+    ov_free(ret);
+
+    const char* invalid_mode = "LATENCY_TEST";
+    OV_EXPECT_NOT_OK(ov_core_set_property(core, device_name.c_str(), key, invalid_mode));
+    ret = nullptr;
+    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
+    EXPECT_STRNE(invalid_mode, ret);
+    ov_free(ret);
+    ov_core_free(core);
+}
+
+TEST_P(ov_core, ov_core_set_and_get_property_enum) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    const char* key = ov_property_key_affinity;
+    const char* affinity = "HYBRID_AWARE";
+    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, affinity));
+    char* ret = nullptr;
+    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
+    EXPECT_STREQ(affinity, ret);
+    ov_free(ret);
+
+    key = ov_property_key_hint_inference_precision;
+    const char* precision = "f32";
+    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, precision));
+    ret = nullptr;
+    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
+    EXPECT_STREQ(precision, ret);
+    ov_free(ret);
+
+    ov_core_free(core);
+}
+
+TEST_P(ov_core, ov_core_set_and_get_property_bool) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    const char* key = ov_property_key_enable_profiling;
+    const char* enable = "YES";
+    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, enable));
+
+    char* ret = nullptr;
+    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
+    EXPECT_STREQ(enable, ret);
+    ov_free(ret);
     ov_core_free(core);
 }
 
@@ -218,12 +283,12 @@ TEST_P(ov_core, ov_core_set_multiple_common_properties) {
 
     // Test enum
     const char* key_1 = ov_property_key_hint_performance_mode;
-    ov_performance_mode_e mode = ov_performance_mode_e::THROUGHPUT;
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key_1, mode));
+    const char* value_1 = "THROUGHPUT";
+    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key_1, value_1));
 
     char* property_value_1 = nullptr;
     OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key_1, &property_value_1));
-    EXPECT_STREQ(property_value_1, "THROUGHPUT");
+    EXPECT_STREQ(property_value_1, value_1);
     ov_free(property_value_1);
 
     // Test string
