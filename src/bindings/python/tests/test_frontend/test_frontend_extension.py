@@ -41,7 +41,7 @@ def skip_if_frontend_is_disabled(frontend):
 def skip_if_tensorflow_not_install_by_wheel_pkg():
     import_failed = False
     try:
-        from openvino.frontend.tensorflow import ConversionExtension1
+        from openvino.frontend.tensorflow import ConversionExtension
     except ImportError:
         import_failed = True
 
