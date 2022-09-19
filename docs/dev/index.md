@@ -58,7 +58,7 @@ flowchart LR
 
  * [Build OpenVINO](./build.md)
  * How to:
-     * [Add new operation](#todo)
+     * [Add new operation](../../src/core/docs/operation_enabling_flow.md)
      * [Add new transformation](#todo)
      * [Get code coverage report](./test_coverage.md) 
  * [OpenVINO contribution guideline](../../CONTRIBUTING.md)
