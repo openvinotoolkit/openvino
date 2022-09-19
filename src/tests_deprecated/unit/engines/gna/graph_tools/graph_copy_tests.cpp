@@ -21,12 +21,38 @@ using namespace testing;
 using namespace InferenceEngine;
 using namespace std;
 using namespace GraphTest;
-
+using namespace ov::intel_gna::frontend;
 
 class GraphCopyTests : public GraphTestsBase {
 
 protected:
     MockCopier mc;
+
+#ifdef ENABLE_INTEL_GNA
+    InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork& model,
+                                         std::vector<float> scale_factors) const {
+        GNAPluginNS::GnaInputs inputs;
+        InferenceEngine::InputsDataMap inputs_map = model.getInputsInfo();
+        size_t sf_id = 0;
+        for (auto&& input_data : inputs_map) {
+            auto input_layer = getCreatorLayer(input_data.second->getInputData()).lock();
+            if (scale_factors.size() <= sf_id) {
+                THROW_GNA_EXCEPTION << "Scale factors are not set for some of the inputs";
+            }
+            inputs[input_layer->name].scale_factor = scale_factors[sf_id++];
+        }
+
+        GNAPluginNS::Config gna_config;
+        gna_config.gnaPrecision = InferenceEngine::Precision::I16;
+        gna_config.gnaFlags.input_low_precision = false;
+
+        return ModelQuantizer(gna_config, false)
+            .quantize(
+            model,
+            [](InferenceEngine::CNNNetwork&, bool run_before_copy, bool inputs_int8_precision) {},
+            inputs);
+    }
+#endif
 
     void SetUp() override {
         GraphTestsBase::_batchSize = 12;
@@ -99,7 +125,7 @@ TEST_F(GraphCopyTests, canPreserveAttributes) {
 using namespace GNAPluginNS;
 
 TEST_F(GraphCopyTests, canQuantizeTopology) {
-    auto clone = ModelQuantizer().quantize(CNNNetwork(mockNet), std::vector<float >({1.0f, 1.0f}));
+    auto clone = quantize(CNNNetwork(mockNet), std::vector<float >({1.0f, 1.0f}));
 
     CNNNetBFS(CommonTestUtils::getLayerByName(clone, "1"), [&](CNNLayerPtr layer) {
         auto params = getInjectedData<QuantizedLayerParams>(layer);
