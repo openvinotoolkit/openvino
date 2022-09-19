@@ -23,10 +23,10 @@ function(set_ci_build_number)
     endforeach()
 endfunction()
 
-set_ci_build_number()
-
 include(features)
 include(message)
+
+set_ci_build_number()
 
 #
 # Detect target
@@ -34,7 +34,7 @@ include(message)
 
 include(target_flags)
 
-string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH_FOLDER)
+string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" ARCH_FOLDER)
 if(X86_64)
     set(ARCH_FOLDER intel64)
 elseif(X86)
@@ -43,6 +43,8 @@ elseif(MSVC AND ARM)
     set(ARCH_FOLDER arm)
 elseif(MSVC AND AARCH64)
     set(ARCH_FOLDER arm64)
+elseif(UNIVERSAL2)
+    set(ARCH_FOLDER universal2)
 endif()
 
 #
@@ -169,7 +171,7 @@ ov_set_if_not_defined(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FO
 ov_set_if_not_defined(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT AND CPACK_GENERATOR STREQUAL "DEB")
+if(CPACK_GENERATOR STREQUAL "DEB")
     # to make sure that lib/<multiarch-tuple> is created on Debian
     set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Cmake install prefix" FORCE)
 endif()

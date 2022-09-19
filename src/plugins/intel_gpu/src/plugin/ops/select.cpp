@@ -42,7 +42,7 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
 
             if (targetFormat.value != cldnn::format::get_default_format(input_rank).value) {
                 auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
-                auto targetDatatype = DataTypeFromPrecision(op->get_input_element_type(i));
+                auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(i));
                 auto reorderPrim = cldnn::reorder(reorderName,
                                                   inputPrimitives[i],
                                                   targetFormat,

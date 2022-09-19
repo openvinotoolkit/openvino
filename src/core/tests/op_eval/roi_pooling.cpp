@@ -5,14 +5,11 @@
 #include "engines_util/test_case.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/test_control.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-static string s_manifest = "${MANIFEST}";
-
-NGRAPH_TEST(op_eval, roi_pooling_invalid_roi_batch_id) {
+TEST(op_eval, roi_pooling_invalid_roi_batch_id) {
     const int H = 6;
     const int W = 6;
     const int image_size = H * W;

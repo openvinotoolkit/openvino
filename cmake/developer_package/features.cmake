@@ -33,7 +33,7 @@ ie_option (ENABLE_UB_SANITIZER "enable UndefinedBahavior sanitizer" OFF)
 
 ie_option (ENABLE_THREAD_SANITIZER "enable checking data races via ThreadSanitizer" OFF)
 
-ie_dependent_option (ENABLE_COVERAGE "enable code coverage" OFF "CMAKE_CXX_COMPILER_ID STREQUAL GNU" OFF)
+ie_dependent_option (ENABLE_COVERAGE "enable code coverage" OFF "CMAKE_CXX_COMPILER_ID STREQUAL GNU OR APPLE" OFF)
 
 # Defines CPU capabilities
 
@@ -46,6 +46,10 @@ ie_dependent_option (ENABLE_AVX512F "Enable AVX512 optimizations" ON "X86_64 OR 
 # Type of build, we add this as an explicit option to default it to ON
 # FIXME: Ah this moment setting this to OFF will only build ngraph a static library
 ie_option (BUILD_SHARED_LIBS "Build as a shared library" ON)
+
+# Android does not support SOVERSION
+# see https://www.opengis.ch/2011/11/23/creating-non-versioned-shared-libraries-for-android/
+ie_dependent_option (ENABLE_LIBRARY_VERSIONING "Enable libraries versioning" ON "NOT WIN32;NOT ANDROID" OFF)
 
 ie_dependent_option (ENABLE_FASTER_BUILD "Enable build features (PCH, UNITY) to speed up build time" OFF "CMAKE_VERSION VERSION_GREATER_EQUAL 3.16" OFF)
 
