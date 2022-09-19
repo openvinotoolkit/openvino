@@ -64,8 +64,8 @@ OpenVINO provides bindings for several languages:
 
  * [OpenVINO architecture](./docs/architecture.md)
  * [Plugin Development](https://docs.openvino.ai/latest/openvino_docs_ie_plugin_dg_overview.html)
- * [Thread safety]()
- * [Performance]()
+ * [Thread safety](#todo)
+ * [Performance](#todo)
 
 ## See also
  * [OpenVINO™ README](../../README.md)
