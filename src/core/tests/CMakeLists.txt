@@ -13,11 +13,11 @@ endif()
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
 
 if(NOT ENABLE_OV_CORE_UNIT_TESTS)
-    message(STATUS "nGraph unit tests disabled")
+    message(STATUS "OpenVINO Core unit tests disabled")
     return()
 endif()
 
-message(STATUS "nGraph unit tests enabled")
+message(STATUS "OpenVINO Core unit tests enabled")
 
 if(LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
