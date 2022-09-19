@@ -59,8 +59,7 @@ edge attributes if needed. Meanwhile, most manipulations with nodes connections 
 is strongly not recommended.
 
 Further details and examples related to a model representation in memory are provided in the sections below, in a context
-for a better explanation. Also, for more information on how to use ports and connections, refer to the [Graph Traversal and Modification Using `Port`s and
-`Connection`s](#graph-ports-and-conneсtions) section.
+for a better explanation. Also, for more information on how to use ports and connections, refer to the [Graph Traversal and Modification Using Port's and Connection's](#graph-ports-and-conneсtions) section.
 
 ## Model Conversion Pipeline <a name="model-conversion-pipeline"></a>
 A model conversion pipeline can be represented with the following diagram:
@@ -138,7 +137,7 @@ During the front phase, Model Optimizer knows shape of the model inputs and cons
 transformation. For example, the transformation `extensions/front/TopKNormalize.py` removes an attribute `k`  from a
 `TopK` node and adds an input constant with the value `k`. The transformation is needed to convert a `TopK` operation.
 It comes from frameworks, where a number of output elements is defined as an attribute of the operation to the
-OpenVINO&trade; [TopK](../../../ops/sort/TopK_3.md) operation semantic, which requires this value to be a separate input.
+OpenVINO [TopK](../../../ops/sort/TopK_3.md) operation semantic, which requires this value to be a separate input.
 
 It is important to mention that sometimes it seems like transformation cannot be implemented during the front phase
 because the actual values of inputs or shapes are needed. In fact, manipulations of shapes or values can be implemented
@@ -410,8 +409,7 @@ op3.out_port(0).connect(op4.in_port(1))
 
 ![Ports example 2](../../../img/MO_ports_example_2.png)
 
-> **NOTE**: For a full list of available methods, refer to the `Node` class implementation in the `mo/graph/graph.py` and `Port` class implementation in the
-`mo/graph/port.py` files.
+> **NOTE**: For a full list of available methods, refer to the `Node` class implementation in the `mo/graph/graph.py` and `Port` class implementation in the `mo/graph/port.py` files.
 
 ### Connections <a name="intro-conneсtions"></a>
 Connection is a concept introduced to easily and reliably perform graph modifications. Connection corresponds to a
