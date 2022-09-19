@@ -15,8 +15,9 @@ namespace op {
 
 #define OP_CONVERTER(op) OutputVector op(NodeContext& node)
 
-OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_if);
+OP_CONVERTER(translate_loop);
+OP_CONVERTER(translate_slice);
 
 OutputVector relu(NodeContext& context) {
     return {context.mark_node(std::make_shared<opset8::Relu>(context.get_input(0)))};
@@ -568,44 +569,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
              return {context.mark_node(std::make_shared<opset8::Subtract>(context.get_input(1), alpha_mul))};
          }},
 
-        {"aten::slice",
-         [](NodeContext& context) -> OutputVector {
-             // aten::slice.t(t[] l, int? start=None, int? end=None, int step=1) -> (t[])
-             // aten::slice.Tensor(Tensor(a) self, int dim=0, int? start=None, int? end=None, int step=1) -> (Tensor(a))
-             ov::Output<ov::Node> dim;
-             ov::Output<ov::Node> start;
-             ov::Output<ov::Node> end;
-             ov::Output<ov::Node> step;
-             auto axis_0 = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {0}));
-             if (context.get_input_size() == 5) {
-                 dim = context.get_input(1);
-                 start = context.get_input(2);
-                 end = context.get_input(3);
-                 step = context.get_input(4);
-                 if (dim.get_partial_shape().rank().is_dynamic() || dim.get_partial_shape().rank().get_length() == 0) {
-                     dim = context.mark_node(std::make_shared<opset8::Unsqueeze>(dim, axis_0));
-                 }
-             } else if (context.get_input_size() == 4) {
-                 start = context.get_input(1);
-                 end = context.get_input(2);
-                 step = context.get_input(3);
-                 dim = context.mark_node(opset8::Constant::create(element::i64, Shape{1}, {0}));
-             } else {
-                 FRONT_END_OP_CONVERSION_CHECK(false, "Slice must have either 4 or 5 inputs.");
-             }
-
-             if (start.get_partial_shape().rank().is_dynamic() || start.get_partial_shape().rank().get_length() == 0) {
-                 start = context.mark_node(std::make_shared<opset8::Unsqueeze>(start, axis_0));
-             }
-             if (end.get_partial_shape().rank().is_dynamic() || end.get_partial_shape().rank().get_length() == 0) {
-                 end = context.mark_node(std::make_shared<opset8::Unsqueeze>(end, axis_0));
-             }
-             if (step.get_partial_shape().rank().is_dynamic() || step.get_partial_shape().rank().get_length() == 0) {
-                 step = context.mark_node(std::make_shared<opset8::Unsqueeze>(step, axis_0));
-             }
-             return {context.mark_node(std::make_shared<opset8::Slice>(context.get_input(0), start, end, step, dim))};
-         }},
-
+        {"aten::slice", op::translate_slice},
         {"prim::Loop", op::translate_loop},
         {"prim::If", op::translate_if},
 
