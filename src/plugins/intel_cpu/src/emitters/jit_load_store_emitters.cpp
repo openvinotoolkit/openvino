@@ -767,8 +767,7 @@ void jit_store_emitter::store_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int
         // tail 7 bytes for lower or upper xmm
         auto store_one_byte = [&](int bytes_offset, int gpr_idx) {
             bool ext8bit = false;
-            if (gpr_idx == Operand::RSP || gpr_idx == Operand::RBP ||
-                gpr_idx == Operand::RSI || gpr_idx == Operand::RDI)
+            if (one_of(gpr_idx, Operand::RSP, Operand::RBP, Operand::RSI, Operand::RDI))
                 ext8bit = true;
             h->mov(addr(start_bytes + bytes_offset), Reg8(gpr_idx, ext8bit));
         };
@@ -1043,7 +1042,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Vmm &vmm, const Xbya
                 } else {
                     Vmm zero(aux_vec_idxs[0]);
                     h->uni_vpxor(zero, zero, zero);
-                    h->uni_vpmaxsd(vmm, zero, vmm);        // if singed bit is 1, set value as 0.
+                    h->uni_vpmaxsd(vmm, vmm, zero);        // if singed bit is 1, set value as 0.
                     h->vpmovusdw(ymm, vmm); // unsinged int32 saturate to unsigned int16.
                 }
             } else {
@@ -1112,7 +1111,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Vmm &vmm, const Xbya
                 } else {
                     Vmm zero(aux_vec_idxs[0]);
                     h->uni_vpxor(zero, zero, zero);
-                    h->uni_vpmaxsd(vmm, zero, vmm);        // if singed bit is 1, set value as 0.
+                    h->uni_vpmaxsd(vmm, vmm, zero);        // if singed bit is 1, set value as 0.
                     h->vpmovusdw(ptr[reg + offset], vmm); // unsinged int32 saturate to unsigned int16.
                 }
             } else {
@@ -1127,7 +1126,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Vmm &vmm, const Xbya
                     } else {
                         Vmm zero(aux_vec_idxs[0]);
                         h->uni_vpxor(zero, zero, zero);
-                        h->uni_vpmaxsd(ymm, zero, ymm);
+                        h->uni_vpmaxsd(ymm, ymm, zero);
                         h->vpmovusdw(ptr[reg + offset], ymm);
                     }
                 } else {
@@ -1145,7 +1144,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Vmm &vmm, const Xbya
                     } else {
                         Vmm zero(aux_vec_idxs[0]);
                         h->uni_vpxor(zero, zero, zero);
-                        h->uni_vpmaxsd(xmm, zero, xmm);
+                        h->uni_vpmaxsd(xmm, xmm, zero);
                         h->vpmovusdw(ptr[reg + offset], xmm);
                     }
                 } else {
@@ -1167,7 +1166,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Vmm &vmm, const Xbya
                     } else {
                         Vmm zero(aux_vec_idxs[0]);
                         h->uni_vpxor(zero, zero, zero);
-                        h->uni_vpmaxsd(vmm, zero, vmm);
+                        h->uni_vpmaxsd(vmm, vmm, zero);
                         h->vpmovusdw(ptr[reg + offset], vmm | k_mask);
                     }
                 } else {
