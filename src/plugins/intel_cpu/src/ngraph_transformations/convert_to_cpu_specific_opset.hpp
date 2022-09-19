@@ -19,6 +19,7 @@
 #include "transformations/utils/utils.hpp"
 #include "rnn_sequences_optimization.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
+#include "convert_logsoftmax.hpp"
 
 #include "itt.hpp"
 
@@ -36,6 +37,8 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.register_pass<ConvertToLeakyRelu>();
     manager.register_pass<ConvertToSwishCPU>();
     manager.register_pass<OptimizeSequenceTransposes>();
+    if (getenv("YI_LOG"))
+        manager.register_pass<ConvertLogSoftmax>();
     if (!ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc)) {
         manager.register_pass<ReshapeFullyConnectedFusion>();
     }
@@ -43,6 +46,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.register_pass<ngraph::pass::ReshapeSequenceFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }});
+
 
     manager.run_passes(nGraphFunc);
 }
