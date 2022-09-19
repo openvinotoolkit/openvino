@@ -17,6 +17,7 @@
 #include <ngraph/opsets/opset9.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <legacy/ngraph_ops/power.hpp>
+#include "../common/numerical_utils.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -46,10 +47,6 @@ struct Pwl {
     double alpha;
     double beta;
 }; // struct Pwl
-
-inline bool are_floats_equal(float p1, float p2) {
-    return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
-}
 
 template<typename T>
 struct Function;
@@ -235,7 +232,7 @@ struct Function<ngraph::opset8::Power> {
     }
 
     static double lower_bound(double exponent) {
-        return are_floats_equal(fmod(exponent, 1.0), 0.0f) ? -16 : 0;
+        return common::fp32eq(fmod(exponent, 1.0), 0.0f) ? -16 : 0;
     }
 
     static double upper_bound() {
