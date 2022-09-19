@@ -57,10 +57,11 @@ flowchart LR
 ## [Get started](./get_started.md)
 
  * [Build OpenVINO](./build.md)
- * [API reference](https://docs.openvino.ai/latest/api/api_reference.html)
- * [Samples](../../samples/)
- * [Tutorials](../../README.md#tutorials)
+ * How to:
+     * [Add new operation](#todo)
+     * [Add new transformation](#todo)
  * [OpenVINO contribution guideline](../../CONTRIBUTING.md)
+ * [OpenVINO Debug Capabilities](./debug_capabilities.md)
 
 ## OpenVINO repository structure
 
