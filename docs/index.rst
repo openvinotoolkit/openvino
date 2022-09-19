@@ -33,26 +33,34 @@ OpenVINO™ Documentation
      Supports deployment on Windows, Linux, and macOS.
       </p>
 
-
-
       <div class="HP_separator-header">
-            <p> OpenVINO Workflow </p>
-         </div>
-         <div style="clear:both;"> </div>
-   	  
-         <div id="HP_flow-container">
-   	     <a id="HP_flow-a" href="https://docs.openvino.ai/latest/openvino_docs_model_processing_introduction.html">
-   		   <div> </div>
-   	     </a>
-            <div class="HP_flow-arrow"> </div>
-            <a id="HP_flow-b" href="https://docs.openvino.ai/latest/openvino_docs_optimization_guide_dldt_optimization_guide.html">
-   	        <div> </div>
-   	     </a> 
-            <div class="HP_flow-arrow"> </div>
-            <a id="HP_flow-c" href="https://docs.openvino.ai/latest/openvino_docs_deployment_guide_introduction.html">
-   	        <div> </div>
-            </a>
-         </div>
+         <p> OpenVINO Workflow </p>
+      </div>
+      <div style="clear:both;"> </div>
+
+      <div id="HP_flow-container">
+		   <div class="HP_flow-btn">
+	   		<a href="https://docs.openvino.ai/latest/openvino_docs_model_processing_introduction.html">
+	   			<img src="_static/images/OV_flow_model_hvr.svg" alt="link to model processing introduction" /> 
+	   		</a>
+	   	</div>
+	   	<div class="HP_flow-arrow" >
+	   			<img src="_static/images/OV_flow_arrow.svg" alt="" /> 
+	   	</div>
+	   	<div class="HP_flow-btn">
+	   		<a href="https://docs.openvino.ai/latest/openvino_docs_optimization_guide_dldt_optimization_guide.html">
+	   			<img src="_static/images/OV_flow_optimization_hvr.svg" alt="link to an optimization guide" /> 
+	   		</a>
+	   	</div>
+	   	<div class="HP_flow-arrow" >
+	   			<img src="_static/images/OV_flow_arrow.svg" alt="" /> 
+	   	</div>
+	   	<div class="HP_flow-btn">
+	   		<a href="https://docs.openvino.ai/latest/openvino_docs_deployment_guide_introduction.html">
+	   			<img src="_static/images/OV_flow_deployment_hvr.svg" alt="link to deployment introduction" /> 
+	   		</a>
+		   </div>
+	   </div>
 
 
       <div style="clear:both;"> </div>
