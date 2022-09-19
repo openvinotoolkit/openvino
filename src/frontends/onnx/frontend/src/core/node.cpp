@@ -22,9 +22,12 @@ public:
           m_name{node_proto.has_name() ? node_proto.name() : ""},
           m_domain{get_node_domain(node_proto)},
           m_graph{&graph},
-          m_attributes{std::begin(node_proto.attribute()), std::end(node_proto.attribute())},
           m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())} {
-        for (const auto& attribute : m_attributes) {
+        const auto& attributes = node_proto.attribute();
+        m_attributes.reserve(attributes.size());
+        for (const auto& attr_proto : attributes) {
+            m_attributes.emplace_back(attr_proto, m_graph->model_dir());
+            const auto& attribute = m_attributes.back();
             if (attribute.is_graph())
                 m_subgraphs.insert({attribute.get_name(), std::make_shared<Subgraph>(attribute.get_subgraph(m_graph))});
         }
@@ -37,9 +40,12 @@ public:
           m_name{node_proto.has_name() ? node_proto.name() : ""},
           m_domain{get_node_domain(node_proto)},
           m_graph{&graph},
-          m_attributes{std::begin(node_proto.attribute()), std::end(node_proto.attribute())},
           m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())},
-          m_subgraphs(subgraphs) {}
+          m_subgraphs(subgraphs) {
+        for (const auto& attr_proto : node_proto.attribute()) {
+            m_attributes.emplace_back(attr_proto, m_graph->model_dir());
+        }
+    }
 
     const std::vector<Attribute>& attributes() const;
     OutputVector get_ng_inputs() const;
