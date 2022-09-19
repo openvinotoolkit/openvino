@@ -2,7 +2,7 @@
 
 1. Implement operation "shell" in the `src/core/[src|include]/op/`:
    * Implement constructor(s)
-   * Implement `validate_and_infer_types` method which should support dynamic input tensor(s) (with partially dynamic shapes)
+   * Implement `validate_and_infer_types` method which should support dynamic input tensor(s) (with partially dynamic shapes). For more information read [OpenVINO Shape propagation guide](./shape_propagation.md)
    * Implement `visit_attributes` method
    * Implement `clone_with_new_inputs` method. The generated operation version must be explicitly specified and be equal to the operation version being added
    * In `*.hpp` file add:
