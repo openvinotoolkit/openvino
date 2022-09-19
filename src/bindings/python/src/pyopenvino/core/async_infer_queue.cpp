@@ -78,13 +78,6 @@ public:
         for (size_t handle = 0; handle < _requests.size(); handle++) {
             _requests[handle]._request.set_callback([this, handle /* ... */](std::exception_ptr exception_ptr) {
                 _requests[handle]._end_time = Time::now();
-                try {
-                    if (exception_ptr) {
-                        std::rethrow_exception(exception_ptr);
-                    }
-                } catch (const std::exception& e) {
-                    throw ov::Exception(e.what());
-                }
                 {
                     // acquire the mutex to access _idle_handles
                     std::lock_guard<std::mutex> lock(_mutex);
@@ -93,6 +86,14 @@ public:
                 }
                 // Notify locks in getIdleRequestId()
                 _cv.notify_one();
+
+                try {
+                    if (exception_ptr) {
+                        std::rethrow_exception(exception_ptr);
+                    }
+                } catch (const std::exception& e) {
+                    throw ov::Exception(e.what());
+                }
             });
         }
     }
@@ -101,11 +102,20 @@ public:
         for (size_t handle = 0; handle < _requests.size(); handle++) {
             _requests[handle]._request.set_callback([this, f_callback, handle](std::exception_ptr exception_ptr) {
                 _requests[handle]._end_time = Time::now();
+                {
+                    // acquire the mutex to access _idle_handles
+                    std::lock_guard<std::mutex> lock(_mutex);
+                    // Add idle handle to queue
+                    _idle_handles.push(handle);
+                }
+
                 try {
                     if (exception_ptr) {
                         std::rethrow_exception(exception_ptr);
                     }
                 } catch (const std::exception& e) {
+                    // Notify locks in getIdleRequestId()
+                    _cv.notify_one();
                     throw ov::Exception(e.what());
                 }
                 // Acquire GIL, execute Python function
@@ -121,12 +131,6 @@ public:
                     // acquire the mutex to access _errors
                     std::lock_guard<std::mutex> lock(_mutex);
                     _errors.push(py_error);
-                }
-                {
-                    // acquire the mutex to access _idle_handles
-                    std::lock_guard<std::mutex> lock(_mutex);
-                    // Add idle handle to queue
-                    _idle_handles.push(handle);
                 }
                 // Notify locks in getIdleRequestId()
                 _cv.notify_one();
