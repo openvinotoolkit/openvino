@@ -10,6 +10,7 @@
 #include <map>
 #include <string>
 #include <algorithm>
+#include <atomic>
 
 namespace cldnn {
 

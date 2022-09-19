@@ -5,10 +5,6 @@
 #include "intel_gpu/runtime/device_query.hpp"
 #include "ocl/ocl_device_detector.hpp"
 
-#include <map>
-#include <string>
-#include <atomic>
-
 namespace cldnn {
 std::atomic<int> device_query::device_id;
 device_query::device_query(engine_types engine_type,
