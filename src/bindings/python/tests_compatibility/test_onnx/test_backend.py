@@ -282,7 +282,6 @@ tests_expected_to_fail = [
     (xfail_issue_63036, "OnnxBackendNodeModelTest.test_convtranspose_autopad_same_cpu"),
     (
         xfail_issue_63039,
-        "OnnxBackendNodeModelTest.test_div_uint8_cpu",
         "OnnxBackendNodeModelTest.test_mul_uint8_cpu",
         "OnnxBackendNodeModelTest.test_sub_uint8_cpu",
     ),
