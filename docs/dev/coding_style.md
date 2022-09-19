@@ -5,7 +5,7 @@
 Majority of OpenVINO components use `clang-format-9` for code style check.
 
 The code style is based on Google Code style with some differences. All differences are described in the configuration file:
-https://github.com/ilyachur/openvino/blob/69f709028a5f8da596d1d0df9a0101e517c35708/src/.clang-format#L1-L28
+https://github.com/openvinotoolkit/openvino/blob/69f709028a5f8da596d1d0df9a0101e517c35708/src/.clang-format#L1-L28
 
 To fix code style on your local machine, you need to have installed `clang-format-9` tool and be sure that CMake option `ENABLE_CLANG_FORMAT` is enabled.
 If all dependencies are resolved, `clang_format_fix_all` target can be used to fix all code style issues.
