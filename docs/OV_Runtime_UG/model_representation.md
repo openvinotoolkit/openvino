@@ -17,21 +17,21 @@ OpenVINO™ Runtime enables you to use different approaches to work with model i
  - You can use the tensor name of input or output from the original framework model together with the `ov::Model::input()` or `ov::Model::output()` methods to get specific ports. It means that you do not need to have any additional mapping of names from framework to OpenVINO as it was before. OpenVINO™ Runtime allows the usage of native framework tensor names, for example:
 
 
-  @sphinxdirective
+      @sphinxdirective
 
-  .. tab:: C++
+      .. tab:: C++
 
-     .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-        :language: cpp
-        :fragment: all_inputs_ouputs
+         .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+            :language: cpp
+            :fragment: all_inputs_ouputs
 
-  .. tab:: Python
+      .. tab:: Python
 
-     .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-        :language: python
-        :fragment: all_inputs_ouputs
+         .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+            :language: python
+            :fragment: all_inputs_ouputs
 
-  @endsphinxdirective
+      @endsphinxdirective
 
 
 For details on how to build a model in OpenVINO™ Runtime, see the [Build a Model in OpenVINO™ Runtime](@ref ov_ug_build_model) section.
