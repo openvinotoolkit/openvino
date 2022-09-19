@@ -63,7 +63,7 @@ OPENVINO_C_API(ov_status_e)
 ov_model_const_input_by_index(const ov_model_t* model, const size_t index, ov_output_const_port_t** input_port);
 
 /**
- * @brief Get an input port of ov_model_t.
+ * @brief Get single input port of ov_model_t, which only support single input model.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
  * @param input_port A pointer to the ov_output_port_t.
@@ -94,7 +94,7 @@ OPENVINO_C_API(ov_status_e)
 ov_model_input_by_index(const ov_model_t* model, const size_t index, ov_output_port_t** input_port);
 
 /**
- * @brief Get a const output port of ov_model_t.
+ * @brief Get a single const output port of ov_model_t, which only support single output model..
  * @ingroup model
  * @param model A pointer to the ov_model_t.
  * @param output_port A pointer to the ov_output_const_port_t.
@@ -125,7 +125,7 @@ OPENVINO_C_API(ov_status_e)
 ov_model_const_output_by_name(const ov_model_t* model, const char* tensor_name, ov_output_const_port_t** output_port);
 
 /**
- * @brief Get an output port of ov_model_t.
+ * @brief Get an single output port of ov_model_t, which only support single output model.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
  * @param output_port A pointer to the ov_output_const_port_t.
@@ -148,7 +148,7 @@ ov_model_output_by_index(const ov_model_t* model, const size_t index, ov_output_
  * @brief Get an output port of ov_model_t by name.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
- * @param tensor_name input tensor name (char *).
+ * @param tensor_name output tensor name (char *).
  * @param output_port A pointer to the ov_output_port_t.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -199,7 +199,7 @@ ov_model_reshape(const ov_model_t* model,
  * @brief Do reshape in model with partial shape for a specified name.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
- * @param tensor_name The name of input tensor.
+ * @param tensor_name The tensor name of input tensor.
  * @param partialShape A PartialShape.
  * @return Status code of the operation: OK(0) for success.
  */
