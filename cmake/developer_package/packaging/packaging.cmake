@@ -118,6 +118,10 @@ if(CPACK_GENERATOR STREQUAL "DEB")
     include(packaging/debian)
 endif()
 
+if(CPACK_GENERATOR STREQUAL "RPM")
+    include(packaging/rpm)
+endif()
+
 if(CPACK_GENERATOR STREQUAL "NSIS")
     include(packaging/nsis)
 endif()

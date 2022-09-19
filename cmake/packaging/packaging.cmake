@@ -4,6 +4,8 @@
 
 if(CPACK_GENERATOR STREQUAL "DEB")
 	include(cmake/packaging/debian.cmake)
+elseif(CPACK_GENERATOR STREQUAL "RPM")
+	include(cmake/packaging/rpm.cmake)
 elseif(CPACK_GENERATOR STREQUAL "NSIS")
 	include(cmake/packaging/nsis.cmake)
 endif()
