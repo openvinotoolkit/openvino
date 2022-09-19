@@ -84,9 +84,10 @@ endif()
 ```
 
 > **NOTE**: The default values of the `ENABLE_TESTS`, `ENABLE_FUNCTIONAL_TESTS` options are shared via the Inference Engine Developer Package and they are the same as for the main DLDT build tree. You can override them during plugin build using the command below:
->```bash
->$ cmake -DENABLE_FUNCTIONAL_TESTS=OFF -DInferenceEngineDeveloperPackage_DIR=../dldt-release-build ../template-plugin
->``` 
+
+```bash
+$ cmake -DENABLE_FUNCTIONAL_TESTS=OFF -DInferenceEngineDeveloperPackage_DIR=../dldt-release-build ../template-plugin
+``` 
 
 - `src/CMakeLists.txt` to build a plugin shared library from sources:
 

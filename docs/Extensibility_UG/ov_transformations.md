@@ -111,7 +111,7 @@ Currently, there is no mechanism that automatically detects transformation types
 
 When transformation has multiple fusions or decompositions, `ov::copy_runtime_info` must be called multiple times for each case.
 
-> **NOTE**: copy_runtime_info removes rt_info from destination nodes. If you want to keep it, you need to specify them in source nodes like this: copy_runtime_info({a, b, c}, {a, b})
+> **NOTE**: `copy_runtime_info` removes `rt_info` from destination nodes. If you want to keep it, you need to specify them in source nodes like this: `copy_runtime_info({a, b, c}, {a, b})`
 
 ### 3. Constant Folding
 
