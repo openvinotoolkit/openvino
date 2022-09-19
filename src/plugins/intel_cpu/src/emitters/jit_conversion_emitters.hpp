@@ -22,6 +22,7 @@ protected:
     void emit_data() const override;
     void validate_types() const;
 
+    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void float2bfloat(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 
     ov::element::Type input_type;
