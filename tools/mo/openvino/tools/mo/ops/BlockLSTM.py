@@ -61,12 +61,11 @@ class BlockLSTM(Op):
         # mark-up inputs for LSTMRNNSequenceToTensorIterator transformation
         mark_input_bins(node)
 
+        x_output_shape = shape_array([time_len, batch_size, hidden_size_output])
         if node.is_out_port_connected(0):
-            x_output_shape = shape_array([time_len, batch_size, hidden_size_output])
             node.out_port(0).data.set_shape(x_output_shape)
 
         # at this point cell states are in aggregated form from all time steps
         # after that the middle transformation BlockLSTMtoLSTMSequence should normalize it to last step cell state
         if node.is_out_port_connected(1):
-            x_output_shape = shape_array([time_len, batch_size, hidden_size_output])
             node.out_port(1).data.set_shape(x_output_shape)
