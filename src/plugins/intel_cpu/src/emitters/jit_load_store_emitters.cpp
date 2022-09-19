@@ -1021,7 +1021,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Vmm &vmm, const Xbya
             if (src_prc_ == Precision::FP32) {
                 ymm = Ymm(aux_vec_idxs[0]);
             }
-            uni_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(ymm.getIdx())});
+            uni_vcvtneps2bf16_->emit_code({static_cast<size_t>(zmm.getIdx())}, {static_cast<size_t>(ymm.getIdx())});
             if (store_num == 16) {
                 h->vmovdqu16(ptr[reg + offset], ymm);
             } else {
