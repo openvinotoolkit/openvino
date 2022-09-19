@@ -294,7 +294,7 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
                 if (input.is_type<reshape>())
                     return;
                 #ifdef ENABLE_ONEDNN_FOR_GPU
-                // Activation should not fused if it isn't supported in onednn
+                // Activation should not be fused if it isn't supported in onednn
                 try {
                     onednn::convert_activation_func(node.get_primitive()->activation_function);
                 } catch (...) {
@@ -689,7 +689,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
             auto out_layout = node.get_output_layout();
-            if (out_layout.data_type == data_types::f16 && out_layout.batch() > 1 &&
+            if (out_layout.data_type == data_types::f16 && out_layout.is_static() && out_layout.batch() > 1 &&
                 ((_lo.get_optimization_attributes().fs_b_yx_fsv32_network &&
                   !_lo.get_optimization_attributes().use_onednn_impls) ||
                  out_layout.format == format::fs_b_yx_fsv32)) {
