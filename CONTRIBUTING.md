@@ -35,7 +35,7 @@ Following these guidelines will increase the likelihood of your pull request bei
 -   One PR – one issue.
 -   Build perfectly on your local system.
 -   Choose the right base branch [Branches](https://github.com/openvinotoolkit/openvino/wiki/Branches).
--   Follow the  [Coding Style Guide](https://github.com/openvinotoolkit/openvino/wiki/CodingStyleGuideLines) for your code.
+-   Follow the  [Coding Style Guide](./docs/dev/coding_style.md) for your code.
 -   Update documentation using [Documentation guidelines](https://github.com/openvinotoolkit/openvino/wiki/CodingStyleGuideLinesDocumentation) if needed.
 -   Cover your changes with test. 
 -   Add license at the top of new files [C++ example](https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/classification_sample_async/main.cpp#L1-L2), [Python example](https://github.com/openvinotoolkit/openvino/blob/master/samples/python/hello_classification/hello_classification.py#L3-L4). 
