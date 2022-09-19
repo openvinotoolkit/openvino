@@ -1,39 +1,65 @@
+from asyncio import subprocess
+from turtle import st
 from git import Repo
 from argparse import ArgumentParser
 from utils import utils
+from glob import glob
+from subprocess import Popen
+import os
+from shutil import copytree
+
+import xml.etree.ElementTree as ET
+
+
 
 import os
 import logging
+# from summarize import merge_xmls, create_summary
+from merge_xmls import merge_xml
 
 logger = utils.get_logger('RunConformance')
 
 OMZ_REPO_URL = "https://github.com/openvinotoolkit/open_model_zoo.git"
+OMZ_REPO_BRANCH = "master"
+
+GTEST_PARALLEL_URL = "https://github.com/asomsiko/gtest-parallel.git"
+GTEST_PARALLEL_BRANCH = "limit_log_name"
+
+API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
+OP_CONFORMANCE_BIN_NAME = "conformanceTests"
+SUBGRAPH_DUMPER_BIN_NAME = "subgraphDumper"
+
 
 def parse_arguments():
     parser = ArgumentParser()
 
-    ov_version_help = "OpenVINO version - commit hash, branch and so on"
-    omz_version_help = "OMZ version - commit hash, branch and so on"
-    out_dir_help = "Specify output directory"
+    models_path_help = "Path to directory/ies contains models to dump subgraph (default way is download OMZ). If `--d=False` specify Conformance IRs directory"
+    device_help = "Specify target device"
+    ov_help = "OV binary files path"
     working_dir_help = "Specify working directory"
-    remove_help = "Remove conformance artifacts"
+    type_help = "Specify conformance type: OP or API"
+    dump_conformance_help = "Set 'True' if you want to create Conformance IRs from custom models. Default value is 'False'"
 
-    parser.add_argument("-ov", "--ov_version", help=ov_version_help, type=str, default='master', required=True)
-    parser.add_argument("-omz", "--omz_version", help=omz_version_help, type=str, default='master', required=True)
-    parser.add_argument("-o", "--output_dir", help=out_dir_help, type=str, default='.', required=True)
-    parser.add_argument("-w", "--working_dir", help=working_dir_help, type=str, default='.', required=True)
-    parser.add_argument("-r", "--remove_artifacts", help=remove_help, type=bool, default=True, required=False)
+    parser.add_argument("-m", "--models_path", help=models_path_help, type=str, required=True)
+    parser.add_argument("-d", "--device", help= device_help, type=str, required=True)
+    parser.add_argument("-ov", "--ov_binaries", help=ov_help, type=str, required=True)
+    parser.add_argument("-w", "--working_dir", help=working_dir_help, type=str, required=False, default='.')
+    parser.add_argument("-t", "--type", help=type_help, type=str, required=True, default="OP")
+    parser.add_argument("-s", "--dump_conformance", help=dump_conformance_help, type=bool, required=False, default=False)
 
     return parser.parse_args()
 
 class Conformance:
-    def __init__(self, ov_version = "master", omz_version = "master", working_dir = ".", output_dir = "."):
-        self._ov_version = ov_version
-        self._omz_version = omz_version
+    def __init__(self, device:str, model_path:str, ov_binaries:str, type:str, working_dir:str):
+        self._device = device
+        self._model_path = model_path
+        self._ov_binaries = ov_binaries
         self._working_dir = working_dir
-        self._output_dir = output_dir
+        if not (type == "OP" or type == "API"):
+            raise Exception("Incorrect conformance type")
+        self._type = type
 
-    def __download_repo(self, https_url: str, version:str):
+    def __download_repo(self, https_url: str, version: str):
         repo_name = https_url[https_url.rfind('/') + 1:len(https_url) - 4]
         repo_path = os.path.join(self._working_dir, repo_name)
         logger.info(f'Started to clone repo: {https_url} to {repo_path}')
@@ -41,37 +67,89 @@ class Conformance:
         repo.submodule_update(recursive=True)
         logger.info(f'Repo {https_url} was cloned sucessful')
         remote_version = "origin/" + version
-        branches = repo.git.branch('-r').replace(' ', '').split('\n')
-        if remote_version in branches:
+        if remote_version in repo.git.branch('-r').replace(' ', '').split('\n'):
             branch = repo.git.checkout(version)
             repo.submodule_update(recursive=True)
             logger.info(f'Repo {https_url} is on {version}')
         return repo.working_dir
 
-    def download_models(self):
-        self._omz_path = self.__download_repo(OMZ_REPO_URL, self._omz_version)
-        downloader_path = os.path.join(self._omz_path, "tools", "model_tools")
-
     def _convert_models(self):
-        pass
+        omz_tools_path = os.path.join(self._omz_path, "tools", "model_tools")
+        original_model_path = os.path.join(self._working_dir, "original_models")
+        converted_model_path = os.path.join(self._working_dir, "converted_models")
+        converter_path = os.path.join(self._omz_path, "tools", "model_tools", 'converter.py')
+        mo_path = os.path.join("openvino", "tools", "mo", ".")
+        install_mo_req_str = self._generate_string(glob(os.path.join(mo_path, "requirements*")))
+        # --name -> --all
+        command = f'python3 -m venv .env3;'\
+            f'source .env3/bin/activate;'\
+            f'pip3 install -e "{mo_path}/.[caffe,kaldi,mxnet,onnx,pytorch,tensorflow2]";'\
+            f'pip3 install "{omz_tools_path}/."'\
+            f'omz_converter --name=vgg16 --download_dir={original_model_path} --output_dir={converted_model_path};'\
+            f'deactivate;'
+        process = Popen(command, stdout=subprocess.PIPE, shell=True)
+        out, err = process.communicate()
+        for line in out.split('\n'):
+            print(line)
+        self._model_path = converted_model_path
 
-    def _dump_subgraph(self):
-        pass
+    def download_and_convert_models(self):
+        self._omz_path = self.__download_repo(OMZ_REPO_URL, OMZ_REPO_BRANCH)
+        self._convert_models()
 
-    def _run_conformance(self):
-        pass
+    def dump_subgraph(self):
+        subgraph_dumper_path = os.path.join(self._ov_binaries, SUBGRAPH_DUMPER_BIN_NAME)
+        conformance_ir_path = os.path.join(self._working_dir, "conformance_ir")
+        if not os.path.exists(conformance_ir_path):
+            os.mkdir(conformance_ir_path)
+        cmd = f'{subgraph_dumper_path} --input_folders={self._model_path} --output_folder={conformance_ir_path}'
+        process = Popen(cmd, stdout=subprocess.PIPE, shell=True)
+        out, err = process.communicate()
+        # for line in out.split('\n'):
+            # print(line)
+        self._model_path = conformance_ir_path
 
-    def _summarize(self):
-        pass
+    def run_conformance(self):
+        gtest_parallel_path = os.path.join(self.__download_repo(GTEST_PARALLEL_URL, GTEST_PARALLEL_BRANCH), "gtest_parallel.py")
+        worker_num = os.cpu_count()
+        conformance_path = None
+        if self._type == "OP":
+            conformance_path = os.path.join(self._ov_binaries, OP_CONFORMANCE_BIN_NAME)
+        else:
+            conformance_path = os.path.join(self._ov_binaries, API_CONFORMANCE_BIN_NAME)
 
-    def _remove_artifacts(self):
-        pass
+        logs_dir = os.path.join(self._working_dir, f'{self._device}_logs')
+        report_dir = os.path.join(self._working_dir, 'report')
+        parallel_report_dir = os.path.join(report_dir, 'parallel')
+        if not os.path.exists(report_dir):
+            os.mkdir(report_dir)
+        
+        cmd = f'python3 {gtest_parallel_path}  {conformance_path} -w={worker_num} -d={logs_dir} '\
+            f'-- --input_folders={self._model_path} --device={self._device} --report_unique_name --output_dir={parallel_report_dir}'
+        process = Popen(cmd, stdout=subprocess.PIPE, shell=True)
+        out, err = process.communicate()
+        for line in out.split('\n'):
+            print(line)
+        final_report_name = f'report_{self._type}'
+        merge_xml(report_dir, parallel_report_dir, final_report_name, self._type)
+        return (os.path.join(report_dir, final_report_name), report_dir)
 
-    def start_pipeline(self):
-        self.download_models()
+    # def summarize(self, xml_report_path:os.path, report_dir: os.path):
+        # summary_root = ET.parse(xml_report_path)
+        # create_summary(summary_root, report_dir)
+        # copytree("./template/", report_dir)
 
+    def start_pipeline(self, dump_models: bool):
+        if dump_models:
+            if not os.path.exists(self._model_path):
+                self._model_path = self.download_and_convert_models()
+            self.dump_subgraph()
+        if not os.path.isdir(self._model_path):
+            raise Exception("Directory does not exist")
+        xml_report, report_dir = self.run_conformance()
+        # self.summarize(xml_report, report_dir)
+        
 if __name__ == "__main__":
     args = parse_arguments()
-    conformance = Conformance(args.ov_version, args.omz_version, args.working_dir, args.output_dir)
-    conformance.start_pipeline()
-    # save_to_file(args.skip_config_folders, get_conformance_hung_test(args.input_logs), args.extend_file)
+    conformance = Conformance(args.device, args.models_path, args.ov_binaries, args.type, args.working_dir)
+    conformance.start_pipeline(args.dump_conformance)
