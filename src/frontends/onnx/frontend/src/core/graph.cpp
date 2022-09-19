@@ -128,14 +128,18 @@ ov::frontend::ExtensionHolder subgraph_required_extensions(
 }
 }  // namespace detail
 
-Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto, ov::frontend::ExtensionHolder extensions)
-    : Graph(model_proto, common::make_unique<GraphCache>(), std::move(extensions)) {}
+Graph::Graph(const std::string& model_dir,
+             const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
+             ov::frontend::ExtensionHolder extensions)
+    : Graph(model_dir, model_proto, common::make_unique<GraphCache>(), std::move(extensions)) {}
 
-Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
+Graph::Graph(const std::string& model_dir,
+             const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
              std::unique_ptr<GraphCache>&& cache,
              ov::frontend::ExtensionHolder extensions)
     : m_cache{std::move(cache)},
-      m_extensions{std::move(extensions)} {
+      m_extensions{std::move(extensions)},
+      m_model_dir{model_dir} {
     const auto ops_bridge = detail::init_ops_bridge(m_extensions.conversions);
     m_model = common::make_unique<Model>(model_proto, detail::build_model_opset(*model_proto, ops_bridge));
 
@@ -146,7 +150,7 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
     // Process all initializers in the graph
     for (const auto& initializer_tensor : m_model->get_graph().initializer()) {
         if (initializer_tensor.has_name()) {
-            Tensor tensor = Tensor{initializer_tensor};
+            Tensor tensor = Tensor{initializer_tensor, m_model_dir};
             std::shared_ptr<default_opset::Constant> ng_constant;
             // For each initializer create a Constant node and store it in cache
             try {
@@ -426,8 +430,9 @@ const OpsetImports& Graph::get_opset_imports() const {
     return m_model->get_opset_imports();
 }
 
-Subgraph::Subgraph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, const Graph* parent_graph)
-    : Graph(model_proto,
+Subgraph::Subgraph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto, const Graph* parent_graph)
+    : Graph(parent_graph->model_dir(),
+            model_proto,
             common::make_unique<GraphCache>(),
             detail::subgraph_required_extensions(parent_graph->get_extensions())),
       m_parent_graph(parent_graph) {}

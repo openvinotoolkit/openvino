@@ -81,6 +81,11 @@ INSTANTIATE_TEST_SUITE_P(smoke, reshape_test_two_inputs,
             layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {0, 0, 16, 64}, ov::PartialShape::dynamic(4), true,
             layout{ov::PartialShape{1, 384, 16, 64}, data_types::f32, format::bfyx}
         },
+        {
+            layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {0, 1, 2, 3}, ov::PartialShape::dynamic(4), true,
+            layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}
+        },
     }));
 
 class reshape_test_single_input : public testing::TestWithParam<reshape_test_params> {};
@@ -124,6 +129,16 @@ INSTANTIATE_TEST_SUITE_P(smoke, reshape_test_single_input,
             layout{ov::PartialShape{1, 384, 1024}, data_types::f32, format::bfyx},
             layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {}, ov::PartialShape::dynamic(2), true,
             layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx}
+        },
+        {
+            layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {0, 1, 2, 3}, ov::PartialShape{0, 1, 2, 3}, true,
+            layout{ov::PartialShape{0, 1, 2, 3}, data_types::f32, format::bfyx}
+        },
+        {
+            layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {}, ov::PartialShape::dynamic(4), true,
+            layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}
         },
     }));
 
