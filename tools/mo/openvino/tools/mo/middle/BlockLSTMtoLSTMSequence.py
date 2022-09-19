@@ -95,10 +95,11 @@ class BlockLSTMtoLSTMSequenceSingleFirstOutput(MiddleReplacementPattern):
         # re-number h_init_state, c_init_state input ports to match RNNSequence ports order
         init_hidden_state_source = block_lstm.in_port(3).get_source()
         init_cell_state_source = block_lstm.in_port(4).get_source()
-        block_lstm.add_output_port(4, skip_if_exist=True)
+        block_lstm.add_input_port(4, skip_if_exist=True)
         block_lstm.in_port(4).get_connection().set_source(init_hidden_state_source)
-        block_lstm.add_output_port(5, skip_if_exist=True)
+        block_lstm.add_input_port(5, skip_if_exist=True)
         block_lstm.in_port(5).get_connection().set_source(init_cell_state_source)
+        block_lstm.delete_input_port(3, skip_if_absent=True)
 
         new_attrs = {'sequence_dim': 0,
                      'batch_dim': 1,
@@ -107,6 +108,8 @@ class BlockLSTMtoLSTMSequenceSingleFirstOutput(MiddleReplacementPattern):
                      'format': 'tf',
                      }
 
+        # update attributes fo existing operation
+        # input edges have "bin" attribute for LSTMRNNSequenceToTensorIterator
         LSTM.update_node_stat(block_lstm, new_attrs)
 
 
