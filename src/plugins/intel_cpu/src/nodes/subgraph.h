@@ -60,8 +60,6 @@ private:
     // NOTE: Before call mutex should be initialized
     void copy_snippet();
 
-    void define_schedule();
-    static  ov::PartialShape prependWithOnes(const PartialShape& dims, size_t rank);
     static  VectorDims prependWithOnes(const VectorDims& dims, size_t rank);
     ov::PartialShape canonicalizeBody();
     void optimizeExecDomain(std::vector<VectorDims>&, std::vector<VectorDims>&, VectorDims&, size_t&) const;

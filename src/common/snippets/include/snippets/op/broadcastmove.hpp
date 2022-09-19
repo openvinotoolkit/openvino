@@ -12,7 +12,7 @@ namespace op {
 
 /**
  * @interface BroadcastMove
- * @brief Added to a subgraph if explicit broadcast instruction should be genera
+ * @brief Added to a subgraph if explicit broadcast instruction should be generated
  * @ingroup snippets
  */
 class BroadcastMove : public ngraph::op::Op {

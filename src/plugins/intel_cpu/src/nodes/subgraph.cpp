@@ -72,14 +72,6 @@ void Snippet::copy_snippet() {
     snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
 }
 
-ov::PartialShape Snippet::prependWithOnes(const PartialShape& dims, size_t rank) {
-    if (rank <= dims.size())
-        return dims;
-    std::vector<ov::Dimension> result(rank, 1);
-    std::copy(dims.begin(), dims.end(), &result[rank - dims.size()]);
-    return PartialShape {result};
-}
-
 VectorDims Snippet::prependWithOnes(const VectorDims& dims, size_t rank) {
     if (rank <= dims.size())
         return dims;
@@ -261,29 +253,21 @@ void Snippet::calcJITParams(std::vector<int64_t>& offsets, std::vector<int64_t>&
         }
     }
 
-    // Note that wen don't need offset for the last dim, since it's handled directly by Load/Store emitters
+    // Note that wen don't need offset for the last dim, since it's handled directly by Tile emitter
     const size_t offset_rank = masterShape.size() - 1;
     offsets.resize(numParams * (offset_rank), 1);
     auto offset_calculation = [offset_rank, this](int64_t *off, const std::vector<size_t>& dims, const size_t data_size) {
         size_t k = dims.back();
         for (int i = offset_rank - 1; i >= 0; i--) {
-            auto tmp = (dims[i] == masterShape[i]) ? k : 0;
+            auto tmp = (dims[i] == masterShape[i] && masterShape[i] != 1) ? k : 0;
             off[i] = tmp * data_size;
             k *= dims[i];
         }
     };
     for (size_t i = 0; i < numParams; i++) {
-        offset_calculation(offsets.data() + i * offset_rank,
+            offset_calculation(&offsets[i * offset_rank],
                            i < numInputs ? normInputShapes[i] : normOutputShapes[i - numInputs],
                            dataSize[i]);
-    }
-    // zero-out offsets that wouldn't be applied anyway, see  "if (jcp.master_shape[k] != 1 && offsets[k] != 0)"
-    // in TileSchedulerEmitter
-    for (size_t i = 0; i < offset_rank; i++) {
-        if (masterShape[i] == 1) {
-            for (size_t j = i; j < numParams * offset_rank; j += offset_rank)
-                offsets[j] = 0;
-        }
     }
 
     sch_offsets = std::vector<int64_t>(numParams, 0);
@@ -449,7 +433,7 @@ void Snippet::createPrimitive() {
         // master_shape size can't change after canonicalization, use this info during dynamic kernel generation
         jcp.master_shape = VectorDims(tensorRank, 0);
     }
-    schedule = snippet->generate(reinterpret_cast<const void*>(&jcp));
+    generate(&jcp);
 }
 
 std::vector<VectorDims> Snippet::shapeInfer() const {
@@ -569,7 +553,7 @@ bool Snippet::needPrepareParams() const {
 }
 
 void Snippet::execute(dnnl::stream strm) {
-    if (schedule.ptr == nullptr || !canUseOptimizedImpl) {
+    if (schedule.ptr == nullptr) {
         IE_THROW() << "Snippet can't use Optimized implementation and can't fallback to reference";
     }
     jit_snippets_call_args call_args;
@@ -579,38 +563,44 @@ void Snippet::execute(dnnl::stream strm) {
     for (size_t i = 0; i < dstMemPtrs.size(); i++)
         call_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->GetData()) + start_offset_out[i];
 
-    if (isDynamic) {
-        std::copy(scheduler_offsets.begin(), scheduler_offsets.end(), call_args.scheduler_offsets);
-        std::copy(data_offsets.begin(), data_offsets.end(), call_args.data_offsets);
-        std::copy(scheduler_work_amounts.begin(), scheduler_work_amounts.end(), call_args.scheduler_work_amounts);
-        std::copy(vector_tile_increments.begin(), vector_tile_increments.end(), call_args.vector_tile_increments);
-        std::copy(scalar_tile_increments.begin(), scalar_tile_increments.end(), call_args.scalar_tile_increments);
-        std::copy(broadcasting_mask.begin(), broadcasting_mask.end(), call_args.broadcasting_mask);
-        // scratchpad memory has to ba allocated only once
-        // todo: adjust this memory allocation for different supported precisions in future
-       if (scratchpad_memory_chunk.empty())
-           scratchpad_memory_chunk.resize(parallel_get_num_threads() * isa_num_lanes * inputShapes.size());
-       call_args.broadcasting_scratchpad = scratchpad_memory_chunk.data();
-       if (tensorRank != rank6D)
-           IE_THROW() << "Snippets currently support only up to 6D dynamic inputs";
-       // schedule_6d_dynamic is needed only if an input needs to be broadcasted
-       // => per-thread broadcasting scratchpads are needed.
-       // Fall back to  schedule_6d to avoid scratchpad handling overheads
-       if (std::any_of(broadcasting_mask.begin(), broadcasting_mask.end(), [](bool x){return x;}))
-           schedule_6d_dynamic(call_args);
-       else
-           schedule_6d(call_args);
+    if (tensorRank == rank6D) {
+        schedule_6d(call_args);
     } else {
-        if (tensorRank == rank6D) {
-            schedule_6d(call_args);
-        } else {
-            schedule_nt(call_args);
-        }
+        schedule_nt(call_args);
     }
 }
 
 void Snippet::executeDynamicImpl(dnnl::stream strm) {
-    execute(strm);
+    if (schedule.ptr == nullptr) {
+        IE_THROW() << "Snippet can't use Optimized implementation and can't fallback to reference";
+    }
+    jit_snippets_call_args call_args;
+    for (size_t i = 0; i < srcMemPtrs.size(); i++)
+        call_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(srcMemPtrs[i]->GetData()) + start_offset_in[i];
+
+    for (size_t i = 0; i < dstMemPtrs.size(); i++)
+        call_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->GetData()) + start_offset_out[i];
+    // todo: create and employ jit_snippets_call_args class field to avoid this copy (also valid for the static case)
+    std::copy(scheduler_offsets.begin(), scheduler_offsets.end(), call_args.scheduler_offsets);
+    std::copy(data_offsets.begin(), data_offsets.end(), call_args.data_offsets);
+    std::copy(scheduler_work_amounts.begin(), scheduler_work_amounts.end(), call_args.scheduler_work_amounts);
+    std::copy(vector_tile_increments.begin(), vector_tile_increments.end(), call_args.vector_tile_increments);
+    std::copy(scalar_tile_increments.begin(), scalar_tile_increments.end(), call_args.scalar_tile_increments);
+    std::copy(broadcasting_mask.begin(), broadcasting_mask.end(), call_args.broadcasting_mask);
+    // scratchpad memory has to ba allocated only once
+    // todo: adjust this memory allocation for different supported precisions in future
+    if (scratchpad_memory_chunk.empty())
+        scratchpad_memory_chunk.resize(parallel_get_num_threads() * isa_num_lanes * inputShapes.size());
+    call_args.broadcasting_scratchpad = scratchpad_memory_chunk.data();
+    if (tensorRank != rank6D)
+        IE_THROW() << "Snippets currently support only up to 6D dynamic inputs";
+    // schedule_6d_dynamic is needed only if an input needs to be broadcasted
+    // => per-thread broadcasting scratchpads are needed.
+    // Fall back to  schedule_6d to avoid scratchpad handling overheads
+    if (std::any_of(broadcasting_mask.begin(), broadcasting_mask.end(), [](bool x){return x;}))
+        schedule_6d_dynamic(call_args);
+    else
+        schedule_6d(call_args);
 }
 
 bool Snippet::canBeInPlace() const {
@@ -643,12 +633,6 @@ bool Snippet::created() const {
 }
 
 void Snippet::generate(const jit_snippets_compile_args* jcp) {
-    size_t harness_num_dims = exec_domain.size() - tileRank;
-    if (harness_num_dims > SNIPPETS_MAX_HARNESS_DIMS) {
-        canUseOptimizedImpl = false;
-        harness_num_dims = SNIPPETS_MAX_HARNESS_DIMS;
-    }
-
     ov::pass::Manager optManager;
     optManager.register_pass<ov::intel_cpu::pass::FuseLoadConvert>();
     optManager.register_pass<ov::intel_cpu::pass::FuseStoreConvert>();
@@ -670,7 +654,7 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
                 return true;
             });
 
-    schedule = snippet->generate(optManager, reinterpret_cast<void*>(&jcp));
+    schedule = snippet->generate(optManager, reinterpret_cast<const void*>(jcp));
 }
 
 void Snippet::schedule_6d_dynamic(const jit_snippets_call_args& call_args) const {

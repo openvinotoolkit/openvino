@@ -38,9 +38,8 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> b
         return false;
     ov::PartialShape ref_shape = outputs.front().get_partial_shape();
     bool success = true;
-    for (int i = 1; i < outputs.size(); i++) {
-        success = success &&
-                  ov::PartialShape::broadcast_merge_into(ref_shape, outputs[i].get_partial_shape(), ov::op::AutoBroadcastType::NUMPY);
+    for (int i = 1; i < outputs.size() && success; i++) {
+        success &= ov::PartialShape::broadcast_merge_into(ref_shape, outputs[i].get_partial_shape(), ov::op::AutoBroadcastType::NUMPY);
     }
     return !success;
 }
@@ -109,8 +108,7 @@ auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
     auto supported = [](descriptor::Tensor& t) -> bool {
         static const std::set<ngraph::element::Type> supported_data_types =
                 { ngraph::element::f32, ngraph::element::i32, ngraph::element::bf16, ngraph::element::i8, ngraph::element::u8 };
-        return //t.get_partial_shape().is_static() &&
-               supported_data_types.count(t.get_element_type()) != 0;
+        return supported_data_types.count(t.get_element_type()) != 0;
     };
     const auto & inputs = n->inputs();
     const auto & outputs = n->outputs();

@@ -281,10 +281,6 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
         bool compatibleWithPassedShape = PartialShape::broadcast_merge_into(pShape_i, skipStartEndOnes(outputShape_i),
                                                                               ::ngraph::op::AutoBroadcastType::NUMPY);
         NODE_VALIDATION_CHECK(this, compatibleWithPassedShape, "Inferred and passed results shapes are incompatible for snippet ");
-//        todo: rewrite this check for dynamic shapes
-//        NODE_VALIDATION_CHECK(this, ov::shape_size(shape_i) == ov::shape_size(outputShape_i) &&
-//                              compatibleWithPassedShape, "Inferred and passed results shapes are incompatible for snippet ",
-//                              get_friendly_name(), " : ", shape_i, " vs ", outputShape_i, ".");
         // Check that output shapes are broadcastable to each other => can be scheduled
         bool compatibleWithOtherOutputs = PartialShape::broadcast_merge_into(outPShape, shape_i,
                                                                ::ngraph::op::AutoBroadcastType::NUMPY);
