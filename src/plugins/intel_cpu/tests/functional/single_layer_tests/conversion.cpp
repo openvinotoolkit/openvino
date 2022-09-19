@@ -53,7 +53,10 @@ protected:
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        selectedType = std::string("unknown_") + (inPrc == InferenceEngine::Precision::U8 ? "I8" : inPrc.name());
+        isDynamic = shapes.first.is_dynamic();
+        auto primitive = isDynamic ? "unknown" : getPrimitiveType();
+        selectedType = primitive + "_" + (inPrc == InferenceEngine::Precision::U8 ? "I8" : inPrc.name());
+        std::cout << selectedType << std::endl;
 
         for (size_t i = 0; i < shapes.second.size(); i++) {
             targetStaticShapes.push_back(std::vector<ngraph::Shape>{shapes.second[i]});
@@ -68,6 +71,8 @@ protected:
 
         function = makeNgraphFunction(ngPrc, params, conversion, "ConversionCPU");
     }
+
+    bool isDynamic = false;
 };
 
 TEST_P(ConvertCPULayerTest, CompareWithRefs) {
@@ -75,12 +80,17 @@ TEST_P(ConvertCPULayerTest, CompareWithRefs) {
 
     run();
 
-    CheckPluginRelatedResults(compiledModel, "Convert");
+    CheckPluginRelatedResults(compiledModel, isDynamic ? "Convert" : "Subgraph");
 }
 
 std::vector<InputShape> inShapes_4D = {
         {{1, 2, 3, 4}, {{1, 2, 3, 4}}},
         {{1, 1, 1080, 1920}, {{1, 1, 1080, 1920}}},
+};
+std::vector<InputShape> inShapes_4D_Blocked = {
+        {{1, 16, 5, 5}, {{1, 16, 5, 5}}},
+};
+std::vector<InputShape> inShapes_4D_Dynamic = {
         {
             // dynamic
             {{-1, -1, -1, -1}},
@@ -115,13 +125,31 @@ const std::vector<Precision> precisions = {
 std::vector<CPUSpecificParams> memForm4D = {
         CPUSpecificParams({nchw}, {nchw}, {}, {}),
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
-        CPUSpecificParams({nChw8c}, {nChw8c}, {}, {}),
         CPUSpecificParams({nChw16c}, {nChw16c}, {}, {})
 };
+
+std::vector<CPUSpecificParams> memForm4D_Common(memForm4D.begin(), memForm4D.begin() + 2);
+std::vector<CPUSpecificParams> memForm4D_Blocked(memForm4D.begin() + 2, memForm4D.end());
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest, ConvertCPULayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes_4D),
+                                ::testing::ValuesIn(precisions),
+                                ::testing::ValuesIn(precisions),
+                                ::testing::ValuesIn(memForm4D_Common)),
+                        ConvertCPULayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_Blocked, ConvertCPULayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(inShapes_4D_Blocked),
+                                ::testing::ValuesIn(precisions),
+                                ::testing::ValuesIn(precisions),
+                                ::testing::ValuesIn(filterCPUSpecificParams(memForm4D_Blocked))),
+                        ConvertCPULayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_Dynamic, ConvertCPULayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(inShapes_4D_Dynamic),
                                 ::testing::ValuesIn(precisions),
                                 ::testing::ValuesIn(precisions),
                                 ::testing::ValuesIn(memForm4D)),
