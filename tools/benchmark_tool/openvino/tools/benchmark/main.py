@@ -385,7 +385,8 @@ def main():
         start_time = datetime.utcnow()
         requests = benchmark.create_infer_requests(compiled_model)
         duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
-        logger.info(f"Create {benchmark.nireq} infer requests took {duration_ms} ms")
+        logger.info(f"Creating {benchmark.nireq} infer requests took {duration_ms} ms")
+        
         if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
@@ -426,7 +427,7 @@ def main():
         if len(benchmark.latency_groups) > 1:
             logger.info(f"Defined {len(benchmark.latency_groups)} tensor groups:")
             for group in benchmark.latency_groups:
-                print(f"\t{str(group)}")
+                logger.info(f"\t{str(group)}")
 
         # Iteration limit
         benchmark.niter = get_number_iterations(benchmark.niter, benchmark.nireq, max(len(info.shapes) for info in app_inputs_info), benchmark.api_type)

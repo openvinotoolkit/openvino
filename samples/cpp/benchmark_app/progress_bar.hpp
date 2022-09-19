@@ -30,8 +30,8 @@ public:
             add_progress(num);
         }
         _isFinished = true;
-        _bar->finish();
         if (_progressEnabled) {
+            _bar->finish();
             std::cout << std::endl;
         }
     }
