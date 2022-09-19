@@ -48,27 +48,24 @@ To run the sample, you need specify a model and image:
 ### Example
 
 1. Install the `openvino-dev` Python package to use Open Model Zoo Tools:
-
-```
-python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
-```
+   ```
+   python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
+   ```
 
 2. Download a pre-trained model:
-```
-omz_downloader --name mobilenet-ssd
-```
+   ```
+   omz_downloader --name mobilenet-ssd
+   ```
 
 3. If a model is not in the IR or ONNX format, it must be converted. You can do this using the model converter:
+   ```
+   omz_converter --name mobilenet-ssd
+   ```
 
-```
-omz_converter --name mobilenet-ssd
-```
-
-4. Perform inference of `banana.jpg` using `mobilenet-ssd` model on a `GPU`, for example:
-
-```
-python hello_reshape_ssd.py mobilenet-ssd.xml banana.jpg GPU
-```
+4. Perform inference of `banana.jpg` using `ssdlite_mobilenet_v2` model on a `GPU`, for example:
+   ```
+   python hello_reshape_ssd.py mobilenet-ssd.xml banana.jpg GPU
+   ```
 
 ## Sample Output
 
