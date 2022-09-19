@@ -58,8 +58,6 @@ class BlockLSTM(Op):
         elif len(w_shape) > 1 and w_shape[1] is not dynamic_dimension:
             hidden_size_output = w_shape[1] // 4
 
-        assert len(node.out_nodes()) in [1, 2]
-
         # mark-up inputs for LSTMRNNSequenceToTensorIterator transformation
         mark_input_bins(node)
 

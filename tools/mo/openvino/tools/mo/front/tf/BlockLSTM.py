@@ -62,6 +62,7 @@ class BlockLSTM(FrontReplacementPattern):
                                                        {p: o.id for p, o in node.out_nodes().items()}))
 
             log.debug("Cutting all inputs for peephole connection (5, 6, 7 input ports) off, as `use_peephole`=False")
+            log.debug("Cutting seq_len_max input off")
 
             # disconnect all peephole releated inputs and seq_len_max
             for port_idx in [0, 5, 6, 7]:

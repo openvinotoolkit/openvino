@@ -16,7 +16,7 @@ class BlockLSTMtoLSTMSequenceSingleFirstOutput(MiddleReplacementPattern):
     This transformation handles BlockLSTM with just one output, concatenation of all the intermediate
     output values of the hidden.
     TODO: implement for non-constant weights and bias.
-     For this, it requires to unbound from LSTMRNNSequenceToTensorIterator transformation
+    For this, it requires to unbound from LSTMRNNSequenceToTensorIterator transformation
     """
     enabled = True
 
@@ -65,11 +65,13 @@ class BlockLSTMtoLSTMSequenceSingleFirstOutput(MiddleReplacementPattern):
         elif len(w_shape) > 1 and w_shape[1] is not dynamic_dimension:
             hidden_size = w_shape[1] // 4
 
-        assert hidden_size is not dynamic_dimension
+        assert hidden_size is not dynamic_dimension, "OpenVINO does not support BlockLSTM with dynamic hidden_size."
 
         # normalize weights to the format required by OpenVINO LSTMSequence
         weights = block_lstm.in_port(1).data.get_value()
         biases = block_lstm.in_port(2).data.get_value()
+        assert weights is not None and biases is not None, \
+            "Internal Model Optimizer error: weights and bias values should be defined."
         # 1. reshape weights and bias to highlight channel dimension
         weights = weights.reshape([weights.shape[0], 4, hidden_size])
         biases = biases.reshape([4, hidden_size])
