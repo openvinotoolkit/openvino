@@ -109,7 +109,8 @@ TEST_P(ov_compiled_model, ov_compiled_model_input_by_name) {
 }
 
 TEST_P(ov_compiled_model, set_and_get_property) {
-    auto device_name = GetParam();
+    // It seems that all set_property() for CPU plugin are not implement in compiled_model.
+    auto device_name = "MULTI:GPU,CPU";
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
@@ -119,16 +120,20 @@ TEST_P(ov_compiled_model, set_and_get_property) {
     EXPECT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name, 0, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
-    // TODO: add set_property test case
-    //  It seems that all set_property() is not implement in compiled_model.
+    const char* key_1 = ov_property_key_device_priorities;
+    const char* value_1 = "GPU,CPU";
+    OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, key_1, value_1));
+    char* result = nullptr;
+    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key_1, &result));
+    EXPECT_STREQ(value_1, result);
+    ov_free(result);
 
-    char* result_3 = nullptr;
-    const char* key_3 = ov_property_key_supported_properties;
-    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key_3, &result_3));
-    ov_free(result_3);
+    const char* key_2 = ov_property_key_supported_properties;
+    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key_2, &result));
+    ov_free(result);
 
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);

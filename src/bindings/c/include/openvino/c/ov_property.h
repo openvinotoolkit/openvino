@@ -140,6 +140,10 @@ OPENVINO_C_VAR(const char*) ov_property_key_enable_profiling;
 
 //!< Read-write property<std::pair<std::string, Any>>, device Priorities config option, with comma-separated devices
 //!< listed in the desired priority
+//!< Some optional values for MULTI device:
+//!    "CPU,GPU"
+//!    "GPU,CPU"
+//!  Note: CPU plugin is not implement.
 OPENVINO_C_VAR(const char*) ov_property_key_device_priorities;
 
 // Property
