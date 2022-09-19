@@ -60,6 +60,7 @@ flowchart LR
  * How to:
      * [Add new operation](#todo)
      * [Add new transformation](#todo)
+     * [Get code coverage report](./test_coverage.md) 
  * [OpenVINO contribution guideline](../../CONTRIBUTING.md)
  * [OpenVINO Debug Capabilities](./debug_capabilities.md)
 
