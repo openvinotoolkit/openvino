@@ -124,7 +124,7 @@ TEST_P(ov_core, ov_core_compile_model_with_property) {
     ASSERT_NE(nullptr, compiled_model);
 
     char* property_value = nullptr;
-    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &property_value));
+    OV_ASSERT_OK(ov_compiled_model_get_property(compiled_model, key, &property_value));
     EXPECT_STREQ(property_value, "11");
     ov_free(property_value);
 
