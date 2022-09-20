@@ -51,7 +51,7 @@ protected:
         EXPECT_NE(nullptr, input_tensor);
 
         compiled_model = nullptr;
-        OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), nullptr, &compiled_model));
+        OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
         EXPECT_NE(nullptr, compiled_model);
 
         infer_request = nullptr;
@@ -147,7 +147,7 @@ protected:
         EXPECT_NE(nullptr, model);
 
         compiled_model = nullptr;
-        OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), nullptr, &compiled_model));
+        OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
         EXPECT_NE(nullptr, compiled_model);
 
         infer_request = nullptr;

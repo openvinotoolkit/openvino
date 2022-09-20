@@ -151,17 +151,19 @@ ov_core_read_model_from_memory(const ov_core_t* core,
  * @param core A pointer to the ie_core_t instance.
  * @param model Model object acquired from Core::read_model.
  * @param device_name Name of a device to load a model to.
- * @param property Optional pack of pairs: (property name, property value) relevant only for this load operation
- * operation.
+ * @param property_args_size How many properties args will be passed, each property contains 2 args: key and value.
  * @param compiled_model A pointer to the newly created compiled_model.
+ * @param property paramater: Optional pack of pairs: <char* property_key, char* property_value> relevant only
+ * for this load operation operation. Supported property key please see ov_property.h.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_core_compile_model(const ov_core_t* core,
                       const ov_model_t* model,
                       const char* device_name,
-                      const ov_properties_t* property,
-                      ov_compiled_model_t** compiled_model);
+                      const size_t property_args_size,
+                      ov_compiled_model_t** compiled_model,
+                      ...);
 
 /**
  * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
@@ -171,28 +173,32 @@ ov_core_compile_model(const ov_core_t* core,
  * @param core A pointer to the ie_core_t instance.
  * @param model_path Path to a model.
  * @param device_name Name of a device to load a model to.
- * @param property Optional pack of pairs: (property name, property value) relevant only for this load operation
- * operation.
+ * @param property_args_size How many properties args will be passed, each property contains 2 args: key and value.
  * @param compiled_model A pointer to the newly created compiled_model.
+ * @param property paramater: Optional pack of pairs: <char* property_key, char* property_value> relevant only
+ * for this load operation operation. Supported property key please see ov_property.h.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_core_compile_model_from_file(const ov_core_t* core,
                                 const char* model_path,
                                 const char* device_name,
-                                const ov_properties_t* property,
-                                ov_compiled_model_t** compiled_model);
+                                const size_t property_args_size,
+                                ov_compiled_model_t** compiled_model,
+                                ...);
 
 /**
- * @brief Sets properties for a device, acceptable keys can be found in ov_property_key_e.
+ * @brief Sets properties for a device, acceptable keys can be found in ov_property_key_xxx.
  * @ingroup Core
  * @param core A pointer to the ie_core_t instance.
  * @param device_name Name of a device.
- * @param property ov_property propertys.
+ * @param property_key The property key.
+ * @param ... variadic paramaters The format is <char* property_key, char* property_value>.
+ * Supported property key please see ov_property.h.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_core_set_property(const ov_core_t* core, const char* device_name, const ov_properties_t* property);
+ov_core_set_property(const ov_core_t* core, const char* device_name, ...);
 
 /**
  * @brief Gets properties related to device behaviour.
@@ -200,15 +206,12 @@ ov_core_set_property(const ov_core_t* core, const char* device_name, const ov_pr
  * @ingroup Core
  * @param core A pointer to the ie_core_t instance.
  * @param device_name  Name of a device to get a property value.
- * @param property_name  Property name.
- * @param property_value A pointer to property value.
+ * @param property_key  Property key.
+ * @param property_value A pointer to property value with string format.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_core_get_property(const ov_core_t* core,
-                     const char* device_name,
-                     const char* property_name,
-                     ov_any_t* property_value);
+ov_core_get_property(const ov_core_t* core, const char* device_name, const char* property_key, char** property_value);
 
 /**
  * @brief Returns devices available for inference.
