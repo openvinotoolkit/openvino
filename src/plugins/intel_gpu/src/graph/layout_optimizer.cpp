@@ -759,7 +759,7 @@ bool layout_optimizer::deconvolution_b_fs_yx_fsv16_opt(layout const &input_layou
     return false;
 }
 
-static bool is_node_for_onednn(reduce_node const& node) {
+static bool is_node_for_onednn(reduce_node const& node, format preferred_format) {
     auto& input = node.input();
     auto reduce_prim = node.get_primitive();
     // oneDNN reduction currently does not support logical_and, logical_or, log_sum and log_sum_exp.
@@ -788,6 +788,11 @@ static bool is_node_for_onednn(reduce_node const& node) {
 
     // redundant reduce is not acceptable on oneDNN reduction
     if (node.get_output_layout() == input_layout) {
+        return false;
+    }
+
+    // oneDNN reduction selects ref kernel for simple formats(bfyx..) which has perf regression with a decent tensor size.
+    if (format::is_simple_data_format(preferred_format)) {
         return false;
     }
 
@@ -1543,7 +1548,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
 
-        if (is_node_for_onednn(node.as<reduce>()))
+        if (is_node_for_onednn(node.as<reduce>(), preferred_format))
             return impl_types::onednn;
         else
             return impl_types::ocl;
@@ -1635,7 +1640,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             return impl_types::onednn;
         }
     // TODO: uncomment this code when onednn gemm implementations will have real perf improvements vs cldnn
-    } else if (node.is_type<fully_connected>()/* || node.is_type<gemm>()*/) {
+    } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
 
@@ -1666,13 +1671,12 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                 }
             }
 
-            impl_candidate = impl_types::ocl;
             auto gemm_prim = node.as<gemm>().get_primitive();
             auto in0_l = node.get_dependency(0).get_output_layout();
             auto in1_l = node.get_dependency(1).get_output_layout();
             auto out_l = node.get_output_layout();
             auto has_input2 = gemm_prim->dependencies().size() == 3;
-            size_t in2_batched_size;
+            size_t in2_batched_size = 0;
             if (has_input2) {
                 auto in2_l = node.get_dependency(2).get_output_layout();
                 in2_batched_size = in2_l.count() / (in2_l.spatial(0) * in2_l.spatial(1));
@@ -1693,9 +1697,14 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                                            !valid_extra_input_batch ||
                                            !valid_scale_factor;
 
-            // Gemm with k < 64 is calculated via ref kernel in onednn so cldnn way is more preferable for such cases
-            if (size_k < 64 || unsupported_onednn_gemm)
+            bool is_u8_i8 = data_type_traits::is_i8_u8(in0_l.data_type) && data_type_traits::is_i8_u8(in1_l.data_type);
+            bool use_ops_cldnn_kernel = is_u8_i8 || (in0_l.spatial(0) % 16 == 0 && in0_l.spatial(1) % 16 == 0 &&
+                                                     in1_l.spatial(0) % 16 == 0 && in1_l.spatial(1) % 16 == 0);
+
+            // Gemm with k < 64 may be faster in cldnn unless ref impl is used
+            if ((size_k < 64 && use_ops_cldnn_kernel) || unsupported_onednn_gemm) {
                 impl_candidate = impl_types::ocl;
+            }
         }
 
         preferred_impl = impl_candidate;
