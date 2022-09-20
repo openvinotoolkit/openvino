@@ -71,10 +71,8 @@ protected:
         auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
         auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(paramOuts[0], ngraph::element::i32);
-        shapeOf->get_rt_info() = getCPUInfo();
 
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(shapeOf)};
-        function = std::make_shared<ngraph::Function>(results, params, "ShapeOf");
+        function = makeNgraphFunction(netPrecision, params, shapeOf, "ShapeOf");
     }
 };
 
@@ -87,7 +85,7 @@ TEST_P(ShapeOfLayerCPUTest, CompareWithRefs) {
 namespace {
 
 /* CPU PARAMS */
-std::vector<CPUSpecificParams> filterFormatsInfoForDevice(const size_t dimsCount = 3) {
+std::vector<CPUSpecificParams> getCpuInfoForDimsCount(const size_t dimsCount = 3) {
     std::vector<CPUSpecificParams> resCPUParams;
     if (dimsCount == 5) {
         resCPUParams.push_back(CPUSpecificParams{{nCdhw16c}, {x}, {}, {}});
@@ -176,19 +174,19 @@ const auto params5dDynamic = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inShapesDynamic5d),
                 ::testing::ValuesIn(netPrecisions)),
-        ::testing::ValuesIn(filterFormatsInfoForDevice(5)));
+        ::testing::ValuesIn(getCpuInfoForDimsCount(5)));
 
 const auto params4dDynamic = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inShapesDynamic4d),
                 ::testing::ValuesIn(netPrecisions)),
-        ::testing::ValuesIn(filterFormatsInfoForDevice(4)));
+        ::testing::ValuesIn(getCpuInfoForDimsCount(4)));
 
 const auto params3dDynamic = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inShapesDynamic3d),
                 ::testing::ValuesIn(netPrecisions)),
-        ::testing::ValuesIn(filterFormatsInfoForDevice(3)));
+                       ::testing::ValuesIn(getCpuInfoForDimsCount(3)));
 
 // We don't check static case, because of constant folding
 INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf3dDynamicLayoutTest, ShapeOfLayerCPUTest,
