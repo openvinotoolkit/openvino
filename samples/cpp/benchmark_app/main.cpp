@@ -269,15 +269,22 @@ int main(int argc, char* argv[]) {
 
         bool perf_counts = false;
         // check if using the virtual device
-        auto if_auto = device_name.find("AUTO") != std::string::npos;
-        auto if_multi = device_name.find("MULTI") != std::string::npos;
+        auto if_auto = std::find(devices.begin(), devices.end(), "AUTO") != devices.end();
+        auto if_multi = std::find(devices.begin(), devices.end(), "MULTI") != devices.end();
         // Remove the hardware devices if AUTO/MULTI appears in the devices list.
         if (if_auto || if_multi) {
             devices.clear();
-            if (if_auto)
+            std::string virtual_device;
+            if (if_auto) {
+                virtual_device = "AUTO";
                 devices.push_back("AUTO");
-            if (if_multi)
+            }
+            if (if_multi) {
+                virtual_device = "MULTI";
                 devices.push_back("MULTI");
+            }
+            parse_value_for_virtual_device(virtual_device, device_nstreams);
+            parse_value_for_virtual_device(virtual_device, device_infer_precision);
         }
         // Update config per device according to command line parameters
         for (auto& device : devices) {
@@ -332,13 +339,20 @@ int main(int argc, char* argv[]) {
                         key = ov::num_streams.name();
                         device_config[key] = it_device_nstreams->second;
                     } else if (device == "MULTI" || device == "AUTO") {
-                        // set device nstreams properties in the AUTO/MULTI plugin
-                        std::stringstream strm(it_device_nstreams->second);
-                        std::map<std::string, std::string> devices_property;
-                        ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
-                        for (auto it : devices_property) {
-                            device_config.insert(
-                                ov::device::properties(it.first, ov::num_streams(std::stoi(it.second))));
+                        // check if the element contains the hardware device property
+                        auto value_vec = split(it_device_nstreams->second, ' ');
+                        if (value_vec.size() == 1) {
+                            key = ov::num_streams.name();
+                            device_config[key] = it_device_nstreams->second;
+                        } else {
+                            // set device nstreams properties in the AUTO/MULTI plugin
+                            std::stringstream strm(it_device_nstreams->second);
+                            std::map<std::string, std::string> devices_property;
+                            ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
+                            for (auto it : devices_property) {
+                                device_config.insert(
+                                    ov::device::properties(it.first, ov::num_streams(std::stoi(it.second))));
+                            }
                         }
                     } else {
                         throw std::logic_error("Device " + device + " doesn't support config key '" + key + "' " +

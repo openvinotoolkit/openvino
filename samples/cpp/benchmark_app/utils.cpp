@@ -125,13 +125,50 @@ std::vector<std::string> parse_devices(const std::string& device_string) {
     return result;
 }
 
+void parse_value_for_virtual_device(const std::string& device, std::map<std::string, std::string>& values_string) {
+    auto item_virtual = values_string.find(device);
+    if (item_virtual != values_string.end() && values_string.size() > 1) {
+        if (device == "MULTI") {
+            // Remove the element that the key is virtual device MULTI
+            // e.g. MULTI:xxx,xxx -nstreams 2 will set nstreams 2 to CPU.
+            values_string.erase(item_virtual);
+        } else if (device == "AUTO") {
+            // Just keep the element that the key is virtual device AUTO
+            // e.g. AUTO:xxx,xxx -nstreams 2 will trigger exception that AUTO plugin didn't support nstream property.
+            auto value = item_virtual->second;
+            values_string.clear();
+            values_string[device] = value;
+            return;
+        }
+    }
+    auto iter = values_string.begin();
+    while (iter != values_string.end()) {
+        if (iter->first == device) {
+            iter++;
+            continue;
+        }
+        values_string[device] += iter->first + " " + iter->second + " ";
+        iter = values_string.erase(iter);
+    }
+    if (values_string.find(device) != values_string.end()) {
+        auto& nstreams = values_string[device];
+        // Remove the space at the tail.
+        nstreams.erase(std::find_if(nstreams.rbegin(),
+                                    nstreams.rend(),
+                                    [](unsigned char ch) {
+                                        return !std::isspace(ch);
+                                    })
+                           .base(),
+                       nstreams.end());
+    }
+    return;
+}
+
 std::map<std::string, std::string> parse_value_per_device(const std::vector<std::string>& devices,
                                                           const std::string& values_string) {
     //  Format: <device1>:<value1>,<device2>:<value2> or just <value>
     std::map<std::string, std::string> result;
     auto device_value_strings = split(values_string, ',');
-    auto if_auto = std::find(devices.begin(), devices.end(), "AUTO") != devices.end();
-    auto if_multi = std::find(devices.begin(), devices.end(), "MULTI") != devices.end();
     for (auto& device_value_string : device_value_strings) {
         auto device_value_vec = split(device_value_string, ':');
         if (device_value_vec.size() == 2) {
@@ -139,33 +176,16 @@ std::map<std::string, std::string> parse_value_per_device(const std::vector<std:
             auto nstreams = device_value_vec.at(1);
             auto it = std::find(devices.begin(), devices.end(), device_name);
             if (it != devices.end()) {
-                if (!if_auto && !if_multi) {
-                    result[device_name] = nstreams;
-                } else {
-                    if (if_auto)
-                        result["AUTO"] = device_name + " " + nstreams;
-                    if (if_multi)
-                        result["MULTI"] = device_name + " " + nstreams;
-                }
+                result[device_name] = nstreams;
             } else {
-                if (devices.size() == 1 && if_auto)
-                    continue;
                 throw std::logic_error("Can't set nstreams value " + std::string(nstreams) + " for device '" +
                                        device_name + "'! Incorrect device name!");
             }
         } else if (device_value_vec.size() == 1) {
             auto value = device_value_vec.at(0);
-            if (!if_auto && !if_multi) {
                 for (auto& device : devices) {
                     result[device] = value;
                 }
-            } else if (if_auto) {
-                slog::warn << "nstreams will be ignored because this property is not supported by AUTO. "
-                           << "Please setting nstreams for hardware devices following the format like "
-                              "'<device1>:<value1>,<device2>:<value2>,..."
-                           << slog::endl;
-            } else
-                result["MULTI"] = value;
         } else if (device_value_vec.size() != 0) {
             throw std::runtime_error("Unknown string format: " + values_string);
         }
