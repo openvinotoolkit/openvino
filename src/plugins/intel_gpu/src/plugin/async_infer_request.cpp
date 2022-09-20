@@ -33,14 +33,6 @@ AsyncInferRequest::AsyncInferRequest(const InferRequest::Ptr &inferRequest,
     }
 }
 
-void AsyncInferRequest::Infer_ThreadUnsafe() {
-    if (_inferRequest->use_external_queue()) {
-        _inferRequest->setup_stream_graph();
-        _inferRequest->enqueue_notify();
-    }
-    Parent::Infer_ThreadUnsafe();
-}
-
 void AsyncInferRequest::StartAsync_ThreadUnsafe() {
     if (_inferRequest->use_external_queue()) {
         _inferRequest->setup_stream_graph();

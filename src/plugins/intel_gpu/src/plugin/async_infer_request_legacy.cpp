@@ -34,15 +34,6 @@ AsyncInferRequestLegacy::AsyncInferRequestLegacy(const InferRequestLegacy::Ptr &
     }
 }
 
-void AsyncInferRequestLegacy::Infer_ThreadUnsafe() {
-    if (_inferRequest->use_external_queue()) {
-        _inferRequest->setup_stream_graph();
-        _inferRequest->preprocess_notify();
-        _inferRequest->enqueue_notify();
-    }
-    Parent::Infer_ThreadUnsafe();
-}
-
 void AsyncInferRequestLegacy::StartAsync_ThreadUnsafe() {
     if (_inferRequest->use_external_queue()) {
         _inferRequest->setup_stream_graph();

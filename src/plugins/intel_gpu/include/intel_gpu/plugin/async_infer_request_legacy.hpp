@@ -22,7 +22,6 @@ public:
 
     ~AsyncInferRequestLegacy();
 
-    void Infer_ThreadUnsafe() override;
     void StartAsync_ThreadUnsafe() override;
 
 private:
