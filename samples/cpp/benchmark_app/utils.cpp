@@ -183,9 +183,9 @@ std::map<std::string, std::string> parse_value_per_device(const std::vector<std:
             }
         } else if (device_value_vec.size() == 1) {
             auto value = device_value_vec.at(0);
-                for (auto& device : devices) {
-                    result[device] = value;
-                }
+            for (auto& device : devices) {
+                result[device] = value;
+            }
         } else if (device_value_vec.size() != 0) {
             throw std::runtime_error("Unknown string format: " + values_string);
         }
