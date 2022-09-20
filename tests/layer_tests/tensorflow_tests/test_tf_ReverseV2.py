@@ -38,9 +38,9 @@ class TestReverseV2Ops(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
-    def test_reversev2(self, params, keep_dims, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_reversev2(self, params, keep_dims, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_reversev2_net(**params, keep_dims=keep_dims, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     test_data_pre_commit = []
     test_data_pre_commit.extend([dict(shape=[5], axis=[0]),
@@ -51,6 +51,6 @@ class TestReverseV2Ops(CommonTFLayerTest):
     @pytest.mark.parametrize("keep_dims", [True])
     @pytest.mark.precommit
     def test_reversev2_precommit(self, params, keep_dims, ie_device, precision, ir_version,
-                                 temp_dir, api_2):
+                                 temp_dir, use_old_api):
         self._test(*self.create_reversev2_net(**params, keep_dims=keep_dims, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2, use_new_frontend=False)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api, use_new_frontend=False)
