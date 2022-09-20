@@ -10,11 +10,3 @@ def get_gna_ignored_patterns():
         'activations': [],
         'inputs': []
     }
-
-
-def get_gna3_ignored_patterns():
-    return {
-        'blocks': [get_assign_result_pattern()],
-        'activations': [],
-        'inputs': []
-    }

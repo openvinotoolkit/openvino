@@ -19,9 +19,7 @@ class AccuracyAwareQuantization(Algorithm):
             'CPU': 'AccuracyAwareCommon',
             'VPU': 'AccuracyAwareCommon',
             'GPU': 'AccuracyAwareCommon',
-            'GNA': 'AccuracyAwareGNA',
-            'GNA3': 'AccuracyAwareGNA',
-            'GNA3.5': 'AccuracyAwareGNA'
+            'GNA': 'AccuracyAwareGNA'
         }
         algo_name = algos_by_devices[config.get('target_device', 'ANY')]
         self._accuracy_aware_algo = COMPRESSION_ALGORITHMS.get(algo_name)(config, engine)
