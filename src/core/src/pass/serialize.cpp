@@ -764,6 +764,17 @@ void auto_pad_resolving(ov::Node* node) {
     }
 }
 
+void serialize_meta(pugi::xml_node& root, const ov::AnyMap& data) {
+    for (const auto& it : data) {
+        auto child = root.append_child(it.first.c_str());
+        if (it.second.is<ov::AnyMap>()) {
+            serialize_meta(child, it.second.as<ov::AnyMap>());
+        } else {
+            child.append_attribute("value").set_value(it.second.as<std::string>().c_str());
+        }
+    }
+}
+
 void ngfunction_2_ir(pugi::xml_node& netXml,
                      const ngraph::Function& f,
                      const std::map<std::string, ngraph::OpSet>& custom_opsets,
@@ -953,6 +964,13 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         edge.append_attribute("from-port").set_value(e.from_port);
         edge.append_attribute("to-layer").set_value(e.to_layer);
         edge.append_attribute("to-port").set_value(e.to_port);
+    }
+
+    // Meta data
+    ov::AnyMap meta_data = f.get_meta_data();
+    if (!meta_data.empty()) {
+        pugi::xml_node meta_node = netXml.append_child("meta_data");
+        serialize_meta(meta_node, meta_data);
     }
 }
 
