@@ -133,6 +133,27 @@ TEST_P(ov_core, ov_core_compile_model_with_property) {
     ov_core_free(core);
 }
 
+TEST_P(ov_core, ov_core_compile_model_with_property_invalid) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_ASSERT_OK(ov_core_read_model(core, xml, nullptr, &model));
+    ASSERT_NE(nullptr, model);
+
+    ov_compiled_model_t* compiled_model = nullptr;
+    const char* key = ov_property_key_num_streams;
+    const char* num = "11";
+    OV_EXPECT_NOT_OK(ov_core_compile_model(core, model, device_name.c_str(), 1, &compiled_model, key, num));
+    OV_EXPECT_NOT_OK(ov_core_compile_model(core, model, device_name.c_str(), 3, &compiled_model, key, num, "Test"));
+
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
 TEST_P(ov_core, ov_core_compile_model_from_file) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
@@ -157,6 +178,29 @@ TEST_P(ov_core, ov_core_set_property_enum) {
     const char* mode = "WARNING";
 
     OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, mode));
+    ov_core_free(core);
+}
+
+TEST_P(ov_core, ov_core_set_property_invalid_number_property_arguments) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    const char* key_1 = ov_property_key_inference_num_threads;
+    const char* value_1 = "12";
+    const char* key_2 = ov_property_key_hint_performance_mode;
+    const char* value_2 = "LATENCY";
+
+    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key_1, value_1, key_2, value_2));
+    char* ret = nullptr;
+    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key_1, &ret));
+    EXPECT_STREQ(value_1, ret);
+    ov_free(ret);
+    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key_2, &ret));
+    EXPECT_STRNE(value_2, ret);
+    ov_free(ret);
+
     ov_core_free(core);
 }
 
@@ -225,6 +269,24 @@ TEST_P(ov_core, ov_core_set_and_get_property_bool) {
     ov_core_free(core);
 }
 
+TEST_P(ov_core, ov_core_set_and_get_property_bool_invalid) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    const char* key = ov_property_key_enable_profiling;
+    const char* enable = "TEST";
+    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, enable));
+
+    char* ret = nullptr;
+    OV_EXPECT_NOT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
+    EXPECT_STRNE(enable, ret);
+    ov_free(ret);
+
+    ov_core_free(core);
+}
+
 TEST_P(ov_core, ov_core_get_property) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
@@ -271,6 +333,22 @@ TEST_P(ov_core, ov_core_set_get_property_int) {
     OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &property_value));
     EXPECT_STREQ(num, property_value);
     ov_free(property_value);
+
+    ov_core_free(core);
+}
+
+TEST_P(ov_core, ov_core_set_property_int_invalid) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    const char* key = ov_property_key_inference_num_threads;
+    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, "abc"));
+
+    char* ret = nullptr;
+    OV_EXPECT_NOT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
+    ov_free(ret);
 
     ov_core_free(core);
 }

@@ -115,6 +115,13 @@ TEST_P(ov_compiled_model, set_and_get_property) {
     OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
+    char* info = nullptr;
+    const char* key_0 = ov_property_key_available_devices;
+    if (ov_core_get_property(core, "GPU", key_0, &info) != ov_status_e::OK) {
+        ov_core_free(core);
+        GTEST_SKIP();
+    }
+
     ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
     EXPECT_NE(nullptr, model);
@@ -133,6 +140,30 @@ TEST_P(ov_compiled_model, set_and_get_property) {
 
     const char* key_2 = ov_property_key_supported_properties;
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key_2, &result));
+    ov_free(result);
+
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST_P(ov_compiled_model, get_property) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_compiled_model_t* compiled_model = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
+    EXPECT_NE(nullptr, compiled_model);
+
+    const char* key = ov_property_key_supported_properties;
+    char* result = nullptr;
+    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
     ov_free(result);
 
     ov_compiled_model_free(compiled_model);
