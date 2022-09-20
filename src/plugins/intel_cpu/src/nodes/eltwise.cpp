@@ -167,8 +167,8 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
                     this, p->entry_[i], vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
         }
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa));
+        if (mayiuse(avx512_core))
+            uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa));
 
         const auto &jep = jep_;
 
@@ -359,8 +359,8 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
         this->postamble();
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16->emit_data();
+        if (uni_vcvtneps2bf16)
+            uni_vcvtneps2bf16->emit_data();
 
         eltwise_emitter->emit_data();
         for (int i = 0; i < post_op_emitters.size(); i++) {
@@ -409,7 +409,7 @@ private:
     Vmm vmm_d_bias = Vmm(13);
     Vmm vmm_zero = Vmm(15);
 
-    std::shared_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
+    std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16;
 
     std::shared_ptr<jit_emitter> eltwise_emitter = nullptr;
     std::vector<std::shared_ptr<jit_emitter>> post_op_emitters = {};
@@ -703,10 +703,7 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case Precision::BF16:
-                if (mayiuse(avx512_core_bf16))
-                    vcvtneps2bf16(ymm_dst, vmm_dst);
-                else
-                    emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
                 break;
             case Precision::I16:
