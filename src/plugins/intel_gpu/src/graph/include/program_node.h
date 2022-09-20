@@ -146,6 +146,14 @@ public:
                                                                                  get_fused_primitives(),
                                                                                  get_fused_activations_funcs(), get_fused_activations_params()));
         params->memory_deps = get_const_memory_deps();
+
+        auto deps = get_dependencies();
+        for (size_t i = 0; i < deps.size(); i++) {
+            if (!deps[i]->is_constant()) {
+                params->primary_input_idx = i;
+                break;
+            }
+        }
         return params;
     }
 
@@ -266,8 +274,6 @@ public:
     }
     void unmark() { user_mark = 0; }
     bool is_marked() const { return user_mark != 0; }
-    bool is_marked(uint8_t val) const { return user_mark == val; }
-    uint8_t get_user_mark() const { return user_mark; }
 
     void add_fused_activation(activation_func activation_func,
                               activation_additional_params additional_params) {
