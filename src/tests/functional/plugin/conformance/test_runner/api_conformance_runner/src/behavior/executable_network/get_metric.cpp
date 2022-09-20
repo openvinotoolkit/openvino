@@ -57,18 +57,18 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         ie_executable_network, IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::ValuesIn(return_all_possible_device_combination()));
+        ::testing::Values(targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassHeteroExecutableNetworkGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-        ::testing::ValuesIn(return_all_possible_device_combination()));
+        ::testing::Values(targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
         ie_executable_network, IEClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME,
-        ::testing::ValuesIn(return_all_possible_device_combination()));
+        ::testing::Values(targetDevice));
 
 INSTANTIATE_TEST_SUITE_P(
         ie_executable_network, IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
-        ::testing::ValuesIn(return_all_possible_device_combination()));
+        ::testing::Values(targetDevice));
 
 } // namespace

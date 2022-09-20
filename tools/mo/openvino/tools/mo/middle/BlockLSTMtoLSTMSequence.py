@@ -3,11 +3,115 @@
 
 import numpy as np
 
-from openvino.tools.mo.ops.LSTM import LSTM
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.LSTM import LSTM
 from openvino.tools.mo.utils.error import Error
+
+
+class BlockLSTMtoLSTMSequenceSingleFirstOutput(MiddleReplacementPattern):
+    """
+    This transformation handles BlockLSTM with just one output, concatenation of all the intermediate
+    output values of the hidden.
+    TODO: implement for non-constant weights and bias.
+    For this, it requires to unbound from LSTMRNNSequenceToTensorIterator transformation
+    """
+    enabled = True
+
+    def run_before(self):
+        from openvino.tools.mo.middle.LSTMRNNSequenceToTensorIterator import LSTMToTensorIterator
+        return [LSTMToTensorIterator]
+
+    def run_after(self):
+        from openvino.tools.mo.middle.RNNSequenceNormalizeToIE import RNNSequenceNormalize
+        return [RNNSequenceNormalize, BlockLSTMtoLSTMSequence]
+
+    def pattern(self):
+        return dict(
+            nodes=[
+                ('BlockLSTM', dict(op='BlockLSTM')),
+                ('weights', dict(op='Const')),
+                ('weights_data', dict(kind='data')),
+                ('bias', dict(op='Const')),
+                ('bias_data', dict(kind='data')),
+            ],
+            edges=[
+                ('weights', 'weights_data'),
+                ('weights_data', 'BlockLSTM', {'in': 1}),
+                ('bias', 'bias_data'),
+                ('bias_data', 'BlockLSTM', {'in': 2}),
+            ]
+        )
+
+    @staticmethod
+    def replace_pattern(graph: Graph, match: dict):
+        block_lstm = match['BlockLSTM']
+        connected_out_ports = [port_idx for port_idx, port in block_lstm.out_ports().items() if
+                               not port.disconnected()]
+        # support only BlockLSTM with one output of concatenated hidden states from all steps
+        if len(connected_out_ports) != 1 or connected_out_ports[0] != 0:
+            return
+        shift_const = block_lstm.forget_bias
+
+        # determine hidden_size based on weights shapes
+        w_shape = block_lstm.in_port(1).data.get_shape()
+        b_shape = block_lstm.in_port(2).data.get_shape()
+        hidden_size = dynamic_dimension
+        if len(b_shape) > 0 and b_shape[0] is not dynamic_dimension:
+            hidden_size = b_shape[0] // 4
+        elif len(w_shape) > 1 and w_shape[1] is not dynamic_dimension:
+            hidden_size = w_shape[1] // 4
+
+        assert hidden_size is not dynamic_dimension, "OpenVINO does not support BlockLSTM with dynamic hidden_size."
+
+        # normalize weights to the format required by OpenVINO LSTMSequence
+        weights = block_lstm.in_port(1).data.get_value()
+        biases = block_lstm.in_port(2).data.get_value()
+        assert weights is not None and biases is not None, \
+            "Internal Model Optimizer error: weights and bias values should be defined."
+        # 1. reshape weights and bias to highlight channel dimension
+        weights = weights.reshape([weights.shape[0], 4, hidden_size])
+        biases = biases.reshape([4, hidden_size])
+        # 2. reorder gates icfo --> fico for both weights and biases
+        gate_reorder = [2, 0, 1, 3]
+        weights = np.take(weights, gate_reorder, axis=1)
+        biases = np.take(biases, gate_reorder, axis=0)
+        # 3. shift_const.value should be added to the first 1/4th part of the biases (f-gate: 0)
+        # Note: in case of moving this code up before gate reordering, the addition
+        # should be applied at different place
+        biases[0] += shift_const
+        # 4. return to the original shapes
+        weights = weights.reshape([weights.shape[0], -1])
+        biases = biases.flatten()
+        # 5. TF stores weights in IO, but IE requires it in OI: transpose
+        weights = weights.transpose()
+        # 6. set up normalized values for Constant weights and bias
+        block_lstm.in_port(1).data.set_value(weights)
+        block_lstm.in_port(2).data.set_value(biases)
+
+        # re-number h_init_state, c_init_state input ports to match RNNSequence ports order
+        # at this point there is no clear match to RNNSequence operations
+        # next re-ordering is expected in LSTMRNNSequenceToTensorIterator transformation
+        # to match LSTMCell inputs order
+        init_hidden_state_source = block_lstm.in_port(3).get_source()
+        init_cell_state_source = block_lstm.in_port(4).get_source()
+        block_lstm.in_port(4).get_connection().set_source(init_hidden_state_source)
+        block_lstm.add_input_port(5, skip_if_exist=True)
+        block_lstm.in_port(5).get_connection().set_source(init_cell_state_source)
+        block_lstm.delete_input_port(3, skip_if_absent=True)
+
+        new_attrs = {'sequence_dim': 0,
+                     'batch_dim': 1,
+                     'direction': 'forward',
+                     'hidden_size': hidden_size,
+                     'format': 'tf',
+                     }
+
+        # update attributes of existing operation
+        # input edges have "bin" attribute for LSTMRNNSequenceToTensorIterator
+        LSTM.update_node_stat(block_lstm, new_attrs)
 
 
 class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
@@ -206,8 +310,7 @@ class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
             cell_state_edge = graph.get_edge_data(node.in_node(4).id, node.id)
             cell_state_edge[0]['in'] = c_init_port
 
-
-        #h_init_state
+        # h_init_state
         if 3 in node.in_nodes():
             assert h_init_port not in node.in_nodes()
             hidden_state_edge = graph.get_edge_data(node.in_node(3).id, node.id)
