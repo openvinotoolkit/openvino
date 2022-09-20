@@ -552,16 +552,20 @@ bool Snippet::needPrepareParams() const {
     return inputShapesModified() || !schedule.ptr;
 }
 
-void Snippet::execute(dnnl::stream strm) {
-    if (schedule.ptr == nullptr) {
-        IE_THROW() << "Snippet can't use Optimized implementation and can't fallback to reference";
-    }
-    jit_snippets_call_args call_args;
+void Snippet::updateSrcDstPtrs(jit_snippets_call_args& call_args) const {
     for (size_t i = 0; i < srcMemPtrs.size(); i++)
         call_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(srcMemPtrs[i]->GetData()) + start_offset_in[i];
 
     for (size_t i = 0; i < dstMemPtrs.size(); i++)
         call_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->GetData()) + start_offset_out[i];
+}
+
+void Snippet::execute(dnnl::stream strm) {
+    if (schedule.ptr == nullptr) {
+        IE_THROW() << "Snippet can't use Optimized implementation and can't fallback to reference";
+    }
+    jit_snippets_call_args call_args;
+    updateSrcDstPtrs(call_args);
 
     if (tensorRank == rank6D) {
         schedule_6d(call_args);
@@ -575,12 +579,10 @@ void Snippet::executeDynamicImpl(dnnl::stream strm) {
         IE_THROW() << "Snippet can't use Optimized implementation and can't fallback to reference";
     }
     jit_snippets_call_args call_args;
-    for (size_t i = 0; i < srcMemPtrs.size(); i++)
-        call_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(srcMemPtrs[i]->GetData()) + start_offset_in[i];
+    updateSrcDstPtrs(call_args);
 
-    for (size_t i = 0; i < dstMemPtrs.size(); i++)
-        call_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->GetData()) + start_offset_out[i];
-    // todo: create and employ jit_snippets_call_args class field to avoid this copy (also valid for the static case)
+    // todo: create and employ jit_snippets_call_args class field to avoid this copy
+    //  (problem: will have to work with raw pointers, memcpy etc)
     std::copy(scheduler_offsets.begin(), scheduler_offsets.end(), call_args.scheduler_offsets);
     std::copy(data_offsets.begin(), data_offsets.end(), call_args.data_offsets);
     std::copy(scheduler_work_amounts.begin(), scheduler_work_amounts.end(), call_args.scheduler_work_amounts);

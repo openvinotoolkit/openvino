@@ -234,7 +234,6 @@ private:
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
 
 private:
-    bool use_broadcast;
     size_t byte_size = 0lu;
 };
 

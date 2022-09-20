@@ -25,6 +25,7 @@ namespace op {
 class Subgraph : public ngraph::op::Op {
 public:
     OPENVINO_OP("Subgraph", "SnippetsOpset");
+    enum {DYNAMIC_DIMENSION = 0xffffffffffffffff};
 
     // < 1, 42, 17, 15, 16> < 0, 1, 2, 3, 1>
     // should be:

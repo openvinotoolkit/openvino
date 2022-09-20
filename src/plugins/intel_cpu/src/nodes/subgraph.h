@@ -48,7 +48,6 @@ public:
     // if generator is set, it would execute generated code otherwise it would fallback to nGraph reference
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
-//    std::vector<VectorDims> shapeInfer() const override;
 
 private:
     static const size_t rank6D {6};
@@ -67,7 +66,7 @@ private:
                        std::vector<int64_t>& vector_tile_increments, std::vector<int64_t>& scalar_tile_increments) const;
 
     void generate(const jit_snippets_compile_args*);
-
+    void updateSrcDstPtrs(jit_snippets_call_args&) const;
     // Evaluates generated snippet using parallel backend
     void schedule_6d(const jit_snippets_call_args& const_args) const;
     void schedule_6d_dynamic(const jit_snippets_call_args& const_args) const;

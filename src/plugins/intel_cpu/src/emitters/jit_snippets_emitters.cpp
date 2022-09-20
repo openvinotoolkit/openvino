@@ -7,8 +7,10 @@
 #include <cpu/x64/jit_generator.hpp>
 
 #include "jit_snippets_emitters.hpp"
+#include "snippets/op/subgraph.hpp"
 
 using namespace Xbyak;
+using ngraph::snippets::op::Subgraph;
 
 namespace ov {
 namespace intel_cpu {
@@ -172,14 +174,18 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params,
         init_ptr_with_offset(data_ptr_regs[i], i * offsetRank, reg_tmp);
     }
     // a rare case when num_params is maximal, so we have no spare gprs
+    // * Static case: we can use reg_const_params as the last reg_tmp for the last iteration (and corrupt it), since
+    //     it won't be used anymore
+    // * Dynamic case: we will need reg_const_params to pass runtime args to TileScheduler, so we have to
+    //     push a reg on the stack, and restore it value afterwards
     if (last_iter_explicitly) {
         h->mov(data_ptr_regs[i], h->ptr[reg_const_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
+        reg_tmp = reg_const_params;
         if (jcp.is_static) {
             // can corrupt reg_const_params, since we won't use it anymore
-            init_ptr_with_offset(data_ptr_regs[i], i * offsetRank, reg_const_params);
+            init_ptr_with_offset(data_ptr_regs[i], i * offsetRank, reg_tmp);
         } else {
             // have to restore reg_tmp explicitly in dynamic case, can use stack or vector reg
-            reg_tmp = data_ptr_regs.front();
             h->push(reg_tmp);
             init_ptr_with_offset(data_ptr_regs[i], i * offsetRank, reg_tmp);
             h->pop(reg_tmp);
@@ -217,7 +223,7 @@ void KernelEmitter::emit_impl(const std::vector<size_t>& in,
         if (auto tile_scheduler = std::dynamic_pointer_cast<TileSchedulerEmitter>(emitter)) {
             // dynamic TileScheduler needs const runtime params
             if (!jcp.is_static) {
-                in_regs.push_back(static_cast<size_t>(abi_param2.getIdx()));
+                in_regs.push_back(static_cast<size_t>(reg_const_params.getIdx()));
             }
             out_regs = gp_regs_used;
         }
@@ -266,12 +272,14 @@ void TileSchedulerEmitter::emit_static_tiles(const Reg64& reg_inner_amount, cons
     TileAllocatedEmitter vector_tile {std::dynamic_pointer_cast<TileEmitter>(body[0].first), body[0].second};
     TileAllocatedEmitter scalar_tile {std::dynamic_pointer_cast<TileEmitter>(body[1].first), body[1].second};
     const size_t inner_work_amount = jcp.scheduler_work_amounts[1];
+    const size_t outer_work_amount = jcp.scheduler_work_amounts[0];
     auto process_tile =
-        [&](const bool evaluate_once, const TileAllocatedEmitter& tile) {
+        [&](const bool evaluate_once, const bool skip_increments, const TileAllocatedEmitter& tile) {
             // If Tile is evaluated only once, then we can emit its body directly and skip work_amount decrements and checks
             if (evaluate_once) {
                 tile.first->emit_body(vec_pool, gpr_pool);
-                tile.first->emit_ptr_increments_static(data_ptr_regs);
+                if (!skip_increments)
+                    tile.first->emit_ptr_increments_static(data_ptr_regs);
             } else {
                 std::vector<size_t> in_regs, out_regs;
                 std::tie(in_regs, out_regs) = tile.second;
@@ -286,10 +294,11 @@ void TileSchedulerEmitter::emit_static_tiles(const Reg64& reg_inner_amount, cons
     bool vector_evaluate_once = false;
     if (inner_work_amount >= vector_size) {
         vector_evaluate_once = inner_work_amount < 2 * vector_size;
+        const bool skip_increments = outer_work_amount == 1 && inner_work_amount == vector_size;
         // Need to set proper work amount for inner tiles if evaluated multiple times
         if (!vector_evaluate_once)
             h->mov(reg_inner_amount, inner_work_amount);
-        process_tile(vector_evaluate_once, vector_tile);
+        process_tile(vector_evaluate_once, skip_increments, vector_tile);
     }
     if (inner_work_amount % vector_size >= 1) {
         bool scalar_evaluate_once = inner_work_amount % vector_size < 2;
@@ -303,7 +312,8 @@ void TileSchedulerEmitter::emit_static_tiles(const Reg64& reg_inner_amount, cons
             }
             // else: vector_tile is executed multiple times, so work_amount is already set
         }
-        process_tile(scalar_evaluate_once, scalar_tile);
+        const bool skip_increments = outer_work_amount == 1 && inner_work_amount % vector_size == 1;
+        process_tile(scalar_evaluate_once, skip_increments, scalar_tile);
     }
 }
 
@@ -463,11 +473,12 @@ TileEmitter::TileEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu
     io_dims = tile->io_dims;
     io_data_size = tile->io_data_size;
     size_t num_dynamic_inputs = 0;
-    const bool has_dynamic_dims = std::any_of(io_dims.begin(), io_dims.end(), [](size_t x) {return x == 0;});
+    const bool has_dynamic_dims = std::any_of(io_dims.begin(), io_dims.end(),
+                                              [](size_t x) {return x == Subgraph::DYNAMIC_DIMENSION;});
     for (size_t i = 0; i < io_dims.size(); i ++) {
         // If a last dim is static, but == 1 and there are some dynamic inputs as well,
         // then treat the dim as dynamic, since we'll now whether it's broadcasted only at runtime
-        if (io_dims[i] == 0 || (io_dims[i] == 1 && has_dynamic_dims)) {
+        if (io_dims[i] == Subgraph::DYNAMIC_DIMENSION || (io_dims[i] == 1 && has_dynamic_dims)) {
             dynamic_dims_idx.push_back(i);
             if (i < num_inputs)
                 num_dynamic_inputs++;
@@ -510,6 +521,7 @@ void TileEmitter::emit_body(const std::vector<size_t>& vec_pool, const std::vect
 }
 
 void TileEmitter::emit_ptr_increments_static(const std::vector<Reg64>& data_ptr_regs) const {
+    // note that master_shape_last_dim could be equal to Subgraph::DYNAMIC_DIMENSION for dynamic case
     auto master_shape_last_dim = *std::max_element(io_dims.begin(), io_dims.end());
     for (const auto& idx : static_dims_idx) {
         // increment only inputs that are not broadcasted
@@ -556,8 +568,8 @@ void TileEmitter::set_increments_and_broadcast_inputs(const Reg64& reg_const_par
 void TileEmitter::cleanup_broadcasting(const Reg64& reg_const_params, const std::vector<Reg64> &data_ptr_regs) const {
     if (increment == 1)
         return;
-    for (auto i = dynamic_dims_idx.rbegin(); i < dynamic_dims_idx.rend(); i++) {
-        const auto& idx = *i;
+    for (int i = static_cast<int>(dynamic_dims_idx.size()) - 1; i >= 0; i--) {
+        const auto& idx = dynamic_dims_idx[i];
         if (idx >= num_inputs)
             continue;
         // todo: we can store dynamic broadcasting info only for dynamic inputs (not for all, like we do now)
