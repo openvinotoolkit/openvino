@@ -365,8 +365,8 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
     if (prev.is_dynamic() || (next && next->is_dynamic()))
         return false;
 
-    // Ref kernels are the main for depth_to_space and region_yolo. It can do anything. Should not see next.
-    if (prev.is_type<depth_to_space>() || prev.is_type<region_yolo>())
+    // Ref kernels are the main for depth_to_space, region_yolo and detection_output. It can do anything. Should not see next.
+    if (prev.is_type<depth_to_space>() || prev.is_type<region_yolo>() || prev.is_type<detection_output>())
         return true;
 
     if (next == nullptr)
@@ -1302,9 +1302,10 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         auto confidence_layout = detection_output_node.confidence().get_output_layout();
         auto prim = detection_output_node.get_primitive();
         auto batch_size_limitations = (device_info.supports_immad && device_info.execution_units_count >= 256) ? true : confidence_layout.batch() >= 4;
-        if (confidence_layout.batch() <= lws_max && batch_size_limitations &&
+        if ((confidence_layout.batch() <= lws_max && batch_size_limitations &&
             prim->confidence_threshold >= 0.1 &&
-            prim->top_k <= 400 && prim->num_classes >= 16 && confidence_layout.feature() > 10000)
+            prim->top_k <= 400 && prim->num_classes >= 16 && confidence_layout.feature() > 10000) ||
+            confidence_layout.data_type == data_types::f16) // fp16 has accuracy issue in impl_types::cpu
             preferred_impl = impl_types::ocl;
         else
             preferred_impl = impl_types::cpu;
