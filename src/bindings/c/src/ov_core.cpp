@@ -5,7 +5,18 @@
 
 #include <stdarg.h>
 
+#include <string>
+
 #include "common.h"
+
+#ifdef _WIN32
+#    include <windows.h>
+#else
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#        include <codecvt>
+#        include <locale>
+#    endif
+#endif
 
 char* str_to_char_array(const std::string& str) {
     std::unique_ptr<char> _char_array(new char[str.length() + 1]);
@@ -371,21 +382,31 @@ ov_status_e ov_core_read_model_unicode(const ov_core_t* core,
 ov_status_e ov_core_compile_model_from_file_unicode(const ov_core_t* core,
                                                     const wchar_t* model_path_ws,
                                                     const char* device_name,
-                                                    const ov_properties_t* property,
-                                                    ov_compiled_model_t** compiled_model) {
-    if (!core || !model_path_ws || !compiled_model) {
+                                                    const size_t property_args_size,
+                                                    ov_compiled_model_t** compiled_model,
+                                                    ...) {
+    if (!core || !model_path_ws || !compiled_model || property_args_size % 2 != 0) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
         std::string model_path = wstring_to_string(std::wstring(model_path_ws));
+        ov::AnyMap property = {};
+        size_t property_size = property_args_size / 2;
+        va_list args_ptr;
+        va_start(args_ptr, compiled_model);
+        for (size_t i = 0; i < property_size; i++) {
+            GET_PROPERTY_FROM_ARGS_LIST;
+        }
+        va_end(args_ptr);
+
         ov::CompiledModel object;
         std::string dev_name = "";
         if (device_name) {
             dev_name = device_name;
-            object = core->object->compile_model(model_path, dev_name);
+            object = core->object->compile_model(model_path, dev_name, property);
         } else {
-            object = core->object->compile_model(model_path);
+            object = core->object->compile_model(model_path, property);
         }
         std::unique_ptr<ov_compiled_model_t> _compiled_model(new ov_compiled_model_t);
         _compiled_model->object = std::make_shared<ov::CompiledModel>(std::move(object));

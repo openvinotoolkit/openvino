@@ -526,11 +526,8 @@ TEST_P(ov_core, ov_core_compile_model_from_file_unicode) {
         ASSERT_EQ(true, copy_file(xml, xml_ws));
         ASSERT_EQ(true, copy_file(bin, bin_ws));
 
-        OV_ASSERT_OK(ov_core_compile_model_from_file_unicode(core,
-                                                             xml_ws.c_str(),
-                                                             device_name.c_str(),
-                                                             nullptr,
-                                                             &compiled_model));
+        OV_ASSERT_OK(
+            ov_core_compile_model_from_file_unicode(core, xml_ws.c_str(), device_name.c_str(), 0, &compiled_model));
         ASSERT_NE(nullptr, compiled_model);
         remove_file_ws(xml_ws);
         remove_file_ws(bin_ws);

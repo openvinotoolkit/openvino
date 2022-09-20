@@ -226,24 +226,26 @@ ov_core_compile_model_from_file(const ov_core_t* core,
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
- * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file with unicode.
+ * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
  * This can be more efficient than using the ov_core_read_model_from_XXX + ov_core_compile_model flow,
  * especially for cases when caching is enabled and a cached model is available.
  * @ingroup Core
  * @param core A pointer to the ie_core_t instance.
- * @param model_path Path to a model, which is unicode path.
+ * @param model_path Path to a model.
  * @param device_name Name of a device to load a model to.
- * @param property Optional pack of pairs: (property name, property value) relevant only for this load operation
- * operation.
+ * @param property_args_size How many properties args will be passed, each property contains 2 args: key and value.
  * @param compiled_model A pointer to the newly created compiled_model.
+ * @param property paramater: Optional pack of pairs: <char* property_key, char* property_value> relevant only
+ * for this load operation operation. Supported property key please see ov_property.h.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_core_compile_model_from_file_unicode(const ov_core_t* core,
                                         const wchar_t* model_path,
                                         const char* device_name,
-                                        const ov_properties_t* property,
-                                        ov_compiled_model_t** compiled_model);
+                                        const size_t property_args_size,
+                                        ov_compiled_model_t** compiled_model,
+                                        ...);
 
 #endif
 
