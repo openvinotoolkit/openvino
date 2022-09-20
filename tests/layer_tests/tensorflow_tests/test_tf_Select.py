@@ -57,11 +57,11 @@ class TestSelect(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_1D)
     @pytest.mark.nightly
     def test_select_1D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                       api_2):
+                       use_old_api):
         self._test(*self.create_select_net(**params, ir_version=ir_version,
                                            use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_2D = [
         dict(shape_condition=[2], shape_input=[2, 3]),
@@ -71,11 +71,11 @@ class TestSelect(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_2D)
     @pytest.mark.nightly
     def test_select_2D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                       api_2):
+                       use_old_api):
         self._test(*self.create_select_net(**params, ir_version=ir_version,
                                            use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_3D = [
         dict(shape_condition=[3], shape_input=[3, 4, 5]),
@@ -85,11 +85,11 @@ class TestSelect(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
     def test_select_3D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                       api_2):
+                       use_old_api):
         self._test(*self.create_select_net(**params, ir_version=ir_version,
                                            use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_4D = [
         dict(shape_condition=[3], shape_input=[3, 4, 5, 6]),
@@ -100,11 +100,11 @@ class TestSelect(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_select_4D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                       api_2):
+                       use_old_api):
         self._test(*self.create_select_net(**params, ir_version=ir_version,
                                            use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_5D = [
         dict(shape_condition=[3], shape_input=[3, 4, 5, 6, 7]),
@@ -115,8 +115,8 @@ class TestSelect(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
     def test_select_5D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                       api_2):
+                       use_old_api):
         self._test(*self.create_select_net(**params, ir_version=ir_version,
                                            use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)

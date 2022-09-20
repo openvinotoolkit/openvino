@@ -46,11 +46,11 @@ class TestReduceOps(CommonTFLayerTest):
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
     def test_reduce(self, params, keep_dims, ie_device, precision, ir_version, temp_dir,
-                    use_new_frontend, api_2):
+                    use_new_frontend, use_old_api):
         self._test(*self.create_reduce_net(**params, keep_dims=keep_dims, ir_version=ir_version,
                                            use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_pre_commit = []
     for operation in ['sum', 'max', 'prod', 'min', 'mean']:
@@ -61,8 +61,8 @@ class TestReduceOps(CommonTFLayerTest):
     @pytest.mark.parametrize("keep_dims", [False])
     @pytest.mark.precommit
     def test_reduce_precommit(self, params, keep_dims, ie_device, precision, ir_version, temp_dir,
-                              use_new_frontend, api_2):
+                              use_new_frontend, use_old_api):
         self._test(*self.create_reduce_net(**params, keep_dims=keep_dims, ir_version=ir_version,
                                            use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)

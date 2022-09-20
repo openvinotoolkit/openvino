@@ -80,14 +80,14 @@ class TestNeg(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize('params', test_data_precommit)
     @pytest.mark.precommit
-    def test_neg_precommit(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_neg_precommit(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_neg(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize('params', test_data)
     @pytest.mark.nightly
-    def test_neg(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_neg(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_neg(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)

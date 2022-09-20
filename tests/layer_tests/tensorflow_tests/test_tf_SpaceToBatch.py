@@ -63,11 +63,11 @@ class TestSpaceToBatch(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     def test_space_to_batch_4D(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, api_2):
+                               use_new_frontend, use_old_api):
         self._test(*self.create_space_to_batch_net(**params, ir_version=ir_version,
                                                    use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_5D = [
         dict(in_shape=[3, 3, 4, 5, 2], block_shape_value=[3, 4, 2],
@@ -81,8 +81,8 @@ class TestSpaceToBatch(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
     def test_space_to_batch_5D(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, api_2):
+                               use_new_frontend, use_old_api):
         self._test(*self.create_space_to_batch_net(**params, ir_version=ir_version,
                                                    use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)

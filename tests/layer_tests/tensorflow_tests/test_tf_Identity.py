@@ -69,11 +69,11 @@ class TestIdentity(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
     def test_identity_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                                use_new_frontend, api_2):
+                                use_new_frontend, use_old_api):
         self._test(*self.create_identity_net(**params, ir_version=ir_version,
                                              use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data = [dict(shape=[1]),
                  dict(shape=[1, 224]),
@@ -84,8 +84,8 @@ class TestIdentity(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_identity(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                      api_2):
+                      use_old_api):
         self._test(*self.create_identity_net(**params, ir_version=ir_version,
                                              use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
