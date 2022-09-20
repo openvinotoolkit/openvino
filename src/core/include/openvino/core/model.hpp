@@ -363,7 +363,7 @@ private:
     // for internal purposes.
     std::shared_ptr<SharedRTInfo> m_shared_rt_info;
 
-    mutable std::mutex m_topological_sort_mutex;
+    mutable std::mutex m_model_mutex;
 };
 
 OPENVINO_API

@@ -118,9 +118,6 @@ TEST_F(IRFRThreadingTests, get_meta_data_in_different_threads) {
         ov::AnyMap meta;
         ASSERT_NO_THROW(meta = model->get_meta_data());
         ASSERT_TRUE(!meta.empty());
-        for (const auto& it : meta) {
-            std::cout << it.first << " " << it.second.as<std::string>() << std::endl;
-        }
         auto it = meta.find("MO_version");
         ASSERT_NE(it, meta.end());
         EXPECT_TRUE(it->second.is<std::string>());

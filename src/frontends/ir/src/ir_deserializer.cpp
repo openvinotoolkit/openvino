@@ -581,18 +581,17 @@ private:
     }
 
     void parse() const {
-        if (parsed.load())
-            return;
-        std::lock_guard<std::mutex> lock(m_mutex);
-        if (parsed.load())
+        // Thread safety is implemented on ov::Model level
+        if (parsed)
             return;
         m_parsed_data = parse_node(m_meta_section);
+        // Reset dependency on original xml
+        m_meta_section = pugi::xml_node();
         parsed = true;
     }
-    const pugi::xml_node m_meta_section;
+    mutable pugi::xml_node m_meta_section;
     mutable ov::AnyMap m_parsed_data;
-    mutable std::mutex m_mutex;
-    mutable std::atomic<bool> parsed{false};
+    mutable bool parsed{false};
 };
 
 void XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section) {

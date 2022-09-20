@@ -268,7 +268,7 @@ void ov::Model::validate_nodes_and_infer_types() const {
 
 std::vector<shared_ptr<ov::Node>> ov::Model::get_ordered_ops() const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Model::get_ordered_ops");
-    lock_guard<mutex> lock(m_topological_sort_mutex);
+    lock_guard<mutex> lock(m_model_mutex);
 
     NodeVector nodes;
     if (m_shared_rt_info->get_use_topological_cache()) {
@@ -984,6 +984,9 @@ ov::AnyMap& ov::Model::get_meta_data() {
         it = m_rt_info.find("meta_data");
     }
     OPENVINO_ASSERT(it->second.is<std::shared_ptr<ov::Meta>>());
+    // lock to get meta from different threads in order to avoid thread safety
+    // implementations of meta information for each frontend
+    std::lock_guard<mutex> lock(m_model_mutex);
     return *it->second.as<std::shared_ptr<ov::Meta>>();
 }
 
@@ -995,6 +998,9 @@ const ov::AnyMap& ov::Model::get_meta_data() const {
         it = m_rt_info.find("meta_data");
     }
     OPENVINO_ASSERT(it->second.is<std::shared_ptr<ov::Meta>>());
+    // lock to get meta from different threads in order to avoid thread safety
+    // implementations of meta information for each frontend
+    std::lock_guard<mutex> lock(m_model_mutex);
     return *it->second.as<std::shared_ptr<ov::Meta>>();
 }
 
