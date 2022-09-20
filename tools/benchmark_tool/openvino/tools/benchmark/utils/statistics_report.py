@@ -62,13 +62,17 @@ class StatisticsReport:
     def dump_performance_counters_request(self, f, prof_info):
         total = timedelta()
         total_cpu = timedelta()
-        f.write(self.csv_separator.join(['layerName', 'execStatus', 'layerType', 'execType', 'realTime (ms)', 'cpuTime (ms)\n']))
+        f.write(self.csv_separator.join(['layerName', 'execStatus', 'layerType', 'execType', 'realTime (µs)', 'cpuTime (µs)\n']))
         for pi in prof_info:
-            f.write(self.csv_separator.join([pi.node_name, str(pi.status), pi.node_type, pi.exec_type, str(pi.real_time/1000.0), str(pi.cpu_time/1000.0)]))
+            f.write(self.csv_separator.join([pi.node_name, str(pi.status), pi.node_type, pi.exec_type, 
+                str(pi.real_time // timedelta(microseconds=1)), 
+                str(pi.cpu_time // timedelta(microseconds=1))]))
             f.write('\n')
             total += pi.real_time
             total_cpu += pi.cpu_time
-        f.write(self.csv_separator.join(['Total','','','',str(total/1000.0),str(total_cpu/1000.0)]))
+        f.write(self.csv_separator.join(['Total','','','',
+            str(total // timedelta(microseconds=1)),
+            str(total_cpu // timedelta(microseconds=1))]))
         f.write('\n\n')
 
     def dump_performance_counters(self, prof_info_list):
