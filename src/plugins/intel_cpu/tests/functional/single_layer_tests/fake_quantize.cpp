@@ -211,7 +211,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_4D_jit, FakeQuantizeLaye
 
 
 std::vector<CPUSpecificParams> memForm4D_ref = {
-        CPUSpecificParams({}, {}, {"ref_FP32"}, {"ref_FP32"})
+        CPUSpecificParams({nchw}, {nchw}, {"ref_FP32"}, {"ref_FP32"})
 };
 
 std::vector<inputShapes> rangesShapes4D_ref = {
@@ -270,7 +270,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_5D_jit, FakeQuantizeLaye
 
 
 std::vector<CPUSpecificParams> memForm5D_ref = {
-        CPUSpecificParams({}, {}, {"ref_FP32"}, {"ref_FP32"})
+        CPUSpecificParams({ncdhw}, {ncdhw}, {"ref_FP32"}, {"ref_FP32"})
 };
 
 std::vector<inputShapes> rangesShapes5D_ref = {

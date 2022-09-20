@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "transformations/op_conversions/fq_decomposition.hpp"
+#include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "fake_quantize_function.hpp"
 #include "snippets/op/subgraph.hpp"
@@ -23,7 +23,7 @@ public:
         manager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
         manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
         manager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>([](const std::shared_ptr<const ov::Node>& n) -> bool {
-            if (ngraph::is_type<ngraph::opset1::FakeQuantize>(n) && !ngraph::pass::FakeQuantizeDecomposition::isAllScalarConstant(n)) {
+            if (ngraph::is_type<ngraph::opset1::FakeQuantize>(n) && !ngraph::snippets::pass::FakeQuantizeDecomposition::isAllScalarConstant(n)) {
                 return true;
             }
             return false;

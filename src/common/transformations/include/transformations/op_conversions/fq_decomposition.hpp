@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ngraph/op/fake_quantize.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 
@@ -46,21 +45,5 @@ class TRANSFORMATIONS_API FakeQuantizeDecomposition;
 class ngraph::pass::FakeQuantizeDecomposition : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("FakeQuantizeDecomposition", "0");
-    FakeQuantizeDecomposition(const bool constant_weights = true, const bool force_rounding = true);
-
-    static bool isAllScalarConstant(const std::shared_ptr<const ngraph::Node>& node);
-    static bool getScalesAndShifts(const std::shared_ptr<const ngraph::op::v0::FakeQuantize>& fq_node,
-                                   std::vector<float>& cl,
-                                   std::vector<float>& ch,
-                                   std::vector<float>& isc,
-                                   std::vector<float>& ish,
-                                   std::vector<float>& osc,
-                                   std::vector<float>& osh);
-    static std::vector<float> calculateScales(const ngraph::element::Type& out_type,
-                                              const std::vector<float>& cl,
-                                              const std::vector<float>& ch,
-                                              const std::vector<float>& isc,
-                                              const std::vector<float>& ish,
-                                              const std::vector<float>& osc,
-                                              const std::vector<float>& osh);
+    FakeQuantizeDecomposition();
 };

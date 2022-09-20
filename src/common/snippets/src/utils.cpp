@@ -4,15 +4,15 @@
 
 #include "snippets/utils.hpp"
 
-#include "transformations/op_conversions/fq_decomposition.hpp"
+#include "snippets/pass/fq_decomposition.hpp"
 
 
 auto ngraph::snippets::utils::get_non_scalar_constant_count_for_fq(const std::shared_ptr<ngraph::opset1::FakeQuantize>& fq) -> size_t {
     std::vector<float> out_scales;
     std::vector<float> cl, ch, isc, ish, osc, osh;
-    const bool status = ngraph::pass::FakeQuantizeDecomposition::getScalesAndShifts(fq, cl, ch, isc, ish, osc, osh);
+    const bool status = ngraph::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(fq, cl, ch, isc, ish, osc, osh);
     if (status) {
-        out_scales = ngraph::pass::FakeQuantizeDecomposition::calculateScales(fq->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
+        out_scales = ngraph::snippets::pass::FakeQuantizeDecomposition::calculateScales(fq->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
         if (out_scales.size() != 0) {
             return out_scales.size() != 1;
         }
@@ -32,11 +32,11 @@ auto ngraph::snippets::utils::get_non_scalar_constant_count_for_fq(const std::sh
     //      round(x * (levels-1) / (ih - il) - il * (levels-1) / (ih - il)) * (oh - ol) / (levels-1) + ol
     // After the decomposition there is call of ConstantsFolding pass that generates new Constants:
     //      - isc := (levels-1) / (ih - il)
-    //      - ish := il * isc
+    //      - ish := -il * isc
     //      - osc := (oh - ol) / (levels-1)
     //      - osh := ol
     // New formula:
-    //      round(x * isc - ish) * osc + osh
+    //      round(x * isc + ish) * osc + osh
     // Thus, after FakeQuantize decompoisition we have 6 Constants instead of original 4:
     //      ih, il (for Max/Min), isc, ish, osc, osh
     // Some of them can be scalar or non-scalar. It depends on which original 4 Constants are non-scalar

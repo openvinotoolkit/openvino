@@ -9,7 +9,7 @@
 #include <ngraph/pass/constant_folding.hpp>
 
 #include "transformations/utils/utils.hpp"
-#include "transformations/op_conversions/fq_decomposition.hpp"
+#include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/transform_convert.hpp"
 #include "snippets/pass/insert_convert.hpp"
 #include "snippets/op/subgraph.hpp"
@@ -77,7 +77,7 @@ CommonOptimizations::CommonOptimizations() {
         manager.set_per_pass_validation(false);
         manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertTruncation>();
         if (is_quantized) {
-            manager.register_pass<ngraph::pass::FakeQuantizeDecomposition>(false, false);
+            manager.register_pass<ngraph::snippets::pass::FakeQuantizeDecomposition>();
             manager.register_pass<ngraph::pass::ConstantFolding>();
             manager.register_pass<ngraph::pass::Validate>();
             manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertSaturation>();

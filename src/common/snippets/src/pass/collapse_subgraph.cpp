@@ -14,7 +14,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/op/loop.hpp>
 #include "transformations/utils/utils.hpp"
-#include "transformations/op_conversions/fq_decomposition.hpp"
 
 #include <memory>
 #include <vector>
