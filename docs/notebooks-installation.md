@@ -510,25 +510,22 @@ Reactivate Virtual Environment
 
 To reactivate your environment, run: 
 
-.. tabs::
+.. tab:: WINDOWS
 
-   .. tab:: WINDOWS
+   .. code:: bash
 
-      .. code:: bash
+      source openvino_env\Scripts\activate
 
-         source openvino_env\Scripts\activate
+.. tab:: Linux Systems
 
-   .. tab:: Linux Systems
+   .. code:: bash 
+      
+      source openvino_env/bin/activate
+.. tab:: macOS
 
-      .. code:: bash 
-         
-         source openvino_env/bin/activate
-
-   .. tab:: macOS
-
-      .. code:: bash 
-         
-         source openvino_env/bin/activate
+   .. code:: bash 
+      
+      source openvino_env/bin/activate
 
 
 Then type ``jupyter lab`` or ``jupyter notebook`` to launch the notebooks again.
@@ -538,25 +535,23 @@ Delete Virtual Environment
 
 This operation is optional. However, if you want to remove your virtual environment, simply delete the ``openvino_env`` directory:
 
-.. tabs::
+.. tab:: WINDOWS
 
-   .. tab:: WINDOWS
+   .. code:: bash
 
-      .. code:: bash
+      rmdir /s openvino_env
 
-         rmdir /s openvino_env
+.. tab:: Linux Systems
 
-   .. tab:: Linux Systems
+   .. code:: bash 
+      
+      rm -rf openvino_env
 
-      .. code:: bash 
-         
-         rm -rf openvino_env
+.. tab:: macOS
 
-   .. tab:: macOS
-
-      .. code:: bash 
-         
-         rm -rf openvino_env
+   .. code:: bash 
+      
+      rm -rf openvino_env
 
 
 Remove openvino_env Kernel from Jupyter
