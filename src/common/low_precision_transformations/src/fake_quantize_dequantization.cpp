@@ -32,6 +32,17 @@ FakeQuantizeDequantization::FakeQuantizeDequantization(
     subtractConstant(subtractConstant),
     multiply(multiply),
     multiplyConstant(multiplyConstant) {
+    // for most node with layout NC, NCHW, NCDWH, channel dimension is 1
+    channelDimension = 1;
+
+    // for MatMul, channel dimension is the last dimension
+    std::string data_src_type = data.get_node()->get_type_name();
+    if (data_src_type == "MatMul" && data.get_index() == 0) {
+        const auto rank = data.get_partial_shape().rank();
+        if (rank.is_static()) {
+            channelDimension = rank.get_length() - 1;
+        }
+    }
 }
 
 bool FakeQuantizeDequantization::empty() const noexcept {
@@ -100,7 +111,8 @@ bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ngraph::Node>&
     return true;
 }
 
-bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::Node>& dequantizationElementwise) {
+// check if elementwise operation inside dequantization subgraph satisfy per-tensor/per-OC broadcast requirement
+bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::Node>& dequantizationElementwise) const {
     std::shared_ptr<ngraph::opset1::Convert> convert;
     std::shared_ptr<ngraph::opset1::Constant> constant;
     FakeQuantizeDequantization::fillDequantizationParams(dequantizationElementwise, convert, constant);
@@ -114,6 +126,10 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
         return false;
     }
 
+    // 1 element vector or scalar, pass
+    // otherwise:
+    //   channel dimension can be 1 or matching output channel dimension
+    //   all other dimensions should be 1 and broadcasted
     if (ngraph::shape_size(constShape) == 1) {
         return true;
     }
@@ -123,7 +139,9 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
         return false;
     }
 
-    const auto channelsDimension = partialShape[partialShape.size() > 1ul ? 1ul : 0ul];
+    int dimc = channelDimension;
+
+    const auto channelsDimension = partialShape[dimc];
     if (channelsDimension.is_dynamic()) {
         return false;
     }
@@ -135,20 +153,21 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
 
     const size_t rank = partialShape.rank().get_length();
     if (constShape.size() == rank) {
-        if ((constShape[0] != 1ul) || (constShape[1] != channelsShapeVal)) {
+        if ((constShape[dimc] != channelsShapeVal)) {
             return false;
         }
-        for (size_t i = 2ul; i < constShape.size(); ++i) {
-            if (constShape[i] != 1ul) {
+        for (size_t i = 0ul; i < constShape.size(); ++i) {
+            if (constShape[i] != 1ul && i != dimc) {
                 return false;
             }
         }
     } else if (constShape.size() == (rank - 1)) {
-        if (constShape[0] != channelsShapeVal) {
+        dimc -= 1;
+        if (constShape[dimc] != channelsShapeVal) {
             return false;
         }
-        for (size_t i = 1ul; i < constShape.size(); ++i) {
-            if (constShape[i] != 1ul) {
+        for (size_t i = 0ul; i < constShape.size(); ++i) {
+            if (constShape[i] != 1ul && i != dimc) {
                 return false;
             }
         }

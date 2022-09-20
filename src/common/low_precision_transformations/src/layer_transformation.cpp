@@ -62,7 +62,7 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
 
     const auto dequantization = NetworkHelper::getDequantization(layer, defaultPrecisions);
     if (!dequantization.empty()) {
-        auto perChannelQuantization = [](const PartialShape dataPShape, Shape constShape) {
+        auto perChannelQuantization = [](const PartialShape dataPShape, Shape constShape, int dimChannel) {
             if (ngraph::shape_size(constShape) == 1ul) {
                 return true;
             }
@@ -81,8 +81,8 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
                 return false;
             }
 
-            for (size_t i = 2; i < constShape.size(); ++i) {
-                if (constShape[i] != 1ul) {
+            for (size_t i = 1; i < constShape.size(); ++i) {
+                if ((constShape[i] != 1ul) && (i != dimChannel)) {
                     return false;
                 }
             }
@@ -91,13 +91,15 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
 
         if ((dequantization.subtract != nullptr) && (!perChannelQuantization(
             dequantization.subtract->get_output_partial_shape(0),
-            dequantization.subtractConstant->get_shape()))) {
+            dequantization.subtractConstant->get_shape(),
+            dequantization.channelDimension))) {
             return false;
         }
 
         if ((dequantization.multiply != nullptr) && (!perChannelQuantization(
             dequantization.multiply->get_output_partial_shape(0),
-            dequantization.multiplyConstant->get_shape()))) {
+            dequantization.multiplyConstant->get_shape(),
+            dequantization.channelDimension))) {
             return false;
         }
     }
