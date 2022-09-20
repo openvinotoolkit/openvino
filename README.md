@@ -144,7 +144,7 @@ The latest documentation for OpenVINO™ Toolkit is available [here](https://doc
 
 ### Developer documentation
 
-[Developer documentation](./docs/dev/index.md) contains information about architectural decisions which are applied inside the OpenVINO components. This documentation has all necessary information which could be needed in order to contribute to OpenVINO.
+[Developer documentation](./docs/dev/index.md) contains information about architectural decisions used inside the OpenVINO components. This documentation has all necessary information for contribution to OpenVINO.
 
 ## Tutorials
 
