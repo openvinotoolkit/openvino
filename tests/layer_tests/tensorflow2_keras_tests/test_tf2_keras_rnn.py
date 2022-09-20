@@ -55,10 +55,10 @@ class TestKerasRNN(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_keras_rnn(self, params, ie_device, precision, ir_version, temp_dir, api_2,
+    def test_keras_rnn(self, params, ie_device, precision, ir_version, temp_dir, use_old_api,
                        use_new_frontend):
         self._test(*self.create_keras_rnn_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, api_2=api_2,
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, use_old_api=use_old_api,
                    use_new_frontend=use_new_frontend, **params)
 
     # Tests for default parameter values
@@ -78,9 +78,9 @@ class TestKerasRNN(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_multiple_outputs)
     @pytest.mark.nightly
     def test_keras_rnn_multiple_outputs(self, params, ie_device, precision, ir_version, temp_dir,
-                                        api_2, use_new_frontend):
+                                        use_old_api, use_new_frontend):
         self._test(*self.create_keras_rnn_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, api_2=api_2,
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, use_old_api=use_old_api,
                    use_new_frontend=use_new_frontend, **params)
 
     # Tests for other attributes: go_backward and time_major
@@ -99,8 +99,8 @@ class TestKerasRNN(CommonTF2LayerTest):
 
     @pytest.mark.parametrize("params", test_data_others)
     @pytest.mark.nightly
-    def test_keras_rnn_others(self, params, ie_device, precision, ir_version, temp_dir, api_2,
+    def test_keras_rnn_others(self, params, ie_device, precision, ir_version, temp_dir, use_old_api,
                               use_new_frontend):
         self._test(*self.create_keras_rnn_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, api_2=api_2,
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, use_old_api=use_old_api,
                    use_new_frontend=use_new_frontend, **params)

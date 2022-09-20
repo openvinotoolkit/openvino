@@ -33,7 +33,7 @@ class CommonTF2LayerTest(CommonLayerTest):
         for input_name in sorted(inputs_dict):
             input_value = inputs_dict[input_name]
             # convert NCHW to NHWC layout of tensor rank greater 3
-            if not self.api_2:
+            if self.use_old_api:
                 if len(input_value.shape) == 4:
                     input_value = np.transpose(input_value, (0, 2, 3, 1))
                 elif len(input_value.shape) == 5:
@@ -59,7 +59,7 @@ class CommonTF2LayerTest(CommonLayerTest):
 
             tf_res = tf_res.numpy()
             tf_res_rank = len(tf_res.shape)
-            if not self.api_2 and tf_res_rank > 3:
+            if self.use_old_api and tf_res_rank > 3:
                 # create axis order for NCHW layout
                 axis_order = np.arange(tf_res_rank)
                 axis_order = np.insert(axis_order, 1, axis_order[-1])

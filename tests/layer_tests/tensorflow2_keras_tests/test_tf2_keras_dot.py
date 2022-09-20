@@ -41,10 +41,10 @@ class TestKerasDot(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_dot_normalize_float32(self, params, ie_device, precision, temp_dir, ir_version,
-                                         api_2, use_new_frontend):
+                                         use_old_api, use_new_frontend):
         self._test(*self.create_keras_dot_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   api_2=api_2, use_new_frontend=use_new_frontend, **params)
+                   use_old_api=use_old_api, use_new_frontend=use_new_frontend, **params)
 
     test_data_difficult_axes_float32 = [
         dict(input_names=["x", "y"], input_shapes=[[5, 4, 4], [5, 4, 4]], input_type=tf.float32,
@@ -67,10 +67,10 @@ class TestKerasDot(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_dot_difficult_axes_float32(self, params, ie_device, precision, temp_dir,
-                                              ir_version, api_2, use_new_frontend):
+                                              ir_version, use_old_api, use_new_frontend):
         self._test(*self.create_keras_dot_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   api_2=api_2, use_new_frontend=use_new_frontend, **params)
+                   use_old_api=use_old_api, use_new_frontend=use_new_frontend, **params)
 
     test_data_normalize_higher_rank = [
         dict(input_names=["x", "y"], input_shapes=[[5, 1, 4], [5, 1, 4]], input_type=tf.float32,
@@ -96,7 +96,7 @@ class TestKerasDot(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_dot_normalize_higher_rank(self, params, ie_device, precision, temp_dir,
-                                             ir_version, api_2, use_new_frontend):
+                                             ir_version, use_old_api, use_new_frontend):
         self._test(*self.create_keras_dot_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   api_2=api_2, use_new_frontend=use_new_frontend, **params)
+                   use_old_api=use_old_api, use_new_frontend=use_new_frontend, **params)

@@ -88,10 +88,10 @@ class TestKerasMaximum(CommonTF2LayerTest):
 
     @pytest.mark.parametrize("params", test_data_float32_precommit)
     @pytest.mark.precommit
-    def test_keras_maximum_float32(self, params, ie_device, precision, ir_version, temp_dir, api_2,
+    def test_keras_maximum_float32(self, params, ie_device, precision, ir_version, temp_dir, use_old_api,
                                    use_new_frontend):
         self._test(*self.create_keras_maximum_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, api_2=api_2, ir_version=ir_version,
+                   ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)
 
     test_data_float32 = [dict(input_names=["x1", "x2"], input_shapes=[[5, 4], [5, 4]],
@@ -106,10 +106,10 @@ class TestKerasMaximum(CommonTF2LayerTest):
 
     @pytest.mark.parametrize("params", test_data_float32)
     @pytest.mark.nightly
-    def test_keras_maximum_float32(self, params, ie_device, precision, ir_version, temp_dir, api_2,
+    def test_keras_maximum_float32(self, params, ie_device, precision, ir_version, temp_dir, use_old_api,
                                    use_new_frontend):
         self._test(*self.create_keras_maximum_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, api_2=api_2, ir_version=ir_version,
+                   ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)
 
     test_data_float32_several_inputs_precommit = [
@@ -120,9 +120,9 @@ class TestKerasMaximum(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_float32_several_inputs_precommit)
     @pytest.mark.precommit
     def test_keras_maximum_float32_several_inputs(self, params, ie_device, precision, ir_version,
-                                                  temp_dir, api_2, use_new_frontend):
+                                                  temp_dir, use_old_api, use_new_frontend):
         self._test(*self.create_keras_maximum_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, api_2=api_2, ir_version=ir_version,
+                   ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)
 
     test_data_float32_several_inputs = [
@@ -142,7 +142,7 @@ class TestKerasMaximum(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_float32_several_inputs)
     @pytest.mark.nightly
     def test_keras_maximum_float32_several_inputs(self, params, ie_device, precision, ir_version,
-                                                  temp_dir, api_2, use_new_frontend):
+                                                  temp_dir, use_old_api, use_new_frontend):
         self._test(*self.create_keras_maximum_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, api_2=api_2, ir_version=ir_version,
+                   ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)

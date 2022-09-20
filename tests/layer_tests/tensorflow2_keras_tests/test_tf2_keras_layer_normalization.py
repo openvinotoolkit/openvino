@@ -29,10 +29,10 @@ class TestKerasLayerNormalization(CommonTF2LayerTest):
 
     @pytest.mark.parametrize("params", test_data_float32_precommit)
     @pytest.mark.precommit
-    def test_keras_dense_float32(self, params, ie_device, precision, temp_dir, ir_version, api_2,
+    def test_keras_dense_float32(self, params, ie_device, precision, temp_dir, ir_version, use_old_api,
                                  use_new_frontend):
         self._test(*self.create_keras_lnorm_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, api_2=api_2, ir_version=ir_version,
+                   ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)
 
     test_data_float32 = [
@@ -50,7 +50,7 @@ class TestKerasLayerNormalization(CommonTF2LayerTest):
 
     @pytest.mark.parametrize("params", test_data_float32)
     @pytest.mark.nightly
-    def test_keras_dense_float32(self, params, ie_device, precision, temp_dir, ir_version, api_2):
+    def test_keras_dense_float32(self, params, ie_device, precision, temp_dir, ir_version, use_old_api):
         self._test(*self.create_keras_lnorm_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, api_2=api_2, ir_version=ir_version,
+                   ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
                    **params)
