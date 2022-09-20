@@ -36,12 +36,7 @@ struct generate_proposals
     /// @param nms_eta eta parameter for adaptive NMS
     /// @param roi_num_type type of 3rd output elements
     generate_proposals(const primitive_id& id,
-                       const primitive_id& input_im_info,
-                       const primitive_id& input_anchors,
-                       const primitive_id& input_deltas,
-                       const primitive_id& input_scores,
-                       const primitive_id& output_rois_scores,
-                       const primitive_id& output_rois_num,
+                       const std::vector<primitive_id>& inputs,
                        float min_size,
                        float nms_threshold,
                        int64_t pre_nms_count,
@@ -50,9 +45,9 @@ struct generate_proposals
                        float nms_eta,
                        const data_types roi_num_type,
                        const padding& output_padding = {}) :
-            primitive_base{id, {input_im_info, input_anchors, input_deltas, input_scores, output_rois_scores, output_rois_num}, output_padding},
-            output_rois_scores{output_rois_scores},
-            output_rois_num{output_rois_num},
+            primitive_base{id, inputs, output_padding},
+            output_rois_scores{inputs[4]},
+            output_rois_num{inputs[5]},
             min_size{min_size},
             nms_threshold{nms_threshold},
             pre_nms_count{pre_nms_count},

@@ -338,14 +338,11 @@ public:
         topology.add(reorder(reorder_scores_id, input_scores_id, data_layout, data_type));
 
         const primitive_id generate_proposals_id = "generate_proposals";
+        const std::vector<primitive_id> inputs{ reorder_im_info_id, reorder_anchors_id, reorder_deltas_id,
+                                                reorder_scores_id, output_roi_scores_id, output_rois_num_id};
         const auto generate_proposals_primitive = generate_proposals{
             generate_proposals_id,
-            reorder_im_info_id,
-            reorder_anchors_id,
-            reorder_deltas_id,
-            reorder_scores_id,
-            output_roi_scores_id,
-            output_rois_num_id,
+            inputs,
             param.min_size,
             param.nms_threshold,
             param.pre_nms_count,

@@ -53,12 +53,7 @@ static void CreateGenerateProposalsIEInternalOp(
     inputs.push_back(mutable_id_w_2);
 
     const cldnn::generate_proposals prim{layer_name,
-                                         inputs[0],
-                                         inputs[1],
-                                         inputs[2],
-                                         inputs[3],
-                                         mutable_id_w_1,
-                                         mutable_id_w_2,
+                                         inputs,
                                          attrs.min_size,
                                          attrs.nms_threshold,
                                          attrs.pre_nms_count,
