@@ -92,10 +92,9 @@ public:
         return m_non_scalar_constants_count;
     }
 
-    bool is_low_precision() const {
-        return m_low_precision;
+    bool is_quantized() const {
+        return m_is_quantized;
     }
-
 
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, ngraph::pass::Manager& opt,
                                 const void* compile_params = nullptr);
@@ -116,13 +115,12 @@ public:
 
     static auto wrap_node_as_subgraph(const std::shared_ptr<ngraph::Node>& node) -> std::shared_ptr<Subgraph>;
     static void fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node);
-    static size_t get_non_scalar_constant_count(const std::shared_ptr<ngraph::opset1::FakeQuantize>& fq);
 
 private:
     void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
     void convert_to_snippet_dialect();
     // True if Subgraph contains FakeQuantize
-    bool m_low_precision = false;
+    bool m_is_quantized = false;
     // Count of potentional non-scalar Consants that will be created after some tranformations
     // At the moment it's relevant only for FakeQuantize decomposition
     // NOTE: To avoid overheads in each calcution of this count (for example, in validate_and_type_infer()),

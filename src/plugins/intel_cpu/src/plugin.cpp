@@ -620,17 +620,18 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     postLPTPassManager.run_passes(nGraphFunc);
 
     if (_enableSnippets && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
-        ngraph::pass::Manager tokenization_manager;
-        tokenization_manager.register_pass<SnippetsMarkSkipped>();
-        tokenization_manager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
-        tokenization_manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
-        tokenization_manager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(
+        ngraph::pass::Manager snippetsManager;
+        snippetsManager.register_pass<SnippetsMarkSkipped>();
+        snippetsManager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
+        snippetsManager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
+        snippetsManager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(
                 [](const std::shared_ptr<const ov::Node>& n) -> bool {
-                    // At the moment Snippets doesn't support binary quantization
-                    if (const auto fq = ov::as_type_ptr<const ov::op::v0::FakeQuantize>(n)) {
-                        if (fq->get_levels() == 2)
+                    // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant
+                    if (ov::is_type<const ov::op::v4::Swish>(n)) {
+                        if (n->inputs().size() > 1 && !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)))
                             return true;
                     }
+
                     const auto& inputs = n->inputs();
                     // todo: clarify whether we can evaluate snippets on const paths
                     const bool has_only_const_inputs = std::all_of(inputs.begin(), inputs.end(),
@@ -649,23 +650,18 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                                                              [&](const ov::Output<const ov::Node>& out) {return  rank_is_too_large(out.get_tensor());});
                     return has_only_const_inputs || bad_input_rank || bad_output_rank;
                 });
-        tokenization_manager.register_pass<ngraph::snippets::pass::CommonOptimizations>();
-        // At the moment only non-scalar Constants of FakeQuantize can be inside Subgraph
-        // so we can enable ConvertConstantsToParameters pass for quantized models
-        if (useLpt) {
-            tokenization_manager.register_pass<ngraph::snippets::pass::ConvertConstantsToParameters>();
-        }
-        tokenization_manager.run_passes(nGraphFunc);
+        snippetsManager.register_pass<ngraph::snippets::pass::CommonOptimizations>();
+        snippetsManager.run_passes(nGraphFunc);
     }
 
-    ngraph::pass::Manager fqDecompositionManager;
-    fqDecompositionManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
-    fqDecompositionManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr& node) -> bool {
+    ngraph::pass::Manager postSnippetsManager;
+    postSnippetsManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
+    postSnippetsManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr& node) -> bool {
             std::string errMsg;
             return node::FakeQuantize::isSupportedOperation(node, errMsg);
         });
-    fqDecompositionManager.register_pass<ngraph::pass::ConstantFolding>();
-    fqDecompositionManager.run_passes(nGraphFunc);
+    postSnippetsManager.register_pass<ngraph::pass::ConstantFolding>();
+    postSnippetsManager.run_passes(nGraphFunc);
 }
 
 static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT, const bool _enableBF16, const bool _enableSnippets, const bool isLegacyApi) {

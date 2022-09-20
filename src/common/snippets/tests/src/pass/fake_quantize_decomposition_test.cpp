@@ -29,13 +29,8 @@ public:
         auto subgraph_ref = FunctionHelper::getSubgraph(function_ref);
         auto body_ref = subgraph_ref == nullptr ? nullptr : std::dynamic_pointer_cast<ngraph::snippets::op::Subgraph>(subgraph_ref)->get_body();
 
-        if ((body != nullptr) && (body_ref != nullptr)) {
-            auto res = comparator.compare(body, body_ref);
-            ASSERT_TRUE(res.valid) << res.message;
-        } else {
-            ASSERT_EQ(nullptr, body);
-            ASSERT_EQ(nullptr, body_ref);
-        }
+        auto res = comparator.compare(body, body_ref);
+        ASSERT_TRUE(res.valid) << res.message;
     }
 };
 

@@ -7,6 +7,7 @@
 
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/utils.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset5.hpp>
@@ -59,14 +60,14 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> b
 
 auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::is_supported_op")
-    auto is_supported_specific_op = [](const std::shared_ptr<const Node>& n) -> bool {
-        if (ov::is_type<opset1::FakeQuantize>(n)) {
-            return is_type<opset1::Constant>(n->get_input_node_shared_ptr(1)) &&
-                   is_type<opset1::Constant>(n->get_input_node_shared_ptr(2)) &&
-                   is_type<opset1::Constant>(n->get_input_node_shared_ptr(3)) &&
-                   is_type<opset1::Constant>(n->get_input_node_shared_ptr(4));
-        }
-        return ov::is_type<ngraph::op::v0::Convert>(n);
+    auto is_supported_fq_op = [](const std::shared_ptr<const Node>& n) -> bool {
+        // TODO [92179]: Add support of FakeQuantize with non-constants inputs and with binarization algorithm.
+        const auto fq = ov::as_type_ptr<const opset1::FakeQuantize>(n);
+        return fq && fq->get_levels() != 2 &&
+               is_type<opset1::Constant>(n->get_input_node_shared_ptr(1)) &&
+               is_type<opset1::Constant>(n->get_input_node_shared_ptr(2)) &&
+               is_type<opset1::Constant>(n->get_input_node_shared_ptr(3)) &&
+               is_type<opset1::Constant>(n->get_input_node_shared_ptr(4));
     };
 
     auto is_supported_binary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
@@ -90,7 +91,8 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             || ov::is_type<opset1::Power>(n)
             || ov::is_type<opset1::SquaredDifference>(n)
             || ov::is_type<opset1::Subtract>(n)
-            || ov::is_type<opset1::Xor>(n);
+            || ov::is_type<opset1::Xor>(n)
+            || ov::is_type<ngraph::op::v0::Convert>(n);
     };
 
     auto is_supported_unary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
@@ -113,7 +115,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             || ov::is_type<ngraph::op::v4::Swish>(n)
             || ov::is_type<ngraph::op::v4::HSwish>(n);
     };
-    return is_supported_specific_op(n) || is_supported_unary_eltwise_op(n) || is_supported_binary_eltwise_op(n);
+    return is_supported_fq_op(n) || is_supported_unary_eltwise_op(n) || is_supported_binary_eltwise_op(n);
 }
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
@@ -481,7 +483,7 @@ TokenizeSnippets::TokenizeSnippets() {
         // we should calculate potentional number of non-scalar Constants that will be moved up from body.
         size_t hidden_non_scalar_constant_count = 0;
         if (const auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node)) {
-            hidden_non_scalar_constant_count += ngraph::snippets::op::Subgraph::get_non_scalar_constant_count(fq_node);
+            hidden_non_scalar_constant_count += ngraph::snippets::utils::get_non_scalar_constant_count_for_fq(fq_node);
         }
 
         ResultVector body_results;
@@ -542,7 +544,6 @@ TokenizeSnippets::TokenizeSnippets() {
         }
 
         auto body = op::create_body(node->get_friendly_name(), body_results, body_parameters);
-
         for (size_t i = 0; i < body->get_parameters().size(); i++) {
             body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
