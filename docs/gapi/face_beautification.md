@@ -10,7 +10,7 @@ In this tutorial you will learn:
 ## Prerequisites
 This sample requires:
 
-* PC with GNU/Linux* or Microsoft Windows* (Apple macOS* is supported but was not tested)
+* PC with GNU/Linux or Microsoft Windows (Apple macOS is supported but was not tested)
 * OpenCV 4.2 or higher built with [Intel® Distribution of OpenVINO™ Toolkit](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html) (building with [Intel® TBB](https://www.threadingbuildingblocks.org/intel-tbb-tutorial) is a plus)
 * The following pre-trained models from the [Open Model Zoo](@ref omz_models_group_intel)
       * [face-detection-adas-0001](@ref omz_models_model_face_detection_adas_0001)
@@ -22,8 +22,6 @@ To download the models from the Open Model Zoo, use the [Model Downloader](@ref 
 We will implement a simple face beautification algorithm using a combination of modern Deep Learning techniques and traditional Computer Vision. The general idea behind the algorithm is to make face skin smoother while preserving face features like eyes or a mouth contrast. The algorithm identifies parts of the face using a DNN inference, applies different filters to the parts found, and then combines it into the final result using basic image arithmetics:
 
 ![Face Beautification Algorithm](../img/gapi_face_beautification_algorithm.png)
-
-Briefly the algorithm is described as follows:
 
 Briefly the algorithm is described as follows:
 - Input image \f$I\f$ is passed to unsharp mask and bilateral filters
