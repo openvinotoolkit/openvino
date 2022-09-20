@@ -10,7 +10,6 @@
 
 #include "transformations/utils/utils.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
-#include "snippets/pass/transform_convert.hpp"
 #include "snippets/pass/insert_convert.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/itt.hpp"
@@ -52,8 +51,6 @@ void ConvertConstantsToParameters(const std::shared_ptr<ngraph::snippets::op::Su
 }
 
 CommonOptimizations::CommonOptimizations() {
-    auto wrapper = ngraph::pattern::wrap_type<ngraph::snippets::op::Subgraph>();
-
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::CommonOptimizations");
 
@@ -66,23 +63,13 @@ CommonOptimizations::CommonOptimizations() {
         const auto is_quantized = subgraph->is_quantized();
 
         // Firsly we should transform all original Converts inside body to ConvertTruncation to save original behavior.
-        // Then if Subgraph contains FakeQuantize we enable low precision specific transformation.
-        // Before we should decompose FakeQuantize into simple operations.
-        // After FQ decomposition we should transform new Converts to ConvertSaturation to save saturation behavior.
+        // Then if Subgraph contains FakeQuantize we enable specific transformation for quantized subgraphs.
         // Also we have to insert reverse converts after ConvertSaturation (after FQ decompoisition) to return FP32 calculation inside body
-        // TODO: We disable forse rounding inside Subgraph because ConvertSaturation after decomposition correctly round values (half to even).
-        //       But original Convert from specification uses truncation rounding. So when plugin supports all FQ as Subgraphs (limitations on inputs)
-        //       we should remove this force rounding
         ngraph::pass::Manager manager;
-        manager.set_per_pass_validation(false);
         manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertTruncation>();
         if (is_quantized) {
-            manager.register_pass<ngraph::snippets::pass::FakeQuantizeDecomposition>();
-            manager.register_pass<ngraph::pass::ConstantFolding>();
-            manager.register_pass<ngraph::pass::Validate>();
-            manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertSaturation>();
+            manager.register_pass<ngraph::snippets::pass::CommonFakeQuantizeDecomposition>();
             manager.register_pass<ngraph::snippets::pass::InsertReverseConvert>();
-            manager.register_pass<ngraph::pass::Validate>();
         }
         manager.run_passes(body);
 
@@ -94,7 +81,7 @@ CommonOptimizations::CommonOptimizations() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(wrapper, "snippets::pass::CommonOptimizations");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<ngraph::snippets::op::Subgraph>(), "snippets::pass::CommonOptimizations");
     this->register_matcher(m, callback);
 }
 

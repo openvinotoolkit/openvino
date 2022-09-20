@@ -10,6 +10,7 @@
 #include <ngraph/partial_shape.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <numeric>
 
 namespace {
@@ -292,4 +293,16 @@ std::vector<float> ngraph::snippets::pass::FakeQuantizeDecomposition::calculateS
     }
 
     return out_scales;
+}
+
+bool ngraph::snippets::pass::CommonFakeQuantizeDecomposition::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+    RUN_ON_FUNCTION_SCOPE(CommonFakeQuantizeDecomposition);
+    ngraph::pass::Manager manager;
+    manager.set_per_pass_validation(false);
+    manager.register_pass<ngraph::snippets::pass::FakeQuantizeDecomposition>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::Validate>();
+    manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertSaturation>();
+    manager.run_passes(f);
+    return false;
 }

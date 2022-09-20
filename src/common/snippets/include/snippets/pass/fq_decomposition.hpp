@@ -4,9 +4,11 @@
 
 #pragma once
 
-#include <ngraph/op/fake_quantize.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <transformations_visibility.hpp>
+#include "ngraph/op/fake_quantize.hpp"
+#include "ngraph/pass/graph_rewrite.hpp"
+#include "ngraph/pass/constant_folding.hpp"
+#include "snippets/pass/transform_convert.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ngraph {
 namespace snippets {
@@ -67,6 +69,22 @@ public:
                                               const std::vector<float>& ish,
                                               const std::vector<float>& osc,
                                               const std::vector<float>& osh);
+};
+
+/**
+ * @interface CommonFakeQuantizeDecomposition
+ * @ingroup snippets
+ * @brief CommonFakeQuantizeDecomposition pass applies all needed transformations for
+ *        correct FQ Decomposition:
+ *          0. Disable Validate() pass after each transformations
+ *          1. FakeQuantization decomposition
+ *          2. ConstantFolding
+ *          3. Validate
+ *          4. TransformConvertToConvertSaturation - Converts after FQ decomposition should have saturation behavior
+ */
+class CommonFakeQuantizeDecomposition: public ngraph::pass::FunctionPass {
+public:
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };
 
 }  // namespace pass
