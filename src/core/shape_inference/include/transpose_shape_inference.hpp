@@ -62,7 +62,7 @@ void shape_infer(const Transpose* op, const std::vector<T>& input_shapes, std::v
         NODE_VALIDATION_CHECK(
             op,
             input_order_shape.compatible(T{arg_shape.rank().get_length()}) ||
-                (input_order_shape.is_static() && input_order_shape.rank() == 1 && input_order_shape[0] == 0),
+                (input_order_shape.is_static() && input_order_shape.size() == 1 && input_order_shape[0] == 0),
             "Input order must have shape [n], where n is the rank of arg.");
     } else {
         auto output_rank = arg_shape.rank();

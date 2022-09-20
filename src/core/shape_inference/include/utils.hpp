@@ -23,7 +23,7 @@ void first_input_passthrough_infer(const OpType* op, const std::vector<T>& input
 
 template <class OpType, class T>
 void eltwise_shape_infer(const OpType* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1,
+    NODE_VALIDATION_CHECK(op, input_shapes.size() >= 1 && output_shapes.size() == 1,
                           "Incorrect number of input/output shapes");
     T output_shape = input_shapes[0];
     ov::op::AutoBroadcastSpec autob = op->get_autob();
@@ -31,8 +31,10 @@ void eltwise_shape_infer(const OpType* op, const std::vector<T>& input_shapes, s
         NODE_VALIDATION_CHECK(op, T::merge_into(output_shape, input_shapes[1]),
                               "Argument shapes are inconsistent.");
     } else if (autob.m_type == ov::op::AutoBroadcastType::NUMPY || autob.m_type == ov::op::AutoBroadcastType::PDPD) {
-        NODE_VALIDATION_CHECK(op, T::broadcast_merge_into(output_shape, input_shapes[1], autob),
-                              "Argument shapes are inconsistent.");
+        for(size_t i = 1; i < input_shapes.size(); i++) {
+            NODE_VALIDATION_CHECK(op, T::broadcast_merge_into(output_shape, input_shapes[i], autob),
+                                  "Argument shapes are inconsistent.");
+        }
     } else {
         NODE_VALIDATION_CHECK(op, false, "Unsupported auto broadcast specification");
     }
