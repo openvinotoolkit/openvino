@@ -347,7 +347,6 @@ To run the **Image Classification** code sample with an input image using the IR
 @endsphinxdirective
 
 3. Run the code sample executable, specifying the input media file, the IR for your model, and a target device for performing inference:
-
 @sphinxdirective
 
 .. tab:: Linux
