@@ -5,34 +5,26 @@
 
 #include "ov_test.hpp"
 
-inline void get_tensor_info(ov_model_t* model,
-                            bool input,
-                            size_t idx,
-                            char** name,
-                            ov_shape_t* shape,
-                            ov_element_type_e* type) {
-    ov_output_node_list_t output_nodes;
-    output_nodes.size = 0;
-    output_nodes.output_nodes = nullptr;
+inline void get_tensor_info(ov_model_t* model, bool input, char** name, ov_shape_t* shape, ov_element_type_e* type) {
+    ov_output_const_port* port = nullptr;
     if (input) {
-        OV_EXPECT_OK(ov_model_inputs(model, &output_nodes));
+        OV_EXPECT_OK(ov_model_const_input(model, &port));
     } else {
-        OV_EXPECT_OK(ov_model_outputs(model, &output_nodes));
+        OV_EXPECT_OK(ov_model_const_output(model, &port));
     }
-    EXPECT_NE(nullptr, output_nodes.output_nodes);
-    EXPECT_NE(0, output_nodes.size);
+    EXPECT_NE(nullptr, port);
 
-    OV_EXPECT_OK(ov_node_list_get_any_name_by_index(&output_nodes, idx, name));
+    OV_EXPECT_OK(ov_port_get_any_name(port, name));
     EXPECT_NE(nullptr, *name);
 
-    OV_EXPECT_OK(ov_node_list_get_shape_by_index(&output_nodes, idx, shape));
-    OV_EXPECT_OK(ov_node_list_get_element_type_by_index(&output_nodes, idx, type));
+    OV_EXPECT_OK(ov_const_port_get_shape(port, shape));
+    OV_EXPECT_OK(ov_port_get_element_type(port, type));
 
     ov_partial_shape_t p_shape;
-    OV_EXPECT_OK(ov_node_list_get_partial_shape_by_index(&output_nodes, idx, &p_shape));
+    OV_EXPECT_OK(ov_port_get_partial_shape(port, &p_shape));
     ov_partial_shape_free(&p_shape);
 
-    ov_output_node_list_free(&output_nodes);
+    ov_output_const_port_free(port);
 }
 
 class ov_infer_request : public ::testing::TestWithParam<std::string> {
@@ -51,7 +43,7 @@ protected:
         in_tensor_name = nullptr;
         ov_shape_t tensor_shape = {0, nullptr};
         ov_element_type_e tensor_type;
-        get_tensor_info(model, true, 0, &in_tensor_name, &tensor_shape, &tensor_type);
+        get_tensor_info(model, true, &in_tensor_name, &tensor_shape, &tensor_type);
 
         input_tensor = nullptr;
         output_tensor = nullptr;
@@ -197,8 +189,24 @@ TEST_P(ov_infer_request, set_tensor) {
     OV_EXPECT_OK(ov_infer_request_set_tensor(infer_request, in_tensor_name, input_tensor));
 }
 
+TEST_P(ov_infer_request, set_input_tensor_by_index) {
+    OV_EXPECT_OK(ov_infer_request_set_input_tensor_by_index(infer_request, 0, input_tensor));
+}
+
 TEST_P(ov_infer_request, set_input_tensor) {
-    OV_EXPECT_OK(ov_infer_request_set_input_tensor(infer_request, 0, input_tensor));
+    OV_EXPECT_OK(ov_infer_request_set_input_tensor(infer_request, input_tensor));
+}
+
+TEST_P(ov_infer_request, set_output_tensor_by_index) {
+    OV_EXPECT_OK(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
+    EXPECT_NE(nullptr, output_tensor);
+    OV_EXPECT_OK(ov_infer_request_set_output_tensor_by_index(infer_request, 0, output_tensor));
+}
+
+TEST_P(ov_infer_request, set_output_tensor) {
+    OV_EXPECT_OK(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
+    EXPECT_NE(nullptr, output_tensor);
+    OV_EXPECT_OK(ov_infer_request_set_output_tensor(infer_request, output_tensor));
 }
 
 TEST_P(ov_infer_request, set_tensor_error_handling) {
@@ -212,8 +220,20 @@ TEST_P(ov_infer_request, get_tensor) {
     EXPECT_NE(nullptr, input_tensor);
 }
 
-TEST_P(ov_infer_request, get_out_tensor) {
-    OV_EXPECT_OK(ov_infer_request_get_output_tensor(infer_request, 0, &output_tensor));
+TEST_P(ov_infer_request, get_input_tensor_by_index) {
+    OV_EXPECT_OK(ov_infer_request_get_input_tensor_by_index(infer_request, 0, &output_tensor));
+}
+
+TEST_P(ov_infer_request, get_input_tensor) {
+    OV_EXPECT_OK(ov_infer_request_get_input_tensor(infer_request, &output_tensor));
+}
+
+TEST_P(ov_infer_request, get_output_tensor_by_index) {
+    OV_EXPECT_OK(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
+}
+
+TEST_P(ov_infer_request, get_output_tensor) {
+    OV_EXPECT_OK(ov_infer_request_get_output_tensor(infer_request, &output_tensor));
 }
 
 TEST_P(ov_infer_request, get_tensor_error_handling) {
@@ -230,7 +250,7 @@ TEST_P(ov_infer_request, infer) {
     char* out_tensor_name = nullptr;
     ov_shape_t tensor_shape = {0, nullptr};
     ov_element_type_e tensor_type;
-    get_tensor_info(model, false, 0, &out_tensor_name, &tensor_shape, &tensor_type);
+    get_tensor_info(model, false, &out_tensor_name, &tensor_shape, &tensor_type);
 
     OV_EXPECT_OK(ov_infer_request_get_tensor(infer_request, out_tensor_name, &output_tensor));
     EXPECT_NE(nullptr, output_tensor);
@@ -246,11 +266,11 @@ TEST_P(ov_infer_request, cancel) {
 }
 
 TEST_P(ov_infer_request_ppp, infer_ppp) {
-    OV_EXPECT_OK(ov_infer_request_set_input_tensor(infer_request, 0, input_tensor));
+    OV_EXPECT_OK(ov_infer_request_set_input_tensor_by_index(infer_request, 0, input_tensor));
 
     OV_EXPECT_OK(ov_infer_request_infer(infer_request));
 
-    OV_EXPECT_OK(ov_infer_request_get_output_tensor(infer_request, 0, &output_tensor));
+    OV_EXPECT_OK(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
     EXPECT_NE(nullptr, output_tensor);
 }
 
@@ -259,27 +279,27 @@ TEST(ov_infer_request, infer_error_handling) {
 }
 
 TEST_P(ov_infer_request, infer_async) {
-    OV_EXPECT_OK(ov_infer_request_set_input_tensor(infer_request, 0, input_tensor));
+    OV_EXPECT_OK(ov_infer_request_set_input_tensor_by_index(infer_request, 0, input_tensor));
 
     OV_EXPECT_OK(ov_infer_request_start_async(infer_request));
 
     if (!HasFatalFailure()) {
         OV_EXPECT_OK(ov_infer_request_wait(infer_request));
 
-        OV_EXPECT_OK(ov_infer_request_get_output_tensor(infer_request, 0, &output_tensor));
+        OV_EXPECT_OK(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
         EXPECT_NE(nullptr, output_tensor);
     }
 }
 
 TEST_P(ov_infer_request_ppp, infer_async_ppp) {
-    OV_EXPECT_OK(ov_infer_request_set_input_tensor(infer_request, 0, input_tensor));
+    OV_EXPECT_OK(ov_infer_request_set_input_tensor_by_index(infer_request, 0, input_tensor));
 
     OV_EXPECT_OK(ov_infer_request_start_async(infer_request));
 
     if (!HasFatalFailure()) {
         OV_EXPECT_OK(ov_infer_request_wait(infer_request));
 
-        OV_EXPECT_OK(ov_infer_request_get_output_tensor(infer_request, 0, &output_tensor));
+        OV_EXPECT_OK(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
         EXPECT_NE(nullptr, output_tensor);
     }
 }
@@ -288,7 +308,7 @@ inline void infer_request_callback(void* args) {
     ov_infer_request_t* infer_request = (ov_infer_request_t*)args;
     ov_tensor_t* out_tensor = nullptr;
 
-    OV_EXPECT_OK(ov_infer_request_get_output_tensor(infer_request, 0, &out_tensor));
+    OV_EXPECT_OK(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &out_tensor));
     EXPECT_NE(nullptr, out_tensor);
 
     ov_tensor_free(out_tensor);
@@ -299,7 +319,7 @@ inline void infer_request_callback(void* args) {
 }
 
 TEST_P(ov_infer_request, infer_request_set_callback) {
-    OV_EXPECT_OK(ov_infer_request_set_input_tensor(infer_request, 0, input_tensor));
+    OV_EXPECT_OK(ov_infer_request_set_input_tensor_by_index(infer_request, 0, input_tensor));
 
     ov_callback_t callback;
     callback.callback_func = infer_request_callback;
@@ -323,7 +343,7 @@ TEST_P(ov_infer_request, get_profiling_info) {
 
     OV_EXPECT_OK(ov_infer_request_infer(infer_request));
 
-    OV_EXPECT_OK(ov_infer_request_get_output_tensor(infer_request, 0, &output_tensor));
+    OV_EXPECT_OK(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
     EXPECT_NE(nullptr, output_tensor);
 
     ov_profiling_info_list_t profiling_infos;

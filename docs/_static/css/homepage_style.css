@@ -40,137 +40,51 @@ img {
 	z-index: -1;
 }
 
-/* === HEADER BANNER ===================================================== */
-/*#HP_head_banner {
-	width: 100%;
-	height: auto;
-	background: left / cover no-repeat url("../images/head_banner.jpg");
-	overflow: hidden;
-	padding: 3% 5% 5% 5%;
-	margin-bottom: 20px;
-	margin-top: -15px;
-}
-#HP_head_banner > p {
-float: right;
-    font-size: 1.5em;
-    font-weight: bold;
-    color: #fff;
-    width: 100%;
-    text-align: right;
-    background-color: #0008;
-    margin-bottom: 40px;
-    margin-top: 10px;
-}
-#HP_head_banner > div {
-	float: left;
-	width: 350px;
-}
-#HP_head_banner > div > a {
-	height: 2em;
-	width: 2em;
-	float: left;
-	margin-right: 5px;
-	text-align: center;
-	background-color: #fff;
-	padding: 3px;
-	
-	transition: all 0.5s;
-	-webkit-transition: all 0.5s;
-	-moz-transition: all 0.5s;
-	-o-transition: all 0.5s;
-	-ms-transition: all 0.5s;
-}
-#HP_head_banner > div > a img{
-	vertical-align: inherit;
-	transition: all 0.5s;
-	-webkit-transition: all 0.5s;
-	-moz-transition: all 0.5s;
-	-o-transition: all 0.5s;
-	-ms-transition: all 0.5s;
+img.HP_img_chart {
+	width: 90%;
+    display: block;
+    margin: 0 auto;
 }
 
-#HP_head_banner > div > a:nth-of-type(1) {
-	width: 9em;
-	padding: 4px;
-	font-weight: bold;
-	color: #0068B5;
-	text-decoration: none;
-}
-
-#HP_head_banner > div > a:hover {
-	color: #fff;
-	background-color: #0068B5;
-}
-#HP_head_banner > div > a:hover img{
-	filter: brightness(0%) invert(100%);
-}
-
-#HP_head_banner ~ div ~ p {
-	text-align: left;
-}
-*/
 /* === OV workflow chart ===================================================== */	
-
 #HP_flow-container {
 	margin: 0 auto;
-	width: 650px;
+	width: 90%;
 }
 
-#HP_flow-a, #HP_flow-b, #HP_flow-c, .HP_flow-arrow {
-	float: left;
+#HP_flow-container div {
 	margin: 0;
+	float: left;
 }
 
-#HP_flow-a div {
-	background-image: url("../images/OV_flow_model.svg");
-}    
-#HP_flow-b div {
-	background: url("../images/OV_flow_optimization.svg");
-} 
-#HP_flow-c div {
-	background: url("../images/OV_flow_deployment.svg");	
-} 
+div.HP_flow-arrow {
+	width: 5%;
+	padding: 40px 5px;
+}
 
-
-#HP_flow-a div, #HP_flow-b div, #HP_flow-c div {
-	width: 170px;
-	height: 330px;
+div.HP_flow-btn {
+	width: 30%;
 	background-repeat: no-repeat;
-	background-size: 340px auto;
-	background-position: 0 0;
 }
 
-	
-
-#HP_flow-a:hover div, #HP_flow-b:hover div, #HP_flow-c:hover div {
-	background-position: -170px 0;
+#HP_flow-container div.HP_flow-btn:nth-of-type(1) {
+	background-image: url("../images/OV_flow_model.svg");
+}
+#HP_flow-container div.HP_flow-btn:nth-of-type(3) {
+	background-image: url("../images/OV_flow_optimization.svg");
+}
+#HP_flow-container div.HP_flow-btn:nth-of-type(5) {
+	background-image: url("../images/OV_flow_deployment.svg");
 }
 
-.HP_flow-arrow {
-	width: 60px;
-	height: 330px;
-	background: no-repeat url("../images/OV_flow_arrow.svg");	
-	background-position: center 55px;
-	background-size: 28px;
+div.HP_flow-btn a img {
+	width: 100%;
+	visibility: hidden;
 }
 
-
-
-
-
-.HP_img_chart {
-	display: block;
-	margin: 40px auto 60px auto;
-	width:80%;
-	cursor: default !important;
+div.HP_flow-btn:hover a img {
+	visibility: visible;
 }
-img.HP_img_chart ~ p {
-	margin-top: -40px;
-	font-size: 0.7em;
-}
-
-
-
 
 
 /* === INFORMATION BOXES ================================================= */
@@ -243,7 +157,7 @@ img.HP_img_chart ~ p {
 		margin-right: 0;
 	}	
 }
-/* === screen narrow =================================================== */
+/* === screen narrow ================================================== */
 /* =================================================================== */
 @media only screen and (max-width: 900px) {
 	.HP_infoboxes a {
@@ -255,14 +169,20 @@ img.HP_img_chart ~ p {
 		margin-left: 2%;
 		margin-right: 0;
 	}	
-	
-	#HP_flow-container {
-		width: 580px;
+}
+/* =================================================================== */
+@media only screen and (max-width: 500px) {
+	#HP_flow-container div {
+		float: none;
+		margin: 0 auto;
 	}
-	.HP_flow-arrow {
-		width: 20px;
-		background-position: -10px 55px;
+
+	div.HP_flow-arrow {
+		display: none;
+	}
+
+	div.HP_flow-btn {
+		width: 50%;
 	}
 }
-
 
