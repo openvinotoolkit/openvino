@@ -100,7 +100,7 @@ TEST(StaticShapeInferenceTest, transpose_order_in_constant_map) {
     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_map = {{1, const_tensor}};
 
     auto output_shapes = std::vector<StaticShape>{StaticShape{}};
-    shape_infer(transpose.get(), {StaticShape{2, 4, 6, 8}, StaticShape{-1}}, output_shapes, const_map);
+    shape_infer(transpose.get(), {StaticShape({2, 4, 6, 8}), StaticShape()}, output_shapes, const_map);
 
     ASSERT_EQ(output_shapes[op::TransposeOut::ARG_T], StaticShape({4, 6, 2, 8}));
 }
