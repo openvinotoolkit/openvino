@@ -32,7 +32,10 @@ const std::vector<int64_t> num_classes = {2};
 const std::vector<int64_t> post_nms_count = {5, 25};
 
 // specifies maximual number of detections per image
-const std::vector<size_t> max_detections_per_image = {16};
+// there is assigning size_t rois_num = attrs.max_detections_per_image at docs/template_plugin/backend/evaluates_map.cpp:2117,
+// as a result we have to set max_detections_per_image equal to rois_num
+const std::vector<size_t> max_detections_per_image16 = {16};
+const std::vector<size_t> max_detections_per_image = {5, 25};
 
 // a flag specifies whether to delete background classes or not
 // `true`  means background classes should be deleted,
@@ -50,6 +53,21 @@ const std::vector<std::vector<InputShape>> inputShapes = {
 
 
 INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronDetectionOutput,
+                         ExperimentalDetectronDetectionOutputLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes),
+                                            ::testing::ValuesIn(score_threshold),
+                                            ::testing::ValuesIn(nms_threshold),
+                                            ::testing::ValuesIn(max_delta_log_wh),
+                                            ::testing::ValuesIn(num_classes),
+                                            ::testing::ValuesIn(post_nms_count),
+                                            ::testing::ValuesIn(max_detections_per_image16),
+                                            ::testing::Values(class_agnostic_box_regression_true),
+                                            ::testing::ValuesIn(deltas_weights),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         ExperimentalDetectronDetectionOutputLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ExperimentalDetectronDetectionOutputMaxDetectionsPerImage,
                          ExperimentalDetectronDetectionOutputLayerTest,
                          ::testing::Combine(::testing::ValuesIn(inputShapes),
                                             ::testing::ValuesIn(score_threshold),
