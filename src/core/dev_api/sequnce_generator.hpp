@@ -20,7 +20,7 @@ class SeqGen {
     T _counter;
 
 public:
-    SeqGen(const T& start) : _counter{start} {}
+    constexpr SeqGen(const T& start) : _counter{start} {}
 
     template <Direction Di = D, typename std::enable_if<Di == Direction::FORWARD>::type* = nullptr>
     T operator()() {

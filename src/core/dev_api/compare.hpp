@@ -26,25 +26,25 @@ class Between {
     T _lower_bound, _upper_bound;
 
 public:
-    Between(const T& lower, const T& upper) : _lower_bound{lower}, _upper_bound{upper} {}
+    constexpr Between(const T& lower, const T& upper) : _lower_bound{lower}, _upper_bound{upper} {}
 
     template <Bound B = BMode, typename std::enable_if<B == Bound::NONE>::type* = nullptr>
-    bool operator()(const T& value) const {
+    constexpr bool operator()(const T& value) const {
         return (_lower_bound < value) && (value < _upper_bound);
     }
 
     template <Bound B = BMode, typename std::enable_if<B == Bound::LOWER>::type* = nullptr>
-    bool operator()(const T& value) const {
+    constexpr bool operator()(const T& value) const {
         return (_lower_bound <= value) && (value < _upper_bound);
     }
 
     template <Bound B = BMode, typename std::enable_if<B == Bound::UPPER>::type* = nullptr>
-    bool operator()(const T& value) const {
+    constexpr bool operator()(const T& value) const {
         return (_lower_bound < value) && (value <= _upper_bound);
     }
 
     template <Bound B = BMode, typename std::enable_if<B == Bound::BOTH>::type* = nullptr>
-    bool operator()(const T& value) const {
+    constexpr bool operator()(const T& value) const {
         return (_lower_bound <= value) && (value <= _upper_bound);
     }
 };
