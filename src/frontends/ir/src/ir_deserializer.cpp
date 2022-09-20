@@ -570,13 +570,15 @@ public:
 private:
     ov::AnyMap parse_node(const pugi::xml_node& node) const {
         ov::AnyMap result;
-        auto has_value = [](const pugi::xml_node& node) {
-            auto attr = node.attribute("value");
+        auto has_attr = [](const pugi::xml_node& node, const std::string& name = "value") {
+            auto attr = node.attribute(name.c_str());
             return !attr.empty();
         };
         for (const auto& data : node.children()) {
-            if (has_value(data)) {
+            if (has_attr(data)) {
                 result[data.name()] = XMLParseUtils::GetStrAttr(data, "value");
+            } else if (std::string(data.name()) == "unset" && has_attr(data, "unset_cli_parameters")) {
+                result[data.name()] = XMLParseUtils::GetStrAttr(data, "unset_cli_parameters");
             } else {
                 result[data.name()] = parse_node(data);
             }

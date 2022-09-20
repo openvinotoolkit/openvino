@@ -770,7 +770,10 @@ void serialize_meta(pugi::xml_node& root, const ov::AnyMap& data) {
         if (it.second.is<ov::AnyMap>()) {
             serialize_meta(child, it.second.as<ov::AnyMap>());
         } else {
-            child.append_attribute("value").set_value(it.second.as<std::string>().c_str());
+            if (it.first == "unset")
+                child.append_attribute("unset_cli_parameters").set_value(it.second.as<std::string>().c_str());
+            else
+                child.append_attribute("value").set_value(it.second.as<std::string>().c_str());
         }
     }
 }
