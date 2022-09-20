@@ -3,14 +3,15 @@
 //
 
 #include "dimension_tracker.hpp"
-#include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
+#include "openvino/op/util/transpose_attr.hpp"
 #include "sequnce_generator.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
 using namespace testing;
+using namespace ov::op;
 
 TEST(type_prop, transpose_arg_static_input_order_static_ok) {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
@@ -248,6 +249,62 @@ TEST(type_prop, transpose_with_empty_order) {
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape({300, 1})));
+}
+
+/** \brief Transpose with order as parameter shape dimensions. */
+TEST(type_prop, transpose_order_as_parameter_shape) {
+    const auto arg = make_shared<v0::Parameter>(element::f32, PartialShape{Dimension(2, 8), Dimension(4, 16), 6});
+
+    const auto param = make_shared<v0::Parameter>(element::i64, PartialShape{2, 0, 1});
+    const auto shape_of = make_shared<v3::ShapeOf>(param);
+    // order after gather [1, 2, 0]
+    const auto gather = make_shared<v1::Gather>(shape_of,
+                                                op::Constant::create(element::i64, {3}, {2, 0, 1}),
+                                                op::Constant::create(element::i64, {}, {0}));
+
+    const auto r = make_shared<v1::Transpose>(arg, gather);
+
+    ASSERT_EQ(r->get_output_element_type(TransposeOut::ARG_T), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(TransposeOut::ARG_T), PartialShape({Dimension(4, 16), 6, Dimension(2, 8)}));
+}
+
+/** \brief Transpose with order as paramater shape dimensions after multiple transformations. */
+TEST(type_prop, transpose_order_as_parameter_shape_after_transformation) {
+    const auto arg = make_shared<v0::Parameter>(element::f32, PartialShape{Dimension(2, 8), Dimension(4, 16), 6});
+
+    const auto param = make_shared<v0::Parameter>(element::i64, PartialShape{8, 20, 1});
+    const auto shape_of = make_shared<v3::ShapeOf>(param);
+    const auto cast_fp = make_shared<op::Convert>(shape_of, element::f32);
+    const auto mul = make_shared<v1::Multiply>(cast_fp, op::Constant::create(element::f32, {3}, {-2, 1, -2}));
+    const auto div = make_shared<v1::Divide>(mul, op::Constant::create(element::f32, {3}, {-10, 41, -1}));
+    // order after convert [1, 0, 2]
+    const auto cast_int = make_shared<op::Convert>(div, element::i32);
+    // order after gather [2, 1, 0]
+    const auto gather = make_shared<v1::Gather>(cast_int,
+                                                op::Constant::create(element::i32, {3}, {2, 0, 1}),
+                                                op::Constant::create(element::i32, {}, {0}));
+
+    const auto r = make_shared<v1::Transpose>(arg, gather);
+
+    ASSERT_EQ(r->get_output_element_type(TransposeOut::ARG_T), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(TransposeOut::ARG_T), PartialShape({6, Dimension(4, 16), Dimension(2, 8)}));
+}
+
+/**
+ * \brief Transpose when order is dimensions from parameter shape.
+ *
+ * One dimension is dynamic, transposed output shape cannot be deduced and will  be dynamic.
+ */
+TEST(type_prop, transpose_when_order_is_shape_of_dynamic_partial_shape) {
+    const auto arg = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(2, 8), Dimension(4, 16), 6});
+
+    const auto param = make_shared<op::Parameter>(element::i64, PartialShape{0, 2, Dimension(1, 2)});
+    const auto shape_of = make_shared<v3::ShapeOf>(param);
+
+    const auto r = make_shared<v1::Transpose>(arg, shape_of);
+
+    ASSERT_EQ(r->get_output_element_type(TransposeOut::ARG_T), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(TransposeOut::ARG_T), PartialShape::dynamic(3));
 }
 
 using transpose_prop_params = tuple<vector<int64_t>,  // transpose order
