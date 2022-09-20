@@ -267,11 +267,6 @@ int main(int argc, char* argv[]) {
             config.erase(device);
         }
 
-        // If set batch size, disable the auto batching
-        if (FLAGS_b > 0) {
-            core.set_property(ov::hint::allow_auto_batching(false));
-        }
-
         bool perf_counts = false;
         // Update config per device according to command line parameters
         for (auto& device : devices) {
@@ -440,6 +435,11 @@ int main(int argc, char* argv[]) {
         // Takes priority over config from file
         if (!FLAGS_cache_dir.empty()) {
             core.set_property(ov::cache_dir(FLAGS_cache_dir));
+        }
+
+        // If set batch size, disable the auto batching
+        if (FLAGS_b > 0) {
+            core.set_property(ov::hint::allow_auto_batching(false));
         }
 
         bool isDynamicNetwork = false;
