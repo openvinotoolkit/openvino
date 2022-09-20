@@ -5,7 +5,6 @@
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/data_types.cl"
 
-
 /****************************************************************************
  *                                                                          *
  *                               Utility Defines                            *
@@ -60,34 +59,48 @@ KERNEL(roi_pooling_gpu)
 
 #if BILINEAR_POOLING
     const uint output_offset = OUTPUT_GET_INDEX(r, c, y, x);
+    COORD_T in_y;
+    COORD_T in_x;
 
     COORD_T roi_start_w = src_rois[INPUT1_GET_INDEX(r, 1, 0, 0)];
     COORD_T roi_start_h = src_rois[INPUT1_GET_INDEX(r, 2, 0, 0)];
-    COORD_T roi_end_w   = src_rois[INPUT1_GET_INDEX(r, 3, 0, 0)];
-    COORD_T roi_end_h   = src_rois[INPUT1_GET_INDEX(r, 4, 0, 0)];
+    COORD_T roi_end_w = src_rois[INPUT1_GET_INDEX(r, 3, 0, 0)];
+    COORD_T roi_end_h = src_rois[INPUT1_GET_INDEX(r, 4, 0, 0)];
 
-    COORD_T height_scale = (roi_end_h - roi_start_h) * (SRC_H - 1.0f) / (COORD_T)(POOLED_HEIGHT - 1.0f);
-    COORD_T width_scale  = (roi_end_w - roi_start_w) * (SRC_W - 1.0f) / (COORD_T)(POOLED_WIDTH  - 1.0f);
-
-    COORD_T in_y = y*height_scale + roi_start_h*(COORD_T)(SRC_H - 1.0f);
-    COORD_T in_x = x*width_scale  + roi_start_w*(COORD_T)(SRC_W - 1.0f);
+    COORD_T height_scale = (POOLED_HEIGHT > 1)
+                               ? (roi_end_h - roi_start_h) * (SRC_H - 1.0f) / (COORD_T)(POOLED_HEIGHT - 1.0f)
+                               : (COORD_T)(0);
+    COORD_T width_scale =
+        (POOLED_WIDTH > 1) ? (roi_end_w - roi_start_w) * (SRC_W - 1.0f) / (COORD_T)(POOLED_WIDTH - 1.0f) : (COORD_T)(0);
+    if (POOLED_HEIGHT > 1) {
+        in_y = (y == POOLED_HEIGHT - 1) ? (COORD_T)(SRC_H - 1.0f) * roi_end_h
+                                        : y * height_scale + roi_start_h * (COORD_T)(SRC_H - 1.0f);
+    } else {
+        in_y = 0.5 * (roi_end_h + roi_start_h) * (COORD_T)(SRC_H - 1.0f);
+    }
+    if (POOLED_WIDTH > 1) {
+        in_x = (x == POOLED_WIDTH - 1) ? (COORD_T)(SRC_W - 1.0f) * roi_end_w
+                                       : x * width_scale + roi_start_w * (COORD_T)(SRC_W - 1.0f);
+    } else {
+        in_x = 0.5 * (roi_end_w + roi_start_w) * (COORD_T)(SRC_W - 1.0f);
+    }
 
     if (in_y < 0 || in_y > (COORD_T)(SRC_H - 1) || in_x < 0 || in_x > (COORD_T)(SRC_W - 1) || src_batch_idx == -1) {
         dst_data[output_offset] = ACTIVATION((OUTPUT_TYPE)0, ACTIVATION_PARAMS);
         return;
     }
 
-    int top_y_index    = (int)(floor(in_y));
+    int top_y_index = (int)(floor(in_y));
     int bottom_y_index = (int)(min(ceil(in_y), (COORD_T)SRC_H - 1));
-    int left_x_index   = (int)(floor(in_x));
-    int right_x_index  = (int)(min(ceil(in_x), (COORD_T)SRC_W - 1));
+    int left_x_index = (int)(floor(in_x));
+    int right_x_index = (int)(min(ceil(in_x), (COORD_T)SRC_W - 1));
 
-    ACCUM_T top_left     = (ACCUM_T)src_data[INPUT0_GET_INDEX(src_batch_idx, c, top_y_index, left_x_index)];
-    ACCUM_T top_right    = (ACCUM_T)src_data[INPUT0_GET_INDEX(src_batch_idx, c, top_y_index, right_x_index)];
-    ACCUM_T bottom_left  = (ACCUM_T)src_data[INPUT0_GET_INDEX(src_batch_idx, c, bottom_y_index, left_x_index)];
+    ACCUM_T top_left = (ACCUM_T)src_data[INPUT0_GET_INDEX(src_batch_idx, c, top_y_index, left_x_index)];
+    ACCUM_T top_right = (ACCUM_T)src_data[INPUT0_GET_INDEX(src_batch_idx, c, top_y_index, right_x_index)];
+    ACCUM_T bottom_left = (ACCUM_T)src_data[INPUT0_GET_INDEX(src_batch_idx, c, bottom_y_index, left_x_index)];
     ACCUM_T bottom_right = (ACCUM_T)src_data[INPUT0_GET_INDEX(src_batch_idx, c, bottom_y_index, right_x_index)];
 
-    ACCUM_T top    = top_left + (top_right - top_left) * (in_x - left_x_index);
+    ACCUM_T top = top_left + (top_right - top_left) * (in_x - left_x_index);
     ACCUM_T bottom = bottom_left + (bottom_right - bottom_left) * (in_x - left_x_index);
 
     ACCUM_T res = top + (bottom - top) * (in_y - top_y_index);
