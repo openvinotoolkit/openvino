@@ -24,7 +24,7 @@ else()
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
 endif()
 
-ie_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ON "ENABLE_ONEDNN_FOR_GPU_DEFAULT" OFF)
+ie_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT})
 
 ie_option (ENABLE_PROFILING_ITT "Build with ITT tracing. Optionally configure pre-built ittnotify library though INTEL_VTUNE_DIR variable." OFF)
 
@@ -41,29 +41,27 @@ In case SELECTIVE_BUILD is enabled, the SELECTIVE_BUILD_STAT variable should con
 Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv" OFF
                ALLOWED_VALUES ON OFF COLLECT)
 
-ie_option(ENABLE_ERROR_HIGHLIGHT "Highlight errors and warnings during compile time" OFF)
+ie_option(ENABLE_ERROR_HIGHLIGHT "Highlight errors and warnings during compile time" ON)
 
-find_host_package(PythonInterp 3 QUIET)
-ie_dependent_option (ENABLE_DOCS "Build docs using Doxygen" OFF "PYTHONINTERP_FOUND" OFF)
+ie_option (ENABLE_DOCS "Build docs using Doxygen" OFF)
+
+# TODO: fix apple later
+find_package(PkgConfig QUIET)
+ie_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file generation" ON "LINUX;PkgConfig_FOUND;BUILD_SHARED_LIBS" OFF)
 
 #
 # Inference Engine specific options
 #
 
 # "OneDNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
-if(X86 OR ARM OR (MSVC AND (ARM OR AARCH64)) )
-    set(THREADING_DEFAULT "SEQ")
-else()
-    set(THREADING_DEFAULT "TBB")
-endif()
-set(THREADING "${THREADING_DEFAULT}" CACHE STRING "Threading")
+set(THREADING "TBB" CACHE STRING "Threading")
 set_property(CACHE THREADING PROPERTY STRINGS "TBB" "TBB_AUTO" "OMP" "SEQ")
 list (APPEND IE_OPTIONS THREADING)
 if (NOT THREADING STREQUAL "TBB" AND
     NOT THREADING STREQUAL "TBB_AUTO" AND
     NOT THREADING STREQUAL "OMP" AND
     NOT THREADING STREQUAL "SEQ")
-    message(FATAL_ERROR "THREADING should be set to TBB, TBB_AUTO, OMP or SEQ. Default option is ${THREADING_DEFAULT}")
+    message(FATAL_ERROR "THREADING should be set to TBB (default), TBB_AUTO, OMP or SEQ")
 endif()
 
 if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND
@@ -99,7 +97,13 @@ ie_option (ENABLE_TEMPLATE "Enable template plugin" ON)
 
 ie_dependent_option (ENABLE_INTEL_MYRIAD_COMMON "common part of myriad plugin" ON "NOT WINDOWS_PHONE;NOT WINDOWS_STORE" OFF)
 
-ie_dependent_option (ENABLE_INTEL_MYRIAD "myriad targeted plugin for inference engine" ON "ENABLE_INTEL_MYRIAD_COMMON" OFF)
+if(UNIVERSAL2)
+    set(ENABLE_INTEL_MYRIAD_DEFAULT OFF)
+else()
+    set(ENABLE_INTEL_MYRIAD_DEFAULT ON)
+endif()
+
+ie_dependent_option (ENABLE_INTEL_MYRIAD "myriad targeted plugin for inference engine" ${ENABLE_INTEL_MYRIAD_DEFAULT} "ENABLE_INTEL_MYRIAD_COMMON" OFF)
 
 ie_dependent_option (ENABLE_MYRIAD_NO_BOOT "myriad plugin will skip device boot" OFF "ENABLE_INTEL_MYRIAD" OFF)
 
@@ -111,11 +115,11 @@ ie_dependent_option (ENABLE_MYRIAD_MVNC_TESTS "functional and behavior tests for
 
 ie_dependent_option (ENABLE_DATA "fetch models from testdata repo" ON "ENABLE_FUNCTIONAL_TESTS;NOT ANDROID" OFF)
 
-ie_dependent_option (ENABLE_BEH_TESTS "tests oriented to check inference engine API corecteness" ON "ENABLE_TESTS" OFF)
+ie_dependent_option (ENABLE_BEH_TESTS "tests oriented to check inference engine API correctness" ON "ENABLE_TESTS" OFF)
 
 ie_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS" OFF)
 
-ie_dependent_option (ENABLE_SAMPLES "console samples are part of inference engine package" ON "NOT MINGW" OFF)
+ie_option (ENABLE_SAMPLES "console samples are part of inference engine package" ON)
 
 ie_option (ENABLE_OPENCV "enables custom OpenCV download" OFF)
 
@@ -126,7 +130,7 @@ set(IE_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include i
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the Inference Engine binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
 get_linux_name(LINUX_OS_NAME)
-if(LINUX_OS_NAME MATCHES "^Ubuntu [0-9]+\.[0-9]+$")
+if(LINUX_OS_NAME MATCHES "(Ubuntu|Debian)")
     # Debian packages are enabled on Ubuntu systems
     # so, system TBB / pugixml can be tried for usage
     set(ENABLE_SYSTEM_LIBS_DEFAULT ON)
@@ -134,7 +138,12 @@ else()
     set(ENABLE_SYSTEM_LIBS_DEFAULT OFF)
 endif()
 
-set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
+if(APPLE AND AARCH64)
+    set(ENABLE_SYSTEM_TBB_DEFAULT ON)
+else()
+    set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
+endif()
+
 if(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR DEFINED TBB_DIR OR DEFINED TBBROOT)
     set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
 endif()
@@ -142,7 +151,7 @@ endif()
 # for static libraries case libpugixml.a must be compiled with -fPIC
 ie_dependent_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" ${ENABLE_SYSTEM_LIBS_DEFAULT} "BUILD_SHARED_LIBS" OFF)
 
-ie_dependent_option (ENABLE_SYSTEM_TBB  "use the system version of TBB" ${ENABLE_SYSTEM_TBB_DEFAULT} "THREADING MATCHES TBB;LINUX" OFF)
+ie_dependent_option (ENABLE_SYSTEM_TBB  "use the system version of TBB" ${ENABLE_SYSTEM_TBB_DEFAULT} "THREADING MATCHES TBB" OFF)
 
 ie_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
 
@@ -156,15 +165,15 @@ else()
     set(protoc_available ON)
 endif()
 
-ie_dependent_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ON "protoc_available" OFF)
-ie_dependent_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON "protoc_available" OFF)
+find_host_package(PythonInterp 3 QUIET)
+ie_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ${PYTHONINTERP_FOUND})
+ie_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON)
 ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
-ie_dependent_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON "protoc_available" OFF)
+ie_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
 ie_dependent_option(ENABLE_SYSTEM_PROTOBUF "Use system protobuf" OFF
     "ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_TF_FRONTEND;BUILD_SHARED_LIBS" OFF)
-ie_dependent_option(ENABLE_OV_CORE_UNIT_TESTS "Enables OpenVINO core unit tests" ON "ENABLE_TESTS;NOT ANDROID" OFF)
-ie_dependent_option(ENABLE_OV_CORE_BACKEND_UNIT_TESTS "Control the building of unit tests using backends" ON
-    "ENABLE_OV_CORE_UNIT_TESTS" OFF)
+
+ie_dependent_option(ENABLE_OV_CORE_UNIT_TESTS "Enables OpenVINO core unit tests" ON "ENABLE_TESTS" OFF)
 ie_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
 ie_option(ENABLE_REQUIREMENTS_INSTALL "Dynamic dependencies install" ON)
 
@@ -173,9 +182,6 @@ if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
 else()
     set(FORCE_FRONTENDS_USE_PROTOBUF OFF)
 endif()
-
-# WA for ngraph python build on Windows debug
-list(REMOVE_ITEM IE_OPTIONS ENABLE_OV_CORE_UNIT_TESTS ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
 
 #
 # Process featues

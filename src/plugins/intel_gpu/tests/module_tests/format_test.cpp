@@ -25,9 +25,9 @@ TEST(format, traits) {
 }
 
 struct format_adjust_test_params {
-    format in_format;
+    cldnn::format in_format;
     size_t new_rank;
-    format expected_format;
+    cldnn::format expected_format;
 };
 
 class format_adjust_test : public testing::TestWithParam<format_adjust_test_params> {
@@ -44,7 +44,7 @@ public:
 TEST_P(format_adjust_test, shape_infer) {
     auto p = GetParam();
 
-    if (p.expected_format == format::any) {
+    if (p.expected_format == cldnn::format::any) {
         cldnn::format fmt = cldnn::format::any;
         ASSERT_ANY_THROW(fmt = format::adjust_to_rank(p.in_format, p.new_rank)) << fmt.to_string();
     } else {
@@ -54,17 +54,17 @@ TEST_P(format_adjust_test, shape_infer) {
 
 INSTANTIATE_TEST_SUITE_P(smoke, format_adjust_test,
     testing::ValuesIn(std::vector<format_adjust_test_params>{
-        {format::bfyx, 3, format::bfyx},
-        {format::bfyx, 4, format::bfyx},
-        {format::bfyx, 5, format::bfzyx},
-        {format::bfyx, 6, format::bfwzyx},
-        {format::bfzyx, 4, format::bfyx},
-        {format::bfzyx, 6, format::bfwzyx},
-        {format::bfwzyx, 3, format::bfyx},
-        {format::b_fs_yx_fsv16, 5, format::b_fs_zyx_fsv16},
-        {format::b_fs_zyx_fsv16, 4, format::b_fs_yx_fsv16},
-        {format::fs_b_yx_fsv32, 5, format::any},
-        {format::nv12, 5, format::any},
-        {format::oiyx, 5, format::any},
+        {cldnn::format::bfyx,           3, cldnn::format::bfyx},
+        {cldnn::format::bfyx,           4, cldnn::format::bfyx},
+        {cldnn::format::bfyx,           5, cldnn::format::bfzyx},
+        {cldnn::format::bfyx,           6, cldnn::format::bfwzyx},
+        {cldnn::format::bfzyx,          4, cldnn::format::bfyx},
+        {cldnn::format::bfzyx,          6, cldnn::format::bfwzyx},
+        {cldnn::format::bfwzyx,         3, cldnn::format::bfyx},
+        {cldnn::format::b_fs_yx_fsv16,  5, cldnn::format::b_fs_zyx_fsv16},
+        {cldnn::format::b_fs_zyx_fsv16, 4, cldnn::format::b_fs_yx_fsv16},
+        {cldnn::format::fs_b_yx_fsv32,  5, cldnn::format::any},
+        {cldnn::format::nv12,           5, cldnn::format::any},
+        {cldnn::format::oiyx,           5, cldnn::format::any},
     }),
     format_adjust_test::PrintToString);

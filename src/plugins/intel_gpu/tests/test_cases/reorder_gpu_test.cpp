@@ -935,7 +935,6 @@ TEST(reorder_gpu, basic_convert_uint8rgbabyxf_to_fp32_bfyx) {
              "reorder_input",               // primitive id of the cropping input
              crop_reference_input_tensor,   // input tensor
              crop_offset_tensor,            // bias primitive id
-             "",
              output_padding
             )
     );
@@ -1040,7 +1039,7 @@ TEST(reorder_gpu_f32, basic_yxfb_to_bfyx_input_padding)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, "", padding{ { 0, 0, 1, 2 }, 0 }),
+        reorder("reorder", "input", input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, padding{ { 0, 0, 1, 2 }, 0 }),
         reorder("reorder2", "reorder", output_layout));
 
     network network(engine, topology);
@@ -1119,7 +1118,7 @@ TEST(reorder_gpu_f32, basic_bfyx_to_yxfb_input_padding)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, "", padding{ { 0, 0, 2, 1 }, 0 }),
+        reorder("reorder", "input", input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, padding{ { 0, 0, 2, 1 }, 0 }),
         reorder("reorder2", "reorder", output_layout));
 
     network network(engine, topology);
@@ -1407,7 +1406,7 @@ TEST(reorder_gpu_opt, remove_redundant_activation_fuse)
         reorder("r1", "in", format::bfyx, data_types::f32),
         activation("relu", "r1", activation_func::relu_negative_slope, { 0.01f, 0.0f }),
         data("scale_data", scale_mem),
-        scale("output", "relu", "scale_data")
+        eltwise("output", { "relu", "scale_data" }, eltwise_mode::prod)
     };
 
     build_options opts;
@@ -2582,6 +2581,8 @@ TEST_P(testing_removal_reorder, only_remove_reorder_shallow_depth_input) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
 // Check to remove reorder between onednn and cldnn conv if the reorder has no padded output
 TEST_P(testing_removal_reorder, removal_no_padded_reorder) {
+    if (!engine.get_device_info().supports_immad)
+        return;
     auto p = GetParam();
     layout reorder_layout(data_types::f16, format::b_fs_yx_fsv16, p.in_shape, padding({0, }, 0));
 
@@ -2604,14 +2605,13 @@ TEST_P(testing_removal_reorder, removal_no_padded_reorder) {
 
     execute(p);
 
-    if (!check_supports_immad())
-        return;
-
     EXPECT_EQ(check_optimized_out(p, "reorder_conv"), true);
 }
 
 // Check not to remove reorder between onednn and cldnn conv if the reorder has padded output
 TEST_P(testing_removal_reorder, removal_padded_reorder) {
+    if (!engine.get_device_info().supports_immad)
+        return;
     auto p = GetParam();
     layout reorder_layout(data_types::f16, format::b_fs_yx_fsv16, p.in_shape, padding({0, 0, 1, 1}, 0));
 
@@ -2634,9 +2634,6 @@ TEST_P(testing_removal_reorder, removal_padded_reorder) {
 
     execute(p);
 
-    if (!check_supports_immad())
-        return;
-
     EXPECT_EQ(check_optimized_out(p, "reorder_conv"), false);
 }
 #endif // ENABLE_ONEDNN_FOR_GPU
@@ -2651,6 +2648,8 @@ INSTANTIATE_TEST_SUITE_P(reorder_gpu_testing, testing_removal_reorder,
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(reorder_onednn_gpu, basic_convert_int8) {
     auto& engine = get_onednn_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
     layout in_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 3, 3 } };
     layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx, { 1, 1, 3, 3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.6f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.0f };

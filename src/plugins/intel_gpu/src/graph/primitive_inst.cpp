@@ -11,6 +11,8 @@
 #include "fully_connected_inst.h"
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
+#include "shape_of_inst.h"
+#include "strided_slice_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 
 #include "intel_gpu/graph/network.hpp"
@@ -148,13 +150,33 @@ void primitive_inst::update_shape() {
         }
     }
 
-    if (!input_shape_changed && !_node.generates_dynamic_output() && _impl_params->output_layout.is_static())
+    if (input_shape_changed)
+        set_shape_change();
+
+    // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
+    if (_node.is_type<shape_of>())
+        return;
+
+    // Strided slice loads data from {1,2,3} dependencies in impl::create method.
+    // It means that this data must be put into impl_params map
+    // Thus we treat it as "dynamic" case
+    // TODO: Remove once strided slice impl support runtime tensors for begin/end/stride
+    bool strided_slice_wa = false;
+    if (_node.is_type<strided_slice>()) {
+        for (size_t i = 1; i < _node.get_dependencies().size(); i++) {
+            if (!_node.get_dependency(i).is_type<data>())
+                strided_slice_wa = true;
+        }
+    }
+
+    if (!strided_slice_wa && !input_shape_changed && !_node.generates_dynamic_output() && _impl_params->output_layout.is_static())
         return;
 
     auto memory_deps = _node.get_const_memory_deps();
     std::vector<event::ptr> dependencies_events;
     for (auto& i : _node.get_shape_infer_dependencies()) {
-        if (memory_deps.count(i) > 0) {
+        // Some primitives may have flexible count of deps (e.g. reshape), thus allow skipping some deps
+        if (memory_deps.count(i) > 0 || i >= _node.get_dependencies().size()) {
             continue;
         }
         auto& dep = _node.get_dependency(i);
@@ -173,7 +195,8 @@ void primitive_inst::update_shape() {
         _network.get_stream().wait_for_events(dependencies_events);
 
     _impl_params->memory_deps = memory_deps;
-    layout new_layout = _node.type()->calc_output_layout(_node, *_impl_params);
+    auto new_layouts = _node.type()->calc_output_layouts(_node, *_impl_params);
+    auto new_layout = new_layouts.empty() ? _node.type()->calc_output_layout(_node, *_impl_params) : new_layouts[0];
     new_layout.data_padding = padding::max(_node.get_primitive()->output_padding, new_layout.data_padding);
 
     if (_impl_params->output_layout != new_layout) {
@@ -192,17 +215,26 @@ void primitive_inst::realloc_if_needed() {
     auto actual_layout = _impl_params->output_layout;
     OPENVINO_ASSERT(actual_layout.is_static(), "[GPU] Can't realloc mem for dynamic layout");
 
-    if (!_output
-        || ((_output->get_layout().count() < actual_layout.count())
-        && (max_output_layout_size < actual_layout.count()))) {
+    // input_layout node is supposed to always use external memory in dynamic case
+    if (_node.is_type<input_layout>())
+        return;
+
+    bool can_reuse_buffer = _output && actual_layout.count() <= max_output_layout_size;
+
+    if (can_reuse_buffer) {
         GPU_DEBUG_IF(debug_config->verbose >= 4) {
-            GPU_DEBUG_COUT << id() << ": realloc output memory" << std::endl;
+            GPU_DEBUG_COUT << id() << ": reuse previously allocated output buffer" << std::endl;
+        }
+        _output = _network.get_engine().reinterpret_buffer(*_output, actual_layout);
+    } else {
+        GPU_DEBUG_IF(debug_config->verbose >= 4) {
+            GPU_DEBUG_COUT << id() << ": realloc output memory. "
+                           <<  " Current buffer_size=" << max_output_layout_size
+                           <<  " Requested buffer_size=" << actual_layout.count() << std::endl;
         }
         _output = allocate_output();
-    } else {
-        _output = _network.get_engine().reinterpret_buffer(*_output, actual_layout);
+        max_output_layout_size = _output->get_layout().count();
     }
-    max_output_layout_size = std::max(_output->get_layout().count(), max_output_layout_size);
 }
 
 void primitive_inst::update_impl() {
@@ -214,10 +246,8 @@ void primitive_inst::update_impl() {
                 layout_key_str = id() + "_" + std::to_string(_node.get_unique_id());
                 layout_key_str += "_" + _impl_params->output_layout.to_string();
 
-                for (auto in : _node.get_dependencies()) {
-                    if (!in->is_constant()) {
-                        layout_key_str += "_" + in->get_output_layout().to_string();
-                    }
+                for (auto in : _impl_params->input_layouts) {
+                    layout_key_str += "_" + in.to_string();
                 }
             }
             return layout_key_str;
@@ -301,12 +331,12 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                        << out_ptr << ")" << std::endl;
     }
 
-    if (_exec_deps.empty())
+    if (_exec_deps.empty() && dependencies.empty())
         return _impl->execute(events, *this);
 
     auto queue_type = get_network().get_stream().get_queue_type();
     if (queue_type == queue_types::out_of_order) {
-        dependencies.reserve(_exec_deps.size());
+        dependencies.reserve(dependencies.size() + _exec_deps.size());
         for (auto& input : _exec_deps) {
             auto id = input->id();
             try {
@@ -315,9 +345,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                 auto ev = get_network().get_primitive_event(id);
                 dependencies.emplace_back(ev);
             } catch (const std::out_of_range& oor) {
-                std::string temp = std::string("internal CLDNN error: execution order corrupted.") + std::string("\n") +
-                                std::string(oor.what() + std::string("\n"));
-                CLDNN_ERROR_MESSAGE(id, temp);
+                OPENVINO_ASSERT(false, "[GPU] execution order corrupted: ", oor.what());
             }
         }
     }
@@ -343,7 +371,8 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     , _impl(node.get_selected_impl() ? node.get_selected_impl()->clone() : nullptr)
     , _output()
     , _output_changed(false)
-    , _mem_allocated(allocate_memory) {
+    , _mem_allocated(allocate_memory)
+    , _is_dynamic(_node.is_dynamic() || _node.generates_dynamic_output()) {
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
         // suychronization, The output memory of such primitive will be fused with mutable_data
@@ -435,7 +464,6 @@ event::ptr primitive_inst::update_weights() {
     if (!weightable_node)
         return nullptr;
 
-
     GPU_DEBUG_GET_INSTANCE(debug_config);
 
     auto& weights_params = _impl->_weights_reorder_params;
@@ -444,19 +472,50 @@ event::ptr primitive_inst::update_weights() {
     if (requires_reorder) {
         auto weights_idx = _node.get_primitive()->input.size();
         auto original_weights_memory = dep_memory_ptr(weights_idx);
+        auto original_layout = original_weights_memory->get_layout();
         layout expected_layout = from_weights_tensor(weights_params.dest);
+
         auto& program = _node.get_program();
         auto& engine = _network.get_engine();
-        auto& stream = _network.get_stream();
-        auto _kernel_id = program.add_kernel(weights_params.clKernel->code.kernelString);
-        program.compile();
-        auto kernel = program.get_kernel(_kernel_id);
 
-        GPU_DEBUG_IF(debug_config->verbose >= 4) {
-            GPU_DEBUG_COUT << id() << ": reorder weights from " << original_weights_memory->get_layout() << "\nto " << expected_layout << std::endl;
+        auto get_layout_key = [&]() -> std::string {
+            std::string layout_key_str = id() + "_" + std::to_string(_node.get_unique_id());
+            layout_key_str += "_" + expected_layout.to_string();
+            layout_key_str += "_" + original_layout.to_string();
+            return layout_key_str;
+        };
+
+        cldnn::kernel::ptr kernel = nullptr;
+        auto layout_key = get_layout_key();
+        if (layout_key != "") {
+            auto& cache = program.get_in_mem_kernels_cache();
+            if (cache.has(layout_key)) {
+                GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                    GPU_DEBUG_COUT << id() << ": reorder weights (cached) from " << original_layout << "\nto " << expected_layout << std::endl;
+                }
+                kernel = cache.get(layout_key);
+            } else {
+                GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                    GPU_DEBUG_COUT << id() << ": reorder weights from " << original_layout << "\nto " << expected_layout << std::endl;
+                }
+                auto _kernel_id = program.add_kernel(weights_params.clKernel->code.kernelString);
+                program.compile();
+                kernel = program.get_kernel(_kernel_id);
+                cache.add(layout_key, kernel);
+            }
         }
 
-        _impl_params->reordered_weights = engine.allocate_memory(expected_layout, allocation_type::usm_device);
+        auto& stream = _network.get_stream();
+
+        bool can_reuse = _impl_params->reordered_weights != nullptr && _impl_params->reordered_weights->size() <= expected_layout.bytes_count();
+        if (can_reuse) {
+            GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                GPU_DEBUG_COUT << id() << ": reuse weights memory" << std::endl;
+            }
+            _impl_params->reordered_weights = engine.reinterpret_buffer(*_impl_params->reordered_weights, expected_layout);
+        } else {
+            _impl_params->reordered_weights = engine.allocate_memory(expected_layout, allocation_type::usm_device);
+        }
 
         kernel_arguments_data args;
         args.inputs.push_back(original_weights_memory);
@@ -480,7 +539,12 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     auto layout = impl_params.output_layout;
     OPENVINO_ASSERT(layout.is_static(), "[GPU] Can't allocate output for dynamic layout");
     auto device_mem_acc = [&](size_t a, const cldnn::layout& l) {
-        return a + l.bytes_count();
+        // Input shape may be dynamic is some cases (shape_of). It means that output shape of node doesn't depend on input shape
+        // and out memory can be allocated on program build stage.
+        if (l.is_static())
+            return a + l.bytes_count();
+
+        return a;
     };
 
     bool usm_device_allocatable = true;
@@ -488,17 +552,38 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     if (total_device_input_mem_size > _engine.get_device_info().max_global_mem_size)
         usm_device_allocatable = false;
 
+    bool memory_reuse_by_user = true;
+
+    std::function<bool(const program_node&)> user_requesting_mem_reuse_false = [&user_requesting_mem_reuse_false](const program_node& node) {
+        for (auto& user : node.get_users()) {
+            if (user->is_dynamic())
+                return true;
+            if ((user->get_selected_impl() != nullptr) && (user->get_selected_impl()->can_reuse_memory == false)) {
+                return true;
+            } else if (user->get_selected_impl() == nullptr) {
+                if (user_requesting_mem_reuse_false(*user)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
+    if (user_requesting_mem_reuse_false(_node)) {
+        memory_reuse_by_user = false;
+    }
+
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
     bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() : false;
     auto use_lockable_memory = is_output_buffer(_node) || is_cpu || is_any_user_cpu(_node.get_users()) ||
                                !_engine.supports_allocation(allocation_type::usm_device);
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    const auto& lockable_mem_type = _engine.get_lockable_preffered_memory_allocation_type(layout.format.is_image_2d());
+    const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
     const auto& alloc_type = use_lockable_memory ? lockable_mem_type
         : usm_device_allocatable ? allocation_type::usm_device : lockable_mem_type;
 
-    if (is_internal && (_node.can_be_optimized() || _node.is_type<generic_layer>())) {
+    if ((is_internal && (_node.can_be_optimized() || _node.is_type<generic_layer>())) || (memory_reuse_by_user == false)) {
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
             GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
         }
@@ -545,7 +630,7 @@ std::vector<std::shared_ptr<primitive_inst>> primitive_inst::build_exec_deps(
     std::vector<std::shared_ptr<primitive_inst>> exec_deps;
     exec_deps.reserve(deps.size());
     for (auto& dep : deps)
-        if (dep->get_impl() != nullptr)
+        if (dep->get_impl() != nullptr || dep->is_dynamic())
             exec_deps.push_back(dep);
 
     return exec_deps;

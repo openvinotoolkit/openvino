@@ -77,6 +77,8 @@ endif()
 
 target_link_libraries(${TARGET_NAME} PUBLIC OpenCL rapidjson inference_engine_plugin_api)
 
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
 if(WIN32)
   target_link_libraries(${TARGET_NAME} PRIVATE setupapi)
 elseif((NOT ANDROID) AND (UNIX))

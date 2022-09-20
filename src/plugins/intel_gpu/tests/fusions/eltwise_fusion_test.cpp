@@ -187,6 +187,9 @@ TEST_P(eltwise_const_path, not_fuse_to_const_eltwise) {
         activation("activation", "add", activation_func::negative),
         reorder("out", "activation", p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     tolerance = 1e-5f;
     execute(p);
@@ -213,6 +216,9 @@ TEST_P(eltwise_fp32_fsv16, add) {
         activation("activation", "add", activation_func::negative),
         reorder("out", "activation", p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_b_fs_yx_fsv16" };
     bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
@@ -232,6 +238,9 @@ TEST_P(eltwise_fp32_fsv16, add_per_element) {
         activation("activation", "add", activation_func::negative),
         reorder("out", "activation", p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_b_fs_yx_fsv16" };
     bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
@@ -257,6 +266,9 @@ TEST_P(eltwise_fp32_fsv32, add) {
         activation("activation", "add", activation_func::negative),
         reorder("out", "activation", p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::fs_b_yx_fsv32, "eltwise_fs_b_yx_fsv32" };
     bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
@@ -276,6 +288,9 @@ TEST_P(eltwise_fp32_fsv32, add_per_element) {
         activation("activation", "add", activation_func::negative),
         reorder("out", "activation", p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::fs_b_yx_fsv32, "eltwise_fs_b_yx_fsv32" };
     bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
@@ -302,6 +317,9 @@ TEST_P(eltwise_fp32_fsv4, add) {
         activation("activation", "add", activation_func::negative),
         reorder("out", "activation", p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::b_fs_yx_fsv4, "eltwise_b_fs_yx_fsv4" };
     bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
@@ -321,6 +339,9 @@ TEST_P(eltwise_fp32_fsv4, add_per_element) {
         activation("activation", "add", activation_func::negative),
         reorder("out", "activation", p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::b_fs_yx_fsv4, "eltwise_b_fs_yx_fsv4" };
     bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
@@ -344,7 +365,7 @@ TEST_P(eltwise_fp32_fused_prims, scale_activation) {
         input_layout("input2", get_input_layout2(p)),
         data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
         eltwise("eltwise", { "input", "input2" }, p.mode, p.default_type),
-        scale("scale", "eltwise", "scale_data"),
+        eltwise("scale", { "eltwise", "scale_data" }, eltwise_mode::prod, p.default_type),
         activation("activation", "scale", activation_func::abs),
         reorder("out", "activation", p.default_format, data_types::f32)
     );
@@ -425,7 +446,7 @@ TEST_P(eltwise_fp32_scale, 6d) {
         input_layout("input2", get_input_layout2(p)),
         data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
         eltwise("eltwise", { "input", "input2" }, p.mode, p.default_type),
-        scale("scale", "eltwise", "scale_data"),
+        eltwise("scale", { "eltwise", "scale_data" }, eltwise_mode::prod, p.default_type),
         reorder("out", "scale", p.default_format, data_types::f32)
     );
 
@@ -449,6 +470,9 @@ TEST_P(eltwise_fp16_byxf, add) {
         activation("activation", "add", activation_func::negative),
         reorder("out", "activation", p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::byxf, "generic_eltwise_ref" };
     bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));

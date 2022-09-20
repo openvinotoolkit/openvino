@@ -125,7 +125,7 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
     return pshape;
 }
 
-bool check_all_digits(const std::string& value) {
+inline bool check_all_digits(const std::string& value) {
     auto val = ov::util::trim(value);
     for (const auto& c : val) {
         if (!std::isdigit(c) || c == '-') {

@@ -26,17 +26,20 @@ void OPCache::update_ops_cache(const std::shared_ptr<ov::Node> &op,
     }();
 
     auto saveOpToCash = [&] {
-        const auto &clone_fn = SubgraphsDumper::ClonersMap::cloners.at(op->get_type_info());
-        LayerTestsUtils::OPInfo meta(source_model);
         try {
+            const auto& clone_fn = SubgraphsDumper::ClonersMap::cloners.at(op->get_type_info());
+            LayerTestsUtils::OPInfo meta(source_model);
             const std::shared_ptr<ov::Node> op_clone = clone_fn(op, meta);
             if (!op_clone) {
                 return;
             }
             op_clone->set_friendly_name(op_clone->get_friendly_name() + "_cached");
             m_ops_cache.insert({op_clone, meta});
-        } catch (std::exception &e) {
-            std::cout << e.what() << std::endl;
+        } catch (std::out_of_range& e) {
+            std::cout << "WARNING: Cloner for " << op->get_type_name() << " (" << op->get_type_info().get_version()
+                      << ") isn't found: " << e.what() << std::endl;
+        } catch (std::exception& e) {
+            std::cout << "ERROR: " << e.what() << std::endl;
         }
     };
 

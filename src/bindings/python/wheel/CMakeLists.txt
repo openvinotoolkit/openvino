@@ -9,6 +9,7 @@
 set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 set(WHEEL_VERSION "${OpenVINO_VERSION}" CACHE STRING "Version of this release" FORCE)
 set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
+
 set(PYTHON_BRIDGE_CPACK_PATH "${OV_CPACK_PYTHONDIR}")
 set(PY_PACKAGES_DIR ${PYTHON_BRIDGE_CPACK_PATH}/${pyversion})
 set(TBB_LIBS_DIR runtime/3rdparty/tbb/lib)
@@ -21,8 +22,7 @@ set(PUGIXML_LIBS_DIR runtime/3rdparty/pugixml/lib)
 # Dependencies
 #
 
-set(openvino_wheel_deps ie_api)
-foreach(_target ie_api constants _pyngraph pyopenvino ov_plugins py_ov_frontends)
+foreach(_target ie_api constants _pyngraph openvino_c pyopenvino ov_plugins ov_frontends py_ov_frontends)
     if(TARGET ${_target})
         list(APPEND openvino_wheel_deps ${_target})
     endif()
