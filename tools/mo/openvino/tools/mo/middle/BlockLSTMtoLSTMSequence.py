@@ -25,9 +25,8 @@ class BlockLSTMtoLSTMSequenceSingleFirstOutput(MiddleReplacementPattern):
         return [LSTMToTensorIterator]
 
     def run_after(self):
-        from openvino.tools.mo.middle.pass_separator import MiddleStart
         from openvino.tools.mo.middle.RNNSequenceNormalizeToIE import RNNSequenceNormalize
-        return [MiddleStart, RNNSequenceNormalize, BlockLSTMtoLSTMSequence]
+        return [RNNSequenceNormalize, BlockLSTMtoLSTMSequence]
 
     def pattern(self):
         return dict(
@@ -93,9 +92,11 @@ class BlockLSTMtoLSTMSequenceSingleFirstOutput(MiddleReplacementPattern):
         block_lstm.in_port(2).data.set_value(biases)
 
         # re-number h_init_state, c_init_state input ports to match RNNSequence ports order
+        # at this point there is no clear match to RNNSequence operations
+        # next re-ordering is expected in LSTMRNNSequenceToTensorIterator transformation
+        # to match LSTMCell inputs order
         init_hidden_state_source = block_lstm.in_port(3).get_source()
         init_cell_state_source = block_lstm.in_port(4).get_source()
-        block_lstm.add_input_port(4, skip_if_exist=True)
         block_lstm.in_port(4).get_connection().set_source(init_hidden_state_source)
         block_lstm.add_input_port(5, skip_if_exist=True)
         block_lstm.in_port(5).get_connection().set_source(init_cell_state_source)
@@ -108,7 +109,7 @@ class BlockLSTMtoLSTMSequenceSingleFirstOutput(MiddleReplacementPattern):
                      'format': 'tf',
                      }
 
-        # update attributes fo existing operation
+        # update attributes of existing operation
         # input edges have "bin" attribute for LSTMRNNSequenceToTensorIterator
         LSTM.update_node_stat(block_lstm, new_attrs)
 
