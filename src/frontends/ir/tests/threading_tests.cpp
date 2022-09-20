@@ -118,33 +118,36 @@ TEST_F(IRFRThreadingTests, get_meta_data_in_different_threads) {
         ov::AnyMap meta;
         ASSERT_NO_THROW(meta = model->get_meta_data());
         ASSERT_TRUE(!meta.empty());
+        for (const auto& it : meta) {
+            std::cout << it.first << " " << it.second.as<std::string>() << std::endl;
+        }
         auto it = meta.find("MO_version");
-        EXPECT_NE(it, meta.end());
+        ASSERT_NE(it, meta.end());
         EXPECT_TRUE(it->second.is<std::string>());
         EXPECT_EQ(it->second.as<std::string>(), "TestVersion");
 
         it = meta.find("Runtime_version");
-        EXPECT_NE(it, meta.end());
+        ASSERT_NE(it, meta.end());
         EXPECT_TRUE(it->second.is<std::string>());
         EXPECT_EQ(it->second.as<std::string>(), "TestVersion");
 
         auto it_cli = meta.find("cli_parameters");
-        EXPECT_NE(it_cli, meta.end());
+        ASSERT_NE(it_cli, meta.end());
         EXPECT_TRUE(it_cli->second.is<ov::AnyMap>());
 
         auto cli_map = it_cli->second.as<ov::AnyMap>();
         it = cli_map.find("input_shape");
-        EXPECT_NE(it, cli_map.end());
+        ASSERT_NE(it, cli_map.end());
         EXPECT_TRUE(it->second.is<std::string>());
         EXPECT_EQ(it->second.as<std::string>(), "[1, 3, 22, 22]");
 
         it = cli_map.find("transform");
-        EXPECT_NE(it, cli_map.end());
+        ASSERT_NE(it, cli_map.end());
         EXPECT_TRUE(it->second.is<std::string>());
         EXPECT_EQ(it->second.as<std::string>(), "");
 
         it = cli_map.find("use_new_frontend");
-        EXPECT_NE(it, cli_map.end());
+        ASSERT_NE(it, cli_map.end());
         EXPECT_TRUE(it->second.is<std::string>());
         EXPECT_EQ(it->second.as<std::string>(), "False");
     });
