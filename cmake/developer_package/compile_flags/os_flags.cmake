@@ -260,7 +260,7 @@ endfunction()
 
 if(WIN32)
     ie_add_compiler_flags(-D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS)
-    ie_add_compiler_flags(/EHsc) # no asynchronous structured exception handling
+    ie_add_compiler_flags(/EHa) # no asynchronous structured exception handling
     ie_add_compiler_flags(/Gy) # remove unreferenced functions: function level linking
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LARGEADDRESSAWARE")
 
