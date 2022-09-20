@@ -182,9 +182,9 @@ REGISTER_FACTORY(v4, ReduceL1);
 REGISTER_FACTORY(v4, ReduceL2);
 REGISTER_FACTORY(v4, SoftPlus);
 REGISTER_FACTORY(v4, Swish);
+REGISTER_FACTORY(v4, CTCLoss);
 
 // ----------------------------- Unsupported v4 ops ----------------------------- //
-// REGISTER_FACTORY(v4, CTCLoss);
 // REGISTER_FACTORY(v4, Range);
 
 // ------------------------------ Supported v5 ops ------------------------------ //
