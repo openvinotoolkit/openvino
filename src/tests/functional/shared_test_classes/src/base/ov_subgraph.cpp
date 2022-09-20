@@ -144,7 +144,9 @@ void SubgraphBaseTest::query_model() {
     for (auto&& res : queryNetworkResult) {
         actual.insert(res.first);
     }
-    ASSERT_EQ(expected, actual);
+    if (expected != actual) {
+        IE_THROW() << "Expected and actual are different";
+    }
 }
 
 void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
