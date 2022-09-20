@@ -13,7 +13,7 @@ TEST(ov_tensor, ov_tensor_create) {
     ov_shape_t shape;
     setup_4d_shape(&shape, 10, 20, 30, 40);
     ov_tensor_t* tensor = nullptr;
-    OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
+    OV_ASSERT_OK(ov_tensor_create(type, shape, &tensor));
     EXPECT_NE(nullptr, tensor);
     ov_tensor_free(tensor);
     ov_shape_free(&shape);
@@ -25,7 +25,7 @@ TEST(ov_tensor, ov_tensor_create_from_host_ptr) {
     setup_4d_shape(&shape, 1, 3, 4, 4);
     uint8_t host_ptr[1][3][4][4] = {0};
     ov_tensor_t* tensor = nullptr;
-    OV_EXPECT_OK(ov_tensor_create_from_host_ptr(type, shape, &host_ptr, &tensor));
+    OV_ASSERT_OK(ov_tensor_create_from_host_ptr(type, shape, &host_ptr, &tensor));
     EXPECT_NE(nullptr, tensor);
     ov_tensor_free(tensor);
     ov_shape_free(&shape);
@@ -36,11 +36,11 @@ TEST(ov_tensor, ov_tensor_get_shape) {
     ov_shape_t shape;
     setup_4d_shape(&shape, 10, 20, 30, 40);
     ov_tensor_t* tensor = nullptr;
-    OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
+    OV_ASSERT_OK(ov_tensor_create(type, shape, &tensor));
     EXPECT_NE(nullptr, tensor);
 
     ov_shape_t shape_res;
-    OV_EXPECT_OK(ov_tensor_get_shape(tensor, &shape_res));
+    OV_ASSERT_OK(ov_tensor_get_shape(tensor, &shape_res));
     EXPECT_EQ(shape.rank, shape_res.rank);
     EXPECT_EQ(shape.dims[0], shape_res.dims[0]);
     EXPECT_EQ(shape.dims[1], shape_res.dims[1]);
@@ -57,14 +57,14 @@ TEST(ov_tensor, ov_tensor_set_shape) {
     ov_shape_t shape;
     setup_4d_shape(&shape, 1, 1, 1, 1);
     ov_tensor_t* tensor = nullptr;
-    OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
+    OV_ASSERT_OK(ov_tensor_create(type, shape, &tensor));
     EXPECT_NE(nullptr, tensor);
 
     ov_shape_t shape_update;
     setup_4d_shape(&shape_update, 10, 20, 30, 40);
-    OV_EXPECT_OK(ov_tensor_set_shape(tensor, shape_update));
+    OV_ASSERT_OK(ov_tensor_set_shape(tensor, shape_update));
     ov_shape_t shape_res;
-    OV_EXPECT_OK(ov_tensor_get_shape(tensor, &shape_res));
+    OV_ASSERT_OK(ov_tensor_get_shape(tensor, &shape_res));
     EXPECT_EQ(shape_update.rank, shape_res.rank);
     EXPECT_EQ(shape_update.dims[0], shape_res.dims[0]);
     EXPECT_EQ(shape_update.dims[1], shape_res.dims[1]);
@@ -82,11 +82,11 @@ TEST(ov_tensor, ov_tensor_get_element_type) {
     ov_shape_t shape;
     setup_4d_shape(&shape, 10, 20, 30, 40);
     ov_tensor_t* tensor = nullptr;
-    OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
+    OV_ASSERT_OK(ov_tensor_create(type, shape, &tensor));
     EXPECT_NE(nullptr, tensor);
 
     ov_element_type_e type_res;
-    OV_EXPECT_OK(ov_tensor_get_element_type(tensor, &type_res));
+    OV_ASSERT_OK(ov_tensor_get_element_type(tensor, &type_res));
     EXPECT_EQ(type, type_res);
 
     ov_shape_free(&shape);
@@ -114,12 +114,12 @@ TEST(ov_tensor, ov_tensor_get_size) {
     ov_shape_t shape;
     setup_4d_shape(&shape, 1, 3, 4, 4);
     ov_tensor_t* tensor = nullptr;
-    OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
+    OV_ASSERT_OK(ov_tensor_create(type, shape, &tensor));
     EXPECT_NE(nullptr, tensor);
 
     size_t size = calculate_size(shape);
     size_t size_res;
-    OV_EXPECT_OK(ov_tensor_get_size(tensor, &size_res));
+    OV_ASSERT_OK(ov_tensor_get_size(tensor, &size_res));
     EXPECT_EQ(size_res, size);
 
     ov_shape_free(&shape);
@@ -131,12 +131,12 @@ TEST(ov_tensor, ov_tensor_get_byte_size) {
     ov_shape_t shape;
     setup_4d_shape(&shape, 1, 3, 4, 4);
     ov_tensor_t* tensor = nullptr;
-    OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
+    OV_ASSERT_OK(ov_tensor_create(type, shape, &tensor));
     EXPECT_NE(nullptr, tensor);
 
     size_t size = calculate_byteSize(shape, type);
     size_t size_res;
-    OV_EXPECT_OK(ov_tensor_get_byte_size(tensor, &size_res));
+    OV_ASSERT_OK(ov_tensor_get_byte_size(tensor, &size_res));
     EXPECT_EQ(size_res, size);
 
     ov_shape_free(&shape);
@@ -148,11 +148,11 @@ TEST(ov_tensor, ov_tensor_data) {
     ov_shape_t shape;
     setup_4d_shape(&shape, 10, 20, 30, 40);
     ov_tensor_t* tensor = nullptr;
-    OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
+    OV_ASSERT_OK(ov_tensor_create(type, shape, &tensor));
     EXPECT_NE(nullptr, tensor);
 
     void* data = nullptr;
-    OV_EXPECT_OK(ov_tensor_data(tensor, &data));
+    OV_ASSERT_OK(ov_tensor_data(tensor, &data));
     EXPECT_NE(nullptr, data);
 
     ov_shape_free(&shape);
