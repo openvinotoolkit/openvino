@@ -154,14 +154,9 @@ ie_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_
 #
 # Build the code
 #
-
-if(DISABLE_PYBIND11)
-    message(WARNING "NOTE: Python API for OpenVINO 2.0 is disabled")
-else()
-    add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
-    add_subdirectory(src/compatibility/pyngraph)
-    add_subdirectory(src/pyopenvino)
-endif()
+add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
+add_subdirectory(src/compatibility/pyngraph)
+add_subdirectory(src/pyopenvino)
 
 if(ie_python_req_FOUND)
     add_subdirectory(src/compatibility/openvino)
@@ -173,17 +168,9 @@ if(ENABLE_WHEEL)
     add_subdirectory(wheel)
 endif()
 
-if(ENABLE_OV_CORE_UNIT_TESTS AND NOT DISABLE_PYBIND11)
-    set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+if(ENABLE_TESTS)
     add_subdirectory(tests/mock/mock_py_frontend)
-    add_dependencies(pyopenvino openvino_mock_py_frontend)
-    set_target_properties(openvino_mock_py_frontend PROPERTIES
-            LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
-            ARCHIVE_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
-            COMPILE_PDB_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
-            PDB_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN})
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
-    add_dependencies(pyopenvino pybind_mock_frontend)
 endif()
 
 if(InferenceEngineDeveloperPackage_FOUND)

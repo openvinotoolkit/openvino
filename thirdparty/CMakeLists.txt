@@ -195,7 +195,7 @@ endif()
 # Google Tests framework
 #
 
-if(ENABLE_OV_CORE_UNIT_TESTS OR ENABLE_TESTS)
+if(ENABLE_TESTS)
     add_subdirectory(gtest EXCLUDE_FROM_ALL)
 
     openvino_developer_export_targets(COMPONENT tests
