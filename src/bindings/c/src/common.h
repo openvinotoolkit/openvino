@@ -35,8 +35,14 @@
     CATCH_OV_EXCEPTION(NETWORK_NOT_READ, NetworkNotRead)      \
     CATCH_OV_EXCEPTION(INFER_CANCELLED, InferCancelled)       \
     catch (...) {                                             \
-        return ov_status_e::UNEXPECTED;                       \
+        return ov_status_e::UNKNOW_EXCEPTION;                 \
     }
+
+#define GET_PROPERTY_FROM_ARGS_LIST                     \
+    std::string property_key = va_arg(args_ptr, char*); \
+    std::string _value = va_arg(args_ptr, char*);       \
+    ov::Any value = _value;                             \
+    property[property_key] = value;
 
 /**
  * @struct ov_core

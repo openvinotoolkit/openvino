@@ -75,6 +75,8 @@ typedef enum {
      */
     INVALID_C_PARAM = -14,
     UNKNOWN_C_ERROR = -15,
+    NOT_IMPLEMENT_C_METHOD = -16,
+    UNKNOW_EXCEPTION = -17,
 } ov_status_e;
 
 /**
@@ -101,38 +103,6 @@ typedef enum {
     U32,             //!< u32 element type
     U64,             //!< u64 element type
 } ov_element_type_e;
-
-/**
- * @enum ov_any_type_e
- * @brief Enum to define ov_any data type.
- */
-typedef enum {
-    BOOL = 0U,  //!< boolean data
-    CHAR,       //!< char data
-    INT32,      //!< int32 data
-    UINT32,     //!< uint32 data
-    INT64,      //!< int64 data
-    UINT64,     //!< uint64 data
-    ENUM,       //!< enum data, must define U32 data for enumeration
-    FLOAT,      //!< float data
-    DOUBLE,     //!< double data
-} ov_any_type_e;
-
-/**
- * @struct ov_any_t
- * @brief Represent a property value
- */
-typedef struct {
-    void* ptr;
-    size_t size;
-    ov_any_type_e type;
-} ov_any_t;
-
-/**
- * @brief Free ov_any data.
- * @param value The ov_any data will be freed.
- */
-OPENVINO_C_API(void) ov_any_free(ov_any_t* value);
 
 /**
  * @brief Print the error info.
