@@ -8,7 +8,6 @@
 
 #include "itt.hpp"
 #include "ngraph_ops/augru_cell.hpp"
-#include "node_registry.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
