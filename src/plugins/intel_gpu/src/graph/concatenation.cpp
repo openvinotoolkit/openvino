@@ -43,6 +43,34 @@ layout concatenation_inst::calc_output_layout(concatenation_node const& node, ke
     return layout {output_dt, output_format, tensor(def_fmt, result_sizes)};
 }
 
+template<typename ShapeType>
+std::vector<layout> concatenation_inst::calc_output_layouts(const concatenation_node& /* node */, const kernel_impl_params& impl_param) {
+    auto desc = impl_param.typed_desc<concatenation>();
+
+    auto input_layout = impl_param.get_input_layout();
+
+    auto output_dt = desc->output_data_type.value_or(input_layout.data_type);
+    auto output_format = input_layout.format;
+    for (size_t i = 0; i < desc->input.size(); ++i) {
+        if (impl_param.get_input_layout(i).format == format::b_fs_yx_fsv16)
+            output_format = format::b_fs_yx_fsv16;
+    }
+
+    auto axis_index = desc->axis;
+
+    auto output_shape = input_layout.get<ShapeType>();
+    output_shape[axis_index] = 0;
+    for (size_t i = 0; i < desc->input.size(); ++i) {
+        auto input_shape = impl_param.get_input_layout(i).get<ShapeType>();
+        if (input_shape.is_dynamic()) {
+            return { layout {ov::PartialShape::dynamic(input_shape.size()), output_dt, output_format} };
+        }
+        output_shape[axis_index] += input_shape[axis_index];
+    }
+
+    return { layout {output_shape, output_dt, output_format} };
+}
+
 std::string concatenation_inst::to_string(concatenation_node const& node) {
     auto node_info = node.desc_to_json();
     auto desc = node.get_primitive();
