@@ -23,9 +23,6 @@ public:
         manager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
         manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
         manager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>([](const std::shared_ptr<const ov::Node>& n) -> bool {
-            if (ngraph::is_type<ngraph::opset1::FakeQuantize>(n) && !ngraph::snippets::pass::FakeQuantizeDecomposition::isAllScalarConstant(n)) {
-                return true;
-            }
             return false;
         });
     }
@@ -75,7 +72,7 @@ TEST_F(FakeQuantizeTokenizationTest, smoke_Snippets_FakeQuantize_PerChannels) {
         true,
         FunctionHelper::makePrerequisitesOriginal());
 
-    function_ref = FakeQuantizeFunction::getOperationAndFakeQuantize(
+    function_ref = FakeQuantizeFunction::getSubgraphWithFakeQuantize(
         { {1, 3, 16, 16} },
         element::f32,
         { {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1} },
