@@ -82,6 +82,7 @@ public:
 
     bool needPrepareParams() const override;
     void prepareParams() override;
+    bool fuseRelu() { return hasRelu;}
 
     const float* getBinarizationTresholdsPtr() const { return &binarizationThresholds[0]; }
     const float* getBinarizationOutputMaskPtr() const { return reinterpret_cast<const float*>(&binarizationOutputMask[0]); }
@@ -177,6 +178,7 @@ private:
     size_t levels = 0;
 
     bool binarization = false;
+    bool hasRelu = false;
 
     std::vector<float> binarizationThresholds;
     std::vector<uint32_t> binarizationOutputMask;

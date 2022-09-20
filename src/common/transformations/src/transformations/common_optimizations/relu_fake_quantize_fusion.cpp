@@ -48,6 +48,7 @@ ngraph::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
                                                                       fq->input_value(4),
                                                                       fq->get_levels());
         new_fq->set_friendly_name(fq->get_friendly_name());
+        new_fq->get_rt_info()["hasRelu"] = 1;
 
         copy_runtime_info({relu.get_node_shared_ptr(), fq}, new_fq);
         replace_node(fq, new_fq);

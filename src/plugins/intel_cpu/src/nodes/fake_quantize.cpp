@@ -1182,6 +1182,11 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
                     fqScales.push_back(1 / ((ih - il) / (oh - ol)));
                 }
             }
+            const auto& rtInfo = op->get_rt_info();
+
+            if (rtInfo.count("hasRelu")) {
+                hasRelu = true;
+            }
 
             algorithm = quantizationOnly ? Algorithm::FQQuantization :
                         (isFakeQuantization || isFakeQuantizationWithScale) ? Algorithm::FQCommon : Algorithm::FQRequantization;

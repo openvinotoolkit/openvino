@@ -640,6 +640,9 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
                             for (size_t k = 0; k < OC; k++)
                                 fqScale[k] = fqScale[0];
                         }
+                        if (fakeQuantizeNode->fuseRelu()) {
+                            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_relu, 0.f, 0.f);
+                        }
 
                         attr.set_output_scales(1 << 1, fqScale);
 
