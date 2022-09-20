@@ -137,7 +137,7 @@ def get_input_data(paths_to_input, app_input_info):
 
 
 def get_image_tensors(image_paths, info, batch_sizes):
-    if cv2 == None:
+    if cv2 is None:
         import_cv2()
 
     processed_frames = 0
