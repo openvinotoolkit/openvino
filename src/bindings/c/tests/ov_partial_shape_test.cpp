@@ -82,7 +82,6 @@ TEST(ov_partial_shape, ov_partial_shape_create_invalid_dimension) {
     int64_t rank = 4;
     ov_dimension_t dims[4] = {{1, 1}, {-1, -1}, {300, 100}, {40, 100}};
     OV_EXPECT_NOT_OK(ov_partial_shape_create(rank, dims, &partial_shape));
-
     ov_partial_shape_free(&partial_shape);
 }
 
@@ -134,4 +133,5 @@ TEST(ov_partial_shape, ov_shape_to_partial_shape) {
     EXPECT_STREQ(tmp, str);
     ov_partial_shape_free(&partial_shape);
     ov_shape_free(&shape);
+    ov_free(tmp);
 }
