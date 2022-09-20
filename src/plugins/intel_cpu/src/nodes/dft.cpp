@@ -265,7 +265,7 @@ void DFT::execute(dnnl::stream strm) {
     }
 
     if (nComplexMaxFFT > 0 && ((nComplexMaxFFT - 1) * 2 > twiddlesFFT.size() || lastInverse != inverse)) {
-        generateTwiddlesFFT(nComplexMaxFFT, inverse);
+        updateTwiddlesFFT(nComplexMaxFFT, inverse);
     }
 
     if (inputShape != outputShape) {
@@ -280,10 +280,12 @@ void DFT::execute(dnnl::stream strm) {
         size_t nComplex = outputShape[0];
         if (IsPowerOfTwo(nComplex)) {
             std::vector<float> outputData(nComplex * 2);
-            const auto* outPtr = fft(dst, outputData.data(), nComplex * 2, inverse, true);
+            const float* resultBufPtr;
 
-            if (outPtr != dst) {
-                cpu_memcpy(dst, outPtr, nComplex * 2 * sizeof(float));
+            fft(dst, outputData.data(), nComplex * 2, inverse, true, &resultBufPtr);
+
+            if (resultBufPtr != dst) {
+                cpu_memcpy(dst, resultBufPtr, nComplex * 2 * sizeof(float));
             }
         } else {
             naiveDFT(dst, nComplex * 2, inverse);
@@ -316,9 +318,9 @@ void DFT::dftNd(float* output,
                     auto parallelIterationCounter = iterationCounter;
                     parallelIterationCounter[parallelDimIndex] = dim;
                     gatherToBufferND(gatheredData.data(), output, currentAxis, parallelIterationCounter, outputShape, outputStrides);
-                    const auto* bufferPtr =
-                        fft(gatheredData.data(), gatheredData.data() + outputLen, outputLen, inverse);
-                    applyBufferND(bufferPtr, output, currentAxis, parallelIterationCounter, outputShape, outputStrides);
+                    const float* resultBufPtr;
+                    fft(gatheredData.data(), gatheredData.data() + outputLen, outputLen, inverse, false, &resultBufPtr);
+                    applyBufferND(resultBufPtr, output, currentAxis, parallelIterationCounter, outputShape, outputStrides);
                 });
                 iterationCounter[parallelDimIndex] = iterationRange[parallelDimIndex] - 1;
             } while (nextIterationStep(iterationCounter, iterationRange, currentAxis));
@@ -334,11 +336,12 @@ void DFT::dftNd(float* output,
 }
 
 /* Cooley Tukey implementation of FFT */
-float* DFT::fft(float* inBuffer,
-                float* outBuffer,
-                int64_t dataLength,
-                bool inverse,
-                bool parallelize) const {
+void DFT::fft(float* inBuffer,
+              float* outBuffer,
+              int64_t dataLength,
+              bool inverse,
+              bool parallelize,
+              const float** resultBuf) const {
     static int cacheSizeL3 = dnnl::utils::get_cache_size(3, false);
     static int elementsPerCacheLine = cacheSizeL3 / sizeof(float);
     size_t nComplex = dataLength / 2;
@@ -408,7 +411,7 @@ float* DFT::fft(float* inBuffer,
         }
     }
 
-    return inBuffer;
+    *resultBuf = inBuffer;
 }
 
 void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
@@ -480,7 +483,7 @@ std::vector<float> DFT::generateTwiddlesDFT(size_t n_complex, bool inverse) cons
     return twiddles;
 }
 
-void DFT::generateTwiddlesFFT(size_t n_complex, bool inverse) {
+void DFT::updateTwiddlesFFT(size_t n_complex, bool inverse) {
     const float inverseMultiplier = inverse ? 1 : -1;
     size_t numBlocks = 1;
 
