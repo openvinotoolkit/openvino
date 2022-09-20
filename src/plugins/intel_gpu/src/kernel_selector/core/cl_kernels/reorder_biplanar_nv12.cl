@@ -70,7 +70,8 @@ KERNEL(reorder_biplanar_nv12)(
 
     float4 Y = read_imagef(input, (int2)(x, y));
 #if defined GRAYSCALE_OUTPUT
-    float gray = Y.x;
+    float Ycomponent = mad(Y.x, 296.82f, -18.624f);
+    float gray = clamp(Ycomponent, 0.f, 255.f);
 
     uint8 ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 0, w, z, y, x);
     uint output_idx = FUNC_CALL(get_output_index)(ov[1], ov[2], ov[3], ov[4], ov[5], ov[6]);
