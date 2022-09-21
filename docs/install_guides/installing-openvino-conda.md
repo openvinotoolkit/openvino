@@ -13,12 +13,12 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
 **Operating Systems**
 
 | Supported Operating System                                   | [Python Version (64-bit)](https://www.python.org/) |
-| :------------------------------------------------------------| :---------------------------------------------------|
-|   Ubuntu 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8, 3.9                                  |
-|   Ubuntu 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8, 3.9                                  |
-|   Red Hat Enterprise Linux 8, 64-bit                         | 3.6, 3.7, 3.8, 3.9                                  |
-|   macOS 10.15                                             | 3.6, 3.7, 3.8, 3.9                                  |
-|   Windows 10, 64-bit                                        | 3.6, 3.7, 3.8, 3.9                                  |
+| :------------------------------------------------------------| :--------------------------------------------------|
+|   Ubuntu 18.04 long-term support (LTS), 64-bit               | 3.6, 3.7, 3.8, 3.9, 3.10                           |
+|   Ubuntu 20.04 long-term support (LTS), 64-bit               | 3.6, 3.7, 3.8, 3.9, 3.10                           |
+|   Red Hat Enterprise Linux 8, 64-bit                         | 3.6, 3.7, 3.8, 3.9, 3.10                           |
+|   macOS 10.15                                                | 3.6, 3.7, 3.8, 3.9, 3.10                           |
+|   Windows 10, 64-bit                                         | 3.6, 3.7, 3.8, 3.9, 3.10                           |
 
 ## Install OpenVINO Runtime Using the Anaconda Package Manager
 
