@@ -580,6 +580,23 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         n->recalc_output_layout(true);
     }
 
+    const auto reorder_input_detection_output = [&p, &rf](typed_program_node<detection_output>& detection_output_node) {
+        if (detection_output_node.get_preferred_impl_type() == impl_types::cpu) {
+            auto detection_output_prim = detection_output_node.get_primitive();
+
+            for (size_t i = 0; i < detection_output_node.get_dependencies().size(); i++) {
+                auto& input = detection_output_node.get_dependency(i);
+                auto new_input = rf.get_reorder(input.id(),
+                                                input.get_output_layout(),
+                                                layout{ data_types::f32, format::bfyx, input.get_output_layout().get_tensor() });
+
+                if (new_input.first) {
+                    p.add_intermediate(new_input.first, detection_output_node, i, !new_input.second);
+                }
+            }
+        }
+    };
+
     const auto reorder_input_binary_convolution = [&p, &rf](typed_program_node<binary_convolution>& binary_conv_node) {
         auto& input = binary_conv_node.input();
         auto input_layout = input.get_output_layout();
@@ -766,8 +783,9 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
     };
 
     for (auto& prim : p.get_processing_order()) {
-        program_helpers::do_for_types<binary_convolution, deconvolution, convolution, fully_connected, pooling>(
+        program_helpers::do_for_types<detection_output, binary_convolution, deconvolution, convolution, fully_connected, pooling>(
             *prim,
+            reorder_input_detection_output,
             reorder_input_binary_convolution,
             reorder_input_and_weights_deconvolution,
             reorder_convolution,
