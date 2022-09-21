@@ -158,7 +158,7 @@ Alternatively, it can be enabled explicitly via the device notion, e.g. `"BATCH:
 
 @endsphinxtab
 
-@sphinxtab{Bacthing via throughput hint}
+@sphinxtab{Batching via throughput hint}
 
 @sphinxtabset
 
