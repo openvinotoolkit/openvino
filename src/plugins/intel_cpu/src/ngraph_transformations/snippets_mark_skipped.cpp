@@ -237,7 +237,8 @@ bool isSuitableChildForFusingSimple(const std::shared_ptr<const Node> &node, con
     // Note: Fusing child is allowed to have several users, but that must be the end of the chain
     return SupportsFusingWithConvolution_Simple(node, channelAxis) && getNumNonConstInputs(node) == 1;
 }
-bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, const bool canMatMulBeExecutedInI8, NodeFusingType &updatedChainType, int& fusingAxis) {
+bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, const bool canMatMulBeExecutedInI8,
+                                    NodeFusingType &updatedChainType, int& fusingAxis) {
     int num_non_const_inputs = 0;
     bool can_be_converted_to_FC = false;
     ov::Shape bias_shape;
