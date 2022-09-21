@@ -193,7 +193,7 @@ void dump_graph_init(std::ofstream& graph,
         }
 
         auto out_layout = ptr->get_output_layout();
-        auto tensor_str = out_layout.get_tensor().to_string();
+        auto tensor_str = out_layout.to_string();
         auto padding = out_layout.data_padding;
         out += tensor_str;
         if (!padding) {

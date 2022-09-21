@@ -196,6 +196,9 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
     if (node.can_be_optimized())
         reuse_input();
 
+    if (is_dynamic())
+        return;
+
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();
     if (input_layout.is_static() && output_layout.is_static()) {

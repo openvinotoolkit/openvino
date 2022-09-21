@@ -873,7 +873,7 @@ void network::allocate_primitive_instance(program_node const& node) {
         inst->set_mutable_input(true);
     }
 
-    if (node.is_dynamic()) {
+    if (inst->is_dynamic()) {
         _is_dynamic = true;
     }
 
