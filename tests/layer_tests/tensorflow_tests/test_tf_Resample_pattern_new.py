@@ -80,7 +80,7 @@ class TestResamplePattern(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.xfail(reason="*-22273")
     def test_resample(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                      api_2):
+                      use_old_api):
         self._test(*self.create_resample_net(params['shape'], params['factor'], use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
