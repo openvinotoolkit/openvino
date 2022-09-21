@@ -12,7 +12,7 @@ This page introduces additional configurations for Intel® Processor Graphics (G
 
 ## Linux
 
-If you have installed OpenVINO Runtime via the installer, APT, or YUM, follow these steps to work with GPU:
+If you have installed OpenVINO Runtime from the archive file, follow these steps to work with GPU:
 
 1. Go to the install_dependencies directory:
    ```sh
