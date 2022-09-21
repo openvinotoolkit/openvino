@@ -31,6 +31,7 @@ private:
     TranspositionInfoMap inputs_transpose_info_;
     TranspositionInfoMap outputs_transpose_info_;
     GNAPluginNS::HeaderLatest::ModelHeader model_header_;
+    ov::log::Level log_level_;
 
     void ImportInputs(std::istream &is, void* basePtr, GNAPluginNS::GnaInputs &inputs);
 
@@ -47,12 +48,20 @@ private:
     void AppendTensorNameIfNeeded(GNAPluginNS::GnaDesc& nodeDesc) const;
 
  public:
-    GNAModelSerial(Gna2Model * model, MemoryType & states_holder)
-        : gna2model_(model), pstates_(&states_holder) {
+    GNAModelSerial(Gna2Model* model, MemoryType& states_holder, ov::log::Level log_level = ov::log::Level::NO)
+         : gna2model_(model),
+           pstates_(&states_holder),
+           log_level_(log_level) {
     }
 
-    GNAModelSerial(Gna2Model * model, GNAPluginNS::GnaInputs &inputs, GNAPluginNS::GnaOutputs &outputs)
-        : gna2model_(model), inputs_(inputs), outputs_(outputs) {
+    GNAModelSerial(Gna2Model* model,
+                   GNAPluginNS::GnaInputs& inputs,
+                   GNAPluginNS::GnaOutputs& outputs,
+                   ov::log::Level log_level = ov::log::Level::NO)
+        : gna2model_(model),
+          inputs_(inputs),
+          outputs_(outputs),
+          log_level_(log_level) {
     }
 
     void setHeader(GNAPluginNS::HeaderLatest::ModelHeader header) {

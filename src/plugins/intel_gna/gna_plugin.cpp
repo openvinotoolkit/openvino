@@ -1601,8 +1601,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
 
     auto model = createModelWrapperForImportNetwork(header.layersCount);
     GNAModelSerial::MemoryType mt;
-    auto serial = GNAModelSerial(&model->object(), mt);
-
+    auto serial = GNAModelSerial(&model->object(), mt, gnaFlags->log_level);
 
     serial.setHeader(header);
     serial.Import(basePtr,

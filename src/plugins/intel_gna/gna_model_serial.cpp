@@ -27,6 +27,7 @@
 #include "gna_plugin.hpp"
 #include "gna_model_serial.hpp"
 #include "serial/headers/latest/gna_model_header.hpp"
+#include "common/versioning.hpp"
 
 using namespace GNAPluginNS;
 
@@ -374,6 +375,12 @@ void GNAModelSerial::Import(void *basePointer,
 
     // once structure has been read lets read whole gna graph
     is.read(reinterpret_cast<char*>(basePointer), gnaGraphSize);
+
+    // read OV and GNA versions if available in model file
+    if (is.peek() != EOF && log_level_ == ov::log::Level::DEBUG) {     
+        std::cout << "OpenVINO version read form model file:" << std::endl << readString(is) << std::endl;
+        std::cout << "GNA version read from model file:" << std::endl << readString(is) << std::endl;
+    }
 }
 
 void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os) const {
@@ -535,6 +542,10 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
     for (const auto& a : allocationsOrdered) {
         os.write(reinterpret_cast<char*>(a.ptr), a.sizeForExport());
     }
+    
+    // write OV & GNA versions 
+    writeString(ov::intel_gna::common::get_openvino_version_string(), os);
+    writeString(GNADeviceHelper::GetGnaLibraryVersion(), os);    
 }
 
 void GNAModelSerial::ImportInputs(std::istream &is, void* basePtr, GNAPluginNS::GnaInputs &inputs) {
