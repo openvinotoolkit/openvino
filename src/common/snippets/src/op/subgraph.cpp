@@ -446,10 +446,10 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
         originalParamOutputs.push_back(out);
         originalParamInputs.push_back(out.get_target_inputs());
     }
-    auto tileStart = make_shared<TileBegin>(originalParamOutputs);
+    auto tileBegin = make_shared<TileBegin>(originalParamOutputs);
     for (auto& p : originalParamInputs) {
         for (auto& input : p) {
-            input.replace_source_output(tileStart);
+            input.replace_source_output(tileBegin);
         }
     }
 
@@ -458,16 +458,26 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
         const auto & out = p->input(0).get_source_output();
         originalResultInputs.push_back(out);
     }
+    originalResultInputs.push_back(tileBegin->output(tileBegin->get_output_size() - 1));
     auto tileEnd = make_shared<TileEnd>(originalResultInputs);
-    for (const auto &p : m_body->get_results()) {
-        p->set_arguments({tileEnd->output(0)});
+    auto& results = m_body->get_results();
+    for (auto i = 0; i < results.size(); i++) {
+        results[i]->set_arguments({tileEnd->output(i)});
     }
-    m_body->validate_nodes_and_infer_types();
-//    for (auto& p : originalParamInputs) {
-//        for (auto& input : p) {
-//            input.replace_source_output(tileStart);
+//    for (int i = 0; i < tileEnd->get_output_size(); i++) {
+//        std::cerr << i << " : ";
+//        const auto& rt = tileBegin->get_output_tensor(i).get_rt_info();
+//        auto it_rt = rt.find("reginfo");
+//        if (it_rt != rt.end()) {
+//            for (auto reg : it_rt->second.as<std::vector<size_t>>()) {
+//                std::cerr << reg << " ";
+//            }
+//        } else {
+//            std::cerr << "reginfo is empty!";
 //        }
+//        std::cerr << "\n";
 //    }
+    m_body->validate_nodes_and_infer_types();
 
     std::cerr << "Tile after is dumped";
     ov::pass::Serialize("tile_after.xml", "tile_after.bin").run_on_model(m_body);

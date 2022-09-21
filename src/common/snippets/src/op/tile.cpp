@@ -27,7 +27,17 @@ bool TileBegin::visit_attributes(AttributeVisitor &visitor) {
 }
 
 void TileBegin::validate_and_infer_types() {
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    const size_t num_inputs = get_input_size();
+    set_output_size(num_inputs + 1);
+    const auto& ins = inputs();
+    for (int i = 0; i < num_inputs; i++) {
+        set_output_type(i, ins[i].get_element_type(), ins[i].get_partial_shape());
+        // copy rt_info from inputs to outputs to pass reg_info for example
+        const auto& rt_info_old = ins[i].get_source_output().get_tensor().get_rt_info();
+        auto& rt_info_new = get_output_tensor(i).get_rt_info();
+        rt_info_new = rt_info_old;
+    }
+    set_output_type(num_inputs, element::f32, ov::PartialShape{ov::Shape{}});
 }
 
 std::shared_ptr<Node> TileBegin::clone_with_new_inputs(const OutputVector& inputs) const {
@@ -44,7 +54,23 @@ bool TileEnd::visit_attributes(AttributeVisitor &visitor) {
 }
 
 void TileEnd::validate_and_infer_types() {
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    const size_t num_inputs = get_input_size();
+    const auto tile_begin = input(num_inputs - 1).get_source_output();
+    const auto tile_begin_ps = tile_begin.get_partial_shape();
+    NODE_VALIDATION_CHECK(this,
+                          ov::is_type<TileBegin>(tile_begin.get_node_shared_ptr()),
+                          "The last argument of TileEnd must be TileBegin");
+    NODE_VALIDATION_CHECK(this, tile_begin_ps.is_static() && tile_begin_ps.get_shape().empty(),
+                            "Invalid input shape from TileBegin. Expected {}, got", tile_begin_ps);
+    set_output_size(num_inputs - 1);
+    const auto& ins = inputs();
+    for (int i = 0; i < num_inputs - 1; i++) {
+        set_output_type(i, ins[i].get_element_type(), ins[i].get_partial_shape());
+        // copy rt_info from inputs to outputs to pass reg_info for example
+        const auto& rt_info_old = ins[i].get_source_output().get_tensor().get_rt_info();
+        auto& rt_info_new = get_output_tensor(i).get_rt_info();
+        rt_info_new = rt_info_old;
+    }
 }
 
 std::shared_ptr<Node> TileEnd::clone_with_new_inputs(const OutputVector& inputs) const {
