@@ -245,10 +245,10 @@ KERNEL(convolution_depthwise)(
 #else
             res = TO_OUTPUT_TYPE8(dst);
 #endif // HAS_FUSED_OPS
-#if X_BLOCK_SIZE >= 8
+#if X_BLOCK_SIZE == 8
             OUTPUT_BLOCK_WRITE8(output, output_offset + x * output_x_pitch, res);
 #else
-            OUTPUT_BLOCK_WRITE(output, output_offset + x * output_x_pitch, res[0]);
+            output[output_offset + x * output_x_pitch + lid] = res[0];
 #endif
         }
         else
