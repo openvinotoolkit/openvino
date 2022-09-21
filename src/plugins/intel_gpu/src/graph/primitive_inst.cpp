@@ -175,7 +175,8 @@ void primitive_inst::update_shape() {
     auto memory_deps = _node.get_const_memory_deps();
     std::vector<event::ptr> dependencies_events;
     for (auto& i : _node.get_shape_infer_dependencies()) {
-        if (memory_deps.count(i) > 0) {
+        // Some primitives may have flexible count of deps (e.g. reshape), thus allow skipping some deps
+        if (memory_deps.count(i) > 0 || i >= _node.get_dependencies().size()) {
             continue;
         }
         auto& dep = _node.get_dependency(i);
@@ -206,6 +207,12 @@ void primitive_inst::update_shape() {
     }
 
     _impl_params->output_layout = new_layout;
+
+    // Update descriptors of fused operations and set output_layout's shape to all fused ops
+    // It's legal as long as fused ops don't change the shape
+    for (auto& fused_prim : _impl_params->fused_desc) {
+        fused_prim.output_layout.set_partial_shape(_impl_params->output_layout.get_partial_shape());
+    }
 }
 
 void primitive_inst::realloc_if_needed() {
@@ -288,6 +295,28 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     std::vector<event::ptr> dependencies;
     if (is_dynamic()) {
         update_shape();
+        if (!is_valid_fusion()) {
+            auto subgraph = get_unfused_subgraph();
+
+            for (auto& d : _deps) {
+                if (!d->get_node().is_type<data>()) {
+                    subgraph->set_input_data(d->id(), d->output_memory_ptr());
+                }
+            }
+
+            auto outputs = subgraph->execute(events);
+
+            auto last_fd = _impl_params->fused_desc.back();
+            auto last_prim_id = last_fd.desc->id;
+
+            OPENVINO_ASSERT(outputs.find(last_prim_id) != outputs.end(), "[GPU] Can't find output primitive ", last_prim_id, " for unfused subgraph");
+
+            _output = outputs.at(last_prim_id).get_memory();
+
+            _impl_params->output_layout = _output->get_layout();
+            return outputs.at(last_prim_id).get_event();
+        }
+
         if (shape_changed() || !_impl) {
             update_impl();
             auto ev = update_weights();
@@ -658,4 +687,107 @@ std::string primitive_inst::generic_to_string(program_node const& node, const ch
 
     return primitive_description.str();
 }
+
+cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->verbose >= 4) {
+        GPU_DEBUG_COUT << id() << ": Use unfused subgraph due to unexpected fusions\n";
+    }
+    if (!_unfused_subgraph) {
+        topology t;
+
+        std::vector<primitive_id> dep_ids;
+        // Add input primitives: constants are moved as is
+        // Any other primitive types are replaced with input_layout
+        for (auto& dep : _node.get_dependencies()) {
+            if (dep->is_type<data>()) {
+                auto& data_node = dep->as<data>();
+                auto data_prim = *data_node.get_primitive();
+                // mem field of original primitive can be nullified during transfer_memory_to_device pass, thus use mem from program_node
+                data_prim.mem = data_node.get_attached_memory_ptr();
+                t.add(data_prim);
+            } else {
+                input_layout in_prim(dep->id(), dep->get_output_layout());
+                t.add(in_prim);
+            }
+            dep_ids.push_back(dep->id());
+        }
+
+        // Create the primitive itself
+        t.add_primitive(std::const_pointer_cast<primitive>(_node.get_primitive()));
+        dep_ids.push_back(_node.id());
+
+        // Add primitives for fused-ops
+        for (auto& fd : _impl_params->fused_desc) {
+            auto prim = std::const_pointer_cast<primitive>(fd.desc);
+            for (size_t i = 0; i < prim->input.size(); i++) {
+                auto& in = prim->input[i];
+                // If dependency name is not found in current topology, we need to remap it
+                // It may happen if dependency primitive has been fused into some previous primitive, e.g:
+                // prim1 -> eltwise1 -> eltwise2
+                //          prim2 -------/
+                //  fused_prim1=prim1 + eltwise1
+                //  fused_prim2=prim2 + eltwise2
+                // from the names perspective fused graph will looka as follows:
+                // prim1 -> prim2
+                // And when we construct unfused subgraph for prim2, we take original eltwise2 primitive which expects eltwise1 primitive as input
+                // which doesn't exist anymore in the graph
+                // Thus we update dependency name used dependencies idx stored in fused descriptor.
+                if (std::find(dep_ids.begin(), dep_ids.end(), in) == dep_ids.end()) {
+                    size_t dep_id = fd.dep_start_idx + i;
+                    in = _node.get_dependency(dep_id).id();
+                }
+            }
+            t.add_primitive(prim);
+            dep_ids.push_back(prim->id);
+        }
+
+        build_options bo;
+        bo.set_option(build_option::allow_static_input_reorder(true));
+        bo.set_option(build_option::allow_new_shape_infer(true));
+        auto prog = program::build_program(get_network().get_engine(), t, bo, true, false);
+
+        _unfused_subgraph = network::allocate_network(get_network().get_stream_ptr(), prog, true, get_network().is_primary_stream());
+    }
+    return _unfused_subgraph;
+}
+
+bool primitive_inst::is_valid_fusion() const {
+    if (!is_dynamic())
+        return true;
+
+    auto fuse_descriptors = _impl_params->fused_desc;
+    if (fuse_descriptors.empty())
+        return true;
+
+    std::vector<fused_primitive_desc> fused_eltwise_prims;
+    for (auto& fd : fuse_descriptors) {
+        if (fd.is_type<eltwise>()) {
+            fused_eltwise_prims.push_back(fd);
+        }
+    }
+
+    if (fused_eltwise_prims.empty())
+        return true;
+
+    auto out_pshape = _impl_params->output_layout.get_partial_shape();
+    for (auto& fd : fused_eltwise_prims) {
+        auto dep_idx = fd.dep_start_idx;
+        OPENVINO_ASSERT(fd.total_num_deps == 2, "[GPU] Unexpected count of dependencies in dynamic fusion for eltwise");
+        OPENVINO_ASSERT(_deps.size() > dep_idx, "[GPU] Invalid fused dependency idx");
+        auto dep = _deps[dep_idx];
+
+        auto dep_pshape = dep->_impl_params->output_layout.get_partial_shape();
+
+        OPENVINO_ASSERT(out_pshape.rank() == dep_pshape.rank(), "[GPU] Incompatible ranks: ", out_pshape.rank(), " vs ", dep_pshape.rank());
+
+        for (int64_t i = 0; i < dep_pshape.rank().get_length(); i++) {
+            if (dep_pshape[i].get_length() > out_pshape[i].get_length())
+                return false;
+        }
+    }
+
+    return true;
+}
+
 }  // namespace cldnn
