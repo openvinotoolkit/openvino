@@ -563,11 +563,12 @@ mo_convert_params = {
         '"--transform transformation_name1[args],transformation_name2..." ' +
         'where [args] is key=value pairs separated by semicolon. ' +
         'Examples: "--transform LowLatency2" or ' +
+        '          "--transform Pruning" or ' +
         '          "--transform LowLatency2[use_const_initializer=False]" or ' +
         '          "--transform \"MakeStateful[param_res_names='
         '{{\'input_name_1\':\'output_name_1\',\'input_name_2\':\'output_name_2\'}}]\"" ' +
-        'Available transformations: "LowLatency2", "MakeStateful"', 'Usage: ',
-        '\'transform\' can by a list of tuples, where the first element is '
+        'Available transformations: "LowLatency2", "MakeStateful", "Pruning"', 'Usage: ',
+        '\'transform\' can be set by a list of tuples, where the first element is '
         'transform name and the second element is transform parameters. '
         'For example: [(\'LowLatency2\', {{\'use_const_initializer\': False}}), ...]',
         transform_param_to_str),

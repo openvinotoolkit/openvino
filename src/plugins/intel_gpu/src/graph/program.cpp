@@ -530,6 +530,8 @@ void program::pre_optimize_graph(bool is_internal) {
 
         apply_opt_pass<prepare_primitive_fusing>(lo);
 
+        apply_opt_pass<set_required_layouts>();
+
         apply_opt_pass<reorder_inputs>(lo, rf);
         // Ideally this should be done before fusing to simplify logic and make the pass more powerful,
         // but after format selection to select correct alignment.
@@ -1424,7 +1426,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::non_max_suppression::type_id() &&
             prim.type() != cldnn::roi_align::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
-            prim.type() != cldnn::bucketize::type_id()) {
+            prim.type() != cldnn::bucketize::type_id() &&
+            prim.type() != cldnn::roll::type_id()) {
             can_use_fsv16 = false;
         }
 
@@ -1455,7 +1458,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::non_max_suppression::type_id() &&
             prim.type() != cldnn::roi_align::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
-            prim.type() != cldnn::bucketize::type_id()) {
+            prim.type() != cldnn::bucketize::type_id() &&
+            prim.type() != cldnn::roll::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
     }

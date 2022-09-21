@@ -97,7 +97,13 @@ ie_option (ENABLE_TEMPLATE "Enable template plugin" ON)
 
 ie_dependent_option (ENABLE_INTEL_MYRIAD_COMMON "common part of myriad plugin" ON "NOT WINDOWS_PHONE;NOT WINDOWS_STORE" OFF)
 
-ie_dependent_option (ENABLE_INTEL_MYRIAD "myriad targeted plugin for inference engine" ON "ENABLE_INTEL_MYRIAD_COMMON" OFF)
+if(UNIVERSAL2)
+    set(ENABLE_INTEL_MYRIAD_DEFAULT OFF)
+else()
+    set(ENABLE_INTEL_MYRIAD_DEFAULT ON)
+endif()
+
+ie_dependent_option (ENABLE_INTEL_MYRIAD "myriad targeted plugin for inference engine" ${ENABLE_INTEL_MYRIAD_DEFAULT} "ENABLE_INTEL_MYRIAD_COMMON" OFF)
 
 ie_dependent_option (ENABLE_MYRIAD_NO_BOOT "myriad plugin will skip device boot" OFF "ENABLE_INTEL_MYRIAD" OFF)
 
@@ -132,7 +138,12 @@ else()
     set(ENABLE_SYSTEM_LIBS_DEFAULT OFF)
 endif()
 
-set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
+if(APPLE AND AARCH64)
+    set(ENABLE_SYSTEM_TBB_DEFAULT ON)
+else()
+    set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
+endif()
+
 if(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR DEFINED TBB_DIR OR DEFINED TBBROOT)
     set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
 endif()
@@ -140,7 +151,7 @@ endif()
 # for static libraries case libpugixml.a must be compiled with -fPIC
 ie_dependent_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" ${ENABLE_SYSTEM_LIBS_DEFAULT} "BUILD_SHARED_LIBS" OFF)
 
-ie_dependent_option (ENABLE_SYSTEM_TBB  "use the system version of TBB" ${ENABLE_SYSTEM_TBB_DEFAULT} "THREADING MATCHES TBB;LINUX" OFF)
+ie_dependent_option (ENABLE_SYSTEM_TBB  "use the system version of TBB" ${ENABLE_SYSTEM_TBB_DEFAULT} "THREADING MATCHES TBB" OFF)
 
 ie_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
 
@@ -171,9 +182,6 @@ if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
 else()
     set(FORCE_FRONTENDS_USE_PROTOBUF OFF)
 endif()
-
-# WA for ngraph python build on Windows debug
-list(REMOVE_ITEM IE_OPTIONS ENABLE_OV_CORE_UNIT_TESTS)
 
 #
 # Process featues
