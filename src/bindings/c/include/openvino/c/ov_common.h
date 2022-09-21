@@ -102,7 +102,7 @@ typedef enum {
 typedef enum {
     UNDEFINED = 0U,  //!< Undefined element type
     DYNAMIC,         //!< Dynamic element type
-    BOOLEAN,         //!< boolean element type
+    BL1,             //!< boolean element type
     BF16,            //!< bf16 element type
     F16,             //!< f16 element type
     F32,             //!< f32 element type

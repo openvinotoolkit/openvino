@@ -8,7 +8,7 @@
 const std::map<ov_element_type_e, ov::element::Type> element_type_map = {
     {ov_element_type_e::UNDEFINED, ov::element::undefined},
     {ov_element_type_e::DYNAMIC, ov::element::dynamic},
-    {ov_element_type_e::BOOLEAN, ov::element::boolean},
+    {ov_element_type_e::BL1, ov::element::boolean},
     {ov_element_type_e::BF16, ov::element::bf16},
     {ov_element_type_e::F16, ov::element::f16},
     {ov_element_type_e::F32, ov::element::f32},

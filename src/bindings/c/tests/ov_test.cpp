@@ -24,7 +24,7 @@ std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugin
 #endif
 const char* plugins_xml = plugins_xml_std.c_str();
 
-std::map<ov_element_type_e, size_t> element_type_size_map = {{ov_element_type_e::BOOLEAN, 8},
+std::map<ov_element_type_e, size_t> element_type_size_map = {{ov_element_type_e::BL1, 1},
                                                              {ov_element_type_e::BF16, 16},
                                                              {ov_element_type_e::F16, 16},
                                                              {ov_element_type_e::F32, 32},
