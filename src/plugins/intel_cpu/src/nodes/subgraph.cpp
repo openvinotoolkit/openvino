@@ -253,7 +253,7 @@ void Snippet::calcJITParams(std::vector<int64_t>& offsets, std::vector<int64_t>&
         }
     }
 
-    // Note that wen don't need offset for the last dim, since it's handled directly by Tile emitter
+    // Note that we don't need offset for the last dim, since it's handled directly by Tile emitter
     const size_t offset_rank = masterShape.size() - 1;
     offsets.resize(numParams * (offset_rank), 1);
     auto offset_calculation = [offset_rank, this](int64_t *off, const std::vector<size_t>& dims, const size_t data_size) {
@@ -364,7 +364,7 @@ ov::PartialShape Snippet::canonicalizeBody() {
         std::vector<Dimension> dims;
         // if blockDim == Shape::UNDEFINED_DIM, then it's a dynamic dimension, and we need to recreate a proper dynamic Dim
         for (const auto& d : blockedDesc->getBlockDims())
-            dims.emplace_back(d == Shape::UNDEFINED_DIM ? 0 : d, d);
+            dims.emplace_back(d == Shape::UNDEFINED_DIM ? -1 : d);
         ngraph::PartialShape shape(dims);
         ngraph::AxisVector blocking(blockedDesc->getOrder());
         ngraph::element::Type precision = InferenceEngine::details::convertPrecision(blockedDesc->getPrecision());
