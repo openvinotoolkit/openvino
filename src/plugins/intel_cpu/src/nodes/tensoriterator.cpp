@@ -78,6 +78,11 @@ static void nullifyUndefinedDims(VectorDims& dims) {
     });
 }
 
+namespace {
+    constexpr size_t inputNodePortIdx = 0L;
+    constexpr size_t outputNodePortIdx = 0L;
+}
+
 class PortIteratorHelper : public PortMapHelper {
 public:
     PortIteratorHelper(const MemoryPtr &from, const MemoryPtr &to, bool sliced_src,
@@ -142,12 +147,134 @@ private:
     bool sliced_src;
     dnnl::memory full_mem;
 
+    dnnl::reorder reorder;
+    dnnl::memory mem_holder_src;
+    dnnl::memory mem_holder_dst;
+
     int iter_count;
+};
+
+class InputEdgePortHelper : public PortMapHelper {
+public:
+    InputEdgePortHelper(const MemoryPtr &from, const MemoryPtr &to, const dnnl::engine& eng) {
+        mem_holder_src = from->GetPrimitive();
+        mem_holder_dst = to->GetPrimitive();
+        //if (mem_holder_src.get_desc() != mem_holder_dst.get_desc()) {
+            reorder = {mem_holder_src, mem_holder_dst};
+        //} else {
+        //    mem_holder_dst.set_data_handle(mem_holder_src.get_data_handle());
+        //}
+    }
+
+    void execute(dnnl::stream strm, int iter = -1) override {
+        if (iter != 0 && reorder.get(true)) {
+            reorder.execute(strm, mem_holder_src, mem_holder_dst);
+        }
+    }
+
+private:
+    dnnl::reorder reorder;
+    dnnl::memory mem_holder_src;
+    dnnl::memory mem_holder_dst;
 };
 
 class BackEdgePortHelper : public PortMapHelper {
 public:
-    BackEdgePortHelper(const MemoryPtr &from, const MemoryPtr &to, const dnnl::engine& eng) {
+    BackEdgePortHelper(const Node* from, Node* to) : m_from(from), m_to(to) {
+        auto from_desc = m_from->getBaseMemDescAtInputPort(inputNodePortIdx);
+        auto to_desc = m_to->getBaseMemDescAtOutputPort(outputNodePortIdx);
+        VectorDims commonDims;
+        if (from_desc->isDefined()) {
+            commonDims = from_desc->getShape().getStaticDims();
+        } else if (to_desc->isDefined()) {
+            commonDims = to_desc->getShape().getStaticDims();
+        } else {
+            auto& dimsFromMax = from_desc->getShape().getMaxDims();
+            auto& dimsToMax = to_desc->getShape().getMaxDims();
+            VectorDims commonMax(dimsFromMax.size());
+            for (size_t i = 0; i < dimsFromMax.size(); ++i) {
+                commonMax[i] = std::min(dimsFromMax[i], dimsToMax[i]);
+            }
+
+            auto& dimsFromMin = from_desc->getShape().getMinDims();
+            auto& dimsToMin = to_desc->getShape().getMinDims();
+            VectorDims commonMin(dimsFromMin.size());
+            for (size_t i = 0; i < dimsFromMax.size(); ++i) {
+                commonMin[i] = std::max(dimsFromMin[i], dimsToMin[i]);
+            }
+
+            Shape commonShape(commonMin, commonMax);
+            commonDims = MemoryDescUtils::makeDummyShape(commonShape).getStaticDims();
+        }
+
+        if (!from_desc->isDefined()) {
+            from_desc = from_desc->cloneWithNewDims(commonDims);
+        }
+
+        if (!to_desc->isDefined()) {
+            to_desc = to_desc->cloneWithNewDims(commonDims);
+        }
+
+        m_compatible = to_desc->isCompatible(*from_desc);
+        m_dynamic = m_from->isDynamicNode() || m_to->isDynamicNode();
+
+        auto from_mem_ptr = m_from->getParentEdgeAt(inputNodePortIdx)->getMemoryPtr();
+
+        if (m_compatible) {
+            auto memMngPtr = from_mem_ptr->getDnnlMemoryMngr();
+            auto& childEdges = m_to->getChildEdgesAtPort(outputNodePortIdx);
+            for (size_t i = 0; i < childEdges.size(); ++i) {
+                auto to_mem_ptr = childEdges[i]->getMemoryPtr();
+
+                to_mem_ptr->Create(to_mem_ptr->getDesc(), memMngPtr);
+            }
+        }
+        if (!m_dynamic && !m_compatible) {
+            mem_holder_src = from_mem_ptr->GetPrimitive();
+            mem_holder_dst = m_to->getChildEdgesAtPort(outputNodePortIdx)[0]->getMemory().GetPrimitive();
+            reorder = {mem_holder_src, mem_holder_dst};
+        }
+    }
+
+    void update_shapes() {
+        const auto& mem_from = m_from->getParentEdgeAt(inputNodePortIdx)->getMemory();
+        auto dims = mem_from.getStaticDims();
+        if (last_dims != dims) {
+            m_to->redefineOutputMemory({dims}); // we exploit the fact that the target edges are connected to port 0
+            if (!m_compatible) {
+                mem_holder_src = mem_from.GetPrimitive();
+                mem_holder_dst = m_to->getChildEdgesAtPort(outputNodePortIdx)[0]->getMemory().GetPrimitive();
+                reorder = {mem_holder_src, mem_holder_dst};
+            }
+            last_dims = dims;
+        }
+    }
+
+    void execute(dnnl::stream strm, int iter = -1) override {
+        if (iter != 0) {
+            if (m_dynamic) {
+                update_shapes();
+            }
+            if (reorder.get(true) != nullptr) {
+                reorder.execute(strm, mem_holder_src, mem_holder_dst);
+            }
+        }
+    }
+
+private:
+    bool m_compatible = false;
+    bool m_dynamic = false;
+    const Node* m_from;
+    Node* m_to;
+    VectorDims last_dims;
+    dnnl::memory mem_holder_src;
+    dnnl::memory mem_holder_dst;
+    dnnl::reorder reorder;
+};
+
+class OutputPortHelper : public PortMapHelper {
+public:
+    OutputPortHelper(const MemoryPtr &from, const MemoryPtr &to, const dnnl::engine& eng) {
         mem_holder_src = from->GetPrimitive();
         mem_holder_dst = to->GetPrimitive();
         reorder = {mem_holder_src, mem_holder_dst};
@@ -158,6 +285,11 @@ public:
             reorder.execute(strm, mem_holder_src, mem_holder_dst);
         }
     }
+
+private:
+    dnnl::reorder reorder;
+    dnnl::memory mem_holder_src;
+    dnnl::memory mem_holder_dst;
 };
 
 class IterCountPortHelper : public PortMapHelper {
@@ -177,6 +309,8 @@ public:
         }
         *data_ptr = n_iter;
     }
+private:
+    dnnl::memory mem_holder_dst;
 };
 
 class asBoolCheck : public PortChecker {
@@ -370,7 +504,7 @@ void TensorIterator::getSupportedDescriptors() {
     for (const auto &param : tiOp->get_function()->get_parameters()) {
         auto inNode = inMap.find(param->get_friendly_name());
         if (inNode != inMap.end()) {
-            input_mems.push_back(getToMemories(inNode->second.get(), 0));
+            input_nodes.push_back(inNode->second.get());
         }
     }
 
@@ -380,8 +514,7 @@ void TensorIterator::getSupportedDescriptors() {
         const auto inputID = ngraph::op::util::create_ie_output_name(prev);
         auto outNode = outMap.find(inputID);
         if (outNode != outMap.end()) {
-            auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();
-            output_mem.push_back(outMem);
+            output_nodes.push_back(outNode->second.get());
         }
     }
 
@@ -469,8 +602,12 @@ void TensorIterator::createPrimitive() {
         lastUsedCond = initial_cond_check->getStatus();
     }
 
-    if (isDynamicNode())
+    if (isDynamicNode()) {
         prepareDynamicBuffers();
+    } else {
+        prepareOutputPorts();
+    }
+    prepareBackEdges();
 
     Node::createPrimitive();
 }
@@ -503,7 +640,6 @@ void TensorIterator::prepareParams() {
 
     first_mappers.clear();
     before_mappers.clear();
-    back_mappers.clear();
 
     if ((lastUsedCond && lastUsedTripCount != 0) || !isDynamicNode()) {
         reshapeSubgraphInput();
@@ -511,11 +647,6 @@ void TensorIterator::prepareParams() {
         prepareInputPorts();
         prepareContinueCond();
         prepareLoopBodyCurrentIteration();
-
-        if (!isDynamicNode()) {
-            prepareOutputPorts();
-            prepareBackEdges();
-        }
     }
 }
 
@@ -532,6 +663,8 @@ void TensorIterator::execute(dnnl::stream strm) {
     for (int i = 0; i != max_num_iter && continue_cond; i++) {
         // copy data to subgraph iteration
         for (auto &mapper : before_mappers)
+            mapper->execute(strm, i);
+        for (auto &mapper : back_mappers)
             mapper->execute(strm, i);
 
         sub_graph.Infer();
@@ -572,10 +705,6 @@ void TensorIterator::executeDynamicImpl(dnnl::stream strm) {
 
         for (auto& buffer : buffers)
             buffer->execute(eng, i);
-
-        // on the last iteration we shouldn't reshape body inputs and init back edges
-        if ((i + 1 != max_num_iter) && continue_cond)
-            prepareDynamicBackEdges();
     }
 
     reshapeAndFillOutput(strm);
@@ -586,11 +715,12 @@ void TensorIterator::executeDynamicImpl(dnnl::stream strm) {
 void TensorIterator::prepareInputPorts() {
     const auto &eng = getEngine();
     for (auto map_rule : inputPortMap) {
-        auto &from_mem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
-        auto &to_mem = input_mems[map_rule.to].front();  // first memory is enough to access the shared underlying physical memory
+        auto from_mem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
+        auto to_node = input_nodes[map_rule.to];  // first memory is enough to access the shared underlying physical memory
+        auto to_mem = to_node->getChildEdgesAtPort(inputNodePortIdx)[0]->getMemoryPtr();
 
         if (map_rule.axis == -1)
-            first_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mem, eng));
+            first_mappers.emplace_back(std::make_shared<InputEdgePortHelper>(from_mem, to_mem, eng));
         else
             before_mappers.emplace_back(
                     std::make_shared<PortIteratorHelper>(from_mem, to_mem, true, map_rule, eng));
@@ -600,45 +730,42 @@ void TensorIterator::prepareInputPorts() {
 void TensorIterator::prepareOutputPorts() {
     const auto &eng = getEngine();
     for (auto map_rule : outputPortMap) {
-        auto &to_mem = getChildEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
-        auto &from_mem = output_mem[map_rule.to];
+        auto to_mem = getChildEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
+        auto from_node = output_nodes[map_rule.to];
+        auto from_mem = from_node->getParentEdgeAt(outputNodePortIdx)->getMemoryPtr();
 
         if (map_rule.axis == -1)
-            last_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mem, eng));
+            last_mappers.emplace_back(std::make_shared<OutputPortHelper>(from_mem, to_mem, eng));
         else
             after_mappers.emplace_back(std::make_shared<PortIteratorHelper>(from_mem, to_mem, false, map_rule, eng));
     }
 }
 
 void TensorIterator::prepareBackEdges() {
-    const auto &eng = getEngine();
     for (auto map_rule : backEdges) {
-        auto from_mem = output_mem[map_rule.from];
-        auto to_mem = input_mems[map_rule.to].front();
+        auto from_node = output_nodes[map_rule.from];
+        auto to_node = input_nodes[map_rule.to];
 
-        before_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mem, eng));
+        back_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_node, to_node));
     }
 }
 
-void TensorIterator::prepareDynamicBackEdges() {
-    const auto &eng = getEngine();
-    back_mappers.clear();
-    for (auto map_rule : backEdges) {
-        auto from_mem = output_mem[map_rule.from];
-        auto to_mems = input_mems[map_rule.to];
+// void TensorIterator::prepareDynamicBackEdges() {
+//     const auto &eng = getEngine();
+//     back_mappers.clear();
+//     for (auto map_rule : backEdges) {
+//         auto from_mem = output_mem[map_rule.from];
+//         const auto& to_mems = input_mems[map_rule.to];
 
-        redefineToMemories(to_mems, from_mem->getDescPtr());
-
-        // first memory is enough to get common memory ptr
-        back_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mems.front(), eng));
-    }
-}
+//         back_mappers.emplace_back(std::make_shared<BackEdgePortHelperDynamic>(from_mem, to_mems, eng));
+//     }
+// }
 
 void TensorIterator::prepareDynamicBuffers() {
     for (auto map_rule : outputPortMap) {
         if (map_rule.axis != -1) {
             auto to_mems = getToMemories(this, map_rule.from);
-            auto &from_mem = output_mem[map_rule.to];
+            auto from_mem = output_nodes[map_rule.to]->getParentEdgeAt(outputNodePortIdx)->getMemoryPtr();
             buffers.emplace_back(std::make_shared<DynamicBuffer>(from_mem, to_mems, map_rule));
         }
     }
@@ -647,14 +774,14 @@ void TensorIterator::prepareDynamicBuffers() {
 void TensorIterator::prepareLoopBodyCurrentIteration() {
     const auto &eng = getEngine();
     for (auto idx : loopBodyCurrentIterationIdx) {
-        auto to_mem = input_mems[idx].front();  // first memory is enough to get common memory ptr
+        auto to_mem = input_nodes[idx]->getChildEdgesAtPort(outputNodePortIdx).front()->getMemoryPtr();  // first memory is enough to get common memory ptr
         before_mappers.emplace_back(std::make_shared<IterCountPortHelper>(to_mem, eng));
     }
 }
 
 void TensorIterator::prepareContinueCond() {
     if (loopBodyConditionOutputIdx != -1 || !continue_cond_check) {
-        auto mem = output_mem[loopBodyConditionOutputIdx];
+        auto mem = output_nodes[loopBodyConditionOutputIdx]->getParentEdgeAt(outputNodePortIdx)->getMemoryPtr();
         continue_cond_check.reset(new asBoolCheck(mem));
     }
 }
@@ -689,11 +816,11 @@ inline SizeVector sliced_input_dims(const MemoryPtr& mem, const int axis, const 
 void TensorIterator::reshapeSubgraphInput() {
     for (auto map_rule : inputPortMap) {
         auto new_dims = sliced_input_dims(getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr(), map_rule.axis, map_rule.stride);
-        auto &to_mems = input_mems[map_rule.to];
+        auto to_node = input_nodes[map_rule.to];
+        auto to_mems = getToMemories(to_node, 0);
         const auto& body_inshape = to_mems.front()->GetShape();
         if (body_inshape.isDynamic() || body_inshape.getDims() != new_dims) {
-            const auto desc = std::make_shared<CpuBlockedMemoryDesc>(to_mems.front()->getDesc().getPrecision(), Shape(new_dims));
-            redefineToMemories(to_mems, desc);
+            to_node->redefineOutputMemory({new_dims}); //here we exploite the fact that the interesting port is always 0.
         }
     }
 }
@@ -703,10 +830,11 @@ void TensorIterator::reshapeAndFillOutput(dnnl::stream strm) {
     for (auto map_rule : outputPortMap) {
         if (map_rule.axis == -1) {
             auto to_mems = getToMemories(this, map_rule.from);
-            auto &from_mem = output_mem[map_rule.to];
+            auto from_node = output_nodes[map_rule.to];
+            const auto& from_mem = from_node->getParentEdgeAt(inputNodePortIdx)->getMemory();
 
             // if Loop or TI isn't executed we should fill dynamic dims by zero
-            auto newShape = from_mem->GetShape();
+            auto newShape = from_mem.GetShape();
             auto newDims = newShape.getDims();
             nullifyUndefinedDims(newDims);
 
@@ -715,8 +843,7 @@ void TensorIterator::reshapeAndFillOutput(dnnl::stream strm) {
             redefineToMemories(to_mems, desc);
 
             if (!newShape.isDynamic()) {
-                BackEdgePortHelper mapper(from_mem, to_mems.front(), eng);
-                mapper.execute(strm);
+                Reorder::reorderData(from_mem, *(to_mems.front()));
             }
         }
     }
