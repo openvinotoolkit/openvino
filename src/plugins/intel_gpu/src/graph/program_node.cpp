@@ -30,7 +30,7 @@ using namespace cldnn;
 thread_local size_t program_node::cur_id = 0;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
-    : desc(prim), myprog(prog), org_id(prim ? (prim->id) : 0) {
+    : desc(prim), myprog(prog), required_input0(format::any), required_output(format::any), org_id(prim ? (prim->id) : 0) {
     if (prim)
         output_layout.data_padding = prim->output_padding;
 }
@@ -350,6 +350,8 @@ std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
 void program_node::invalidate_users() const {
     for (auto& user : users) {
         if (user->valid_output_layout) {
+            if (user->is_type<convolution>() && user->as<convolution>().get_required_output() != format::any)
+                continue;
             user->valid_output_layout = false;
             user->invalidate_users();
         }
