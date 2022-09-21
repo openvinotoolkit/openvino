@@ -127,10 +127,16 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
 
     auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    
+    ADD_MATCHER_SCOPE(SpaceToBatchFusion)
     common_fusions->add_matcher<ngraph::pass::SpaceToBatchFusion>();
+    ADD_MATCHER_SCOPE(BatchToSpaceFusion)
     common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>();
+    ADD_MATCHER_SCOPE(InterpolateSequenceFusion)
     common_fusions->add_matcher<ngraph::pass::InterpolateSequenceFusion>();
+    ADD_MATCHER_SCOPE(SkipGatherBeforeTransposeAndReshape)
     common_fusions->add_matcher<ngraph::pass::SkipGatherBeforeTransposeAndReshape>();
+    ADD_MATCHER_SCOPE(ReduceMerge)
     common_fusions->add_matcher<ngraph::pass::ReduceMerge>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
@@ -140,33 +146,61 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
+    ADD_MATCHER_SCOPE(Gelu7Downgrade)
     decomp->add_matcher<ngraph::pass::Gelu7Downgrade>();
+    ADD_MATCHER_SCOPE(BidirectionalSequenceDecomposition)
     decomp->add_matcher<ngraph::pass::BidirectionalSequenceDecomposition>();
+    ADD_MATCHER_SCOPE(ReduceL1Decomposition)
     decomp->add_matcher<ngraph::pass::ReduceL1Decomposition>();
+    ADD_MATCHER_SCOPE(ReduceL2Decomposition)
     decomp->add_matcher<ngraph::pass::ReduceL2Decomposition>();
+    ADD_MATCHER_SCOPE(HSwishDecomposition)
     decomp->add_matcher<ngraph::pass::HSwishDecomposition>();
+    ADD_MATCHER_SCOPE(HSigmoidDecomposition)
     decomp->add_matcher<ngraph::pass::HSigmoidDecomposition>();
+    ADD_MATCHER_SCOPE(LogSoftmaxDecomposition)
     decomp->add_matcher<ngraph::pass::LogSoftmaxDecomposition>();
+    ADD_MATCHER_SCOPE(ConvertReduceToPooling)
     decomp->add_matcher<ngraph::pass::ConvertReduceToPooling>();
+    ADD_MATCHER_SCOPE(ConvertBroadcastToTiles)
     decomp->add_matcher<ngraph::pass::ConvertBroadcastToTiles>();
+    ADD_MATCHER_SCOPE(ConvertMod)
     decomp->add_matcher<ngraph::pass::ConvertMod>();
+    ADD_MATCHER_SCOPE(ConvertGELU)
     decomp->add_matcher<ngraph::pass::ConvertGELU>();
+    ADD_MATCHER_SCOPE(ConvertMinimum)
     decomp->add_matcher<ngraph::pass::ConvertMinimum>();
+    ADD_MATCHER_SCOPE(ConvertSubtract)
     decomp->add_matcher<ngraph::pass::ConvertSubtract>();
+    ADD_MATCHER_SCOPE(ConvertDivide)
     decomp->add_matcher<ngraph::pass::ConvertDivide>();
+    ADD_MATCHER_SCOPE(ConvertDepthToSpace)
     decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
+    ADD_MATCHER_SCOPE(ConvertSpaceToDepth)
     decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
+    ADD_MATCHER_SCOPE(ConvertConvertLike)
     decomp->add_matcher<ngraph::pass::ConvertConvertLike>();
+    ADD_MATCHER_SCOPE(BatchNormDecomposition)
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
+    ADD_MATCHER_SCOPE(MVN6Decomposition)
     decomp->add_matcher<ngraph::pass::MVN6Decomposition>();
+    ADD_MATCHER_SCOPE(NormalizeL2Decomposition)
     decomp->add_matcher<ngraph::pass::NormalizeL2Decomposition, false>();
+    ADD_MATCHER_SCOPE(SimplifyCTCGreedyDecoderSeqLen)
     decomp->add_matcher<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+    ADD_MATCHER_SCOPE(EinsumDecomposition)
     decomp->add_matcher<ngraph::pass::EinsumDecomposition>();
+    ADD_MATCHER_SCOPE(SoftmaxDecomposition)
     decomp->add_matcher<ngraph::pass::SoftmaxDecomposition, false>();
+    ADD_MATCHER_SCOPE(SoftSignDecomposition)
     decomp->add_matcher<ngraph::pass::SoftSignDecomposition>();
+    ADD_MATCHER_SCOPE(GatherNegativeConstIndicesNormalize)
     decomp->add_matcher<ngraph::pass::GatherNegativeConstIndicesNormalize>();
+    ADD_MATCHER_SCOPE(DropoutWithRandomUniformReplacer)
     decomp->add_matcher<ngraph::pass::DropoutWithRandomUniformReplacer>();
+    ADD_MATCHER_SCOPE(TransposeReshapeEliminationForMatmul)
     decomp->add_matcher<ngraph::pass::TransposeReshapeEliminationForMatmul>();
+    ADD_MATCHER_SCOPE(EyeDecomposition)
     decomp->add_matcher<ov::pass::EyeDecomposition>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
 
@@ -178,14 +212,23 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     manager.register_pass<ngraph::pass::UnrollIf>();
 
     auto multiply_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    ADD_MATCHER_SCOPE(ConvolutionMultiplyFusion)
     multiply_fusions->add_matcher<ngraph::pass::ConvolutionMultiplyFusion>();
+    ADD_MATCHER_SCOPE(GroupConvolutionMultiplyFusion)
     multiply_fusions->add_matcher<ngraph::pass::GroupConvolutionMultiplyFusion>();
+    ADD_MATCHER_SCOPE(ConvolutionBackpropDataMultiplyFusion)
     multiply_fusions->add_matcher<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
+    ADD_MATCHER_SCOPE(GroupConvolutionBackpropDataMultiplyFusion)
     multiply_fusions->add_matcher<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    ADD_MATCHER_SCOPE(MultiplyConvolutionFusion)
     multiply_fusions->add_matcher<ngraph::pass::MultiplyConvolutionFusion>();
+    ADD_MATCHER_SCOPE(MultiplyGroupConvolutionFusion)
     multiply_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionFusion>();
+    ADD_MATCHER_SCOPE(MultiplyConvolutionBackpropDataFusion)
     multiply_fusions->add_matcher<ngraph::pass::MultiplyConvolutionBackpropDataFusion>();
+    ADD_MATCHER_SCOPE(MultiplyGroupConvolutionBackpropDataFusion)
     multiply_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion>();
+    ADD_MATCHER_SCOPE(MatMulMultiplyFusion)
     multiply_fusions->add_matcher<ngraph::pass::MatMulMultiplyFusion>();
     multiply_fusions->set_name("ngraph::pass::MultiplyFusions");
 

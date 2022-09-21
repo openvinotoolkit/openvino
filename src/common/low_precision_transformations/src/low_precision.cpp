@@ -201,6 +201,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
     const std::vector<ngraph::element::Type> supportedTypes = {ngraph::element::i8, ngraph::element::u8};
     prerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
     prerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
+    ADD_MATCHER_SCOPE(LinOpSequenceFusion)
     prerequisites->add_matcher<ngraph::pass::LinOpSequenceFusion>();
     prerequisites->add_matcher<ngraph::pass::low_precision::MoveFakeQuantize>();
 
