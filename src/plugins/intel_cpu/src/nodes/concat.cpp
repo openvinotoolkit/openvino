@@ -94,9 +94,10 @@ void Concat::getSupportedDescriptors() {
         if (std::all_of(childDims.begin(), childDims.begin() + axis, [](size_t dim) { return  dim == 1; }))
             canBeInPlace = true;
     }
-    nelemToCopy.resize(getParentEdges().size());
+    nelemToCopy.resize(getParentEdges().size(), 0);
     dstOffset.resize(getParentEdges().size());
     inputStrides.resize(getParentEdges().size());
+    srcsOffset.resize(getParentEdges().size(), 0);
 }
 
 void Concat::initSupportedPrimitiveDescriptors() {
@@ -357,20 +358,6 @@ bool Concat::needPrepareParams() const {
     return inputShapesModified();
 }
 
-// std::vector<VectorDims> Concat::shapeInfer() const {
-//     VectorDims output;
-//     const auto& srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
-//     const auto& dims = srcMemPtr->getStaticDims();
-//     output = dims;
-//     for (size_t i = 0; i < getParentEdges().size(); i++) {
-//         const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
-//         const auto& dims = srcMemPtr->getStaticDims();
-//         output[axis] += dims[axis];
-//     }
-//     std::cout << getName() << "|" << output << std::endl;
-//     return std::vector<VectorDims>{output};
-// }
-
 void Concat::prepareParams() {
     if (canOptimizeNspc || isOptimized())
         return;
@@ -406,6 +393,8 @@ void Concat::prepareParams() {
         nelemToCopy[i] = nElem * elemSize;
         dstOffset[i] = outputStride[reorderedAxis] * curConcatOffset * elemSize;
         curConcatOffset += inputShape[reorderedAxis];
+        auto desc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+        srcsOffset[i] = desc.data.offset0;
      }
 }
 
@@ -569,7 +558,7 @@ void Concat::execRef() {
     uint8_t* dstPtr = reinterpret_cast<uint8_t*>(dstMemory.GetData());
     for (size_t i = 0; i < numSrc; i++) {
         const Memory& src_mem = getParentEdgesAtPort(i)[0]->getMemory();
-        srcPtrs.push_back(reinterpret_cast<const uint8_t*>(src_mem.GetData()));
+        srcPtrs.push_back(reinterpret_cast<const uint8_t*>(src_mem.GetData()) + srcsOffset[i] * elemSize);
     }
     const auto& outputStride = dstMemory.getDescPtr()->as<BlockedMemoryDesc>()->getStrides();
 

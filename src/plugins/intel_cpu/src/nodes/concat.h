@@ -45,6 +45,7 @@ private:
     std::vector<VectorDims> inputStrides;
     std::vector<size_t> nelemToCopy; // byte moved in each iter
     std::vector<size_t> dstOffset; // dst offset for each input
+    std::vector<size_t> srcsOffset; // inputs data may share same memory pointer
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
 
