@@ -1,6 +1,6 @@
-# Install Intel® Distribution of OpenVINO™ Toolkit for Linux Using YUM Repository {#openvino_docs_install_guides_installing_openvino_yum}
+# Install OpenVINO™ Runtime for Linux Using YUM Repository
 
-This guide provides installation steps for Intel® Distribution of OpenVINO™ toolkit for Linux distributed through the YUM repository.
+This guide provides installation steps for OpenVINO™ Runtime for Linux distributed through the YUM repository.
 
 > **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. If you want to develop or optimize your models with OpenVINO, see [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
 
@@ -59,7 +59,7 @@ To list available OpenVINO packages, use the following command:
 
 ### Step 2: Install OpenVINO Runtime Using the YUM Package Manager
 
-Intel® Distribution of OpenVINO™ toolkit will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<PATCH>`
+OpenVINO™ Runtime will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<PATCH>`
 
 A symlink will be created: `/opt/intel/openvino_<VERSION>`
 
@@ -140,11 +140,11 @@ Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#in
 
 .. tab:: GNA
 
-   To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide>`.
+   To enable OpenVINO™ Runtime to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide>`.
    
 .. tab:: GPU
 
-   To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.
+   To enable OpenVINO™ Runtime to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.
 
 .. tab:: NCS 2
 

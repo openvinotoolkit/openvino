@@ -1,8 +1,8 @@
-# Install and Configure Intel® Distribution of OpenVINO™ toolkit for macOS {#openvino_docs_install_guides_installing_openvino_macos}
+# Install OpenVINO™ Runtime for macOS from Installer
 
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
+> **NOTE**: Since the OpenVINO™ 2022.1 release, the OpenVINO Development Tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
 
-> **NOTE**: The Intel® Distribution of OpenVINO™ toolkit is supported on macOS version 10.15 with Intel® processor-based machines.
+> **NOTE**: OpenVINO™ Runtime is supported on macOS version 10.15 with Intel® processor-based machines.
 
 ## System Requirements
 
@@ -21,7 +21,7 @@
   * Intel® Neural Compute Stick 2
   
   .. note::
-    The current version of the Intel® Distribution of OpenVINO™ toolkit for macOS supports inference on Intel CPUs and Intel® Neural Compute Stick 2 devices only.
+    The current version of OpenVINO™ Runtime for macOS supports inference on Intel CPUs and Intel® Neural Compute Stick 2 devices only.
 
 .. tab:: Software Requirements
 
@@ -34,19 +34,19 @@
 
 ## Overview
 
-This guide provides step-by-step instructions on how to install the Intel® Distribution of OpenVINO™ toolkit for macOS. The following steps will be covered:
+This guide provides step-by-step instructions on how to install OpenVINO™ Runtime for macOS. The following steps will be covered:
 
-1. <a href="#install-core">Install the Intel® Distribution of OpenVINO™ Toolkit</a>
+1. <a href="#install-core">Install OpenVINO™ Runtime</a>
 2. <a href="#set-the-environment-variables">Configure the Environment</a>
 3. <a href="#model-optimizer">Download additional components (Optional)</a>
 4. <a href="#configure-ncs2">Configure the Intel® Neural Compute Stick 2 (Optional)</a>
 5. <a href="#get-started">What’s next?</a>
 
-## <a name="install-core"></a>Step 1: Install the Intel® Distribution of OpenVINO™ Toolkit Core Components
+## <a name="install-core"></a>Step 1: Install OpenVINO™ Runtime
 
-1. Download the Intel® Distribution of OpenVINO™ toolkit package file from [Intel® Distribution of OpenVINO™ toolkit for macOS](https://software.intel.com/en-us/openvino-toolkit/choose-download/free-download-macos). Select the Intel® Distribution of OpenVINO™ toolkit for macOS package from the dropdown menu.
+1. Download the OpenVINO Runtime installer file from [Intel® Distribution of OpenVINO™ toolkit for macOS](https://software.intel.com/en-us/openvino-toolkit/choose-download/free-download-macos). Select Runtime, macOS, the latest standard release, and Offline Installer in the selection table, and then click Download.
 
-2. Go to the directory where you downloaded the Intel® Distribution of OpenVINO™ toolkit. This document assumes this is your `Downloads` directory. By default, the disk image file is saved as `m_openvino_toolkit_p_<version>.dmg`.
+2. Go to the directory where you downloaded the OpenVINO™ Runtime installer file. This document assumes this is your `Downloads` directory. By default, the disk image file is saved as `m_openvino_toolkit_p_<version>.dmg`.
 
 3. Double-click the `m_openvino_toolkit_p_<version>.dmg` file to mount. The disk image is mounted to `/Volumes/m_openvino_toolkit_p_<version>` and automatically opens in a separate window.
 
@@ -64,7 +64,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    ![](../img/openvino-install-macos-run-boostrapper-script.gif)
    Click on the image to see the details.
 
-   By default, the Intel® Distribution of OpenVINO™ is installed in the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation:
+   By default, OpenVINO™ Runtime is installed in the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation:
 
    `/opt/intel/openvino_<version>/`
 
@@ -115,7 +115,7 @@ If you want to run inference on Intel® Neural Compute Stick 2 use the following
 
 ## <a name="get-started"></a>Step 5: What's next?
 
-Now you are ready to try out the toolkit. You can use the following tutorials to write your applications using Python and C++.
+Now you are ready to try out OpenVINO™. You can use the following tutorials to write your applications using Python and C++.
 
 Developing in Python:
    * [Start with tensorflow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
@@ -127,9 +127,9 @@ Developing in C++:
    * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
    * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
 
-## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
+## <a name="uninstall"></a>Uninstall OpenVINO™ Runtime
 
-To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
+To uninstall OpenVINO™ Runtime, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 
 @sphinxdirective
 .. raw:: html

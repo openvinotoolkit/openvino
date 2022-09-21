@@ -1,6 +1,6 @@
-# Install and Configure Intel® Distribution of OpenVINO™ toolkit for Windows 10 {#openvino_docs_install_guides_installing_openvino_windows}
+# Install OpenVINO™ Runtime for Windows from Installer
 
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
+> **NOTE**: Since the OpenVINO™ 2022.1 release, the OpenVINO Development Tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
 
 ## System Requirements
 
@@ -48,18 +48,17 @@
 
 ## Overview
 
-This guide provides step-by-step instructions on how to install the Intel® Distribution of OpenVINO™ toolkit. Links are provided for each type of compatible hardware including downloads, initialization and configuration steps. The following steps will be covered:
+This guide provides step-by-step instructions on how to install OpenVINO™ Runtime. Links are provided for each type of compatible hardware including downloads, initialization and configuration steps. The following steps will be covered:
 
-1. <a href="#install-openvino">Install the Intel® Distribution of OpenVINO™ Toolkit</a>
+1. <a href="#install-openvino">Install OpenVINO™ Runtime</a>
 2. <a href="#set-the-environment-variables">Configure the Environment</a>
 3. <a href="#model-optimizer">Download additional components (Optional)</a>
 4. <a href="#optional-steps">Configure Inference on non-CPU Devices (Optional)</a>  
 5. <a href="#get-started">What's next?</a>
 
-## <a name="install-openvino"></a>Step 1: Install the Intel® Distribution of OpenVINO™ toolkit Core Components
+## <a name="install-openvino"></a>Step 1: Install OpenVINO™ Runtime
 
-1. Download the Intel® Distribution of OpenVINO™ toolkit package file from [Intel® Distribution of OpenVINO™ toolkit for Windows](https://software.intel.com/en-us/openvino-toolkit/choose-download).
-   Select the Intel® Distribution of OpenVINO™ toolkit for Windows package from the dropdown menu.
+1. Download the OpenVINO™ Runtime installer file from [Intel® Distribution of OpenVINO™ toolkit for Windows](https://software.intel.com/en-us/openvino-toolkit/choose-download). Select Runtime, Windows, the latest standard release, and Offline Installer in the selection table, and then click Download.
    
 2. Go to the `Downloads` folder and double-click `w_openvino_toolkit_p_<version>.exe`. In the opened window, you can select the folder where installer files will be placed. The directory will be referred to as <INSTALL_DIR> elsewhere in the documentation. Once the files are extracted, you should see the following dialog box open up:
 
@@ -75,7 +74,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    ![](../img/openvino-install-win-run-boostrapper-script.gif)
    Click on the image to see the details.
    <br>
-   <br>By default, the Intel® Distribution of OpenVINO™ is installed to the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation: `C:\Program Files (x86)\Intel\openvino_<version>/`.
+   <br>By default, OpenVINO™ Runtime is installed to the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation: `C:\Program Files (x86)\Intel\openvino_<version>/`.
 
    <br>For simplicity, a symbolic link to the latest installation is also created: `C:\Program Files (x86)\Intel\openvino_2022/`.
 
@@ -85,7 +84,7 @@ The core components are now installed. Continue to the next section to configure
 
 ## <a name="set-the-environment-variables"></a>Step 2: Configure the Environment
 
-> **NOTE**: If you installed the Intel® Distribution of OpenVINO™ to a non-default install directory, replace `C:\Program Files (x86)\Intel` with that directory in this guide's instructions.
+> **NOTE**: If you installed OpenVINO™ Runtime to a non-default install directory, replace `C:\Program Files (x86)\Intel` with that directory in this guide's instructions.
 
 You must update several environment variables before you can compile and run OpenVINO™ applications. Open the Command Prompt, and run the `setupvars.bat` batch file to temporarily set your environment variables:
 
@@ -93,7 +92,7 @@ You must update several environment variables before you can compile and run Ope
 "<INSTALL_DIR>\setupvars.bat"
 ```
 
-**Optional**: OpenVINO™ toolkit environment variables are removed when you close the command prompt window. You can permanently set the environment variables manually.
+**Optional**: OpenVINO™ Runtime environment variables are removed when you close the command prompt window. You can permanently set the environment variables manually.
 
 > **NOTE**: If you see an error indicating Python is not installed when you know you installed it, your computer might not be able to find the program. Check your system environment variables, and add Python if necessary.
 
@@ -130,7 +129,7 @@ The environment variables are set. Next, you can download some additional tools.
       .\<INSTALL_DIR>\extras\scripts\download_opencv.ps1
       
 
-   If the Intel® Distribution of OpenVINO™ is installed to the system location (e.g. ``Program Files (x86)``) then privilege elevation dialog will be shown. The script can be run from CMD/PowerShell Administrator console to avoid this dialog in case of system-wide installation. 
+   If OpenVINO™ Runtime is installed to the system location (e.g. ``Program Files (x86)``) then privilege elevation dialog will be shown. The script can be run from CMD/PowerShell Administrator console to avoid this dialog in case of system-wide installation. 
    The script is interactive by default, so during the execution it will wait for user to press ``Enter`` If you want to avoid this, use the ``-batch`` option, e.g. ``powershell <INSTALL_DIR>\extras\scripts\download_opencv.ps1 -batch``. After the execution of the script, you will find OpenCV extracted to ``<INSTALL_DIR>/extras/opencv``.
 
 @endsphinxdirective
@@ -140,11 +139,11 @@ The environment variables are set. Next, you can download some additional tools.
 @sphinxdirective
 .. tab:: GNA
 
-   To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide windows>`.
+   To enable OpenVINO™ Runtime to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide windows>`.
    
 .. tab:: GPU
 
-   To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide windows>`.
+   To enable OpenVINO™ Runtime to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide windows>`.
 
 .. tab:: VPU
 
@@ -159,7 +158,7 @@ The environment variables are set. Next, you can download some additional tools.
 
 ## <a name="get-started"></a>Step 5: What's next?
 
-Now you are ready to try out the toolkit.
+Now you are ready to try out OpenVINO™.
 
 Developing in Python:
    * [Start with tensorflow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
@@ -171,9 +170,9 @@ Developing in C++:
    * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
    * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
     
-## <a name="uninstall"></a>Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
+## <a name="uninstall"></a>Uninstalling OpenVINO™ Runtime
 
-To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
+To uninstall OpenVINO™ Runtime, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 
 @sphinxdirective
 

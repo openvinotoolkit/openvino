@@ -1,6 +1,6 @@
-# Install and Configure Intel® Distribution of OpenVINO™ Toolkit for Linux {#openvino_docs_install_guides_installing_openvino_linux}
+# Install OpenVINO™ Runtime for Linux from Installer
 
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
+> **NOTE**: Since the OpenVINO™ 2022.1 release, the OpenVINO Development Tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
 
 ## System Requirements
 
@@ -43,9 +43,9 @@
 
 ## Overview
 
-This guide provides step-by-step instructions on how to install the Intel® Distribution of OpenVINO™ toolkit. Links are provided for each type of compatible hardware including downloads, initialization and configuration steps. The following steps will be covered:
+This guide provides step-by-step instructions on how to install OpenVINO™ Runtime. Links are provided for each type of compatible hardware including downloads, initialization and configuration steps. The following steps will be covered:
 
-1. <a href="#install-openvino">Install the Intel® Distribution of OpenVINO™ Toolkit</a>
+1. <a href="#install-openvino">Install OpenVINO™ Runtime</a>
 2. <a href="#install-external-dependencies">Install External Software Dependencies</a>
 3. <a href="#set-the-environment-variables">Configure the Environment</a>
 4. <a href="#model-optimizer">Download additional components (Optional)</a>
@@ -59,11 +59,11 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 
 @endsphinxdirective
 
-## <a name="install-openvino"></a>Step 1: Install the Intel® Distribution of OpenVINO™ Toolkit
+## <a name="install-openvino"></a>Step 1: Install OpenVINO™ Runtime
 
-1. Select and download the Intel® Distribution of OpenVINO™ toolkit installer file from [Intel® Distribution of OpenVINO™ toolkit for Linux](https://software.intel.com/en-us/openvino-toolkit/choose-download).
+1. Select and download the OpenVINO™ Runtime installer file from [Intel® Distribution of OpenVINO™ toolkit for Linux](https://software.intel.com/en-us/openvino-toolkit/choose-download).
 2. Open a command prompt terminal window. You can use the keyboard shortcut: Ctrl+Alt+T
-3. Change directories to where you downloaded the Intel Distribution of OpenVINO™ toolkit for Linux file.<br>
+3. Change directories to where you downloaded the OpenVINO™ Runtime for Linux installer file.<br>
    If you downloaded the starter script to the current user's `Downloads` directory:
    ```sh
    cd ~/Downloads/
@@ -98,7 +98,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    ![](../img/openvino-install-linux-run-boostrapper-script.gif)
    Click on the image to see the details.
    <br>
-   <br>By default, the Intel® Distribution of OpenVINO™ is installed to the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation:
+   <br>By default, OpenVINO™ Runtime is installed to the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation:
    * For root or administrator: `/opt/intel/openvino_<version>/`
    * For regular users: `/home/<USER>/intel/openvino_<version>/`
 
@@ -182,7 +182,7 @@ The environment variables are set. Next, you can download some additional tools.
 
 ## <a name="get-started"></a>Step 6: What's Next?
 
-Now you are ready to try out the toolkit.
+Now you are ready to try out OpenVINO™.
 
 Developing in Python:
    * [Start with TensorFlow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
