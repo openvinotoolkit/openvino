@@ -49,7 +49,7 @@ public:
     }
 
     void registerImpl1(const Key& key, const builder_t& builder) {
-        builders[key] = std::move(builder);
+        builders[key] = builder;
     }
 
     T createImpl(const Key& key, Args... args) {
@@ -83,7 +83,7 @@ public:
         validate_type(typeName);
         const std::string task_name = "REG$" + name + "$" + to_string(key) + "$" + typeName;
         openvino::itt::ScopedTask<domain> task(openvino::itt::handle(task_name));
-        builders[key] = std::move(builder);
+        builders[key] = builder;
     }
 
     template <openvino::itt::domain_t (*domain)()>
@@ -112,7 +112,7 @@ public:
     }
 
     void registerImpl(const Key& key, const builder_t& builder) {
-        builders[key] = std::move(builder);
+        builders[key] = builder;
     }
 
     T createImpl(const Key& key, Args... args) {

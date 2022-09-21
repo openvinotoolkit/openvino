@@ -9,11 +9,11 @@ namespace ov {
 namespace opset {
 OV_CC_DOMAINS(opset_factory)
 
-class Factory : public openvino::cc::Factory<NodeTypeInfo, ov::Node*()> {
+class Factory : public openvino::cc::Factory<std::string, ov::Node*()> {
 public:
-    Factory(const std::string& name) : openvino::cc::Factory<NodeTypeInfo, ov::Node*()>(name) {}
+    Factory(const std::string& name) : openvino::cc::Factory<std::string, ov::Node*()>(name) {}
 
-    Factory(const ov::opset::Factory& factory) : openvino::cc::Factory<NodeTypeInfo, ov::Node*()>(factory.name) {
+    Factory(const ov::opset::Factory& factory) : openvino::cc::Factory<std::string, ov::Node*()>(factory.name) {
         builders = factory.builders;
     }
 
@@ -23,20 +23,20 @@ public:
         return *this;
     }
 
-    /// @brief Register specific builder for operation's type
+    /// @brief Register specific builder for operation
     /// Provides limited conditional compilation (CC) capabilities
     /// due each operation will be registered with `extension` name.
     /// For full CC capabilities use `registerImplIfRequired()` inlined
-    /// instead of `register_type` (see details in CCOpSet).
-    void register_type(const NodeTypeInfo& type_info, const std::function<ov::Node*()>& builder) {
-        registerImplIfRequired(opset_factory, extension, type_info, std::move(builder));
+    /// instead of `register_builder` (see details in CCOpSet).
+    void register_builder(const std::string& op_name, const std::function<ov::Node*()>& builder) {
+        registerImplIfRequired(opset_factory, extension, op_name, builder);
     }
 
-    ov::Node* create(const NodeTypeInfo& type_info) {
-        return createNodeIfRegistered(opset_factory, type_info);
+    ov::Node* create(const std::string& op_name) {
+        return createNodeIfRegistered(opset_factory, op_name);
     }
 
-    std::unordered_map<NodeTypeInfo, std::function<ov::Node*()>> get_builders() {
+    std::unordered_map<std::string, std::function<ov::Node*()>> get_builders() {
         return builders;
     }
 };

@@ -14,7 +14,7 @@ ngraph::OpSet::OpSet(const ov::OpSet& opset) : ov::OpSet(opset) {}
 const ngraph::FactoryRegistry<ngraph::Node>& ngraph::OpSet::get_factory_registry() {
     NGRAPH_SUPPRESS_DEPRECATED_START
     for (const auto& builder : m_factory->get_builders()) {
-        m_factory_registry.register_factory(builder.first, builder.second);
+        m_factory_registry.register_factory(m_name_type_info_map[builder.first], builder.second);
     }
     return m_factory_registry;
     NGRAPH_SUPPRESS_DEPRECATED_END
@@ -85,7 +85,7 @@ void ov::OpSet::insert(const std::string& name,
     m_op_types.insert(type_info);
     m_name_type_info_map[name] = type_info;
     m_case_insensitive_type_info_map[to_upper_name(name)] = type_info;
-    m_factory->register_type(type_info, std::move(builder));
+    m_factory->register_builder(name, builder);
 }
 
 ov::Node* ov::OpSet::create(const std::string& name) const {
@@ -94,21 +94,22 @@ ov::Node* ov::OpSet::create(const std::string& name) const {
         NGRAPH_WARN << "Couldn't create operator of type: " << name << " . Operation not registered in opset.";
         return nullptr;
     }
-    return m_factory->create(type_info_it->second);
+    return m_factory->create(name);
 }
 
 ov::Node* ov::OpSet::create_insensitive(const std::string& name) const {
     auto type_info_it = m_case_insensitive_type_info_map.find(to_upper_name(name));
-    return type_info_it == m_case_insensitive_type_info_map.end() ? nullptr : m_factory->create(type_info_it->second);
+    return type_info_it == m_case_insensitive_type_info_map.end() ? nullptr : m_factory->create(name);
 }
 
 const ov::OpSet& ov::get_opset1() {
     static CCOpSet opset("opset1");
     static std::once_flag flag;
     std::call_once(flag, [&]() {
-    using namespace opset;
-#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.get_factory()->registerImplIfRequired(opset_factory, NAME, NAMESPACE::NAME::get_type_info_static(), opset.get_default_builder<NAMESPACE::NAME>()); \
-                                          opset.insert_type_info_only(NAMESPACE::NAME::get_type_info_static().name, NAMESPACE::NAME::get_type_info_static());
+        using namespace opset;
+#define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                    \
+    opset.get_factory()->registerNodeIfRequired(opset_factory, NAME, OV_PP_TOSTRING(NAME), NAMESPACE::NAME); \
+    opset.insert_type_info_only(NAMESPACE::NAME::get_type_info_static().name, NAMESPACE::NAME::get_type_info_static());
 #include "openvino/opsets/opset1_tbl.hpp"
 #undef _OPENVINO_OP_REG
     });
@@ -119,10 +120,10 @@ const ov::OpSet& ov::get_opset2() {
     static CCOpSet opset("opset2");
     static std::once_flag flag;
     std::call_once(flag, [&]() {
-    using namespace opset;
-    
-#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.get_factory()->registerImplIfRequired(opset_factory, NAME, NAMESPACE::NAME::get_type_info_static(), opset.get_default_builder<NAMESPACE::NAME>()); \
-                                          opset.insert_type_info_only(NAMESPACE::NAME::get_type_info_static().name, NAMESPACE::NAME::get_type_info_static());
+        using namespace opset;
+#define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                    \
+    opset.get_factory()->registerNodeIfRequired(opset_factory, NAME, OV_PP_TOSTRING(NAME), NAMESPACE::NAME); \
+    opset.insert_type_info_only(NAMESPACE::NAME::get_type_info_static().name, NAMESPACE::NAME::get_type_info_static());
 #include "openvino/opsets/opset2_tbl.hpp"
 #undef _OPENVINO_OP_REG
     });
@@ -133,10 +134,10 @@ const ov::OpSet& ov::get_opset3() {
     static CCOpSet opset("opset3");
     static std::once_flag flag;
     std::call_once(flag, [&]() {
-    using namespace opset;
-    
-#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.get_factory()->registerImplIfRequired(opset_factory, NAME, NAMESPACE::NAME::get_type_info_static(), opset.get_default_builder<NAMESPACE::NAME>()); \
-                                          opset.insert_type_info_only(NAMESPACE::NAME::get_type_info_static().name, NAMESPACE::NAME::get_type_info_static());
+        using namespace opset;
+#define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                    \
+    opset.get_factory()->registerNodeIfRequired(opset_factory, NAME, OV_PP_TOSTRING(NAME), NAMESPACE::NAME); \
+    opset.insert_type_info_only(NAMESPACE::NAME::get_type_info_static().name, NAMESPACE::NAME::get_type_info_static());
 #include "openvino/opsets/opset3_tbl.hpp"
 #undef _OPENVINO_OP_REG
     });
@@ -147,10 +148,10 @@ const ov::OpSet& ov::get_opset4() {
     static CCOpSet opset("opset4");
     static std::once_flag flag;
     std::call_once(flag, [&]() {
-    using namespace opset;
-    
-#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.get_factory()->registerImplIfRequired(opset_factory, NAME, NAMESPACE::NAME::get_type_info_static(), opset.get_default_builder<NAMESPACE::NAME>()); \
-                                          opset.insert_type_info_only(NAMESPACE::NAME::get_type_info_static().name, NAMESPACE::NAME::get_type_info_static());
+        using namespace opset;
+#define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                    \
+    opset.get_factory()->registerNodeIfRequired(opset_factory, NAME, OV_PP_TOSTRING(NAME), NAMESPACE::NAME); \
+    opset.insert_type_info_only(NAMESPACE::NAME::get_type_info_static().name, NAMESPACE::NAME::get_type_info_static());
 #include "openvino/opsets/opset4_tbl.hpp"
 #undef _OPENVINO_OP_REG
     });
@@ -161,10 +162,10 @@ const ov::OpSet& ov::get_opset5() {
     static CCOpSet opset("opset5");
     static std::once_flag flag;
     std::call_once(flag, [&]() {
-    using namespace opset;
-    
-#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.get_factory()->registerImplIfRequired(opset_factory, NAME, NAMESPACE::NAME::get_type_info_static(), opset.get_default_builder<NAMESPACE::NAME>()); \
-                                          opset.insert_type_info_only(NAMESPACE::NAME::get_type_info_static().name, NAMESPACE::NAME::get_type_info_static());
+        using namespace opset;
+#define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                    \
+    opset.get_factory()->registerNodeIfRequired(opset_factory, NAME, OV_PP_TOSTRING(NAME), NAMESPACE::NAME); \
+    opset.insert_type_info_only(NAMESPACE::NAME::get_type_info_static().name, NAMESPACE::NAME::get_type_info_static());
 #include "openvino/opsets/opset5_tbl.hpp"
 #undef _OPENVINO_OP_REG
     });
@@ -175,11 +176,11 @@ const ov::OpSet& ov::get_opset6() {
     static CCOpSet opset("opset6");
     static std::once_flag flag;
     std::call_once(flag, [&]() {
-    using namespace opset;
-    using namespace opset;
-    
-#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.get_factory()->registerImplIfRequired(opset_factory, NAME, NAMESPACE::NAME::get_type_info_static(), opset.get_default_builder<NAMESPACE::NAME>()); \
-                                          opset.insert_type_info_only(NAMESPACE::NAME::get_type_info_static().name, NAMESPACE::NAME::get_type_info_static());
+        using namespace opset;
+#define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                    \
+    opset.get_factory()->registerNodeIfRequired(opset_factory, NAME, OV_PP_TOSTRING(NAME), NAMESPACE::NAME); \
+    opset.insert_type_info_only(NAMESPACE::NAME::get_type_info_static().name, NAMESPACE::NAME::get_type_info_static());
+#include "openvino/opsets/opset6_tbl.hpp"
 #undef _OPENVINO_OP_REG
     });
     return opset;
@@ -189,10 +190,10 @@ const ov::OpSet& ov::get_opset7() {
     static CCOpSet opset("opset7");
     static std::once_flag flag;
     std::call_once(flag, [&]() {
-    using namespace opset;
-    
-#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.get_factory()->registerImplIfRequired(opset_factory, NAME, NAMESPACE::NAME::get_type_info_static(), opset.get_default_builder<NAMESPACE::NAME>()); \
-                                          opset.insert_type_info_only(NAMESPACE::NAME::get_type_info_static().name, NAMESPACE::NAME::get_type_info_static());
+        using namespace opset;
+#define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                    \
+    opset.get_factory()->registerNodeIfRequired(opset_factory, NAME, OV_PP_TOSTRING(NAME), NAMESPACE::NAME); \
+    opset.insert_type_info_only(NAMESPACE::NAME::get_type_info_static().name, NAMESPACE::NAME::get_type_info_static());
 #include "openvino/opsets/opset7_tbl.hpp"
 #undef _OPENVINO_OP_REG
     });
@@ -203,10 +204,10 @@ const ov::OpSet& ov::get_opset8() {
     static CCOpSet opset("opset8");
     static std::once_flag flag;
     std::call_once(flag, [&]() {
-    using namespace opset;
-    
-#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.get_factory()->registerImplIfRequired(opset_factory, NAME, NAMESPACE::NAME::get_type_info_static(), opset.get_default_builder<NAMESPACE::NAME>()); \
-                                          opset.insert_type_info_only(NAMESPACE::NAME::get_type_info_static().name, NAMESPACE::NAME::get_type_info_static());
+        using namespace opset;
+#define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                    \
+    opset.get_factory()->registerNodeIfRequired(opset_factory, NAME, OV_PP_TOSTRING(NAME), NAMESPACE::NAME); \
+    opset.insert_type_info_only(NAMESPACE::NAME::get_type_info_static().name, NAMESPACE::NAME::get_type_info_static());
 #include "openvino/opsets/opset8_tbl.hpp"
 #undef _OPENVINO_OP_REG
     });
@@ -217,10 +218,10 @@ const ov::OpSet& ov::get_opset9() {
     static CCOpSet opset("opset9");
     static std::once_flag flag;
     std::call_once(flag, [&]() {
-    using namespace opset;
-    
-#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.get_factory()->registerImplIfRequired(opset_factory, NAME, NAMESPACE::NAME::get_type_info_static(), opset.get_default_builder<NAMESPACE::NAME>()); \
-                                          opset.insert_type_info_only(NAMESPACE::NAME::get_type_info_static().name, NAMESPACE::NAME::get_type_info_static());
+        using namespace opset;
+#define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                    \
+    opset.get_factory()->registerNodeIfRequired(opset_factory, NAME, OV_PP_TOSTRING(NAME), NAMESPACE::NAME); \
+    opset.insert_type_info_only(NAMESPACE::NAME::get_type_info_static().name, NAMESPACE::NAME::get_type_info_static());
 #include "openvino/opsets/opset9_tbl.hpp"
 #undef _OPENVINO_OP_REG
     });

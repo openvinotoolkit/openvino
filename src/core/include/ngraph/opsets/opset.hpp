@@ -29,7 +29,7 @@ public:
     NGRAPH_DEPRECATED("This method is deprecated and will be removed in 2023.1.")
     void insert(const std::string& name, const NodeTypeInfo& type_info, FactoryRegistry<Node>::Factory factory) {
         NGRAPH_SUPPRESS_DEPRECATED_START
-        return ov::OpSet::insert(name, type_info, std::move(factory));
+        return ov::OpSet::insert(name, type_info, factory);
         NGRAPH_SUPPRESS_DEPRECATED_END
     }
     /// \brief Insert OP_TYPE into the opset with a special name and the default factory
