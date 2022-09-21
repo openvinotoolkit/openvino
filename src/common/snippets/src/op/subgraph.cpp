@@ -16,7 +16,7 @@
 #include "snippets/pass/vector_to_scalar.hpp"
 #include "snippets/pass/transform_convert.hpp"
 #include "snippets/pass/insert_convert.hpp"
-#include "snippets/pass/reset_type_relaxed_node_precision.hpp"
+#include "snippets/pass/align_element_type.hpp"
 #include "snippets/utils.hpp"
 
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -294,21 +294,15 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
                 body_results[i]->get_input_node_shared_ptr(0), needed_out_type);
         body_results[i]->set_argument(0, convert);
     }
-
-    // After Convert insertion we should make the following steps:
-    //      - insert ConvertSaturation after inputs and scalar to start aligning of exec data type inside body
-    //      - manually set output element types of type relaxed nodes to align element type inside subgraph body
-    //      - after Convert insertion on inputs and after scalars we should use ConstantFolding pass to convert
-    //        element type of Scalars before inference
-    //      - eliminate redundant Convert that could have been inserted
-    // To avoid element type conflicts for TypeRelaxed nodes on inputs, firstly we disabled Validate pass for
-    // InsertConvertOnInputs pass and then ResetTypeRelaxedNodePrecision propogates correctly element type for all nodes
+    // We should align element type inside body using the corresponding pass:
+    //  - Insert Convert before operations that doesn't support original element type for execution
+    //  - Insert reverse Convert before operations that support original element type
+    //    but have inputs that doesn't support it (because before them will be inserted Convert with exec_type - first point)
+    // Then we should use ConstantFolding pass to convert element type of Scalars before inference.
+    // At the end eliminate redundant Convert that could be inserted
     ngraph::pass::Manager manager;
-    manager.set_per_pass_validation(false);
-    manager.register_pass<snippets::pass::InsertConvertOnInputs>(execution_element_type);
-    manager.register_pass<snippets::pass::ResetTypeRelaxedNodePrecision>(execution_element_type);
+    manager.register_pass<snippets::pass::AlignElementType>(execution_element_type);
     manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::Validate>();
     manager.register_pass<ngraph::pass::EliminateConvert>();
     manager.run_passes(m_body);
 }

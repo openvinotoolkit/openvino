@@ -69,7 +69,6 @@ CommonOptimizations::CommonOptimizations() {
         manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertTruncation>();
         if (is_quantized) {
             manager.register_pass<ngraph::snippets::pass::CommonFakeQuantizeDecomposition>();
-            manager.register_pass<ngraph::snippets::pass::InsertReverseConvert>();
         }
         manager.run_passes(body);
 
