@@ -1753,6 +1753,16 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
     are_shapes_specified_through_input = False
     inputs_list = list()
     if argv_input:
+        range_reg = r'([0-9]*\.\.[0-9]*)'
+        first_digit_reg = r'([0-9]+|-1|\?|{})'.format(range_reg)
+        next_digits_reg = r'(,{})+'.format(first_digit_reg)
+        brackets_reg = r'(.*\[{}{}\].*)'.format(first_digit_reg, next_digits_reg,
+                                                      first_digit_reg, next_digits_reg)
+        if re.match(brackets_reg, argv_input):
+            raise Error('Error in input {}. Shape with comma separator is not supported in --input param. '
+                        'Please use shape syntax with whitespace separator. Example --input="data[1 3 100 100]".'.format(
+                argv_input))
+
         for input_value in argv_input.split(','):
             node_name, shape, _, data_type = parse_input_value(input_value)
             placeholder_shapes[node_name] = shape
