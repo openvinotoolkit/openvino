@@ -4,6 +4,7 @@
 #include "snippets_mark_skipped.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/utils.hpp"
 #include <ngraph/opsets/opset1.hpp>
 #include <utils/general_utils.h>
 #include <utils/cpu_utils.hpp>
@@ -232,11 +233,11 @@ bool isSuitablePoolChild(const std::shared_ptr<const Node> &node) {
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
     return is_suitable_node && has_only_child;
 }
-bool isSuitableChildForFusingSimple(const std::shared_ptr<const Node> &node, int channelAxis = DEFAULT_AXIS) {
+bool isSuitableChildForFusingSimple(const std::shared_ptr<const Node> &node, const int channelAxis = DEFAULT_AXIS) {
     // Note: Fusing child is allowed to have several users, but that must be the end of the chain
     return SupportsFusingWithConvolution_Simple(node, channelAxis) && getNumNonConstInputs(node) == 1;
 }
-bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, const bool canMatMulBeExecutedInI8, NodeFusingType &updatedChainType) {
+bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, const bool canMatMulBeExecutedInI8, NodeFusingType &updatedChainType, int& fusingAxis) {
     int num_non_const_inputs = 0;
     bool can_be_converted_to_FC = false;
     ov::Shape bias_shape;
@@ -267,67 +268,66 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
     if (num_non_const_inputs != 1)
         return false;
 
+    // Matmul / FC bias fusion
+    if (ov::is_type<ngraph::opset1::Add>(node) &&
+        bias_shape.back() == matmul_shape.back() &&
+        bias_shape.back() == shape_size(bias_shape)) {
+        return true;
+    }
+
     // FuseMatMulAndSimpleOperation or FuseFullyConnectedAndSimpleOperation
     // Invoke SupportsFusingWithConvolution_Simple directly instead of isSuitableChildForFusingSimple to
     // eliminate getNumNonConstInputs() check
-    int fusingAxis = can_be_converted_to_FC ? (matmul_shape.size() == 3 ? 2 : 1) : matmul_shape.size() - 1;
+    fusingAxis = can_be_converted_to_FC ? (matmul_shape.size() == 3 ? 2 : 1) : matmul_shape.size() - 1;
     if (SupportsFusingWithConvolution_Simple(node, fusingAxis)) {
         updatedChainType = NodeFusingType::FusedWithMisc;
         return true;
     }
 
-    // canFuse() from MatMul for case with rank > 2
-    // Algorithm::EltwisePowerStatic is ignored
-    if (!can_be_converted_to_FC &&
-        node->get_output_shape(0).size() > 2) {
-        if (ov::is_type<ov::op::v1::Add>(node) ||
-            ov::is_type<ov::op::v1::Multiply>(node) ||
-            ov::is_type<ov::op::v1::Subtract>(node) ||
-            ov::is_type<ov::op::v1::Divide>(node) ||
-            ov::is_type<ov::op::v0::PRelu>(node)) {
-            const auto const1 = ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0));
-            const auto const2 = ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));
-            int constPort = -1;
-            if (const2) {
-                constPort = 1;
-            } else if (const1) {
-                constPort = 0;
-            }
+    // MatMul specific checks from ::canFuse()
+    if (!can_be_converted_to_FC) {
+        // can with rank() > 2
+        // Algorithm::EltwisePowerStatic is ignored
+        if (node->get_output_shape(0).size() > 2) {
+            if (ov::is_type<ov::op::v1::Add>(node) ||
+                ov::is_type<ov::op::v1::Multiply>(node) ||
+                ov::is_type<ov::op::v1::Subtract>(node) ||
+                ov::is_type<ov::op::v1::Divide>(node) ||
+                ov::is_type<ov::op::v0::PRelu>(node)) {
+                const auto const1 = ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0));
+                const auto const2 = ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));
+                int constPort = -1;
+                if (const2) {
+                    constPort = 1;
+                } else if (const1) {
+                    constPort = 0;
+                }
 
-            if (constPort != -1) {
-                auto const_shape = node->get_input_shape(constPort);
-                if (ov::shape_size(const_shape) != 1) {
+                if (constPort != -1) {
+                    auto const_shape = node->get_input_shape(constPort);
+                    if (ov::shape_size(const_shape) != 1) {
+                        return false;
+                    }
+                }
+            } else if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
+                const bool is_per_tensor_broadcasting = ngraph::snippets::utils::is_scalar_constant(node->get_input_node_shared_ptr(1)) &&
+                                                        ngraph::snippets::utils::is_scalar_constant(node->get_input_node_shared_ptr(2)) &&
+                                                        ngraph::snippets::utils::is_scalar_constant(node->get_input_node_shared_ptr(3)) &&
+                                                        ngraph::snippets::utils::is_scalar_constant(node->get_input_node_shared_ptr(4));
+                if (!is_per_tensor_broadcasting) {
                     return false;
                 }
             }
-        } else if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
-            const bool is_per_tensor_broadcasting = ngraph::snippets::op::is_scalar_constant(node->get_input_node_shared_ptr(1)) &&
-                                                    ngraph::snippets::op::is_scalar_constant(node->get_input_node_shared_ptr(2)) &&
-                                                    ngraph::snippets::op::is_scalar_constant(node->get_input_node_shared_ptr(3)) &&
-                                                    ngraph::snippets::op::is_scalar_constant(node->get_input_node_shared_ptr(4));
-            if (!is_per_tensor_broadcasting) {
+        }
+
+        // specific case for FQ
+        if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
+            if (one_of(node->get_output_element_type(0), ov::element::i8, ov::element::u8) && canMatMulBeExecutedInI8) {
                 return false;
             }
         }
     }
 
-    //    FullyConnectedBiasFusion
-    if (!(can_be_converted_to_FC && ov::is_type<ngraph::opset1::Add>(node) &&
-        bias_shape.back() == matmul_shape.back() &&
-        bias_shape.back() == shape_size(bias_shape))) {
-        return false;
-    }
-
-    // canFuse() for FQ
-    if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
-        if (one_of(node->get_output_element_type(0), ov::element::i8, ov::element::u8) && canMatMulBeExecutedInI8) {
-            return false;
-        }
-    }
-
-    // Fusing chain must be interrupted after the node, since reshape will be inserted
-    if (bias_shape.size() >= 2)
-        updatedChainType = NodeFusingType::FusedTerminator;
     return true;
 }
 bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node> &node) {
@@ -381,7 +381,7 @@ bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node> &n
 bool isSuitableChildForFusingSumActivation(const std::shared_ptr<const Node> &node) {
     return SupportsFusingWithConvolution_SumActivation(node);
 }
-bool isSuitableReduceChild(const std::shared_ptr<const Node> &node, int channelAxis = DEFAULT_AXIS) {
+bool isSuitableReduceChild(const std::shared_ptr<const Node> &node, const int channelAxis = DEFAULT_AXIS) {
     return node->get_output_element_type(0) == ov::element::f32 && isSuitableChildForFusingSimple(node, channelAxis);
 }
 // Continue fusing chain of the passed type if the node has one child
@@ -475,7 +475,7 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
                     const bool isExecutedInINT8 = fusingChainType == NodeFusingType::FusedWithMatMulI8;
                     // Handle fusings for both MatMul and FullyConnected
                     NodeFusingType updatedChainType = fusingChainType;
-                    if (isSuitableChildForFusingMatMul(node, isExecutedInINT8, updatedChainType))
+                    if (isSuitableChildForFusingMatMul(node, isExecutedInINT8, updatedChainType, channelAxis))
                         PropagateIfHasOnlyChild(node, updatedChainType);
                 } else if (fusingChainType == NodeFusingType::IgnoredAfterInputs && (snippets::pass::AppropriateForSubgraph(node) ||
                             ov::is_type<ngraph::op::v0::Convert>(node) || ov::is_type<ngraph::op::v1::Transpose>(node))) {
