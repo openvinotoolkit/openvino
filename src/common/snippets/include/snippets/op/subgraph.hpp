@@ -136,10 +136,6 @@ static inline std::ostream& operator<<(std::ostream& os, const op::Subgraph::Blo
     return os;
 }
 
-static inline auto is_scalar_constant(const std::shared_ptr<ngraph::Node>& source_output_node) -> bool {
-    return ngraph::is_type<ngraph::opset1::Constant>(source_output_node) && ngraph::shape_size(source_output_node->get_shape()) == 1;
-};
-
 static inline auto create_body(std::string name, const ngraph::ResultVector& results, const ngraph::ParameterVector& parameters) ->
     std::shared_ptr<ov::Model> {
     auto body = std::make_shared<ov::Model>(results, parameters, name);
