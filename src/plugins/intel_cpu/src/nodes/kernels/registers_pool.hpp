@@ -7,6 +7,7 @@
 #include "cpu/x64/jit_generator.hpp"
 #include <dnnl_types.h>
 #include "ie_common.h"
+#include "utils/cpu_utils.hpp"
 #include <utility>
 
 namespace ov {
@@ -44,13 +45,7 @@ public:
     class Reg {
         friend class RegistersPool;
     public:
-        Reg() {
-            static_assert(std::is_same<TReg, Xbyak::Xmm>::value || std::is_same<TReg, Xbyak::Ymm>::value || std::is_same<TReg, Xbyak::Zmm>::value ||
-                          std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
-                          std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Reg64>::value ||
-                          std::is_same<TReg, Xbyak::Opmask>::value,
-                          "The type is not supported for the RegistersPool::Reg template");
-        }
+        Reg() {}
         Reg(const RegistersPool::Ptr& regPool) { initialize(regPool); }
         Reg(const RegistersPool::Ptr& regPool, int requestedIdx) { initialize(regPool, requestedIdx); }
         ~Reg() { release(); }
@@ -85,6 +80,10 @@ public:
         }
 
         void initialize(const RegistersPool::Ptr& pool, int requestedIdx = anyIdx) {
+            static_assert(is_any_of<TReg, Xbyak::Xmm, Xbyak::Ymm, Xbyak::Zmm,
+                                  Xbyak::Reg8, Xbyak::Reg16, Xbyak::Reg32, Xbyak::Reg64, Xbyak::Opmask>::value,
+                          "Unsupported TReg by RegistersPool::Reg. Please, use the following Xbyak registers either "
+                          "Reg8, Reg16, Reg32, Reg64, Xmm, Ymm, Zmm or Opmask");
             release();
             reg = TReg(pool->template getFree<TReg>(requestedIdx));
             regPool = pool;
@@ -102,9 +101,15 @@ public:
     template <x64::cpu_isa_t isa>
     static Ptr create(std::initializer_list<Xbyak::Reg> regsToExclude);
 
+    static Ptr create(x64::cpu_isa_t isa, std::initializer_list<Xbyak::Reg> regsToExclude);
+
     template<typename TReg>
     size_t countFree() const {
-        if (std::is_same<TReg, Xbyak::Xmm>::value || std::is_same<TReg, Xbyak::Ymm>::value || std::is_same<TReg, Xbyak::Zmm>::value) {
+        static_assert(is_any_of<TReg, Xbyak::Xmm, Xbyak::Ymm, Xbyak::Zmm,
+                              Xbyak::Reg8, Xbyak::Reg16, Xbyak::Reg32, Xbyak::Reg64, Xbyak::Opmask>::value,
+                      "Unsupported TReg by RegistersPool::Reg. Please, use the following Xbyak registers either "
+                      "Reg8, Reg16, Reg32, Reg64, Xmm, Ymm, Zmm or Opmask");
+        if (std::is_base_of<Xbyak::Mmx, TReg>::value) {
             return simdSet.countUnused();
         } else if (std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
                    std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Reg64>::value) {
@@ -211,13 +216,7 @@ protected:
 private:
     template<typename TReg>
     int getFree(int requestedIdx) {
-        static_assert(std::is_same<TReg, Xbyak::Xmm>::value || std::is_same<TReg, Xbyak::Ymm>::value || std::is_same<TReg, Xbyak::Zmm>::value ||
-                      std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
-                      std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Reg64>::value ||
-                      std::is_same<TReg, Xbyak::Opmask>::value,
-                      "Unsupported TReg by RegistersPool. Please, use the following Xbyak registers either "
-                      "Reg8, Reg16, Reg32, Reg64, Xmm, Ymm, Zmm or Opmask");
-        if (std::is_same<TReg, Xbyak::Xmm>::value || std::is_same<TReg, Xbyak::Ymm>::value || std::is_same<TReg, Xbyak::Zmm>::value) {
+        if (std::is_base_of<Xbyak::Mmx, TReg>::value) {
             auto idx = simdSet.getUnused(requestedIdx);
             simdSet.setAsUsed(idx);
             return idx;
@@ -233,7 +232,7 @@ private:
 
     template<typename TReg>
     void returnToPool(const TReg& reg) {
-        if (std::is_same<TReg, Xbyak::Xmm>::value || std::is_same<TReg, Xbyak::Ymm>::value || std::is_same<TReg, Xbyak::Zmm>::value) {
+        if (std::is_base_of<Xbyak::Mmx, TReg>::value) {
             simdSet.setAsUnused(reg.getIdx());
         } else if (std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
                    std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Reg64>::value) {
@@ -299,11 +298,6 @@ protected:
     PhysicalSet opmaskSet {8};
 };
 
-template <x64::cpu_isa_t isa>
-RegistersPool::Ptr RegistersPool::create(std::initializer_list<Xbyak::Reg> regsToExclude) {
-    return std::make_shared<IsaRegistersPool<isa>>(regsToExclude);
-}
-
 template <>
 class IsaRegistersPool<x64::avx512_core_vnni> : public IsaRegistersPool<x64::avx512_core> {
 public:
@@ -317,6 +311,27 @@ public:
     IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude) : IsaRegistersPool<x64::avx512_core>(regsToExclude) {}
     IsaRegistersPool() : IsaRegistersPool<x64::avx512_core>() {}
 };
+
+template <x64::cpu_isa_t isa>
+RegistersPool::Ptr RegistersPool::create(std::initializer_list<Xbyak::Reg> regsToExclude) {
+    return std::make_shared<IsaRegistersPool<isa>>(regsToExclude);
+}
+
+inline
+RegistersPool::Ptr RegistersPool::create(x64::cpu_isa_t isa, std::initializer_list<Xbyak::Reg> regsToExclude) {
+#define ISA_SWITCH_CASE(isa) case isa: return std::make_shared<IsaRegistersPool<isa>>(regsToExclude);
+    switch (isa) {
+        ISA_SWITCH_CASE(x64::sse41)
+        ISA_SWITCH_CASE(x64::avx)
+        ISA_SWITCH_CASE(x64::avx2)
+        ISA_SWITCH_CASE(x64::avx2_vnni)
+        ISA_SWITCH_CASE(x64::avx512_core)
+        ISA_SWITCH_CASE(x64::avx512_core_vnni)
+        ISA_SWITCH_CASE(x64::avx512_core_bf16)
+    }
+    IE_THROW() << "Invalid isa argument in RegistersPool::create()";
+#undef ISA_SWITCH_CASE
+}
 
 }   // namespace intel_cpu
 }   // namespace ov
