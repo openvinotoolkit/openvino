@@ -1,4 +1,4 @@
-# Install Intel® Distribution of OpenVINO™ toolkit from Anaconda Cloud {#openvino_docs_install_guides_installing_openvino_conda}
+# Install Intel® Distribution of OpenVINO™ toolkit from Anaconda Cloud
 
 Currently only the following ways are provided to install OpenVINO™:
 
