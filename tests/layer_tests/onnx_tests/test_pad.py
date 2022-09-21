@@ -182,11 +182,11 @@ class TestPad(OnnxRuntimeLayerTest):
                                             ('edge', None)])
     @pytest.mark.nightly
     def test_pad_opset_9(self, params, mode_value, ie_device, precision, ir_version, temp_dir,
-                         api_2):
+                         use_old_api):
         mode, value = mode_value
         self._test(
             *self.create_net(**params, mode=mode, value=value, ir_version=ir_version, opset=9),
-            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+            ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("mode_value", [(None, None),
@@ -197,10 +197,10 @@ class TestPad(OnnxRuntimeLayerTest):
                                             ('edge', None)])
     @pytest.mark.precommit
     def test_pad_opset_latest_precommit(self, params, mode_value, ie_device, precision, ir_version,
-                                        temp_dir, api_2):
+                                        temp_dir, use_old_api):
         mode, value = mode_value
         self._test(*self.create_net(**params, mode=mode, value=value, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("mode_value", [(None, None),
@@ -211,7 +211,7 @@ class TestPad(OnnxRuntimeLayerTest):
                                             ('edge', None)])
     @pytest.mark.nightly
     def test_pad_opset_latest(self, params, mode_value, ie_device, precision, ir_version, temp_dir,
-                              api_2):
+                              use_old_api):
         mode, value = mode_value
         self._test(*self.create_net(**params, mode=mode, value=value, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
