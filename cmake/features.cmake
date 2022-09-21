@@ -45,6 +45,10 @@ ie_option(ENABLE_ERROR_HIGHLIGHT "Highlight errors and warnings during compile t
 
 ie_option (ENABLE_DOCS "Build docs using Doxygen" OFF)
 
+# TODO: fix apple later
+find_package(PkgConfig QUIET)
+ie_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file generation" ON "LINUX;PkgConfig_FOUND;BUILD_SHARED_LIBS" OFF)
+
 #
 # Inference Engine specific options
 #
@@ -93,7 +97,13 @@ ie_option (ENABLE_TEMPLATE "Enable template plugin" ON)
 
 ie_dependent_option (ENABLE_INTEL_MYRIAD_COMMON "common part of myriad plugin" ON "NOT WINDOWS_PHONE;NOT WINDOWS_STORE" OFF)
 
-ie_dependent_option (ENABLE_INTEL_MYRIAD "myriad targeted plugin for inference engine" ON "ENABLE_INTEL_MYRIAD_COMMON" OFF)
+if(UNIVERSAL2)
+    set(ENABLE_INTEL_MYRIAD_DEFAULT OFF)
+else()
+    set(ENABLE_INTEL_MYRIAD_DEFAULT ON)
+endif()
+
+ie_dependent_option (ENABLE_INTEL_MYRIAD "myriad targeted plugin for inference engine" ${ENABLE_INTEL_MYRIAD_DEFAULT} "ENABLE_INTEL_MYRIAD_COMMON" OFF)
 
 ie_dependent_option (ENABLE_MYRIAD_NO_BOOT "myriad plugin will skip device boot" OFF "ENABLE_INTEL_MYRIAD" OFF)
 
@@ -128,7 +138,12 @@ else()
     set(ENABLE_SYSTEM_LIBS_DEFAULT OFF)
 endif()
 
-set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
+if(APPLE AND AARCH64)
+    set(ENABLE_SYSTEM_TBB_DEFAULT ON)
+else()
+    set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
+endif()
+
 if(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR DEFINED TBB_DIR OR DEFINED TBBROOT)
     set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
 endif()
@@ -136,7 +151,7 @@ endif()
 # for static libraries case libpugixml.a must be compiled with -fPIC
 ie_dependent_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" ${ENABLE_SYSTEM_LIBS_DEFAULT} "BUILD_SHARED_LIBS" OFF)
 
-ie_dependent_option (ENABLE_SYSTEM_TBB  "use the system version of TBB" ${ENABLE_SYSTEM_TBB_DEFAULT} "THREADING MATCHES TBB;LINUX" OFF)
+ie_dependent_option (ENABLE_SYSTEM_TBB  "use the system version of TBB" ${ENABLE_SYSTEM_TBB_DEFAULT} "THREADING MATCHES TBB" OFF)
 
 ie_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
 
@@ -151,16 +166,14 @@ else()
 endif()
 
 find_host_package(PythonInterp 3 QUIET)
-ie_dependent_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ${PYTHONINTERP_FOUND} "protoc_available" OFF)
-ie_dependent_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON "protoc_available" OFF)
+ie_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ${PYTHONINTERP_FOUND})
+ie_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON)
 ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
-ie_dependent_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON "protoc_available" OFF)
+ie_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
 ie_dependent_option(ENABLE_SYSTEM_PROTOBUF "Use system protobuf" OFF
     "ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_TF_FRONTEND;BUILD_SHARED_LIBS" OFF)
 
 ie_dependent_option(ENABLE_OV_CORE_UNIT_TESTS "Enables OpenVINO core unit tests" ON "ENABLE_TESTS" OFF)
-ie_dependent_option(ENABLE_OV_CORE_BACKEND_UNIT_TESTS "Control the building of unit tests using backends" ON
-    "ENABLE_OV_CORE_UNIT_TESTS" OFF)
 ie_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
 ie_option(ENABLE_REQUIREMENTS_INSTALL "Dynamic dependencies install" ON)
 
@@ -169,9 +182,6 @@ if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
 else()
     set(FORCE_FRONTENDS_USE_PROTOBUF OFF)
 endif()
-
-# WA for ngraph python build on Windows debug
-list(REMOVE_ITEM IE_OPTIONS ENABLE_OV_CORE_UNIT_TESTS ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
 
 #
 # Process featues

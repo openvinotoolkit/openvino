@@ -5,100 +5,27 @@
 
 #include "common.h"
 
-const std::map<ov_performance_mode_e, ov::hint::PerformanceMode> performance_mode_map = {
-    {ov_performance_mode_e::UNDEFINED_MODE, ov::hint::PerformanceMode::UNDEFINED},
-    {ov_performance_mode_e::THROUGHPUT, ov::hint::PerformanceMode::THROUGHPUT},
-    {ov_performance_mode_e::LATENCY, ov::hint::PerformanceMode::LATENCY},
-    {ov_performance_mode_e::CUMULATIVE_THROUGHPUT, ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT}};
+// Read-only property key
+const char* ov_property_key_supported_properties = "SUPPORTED_PROPERTIES";
+const char* ov_property_key_available_devices = "AVAILABLE_DEVICES";
+const char* ov_property_key_optimal_number_of_infer_requests = "OPTIMAL_NUMBER_OF_INFER_REQUESTS";
+const char* ov_property_key_range_for_async_infer_requests = "RANGE_FOR_ASYNC_INFER_REQUESTS";
+const char* ov_property_key_range_for_streams = "RANGE_FOR_STREAMS";
+const char* ov_property_key_device_full_name = "FULL_DEVICE_NAME";
+const char* ov_property_key_device_capabilities = "OPTIMIZATION_CAPABILITIES";
+const char* ov_property_key_model_name = "NETWORK_NAME";
+const char* ov_property_key_optimal_batch_size = "OPTIMAL_BATCH_SIZE";
+const char* ov_property_key_max_batch_size = "MAX_BATCH_SIZE";
 
-ov_status_e ov_property_create(ov_property_t** property) {
-    if (!property) {
-        return ov_status_e::INVALID_C_PARAM;
-    }
-    try {
-        std::unique_ptr<ov_property_t> _property(new ov_property_t);
-        *property = _property.release();
-    }
-    CATCH_OV_EXCEPTIONS
-    return ov_status_e::OK;
-}
-
-void ov_property_free(ov_property_t* property) {
-    if (property)
-        delete property;
-}
-
-ov_status_e ov_property_put(ov_property_t* property, ov_property_key_e key, ov_property_value_t* value) {
-    if (!property || !value) {
-        return ov_status_e::INVALID_C_PARAM;
-    }
-
-    try {
-        switch (key) {
-        case ov_property_key_e::PERFORMANCE_HINT_NUM_REQUESTS: {
-            uint32_t v = *(static_cast<uint32_t*>(value->ptr));
-            property->object.emplace(ov::hint::num_requests(v));
-            break;
-        }
-        case ov_property_key_e::NUM_STREAMS: {
-            uint32_t v = *(static_cast<uint32_t*>(value->ptr));
-            property->object.emplace(ov::num_streams(v));
-            break;
-        }
-        case ov_property_key_e::PERFORMANCE_HINT: {
-            ov_performance_mode_e m = *(static_cast<ov_performance_mode_e*>(value->ptr));
-            if (m > ov_performance_mode_e::CUMULATIVE_THROUGHPUT) {
-                return ov_status_e::INVALID_C_PARAM;
-            }
-            auto v = performance_mode_map.at(m);
-            property->object.emplace(ov::hint::performance_mode(v));
-            break;
-        }
-        case ov_property_key_e::AFFINITY: {
-            ov_affinity_e v = *(static_cast<ov_affinity_e*>(value->ptr));
-            if (v < ov_affinity_e::NONE || v > ov_affinity_e::HYBRID_AWARE) {
-                return ov_status_e::INVALID_C_PARAM;
-            }
-            ov::Affinity affinity = static_cast<ov::Affinity>(v);
-            property->object.emplace(ov::affinity(affinity));
-            break;
-        }
-        case ov_property_key_e::INFERENCE_NUM_THREADS: {
-            int32_t v = *(static_cast<int32_t*>(value->ptr));
-            property->object.emplace(ov::inference_num_threads(v));
-            break;
-        }
-        case ov_property_key_e::INFERENCE_PRECISION_HINT: {
-            ov_element_type_e v = *(static_cast<ov_element_type_e*>(value->ptr));
-            if (v > ov_element_type_e::U64) {
-                return ov_status_e::INVALID_C_PARAM;
-            }
-
-            ov::element::Type type(static_cast<ov::element::Type_t>(v));
-            property->object.emplace(ov::hint::inference_precision(type));
-            break;
-        }
-        case ov_property_key_e::CACHE_DIR: {
-            char* dir = static_cast<char*>(value->ptr);
-            property->object.emplace(ov::cache_dir(std::string(dir)));
-            break;
-        }
-        default:
-            return ov_status_e::OUT_OF_BOUNDS;
-            break;
-        }
-    }
-    CATCH_OV_EXCEPTIONS
-    return ov_status_e::OK;
-}
-
-void ov_property_value_clean(ov_property_value_t* value) {
-    if (value) {
-        if (value->ptr) {
-            char* temp = static_cast<char*>(value->ptr);
-            delete temp;
-        }
-        value->ptr = nullptr;
-        value->cnt = 0;
-    }
-}
+// Read-write property key
+const char* ov_property_key_cache_dir = "CACHE_DIR";
+const char* ov_property_key_num_streams = "NUM_STREAMS";
+const char* ov_property_key_affinity = "AFFINITY";
+const char* ov_property_key_inference_num_threads = "INFERENCE_NUM_THREADS";
+const char* ov_property_key_hint_performance_mode = "PERFORMANCE_HINT";
+const char* ov_property_key_hint_inference_precision = "INFERENCE_PRECISION_HINT";
+const char* ov_property_key_hint_num_requests = "PERFORMANCE_HINT_NUM_REQUESTS";
+const char* ov_property_key_hint_model_priority = "MODEL_PRIORITY";
+const char* ov_property_key_log_level = "LOG_LEVEL";
+const char* ov_property_key_enable_profiling = "PERF_COUNT";
+const char* ov_property_key_device_priorities = "MULTI_DEVICE_PRIORITIES";

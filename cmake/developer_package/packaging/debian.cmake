@@ -108,6 +108,18 @@ macro(ov_debian_specific_settings)
     # set(CPACK_DEBIAN_PACKAGE_RELEASE "1")
     # enable this if someday we change the version scheme
     # set(CPACK_DEBIAN_PACKAGE_EPOCH "2")
+
+    # temporary WA for debian package architecture for cross-compilation
+    # proper solution: to force cmake auto-detect this
+    if(CMAKE_CROSSCOMPILING)
+        if(AARCH64)
+            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE arm64)
+        elseif(ARM)
+            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE armhf)
+        elseif(x86)
+            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE i386)
+        endif()
+    endif()
 endmacro()
 
 ov_debian_specific_settings()

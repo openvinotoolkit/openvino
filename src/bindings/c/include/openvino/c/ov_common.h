@@ -21,18 +21,22 @@
 
 #if defined(OPENVINO_STATIC_LIBRARY) || defined(__GNUC__) && (__GNUC__ < 4)
 #    define OPENVINO_C_API(...) OPENVINO_C_API_EXTERN __VA_ARGS__
+#    define OPENVINO_C_VAR(...) OPENVINO_C_API_EXTERN __VA_ARGS__
 #    define OV_NODISCARD
 #else
 #    if defined(_WIN32)
 #        define OPENVINO_C_API_CALLBACK __cdecl
 #        ifdef openvino_c_EXPORTS
 #            define OPENVINO_C_API(...) OPENVINO_C_API_EXTERN __declspec(dllexport) __VA_ARGS__ __cdecl
+#            define OPENVINO_C_VAR(...) OPENVINO_C_API_EXTERN __declspec(dllexport) __VA_ARGS__
 #        else
 #            define OPENVINO_C_API(...) OPENVINO_C_API_EXTERN __declspec(dllimport) __VA_ARGS__ __cdecl
+#            define OPENVINO_C_VAR(...) OPENVINO_C_API_EXTERN __declspec(dllimport) __VA_ARGS__
 #        endif
 #        define OV_NODISCARD
 #    else
 #        define OPENVINO_C_API(...) OPENVINO_C_API_EXTERN __attribute__((visibility("default"))) __VA_ARGS__
+#        define OPENVINO_C_VAR(...) OPENVINO_C_API_EXTERN __attribute__((visibility("default"))) __VA_ARGS__
 #        define OV_NODISCARD        __attribute__((warn_unused_result))
 #    endif
 #endif
@@ -71,6 +75,8 @@ typedef enum {
      */
     INVALID_C_PARAM = -14,
     UNKNOWN_C_ERROR = -15,
+    NOT_IMPLEMENT_C_METHOD = -16,
+    UNKNOW_EXCEPTION = -17,
 } ov_status_e;
 
 /**
