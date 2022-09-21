@@ -106,7 +106,7 @@ ngraph::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
             PartialShape scale_shape = input_low.get_partial_shape();
             ngraph::PartialShape::broadcast_merge_into(scale_shape,
                                                        input_high.get_partial_shape(),
-                                                       op::AutoBroadcastType::NUMPY);
+                                                       ov::op::AutoBroadcastType::NUMPY);
             const auto scales =
                 std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, scale_shape.get_shape(), out_scales);
             decomp_ops.push_back(scales);
