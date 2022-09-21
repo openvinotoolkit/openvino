@@ -28,7 +28,7 @@ If you have installed OpenVINO Runtime from archive files, you can uninstall it 
 
   .. code-block:: sh
   
-   `rm /home/<USER>/intel/openvino_2022`
+    rm /home/<USER>/intel/openvino_2022
 
   To delete the files:
 
