@@ -3,9 +3,8 @@
 
 import logging as log
 import numpy as np
-from numpy.ma.core import MaskedArray
 
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension_value
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension_value, unmask_shape
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.middle.passes.infer import partial_infer
 from openvino.tools.mo.ops.op import Op
@@ -138,11 +137,7 @@ class If(Op):
                 .format(output_node.name, port_id)
             outputs_mapping[port_id][branch_name] = output_node
             out_node_shape = output_node.in_port(0).data.get_shape()
-            # dynamic shape
-            if isinstance(out_node_shape, MaskedArray):
-                graph_contain_fake_outputs = False
-            else:
-                graph_contain_fake_outputs = graph_contain_fake_outputs and np.any(out_node_shape == 0)
+            graph_contain_fake_outputs = graph_contain_fake_outputs and np.any(unmask_shape(out_node_shape == 0))
         return graph_contain_fake_outputs
 
     @staticmethod
