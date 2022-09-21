@@ -10,7 +10,6 @@
 
 #include "transformations/utils/utils.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
-#include "snippets/pass/insert_convert.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/itt.hpp"
 

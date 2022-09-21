@@ -15,7 +15,6 @@
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
 #include "snippets/pass/vector_to_scalar.hpp"
 #include "snippets/pass/transform_convert.hpp"
-#include "snippets/pass/insert_convert.hpp"
 #include "snippets/pass/align_element_type.hpp"
 #include "snippets/utils.hpp"
 
