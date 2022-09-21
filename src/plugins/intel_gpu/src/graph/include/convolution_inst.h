@@ -6,6 +6,7 @@
 #pragma once
 #include "intel_gpu/primitives/convolution.hpp"
 #include "primitive_inst.h"
+#include "intel_gpu/runtime/format.hpp"
 
 #include <memory>
 #include <string>
