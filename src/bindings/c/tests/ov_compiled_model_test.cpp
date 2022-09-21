@@ -20,7 +20,7 @@ TEST_P(ov_compiled_model, ov_compiled_model_inputs_size) {
     EXPECT_NE(nullptr, compiled_model);
 
     size_t input_size;
-    OV_ASSERT_OK(ov_compiled_model_inputs_size(compiled_model, &input_size));
+    OV_EXPECT_OK(ov_compiled_model_inputs_size(compiled_model, &input_size));
     ASSERT_NE(0, input_size);
 
     ov_compiled_model_free(compiled_model);
@@ -132,14 +132,14 @@ TEST_P(ov_compiled_model, set_and_get_property) {
 
     const char* key_1 = ov_property_key_device_priorities;
     const char* value_1 = "GPU,CPU";
-    OV_ASSERT_OK(ov_compiled_model_set_property(compiled_model, key_1, value_1));
+    OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, key_1, value_1));
     char* result = nullptr;
-    OV_ASSERT_OK(ov_compiled_model_get_property(compiled_model, key_1, &result));
+    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key_1, &result));
     EXPECT_STREQ(value_1, result);
     ov_free(result);
 
     const char* key_2 = ov_property_key_supported_properties;
-    OV_ASSERT_OK(ov_compiled_model_get_property(compiled_model, key_2, &result));
+    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key_2, &result));
     ov_free(result);
 
     ov_compiled_model_free(compiled_model);
@@ -163,7 +163,7 @@ TEST_P(ov_compiled_model, get_property) {
 
     const char* key = ov_property_key_supported_properties;
     char* result = nullptr;
-    OV_ASSERT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
+    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
     ov_free(result);
 
     ov_compiled_model_free(compiled_model);
@@ -187,7 +187,7 @@ TEST_P(ov_compiled_model, create_compiled_model_with_property) {
     OV_ASSERT_OK(ov_core_compile_model(core, model, device_name.c_str(), 2, &compiled_model, key, num));
     EXPECT_NE(nullptr, compiled_model);
     char* result = nullptr;
-    OV_ASSERT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
+    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
     EXPECT_STREQ(result, "9");
     ov_free(result);
 
@@ -211,7 +211,7 @@ TEST_P(ov_compiled_model, ov_compiled_model_outputs_size) {
     EXPECT_NE(nullptr, compiled_model);
 
     size_t output_size;
-    OV_ASSERT_OK(ov_compiled_model_outputs_size(compiled_model, &output_size));
+    OV_EXPECT_OK(ov_compiled_model_outputs_size(compiled_model, &output_size));
     ASSERT_NE(0, output_size);
 
     ov_compiled_model_free(compiled_model);

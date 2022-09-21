@@ -13,7 +13,7 @@ TEST(ov_model, ov_model_const_input) {
     ASSERT_NE(nullptr, model);
 
     ov_output_const_port_t* input_port = nullptr;
-    OV_ASSERT_OK(ov_model_const_input(model, &input_port));
+    OV_EXPECT_OK(ov_model_const_input(model, &input_port));
     ASSERT_NE(nullptr, input_port);
 
     ov_output_const_port_free(input_port);
@@ -322,10 +322,10 @@ TEST(ov_model, ov_model_reshape_input_by_name) {
 
     ov_partial_shape_t partial_shape;
     OV_ASSERT_OK(ov_shape_to_partial_shape(shape, &partial_shape));
-    OV_ASSERT_OK(ov_model_reshape_input_by_name(model, tensor_name, partial_shape));
+    OV_EXPECT_OK(ov_model_reshape_input_by_name(model, tensor_name, partial_shape));
 
     ov_output_const_port_t* input_port_2 = nullptr;
-    OV_ASSERT_OK(ov_model_const_input(model, &input_port_2));
+    OV_EXPECT_OK(ov_model_const_input(model, &input_port_2));
     ASSERT_NE(nullptr, input_port_2);
 
     EXPECT_NE(input_port_1, input_port_2);

@@ -124,7 +124,7 @@ TEST_P(ov_core, ov_core_compile_model_with_property) {
     ASSERT_NE(nullptr, compiled_model);
 
     char* property_value = nullptr;
-    OV_ASSERT_OK(ov_compiled_model_get_property(compiled_model, key, &property_value));
+    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &property_value));
     EXPECT_STREQ(property_value, "11");
     ov_free(property_value);
 
@@ -177,7 +177,7 @@ TEST_P(ov_core, ov_core_set_property_enum) {
     const char* key = ov_property_key_log_level;
     const char* mode = "WARNING";
 
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, mode));
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, mode));
     ov_core_free(core);
 }
 
@@ -192,12 +192,12 @@ TEST_P(ov_core, ov_core_set_property_invalid_number_property_arguments) {
     const char* key_2 = ov_property_key_hint_performance_mode;
     const char* value_2 = "LATENCY";
 
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key_1, value_1, key_2, value_2));
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key_1, value_1, key_2, value_2));
     char* ret = nullptr;
-    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key_1, &ret));
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_1, &ret));
     EXPECT_STREQ(value_1, ret);
     ov_free(ret);
-    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key_2, &ret));
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_2, &ret));
     EXPECT_STRNE(value_2, ret);
     ov_free(ret);
 
@@ -212,16 +212,16 @@ TEST_P(ov_core, ov_core_set_property_enum_invalid) {
 
     const char* key = ov_property_key_hint_performance_mode;
     const char* mode = "LATENCY";
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, mode));
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, mode));
     char* ret = nullptr;
-    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
     EXPECT_STREQ(mode, ret);
     ov_free(ret);
 
     const char* invalid_mode = "LATENCY_TEST";
     OV_EXPECT_NOT_OK(ov_core_set_property(core, device_name.c_str(), key, invalid_mode));
     ret = nullptr;
-    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
     EXPECT_STRNE(invalid_mode, ret);
     ov_free(ret);
     ov_core_free(core);
@@ -235,17 +235,17 @@ TEST_P(ov_core, ov_core_set_and_get_property_enum) {
 
     const char* key = ov_property_key_affinity;
     const char* affinity = "HYBRID_AWARE";
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, affinity));
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, affinity));
     char* ret = nullptr;
-    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
     EXPECT_STREQ(affinity, ret);
     ov_free(ret);
 
     key = ov_property_key_hint_inference_precision;
     const char* precision = "f32";
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, precision));
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, precision));
     ret = nullptr;
-    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
     EXPECT_STREQ(precision, ret);
     ov_free(ret);
 
@@ -260,10 +260,10 @@ TEST_P(ov_core, ov_core_set_and_get_property_bool) {
 
     const char* key = ov_property_key_enable_profiling;
     const char* enable = "YES";
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, enable));
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, enable));
 
     char* ret = nullptr;
-    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
     EXPECT_STREQ(enable, ret);
     ov_free(ret);
     ov_core_free(core);
@@ -277,7 +277,7 @@ TEST_P(ov_core, ov_core_set_and_get_property_bool_invalid) {
 
     const char* key = ov_property_key_enable_profiling;
     const char* enable = "TEST";
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, enable));
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, enable));
 
     char* ret = nullptr;
     OV_EXPECT_NOT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
@@ -294,7 +294,7 @@ TEST_P(ov_core, ov_core_get_property) {
     ASSERT_NE(nullptr, core);
 
     char* property_value;
-    OV_ASSERT_OK(
+    OV_EXPECT_OK(
         ov_core_get_property(core, device_name.c_str(), ov_property_key_supported_properties, &property_value));
     ov_free(property_value);
     ov_core_free(core);
@@ -309,7 +309,7 @@ TEST_P(ov_core, ov_core_set_get_property_str) {
     const char* key = ov_property_key_cache_dir;
     const char cache_dir[] = "./cache_dir";
 
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, cache_dir));
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, cache_dir));
 
     char* property_value = nullptr;
     OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &property_value));
@@ -327,10 +327,10 @@ TEST_P(ov_core, ov_core_set_get_property_int) {
 
     const char* key = ov_property_key_inference_num_threads;
     const char* num = "8";
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, num));
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, num));
 
     char* property_value = nullptr;
-    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &property_value));
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &property_value));
     EXPECT_STREQ(num, property_value);
     ov_free(property_value);
 
@@ -344,7 +344,7 @@ TEST_P(ov_core, ov_core_set_property_int_invalid) {
     ASSERT_NE(nullptr, core);
 
     const char* key = ov_property_key_inference_num_threads;
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key, "abc"));
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, "abc"));
 
     char* ret = nullptr;
     OV_EXPECT_NOT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
@@ -362,40 +362,40 @@ TEST_P(ov_core, ov_core_set_multiple_common_properties) {
     // Test enum
     const char* key_1 = ov_property_key_hint_performance_mode;
     const char* value_1 = "THROUGHPUT";
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key_1, value_1));
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key_1, value_1));
 
     char* property_value_1 = nullptr;
-    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key_1, &property_value_1));
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_1, &property_value_1));
     EXPECT_STREQ(property_value_1, value_1);
     ov_free(property_value_1);
 
     // Test string
     const char* key_2 = ov_property_key_cache_dir;
     const char cache_dir[] = "./cache_dir";
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key_2, cache_dir));
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key_2, cache_dir));
 
     char* property_value_2 = nullptr;
-    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key_2, &property_value_2));
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_2, &property_value_2));
     EXPECT_STREQ(property_value_2, cache_dir);
     ov_free(property_value_2);
 
     // Test int32
     const char* key_3 = ov_property_key_hint_num_requests;
     const char* num = "8";
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key_3, num));
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key_3, num));
 
     char* property_value_3 = nullptr;
-    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key_3, &property_value_3));
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_3, &property_value_3));
     EXPECT_STREQ(property_value_3, num);
     ov_free(property_value_3);
 
     // Test bool
     const char* key_4 = ov_property_key_enable_profiling;
     const char* enable = "YES";
-    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), key_4, enable));
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key_4, enable));
 
     char* property_value_4 = nullptr;
-    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key_4, &property_value_4));
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_4, &property_value_4));
     EXPECT_STREQ(property_value_4, "YES");
     ov_free(property_value_4);
     ov_core_free(core);
