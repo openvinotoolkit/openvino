@@ -133,7 +133,14 @@ int main(int argc, char *argv[]) {
 
     std::vector<std::string> local_cache_dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_local_cache);
     std::vector<std::string> dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
-    auto models = findModelsInDirs(dirs);
+
+    std::vector<SubgraphsDumper::Model> models;
+    try {
+        models = findModelsInDirs(dirs);
+    } catch (std::runtime_error& e) {
+        std::cout << "Try 'subgraphdumper -h' for more information" << std::endl;
+        return 1;
+    }
 
     auto cache = SubgraphsDumper::OPCache::make_cache();
     if (!FLAGS_local_cache.empty()) {
