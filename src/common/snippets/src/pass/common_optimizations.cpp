@@ -64,7 +64,6 @@ CommonOptimizations::CommonOptimizations() {
 
         // Firsly we should transform all original Converts inside body to ConvertTruncation to save original behavior.
         // Then if Subgraph contains FakeQuantize we enable specific transformation for quantized subgraphs.
-        // Also we have to insert reverse converts after ConvertSaturation (after FQ decompoisition) to return FP32 calculation inside body
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertTruncation>();
         if (is_quantized) {
