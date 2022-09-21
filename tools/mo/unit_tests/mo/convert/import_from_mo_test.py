@@ -8,10 +8,10 @@ from generator import generator, generate
 from openvino.runtime import serialize
 
 from openvino.tools.mo import InputCutInfo, LayoutMap
-from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
-from utils import create_onnx_model, save_to_onnx
 from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
-from unit_tests.utils.graph import build_graph, fake_const, shaped_const_with_data
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
+from unit_tests.utils.graph import build_graph
+from utils import create_onnx_model, save_to_onnx
 
 
 @generator
