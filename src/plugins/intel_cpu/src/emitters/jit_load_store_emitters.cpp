@@ -19,9 +19,9 @@ namespace ov {
 namespace intel_cpu {
 
 // heuristic threshold number by byte between mask load and emulation with several simple partial load
-const int threhold_for_mask_emu_load = 14;
+const int threshold_for_mask_emu_load = 14;
 // heuristic threshold number by byte between mask store and emulation with several simple partial store
-const int threhold_for_mask_emu_store = 6;
+const int threshold_for_mask_emu_store = 6;
 
 size_t load_emitter_params::hash() const {
     size_t seed = 0;
@@ -299,7 +299,7 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
             h->uni_vmovdqu(xmm, addr(0));
             break;
         default: {
-            if (mayiuse(cpu::x64::avx512_core) && load_size > threhold_for_mask_emu_load) {
+            if (mayiuse(cpu::x64::avx512_core) && load_size > threshold_for_mask_emu_load) {
                 uint64_t mask = 1;
                 mask = (mask << load_size) - mask;
                 h->mov(Reg64(aux_gpr_idxs[0]), mask);
@@ -385,7 +385,7 @@ void jit_load_emitter::load_bytes_to_dword_extension(const Vmm &vmm, const Xbyak
             break;
         }
         default: {
-            if (is_zmm && load_size > threhold_for_mask_emu_load) {
+            if (is_zmm && load_size > threshold_for_mask_emu_load) {
                 unsigned int mask = 1;
                 mask = (mask << load_size) - mask;
                 h->mov(Reg32(aux_gpr_idxs[0]), mask);
@@ -492,7 +492,7 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm &vmm, const Xbyak
             break;
         }
         default: {
-            if (is_zmm && load_size > threhold_for_mask_emu_load) {
+            if (is_zmm && load_size > threshold_for_mask_emu_load) {
                 unsigned int mask = 1;
                 mask = (mask << (load_size / 2)) - mask;
                 h->mov(Reg32(aux_gpr_idxs[0]), mask);
@@ -839,7 +839,7 @@ void jit_store_emitter::store_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int
             h->uni_vmovdqu(addr(0), xmm);
             break;
         default:
-            if (mayiuse(cpu::x64::avx512_core) && store_size > threhold_for_mask_emu_store) {
+            if (mayiuse(cpu::x64::avx512_core) && store_size > threshold_for_mask_emu_store) {
                 uint64_t mask = 1;
                 mask = (mask << store_size) - mask;
                 h->mov(Reg64(aux_gpr_idxs[0]), mask);
@@ -980,7 +980,7 @@ void jit_store_emitter::store_dword_to_byte_extension(const Vmm &vmm, const Xbya
         }
         break;
     default:
-        if (is_zmm && store_num > threhold_for_mask_emu_store) {  // avx512F
+        if (is_zmm && store_num > threshold_for_mask_emu_store) {  // avx512F
             unsigned int mask = 1;
             mask = (mask << store_num) - mask;
             h->mov(Reg32(aux_gpr_idxs[0]), mask);
@@ -1155,7 +1155,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Vmm &vmm, const Xbya
             }
             break;
         default:
-            if (is_zmm && ((store_num * 2) > threhold_for_mask_emu_store)) {
+            if (is_zmm && ((store_num * 2) > threshold_for_mask_emu_store)) {
                 unsigned int mask = 1;
                 mask = (mask << store_num) - mask;
                 h->mov(Reg32(aux_gpr_idxs[0]), mask);
