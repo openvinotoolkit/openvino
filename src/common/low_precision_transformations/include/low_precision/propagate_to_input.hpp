@@ -47,26 +47,70 @@ public:
 
             {
                 OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "PropagateToInput");
-
-                for (auto input : node->inputs()) {
-                    auto parentAttribute = getSourceOutputAttribute(input, defaultPrecisions);
-                    if (parentAttribute == nullptr) {
+                std::vector<std::vector<size_t>> groups;
+                for (size_t fst_idx = 0ul; fst_idx < node->get_input_size(); ++fst_idx) {
+                    groups.push_back(std::vector<size_t>{fst_idx});
+                    const Input<Node>& fst_input = node->input(fst_idx);
+                    const auto attribute_1 = getAttribute<AttributeType>(fst_input);
+                    if (attribute_1.empty())
                         continue;
+                    if ((attribute_1.template as<AttributeType>().attribute->sharedValue != nullptr) &&
+                        (attribute_1.template as<AttributeType>().value().empty())) {
+                        return false;
                     }
 
-                    auto attribute = getAttribute<AttributeType>(input);
-                    if (!attribute.empty()) {
-                        if ((attribute.template as<AttributeType>().attribute->sharedValue != nullptr) &&
-                            (attribute.template as<AttributeType>().value().empty())) {
+                    size_t count = 0;
+                    for (size_t sec_idx = fst_idx + 1; sec_idx < node->get_input_size(); ++sec_idx) {
+                        const Input<Node>& sec_input = node->input(sec_idx);
+                        const auto attribute_2 = getAttribute<AttributeType>(sec_input);
+                        if (attribute_2.empty())
+                            continue;
+                        if ((attribute_2.template as<AttributeType>().attribute->sharedValue != nullptr) &&
+                            (attribute_2.template as<AttributeType>().value().empty())) {
                             return false;
                         }
 
-                        std::vector<ov::Any> attributes = { attribute };
-                        parentAttribute.template as<AttributeType>().merge(attributes);
+                        if (attribute_1.template as<AttributeType>().attribute->sharedValue ==
+                            attribute_2.template as<AttributeType>().attribute->sharedValue) {
+                            groups[fst_idx].push_back(sec_idx);
+                            ++count;
+                        }
+                    }
+                    fst_idx += count;
+                }
+
+                for (const auto& group : groups) {
+                    ov::Any res_attr;
+                    auto input_attr = getAttribute<AttributeType>(node->input(group[0]));
+                    if (!input_attr.empty())
+                        res_attr = input_attr;
+
+                    for (const auto idx : group) {
+                        auto parentAttribute = getSourceOutputAttribute(node->input(idx), defaultPrecisions);
+                        if (parentAttribute == nullptr)
+                            continue;
+
+                        if (res_attr.empty()) {
+                            res_attr = parentAttribute;
+                        } else {
+                            std::vector<ov::Any> toMerge = {parentAttribute};
+                            res_attr.template as<AttributeType>().merge(toMerge);
+
+                            auto& attributes =
+                                parentAttribute.template as<AttributeType>().attribute->sharedValue->getAttributes();
+                            for (auto&& attributeWeakPtr : attributes) {
+                                auto attribute = attributeWeakPtr.lock();
+                                if (attribute == nullptr)
+                                    continue;
+                                attribute->sharedValue = res_attr.template as<AttributeType>().attribute->sharedValue;
+                                res_attr.template as<AttributeType>().attribute->sharedValue->addAttribute(attribute);
+                            }
+                        }
                     }
 
-                    auto& rt = input.get_rt_info();
-                    rt[AttributeType::get_type_info_static()] = parentAttribute;
+                    if (!res_attr.empty())
+                        for (const auto idx : group)
+                            node->input(idx).get_rt_info()[AttributeType::get_type_info_static()] = res_attr;
                 }
             }
             return true;

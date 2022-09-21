@@ -95,6 +95,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -543,6 +544,40 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
             PrecisionsRestriction::create<ngraph::opset1::MatMul>({
                 {0, {ngraph::element::u8, ngraph::element::i8}},
                 {1, {ngraph::element::i8}}
+            }),
+            PrecisionsRestriction::create<ngraph::opset5::LSTMSequence>({
+                {{0, 1}, {ngraph::element::u8, ngraph::element::i8}},
+            }),
+            PrecisionsRestriction::create<ngraph::opset5::GRUSequence>({
+                {{0, 1}, {ngraph::element::u8, ngraph::element::i8}},
+            }),
+            PrecisionsRestriction::create<ngraph::opset5::RNNSequence>({
+                {{0, 1}, {ngraph::element::u8, ngraph::element::i8}},
+            }),
+            /*
+            PrecisionsRestriction::create<ngraph::opset5::LSTMCell>({
+                {{0, 1}, {ngraph::element::u8}},
+                {{0, 1}, {ngraph::element::i8}},
+            }),
+            PrecisionsRestriction::create<ngraph::opset4::GRUCell>({
+                {
+                    {0, ngraph::element::u8},
+                    {1, ngraph::element::i8}
+                },
+
+                {
+                    {0, {ngraph::element::i8}},
+                    {1, {ngraph::element::i8}}
+                },
+            }),
+            */
+            PrecisionsRestriction::create<ngraph::opset4::GRUCell>({
+                {0, {ngraph::element::u8}},
+                {1, {ngraph::element::i8}},
+            }),
+            PrecisionsRestriction::create<ngraph::opset4::RNNCell>({
+                {0, {ngraph::element::u8}},
+                {1, {ngraph::element::i8}},
             }),
         });
 
