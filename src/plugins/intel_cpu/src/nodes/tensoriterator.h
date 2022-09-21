@@ -37,10 +37,6 @@ class PortMapHelper {
 public:
     virtual ~PortMapHelper() = default;
     virtual void execute(dnnl::stream strm, int n_iter = -1) = 0;
-protected:
-    dnnl::reorder reorder;
-    dnnl::memory mem_holder_src;
-    dnnl::memory mem_holder_dst;
 };
 
 
@@ -135,8 +131,8 @@ private:
 
     ExtensionManager::Ptr ext_mng;
     Graph sub_graph;
-    std::vector<std::vector<MemoryPtr>> input_mems;
-    std::vector<MemoryPtr> output_mem;
+    std::vector<Node*> input_nodes;
+    std::vector<Node*> output_nodes;
 
     std::vector<std::shared_ptr<PortMapHelper>>
         first_mappers,   /// < Applied once before loop
