@@ -140,9 +140,6 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
     }
     const auto num_parameters = f->get_parameters().size();
     for (const auto& n : f->get_ordered_ops()) {
-        auto& rt = n->get_rt_info();
-        std::vector<size_t> regs;
-        regs.reserve(n->outputs().size());
         /* The main idea here is that each operation stores its output regs in rt["reginfo"]. Input and output regs are
          * then derived by parsing node's and parent's rt["reginfo"], look into ngraph::snippets::getRegisters for details.
          * Note also that Parameter and Result store general-purpose register index, because they work with memory
@@ -152,16 +149,18 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
         if (is_type<ov::op::v0::Result>(n)) {
             continue;
         } else if (const auto& param = ov::as_type_ptr<ov::op::v0::Parameter>(n)) {
-            regs.push_back(f->get_parameter_index(param));
+            auto& rt  =  n->get_output_tensor(0).get_rt_info();
+            rt["reginfo"] = std::vector<size_t>{static_cast<size_t>(f->get_parameter_index(param))};
         } else if (const auto& store = ov::as_type_ptr<ngraph::snippets::op::Store>(n)) {
-            regs.push_back(f->get_result_index(store) + num_parameters);
+            auto& rt  = n->get_output_tensor(0).get_rt_info();
+            rt["reginfo"] = std::vector<size_t>{static_cast<size_t>(f->get_result_index(store) + num_parameters)};
         } else {
             for (const auto& output : n->outputs()) {
-                auto allocated = physical_regs[output.get_tensor_ptr()];
-                regs.push_back(allocated);
+                auto out_tensor = output.get_tensor_ptr();
+                auto& rt  = out_tensor->get_rt_info();
+                rt["reginfo"] = std::vector<size_t>{physical_regs[out_tensor]};
             }
         }
-        rt["reginfo"] = regs;
     }
 
     return false;

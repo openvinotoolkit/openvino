@@ -19,20 +19,22 @@ namespace snippets {
 
 auto getRegisters(std::shared_ptr<ngraph::Node> &n) -> RegInfo {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::getRegisters")
-    auto rt = n->get_rt_info();
 
     // ToDo: change to reg_t
     std::vector<size_t> rin, rout;
 
-    auto it_rt = rt.find("reginfo");
-    if (it_rt != rt.end()) {
-        for (auto reg : it_rt->second.as<std::vector<size_t>>()) {
-            rout.push_back(reg);
+    for (const auto& output : n->outputs()) {
+        const auto& rt = output.get_tensor_ptr()->get_rt_info();
+        auto it_rt = rt.find("reginfo");
+        if (it_rt != rt.end()) {
+            for (auto reg : it_rt->second.as<std::vector<size_t>>()) {
+                rout.push_back(reg);
+            }
         }
     }
 
     for (const auto& input : n->inputs()) {
-        auto rt = input.get_source_output().get_node_shared_ptr()->get_rt_info();
+        auto rt = input.get_source_output().get_tensor_ptr()->get_rt_info();
         auto it_rt = rt.find("reginfo");
         if (it_rt != rt.end()) {
             for (auto& reg : it_rt->second.as<std::vector<size_t>>()) {
