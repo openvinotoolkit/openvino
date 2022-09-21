@@ -187,6 +187,11 @@ protected:
     // executed and memories which are used by this primitive
     std::vector<std::shared_ptr<primitive_inst>> _exec_deps;
 
+    // This is sub-network generated on demand to execute unfused primitives sequence instead of single fused primitive
+    // Needed for dynamic path only, as fusion in some cases may be illegal, but it can't be checked on program build phase,
+    // thus we do less restrictive fusion with runtime sanity check and unfusion when needed.
+    cldnn::network::ptr _unfused_subgraph = nullptr;
+
     // _output is optional because its initialization might be postponed (reshape_inst may either allocate it's own
     // buffer or attach input as output
     // depending on reshape_node.is_in_place())
@@ -216,6 +221,24 @@ protected:
     virtual event::ptr update_weights();
     void update_impl();
     void realloc_if_needed();
+
+    cldnn::network::ptr get_unfused_subgraph();
+
+    // This method checks if fusion applied to current primitive is valid.
+    // Needed for dynamic case only, and basically tracks single problematic case at the moment:
+    // eltwise primitive in dynamic case may be expressed as follows:
+    // input1 (dynamic_shape_in1)    input2 (dynamic_shape_in2)
+    //       \                 /
+    //            eltwise (dynamic_shape_out)
+    // Consider that eltwise is fused into primitive that produces input1 tensor. Then
+    // this pattern may lead to the one of the following cases:
+    // 1. dynamic_shape_in1 == dynamic_shape_in2 => supported fusion
+    // 2. dynamic_shape_in1 > dynamic_shape_in2 => supported fusion with additional input broadcast
+    // 3. dynamic_shape_in1 < dynamic_shape_in2 => illegal fusion pattern
+    // If input2 is not constant, then we can't really understand which case it actuall is,
+    // thus for performance reasons we allow fusions for dynamic shape regardless the actual case
+    // and then using this method in runtime we check if the fusion was valid or not
+    bool is_valid_fusion() const;
 
     static std::string generic_to_string(program_node const& node, const char* type_name);
 };
