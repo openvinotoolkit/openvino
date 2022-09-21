@@ -7,8 +7,8 @@
 #include "primitive_inst.h"
 #include "loop_inst.h"
 #include "strided_slice_inst.h"
-#ifdef ENABLE_ONEDNN_FOR_GPU
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
@@ -97,17 +97,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     s << get_preferred_impl_type();
     node_info->add("preferred impl", s.str());
 
-    json_composite output_layout_info;
-    output_layout_info.add("data type", dt_to_str(output_layout.data_type));
-    output_layout_info.add("format", fmt_to_str(output_layout.format));
-    output_layout_info.add("size", output_layout.get_tensor().to_string());
-
-    json_composite padding_info;
-    padding_info.add("lower size", output_layout.data_padding.lower_size().to_string());
-    padding_info.add("upper size", output_layout.data_padding.upper_size().to_string());
-    output_layout_info.add("padding info", padding_info);
-
-    node_info->add("output layout", output_layout_info);
+    node_info->add("output layout", output_layout.to_string());
 
     node_info->add("constant", bool_to_str(constant));
     node_info->add("in data flow", bool_to_str(data_flow));
@@ -227,15 +217,25 @@ bool program_node::is_detached(bool whole_branch) {
 }
 
 layout program_node::calc_output_layout() const {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     bool allow_new_shape_infer =
         get_program().get_options().get<build_option_type::allow_new_shape_infer>()->enabled();
     if (allow_new_shape_infer) {
         auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
         if (!out_layouts.empty()) {
+            GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                GPU_DEBUG_COUT << id() << ": calc_output_layout(new):" << out_layouts[0] << std::endl;
+            }
             return out_layouts[0];
         }
     }
-    return type()->calc_output_layout(*this, *get_kernel_impl_params());
+
+    auto res = type()->calc_output_layout(*this, *get_kernel_impl_params());
+    GPU_DEBUG_IF(debug_config->verbose >= 4) {
+        GPU_DEBUG_COUT << id() << ": calc_output_layout:" << res << std::endl;
+    }
+
+    return res;
 }
 
 std::vector<layout> program_node::calc_output_layouts() const {
