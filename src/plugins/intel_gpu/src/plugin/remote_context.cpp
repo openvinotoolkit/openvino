@@ -333,11 +333,6 @@ ExecutionContextImpl::ExecutionContextImpl(const std::shared_ptr<IInferencePlugi
     cldnn::device_query device_query(engine_type, runtime_type, _context_id, _va_device, ctx_device_id, target_tile_id);
     auto device_map = device_query.get_available_devices();
 
-    for (auto i : device_map)
-        std::cout << i.first << std::endl;
-    std::cout << std::to_string(cldnn::device_query::device_id) << std::endl;
-    assert(device_map.find("1") != device_map.end());
-    std::cout << &cldnn::device_query::device_id << std::endl;
     auto iter = device_map.find(std::to_string(cldnn::device_query::device_id));
     if (iter == device_map.end())
         iter = device_map.find(m_config.device_id);

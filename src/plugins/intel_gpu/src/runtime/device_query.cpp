@@ -6,7 +6,7 @@
 #include "ocl/ocl_device_detector.hpp"
 
 namespace cldnn {
-std::atomic<int> device_query::device_id;
+std::atomic<int> device_query::device_id(-1);
 device_query::device_query(engine_types engine_type,
                            runtime_types runtime_type,
                            void* user_context,

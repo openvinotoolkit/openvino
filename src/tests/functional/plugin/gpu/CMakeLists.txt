@@ -20,7 +20,6 @@ addIeTargetTest(
             funcSharedTests
             OpenCL
             gflags
-            openvino_intel_gpu_graph
         ADD_CPPLINT
         LABELS
             GPU

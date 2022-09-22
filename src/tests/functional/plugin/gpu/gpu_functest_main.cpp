@@ -17,11 +17,10 @@ int main(int argc, char *argv[]) {
 
     GFLAGS_NAMESPACE::AllowCommandLineReparsing();
     gflags::ParseCommandLineFlags(&argc, &argv, false);
-    if (FLAGS_device_id != -1)
-        cldnn::device_query::device_id = FLAGS_device_id;
-    printf("FLAGS_device_id = %d\n", FLAGS_device_id);
-    printf("device_id = %d\n", static_cast<int>(cldnn::device_query::device_id));
-    std::cout << &cldnn::device_query::device_id << std::endl;
+
+    if (FLAGS_device_id != -1) {
+        CommonTestUtils::DEVICE_GPU = "GPU.1";
+    }
 
     FuncTestUtils::SkipTestsConfig::disable_tests_skipping = false;
     bool print_custom_help = false;

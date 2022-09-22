@@ -23,6 +23,7 @@
 #endif
 
 namespace CommonTestUtils {
+const char* DEVICE_GPU = "GPU"; //declaration: test_constants.hpp
 
 inline size_t getVmSizeInKB() {
 #ifdef _WIN32
