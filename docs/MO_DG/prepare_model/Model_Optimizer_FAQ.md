@@ -620,13 +620,13 @@ It means that you are trying to convert a topology contains the `_contrib_box_nm
 
 #### 99. What does the message "ModelOptimizer is not able to parse *.caffemodel" mean? <a name="question-99"></a>
 
-If a `*.caffemodel` file exists and is correct, the error occurred possibly because of the use of Python protobuf implementation. In some cases, error messages may appear during model parsing, for example: "`utf-8` codec can't decode byte 0xe0 in position 4: invalid continuation byte in field: mo_caffe.SpatialTransformerParameter.transform_type". You can either use Python 3.6/3.7 or build the `cpp` implementation of `protobuf` yourself for your version of Python. For the complete instructions about building `protobuf` from sources, see the appropriate section in the [Converting Models with Model Optimizer](../Deep_Learning_Model_Optimizer_DevGuide.md) guide.
+If a `*.caffemodel` file exists and is correct, the error occurred possibly because of the use of Python protobuf implementation. In some cases, error messages may appear during model parsing, for example: "`utf-8` codec can't decode byte 0xe0 in position 4: invalid continuation byte in field: mo_caffe.SpatialTransformerParameter.transform_type". You can either use Python 3.7 or build the `cpp` implementation of `protobuf` yourself for your version of Python. For the complete instructions about building `protobuf` from sources, see the appropriate section in the [Converting Models with Model Optimizer](../Deep_Learning_Model_Optimizer_DevGuide.md) guide.
 
 #### 100. What does the message "SyntaxError: 'yield' inside list comprehension" during MxNet model conversion mean? <a name="question-100"></a>
 
 The issue "SyntaxError: `yield` inside list comprehension" might occur during converting MXNet models (`mobilefacedet-v1-mxnet`, `brain-tumor-segmentation-0001`) on Windows platform with Python 3.8 environment. This issue is caused by the API changes for `yield expression` in Python 3.8.
 The following workarounds are suggested to resolve this issue:
-1. Use Python 3.6/3.7 to convert MXNet models on Windows
+1. Use Python 3.7 to convert MXNet models on Windows
 2. Update Apache MXNet by using `pip install mxnet==1.7.0.post2`
 Note that it might have conflicts with previously installed PyPI dependencies.
 

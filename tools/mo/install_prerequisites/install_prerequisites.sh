@@ -51,8 +51,6 @@ if [[ $DISTRO == "centos" ]]; then
         python_binary=python3.7
     elif command -v python3.6 >/dev/null 2>&1; then
         python_binary=python3.6
-    elif command -v python3.5 >/dev/null 2>&1; then
-        python_binary=python3.5
     fi
 else
     python_binary=python3

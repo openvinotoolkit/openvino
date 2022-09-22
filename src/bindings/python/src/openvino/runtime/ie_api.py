@@ -15,13 +15,11 @@ from openvino.pyopenvino import InferRequest as InferRequestBase
 from openvino.pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino.pyopenvino import ConstOutput
 from openvino.pyopenvino import Tensor
-from openvino.pyopenvino import Type
-from openvino.pyopenvino import Shape
 
 
 def tensor_from_file(path: str) -> Tensor:
     """Create Tensor from file. Data will be read with dtype of unit8."""
-    return Tensor(np.fromfile(path, dtype=np.uint8))
+    return Tensor(np.fromfile(path, dtype=np.uint8))  # type: ignore
 
 
 def set_scalar_tensor(request: InferRequestBase, tensor: Tensor, key: Union[str, int, ConstOutput] = None) -> None:
