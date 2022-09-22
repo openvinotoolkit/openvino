@@ -19,6 +19,8 @@ public:
     using Ptr = std::shared_ptr<StackAllocator>;
 
     class Address;
+    template<typename TReg>
+    class Reg;
 
     StackAllocator(x64::jit_generator& code_gen)
         : StackAllocator{code_gen, code_gen.rbp} {
@@ -129,17 +131,17 @@ private:
     std::vector<Allocation::Ptr> allocations{};
 };
 
-class StackAllocator::Address final {
+class StackAllocator::Address {
 public:
     Address() = default;
 
     Address(StackAllocator::Ptr stack_allocator,
-        const size_t alloc_size)
+            const size_t alloc_size)
         : stack_allocator_{stack_allocator}
         , allocation_{stack_allocator_->allocate(alloc_size)} {
     }
 
-    ~Address() {
+    virtual ~Address() {
         release();
     }
 
@@ -177,12 +179,12 @@ public:
         return allocation_->address;
     }
 
-    Address& operator=(const Xbyak::Xmm& vmm) {
+    virtual Address& operator=(const Xbyak::Xmm& vmm) {
         stack_mov(*this, vmm);
         return *this;
     }
 
-    Address& operator=(const Xbyak::Reg& reg) {
+    virtual Address& operator=(const Xbyak::Reg& reg) {
         stack_mov(*this, reg);
         return *this;
     }
@@ -213,6 +215,31 @@ private:
 
     StackAllocator::Ptr stack_allocator_;
     Allocation::Ptr allocation_;
+};
+
+template<typename TReg>
+class StackAllocator::Reg : public StackAllocator::Address {
+public:
+    static_assert(std::is_base_of<Xbyak::Reg, TReg>::value, "TReg should be a Xbyak::Reg based !!");
+
+    Reg() = default;
+
+    Reg(StackAllocator::Ptr stack_allocator)
+            : Address{stack_allocator, TReg{}.getBit() / sizeof(uint8_t)} {
+    }
+
+    Reg(Reg&& addr) noexcept = default;
+    Reg& operator=(Reg&& addr) noexcept = default;
+
+    Reg& operator=(const Xbyak::Xmm& vmm) override {
+        Address::operator=(vmm);
+        return *this;
+    }
+
+    Reg& operator=(const Xbyak::Reg& reg) override {
+        Address::operator=(reg);
+        return *this;
+    }
 };
 
 inline
