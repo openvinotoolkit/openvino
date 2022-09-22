@@ -127,7 +127,7 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
 
     auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
-    
+
     ADD_MATCHER_SCOPE(SpaceToBatchFusion)
     common_fusions->add_matcher<ngraph::pass::SpaceToBatchFusion>();
     ADD_MATCHER_SCOPE(BatchToSpaceFusion)
