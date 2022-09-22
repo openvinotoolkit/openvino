@@ -15,12 +15,12 @@ Supported Python* versions:
 
 | Operating System | Supported Python\* versions: |
 |:----- | :----- |
-| Ubuntu\* 18.04  | 3.6, 3.7 |
-| Ubuntu\* 20.04  | 3.6, 3.7, 3.8 |
-| Windows\* 10 | 3.6, 3.7, 3.8 |
-| CentOS\* 7.3 | 3.6, 3.7 |
-| macOS\* 10.x  | 3.6, 3.7 |
-| Raspbian\* 9  | 3.6, 3.7 |
+| Ubuntu\* 18.04  | 3.7 |
+| Ubuntu\* 20.04  | 3.7, 3.8 |
+| Windows\* 10 | 3.7, 3.8 |
+| CentOS\* 7.3 | 3.7 |
+| macOS\* 10.x  | 3.7 |
+| Raspbian\* 9  | 3.7 |
 
 
 ## Set Up the Environment

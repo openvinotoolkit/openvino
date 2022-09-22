@@ -26,7 +26,7 @@
 .. tab:: Software Requirements
 
   * CMake 3.7.2 or higher
-  * Python 3.6-3.8, 32-bit
+  * Python 3.7-3.8, 32-bit
 
 @endsphinxdirective
 

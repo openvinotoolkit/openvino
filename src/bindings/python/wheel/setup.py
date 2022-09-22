@@ -358,7 +358,7 @@ def remove_rpath(file_path):
 
 def set_rpath(rpath, executable):
     """Setting rpath for linux and macOS libraries."""
-    print(f"Setting rpath {rpath} for {executable}")  # noqa: T001
+    print(f"Setting rpath {rpath} for {executable}")  # noqa: T001, T201
     cmd = []
     rpath_tool = ""
 

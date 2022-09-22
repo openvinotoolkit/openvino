@@ -4,6 +4,7 @@
 *To be added...*
 
 ##### Enviroment
+In case the Python version you have is not supported by OpenVINO, you can refer to [openvino/src/bindings/python/docs/python_version_upgrade.md](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/python/docs/python_version_upgrade.md) for instructions on how to download and build a newer, supported Python version.
 <!-- TODO: Link to enviroment setup -->
 *To be added...*
 
