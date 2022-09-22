@@ -144,7 +144,7 @@ The latest documentation for OpenVINO™ Toolkit is available [here](https://doc
 
 ### Developer documentation
 
-[Developer documentation](./docs/dev/index.md) contains information about architectural decisions used inside the OpenVINO components. This documentation has all necessary information for contribution to OpenVINO.
+[Developer documentation](./docs/dev/index.md) contains information about architectural decisions which are applied inside the OpenVINO components. This documentation has all necessary information which could be needed in order to contribute to OpenVINO.
 
 ## Tutorials
 
@@ -161,11 +161,11 @@ The list of OpenVINO tutorials:
 
 ## System requirements
 
-The full information about system requirements depends on platform is available on dedicated pages:
-- [Linux](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_linux.html#system-requirements)
-- [Windows](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_windows.html#system-requirements)
-- [macOS](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_macos.html#system-requirements)
-- [Raspbian](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_raspbian.html#system-requirements)
+The full information about system requirements depends on platform and is available on dedicated pages:
+- [Linux](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_linux_header.html)
+- [Windows](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_windows_header.html)
+- [macOS](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_macos_header.html)
+- [Raspbian](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_raspbian.html)
 
 ## How to build
 
