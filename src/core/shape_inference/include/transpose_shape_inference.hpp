@@ -12,7 +12,7 @@ namespace ov {
 namespace op {
 namespace v1 {
 template <typename Rank>
-bool is_valid_permutation(ov::AxisVector permutation, Rank rank) {
+bool is_valid_permutation(const ov::AxisVector& permutation, const Rank& rank) {
     std::vector<bool> axis_occurs(permutation.size(), false);
 
     // Check bounds if rank is static
@@ -39,7 +39,7 @@ bool is_valid_permutation(ov::AxisVector permutation, Rank rank) {
 }
 
 template <typename T>
-T apply_permutation(T input, AxisVector order) {
+T apply_permutation(const T& input, const AxisVector& order) {
 
     T output;
     output.resize(input.size());
@@ -59,10 +59,11 @@ void shape_infer(const Transpose* op, const std::vector<T>& input_shapes, std::v
     const auto& arg_shape = input_shapes[0];
 
     if (arg_shape.rank().is_static()) {
+        bool is_compatible = input_order_shape.compatible(T{arg_shape.rank().get_length()});
+        is_compatible = is_compatible || (input_order_shape.is_static() && input_order_shape.size() == 1 && input_order_shape[0] == 0);
         NODE_VALIDATION_CHECK(
             op,
-            input_order_shape.compatible(T{arg_shape.rank().get_length()}) ||
-                (input_order_shape.is_static() && input_order_shape.size() == 1 && input_order_shape[0] == 0),
+            is_compatible,
             "Input order must have shape [n], where n is the rank of arg.");
     } else {
         auto output_rank = arg_shape.rank();
