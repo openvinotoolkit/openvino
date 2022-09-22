@@ -21,6 +21,9 @@ OV_CC_DOMAINS(ov_pass);
 #    define MATCHER_SCOPE(region)         const std::string matcher_name(OV_PP_TOSTRING(region))
 #    define RUN_ON_MODEL_SCOPE(region)    OV_SCOPE(ov_pass, OV_PP_CAT(region, _run_on_model))
 
+#    define CC_TRANSFORMATIONS_MATCH_SCOPE(region)
+#    define CC_TRANSFORMATIONS_MODEL_SCOPE(region)
+#    define CC_TRANSFORMATIONS_FUNCTION_SCOPE(region)
 #elif defined(SELECTIVE_BUILD)
 
 #    define MATCHER_SCOPE_(scope, region)                              \
@@ -35,9 +38,24 @@ OV_CC_DOMAINS(ov_pass);
 
 #    define RUN_ON_MODEL_SCOPE(region) MATCHER_SCOPE_(ov_pass, OV_PP_CAT(region, _run_on_model))
 
+// #    define CC_TRANSFORMATIONS_MATCH_SCOPE(region)                                        \
+//         if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, region)) == 1)
+
+// #    define CC_TRANSFORMATIONS_MODEL_SCOPE(region)                                        \
+//         if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, OV_PP_CAT(region, _run_on_model))) == 1)
+
+// #    define CC_TRANSFORMATIONS_FUNCTION_SCOPE(region)                                        \
+//         if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, OV_PP_CAT(region, _run_on_function))) == 1)
+#    define CC_TRANSFORMATIONS_MATCH_SCOPE(region)
+#    define CC_TRANSFORMATIONS_MODEL_SCOPE(region)
+#    define CC_TRANSFORMATIONS_FUNCTION_SCOPE(region)
 #else
 
 #    define MATCHER_SCOPE(region) const std::string matcher_name(OV_PP_TOSTRING(region))
 #    define RUN_ON_FUNCTION_SCOPE(region)
 #    define RUN_ON_MODEL_SCOPE(region)
+
+#    define CC_TRANSFORMATIONS_MATCH_SCOPE(region)
+#    define CC_TRANSFORMATIONS_MODEL_SCOPE(region)
+#    define CC_TRANSFORMATIONS_FUNCTION_SCOPE(region)
 #endif
