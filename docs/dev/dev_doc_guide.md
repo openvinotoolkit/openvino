@@ -38,8 +38,8 @@ The section provides information about groups of developers who can help in case
 
 ## Components
 
-Section contains common infromation about included components: API, sources, tests and etc.
-Detailed information can be located in the `docs/` folder, this section can contain links to these pages.
+The section contains basic information about the included components: API, sources, tests, etc.
+Detailed information can be located in the `docs/` folder. This section can contain links to these pages.
 
 ## Architecture
 
