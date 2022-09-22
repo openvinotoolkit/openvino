@@ -68,13 +68,9 @@ Example:
 
 Docs folder should contain pages with a detailed description of the component features and media content for the developer documentation. Make sure that the pages in this folder provide information directly related to the topic. It is better to provide information about additional topics in a separate file and make a reference to it.
 
-## Approaches for the documentation development
-
-As already was said before the developer documentation should be clear and has a strong structure. Each page should provide only information which relates to the main topic, in case if we need to provide an additional information, it will be better to have a dedicated page.
-
-In order to decrease the complexity the developer documentation and make it more user-friendly, it can contain a lot of different images, diagrams, examples which should illustrate described things.
-
-For diagrams we are using `mermaid` framework to get more information about it please read [Github Documentation](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams). The framework allows to create diagrams and past it in your documents, for example the code:
+## Media content
+The developer documentation may include pictures, diagrams, and examples that illustrate the described features to make it easier to understand. 
+It is recommended to use the `mermaid` framework for diagrams. Read the [Github Documentation](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams) to get more information. The framework allows creating diagrams and pasting them to your documents. For example, the code:
 
 ````md
 ```mermaid
