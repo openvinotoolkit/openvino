@@ -66,8 +66,7 @@ Example:
 
 ## ***docs/*** folder content
 
-Docs folder should contain media content for the developer documentation and dedicated pages with detailed information about component features.
-Pages in this folder also shouldn't be overloaded by information, each page should provide information only which is related with original topic. If we need to provide some additional information it should be a reference to the separate file which user can open and get all necessary information about this additional topic.
+Docs folder should contain pages with a detailed description of the component features and media content for the developer documentation. Make sure that the pages in this folder provide information directly related to the topic. It is better to provide information about additional topics in a separate file and make a reference to it.
 
 ## Approaches for the documentation development
 
