@@ -1,7 +1,7 @@
-# How to develop developer documentation
+# Creating developer documentation
 
-The developer documentation is needed to provide basic information about component development.
-This guide contains requirements which are applied for component developer documentation.
+Developer documentation provides an overview of the component development and helps engineers understand the underlying technology.
+This guide contains the requirements for writing developer documentation.
 
 
 ## The component structure
