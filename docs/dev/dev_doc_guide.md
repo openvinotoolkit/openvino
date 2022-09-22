@@ -32,7 +32,7 @@ Short information about the component.
  * Supported features
  * Code style
 
-## Key persons
+## Key contacts
 
 The section provides information about groups of developers who can help in case of questions, and also review and merge PRs.
 
