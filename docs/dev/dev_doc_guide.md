@@ -57,7 +57,7 @@ Example:
 
 ## See also
 
-Section contains a list of related pages.
+The section contains a list of related pages.
 Example:
  * [OpenVINO™ README](../../README.md)
  * [Developer documentation](../../docs/dev/index.md)
