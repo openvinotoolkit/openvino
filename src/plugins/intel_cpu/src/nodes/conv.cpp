@@ -372,9 +372,6 @@ void Convolution::getSupportedDescriptors() {
     bool enforceBrgconv = false;
     attrs.reserve(2);
     withBiases = getOriginalInputsNumber() == 3;
-    withInputZeroPoint = (!legacyInputZeroPoints.empty());
-    zpPerTensor = (withInputZeroPoint && !stockInputZeroPoints.empty());
-    zpPerChannel = (withInputZeroPoint && stockInputZeroPoints.empty());
 
     if (!implPriorities.empty()) {
         isPrimitivesPriorityDefined = true;
@@ -1628,6 +1625,28 @@ void Convolution::initTryBrgconvFlag() {
             }
         }
     }
+}
+
+void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const size_t inputZpSize) {
+    if (!stockInputZeroPoints.empty() || !legacyInputZeroPoints.empty())
+        IE_THROW() << "input zero point is not empty '" << getName() << "'";
+    zpPerTensor = true;
+    for (int j = 0; j < inputZpSize; j++) {
+        legacyInputZeroPoints.push_back(inputZpData[j]);
+        if (inputZpData[j] != inputZpData[0])
+            zpPerTensor = false;
+    }
+
+    //Only enable per-tensor zero point on avx512-amx and avx512-core.
+    //If zero point is pertensor, both legacy zp and stock zp
+    //would be passed into conv node. The conv node would determine how to create
+    //post-ops attribute and prioritize to choose final onednn kernel.
+    if (zpPerTensor &&
+        (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni)))
+        stockInputZeroPoints.push_back(static_cast<int32_t>(inputZpData[0]));
+
+    withInputZeroPoint = (!legacyInputZeroPoints.empty());
+    zpPerChannel = (withInputZeroPoint && !zpPerTensor);
 }
 
 }   // namespace node

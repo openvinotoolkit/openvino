@@ -621,23 +621,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         if (Shape::UNDEFINED_DIM == zeroPointDataSize) {
             return false;
         }
-        bool isPerTensorZP = true;
-        for (int j = 0; j < zeroPointDataSize; j++) {
-            convNode->legacyInputZeroPoints.push_back(zeroPointsData[j]);
-            if (zeroPointsData[j] != zeroPointsData[0])
-                isPerTensorZP = false;
-        }
-
-        //Only enable per-tensor zero point on avx512-amx and avx512-core.
-        //If zero point is pertensor, both legacy zp and stock zp
-        //would be passed into conv node. The conv node would determine how to create
-        //post-ops attribute and prioritize to choose final onednn kernel.
-        if (isPerTensorZP &&
-            (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni)))
-            convNode->stockInputZeroPoints.push_back(static_cast<int32_t>(zeroPointsData[0]));
-
-        if (convNode->legacyOutputCompensation.empty())
-            convNode->legacyOutputCompensation.resize(OC);
+        convNode->initializeInputZeroPoints(zeroPointsData, zeroPointDataSize);
         return true;
     };
 
@@ -648,6 +632,8 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
 
         if (convNode->legacyInputZeroPoints.empty())
             return;
+        if (convNode->legacyOutputCompensation.empty())
+            convNode->legacyOutputCompensation.resize(convNode->getOutputShapeAtPort(0).getDims()[1]);
 
         auto weightsConstant = dynamic_cast<node::Input*>(convNode->getParentEdgesAtPort(1)[0]->getParent().get());
         if (!weightsConstant || !weightsConstant->isConstant())
@@ -711,11 +697,9 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         if (initializeInputZeroPoints(conv, dataEltwise, weightsEltwise)) {
             auto p_edge = dataEltwise->getParentEdgesAtPort(1)[0];
             graph.RemoveEdge(p_edge);
-
             graph.DropNode(dataEltwise);
+            initializeOutputCompensation(conv);
         }
-
-        initializeOutputCompensation(conv);
     }
 }
 

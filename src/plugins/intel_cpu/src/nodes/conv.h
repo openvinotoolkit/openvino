@@ -54,6 +54,7 @@ public:
     std::vector<int32_t> legacyOutputCompensation;
     //Hold stock per-tensor input zero point. Pass to onednn to calculate output compensation.
     std::vector<int32_t> stockInputZeroPoints;
+    void initializeInputZeroPoints(const uint8_t* inputZpData, const size_t inputZpSize);
 
     const InferenceEngine::SizeVector &getWeightDims() { return weightDims; }
     const std::vector<size_t> &getStride() { return stride; }
