@@ -1,4 +1,4 @@
-# Experimental: Protecting Deep Learning Model through Range Supervision ("RangeSupervision") {#pot_range_supervision_README}
+# Experimental: Protecting Deep Learning Model through Range Supervision ("RangeSupervision") {#pot_ranger_README}
 
 ## Introdution
 
