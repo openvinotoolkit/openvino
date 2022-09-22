@@ -25,15 +25,13 @@ static void CreateCommonMVNOp(Program& p, const std::shared_ptr<ngraph::Node>& o
                               normalize_variance,
                               eps,
                               eps_inside_sqrt,
-                              across_channels,
-                              op->get_friendly_name());
+                              across_channels);
 
-    p.AddPrimitive(mvnPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, mvnPrim);
 }
 
 static void CreateMVNOp(Program& p, const std::shared_ptr<ngraph::op::v0::MVN>& op) {
-    p.ValidateInputs(op, {1});
+    validate_inputs_count(op, {1});
 
     bool across_channels = op->get_across_channels();
     bool normalize_variance = op->get_normalize_variance();
@@ -43,16 +41,14 @@ static void CreateMVNOp(Program& p, const std::shared_ptr<ngraph::op::v0::MVN>& 
 }
 
 static void CreateMVNOp(Program& p, const std::shared_ptr<ngraph::op::v6::MVN>& op) {
-    p.ValidateInputs(op, {2});
+    validate_inputs_count(op, {2});
 
     auto inConst = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
     if (!inConst)
         IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
 
-    auto& mvnShape = op->get_output_shape(0);
-    std::vector<int32_t> axes = inConst->cast_vector<int32_t>();
-    for (int32_t& axis : axes)
-        axis = axis < 0 ? axis + mvnShape.size() : axis;
+    std::vector<int64_t> axes = inConst->cast_vector<int64_t>();
+    ov::normalize_axes(op.get(), op->get_output_partial_shape(0).size(), axes);
 
     const size_t chanelAxis = 1;
     bool across_channels = std::find(axes.begin(), axes.end(), chanelAxis) != axes.end();

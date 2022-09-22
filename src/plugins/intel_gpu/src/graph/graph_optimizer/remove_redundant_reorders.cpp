@@ -235,9 +235,7 @@ void remove_redundant_reorders::run(program& p) {
             continue;
         }
 
-        auto ident = program_helpers::are_layouts_identical(o_layout, i_layout);
-
-        if (!ident.second)
+        if (!o_layout.compatible(i_layout))
             continue;
 
         if (r_node.is_output() && i_layout.get_linear_size() != o_layout.get_linear_size())
@@ -245,8 +243,8 @@ void remove_redundant_reorders::run(program& p) {
 
         // mark as optimized
         r_node.can_be_optimized(true);
-        r_node.requires_reinterpret(!ident.first);
-        if (ident.first) {  // no need of reshape
+        r_node.requires_reinterpret(!o_layout.identical(i_layout));
+        if (o_layout.identical(i_layout)) {  // no need of reshape
             if (r_node.is_output()) {
                 // if removed reorder is output, we need to add it's dependency id to the optimized primitives list,
                 // because it's name will be changed after extract_and_remove call
@@ -283,8 +281,7 @@ void remove_redundant_reorders::run(program& p) {
                 auto l1 = node->get_output_layout();
                 auto l2 = user->get_output_layout();
 
-                auto ident = program_helpers::are_layouts_identical(l1, l2);
-                if (ident.first)
+                if (l1.identical(l2))
                     r_nodes_to_remove.push_back(user);
             }
         }
@@ -335,7 +332,7 @@ void remove_redundant_reorders::run(program& p) {
 
             bool same_data_type = input.get_output_layout().data_type == output_layout.data_type;
             bool allowed_dt_conversion_fuse = (input.is_type<one_hot>() || input.is_type<permute>() ||
-                                               input.is_type<depth_to_space>() || input.is_type<region_yolo>());
+                                               input.is_type<depth_to_space>() || input.is_type<region_yolo>() || input.is_type<detection_output>());
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 
@@ -383,29 +380,6 @@ void remove_redundant_reorders::run(program& p) {
         p.add_optimized_primitive_info(node.id());
         p.remove_all_connections(node);
         p.remove_if_dangling(node);
-    }
-
-    // This pass removed reorder if it is between quantize and convolution.
-    itr = p.get_processing_order().begin();
-    while (itr != p.get_processing_order().end()) {
-        auto& node_ptr = *itr++;
-        if (!node_ptr->is_type<reorder>() || !node_ptr->is_in_data_flow() || node_ptr->get_users().size() != 1 || node_ptr->get_dependencies().size() != 1 ||
-            node_ptr->get_output_layout().get_spatial_rank() != 3)
-            continue;
-
-        auto& usr = node_ptr->get_users().front();
-        auto& dep = node_ptr->get_dependency(0);
-        auto& node = node_ptr->as<reorder>();
-
-        if (lo.get_optimization_attributes().use_onednn_impls && dep.is_type<quantize>() && usr->is_type<convolution>()) {
-            dep.merge_output_padding(node.get_output_layout().data_padding);
-
-            LOG_NODE_REMOVAL(node.id());
-            p.replace_all_usages(node, dep);
-            p.add_optimized_primitive_info(node.id());
-            p.remove_all_connections(node);
-            p.remove_if_dangling(node);
-        }
     }
 
     // Remove reorder for cldnn convolution bfyx -> fs_b_yx_fsv32. (no case for onednn)
@@ -559,7 +533,7 @@ void remove_redundant_reorders::run(program& p) {
         bool remove_dep = reshape_input_node.get_users().size() == 1 && !reshape_input_node.is_output() &&
                           reshape_input_node.get_fused_activations_funcs().empty() && reshape_input_node.get_fused_primitives().empty();
         bool remove_current = remove_dep && !reshape_input_node.get_dependencies().empty() &&
-                              reshape_input_node.get_dependency(0).get_output_layout().get_tensor() == reshape_node.get_output_layout().get_tensor() &&
+                              reshape_input_node.get_dependency(0).get_output_layout() == reshape_node.get_output_layout() &&
                               reshape_node.get_fused_activations_funcs().empty() && reshape_node.get_fused_primitives().empty();
 
         if (remove_dep) {

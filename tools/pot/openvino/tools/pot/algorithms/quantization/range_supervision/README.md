@@ -4,11 +4,11 @@
 
 Deep neural network find applications in many scenarios where the prediction is a critical component for safety-relevant decisions. Such workloads can benefit from additional protection against underlying errors. For example, memory bit flips (**"soft errors"** originating, e.g., from external radiation or internal electrical disturbances within the circuitry) in der platform hosting the network inference can corrupt the learned network parameters and lead to incorrect predictions. Typically, errors resulting in very large parameter values have a more drastic impact on the network behavior. **The range supervision algorithm ("RangeSupervision") described here establishes and inserts additional protection layers after already present activation layers**. Those layers truncate values that are found to be out of an expected activation range in order to mitigate the traces of potential platform errors. They do so during inference by applying a *clamp* operation to any activation *x* in the input to the RangeSupervision layer,
 
-```math
-x = clamp(x ; T_{low}, T_{up}) = min(max(x, T_{low}), T_{high}))),
-```
+$x = clamp(x ; T_{low}, T_{up}) = min(max(x, T_{low}), T_{high})$
 
-where $`T_{low}`$ and $`T_{up}`$ are the lower and upper bounds for the particular protection layer, respectively.
+where $T_{low}$ and $T_{up}$ are the lower and upper bounds for the particular protection layer, respectively.
+
+
 
 The process flow follows the diagram [Fig 1](#Schematic). Starting from the internal representation (IR) of an OpenVINO model, the POT RangeSupervision algorithm is called to **add protection layers into the model graph**. This step requires **appropriate threshold values that are automatically extracted from a specified test dataset**. The result is an IR representation of the model with additional "RangeSupervision" layers after each supported activation layer. The original and the modified model can be called in the same way through the OpenVINO inference engine to evaluate the impact on accuracy, performance, and dependability in the presence of potential soft errors (for example using the *benchmark_app* and *accuracy_checker* functions). **The algorithm is designed to provide efficient protection at negligible performance overhead or accuracy impact in the absence of faults.** Bound extraction is a one-time effort and the protected IR model returned by the RangeSupervision algorithm can be used independently from there on. No changes in the learned parameters of the network are needed.
 

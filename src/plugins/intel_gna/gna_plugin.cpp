@@ -41,6 +41,7 @@
 #include "gna_itt.hpp"
 #include "gna2_model_export_helper.hpp"
 #include "gna2_model_helper.hpp"
+#include "orientation_helper.hpp"
 #include "request/model_wrapper_factory.hpp"
 #include "request/worker_pool_impl.hpp"
 #include "request/worker_factory.hpp"
@@ -89,6 +90,7 @@
 #include "transformations/substitute_softsign.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
+#include "transformations/insert_copy_layer.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -672,54 +674,55 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         const auto& graph = clonedNetwork.getFunction();
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
+
         fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
         // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
         // and we need to run the ConvertPrecision transformation to support old networks.
         manager.register_pass<ngraph::pass::ConvertPrecision>(
             precisions_array{{ngraph::element::f16, ngraph::element::f32}});
         manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
-        manager.register_pass<DecomposeMVN>();
+        manager.register_pass<ov::intel_gna::pass::DecomposeMVN>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
-        manager.register_pass<RemoveInputConvert>();
-        manager.register_pass<RemoveOutputConvert>();
+        manager.register_pass<ov::intel_gna::pass::RemoveInputConvert>();
+        manager.register_pass<ov::intel_gna::pass::RemoveOutputConvert>();
         manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
         manager.register_pass<ngraph::pass::GRUCellDecomposition>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
-        manager.register_pass<ConvertDWSCToScaleShifts>();
-        manager.register_pass<ConvertPaddedToValidConv>();
-        manager.register_pass<Decompose2DConvTransposedWithBiasAF>(effectiveGnaCompileTargetValue, config.gnaPrecision);
-        manager.register_pass<Decompose2DConvTransposedWithBias>(effectiveGnaCompileTargetValue, config.gnaPrecision);
-        manager.register_pass<Decompose2DConv>(effectiveGnaCompileTargetValue, config.gnaPrecision);
+        manager.register_pass<ov::intel_gna::pass::ConvertDWSCToScaleShifts>();
+        manager.register_pass<ov::intel_gna::pass::ConvertPaddedToValidConv>();
+        manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>(effectiveGnaCompileTargetValue, config.gnaPrecision);
+        manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>(effectiveGnaCompileTargetValue, config.gnaPrecision);
+        manager.register_pass<ov::intel_gna::pass::Decompose2DConv>(effectiveGnaCompileTargetValue, config.gnaPrecision);
         // TODO enable this transformation for networks with convolutions
         if (!ngraph::op::util::has_op_with_type<ngraph::opset7::Convolution>(graph)) {
-            manager.register_pass<ConvertMatmulWithFqToPointWiseConvolution>();
-            manager.register_pass<ConvertMatmulWithBiasToPointWiseConvolution>();
-            manager.register_pass<ConvertMatmulToPointWiseConvolution>();
+            manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithFqToPointWiseConvolution>();
+            manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithBiasToPointWiseConvolution>();
+            manager.register_pass<ov::intel_gna::pass::ConvertMatmulToPointWiseConvolution>();
         }
-        manager.register_pass<SplitConvolutionWithFq>();
-        manager.register_pass<SplitConvolutionWithBias>();
-        manager.register_pass<SplitConvolution>();
-        manager.register_pass<InsertReshapeAroundMatmulWithTranspose>();
-        manager.register_pass<InsertReshapeAroundMatmulWithFq>();
-        manager.register_pass<InsertReshapeAroundMatmulWithAdd>();
-        manager.register_pass<InsertReshapeAroundMatmul>();
-        manager.register_pass<SwapInputMatMulWithTrailingTranspose>();
-        manager.register_pass<SwapInputMatMulWithAct>();
-        manager.register_pass<SwapInputMatMulWithFq>();
-        manager.register_pass<SwapInputMatMulWithBias>();
-        manager.register_pass<SwapInputMatMul>();
-        manager.register_pass<HandleTransposesAroundMatMul>();
-        manager.register_pass<InsertTransposeAfterConvOrPool>();
-        manager.register_pass<Unfuse2dto4dReshapeAndTranspose>();
-        manager.register_pass<Unfuse4dto2dReshapeAndTranspose>();
-        manager.register_pass<RemoveExtraReshapes>();
-        manager.register_pass<ReorderActivationAndPooling>();
-        manager.register_pass<RemoveSingleInputConcat>();
-        manager.register_pass<SubstituteSoftsign>();
+        manager.register_pass<ov::intel_gna::pass::SplitConvolutionWithFq>();
+        manager.register_pass<ov::intel_gna::pass::SplitConvolutionWithBias>();
+        manager.register_pass<ov::intel_gna::pass::SplitConvolution>();
+        manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithTranspose>();
+        manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithFq>();
+        manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithAdd>();
+        manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmul>();
+        manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithTrailingTranspose>();
+        manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithAct>();
+        manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithFq>();
+        manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithBias>();
+        manager.register_pass<ov::intel_gna::pass::SwapInputMatMul>();
+        manager.register_pass<ov::intel_gna::pass::HandleTransposesAroundMatMul>();
+        manager.register_pass<ov::intel_gna::pass::InsertTransposeAfterConvOrPool>();
+        manager.register_pass<ov::intel_gna::pass::Unfuse2dto4dReshapeAndTranspose>();
+        manager.register_pass<ov::intel_gna::pass::Unfuse4dto2dReshapeAndTranspose>();
+        manager.register_pass<ov::intel_gna::pass::RemoveExtraReshapes>();
+        manager.register_pass<ov::intel_gna::pass::ReorderActivationAndPooling>();
+        manager.register_pass<ov::intel_gna::pass::RemoveSingleInputConcat>();
+        manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-        manager.register_pass<RemoveExtraReshapes>();
+        manager.register_pass<ov::intel_gna::pass::RemoveExtraReshapes>();
         /*
           Put BroadcastAddMultiplyConst here after ConvertOpSet..() transformations since there are conficts with them.
           ngraph::pass::ConvertOpSet1ToLegacy -> ngraph::pass::BiasFusions ->
@@ -728,13 +731,16 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
           TODO: move that transformation just beyond RemoveSingleInputConcat pass after removing ConvertOpSet1ToLegacy
               transormations
         */
-        manager.register_pass<BroadcastAddMultiplyConst>();
+        manager.register_pass<ov::intel_gna::pass::BroadcastAddMultiplyConst>();
         if (!config.gnaFlags.sw_fp32 && !config.gnaFlags.uniformPwlDesign) {
-            manager.register_pass<PWLApproximationWithFq>(config.gnaFlags.pwlMaxErrorPercent);
-            manager.register_pass<PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
+            manager.register_pass<ov::intel_gna::pass::PWLApproximationWithFq>(config.gnaFlags.pwlMaxErrorPercent);
+            manager.register_pass<ov::intel_gna::pass::PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
         }
-        // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();
+        manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
+        manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
+        manager.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
         const auto& pass_config = manager.get_pass_config();
 
         // Allowing FP16 Converts to be folded and FP16 constants to upgrade to FP32 data type
@@ -822,8 +828,9 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
-        passes->registerPass<InsertCopyLayerPass>();
-
+        if (!isNgraphPassesUsed) {
+            passes->registerPass<InsertCopyLayerPass>();
+        }
         passes->registerPass<FlattenTrivialConcatPass>();
         passes->registerPass<InsertConcatAligningFilterPass>();
         passes->registerPass<ReorderConcatInputsPass>();
@@ -1077,59 +1084,23 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     // calculating input orientation without memory layers, since their orientation not changed during infer right now
     std::unordered_map<string, std::vector<string>> skippedLayers;
 
-    bool withConv = false;
-    for (auto& layer : sortedNet) {
-        auto layerInfo = LayerInfo(layer);
-        if (layerInfo.isConvolution()) {
-            withConv = true;
-            break;
+    // update orientation of model intput layer
+    for (auto& inputLayer : inputLayers) {
+        if (LayerInfo(inputLayer).isInput()) {
+            ov::intela_gna::helpers::updateModelInputOrientationWithoutConvolution(*inputLayer,
+                                                                                   graphCompiler.dnnComponents,
+                                                                                   *inputs_ptr_);
         }
     }
-    if (withConv) {
-        for (auto& inputLayer : sortedNet) {
-            if (!LayerInfo(inputLayer).isInput()) {
-                continue;
-            }
-            auto doesntHaveGnaMapping = [this](CNNLayerPtr l) {
-                auto dnnLayer = graphCompiler.dnnComponents.findComponent(l);
-                return dnnLayer == nullptr;
-            };
 
-            auto nextLayers = CNNNetGetAllNextLayersSkipCertain(inputLayer, -1, doesntHaveGnaMapping);
-
-            std::vector<intel_dnn_orientation_t> orientations;
-            for (auto& nextLayer : nextLayers) {
-                auto dnnLayer = graphCompiler.dnnComponents.findComponent(nextLayer);
-                // non functional layer - skipped by gna
-                if (nullptr == dnnLayer) {
-                    THROW_GNA_LAYER_EXCEPTION(inputLayer) << " gna mapped layer search connection failed";
-                }
-                // Orientation of an input doesn't make sense for components transposing the data and
-                // components with identity dimensions, so skip them
-                if (dnnLayer->operation != kDnnInterleaveOp && dnnLayer->operation != kDnnDeinterleaveOp &&
-                    dnnLayer->num_rows_in > 1 && dnnLayer->num_columns_in > 1) {
-                    orientations.push_back(dnnLayer->orientation_in);
-                }
-            }
-
-            if (orientations.empty()) {
-                // in this case orientation doesn't make a sense
-                inputs_ptr_->at(inputLayer->name).orientation = kDnnNonInterleavedOrientation;
-            } else if (std::adjacent_find(orientations.begin(),
-                                          orientations.end(),
-                                          std::not_equal_to<intel_dnn_orientation_t>()) == orientations.end()) {
-                // all orientations are equal
-                inputs_ptr_->at(inputLayer->name).orientation = orientations.front();
-            } else {
-                // unsupported case: orientations are different and they are important for these components
-                THROW_GNA_EXCEPTION << "orientation for input layer: " << inputLayer->name << " cannot be calculated";
-            }
-        }
-    } else {
-        for (auto& inputLayer : inputLayers) {
-            if (LayerInfo(inputLayer).isInput()) {
-                inputs_ptr_->at(inputLayer->name).orientation = kDnnInterleavedOrientation;
-            }
+    // update orientation of model output layer
+    for (auto&& outPort : outputs_data_map_) {
+        auto outLayer = getCreatorLayer(outPort.second).lock();
+        if (outLayer && LayerInfo(outLayer).isOutput()) {
+            ov::intela_gna::helpers::updateModelOutputOrientation(outPort.first,
+                                                                  outLayer->name,
+                                                                  graphCompiler.dnnComponents,
+                                                                  outputs_);
         }
     }
 
@@ -1312,7 +1283,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
         }
 
         auto dims = input.second->getTensorDesc().getDims();
-        auto importedElements = is1D ? dims[0] : InferenceEngine::details::product(++std::begin(dims), std::end(dims));
+        auto importedElements = is1D ? dims[0] : InferenceEngine::details::product(std::next(std::begin(dims)), std::end(dims));
         auto importedFrames = (is3D || is1D) ? 1 : dims[0];
         auto targetGroups = is1D ? 1 : dims[0];  // TODO: no proper support for groups yet
 
@@ -1824,3 +1795,4 @@ InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(const InferenceEngin
 
     return res;
 }
+

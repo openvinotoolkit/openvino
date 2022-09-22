@@ -8,6 +8,7 @@
 #include "intel_gpu/plugin/infer_request.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/async_infer_request.hpp"
+#include "intel_gpu/plugin/async_infer_request_legacy.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 
 #include <description_buffer.hpp>
@@ -63,19 +64,32 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network, std::shared_p
     }
 }
 
+template <class T>
+IInferRequestInternal::Ptr CompiledModel::GetInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                                              const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
+    auto ptr = std::make_shared<T>(inputs, outputs, std::static_pointer_cast<CompiledModel>(shared_from_this()));
+    if (m_config.throughput_streams > 1)
+        ptr->EnableStreams();
+    if (m_config.useProfiling)
+        ptr->EnableProfiling();
+    if (m_graphs.front()->use_external_queue())
+        ptr->enable_external_queue();
+    ptr->SetGraph(m_graphs.front());
+
+    return ptr;
+}
+
 IInferRequestInternal::Ptr CompiledModel::CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                  OutputsDataMap networkOutputs) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::CreateInferRequestImpl");
-    auto ptr = std::make_shared<InferRequest>(networkInputs, networkOutputs,
-                                              std::static_pointer_cast<CompiledModel>(shared_from_this()));
-    if (m_config.throughput_streams > 1) {
+    auto ptr = std::make_shared<InferRequestLegacy>(networkInputs, networkOutputs,
+                                                    std::static_pointer_cast<CompiledModel>(shared_from_this()));
+    if (m_config.throughput_streams > 1)
         ptr->EnableStreams();
-    }
     if (m_config.useProfiling)
         ptr->EnableProfiling();
-    if (m_graphs.front()->use_external_queue()) {
+    if (m_graphs.front()->use_external_queue())
         ptr->enable_external_queue();
-    }
     ptr->SetGraph(m_graphs.front());
 
     return ptr;
@@ -84,20 +98,10 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequestImpl(InputsDataMap n
 IInferRequestInternal::Ptr CompiledModel::CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                                                  const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::CreateInferRequestImpl");
-    auto ptr = std::make_shared<InferRequest>(inputs, outputs,
-                                              std::static_pointer_cast<CompiledModel>(shared_from_this()));
-    if (m_config.throughput_streams > 1) {
-        ptr->EnableStreams();
-    }
-    if (m_config.useProfiling)
-        ptr->EnableProfiling();
-
-    if (m_graphs.front()->use_external_queue()) {
-        ptr->enable_external_queue();
-    }
-    ptr->SetGraph(m_graphs.front());
-
-    return ptr;
+    if (m_graphs.front()->GetMaxDynamicBatchSize() > 1)
+        return GetInferRequestImpl<InferRequestLegacy>(inputs, outputs);
+    else
+        return GetInferRequestImpl<InferRequest>(inputs, outputs);
 }
 
 IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
@@ -117,12 +121,23 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
         }
     }
 
+    bool is_legacy = false;
     if (this->_plugin && _plugin->IsNewAPI()) {
         internalRequest = CreateInferRequestImpl(_parameters, _results);
+        if (std::dynamic_pointer_cast<InferRequestLegacy>(internalRequest))
+            is_legacy = true;
     }
-    if (!internalRequest)
+    if (!internalRequest) {
         internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
+        is_legacy = true;
+    }
     internalRequest->setPointerToExecutableNetworkInternal(shared_from_this());
+    if (is_legacy) {
+        return std::make_shared<AsyncInferRequestLegacy>(std::static_pointer_cast<InferRequestLegacy>(internalRequest),
+                                                         m_taskExecutor,
+                                                         m_waitExecutor,
+                                                         _callbackExecutor);
+    }
     return std::make_shared<AsyncInferRequest>(std::static_pointer_cast<InferRequest>(internalRequest),
                                                m_taskExecutor,
                                                m_waitExecutor,
@@ -164,6 +179,8 @@ InferenceEngine::Parameter CompiledModel::GetConfig(const std::string &name) con
                 return ov::util::from_string(val, ov::num_streams);
             } else if (name == ov::hint::num_requests) {
                 return ov::util::from_string(val, ov::hint::num_requests);
+            } else if (name == ov::hint::inference_precision) {
+                return ov::util::from_string(val, ov::hint::inference_precision);
             } else if (name == ov::device::id) {
                 return ov::util::from_string(val, ov::device::id);
             } else {
@@ -201,6 +218,7 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RO},
             ov::PropertyName{ov::num_streams.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RO}
         };
     } else if (name == ov::model_name) {

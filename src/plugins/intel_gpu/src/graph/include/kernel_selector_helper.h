@@ -9,7 +9,6 @@
 #include "intel_gpu/runtime/tensor.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
-#include "intel_gpu/primitives/scale.hpp"
 #include "intel_gpu/primitives/quantize.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
@@ -118,31 +117,58 @@ struct kernel_impl_params {
     std::vector<activation_func> fused_act_funcs;
     std::vector<activation_additional_params> activation_params;
 
-    optional_layout weights_layout;
+    optional_layout weights_layout = optional_layout();
 
-    optional_layout bias_layout;
-    optional_layout weights_zero_points_layout;
-    optional_layout activations_zero_points_layout;
-    optional_layout compensation_layout;
+    optional_layout bias_layout = optional_layout();
+    optional_layout weights_zero_points_layout = optional_layout();
+    optional_layout activations_zero_points_layout = optional_layout();
+    optional_layout compensation_layout = optional_layout();
 
-    kernel_impl_params(program& _prog, std::shared_ptr<const primitive> _desc, size_t _uid,
-                       const std::vector<layout>& _int_layouts, layout _out_layout,
+    std::map<size_t, memory::ptr> memory_deps = {};
+    size_t primary_input_idx = 0;
+
+    memory::ptr reordered_weights = nullptr;
+
+    kernel_impl_params(program& _prog,
+                       std::shared_ptr<const primitive> _desc,
+                       size_t _uid,
+                       const std::vector<layout>& _int_layouts,
+                       layout _out_layout,
                        const std::vector<cldnn::fused_primitive_desc>& _fused_descs,
-                       const std::vector<activation_func>& _fused_act_funcs, const std::vector<activation_additional_params>& _act_params,
-                       optional_layout _weights_layout = optional_layout(),
-                       optional_layout _bias_layout = optional_layout(),
-                       optional_layout _weights_zero_points_layout = optional_layout(),
-                       optional_layout _activations_zero_points_layout = optional_layout(),
-                       optional_layout _compensation_layout = optional_layout())
-                       : has_runtime_layouts(true),
-                         prog(_prog), desc(_desc), unique_id(_uid),
-                         input_layouts(_int_layouts), output_layout(_out_layout),
-                         fused_desc(_fused_descs),
-                         fused_act_funcs(_fused_act_funcs), activation_params(_act_params),
-                         weights_layout(_weights_layout), bias_layout(_bias_layout),
-                         weights_zero_points_layout(_weights_zero_points_layout),
-                         activations_zero_points_layout(_activations_zero_points_layout),
-                         compensation_layout(_compensation_layout) {}
+                       const std::vector<activation_func>& _fused_act_funcs,
+                       const std::vector<activation_additional_params>& _act_params)
+                       : has_runtime_layouts(true)
+                       , prog(_prog)
+                       , desc(_desc)
+                       , unique_id(_uid)
+                       , input_layouts(_int_layouts)
+                       , output_layout(_out_layout)
+                       , fused_desc(_fused_descs)
+                       , fused_act_funcs(_fused_act_funcs)
+                       , activation_params(_act_params)
+                       , primary_input_idx(0) {}
+
+    layout get_input_layout(size_t idx = 0) const {
+        OPENVINO_ASSERT(input_layouts.size() > idx,
+                        "The size of input layouts must be greater than the requested index: ",
+                        "Requested index is ", idx, ", ",
+                        "but the size of input layouts is ", input_layouts.size());
+        return input_layouts[idx];
+    }
+
+    layout get_non_padded_input_layout(size_t idx = 0) const {
+        auto input_layout = get_input_layout(idx);
+        auto result = layout({input_layout.get_partial_shape(), input_layout.data_type, input_layout.format});
+        return result;
+    }
+
+    bool has_fused_primitives() const { return !fused_desc.empty(); }
+
+    layout get_fused_output_layout() const {
+        if (fused_desc.empty())
+            return layout(data_types::f32, format::bfyx, tensor());
+        return fused_desc.back().output_layout;
+    }
 
     template <class PType>
     std::shared_ptr<const PType> typed_desc() const { return std::static_pointer_cast<const PType>(desc); }
@@ -193,7 +219,7 @@ inline params_t get_default_params(const kernel_impl_params& param_info, uint32_
 
     set_params(param_info, params);
 
-    const auto& input_layout = param_info.input_layouts[0];
+    const auto& input_layout = param_info.get_input_layout(0);
     const auto& output_layout = param_info.output_layout;
 
     params.inputs[0] = convert_data_tensor(input_layout, split);
@@ -219,7 +245,7 @@ inline params_t get_default_params(const kernel_impl_params& param_info, uint32_
         prim_id_type_map[fused_prim.desc->id] = std::make_pair(desc.op_id, desc.output_tensor.GetDType());
 
         for (size_t i = desc.dep_idx_start; i < desc.dep_idx_start + desc.dep_size; i++) {
-            desc.tensors.push_back(convert_data_tensor(param_info.input_layouts[i]));
+            desc.tensors.push_back(convert_data_tensor(param_info.get_input_layout(i)));
         }
 
         if (fused_prim.total_num_deps > 0) {

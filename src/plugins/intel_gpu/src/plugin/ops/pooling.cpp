@@ -15,7 +15,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateAvgPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::AvgPool>& op) {
-    p.ValidateInputs(op, {1});
+    validate_inputs_count(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -37,15 +37,13 @@ static void CreateAvgPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::Av
                                    strides,
                                    pads_begin,
                                    tensor_from_dims(op->get_output_shape(0)),
-                                   DataTypeFromPrecision(op->get_output_element_type(0)),
-                                   op->get_friendly_name());
+                                   cldnn::element_type_to_data_type(op->get_output_element_type(0)));
     poolPrim.pad_end = pads_end;
-    p.AddPrimitive(poolPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, poolPrim);
 }
 
 static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::MaxPool>& op) {
-    p.ValidateInputs(op, {1});
+    validate_inputs_count(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -67,35 +65,30 @@ static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::Ma
                                    strides,
                                    pads_begin,
                                    tensor_from_dims(op->get_output_shape(0)),
-                                   DataTypeFromPrecision(op->get_output_element_type(0)),
-                                   op->get_friendly_name());
+                                   cldnn::element_type_to_data_type(op->get_output_element_type(0)));
     poolPrim.pad_end = pads_end;
-    p.AddPrimitive(poolPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, poolPrim);
 }
 
 static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v8::MaxPool>& op) {
-    p.ValidateInputs(op, {1});
+    validate_inputs_count(op, {1});
     if (op->get_output_size() != 2) {
         IE_THROW() << "MaxPool opset 8 requires 2 outputs";
     }
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     const auto layer_type_name = layer_type_name_ID(op);
-    const auto layerName = layer_type_name + ".0";
+    const auto layerName = layer_type_name + ".out0";
 
     const auto mutable_precision = op->get_output_element_type(1);
     const auto output_shape = op->get_output_shape(1);
-    cldnn::layout mutableLayout = cldnn::layout(DataTypeFromPrecision(mutable_precision),
-                                                DefaultFormatForDims(output_shape.size()),
+    cldnn::layout mutableLayout = cldnn::layout(cldnn::element_type_to_data_type(mutable_precision),
+                                                cldnn::format::get_default_format(output_shape.size()),
                                                 tensor_from_dims(output_shape));
     const auto shared_memory = p.GetEngine().allocate_memory(mutableLayout);
     const cldnn::primitive_id maxpool_mutable_id_w = layer_type_name + "_md_write";
-    const auto op_friendly_name = op->get_friendly_name();
-    const auto indices_mutable_prim = cldnn::mutable_data(maxpool_mutable_id_w,
-                                                          shared_memory,
-                                                          op_friendly_name);
-    p.primitiveIDs[maxpool_mutable_id_w] = maxpool_mutable_id_w;
-    p.AddPrimitive(indices_mutable_prim);
+    auto indices_mutable_prim = cldnn::mutable_data(maxpool_mutable_id_w,
+                                                          shared_memory);
+    p.add_primitive(*op, indices_mutable_prim);
     inputPrimitives.push_back(maxpool_mutable_id_w);
 
     auto kernel = op->get_kernel();
@@ -120,21 +113,16 @@ static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v8::Ma
                                    pads_begin,
                                    pads_end,
                                    op->get_axis(),
-                                   DataTypeFromPrecision(op->get_index_element_type()),
+                                   cldnn::element_type_to_data_type(op->get_index_element_type()),
                                    tensor_from_dims(op->get_output_shape(0)),
-                                   DataTypeFromPrecision(op->get_output_element_type(0)),
-                                   op_friendly_name);
-    p.AddPrimitive(poolPrim);
+                                   cldnn::element_type_to_data_type(op->get_output_element_type(0)));
+    p.add_primitive(*op, poolPrim);
 
-    const cldnn::primitive_id maxpool_mutable_id_r = layer_type_name + ".1";
-    const auto indices_mutable_id_r = cldnn::mutable_data(maxpool_mutable_id_r,
-                                                          { layerName },
-                                                          shared_memory,
-                                                          op_friendly_name);
-    p.primitiveIDs[maxpool_mutable_id_r] = maxpool_mutable_id_r;
-    p.AddPrimitive(indices_mutable_id_r);
-
-    p.AddPrimitiveToProfiler(poolPrim, op);
+    const cldnn::primitive_id maxpool_mutable_id_r = layer_type_name + ".out1";
+    auto indices_mutable_id_r = cldnn::mutable_data(maxpool_mutable_id_r,
+                                                    { layerName },
+                                                    shared_memory);
+    p.add_primitive(*op, indices_mutable_id_r);
 }
 
 

@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if (NOT ENABLE_INTEL_CPU)
+    return()
+endif()
+
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
 if(CMAKE_COMPILER_IS_GNUCC)
@@ -23,6 +27,12 @@ file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
 addVersionDefines(${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp CI_BUILD_NUMBER)
 
 add_subdirectory(thirdparty)
+if(ENABLE_TESTS)
+    add_subdirectory(tests/unit)
+endif()
+if(ENABLE_FUNCTIONAL_TESTS)
+    add_subdirectory(tests/functional)
+endif()
 
 # create plugin
 
@@ -44,6 +54,7 @@ endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE dnnl
                                              ov_shape_inference
+                                             openvino::pugixml
                                              inference_engine_snippets)
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
@@ -68,7 +79,7 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
-    link_system_libraries(${TARGET_NAME}_obj PUBLIC dnnl)
+    link_system_libraries(${TARGET_NAME}_obj PUBLIC dnnl openvino::pugixml)
 
     target_include_directories(${TARGET_NAME}_obj
         PRIVATE

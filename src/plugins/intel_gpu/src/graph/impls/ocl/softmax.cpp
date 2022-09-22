@@ -43,9 +43,9 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
         return make_unique<softmax_impl>(*this);
     }
 
-    static primitive_impl* create(const softmax_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
+    static primitive_impl* create(const softmax_node& arg, const kernel_impl_params& impl_param) {
         const auto primitive = arg.get_primitive();
-        auto sm_params = get_default_params<kernel_selector::softmax_params>(*impl_param);
+        auto sm_params = get_default_params<kernel_selector::softmax_params>(impl_param);
         auto sm_optional_params =
             get_default_optional_params<kernel_selector::softmax_optional_params>(arg.get_program());
 
@@ -69,16 +69,15 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
 namespace detail {
 
 attach_softmax_impl::attach_softmax_impl() {
-    implementation_map<softmax>::add(impl_types::ocl, softmax_impl::create, {
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-    });
+    auto types = {data_types::f16, data_types::f32};
+    auto formats = {
+            format::bfyx,
+            format::byxf,
+            format::yxfb,
+            format::bfzyx
+    };
+
+    implementation_map<softmax>::add(impl_types::ocl, softmax_impl::create, types, formats);
 }
 
 }  // namespace detail

@@ -15,6 +15,22 @@
 #include <memory>
 namespace cldnn {
 namespace onednn {
+
+static void reorder_unreduced_axis_no_fusion(const cldnn::layout& input_layout, cldnn::layout& output_layout, std::vector<int64_t> axes) {
+    auto in_dims = input_layout.get_tensor().sizes();
+
+    for (size_t idx = 0; idx < axes.size(); idx++) {
+        in_dims[axes[idx]] = 1;
+    }
+
+    auto output_tensor = output_layout.get_tensor();
+    for (size_t idx = 0; idx < in_dims.size(); idx++) {
+        output_tensor.raw[idx] = in_dims[idx];
+    }
+
+    output_layout.set_tensor(output_tensor);
+}
+
 struct reduction_onednn : typed_primitive_onednn_impl<reduce, dnnl::reduction::desc> {
     using parent = typed_primitive_onednn_impl<reduce, dnnl::reduction::desc>;
     using parent::parent;
@@ -27,8 +43,15 @@ protected:
     static std::shared_ptr<dnnl::reduction::desc> get_reduction_descriptor(const reduce_node& arg) {
         auto prim = arg.get_primitive();
         auto& input = arg.get_dependency(0);
-        auto input_md = onednn::layout_to_memory_desc(input.get_output_layout());
-        auto output_md = onednn::layout_to_memory_desc(arg.get_output_layout());
+        auto input_layout = input.get_output_layout();
+        auto output_layout = arg.get_output_layout();
+
+        // A clDNN Reduce reorders un-reduced axes of its output tensor to b-f and spatial order when keep_dims is false.
+        // oneDNN reduction does not allow this. So this function reverts it.
+        reorder_unreduced_axis_no_fusion(input_layout, output_layout, prim->axes);
+
+        auto input_md = onednn::layout_to_memory_desc(input_layout);
+        auto output_md = onednn::layout_to_memory_desc(output_layout);
 
         float p = 0.f;
         float eps = 0.f;
@@ -63,7 +86,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const reduce_node& arg, std::shared_ptr<kernel_impl_params>) {
+    static primitive_impl* create(const reduce_node& arg, const kernel_impl_params&) {
         auto& engine = arg.get_program().get_engine();
         auto desc = get_reduction_descriptor(arg);
         auto attr = arg.get_onednn_primitive_attributes();
@@ -77,11 +100,6 @@ namespace detail {
 
 attach_reduction_onednn::attach_reduction_onednn() {
     implementation_map<reduce>::add(impl_types::onednn, reduction_onednn::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-
         std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),

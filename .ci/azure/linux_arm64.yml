@@ -127,29 +127,25 @@ jobs:
         -GNinja
         -DVERBOSE_BUILD=ON
         -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
-        -DENABLE_OPENCV=OFF
         -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8
         -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib/libpython3.8.so
         -DENABLE_PYTHON=ON
         -DPYTHON_MODULE_EXTENSION=".so"
         -DENABLE_TESTS=ON
-        -DENABLE_FUNCTIONAL_TESTS=ON
-        -DENABLE_GAPI_TESTS=OFF
-        -DENABLE_GAPI_PREPROCESSING=OFF
         -DENABLE_DATA=OFF
         -DCMAKE_EXE_LINKER_FLAGS=-Wl,-rpath-link,$(INSTALL_OPENCV)/lib
-        -DTHREADING=SEQ -DENABLE_LTO=ON
+        -DENABLE_LTO=ON
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
-        -DENABLE_SAMPLES=ON
         -DBUILD_java_api=OFF
+        -DBUILD_nvidia_plugin=OFF
         -DENABLE_INTEL_MYRIAD=OFF
-        -DTHREADING=SEQ
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
+        -DCMAKE_CXX_LINKER_LAUNCHER=ccache
+        -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DARM_COMPUTE_SCONS_JOBS=$(NUM_PROC)
-        -DOUTPUT_ROOT=$(INSTALL_OPENVINO)
         -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO)
         $(OPENVINO_REPO_DIR)
       workingDirectory: $(BUILD_OPENVINO)
@@ -189,6 +185,8 @@ jobs:
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
+        -DCMAKE_CXX_LINKER_LAUNCHER=ccache
+        -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO)
         $(OPENVINO_REPO_DIR)/src/bindings/python
       workingDirectory: $(BUILD_OPENVINO_PYTHON)

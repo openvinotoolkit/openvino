@@ -194,6 +194,14 @@ std::shared_ptr<InferenceEngine::RemoteContext> RemoteBlobImpl::getContext() con
     return m_context.lock();
 }
 
+void RemoteBlobImpl::reinterpret(cldnn::layout new_layout) {
+    OPENVINO_ASSERT(m_layout.bytes_count() >= new_layout.bytes_count(),
+                    "[GPU] Can't reinterpret blob to the size bigger than allocated memory buffer");
+    m_layout = new_layout;
+    auto engine = m_memObject->get_engine();
+    m_memObject = engine->reinterpret_buffer(*m_memObject, new_layout);
+}
+
 void RemoteBlobImpl::lock() const {
     if (!is_allocated()) {
         IE_THROW(NotAllocated) << "[GPU] Remote blob can't be locked as it's not allocated";
@@ -234,7 +242,7 @@ LockedMemory<const void> RemoteBlobImpl::cbuffer() const noexcept {
     }
 }
 
-LockedMemory<void> RemoteBlobImpl::rwmap()noexcept {
+LockedMemory<void> RemoteBlobImpl::rwmap() noexcept {
     try {
         lock();
         return LockedMemory<void>(reinterpret_cast<IAllocator *>(&m_allocator), _handle, 0);
@@ -252,7 +260,7 @@ LockedMemory<const void> RemoteBlobImpl::rmap() const noexcept {
     }
 }
 
-LockedMemory<void> RemoteBlobImpl::wmap()noexcept {
+LockedMemory<void> RemoteBlobImpl::wmap() noexcept {
     try {
         lock();
         return LockedMemory<void>(reinterpret_cast<IAllocator *>(&m_allocator), _handle, 0);
@@ -325,8 +333,12 @@ ExecutionContextImpl::ExecutionContextImpl(const std::shared_ptr<IInferencePlugi
     cldnn::device_query device_query(engine_type, runtime_type, _context_id, _va_device, ctx_device_id, target_tile_id);
     auto device_map = device_query.get_available_devices();
 
-    auto iter = device_map.find(m_config.device_id);
-    auto& dev = iter != device_map.end() ? iter->second : device_map.begin()->second;
+    auto iter = device_map.find(std::to_string(cldnn::device_query::device_id));
+    if (iter == device_map.end())
+        iter = device_map.find(m_config.device_id);
+    if (iter == device_map.end())
+        iter = device_map.begin();
+    auto& dev = iter->second;
 
     bool enable_profiling = (m_config.useProfiling ||
                             (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_tune_and_cache) ||

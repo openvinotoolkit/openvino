@@ -13,7 +13,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateReorgYoloOp(Program& p, const std::shared_ptr<ngraph::op::v0::ReorgYolo>& op) {
-    p.ValidateInputs(op, {1});
+    validate_inputs_count(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -21,11 +21,9 @@ static void CreateReorgYoloOp(Program& p, const std::shared_ptr<ngraph::op::v0::
 
     auto reorgPrim = cldnn::reorg_yolo(layerName,
                                        inputPrimitives[0],
-                                       stride,
-                                       op->get_friendly_name());
+                                       stride);
 
-    p.AddPrimitive(reorgPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, reorgPrim);
 }
 
 REGISTER_FACTORY_IMPL(v0, ReorgYolo);

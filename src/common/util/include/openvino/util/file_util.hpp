@@ -119,7 +119,7 @@ bool directory_exists(const std::string& path);
  * @param[in]  path  The file name
  * @return     file size
  */
-inline uint64_t file_size(const char* path) {
+inline int64_t file_size(const char* path) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring widefilename = ov::util::string_to_wstring(path);
     const wchar_t* file_name = widefilename.c_str();
@@ -143,7 +143,7 @@ inline uint64_t file_size(const char* path) {
  * @param[in]  path  The file name
  * @return     file size
  */
-inline uint64_t file_size(const std::wstring& path) {
+inline int64_t file_size(const std::wstring& path) {
     return file_size(wstring_to_string(path).c_str());
 }
 
@@ -154,7 +154,7 @@ inline uint64_t file_size(const std::wstring& path) {
  * @param[in]  path  The file name
  * @return     file size
  */
-inline uint64_t file_size(const std::string& path) {
+inline int64_t file_size(const std::string& path) {
     return file_size(path.c_str());
 }
 
@@ -193,6 +193,9 @@ inline std::string from_file_path(const FilePath& path) {
 inline FilePath to_file_path(const std::string& path) {
     return string_to_wstring(path);
 }
+
+std::wstring get_directory(const std::wstring& path);
+std::wstring path_join_w(const std::vector<std::wstring>& paths);
 
 #else
 

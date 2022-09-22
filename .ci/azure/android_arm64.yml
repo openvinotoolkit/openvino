@@ -110,20 +110,17 @@ jobs:
         -DANDROID_ABI=$(ANDROID_ABI_CONFIG)
         -DANDROID_STL=c++_shared
         -DANDROID_PLATFORM=$(ANDROID_SDK_VERSION)
-        -DENABLE_OPENCV=OFF
         -DENABLE_TESTS=ON
         -DENABLE_SAMPLES=ON
-        -DENABLE_INTEL_MYRIAD=OFF
         -DBUILD_java_api=ON
-        -DTHREADING=SEQ
+        -DBUILD_nvidia_plugin=OFF
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
+        -DCMAKE_CXX_LINKER_LAUNCHER=ccache
+        -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
         $(OPENVINO_REPO_DIR)
       workingDirectory: $(BUILD_DIR)
-
-  - script: ls -alR $(OPENVINO_REPO_DIR)/temp/
-    displayName: 'List temp SDKs'
 
   - script: ccache --zero-stats --max-size=50G --show-config
     displayName: 'Clean ccache stats'
