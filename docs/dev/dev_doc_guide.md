@@ -25,7 +25,7 @@ README.md provides an entry point to the component documentation. Here are the b
   
 You can use the following template for a README.md file:
 ```md
-# Name of component
+# Component name
 
 Short information about the component.
  * Responsibility
