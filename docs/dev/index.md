@@ -67,8 +67,8 @@ flowchart LR
 
 ## OpenVINO repository structure
 
-The trend in the organization of structure repository is the idea that toolkit should contains independent components which can work together.
-This approach allows to have dedicated groups of developers which are concentrated on different components.
+The repository is organized in such a way that the components contain all dependencies inside (for example, thirdparty, tests, documentation, and other). 
+With this approach, groups of developers, who are concentrated on different components, can efficiently work together.
 
 The OpenVINO Repository compositions from next components, click on the component name to get more information about it:
 <pre>
