@@ -15,7 +15,7 @@ TEST(StaticShapeInferenceTest, TransposeTest) {
     auto transpose = std::make_shared<op::v1::Transpose>(p, order);
     // Test StaticShape
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 4, 5}, StaticShape{3}},
-            static_output_shapes = {StaticShape{}};
+                             static_output_shapes = {StaticShape{}};
     shape_inference(transpose.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes[0], StaticShape({5, 4, 3}));
 }
