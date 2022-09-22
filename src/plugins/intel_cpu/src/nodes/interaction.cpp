@@ -28,11 +28,10 @@ namespace node {
 Interaction::Interaction(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node(op, eng, cache) {
     std::string errorMessage;
-    if (isSupportedOperation(op, errorMessage)) {
-        errorPrefix = "Interaction node with name '" + getName() + "'";
-    } else {
+    if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
+    errorPrefix = "Interaction node with name '" + getName() + "'";
 }
 
 void Interaction::initSupportedPrimitiveDescriptors() {

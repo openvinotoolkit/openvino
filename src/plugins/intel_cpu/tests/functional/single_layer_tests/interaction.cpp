@@ -50,7 +50,7 @@ protected:
         ElementType inType;
         InputShape inputShape;
         std::tie(inType, inputShape) = this->GetParam();
-        selectedType = std::string("ref_any_") + InferenceEngine::details::convertPrecision(inType).name();
+        selectedType = makeSelectedTypeStr("ref_any", inType);
         targetDevice = CommonTestUtils::DEVICE_CPU;
         inputDynamicShapes.push_back(inputShape.first);
         const auto& targetInput = inputShape.second;
