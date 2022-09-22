@@ -3,7 +3,7 @@
 The DefaultQuantization Algorithm is designed to perform fast and accurate quantization. It does not offer direct control over the accuracy metric itself but provides many options that can be used to improve it.
 
 ## Parameters
-Default Quantization algorithm has mandatory and optional parameters. For more details on how to use these parameters please refer to [Best Practices](@ref pot_docs_BestPractices) document. Here is an example of the definition of Defualt Quantization method and its parameters:
+Default Quantization algorithm has mandatory and optional parameters. For more details on how to use these parameters, refer to [Best Practices](@ref pot_docs_BestPractices) document. Below is an example of the definition of Default Quantization method and its parameters:
 ```python
 {
     "name": "DefaultQuantization", # the name of optimization algorithm
@@ -100,7 +100,7 @@ Enabling this option may increase compressed model accuracy, but will result in 
 Tutorials:
 * [Quantization of Image Classification model](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/301-tensorflow-training-openvino)
 * [Quantization of Object Detection model from Model Zoo](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-detection-quantization)
-* [Quantization of Segmentation model for mediacal data](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/110-ct-segmentation-quantize)
+* [Quantization of Segmentation model for medical data](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/110-ct-segmentation-quantize)
 * [Quantization of BERT for Text Classification](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/105-language-quantize-bert)
 
 Examples:
