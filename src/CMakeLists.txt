@@ -5,6 +5,7 @@
 add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 include(cmake/install_tbb.cmake)
+test change
 
 # CC library should be registered before other cc targets
 add_subdirectory(common)
