@@ -85,14 +85,6 @@ Performance varies by use, configuration and other factors, which are elaborated
 
 @endsphinxdirective
 
-### mask_rcnn_resnet50_atrous_coco_tf [600x1024]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/mask_rcnn_resnet50_atrous_coco_tf.csv"></div>
-
-@endsphinxdirective
 
 ### ssd-resnet34-1200_onnx [1200x1200]
 
