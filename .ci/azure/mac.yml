@@ -19,6 +19,7 @@ pr:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - .ci
 
 resources:
   repositories:
