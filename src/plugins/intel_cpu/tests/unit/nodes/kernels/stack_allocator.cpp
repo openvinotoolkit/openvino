@@ -45,7 +45,7 @@ protected:
     std::shared_ptr<StackAllocator> stack_allocator_;
 };
 
-TEST_F(StackAllocatorTest, ValueEqual) {
+TEST_F(StackAllocatorTest, Address_ValueEqual) {
     kernel_ = [this]() {
         Xbyak::Label l_equal;
         StackAllocator::Address reg_100_addr{stack_allocator_, sizeof(int32_t)};
@@ -62,10 +62,46 @@ TEST_F(StackAllocatorTest, ValueEqual) {
     EXPECT_EQ(r, 1);
 }
 
-TEST_F(StackAllocatorTest, ValueNotEqual) {
+TEST_F(StackAllocatorTest, Reg32_ValueEqual) {
+    kernel_ = [this]() {
+        Xbyak::Label l_equal;
+        StackAllocator::Reg<Xbyak::Reg32> reg_100_addr{stack_allocator_};
+        mov(rbx.cvt32(), 100);
+        stack_mov(reg_100_addr, rbx.cvt32());
+        mov(rax, 1);
+        cmp(rbx.cvt32(), reg_100_addr);
+        je(l_equal);
+        mov(rax, 0);
+        L(l_equal);
+    };
+    auto f = create_kernel<int(*) ()>();
+    int r = f();
+    EXPECT_EQ(r, 1);
+}
+
+TEST_F(StackAllocatorTest, Address_ValueNotEqual) {
     kernel_ = [this]() {
         Xbyak::Label l_equal;
         StackAllocator::Address reg_100_addr{stack_allocator_, sizeof(int32_t)};
+        mov(rbx.cvt32(), 100);
+        stack_mov(reg_100_addr, rbx.cvt32());
+        mov(rcx.cvt32(), reg_100_addr);
+        mov(rbx.cvt32(), 201);
+        mov(rax, 1);
+        cmp(rbx.cvt32(), rcx.cvt32());
+        je(l_equal);
+        mov(rax, 0);
+        L(l_equal);
+    };
+    auto f = create_kernel<int(*) ()>();
+    int r = f();
+    EXPECT_EQ(r, 0);
+}
+
+TEST_F(StackAllocatorTest, Reg32_ValueNotEqual) {
+    kernel_ = [this]() {
+        Xbyak::Label l_equal;
+        StackAllocator::Reg<Xbyak::Reg32> reg_100_addr{stack_allocator_};
         mov(rbx.cvt32(), 100);
         stack_mov(reg_100_addr, rbx.cvt32());
         mov(rcx.cvt32(), reg_100_addr);
