@@ -1,4 +1,4 @@
-# Optimizing models post-training {#pot_introduction}
+# Optimizing Models Post-training {#pot_introduction}
 
 @sphinxdirective
 
@@ -17,17 +17,17 @@
 @endsphinxdirective
 
 
-Post-training model optimization is the process of applying special methods without model retraining or fine-tuning. Therefore, it does not require either a training dataset or a training pipeline in the source DL framework. In OpenVINO, post-training methods, such as post-training 8-bit quantization, require:
-* A floating-point precision model (FP32 or FP16), converted to the OpenVINO IR format (Intermediate Representation)
-and run on CPU with OpenVINO.
+Post-training model optimization is the process of applying special methods without model retraining or fine-tuning, for example, post-training 8-bit quantization. Therefore, this process does not require a training dataset or a training pipeline in the source DL framework. To apply post-training methods in OpenVINO&trade;, you need:
+* A floating-point precision model, FP32 or FP16, converted into the OpenVINO&trade; Intermediate Representation (IR) format that can be run on CPU.
 * A representative calibration dataset representing a use case scenario, for example, 300 samples.
 * In case of accuracy constraints, a validation dataset and accuracy metrics should be available.
 
-OpenVINO provides a Post-training Optimization Tool (POT) that supports the uniform integer quantization method. It can substantially increase inference performance and reduce the size of a model.
+For the needs of post-training optimization, OpenVINO&trade; provides a **Post-training Optimization Tool (POT)** which supports the **uniform integer quantization** method. This method allows moving from floating-point precision to integer precision (for example, 8-bit) for weights and activations during the inference time. It helps to reduce the model size, memory footprint and latency, as well as improve the computational efficiency, using integer arithmetic. During the quantization process the model undergoes the transformation process when additional operations, that contain quantization information, are inserted into the model. The actual transition to integer arithmetic happens at model inference.
 
 The figure below shows the optimization workflow with POT:
 ![](./images/workflow_simple.png)
 
+POT is distributed as a part of OpenVINO&trade; [Development Tools](@ref openvino_docs_install_guides_install_dev_tools) package and also available on [GitHub](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot).
 
 ## Quantizing models with POT
 
