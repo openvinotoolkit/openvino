@@ -18,7 +18,6 @@ pr:
     exclude: 
     - docs/
     - /**/docs/*
-    - .ci
     - /**/*.md
 
 resources:
