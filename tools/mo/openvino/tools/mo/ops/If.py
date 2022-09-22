@@ -137,7 +137,8 @@ class If(Op):
                 .format(output_node.name, port_id)
             outputs_mapping[port_id][branch_name] = output_node
             out_node_shape = output_node.in_port(0).data.get_shape()
-            graph_contain_fake_outputs = graph_contain_fake_outputs and np.any(unmask_shape(out_node_shape == 0))
+            import pdb;pdb.set_trace()
+            graph_contain_fake_outputs = graph_contain_fake_outputs and np.any(unmask_shape(out_node_shape) == 0)
         return graph_contain_fake_outputs
 
     @staticmethod
