@@ -48,7 +48,7 @@ It can contain references to the pages with additional information.
 
 ## Tutorials
 
-Section contains a list of component tutorials.
+The section contains a list of component tutorials.
 Example:
  * [How to support new operation](./docs/operation_support.md)
  * [How to implement new feature](./docs/new_feature.md)
