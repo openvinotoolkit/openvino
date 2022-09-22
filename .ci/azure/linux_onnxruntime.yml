@@ -4,8 +4,19 @@ trigger:
     - master
     - releases/*
   paths:
-    exclude:
-    - docs/*
+    exclude: 
+    - /**/docs/ 
+    - /**/*.md
+
+pr:
+  branches:
+    include:
+    - master
+    - releases/*
+  paths:
+    exclude: 
+    - /**/docs/ 
+    - /**/*.md
 
 jobs:
 - job: onnxruntime
