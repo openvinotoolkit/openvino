@@ -30,6 +30,6 @@ A template of configuration file for 8-bit quantization using Simplified mode ca
 
 For more details about POT usage via CLI, refer to this [CLI document](@ref pot_compression_cli_README).
 
-## See Also
+## Additional Resources
 
  * [Configuration File Description](@ref pot_configs_README)
