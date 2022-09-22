@@ -436,7 +436,15 @@ jobs:
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
-    displayName: 'Layer Tests'
+    displayName: 'Layer Tests - Tensorflow'
+    continueOnError: false
+
+  - script: |
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
+      export TEST_DEVICE=CPU
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow2_keras_tests/test_tf2_keras_activation.py --ir_version=11 --junitxml=./TEST-tf2_Activation.xmlTEST -k "sigmoid"
+    displayName: 'Layer Tests - Tensorflow2 Keras'
     continueOnError: false
 
   - task: PublishTestResults@2
