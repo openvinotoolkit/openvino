@@ -219,6 +219,7 @@ KERNEL(convolution_depthwise)(
                                 (OUTPUT_PAD_BEFORE_SIZE_Y + y) * output_y_pitch +
                                 (OUTPUT_PAD_BEFORE_SIZE_X) * output_x_pitch;
 
+#if X_BLOCK_SIZE == 8
     OUTPUT_TYPE8 res;
 #if OUTPUT_LEFTOVERS
     if ((f_block + 1) * FEATURE_SLICE_SIZE >= OUTPUT_FEATURE_NUM)
@@ -245,11 +246,7 @@ KERNEL(convolution_depthwise)(
 #else
             res = TO_OUTPUT_TYPE8(dst);
 #endif // HAS_FUSED_OPS
-#if X_BLOCK_SIZE == 8
             OUTPUT_BLOCK_WRITE8(output, output_offset + x * output_x_pitch, res);
-#else
-            output[output_offset + x * output_x_pitch + lid] = res[0];
-#endif
         }
         else
         {
@@ -264,6 +261,34 @@ KERNEL(convolution_depthwise)(
             }
         }
     }
+#else // X_BLOCK_SIZE == 1
+    OUTPUT_TYPE res;
+#if OUTPUT_LEFTOVERS
+    if ((f_block + 1) * FEATURE_SLICE_SIZE >= OUTPUT_FEATURE_NUM)
+    {
+#if HAS_FUSED_OPS
+        uint i = 0;
+        FUSED_OPS_SCALAR;
+        res = FUSED_OPS_RESULT_SCALAR;
+#else
+        res = TO_OUTPUT_TYPE(dst[0]);
+#endif // HAS_FUSED_OPS
+        if (x < OUTPUT_SIZE_X && f_block * FEATURE_SLICE_SIZE + lid < OUTPUT_FEATURE_NUM)
+            output[output_offset + x * output_x_pitch + lid] = res;
+    }
+    else
+#endif // OUTPUT_LEFTOVERS
+    {
+#if HAS_FUSED_OPS
+        uint i = 0;
+        FUSED_OPS_SCALAR;
+        res = FUSED_OPS_RESULT_SCALAR;
+#else
+        res = TO_OUTPUT_TYPE(dst[0]);
+#endif // HAS_FUSED_OPS
+        output[output_offset + x * output_x_pitch + lid] = res;
+    }
+#endif
 }
 
 #undef unroll_for
