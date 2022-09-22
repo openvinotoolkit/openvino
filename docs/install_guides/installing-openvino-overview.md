@@ -43,32 +43,28 @@ For developers working in Python, OpenVINO Development Tools (which includes Ope
 **C++** <br>
 For developers working in C++, the core OpenVINO Runtime libraries must be installed separately. Then, OpenVINO Development Tools can be installed using requirements files or PyPI. See the [For C++ Developers](installing-model-dev-tools.md#for-c-developers) section of the Install OpenVINO Development Tools page for instructions.
 
-**If you want to download models from [Open Model Zoo](../model_zoo.md), [convert your own models to OpenVINO IR](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md), or [optimize and tune pre-trained deep learning models](../optimization_guide/model_optimization_guide.md)**, [install OpenVINO Development Tools](installing-model-dev-tools.md), which provides the following tools:
+### Option 2. Install OpenVINO Runtime only
 
-  * Model Optimizer
-  * Post-Training Optimization Tool
-  * Benchmark Tool
-  * Accuracy Checker and Annotation Converter
-  * Model Downloader and other Open Model Zoo tools
+The OpenVINO Runtime may also be installed on its own without OpenVINO Development Tools. This is recommended for users who already have an optimized model and want to deploy it in an application that uses OpenVINO for inference on their device. To install OpenVINO Runtime only, follow the instructions on the [Install OpenVINO Runtime](installing-openvino-runtime.md) page.
 
+The following methods are available to install OpenVINO Runtime:
 
-### Choose Your Installation Method
+* Linux: You can install OpenVINO Runtime using archive files or Docker. See [Install OpenVINO on Linux](installing-openvino-linux-header.md).
+* Windows: You can install OpenVINO Runtime using archive files or Docker. See [Install OpenVINO on Windows](installing-openvino-windows-header.md).
+* macOS: You can install OpenVINO Runtime using archive files or Docker. See [Install OpenVINO on macOS](installing-openvino-macos-header.md).
+* [Rasbpian OS](installing-openvino-raspbian.md)
 
-For Python developers, the easiest way is to [install OpenVINO Development Tools](installing-model-dev-tools.md), which will install both OpenVINO Runtime and OpenVINO Development Tools with a few steps. If you want to install OpenVINO Runtime only, see [Install OpenVINO Runtime from PyPI](installing-openvino-pip.md).
+### Option 3. Build OpenVINO from source
 
-For C++ developers, you may choose one of the following installation options for OpenVINO Runtime on your specific operating system:
-
-* Linux: You can install OpenVINO Runtime using an [Installer](installing-openvino-linux.md), [APT](installing-openvino-apt.md), [YUM](installing-openvino-yum.md), [Anaconda Cloud](installing-openvino-conda.md), or [Docker](installing-openvino-docker-linux.md).
-* Windows: You can install OpenVINO Runtime using an [Installer](installing-openvino-windows.md), [Anaconda Cloud](installing-openvino-conda.md), or [Docker](installing-openvino-docker-windows.md).
-* macOS: You can install OpenVINO Runtime using an [Installer](installing-openvino-macos.md) or [Anaconda Cloud](installing-openvino-conda.md).
-* [Raspbian OS](installing-openvino-raspbian.md).
-
-> **NOTE**: With the introduction of the 2022.1 release, the OpenVINO Development Tools can be installed **only** via PyPI. See [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
-Source files are also available in the [OpenVINO toolkit GitHub repository](https://github.com/openvinotoolkit/openvino/), so you can build your own package for the supported platforms, as described in [OpenVINO Build Instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
+Source files are also available in the OpenVINO Toolkit GitHub repository. If you want to build OpenVINO from source for your platform, follow the [OpenVINO Build Instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
 ## Next Steps
+Still unsure if you want to install OpenVINO Toolkit? Check out the [OpenVINO tutorial notebooks](../tutorials.md) to run example applications directly in your web browser without needing to install it locally. Here are some exciting demos you can explore:
+- [Monodepth Estimation with OpenVINO](https://docs.openvino.ai/latest/notebooks/201-vision-monodepth-with-output.html)
+- [Style Transfer on ONNX Models with OpenVINO](https://docs.openvino.ai/latest/notebooks/212-onnx-style-transfer-with-output.html)
+- [OpenVINO API Tutorial](https://docs.openvino.ai/latest/notebooks/002-openvino-api-with-output.html)
 
-- [Install OpenVINO Runtime](installing-openvino-runtime.md)
+Follow these links to install OpenVINO:
 - [Install OpenVINO Development Tools](installing-model-dev-tools.md)
+- [Install OpenVINO Runtime](installing-openvino-runtime.md)
 - [Build from Source](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode)
-- [Create a Yocto Image](installing-openvino-yocto.md)
