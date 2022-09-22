@@ -16,7 +16,7 @@ pr:
   paths:
     exclude: 
     - docs/
-    - /**/docs/
+    - /**/docs/*
     - /**/*.md
     - .ci/
 
