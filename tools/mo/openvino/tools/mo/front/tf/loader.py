@@ -16,12 +16,10 @@ from openvino.tools.mo.utils.versions_checker import get_environment_setup
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 try:
     import tensorflow.compat.v1 as tf_v1
-    tf_v1.reset_default_graph()
 
     # disable eager execution of TensorFlow 2 environment immediately
     tf_v1.disable_eager_execution()
     import tensorflow as tf
-    #tf.keras.backend.clear_session()
     from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
 except ImportError:
     import tensorflow as tf_v1
@@ -177,12 +175,61 @@ def deducing_metagraph_path(meta_graph_file: str):
     return meta_graph_file
 
 
+def freeze_tf2_concrete_function(model, concrete_func):
+    env_setup = get_environment_setup("tf")
+    # resetting of default graph is needed for enabling of eager execution
+    tf_v1.reset_default_graph()
+
+    # enable eager execution temporarily while TensorFlow 2 model is being loaded
+    tf_v1.enable_eager_execution()
+    if "tensorflow" in env_setup and env_setup["tensorflow"] >= LooseVersion("2.2.0"):
+        frozen_func = convert_variables_to_constants_v2(concrete_func,
+                                                        lower_control_flow=False,
+                                                        aggressive_inlining=True)  # pylint: disable=E1123
+    else:
+        frozen_func = convert_variables_to_constants_v2(concrete_func,
+                                                        lower_control_flow=False)  # pylint: disable=E1123
+    graph_def = frozen_func.graph.as_graph_def(add_shapes=True)
+    # disable eager execution since next steps are executed with a graph in non-eager mode
+    tf_v1.disable_eager_execution()
+
+    input_names = []
+    if hasattr(model, 'inputs') and model.inputs is not None:
+        # Extract tensor names order from Keras model
+        input_names = [tensor.name for tensor in model.inputs]
+
+    # After model freezing output tensor names are changing and recieve "Func/PartitionedCall" prefix,
+    # so output_names from saved_model cannot be used. Here tensor names from frozen graph are used,
+    # as TF adds indexed Identity nodes during freezing to each output, so this indexing is used for
+    # order alignment.
+    output_names = [tensor.name for tensor in frozen_func.outputs]
+
+    inputs_outputs_order = (input_names, output_names)
+
+    return graph_def, {}, 'tf2', inputs_outputs_order
+
+
 def prepare_graph_def(model):
     if isinstance(model, tf_v1.GraphDef):
         nodes_to_clear_device = model.node
         for node in nodes_to_clear_device:
             node.device = ""
         return model, {}, "tf", None
+    try:
+        if isinstance(model, tf.keras.Model):
+
+            # TODO: can we get concrete function if inputs are not set
+            assert hasattr(model, "inputs") and model.inputs is not None, "Model inputs specification is required."
+            model_inputs = [x.type_spec for x in model.inputs]
+
+            @tf.function
+            def tf_function(x):
+                return model(x)
+
+            conc_func = tf_function.get_concrete_function(model_inputs)
+            return freeze_tf2_concrete_function(model, conc_func)
+    except ImportError:
+        pass
     raise Exception("Unknown model type {}.".format(type(model)))
 
 
@@ -243,10 +290,6 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
         if model_dir:
             # saved model directory
             try:
-                env_setup = get_environment_setup("tf")
-                # enable eager execution temporarily while TensorFlow 2 model is being loaded
-                tf_v1.enable_eager_execution()
-
                 try:
                     # Code to extract Keras model.
                     # tf.keras.models.load_model function throws TypeError,KeyError or IndexError
@@ -259,31 +302,8 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 concrete_func = imported.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
                 # the aggressive inlining parameter needs to freeze a table of embeddings for Keras Embedding operation
                 # and a model with Embedding operation cannot properly converted to IR without this function parameter
-                if "tensorflow" in env_setup and env_setup["tensorflow"] >= LooseVersion("2.2.0"):
-                    frozen_func = convert_variables_to_constants_v2(concrete_func,
-                                                                    lower_control_flow=False,
-                                                                    aggressive_inlining=True)  # pylint: disable=E1123
-                else:
-                    frozen_func = convert_variables_to_constants_v2(concrete_func,
-                                                                    lower_control_flow=False)  # pylint: disable=E1123
-                graph_def = frozen_func.graph.as_graph_def(add_shapes=True)
-                # disable eager execution since next steps are executed with a graph in non-eager mode
-                tf_v1.disable_eager_execution()
 
-                input_names = []
-                if hasattr(imported, 'inputs') and imported.inputs is not None:
-                    # Extract tensor names order from Keras model
-                    input_names = [tensor.name for tensor in imported.inputs]
-
-                # After model freezing output tensor names are changing and recieve "Func/PartitionedCall" prefix,
-                # so output_names from saved_model cannot be used. Here tensor names from frozen graph are used,
-                # as TF adds indexed Identity nodes during freezing to each output, so this indexing is used for
-                # order alignment.
-                output_names = [tensor.name for tensor in frozen_func.outputs]
-
-                inputs_outputs_order = (input_names, output_names)
-
-                return graph_def, variables_values, 'tf2', inputs_outputs_order
+                return freeze_tf2_concrete_function(imported, concrete_func)
             except:
                 # disable eager execution since TensorFlow 1 model is handled
                 tf_v1.disable_eager_execution()
