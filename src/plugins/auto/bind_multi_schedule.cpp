@@ -194,24 +194,5 @@ IInferPtr BinderMultiSchedule::CreateInferRequestImpl(IE::InputsDataMap networkI
     return syncImpl;
 }
 
-IInferPtr BinderMultiSchedule::CreateInferRequest() {
-    auto execNetwork = std::dynamic_pointer_cast<MultiExecutableNetwork>(
-            _multiSContext->_executableNetwork.lock());
-    if (_passthroughExeNet) {
-        auto res = _passthroughExeNet->CreateInferRequest();
-        res->setPointerToExecutableNetworkInternal(execNetwork);
-        return res;
-    }
-    IInferPtr syncRequestImpl;
-    if (_multiSContext->_core && _multiSContext->_core->isNewAPI())
-        syncRequestImpl = CreateInferRequestImpl(execNetwork->_parameters, execNetwork->_results);
-    if (!syncRequestImpl)
-        syncRequestImpl = CreateInferRequestImpl(execNetwork->_networkInputs, execNetwork->_networkOutputs);
-    syncRequestImpl->setPointerToExecutableNetworkInternal(execNetwork);
-    return std::make_shared<AsyncInferRequest>(shared_from_this(),
-                                               syncRequestImpl,
-                                               execNetwork->_callbackExecutor);
-}
-
 }  // namespace MultiDevicePlugin
 

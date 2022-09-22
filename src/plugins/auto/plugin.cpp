@@ -491,7 +491,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     auto executor = executorManager()->getIdleCPUStreamsExecutor(
             IStreamsExecutor::Config{"MultiDeviceAsyncLoad",
                                      static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
-                                     1 /*single thread per stream*/,
+                                     0 /*default threads per stream, workaround for ticket 62376*/,
                                      IStreamsExecutor::ThreadBindingType::NONE});
     executor->runAndWait(loads);
     if (executableNetworkPerDevice.empty())
@@ -519,10 +519,12 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     multiSContext->_LogTag = _LogTag;
     IExecutableNetworkInternal::Ptr impl;
     auto tmpiter = fullConfig.find(ov::intel_auto::device_bind_buffer.name());
-    if (tmpiter != fullConfig.end() && tmpiter->second == PluginConfigParams::YES)
+    if (tmpiter != fullConfig.end() && tmpiter->second == PluginConfigParams::YES) {
+        multiSContext->_bindBuffer = true;
         impl = std::make_shared<MultiExecutableNetwork>(multiSContext, std::make_shared<BinderMultiSchedule>());
-    else
+    } else {
         impl = std::make_shared<MultiExecutableNetwork>(multiSContext, std::make_shared<MultiSchedule>());
+    }
     if (!modelPath.empty()) {
         SetExeNetworkInfo(impl,
                           executableNetworkPerDevice.begin()->second->GetInputsInfo(),

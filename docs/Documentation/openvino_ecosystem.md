@@ -25,7 +25,7 @@ A solution for Model Developers and Independent Software Vendors to use secure p
 
 More resources:
 * [documentation](https://docs.openvino.ai/latest/ovsa_get_started.html)
-* [GitHub]https://github.com/openvinotoolkit/security_addon)
+* [GitHub](https://github.com/openvinotoolkit/security_addon)
 
 
 ### OpenVINO™ integration with TensorFlow (OVTF)
@@ -40,7 +40,7 @@ More resources:
 A streaming media analytics framework, based on the GStreamer multimedia framework, for creating complex media analytics pipelines.
 
 More resources:
-* [documentation on GitHub](https://openvinotoolkit.github.io/dlstreamer_gst/)
+* [documentation on GitHub](https://dlstreamer.github.io/index.html)
 * [installation Guide on GitHub](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Install-Guide)
 
 ### DL Workbench
@@ -61,7 +61,7 @@ More resources:
 An online, interactive video and image annotation tool for computer vision purposes.
 
 More resources:
-* [documentation on GitHub](https://openvinotoolkit.github.io/cvat/docs/)	
+* [documentation on GitHub](https://opencv.github.io/cvat/docs/)	
 * [web application](https://cvat.org/) 
 * [Docker Hub](https://hub.docker.com/r/openvino/cvat_server) 
 * [GitHub](https://github.com/openvinotoolkit/cvat)

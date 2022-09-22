@@ -10,9 +10,15 @@
 #        define TBBBIND_2_5_AVAILABLE 0
 #    endif
 
-#    define USE_TBBBIND_2_5                 (TBBBIND_2_5_AVAILABLE && TBB_INTERFACE_VERSION < 12020)
-#    define TBB_NUMA_SUPPORT_PRESENT        (TBB_INTERFACE_VERSION >= 11100)
-#    define TBB_HYBRID_CPUS_SUPPORT_PRESENT (TBB_INTERFACE_VERSION >= 12020)
+#    define USE_TBBBIND_2_5          (TBBBIND_2_5_AVAILABLE && TBB_INTERFACE_VERSION < 12020)
+#    define TBB_NUMA_SUPPORT_PRESENT (TBB_INTERFACE_VERSION >= 11100)
+#    if defined(__APPLE__)
+// 2021.2 TBB doesn't export for macOS symbol:
+//     _ZN3tbb6detail2r131constraints_default_concurrencyERKNS0_2d111constraintsEl
+#        define TBB_HYBRID_CPUS_SUPPORT_PRESENT (TBB_INTERFACE_VERSION > 12020)
+#    else
+#        define TBB_HYBRID_CPUS_SUPPORT_PRESENT (TBB_INTERFACE_VERSION >= 12020)
+#    endif
 
 #    if defined(_WIN32) || defined(_WIN64)
 #        include <windows.h>

@@ -255,7 +255,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 tf_v1.disable_eager_execution()
 
                 input_names = []
-                if hasattr(imported, 'inputs'):
+                if hasattr(imported, 'inputs') and imported.inputs is not None:
                     # Extract tensor names order from Keras model
                     input_names = [tensor.name for tensor in imported.inputs]
 
