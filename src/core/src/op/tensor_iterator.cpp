@@ -88,19 +88,20 @@ void op::v0::TensorIterator::validate_and_infer_types() {
             auto body_parameter = body->get_parameters().at(slice_input_description->m_body_parameter_index);
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
             auto axis = slice_input_description->m_axis;
-            if (input_partial_shape.rank().is_static() && input_partial_shape[axis].is_static()) {
+            if (input_partial_shape.rank().is_static()) {
                 auto part_size = slice_input_description->m_part_size;
-
-                auto dim_size = input_partial_shape[axis].get_length();
-                auto start = make_positive(slice_input_description->m_start, dim_size);
-                auto end = make_positive(slice_input_description->m_end, dim_size);
-
-                // +1 because the left and right borders are included [start, end]
-                m_num_iterations = (abs(end - start) + 1) / part_size;
                 // infer type for m_body_parameter
                 ov::PartialShape out_shape{input_partial_shape};
                 out_shape[axis] = part_size;
                 body_parameter->set_partial_shape(out_shape);
+                if (input_partial_shape[axis].is_static()) {
+                    auto dim_size = input_partial_shape[axis].get_length();
+                    auto start = make_positive(slice_input_description->m_start, dim_size);
+                    auto end = make_positive(slice_input_description->m_end, dim_size);
+
+                    // +1 because the left and right borders are included [start, end]
+                    m_num_iterations = (abs(end - start) + 1) / part_size;
+                }
             } else {
                 body_parameter->set_partial_shape(ov::PartialShape::dynamic(input_partial_shape.rank()));
             }
