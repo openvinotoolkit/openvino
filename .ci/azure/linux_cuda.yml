@@ -3,12 +3,26 @@ trigger:
     include:
     - master
     - releases/*
+  paths:
+    include:
+    - docs/template_plugin/
+    - docs/template_extension/
+    exclude: 
+    - /**/docs/ 
+    - /**/*.md
 
 pr:
   branches:
     include:
     - master
     - releases/*
+  paths:
+    include:
+    - docs/template_plugin/
+    - docs/template_extension/
+    exclude: 
+    - /**/docs/ 
+    - /**/*.md
 
 resources:
   repositories:
