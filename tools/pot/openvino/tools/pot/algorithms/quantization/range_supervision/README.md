@@ -47,7 +47,7 @@ Algorithm has a minimal configuration. Below is an example of such configuration
 }
 ```
 
-The protected model will be saved in IR format in a new folder *./results/\<model_name\>_RangeSupervision/...* . 
+The protected model will be saved in IR format in a new folder ``./results/\<model_name\>_RangeSupervision/...`` . 
 
 Mandatory parameters:
 - `"stat_subset_size"`:  This parameter defines *how many images* of the specified dataset in "engine: config" are used to extract the bounds (images are randomly chosen if a subset is chosen). This value is set to **300** by default. The more images are selected for the bound generation, the more accurate the estimation of an out-of-bound event will be, at the cost of increasing extraction time.
