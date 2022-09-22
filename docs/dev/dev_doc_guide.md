@@ -43,8 +43,8 @@ Detailed information can be located in the `docs/` folder. This section can cont
 
 ## Architecture
 
-Is an optional charpter which provide main ideas about the component architecture.
-It can contains references to dedicated pages with additional information.
+Is an optional section which provides main ideas about the component architecture.
+It can contain references to the pages with additional information.
 
 ## Tutorials
 
