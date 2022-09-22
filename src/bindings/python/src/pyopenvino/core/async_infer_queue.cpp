@@ -78,13 +78,6 @@ public:
         for (size_t handle = 0; handle < _requests.size(); handle++) {
             _requests[handle]._request.set_callback([this, handle /* ... */](std::exception_ptr exception_ptr) {
                 _requests[handle]._end_time = Time::now();
-                try {
-                    if (exception_ptr) {
-                        std::rethrow_exception(exception_ptr);
-                    }
-                } catch (const std::exception& e) {
-                    throw ov::Exception(e.what());
-                }
                 {
                     // acquire the mutex to access _idle_handles
                     std::lock_guard<std::mutex> lock(_mutex);
@@ -93,6 +86,14 @@ public:
                 }
                 // Notify locks in getIdleRequestId()
                 _cv.notify_one();
+
+                try {
+                    if (exception_ptr) {
+                        std::rethrow_exception(exception_ptr);
+                    }
+                } catch (const std::exception& e) {
+                    throw ov::Exception(e.what());
+                }
             });
         }
     }
@@ -101,27 +102,23 @@ public:
         for (size_t handle = 0; handle < _requests.size(); handle++) {
             _requests[handle]._request.set_callback([this, f_callback, handle](std::exception_ptr exception_ptr) {
                 _requests[handle]._end_time = Time::now();
-                try {
-                    if (exception_ptr) {
-                        std::rethrow_exception(exception_ptr);
+                if (exception_ptr == nullptr) {
+                    // Acquire GIL, execute Python function
+                    py::gil_scoped_acquire acquire;
+                    try {
+                        f_callback(_requests[handle], _user_ids[handle]);
+                    } catch (const py::error_already_set& py_error) {
+                        // This should behave the same as assert(!PyErr_Occurred())
+                        // since constructor for pybind11's error_already_set is
+                        // performing PyErr_Fetch which clears error indicator and
+                        // saves it inside itself.
+                        assert(py_error.type());
+                        // acquire the mutex to access _errors
+                        std::lock_guard<std::mutex> lock(_mutex);
+                        _errors.push(py_error);
                     }
-                } catch (const std::exception& e) {
-                    throw ov::Exception(e.what());
                 }
-                // Acquire GIL, execute Python function
-                py::gil_scoped_acquire acquire;
-                try {
-                    f_callback(_requests[handle], _user_ids[handle]);
-                } catch (const py::error_already_set& py_error) {
-                    // This should behave the same as assert(!PyErr_Occurred())
-                    // since constructor for pybind11's error_already_set is
-                    // performing PyErr_Fetch which clears error indicator and
-                    // saves it inside itself.
-                    assert(py_error.type());
-                    // acquire the mutex to access _errors
-                    std::lock_guard<std::mutex> lock(_mutex);
-                    _errors.push(py_error);
-                }
+
                 {
                     // acquire the mutex to access _idle_handles
                     std::lock_guard<std::mutex> lock(_mutex);
@@ -130,6 +127,15 @@ public:
                 }
                 // Notify locks in getIdleRequestId()
                 _cv.notify_one();
+
+                try {
+                    if (exception_ptr) {
+                        std::rethrow_exception(exception_ptr);
+                    }
+                } catch (const std::exception& e) {
+                    // Notify locks in getIdleRequestId()
+                    throw ov::Exception(e.what());
+                }
             });
         }
     }
