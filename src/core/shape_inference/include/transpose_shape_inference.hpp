@@ -41,11 +41,13 @@ bool is_valid_permutation(const ov::AxisVector& permutation, const Rank& rank) {
 template <typename T>
 T apply_permutation(const T& input, const AxisVector& order) {
 
+    if (input.rank().is_dynamic()) {
+        return input;
+    }
     T output;
     output.resize(input.size());
-
     for (size_t i = 0; i < order.size(); i++) {
-        output[i] = input.at(order.at(i));
+        output[i] = input[order.at(i)];
     }
 
     return output;
@@ -55,21 +57,16 @@ template <class T>
 void shape_infer(const Transpose* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     const auto& input_order_shape = input_shapes[1];
     NODE_VALIDATION_CHECK(op, input_order_shape.rank().compatible(1), "Input order must be a vector.");
-
+    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     const auto& arg_shape = input_shapes[0];
 
     if (arg_shape.rank().is_static()) {
-        bool is_compatible = input_order_shape.compatible(T{arg_shape.rank()});
+        bool is_compatible = input_order_shape.compatible(T{DimType(arg_shape.rank().get_length())});
         is_compatible = is_compatible || (input_order_shape.is_static() && input_order_shape.size() == 1 && input_order_shape[0] == 0);
         NODE_VALIDATION_CHECK(
             op,
             is_compatible,
             "Input order must have shape [n], where n is the rank of arg.");
-    } else {
-        auto output_rank = arg_shape.rank();
-        if (output_rank.is_dynamic() && input_order_shape.is_static() && input_order_shape[0].get_length())
-            output_rank = input_order_shape[0].get_length();
-        output_shapes[0] = ov::PartialShape::dynamic(output_rank);
     }
 
     if (const auto& input_const = get_constant_from_source(op->input_value(1))) {
@@ -85,6 +82,11 @@ void shape_infer(const Transpose* op, const std::vector<T>& input_shapes, std::v
                               " is not valid for input shape ",
                               arg_shape);
         output_shapes[0] = apply_permutation(arg_shape, permutation);
+    } else {
+        auto output_rank = arg_shape.rank();
+        if (output_rank.is_dynamic() && input_order_shape.is_static() && input_order_shape[0].get_length())
+            output_rank = input_order_shape[0].get_length();
+        output_shapes[0] = ov::PartialShape::dynamic(output_rank);
     }
 }
 

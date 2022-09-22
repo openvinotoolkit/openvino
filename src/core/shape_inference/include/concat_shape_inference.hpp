@@ -13,16 +13,17 @@ namespace op {
 namespace v0 {
 
 template <class T>
-void shape_infer(const Concat* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+void shape_infer(Concat* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() > 0 && output_shapes.size() == 1);
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     auto& output_pshape = output_shapes[0];
     DimType concatenation_axis_output_dim{0};
     output_pshape = input_shapes[0];
     const auto& output_rank = output_pshape.rank();
-    int64_t axis = op->get_axis();
     if (output_rank.is_static()) {
-        axis = axis < 0 ? axis + output_rank.get_length() : axis;
+        if (op->get_concatenation_axis() < 0) {
+            op->set_concatenation_axis(op->get_axis() < 0 ? op->get_axis() + output_rank.get_length() : op->get_axis());
+        }
     } else {
         output_pshape = ov::PartialShape::dynamic();
         return;
@@ -33,10 +34,9 @@ void shape_infer(const Concat* op, const std::vector<T>& input_shapes, std::vect
         const auto& this_input_rank = this_input_shape.rank();
         if (this_input_rank.is_static()) {
 
-            auto concat_axis = axis;
+            const auto concat_axis = op->get_concatenation_axis();
             NODE_VALIDATION_CHECK(op,
-                                  concat_axis < this_input_rank.get_length() && concat_axis >= 0
-                                  && output_rank.get_length() == this_input_rank.get_length(),
+                                  concat_axis < this_input_rank.get_length() && concat_axis >= 0,
                                   "Concatenation axis (",
                                   concat_axis,
                                   ") is out of bounds [",
@@ -50,26 +50,27 @@ void shape_infer(const Concat* op, const std::vector<T>& input_shapes, std::vect
                                   this_input_shape,
                                   ".");
 
-            concatenation_axis_output_dim += this_input_shape[concat_axis];
 
-            for (size_t i = 0; i < output_rank.get_length(); i++) {
-                if (i == concat_axis)
+            for (size_t j = 0; j < output_rank.get_length(); j++) {
+                if (j == concat_axis)
                     continue;
                 NODE_VALIDATION_CHECK(op,
-                        output_pshape[i].compatible(this_input_shape[i]),
+                        DimType::merge(output_pshape[j], output_pshape[j], this_input_shape[j])
+                        && output_rank.compatible(this_input_rank),
                         "Argument shapes are inconsistent; they must have the same rank, and must "
                         "have ",
                         "equal dimension everywhere except on the concatenation axis (axis ",
                         concat_axis,
                         ").");
             }
+            concatenation_axis_output_dim += this_input_shape[concat_axis];
         } else {
             concatenation_axis_output_dim += Dimension::dynamic();
         }
     }
 
     if (output_pshape.rank().is_static()) {
-        output_pshape[axis] = concatenation_axis_output_dim;
+        output_pshape[op->get_concatenation_axis()] = concatenation_axis_output_dim;
     }
 }
 }  // namespace v0

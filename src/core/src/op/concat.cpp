@@ -10,6 +10,7 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
+#include "concat_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -34,56 +35,17 @@ void op::Concat::validate_and_infer_types() {
 
     ov::PartialShape inputs_shape_scheme{ov::PartialShape::dynamic()};
     element::Type inputs_et{element::dynamic};
-    Dimension concatenation_axis_output_dim{0};
 
-    for (uint64_t i = 0; i < get_input_size(); i++) {
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    std::vector<ov::PartialShape> input_shapes;
+    for (size_t i = 0; i < get_input_size(); i++) {
         NODE_VALIDATION_CHECK(this,
                               element::Type::merge(inputs_et, inputs_et, get_input_element_type(i)),
                               "Argument element types are inconsistent.");
-        ov::PartialShape this_input_shape = get_input_partial_shape(i);
-        Dimension this_input_rank = this_input_shape.rank();
-        if (this_input_rank.is_static()) {
-            if (get_concatenation_axis() < 0) {
-                set_concatenation_axis(get_axis() < 0 ? get_axis() + this_input_rank.get_length() : get_axis());
-            }
-            auto concat_axis = get_concatenation_axis();
-            NODE_VALIDATION_CHECK(this,
-                                  concat_axis < this_input_rank.get_length() && concat_axis >= 0,
-                                  "Concatenation axis (",
-                                  concat_axis,
-                                  ") is out of bounds [",
-                                  -this_input_rank.get_length(),
-                                  ", ",
-                                  this_input_rank.get_length() - 1,
-                                  "] for ",
-                                  "argument ",
-                                  i,
-                                  ", which has shape ",
-                                  this_input_shape,
-                                  ".");
-
-            concatenation_axis_output_dim += this_input_shape[concat_axis];
-            this_input_shape[concat_axis] = Dimension::dynamic();
-
-            NODE_VALIDATION_CHECK(this,
-                                  ov::PartialShape::merge_into(inputs_shape_scheme, this_input_shape),
-                                  "Argument shapes are inconsistent; they must have the same rank, and must "
-                                  "have ",
-                                  "equal dimension everywhere except on the concatenation axis (axis ",
-                                  concat_axis,
-                                  ").");
-        } else {
-            concatenation_axis_output_dim += Dimension::dynamic();
-        }
+        input_shapes.push_back(get_input_partial_shape(i));
     }
-    ov::PartialShape concatenated_shape = inputs_shape_scheme;
-
-    if (concatenated_shape.rank().is_static()) {
-        concatenated_shape[get_concatenation_axis()] = concatenation_axis_output_dim;
-        set_output_type(0, inputs_et, concatenated_shape);
-    } else {
-        set_output_type(0, inputs_et, ov::PartialShape::dynamic(concatenation_axis_output_dim));
-    }
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 shared_ptr<Node> op::Concat::clone_with_new_inputs(const OutputVector& new_args) const {
