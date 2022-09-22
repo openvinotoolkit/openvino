@@ -55,3 +55,15 @@ auto ngraph::snippets::utils::get_non_scalar_constant_count_for_fq(const std::sh
         return 1;
     return 0;
 }
+
+auto ngraph::snippets::utils::is_special_op(const std::shared_ptr<ov::Node>& n) -> bool {
+    return ov::is_type<ov::op::v0::Parameter>(n)
+        || ov::is_type<ov::op::v0::Constant>(n)
+        || ov::is_type<ov::op::v0::Result>(n);
+}
+
+// At the moment Subgraph supports only Eltwise, Convert and FQ (which is decomposed into Eltwises and Convert)
+// And only Eltwises supports execution only in "exec_type". So we can check op type from the opposite
+auto ngraph::snippets::utils::op_supports_only_exec_type(const std::shared_ptr<ov::Node>& n) -> bool {
+    return !ov::is_type<ov::op::v0::Convert>(n);
+}

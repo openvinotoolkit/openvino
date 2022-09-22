@@ -93,7 +93,7 @@ public:
     }
 
     bool is_quantized() const {
-        return m_is_quantized;
+        return config.m_is_quantized;
     }
 
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, ngraph::pass::Manager& opt,
@@ -119,8 +119,6 @@ public:
 private:
     void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
     void convert_to_snippet_dialect();
-    // True if Subgraph contains FakeQuantize
-    bool m_is_quantized = false;
     // Count of potentional non-scalar Consants that will be created after some tranformations
     // At the moment it's relevant only for FakeQuantize decomposition
     // NOTE: To avoid overheads in each calcution of this count (for example, in validate_and_type_infer()),
@@ -129,6 +127,18 @@ private:
     Shape exec_domain = {};
     std::shared_ptr<ov::Model> m_body = nullptr;
     std::shared_ptr<ngraph::snippets::Generator> m_generator = nullptr;
+
+    // TODO: Change logic of insert Converts. This exec element type can be different for plugins
+    const ov::element::Type execution_element_type = ov::element::f32;
+
+    // Config to know which transformations should be called.
+    // It helps to avoid overheads of extra transformation calls
+    struct {
+        // True if Subgraph contains FakeQuantize -> FQ decomposition should be called
+        bool m_is_quantized = false;
+        // True if we should align element types indise body
+        bool m_is_needed_to_align_precision = false;
+    } config;
 };
 
 static inline std::ostream& operator<<(std::ostream& os, const op::Subgraph::BlockedShape& blocked_shape) {

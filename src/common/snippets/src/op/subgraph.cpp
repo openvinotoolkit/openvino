@@ -23,6 +23,7 @@
 
 #include <ngraph/pass/manager.hpp>
 #include "ngraph/pass/constant_folding.hpp"
+#include "ngraph_ops/type_relaxed.hpp"
 #include <openvino/pass/serialize.hpp>
 
 #include <algorithm>
@@ -42,6 +43,18 @@ void snippets::op::Subgraph::set_non_scalar_constants_count(const size_t count) 
 
 snippets::op::Subgraph::Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body)
     : Op(args), m_body(body), m_generator(nullptr) {
+    const auto ops = m_body->get_ops();
+    config.m_is_quantized = std::any_of(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& op) {
+        return ov::is_type<ov::op::v0::FakeQuantize>(op);
+    });
+
+    config.m_is_needed_to_align_precision = is_quantized() ||
+        std::any_of(ops.begin(), ops.end(), [&](const std::shared_ptr<ov::Node>& op) {
+            // At the moment Snippets support only Eltwise/Convert/FQ which one output so we can just call get_element_type()
+            return (ngraph::snippets::utils::is_executable_op_only_on_exec_type(op) && op->get_element_type() != execution_element_type) ||
+                std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(op);
+        });
+
     constructor_validate_and_infer_types();
 }
 
@@ -75,11 +88,6 @@ void snippets::op::Subgraph::validate_and_infer_types() {
     for (size_t i = 0; i < get_output_size(); ++i) {
         set_output_type(i, m_body->get_output_element_type(i), m_body->get_output_partial_shape(i));
     }
-
-    const auto ops = m_body->get_ops();
-    m_is_quantized = std::any_of(ops.cbegin(), ops.cend(), [](const std::shared_ptr<Node>& op) {
-                                                                return ov::is_type<ov::op::v0::FakeQuantize>(op);
-                                                            });
 }
 
 bool snippets::op::Subgraph::visit_attributes(AttributeVisitor& visitor) {
@@ -265,9 +273,6 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
 
 void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outputShapes,
                                                  const BlockedShapeVector& inputShapes) {
-    // TODO: At the moment snippets support execution in only one element type
-    const auto execution_element_type = ov::element::f32;
-
     const auto& body_results = m_body->get_results();
     for (size_t i = 0; i < outputShapes.size(); i++) {
         const auto needed_out_type = std::get<2>(outputShapes[i]);
@@ -300,7 +305,9 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
     // Then we should use ConstantFolding pass to convert element type of Scalars before inference.
     // At the end eliminate redundant Convert that could be inserted
     ngraph::pass::Manager manager;
-    manager.register_pass<snippets::pass::AlignElementType>(execution_element_type);
+    if (config.m_is_needed_to_align_precision) {
+        manager.register_pass<snippets::pass::AlignElementType>(execution_element_type);
+    }
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::EliminateConvert>();
     manager.run_passes(m_body);
