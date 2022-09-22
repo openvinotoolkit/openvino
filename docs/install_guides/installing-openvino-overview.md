@@ -14,7 +14,7 @@
 
 @endsphinxdirective
 
-Intel® Distribution of OpenVINO™ toolkit is a comprehensive toolkit for developing applications and solutions based on deep learning tasks, such as emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and more. It provides high-performance and rich deployment options from edge to cloud. Some of its advantages are:
+Intel® Distribution of OpenVINO™ toolkit is a comprehensive toolkit for developing applications and solutions based on deep learning tasks, such as emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and more. It provides high-performance and rich deployment options, from edge to cloud. Some of its advantages are:
 
 * Enables CNN-based and transformer-based deep learning inference on the edge or cloud.
 * Supports various execution modes across Intel® technologies: Intel® CPU, Intel® Integrated Graphics, Intel® Discrete Graphics, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
@@ -25,8 +25,8 @@ Intel® Distribution of OpenVINO™ toolkit is a comprehensive toolkit for devel
 
 The OpenVINO installation package is distributed in two parts: OpenVINO Runtime and OpenVINO Development Tools.
 
-* OpenVINO Runtime contains the core set of libraries for running machine learning model inference on processor devices.
-* OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It includes the following tools:
+* **OpenVINO Runtime** contains the core set of libraries for running machine learning model inference on processor devices.
+* **OpenVINO Development Tools** is a set of utilities for working with OpenVINO and OpenVINO models. It includes the following tools:
   - Model Optimizer
   - Post-Training Optimization Tool
   - Benchmark Tool
@@ -38,7 +38,7 @@ The OpenVINO installation package is distributed in two parts: OpenVINO Runtime 
 The best way to get started with OpenVINO is to install OpenVINO Development Tools, which will install the development tools in only a few steps. It also installs the OpenVINO Runtime Python package as a dependency. Follow the instructions on the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page to install it.
 
 **Python** <br>
-For developers working in Python, OpenVINO Development Tools (which includes OpenVINO Runtime) can easily be installed using PyPI. See the [For Python Developers](installing-model-dev-tools.md#for-python-developers) section of the Install OpenVINO Development Tools page for instructions.
+For developers working in Python, OpenVINO Development Tools can easily be installed using PyPI. See the [For Python Developers](installing-model-dev-tools.md#for-python-developers) section of the Install OpenVINO Development Tools page for instructions.
 
 **C++** <br>
 For developers working in C++, the core OpenVINO Runtime libraries must be installed separately. Then, OpenVINO Development Tools can be installed using requirements files or PyPI. See the [For C++ Developers](installing-model-dev-tools.md#for-c-developers) section of the Install OpenVINO Development Tools page for instructions.
