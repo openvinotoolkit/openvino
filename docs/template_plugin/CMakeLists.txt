@@ -5,7 +5,6 @@
 # [cmake:main]
 cmake_minimum_required(VERSION 3.13)
 
-message("Test change")
 project(OpenVINOTemplatePlugin)
 
 set(TEMPLATE_PLUGIN_SOURCE_DIR ${OpenVINOTemplatePlugin_SOURCE_DIR})
