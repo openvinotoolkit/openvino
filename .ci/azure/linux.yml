@@ -15,8 +15,10 @@ pr:
     - releases/*
   paths:
     exclude: 
+    - docs/
     - /**/docs/ 
     - /**/*.md
+    - .ci/
 
 resources:
   repositories:
