@@ -53,7 +53,7 @@ NamedOutputs elementwise_floordiv(const NodeContext& node_context) {
     const auto axis = node_context.get_attribute<int>("axis", -1);
     auto autob = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::PDPD, axis);
 
-    return node_context.default_single_output_mapping({std::make_shared<default_opset::Divide>(x, y, autob)}, {"Out"});
+    return node_context.default_single_output_mapping({std::make_shared<default_opset::Floor>(std::make_shared<default_opset::Divide>(x, y, false, autob))}, {"Out"});
 }
 
 }  // namespace op
