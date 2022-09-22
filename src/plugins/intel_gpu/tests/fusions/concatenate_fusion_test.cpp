@@ -104,7 +104,6 @@ TEST_P(concat_onednn_activation, along_f) {
                       { "input0", "input1" },
                       1,
                       data_types::f16,
-                      "",
                       padding{ { 0, 0, 0, 0 }, 0 }),
         activation("act", "concat", activation_func::relu),
         reorder("reorder_bfyx", "act", cldnn::format::bfyx, p.default_type)
@@ -127,7 +126,6 @@ TEST_P(concat_onednn_eltwise, along_f) {
                       { "input0", "input1" },
                       1,
                       data_types::f16,
-                      "",
                       padding{ { 0, 0, 0, 0 }, 0 }),
         eltwise("scale", { "concat", "scale_data" }, eltwise_mode::prod, p.default_type),
         reorder("reorder_bfyx", "scale", cldnn::format::bfyx, p.default_type)

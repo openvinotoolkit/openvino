@@ -24,8 +24,6 @@ endif()
 
 # Create object library
 
-file(TOUCH ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp)
-
 add_library(${TARGET_NAME}_obj OBJECT EXCLUDE_FROM_ALL
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
@@ -49,7 +47,6 @@ add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 # Create static library
 
 add_library(${TARGET_NAME} STATIC EXCLUDE_FROM_ALL
-    ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp
     $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime

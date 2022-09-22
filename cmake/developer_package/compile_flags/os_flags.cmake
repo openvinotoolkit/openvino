@@ -163,10 +163,18 @@ endfunction()
 #
 function(ov_disable_all_warnings)
     foreach(target IN LISTS ARGN)
+        get_target_property(target_type ${target} TYPE)
+
         if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
             target_compile_options(${target} PRIVATE /WX-)
         elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
             target_compile_options(${target} PRIVATE -w)
+            # required for LTO
+            set(link_interface INTERFACE_LINK_OPTIONS)
+            if(target_type STREQUAL "SHARED_LIBRARY" OR target_type STREQUAL "EXECUTABLE")
+                set(link_interface LINK_OPTIONS)
+            endif()
+            set_target_properties(${target} PROPERTIES ${link_interface} "-Wno-error=maybe-uninitialized;-Wno-maybe-uninitialized")
         elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
             # 193: zero used for undefined preprocessing identifier "XXX"
             # 1011: missing return statement at end of non-void function "XXX"
@@ -343,6 +351,10 @@ else()
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-dead_strip")
         set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,-dead_strip")
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-dead_strip")
+        if(CMAKE_OSX_ARCHITECTURES STREQUAL "x86_64" AND AARCH64)
+            # Disable -mcpu=native
+            ie_add_compiler_flags(-Wno-error=unused-command-line-argument)
+        endif()
     elseif(LINUX)
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections -Wl,--exclude-libs,ALL")
         set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,--gc-sections -Wl,--exclude-libs,ALL")

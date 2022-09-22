@@ -4,7 +4,7 @@
 
 set(TARGET_NAME "openvino_intel_gpu_kernels")
 
-find_package(PythonInterp 3 QUIET)
+find_host_package(PythonInterp 3 QUIET)
 if(NOT PYTHONINTERP_FOUND)
   message(WARNING "[clDNN] Project requires Python 3.x interpreter to build (with python loader). CMake could not detect it correctly.
       If you have installed this interpreter, please disregard this warning or specify PYTHON_EXECUTABLE in CMake command-line."
@@ -76,6 +76,8 @@ if(COMMAND add_cpplint_target)
 endif()
 
 target_link_libraries(${TARGET_NAME} PUBLIC OpenCL rapidjson inference_engine_plugin_api)
+
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 if(WIN32)
   target_link_libraries(${TARGET_NAME} PRIVATE setupapi)

@@ -31,7 +31,6 @@
 #include "reshape_inst.h"
 #include "quantize_inst.h"
 #include "activation_inst.h"
-#include "scale_inst.h"
 #include "depth_to_space_inst.h"
 #include "convolution_inst.h"
 #include "concatenation_inst.h"
@@ -55,6 +54,7 @@
 #include "split_inst.h"
 #include "mvn_inst.h"
 #include "gemm_inst.h"
+#include "adaptive_pooling_inst.h"
 #include "reduce_inst.h"
 #include "region_yolo_inst.h"
 #include "strided_slice_inst.h"
@@ -110,7 +110,8 @@ program::program(engine& engine_ref,
     prepare_nodes(topology);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
-    _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(0));
+    _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
+    _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
     program_node::reset_unique_id();
     if (no_optimizations) {
         init_graph();
@@ -132,7 +133,8 @@ program::program(engine& engine_ref,
     set_options();
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
-    _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(0));
+    _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
+    _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
     build_program(is_internal);
@@ -950,7 +952,8 @@ void program::replace(program_node& old_node, program_node& new_node) {
     new_node.constant = old_node.constant;
     new_node.data_flow = old_node.data_flow;
     new_node.user_mark = old_node.user_mark;
-    const_cast<primitive_id&>(new_node.desc->ext_prim_id) = old_node.desc->ext_prim_id;
+    const_cast<std::string&>(new_node.desc->origin_op_name) = old_node.desc->origin_op_name;
+    const_cast<std::string&>(new_node.desc->origin_op_type_name) = old_node.desc->origin_op_type_name;
 
     processing_order.insert(&old_node, &new_node);
     if (processing_order.get_processing_iterator(old_node) != processing_order.end())
@@ -1335,6 +1338,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t total_1x1_fm_conv_layers = 0;
     size_t total_grouped_conv_layers = 0;
     size_t opt_deconv_layers_b_fs_zyx_fsv16 = 0;
+    size_t opt_deconv_layers_b_fs_yx_fsv16 = 0;
     size_t total_crop_layers = 0;
 
     for (auto& node : get_processing_order()) {
@@ -1370,6 +1374,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         if (prim.type() == cldnn::deconvolution::type_id()) {
             if (lo.is_format_optimized(prim.as<deconvolution>(), format::b_fs_zyx_fsv16))
                 opt_deconv_layers_b_fs_zyx_fsv16 += 1;
+            else if (lo.is_format_supported(prim.as<deconvolution>(), format::b_fs_yx_fsv16))
+                opt_deconv_layers_b_fs_yx_fsv16 += 1;
         }
 
         // list of layers that do not support yxfb or perform worse than bfyx
@@ -1399,7 +1405,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::border::type_id() &&
             prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::crop::type_id() &&
-            prim.type() != cldnn::scale::type_id() &&
             prim.type() != cldnn::depth_to_space::type_id() &&
             prim.type() != cldnn::shuffle_channels::type_id() &&
             (prim.type() != cldnn::mvn::type_id()
@@ -1415,8 +1420,12 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::mvn::type_id() &&
             prim.type() != cldnn::gather::type_id() &&
             prim.type() != cldnn::scatter_nd_update::type_id() &&
+            prim.type() != cldnn::broadcast::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
-            prim.type() != cldnn::roi_align::type_id()) {
+            prim.type() != cldnn::roi_align::type_id() &&
+            prim.type() != cldnn::adaptive_pooling::type_id() &&
+            prim.type() != cldnn::bucketize::type_id() &&
+            prim.type() != cldnn::roll::type_id()) {
             can_use_fsv16 = false;
         }
 
@@ -1438,14 +1447,17 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::reshape::type_id() &&
             prim.type() != cldnn::input_layout::type_id() &&
             prim.type() != cldnn::activation::type_id() &&
-            prim.type() != cldnn::scale::type_id() &&
             prim.type() != cldnn::softmax::type_id() &&
             prim.type() != cldnn::fully_connected::type_id() &&
             prim.type() != cldnn::generic_layer::type_id() &&
             prim.type() != cldnn::scatter_nd_update::type_id() &&
+            prim.type() != cldnn::broadcast::type_id() &&
             prim.type() != cldnn::quantize::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
-            prim.type() != cldnn::roi_align::type_id()) {
+            prim.type() != cldnn::roi_align::type_id() &&
+            prim.type() != cldnn::adaptive_pooling::type_id() &&
+            prim.type() != cldnn::bucketize::type_id() &&
+            prim.type() != cldnn::roll::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
     }
@@ -1454,6 +1466,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     // Due to fact that single winograd convolution is faster than b_fs_yx_fsv16 and
     // using them together leads do redundant reorders, whole topology switch
     // will be performed if at least half of layers can use b_fs_yx_fsv16.
+    // b_fs_yx_fsv16 deconv is faster than bfyx deconv with winograd convolution together,
+    // whole topology switch will be perform if at lease one layer can use b_fs_yx_fsv16.
     // Crop layers are poorly optimized in fsv16 layout so whole topology stays in bfyx
     // if there are many crops (2x more then b_fs_yx_fsv16 convolutions)
     const float cond_denom = total_conv_layers > 0 ? 1.0f / static_cast<float>(total_conv_layers) : 1.0f;
@@ -1462,7 +1476,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     bool should_use_b_fs_yx_fsv16_conv = is_quantized_int8_model ||
                                          (can_use_fsv16 &&
                                           total_conv_layers > 11 &&
-                                          num_of_conv_b_fs_yx_fsv16 * cond_denom > 0.5f &&
+                                          (num_of_conv_b_fs_yx_fsv16 * cond_denom > 0.5f || opt_deconv_layers_b_fs_yx_fsv16 >= 1) &&
                                           num_of_conv_b_fs_yx_fsv16 * 2 > total_crop_layers);
 
     bool should_use_fs_b_yx_fsv32_conv = total_conv_layers > 11 &&
