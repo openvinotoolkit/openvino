@@ -68,78 +68,71 @@ void Interaction::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any, true);
 }
 
-template <typename T>
-static inline void move_ker(T* out, const T* in, int64_t len) {
-    cpu_memcpy(out, in, sizeof(T) * len);
+static inline void cat(const uint8_t* in1, const uint8_t* in2, uint8_t* out,
+    size_t in1Size, size_t in2Size, size_t elemSize) {
+    cpu_memcpy(out, in1, in1Size * elemSize);
+    cpu_memcpy(out + in1Size * elemSize, in2, in2Size * elemSize);
 }
 
-template <typename T>
-static inline void cat(const T* in1, const T* in2, T* out, size_t in1_size, size_t in2_size) {
-    move_ker(out, in1, in1_size);
-    move_ker(&out[in1_size], in2, in2_size);
-}
-
-template <typename T>
-static inline void cat(T* out,
-                       const std::vector<const T*>& in,
+static inline void cat(uint8_t* out,
+                       const std::vector<const uint8_t*>& in,
                        const std::vector<uint32_t>& feature_sizes,
-                       int64_t bs) {
+                       int64_t bs,
+                       size_t elemSize) {
     size_t offset = 0;
     for (int j = 0; j < feature_sizes.size(); j++) {
-        move_ker(&out[offset], &in[j][bs * feature_sizes[j]], feature_sizes[j]);
+        cpu_memcpy(out + offset * elemSize, in[j] + bs * feature_sizes[j] * elemSize,
+            feature_sizes[j] * elemSize);
         offset += feature_sizes[j];
     }
 }
 
-template <typename T>
-static inline void flat_triangle(const T* in, T* out, size_t size) {
+
+static inline void flat_triangle(const uint8_t* in, uint8_t* out, size_t size, size_t elemSize) {
     size_t offset = 0;
     for (int i = 1; i < size; i++) {
-        move_ker(&out[offset], &in[i * size], i);
+        cpu_memcpy(out + offset * elemSize, in + i * size * elemSize, i * elemSize);
         offset += i;
     }
 }
 
-template <typename Prec>
-void Interaction::run(dnnl::stream strm) {
+void Interaction::execRef(dnnl::stream strm) {
     using tag = dnnl::memory::format_tag;
     using dt = dnnl::memory::data_type;
     using namespace dnnl;
 
-    auto outFeaturesPtr = reinterpret_cast<Prec*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
-    std::vector<const Prec*> inputPtrs(inputSizes);
+    uint8_t* outFeaturesPtr = reinterpret_cast<uint8_t*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    std::vector<const uint8_t*> inputPtrs(inputSizes);
     for (uint32_t n = 0; n < inputSizes; n++) {
-        auto inPtr = reinterpret_cast<const Prec*>(getParentEdgeAt(n)->getMemoryPtr()->GetPtr());
+        auto inPtr = reinterpret_cast<const uint8_t*>(getParentEdgeAt(n)->getMemoryPtr()->GetPtr());
         inputPtrs[n] = inPtr;
     }
     for (int64_t start = 0; start < batchSize; start++) {
-        cat<Prec>(inputPtr->buffer().as<Prec*>(), inputPtrs, featureSizes, start);
+        cat(inputPtr->buffer().as<uint8_t*>(), inputPtrs, featureSizes, start, dataPrecision.size());
         std::unordered_map<int, memory> mem_ags {
             {DNNL_ARG_SRC, inputMemPtr->GetPrimitive()},
             {DNNL_ARG_WEIGHTS, inputMemPtr->GetPrimitive()},
-            {DNNL_ARG_DST, outputMemPtr->GetPrimitive()}};
+            {DNNL_ARG_DST, outputMemPtr->GetPrimitive()}
+        };
         (*prim).execute(strm, mem_ags);
-        flat_triangle<Prec>(outputPtr->buffer().as<Prec*>(),
-            flatPtr->buffer().as<Prec*>(), inputSizes);
+        flat_triangle(outputPtr->buffer().as<uint8_t*>(),
+            flatPtr->buffer().as<uint8_t*>(), inputSizes, dataPrecision.size());
         //in1 dense feature
         //in2 flatted interaction features
-        cat<Prec>(
-          &inputPtrs[0][start * featureSize],
-          flatPtr->buffer().as<Prec*>(),
-          &outFeaturesPtr[start * outputFeaturesLen],
+        cat(
+          inputPtrs[0] + start * featureSize * dataPrecision.size(),
+          flatPtr->buffer().as<uint8_t*>(),
+          outFeaturesPtr + start * outputFeaturesLen * dataPrecision.size(),
           featureSize,
-          interactFeatureSize);
+          interactFeatureSize,
+          dataPrecision.size());
     }
 }
 
 
 
 void Interaction::execute(dnnl::stream strm) {
-    if (dataPrecision == InferenceEngine::Precision::FP32) {
-        run<float>(strm);
-    } else if (dataPrecision == InferenceEngine::Precision::BF16) {
-        run<int16_t>(strm);
-    }
+    execRef(strm);
 }
 
 bool Interaction::created() const {

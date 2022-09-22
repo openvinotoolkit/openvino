@@ -29,8 +29,7 @@ public:
     void prepareParams() override;
 
 private:
-    template <typename Prec>
-    void run(dnnl::stream strm);
+    void execRef(dnnl::stream strm);
     template<typename Prec>
     void inline initializeInternalMemory(const std::vector<InferenceEngine::TensorDesc>& descs) {
         inputPtr = InferenceEngine::make_shared_blob<Prec>(descs[0]);
