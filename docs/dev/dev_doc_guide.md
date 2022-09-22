@@ -17,10 +17,13 @@ openvino_component/
 
 ## ***README.md*** content
 
-README.md should provide an entry point to component documentation. 
-First of all the readme shouldn't be overloaded by redundant information, has a strict user friendly structure and provide references to additional documentation.
+README.md provides an entry point to the component documentation. Here are the best practices for writing a good README.md:
 
-The proposed template for Readme file is:
+- Include only the necessary information. Avoid overloading the document with excessive details. 
+- Make sure your document has a clear structure, is easy to navigate and quickly look through.
+- Provide links to additional documentation and resources.  
+  
+You can use the following template for a README.md file:
 ```md
 # Name of component
 
