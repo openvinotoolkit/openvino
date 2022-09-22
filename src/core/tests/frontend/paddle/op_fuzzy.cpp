@@ -119,7 +119,7 @@ static const std::vector<std::string> models{
     std::string("elementwise_add3"),
     std::string("elementwise_div3"),
     std::string("elementwise_floordiv3_int32"),
-    std::string("elementwise_floordiv3_int32"),
+    std::string("elementwise_floordiv3_int64"),
     std::string("elementwise_max3"),
     std::string("elementwise_min3"),
     std::string("elementwise_mul3"),
