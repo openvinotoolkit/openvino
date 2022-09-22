@@ -487,6 +487,13 @@ def check_model_framework(model):
             return "tf", model_name
     except ImportError:
         pass
+    try:
+        if isinstance(model, tf.keras.Model):
+            if hasattr(model, 'name') and model.name is not None:
+                model_name = model.name
+            return "tf", model_name
+    except ImportError:
+        pass
 
     raise Error('Unknown model type: {}'.format(type(model)))
 

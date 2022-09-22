@@ -16,6 +16,7 @@ from openvino.tools.mo.utils.versions_checker import get_environment_setup
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 try:
     import tensorflow.compat.v1 as tf_v1
+    tf_v1.reset_default_graph()
 
     # disable eager execution of TensorFlow 2 environment immediately
     tf_v1.disable_eager_execution()
@@ -175,13 +176,8 @@ def deducing_metagraph_path(meta_graph_file: str):
     return meta_graph_file
 
 
-def freeze_tf2_concrete_function(model, concrete_func):
-    env_setup = get_environment_setup("tf")
-    # resetting of default graph is needed for enabling of eager execution
-    tf_v1.reset_default_graph()
+def freeze_tf2_concrete_function(model, concrete_func, env_setup):
 
-    # enable eager execution temporarily while TensorFlow 2 model is being loaded
-    tf_v1.enable_eager_execution()
     if "tensorflow" in env_setup and env_setup["tensorflow"] >= LooseVersion("2.2.0"):
         frozen_func = convert_variables_to_constants_v2(concrete_func,
                                                         lower_control_flow=False,
@@ -217,6 +213,9 @@ def prepare_graph_def(model):
         return model, {}, "tf", None
     try:
         if isinstance(model, tf.keras.Model):
+            env_setup = get_environment_setup("tf")
+            # enable eager execution temporarily while TensorFlow 2 model is being loaded
+            tf_v1.enable_eager_execution()
 
             # TODO: can we get concrete function if inputs are not set
             assert hasattr(model, "inputs") and model.inputs is not None, "Model inputs specification is required."
@@ -227,7 +226,7 @@ def prepare_graph_def(model):
                 return model(x)
 
             conc_func = tf_function.get_concrete_function(model_inputs)
-            return freeze_tf2_concrete_function(model, conc_func)
+            return freeze_tf2_concrete_function(model, conc_func, env_setup)
     except ImportError:
         pass
     raise Exception("Unknown model type {}.".format(type(model)))
@@ -290,6 +289,10 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
         if model_dir:
             # saved model directory
             try:
+                env_setup = get_environment_setup("tf")
+                # enable eager execution temporarily while TensorFlow 2 model is being loaded
+                tf_v1.enable_eager_execution()
+
                 try:
                     # Code to extract Keras model.
                     # tf.keras.models.load_model function throws TypeError,KeyError or IndexError
@@ -303,7 +306,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 # the aggressive inlining parameter needs to freeze a table of embeddings for Keras Embedding operation
                 # and a model with Embedding operation cannot properly converted to IR without this function parameter
 
-                return freeze_tf2_concrete_function(imported, concrete_func)
+                return freeze_tf2_concrete_function(imported, concrete_func, env_setup)
             except:
                 # disable eager execution since TensorFlow 1 model is handled
                 tf_v1.disable_eager_execution()
