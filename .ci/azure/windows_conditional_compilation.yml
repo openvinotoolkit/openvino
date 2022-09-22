@@ -1,11 +1,24 @@
 trigger:
   branches:
     include:
+    - master 
+    - releases/*
+  paths:
+    exclude: 
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+
+pr:
+  branches:
+    include:
     - master
     - releases/*
   paths:
-    exclude:
-    - docs/*
+    exclude: 
+    - docs/
+    - /**/docs/*
+    - /**/*.md
 
 jobs:
 - job: WinCC
