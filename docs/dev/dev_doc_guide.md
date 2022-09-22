@@ -34,7 +34,7 @@ Short information about the component.
 
 ## Key persons
 
-Section provides informations about groups of developers who can help in case of questions and also review and merge PRs.
+The section provides information about groups of developers who can help in case of questions, and also review and merge PRs.
 
 ## Components
 
