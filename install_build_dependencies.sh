@@ -140,9 +140,9 @@ elif [ -f /etc/redhat-release ]; then
             gstreamer1 \
             gstreamer1-plugins-base
 
-    # Python 3.6 for Model Optimizer
-    sudo -E yum install -y rh-python36
-    source scl_source enable rh-python36
+    # Python 3.7 for Model Optimizer
+    sudo -E yum install -y rh-python37
+    source scl_source enable rh-python37
 
     echo
     echo "FFmpeg is required for processing audio and video streams with OpenCV. Please select your preferred method for installing FFmpeg:"
