@@ -17,12 +17,13 @@ Tile::Tile(const std::vector<AllocatedEmitter> &region, size_t increment,
         io_data_size(io_data_sizes) {
 }
 
-TileBegin::TileBegin(const std::vector<Output<Node>> &args) : Op(args) {
+TileBegin::TileBegin(const std::vector<Output<Node>> &args, size_t tileRank)
+    : Op(args), tileRank(tileRank) {
     constructor_validate_and_infer_types();
 }
 
 bool TileBegin::visit_attributes(AttributeVisitor &visitor) {
-    //todo add significant fields to attribute visitor
+    visitor.on_attribute("tileRank", tileRank);
     return true;
 }
 
@@ -41,27 +42,27 @@ void TileBegin::validate_and_infer_types() {
 }
 
 std::shared_ptr<Node> TileBegin::clone_with_new_inputs(const OutputVector& inputs) const {
-    return std::make_shared<TileBegin>(inputs);
+    return std::make_shared<TileBegin>(inputs, tileRank);
 }
 
-TileEnd::TileEnd(const std::vector<Output<Node>> &args) : Op(args) {
+TileEnd::TileEnd(const std::vector<Output<Node>> &args, size_t tileRank)
+    : Op(args), tileRank(tileRank) {
     constructor_validate_and_infer_types();
 }
 
 bool TileEnd::visit_attributes(AttributeVisitor &visitor) {
-    //todo add significant fields to attribute visitor
+    visitor.on_attribute("tileRank", tileRank);
     return true;
 }
 
 void TileEnd::validate_and_infer_types() {
     const size_t num_inputs = get_input_size();
-    const auto tile_begin = input(num_inputs - 1).get_source_output();
-    const auto tile_begin_ps = tile_begin.get_partial_shape();
+    const auto tileBegin = ov::as_type_ptr<TileBegin>(input(num_inputs - 1).get_source_output().get_node_shared_ptr());
     NODE_VALIDATION_CHECK(this,
-                          ov::is_type<TileBegin>(tile_begin.get_node_shared_ptr()),
+                          tileBegin != nullptr,
                           "The last argument of TileEnd must be TileBegin");
-    NODE_VALIDATION_CHECK(this, tile_begin_ps.is_static() && tile_begin_ps.get_shape().empty(),
-                            "Invalid input shape from TileBegin. Expected {}, got", tile_begin_ps);
+    NODE_VALIDATION_CHECK(this, tileBegin->tileRank == tileRank,
+                          "TileBegin and TileEnd have different tileRanks:", tileBegin->tileRank, " vs ", tileRank);
     set_output_size(num_inputs - 1);
     const auto& ins = inputs();
     for (int i = 0; i < num_inputs - 1; i++) {
@@ -74,7 +75,7 @@ void TileEnd::validate_and_infer_types() {
 }
 
 std::shared_ptr<Node> TileEnd::clone_with_new_inputs(const OutputVector& inputs) const {
-    return std::make_shared<TileEnd>(inputs);
+    return std::make_shared<TileEnd>(inputs, tileRank);
 }
 
 } // namespace op

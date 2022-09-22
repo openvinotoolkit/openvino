@@ -440,30 +440,34 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     ov::pass::Serialize("tile_before.xml", "tile_before.bin").run_on_model(m_body);
 
     OutputVector originalParamOutputs;
-    std::vector<std::set<Input<Node>>> originalParamInputs;
+    std::vector<std::set<Input<Node>>> afterParamInputs;
     for (const auto &p : m_body->get_parameters()) {
         const auto & out = p->output(0);
         originalParamOutputs.push_back(out);
-        originalParamInputs.push_back(out.get_target_inputs());
+        afterParamInputs.push_back(out.get_target_inputs());
     }
-    auto tileBegin = make_shared<TileBegin>(originalParamOutputs);
-    for (auto& p : originalParamInputs) {
-        for (auto& input : p) {
-            input.replace_source_output(tileBegin);
+    auto tileBegin = make_shared<TileBegin>(originalParamOutputs, 2);
+    for (int i = 0; i < afterParamInputs.size(); i++) {
+        for (auto& input : afterParamInputs[i]) {
+            input.replace_source_output(tileBegin->output(i));
         }
     }
 
-    OutputVector originalResultInputs;
+    OutputVector preResultOutputs;
+    std::vector<Input<Node>> originalResultInputs;
     for (const auto &p : m_body->get_results()) {
-        const auto & out = p->input(0).get_source_output();
-        originalResultInputs.push_back(out);
+        const auto & result_input = p->input(0);
+        originalResultInputs.push_back(result_input);
+        preResultOutputs.push_back(result_input.get_source_output());
     }
-    originalResultInputs.push_back(tileBegin->output(tileBegin->get_output_size() - 1));
-    auto tileEnd = make_shared<TileEnd>(originalResultInputs);
-    auto& results = m_body->get_results();
-    for (auto i = 0; i < results.size(); i++) {
-        results[i]->set_arguments({tileEnd->output(i)});
+    preResultOutputs.push_back(tileBegin->output(tileBegin->get_output_size() - 1));
+    auto tileEnd = make_shared<TileEnd>(preResultOutputs, 2);
+//    auto& results = m_body->get_results();
+
+    for (int i = 0; i < originalResultInputs.size(); i++) {
+        originalResultInputs[i].replace_source_output(tileEnd->output(i));
     }
+
 //    for (int i = 0; i < tileEnd->get_output_size(); i++) {
 //        std::cerr << i << " : ";
 //        const auto& rt = tileBegin->get_output_tensor(i).get_rt_info();
