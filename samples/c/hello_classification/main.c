@@ -131,6 +131,8 @@ int main(int argc, char** argv) {
     ov_layout_t* input_layout = NULL;
     ov_layout_t* model_layout = NULL;
     ov_shape_t input_shape;
+    ov_output_const_port_t* output_port = NULL;
+    ov_output_const_port_t* input_port = NULL;
 
     // -------- Get OpenVINO runtime version --------
     ov_version_t version;
@@ -153,15 +155,14 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_core_read_model(core, input_model, NULL, &model));
     print_model_input_output_info(model);
 
-    ov_output_node_list_t output_nodes;
-    CHECK_STATUS(ov_model_outputs(model, &output_nodes));
-    if (output_nodes.size != 1) {
+    CHECK_STATUS(ov_model_const_output(model, &output_port));
+    if (!output_port) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 output only %d\n", __LINE__);
         goto err;
     }
-    ov_output_node_list_t input_nodes;
-    CHECK_STATUS(ov_model_inputs(model, &input_nodes));
-    if (input_nodes.size != 1) {
+
+    CHECK_STATUS(ov_model_const_input(model, &input_port));
+    if (!input_port) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 input only %d\n", __LINE__);
         goto err;
     }
@@ -200,8 +201,7 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_preprocess_prepostprocessor_build(preprocess, &new_model));
 
     // -------- Step 5. Loading a model to the device --------
-    ov_properties_t* property = NULL;
-    CHECK_STATUS(ov_core_compile_model(core, new_model, device_name, property, &compiled_model));
+    CHECK_STATUS(ov_core_compile_model(core, new_model, device_name, 0, &compiled_model));
 
     // -------- Step 6. Create an infer request --------
     CHECK_STATUS(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
@@ -230,8 +230,8 @@ err:
     free(results);
     image_free(&img);
     ov_shape_free(&input_shape);
-    ov_output_node_list_free(&output_nodes);
-    ov_output_node_list_free(&input_nodes);
+    ov_output_const_port_free(output_port);
+    ov_output_const_port_free(input_port);
     if (output_tensor)
         ov_tensor_free(output_tensor);
     if (infer_request)
