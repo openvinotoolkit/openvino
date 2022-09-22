@@ -59,7 +59,7 @@ void shape_infer(const Transpose* op, const std::vector<T>& input_shapes, std::v
     const auto& arg_shape = input_shapes[0];
 
     if (arg_shape.rank().is_static()) {
-        bool is_compatible = input_order_shape.compatible(T{arg_shape.rank().get_length()});
+        bool is_compatible = input_order_shape.compatible(T{arg_shape.rank()});
         is_compatible = is_compatible || (input_order_shape.is_static() && input_order_shape.size() == 1 && input_order_shape[0] == 0);
         NODE_VALIDATION_CHECK(
             op,
