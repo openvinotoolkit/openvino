@@ -112,10 +112,8 @@ shared_ptr<Model> gen_reference(WeightsFormat format, const string& activation_1
         auto split_WRrz = make_shared<VariadicSplit>(WR, axis_1, split_lenghts);
         auto split_W_r_z = make_shared<Split>(split_WRrz->output(0), axis_0, 2);
         auto split_R_r_z = make_shared<Split>(split_WRrz->output(1), axis_0, 2);
-        Wzrh =
-                make_shared<Concat>(OutputVector{split_W_r_z->output(1), split_W_r_z->output(0), split_WRh->output(0)}, 0);
-        Rzrh =
-                make_shared<Concat>(OutputVector{split_R_r_z->output(1), split_R_r_z->output(0), split_WRh->output(1)}, 0);
+        Wzrh = make_shared<Concat>(OutputVector{split_W_r_z->output(1), split_W_r_z->output(0), split_WRh->output(0)}, 0);
+        Rzrh = make_shared<Concat>(OutputVector{split_R_r_z->output(1), split_R_r_z->output(0), split_WRh->output(1)}, 0);
     }
     auto B = make_shared<Concat>(OutputVector{Bzr, Bh}, 1);
 
