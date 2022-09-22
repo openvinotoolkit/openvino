@@ -15,7 +15,6 @@ pr:
     - releases/*
   paths:
     exclude: 
-    - docs/
     - /**/docs/*
     - /**/*.md
     - .ci/
