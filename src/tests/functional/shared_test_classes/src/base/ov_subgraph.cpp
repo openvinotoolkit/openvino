@@ -202,9 +202,11 @@ void SubgraphBaseTest::compile_model() {
     }
 
     // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
-    if (targetDevice == CommonTestUtils::DEVICE_CPU && !configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16)) {
-        configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
-    }
+    #if !(defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM64))
+        if (targetDevice == CommonTestUtils::DEVICE_CPU && !configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16)) {
+                configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
+        }
+    #endif
 
     compiledModel = core->compile_model(function, targetDevice, configuration);
 }
