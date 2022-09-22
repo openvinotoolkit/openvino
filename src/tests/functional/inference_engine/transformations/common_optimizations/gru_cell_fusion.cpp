@@ -23,24 +23,20 @@ enum class WeightsFormat {
     rz
 };
 
-Output<Node> create_activation_by_name(const string& activation_name, const Output<Node>& input);
-
-    Output <Node> create_activation_by_name(const string &activation_name, const Output <Node> &input) {
-        if (activation_name == "sigmoid") {
-            return make_shared<Sigmoid>(input);
-        } else if (activation_name == "tanh") {
-            return make_shared<Tanh>(input);
-        } else if (activation_name == "relu") {
-            return make_shared<Relu>(input);
-        } else {
-            OPENVINO_ASSERT("Unsupported activation function");
-            return {};
-        }
+Output <Node> create_activation_by_name(const string &activation_name, const Output <Node> &input) {
+    if (activation_name == "sigmoid") {
+        return make_shared<Sigmoid>(input);
+    } else if (activation_name == "tanh") {
+        return make_shared<Tanh>(input);
+    } else if (activation_name == "relu") {
+        return make_shared<Relu>(input);
     }
+    OPENVINO_ASSERT("Unsupported activation function");
+}
 
-    shared_ptr<Model> gen_model(WeightsFormat format, const string& activation_1, const string& activation_2,
-                                size_t batch, size_t hidden_size, size_t input_size,
-                                bool use_bias_add_1, bool use_bias_add_2, bool use_dyn_shapes) {
+shared_ptr<Model> gen_model(WeightsFormat format, const string& activation_1, const string& activation_2,
+                            size_t batch, size_t hidden_size, size_t input_size,
+                            bool use_bias_add_1, bool use_bias_add_2, bool use_dyn_shapes) {
     int r_idx = 0, z_idx = 1;
     if (format == WeightsFormat::zr) {
         swap(r_idx, z_idx);
@@ -182,7 +178,7 @@ static const vector<GRUFusionParams> params = {
         GRUFusionParams{WeightsFormat::rz, "tanh", "sigmoid", 2, 128, 32, true, true},
         GRUFusionParams{WeightsFormat::rz, "tanh", "tanh", 2, 128, 32, true, false},
         GRUFusionParams{WeightsFormat::rz, "sigmoid", "relu", 2, 128, 32, false, false},
-        // accuracy issue, it looks like the test infrastructure issue, the graphs are the same.
+        // 92424: accuracy issue, it looks like the test infrastructure issue, the graphs are the same.
         // GRUFusionParams{WeightsFormat::zr, "relu", "tanh", 2, 128, 32, false, true},
         // GRUFusionParams{WeightsFormat::rz, "relu", "tanh", 2, 128, 32, false, true},
 };
