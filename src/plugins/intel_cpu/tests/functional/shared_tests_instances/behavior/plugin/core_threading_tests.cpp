@@ -5,7 +5,7 @@
 #include <behavior/plugin/core_threading.hpp>
 #ifdef __GLIBC__
 #include <gnu/libc-version.h>
-#if __GLIBC_MINOR__  >= 34 
+#if __GLIBC_MINOR__  >= 34
     #define ENABLETESTMULTI
 #endif
 #endif
