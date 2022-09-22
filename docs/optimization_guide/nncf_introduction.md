@@ -1,6 +1,6 @@
-# Neural Network Compression Framework {#docs_nncf_introduction}
+# Neural Network Compression Framework
 
-The Neural Network Compression Framework (NNCF) aims at optimizing Deep Neural Networks (DNN) by means of methods such as quantization and pruning. It provides in-training optimization capabilities, which means that the optimization methods require model fine-tuning or even re-training. 
+This document describes the Neural Network Compression Framework (NNCF) which is distributed as a separate tool but is highly aligned with OpenVINO in terms of the supported optimization features and models. It is open-sourced and available on [GitHub](https://github.com/openvinotoolkit/nncf).
 
 NNCF is distributed as a separate tool but is closely aligned with OpenVINO in terms of supported optimization features and models. It is open source and available on [GitHub](https://github.com/openvinotoolkit/nncf). The diagram below shows the model optimization workflow, using NNCF.
 
@@ -12,11 +12,8 @@ NNCF is distributed as a separate tool but is closely aligned with OpenVINO in t
   
  |Compression algorithm|PyTorch|TensorFlow 2.x|
  | :--- | :---: | :---: |
- |[8- bit quantization](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md) | Supported | Supported |
+ |[8-bit quantization](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md) | Supported | Supported |
  |[Filter pruning](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Pruning.md) | Supported | Supported |
- |[Sparsity](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Sparsity.md) | Supported | Supported |
- |[Mixed-precision quantization](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md#mixed_precision_quantization) | Supported | Not supported |
- |[Binarization](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Binarization.md) | Supported | Not supported |
   
 - Stacking of optimization methods, for example: 8-bit quaNtization + Filter Pruning.
 - Support for [Accuracy-Aware model training](https://github.com/openvinotoolkit/nncf/blob/develop/docs/Usage.md#accuracy-aware-model-training) pipelines via the [Adaptive Compression Level Training](https://github.com/openvinotoolkit/nncf/tree/develop/docs/accuracy_aware_model_training/AdaptiveCompressionLevelTraining.md) and [Early Exit Training](https://github.com/openvinotoolkit/nncf/tree/develop/docs/accuracy_aware_model_training/EarlyExitTrainig.md).
