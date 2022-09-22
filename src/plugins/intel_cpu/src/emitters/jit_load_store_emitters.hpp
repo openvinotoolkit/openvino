@@ -133,8 +133,8 @@ public:
 
     void emit_data() const override;
 
-    std::shared_ptr<jit_emu_vcvtneps2bf16> get_emu_vcvtneps2bf16() const {
-        return emu_vcvtneps2bf16_;
+    std::shared_ptr<jit_uni_vcvtneps2bf16> get_uni_vcvtneps2bf16() const {
+        return uni_vcvtneps2bf16_;
     }
 
 private:
@@ -165,7 +165,7 @@ private:
     Precision src_prc_;
     Precision dst_prc_;
     arithmetic_mode mode_ = arithmetic_mode::saturation;
-    std::shared_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16_;
+    std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16_;
 };
 
 }   // namespace intel_cpu

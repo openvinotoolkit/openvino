@@ -7,10 +7,6 @@ import numpy as np
 import sys
 import os
 
-# it's better to use PYTHON_PATH
-# import sys
-# sys.path.append('/home/itikhonov/OpenVINO/openvino/bin/intel64/Debug/lib/python_api/python3.6/')
-# from openvino.inference_engine import IECore
 
 def create_multi_output_model():
     paddle.enable_static()

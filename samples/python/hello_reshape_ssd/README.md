@@ -64,7 +64,7 @@ omz_downloader --name mobilenet-ssd
 omz_converter --name mobilenet-ssd
 ```
 
-4. Perform inference of `banana.jpg` using `ssdlite_mobilenet_v2` model on a `GPU`, for example:
+4. Perform inference of `banana.jpg` using `mobilenet-ssd` model on a `GPU`, for example:
 
 ```
 python hello_reshape_ssd.py mobilenet-ssd.xml banana.jpg GPU
@@ -76,7 +76,7 @@ The sample application logs each step in a standard output stream and creates an
 
 ```
 [ INFO ] Creating OpenVINO Runtime Core
-[ INFO ] Reading the model: C:/test_data/models/ssdlite_mobilenet_v2.xml
+[ INFO ] Reading the model: C:/test_data/models/mobilenet-ssd.xml
 [ INFO ] Reshaping the model to the height and width of the input image
 [ INFO ] Loading the model to the plugin
 [ INFO ] Starting inference in synchronous mode

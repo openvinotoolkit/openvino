@@ -647,7 +647,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     GPU_DEBUG_IF(debug_config->verbose >= 1)
         GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
 
-    std::unique_ptr<cldnn::surfaces_lock> surf_lock;
+    std::vector<memory::ptr> in_out_mem;
     bool shared_mem_found = std::any_of(_in_out_shared_mem_types.begin(),
                                         _in_out_shared_mem_types.end(),
                                         [](const shared_mem_type& shared_mem_type) {
@@ -656,7 +656,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                                         });
 
     if (shared_mem_found) {
-        std::vector<memory::ptr> in_out_mem;
         for (auto& inst : _inputs) {
             if (inst->output_memory_ptr())
                 in_out_mem.push_back(inst->output_memory_ptr());
@@ -666,9 +665,15 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             if (inst->output_memory_ptr())
                 in_out_mem.push_back(inst->output_memory_ptr());
         }
-
-        surf_lock = surfaces_lock::create(get_engine().type(), in_out_mem, get_stream());
     }
+
+    // We shouldn't call surfaces_lock::create() function constantly here, but due to
+    // some changes in assembler code, performance drops in case if we move it under
+    // `shared_mem_found` condition (it somehow connected with get_cl_queue() - this function call
+    // makes asm faster for some reasons). So, as WA we keep this surfaces_lock::create() here
+    // with empty memory vector and do nothing inside this function for saving performance
+    // in some cases.
+    auto surf_lock = surfaces_lock::create(get_engine().type(), in_out_mem, get_stream());
 
     set_arguments();
     for (auto& inst : _exec_order) {
@@ -873,7 +878,7 @@ void network::allocate_primitive_instance(program_node const& node) {
         inst->set_mutable_input(true);
     }
 
-    if (node.is_dynamic()) {
+    if (inst->is_dynamic()) {
         _is_dynamic = true;
     }
 

@@ -2,8 +2,8 @@
 - [CMake\*](https://cmake.org/download/) 3.9 or later
 - Microsoft\* Visual Studio 2015 or later on Windows\*
 - gcc 4.8 or later on Linux
-- Python 2.7 or higher on Linux\*
-- Python 3.6 or higher on Windows\*
+- Python 3.7 or higher on Linux\*
+- Python 3.7 or higher on Windows\*
 
 ## Prerequisites
 
@@ -21,9 +21,9 @@ You need to run Inference Engine build with the following flags:
   cd <INSTALL_DIR>/openvino
   mkdir -p build
   cd build
-  cmake -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=`which python3.6` \
-  	-DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.6m.so \
-  	-DPYTHON_INCLUDE_DIR=/usr/include/python3.6 ..
+  cmake -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=`which python3.7` \
+  	-DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.7m.so \
+  	-DPYTHON_INCLUDE_DIR=/usr/include/python3.7 ..
   make -j16
 ```
 
@@ -65,7 +65,7 @@ sudo apt install patchelf
 ## Running sample
 
 Before running the Python samples:
-- add the folder with built `openvino` Python module (located at `bin/intel64/Release/lib/python_api/python3.6` for Linux) to the PYTHONPATH environment variable.
+- add the folder with built `openvino` Python module (located at `bin/intel64/Release/lib/python_api/python3.7` for Linux) to the PYTHONPATH environment variable.
 - add the folder with Inference Engine libraries to LD_LIBRARY_PATH variable on Linux (or PATH on Windows).
 
 Example of command line to run classification sample:

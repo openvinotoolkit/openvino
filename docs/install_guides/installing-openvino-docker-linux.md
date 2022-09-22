@@ -10,11 +10,7 @@ This guide provides steps on creating a Docker image with Intel® Distribution o
   +----------------------------------------------+--------------------------+
   | Operating System                             | Supported Python Version |
   +==============================================+==========================+
-  | Ubuntu 18.04 long-term support (LTS), 64-bit |  3.6                     |
-  +----------------------------------------------+--------------------------+
   | Ubuntu 20.04 long-term support (LTS), 64-bit |  3.8                     |
-  +----------------------------------------------+--------------------------+
-  | Red Hat Enterprise Linux 8, 64-bit           |  3.6                     |
   +----------------------------------------------+--------------------------+
 
 .. tab:: Host Operating Systems
