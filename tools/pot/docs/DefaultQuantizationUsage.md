@@ -1,4 +1,4 @@
-# Quantizing Model {#pot_default_quantization_usage}
+# Quantizing Models {#pot_default_quantization_usage}
 
 @sphinxdirective
 
