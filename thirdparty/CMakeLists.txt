@@ -92,8 +92,14 @@ if(ENABLE_SYSTEM_PUGIXML)
             get_target_property(imported_config ${pugixml_target} IMPORTED_CONFIGURATIONS)
             get_target_property(pugixml_loc ${pugixml_target} IMPORTED_LOCATION_${imported_config})
             get_filename_component(pugixml_dir "${pugixml_loc}" DIRECTORY)
-            get_target_property(pugixml_soname_loc ${pugixml_target} IMPORTED_SONAME_${imported_config})
-            set(pugixml_libs "${pugixml_loc}" "${pugixml_dir}/${pugixml_soname_loc}")
+            get_filename_component(name_we "${pugixml_loc}" NAME_WE)
+            # grab all tbb files matching pattern
+            file(GLOB pugixml_files "${pugixml_dir}/${name_we}.*")
+            foreach(pugixml_file IN LISTS pugixml_files)
+                if(pugixml_file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)*$")
+                    list(APPEND pugixml_libs "${pugixml_file}")
+                endif()
+            endforeach()
         elseif(target_type STREQUAL "INTERFACE_LIBRARY")
             get_target_property(pugixml_loc ${pugixml_target} INTERFACE_LINK_LIBRARIES)
             file(GLOB pugixml_libs_all "${pugixml_loc}.*")
@@ -189,7 +195,7 @@ endif()
 # Google Tests framework
 #
 
-if(ENABLE_OV_CORE_UNIT_TESTS OR ENABLE_TESTS)
+if(ENABLE_TESTS)
     add_subdirectory(gtest EXCLUDE_FROM_ALL)
 
     openvino_developer_export_targets(COMPONENT tests

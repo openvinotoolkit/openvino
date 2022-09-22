@@ -146,6 +146,14 @@ public:
                                                                                  get_fused_primitives(),
                                                                                  get_fused_activations_funcs(), get_fused_activations_params()));
         params->memory_deps = get_const_memory_deps();
+
+        auto deps = get_dependencies();
+        for (size_t i = 0; i < deps.size(); i++) {
+            if (!deps[i]->is_constant()) {
+                params->primary_input_idx = i;
+                break;
+            }
+        }
         return params;
     }
 
@@ -407,6 +415,12 @@ public:
         cur_id = 0;
     }
 
+    format::type get_required_input0() const { return required_input0; }
+    format::type get_required_output() const { return required_output; }
+    void set_required_input0(format::type type) { required_input0 = type; }
+    void set_required_output(format::type type) { required_output = type; }
+
+
 protected:
     size_t unique_id = 0;
     static thread_local size_t cur_id;
@@ -418,6 +432,9 @@ protected:
 
     bool valid_output_layout = false;
     layout output_layout = layout(data_types::f32, format::bfyx, tensor());
+
+    format::type required_input0;
+    format::type required_output;
 
     std::vector<program_node*> dependencies;
     std::list<program_node*> users;

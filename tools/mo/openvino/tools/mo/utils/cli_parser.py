@@ -572,11 +572,12 @@ mo_convert_params = {
         '"--transform transformation_name1[args],transformation_name2..." ' +
         'where [args] is key=value pairs separated by semicolon. ' +
         'Examples: "--transform LowLatency2" or ' +
+        '          "--transform Pruning" or ' +
         '          "--transform LowLatency2[use_const_initializer=False]" or ' +
         '          "--transform \"MakeStateful[param_res_names='
         '{{\'input_name_1\':\'output_name_1\',\'input_name_2\':\'output_name_2\'}}]\"" ' +
-        'Available transformations: "LowLatency2", "MakeStateful"', 'Usage: ',
-        '\'transform\' can by a list of tuples, where the first element is '
+        'Available transformations: "LowLatency2", "MakeStateful", "Pruning"', 'Usage: ',
+        '\'transform\' can be set by a list of tuples, where the first element is '
         'transform name and the second element is transform parameters. '
         'For example: [(\'LowLatency2\', {{\'use_const_initializer\': False}}), ...]',
         transform_param_to_str),
@@ -1762,6 +1763,16 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
     are_shapes_specified_through_input = False
     inputs_list = list()
     if argv_input:
+        range_reg = r'([0-9]*\.\.[0-9]*)'
+        first_digit_reg = r'([0-9]+|-1|\?|{})'.format(range_reg)
+        next_digits_reg = r'(,{})+'.format(first_digit_reg)
+        brackets_reg = r'(.*\[{}{}\].*)'.format(first_digit_reg, next_digits_reg,
+                                                      first_digit_reg, next_digits_reg)
+        if re.match(brackets_reg, argv_input):
+            raise Error('Error in input {}. Shape with comma separator is not supported in --input param. '
+                        'Please use shape syntax with whitespace separator. Example --input="data[1 3 100 100]".'.format(
+                argv_input))
+
         for input_value in argv_input.split(','):
             node_name, shape, _, data_type = parse_input_value(input_value)
             placeholder_shapes[node_name] = shape
