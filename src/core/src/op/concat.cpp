@@ -7,10 +7,10 @@
 #include <memory>
 #include <ngraph/validation_util.hpp>
 
+#include "concat_shape_inference.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
-#include "concat_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;

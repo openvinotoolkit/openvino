@@ -38,7 +38,6 @@ void op::v1::Transpose::validate_and_infer_types() {
     std::vector<ov::PartialShape> input_shapes = {arg_shape, input_order_shape};
     shape_infer(this, input_shapes, output_shapes);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
-
 }
 
 shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& new_args) const {
