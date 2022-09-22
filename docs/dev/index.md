@@ -90,8 +90,7 @@ The OpenVINO Repository compositions from next components, click on the componen
 
 ### OpenVINO Component Structure
 
-The OpenVINO component should contain all dependencies inside (like thirdparty, testts, documentation and etc.). 
-Below the abstract component structure is presented with comments and marks for optional folders.
+The OpenVINO component should contain all dependencies inside (for example, thirdparty, tests, documentation, and other). The abstract component structure with comments and marks for optional folders is presented below.
 
 ```
 ov_component/           // Component folder
