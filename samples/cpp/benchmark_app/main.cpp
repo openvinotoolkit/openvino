@@ -437,6 +437,11 @@ int main(int argc, char* argv[]) {
             core.set_property(ov::cache_dir(FLAGS_cache_dir));
         }
 
+        // If set batch size, disable the auto batching
+        if (FLAGS_b > 0) {
+            core.set_property(ov::hint::allow_auto_batching(false));
+        }
+
         bool isDynamicNetwork = false;
 
         if (FLAGS_load_from_file && !isNetworkCompiled) {
