@@ -367,7 +367,9 @@ bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node> &n
             GetNodeFusingType(n) == NodeFusingType::FusedWithConvolution))
             return false;
         const auto& parent = n->get_input_node_shared_ptr(0);
-        const bool is_suitable_parent = isSuitableConvolutionParent(parent) || isFusedBiasNode(parent);
+        const bool is_suitable_parent = isSuitableConvolutionParent(parent)
+            || isFusedBiasNode(parent)
+            || (GetNodeFusingType(parent) == NodeFusingType::FusedWithConvolution);
         return is_suitable_parent;
     };
     int num_conv_parents = 0;
