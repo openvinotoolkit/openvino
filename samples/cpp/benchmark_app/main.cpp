@@ -60,6 +60,11 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
         throw std::logic_error("Incorrect performance hint. Please set -hint option to"
                                "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value or 'none'.");
     }
+    if (FLAGS_hint != "none" && (FLAGS_nstreams != "" || FLAGS_nthreads != 0 || FLAGS_pin != "")) {
+        throw std::logic_error("-nstreams, -nthreads and -pin options are fine tune options. To use them you "
+                               "should explicitely set -hint option to none. This is not OpenVINO limitation "
+                               "(those options can be used in OpenVINO together), but a benchmark_app UI rule.");
+    }
     if (!FLAGS_report_type.empty() && FLAGS_report_type != noCntReport && FLAGS_report_type != averageCntReport &&
         FLAGS_report_type != detailedCntReport) {
         std::string err = "only " + std::string(noCntReport) + "/" + std::string(averageCntReport) + "/" +
@@ -430,6 +435,11 @@ int main(int argc, char* argv[]) {
         // Takes priority over config from file
         if (!FLAGS_cache_dir.empty()) {
             core.set_property(ov::cache_dir(FLAGS_cache_dir));
+        }
+
+        // If set batch size, disable the auto batching
+        if (FLAGS_b > 0) {
+            core.set_property(ov::hint::allow_auto_batching(false));
         }
 
         bool isDynamicNetwork = false;

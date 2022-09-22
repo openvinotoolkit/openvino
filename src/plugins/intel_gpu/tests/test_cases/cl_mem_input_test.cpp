@@ -4,6 +4,7 @@
 
 #include "test_utils.h"
 #include "opencl_helper_instance.hpp"
+#include "ocl/ocl_device.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/activation.hpp>
@@ -70,7 +71,13 @@ std::vector<float> createReferenceData(std::vector<unsigned char> data, int widt
 }
 
 TEST(cl_mem_check, check_2_inputs) {
-    auto ocl_instance = std::make_shared<OpenCL>();
+    device_query query(engine_types::ocl, runtime_types::ocl);
+    auto devices = query.get_available_devices();
+    auto iter = devices.find(std::to_string(device_query::device_id));
+    auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
+
+    auto ocl_instance = std::make_shared<OpenCL>(std::dynamic_pointer_cast<ocl::ocl_device>(device)->get_device());
     int width = 224;
     int height = 224;
     cl_int err;
@@ -103,12 +110,6 @@ TEST(cl_mem_check, check_2_inputs) {
     err = clEnqueueWriteImage(ocl_instance->_queue.get(), nv12_image_plane_uv, true, origin, uv_region, 0, 0, &data[width * height], 0, nullptr, nullptr);
     checkStatus(err, "Writing nv12 image plane_uv failed");
 
-    device_query query(engine_types::ocl, runtime_types::ocl, static_cast<void*>(ocl_instance->_context.get()));
-    auto devices = query.get_available_devices();
-
-    auto engine_config = cldnn::engine_configuration();
-    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, devices.begin()->second, engine_config);
-
     auto input = input_layout("input", { data_types::i8, format::nv12, {1,1,height,width} });
     auto input2 = input_layout("input2", { data_types::i8, format::nv12, {1,1,height / 2,width / 2} });
     auto output_format = cldnn::format::byxf;
@@ -139,7 +140,13 @@ TEST(cl_mem_check, check_2_inputs) {
 }
 
 TEST(cl_mem_check, check_input) {
-    auto ocl_instance = std::make_shared<OpenCL>();
+    device_query query(engine_types::ocl, runtime_types::ocl);
+    auto devices = query.get_available_devices();
+    auto iter = devices.find(std::to_string(device_query::device_id));
+    auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
+    auto ocl_instance = std::make_shared<OpenCL>(std::dynamic_pointer_cast<ocl::ocl_device>(device)->get_device());
+
     int width = 224;
     int height = 224;
     cl_int err;
@@ -214,11 +221,6 @@ TEST(cl_mem_check, check_input) {
 
     checkStatus(clReleaseMemObject(nv12_image_plane_uv), "clReleaseMemObject");
     checkStatus(clReleaseMemObject(nv12_image_plane_y), "clReleaseMemObject");
-
-    device_query query(engine_types::ocl, runtime_types::ocl, static_cast<void*>(ocl_instance->_context.get()));
-    auto devices = query.get_available_devices();
-
-    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, devices.begin()->second);
 
     auto input = input_layout("input", { data_types::i8, format::nv12, {1,1,height,width} });
     auto output_format = cldnn::format::byxf;
