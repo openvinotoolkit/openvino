@@ -1,4 +1,4 @@
-# Post-training Optimization Tool Frequently Asked Questions {#pot_docs_FrequentlyAskedQuestions}
+# Post-training Optimization Tool FAQ {#pot_docs_FrequentlyAskedQuestions}
 
 If your question is not covered below, use the [OpenVINO™ Community Forum page](https://community.intel.com/t5/Intel-Distribution-of-OpenVINO/bd-p/distribution-openvino-toolkit),
 where you can participate freely.
@@ -36,11 +36,9 @@ The POT accepts models in the OpenVINO&trade; Intermediate Representation (IR) f
 
 ### <a name="noac">I'd like to quantize a model and I've converted it to IR but I don't have the Accuracy Checker config. What can I do?</a>
 
-1. Try quantization using Python* API of the Post-training Optimization Tool. For more details see [Default Quantization](@ref pot_default_quantization_usage.
-2. If you consider command-line usage only refer to [Accuracy Checker documentation](@ref omz_tools_accuracy_checker) to create the Accuracy Checker configuration file,  and
-try to find the configuration file for your model among the ones available in the Accuracy Checker examples. 
-3. An alternative way is to quantize the model
-in the [Simplified mode](#ref pot_docs_simplified_mode) but you will not be able to measure the accuracy.
+1. Try quantization using Python API of the Post-training Optimization Tool. For more details see [Default Quantization](@ref pot_default_quantization_usage).
+2. If you consider command-line usage only refer to [Accuracy Checker documentation](@ref omz_tools_accuracy_checker) to create the Accuracy Checker configuration file, and try to find the configuration file for your model among the ones available in the Accuracy Checker examples. 
+3. An alternative way is to quantize the model in the [Simplified mode](#ref pot_docs_simplified_mode) but you will not be able to measure the accuracy.
 
 ### <a name="tradeoff">What is a tradeoff when you go to low precision?</a>
 
@@ -62,7 +60,7 @@ Note that NNCF usage requires you to have a PyTorch or TensorFlow 2 based traini
 
 These issues happen due to insufficient available amount of memory for statistics collection during the quantization process of a huge model or
 due to a very high resolution of input images in the quantization dataset. If you do not have a possibility to increase your RAM size, one of the following options can help:
-- Set `inplace_statistic` parameters to "True". In that case the POT will change method collect statistics and use less memory. Note that such change might increase time required for quantization.
+- Set `inplace_statistics` parameters to "True". In that case the POT will change method collect statistics and use less memory. Note that such change might increase time required for quantization.
 - Set `eval_requests_number` and `stat_requests_number` parameters to 1. In that case the POT will limit the number of infer requests by 1 and use less memory.
 Note that such change might increase time required for quantization.
 - Set `use_fast_bias` parameter to `false`. In that case the POT will switch from the FastBiasCorrection algorithm to the full BiasCorrection algorithm
@@ -79,7 +77,7 @@ It can happen due to the following reasons:
 ### <a name="longtime">The quantization process of my model takes a lot of time. Can it be decreased somehow?</a>
 
 Quantization time depends on multiple factors such as the size of the model and the dataset. It also depends on the algorithm:
-the [Default Quantization](@ref pot_default_quantization_usage) algorithm takes less time than the [ [Accuracy-aware Quantization](@ref pot_accuracyaware_usage) algorithm.
+the [Default Quantization](@ref pot_default_quantization_usage) algorithm takes less time than the [Accuracy-aware Quantization](@ref pot_accuracyaware_usage) algorithm.
 The following configuration parameters also impact the quantization time duration
 (see details in [Post-Training Optimization Best Practices](BestPractices.md)):
 - `use_fast_bias`: when set to `false`, it increases the quantization time
