@@ -7,11 +7,8 @@
 #include "ngraph/validation_util.hpp"
 #include "op_table.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
-using namespace ov::opset8;
-using namespace ngraph;
 
 namespace ov {
 namespace frontend {

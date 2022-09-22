@@ -16,9 +16,9 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-class BlockLSTM : public ov::frontend::tensorflow::InternalOperation {
+class BlockLSTM : public InternalOperation {
 public:
-    OPENVINO_OP("BlockLSTM", "ov::frontend::tensorflow::util", ov::frontend::tensorflow::InternalOperation);
+    OPENVINO_OP("BlockLSTM", "ov::frontend::tensorflow::util", InternalOperation);
 
     BlockLSTM(const Output<Node>& seq_len_max,
               const Output<Node>& x,
@@ -33,15 +33,11 @@ public:
               float cell_clip,
               bool use_peephole,
               const std::shared_ptr<DecoderBase>& decoder = nullptr)
-        : ov::frontend::tensorflow::InternalOperation(
-              decoder,
-              OutputVector{seq_len_max, x, cs_prev, h_prev, w, wci, wcf, wco, b},
-              7),
+        : InternalOperation(decoder, OutputVector{seq_len_max, x, cs_prev, h_prev, w, wci, wcf, wco, b}, 7),
           m_forget_bias(forget_bias),
           m_cell_clip(cell_clip),
           m_use_peephole(use_peephole),
-          m_hidden_size(ov::Dimension::dynamic()),
-          m_input_size(ov::Dimension::dynamic()) {
+          m_hidden_size(ov::Dimension::dynamic()) {
         validate_and_infer_types();
     }
 
@@ -85,11 +81,9 @@ public:
             FRONT_END_OP_CONVERSION_CHECK(
                 x_rank.get_length() == 3,
                 "Internal error in OpenVINO TensorFlow Frontend: input data for BlockLSTM must be of rank equal to 3.");
-            time_len = x_shape[0].is_static() ? x_shape[0].get_length() : ov::Dimension::dynamic();
-            batch_size = x_shape[1].is_static() ? x_shape[1].get_length() : ov::Dimension::dynamic();
-            m_input_size = x_shape[2].is_static() ? x_shape[2].get_length() : ov::Dimension::dynamic();
+            time_len = x_shape[0].get_length();
+            batch_size = x_shape[1].get_length();
         }
-        m_batch_size = batch_size;
 
         // extract hidden_size
         m_hidden_size = ov::Dimension::dynamic();
@@ -133,21 +127,12 @@ public:
     }
 
     ov::Dimension get_hidden_size() const {
+        // TODO: it must be deleted once hidden_size is gone from attributes
         return m_hidden_size;
-    }
-
-    ov::Dimension get_attr_input_size() const {
-        return m_input_size;
-    }
-
-    ov::Dimension get_attr_batch_size() const {
-        return m_batch_size;
     }
 
 private:
     ov::Dimension m_hidden_size;
-    ov::Dimension m_input_size;
-    ov::Dimension m_batch_size;
     float m_forget_bias;
     float m_cell_clip;
     bool m_use_peephole;
