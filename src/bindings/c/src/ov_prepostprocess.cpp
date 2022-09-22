@@ -303,7 +303,7 @@ void ov_preprocess_output_info_free(ov_preprocess_output_info_t* preprocess_outp
 }
 
 ov_status_e ov_preprocess_output_info_get_tensor_info(
-    ov_preprocess_output_info_t* preprocess_output_info,
+    const ov_preprocess_output_info_t* preprocess_output_info,
     ov_preprocess_output_tensor_info_t** preprocess_output_tensor_info) {
     if (!preprocess_output_info || !preprocess_output_tensor_info) {
         return ov_status_e::INVALID_C_PARAM;
@@ -337,7 +337,7 @@ ov_status_e ov_preprocess_output_set_element_type(ov_preprocess_output_tensor_in
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_input_info_get_model_info(ov_preprocess_input_info_t* preprocess_input_info,
+ov_status_e ov_preprocess_input_info_get_model_info(const ov_preprocess_input_info_t* preprocess_input_info,
                                                     ov_preprocess_input_model_info_t** preprocess_input_model_info) {
     if (!preprocess_input_info || !preprocess_input_model_info) {
         return ov_status_e::INVALID_C_PARAM;

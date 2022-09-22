@@ -41,10 +41,11 @@ inline static std::vector<uint8_t> content_from_file(const char* filename, bool 
         std::ifstream is(filename, is_binary ? std::ifstream::binary | std::ifstream::in : std::ifstream::in);
         if (is) {
             is.seekg(0, std::ifstream::end);
-            result.resize(is.tellg());
-            if (result.size() > 0) {
+            size_t file_len = is.tellg();
+            result.resize(file_len + 1);
+            if (file_len > 0) {
                 is.seekg(0, std::ifstream::beg);
-                is.read(reinterpret_cast<char*>(&result[0]), result.size());
+                is.read(reinterpret_cast<char*>(&result[0]), file_len);
             }
         }
     }

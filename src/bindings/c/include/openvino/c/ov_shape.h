@@ -29,7 +29,7 @@ typedef struct {
  * @param shape The input/output shape object pointer.
  * @return ov_status_e The return status code.
  */
-OPENVINO_C_API(ov_status_e) ov_shape_create(int64_t rank, int64_t* dims, ov_shape_t* shape);
+OPENVINO_C_API(ov_status_e) ov_shape_create(const int64_t rank, const int64_t* dims, ov_shape_t* shape);
 
 /**
  * @brief Free a shape object's internal memory.

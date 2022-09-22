@@ -162,6 +162,8 @@ public:
 
     const variables_state_info_map& GetVariablesStatesInfo() const { return m_variablesStateInfo; }
 
+    bool use_new_shape_infer() const { return allow_new_shape_infer; }
+
 private:
     static factories_map_t factories_map;
     std::vector<std::shared_ptr<cldnn::program>> m_programs;
@@ -172,6 +174,8 @@ private:
     InferenceEngine::InputsDataMap m_networkInputs;
     InferenceEngine::OutputsDataMap m_networkOutputs;
     variables_state_info_map m_variablesStateInfo;
+
+    bool allow_new_shape_infer = false;
 
     bool queryMode;
 

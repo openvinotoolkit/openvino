@@ -960,3 +960,52 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fusedgemm_abc) {
     test_case.add_expected_output<float>(Shape{3, 4}, output);
     test_case.run_with_tolerance_as_fp(1e-6);
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_trilu_lower) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                              SERIALIZED_ZOO,
+                                                                              "onnx/com.microsoft/trilu_lower.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    // clang-format off
+    test_case.add_input<float>(Shape{4, 5},
+        std::vector<float>{ 1,  2,  3,  4,  5,
+                            6,  7,  8,  9, 10,
+                           11, 12, 13, 14, 15,
+                           16, 17, 18, 19, 20});
+    test_case.add_input<int64_t>(Shape{}, {0}); // k
+    test_case.add_expected_output<float>(Shape{4, 5},
+        std::vector<float>{ 1,  0,  0,  0,  0,
+                            6,  7,  0,  0,  0,
+                           11, 12, 13,  0,  0,
+                           16, 17, 18, 19,  0});
+    test_case.run();
+
+    test_case.add_input<float>(Shape{4, 5},
+        std::vector<float>{ 1,  2,  3,  4,  5,
+                            6,  7,  8,  9, 10,
+                           11, 12, 13, 14, 15,
+                           16, 17, 18, 19, 20});
+    test_case.add_input<int64_t>(Shape{}, {2}); // k
+    test_case.add_expected_output<float>(Shape{4, 5},
+        std::vector<float>{ 1,  2,  3,  0,  0,
+                            6,  7,  8,  9,  0,
+                           11, 12, 13, 14, 15,
+                           16, 17, 18, 19, 20});
+    test_case.run();
+
+    test_case.add_input<float>(Shape{4, 5},
+        std::vector<float>{ 1,  2,  3,  4,  5,
+                            6,  7,  8,  9, 10,
+                           11, 12, 13, 14, 15,
+                           16, 17, 18, 19, 20});
+    test_case.add_input<int64_t>(Shape{}, {-2}); // k
+    test_case.add_expected_output<float>(Shape{4, 5},
+        std::vector<float>{ 0,  0,  0,  0,  0,
+                            0,  0,  0,  0,  0,
+                           11,  0,  0,  0,  0,
+                           16, 17,  0,  0,  0});
+    test_case.run();
+
+    // clang-format on
+}

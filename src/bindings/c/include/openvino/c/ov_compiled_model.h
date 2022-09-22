@@ -28,6 +28,97 @@ typedef struct ov_compiled_model ov_compiled_model_t;
  */
 
 /**
+ * @brief Get the input size of ov_compiled_model_t.
+ * @ingroup compiled_model
+ * @param compiled_model A pointer to the ov_compiled_model_t.
+ * @param input_size the compiled_model's input size.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e) ov_compiled_model_inputs_size(const ov_compiled_model_t* compiled_model, size_t* size);
+
+/**
+ * @brief Get the single const input port of ov_compiled_model_t, which only support single input model.
+ * @ingroup compiled_model
+ * @param compiled_model A pointer to the ov_compiled_model_t.
+ * @param input_port A pointer to the ov_output_const_port_t.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_compiled_model_input(const ov_compiled_model_t* compiled_model, ov_output_const_port_t** input_port);
+
+/**
+ * @brief Get a const input port of ov_compiled_model_t by port index.
+ * @ingroup compiled_model
+ * @param compiled_model A pointer to the ov_compiled_model_t.
+ * @param index input index.
+ * @param input_port A pointer to the ov_output_const_port_t.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_compiled_model_input_by_index(const ov_compiled_model_t* compiled_model,
+                                 const size_t index,
+                                 ov_output_const_port_t** input_port);
+
+/**
+ * @brief Get a const input port of ov_compiled_model_t by name.
+ * @ingroup compiled_model
+ * @param compiled_model A pointer to the ov_compiled_model_t.
+ * @param name input tensor name (char *).
+ * @param input_port A pointer to the ov_output_const_port_t.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_compiled_model_input_by_name(const ov_compiled_model_t* compiled_model,
+                                const char* name,
+                                ov_output_const_port_t** input_port);
+
+/**
+ * @brief Get the output size of ov_compiled_model_t.
+ * @ingroup compiled_model
+ * @param compiled_model A pointer to the ov_compiled_model_t.
+ * @param input_size the compiled_model's input size.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_compiled_model_outputs_size(const ov_compiled_model_t* compiled_model, size_t* size);
+
+/**
+ * @brief Get the single const output port of ov_compiled_model_t, which only support single output model.
+ * @ingroup compiled_model
+ * @param compiled_model A pointer to the ov_compiled_model_t.
+ * @param output_port A pointer to the ov_output_const_port_t.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_compiled_model_output(const ov_compiled_model_t* compiled_model, ov_output_const_port_t** output_port);
+
+/**
+ * @brief Get a const output port of ov_compiled_model_t by port index.
+ * @ingroup compiled_model
+ * @param compiled_model A pointer to the ov_compiled_model_t.
+ * @param index input index.
+ * @param output_port A pointer to the ov_output_const_port_t.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_compiled_model_output_by_index(const ov_compiled_model_t* compiled_model,
+                                  const size_t index,
+                                  ov_output_const_port_t** output_port);
+
+/**
+ * @brief Get a const output port of ov_compiled_model_t by name.
+ * @ingroup compiled_model
+ * @param compiled_model A pointer to the ov_compiled_model_t.
+ * @param name input tensor name (char *).
+ * @param output_port A pointer to the ov_output_const_port_t.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_compiled_model_output_by_name(const ov_compiled_model_t* compiled_model,
+                                 const char* name,
+                                 ov_output_const_port_t** output_port);
+
+/**
  * @brief Gets runtime model information from a device.
  * @ingroup compiled_model
  * @param compiled_model A pointer to the ov_compiled_model_t.
@@ -36,26 +127,6 @@ typedef struct ov_compiled_model ov_compiled_model_t;
  */
 OPENVINO_C_API(ov_status_e)
 ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compiled_model, ov_model_t** model);
-
-/**
- * @brief Gets all inputs of a compiled model.
- * @ingroup compiled_model
- * @param compiled_model A pointer to the ov_compiled_model_t.
- * @param input_nodes A pointer to the ov_input_nodes.
- * @return Status code of the operation: OK(0) for success.
- */
-OPENVINO_C_API(ov_status_e)
-ov_compiled_model_inputs(const ov_compiled_model_t* compiled_model, ov_output_node_list_t* input_nodes);
-
-/**
- * @brief Get all outputs of a compiled model.
- * @ingroup compiled_model
- * @param compiled_model A pointer to the ov_compiled_model_t.
- * @param output_nodes A pointer to the ov_output_node_list_t.
- * @return Status code of the operation: OK(0) for success.
- */
-OPENVINO_C_API(ov_status_e)
-ov_compiled_model_outputs(const ov_compiled_model_t* compiled_model, ov_output_node_list_t* output_nodes);
 
 /**
  * @brief Creates an inference request object used to infer the compiled model.
@@ -68,25 +139,29 @@ OPENVINO_C_API(ov_status_e)
 ov_compiled_model_create_infer_request(const ov_compiled_model_t* compiled_model, ov_infer_request_t** infer_request);
 
 /**
- * @brief Sets properties for the current compiled model.
+ * @brief Sets properties for a device, acceptable keys can be found in ov_property_key_xxx.
  * @ingroup compiled_model
  * @param compiled_model A pointer to the ov_compiled_model_t.
- * @param property ov_properties_t.
+ * @param property_key The property key.
+ * @param ... variadic paramaters The format is <char *property_key, char* property_value>.
+ * Supported property key please see ov_property.h.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_set_property(const ov_compiled_model_t* compiled_model, const ov_properties_t* property);
+ov_compiled_model_set_property(const ov_compiled_model_t* compiled_model, ...);
 
 /**
  * @brief Gets properties for current compiled model.
  * @ingroup compiled_model
  * @param compiled_model A pointer to the ov_compiled_model_t.
- * @param property_name Property name.
+ * @param property_key Property key.
  * @param property_value A pointer to property value.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_get_property(const ov_compiled_model_t* compiled_model, const char* key, ov_any_t* value);
+ov_compiled_model_get_property(const ov_compiled_model_t* compiled_model,
+                               const char* property_key,
+                               char** property_value);
 
 /**
  * @brief Exports the current compiled model to an output stream `std::ostream`.
