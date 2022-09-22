@@ -4,8 +4,12 @@ trigger:
     - master
     - releases/*
   paths:
-    exclude:
-    - docs/*
+    include:
+    - docs/template_plugin/
+    - docs/template_extension/
+    exclude: 
+    - /**/docs/ 
+    - /**/*.md
 
 jobs:
 - job: onnxruntime
