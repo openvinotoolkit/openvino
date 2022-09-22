@@ -17,6 +17,7 @@ ParamsKey DetectionOutputKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableDifferentTypes();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();

@@ -365,8 +365,8 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
     if (prev.is_dynamic() || (next && next->is_dynamic()))
         return false;
 
-    // Ref kernels are the main for depth_to_space and region_yolo. It can do anything. Should not see next.
-    if (prev.is_type<depth_to_space>() || prev.is_type<region_yolo>())
+    // Ref kernels are the main for depth_to_space, region_yolo and detection_output. It can do anything. Should not see next.
+    if (prev.is_type<depth_to_space>() || prev.is_type<region_yolo>() || prev.is_type<detection_output>())
         return true;
 
     if (next == nullptr)

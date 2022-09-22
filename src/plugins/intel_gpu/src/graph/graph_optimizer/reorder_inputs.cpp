@@ -581,16 +581,18 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
     }
 
     const auto reorder_input_detection_output = [&p, &rf](typed_program_node<detection_output>& detection_output_node) {
-        auto detection_output_prim = detection_output_node.get_primitive();
+        if (detection_output_node.get_preferred_impl_type() == impl_types::cpu) {
+            auto detection_output_prim = detection_output_node.get_primitive();
 
-        for (size_t i = 0; i < detection_output_node.get_dependencies().size(); i++) {
-            auto& input = detection_output_node.get_dependency(i);
-            auto new_input = rf.get_reorder(input.id(),
-                                            input.get_output_layout(),
-                                            layout{ data_types::f32, format::bfyx, input.get_output_layout().get_tensor() });
+            for (size_t i = 0; i < detection_output_node.get_dependencies().size(); i++) {
+                auto& input = detection_output_node.get_dependency(i);
+                auto new_input = rf.get_reorder(input.id(),
+                                                input.get_output_layout(),
+                                                layout{ data_types::f32, format::bfyx, input.get_output_layout().get_tensor() });
 
-            if (new_input.first) {
-                p.add_intermediate(new_input.first, detection_output_node, i, !new_input.second);
+                if (new_input.first) {
+                    p.add_intermediate(new_input.first, detection_output_node, i, !new_input.second);
+                }
             }
         }
     };
