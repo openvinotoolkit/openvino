@@ -141,6 +141,11 @@ void make_gna_pwl(const DnnActivation&  fun,
                   const double out_scale,
                   const bool low_precision,
                   std::vector<gna_pwl_segment_t> &gna_pwl) {
+    gnalog() << "make_gna_pwl\n";
+    gnalog() << "   in_scale  " << in_scale << "\n";
+    gnalog() << "   out_scale " << out_scale << "\n";
+    print_segments_header(fun);
+
     if (fun.type == kActIdentity) {
         auto pwl_creator = ov::intel_gna::backend::PWLSegmentsCreatorFactory::CreateCreator(fun.type);
         if (pwl_creator == nullptr) {
@@ -151,7 +156,7 @@ void make_gna_pwl(const DnnActivation&  fun,
         gna_pwl = segments_with_borders.segments;
         auto& y_min_max = segments_with_borders.border_values.y_min_max;
 
-        // looks like insert_extra_pwl_segments is not needed for identity beacuse the left most and the right most
+        // looks like insert_extra_pwl_segments is not needed for identity because the left most and the right most
         // segments meets condition put in the method.
         insert_extra_pwl_segments(gna_pwl, y_min_max.y_min, y_min_max.y_max);
         return;
@@ -160,10 +165,7 @@ void make_gna_pwl(const DnnActivation&  fun,
     pwl_gna_slope_scale_t s;
     const int16_t y_min = low_precision ? INT8_MIN : INT16_MIN;
     const int16_t y_max = low_precision ? INT8_MAX : INT16_MAX;
-    gnalog() << "make_gna_pwl\n";
-    gnalog() << "   in_scale  " << in_scale << "\n";
-    gnalog() << "   out_scale " << out_scale << "\n";
-    print_segments_header(fun);
+
 
     switch (fun) {
         case kActRelu:

@@ -27,7 +27,7 @@ int64_t ComputeSlopeScale(const int32_t x_base) {
 }
 
 PWLSegmentSlope ComputeSlopeForSegment(double slope, double in_scale, double out_scale) {
-    const auto gna_slope_value = gna_slope(1.0, in_scale, out_scale);
+    const auto gna_slope_value = gna_slope(slope, in_scale, out_scale);
     auto segment_slope = FLOAT_TO_INT64(gna_slope_value.slope * gna_slope_value.slope_scale);
 
     if (segment_slope > std::numeric_limits<int16_t>::max()) {
@@ -41,7 +41,7 @@ int32_t GetScaleIndex(const int32_t x_base) {
 }
 
 int64_t ComputePWL(const gna_pwl_segment_t& segment, int64_t x) {
-    auto segment_in_int64 = ConvertSegementTo64(segment);
+    auto segment_in_int64 = ConvertSegmentTo64(segment);
     if (segment_in_int64.slope_scale == 0) {
         THROW_GNA_EXCEPTION << "slope_scale is 0, possible division by 0 when calculating function value";
     }
@@ -50,14 +50,14 @@ int64_t ComputePWL(const gna_pwl_segment_t& segment, int64_t x) {
 }
 
 int64_t ComputeXForValuePWL(const gna_pwl_segment_t& segment, int64_t y) {
-    auto segment_in_int64 = ConvertSegementTo64(segment);
+    auto segment_in_int64 = ConvertSegmentTo64(segment);
     if (segment.slope == 0) {
         THROW_GNA_EXCEPTION << "Slope is 0, possible division by when calculation x for given y";
     }
     return segment_in_int64.x_base - segment_in_int64.y_base * segment_in_int64.slope_scale / segment_in_int64.slope;
 }
 
-PWLSegmentAs64 ConvertSegementTo64(const gna_pwl_segment_t& segment) {
+PWLSegmentAs64 ConvertSegmentTo64(const gna_pwl_segment_t& segment) {
     // conversion to int64_t done to avoid unitended converion to unsigned which cause errors
     const int64_t x_base = GetXBaseValue(segment.xBase);
     const int64_t y_base = static_cast<int64_t>(segment.yBase);

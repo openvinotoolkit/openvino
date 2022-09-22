@@ -17,7 +17,7 @@ namespace pwl_tools {
 struct PWLSegmentAs64 {
     int64_t x_base;       // contains xBase & XBASEMASK
     int64_t y_base;       // yBase
-    int64_t slope;        // slope * scale_scale
+    int64_t slope;        // slope
     int64_t slope_scale;  // 2^(3 * ( z + 1)) where z is the 2 less significant bits of xBase
 };
 
@@ -33,7 +33,7 @@ int64_t ComputeSlopeScale(const int32_t x_base);
 int32_t GetScaleIndex(const int32_t x_base);
 int64_t ComputePWL(const gna_pwl_segment_t& segment, int64_t x);
 int64_t ComputeXForValuePWL(const gna_pwl_segment_t& segment, int64_t y);
-PWLSegmentAs64 ConvertSegementTo64(const gna_pwl_segment_t& segment);
+PWLSegmentAs64 ConvertSegmentTo64(const gna_pwl_segment_t& segment);
 int64_t Round2LSBTowardZero(const int64_t value);
 }  // namespace pwl_tools
 }  // namespace backend

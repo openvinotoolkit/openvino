@@ -23,15 +23,15 @@ PWLSegmentsCreatorIdentity::PWLSegmentsCreatorIdentity(std::shared_ptr<PWLBorder
 }
 
 std::vector<gna_pwl_segment_t> PWLSegmentsCreatorIdentity::CreateSegments(const PWLInputParams& input_params) const {
-    const auto border_valus = border_counter_->CreateBorderValues(input_params);
-    return CreateSegments(input_params, border_valus);
+    const auto border_values = border_counter_->CreateBorderValues(input_params);
+    return CreateSegments(input_params, border_values);
 }
 
 PWLSegmentsWithBorderValues PWLSegmentsCreatorIdentity::CreateSegmentsWithBorders(
     const PWLInputParams& input_params) const {
-    const auto border_valus = border_counter_->CreateBorderValues(input_params);
-    auto segments = CreateSegments(input_params, border_valus);
-    return {border_valus, segments};
+    const auto border_values = border_counter_->CreateBorderValues(input_params);
+    auto segments = CreateSegments(input_params, border_values);
+    return {border_values, segments};
 }
 
 std::vector<gna_pwl_segment_t> PWLSegmentsCreatorIdentity::CreateSegments(const PWLInputParams& input_params,
@@ -69,7 +69,7 @@ std::vector<gna_pwl_segment_t> PWLSegmentsCreatorIdentity::CreateSegments(const 
 
 void PWLSegmentsCreatorIdentity::AddRightSegmentIFNeeded(const ov::intel_gna::backend::BorderValues& border_values,
                                                          std::vector<gna_pwl_segment_t>& segments) const {
-    if (INT32_MAX > border_values.x_upper) {
+    if (std::numeric_limits<int32_t>::max() > border_values.x_upper) {
         auto back_segment = segments.back();
         segments.push_back(CreateSegmentOnTheRight(segments.back(), border_values));
     }
@@ -85,7 +85,7 @@ gna_pwl_segment_t PWLSegmentsCreatorIdentity::CreateSegment1(
     const ov::intel_gna::backend::BorderValues& border_values) const {
     auto slope = ComputeSlopeForSegment(1.0, input_params.in_scale(), input_params.out_scale());
     int32_t x_base = ComputeXBaseForSegment(border_values.x_lower, slope.index);
-    return {x_base, border_values.y_lower, static_cast<int16_t>(slope.value)};
+    return {x_base, border_values.y_lower, slope.value};
 }
 
 gna_pwl_segment_t PWLSegmentsCreatorIdentity::CreateSegment0_0(const PWLInputParams& input_params) const {
@@ -110,8 +110,8 @@ void PWLSegmentsCreatorIdentity::UpdateSegmentOnTheLeftOf0_0(const gna_pwl_segme
                                                              const int64_t delta_y) const {
     // new_segment_1_x_base = segment_1.xBase - (segment_0.yBase - segment_1.yBase - y_delta) * segment_1.scale_factor /
     // segment_1.slope
-    auto segment_0_in_int64 = ConvertSegementTo64(segment_0);
-    auto segment_1_in_int64 = ConvertSegementTo64(segment_1);
+    auto segment_0_in_int64 = ConvertSegmentTo64(segment_0);
+    auto segment_1_in_int64 = ConvertSegmentTo64(segment_1);
 
     if (segment_1_in_int64.slope == 0) {
         THROW_GNA_EXCEPTION << "Slope is 0 possible division by 0 when updating left segment!.";
@@ -135,7 +135,7 @@ gna_pwl_segment_t PWLSegmentsCreatorIdentity::CreateSegmentOnTheRight(const gna_
                                                                       const BorderValues& border_values) const {
     // right_segment_x_base = segment_0_0.xBase + (border_values.y_upper - segment_0_0.yBase ) *
     // segment_0_0.scale_facotr / segment_0_0.slope
-    auto segment_0_0_in_int64 = ConvertSegementTo64(segment_0_0);
+    auto segment_0_0_in_int64 = ConvertSegmentTo64(segment_0_0);
     int64_t right_y_base_64 = static_cast<int64_t>(border_values.y_upper);
 
     if (segment_0_0_in_int64.slope == 0) {

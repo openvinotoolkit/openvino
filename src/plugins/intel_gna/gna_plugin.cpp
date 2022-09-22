@@ -111,6 +111,7 @@ inline uint32_t ToByteSize(const Gna2DataType type) {
     case Gna2DataTypeInt64:
     case Gna2DataTypeUint64:
         return 8;
+    default:
         return 0;
     }
 }
