@@ -5,6 +5,7 @@
 #pragma once
 
 #include "base/ov_behavior_test_utils.hpp"
+#include "openvino/runtime/intel_auto/properties.hpp"
 
 namespace ov {
 namespace test {
@@ -33,6 +34,8 @@ protected:
     std::shared_ptr<ngraph::Function> function;
     std::string deathTestStyle;
 };
+
+using OVHoldersTestWithConfig = OVHoldersTest;
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

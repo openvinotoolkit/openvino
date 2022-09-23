@@ -108,6 +108,19 @@ TEST_P(OVHoldersTest, LoadedRemoteContext) {
     }
 }
 
+TEST_P(OVHoldersTestWithConfig, LoadedTensor) {
+    ov::Tensor tensor;
+    {
+        ov::Core core = createCoreWithTemplate();
+        ov::AnyMap property;
+        property[ov::intel_auto::device_bind_buffer.name()] = true;
+        if (target_device.find("AUTO") != std::string::npos)
+            property[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
+        auto compiled_model = core.compile_model(function, target_device, property);
+        auto request = compiled_model.create_infer_request();
+        tensor = request.get_input_tensor();
+    }
+}
 
 std::string OVHoldersTestOnImportedNetwork::getTestCaseName(testing::TestParamInfo<std::string> obj) {
     std::string target_device = obj.param;

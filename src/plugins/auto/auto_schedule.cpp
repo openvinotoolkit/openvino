@@ -549,7 +549,8 @@ IInferPtr AutoSchedule::CreateInferRequest() {
     if (!syncRequestImpl)
         syncRequestImpl = CreateInferRequestImpl(execNetwork->_networkInputs, execNetwork->_networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(execNetwork);
-    if (_passthroughExeNet) {
+    bool isCumulative = (_autoSContext->_performanceHint == IE::PluginConfigParams::CUMULATIVE_THROUGHPUT) ? true : false;
+    if (_passthroughExeNet && !isCumulative) {
         std::string perfmode;
         try {
             perfmode = _passthroughExeNet->GetConfig(
@@ -566,6 +567,13 @@ IInferPtr AutoSchedule::CreateInferRequest() {
                 so = _passthroughExeNet._so;
             syncRequestImpl->setPointerToSo(so);
         }
+    } else if (std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl)->GetSharedRequest()) {
+        // cumulative case, load to MULTI:*
+        auto sharedMultiRequest = std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl)->GetSharedRequest();
+        if (sharedMultiRequest._ptr->getPointerToSo())
+            syncRequestImpl->setPointerToSo(sharedMultiRequest._ptr->getPointerToSo());
+        else
+            syncRequestImpl->setPointerToSo(sharedMultiRequest._so);
     }
     return std::make_shared<AsyncInferRequest>(shared_from_this(),
                                                syncRequestImpl,
