@@ -28,8 +28,8 @@ namespace {
             ie_plugin,
             DefaultConfigurationTest,
             ::testing::Combine(
-                    ::testing::ValuesIn(return_all_possible_device_combination()),
-                    ::testing::Values(DefaultParameter{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)})),
+                    ::testing::ValuesIn(return_all_possible_device_combination(false)),
+                    ::testing::Values(DefaultParameter{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO)})),
             DefaultConfigurationTest::getTestCaseName);
 
     const std::vector<std::map<std::string, std::string>> pluginConfigs = {

@@ -353,6 +353,9 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
     auto prim = node.get_primitive();
     auto inputs_count = node.inputs_count();
 
+    if (is_dynamic())
+        return;
+
     if (!prim->stride.empty()) {
         // number of strides must match number of inputs
         CLDNN_ERROR_NOT_EQUAL(node.id(),
