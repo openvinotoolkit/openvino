@@ -258,6 +258,11 @@ protected:
             selectedType = getPrimitiveType();
         }
         selectedType = makeSelectedTypeStr(selectedType, ngPrc);
+
+        const auto selLength = selectedType.length();
+        if (selLength > 1 && selectedType[selLength - 2] == 'U' && selectedType[selLength - 1] == '8') {
+            selectedType[selLength - 2] = 'I';
+        }
     }
 };
 
