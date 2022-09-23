@@ -161,9 +161,7 @@ TEST_F(TransformationTestsF, BlockLSTMReplacerOneOutput) {
         function = gen_model(2, 10, 120, 20, 1.0f, -1.0f, false);
         manager.register_pass<BlockLSTMToLSTMSequenceOneOutput>();
     }
-    { 
-        function_ref = gen_model_ref(2, 10, 120, 20, 1.0f);
-    }
+    { function_ref = gen_model_ref(2, 10, 120, 20, 1.0f); }
 }
 
 TEST_F(TransformationTestsF, BlockLSTMReplacerOneOutputPeepHole) {
@@ -171,7 +169,7 @@ TEST_F(TransformationTestsF, BlockLSTMReplacerOneOutputPeepHole) {
         function = gen_model(2, 10, 120, 20, 1.0f, -1.0f, true);
         manager.register_pass<BlockLSTMToLSTMSequenceOneOutput>();
     }
-    { 
+    {
         // the transformation is not applied for the peep hole case
         function_ref = gen_model(2, 10, 120, 20, 1.0f, -1.0f, true);
     }
