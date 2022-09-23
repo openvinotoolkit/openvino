@@ -32,7 +32,7 @@ public:
               float forget_bias,
               float cell_clip,
               bool use_peephole,
-              const std::shared_ptr<DecoderBase>& decoder = nullptr)
+              const std::shared_ptr<DecoderBase>& decoder = std::make_shared<DecoderFake>())
         : InternalOperation(decoder, OutputVector{seq_len_max, x, cs_prev, h_prev, w, wci, wcf, wco, b}, 7),
           m_forget_bias(forget_bias),
           m_cell_clip(cell_clip),
@@ -81,12 +81,11 @@ public:
             FRONT_END_OP_CONVERSION_CHECK(
                 x_rank.get_length() == 3,
                 "Internal error in OpenVINO TensorFlow Frontend: input data for BlockLSTM must be of rank equal to 3.");
-            time_len = x_shape[0].get_length();
-            batch_size = x_shape[1].get_length();
+            time_len = x_shape[0].is_static() ? x_shape[0].get_length() : time_len;
+            batch_size = x_shape[1].is_static() ? x_shape[1].get_length() : batch_size;
         }
 
         // extract hidden_size
-        m_hidden_size = ov::Dimension::dynamic();
         auto w_shape = get_input_partial_shape(4);
         auto w_rank = w_shape.rank();
         auto b_shape = get_input_partial_shape(8);
@@ -96,7 +95,8 @@ public:
                 w_rank.get_length() == 2,
                 "Internal error in OpenVINO TensorFlow Frontend: weights for BlockLSTM must be of rank equal to 2.");
             m_hidden_size = w_shape[1].is_static() ? w_shape[1].get_length() / 4 : ov::Dimension::dynamic();
-        } else if (b_rank.is_static()) {
+        }
+        if (b_rank.is_static()) {
             FRONT_END_OP_CONVERSION_CHECK(
                 b_rank.get_length() == 1,
                 "Internal error in OpenVINO TensorFlow Frontend: weights for BlockLSTM must be of rank equal to 2.");
