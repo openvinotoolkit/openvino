@@ -82,4 +82,4 @@ def all_arrays_equal(first_list, second_list):
     :param second_list: another iterable containing numpy ndarray objects
     :return: True if all ndarrays are equal, otherwise False
     """
-    return all(map(lambda pair: np.array_equal(*pair), zip(first_list, second_list)))
+    return all(map(lambda pair: np.array_equal(*pair), zip(first_list, second_list)))  # noqa: C417
