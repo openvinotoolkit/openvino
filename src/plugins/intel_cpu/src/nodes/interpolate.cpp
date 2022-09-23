@@ -1691,6 +1691,13 @@ Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const dnnl::en
                 axes[i] = i;
             }
         }
+
+        const auto rtInfo = interp->get_rt_info();
+        const auto it = rtInfo.find("enforceAllSupportedLayouts");
+        if (it != rtInfo.end()) {
+            enforceAllSupportedLayouts = it->second.as<bool>();
+        }
+
     } else {
         IE_THROW(NotImplemented) << errorMessage;
     }
@@ -1814,8 +1821,8 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
                               dataMinDims[1] == 1;
 
     const bool isPlanarApplied = allowPlanarFp32 || allowPlanarI8OrU8;
-    const bool isBlkApplied = !isOneChannel;
-    const bool isChannelFirstApplied = !isOneChannel || !isPlanarApplied;
+    const bool isBlkApplied = !isOneChannel || enforceAllSupportedLayouts;
+    const bool isChannelFirstApplied = !isOneChannel || !isPlanarApplied || enforceAllSupportedLayouts;
 
     if (implType == impl_desc_type::ref || interpAttrs.mode == InterpolateMode::linear) {
         pushDesc(LayoutType::ncsp, implType);

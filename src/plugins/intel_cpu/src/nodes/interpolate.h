@@ -258,6 +258,8 @@ private:
     VectorDims lastOutputDims;
 
     std::string errorPrefix;
+
+    bool enforceAllSupportedLayouts = false;
 };
 
 }   // namespace node
