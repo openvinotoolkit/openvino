@@ -4,8 +4,9 @@
 
 #include <gtest/gtest.h>
 
-#include "transformations/split_eltwise_over_channel.hpp"
+#include "transformations/split_eltwise.hpp"
 
+#include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset9.hpp>
@@ -83,7 +84,35 @@ typedef std::tuple<
         ELTWISE_TYPE                        // eltwise type
 > EltwiseSplitParams;
 
-class SplitEltwiseOverChannelTestSuiteFixture: public CommonTestUtils::TestsCommon,
+static std::string getTestCaseName(testing::TestParamInfo<EltwiseSplitParams> obj) {
+    ngraph::Shape shape;
+    bool with_const;
+    bool with_fq;
+    ELTWISE_TYPE type;
+    std::tie(shape, with_const, with_fq, type) = obj.param;
+
+    std::ostringstream result;
+    result << "IS=" << CommonTestUtils::vec2str(shape) << "_";
+    result << "wConst=" << with_const << "_";
+    result << "wFQ=" << with_fq << "_";
+    result << "type=";
+    switch (type) {
+    case ELTWISE_TYPE::Sum:
+        result << "sum";
+        break;
+    case ELTWISE_TYPE::Sub:
+        result << "sub";
+        break;
+    case ELTWISE_TYPE::Prod:
+        result << "prod";
+        break;
+    default:
+        break;
+    }
+    return result.str();
+}
+
+class SplitEltwiseTestSuiteFixture: public CommonTestUtils::TestsCommon,
                                public ::testing::WithParamInterface<EltwiseSplitParams> {
 public:
     void SetUp() override;
@@ -91,7 +120,7 @@ public:
     std::shared_ptr<ngraph::Function> function, reference_function;
 };
 
-void SplitEltwiseOverChannelTestSuiteFixture::SetUp() {
+void SplitEltwiseTestSuiteFixture::SetUp() {
     ngraph::Shape shape;
     bool with_const;
     bool with_fq;
@@ -105,14 +134,14 @@ void execute_test(std::shared_ptr<ngraph::Function> function,
                   std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ov::intel_gna::pass::SplitEltwiseOverChannel>();
+    manager.register_pass<ov::intel_gna::pass::SplitEltwise>();
     manager.run_passes(function);
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
     ASSERT_TRUE(result.valid) << result.message;
 }
 
-TEST_P(SplitEltwiseOverChannelTestSuiteFixture, CompareFunctions) {
+TEST_P(SplitEltwiseTestSuiteFixture, CompareFunctions) {
     execute_test(function, reference_function);
 }
 
@@ -123,13 +152,13 @@ const std::vector<ov::Shape> inputShape = {
     {1, 64, 64, 64}
 };
 
-
-INSTANTIATE_TEST_SUITE_P(SplitEltwiseOverChannelTestSuite, SplitEltwiseOverChannelTestSuiteFixture,
+INSTANTIATE_TEST_SUITE_P(SplitEltwiseTestSuite, SplitEltwiseTestSuiteFixture,
                         ::testing::Combine(
                             ::testing::ValuesIn(inputShape),
-                            ::testing::ValuesIn(std::vector<bool>{true, false}),                             // with const
-                            ::testing::ValuesIn(std::vector<bool>{true, false}),                             // with fq
-                            ::testing::ValuesIn(std::vector<ELTWISE_TYPE>{ELTWISE_TYPE::Sum, ELTWISE_TYPE::Sub, ELTWISE_TYPE::Prod}))); // eltwise type
+                            ::testing::ValuesIn(std::vector<bool>{true, false}),                                                       // with const
+                            ::testing::ValuesIn(std::vector<bool>{true, false}),                                                       // with fq
+                            ::testing::ValuesIn(std::vector<ELTWISE_TYPE>{ELTWISE_TYPE::Sum, ELTWISE_TYPE::Sub, ELTWISE_TYPE::Prod})), // eltwise type
+                            getTestCaseName);
 
 } // namespace
 } // namespace testing

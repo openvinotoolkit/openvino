@@ -12,10 +12,10 @@ namespace pass {
 /**
  * @brief Split over channels for Eltwise to avoid GNA-HW bufferMaxSize limitation per eltwise
  */
-class SplitEltwiseOverChannel : public ov::pass::MatcherPass {
+class SplitEltwise : public ov::pass::MatcherPass {
 public:
-  OPENVINO_RTTI("SplitEltwiseOverChannel", "0");
-  SplitEltwiseOverChannel();
+  OPENVINO_RTTI("SplitEltwise", "0");
+  SplitEltwise();
 };
 
 } // namespace pass

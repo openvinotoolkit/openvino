@@ -3,7 +3,7 @@
 //
 #include <openvino/cc/ngraph/itt.hpp>
 
-#include "transformations/split_eltwise_over_channel.hpp"
+#include "transformations/split_eltwise.hpp"
 
 #include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pattern/op/or.hpp>
@@ -47,8 +47,8 @@ std::shared_ptr<ngraph::op::Eltwise> create_eltwise(const std::shared_ptr<ov::No
 }
 } // namespace
 
-SplitEltwiseOverChannel::SplitEltwiseOverChannel() {
-    MATCHER_SCOPE(SplitEltwiseOverChannel);
+SplitEltwise::SplitEltwise() {
+    MATCHER_SCOPE(SplitEltwise);
     auto eltwise = ngraph::pattern::wrap_type<ngraph::op::Eltwise>({ngraph::pattern::any_input(), ngraph::pattern::any_input()},
         is_eltwise_has_to_be_splitted);
 
