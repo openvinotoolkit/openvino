@@ -396,17 +396,55 @@ void FullyConnected::setPostOps(dnnl::primitive_attr &attr, const VectorDims &di
     const auto channelAxis = getFusingAxis();
     size_t OC = getOutputShapeAtPort(0).getDims()[channelAxis];
 
-    for (int i = 0; i < fusedWith.size(); i++) {
-        auto& node = fusedWith[i];
+    bool isINT8Inference = getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::U8 ||
+                           getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::I8;
+
+    auto getOutputScaleType = [](const VectorDims& dims) -> int {
+        int k;
+        for (k = 0; k < dims.size() - 1; k++) {
+            if (dims[k] != 1)
+                return -1;
+        }
+        if (dims[k] > 1)
+            return 1;  // per-OC
+        return 0;      // per-tensor
+    };
+    // set attr(oscale/zeropoint/post ops/) according to oneDNN computation procedure:
+    //  https://oneapi-src.github.io/oneDNN/dev_guide_inference_int8.html
+    auto postop = fusedWith.begin();
+
+    // only the first postop may be mapped as output scale:
+    //   1. FakeQuantize
+    //   2. DequantizeMultiply
+    if (isINT8Inference && postop != fusedWith.end()) {
+        if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(postop->get())) {
+            auto scale = fakeQuantizeNode->simplifyToScale(outputDataType, OC);
+            if (!scale.empty()) {
+                attr.set_output_scales(1 << 1, scale);
+                ++postop; // mapped
+            }
+        } else if (auto* eltwiseNode = dynamic_cast<Eltwise *>(postop->get())) {
+            int const_port = 1 - eltwiseNode->getFusingPort();
+            if (eltwiseNode->getAlgorithm() == Algorithm::EltwiseMultiply && (const_port == 0 || const_port == 1)) {
+                auto t = getOutputScaleType(eltwiseNode->getInputShapeAtPort(const_port).getStaticDims());
+                if (t == 0) {
+                    attr.set_output_scales(0, eltwiseNode->getScales());
+                    ++postop;  // mapped
+                }
+                if (t == 1) {
+                    attr.set_output_scales(1 << 1, eltwiseNode->getScales());
+                    ++postop;  // mapped
+                }
+            }
+        }
+    }
+
+    // all the rest must be mapped as postOps
+    while (postop != fusedWith.end()) {
+        auto& node = *postop++;
 
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
             auto scale = fakeQuantizeNode->simplifyToScale(outputDataType, OC);
-
-            if (fusedWith.size() == 1 && !scale.empty()) {
-                attr.set_output_scales(1 << 1, scale);
-                continue;
-            }
-
             if (node == fusedWith[fusedWith.size() - 1] && !scale.empty()) {
                 if (ops.len() == 1 && ops.kind(0) == primitive::kind::sum &&
                     outputDataType == memory::data_type::u8 &&
