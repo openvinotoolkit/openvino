@@ -7,7 +7,7 @@ This guide contains the requirements for writing developer documentation.
 ## The component structure
 
 The OpenVINO component structure is fully defined in the [dedicated section of developer documentation](./index.md#openvino-component-structure),
-this guide is more concentrated on parts which are used for developer documentation, the structure you can find below:
+This guide highlights the parts which are used for developer documentation. The structure is presented below:
 
 ```
 openvino_component/
