@@ -162,8 +162,7 @@ pass::BlockLSTMToLSTMSequenceOneOutput::BlockLSTMToLSTMSequenceOneOutput() {
         auto output_hidden_states = rg.make<Transpose>(squeeze_output_hidden_states, output_hidden_states_order);
 
         // preserve names of the node and the output tensor
-        output_hidden_states->set_friendly_name(m.get_match_root()->get_friendly_name() + ":634r3");
-        // set_node_name(block_lstm_node_name + ":65t4t", output_hidden_states);
+        output_hidden_states->set_friendly_name(m.get_match_root()->get_friendly_name() + ":6");
         copy_runtime_info(block_lstm_node, rg.get());
 
         // replace BlockLSTM with LSTMSequence manually instead of calling
