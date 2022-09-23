@@ -196,7 +196,7 @@ class TestComplexParams(CommonMOConvertTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_mo_convert_transform(self, params, ie_device, precision, ir_version,
-                                  temp_dir, use_new_frontend, ):
+                                  temp_dir, use_new_frontend, use_old_api):
         tf_net_path = self.create_tf_param_res_model(temp_dir)
 
         test_params = params['params_test']
