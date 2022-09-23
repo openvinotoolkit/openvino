@@ -61,24 +61,14 @@ flowchart LR
      * [Add new operation](../../src/core/docs/operation_enabling_flow.md)
      * [Add new transformation](#todo)
      * [Get code coverage report](./test_coverage.md) 
+     * [Add component developer documentation](./dev_doc_guide.md)
  * [OpenVINO contribution guideline](../../CONTRIBUTING.md)
  * [OpenVINO Debug Capabilities](./debug_capabilities.md)
 
 ## OpenVINO repository structure
 
-The trend in the organization of structure repository is the idea that components should contain all dependencies inside (like thirdparty, testts, documentation and etc.). Below the abstract component structure is presented with comments and marks for optional folders.
-```
-ov_component/           // Component folder
-    cmake/              // (optional) CMake scripts which are related only for this component
-    dev_api/            // (optional) Developer API is used in case if component wants to provide some API for internal developers
-    docs/               // (optional) Contains detailed component documentation
-    include/            // (optional) Public component API
-    src/                // Sources of the component
-    tests/              // Tests on the component
-    thirdparty/         // (optional) Third-party dependencies
-    CMakeLists.txt      // Main CMake script
-    README.md           // (optional) Endtry point for the developer documentation
-```
+The repository is organized in such a way that the components contain all dependencies inside (for example, thirdparty, tests, documentation, and other). 
+With this approach, groups of developers, who are concentrated on different components, can efficiently work together.
 
 The OpenVINO Repository compositions from next components, click on the component name to get more information about it:
 <pre>
@@ -97,6 +87,24 @@ The OpenVINO Repository compositions from next components, click on the componen
     tools/                  // OpenVINO tools
  </code>
 </pre>
+
+### OpenVINO Component Structure
+
+The OpenVINO component should contain all dependencies inside (for example, thirdparty, tests, documentation, and other). The abstract component structure with comments and marks for optional folders is presented below.
+
+```
+ov_component/           // Component folder
+    cmake/              // (optional) CMake scripts which are related only for this component
+    dev_api/            // (optional) Developer API is used in case if component wants to provide some API for internal developers
+    docs/               // (optional) Contains detailed component documentation
+    include/            // (optional) Public component API
+    src/                // Sources of the component
+    tests/              // Tests on the component
+    thirdparty/         // (optional) Third-party dependencies
+    CMakeLists.txt      // Main CMake script
+    README.md           // (optional) Endtry point for the developer documentation
+```
+
 
 ## Features
 
