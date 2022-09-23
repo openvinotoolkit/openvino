@@ -1928,6 +1928,66 @@ void FakeQuantize::appendBinPostOpsOptimized(dnnl::post_ops& ops, const VectorDi
 
     initializePostOpData(postOpDims, bufferAlignment);
 
+    // per-Tensor quantization can be performed with more efficient eltwise postOps
+    auto IsPerTensor = [](const std::vector<float>& v) {
+        return (v.size() == 1) || std::all_of(v.cbegin(), v.cend(), [&](float val) {
+                   return val == v[0];
+               });
+    };
+    if (IsPerTensor(cropLow) && IsPerTensor(cropHigh) && IsPerTensor(inputScale) && IsPerTensor(inputShift) &&
+        IsPerTensor(outputScale) && IsPerTensor(outputShift)) {
+        // y = FakeQuantize(x, cropLow, cropHigh, inputScale, inputShift, outputScale, outputShift)
+        //
+        //  1. input crop           x1 = crop(x, cropLow[i], cropHigh[i])
+        //  2. input_linear         x2 = x1 * inputScale[i] + inputShift[i]
+        //  3. round                q = round(x2)                               (0 ~ levels-1)
+        //  4. output_linear        y = q * outputScale[i] + outputShift[i]
+
+        // step1 & 2 can be exchanged so crop and round may possibly be combined into a round with saturation
+
+        //  1. input_linear         x1 = x * inputScale[i] + inputShift[i]
+        //  2. crop                 x2 = crop(x1, clo, chi)
+        //  3. round                q = round(x2)                               (0 ~ levels-1)
+        //  4. output_linear        y = q * outputScale[i] + outputShift[i]
+
+        // when FakeQuantize happens to be the last Post Ops before output to u8/i8
+        // oneDNN does the following by default:
+        //       1.saturation(crop) f32 to u8/i8 range
+        //       2.round f32 to u8/i8
+        // which can be used to map to step 2/3
+        auto f_input_linear = [&](float x) {
+            return x * inputScale[0] + inputShift[0];
+        };
+
+        // crop can be combined into saturation+round
+        auto clo = f_input_linear(cropLow[0]);
+        auto chi = f_input_linear(cropHigh[0]);
+        bool crop_by_saturate = ((abs(clo - 0) < 0.001f) && (abs(chi - (levels - 1)) < 0.001f));
+
+        if (isLastPostOp && levels == 256) {
+            if (outDataType == memory::data_type::s8 && outputScale[0] == 1.f &&
+                std::abs(outputShift[0] - (-0.5f * levels)) < 0.0001f) {
+                ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, inputScale[0], inputShift[0] - 0.5f * levels);
+                if (!crop_by_saturate)
+                    ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, clo, chi);
+                return;
+            }
+            if (outDataType == memory::data_type::u8 && outputScale[0] == 1.f &&
+                std::abs(outputShift[0] - 0.0f) < 0.0001f) {
+                ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, inputScale[0], inputShift[0]);
+                if (!crop_by_saturate)
+                    ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, clo, chi);
+                return;
+            }
+        }
+        // no step can be skipped
+        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, inputScale[0], inputShift[0]);
+        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, clo, chi);
+        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_round_half_to_even, 0, 0);
+        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, outputScale[0], outputShift[0]);
+        return;
+    }
+
     VectorDims broadcastBinaryShape(postOpDims.size(), 1);
 
     auto appendBinary = [&](const dnnl::algorithm alg, const size_t dataSize, MemoryPtr &memPtr, const void *data) {
@@ -1988,6 +2048,42 @@ std::vector<float> FakeQuantize::simplifyToScale(dnnl::memory::data_type outData
     auto &osh = getOutputShift();
 
     std::vector<float> outScale;
+
+    if (outDataType == memory::data_type::f32) {
+        // round & clamp can be removed from consideration w/o damage accuracy when:
+        //  1. output type is f32
+        //  2. mapping between input low/high and output low/high is nearly pure scaling
+        //  3. input range is symmetric (not start from 0), no relu is fused into FQ
+        // in this case, FQ can be simplified as per-oc output scale.
+        //       y = x*s + c  where  s=(oh-ol)/(ih-il) and c=-il*s + ol
+        //  condition 2 requires |c/(oh-ol)| < 0.001
+        //  condition 3 requires (il != 0 && ih != 0)
+        //
+        //      outputScale[i] = (oh - ol) / (levels - 1)
+        //      outputShift[i] = ol;
+        outScale.resize(OC);
+        for (int i = 0; i < OC; i++) {
+            auto il = cl[cl.size() == 1 ? 0 : i];
+            auto ih = ch[ch.size() == 1 ? 0 : i];
+            auto ol = osh[osh.size() == 1 ? 0 : i];
+            auto oh = osc[osc.size() == 1 ? 0 : i] * (levels - 1) + ol;
+
+            // condition 2: |c/(oh-ol)| < 0.001, thus output zero-point can be omitted
+            if (abs(ol / (oh - ol) - il / (ih - il)) > 0.001f) {
+                outScale.clear();
+                break;
+            }
+
+            // condition 3: input range is symmetric, thus clamp can be omitted
+            if (il == 0 || ih == 0) {
+                outScale.clear();
+                break;
+            }
+
+            // add scales
+            outScale[i] = (oh-ol)/(ih-il);
+        }
+    }
 
     if (outDataType == memory::data_type::u8 &&
         getAlgorithm() == Algorithm::FQQuantization &&
