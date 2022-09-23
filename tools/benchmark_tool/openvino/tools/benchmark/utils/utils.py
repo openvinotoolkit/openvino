@@ -321,13 +321,13 @@ def print_perf_counters(perf_counts_list):
             print(f"{pi.node_name[:max_layer_name - 4] + '...' if (len(pi.node_name) >= max_layer_name) else pi.node_name:<30}"
                                                                 f"{str(pi.status):<15}"
                                                                 f"{'layerType: ' + pi.node_type:<30}"
-                                                                f"{'realTime: ' + str(pi.real_time // timedelta(microseconds=1)):<20}"
-                                                                f"{'cpu: ' +  str(pi.cpu_time // timedelta(microseconds=1)):<20}"
+                                                                f"{'realTime: ' + str((pi.real_time // timedelta(microseconds=1)) / 1000.0):<20}"
+                                                                f"{'cpu: ' +  str((pi.cpu_time // timedelta(microseconds=1)) / 1000.0):<20}"
                                                                 f"{'execType: ' + pi.exec_type:<20}")
             total_time += pi.real_time
             total_time_cpu += pi.cpu_time
-        print(f'Total time:     {total_time // timedelta(microseconds=1)} microseconds')
-        print(f'Total CPU time: {total_time_cpu // timedelta(microseconds=1)} microseconds\n')
+        print(f'Total time:     {(total_time // timedelta(microseconds=1)) / 1000.0} milliseconds')
+        print(f'Total CPU time: {(total_time_cpu // timedelta(microseconds=1)) / 1000.0} milliseconds\n')
 
 
 def get_command_line_arguments(argv):
