@@ -439,34 +439,8 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     std::cerr << "Tile before is dumped";
     ov::pass::Serialize("tile_before.xml", "tile_before.bin").run_on_model(m_body);
 
-    OutputVector originalParamOutputs;
-    std::vector<std::set<Input<Node>>> afterParamInputs;
-    for (const auto &p : m_body->get_parameters()) {
-        const auto & out = p->output(0);
-        originalParamOutputs.push_back(out);
-        afterParamInputs.push_back(out.get_target_inputs());
-    }
-    auto tileBegin = make_shared<TileBegin>(originalParamOutputs, 2);
-    for (int i = 0; i < afterParamInputs.size(); i++) {
-        for (auto& input : afterParamInputs[i]) {
-            input.replace_source_output(tileBegin->output(i));
-        }
-    }
-
-    OutputVector preResultOutputs;
-    std::vector<Input<Node>> originalResultInputs;
-    for (const auto &p : m_body->get_results()) {
-        const auto & result_input = p->input(0);
-        originalResultInputs.push_back(result_input);
-        preResultOutputs.push_back(result_input.get_source_output());
-    }
-    preResultOutputs.push_back(tileBegin->output(tileBegin->get_output_size() - 1));
-    auto tileEnd = make_shared<TileEnd>(preResultOutputs, 2);
-//    auto& results = m_body->get_results();
-
-    for (int i = 0; i < originalResultInputs.size(); i++) {
-        originalResultInputs[i].replace_source_output(tileEnd->output(i));
-    }
+    auto tileBegin = insertTileBegin(m_body->get_parameters(), 1, 1, 1);
+    auto tileEnd = insertTileEnd(m_body->get_results(), tileBegin);
 
 //    for (int i = 0; i < tileEnd->get_output_size(); i++) {
 //        std::cerr << i << " : ";

@@ -17,15 +17,30 @@ Tile::Tile(const std::vector<AllocatedEmitter> &region, size_t increment,
         io_data_size(io_data_sizes) {
 }
 
-TileBegin::TileBegin(const std::vector<Output<Node>> &args, size_t tileRank)
-    : Op(args), tileRank(tileRank) {
+TileBase::TileBase(const std::vector<Output<Node>> &args, size_t tileRank, size_t workAmount, size_t increment)
+        : Op(args), tileRank(tileRank), workAmount(workAmount), increment(increment) {
+}
+
+//std::shared_ptr<Node> TileBase::clone_with_new_inputs(const OutputVector& inputs) const {
+//    return std::make_shared<TileBase>(inputs, tileRank, workAmount, increment);
+//}
+
+bool TileBase::visit_attributes(AttributeVisitor &visitor) {
+    visitor.on_attribute("rank", tileRank);
+    visitor.on_attribute("work_amount", workAmount);
+    visitor.on_attribute("increment", increment);
+    return true;
+}
+
+TileBegin::TileBegin(const std::vector<Output<Node>> &args, size_t tileRank, size_t workAmount, size_t increment)
+    : TileBase(args, tileRank, workAmount, increment) {
     constructor_validate_and_infer_types();
 }
 
-bool TileBegin::visit_attributes(AttributeVisitor &visitor) {
-    visitor.on_attribute("tileRank", tileRank);
-    return true;
+std::shared_ptr<Node> TileBegin::clone_with_new_inputs(const OutputVector& inputs) const {
+    return std::make_shared<TileBegin>(inputs, tileRank, workAmount, increment);
 }
+
 
 void TileBegin::validate_and_infer_types() {
     const size_t num_inputs = get_input_size();
@@ -41,18 +56,18 @@ void TileBegin::validate_and_infer_types() {
     set_output_type(num_inputs, element::f32, ov::PartialShape{ov::Shape{}});
 }
 
-std::shared_ptr<Node> TileBegin::clone_with_new_inputs(const OutputVector& inputs) const {
-    return std::make_shared<TileBegin>(inputs, tileRank);
-}
-
-TileEnd::TileEnd(const std::vector<Output<Node>> &args, size_t tileRank)
-    : Op(args), tileRank(tileRank) {
+TileEnd::TileEnd(const std::vector<Output<Node>> &args)
+        : TileBase(args, 0, 0, 0) {
+    const auto tileBegin = ov::as_type_ptr<TileBegin>(args.back().get_node_shared_ptr());
+    NODE_VALIDATION_CHECK(this, tileBegin != nullptr, "TileEnd must have TileBegin as the last argument");
+    tileRank = tileBegin->tileRank;
+    workAmount = tileBegin->workAmount;
+    increment = tileBegin->increment;
     constructor_validate_and_infer_types();
 }
 
-bool TileEnd::visit_attributes(AttributeVisitor &visitor) {
-    visitor.on_attribute("tileRank", tileRank);
-    return true;
+std::shared_ptr<Node> TileEnd::clone_with_new_inputs(const OutputVector& inputs) const {
+    return std::make_shared<TileEnd>(inputs);
 }
 
 void TileEnd::validate_and_infer_types() {
@@ -61,8 +76,6 @@ void TileEnd::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           tileBegin != nullptr,
                           "The last argument of TileEnd must be TileBegin");
-    NODE_VALIDATION_CHECK(this, tileBegin->tileRank == tileRank,
-                          "TileBegin and TileEnd have different tileRanks:", tileBegin->tileRank, " vs ", tileRank);
     set_output_size(num_inputs - 1);
     const auto& ins = inputs();
     for (int i = 0; i < num_inputs - 1; i++) {
@@ -72,10 +85,6 @@ void TileEnd::validate_and_infer_types() {
         auto& rt_info_new = get_output_tensor(i).get_rt_info();
         rt_info_new = rt_info_old;
     }
-}
-
-std::shared_ptr<Node> TileEnd::clone_with_new_inputs(const OutputVector& inputs) const {
-    return std::make_shared<TileEnd>(inputs, tileRank);
 }
 
 } // namespace op
