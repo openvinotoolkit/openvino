@@ -317,6 +317,10 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
         os << " latency:" << node.PerfCounter().avg() << "(us) x" << node.PerfCounter().count();
     }
 
+    for (auto & fn : node.getFusedWith()) {
+        os << "\n\t  FusedWith: " << *fn;
+    }
+
     // primArgs
     /*
     if (node.primArgs.size()) {
