@@ -22,8 +22,8 @@ jit_convert_emitter::jit_convert_emitter(jit_generator *host, cpu_isa_t host_isa
     input_type = node->get_input_element_type(0);
     output_type = node->get_output_element_type(0);
 
-    if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-       emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(host, host_isa));
+    if (output_type == ov::element::bf16)
+       uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(host, host_isa));
 }
 
 void jit_convert_emitter::validate_types() const {
@@ -42,22 +42,19 @@ size_t jit_convert_emitter::get_inputs_num() const { return 1; }
 
 void jit_convert_emitter::emit_data() const {
     jit_emitter::emit_data();
-    if (emu_vcvtneps2bf16)
-        emu_vcvtneps2bf16->emit_data();
+    if (uni_vcvtneps2bf16)
+        uni_vcvtneps2bf16->emit_data();
 }
 
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_convert_emitter::float2bfloat(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
-    Zmm zmm_src = Zmm(in_vec_idxs[0]);
-    Zmm zmm_dst  = Zmm(out_vec_idxs[0]);
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
+    Vmm vmm_src = Vmm(in_vec_idxs[0]);
+    Vmm vmm_dst  = Vmm(out_vec_idxs[0]);
+    if (!uni_vcvtneps2bf16)
+        IE_THROW() << "Converter from float to bf16 isn't initialized!";
 
-    if (mayiuse(avx512_core_bf16)) {
-        h->vcvtneps2bf16(zmm_dst, zmm_src);
-    } else {
-        if (!emu_vcvtneps2bf16)
-            IE_THROW() << "Converter from float to bf16 isn't initialized!";
-
-        emu_vcvtneps2bf16->emit_code({static_cast<size_t>(zmm_src.getIdx())}, {static_cast<size_t>(zmm_dst.getIdx())});
-    }
+    uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
 }
 
 jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator *host, cpu_isa_t host_isa,
@@ -135,12 +132,12 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t> &in_vec_
             break;
         case ov::element::bf16:
             if (input_type == ov::element::f32) {
-                float2bfloat({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
+                float2bfloat<isa>({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
             } else {
                 if (one_of(input_type, ov::element::i8, ov::element::u8)) {
                     h->uni_vcvtdq2ps(vmm_dst, vmm_dst);
                 }
-                float2bfloat({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
+                float2bfloat<isa>({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
             }
             break;
         case ov::element::i8:
@@ -249,12 +246,12 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t> &in_vec_
             break;
         case ov::element::bf16:
             if (input_type == ov::element::f32) {
-                float2bfloat({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
+                float2bfloat<isa>({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
             } else {
                 if (one_of(input_type, ov::element::i8, ov::element::u8)) {
                     h->uni_vcvtdq2ps(vmm_dst, vmm_dst);
                 }
-                float2bfloat({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
+                float2bfloat<isa>({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
             }
             break;
         case ov::element::i8:
