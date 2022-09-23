@@ -89,6 +89,7 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params) c
     jit.Merge(MakeUnitTypeJitConstants(unitType));
     jit.Merge(MakeActivationJitConstants(params.activations, unitType));
 
+    jit.AddConstant(MakeJitConstant("OV_INPUT_RANK", params.ov_input_rank));
     for (size_t i = 0; i < params.inputs.size(); i++) {
         jit.AddConstant(MakeJitConstant("INPUT" + toCodeString(i), params.inputs[i]));
     }

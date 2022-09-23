@@ -44,37 +44,14 @@ KernelsData GatherNonzeroKernelRef::GetKernelsData(const Params& params, const o
 
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = MakeBaseParamsJitConstants(newParams);
+    cldnn_jit.AddConstant(MakeJitConstant("TOTAL_DATA_SIZE", newParams.inputs[0].LogicalSize()));
+    if (newParams.inputs[0].LogicalSize() * newParams.ov_input_rank < (64*1024)/(newParams.outputs[0].ElementSize()))
+        cldnn_jit.AddConstant(MakeJitConstant("USE_LOCAL_MEM", 1));
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-    const auto& in = newParams.inputs[0];
     auto& kernel = kd.kernels[0];
-    const auto& in_dims = in.GetDims();
-
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
-
-    if (in_dims.size() == 4) {
-        kernel.params.workGroups.global = {in_dims[0].v, in_dims[1].v, in_dims[2].v * in_dims[3].v};
-        dims_by_gws = {{Tensor::DataChannelName::X},
-                       {Tensor::DataChannelName::Y},
-                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-    } else if (in_dims.size() == 5) {
-        kernel.params.workGroups.global = {in_dims[0].v, in_dims[1].v * in_dims[2].v, in_dims[3].v * in_dims[4].v};
-        dims_by_gws = {{Tensor::DataChannelName::X},
-                       {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
-                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-    } else {
-        kernel.params.workGroups.global = {in_dims[0].v * in_dims[1].v, in_dims[2].v * in_dims[3].v, in_dims[4].v * in_dims[5].v};
-        dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
-                       {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
-                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-    }
-
-    kernel.params.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.params.workGroups.global,
-                                                                   params.engineInfo,
-                                                                   newParams.inputs[0].GetLayout(),
-                                                                   newParams.outputs[0].GetLayout(),
-                                                                   dims_by_gws);
-
+    kernel.params.workGroups.global = {1, 1, 1};
+    kernel.params.workGroups.local = {1, 1, 1};
     kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.params.arguments = GetArgsDesc(2, false, false);
 
