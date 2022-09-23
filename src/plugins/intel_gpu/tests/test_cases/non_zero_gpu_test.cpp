@@ -196,6 +196,42 @@ void test_non_zero(layout in_layout, std::vector<T> in_data) {
     }
 }
 
+TEST(test_non_zero, 1d_fp16_48) {
+    std::vector<FLOAT16> in_data = {
+        0.1f,   0.2f,  0.3f, 0.0f, 12.0f, 2.0f,   0.4f,  0.1f,
+        1.9f,   0.10f, 1.0f, 0.0f, 0.1f,  0.2f,   0.0f,  100.0f,
+        0.0001f,   0.0f,  2.9f, 0.2f, 4.0f,  0.0f,   9.1f,  0.9f,
+        100.0f, 0.4f,  0.1f, 0.3f, 0.0f,  24.2f,  1.23f, 0.0f,
+        4.0f,   0.0f,  3.1f, 0.9f, 0.10f, 49.2f,  0.0f,  0.3f,
+        100.0f, 0.4f,  0.1f, 0.9f, 0.1f,  33.12f, 12.1f, 0.0001f
+    };
+    test_non_zero<FLOAT16>(layout{ov::PartialShape{48}, data_types::f16, format::bfyx}, in_data);
+}
+
+TEST(test_non_zero, 2d_fp32_2_34) {
+    std::vector<float> in_data = {
+        0.1f,   0.2f,  0.3f, 0.0f, 12.0f, 2.0f,   0.4f,  0.1f,
+        1.9f,   0.10f, 1.0f, 0.0f, 0.1f,  0.2f,   0.0f,  100.0f,
+        0.0001f,   0.0f,  2.9f, 0.2f, 4.0f,  0.0f,   9.1f,  0.9f,
+        100.0f, 0.4f,  0.1f, 0.3f, 0.0f,  24.2f,  1.23f, 0.0f,
+        4.0f,   0.0f,  3.1f, 0.9f, 0.10f, 49.2f,  0.0f,  0.3f,
+        100.0f, 0.4f,  0.1f, 0.9f, 0.1f,  33.12f, 12.1f, 0.0001f
+    };
+    test_non_zero<float>(layout{ov::PartialShape{2, 24}, data_types::f32, format::bfyx}, in_data);
+}
+
+TEST(test_non_zero, 3d_fp16_4_3_4) {
+    std::vector<float> in_data = {
+        0.1f,   0.2f,  0.3f, 0.0f, 12.0f, 2.0f,   0.4f,  0.1f,
+        1.9f,   0.10f, 1.0f, 0.0f, 0.1f,  0.2f,   0.0f,  100.0f,
+        0.0001f,   0.0f,  2.9f, 0.2f, 4.0f,  0.0f,   9.1f,  0.9f,
+        100.0f, 0.4f,  0.1f, 0.3f, 0.0f,  24.2f,  1.23f, 0.0f,
+        4.0f,   0.0f,  3.1f, 0.9f, 0.10f, 49.2f,  0.0f,  0.3f,
+        100.0f, 0.4f,  0.1f, 0.9f, 0.1f,  33.12f, 12.1f, 0.0001f
+    };
+    test_non_zero<float>(layout{ov::PartialShape{4, 3, 4}, data_types::f32, format::bfyx}, in_data);
+}
+
 TEST(test_non_zero, 4d_fp16_2_4_3_2) {
     std::vector<FLOAT16> in_data = {
         0.1f,   0.2f,  0.3f, 0.0f, 12.0f, 2.0f,   0.4f,  0.1f,
