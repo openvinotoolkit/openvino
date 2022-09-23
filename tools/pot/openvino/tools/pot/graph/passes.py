@@ -148,13 +148,13 @@ class InsertFakeQuantize(BackReplacementPattern):
             return
 
         if m_op.type in ['Convolution', 'ConvolutionBackpropData', 'MatMul']:
-            insert_fake_quantize(graph, m_op, [0, 1], hw_config=self.hardware_config)
+            insert_fake_quantize(graph, m_op, [0, 1], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
         elif m_op.type == 'LSTMCell':
-            insert_fake_quantize(graph, m_op, [0, 1, 2, 3, 4], hw_config=self.hardware_config)
+            insert_fake_quantize(graph, m_op, [0, 1, 2, 3, 4], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
         elif self.quantize_only_input(m_op):
-            insert_fake_quantize(graph, m_op, [0], hw_config=self.hardware_config)
+            insert_fake_quantize(graph, m_op, [0], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
         else:
-            insert_fake_quantize(graph, m_op, hw_config=self.hardware_config)
+            insert_fake_quantize(graph, m_op, hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
 
         biased_op = [op['type'] for op in OPERATIONS_WITH_BIAS]
         if m_op.type in self.quantize_output_operations:
@@ -163,7 +163,6 @@ class InsertFakeQuantize(BackReplacementPattern):
                 m_op = nu.get_node_output(bias_node, 0)[0]
             insert_output_fake_quantize(graph, m_op, hw_config=self.hardware_config,
                                         ignored_params=self.ignored_params)
-
 
 
 class FakeQuantizePropagation(BackReplacementPattern):
@@ -335,8 +334,9 @@ class FakeQuantizePropagation(BackReplacementPattern):
                         input_type = ('Split', 'VariadicSplit', 'Concat')
                         input_name = (input_node.name, input_parent_name)
                 if input_type == 'FakeQuantize':
-                    if fq['fq_config_priority'] == 'high' and input_node['fq_config_priority'] == 'low':
+                    if fq['fq_config_priority'] > input_node['fq_config_priority']:
                         input_node['fq_group'] = fq['fq_group']
+                        input_node['fq_config_priority'] = fq['fq_config_priority']
                     for fq_config in fq['fq_configs']:
                         if fq_config not in input_node['fq_configs']:
                             input_node['fq_configs'].append(fq_config)
@@ -828,7 +828,7 @@ def create_fake_quantize_node(graph: Graph, name, data_type=np.float32, **kwargs
     return fq
 
 
-def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_config=None):
+def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_config=None, input_priority_types=[]):
     blobs_as_inputs_nodes_type = ['Convolution', 'Deconvolution', 'MatMul']
 
     port_name = None
@@ -877,11 +877,17 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
             if hw_config[node_type]:
                 fq_configs = hw_config[node_type][fq_group]
 
+        if node_type in input_priority_types:
+            fq_config_priority = 2
+        else:
+            fq_config_priority = 1
+
         fq_options = {
             'fq_group': fq_group,
             'fq_configs': copy(fq_configs),
-            'fq_config_priority': 'high'
+            'fq_config_priority': fq_config_priority
         }
+
         fq_name = '{node_name}/{name}_{idx}'.format(node_name=node.name, name=name, idx=idx)
         fq_input = create_fake_quantize_node(graph, fq_name, port_data_type, **fq_options)
         # Insert FakeQuantize after input
@@ -924,11 +930,11 @@ def insert_output_fake_quantize(graph, node, hw_config=None, ignored_params=None
                                                                                   next_port_id=next_port_id)
             fq_configs = hw_config[node.type]['outputs'] if hw_config is not None and hw_config[node.type] else []
 
-            fq_config_priority = 'low'
+            fq_config_priority = 0
             if node.type in activation_nodes_type + ['Parameter']:
-                fq_config_priority = 'high'
+                fq_config_priority = 1
             else:
-                fq_config_priority = 'low'
+                fq_config_priority = 0
 
             fq_options = {
                 'fq_group': 'outputs',

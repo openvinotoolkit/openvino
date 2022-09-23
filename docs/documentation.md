@@ -12,12 +12,21 @@
 
 .. toctree::
    :maxdepth: 1
-   :caption: Converting and Preparing Models
+   :caption: Model preparation
    :hidden:
 
    openvino_docs_model_processing_introduction
+   Supported_Model_Formats
    openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide
    omz_tools_downloader
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Running Inference
+   :hidden:
+
+   openvino_docs_OV_UG_OV_Runtime_User_Guide
+   openvino_inference_engine_tools_compile_tool_README
 
 
 .. toctree::
@@ -39,9 +48,8 @@
    :hidden:
 
    openvino_docs_deployment_guide_introduction
-   openvino_docs_OV_UG_OV_Runtime_User_Guide
    openvino_deployment_guide
-   openvino_inference_engine_tools_compile_tool_README
+  
 
 
 .. toctree::
@@ -55,17 +63,6 @@
    ovtf_integration
    ote_documentation
    workbench_docs_Workbench_DG_Introduction
-
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Media Processing and Computer Vision Libraries
-
-   Intel® Deep Learning Streamer <openvino_docs_dlstreamer>
-   openvino_docs_gapi_gapi_intro
-   OpenCV* Developer Guide <https://docs.opencv.org/master/>
-   OpenCL™ Developer Guide <https://software.intel.com/en-us/openclsdk-devguide>   
 
 
 .. toctree::
@@ -86,6 +83,18 @@
    openvino_docs_security_guide_workbench
    openvino_docs_OV_UG_protecting_model_guide
    ovsa_get_started
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Media Processing and Computer Vision Libraries
+
+   Intel® Deep Learning Streamer <openvino_docs_dlstreamer>
+   openvino_docs_gapi_gapi_intro
+   OpenCV* Developer Guide <https://docs.opencv.org/master/>
+   OpenCL™ Developer Guide <https://software.intel.com/en-us/openclsdk-devguide>  
+   OneVPL Developer Guide <https://www.intel.com/content/www/us/en/developer/articles/release-notes/oneapi-video-processing-library-release-notes.html>
+
 @endsphinxdirective
 
 This section provides reference documents that guide you through the OpenVINO toolkit workflow, from obtaining models, optimizing them, to deploying them in your own deep learning applications.
