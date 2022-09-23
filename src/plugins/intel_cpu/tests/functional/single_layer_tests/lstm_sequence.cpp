@@ -103,6 +103,15 @@ protected:
             }
         }
 
+        float WRB_range = 0;
+        auto it_dynamic_batch = additionalConfig.find("_dynamic_batch_test");
+        if (it_dynamic_batch != additionalConfig.end() && it_dynamic_batch->second == "yes") {
+            additionalConfig.erase(it_dynamic_batch);
+            // special config for _dynamic_batch_test
+            abs_threshold = 0.001f;
+            WRB_range = 1.0f;
+        }
+
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
@@ -138,7 +147,8 @@ protected:
                                                        clip,
                                                        true,
                                                        direction,
-                                                       seqMode);
+                                                       seqMode,
+                                                       WRB_range);
 
         // method MemoryDesc::isSame can't correct compute layout for tensor with strides = 1
         // returned output format always tnc
@@ -328,6 +338,66 @@ const std::vector<std::vector<InputShape>> dynamicShapes = {
       { {-1},                                       // Dynamic shape 3
         { {10}, {3}, {5}, {10}, {5} } } }           // Target shapes
 };
+
+
+namespace dynamicShapesBatchSwitch {
+  const int input_size = 240;
+  const int seq_length = 1;
+  const int hidden_size = 1024;
+  const int num_directions = 1;
+  const ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ;
+  CPUSpecificParams cpuParams{{ntc, tnc, tnc}, {ntc, tnc, tnc}, {"ref_any"}, "ref_any"};
+
+  const std::vector<InputShape> shapes = {
+    {
+      // X: [batch_size, seq_length, input_size]
+      {-1, seq_length, input_size},
+      {
+        {1, seq_length, input_size},
+        {20, seq_length, input_size},
+        {1, seq_length, input_size},
+      }
+    },
+    {
+      // initial_hidden_state: [batch_size, num_directions, hidden_size]
+      {-1, num_directions, hidden_size},
+      {
+        {1, num_directions, hidden_size},
+        {20, num_directions, hidden_size},
+        {1, num_directions, hidden_size},
+      }
+    },
+    {
+      // initial_cell_state: [batch_size, num_directions, hidden_size]
+      {-1, num_directions, hidden_size},
+      {
+        {1, num_directions, hidden_size},
+        {20, num_directions, hidden_size},
+        {1, num_directions, hidden_size},
+      }
+    },
+    {
+      // sequence_lengths: [batch_size]
+      {-1},
+      {
+        {1},
+        {20},
+        {1}
+      }
+    },
+  };
+}; // namespace dynamicShapesBatchSwitch
+
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_batch, LSTMSequenceCPUTest,
+            ::testing::Combine(::testing::Values(dynamicShapesBatchSwitch::shapes),
+                               ::testing::Values(dynamicShapesBatchSwitch::mode),
+                               ::testing::ValuesIn(activations),
+                               ::testing::Values(0.0f),
+                               ::testing::Values(ov::op::RecurrentSequenceDirection::FORWARD),
+                               ::testing::ValuesIn(netPrecisions),
+                               ::testing::Values(dynamicShapesBatchSwitch::cpuParams),
+                               ::testing::Values(std::map<std::string, std::string>{{"_dynamic_batch_test", "yes"}})),
+            LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic, LSTMSequenceCPUTest,
             ::testing::Combine(::testing::ValuesIn({dynamicShapes[0], dynamicShapes[1], dynamicShapes[2]}),

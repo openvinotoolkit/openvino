@@ -257,16 +257,6 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSh
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    internalBlobDesc.emplace_back([&](primitive_desc_iterator& primitive_desc_it, size_t idx) -> DnnlMemoryDescPtr {
-        return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(0));
-    });
-    internalBlobDesc.emplace_back([&](primitive_desc_iterator& primitive_desc_it, size_t idx) -> DnnlMemoryDescPtr {
-        return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(1));
-    });
-    internalBlobDesc.emplace_back([&](primitive_desc_iterator& primitive_desc_it, size_t idx) -> DnnlMemoryDescPtr {
-        return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(2));
-    });
-
     is_cell = one_of(op->get_type_info(),
             ov::op::v0::RNNCell::get_type_info_static(),
             ov::op::v3::GRUCell::get_type_info_static(),
@@ -863,8 +853,20 @@ void RNN::prepareParams() {
     prim = result.first;
 
     if (!wasMemoryPrepared || wFormatWasChanged) {
-        auto itpd = descs[0].createPrimitiveDescriptorIterator(getEngine(), dnnl::primitive_attr());
-        prepareMemory(itpd);
+        auto pd = (*prim).get_primitive_desc();
+        auto query_weights_md = [&](int idx = 0) -> dnnl::memory::desc {
+            auto what = dnnl::convert_to_c(dnnl::query::weights_md);
+            const dnnl_memory_desc_t *cdesc = dnnl_primitive_desc_query_md(pd, what, idx);
+            if (!cdesc)
+                IE_THROW() << "query_weights_md failed for node " << getName() << " idx " << idx << ".";
+            return dnnl::memory::desc(*cdesc);
+        };
+        std::vector<DnnlMemoryDescPtr> intDescs {
+            DnnlExtensionUtils::makeDescriptor(query_weights_md(0)),
+            DnnlExtensionUtils::makeDescriptor(query_weights_md(1)),
+            DnnlExtensionUtils::makeDescriptor(query_weights_md(2))
+        };
+        prepareMemory(intDescs);
         wasMemoryPrepared = true;
     }
 }
