@@ -26,6 +26,7 @@ pass::BlockLSTMToLSTMSequenceOneOutput::BlockLSTMToLSTMSequenceOneOutput() {
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         NodeRegistry rg;
+
         auto block_lstm_node = std::dynamic_pointer_cast<BlockLSTM>(m.get_match_root());
         if (!block_lstm_node) {
             return false;
@@ -160,16 +161,15 @@ pass::BlockLSTMToLSTMSequenceOneOutput::BlockLSTMToLSTMSequenceOneOutput() {
         auto output_hidden_states_order = rg.make<Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, 0, 2});
         auto output_hidden_states = rg.make<Transpose>(squeeze_output_hidden_states, output_hidden_states_order);
 
+        // preserve names of the node and the output tensor
+        output_hidden_states->set_friendly_name(m.get_match_root()->get_friendly_name() + ":634r3");
+        // set_node_name(block_lstm_node_name + ":65t4t", output_hidden_states);
+        copy_runtime_info(block_lstm_node, rg.get());
+
         // replace BlockLSTM with LSTMSequence manually instead of calling
         // ov::replace_node(m.get_match_root(), lstm_sequence);
         // because BlockLSTM has 7 outputs and LSTMSequence has three outputs
-        copy_runtime_info(block_lstm_node, rg.get());
         m.get_match_root()->output(6).replace(output_hidden_states->output(0));
-
-        // preserve names of the node and the output tensor
-        output_hidden_states->set_friendly_name(m.get_match_root()->get_friendly_name() + ":6");
-        set_node_name(block_lstm_node_name + ":6", output_hidden_states);
-
         return true;
     };
 

@@ -4,11 +4,14 @@
 
 #include "helper_transforms/block_lstm_replacer.hpp"
 
+#include <gtest/gtest.h>
+
 #include <frontend/shared/include/utils.hpp>
 #include <openvino/frontend/manager.hpp>
 #include <openvino/opsets/opset9.hpp>
 #include <openvino/pass/manager.hpp>
 
+#include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
 #include "helper_ops/block_lstm.hpp"
 
@@ -20,92 +23,156 @@ using namespace frontend::tensorflow;
 using namespace frontend::tensorflow::pass;
 
 namespace {
-shared_ptr<Model> gen_model(size_t batch_size, size_t time_len, size_t hidden_size, size_t input_size) {
-    // BlockLSTM description
-    //
-    // Inputs:
-    // 0) seq_len_max	A Tensor of type int64. Maximum time length actually used by this input. Outputs are
-    // padded with zeros beyond this length.
-    // 1) x A Tensor. Must be one of the following types: half, float32. The sequence input to the LSTM, shape
-    // (timelen, batch_size, num_inputs).
-    // 2) cs_prev A Tensor. Must have the same type as x. Value of the initial cell state.
-    // 3) h_prev A Tensor. Must have the same type as x. Initial output of cell (to be used for peephole).
-    // 4) w	A Tensor. Must have the same type as x. The weight matrix.
-    // 5) wci A Tensor. Must have the same type as x. The weight matrix for input gate peephole connection.
-    // 6) wcf A Tensor. Must have the same type as x. The weight matrix for forget gate peephole connection.
-    // 7) wco A Tensor. Must have the same type as x. The weight matrix for output gate peephole connection.
-    // 8) b	A Tensor. Must have the same type as x. The bias vector.
-    //
-    // Attributes:
-    // forget_bias	An optional float. Defaults to 1. The forget gate bias.
-    // cell_clip	An optional float. Defaults to 3. Value to clip the 'cs' value to.
-    // use_peephole	An optional bool. Defaults to False. Whether to use peephole weights.
-    //
-    // Outputs:
-    // 0) i A Tensor. Has the same type as x.
-    // 1) cs A Tensor. Has the same type as x.
-    // 2) f A Tensor. Has the same type as x.
-    // 3) o A Tensor. Has the same type as x
-    // 4) ci A Tensor. Has the same type as x.
-    // 5) co A Tensor. Has the same type as x.
-    // 6) h A Tensor. Has the same type as x.
-
+shared_ptr<Model> gen_model(size_t batch_size,
+                            size_t time_len,
+                            size_t hidden_size,
+                            size_t input_size,
+                            float forget_bias,
+                            float cell_clip,
+                            bool use_peephole) {
     auto seq_len_max = make_shared<Parameter>(i64, Shape{});
     auto x = make_shared<Parameter>(f32, Shape{time_len, batch_size, input_size});
     auto cs_prev = make_shared<Parameter>(f32, PartialShape::dynamic());
     auto h_prev = make_shared<Parameter>(f32, PartialShape::dynamic());
-    auto w = make_shared<Parameter>(f32, PartialShape::dynamic());
+    auto w = make_shared<Parameter>(f32, PartialShape{Dimension::dynamic(), 4 * hidden_size});
     auto wci = make_shared<Parameter>(f32, PartialShape::dynamic());
     auto wcf = make_shared<Parameter>(f32, PartialShape::dynamic());
     auto wco = make_shared<Parameter>(f32, PartialShape::dynamic());
     auto b = make_shared<Parameter>(f32, PartialShape::dynamic());
 
-    auto block_lstm = make_shared<BlockLSTM>(seq_len_max, x, cs_prev, h_prev, w, wci, wcf, wco, b, 1.0f, -1.0f, false);
-    // block_lstm->output
+    auto block_lstm = make_shared<
+        BlockLSTM>(seq_len_max, x, cs_prev, h_prev, w, wci, wcf, wco, b, forget_bias, cell_clip, use_peephole);
 
-    // block_lstm->
+    return make_shared<Model>(OutputVector{block_lstm->output(6)},
+                              ParameterVector{seq_len_max, x, cs_prev, h_prev, w, wci, wcf, wco, b});
+}
 
-    // block_lstm->output(6);
-    // seq_len_max->output(6);
+shared_ptr<Model> gen_model_ref(size_t m_batch_size,
+                                size_t m_time_len,
+                                size_t m_hidden_size,
+                                size_t m_input_size,
+                                float forget_bias) {
+    auto seq_len_max = make_shared<Parameter>(i64, Shape{});
+    auto x = make_shared<Parameter>(f32, Shape{m_time_len, m_batch_size, m_input_size});
+    auto cs_prev = make_shared<Parameter>(f32, PartialShape::dynamic());
+    auto h_prev = make_shared<Parameter>(f32, PartialShape::dynamic());
+    auto weights = make_shared<Parameter>(f32, PartialShape{Dimension::dynamic(), 4 * m_hidden_size});
+    auto bias = make_shared<Parameter>(f32, PartialShape::dynamic());
 
-    // return make_shared<Model>(OutputVector{block_lstm}, )
-    /*
-    auto H = make_shared<Parameter>(f32, Shape{batch, hidden_size});
-    auto WRzr = make_shared<Parameter>(f32, Shape{2 * hidden_size, input_size + hidden_size});
-    auto Bzr = make_shared<Parameter>(f32, Shape{1, 2 * hidden_size});
-    auto WRh = make_shared<Parameter>(f32, Shape{hidden_size, input_size + hidden_size});
-    auto Bh = make_shared<Parameter>(f32, Shape{1, hidden_size});
-    auto A = make_shared<Parameter>(f32, Shape{batch, 1});
-    auto concat_1 = make_shared<Concat>(OutputVector{X, H}, 1);
-    auto matmul_1 = make_shared<MatMul>(concat_1, WRzr, false, true);
-    auto in_to_activation_1 = make_shared<Add>(matmul_1, Bzr);
+    auto x_shape = make_shared<ShapeOf>(x, element::i64);
+    auto ss_start = make_shared<Constant>(element::i64, Shape{1}, 2);
+    auto ss_stop = make_shared<Constant>(element::i64, Shape{1}, 3);
+    auto ss_step = make_shared<Constant>(element::i64, Shape{1}, 1);
+    auto input_size = make_shared<StridedSlice>(x_shape,
+                                                ss_start,
+                                                ss_stop,
+                                                ss_step,
+                                                std::vector<int64_t>{0},
+                                                std::vector<int64_t>{0});
 
-    auto sigmoid = make_shared<Sigmoid>(in_to_activation_1);
-    auto axis_1 = make_shared<Constant>(i64, Shape{}, 1);
-    auto split = make_shared<Split>(sigmoid, axis_1, 2);
+    // retrieve the batch size
+    // now x is in a format [time_len, batch_size, input_size]
+    auto ss_start2 = make_shared<Constant>(element::i64, Shape{1}, 1);
+    auto ss_stop2 = make_shared<Constant>(element::i64, Shape{1}, 2);
+    auto batch_size = make_shared<StridedSlice>(x_shape,
+                                                ss_start2,
+                                                ss_stop2,
+                                                ss_step,
+                                                std::vector<int64_t>{0},
+                                                std::vector<int64_t>{0});
+    auto hidden_size_const = make_shared<Constant>(element::i64, Shape{1}, std::vector<size_t>{m_hidden_size});
 
-    auto multiply_1 = make_shared<Multiply>(split, H);
-    auto concat_2 = make_shared<Concat>(OutputVector{X, multiply_1}, 1);
-    auto matmul_2 = make_shared<MatMul>(concat_2, WRh, false, true);
-    auto in_to_activation_2 = make_shared<Add>(matmul_2, Bh);
-    auto tanh = make_shared<Tanh>(in_to_activation_2);
+    // adjust weights and bias
+    // 1. reshape weights and bias to highlight channel dimension
+    auto new_weight_shape = make_shared<Constant>(element::i64, Shape{3}, std::vector<int64_t>{0, 4, -1});
+    auto weight_reshape = make_shared<Reshape>(weights, new_weight_shape, true);
+    auto new_bias_shape = make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{4, -1});
+    auto bias_reshape = make_shared<Reshape>(bias, new_bias_shape, true);
+    // 2. reorder gates icfo --> fico for both weights and biases
+    auto reorder_const = make_shared<Constant>(element::i64, Shape{4}, std::vector<int64_t>{2, 0, 1, 3});
+    auto weights_axis = make_shared<Constant>(element::i64, Shape{}, 1);
+    auto weights_reorder = make_shared<Gather>(weight_reshape, reorder_const, weights_axis);
+    auto bias_axis = make_shared<Constant>(element::i64, Shape{}, 0);
+    auto bias_reorder = make_shared<Gather>(bias_reshape, reorder_const, bias_axis);
+    // 3. shift_const.value should be added to the first 1 / 4th part of the biases(f - gate : 0)
+    auto shift_const = make_shared<Constant>(element::f32, Shape{}, forget_bias);
+    auto bias_split_lens = make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{1, 3});
+    auto bias_split = make_shared<VariadicSplit>(bias_reorder, bias_axis, bias_split_lens);
+    auto bias_first_shift = make_shared<Add>(bias_split->output(0), shift_const);
+    auto bias_shift = make_shared<Concat>(OutputVector{bias_first_shift, bias_split->output(1)}, 0);
+    // 4. return to the original shapes
+    auto new_weight_shape2 = make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{0, -1});
+    auto weight_reshape2 = make_shared<Reshape>(weights_reorder, new_weight_shape2, true);
+    // 5. normalize weights and bias
+    auto transpose_order = make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{1, 0});
+    auto new_bias_shape2 = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{-1});
+    auto weights_normalize = make_shared<Transpose>(weight_reshape2, transpose_order);
+    auto bias_normalized = make_shared<Reshape>(bias_shift, new_bias_shape2, true);
+    // 6. split weights into W and R inputs
+    auto WR_split_axis = make_shared<Constant>(element::i64, Shape{}, 1);
+    auto WR_split_lens = make_shared<Concat>(OutputVector{input_size, hidden_size_const}, 0);
+    auto WR_split = make_shared<VariadicSplit>(weights_normalize, WR_split_axis, WR_split_lens);
+    // 7. unsqueeze weights and bias to have a dimension for a number of directions
+    auto num_direct_axis = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
+    auto W = make_shared<Unsqueeze>(WR_split->output(0), num_direct_axis);
+    auto R = make_shared<Unsqueeze>(WR_split->output(1), num_direct_axis);
+    auto B = make_shared<Unsqueeze>(bias_normalized, num_direct_axis);
 
-    auto one = make_shared<Constant>(f32, Shape{1}, 1);
-    auto subtract_1 = make_shared<Subtract>(one, A);
-    auto multiply_2 = make_shared<Multiply>(subtract_1, split->output(1));
-    auto subtract_2 = make_shared<Subtract>(one, multiply_2);
-    auto multiply_3 = make_shared<Multiply>(subtract_2, tanh);
+    // normalize initial hidden and cell states
+    auto unsqueeze_axis = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+    auto init_hidden_state = make_shared<Unsqueeze>(h_prev, unsqueeze_axis);
+    auto init_cell_state = make_shared<Unsqueeze>(cs_prev, unsqueeze_axis);
 
-    auto multiply_4 = make_shared<Multiply>(multiply_2, H);
-    auto add = make_shared<Add>(multiply_4, multiply_3);
-    return make_shared<Model>(OutputVector{add}, ParameterVector{X, H, WRzr, WRh, Bzr, Bh, A});
-    */
-    return nullptr;
+    // prepare sequence length input for LSTMSequence
+    auto seq_len_max_adjusted = make_shared<Broadcast>(seq_len_max, batch_size);
+
+    // prepare input data since LSTMSequence accept it in a format [batch_size, time_len, input_size]
+    auto x_order = make_shared<Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, 0, 2});
+    auto x_adjusted = make_shared<Transpose>(x, x_order);
+
+    // create LSTMSequence node and reconnect inputs and normalized weights and bias
+    auto lstm_sequence = make_shared<LSTMSequence>(x_adjusted,
+                                                   init_hidden_state,
+                                                   init_cell_state,
+                                                   seq_len_max_adjusted,
+                                                   W,
+                                                   R,
+                                                   B,
+                                                   m_hidden_size,
+                                                   LSTMSequence::direction::FORWARD);
+
+    // adjust output of concatenated of hidden states from LSTMSequence to have it in a format [time_len,
+    // batch_size, hidden_size]
+    // 1. squeeze extra dimension - num_directions
+    auto squeeze_axis = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+    auto squeeze_output_hidden_states = make_shared<Squeeze>(lstm_sequence->output(0), squeeze_axis);
+    // 2. transpose the output to rotate batch and time dimensions
+    auto output_hidden_states_order = make_shared<Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, 0, 2});
+    auto output_hidden_states = make_shared<Transpose>(squeeze_output_hidden_states, output_hidden_states_order);
+
+    return make_shared<Model>(OutputVector{output_hidden_states->output(0)},
+                              ParameterVector{seq_len_max, x, cs_prev, h_prev, weights, bias});
 }
 
 }  // namespace
 
-TEST(BlockLSTMReplacerTest, HiddenStatesOneOutput) {
-    ov::pass::Manager pass_manager;
-    pass_manager.register_pass<BlockLSTMToLSTMSequenceOneOutput>();
+TEST_F(TransformationTestsF, BlockLSTMReplacerOneOutput) {
+    {
+        function = gen_model(2, 10, 120, 20, 1.0f, -1.0f, false);
+        manager.register_pass<BlockLSTMToLSTMSequenceOneOutput>();
+    }
+    { 
+        function_ref = gen_model_ref(2, 10, 120, 20, 1.0f);
+    }
+}
+
+TEST_F(TransformationTestsF, BlockLSTMReplacerOneOutputPeepHole) {
+    {
+        function = gen_model(2, 10, 120, 20, 1.0f, -1.0f, true);
+        manager.register_pass<BlockLSTMToLSTMSequenceOneOutput>();
+    }
+    { 
+        // the transformation is not applied for the peep hole case
+        function_ref = gen_model(2, 10, 120, 20, 1.0f, -1.0f, true);
+    }
 }
