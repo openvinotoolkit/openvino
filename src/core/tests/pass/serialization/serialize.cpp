@@ -179,7 +179,7 @@ public:
 
     void check_meta_info(const std::shared_ptr<ov::Model>& model) {
         ov::AnyMap meta;
-        ASSERT_NO_THROW(meta = model->get_meta_data());
+        ASSERT_NO_THROW(meta = model->get_rt_attr<ov::AnyMap>("meta_data"));
         ASSERT_TRUE(!meta.empty());
         auto it = meta.find("MO_version");
         EXPECT_NE(it, meta.end());
@@ -265,7 +265,7 @@ TEST_F(MetaDataSerialize, get_meta_serialized_changed_meta) {
         ASSERT_NE(rt_info.find("meta_data"), rt_info.end());
         check_meta_info(model);
         // Add new property to meta information
-        model->get_meta_data()["my_property"] = std::string("my_value");
+        model->set_rt_attr("my_value", "meta_data", "my_property");
     }
 
     // Serialize the model
@@ -273,14 +273,12 @@ TEST_F(MetaDataSerialize, get_meta_serialized_changed_meta) {
 
     auto s_model = ov::test::readModel(m_out_xml_path, m_out_bin_path);
     {
+        std::string prop;
+        EXPECT_NO_THROW(prop = model->get_rt_attr<std::string>("meta_data", "my_property"));
+        EXPECT_EQ(prop, "my_value");
+
         auto& rt_info = s_model->get_rt_info();
         ASSERT_NE(rt_info.find("meta_data"), rt_info.end());
         check_meta_info(s_model);
-        ov::AnyMap meta;
-        ASSERT_NO_THROW(meta = model->get_meta_data());
-        auto it = meta.find("my_property");
-        EXPECT_NE(it, meta.end());
-        EXPECT_TRUE(it->second.is<std::string>());
-        EXPECT_EQ(it->second.as<std::string>(), "my_value");
     }
 }

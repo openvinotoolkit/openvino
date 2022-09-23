@@ -139,7 +139,7 @@ TEST_F(MetaData, get_meta_data_as_map_from_model_without_info) {
     auto it = rt_info.find("meta_data");
     EXPECT_EQ(it, rt_info.end());
     ov::AnyMap meta;
-    ASSERT_NO_THROW(meta = model->get_meta_data());
+    ASSERT_THROW(meta = model->get_rt_attr<ov::AnyMap>("meta_data"), ov::Exception);
     ASSERT_TRUE(meta.empty());
 }
 
@@ -154,7 +154,7 @@ TEST_F(MetaData, get_meta_data_as_map) {
     auto model = core.read_model(ir_with_meta, ov::Tensor());
 
     ov::AnyMap meta;
-    ASSERT_NO_THROW(meta = model->get_meta_data());
+    ASSERT_NO_THROW(meta = model->get_rt_attr<ov::AnyMap>("meta_data"));
     ASSERT_TRUE(!meta.empty());
     auto it = meta.find("MO_version");
     EXPECT_NE(it, meta.end());
@@ -201,7 +201,7 @@ TEST_F(MetaData, get_meta_data_from_removed_file) {
     std::remove(file_path.c_str());
 
     ov::AnyMap meta;
-    ASSERT_NO_THROW(meta = model->get_meta_data());
+    ASSERT_NO_THROW(meta = model->get_rt_attr<ov::AnyMap>("meta_data"));
     ASSERT_TRUE(!meta.empty());
     auto it = meta.find("MO_version");
     EXPECT_NE(it, meta.end());

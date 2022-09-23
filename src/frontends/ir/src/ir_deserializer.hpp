@@ -180,7 +180,9 @@ private:
                                          const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
                                          const GenericLayerParams& params);
 
-    void read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section);
+    void read_meta_data(const std::shared_ptr<ov::Model>& model,
+                        const std::string& name,
+                        const pugi::xml_node& meta_section);
 
     // -- DATA --
     const pugi::xml_node m_node;

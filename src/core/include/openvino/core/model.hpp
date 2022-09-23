@@ -317,8 +317,17 @@ public:
         return m_rt_info;
     }
 
-    ov::AnyMap& get_meta_data();
-    const ov::AnyMap& get_meta_data() const;
+    template <class T, class... Args>
+    const T& get_rt_attr(Args... args) const {
+        const ov::Any& arg = get_rt_arg<Args...>(m_rt_info, args...);
+        return arg.as<T>();
+    }
+
+    template <class T, class... Args>
+    void set_rt_attr(const T& argument, Args... args) {
+        ov::Any& arg = get_rt_arg<Args...>(m_rt_info, args...);
+        arg = argument;
+    }
 
     Model(const Model&) = delete;
     Model(Model&&) = delete;
@@ -327,6 +336,51 @@ public:
 
 private:
     friend class ov::ModelAccessor;
+
+    template <class T,
+              typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||
+                                          std::is_same<T, char*>::value,
+                                      bool>::type = true>
+    const ov::Any& get_rt_arg(const ov::AnyMap& rt_info, const T& name) const {
+        if (rt_info.find(name) == rt_info.end())
+            throw ov::Exception("Cannot get rt attribute. Keys are incorrect.");
+        return get_attr(rt_info.at(name));
+    }
+
+    template <class T,
+              class... Args,
+              typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||
+                                          std::is_same<T, char*>::value,
+                                      bool>::type = true>
+    const ov::Any& get_rt_arg(const ov::AnyMap& rt_info, const T& name, Args... args) const {
+        const ov::Any& rt_attr = get_rt_arg<T>(rt_info, name);
+        const ov::AnyMap& new_map = get_map_from_attr(rt_attr, name);
+        return get_rt_arg<Args...>(new_map, args...);
+    }
+
+    template <class T,
+              typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||
+                                          std::is_same<T, char*>::value,
+                                      bool>::type = true>
+    ov::Any& get_rt_arg(ov::AnyMap& rt_info, const T& name) {
+        return get_attr(rt_info[name]);
+    }
+
+    template <class T,
+              class... Args,
+              typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||
+                                          std::is_same<T, char*>::value,
+                                      bool>::type = true>
+    ov::Any& get_rt_arg(ov::AnyMap& rt_info, const T& name, Args... args) {
+        ov::Any& rt_attr = get_rt_arg<T>(rt_info, name);
+        ov::AnyMap& new_map = get_map_from_attr(rt_attr, name);
+        return get_rt_arg<Args...>(new_map, args...);
+    }
+
+    const ov::Any& get_attr(const ov::Any& info) const;
+    ov::Any& get_attr(ov::Any& info) const;
+    const ov::AnyMap& get_map_from_attr(const ov::Any& info, const std::string& name) const;
+    ov::AnyMap& get_map_from_attr(ov::Any& info, const std::string& name) const;
 
     /// \brief Depending on the options selected,
     /// checks all the Parameter/Variables are registered in the list of Model

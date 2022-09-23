@@ -970,9 +970,12 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     }
 
     // Meta data
-    ov::AnyMap meta_data = f.get_meta_data();
-    if (!meta_data.empty()) {
-        pugi::xml_node meta_node = netXml.append_child("meta_data");
+    std::unordered_set<std::string> meta_names = {"meta_data", "framework_meta"};
+    for (const auto& it : meta_names) {
+        if (f.get_rt_info().find(it) == f.get_rt_info().end())
+            continue;
+        const ov::AnyMap& meta_data = f.get_rt_attr<ov::AnyMap>(it);
+        pugi::xml_node meta_node = netXml.append_child(it.c_str());
         serialize_meta(meta_node, meta_data);
     }
 }

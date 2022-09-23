@@ -1932,3 +1932,18 @@ TEST(model, clone_model) {
     const auto res = fc.compare(model, cloned_model);
     EXPECT_TRUE(res.valid) << res.message;
 }
+
+TEST(model, set_meta_information) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    arg0->set_friendly_name("data");
+    arg0->get_output_tensor(0).set_names({"input"});
+
+    auto relu = std::make_shared<ov::opset8::Relu>(arg0);
+    relu->set_friendly_name("relu");
+    relu->get_output_tensor(0).set_names({"relu_t", "identity"});
+    auto f = std::make_shared<ov::Model>(relu, ov::ParameterVector{arg0});
+
+    std::string key = "data";
+    EXPECT_THROW(f->get_rt_attr<std::string>(key, "test"), ov::Exception);
+    f->set_rt_attr("test", key, "test");
+}

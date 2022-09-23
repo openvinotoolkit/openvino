@@ -544,14 +544,18 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
     }
 
     // Read meta data
-    read_meta_data(function, root.child("meta_data"));
+    // meta_data - MO meta
+    // framework_meta - Framework specific meta
+    std::unordered_set<std::string> meta_names = {"meta_data", "framework_meta"};
+    for (const auto& it : meta_names)
+        read_meta_data(function, it, root.child(it.c_str()));
 
     return function;
 }
 
 class MetaDataParser : public ov::Meta {
 public:
-    MetaDataParser(const pugi::xml_node& meta) {
+    MetaDataParser(const std::string& name, const pugi::xml_node& meta) : m_name(name) {
         std::ostringstream stream;
         meta.print(stream);
         m_meta_section = stream.str();
@@ -593,20 +597,23 @@ private:
 
         pugi::xml_document xml_doc;
         xml_doc.load(m_meta_section.c_str());
-        m_parsed_data = parse_node(xml_doc.child("meta_data"));
+        m_parsed_data = parse_node(xml_doc.child(m_name.c_str()));
         parsed = true;
     }
     std::string m_meta_section;
+    const std::string m_name;
     mutable ov::AnyMap m_parsed_data;
     mutable bool parsed{false};
 };
 
-void XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section) {
+void XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model,
+                                     const std::string& name,
+                                     const pugi::xml_node& meta_section) {
     if (meta_section.empty())
         return;
     auto& rt_info = model->get_rt_info();
-    std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>(meta_section);
-    rt_info["meta_data"] = meta;
+    std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>(name, meta_section);
+    rt_info[name] = meta;
 }
 
 GenericLayerParams XmlDeserializer::parseGenericParams(const pugi::xml_node& node) {

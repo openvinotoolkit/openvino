@@ -116,7 +116,7 @@ TEST_F(IRFRThreadingTests, get_meta_data_in_different_threads) {
 
     run_parallel([&]() {
         ov::AnyMap meta;
-        ASSERT_NO_THROW(meta = model->get_meta_data());
+        ASSERT_NO_THROW(meta = model->get_rt_attr<ov::AnyMap>("meta_data"));
         ASSERT_TRUE(!meta.empty());
         auto it = meta.find("MO_version");
         ASSERT_NE(it, meta.end());
