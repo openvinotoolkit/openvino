@@ -10,7 +10,7 @@ namespace ov {
 namespace intel_gna {
 namespace pass {
 /**
- * @brief Split over channels for Eltwise to avoid GNA-HW limitation of 65k elements per eltwise
+ * @brief Split over channels for Eltwise to avoid GNA-HW bufferMaxSize limitation per eltwise
  */
 class SplitEltwiseOverChannel : public ov::pass::MatcherPass {
 public:
