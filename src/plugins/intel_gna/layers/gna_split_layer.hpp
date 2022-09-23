@@ -60,7 +60,7 @@ static std::vector<uint32_t> GetAlignedSplitSizes(uint32_t totalSize, uint32_t m
     return splitSizes;
 }
 
-// @brief Returns pair of axis and sizes of split outputs to split the input tensor to aligned parts not greater than the specified size
+// @brief Returns pair of axis and sizes of split outputs to split the input tensor to aligned parts, taking into account GNA HW limitations
 static std::pair<int64_t, std::vector<uint32_t>> AlignedSplitSizesPerAxis(InferenceEngine::SizeVector dims) {
     std::vector<uint32_t> splitSizes = {};
     auto totalElementsSize = InferenceEngine::details::product(std::begin(dims), std::end(dims));
