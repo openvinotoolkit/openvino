@@ -119,7 +119,6 @@ function(ov_download_tbb)
                 SHA256 "ad9cf52e657660058aa6c6844914bc0fc66241fec89a392d8b79a7ff69c3c7f6")
     else()
         message(WARNING "Prebuilt TBB is not available on current platform")
-        return()
     endif()
 
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
