@@ -125,68 +125,68 @@ class TestReduce(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.precommit
     def test_reduce_max_precommit(self, params, keep_dims, ie_device, precision, ir_version,
-                                  temp_dir, api_2):
+                                  temp_dir, use_old_api):
         self._test(*self.create_reduce(**params, op='ReduceMax', keep_dims=keep_dims,
                                        ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
-    def test_reduce_max(self, params, keep_dims, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_reduce_max(self, params, keep_dims, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_reduce(**params, op='ReduceMax', keep_dims=keep_dims,
                                        ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
-    def test_reduce_sum(self, params, keep_dims, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_reduce_sum(self, params, keep_dims, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_reduce(**params, op='ReduceSum', keep_dims=keep_dims,
                                        ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
     def test_reduce_prod(self, params, keep_dims, ie_device, precision, ir_version, temp_dir,
-                         api_2):
+                         use_old_api):
         self._test(*self.create_reduce(**params, op='ReduceProd', keep_dims=keep_dims,
                                        ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.precommit
     def test_reduce_mean_precommit(self, params, keep_dims, ie_device, precision, ir_version,
-                                   temp_dir, api_2):
+                                   temp_dir, use_old_api):
         self._test(*self.create_reduce(**params, op='ReduceMean', keep_dims=keep_dims,
                                        ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_reduce_mean(self, params, keep_dims, ie_device, precision, ir_version, temp_dir,
-                         api_2):
+                         use_old_api):
         self._test(*self.create_reduce(**params, op='ReduceMean', keep_dims=keep_dims,
                                        ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.precommit
     def test_reduce_min_precommit(self, params, keep_dims, ie_device, precision, ir_version,
-                                  temp_dir, api_2):
+                                  temp_dir, use_old_api):
         self._test(*self.create_reduce(**params, op='ReduceMin', keep_dims=keep_dims,
                                        ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
-    def test_reduce_min(self, params, keep_dims, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_reduce_min(self, params, keep_dims, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_reduce(**params, op='ReduceMin', keep_dims=keep_dims,
                                        ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)

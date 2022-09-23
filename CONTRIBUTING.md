@@ -21,7 +21,7 @@ We welcome community contributions to OpenVINO™. Please read the following gui
 -   Choose a base branch for your work. More details about branches and policies are here:  [Branches](https://github.com/openvinotoolkit/openvino/wiki/Branches)
 -   Clone your fork to your computer.
 -   Create a new branch (with a meaningful name) from the base branch you chose.
--   Modify / add the code following our  [Coding Style Guide](https://github.com/openvinotoolkit/openvino/wiki/CodingStyleGuideLines).
+-   Modify / add the code following our  [Coding Style Guide](./docs/dev/coding_style.md).
 -   If you want to add a new sample, please look at this  [Guide for contributing to C++/C/Python IE samples](https://github.com/openvinotoolkit/openvino/wiki/SampleContribute)
 -   If you want to contribute to the documentation and want to add a new guide, follow that instruction [Documentation guidelines](https://github.com/openvinotoolkit/openvino/wiki/CodingStyleGuideLinesDocumentation)
 -   Run testsuite locally:
@@ -52,4 +52,4 @@ Your pull request will be automatically tested by OpenVINO™'s precommit (testi
 
 ## Merging PR
 
-As soon as the reviewer is fine with the pull request and precommit shows "green" status, the "Approved" review status is put, which signals OpenVINO™ maintainers that they can merge your pull request.
+When the reviewer accepts the pull request and the pre-commit shows a "green" status, the review status is set to "Approved", which signals to the OpenVINO™ maintainers that they can merge your pull request.
