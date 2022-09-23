@@ -702,6 +702,10 @@ size_t DefConvKey::hash() const {
     for (const auto& ptr : descVector) {
         if (ptr) {
             seed = get_vector_hash(seed, ptr->getBlockDims());
+            seed = get_vector_hash(seed, ptr->getStrides());
+            seed = get_vector_hash(seed, ptr->getOrder());
+            seed = get_vector_hash(seed, ptr->getOffsetPaddingToData());
+            seed = hash_combine(seed, ptr->getOffsetPadding());
         }
     }
 
@@ -718,7 +722,11 @@ bool DefConvKey::operator==(const DefConvKey &rhs) const {
     for (size_t i = 0; i < descVector.size(); i++) {
         if (descVector[i] != rhs.descVector[i]) {
             retVal = retVal && descVector[i] && rhs.descVector[i] &&
-            descVector[i]->getBlockDims() == rhs.descVector[i]->getBlockDims();
+            descVector[i]->getBlockDims() == rhs.descVector[i]->getBlockDims() &&
+            descVector[i]->getStrides() == rhs.descVector[i]->getStrides() &&
+            descVector[i]->getOrder() == rhs.descVector[i]->getOrder() &&
+            descVector[i]->getOffsetPaddingToData() == rhs.descVector[i]->getOffsetPaddingToData() &&
+            descVector[i]->getOffsetPadding() == rhs.descVector[i]->getOffsetPadding();
         }
     }
 
@@ -1214,15 +1222,14 @@ void DeformableConvolution::prepareParams() {
 
     execPtr = nullptr;
 
-    if (enforceRef) {
-        execPtr = std::make_shared<DefConvRefExecutor>(key.defConvAttr, key.descVector);
-    } else {
-        auto cache = getRuntimeCache();
-        auto result = cache->getOrCreate(key, [] (const DefConvKey& key) -> std::shared_ptr<DefConvExecutor> {
-            return std::make_shared<DefConvJitExecutor>(key.defConvAttr, key.descVector);
-        });
-        execPtr = result.first;
-    }
+    auto cache = getRuntimeCache();
+    auto result = cache->getOrCreate(key, [] (const DefConvKey& key) -> std::shared_ptr<DefConvExecutor> {
+        if (key.implType == impl_desc_type::ref) {
+            return std::make_shared<DefConvRefExecutor>(key.defConvAttr, key.descVector);
+        }
+        return std::make_shared<DefConvJitExecutor>(key.defConvAttr, key.descVector);
+    });
+    execPtr = result.first;
 
     if (!execPtr) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
