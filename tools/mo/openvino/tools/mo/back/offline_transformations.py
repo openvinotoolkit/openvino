@@ -7,7 +7,7 @@ from typing import List
 from openvino.tools.mo.front.extractor import create_params_with_custom_types
 from openvino.tools.mo.utils.cli_parser import parse_transform
 from openvino.tools.mo.utils.error import Error
-
+from openvino.runtime import Model
 
 def get_available_transformations():
     try:
@@ -49,27 +49,8 @@ def compress_model(func: object):
     compress_model_transformation(func)
 
 
-def apply_offline_transformations(input_model: str, argv: argparse.Namespace):
-    # This variable is only needed by GenerateMappingFile transformation
-    # to produce correct mapping
-    extract_names = argv.framework in ['tf', 'mxnet', 'kaldi']
-
-    from openvino.runtime import serialize # pylint: disable=import-error,no-name-in-module
-    from openvino.offline_transformations import generate_mapping_file # pylint: disable=import-error,no-name-in-module
-    from openvino.frontend import FrontEndManager  # pylint: disable=no-name-in-module,import-error
+def apply_offline_transformations(func: Model, argv: argparse.Namespace):
     from openvino.tools.mo.back.preprocessing import apply_preprocessing  # pylint: disable=no-name-in-module,import-error
-
-    fem = FrontEndManager()
-
-    # We have to separate fe object lifetime from fem to
-    # avoid segfault during object destruction. So fe must
-    # be destructed before fem object explicitly.
-    def read_model(path_to_xml):
-        fe = fem.load_by_framework(framework="ir")
-        function = fe.convert(fe.load(path_to_xml))
-        return function
-
-    func = read_model(input_model + "_tmp.xml")
 
     # Apply preprocessing (mean/scale/reverse_channels/convert_layout/etc)
     apply_preprocessing(ov_function=func, argv=argv)
@@ -83,6 +64,4 @@ def apply_offline_transformations(input_model: str, argv: argparse.Namespace):
     if "compress_fp16" in argv and argv.compress_fp16:
         compress_model(func)
 
-    serialize(func, str(input_model + ".xml").encode('utf-8'), (input_model + ".bin").encode('utf-8'))
-    path_to_mapping = input_model + ".mapping"
-    generate_mapping_file(func, path_to_mapping.encode('utf-8'), extract_names)
+    return func

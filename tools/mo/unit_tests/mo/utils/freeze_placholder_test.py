@@ -6,7 +6,7 @@ from unittest.mock import patch, Mock
 import pytest
 
 from openvino.runtime import Core
-from openvino.tools.mo.main import prepare_ir
+from openvino.tools.mo.convert_impl import prepare_ir
 from openvino.frontend import (
     FrontEndManager,
     FrontEnd,
@@ -146,7 +146,7 @@ class TestMoFreezePlaceholder(unittest.TestCase):
         ],
     )
     def test_freeze_placeholder_with_value_onnx_fe(self, input_freezing_value, use_new_fe, inputs, expected, dtype=None):
-        with patch("openvino.tools.mo.main.get_default_frontends") as default_fe:
+        with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_new_fe=use_new_fe)
             args.input_model = "test_model.onnx"
@@ -213,7 +213,7 @@ class TestMoFreezePlaceholder(unittest.TestCase):
         ],
     )
     def test_freeze_placeholder_with_value_mul(self, input_freezing_value, use_new_fe, inputs, expected, dtype=None):
-        with patch("openvino.tools.mo.main.get_default_frontends") as default_fe:
+        with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_new_fe=use_new_fe)
             args.input_model = "test_model_2.onnx"
