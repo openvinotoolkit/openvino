@@ -51,7 +51,7 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
             WHEEL_BUILD=${WHEEL_BUILD}
             OpenVINO_BUILD_DIR=${OpenVINO_BINARY_DIR}
             OpenVINOPython_BUILD_DIR=${OpenVINOPython_BINARY_DIR}
-            OV_RUNTIME_LIBS_DIR=${OV_CPACK_RUNTIMEDIR}
+            OV_RUNTIME_LIBS_DIR=${OV_WHEEL_RUNTIMEDIR}
             TBB_LIBS_DIR=${TBB_LIBS_DIR}
             PUGIXML_LIBS_DIR=${PUGIXML_LIBS_DIR}
             PY_PACKAGES_DIR=${PY_PACKAGES_DIR}
