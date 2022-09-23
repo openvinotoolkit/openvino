@@ -14,22 +14,23 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-namespace ov {
-namespace pass {
+namespace ov::pass {
+
+using namespace ov::opset9;
 
 /** \brief Check if output is rank one and data type can be i32 or i64. */
-const auto is_rank_one_int_shape = [](const Output<Node>& output) -> bool {
+constexpr auto is_rank_one_int_shape = [](const auto& output) {
     return pattern::type_matches_any({element::i32, element::i64})(output) && pattern::has_static_shape()(output) &&
            pattern::rank_equals(1)(output);
 };
 
 /** \brief Predicate to check eye k node is valid. */
-const auto k_predicate = [](const Output<Node>& output) -> bool {
+constexpr auto k_predicate = [](const auto& output) {
     return is_rank_one_int_shape(output) && (output.get_partial_shape()[0].get_length() == 1);
 };
 
 /** \brief Predicate to check eye batch node is valid. */
-const auto batch_predicate = [](const Output<Node>& output) -> bool {
+constexpr auto batch_predicate = [](const auto& output) {
     return is_rank_one_int_shape(output) && output.get_partial_shape()[0].get_length();
 };
 
@@ -51,34 +52,33 @@ std::shared_ptr<Node> make_eye_model(NodeRegistry& reg,
                                      const Output<Node>& width,
                                      const Output<Node>& k,
                                      element::Type dtype) {
-    const auto zero_int = reg.add(opset9::Constant::create(element::i64, Shape{1}, {0}));
-    const auto zero = reg.add(opset9::Constant::create(dtype, Shape{1}, {0}));
-    const auto one = reg.add(opset9::Constant::create(dtype, Shape{1}, {1}));
+    const auto zero_int = reg.add(Constant::create(element::i64, Shape{1}, {0}));
+    const auto zero = reg.add(Constant::create(dtype, Shape{1}, {0}));
+    const auto one = reg.add(Constant::create(dtype, Shape{1}, {1}));
 
-    const auto k_neg = reg.make<opset9::Negative>(k);
-    const auto k_axis = reg.make<opset9::Concat>(OutputVector{k_neg, k}, 0);
+    const auto k_neg = reg.make<Negative>(k);
+    const auto k_axis = reg.make<Concat>(OutputVector{k_neg, k}, 0);
 
-    const auto eye_shape = reg.make<opset9::Concat>(OutputVector{height, width}, 0);
+    const auto eye_shape = reg.make<Concat>(OutputVector{height, width}, 0);
 
     // Calculate eye zero padding and internal square eye size.
-    const auto pad_start = reg.make<opset9::Minimum>(eye_shape, reg.make<opset9::Maximum>(zero_int, k_axis));
-    const auto shape_pad_diff = reg.make<opset9::Subtract>(eye_shape, pad_start);
-    const auto eye_size = reg.make<opset9::ReduceMin>(shape_pad_diff, zero_int, true);
-    const auto pad_end = reg.make<opset9::Subtract>(shape_pad_diff, eye_size);
+    const auto pad_start = reg.make<Minimum>(eye_shape, reg.make<Maximum>(zero_int, k_axis));
+    const auto shape_pad_diff = reg.make<Subtract>(eye_shape, pad_start);
+    const auto eye_size = reg.make<ReduceMin>(shape_pad_diff, zero_int, true);
+    const auto pad_end = reg.make<Subtract>(shape_pad_diff, eye_size);
 
     // Make 1d-eye as eye_size times of (1, zeros(eye_size)), trimmed at end by eye_size elements.
-    const auto zeros = reg.make<opset9::Tile>(zero, eye_size);
-    const auto one_followed_by_zeros = reg.make<opset9::Concat>(OutputVector{one, zeros}, 0);
-    const auto eye_1d = reg.make<opset9::Pad>(reg.make<opset9::Tile>(one_followed_by_zeros, eye_size),
-                                              zero_int,
-                                              reg.make<opset9::Negative>(eye_size),
-                                              op::PadMode::CONSTANT);
+    const auto zeros = reg.make<Tile>(zero, eye_size);
+    const auto one_followed_by_zeros = reg.make<Concat>(OutputVector{one, zeros}, 0);
+    const auto eye_1d = reg.make<Pad>(reg.make<Tile>(one_followed_by_zeros, eye_size),
+                                      zero_int,
+                                      reg.make<Negative>(eye_size),
+                                      op::PadMode::CONSTANT);
     // Reshape 1d-eye to 2d-eye
-    const auto eye_2d =
-        reg.make<opset9::Reshape>(eye_1d, reg.make<opset9::Concat>(OutputVector{eye_size, eye_size}, 0), false);
+    const auto eye_2d = reg.make<Reshape>(eye_1d, reg.make<Concat>(OutputVector{eye_size, eye_size}, 0), false);
 
     // Pad Eye to get final shape
-    return reg.make<opset9::Pad>(eye_2d, pad_start, pad_end, op::PadMode::CONSTANT);
+    return reg.make<Pad>(eye_2d, pad_start, pad_end, op::PadMode::CONSTANT);
 }
 
 /**
@@ -91,12 +91,12 @@ std::shared_ptr<Node> make_eye_model(NodeRegistry& reg,
  * \return Pointer to decomposed eye model.
  */
 std::shared_ptr<Node> make_eye_batches(NodeRegistry& reg, const Output<Node>& eye, const Output<Node>& batch) {
-    const auto eye_tile = reg.make<opset9::Constant>(element::i64, Shape{2}, 1);
+    const auto eye_tile = reg.make<Constant>(element::i64, Shape{2}, 1);
 
     // `batch_repeats` repeat eye matrix as tile only in higher dimensions than 1 by number(s) in batch parameter.
-    const auto batch_repeats = reg.make<opset9::Concat>(OutputVector{batch, eye_tile}, 0);
+    const auto batch_repeats = reg.make<Concat>(OutputVector{batch, eye_tile}, 0);
 
-    return reg.make<opset9::Tile>(eye, batch_repeats);
+    return reg.make<Tile>(eye, batch_repeats);
 }
 
 EyeDecomposition::EyeDecomposition() {
@@ -104,16 +104,16 @@ EyeDecomposition::EyeDecomposition() {
 
     auto p_height = pattern::any_input();
     auto p_width = pattern::any_input();
-    auto p_k = pattern::wrap_type<opset9::Constant>(k_predicate);
-    auto p_batch = pattern::wrap_type<opset9::Constant>(batch_predicate);
+    auto p_k = pattern::wrap_type<Constant>(k_predicate);
+    auto p_batch = pattern::wrap_type<Constant>(batch_predicate);
 
-    auto p_eye_no_batch = pattern::wrap_type<opset9::Eye>({p_height, p_width, p_k});
-    auto p_eye_batch = pattern::wrap_type<opset9::Eye>({p_height, p_width, p_k, p_batch});
+    auto p_eye_no_batch = pattern::wrap_type<Eye>({p_height, p_width, p_k});
+    auto p_eye_batch = pattern::wrap_type<Eye>({p_height, p_width, p_k, p_batch});
 
     auto p_eye = std::make_shared<pattern::op::Or>(OutputVector{p_eye_batch, p_eye_no_batch});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto m_eye = std::dynamic_pointer_cast<opset9::Eye>(m.get_match_root());
+        auto m_eye = std::dynamic_pointer_cast<Eye>(m.get_match_root());
 
         if ((!m_eye) || transformation_callback(m_eye)) {
             return false;
@@ -143,5 +143,4 @@ EyeDecomposition::EyeDecomposition() {
     register_matcher(m, callback);
 }
 
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass

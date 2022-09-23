@@ -108,20 +108,16 @@ class EyeTransformationTests : public TransformationTestsF {
 protected:
     EyeDecompositionWrapper eye_decomposition_wrapper;
 
-    ov::element::Type dtype;
-    size_t h, w;
-    int shift;
+    ov::element::Type dtype = ov::element::f32;
+    size_t h = 4, w = 4;
+    int shift = 0;
 
     void SetUp() override {
         TransformationTestsF::SetUp();
-
-        dtype = ov::element::f32;
-        h = 4;
-        w = 4;
     }
 
     template <class TEye>
-    std::shared_ptr<TEye> make_test_eye(const ov::Output<ov::Node>& k) const {
+    auto make_test_eye(const ov::Output<ov::Node>& k) const {
         auto height = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {h});
         auto width = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {w});
 
@@ -129,14 +125,14 @@ protected:
     }
 
     template <class TEye>
-    std::shared_ptr<TEye> make_test_eye() const {
+    auto make_test_eye() const {
         auto k = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {shift});
 
         return make_test_eye<TEye>(k);
     }
 
     template <class TEye>
-    std::shared_ptr<TEye> make_test_eye_batch(const ov::Output<ov::Node>& batch) const {
+    auto make_test_eye_batch(const ov::Output<ov::Node>& batch) const {
         auto height = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {h});
         auto width = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {w});
         auto k = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {shift});
@@ -192,10 +188,7 @@ class EyeTransformationTestsP : public EyeTransformationTests, public WithParamI
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
-
-        std::tuple<size_t, size_t> dim;
-        std::tie(dtype, dim, shift) = GetParam();
-        std::tie(h, w) = dim;
+        std::forward_as_tuple(dtype, std::tie(h, w), shift) = GetParam();
     }
 };
 

@@ -7,12 +7,10 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations_visibility.hpp"
 
-namespace ov {
-namespace pass {
+namespace ov::pass {
 
 class TRANSFORMATIONS_API EyeDecomposition;
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass
 
 /**
  * @ingroup ie_transformation_common_api

@@ -16,7 +16,9 @@ using matcher_pass_callback = std::function<bool(pass::pattern::Matcher& m)>;
 using graph_rewrite_callback = std::function<bool(pass::pattern::Matcher& m)>;
 using recurrent_graph_rewrite_callback = std::function<bool(pass::pattern::RecurrentMatcher& m)>;
 using handler_callback = std::function<bool(const std::shared_ptr<Node>& node)>;
-namespace pass {
+}  // namespace ov
+
+namespace ov::pass {
 /// \brief Register openvino node pointers into container.
 /// Can create and/or add existing node pointers into register
 class NodeRegistry {
@@ -287,5 +289,4 @@ public:
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass
