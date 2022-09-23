@@ -97,7 +97,7 @@ public:
             FRONT_END_OP_CONVERSION_CHECK(
                 b_rank.get_length() == 1,
                 "Internal error in OpenVINO TensorFlow Frontend: weights for BlockLSTM must be of rank equal to 2.");
-            m_hidden_size = b_shape[0].is_static() ? b_shape[0].get_length() / 4 : ov::Dimension::dynamic();
+            m_hidden_size = b_shape[0].is_static() ? b_shape[0].get_length() / 4 : m_hidden_size;
         }
 
         // set shapes of dynamic rank for inputs except 1 and 6 which OpenVINO LSTMSequence supports now
