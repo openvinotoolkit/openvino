@@ -242,6 +242,10 @@ def main():
         if args.cache_dir:
             benchmark.set_cache_dir(args.cache_dir)
 
+        ## If set batch size, disable the auto batching
+        if args.batch_size:
+            benchmark.set_allow_auto_batching(False)
+
         topology_name = ""
         load_from_file_enabled = is_flag_set_in_command_line('load_from_file') or is_flag_set_in_command_line('lfile')
         if load_from_file_enabled and not is_network_compiled:
