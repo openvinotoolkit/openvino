@@ -254,6 +254,9 @@ protected:
 
         function = makeNgraphFunction(ngPrc, params, interpolate, "InterpolateCPU");
 
+        // To be able to run CPU tests on all shapes real thresholds should be ignored
+        interpolate->get_rt_info().insert({"enforceAllSupportedLayouts", true});
+
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();
         }
