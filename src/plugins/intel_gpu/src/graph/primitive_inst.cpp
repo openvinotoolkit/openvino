@@ -140,6 +140,7 @@ void primitive_inst::set_output_memory(memory::ptr mem_new, bool check) {
 
 void primitive_inst::update_shape() {
     GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::shape_inference);
 
     bool input_shape_changed = false;
     for (size_t i = 0; i < _deps.size(); i++) {
@@ -217,6 +218,7 @@ void primitive_inst::update_shape() {
 
 void primitive_inst::realloc_if_needed() {
     GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
 
     auto actual_layout = _impl_params->output_layout;
     OPENVINO_ASSERT(actual_layout.is_static(), "[GPU] Can't realloc mem for dynamic layout");
@@ -244,17 +246,15 @@ void primitive_inst::realloc_if_needed() {
 }
 
 void primitive_inst::update_impl() {
+    GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::update_implementation);
     auto prev_impl_str =  _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
     if (!_node.is_type<data>() && !(_node.is_type<mutable_data>() && _node.get_dependencies().empty())) {
         auto get_layout_key = [&]()->std::string {
             std::string layout_key_str = "";
-            if (_node.is_valid_output_layout()) {
-                layout_key_str = id() + "_" + std::to_string(_node.get_unique_id());
-                layout_key_str += "_" + _impl_params->output_layout.to_string();
-
-                for (auto in : _impl_params->input_layouts) {
-                    layout_key_str += "_" + in.to_string();
-                }
+            layout_key_str = id() + "_" + std::to_string(_node.get_unique_id());
+            layout_key_str += "_" + _impl_params->output_layout.to_string();
+            for (auto in : _impl_params->input_layouts) {
+                layout_key_str += "_" + in.to_string();
             }
             return layout_key_str;
         };
@@ -264,6 +264,7 @@ void primitive_inst::update_impl() {
             auto& cache = _network.get_program()->get_implementations_cache();
             if (cache.has(layout_key)) {
                 _impl = cache.get(layout_key)->clone();
+                GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
             } else {
                 auto lru = cache.get_lru_element();
                 _impl = _node.type()->choose_impl(_node, *_impl_params);
@@ -359,28 +360,40 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                        << out_ptr << ")" << std::endl;
     }
 
-    if (_exec_deps.empty() && dependencies.empty())
-        return _impl->execute(events, *this);
-
-    auto queue_type = get_network().get_stream().get_queue_type();
-    if (queue_type == queue_types::out_of_order) {
-        dependencies.reserve(dependencies.size() + _exec_deps.size());
-        for (auto& input : _exec_deps) {
-            auto id = input->id();
-            try {
-                // if the requested event does not exists it means that it has not been executed, so the processing_order is
-                // wrong or synchronization failed.
-                auto ev = get_network().get_primitive_event(id);
-                dependencies.emplace_back(ev);
-            } catch (const std::out_of_range& oor) {
-                OPENVINO_ASSERT(false, "[GPU] execution order corrupted: ", oor.what());
+    if (_exec_deps.empty() && dependencies.empty()) {
+        dependencies = events;
+    } else {
+        auto queue_type = get_network().get_stream().get_queue_type();
+        if (queue_type == queue_types::out_of_order) {
+            dependencies.reserve(dependencies.size() + _exec_deps.size());
+            for (auto& input : _exec_deps) {
+                auto id = input->id();
+                try {
+                    // if the requested event does not exists it means that it has not been executed, so the processing_order is
+                    // wrong or synchronization failed.
+                    auto ev = get_network().get_primitive_event(id);
+                    dependencies.emplace_back(ev);
+                } catch (const std::out_of_range& oor) {
+                    OPENVINO_ASSERT(false, "[GPU] execution order corrupted: ", oor.what());
+                }
             }
         }
     }
-    return _impl->execute(dependencies, *this);
+
+    {
+        GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::inference);
+        auto ev = _impl->execute(dependencies, *this);
+
+        GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+            get_network().get_stream().wait_for_events({ev});
+        }
+
+        return ev;
+    }
 }
 
 void primitive_inst::set_arguments() {
+    GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::set_arguments);
     OPENVINO_ASSERT(_has_valid_input, id(), " has invalid/unset input");
     _impl->set_arguments(*this);
 }
@@ -485,6 +498,7 @@ void primitive_inst::allocate_internal_buffers(void) {
 }
 
 event::ptr primitive_inst::update_weights() {
+    GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::update_weights);
     if (!_impl)
         return nullptr;
 
@@ -498,6 +512,7 @@ event::ptr primitive_inst::update_weights() {
     bool requires_reorder = weights_params.engine != kernel_selector::GenericKernelParams::Engine::NONE &&
                             (!_impl_params->reordered_weights || _impl_params->reordered_weights->get_layout() != from_weights_tensor(weights_params.dest));
     if (requires_reorder) {
+        GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(false);
         auto weights_idx = _node.get_primitive()->input.size();
         auto original_weights_memory = dep_memory_ptr(weights_idx);
         auto original_layout = original_weights_memory->get_layout();
@@ -521,6 +536,7 @@ event::ptr primitive_inst::update_weights() {
                 GPU_DEBUG_IF(debug_config->verbose >= 4) {
                     GPU_DEBUG_COUT << id() << ": reorder weights (cached) from " << original_layout << "\nto " << expected_layout << std::endl;
                 }
+                GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
                 kernel = cache.get(layout_key);
             } else {
                 GPU_DEBUG_IF(debug_config->verbose >= 4) {
@@ -549,8 +565,15 @@ event::ptr primitive_inst::update_weights() {
         args.inputs.push_back(original_weights_memory);
         args.outputs.push_back(_impl_params->reordered_weights);
         stream.set_arguments(*kernel, weights_params.clKernel->params, args);
-        return stream.enqueue_kernel(*kernel, weights_params.clKernel->params, args, {}, true);
+        auto ev = stream.enqueue_kernel(*kernel, weights_params.clKernel->params, args, {}, true);
+
+        GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+            stream.wait_for_events({ev});
+        }
+
+        return ev;
     }
+    GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
 
     return nullptr;
 }
@@ -788,6 +811,36 @@ bool primitive_inst::is_valid_fusion() const {
     }
 
     return true;
+}
+
+void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time) {
+    instrumentation::perf_counter_key key {
+            _impl_params->input_layouts,
+            { _impl_params->output_layout },
+            get_implementation_name(),
+            stage,
+            cache_hit
+    };
+
+    auto hash = instrumentation::perf_counter_hash()(key);
+    auto& d = _profiling_data[hash];
+    if (_profiling_info.find(hash) == _profiling_info.end()) {
+        _profiling_info.emplace(hash, key);
+    }
+
+    auto& total_time = std::get<0>(d);
+    auto& total_iter = std::get<1>(d);
+    total_time += time;
+    total_iter++;
+}
+
+std::string primitive_inst::get_implementation_name() const {
+    try {
+        auto kernel_name = _impl ? _impl->get_kernel_name() : "";
+        return !kernel_name.empty() ? kernel_name : "undef";
+    } catch (...) { }
+
+    return "undef";
 }
 
 }  // namespace cldnn

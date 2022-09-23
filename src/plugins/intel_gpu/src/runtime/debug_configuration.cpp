@@ -105,6 +105,8 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_PrintMultiKernelPerf", "Print execution time of each kernel in multi-kernel primitimive");
     message_list.emplace_back("OV_GPU_DisableUsm", "Disable usm usage");
     message_list.emplace_back("OV_GPU_DisableOnednn", "Disable onednn for discrete GPU (no effect for integrated GPU)");
+    message_list.emplace_back("OV_GPU_DumpProfilingData", "Enables dump of extended profiling information to specified directory."
+                              " Note: Performance impact may be significant as this option enforces host side sync after each primitive");
     message_list.emplace_back("OV_GPU_DumpGraphs", "Dump optimized graph");
     message_list.emplace_back("OV_GPU_DumpSources", "Dump opencl sources");
     message_list.emplace_back("OV_GPU_DumpLayersPath", "Enable dumping intermediate buffers and set the dest path");
@@ -141,6 +143,7 @@ debug_configuration::debug_configuration()
         , print_multi_kernel_perf(0)
         , disable_usm(0)
         , disable_onednn(0)
+        , dump_profiling_data(std::string(""))
         , dump_graphs(std::string())
         , dump_sources(std::string())
         , dump_layers_path(std::string())
@@ -164,6 +167,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DumpLayersDstOnly", dump_layers_dst_only);
     get_gpu_debug_env_var("DumpLayersResult", dump_layers_result);
     get_gpu_debug_env_var("DisableOnednn", disable_onednn);
+    get_gpu_debug_env_var("DumpProfilingData", dump_profiling_data);
     get_gpu_debug_env_var("DryRunPath", dry_run_path);
     get_gpu_debug_env_var("BaseBatchForMemEstimation", base_batch_for_memory_estimation);
     std::string dump_layers_str;

@@ -257,6 +257,25 @@ std::string layout::to_string() const {
     return s.str();
 }
 
+std::string layout::to_short_string() const {
+    std::stringstream s;
+    auto dump_shape = [](std::stringstream& stream, const ov::PartialShape& shape) {
+        for (size_t i = 0; i < shape.size(); i++) {
+            stream << shape[i];
+            if (i != shape.size() - 1)
+                stream << "x";
+        }
+    };
+
+    s << data_type_traits::name(data_type) << ":" << format.to_string() << ":";
+    dump_shape(s, size);
+    if (data_padding)
+        s << ":pad";
+    else
+        s << ":nopad";
+    return s.str();
+}
+
 size_t layout::count() const {
     if (is_dynamic())
         throw std::runtime_error("[GPU] Count is called for dynamic shape");

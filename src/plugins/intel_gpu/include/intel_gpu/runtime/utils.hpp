@@ -180,6 +180,20 @@ inline std::string to_string(const T& v) {
     return s.str();
 }
 
+// The following code is derived from Boost C++ library
+// Copyright 2005-2014 Daniel James.
+// Distributed under the Boost Software License, Version 1.0. (See http://www.boost.org/LICENSE_1_0.txt)
+template <typename T, typename std::enable_if<!std::is_enum<T>::value , int>::type = 0>
+static size_t hash_combine(size_t seed, const T &v) {
+    return seed ^= std::hash<T> {}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
+template <typename T, typename std::enable_if<std::is_enum<T>::value , int>::type = 0>
+static size_t hash_combine(size_t seed, const T &v) {
+    using underlying_t = typename std::underlying_type<T>::type;
+    return hash_combine(seed, static_cast<underlying_t>(v));
+}
+
 /// @}
 /// @endcond
 /// @}

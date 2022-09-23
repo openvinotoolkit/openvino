@@ -118,7 +118,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
         json_composite info;
         info.add("data type", dt_to_str(fused_desc.output_layout.data_type));
         info.add("format", fmt_to_str(output_layout.format));
-        info.add("size", output_layout.get_tensor().to_string());
+        info.add("size", output_layout.to_short_string());
         fused_node_info.add("output layout", info);
         fused_nodes_info.add("fused primitive idx " + std::to_string(index++), fused_node_info);
     }
