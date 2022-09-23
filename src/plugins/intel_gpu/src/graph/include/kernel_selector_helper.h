@@ -113,7 +113,6 @@ struct kernel_impl_params {
     size_t unique_id;
     std::vector<layout> input_layouts;
     layout output_layout;
-    int32_t ov_input_rank = -1; // original rank
     std::vector<cldnn::fused_primitive_desc> fused_desc;
     std::vector<activation_func> fused_act_funcs;
     std::vector<activation_additional_params> activation_params;
@@ -148,9 +147,6 @@ struct kernel_impl_params {
                        , fused_act_funcs(_fused_act_funcs)
                        , activation_params(_act_params)
                        , primary_input_idx(0) {
-        if (!_in_layouts.empty() && !_in_layouts[0].get_partial_shape().rank().is_dynamic()) {
-            ov_input_rank = _in_layouts[0].get_shape().size();
-        }
     }
 
     layout get_input_layout(size_t idx = 0) const {
@@ -230,7 +226,6 @@ inline params_t get_default_params(const kernel_impl_params& param_info, uint32_
     params.inputs[0] = convert_data_tensor(input_layout, split);
     params.outputs[0] = convert_data_tensor(output_layout, split);
     params.layerID = param_info.desc->id;
-    params.ov_input_rank = input_layout.get_partial_shape().rank().get_length();
 
     convert_fused_activation_func_params(param_info, params.activations);
     std::map<primitive_id, std::pair<size_t, kernel_selector::Datatype>> prim_id_type_map;

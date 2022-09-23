@@ -24,11 +24,9 @@ KERNEL (gather_nonzero_ref)(const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* out_mem = output;
 #endif
 
-    int b_inc, f_inc, y_inc, x_inc;
     int count_nzero = output_shape[1];
 #if OV_INPUT_RANK == 1 // b
     #define ADD_IDXS \
-        int b = input_idx_v; \
         int b = input_idx_v / INPUT0_BATCH_PITCH; \
         out_mem[local_offset++] = b;
 #elif OV_INPUT_RANK == 2 // bf
