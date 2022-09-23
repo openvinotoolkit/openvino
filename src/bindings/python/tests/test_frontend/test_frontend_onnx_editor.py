@@ -411,7 +411,7 @@ def compare_models(current, expected):  # noqa: C901 the function is too complex
                 msg += f"expected: {expected_ops[i].get_output_element_type(idx)}. "
 
     if not result:
-        print(msg)
+        print(msg)  # noqa: T201
 
     return result
 
