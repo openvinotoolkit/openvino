@@ -357,7 +357,7 @@ jobs:
   - script: |
       # tensorflow frontend is not distributed to end users, we have to find it manually
       export OV_FRONTEND_PATH=$(INSTALL_TEST_DIR)
-      $(RUN_PREFIX) $(INSTALL_TEST_DIR)/tensorflow_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
+      $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
     displayName: 'Tensorflow Frontend UT'
     continueOnError: false
 
@@ -448,7 +448,7 @@ jobs:
   - script: |
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
-      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/ov_tensorflow_frontend_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
     displayName: 'Layer Tests - Tensorflow'
     continueOnError: false
 
