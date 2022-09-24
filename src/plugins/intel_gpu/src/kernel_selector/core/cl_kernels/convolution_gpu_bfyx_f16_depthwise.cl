@@ -286,7 +286,7 @@ KERNEL(convolution_depthwise)(
 #else
         res = TO_OUTPUT_TYPE(dst[0]);
 #endif // HAS_FUSED_OPS
-        output[output_offset + x * output_x_pitch + lid] = res;
+        OUTPUT_BLOCK_WRITE(output, output_offset + x * output_x_pitch, res);
     }
 #endif
 }
