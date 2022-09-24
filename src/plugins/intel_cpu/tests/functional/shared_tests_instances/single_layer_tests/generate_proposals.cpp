@@ -73,8 +73,7 @@ const std::vector<std::vector<InputShape>> staticInputShape0 = {
             {2, 6, 9, 4},
             {2, 36, 2, 6},
             {2, 9, 2, 6}
-        }
-    ),
+        }),
 };
 
 const std::vector<std::vector<InputShape>> staticInputShape1 = {
@@ -85,8 +84,7 @@ const std::vector<std::vector<InputShape>> staticInputShape1 = {
             {2, 6, 11, 4},
             {2, 44, 2, 6},
             {2, 11, 2, 6}
-        }
-    ),
+        }),
 };
 
 const std::vector<std::vector<InputShape>> staticInputShape2 = {
@@ -97,8 +95,7 @@ const std::vector<std::vector<InputShape>> staticInputShape2 = {
             {2, 6, 16, 4},
             {2, 64, 2, 6},
             {2, 16, 2, 6}
-        }
-    ),
+        }),
 };
 
 const std::vector<std::vector<InputShape>> staticInputShape3 = {
@@ -109,8 +106,7 @@ const std::vector<std::vector<InputShape>> staticInputShape3 = {
             {2, 6, 256, 4},
             {2, 1024, 2, 6},
             {2, 256, 2, 6}
-        }
-    ),
+        }),
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -179,7 +175,7 @@ struct GenerateProposalsBenchmarkTest : ov::test::BenchmarkLayerTest<GeneratePro
 
 TEST_P(GenerateProposalsBenchmarkTest, GenerateProposals_Benchmark) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    run_benchmark("GenerateProposals", std::chrono::milliseconds(2000), 10000);
+    run("GenerateProposals", std::chrono::milliseconds(2000), 10000);
 }
 
 INSTANTIATE_TEST_SUITE_P(

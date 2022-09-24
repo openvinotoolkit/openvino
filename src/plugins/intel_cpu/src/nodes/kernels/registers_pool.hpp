@@ -191,7 +191,8 @@ protected:
     virtual size_t countUnusedOpmask() const { IE_THROW() << "countUnusedOpmask: The Opmask is not supported in current instruction set"; }
 
     RegistersPool(int simdRegistersNumber)
-            : simdSet(simdRegistersNumber) {
+            : simdSet(simdRegistersNumber)
+            , simdRegistersNumber{simdRegistersNumber} {
         checkUniqueAndUpdate();
         generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RSP));
         generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RAX));
@@ -201,7 +202,8 @@ protected:
     }
 
     RegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude, int simdRegistersNumber)
-            : simdSet(simdRegistersNumber) {
+            : simdSet(simdRegistersNumber)
+            , simdRegistersNumber{simdRegistersNumber} {
         checkUniqueAndUpdate();
         for (auto& reg : regsToExclude) {
             if (reg.isXMM() || reg.isYMM() || reg.isZMM()) {

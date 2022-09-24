@@ -154,7 +154,10 @@ void jit_refine_anchors_kernel_fp32<isa>::generate(RegistersPool::Ptr registers_
             uni_vmovdqu(vmm_anchor_mask, ptr[rbx + rax * sizeof(float)]);
             uni_vmovdqu(vmm_anchor_mask_addr, vmm_anchor_mask);
 
-//            uni_vpcmpd(k1, vmm_anchor_mask, vy1j, VCMPPS_LT);
+            mov(rax, 16);
+            if (is_valid_isa(avx512_core)) {
+                vpcmpd(k1, vmm_anchor_mask, ptr[rbx + rax * sizeof(float)], VCMPPS_LT);
+            }
 
             {
                 // float x0 = anchors[a_idx + 0 * a_idx_offset];
@@ -473,8 +476,15 @@ void jit_refine_anchors_kernel_fp32<isa>::generate(RegistersPool::Ptr registers_
              */
             uni_vbroadcastss(vmm_min_box_w, ptr[reg_params + offsetof(jit_refine_anchors_call_args, min_box_w)]);
             uni_vbroadcastss(vmm_min_box_h, ptr[reg_params + offsetof(jit_refine_anchors_call_args, min_box_h)]);
-            uni_vcmpps(vmm_box_w, vmm_min_box_w, vmm_box_w, VCMPPS_LE);
-            uni_vcmpps(vmm_box_h, vmm_min_box_h, vmm_box_h, VCMPPS_LE);
+            if (is_valid_isa(avx512_core)) {
+                vcmpps(k1, vmm_min_box_w, vmm_box_w, VCMPPS_LE);
+                vpmovm2d(vmm_box_w, k1);
+                vcmpps(k1, vmm_min_box_h, vmm_box_h, VCMPPS_LE);
+                vpmovm2d(vmm_box_h, k1);
+            } else {
+                uni_vcmpps(vmm_box_w, vmm_min_box_w, vmm_box_w, VCMPPS_LE);
+                uni_vcmpps(vmm_box_h, vmm_min_box_h, vmm_box_h, VCMPPS_LE);
+            }
             uni_vpmulld(vmm_box_h, vmm_box_w, vmm_box_h);
             uni_vcvtdq2ps(vmm_box_h, vmm_box_h);
 
