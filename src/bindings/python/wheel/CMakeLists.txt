@@ -49,8 +49,8 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
     COMMAND ${CMAKE_COMMAND} -E env WHEEL_VERSION=${WHEEL_VERSION}
             WHEEL_BUILD=${WHEEL_BUILD}
-            OpenVINO_BUILD_DIR=${OpenVINO_BINARY_DIR}
-            OpenVINOPython_BUILD_DIR=${OpenVINOPython_BINARY_DIR}
+            OPENVINO_BUILD_DIR=${OpenVINO_BINARY_DIR}
+            OPENVINO_PYTHON_BUILD_DIR=${OpenVINOPython_BINARY_DIR}
             OV_RUNTIME_LIBS_DIR=${OV_WHEEL_RUNTIMEDIR}
             TBB_LIBS_DIR=${TBB_LIBS_DIR}
             PUGIXML_LIBS_DIR=${PUGIXML_LIBS_DIR}
