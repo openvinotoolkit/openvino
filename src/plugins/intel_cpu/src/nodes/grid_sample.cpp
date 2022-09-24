@@ -144,7 +144,7 @@ void GridSample::createPrimitive() {
     if (!jitKernel) {
         THROW_ERROR << " could not create JIT kernel.";
     }
-    jitKernel->create_ker();
+    jitKernel->create_kernel();
 
     nthr = parallel_get_max_threads();
     execParamsPerThread.resize(nthr);

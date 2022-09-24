@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "jit_kernel_base.hpp"
+#include "jit_kernel.hpp"
 #include "ie_precision.hpp"
 #include <set>
 
@@ -59,16 +59,11 @@ enum coord {
     w, h
 };
 
-class GridSampleKernelBase: public JitKernelBase {
+class GridSampleKernelBase : public jit_kernel<GridSampleKernelConfParams, GridSamplesKernelExecArgs> {
 public:
-    void (*ker_)(const GridSamplesKernelExecArgs *);
-    void operator()(const GridSamplesKernelExecArgs *args) {
-        assert(ker_);
-        ker_(args);
-    }
-    explicit GridSampleKernelBase(const char* name, const GridSampleKernelConfParams& jcp) : JitKernelBase(name), ker_(nullptr), jcp(jcp) {}
+    explicit GridSampleKernelBase(const char* name, x64::cpu_isa_t max_cpu_isa, const GridSampleKernelConfParams& jcp)
+        : jit_kernel(name, max_cpu_isa, jcp) {}
 
-    virtual void create_ker() = 0;
     uint64_t getVecLen() {
         return vlen;
     }
@@ -80,7 +75,6 @@ public:
     }
 
 protected:
-    GridSampleKernelConfParams jcp;
     uint64_t vlen         = 16lu;
     uint64_t dataTypeSize = 1lu;
     uint64_t gridTypeSize = 1lu;
@@ -95,8 +89,7 @@ public:
 
     explicit GridSampleKernel(const GridSampleKernelConfParams& jcp);
 
-    void create_ker() override;
-    void generate() override;
+    void generate_impl() override;
 
     using Vmm   = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core, Xbyak::Zmm,
                                                            isa == dnnl::impl::cpu::x64::sse41,       Xbyak::Xmm,
@@ -104,6 +97,9 @@ public:
     using Vmask = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core, Xbyak::Opmask,
                                                            isa == dnnl::impl::cpu::x64::sse41,       Xbyak::Xmm,
                                                                                                      Xbyak::Ymm>::type;
+
+protected:
+    void createRegistersPool() override;
 
 private:
     uint8_t dataTypeShift = 0;

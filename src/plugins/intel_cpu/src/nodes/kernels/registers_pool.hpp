@@ -30,6 +30,7 @@ using namespace dnnl::impl::cpu;
 class RegistersPool {
 public:
     using Ptr = std::shared_ptr<RegistersPool>;
+    using WeakPtr = std::weak_ptr<RegistersPool>;
     static constexpr int anyIdx = -1;
 
     /**
@@ -65,12 +66,12 @@ public:
             return lhs.operator Xbyak::RegExp() + rhs;
         }
         void release() {
-            if (regPool) {
-                regPool->returnToPool(reg);
+            if (auto pool = regPool.lock()) {
+                pool->returnToPool(reg);
                 regPool.reset();
             }
         }
-        bool isInitialized() const { return static_cast<bool>(regPool); }
+        bool isInitialized() const { return static_cast<bool>(!regPool.expired()); }
 
     private:
         void ensureValid() const {
@@ -91,7 +92,7 @@ public:
 
     private:
         TReg reg;
-        RegistersPool::Ptr regPool;
+        RegistersPool::WeakPtr regPool;
     };
 
     virtual ~RegistersPool() {
@@ -101,6 +102,7 @@ public:
     template <x64::cpu_isa_t isa>
     static Ptr create(std::initializer_list<Xbyak::Reg> regsToExclude);
 
+    static Ptr create(x64::cpu_isa_t isa);
     static Ptr create(x64::cpu_isa_t isa, std::initializer_list<Xbyak::Reg> regsToExclude);
 
     template<typename TReg>
@@ -117,6 +119,31 @@ public:
         } else if (std::is_same<TReg, Xbyak::Opmask>::value) {
             return countUnusedOpmask();
         }
+    }
+
+    template <typename TReg>
+    inline TReg getInplaceFree(std::vector<Xbyak::Reg>& not_available) const {
+        static_assert(std::is_base_of<Xbyak::Reg, TReg>::value, "Xbyak::Reg should be base of TReg !!");
+        PhysicalSet localGeneralSet{16};
+        localGeneralSet.exclude(Xbyak::Reg64(Xbyak::Operand::RSP));
+        for (const auto& reg : not_available) {
+            localGeneralSet.exclude(Xbyak::Reg64(reg.getIdx()));
+        }
+        const auto reg = TReg{localGeneralSet.getUnused(anyIdx)};
+        not_available.push_back(reg);
+        return std::move(reg);
+    }
+
+    template <typename TVmm>
+    inline TVmm getInplaceFree(std::vector<Xbyak::Xmm>& not_available) const {
+        static_assert(std::is_base_of<Xbyak::Xmm, TVmm>::value, "Xbyak::Xmm should be base of TVmm !!");
+        PhysicalSet localSimdSet{simdRegistersNumber};
+        for (const auto& xmm : not_available) {
+            localSimdSet.exclude(Xbyak::Xmm(xmm.getIdx()));
+        }
+        const auto reg = TVmm{localSimdSet.getUnused(anyIdx)};
+        not_available.push_back(reg);
+        return std::move(reg);
     }
 
 protected:
@@ -191,7 +218,8 @@ protected:
     virtual size_t countUnusedOpmask() const { IE_THROW() << "countUnusedOpmask: The Opmask is not supported in current instruction set"; }
 
     RegistersPool(int simdRegistersNumber)
-            : simdSet(simdRegistersNumber) {
+            : simdSet(simdRegistersNumber)
+            , simdRegistersNumber{simdRegistersNumber} {
         checkUniqueAndUpdate();
         generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RSP));
         generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RAX));
@@ -201,7 +229,8 @@ protected:
     }
 
     RegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude, int simdRegistersNumber)
-            : simdSet(simdRegistersNumber) {
+            : simdSet(simdRegistersNumber)
+            , simdRegistersNumber{simdRegistersNumber} {
         checkUniqueAndUpdate();
         for (auto& reg : regsToExclude) {
             if (reg.isXMM() || reg.isYMM() || reg.isZMM()) {
@@ -256,11 +285,13 @@ private:
 
     PhysicalSet generalSet {16};
     PhysicalSet simdSet;
+    int simdRegistersNumber;
 };
 
 template <x64::cpu_isa_t isa>
 class IsaRegistersPool : public RegistersPool {
 public:
+    IsaRegistersPool() : RegistersPool(x64::cpu_isa_traits<isa>::n_vregs) {}
     IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude) : RegistersPool(regsToExclude, x64::cpu_isa_traits<isa>::n_vregs) {}
 };
 
@@ -315,6 +346,34 @@ public:
 template <x64::cpu_isa_t isa>
 RegistersPool::Ptr RegistersPool::create(std::initializer_list<Xbyak::Reg> regsToExclude) {
     return std::make_shared<IsaRegistersPool<isa>>(regsToExclude);
+}
+
+inline
+RegistersPool::Ptr RegistersPool::create(x64::cpu_isa_t isa) {
+#define ISA_SWITCH_CASE(isa) case isa: return std::make_shared<IsaRegistersPool<isa>>();
+    switch (isa) {
+        ISA_SWITCH_CASE(x64::sse41)
+        ISA_SWITCH_CASE(x64::avx)
+        ISA_SWITCH_CASE(x64::avx2)
+        ISA_SWITCH_CASE(x64::avx2_vnni)
+        ISA_SWITCH_CASE(x64::avx512_core)
+        ISA_SWITCH_CASE(x64::avx512_core_vnni)
+        ISA_SWITCH_CASE(x64::avx512_core_bf16)
+        case x64::avx_vnni: return std::make_shared<IsaRegistersPool<x64::avx>>();
+        case x64::avx512_core_bf16_ymm: return std::make_shared<IsaRegistersPool<x64::avx512_core>>();
+        case x64::avx512_core_bf16_amx_int8: return std::make_shared<IsaRegistersPool<x64::avx512_core>>();
+        case x64::avx512_core_bf16_amx_bf16: return std::make_shared<IsaRegistersPool<x64::avx512_core>>();
+        case x64::avx512_core_amx: return std::make_shared<IsaRegistersPool<x64::avx512_core>>();
+        case x64::avx512_vpopcnt: return std::make_shared<IsaRegistersPool<x64::avx512_core>>();
+        case x64::isa_any:
+        case x64::amx_tile:
+        case x64::amx_int8:
+        case x64::amx_bf16:
+        case x64::isa_all:
+            IE_THROW() << "Invalid isa argument in RegistersPool::create()";
+    }
+    IE_THROW() << "Invalid isa argument in RegistersPool::create()";
+#undef ISA_SWITCH_CASE
 }
 
 inline

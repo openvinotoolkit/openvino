@@ -4,8 +4,10 @@
 
 #pragma once
 
-#include "cpu/x64/jit_generator.hpp"
+#include "jit_base.hpp"
+#include "emitters/jit_emitter.hpp"
 #include "registers_pool.hpp"
+#include "stack_allocator.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -14,53 +16,29 @@ namespace intel_cpu {
 #define getVmm()   RegistersPool::Reg<Vmm>(registersPool)
 #define getMask()  RegistersPool::Reg<Vmask>(registersPool)
 
-class JitKernelBase: public dnnl::impl::cpu::x64::jit_generator {
+class jit_kernel_base: public jit_base {
 public:
-    JitKernelBase(const char* name) : dnnl::impl::cpu::x64::jit_generator(name) {}
+    jit_kernel_base(const char* name, x64::cpu_isa_t max_cpu_isa)
+        : jit_base(name, max_cpu_isa) {}
 
-    void uni_vfmsub132ps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op);
+    void generate() override;
+    virtual void generate_impl() = 0;
 
-    void uni_vfnmadd132ps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op);
+    void emu_vgatherdps(const Xbyak::Xmm& xmm_val,
+                        const Xbyak::Reg64& reg_addr,
+                        const Xbyak::Xmm& xmm_index,
+                        const int& scale,
+                        const int& disp,
+                        const Xbyak::Reg& reg_mask,
+                        const bool is_mask_seq = true);
 
-    void uni_vfmsub231ps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op);
-
-    void uni_vpaddd(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op) {
-        jit_generator::uni_vpaddd(vDst, vSrc, op);
-    }
-
-    void uni_vpaddd(const Xbyak::Ymm& vDst, const Xbyak::Ymm& vSrc, const Xbyak::Operand& op);
-
-    void uni_vpsubd(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op) {
-        jit_generator::uni_vpsubd(vDst, vSrc, op);
-    }
-
-    void uni_vpsubd(const Xbyak::Ymm& vDst, const Xbyak::Ymm& vSrc, const Xbyak::Operand& op);
-
-    void uni_vdivps(const Xbyak::Xmm& vDst, const Xbyak::Operand& op1, const Xbyak::Operand& op2);
-
-    void uni_vandps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrs, const Xbyak::Operand &op);
-
-    void uni_vandnps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrs, const Xbyak::Operand &op);
-
-    void uni_kmovd(const Xbyak::Opmask& kDst, const Xbyak::Opmask& kSrc) {
-        kmovd(kDst, kSrc);
-    }
-
-    void uni_kmovd(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc) {
-        uni_vmovups(vDst, vSrc);
-    }
-
-    void uni_kandd(const Xbyak::Opmask& kDst, const Xbyak::Opmask& kSrc1, const Xbyak::Opmask& kSrc2) {
-        kandd(kDst, kSrc1, kSrc2);
-    }
-
-    void uni_kandd(const Xbyak::Xmm& kDst, const Xbyak::Xmm& kSrc1, const Xbyak::Xmm& kSrc2) {
-        uni_vandps(kDst, kSrc1, kSrc2);
-    }
-
-    void uni_vpbroadcastd(const Xbyak::Xmm &x, const Xbyak::Operand &op);
-
-    void uni_vpbroadcastd(const Xbyak::Ymm &x, const Xbyak::Operand &op);
+    void emu_vscatterdps(const Xbyak::Reg64& reg_addr,
+                         const Xbyak::Xmm& xmm_index,
+                         const int scale,
+                         const int disp,
+                         const Xbyak::Xmm& xmm_val,
+                         const Xbyak::Reg& reg_mask,
+                         const bool is_mask_seq = true);
 
     void gatherdd(const Xbyak::Xmm&    vDst,
                   const Xbyak::Reg64&  rSrcPtr,
@@ -87,28 +65,6 @@ public:
                           const Xbyak::Zmm& zAux,
                           const Xbyak::Reg64& rWorkRest);
 
-    void load(const Xbyak::Xmm&     vDst,
-              const Xbyak::Address& srcAddr,
-              const Xbyak::Reg64&   rLoadNum,
-              const size_t          typeSize,
-              const bool zeroFill = false);
-
-    void load(const Xbyak::Ymm&     vDst,
-              const Xbyak::Address& srcAddr,
-              const Xbyak::Reg64&   rLoadNum,
-              const size_t          typeSize,
-              const bool zeroFill = false);
-
-    void store(const Xbyak::Address& dstAddr,
-               const Xbyak::Xmm&     vSrc,
-               const Xbyak::Reg64&   rToStoreNum,
-               const size_t          typeSize);
-
-    void store(const Xbyak::Address& dstAddr,
-               const Xbyak::Ymm&     vSrc,
-               const Xbyak::Reg64&   rToStoreNum,
-               const size_t          typeSize);
-
     // Makes gather from memory under the vReadMask and writes to the memory m128.
     void memMovDD(const Xbyak::Reg64& rDst,
                   const Xbyak::Reg64& rSrc,
@@ -128,11 +84,12 @@ public:
                   const bool zeroFill = false);
 
 protected:
-    inline bool isValidIsa(dnnl::impl::cpu::x64::cpu_isa_t isa) {
-        return is_subset(isa, dnnl::impl::cpu::x64::isa_all) && dnnl::impl::cpu::x64::mayiuse(isa);
-    }
+    virtual void createRegistersPool();
+    virtual void createStackAllocator();
 
     RegistersPool::Ptr registersPool;
+    std::unique_ptr<StackAllocator> stackAllocator;
+    std::unordered_map<std::string, std::shared_ptr<jit_emitter>> emittersMap;
 };
 
 } // namespace intel_cpu
