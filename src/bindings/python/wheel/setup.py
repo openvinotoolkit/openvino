@@ -263,7 +263,9 @@ class PrepareLibs(build_clib):
                 install_dir = os.path.join(install_prefix, install_dir)
                 self.announce(f"Installing {comp}", level=3)
                 self.spawn(["cmake", "--install", binary_dir,
-                                     "--install-prefix", install_prefix,
+                                     "--prefix", install_prefix,
+                                     "--config", "Release",
+                                     "--strip",
                                      "--component", comp_data.get("name")])
             # set rpath if applicable
             if sys.platform != "win32" and comp_data.get("rpath"):
