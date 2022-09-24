@@ -977,19 +977,22 @@ std::shared_ptr<ov::Model> ov::Model::clone() const {
 }
 
 const ov::AnyMap& ov::Model::get_map_from_attr(const ov::Any& info, const std::string& name) const {
+    // lock to get meta from different threads in order to avoid thread safety
+    // implementations of meta information for each frontend
+    std::lock_guard<mutex> lock(m_model_mutex);
     if (info.is<ov::AnyMap>()) {
         return info.as<ov::AnyMap>();
     } else if (info.is<std::shared_ptr<ov::Meta>>()) {
         std::shared_ptr<ov::Meta> meta = info.as<std::shared_ptr<ov::Meta>>();
-        // lock to get meta from different threads in order to avoid thread safety
-        // implementations of meta information for each frontend
-        std::lock_guard<mutex> lock(m_model_mutex);
         return *info.as<std::shared_ptr<ov::Meta>>();
     }
     throw ov::Exception("Cannot get rt attribute. Keys are incorrect.");
 }
 
 ov::AnyMap& ov::Model::get_map_from_attr(ov::Any& info, const std::string& name) const {
+    // lock to get meta from different threads in order to avoid thread safety
+    // implementations of meta information for each frontend
+    std::lock_guard<mutex> lock(m_model_mutex);
     if (info.empty()) {
         info = ov::AnyMap();
     }
@@ -997,9 +1000,6 @@ ov::AnyMap& ov::Model::get_map_from_attr(ov::Any& info, const std::string& name)
         return info.as<ov::AnyMap>();
     } else if (info.is<std::shared_ptr<ov::Meta>>()) {
         std::shared_ptr<ov::Meta> meta = info.as<std::shared_ptr<ov::Meta>>();
-        // lock to get meta from different threads in order to avoid thread safety
-        // implementations of meta information for each frontend
-        std::lock_guard<mutex> lock(m_model_mutex);
         return *info.as<std::shared_ptr<ov::Meta>>();
     }
     throw ov::Exception("Cannot get rt attribute. Keys are incorrect.");
