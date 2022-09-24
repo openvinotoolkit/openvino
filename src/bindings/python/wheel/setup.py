@@ -220,13 +220,15 @@ class CustomBuild(build):
             # set path to the root of OpenVINO CMakeList file
             openvino_root_dir = Path(__file__).resolve().parents[4]
             self.announce(f"Configuring cmake project: {openvino_root_dir}", level=3)
-            self.spawn(["cmake", "-H" + str(openvino_root_dir), "-B" + self.build_temp,
-                        "-DCMAKE_BUILD_TYPE={type}".format(type=self.config),
-                        "-DENABLE_PYTHON=ON"])
+            self.spawn(["cmake", "-S" + str(openvino_root_dir),
+                                 "-B" + self.build_temp,
+                                 "-DCMAKE_BUILD_TYPE={type}".format(type=self.config),
+                                 "-DENABLE_PYTHON=ON"])
 
             self.announce("Building binaries", level=3)
             self.spawn(["cmake", "--build", self.build_temp,
-                        "--config", self.config, "-j", str(self.jobs)])
+                                 "--config", self.config,
+                                 "-j", str(self.jobs)])
             OPENVINO_BUILD_DIR = self.build_temp
         self.run_command("build_clib")
 
@@ -260,7 +262,9 @@ class PrepareLibs(build_clib):
             if install_dir and not os.path.isabs(install_dir):
                 install_dir = os.path.join(install_prefix, install_dir)
                 self.announce(f"Installing {comp}", level=3)
-                self.spawn(["cmake", "--install", binary_dir, "--prefix", install_prefix, "--component", comp_data.get("name")])
+                self.spawn(["cmake", "--install", binary_dir,
+                                     "--install-prefix", install_prefix,
+                                     "--component", comp_data.get("name")])
             # set rpath if applicable
             if sys.platform != "win32" and comp_data.get("rpath"):
                 for path in filter(
