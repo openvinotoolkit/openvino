@@ -8,7 +8,6 @@ endif()
 
 ov_add_frontend(NAME tensorflow
                 ${linkable_frontend}
-                SHUTDOWN_PROTOBUF
                 FILEDESCRIPTION "FrontEnd to load and convert TensorFlow file format"
                 LINK_LIBRARIES openvino::util openvino::runtime::dev)
 

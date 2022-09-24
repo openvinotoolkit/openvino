@@ -4,7 +4,6 @@
 
 ov_add_frontend(NAME onnx
                 LINKABLE_FRONTEND
-                SHUTDOWN_PROTOBUF
                 PROTOBUF_LITE
                 SKIP_NCC_STYLE
                 FILEDESCRIPTION "FrontEnd to load and convert ONNX file format"
