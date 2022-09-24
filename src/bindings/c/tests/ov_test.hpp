@@ -7,6 +7,7 @@
 
 #include <condition_variable>
 #include <fstream>
+#include <openvino/util/file_util.hpp>
 
 #include "openvino/c/openvino.h"
 #include "openvino/openvino.hpp"
@@ -36,15 +37,6 @@ extern const char* plugins_xml;
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 #    define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    include <wchar.h>
-#endif
-
-#ifdef _WIN32
-#    include <windows.h>
-#else
-#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#        include <codecvt>
-#        include <locale>
-#    endif
 #endif
 
 extern std::map<ov_element_type_e, size_t> element_type_size_map;
@@ -78,32 +70,6 @@ inline static std::vector<uint8_t> content_from_file(const char* filename, bool 
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 extern const std::vector<std::wstring> test_unicode_postfix_vector;
-inline std::string wstring_to_string(const std::wstring& wstr) {
-#    ifdef _WIN32
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
-    std::string strTo(size_needed, 0);
-    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
-    return strTo;
-#    else
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_decoder;
-    return wstring_decoder.to_bytes(wstr);
-#    endif
-}
-
-inline std::wstring string_to_wstring(const std::string& string) {
-    const char* str = string.c_str();
-#    ifdef _WIN32
-    int strSize = static_cast<int>(std::strlen(str));
-    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
-    std::wstring wstrTo(size_needed, 0);
-    MultiByteToWideChar(CP_UTF8, 0, str, strSize, &wstrTo[0], size_needed);
-    return wstrTo;
-#    else
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_encoder;
-    std::wstring result = wstring_encoder.from_bytes(str);
-    return result;
-#    endif
-}
 
 inline void fix_slashes(std::string& str) {
     std::replace(str.begin(), str.end(), '/', '\\');
@@ -116,7 +82,7 @@ inline void fix_slashes(std::wstring& str) {
 inline bool copy_file(std::string source_path, std::wstring dest_path) {
 #    ifndef _WIN32
     std::ifstream source(source_path, std::ios::binary);
-    std::ofstream dest(wstring_to_string(dest_path), std::ios::binary);
+    std::ofstream dest(ov::util::wstring_to_string(dest_path), std::ios::binary);
 #    else
     fix_slashes(source_path);
     fix_slashes(dest_path);
@@ -136,7 +102,7 @@ inline bool copy_file(std::string source_path, std::wstring dest_path) {
 
 inline std::wstring add_unicode_postfix_to_path(std::string source_path, std::wstring postfix) {
     fix_slashes(source_path);
-    auto result = string_to_wstring(source_path);
+    auto result = ov::util::string_to_wstring(source_path);
     auto extPos = result.rfind('.');
     auto extension = result.substr(extPos, result.size());
     auto file_name = result.substr(0, extPos);
@@ -150,7 +116,7 @@ inline void remove_file_ws(std::wstring path) {
 #    ifdef _WIN32
         result = _wremove(path.c_str());
 #    else
-        result = remove(wstring_to_string(path).c_str());
+        result = remove(ov::util::wstring_to_string(path).c_str());
 #    endif
     }
     (void)result;

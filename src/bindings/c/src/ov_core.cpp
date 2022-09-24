@@ -5,18 +5,10 @@
 
 #include <stdarg.h>
 
+#include <openvino/util/file_util.hpp>
 #include <string>
 
 #include "common.h"
-
-#ifdef _WIN32
-#    include <windows.h>
-#else
-#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#        include <codecvt>
-#        include <locale>
-#    endif
-#endif
 
 char* str_to_char_array(const std::string& str) {
     std::unique_ptr<char> _char_array(new char[str.length() + 1]);
@@ -331,25 +323,13 @@ void ov_core_versions_free(ov_core_version_list_t* versions) {
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-inline std::string wstring_to_string(const std::wstring& wstr) {
-#    ifdef _WIN32
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
-    std::string strTo(size_needed, 0);
-    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
-    return strTo;
-#    else
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_decoder;
-    return wstring_decoder.to_bytes(wstr);
-#    endif
-}
-
 ov_status_e ov_core_create_with_config_unicode(const wchar_t* xml_config_file_ws, ov_core_t** core) {
     if (!core || !xml_config_file_ws) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
-        std::string xml_config_file = wstring_to_string(std::wstring(xml_config_file_ws));
+        std::string xml_config_file = ov::util::wstring_to_string(std::wstring(xml_config_file_ws));
         std::unique_ptr<ov_core_t> _core(new ov_core_t);
         _core->object = std::make_shared<ov::Core>(xml_config_file);
         *core = _core.release();
@@ -390,7 +370,7 @@ ov_status_e ov_core_compile_model_from_file_unicode(const ov_core_t* core,
     }
 
     try {
-        std::string model_path = wstring_to_string(std::wstring(model_path_ws));
+        std::string model_path = ov::util::wstring_to_string(std::wstring(model_path_ws));
         ov::AnyMap property = {};
         size_t property_size = property_args_size / 2;
         va_list args_ptr;
