@@ -9,8 +9,10 @@
 #include "visibility.hpp"
 
 ////////////////////////////////
+
 namespace ov {
 namespace frontend {
+
 struct MOCK_API PlaceStat {
     int m_get_names = 0;
     int m_get_consuming_operations = 0;
