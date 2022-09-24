@@ -1006,11 +1006,11 @@ ov::AnyMap& ov::Model::get_map_from_attr(ov::Any& info, const std::string& name)
 }
 
 const ov::Any& ov::Model::get_attr(const ov::Any& info) const {
+    // lock to get meta from different threads in order to avoid thread safety
+    // implementations of meta information for each frontend
+    std::lock_guard<mutex> lock(m_model_mutex);
     if (info.is<std::shared_ptr<ov::Meta>>()) {
         std::shared_ptr<ov::Meta> meta = info.as<std::shared_ptr<ov::Meta>>();
-        // lock to get meta from different threads in order to avoid thread safety
-        // implementations of meta information for each frontend
-        std::lock_guard<mutex> lock(m_model_mutex);
         ov::AnyMap& map = *info.as<std::shared_ptr<ov::Meta>>();
         const_cast<ov::Any&>(info) = map;
     }
@@ -1018,14 +1018,14 @@ const ov::Any& ov::Model::get_attr(const ov::Any& info) const {
 }
 
 ov::Any& ov::Model::get_attr(ov::Any& info) const {
+    // lock to get meta from different threads in order to avoid thread safety
+    // implementations of meta information for each frontend
+    std::lock_guard<mutex> lock(m_model_mutex);
     if (info.empty()) {
         info = ov::AnyMap();
     }
     if (info.is<std::shared_ptr<ov::Meta>>()) {
         std::shared_ptr<ov::Meta> meta = info.as<std::shared_ptr<ov::Meta>>();
-        // lock to get meta from different threads in order to avoid thread safety
-        // implementations of meta information for each frontend
-        std::lock_guard<mutex> lock(m_model_mutex);
         ov::AnyMap map = *info.as<std::shared_ptr<ov::Meta>>();
         info = map;
     }
