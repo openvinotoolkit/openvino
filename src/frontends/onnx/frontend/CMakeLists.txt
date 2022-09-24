@@ -21,5 +21,4 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}/ngraph/frontend
-        COMPONENT ${OV_CPACK_COMP_CORE_DEV}
-        FILES_MATCHING PATTERN "*.hpp")
+        COMPONENT ${OV_CPACK_COMP_CORE_DEV})

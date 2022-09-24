@@ -106,22 +106,27 @@ macro(ov_add_frontend)
     list(APPEND FRONTEND_NAMES ${OV_FRONTEND_NAME})
     set(FRONTEND_NAMES "${FRONTEND_NAMES}" CACHE INTERNAL "" FORCE)
 
-    file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+    set(frontend_root_dir "${CMAKE_CURRENT_SOURCE_DIR}")
+    if(frontend_root_dir MATCHES ".*src$")
+        get_filename_component(frontend_root_dir "${frontend_root_dir}" DIRECTORY)
+    endif()
+
+    file(GLOB_RECURSE LIBRARY_SRC ${frontend_root_dir}/src/*.cpp)
     if (WIN32)
         # Remove linux specific files
-        file(GLOB_RECURSE LIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp
-                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
+        file(GLOB_RECURSE LIN_FILES ${frontend_root_dir}/src/os/lin/*.cpp
+                                    ${frontend_root_dir}/src/os/lin/*.hpp)
         list(REMOVE_ITEM LIBRARY_SRC "${LIN_FILES}")
     else()
         # Remove windows specific files
-        file(GLOB_RECURSE WIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.cpp
-                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp)
+        file(GLOB_RECURSE WIN_FILES ${frontend_root_dir}/src/os/win/*.cpp
+                                    ${frontend_root_dir}/src/os/win/*.hpp)
         list(REMOVE_ITEM LIBRARY_SRC "${WIN_FILES}")
     endif()
-    file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
-    file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
+    file(GLOB_RECURSE LIBRARY_HEADERS ${frontend_root_dir}/src/*.hpp)
+    file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${frontend_root_dir}/include/*.hpp)
 
-    set(${TARGET_NAME}_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    set(${TARGET_NAME}_INCLUDE_DIR ${frontend_root_dir}/include)
 
     # Create named folders for the sources within the .vcproj
     # Empty name lists them directly under the .vcproj
@@ -131,7 +136,7 @@ macro(ov_add_frontend)
     source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 
     # Generate protobuf file on build time for each '.proto' file in src/proto
-    file(GLOB proto_files ${CMAKE_CURRENT_SOURCE_DIR}/src/proto/*.proto)
+    file(GLOB proto_files ${frontend_root_dir}/src/proto/*.proto)
 
     foreach(INFILE IN LISTS proto_files)
         get_filename_component(FILE_DIR ${INFILE} DIRECTORY)
@@ -181,7 +186,7 @@ macro(ov_add_frontend)
         # frontend's CMakeLists.txt must define its own custom 'ov_ncc_naming_style' step
     else()
         ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                            SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                            SOURCE_DIRECTORY "${frontend_root_dir}/include"
                             ADDITIONAL_INCLUDE_DIRECTORIES
                                 $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()
@@ -190,7 +195,7 @@ macro(ov_add_frontend)
             PUBLIC
                 $<BUILD_INTERFACE:${${TARGET_NAME}_INCLUDE_DIR}>
             PRIVATE
-                ${CMAKE_CURRENT_SOURCE_DIR}/src
+                ${frontend_root_dir}/src
                 ${CMAKE_CURRENT_BINARY_DIR})
 
     ie_add_vs_version_file(NAME ${TARGET_NAME}
