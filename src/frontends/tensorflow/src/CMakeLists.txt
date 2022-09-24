@@ -18,3 +18,18 @@ set_target_properties(${target_name} PROPERTIES OUTPUT_NAME openvino_tensorflow_
 if(NOT TARGET openvino::frontend::tensorflow)
     add_library(openvino::frontend::tensorflow ALIAS ${target_name})
 endif()
+
+# add object library used in tests for private transformations
+
+add_library(openvino_tensorflow_frontend_static_tests STATIC EXCLUDE_FROM_ALL
+    helper_transforms/embedding_segments_feature_fusing.cpp
+    pass/transpose_sinking.cpp
+    openvino_conversions.cpp
+    utils.cpp)
+
+target_include_directories(openvino_tensorflow_frontend_static_tests
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    PRIVATE
+        $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:openvino::frontend::tensorflow,INTERFACE_INCLUDE_DIRECTORIES>)
