@@ -6,8 +6,8 @@
 
 #include "graph_iterator_proto.hpp"
 #include "helper_transforms/block_lstm_replacer.hpp"
-#include "helper_transforms/gru_block_cell_replacer.hpp"
 #include "helper_transforms/embedding_segments_feature_fusing.hpp"
+#include "helper_transforms/gru_block_cell_replacer.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
