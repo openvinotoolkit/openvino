@@ -22,6 +22,7 @@ endif()
 # add object library used in tests for private transformations
 
 add_library(openvino_tensorflow_frontend_static_tests STATIC EXCLUDE_FROM_ALL
+    helper_transforms/block_lstm_replacer.cpp
     helper_transforms/embedding_segments_feature_fusing.cpp
     pass/transpose_sinking.cpp
     openvino_conversions.cpp

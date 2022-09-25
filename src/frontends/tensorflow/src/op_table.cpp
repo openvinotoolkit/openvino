@@ -28,6 +28,7 @@ OP_CONVERTER(translate_avg_pool_op);
 OP_CONVERTER(translate_batch_mat_mul_op);
 OP_CONVERTER(translate_batch_nd_and_space_nd_op);
 OP_CONVERTER(translate_bias_add_op);
+OP_CONVERTER(translate_block_lstm_op);
 OP_CONVERTER(translate_broadcast_args_op);
 OP_CONVERTER(translate_broadcast_to_op);
 OP_CONVERTER(translate_bucketize_op);
@@ -297,6 +298,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ZerosLike", translate_zeros_like_op},
 
         // Translators for internal operations
+        {"BlockLSTM", translate_block_lstm_op},
         {"SparseFillEmptyRows", translate_sparse_fill_empty_rows_op},
         {"SparseSegmentSum", translate_sparse_segment_sum_op},
         {"Unique", translate_unique_op},
