@@ -76,7 +76,7 @@ function(ov_download_tbb)
     if(_ov_download_tbb_done OR NOT THREADING MATCHES "^(TBB|TBB_AUTO)$")
         return()
     endif()
-    set(_ov_download_tbb_done ON CACHE BOOL "Whether prebuilt TBB is already downloaded")
+    set(_ov_download_tbb_done ON CACHE INTERNAL "Whether prebuilt TBB is already downloaded")
 
     reset_deps_cache(TBBROOT TBB_DIR)
 
@@ -154,7 +154,7 @@ function(ov_download_tbbbind_2_5)
     if(_ov_download_tbbbind_2_5_done OR NOT ENABLE_TBBBIND_2_5)
         return()
     endif()
-    set(_ov_download_tbbbind_2_5_done ON CACHE BOOL "Whether prebuilt TBBBind_2_5 is already downloaded")
+    set(_ov_download_tbbbind_2_5_done ON CACHE INTERNAL "Whether prebuilt TBBBind_2_5 is already downloaded")
 
     reset_deps_cache(TBBBIND_2_5_ROOT TBBBIND_2_5_DIR)
 

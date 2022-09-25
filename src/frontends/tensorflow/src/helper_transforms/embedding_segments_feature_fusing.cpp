@@ -10,7 +10,6 @@
 #include "helper_ops/sparse_fill_empty_rows.hpp"
 #include "helper_ops/sparse_segment_ops.hpp"
 #include "helper_ops/unique.hpp"
-#include "ngraph/rt_info.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"

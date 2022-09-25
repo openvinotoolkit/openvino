@@ -8,9 +8,7 @@
 #include <vector>
 
 #include "helper_ops/internal_operation.hpp"
-#include "op_table.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
-#include "tf_framework_node.hpp"
 
 namespace ov {
 namespace frontend {

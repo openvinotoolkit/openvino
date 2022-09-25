@@ -2,14 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "tensorflow_tests")
+set(TARGET_NAME "ov_tensorflow_frontend_tests")
 
 file(GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 add_executable(${TARGET_NAME} ${SRC})
 
 target_link_libraries(${TARGET_NAME} PRIVATE
-        gtest_main_manifest frontend_shared_test_classes openvino_tensorflow_frontend openvino::runtime)
+        gtest_main_manifest frontend_shared_test_classes openvino_tensorflow_frontend
+        openvino_tensorflow_frontend_static_tests)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
@@ -67,10 +68,38 @@ else()
 endif()
 
 add_dependencies(${TARGET_NAME} tensorflow_test_models)
-add_dependencies(${TARGET_NAME} openvino_tensorflow_frontend)
 
 get_target_property(TENSORFLOW_FRONTEND_SRC_DIR openvino_tensorflow_frontend SOURCE_DIR)
-target_include_directories(${TARGET_NAME} PRIVATE ${TENSORFLOW_FRONTEND_SRC_DIR}/src/pass/)
 
 add_subdirectory(standalone_build)
 add_dependencies(${TARGET_NAME} tensorflow_fe_standalone_build_test)
+
+#
+# Install TensorFlow frontend for tests reasons
+#
+
+function(ov_frontend_get_file_name target_name library_name)
+    set(LIB_PREFIX "${CMAKE_SHARED_LIBRARY_PREFIX}")
+
+    set(LIB_SUFFIX "${IE_BUILD_POSTFIX}")
+    if(APPLE)
+        set(LIB_SUFFIX "${LIB_SUFFIX}${OpenVINO_VERSION_SUFFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    else()
+        set(LIB_SUFFIX "${LIB_SUFFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}${OpenVINO_VERSION_SUFFIX}")
+    endif()
+
+    set("${library_name}" "${LIB_PREFIX}${target_name}${LIB_SUFFIX}" PARENT_SCOPE)
+endfunction()
+
+set(target_name "${FRONTEND_NAME_PREFIX}tensorflow${FRONTEND_NAME_SUFFIX}")
+ov_frontend_get_file_name(${target_name} output_name)
+
+# install with original name for tests component
+install(FILES $<TARGET_FILE:${target_name}>
+        DESTINATION tests
+        COMPONENT tests
+        RENAME ${output_name}
+        EXCLUDE_FROM_ALL)
+
+install(TARGETS ${target_name}
+        LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)

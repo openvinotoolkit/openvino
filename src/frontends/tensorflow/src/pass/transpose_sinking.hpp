@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "openvino/frontend/tensorflow/visibility.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov {
@@ -12,7 +11,7 @@ namespace frontend {
 namespace tensorflow {
 namespace pass {
 
-class TENSORFLOW_API TransposeSinking : public ov::pass::ModelPass {
+class TransposeSinking : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("ov::frontend::tensorflow::pass::TransposeSinking");
     TransposeSinking() {
