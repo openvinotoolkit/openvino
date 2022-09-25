@@ -4,8 +4,6 @@
 
 #include "op_table.hpp"
 
-#include "openvino/opsets/opset9.hpp"
-
 using namespace std;
 using namespace ov;
 using namespace ov::frontend::tensorflow;
@@ -148,7 +146,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Sinh", translate_unary_op<opset8::Sinh>},
         {"Sign", translate_unary_op<opset8::Sign>},
         {"Softplus", translate_unary_op<opset8::SoftPlus>},
-        {"Softsign", translate_unary_op<opset9::SoftSign>},
         {"Tan", translate_unary_op<opset8::Tan>},
         {"Tanh", translate_unary_op<opset8::Tanh>},
         {"Swish", translate_unary_op<opset8::Swish>},
