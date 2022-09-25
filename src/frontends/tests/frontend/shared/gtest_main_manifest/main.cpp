@@ -7,6 +7,8 @@
 #include "gtest/gtest.h"
 #include "utils.hpp"
 
+using namespace FrontEndTestUtils;
+
 static const std::string manifest{
 #ifdef MANIFEST
     MANIFEST
