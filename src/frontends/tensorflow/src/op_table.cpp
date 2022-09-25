@@ -4,8 +4,6 @@
 
 #include "op_table.hpp"
 
-#include "openvino/opsets/opset9.hpp"
-
 using namespace std;
 using namespace ov;
 using namespace ov::frontend::tensorflow;
@@ -58,6 +56,7 @@ OP_CONVERTER(translate_fused_batch_norm_op);
 OP_CONVERTER(translate_gather_op);
 OP_CONVERTER(translate_gather_v2_op);
 OP_CONVERTER(translate_gather_nd_op);
+OP_CONVERTER(translate_gru_block_cell_op);
 OP_CONVERTER(translate_identity_op);
 OP_CONVERTER(translate_identity_n_op);
 OP_CONVERTER(translate_interpolate_op);
@@ -148,7 +147,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Sinh", translate_unary_op<opset8::Sinh>},
         {"Sign", translate_unary_op<opset8::Sign>},
         {"Softplus", translate_unary_op<opset8::SoftPlus>},
-        {"Softsign", translate_unary_op<opset9::SoftSign>},
         {"Tan", translate_unary_op<opset8::Tan>},
         {"Tanh", translate_unary_op<opset8::Tanh>},
         {"Swish", translate_unary_op<opset8::Swish>},
@@ -302,6 +300,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
 
         // Translators for internal operations
         {"BlockLSTM", translate_block_lstm_op},
+        {"GRUBlockCell", translate_gru_block_cell_op},
         {"SparseFillEmptyRows", translate_sparse_fill_empty_rows_op},
         {"SparseSegmentSum", translate_sparse_segment_sum_op},
         {"Unique", translate_unique_op},
