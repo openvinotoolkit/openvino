@@ -23,15 +23,15 @@ using namespace frontend::tensorflow;
 using namespace frontend::tensorflow::pass;
 
 namespace {
-shared_ptr<Model> gen_model(size_t batch_size,
-                            size_t time_len,
-                            size_t hidden_size,
-                            size_t input_size,
+shared_ptr<Model> gen_model(Dimension batch_size,
+                            Dimension time_len,
+                            int64_t hidden_size,
+                            Dimension input_size,
                             float forget_bias,
                             float cell_clip,
                             bool use_peephole) {
     auto seq_len_max = make_shared<Parameter>(i64, Shape{});
-    auto x = make_shared<Parameter>(f32, Shape{time_len, batch_size, input_size});
+    auto x = make_shared<Parameter>(f32, PartialShape{time_len, batch_size, input_size});
     auto cs_prev = make_shared<Parameter>(f32, PartialShape::dynamic());
     auto h_prev = make_shared<Parameter>(f32, PartialShape::dynamic());
     auto w = make_shared<Parameter>(f32, PartialShape{Dimension::dynamic(), 4 * hidden_size});
@@ -47,13 +47,13 @@ shared_ptr<Model> gen_model(size_t batch_size,
                               ParameterVector{seq_len_max, x, cs_prev, h_prev, w, wci, wcf, wco, b});
 }
 
-shared_ptr<Model> gen_model_ref(size_t m_batch_size,
-                                size_t m_time_len,
-                                size_t m_hidden_size,
-                                size_t m_input_size,
+shared_ptr<Model> gen_model_ref(Dimension m_batch_size,
+                                Dimension m_time_len,
+                                int64_t m_hidden_size,
+                                Dimension m_input_size,
                                 float forget_bias) {
     auto seq_len_max = make_shared<Parameter>(i64, Shape{});
-    auto x = make_shared<Parameter>(f32, Shape{m_time_len, m_batch_size, m_input_size});
+    auto x = make_shared<Parameter>(f32, PartialShape{m_time_len, m_batch_size, m_input_size});
     auto cs_prev = make_shared<Parameter>(f32, PartialShape::dynamic());
     auto h_prev = make_shared<Parameter>(f32, PartialShape::dynamic());
     auto weights = make_shared<Parameter>(f32, PartialShape{Dimension::dynamic(), 4 * m_hidden_size});
@@ -80,7 +80,7 @@ shared_ptr<Model> gen_model_ref(size_t m_batch_size,
                                                 ss_step,
                                                 std::vector<int64_t>{0},
                                                 std::vector<int64_t>{0});
-    auto hidden_size_const = make_shared<Constant>(element::i64, Shape{1}, std::vector<size_t>{m_hidden_size});
+    auto hidden_size_const = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{m_hidden_size});
 
     // adjust weights and bias
     // 1. reshape weights and bias to highlight channel dimension
