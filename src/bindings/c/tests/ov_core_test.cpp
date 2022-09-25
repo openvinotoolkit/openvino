@@ -189,8 +189,8 @@ TEST_P(ov_core, ov_core_set_property_invalid_number_property_arguments) {
 
     const char* key_1 = ov_property_key_inference_num_threads;
     const char* value_1 = "12";
-    const char* key_2 = ov_property_key_hint_performance_mode;
-    const char* value_2 = "LATENCY";
+    const char* key_2 = ov_property_key_num_streams;
+    const char* value_2 = "7";
 
     OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key_1, value_1, key_2, value_2));
     char* ret = nullptr;
