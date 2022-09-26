@@ -57,7 +57,7 @@ def parse_arguments():
     parser.add_argument("-m", "--models_path", help=models_path_help, type=str, required=False, default=".")
     parser.add_argument("-d", "--device", help= device_help, type=str, required=False, default="CPU")
     parser.add_argument("-ov", "--ov_binaries", help=ov_help, type=str, required=False, default=get_ov_path())
-    parser.add_argument("-w", "--working_dir", help=working_dir_help, type=str, required=False, default='.')
+    parser.add_argument("-w", "--working_dir", help=working_dir_help, type=str, required=False, default='temp')
     parser.add_argument("-t", "--type", help=type_help, type=str, required=False, default="OP")
     parser.add_argument("-s", "--dump_conformance", help=dump_conformance_help, type=bool, required=False, default=False)
 
@@ -105,7 +105,7 @@ class Conformance:
             f'pip3 install "{omz_tools_path}/.[paddle,pytorch,tensorflow]"; ' \
             f'omz_downloader --name=vgg16 --output_dir={original_model_path}; '\
             f'omz_converter --name=vgg16 --download_dir={original_model_path} --output_dir={converted_model_path}; '\
-            f'deactivate'
+            f'source .env3/bin/deactivate'
         process = Popen(command, shell=True)
         out, err = process.communicate()
         if err is None:
@@ -201,7 +201,7 @@ class Conformance:
 
         if dump_models:
             if self._model_path == ".":
-                self._model_path = self.download_and_convert_models()
+                self.download_and_convert_models()
             self.dump_subgraph()
         if not os.path.isdir(self._model_path):
             raise Exception(f"Directory {self._model_path} does not exist")
