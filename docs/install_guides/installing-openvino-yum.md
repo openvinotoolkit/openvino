@@ -1,4 +1,4 @@
-# Install OpenVINO™ Runtime for Linux Using YUM Repository
+# Install OpenVINO™ Runtime on Linux Using YUM Repository
 
 This guide provides installation steps for OpenVINO™ Runtime for Linux distributed through the YUM repository.
 
