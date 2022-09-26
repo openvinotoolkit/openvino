@@ -46,32 +46,31 @@ Below is a list of best practices that can be applied to improve accuracy withou
 1.  The first recommended option is to change the `preset` from `performance` to `mixed`. This enables asymmetric quantization of activations and can be helpful for models with non-ReLU activation functions, for example, YOLO, EfficientNet, etc.
 
 2.  The next option is `use_fast_bias`. Setting this option to `false` enables a different bias correction method which is more accurate, in general,and applied after model quantization as a part of the Default Quantization algorithm.
-
    > **NOTE**: Changing this option can substantially increase quantization time in the POT tool.
 
 3.  Some model architectures require a special approach when being quantized. For example, Transformer-based models need to keep some operations in the original precision to preserve accuracy. That is why POT provides a `model_type` option to specify the model architecture. Now, only `"transformer"` type is available. Use it to quantize Transformer-based models, e.g. BERT.
 
 4.  Another important option is a `range_estimator`. It defines how to calculate the minimum and maximum of quantization range for weights and activations. For example, the following `range_estimator` for activations can improve the accuracy for Faster R-CNN based networks:
 
-```python
-{
-    "name": "DefaultQuantization", 
-    "params": {
-        "preset": "performance", 
-        "stat_subset_size": 300  
-                                    
-
-        "activations": {                 # defines activation
-            "range_estimator": {         # defines how to estimate statistics 
-                "max": {                 # right border of the quantizating floating-point range
-                    "aggregator": "max", # use max(x) to aggregate statistics over calibration dataset
-                    "type": "abs_max"    # use abs(max(x)) to get per-sample statistics
-                }
-            }
-        }
-    }
-}
-```
+   ```python
+   {
+       "name": "DefaultQuantization", 
+       "params": {
+           "preset": "performance", 
+           "stat_subset_size": 300  
+                                       
+   
+           "activations": {                 # defines activation
+               "range_estimator": {         # defines how to estimate statistics 
+                   "max": {                 # right border of the quantizating floating-point range
+                       "aggregator": "max", # use max(x) to aggregate statistics over calibration dataset
+                       "type": "abs_max"    # use abs(max(x)) to get per-sample statistics
+                   }
+               }
+           }
+       }
+   }
+   ```
 
 5.  The next option is `stat_subset_size`. It controls the size of the calibration dataset used by POT to collect statistics for quantization parameters initialization. It is assumed that this dataset should contain a sufficient number of representative samples. Thus, varying this parameter may affect accuracy (higher is better). However, we empirically found that 300 samples are sufficient to get representative statistics in most cases.
 
