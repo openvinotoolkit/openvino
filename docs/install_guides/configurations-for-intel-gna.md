@@ -1,4 +1,4 @@
-# Configurations for Intel® Gaussian & Neural Accelerator (GNA) with OpenVINO™ Runtime {#openvino_docs_install_guides_configurations_for_intel_gna}
+# Configurations for Intel® Gaussian & Neural Accelerator (GNA) with OpenVINO™ {#openvino_docs_install_guides_configurations_for_intel_gna}
 
 This page introduces additional configurations for Intel® Gaussian & Neural Accelerator (GNA) with OpenVINO™ Runtime on Linux and Windows.
 
