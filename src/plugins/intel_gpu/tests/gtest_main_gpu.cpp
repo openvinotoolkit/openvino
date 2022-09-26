@@ -44,9 +44,9 @@ GTEST_API_ int main(int argc, char** argv) {
     GFLAGS_NAMESPACE::AllowCommandLineReparsing();
     gflags::ParseCommandLineFlags(&argc, &argv, false);
     if (FLAGS_device_id != -1)
-        cldnn::device_query::device_id=FLAGS_device_id;
+        cldnn::device_query::device_id = FLAGS_device_id;
 
-    //gtest
+    // gtest
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

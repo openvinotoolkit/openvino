@@ -59,6 +59,7 @@ addIeTarget(
                 openvino::util
                 openvino::runtime::dev
                 snippetsNgraphFunctions
+                gflags
         DEPENDENCIES
             ${DEPENDENCIES}
 )

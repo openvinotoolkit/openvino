@@ -4,7 +4,6 @@
 
 #include "gtest/gtest.h"
 #include "gflags/gflags.h"
-#include "../../src/plugins/intel_gpu/include/intel_gpu/runtime/device_query.hpp"
 
 #include "functional_test_utils/summary/environment.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"
@@ -19,7 +18,13 @@ int main(int argc, char *argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);
 
     if (FLAGS_device_id != -1) {
-        CommonTestUtils::DEVICE_GPU = "GPU.1";
+        char* str = new char[7]{};
+        if (FLAGS_device_id > 99) {
+            printf("Device id should not exceed 99.\n");
+            return 1;
+        }
+        snprintf(str, sizeof(str), "GPU.%d", FLAGS_device_id);
+        CommonTestUtils::DEVICE_GPU = str;
     }
 
     FuncTestUtils::SkipTestsConfig::disable_tests_skipping = false;
