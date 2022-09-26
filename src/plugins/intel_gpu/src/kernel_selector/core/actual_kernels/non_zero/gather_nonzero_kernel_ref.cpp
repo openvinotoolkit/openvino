@@ -46,8 +46,12 @@ KernelsData GatherNonzeroKernelRef::GetKernelsData(const Params& params, const o
     auto cldnn_jit = MakeBaseParamsJitConstants(newParams);
     cldnn_jit.AddConstant(MakeJitConstant("OV_INPUT_RANK", newParams.ov_input_rank));
     cldnn_jit.AddConstant(MakeJitConstant("TOTAL_DATA_SIZE", newParams.inputs[0].LogicalSize()));
-    if (newParams.inputs[0].LogicalSize() * newParams.ov_input_rank < (64*1024)/(newParams.outputs[0].ElementSize()))
+    auto local_mem_size = params.engineInfo.maxLocalMemSize / (newParams.outputs[0].ElementSize());
+    if (newParams.inputs[0].LogicalSize() * newParams.ov_input_rank < local_mem_size) {
+        cldnn_jit.AddConstant(MakeJitConstant("MAX_LOCAL_MEM_SIZE", local_mem_size));
         cldnn_jit.AddConstant(MakeJitConstant("USE_LOCAL_MEM", 1));
+    }
+
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];

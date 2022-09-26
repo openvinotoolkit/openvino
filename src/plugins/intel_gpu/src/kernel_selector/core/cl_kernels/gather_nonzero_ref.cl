@@ -16,10 +16,9 @@ KERNEL (gather_nonzero_ref)(const __global INPUT0_TYPE* input,
 {
     int local_offset = 0;
     const int result_size = OV_INPUT_RANK * OUTPUT_FEATURE_NUM; // output shape: [ov_rank, count_nonzero]
-    const int max_local_mem_size = (64*1024)/(sizeof(OUTPUT_TYPE));
 
 #ifdef USE_LOCAL_MEM
-    __local OUTPUT_TYPE out_mem[max_local_mem_size];
+    __local OUTPUT_TYPE out_mem[MAX_LOCAL_MEM_SIZE];
 #else
     __global OUTPUT_TYPE* out_mem = output;
 #endif
