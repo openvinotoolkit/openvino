@@ -42,7 +42,9 @@ extensions = [
     'cpplexer',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
-    'sphinx_sitemap'
+    'sphinx_sitemap',
+    'IPython.sphinxext.ipython_console_highlighting',
+    'IPython.sphinxext.ipython_directive'
 ]
 
 html_baseurl = 'https://docs.openvino.ai/latest/'
