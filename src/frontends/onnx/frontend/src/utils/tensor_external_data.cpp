@@ -55,10 +55,7 @@ std::string TensorExternalData::load_external_data(const std::string& model_dir)
         throw error::invalid_external_data{*this};
     }
 
-    uint64_t read_data_length = m_data_length;
-    if (m_data_length == 0) {  // read entire file
-        read_data_length = static_cast<uint64_t>(filesize) - m_offset;
-    }
+    uint64_t read_data_length = m_data_length > 0 ? m_data_length : static_cast<uint64_t>(filesize) - m_offset;
 
     // default value of m_offset is 0
     external_data_stream.seekg(m_offset, std::ios::beg);
