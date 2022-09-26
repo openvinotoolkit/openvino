@@ -38,7 +38,7 @@ OutputVector embed_layer_normalization(const Node& node) {
         input = std::make_shared<default_opset::Add>(input, gathered_position_embeddings);
     } else {
         // input_ids's shape is [batchsize, sequence_length]
-        // input'shape is [batchszie, sequence_length, hidden_size]
+        // input's shape is [batchsize, sequence_length, hidden_size]
         // position_embeddings's shape is [max_sequence_lenght, hidden_size]
         // output = input + position_embeddings,
         // after broadcast the shape of output is [batchszie, max_sequence_lenght, hidden_size]
