@@ -3,9 +3,9 @@
 //
 
 #include <ngraph/except.hpp>
-#include <openvino/opsets/opset.hpp>
 #include <openvino/op/abs.hpp>
 #include <openvino/op/constant.hpp>
+#include <openvino/opsets/opset.hpp>
 
 #include "gtest/gtest.h"
 
@@ -43,7 +43,7 @@ TEST(conditional_compilation, disabled_Constant_in_opset) {
     INSERT_OP(test_opset3, Abs, ov::op::v0);
     EXPECT_NE(opset.create("Abs"), nullptr);
     EXPECT_NE(opset.create_insensitive("Abs"), nullptr);
-#undef ov_opset_test_opset3_Abs    
+#undef ov_opset_test_opset3_Abs
 
     INSERT_OP(test_opset3, Constant, ov::op::v0);
     EXPECT_EQ(opset.create("Constant"), nullptr);

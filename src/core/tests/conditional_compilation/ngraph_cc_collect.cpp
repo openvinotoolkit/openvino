@@ -3,9 +3,9 @@
 //
 
 #include <ngraph/except.hpp>
-#include <openvino/opsets/opset.hpp>
 #include <openvino/op/abs.hpp>
 #include <openvino/op/constant.hpp>
+#include <openvino/opsets/opset.hpp>
 
 #include "gtest/gtest.h"
 

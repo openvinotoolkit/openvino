@@ -5,7 +5,6 @@
 #include "ngraph/opsets/opset.hpp"
 
 #include "../itt.hpp"
-
 #include "ngraph/log.hpp"
 #include "ngraph/ops.hpp"
 
