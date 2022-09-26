@@ -9,6 +9,7 @@ from shutil import copytree
 from summarize import create_summary
 from merge_xmls import merge_xml
 from pathlib import Path
+from sys import version
 
 import xml.etree.ElementTree as ET
 
@@ -28,12 +29,13 @@ API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
 OP_CONFORMANCE_BIN_NAME = "conformanceTests"
 SUBGRAPH_DUMPER_BIN_NAME = "subgraphsDumper"
 
-def get_ov_path():
+def get_ov_path(is_bin=True):
     ov_dir = None
     try:
         ov_dir = os.environ['INTEL_OPENVINO_DIR']
     except:
         ov_dir = os.path.abspath(os.getcwd())[:os.path.abspath(os.getcwd()).find(OPENVINO_NAME) + len(OPENVINO_NAME)]
+    if is_bin:
         ov_dir = os.path.join(ov_dir, 'bin')
         get_latest_dir = lambda path: sorted(Path(ov_dir).iterdir(), key=os.path.getmtime)[0]
         ov_dir = os.path.join(get_latest_dir(ov_dir))
@@ -90,14 +92,20 @@ class Conformance:
         original_model_path = os.path.join(self._working_dir, "original_models")
         converted_model_path = os.path.join(self._working_dir, "converted_models")
         converter_path = os.path.join(self._omz_path, "tools", "model_tools", 'converter.py')
-        mo_path = os.path.join("openvino", "tools", "mo", ".")
+        mo_path = os.path.join(get_ov_path(False), "tools", "mo", ".")
         logger.info(f"Model conversion from {original_model_path} to {converted_model_path} is started")
-        command = f'python3 -m venv .env3;'\
-            f'source .env3/bin/activate;'\
-            f'pip3 install -e "{mo_path}/.[caffe,kaldi,mxnet,onnx,pytorch,tensorflow2]";'\
-            f'pip3 install "{omz_tools_path}/.[paddle,pytorch,tensorflow]"'\
-            f'omz_converter --name=vgg16 --download_dir={original_model_path} --output_dir={converted_model_path};'\
-            f'deactivate;'
+        ov_python_path = os.path.join(self._ov_binaries, "python_api", f"python{version[0:3]}")
+
+        command = f'python3 -m venv .env3; '\
+            f'source .env3/bin/activate; '\
+            f'export OMZ_ROOT={self._omz_path}; ' \
+            f'export PYTHONPATH={ov_python_path}:{mo_path}; ' \
+            f'export LD_LIBRARY_PATH={self._ov_binaries}; ' \
+            f'pip3 install -e "{mo_path}/.[caffe,kaldi,mxnet,onnx,pytorch,tensorflow2]"; ' \
+            f'pip3 install "{omz_tools_path}/.[paddle,pytorch,tensorflow]"; ' \
+            f'omz_downloader --name=vgg16 --output_dir={original_model_path}; '\
+            f'omz_converter --name=vgg16 --download_dir={original_model_path} --output_dir={converted_model_path}; '\
+            f'deactivate'
         process = Popen(command, shell=True)
         out, err = process.communicate()
         if err is None:
@@ -107,12 +115,12 @@ class Conformance:
             logger.error(err)
             raise Exception("Process failed on step: 'Model conversion'")
         logger.info(f"Model conversion is successful. Converted models are saved to {converted_model_path}")
-        self._model_path = converted_model_path
+        return converted_model_path
 
     def download_and_convert_models(self):
         logger.info("Starting model downloading and conversion")
         self._omz_path = self.__download_repo(OMZ_REPO_URL, OMZ_REPO_BRANCH)
-        self._convert_models()
+        self._model_path = self._convert_models()
         logger.info("Model downloading and conversion is finished successful")
 
     def dump_subgraph(self):
