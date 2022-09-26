@@ -124,6 +124,8 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
 
     jitters[ngraph::snippets::op::Kernel::get_type_info_static()] = CREATE_EMITTER(KernelEmitter);
     jitters[ngraph::snippets::op::Tile::get_type_info_static()] = CREATE_EMITTER(TileEmitter);
+    jitters[ngraph::snippets::op::TileBegin::get_type_info_static()] = CREATE_EMITTER(TileBeginEmitter);
+    jitters[ngraph::snippets::op::TileEnd::get_type_info_static()] = CREATE_EMITTER(TileEndEmitter);
     jitters[ngraph::snippets::op::TileScheduler::get_type_info_static()] = CREATE_EMITTER(TileSchedulerEmitter);
 }
 

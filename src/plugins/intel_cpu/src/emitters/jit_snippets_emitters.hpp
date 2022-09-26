@@ -207,6 +207,8 @@ public:
                    const std::vector<size_t> &out,
                    const std::vector<size_t> &pool,
                    const std::vector<size_t> &gpr) const override;
+    // todo: why do we need it at all?
+    size_t get_inputs_num() const override {return 0;}
 
 private:
 //    void validate_arguments(const std::vector<size_t> &in,
@@ -219,7 +221,9 @@ private:
                    const std::vector<size_t>& gpr,
                    const ov::intel_cpu::emitter_context *emit_context) const override;
 
-    mutable const uint8_t** begin_address_ptr;
+//    mutable const uint8_t** begin_address_ptr;
+//    std::vector<size_t> &input_regs;
+    std::shared_ptr<ngraph::snippets::op::TileBegin> tileBegin;
     size_t num_inputs = 0;
     size_t num_outputs = 0;
     std::vector<size_t> io_dims {};
@@ -239,6 +243,8 @@ public:
                    const std::vector<size_t> &out,
                    const std::vector<size_t> &pool,
                    const std::vector<size_t> &gpr) const override;
+    // todo: why do we need it at all?
+    size_t get_inputs_num() const override {return 0;}
 
 private:
 //    void validate_arguments(const std::vector<size_t> &in,
@@ -250,8 +256,10 @@ private:
                    const std::vector<size_t>& pool,
                    const std::vector<size_t>& gpr,
                    const ov::intel_cpu::emitter_context *emit_context) const override;
-    const uint8_t** begin_address_ptr;
-    std::shared_ptr<ngraph::snippets::op::TileBegin> ti
+//    const uint8_t** begin_address_ptr;
+//    std::vector<size_t> &tile_begin_input_regs;
+    std::shared_ptr<ngraph::snippets::op::TileBegin> tileBegin;
+//    std::shared_ptr<ngraph::snippets::op::TileBegin> ti;
 
     size_t num_inputs = 0;
     size_t num_outputs = 0;

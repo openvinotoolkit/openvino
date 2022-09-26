@@ -68,9 +68,8 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs)  const override;
     const uint8_t** get_address_ptr() {return &begin_address;}
-    const std::vector<size_t>& get_input_regs() {return input_regs;}
-    std::vector<size_t> input_regs;
-private:
+    std::vector<size_t>& get_input_regs() {return input_regs;}
+//    std::vector<size_t> input_regs;
     const uint8_t* begin_address;
     std::vector<size_t> input_regs;
 };

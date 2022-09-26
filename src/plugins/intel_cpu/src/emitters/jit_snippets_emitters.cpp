@@ -632,18 +632,21 @@ void TileEmitter::emit_impl(const std::vector<size_t>& in,
 
 TileBeginEmitter::TileBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                          const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
-    const auto tileBegin = ov::as_type_ptr<ngraph::snippets::op::TileBegin>(n);
+    tileBegin = ov::as_type_ptr<ngraph::snippets::op::TileBegin>(n);
     if (!tileBegin)
         IE_THROW() << "TileBeginEmitter invoked with invalid op argument";
-    const auto tileEnd = ov::as_type_ptr<ngraph::snippets::op::TileEnd>(tileBegin->output(tileBegin->get_output_size() - 1).get_node_shared_ptr());
+    const auto& target_inputs = tileBegin->output(tileBegin->get_output_size() - 1).get_target_inputs();
     // todo: this check could be excessive, since we check for it in validate_and_infer_types()
+    if (target_inputs.size() != 1)
+        IE_THROW() << "TileBeginEmitter invoked with invalid op argument";
+    const auto tileEnd = ov::as_type_ptr<ngraph::snippets::op::TileEnd>(target_inputs.begin()->get_node()->shared_from_this());
     if (!tileEnd)
         IE_THROW() << "TileBeginEmitter invoked with invalid configuration: the last output must be TileEnd";
     num_inputs = tileBegin->get_input_size();
     num_outputs = tileEnd->get_output_size();
     increment = tileBegin->get_increment();
     work_amount = tileBegin->get_work_amount();
-    begin_address_ptr = tileBegin->get_address_ptr();
+    /*
     // todo: add checks on work_amount vs increment consistency + checks on work_amount vs max(last_dim) consistence
     //  probably better to implement them in Tile* constructors
     for (int i = 0; i < num_inputs; i++) {
@@ -673,6 +676,7 @@ TileBeginEmitter::TileBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl:
     }
     dynamic_increments.resize(dynamic_dims_idx.size());
     dynamic_broadcasting.resize(num_dynamic_inputs);
+    */
 }
 
 void TileBeginEmitter::emit_code(const std::vector<size_t> &in,
@@ -691,8 +695,11 @@ void TileBeginEmitter::emit_impl(const std::vector<size_t>& in,
     // todo: skip everything if work_amount == increment
     Label for_body;
     h->L(for_body);
-    (*begin_address_ptr) = for_body.getAddress();
-
+    tileBegin->begin_address = for_body.getAddress();
+    tileBegin->input_regs = in;
+    std::cerr << "TileBegin: \n";
+    for (auto i : tileBegin->input_regs)
+        std::cerr << i << "\n";
 }
 
 TileEndEmitter::TileEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
@@ -700,7 +707,7 @@ TileEndEmitter::TileEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::imp
     const auto tileEnd = ov::as_type_ptr<ngraph::snippets::op::TileEnd>(n);
     if (!tileEnd)
         IE_THROW() << "TileEndEmitter invoked with invalid op argument";
-    const auto tileBegin = ov::as_type_ptr<ngraph::snippets::op::TileBegin>(
+    tileBegin = ov::as_type_ptr<ngraph::snippets::op::TileBegin>(
             tileEnd->get_input_source_output(tileEnd->get_input_size() - 1).get_node_shared_ptr());
     // todo: this check could be excessive, since we check for it in validate_and_infer_types()
     if (!tileBegin)
@@ -709,8 +716,6 @@ TileEndEmitter::TileEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::imp
     num_outputs = tileEnd->get_output_size();
     increment = tileBegin->get_increment();
     work_amount = tileBegin->get_work_amount();
-    begin_address_ptr = tileBegin->get_address_ptr();
-    tileBegin->input_regs;
     /*
     // todo: add checks on work_amount vs increment consistency + checks on work_amount vs max(last_dim) consistence
     //  probably better to implement them in Tile* constructors
@@ -763,21 +768,23 @@ void TileEndEmitter::emit_impl(const std::vector<size_t>& in,
     transform_idxs_to_regs(data_ptr_reg_idxs, data_ptr_regs);
     Reg64 reg_work_amount = Reg64(static_cast<int>(in[0]));
     Reg64 reg_const_params;
+    std::cerr << "TileEnd: \n";
+    for (auto i : tileBegin->input_regs)
+        std::cerr << i << "\n";
     // todo: unify interface for static & dynamic calls for TileEmitter?
     // There is 1 arg for the static case, so we can assign any reg to reg_const_params, since it won't be really used.
     // Anyway, try to assign a reg from the pool to prevent possible work_amount corruption
-    if (dynamic_dims_idx.empty()) {
-        reg_const_params = gpr_pool.empty() ? work_amount : Reg64(gpr_pool.back());
-    } else {
-        reg_const_params = Reg64(static_cast<int>(in[1]));
-    }
-    // todo: skip everything if work_amount == increment
-    emit_ptr_increments_dynamic(reg_const_params, data_ptr_regs);
-    h->sub(work_amount, increment);
-    h->cmp(work_amount, increment);
-    h->jge(*begin_address_ptr);
-    cleanup_broadcasting(reg_const_params, data_ptr_regs);
-
+//    if (dynamic_dims_idx.empty()) {
+//        reg_const_params = gpr_pool.empty() ? work_amount : Reg64(gpr_pool.back());
+//    } else {
+//        reg_const_params = Reg64(static_cast<int>(in[1]));
+//    }
+//    // todo: skip everything if work_amount == increment
+//    emit_ptr_increments_dynamic(reg_const_params, data_ptr_regs);
+//    h->sub(work_amount, increment);
+//    h->cmp(work_amount, increment);
+//    h->jge(*begin_address_ptr);
+//    cleanup_broadcasting(reg_const_params, data_ptr_regs);
 }
 
 BroadcastMoveEmitter::BroadcastMoveEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
