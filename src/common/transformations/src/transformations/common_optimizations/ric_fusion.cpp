@@ -804,6 +804,8 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_pt
     m.set_per_pass_validation(false);
 
     // First we need to initialize and propagate RIC attributes through entire graph
+    CC_TRANSFORMATIONS_MODEL_SCOPE(GraphRewrite)
+    {
     auto ric_prop = m.register_pass<GraphRewrite>();
     ric_prop->add_matcher<init::SplitConcat>();
     ric_prop->add_matcher<init::Gather>();
@@ -814,20 +816,26 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_pt
     ric_prop->add_matcher<prop::Transpose>();
     ric_prop->add_matcher<prop::PassThrough>();
     ric_prop->add_matcher<prop::Unsupported>();
-
+    }
     // Handle quantized weights case (dequantize sub-graph is on the weights path)
+    CC_TRANSFORMATIONS_MODEL_SCOPE(BackwardGraphRewrite)
+    {
     auto ric_back_prop = m.register_pass<ov::pass::BackwardGraphRewrite>();
     ric_back_prop->add_matcher<back_prop::Binary>();
     ric_back_prop->add_matcher<back_prop::ConvertPassThrough>();
+    }
+    CC_TRANSFORMATIONS_FUNCTION_SCOPE(Constant)
     m.register_pass<back_prop::Constant>();
     // TODO: validate attributes by request
 
     // Second we fuse available RIC into nodes and remove original nodes related to fused RIC
+    CC_TRANSFORMATIONS_MODEL_SCOPE(GraphRewrite)
+    {
     auto ric_fuse = m.register_pass<GraphRewrite>();
     ric_fuse->add_matcher<fuse::InsertReverseInputChannel>();
     ric_fuse->add_matcher<fuse::EraseSplitConcat>();
     ric_fuse->add_matcher<fuse::EraseGather>();
-
+    }
     m.run_passes(model);
     return false;
 }
