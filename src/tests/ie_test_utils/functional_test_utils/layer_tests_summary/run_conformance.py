@@ -29,6 +29,8 @@ API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
 OP_CONFORMANCE_BIN_NAME = "conformanceTests"
 SUBGRAPH_DUMPER_BIN_NAME = "subgraphsDumper"
 
+NO_MODEL_CONSTANT = "NO_MODEL"
+
 def get_ov_path(ov_dir=None, is_bin=False):
     if ov_dir is None or not os.path.exists(ov_dir):
         try:
@@ -54,7 +56,7 @@ def parse_arguments():
     type_help = "Specify conformance type: OP or API"
     dump_conformance_help = "Set 'True' if you want to create Conformance IRs from custom models. Default value is 'False'"
 
-    parser.add_argument("-m", "--models_path", help=models_path_help, type=str, required=False, default=".")
+    parser.add_argument("-m", "--models_path", help=models_path_help, type=str, required=False, default=NO_MODEL_CONSTANT)
     parser.add_argument("-d", "--device", help= device_help, type=str, required=False, default="CPU")
     parser.add_argument("-ov", "--ov_path", help=ov_help, type=str, required=False, default=get_ov_path())
     parser.add_argument("-w", "--working_dir", help=working_dir_help, type=str, required=False, default='temp')
@@ -204,7 +206,7 @@ class Conformance:
         logger.info(f"[ARGUMENTS] --dump_conformance = {dump_models}")
 
         if dump_models:
-            if self._model_path == ".":
+            if self._model_path == NO_MODEL_CONSTANT:
                 self.download_and_convert_models()
             self.dump_subgraph()
         if not os.path.isdir(self._model_path):
