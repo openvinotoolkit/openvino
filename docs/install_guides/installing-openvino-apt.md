@@ -8,3 +8,4 @@ Currently only the following ways are provided to install OpenVINO™:
 * [Build From Source](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode)
 
 The other installation methods are temporarily unavailable.
+
