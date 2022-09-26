@@ -17,26 +17,33 @@ namespace onnx_import {
 namespace detail {
 TensorExternalData::TensorExternalData(const ONNX_NAMESPACE::TensorProto& tensor) {
     for (const auto& entry : tensor.external_data()) {
-        if (entry.key() == "location")
-            m_data_location = entry.value();
-        if (entry.key() == "offset")
+        if (entry.key() == "location") {
+            NGRAPH_SUPPRESS_DEPRECATED_START
+            m_data_location = file_util::sanitize_path(entry.value());
+            NGRAPH_SUPPRESS_DEPRECATED_END
+        } else if (entry.key() == "offset") {
             m_offset = std::stoi(entry.value());
-        if (entry.key() == "length")
+        } else if (entry.key() == "length") {
             m_data_length = std::stoi(entry.value());
-        if (entry.key() == "checksum")
+        } else if (entry.key() == "checksum") {
             m_sha1_digest = std::stoi(entry.value());
+        }
     }
 }
 
-std::string TensorExternalData::load_external_data() const {
+std::string TensorExternalData::load_external_data(const std::string& model_dir) const {
     NGRAPH_SUPPRESS_DEPRECATED_START
+
+    auto full_path = file_util::path_join(model_dir, m_data_location);
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring path = ov::util::string_to_wstring(m_data_location);
+    file_util::convert_path_win_style(full_path);
+    std::ifstream external_data_stream(ov::util::string_to_wstring(full_path),
+                                       std::ios::binary | std::ios::in | std::ios::ate);
 #else
-    std::string path = m_data_location;
+    std::ifstream external_data_stream(full_path, std::ios::binary | std::ios::in | std::ios::ate);
 #endif
     NGRAPH_SUPPRESS_DEPRECATED_END
-    std::ifstream external_data_stream(path, std::ios::binary | std::ios::in | std::ios::ate);
+
     if (external_data_stream.fail())
         throw error::invalid_external_data{*this};
 
