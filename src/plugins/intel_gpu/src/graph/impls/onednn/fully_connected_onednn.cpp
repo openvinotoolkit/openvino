@@ -91,7 +91,7 @@ protected:
         return weights_reorder_params;
     }
 
-    static std::shared_ptr<dnnl::inner_product_forward::desc> get_fully_connected_descriptor( const kernel_impl_params& impl_params) {
+    static std::shared_ptr<dnnl::inner_product_forward::desc> get_fully_connected_descriptor(const kernel_impl_params& impl_params) {
         auto prim = impl_params.typed_desc<fully_connected>();
 
         auto input_layout = impl_params.get_input_layout(0);

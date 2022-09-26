@@ -56,7 +56,6 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
           _engine(engine),
           _pd(),
           _prim() {
-        assert(arg.can_be_optimized());
     }
 
     bool is_cpu() const override { return false; }
