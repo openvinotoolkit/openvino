@@ -22,7 +22,7 @@ public:
     FuncRef(const Func& func) :
             _realFuncPtr(&func),
             _impl(&caller<typename std::remove_reference<Func>::type>) {
-        using actual_result_type = typename std::result_of<Func(Args...)>::type;
+        using actual_result_type = typename std::invoke_result_t<Func, Args...>;
         static_assert(
             !std::is_reference<R>::value || std::is_reference<actual_result_type>::value,
             "Mismatch between Func and FuncRef prototype");
