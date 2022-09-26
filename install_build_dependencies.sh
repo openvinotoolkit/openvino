@@ -95,6 +95,8 @@ elif [ -f /etc/redhat-release ]; then
             gcc \
             gcc-c++ \
             make \
+            patchelf \
+            pkg-config \
             glibc-static \
             glibc-devel \
             libstdc++-static \
