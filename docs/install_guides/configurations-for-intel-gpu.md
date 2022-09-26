@@ -1,4 +1,4 @@
-# Configurations for Intel® Processor Graphics (GPU) with OpenVINO™ Runtime {#openvino_docs_install_guides_configurations_for_intel_gpu}
+# Configurations for Intel® Processor Graphics (GPU) with OpenVINO™ {#openvino_docs_install_guides_configurations_for_intel_gpu}
 
 
 @sphinxdirective
