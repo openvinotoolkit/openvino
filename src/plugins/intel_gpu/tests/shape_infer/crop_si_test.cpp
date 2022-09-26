@@ -85,10 +85,16 @@ TEST_P(crop_si_test, shape_infer) {
         input_prim_ids.push_back(prim_id);
     }
 
+    crop_ngraph_op_mode op_mode = crop_ngraph_op_mode::none;
+    if (p.const_values.size() == 2) {
+        op_mode = crop_ngraph_op_mode::variadic_split;
+    } else if (p.const_values.size() == 1) {
+        op_mode = crop_ngraph_op_mode::split;
+    }
+
     for (size_t output_idx = 0; output_idx < p.expected_layouts.size(); output_idx++) {
         auto prim_id = "crop.out" + std::to_string(output_idx);
-        auto crop_prim = std::make_shared<crop>(prim_id, input_prim_ids, p.reference_input_size, p.offsets[output_idx], output_idx);
-        crop_prim->num_splits = p.param_num_splits;
+        auto crop_prim = std::make_shared<crop>(prim_id, input_prim_ids, p.reference_input_size, p.offsets[output_idx], op_mode, output_idx, p.param_num_splits);
         auto& crop_node = prog.get_or_create(crop_prim);
 
         for (auto& prim : input_prims) {

@@ -225,6 +225,9 @@ layout program_node::calc_output_layout() const {
         auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
         if (!out_layouts.empty()) {
             auto out_layout = out_layouts[0];
+            // Since multiple output is not supported yet, currently only crops created by Split and VariadicSplit are implemented
+            // as a workaround to return all original output layouts. So this part should be refactored
+            // once multiple output is supported and the splits are implemented for mulitple output.
             if (is_type<crop>() && (out_layouts.size() > 1)) {
                 const crop_node& crop = *this;
                 out_layout = out_layouts[crop.get_primitive()->output_idx];

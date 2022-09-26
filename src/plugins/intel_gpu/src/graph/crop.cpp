@@ -24,19 +24,21 @@ layout crop_inst::calc_output_layout(crop_node const& node, kernel_impl_params c
     auto desc = impl_param.typed_desc<crop>();
     const auto& ref_in_sizes = desc->reference_input;
     const auto in_layout = impl_param.get_input_layout();
-    const auto& in_sizes = in_layout.get_tensor();
-    const auto& offsets = desc->offsets;
+    if (in_layout.is_static()) {
+        const auto& in_sizes = in_layout.get_tensor();
+        const auto& offsets = desc->offsets;
 
-    // Check for borders variant of crop.
-    if (ref_in_sizes.batch[0] < 0 || ref_in_sizes.feature[0] < 0 || ref_in_sizes.spatial[0] < 0 ||
-        ref_in_sizes.spatial[1] < 0 || ref_in_sizes.spatial[2] < 0) {
-        // Ignore not supported dimensions.
-        const auto rb_sizes = ref_in_sizes.negate().sub({0, 0, 0, 0, 0});
-        const auto lt_sizes = offsets.sub({0, 0, 0, 0, 0});
+        // Check for borders variant of crop.
+        if (ref_in_sizes.batch[0] < 0 || ref_in_sizes.feature[0] < 0 || ref_in_sizes.spatial[0] < 0 ||
+            ref_in_sizes.spatial[1] < 0 || ref_in_sizes.spatial[2] < 0) {
+            // Ignore not supported dimensions.
+            const auto rb_sizes = ref_in_sizes.negate().sub({0, 0, 0, 0, 0});
+            const auto lt_sizes = offsets.sub({0, 0, 0, 0, 0});
 
-        const auto out_sizes = in_sizes - (rb_sizes + lt_sizes);
+            const auto out_sizes = in_sizes - (rb_sizes + lt_sizes);
 
-        return layout({in_layout.data_type, in_layout.format, out_sizes});
+            return layout({in_layout.data_type, in_layout.format, out_sizes});
+        }
     }
     return layout({in_layout.data_type, in_layout.format, ref_in_sizes});
 }
@@ -57,7 +59,7 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
     }
 
     // TODO: calling shape_infer for all cropped outpus is redundant... Need to optimize.
-    if (impl_param.input_layouts.size() == 3) {
+    if (desc->op_mode == cldnn::crop_ngraph_op_mode::variadic_split) {
         std::map<size_t, ngraph::HostTensorPtr> const_data;
         auto& memory_deps = impl_param.memory_deps;
 
@@ -69,10 +71,10 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
         cldnn::mem_lock<uint8_t, mem_lock_type::read> split_length_mem_lock(split_length_mem, impl_param.prog.get_stream());
         const_data.emplace(2, make_host_tensor(split_length_mem->get_layout(), split_length_mem_lock.data()));
 
-        //VariadicSplit
         ov::op::v1::VariadicSplit op;
         shape_infer(&op, input_shapes, output_shapes, const_data);
-    } else if (impl_param.input_layouts.size() == 2) {
+
+    } else if (desc->op_mode == cldnn::crop_ngraph_op_mode::split) {
         std::map<size_t, ngraph::HostTensorPtr> const_data;
         auto& memory_deps = impl_param.memory_deps;
 
@@ -80,11 +82,11 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
         cldnn::mem_lock<uint8_t, mem_lock_type::read> axis_values_mem_lock(axis_values_mem, impl_param.prog.get_stream());
         const_data.emplace(1, make_host_tensor(axis_values_mem->get_layout(), axis_values_mem_lock.data()));
 
-        // Split
         ov::op::v1::Split op;
         op.set_num_splits(desc->num_splits);
         shape_infer(&op, input_shapes, output_shapes, const_data);
-    } else if (impl_param.input_layouts.size() == 1) {
+
+    } else if (desc->op_mode == cldnn::crop_ngraph_op_mode::none) {
         // Legacy usage
         if (in_layout.is_dynamic()) {
             auto in_shape = in_layout.get<ShapeType>();
@@ -150,63 +152,65 @@ std::string crop_inst::to_string(crop_node const& node) {
 crop_inst::typed_primitive_inst(network& network, crop_node const& node) : parent(network, node) {
     const auto& ref_in_sizes = argument.reference_input;
     const auto in_layout = node.input().get_output_layout();
-    const auto& in_sizes = in_layout.get_tensor();
     const auto& offsets = argument.offsets;
     tensor null_tensor {};
     tensor value_tensor { 1, 1, 1, 1, 1 };
 
-    // Check for borders variant of crop.
-    if (ref_in_sizes.batch[0] < 0 || ref_in_sizes.feature[0] < 0 || ref_in_sizes.spatial[0] < 0 ||
-        ref_in_sizes.spatial[1] < 0 || ref_in_sizes.spatial[2] < 0) {
-        // Ignore not supported dimensions.
-        const auto rb_sizes = ref_in_sizes.negate().sub({0, 0, 0, 0, 0});
-        const auto lt_sizes = offsets.sub({0, 0, 0, 0, 0});
+    if (in_layout.is_static()) {
+        const auto& in_sizes = in_layout.get_tensor();
+        // Check for borders variant of crop.
+        if (ref_in_sizes.batch[0] < 0 || ref_in_sizes.feature[0] < 0 || ref_in_sizes.spatial[0] < 0 ||
+            ref_in_sizes.spatial[1] < 0 || ref_in_sizes.spatial[2] < 0) {
+            // Ignore not supported dimensions.
+            const auto rb_sizes = ref_in_sizes.negate().sub({0, 0, 0, 0, 0});
+            const auto lt_sizes = offsets.sub({0, 0, 0, 0, 0});
 
-        const auto out_sizes = in_sizes - (rb_sizes + lt_sizes);
+            const auto out_sizes = in_sizes - (rb_sizes + lt_sizes);
 
-        CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node.id(),
-                                           "Left/top/lower borders",
-                                           lt_sizes,
-                                           "0 value",
-                                           null_tensor,
-                                           "Invalid border size: negative");
-        CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node.id(),
-                                           "Right/bottom/upper borders",
-                                           rb_sizes,
-                                           "0 value",
-                                           null_tensor,
-                                           "Invalid border size: negative");
+            CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node.id(),
+                                            "Left/top/lower borders",
+                                            lt_sizes,
+                                            "0 value",
+                                            null_tensor,
+                                            "Invalid border size: negative");
+            CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node.id(),
+                                            "Right/bottom/upper borders",
+                                            rb_sizes,
+                                            "0 value",
+                                            null_tensor,
+                                            "Invalid border size: negative");
 
+            CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node.id(),
+                                            "Input sizes - border sizes",
+                                            out_sizes,
+                                            "1 value",
+                                            value_tensor,
+                                            "Invalid border sizes: greater-equal input sizes");
+        }
+
+        // check if output sizes matches reference input sizes
+        CLDNN_ERROR_TENSOR_SIZES_GREATER_THAN(node.id(),
+                                            "Reference input",
+                                            ref_in_sizes,
+                                            "input sizes",
+                                            in_sizes,
+                                            "Reference input tensor/ input tensor mismtach");
+
+        // check if offsets do not extend input sizes and if match the output sizes
         CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node.id(),
-                                           "Input sizes - border sizes",
-                                           out_sizes,
-                                           "1 value",
-                                           value_tensor,
-                                           "Invalid border sizes: greater-equal input sizes");
+                                        "Batch offsets",
+                                        offsets,
+                                        "0 value",
+                                        null_tensor,
+                                        "Invalid Batch offset: negative value");
+        auto input_size_sub_offsets = in_sizes - offsets;
+        CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node.id(),
+                                        "input sizes - offsets",
+                                        input_size_sub_offsets,
+                                        "reference input sizes",
+                                        ref_in_sizes,
+                                        "Invalid Batch offset: exceeds data for output!");
     }
-
-    // check if output sizes matches reference input sizes
-    CLDNN_ERROR_TENSOR_SIZES_GREATER_THAN(node.id(),
-                                          "Reference input",
-                                          ref_in_sizes,
-                                          "input sizes",
-                                          in_sizes,
-                                          "Reference input tensor/ input tensor mismtach");
-
-    // check if offsets do not extend input sizes and if match the output sizes
-    CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node.id(),
-                                       "Batch offsets",
-                                       offsets,
-                                       "0 value",
-                                       null_tensor,
-                                       "Invalid Batch offset: negative value");
-    auto input_size_sub_offsets = in_sizes - offsets;
-    CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node.id(),
-                                       "input sizes - offsets",
-                                       input_size_sub_offsets,
-                                       "reference input sizes",
-                                       ref_in_sizes,
-                                       "Invalid Batch offset: exceeds data for output!");
 
     if (node.can_be_optimized()) {
         build_deps();
