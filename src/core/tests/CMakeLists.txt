@@ -440,7 +440,6 @@ if (ENABLE_TEMPLATE)
     set(OP_EVAL_TEST_SRC
         # It should be a part of template plugin
         op_eval/interpolate.cpp
-        op_eval/matmul.cpp
         op_eval/memory.cpp
         op_eval/roi_align.cpp
         op_eval/roi_pooling.cpp
