@@ -134,7 +134,6 @@ class typed_primitive_inst<quantize> : public typed_primitive_inst_base<quantize
     using parent = typed_primitive_inst_base<quantize>;
 
 public:
-
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(quantize_node const& node, kernel_impl_params const& impl_param);
     static layout calc_output_layout(quantize_node const& node, kernel_impl_params const& impl_param);
