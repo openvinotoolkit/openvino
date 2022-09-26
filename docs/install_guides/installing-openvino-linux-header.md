@@ -1,4 +1,4 @@
-# Install and Configure OpenVINO™ Runtime for Linux {#openvino_docs_install_guides_installing_openvino_linux_header}
+# Install OpenVINO™ Runtime on Linux {#openvino_docs_install_guides_installing_openvino_linux_header}
 
 @sphinxdirective
 
