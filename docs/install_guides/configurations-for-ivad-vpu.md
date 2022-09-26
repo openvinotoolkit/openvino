@@ -40,7 +40,7 @@ cd ${HDDL_INSTALL_DIR}/drivers
 ```sh
 sudo ./setup.sh install
 ```
-Now the dependencies are installed and you are ready to use the Intel® Vision Accelerator Design with Intel® Movidius™ with OpenVINO™ Runtime.
+Now the dependencies are installed and you are ready to use the Intel® Vision Accelerator Design with Intel® Movidius™ with OpenVINO™.
 
 ### Optional Steps
 
