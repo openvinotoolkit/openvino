@@ -801,13 +801,13 @@ bool primitive_inst::is_valid_fusion() const {
         auto dep = _deps[dep_idx];
 
         auto dep_pshape = dep->_impl_params->output_layout.get_partial_shape();
+        auto merged_shape = out_pshape;
+        auto can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, dep_pshape, fd.typed_desc<eltwise>()->broadcast_spec);
 
-        OPENVINO_ASSERT(out_pshape.rank() == dep_pshape.rank(), "[GPU] Incompatible ranks: ", out_pshape.rank(), " vs ", dep_pshape.rank());
-
-        for (int64_t i = 0; i < dep_pshape.rank().get_length(); i++) {
-            if (dep_pshape[i].get_length() > out_pshape[i].get_length())
-                return false;
-        }
+        // We check that broadcasting of extra input is possible and it doesn't change output shape. If it output shape is changed, then
+        // some dimension of dep_pshape is greater than out_pshape
+        if (!can_broadcast || merged_shape != out_pshape)
+            return false;
     }
 
     return true;
