@@ -4,8 +4,21 @@ trigger:
     - master
     - releases/*
   paths:
-    exclude:
-    - docs/*
+    exclude: 
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+
+pr:
+  branches:
+    include:
+    - master
+    - releases/*
+  paths:
+    exclude: 
+    - docs/
+    - /**/docs/*
+    - /**/*.md
 
 resources:
   repositories:
@@ -230,6 +243,8 @@ jobs:
       export MODELS_PATH=$(MODELS_PATH)
       # for libopenvino_template_extension.so
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
+      export PYTHONPATH=$(INSTALL_TEST_DIR):$(INSTALL_DIR)/python/python3.8:$PYTHONPATH
+      export OV_FRONTEND_PATH=$(INSTALL_TEST_DIR)
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
@@ -295,18 +310,22 @@ jobs:
     displayName: 'OV Core UT'
     continueOnError: false
 
-  - script: $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
+  - script: |
+      export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
+      $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
     displayName: 'ONNX Frontend Tests'
     continueOnError: false
 
-  - script: $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
+  - script: |
+      export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
+      $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
     continueOnError: false
 
   - script: |
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
       export OV_FRONTEND_PATH=$(INSTALL_TEST_DIR)
-      $(INSTALL_TEST_DIR)/tensorflow_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
+      $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
     displayName: 'Tensorflow Frontend UT'
     continueOnError: false
 

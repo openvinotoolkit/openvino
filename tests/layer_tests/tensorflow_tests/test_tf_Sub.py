@@ -70,11 +70,11 @@ class TestSub(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_1D)
     @pytest.mark.nightly
     def test_sub_placeholder_const_1D(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend, api_2):
+                                      use_new_frontend, use_old_api):
         self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
                                                           use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_2D = [
         # Power
@@ -91,11 +91,11 @@ class TestSub(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_2D)
     @pytest.mark.nightly
     def test_sub_placeholder_const_2D(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend, api_2):
+                                      use_new_frontend, use_old_api):
         self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
                                                           use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_3D = [
         # Power
@@ -116,11 +116,11 @@ class TestSub(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
     def test_sub_placeholder_const_3D(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend, api_2):
+                                      use_new_frontend, use_old_api):
         self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
                                                           use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_4D = [
         # Power
@@ -138,11 +138,11 @@ class TestSub(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     def test_sub_placeholder_const_4D(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend, api_2):
+                                      use_new_frontend, use_old_api):
         self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
                                                           use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_5D = [
         # Power
@@ -160,11 +160,11 @@ class TestSub(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
     def test_sub_placeholder_const_5D(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend, api_2):
+                                      use_new_frontend, use_old_api):
         self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
                                                           use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     ###############################################################################################
     #                                                                                             #
@@ -179,11 +179,11 @@ class TestSub(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_broadcast_1D)
     @pytest.mark.nightly
     def test_sub_placeholder_const_broadcast_1D(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_new_frontend, api_2):
+                                                temp_dir, use_new_frontend, use_old_api):
         self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
                                                           use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_broadcast_2D = [
         # Power
@@ -202,11 +202,11 @@ class TestSub(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_broadcast_2D)
     @pytest.mark.nightly
     def test_sub_placeholder_const_broadcast_2D(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_new_frontend, api_2):
+                                                temp_dir, use_new_frontend, use_old_api):
         self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
                                                           use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_broadcast_3D = [
         # Power
@@ -235,11 +235,11 @@ class TestSub(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_broadcast_3D)
     @pytest.mark.nightly
     def test_sub_placeholder_const_broadcast_3D(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_new_frontend, api_2):
+                                                temp_dir, use_new_frontend, use_old_api):
         self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
                                                           use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_broadcast_4D = [
         # Power
@@ -269,11 +269,11 @@ class TestSub(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_broadcast_4D)
     @pytest.mark.nightly
     def test_sub_placeholder_const_broadcast_4D(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_new_frontend, api_2):
+                                                temp_dir, use_new_frontend, use_old_api):
         self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
                                                           use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_broadcast_5D = [
         # Power
@@ -301,8 +301,8 @@ class TestSub(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_broadcast_5D)
     @pytest.mark.nightly
     def test_sub_placeholder_const_broadcast_5D(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_new_frontend, api_2):
+                                                temp_dir, use_new_frontend, use_old_api):
         self._test(*self.create_sub_placeholder_const_net(**params, ir_version=ir_version,
                                                           use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, use_old_api=use_old_api)

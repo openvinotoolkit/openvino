@@ -57,10 +57,10 @@ function(ie_cpack_add_component name)
 
         # need to store informarion about cpack_add_component arguments in CMakeCache.txt
         # to restore it later
-        set(_${name}_cpack_component_args "${ARGN}" CACHE STRING "Argument for cpack_add_component for ${name} cpack component" FORCE)
+        set(_${name}_cpack_component_args "${ARGN}" CACHE INTERNAL "Argument for cpack_add_component for ${name} cpack component" FORCE)
 
         list(APPEND IE_CPACK_COMPONENTS_ALL ${name})
-        set(IE_CPACK_COMPONENTS_ALL "${IE_CPACK_COMPONENTS_ALL}" CACHE STRING "" FORCE)
+        set(IE_CPACK_COMPONENTS_ALL "${IE_CPACK_COMPONENTS_ALL}" CACHE INTERNAL "" FORCE)
     endif()
 endfunction()
 
@@ -115,6 +115,10 @@ ov_define_component_names()
 #  - ov_add_latest_component()
 if(CPACK_GENERATOR STREQUAL "DEB")
     include(packaging/debian)
+endif()
+
+if(CPACK_GENERATOR STREQUAL "RPM")
+    include(packaging/rpm)
 endif()
 
 if(CPACK_GENERATOR STREQUAL "NSIS")
