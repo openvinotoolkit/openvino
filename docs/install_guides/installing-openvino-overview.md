@@ -6,7 +6,8 @@
    :maxdepth: 3
    :hidden:
    
-   OpenVINO Runtime <openvino_docs_install_guides_install_runtime>
+   OpenVINO Runtime 2022.1 <openvino_docs_install_guides_install_runtime>
+   OpenVINO Runtime 2022.1.1 <openvino_docs_install_guides_install_runtime_2022_1_1>
    OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>
    Build from Source <https://github.com/openvinotoolkit/openvino/wiki/BuildingCode>
    Creating a Yocto Image <openvino_docs_install_guides_installing_openvino_yocto>
