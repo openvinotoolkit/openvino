@@ -139,7 +139,7 @@ The environment variables are set. Next, you can download some additional tools.
 @sphinxdirective
 .. tab:: GNA
 
-   To enable OpenVINO™ Runtime to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide windows>`.
+   To enable OpenVINO to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide windows>`.
    
 .. tab:: GPU
 
