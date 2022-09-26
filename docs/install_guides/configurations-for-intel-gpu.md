@@ -8,7 +8,6 @@
 @endsphinxdirective
 
 
-This page introduces additional configurations for Intel® Processor Graphics (GPU) with OpenVINO™ Runtime on Linux and Windows.
 
 ## Linux
 
