@@ -140,7 +140,7 @@ Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#in
 
 .. tab:: GNA
 
-   To enable OpenVINO™ Runtime to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide>`.
+   To enable OpenVINO to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide>`.
    
 .. tab:: GPU
 
