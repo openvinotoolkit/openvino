@@ -25,7 +25,7 @@ __version__ = get_version()
             message="The module is private and following namespace "
                     "`offline_transformations` will be removed in "
                     "the future, use `openvino.runtime.passes` instead!")
-def serialize(model, xml_path, bin_path, version):
+def serialize(model, xml_path, bin_path, version):  # type: ignore
     _base_serialize(model, xml_path, bin_path, version)
 
 
@@ -33,7 +33,7 @@ def serialize(model, xml_path, bin_path, version):
             message="The module is private and following namespace "
                     "`offline_transformations` will be removed in "
                     "the future, use `openvino.runtime.passes` instead!")
-def apply_moc_transformations(model, cf):
+def apply_moc_transformations(model, cf):  # type: ignore
     _base.apply_moc_transformations(model, cf)
 
 
@@ -49,7 +49,7 @@ def apply_moc_legacy_transformations(model, params_with_custom_types):
             message="The module is private and following namespace "
                     "`offline_transformations` will be removed in "
                     "the future, use `openvino.runtime.passes` instead!")
-def apply_pot_transformations(model, device):
+def apply_pot_transformations(model, device):  # type: ignore
     _base.apply_pot_transformations(model, device)
 
 
@@ -57,7 +57,7 @@ def apply_pot_transformations(model, device):
             message="The module is private and following namespace "
                     "`offline_transformations` will be removed in "
                     "the future, use `openvino.runtime.passes` instead!")
-def apply_low_latency_transformation(model, use_const_initializer):
+def apply_low_latency_transformation(model, use_const_initializer):  # type: ignore
     _base.apply_low_latency_transformation(model, use_const_initializer)
 
 
@@ -65,7 +65,7 @@ def apply_low_latency_transformation(model, use_const_initializer):
             message="The module is private and following namespace "
                     "`offline_transformations` will be removed in "
                     "the future, use `openvino.runtime.passes` instead!")
-def apply_pruning_transformation(model):
+def apply_pruning_transformation(model):  # type: ignore
     _base.apply_pruning_transformation(model)
 
 
@@ -73,7 +73,7 @@ def apply_pruning_transformation(model):
             message="The module is private and following namespace "
                     "`offline_transformations` will be removed in "
                     "the future, use `openvino.runtime.passes` instead!")
-def generate_mapping_file(model, path, extract_names):
+def generate_mapping_file(model, path, extract_names):  # type: ignore
     _base.generate_mapping_file(model, path, extract_names)
 
 
@@ -89,7 +89,7 @@ def apply_make_stateful_transformation(model, param_res_names):
             message="The module is private and following namespace "
                     "`offline_transformations` will be removed in "
                     "the future, use `openvino.runtime.passes` instead!")
-def compress_model_transformation(model):
+def compress_model_transformation(model):  # type: ignore
     _base.compress_model_transformation(model)
 
 
@@ -97,7 +97,7 @@ def compress_model_transformation(model):
             message="The module is private and following namespace "
                     "`offline_transformations` will be removed in "
                     "the future, use `openvino.runtime.passes` instead!")
-def compress_quantize_weights_transformation(model):
+def compress_quantize_weights_transformation(model):  # type: ignore
     _base.compress_quantize_weights_transformation(model)
 
 
@@ -105,5 +105,5 @@ def compress_quantize_weights_transformation(model):
             message="The module is private and following namespace "
                     "`offline_transformations` will be removed in "
                     "the future, use `openvino.runtime.passes` instead!")
-def convert_sequence_to_tensor_iterator_transformation(model):
+def convert_sequence_to_tensor_iterator_transformation(model):  # type: ignore
     _base.convert_sequence_to_tensor_iterator_transformation(model)
