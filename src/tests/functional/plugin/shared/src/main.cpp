@@ -9,7 +9,7 @@
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
-DEFINE_int32(device_id, -1, "GPU Device ID (a number starts from 0)");
+DEFINE_int32(gpu_device_id, -1, "GPU Device ID (a number starts from 0)");
 
 int main(int argc, char *argv[]) {
     printf("Running main() from %s\n", __FILE__);
@@ -17,13 +17,13 @@ int main(int argc, char *argv[]) {
     GFLAGS_NAMESPACE::AllowCommandLineReparsing();
     gflags::ParseCommandLineFlags(&argc, &argv, false);
 
-    if (FLAGS_device_id != -1) {
+    if (FLAGS_gpu_device_id != -1) {
         char* str = new char[7]{};
-        if (FLAGS_device_id > 99) {
+        if (FLAGS_gpu_device_id > 99) {
             printf("Device id should not exceed 99.\n");
             return 1;
         }
-        snprintf(str, sizeof(str), "GPU.%d", FLAGS_device_id);
+        snprintf(str, sizeof(str), "GPU.%d", FLAGS_gpu_device_id);
         CommonTestUtils::DEVICE_GPU = str;
     }
 
