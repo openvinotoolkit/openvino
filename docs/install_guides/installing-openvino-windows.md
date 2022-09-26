@@ -92,7 +92,7 @@ You must update several environment variables before you can compile and run Ope
 "<INSTALL_DIR>\setupvars.bat"
 ```
 
-**Optional**: OpenVINO™ Runtime environment variables are removed when you close the command prompt window. You can permanently set the environment variables manually.
+**Optional**: OpenVINO environment variables are removed when you close the command prompt window. You can permanently set the environment variables manually.
 
 > **NOTE**: If you see an error indicating Python is not installed when you know you installed it, your computer might not be able to find the program. Check your system environment variables, and add Python if necessary.
 
