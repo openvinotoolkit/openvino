@@ -22,7 +22,7 @@ Intel® Distribution of OpenVINO™ toolkit is a comprehensive toolkit for devel
 
 ## Install OpenVINO
 
-Since the 2022.1 release, the OpenVINO installation package has been distributed in two parts: OpenVINO Runtime and OpenVINO Development Tools.
+Since the 2022.1 release, the OpenVINO installation package is distributed in two parts: OpenVINO Runtime and OpenVINO Development Tools.
 
 * **OpenVINO Runtime** contains the core set of libraries for running machine learning model inference on processor devices.
 * **OpenVINO Development Tools** is a set of utilities for working with OpenVINO and OpenVINO models. It includes the following tools:
