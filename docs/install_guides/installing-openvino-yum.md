@@ -144,7 +144,7 @@ Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#in
    
 .. tab:: GPU
 
-   To enable OpenVINO™ Runtime to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.
+   To enable OpenVINO to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.
 
 .. tab:: NCS 2
 
