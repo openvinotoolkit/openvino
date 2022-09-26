@@ -109,8 +109,8 @@ class Conformance:
             f'export LD_LIBRARY_PATH={self._ov_bin_path}; ' \
             f'pip3 install -e "{mo_path}/.[caffe,kaldi,mxnet,onnx,pytorch,tensorflow2]"; ' \
             f'pip3 install "{omz_tools_path}/.[paddle,pytorch,tensorflow]"; ' \
-            f'omz_downloader --name=vgg16 --output_dir={original_model_path}; '\
-            f'omz_converter --name=vgg16 --download_dir={original_model_path} --output_dir={converted_model_path}; '\
+            f'omz_downloader --all --output_dir={original_model_path}; '\
+            f'omz_converter --all --download_dir={original_model_path} --output_dir={converted_model_path}; '\
             f'source .env3/bin/deactivate'
         process = Popen(command, shell=True)
         out, err = process.communicate()
