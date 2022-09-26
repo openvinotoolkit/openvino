@@ -58,6 +58,7 @@ OP_CONVERTER(translate_fused_batch_norm_op);
 OP_CONVERTER(translate_gather_op);
 OP_CONVERTER(translate_gather_v2_op);
 OP_CONVERTER(translate_gather_nd_op);
+OP_CONVERTER(translate_gru_block_cell_op);
 OP_CONVERTER(translate_identity_op);
 OP_CONVERTER(translate_identity_n_op);
 OP_CONVERTER(translate_interpolate_op);
@@ -302,6 +303,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
 
         // Translators for internal operations
         {"BlockLSTM", translate_block_lstm_op},
+        {"GRUBlockCell", translate_gru_block_cell_op},
         {"SparseFillEmptyRows", translate_sparse_fill_empty_rows_op},
         {"SparseSegmentSum", translate_sparse_segment_sum_op},
         {"Unique", translate_unique_op},
