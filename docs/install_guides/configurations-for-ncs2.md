@@ -6,7 +6,6 @@
 
 @endsphinxdirective
 
-This page introduces additional configurations for Intel® Neural Compute Stick 2 with OpenVINO™ Runtime on Linux, Raspbian OS and macOS.
 
 ## Linux
 
