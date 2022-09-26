@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
+# type: ignore
 
 import warnings
 
@@ -25,7 +26,7 @@ __version__ = get_version()
             message="The module is private and following namespace "
                     "`offline_transformations` will be removed in "
                     "the future, use `openvino.runtime.passes` instead!")
-def serialize(model, xml_path, bin_path, version):  # type: ignore
+def serialize(model, xml_path, bin_path, version):
     _base_serialize(model, xml_path, bin_path, version)
 
 
@@ -33,7 +34,7 @@ def serialize(model, xml_path, bin_path, version):  # type: ignore
             message="The module is private and following namespace "
                     "`offline_transformations` will be removed in "
                     "the future, use `openvino.runtime.passes` instead!")
-def apply_moc_transformations(model, cf):  # type: ignore
+def apply_moc_transformations(model, cf):
     _base.apply_moc_transformations(model, cf)
 
 
@@ -49,7 +50,7 @@ def apply_moc_legacy_transformations(model, params_with_custom_types):
             message="The module is private and following namespace "
                     "`offline_transformations` will be removed in "
                     "the future, use `openvino.runtime.passes` instead!")
-def apply_pot_transformations(model, device):  # type: ignore
+def apply_pot_transformations(model, device):
     _base.apply_pot_transformations(model, device)
 
 
@@ -57,7 +58,7 @@ def apply_pot_transformations(model, device):  # type: ignore
             message="The module is private and following namespace "
                     "`offline_transformations` will be removed in "
                     "the future, use `openvino.runtime.passes` instead!")
-def apply_low_latency_transformation(model, use_const_initializer):  # type: ignore
+def apply_low_latency_transformation(model, use_const_initializer):
     _base.apply_low_latency_transformation(model, use_const_initializer)
 
 
@@ -65,7 +66,7 @@ def apply_low_latency_transformation(model, use_const_initializer):  # type: ign
             message="The module is private and following namespace "
                     "`offline_transformations` will be removed in "
                     "the future, use `openvino.runtime.passes` instead!")
-def apply_pruning_transformation(model):  # type: ignore
+def apply_pruning_transformation(model):
     _base.apply_pruning_transformation(model)
 
 
@@ -73,7 +74,7 @@ def apply_pruning_transformation(model):  # type: ignore
             message="The module is private and following namespace "
                     "`offline_transformations` will be removed in "
                     "the future, use `openvino.runtime.passes` instead!")
-def generate_mapping_file(model, path, extract_names):  # type: ignore
+def generate_mapping_file(model, path, extract_names):
     _base.generate_mapping_file(model, path, extract_names)
 
 
@@ -89,7 +90,7 @@ def apply_make_stateful_transformation(model, param_res_names):
             message="The module is private and following namespace "
                     "`offline_transformations` will be removed in "
                     "the future, use `openvino.runtime.passes` instead!")
-def compress_model_transformation(model):  # type: ignore
+def compress_model_transformation(model):
     _base.compress_model_transformation(model)
 
 
@@ -97,7 +98,7 @@ def compress_model_transformation(model):  # type: ignore
             message="The module is private and following namespace "
                     "`offline_transformations` will be removed in "
                     "the future, use `openvino.runtime.passes` instead!")
-def compress_quantize_weights_transformation(model):  # type: ignore
+def compress_quantize_weights_transformation(model):
     _base.compress_quantize_weights_transformation(model)
 
 
@@ -105,5 +106,5 @@ def compress_quantize_weights_transformation(model):  # type: ignore
             message="The module is private and following namespace "
                     "`offline_transformations` will be removed in "
                     "the future, use `openvino.runtime.passes` instead!")
-def convert_sequence_to_tensor_iterator_transformation(model):  # type: ignore
+def convert_sequence_to_tensor_iterator_transformation(model):
     _base.convert_sequence_to_tensor_iterator_transformation(model)
