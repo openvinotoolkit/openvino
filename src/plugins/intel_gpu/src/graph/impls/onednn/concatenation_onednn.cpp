@@ -45,15 +45,15 @@ protected:
         return args;
     }
 
-    static std::shared_ptr<dnnl::concat::primitive_desc> get_concatenation_descriptor(const concatenation_node& arg) {
-        auto prim = arg.get_primitive();
+    static std::shared_ptr<dnnl::concat::primitive_desc> get_concatenation_descriptor(const kernel_impl_params& impl_params) {
+        auto prim = impl_params.typed_desc<concatenation>();
 
-        auto& engine = arg.get_program().get_engine();
+        auto& engine = impl_params.prog.get_engine();
         std::vector<dnnl::memory::desc> input_mds;
-        for (auto& input : arg.get_dependencies()) {
-            input_mds.push_back(onednn::layout_to_memory_desc(input->get_output_layout()));
+        for (size_t i = 0; i < impl_params.input_layouts.size(); i++) {
+            input_mds.push_back(onednn::layout_to_memory_desc(impl_params.get_input_layout(i)));
         }
-        auto output_md = onednn::layout_to_memory_desc(arg.get_output_layout());
+        auto output_md = onednn::layout_to_memory_desc(impl_params.output_layout);
         return std::make_shared<dnnl::concat::primitive_desc>(
             output_md,
             prim->axis,
@@ -62,15 +62,16 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const concatenation_node& arg, const kernel_impl_params&) {
+    static primitive_impl* create(const concatenation_node& arg, const kernel_impl_params& impl_params) {
+        auto& engine = impl_params.prog.get_engine();
         if (arg.can_be_optimized())
-            return new concatenation_onednn(arg);
-        auto desc = get_concatenation_descriptor(arg);
+            return new concatenation_onednn(engine);
+        auto desc = get_concatenation_descriptor(impl_params);
         auto attr = arg.get_onednn_primitive_attributes();
 
         std::shared_ptr<void> dummy = nullptr;
 
-        return new concatenation_onednn(arg, dummy, attr, *desc);
+        return new concatenation_onednn(engine, dummy, attr, *desc);
     }
 };
 

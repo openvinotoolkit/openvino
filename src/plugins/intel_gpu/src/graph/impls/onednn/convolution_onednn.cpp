@@ -34,7 +34,7 @@ protected:
     bool validate_impl(const typed_primitive_inst<convolution>& instance) const override {
         bool res = true;
 
-        auto outer_id = _outer.id();
+        auto outer_id = instance.id();
         auto data_type = instance.node.input().get_output_layout().data_type;
 
         // Integer signed/unsigned is ok for convoluiton
@@ -148,23 +148,21 @@ protected:
         return attrs;
     }
 
-    static kernel_selector::WeightsReorderParams get_weights_reorder(const convolution_node& arg, const dnnl::primitive_desc& pd) {
+    static kernel_selector::WeightsReorderParams get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
         kernel_selector::WeightsReorderParams weights_reorder_params;
         auto& reorderKS = kernel_selector::ReorderWeightsKernelSelctor::Instance();
         kernel_selector::reorder_weights_params r_params;
 
-        auto cldnn_prim = arg.get_primitive();
-        auto weights_layout = arg.get_dependency(1).get_output_layout();
-        auto grouped_weights = format::is_grouped(weights_layout.format) || arg.get_primitive()->grouped_weights_shape;
+        auto cldnn_prim = impl_params.typed_desc<convolution>();
+        auto weights_layout = impl_params.get_input_layout(1);
+        auto grouped_weights = format::is_grouped(weights_layout.format) || cldnn_prim->grouped_weights_shape;
         cldnn::format out_fmt = onednn::find_format(pd.weights_desc(0), grouped_weights);
         kernel_selector::WeightsLayout reqLayout = to_weights_layout(out_fmt, cldnn_prim->grouped_weights_shape);
 
-        const auto& param_info = arg.get_kernel_impl_params();
-
-        set_params(*param_info, r_params);
-        r_params.layerID = arg.id() + "_reorder_";
+        set_params(impl_params, r_params);
+        r_params.layerID = cldnn_prim->id + "_reorder_";
         r_params.input = convert_weights_tensor(weights_layout, cldnn_prim->grouped_weights_shape);
-        r_params.output = r_params.input.TransformIgnorePadding(reqLayout, r_params.input.GetDType(), arg.get_groups(), false);
+        r_params.output = r_params.input.TransformIgnorePadding(reqLayout, r_params.input.GetDType(), cldnn_prim->groups, false);
         r_params.rotate_180 = false;
 
         kernel_selector::reorder_optional_params op;
@@ -186,13 +184,13 @@ protected:
 
 
 public:
-    static primitive_impl* create(const convolution_node& arg, const kernel_impl_params&) {
-        auto& engine = arg.get_program().get_engine();
-        auto desc = get_convolution_descriptor(arg);
+    static primitive_impl* create(const convolution_node& arg, const kernel_impl_params& impl_params) {
+        auto& engine = impl_params.prog.get_engine();
+        auto desc = get_convolution_descriptor(impl_params);
         auto attr = get_primitive_attributes(arg);
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return new convolution_onednn(arg, desc, attr, prim_desc, get_weights_reorder(arg, prim_desc));
+        return new convolution_onednn(engine, desc, attr, prim_desc, get_weights_reorder(impl_params, prim_desc));
     }
 };
 

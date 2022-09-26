@@ -27,7 +27,7 @@ protected:
     bool validate_impl(const typed_primitive_inst<fully_connected>& instance) const override {
         bool res = true;
 
-        auto outer_id = _outer.id();
+        auto outer_id = instance.id();
         auto data_type = instance.node.input().get_output_layout().data_type;
 
         // Integer signed/unsigned is ok for fully connected
@@ -57,10 +57,9 @@ protected:
         return args;
     }
 
-    static kernel_selector::WeightsReorderParams get_weights_reorder(const fully_connected_node& arg, const dnnl::primitive_desc& pd) {
-        auto weights_layout = arg.get_dependency(1).get_output_layout();
-        auto cldnn_prim = arg.get_primitive();
-        auto param_info = arg.get_kernel_impl_params();
+    static kernel_selector::WeightsReorderParams get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
+        auto weights_layout = impl_params.get_input_layout(1);
+        auto cldnn_prim = impl_params.typed_desc<fully_connected>();
 
         kernel_selector::WeightsReorderParams weights_reorder_params;
         auto& reorderKS = kernel_selector::ReorderWeightsKernelSelctor::Instance();
@@ -70,8 +69,8 @@ protected:
         kernel_selector::WeightsLayout req_layout = to_weights_layout(out_fmt, false);
 
         // set engine info & forcing
-        set_params(*param_info, r_params);
-        r_params.layerID = arg.id() + "_reorder_";
+        set_params(impl_params, r_params);
+        r_params.layerID = cldnn_prim->id + "_reorder_";
         r_params.input = convert_weights_tensor(weights_layout, false);
         r_params.output = r_params.input.TransformIgnorePadding(req_layout, r_params.input.GetDType(), 1, false);
         r_params.rotate_180 = false;
@@ -92,13 +91,12 @@ protected:
         return weights_reorder_params;
     }
 
-    static std::shared_ptr<dnnl::inner_product_forward::desc> get_fully_connected_descriptor(const fully_connected_node& arg) {
-        auto prim = arg.get_primitive();
+    static std::shared_ptr<dnnl::inner_product_forward::desc> get_fully_connected_descriptor( const kernel_impl_params& impl_params) {
+        auto prim = impl_params.typed_desc<fully_connected>();
 
-        auto& input = arg.get_dependency(0);
-        auto& weights = arg.get_dependency(1);
-        auto input_layout = input.get_output_layout();
-        auto output_layout = arg.get_output_layout();
+        auto input_layout = impl_params.get_input_layout(0);
+        auto weights_layout = impl_params.get_input_layout(1);
+        auto output_layout = impl_params.output_layout;
 
         if (prim->input_size == 3) {
             combine_bf_with_first_spatial_dim(input_layout);
@@ -106,11 +104,11 @@ protected:
         }
 
         auto input_md = onednn::layout_to_memory_desc(input_layout, dnnl::memory::format_tag::undef, false);
-        auto weights_md = onednn::layout_to_memory_desc(weights.get_output_layout(), dnnl::memory::format_tag::any);
+        auto weights_md = onednn::layout_to_memory_desc(weights_layout, dnnl::memory::format_tag::any);
         auto output_md = onednn::layout_to_memory_desc(output_layout, dnnl::memory::format_tag::ab, false);
 
-        if (arg.bias_term()) {
-            auto bias_md = onednn::layout_to_memory_desc(arg.get_dependency(2).get_output_layout(), dnnl::memory::format_tag::any, true);
+        if (!prim->bias.empty()) {
+            auto bias_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(2), dnnl::memory::format_tag::any, true);
             return std::make_shared<dnnl::inner_product_forward::desc>(
                 dnnl::prop_kind::forward_inference,
                 input_md,
@@ -127,13 +125,13 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const fully_connected_node& arg, const kernel_impl_params&) {
-        auto& engine = arg.get_program().get_engine();
-        auto desc = get_fully_connected_descriptor(arg);
+    static primitive_impl* create(const fully_connected_node& arg, const kernel_impl_params& impl_params) {
+        auto& engine = impl_params.prog.get_engine();
+        auto desc = get_fully_connected_descriptor(impl_params);
         auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return new fully_connected_onednn(arg, desc, attr, prim_desc, get_weights_reorder(arg, prim_desc));
+        return new fully_connected_onednn(engine, desc, attr, prim_desc, get_weights_reorder(impl_params, prim_desc));
     }
 };
 
