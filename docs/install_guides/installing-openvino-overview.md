@@ -32,7 +32,7 @@ The OpenVINO installation package is distributed in two parts: OpenVINO Runtime 
   - Accuracy Checker and Annotation Converter
   - Model Downloader and other Open Model Zoo tools
 
-### Option 1. Install OpenVINO Development Tools (recommended)
+### Option 1. Install OpenVINO Runtime and OpenVINO Development Tools (recommended)
 
 The best way to get started with OpenVINO is to install OpenVINO Development Tools, which will install the development tools in only a few steps. It also installs the OpenVINO Runtime Python package as a dependency. Follow the instructions on the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page to install it.
 
