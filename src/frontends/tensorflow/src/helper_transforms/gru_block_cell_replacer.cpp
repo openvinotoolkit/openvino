@@ -73,8 +73,8 @@ pass::GRUBlockCellReplacer::GRUBlockCellReplacer() {
         auto w_urc = rg.make<Concat>(OutputVector{split_w_ru->output(1), split_w_ru->output(0), w_c}, 1);
 
         // prepare bias in the same way
-        auto split_b_ru = rg.make<Split>(b_ru, rg.make<Constant>(element::i64, Shape{}, 1), 2);
-        auto b_urc = rg.make<Concat>(OutputVector{split_b_ru->output(1), split_w_ru->output(0), b_c}, 1);
+        auto split_b_ru = rg.make<Split>(b_ru, rg.make<Constant>(element::i64, Shape{}, 0), 2);
+        auto b_urc = rg.make<Concat>(OutputVector{split_b_ru->output(1), split_b_ru->output(0), b_c}, 0);
 
         // transpose weights
         // the current shape - [input_size + hidden_size, 3 * hidden_size]
