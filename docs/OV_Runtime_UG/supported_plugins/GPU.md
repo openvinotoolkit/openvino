@@ -160,7 +160,7 @@ Alternatively, it can be enabled explicitly via the device notion, for example `
 
 @endsphinxtab
 
-@sphinxtab{Bacthing via throughput hint}
+@sphinxtab{Batching via throughput hint}
 
 @sphinxtabset
 
