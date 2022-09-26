@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
             printf("Device id should not exceed 99.\n");
             return 1;
         }
-        snprintf(str, sizeof(str), "GPU.%d", FLAGS_gpu_device_id);
+        snprintf(str, sizeof(str)-1, "GPU.%d", FLAGS_gpu_device_id);
         CommonTestUtils::DEVICE_GPU = str;
     }
 
