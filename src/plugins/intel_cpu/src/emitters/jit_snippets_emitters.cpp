@@ -45,7 +45,13 @@ void jit_container_emitter::map_abstract_registers(const std::vector<size_t> &ve
                 // Note that gpr_to_gpr is used for high-level utility operations like Kernel/TileScheduler/Tile.
                 // Input registers are not mapped in this case, since they contain utility info
                 // (num_params, tile increment, etc.), but not reg indexes.
-                in_physical_regs = std::move(in_abstract_regs);
+                // todo: Note that TileBeginEmitter and TileEndEmitter demonstrate new paradigm,
+                //  where all utility emitters are align with conventional Op emitters
+                if (std::dynamic_pointer_cast<TileBeginEmitter>(emitter) ||
+                        std::dynamic_pointer_cast<TileEndEmitter>(emitter))
+                    in_physical_regs = std::move(abstract_to_physical(in_abstract_regs, gpr_pool));
+                else
+                    in_physical_regs = std::move(in_abstract_regs);
                 out_physical_regs = std::move(abstract_to_physical(out_abstract_regs, gpr_pool));
                 gprs_used.insert(out_physical_regs.begin(), out_physical_regs.end());
                 break;
@@ -622,6 +628,156 @@ void TileEmitter::emit_impl(const std::vector<size_t>& in,
     h->cmp(work_amount, increment);
     h->jge(for_body, CodeGenerator::T_NEAR);
     cleanup_broadcasting(reg_const_params, data_ptr_regs);
+}
+
+TileBeginEmitter::TileBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+                         const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
+    const auto tileBegin = ov::as_type_ptr<ngraph::snippets::op::TileBegin>(n);
+    if (!tileBegin)
+        IE_THROW() << "TileBeginEmitter invoked with invalid op argument";
+    const auto tileEnd = ov::as_type_ptr<ngraph::snippets::op::TileEnd>(tileBegin->output(tileBegin->get_output_size() - 1).get_node_shared_ptr());
+    // todo: this check could be excessive, since we check for it in validate_and_infer_types()
+    if (!tileEnd)
+        IE_THROW() << "TileBeginEmitter invoked with invalid configuration: the last output must be TileEnd";
+    num_inputs = tileBegin->get_input_size();
+    num_outputs = tileEnd->get_output_size();
+    increment = tileBegin->get_increment();
+    work_amount = tileBegin->get_work_amount();
+    begin_address_ptr = tileBegin->get_address_ptr();
+    // todo: add checks on work_amount vs increment consistency + checks on work_amount vs max(last_dim) consistence
+    //  probably better to implement them in Tile* constructors
+    for (int i = 0; i < num_inputs; i++) {
+        // todo: we can take the whole partial shape in future, since it should contain only one dim
+        const auto& last_dim = *(tileBegin->get_input_partial_shape(i).rbegin());
+        io_dims.push_back(last_dim.is_static() ? last_dim.get_length() : 0);
+        io_data_size.push_back(tileBegin->get_input_element_type(i).size());
+    }
+    for (int i = 0; i < num_outputs; i++) {
+        // todo: we can take the whole partial shape in future, since it should contain only one dim
+        const auto& last_dim = *(tileEnd->get_output_partial_shape(i).rbegin());
+        io_dims.push_back(last_dim.is_static() ? last_dim.get_length() : 0);
+        io_data_size.push_back(tileBegin->get_input_element_type(i).size());
+    }
+    size_t num_dynamic_inputs = 0;
+    const bool has_dynamic_dims = std::any_of(io_dims.begin(), io_dims.end(), [](size_t x) {return x == 0;});
+    for (size_t i = 0; i < io_dims.size(); i ++) {
+        // If a last dim is static, but == 1 and there are some dynamic inputs as well,
+        // then treat the dim as dynamic, since we'll now whether it's broadcasted only at runtime
+        if (io_dims[i] == 0 || (io_dims[i] == 1 && has_dynamic_dims)) {
+            dynamic_dims_idx.push_back(i);
+            if (i < num_inputs)
+                num_dynamic_inputs++;
+        } else {
+            static_dims_idx.push_back(i);
+        }
+    }
+    dynamic_increments.resize(dynamic_dims_idx.size());
+    dynamic_broadcasting.resize(num_dynamic_inputs);
+}
+
+void TileBeginEmitter::emit_code(const std::vector<size_t> &in,
+                                 const std::vector<size_t> &out,
+                                 const std::vector<size_t> &pool,
+                                 const std::vector<size_t> &gpr) const {
+    emit_impl(in, out, pool, gpr, nullptr);
+}
+
+void TileBeginEmitter::emit_impl(const std::vector<size_t>& in,
+                                 const std::vector<size_t>& out,
+                                 const std::vector<size_t>& pool,
+                                 const std::vector<size_t>& gpr,
+                                 const ov::intel_cpu::emitter_context *emit_context) const {
+    // todo: In dynamic case we will also need to set broadcasting info here
+    // todo: skip everything if work_amount == increment
+    Label for_body;
+    h->L(for_body);
+    (*begin_address_ptr) = for_body.getAddress();
+
+}
+
+TileEndEmitter::TileEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                   const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
+    const auto tileEnd = ov::as_type_ptr<ngraph::snippets::op::TileEnd>(n);
+    if (!tileEnd)
+        IE_THROW() << "TileEndEmitter invoked with invalid op argument";
+    const auto tileBegin = ov::as_type_ptr<ngraph::snippets::op::TileBegin>(
+            tileEnd->get_input_source_output(tileEnd->get_input_size() - 1).get_node_shared_ptr());
+    // todo: this check could be excessive, since we check for it in validate_and_infer_types()
+    if (!tileBegin)
+        IE_THROW() << "TileEndEmitter invoked with invalid configuration: the last arg must be TileBegin";
+    num_inputs = tileBegin->get_input_size();
+    num_outputs = tileEnd->get_output_size();
+    increment = tileBegin->get_increment();
+    work_amount = tileBegin->get_work_amount();
+    begin_address_ptr = tileBegin->get_address_ptr();
+    tileBegin->input_regs;
+    /*
+    // todo: add checks on work_amount vs increment consistency + checks on work_amount vs max(last_dim) consistence
+    //  probably better to implement them in Tile* constructors
+    for (int i = 0; i < num_inputs; i++) {
+        // todo: we can take the whole partial shape in future, since it should contain only one dim
+        const auto& last_dim = *(tileBegin->get_input_partial_shape(i).rbegin());
+        io_dims.push_back(last_dim.is_static() ? last_dim.get_length() : 0);
+        io_data_size.push_back(tileBegin->get_input_element_type(i).size());
+    }
+    for (int i = 0; i < num_outputs; i++) {
+        // todo: we can take the whole partial shape in future, since it should contain only one dim
+        const auto& last_dim = *(tileEnd->get_output_partial_shape(i).rbegin());
+        io_dims.push_back(last_dim.is_static() ? last_dim.get_length() : 0);
+        io_data_size.push_back(tileBegin->get_input_element_type(i).size());
+    }
+    size_t num_dynamic_inputs = 0;
+    const bool has_dynamic_dims = std::any_of(io_dims.begin(), io_dims.end(), [](size_t x) {return x == 0;});
+    for (size_t i = 0; i < io_dims.size(); i ++) {
+        // If a last dim is static, but == 1 and there are some dynamic inputs as well,
+        // then treat the dim as dynamic, since we'll now whether it's broadcasted only at runtime
+        if (io_dims[i] == 0 || (io_dims[i] == 1 && has_dynamic_dims)) {
+            dynamic_dims_idx.push_back(i);
+            if (i < num_inputs)
+                num_dynamic_inputs++;
+        } else {
+            static_dims_idx.push_back(i);
+        }
+    }
+    dynamic_increments.resize(dynamic_dims_idx.size());
+    dynamic_broadcasting.resize(num_dynamic_inputs);
+    */
+    in_out_type_ = emitter_in_out_map::gpr_to_gpr;
+}
+
+void TileEndEmitter::emit_code(const std::vector<size_t> &in,
+                                 const std::vector<size_t> &out,
+                                 const std::vector<size_t> &pool,
+                                 const std::vector<size_t> &gpr) const {
+    emit_impl(in, out, pool, gpr, nullptr);
+}
+
+void TileEndEmitter::emit_impl(const std::vector<size_t>& in,
+                                 const std::vector<size_t>& out,
+                                 const std::vector<size_t>& pool,
+                                 const std::vector<size_t>& gpr,
+                                 const ov::intel_cpu::emitter_context *emit_context) const {
+    // todo: how to derive work_amount more logically? update assign_registers pass?
+    const auto& data_ptr_reg_idxs(out);
+    std::vector<Reg64> data_ptr_regs;
+    transform_idxs_to_regs(data_ptr_reg_idxs, data_ptr_regs);
+    Reg64 reg_work_amount = Reg64(static_cast<int>(in[0]));
+    Reg64 reg_const_params;
+    // todo: unify interface for static & dynamic calls for TileEmitter?
+    // There is 1 arg for the static case, so we can assign any reg to reg_const_params, since it won't be really used.
+    // Anyway, try to assign a reg from the pool to prevent possible work_amount corruption
+    if (dynamic_dims_idx.empty()) {
+        reg_const_params = gpr_pool.empty() ? work_amount : Reg64(gpr_pool.back());
+    } else {
+        reg_const_params = Reg64(static_cast<int>(in[1]));
+    }
+    // todo: skip everything if work_amount == increment
+    emit_ptr_increments_dynamic(reg_const_params, data_ptr_regs);
+    h->sub(work_amount, increment);
+    h->cmp(work_amount, increment);
+    h->jge(*begin_address_ptr);
+    cleanup_broadcasting(reg_const_params, data_ptr_regs);
+
 }
 
 BroadcastMoveEmitter::BroadcastMoveEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,

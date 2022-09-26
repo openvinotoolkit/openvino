@@ -200,6 +200,72 @@ private:
     mutable std::vector<Label> dynamic_broadcasting;
 };
 
+class TileBeginEmitter : public jit_emitter {
+public:
+    TileBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+    void emit_code(const std::vector<size_t> &in,
+                   const std::vector<size_t> &out,
+                   const std::vector<size_t> &pool,
+                   const std::vector<size_t> &gpr) const override;
+
+private:
+//    void validate_arguments(const std::vector<size_t> &in,
+//                            const std::vector<size_t> &out,
+//                            const std::vector<size_t> &pool,
+//                            const std::vector<size_t> &gpr) const override;
+    void emit_impl(const std::vector<size_t>& in,
+                   const std::vector<size_t>& out,
+                   const std::vector<size_t>& pool,
+                   const std::vector<size_t>& gpr,
+                   const ov::intel_cpu::emitter_context *emit_context) const override;
+
+    mutable const uint8_t** begin_address_ptr;
+    size_t num_inputs = 0;
+    size_t num_outputs = 0;
+    std::vector<size_t> io_dims {};
+    std::vector<size_t> io_data_size {};
+    size_t increment = 0;
+    size_t work_amount = 0; // need to store work_amount explicitly, since two tiles can work on the same dim (e.g. vector + scalar)
+    std::vector<size_t> static_dims_idx {}; // non-zero io_dims indexes == dims that are not broadcasted
+    std::vector<size_t> dynamic_dims_idx {}; // non-zero io_dims indexes == dims that are not broadcasted
+    mutable std::vector<Label> dynamic_increments;
+    mutable std::vector<Label> dynamic_broadcasting;
+};
+
+class TileEndEmitter : public jit_emitter {
+public:
+    TileEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+    void emit_code(const std::vector<size_t> &in,
+                   const std::vector<size_t> &out,
+                   const std::vector<size_t> &pool,
+                   const std::vector<size_t> &gpr) const override;
+
+private:
+//    void validate_arguments(const std::vector<size_t> &in,
+//                            const std::vector<size_t> &out,
+//                            const std::vector<size_t> &pool,
+//                            const std::vector<size_t> &gpr) const override;
+    void emit_impl(const std::vector<size_t>& in,
+                   const std::vector<size_t>& out,
+                   const std::vector<size_t>& pool,
+                   const std::vector<size_t>& gpr,
+                   const ov::intel_cpu::emitter_context *emit_context) const override;
+    const uint8_t** begin_address_ptr;
+    std::shared_ptr<ngraph::snippets::op::TileBegin> ti
+
+    size_t num_inputs = 0;
+    size_t num_outputs = 0;
+    std::vector<size_t> io_dims {};
+    std::vector<size_t> io_data_size {};
+    size_t increment = 0;
+    size_t work_amount = 0; // need to store work_amount explicitly, since two tiles can work on the same dim (e.g. vector + scalar)
+    std::vector<size_t> static_dims_idx {}; // non-zero io_dims indexes == dims that are not broadcasted
+    std::vector<size_t> dynamic_dims_idx {}; // non-zero io_dims indexes == dims that are not broadcasted
+    mutable std::vector<Label> dynamic_increments;
+    mutable std::vector<Label> dynamic_broadcasting;
+};
+
+
 class NopEmitter : public jit_emitter {
 public:
     NopEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)

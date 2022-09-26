@@ -50,7 +50,8 @@ public:
     TileBase(const std::vector<Output<Node>>& args, size_t tileRank, size_t workAmount, size_t increment);
     TileBase() = default;
     bool visit_attributes(AttributeVisitor& visitor) override;
-//    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs)  const override;
+    size_t get_work_amount() {return workAmount;}
+    size_t get_increment() {return increment;}
 
 protected:
     size_t tileRank;
@@ -66,6 +67,12 @@ public:
     TileBegin() = default;
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs)  const override;
+    const uint8_t** get_address_ptr() {return &begin_address;}
+    const std::vector<size_t>& get_input_regs() {return input_regs;}
+    std::vector<size_t> input_regs;
+private:
+    const uint8_t* begin_address;
+    std::vector<size_t> input_regs;
 };
 
 class TileEnd : public TileBase {

@@ -31,8 +31,8 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
         }
     }
 
-    std::vector<std::set<Reg>> used;
-    std::vector<std::set<Reg>> def;
+    std::vector<std::set<Reg>> used; // used = used as an input
+    std::vector<std::set<Reg>> def; // defined = used as output
 
     for (const auto& op : stmts) {
         std::set<Reg> u;
@@ -58,6 +58,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
 
     for (size_t i = 0; i < stmts.size(); i++) {
         for (size_t n = 0; n < stmts.size(); n++) {
+            // copy regs from lifeOut to lifeIn while ignoring regs in def
             std::set_difference(lifeOut[n].begin(), lifeOut[n].end(), def[n].begin(), def[n].end(), std::inserter(lifeIn[n], lifeIn[n].begin()));
             lifeIn[n].insert(used[n].begin(), used[n].end());
         }
