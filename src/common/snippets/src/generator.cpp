@@ -93,6 +93,7 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
     for (auto n : m_scalar->get_ordered_ops()) {
         scalar_lowered.emplace_back(std::make_pair(target->get(n->get_type_info())(n), getRegisters(n)));
     }
+    /*
     OV_ITT_TASK_NEXT(GENERATE, "::Tiles1D");
     // wrapping into tiles1D
     //todo: in, out, and io_last_dims should derive naturally from the graph representation
@@ -112,18 +113,27 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
     tile_scheduler_region =
             std::make_pair(target->get(op::TileScheduler::get_type_info_static())(tile_scheduler),
                            std::make_pair(std::vector<size_t>({in, out, target->get_lanes()}), std::vector<size_t>{}));
-
+    */
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")
     // emission
-    auto tiles2DKernel = std::make_shared<op::Kernel>(std::vector<AllocatedEmitter>{tile_scheduler_region});
+//    auto tiles2DKernel = std::make_shared<op::Kernel>(std::vector<AllocatedEmitter>{tile_scheduler_region});
+//    tiles2DKernel->compile_params = compile_params;
+    auto tiles2DKernel = std::make_shared<op::Kernel>(std::vector<AllocatedEmitter>{lowered});
     tiles2DKernel->compile_params = compile_params;
     std::shared_ptr<Emitter> kernel = target->get(op::Kernel::get_type_info_static())(tiles2DKernel);
-    kernel->emit_code({in, out}, {});
+    try {
+        kernel->emit_code({in, out}, {});
+    } catch (const std::exception& e) {
+        std::cerr << "Exception during snippets kernel generation: " << e.what() << "\n";
+        throw ngraph_error("failed to emit code for snippets");
+    } catch (...) {
+        throw ngraph_error("failed to emit code for snippets");
+    }
     OV_ITT_TASK_NEXT(GENERATE, "::EmitData")
     // push back Tiles and TileEmitter to emit data appropriately
-    lowered.push_back(tile_scheduler_region);
-    lowered.push_back(vector_region);
-    lowered.push_back(scalar_region);
+//    lowered.push_back(tile_scheduler_region);
+//    lowered.push_back(vector_region);
+//    lowered.push_back(scalar_region);
     lowered.insert(lowered.end(), scalar_lowered.begin(), scalar_lowered.end());
     for (auto& op : lowered) {
         op.first->emit_data();

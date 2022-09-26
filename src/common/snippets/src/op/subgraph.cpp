@@ -439,7 +439,7 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     std::cerr << "Tile before is dumped";
     ov::pass::Serialize("tile_before.xml", "tile_before.bin").run_on_model(m_body);
 
-    auto tileBegin = insertTileBegin(m_body->get_parameters(), 1, 1, 1);
+    auto tileBegin = insertTileBegin(m_body->get_parameters(), 1, 35, 16);
     auto tileEnd = insertTileEnd(m_body->get_results(), tileBegin);
 
 //    for (int i = 0; i < tileEnd->get_output_size(); i++) {

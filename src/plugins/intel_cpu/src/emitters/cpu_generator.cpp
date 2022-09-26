@@ -143,7 +143,9 @@ bool ov::intel_cpu::CPUTargetMachine::is_supported() const {
 }
 
 code ov::intel_cpu::CPUTargetMachine::get_snippet() const {
-    h->create_kernel();
+    if (h->create_kernel() != status::success) {
+        IE_THROW() << "Failed to create jit_kernel in get_snippet()";
+    }
     return h->jit_ker();
 }
 

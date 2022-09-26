@@ -33,7 +33,7 @@ bool TileBase::visit_attributes(AttributeVisitor &visitor) {
 }
 
 TileBegin::TileBegin(const std::vector<Output<Node>> &args, size_t tileRank, size_t workAmount, size_t increment)
-    : TileBase(args, tileRank, workAmount, increment) {
+    : TileBase(args, tileRank, workAmount, increment), begin_address(nullptr) {
     constructor_validate_and_infer_types();
 }
 
