@@ -555,11 +555,7 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
 
 class MetaDataParser : public ov::Meta {
 public:
-    MetaDataParser(const std::string& name, const pugi::xml_node& meta) : m_name(name) {
-        std::ostringstream stream;
-        meta.print(stream);
-        m_meta_section = stream.str();
-    }
+    MetaDataParser(const std::string& name, const pugi::xml_node& meta) : m_name(name), m_meta(meta) {}
 
     operator const ov::AnyMap&() const override {
         parse();
@@ -595,12 +591,10 @@ private:
         if (parsed)
             return;
 
-        pugi::xml_document xml_doc;
-        xml_doc.load(m_meta_section.c_str());
-        m_parsed_data = parse_node(xml_doc.child(m_name.c_str()));
+        m_parsed_data = parse_node(m_meta);
         parsed = true;
     }
-    std::string m_meta_section;
+    pugi::xml_node m_meta;
     const std::string m_name;
     mutable ov::AnyMap m_parsed_data;
     mutable bool parsed{false};
