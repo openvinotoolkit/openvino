@@ -22,7 +22,7 @@ What else can I do?</a>
 
 ### <a name="opensourced">Is the Post-training Optimization Tool (POT) opensourced?</a>
 
-Yes, POT is developed on GitHub as a part of [openvinotoolkit/openvino repo](https://github.com/openvinotoolkit/openvino) under Apache-2.0 License.
+Yes, POT is developed on GitHub as a part of [openvinotoolkit/openvino](https://github.com/openvinotoolkit/openvino) under Apache-2.0 License.
 
 ### <a name="dataset">Can I quantize my model without a dataset?</a>
 
