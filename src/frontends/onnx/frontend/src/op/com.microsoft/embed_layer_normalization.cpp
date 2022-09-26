@@ -39,7 +39,7 @@ OutputVector embed_layer_normalization(const Node& node) {
     } else {
         // input_ids' shape is [batchsize, sequence_length]
         // input's shape is [batchsize, sequence_length, hidden_size]
-        // position_embeddings's shape is [max_sequence_lenght, hidden_size]
+        // position_embeddings's shape is [max_sequence_length, hidden_size]
         // output = input + position_embeddings,
         // after broadcast the shape of output is [batchszie, max_sequence_lenght, hidden_size]
         // the output shape is error.
