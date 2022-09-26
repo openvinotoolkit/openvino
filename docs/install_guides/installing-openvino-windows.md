@@ -143,7 +143,7 @@ The environment variables are set. Next, you can download some additional tools.
    
 .. tab:: GPU
 
-   To enable OpenVINO™ Runtime to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide windows>`.
+   To enable OpenVINO to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide windows>`.
 
 .. tab:: VPU
 
