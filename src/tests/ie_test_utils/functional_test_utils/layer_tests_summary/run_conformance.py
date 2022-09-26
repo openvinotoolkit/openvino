@@ -29,12 +29,12 @@ API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
 OP_CONFORMANCE_BIN_NAME = "conformanceTests"
 SUBGRAPH_DUMPER_BIN_NAME = "subgraphsDumper"
 
-def get_ov_path(is_bin=True):
-    ov_dir = None
-    try:
-        ov_dir = os.environ['INTEL_OPENVINO_DIR']
-    except:
-        ov_dir = os.path.abspath(os.getcwd())[:os.path.abspath(os.getcwd()).find(OPENVINO_NAME) + len(OPENVINO_NAME)]
+def get_ov_path(ov_dir=None, is_bin=False):
+    if ov_dir is None or not os.path.exists(ov_dir):
+        try:
+            ov_dir = os.environ['INTEL_OPENVINO_DIR']
+        except:
+            ov_dir = os.path.abspath(os.getcwd())[:os.path.abspath(os.getcwd()).find(OPENVINO_NAME) + len(OPENVINO_NAME)]
     if is_bin:
         ov_dir = os.path.join(ov_dir, 'bin')
         get_latest_dir = lambda path: sorted(Path(ov_dir).iterdir(), key=os.path.getmtime)[0]
@@ -56,18 +56,19 @@ def parse_arguments():
 
     parser.add_argument("-m", "--models_path", help=models_path_help, type=str, required=False, default=".")
     parser.add_argument("-d", "--device", help= device_help, type=str, required=False, default="CPU")
-    parser.add_argument("-ov", "--ov_binaries", help=ov_help, type=str, required=False, default=get_ov_path())
+    parser.add_argument("-ov", "--ov_path", help=ov_help, type=str, required=False, default=get_ov_path())
     parser.add_argument("-w", "--working_dir", help=working_dir_help, type=str, required=False, default='temp')
     parser.add_argument("-t", "--type", help=type_help, type=str, required=False, default="OP")
-    parser.add_argument("-s", "--dump_conformance", help=dump_conformance_help, type=bool, required=False, default=False)
+    parser.add_argument("-s", "--dump_conformance", help=dump_conformance_help, type=int, required=False, default=1)
 
     return parser.parse_args()
 
 class Conformance:
-    def __init__(self, device:str, model_path:str, ov_binaries:str, type:str, working_dir:str):
+    def __init__(self, device:str, model_path:str, ov_path:str, type:str, working_dir:str):
         self._device = device
         self._model_path = model_path
-        self._ov_binaries = ov_binaries
+        self._ov_path = ov_path
+        self._ov_bin_path = get_ov_path(self._ov_path, True)
         self._working_dir = working_dir
         if not (type == "OP" or type == "API"):
             raise Exception("Incorrect conformance type")
@@ -76,15 +77,18 @@ class Conformance:
     def __download_repo(self, https_url: str, version: str):
         repo_name = https_url[https_url.rfind('/') + 1:len(https_url) - 4]
         repo_path = os.path.join(self._working_dir, repo_name)
-        logger.info(f'Started to clone repo: {https_url} to {repo_path}')
-        repo = Repo.clone_from(https_url, repo_path)
-        repo.submodule_update(recursive=True)
-        logger.info(f'Repo {https_url} was cloned sucessful')
-        remote_version = "origin/" + version
-        if remote_version in repo.git.branch('-r').replace(' ', '').split('\n'):
-            branch = repo.git.checkout(version)
+        if os.path.exists(repo_path):
+            logger.info(f'Repo: {repo_name} exists in {self._working_dir}. Skip the repo download')
+        else:
+            logger.info(f'Started to clone repo: {https_url} to {repo_path}')
+            repo = Repo.clone_from(https_url, repo_path)
             repo.submodule_update(recursive=True)
-            logger.info(f'Repo {https_url} is on {version}')
+            logger.info(f'Repo {https_url} was cloned sucessful')
+            remote_version = "origin/" + version
+            if remote_version in repo.git.branch('-r').replace(' ', '').split('\n'):
+                branch = repo.git.checkout(version)
+                repo.submodule_update(recursive=True)
+                logger.info(f'Repo {https_url} is on {version}')
         return repo_path
 
     def _convert_models(self):
@@ -92,15 +96,15 @@ class Conformance:
         original_model_path = os.path.join(self._working_dir, "original_models")
         converted_model_path = os.path.join(self._working_dir, "converted_models")
         converter_path = os.path.join(self._omz_path, "tools", "model_tools", 'converter.py')
-        mo_path = os.path.join(get_ov_path(False), "tools", "mo", ".")
+        mo_path = os.path.join(self._ov_path, "tools", "mo")
         logger.info(f"Model conversion from {original_model_path} to {converted_model_path} is started")
-        ov_python_path = os.path.join(self._ov_binaries, "python_api", f"python{version[0:3]}")
+        ov_python_path = os.path.join(self._ov_bin_path, "python_api", f"python{version[0:3]}")
 
         command = f'python3 -m venv .env3; '\
             f'source .env3/bin/activate; '\
             f'export OMZ_ROOT={self._omz_path}; ' \
             f'export PYTHONPATH={ov_python_path}:{mo_path}; ' \
-            f'export LD_LIBRARY_PATH={self._ov_binaries}; ' \
+            f'export LD_LIBRARY_PATH={self._ov_bin_path}; ' \
             f'pip3 install -e "{mo_path}/.[caffe,kaldi,mxnet,onnx,pytorch,tensorflow2]"; ' \
             f'pip3 install "{omz_tools_path}/.[paddle,pytorch,tensorflow]"; ' \
             f'omz_downloader --name=vgg16 --output_dir={original_model_path}; '\
@@ -124,7 +128,7 @@ class Conformance:
         logger.info("Model downloading and conversion is finished successful")
 
     def dump_subgraph(self):
-        subgraph_dumper_path = os.path.join(self._ov_binaries, SUBGRAPH_DUMPER_BIN_NAME)
+        subgraph_dumper_path = os.path.join(self._ov_bin_path, SUBGRAPH_DUMPER_BIN_NAME)
         conformance_ir_path = os.path.join(self._working_dir, "conformance_ir")
         if not os.path.exists(conformance_ir_path):
             os.mkdir(conformance_ir_path)
@@ -155,9 +159,9 @@ class Conformance:
         worker_num = os.cpu_count()
         conformance_path = None
         if self._type == "OP":
-            conformance_path = os.path.join(self._ov_binaries, OP_CONFORMANCE_BIN_NAME)
+            conformance_path = os.path.join(self._ov_bin_path, OP_CONFORMANCE_BIN_NAME)
         else:
-            conformance_path = os.path.join(self._ov_binaries, API_CONFORMANCE_BIN_NAME)
+            conformance_path = os.path.join(self._ov_bin_path, API_CONFORMANCE_BIN_NAME)
 
         logs_dir = os.path.join(self._working_dir, f'{self._device}_logs')
         report_dir = os.path.join(self._working_dir, 'report')
@@ -193,7 +197,7 @@ class Conformance:
 
     def start_pipeline(self, dump_models: bool):
         logger.info(f"[ARGUMENTS] --device = {self._device}")
-        logger.info(f"[ARGUMENTS] --ov_binaries = {self._ov_binaries}")
+        logger.info(f"[ARGUMENTS] --ov_path = {self._ov_path}")
         logger.info(f"[ARGUMENTS] --models_path = {self._model_path}")
         logger.info(f"[ARGUMENTS] --working_dir = {self._working_dir}")
         logger.info(f"[ARGUMENTS] --type = {self._type}")
@@ -210,7 +214,7 @@ class Conformance:
         
 if __name__ == "__main__":
     args = parse_arguments()
-    conformance = Conformance(args.device, args.models_path, args.ov_binaries, args.type, args.working_dir)
+    conformance = Conformance(args.device, args.models_path, args.ov_path, args.type, args.working_dir)
     conformance.start_pipeline(args.dump_conformance)
 
  
