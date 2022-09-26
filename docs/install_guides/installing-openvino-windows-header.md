@@ -1,4 +1,4 @@
-# Install and OpenVINO™ Runtime for Windows {#openvino_docs_install_guides_installing_openvino_windows_header}
+# Install and OpenVINO™ Runtime on Windows {#openvino_docs_install_guides_installing_openvino_windows_header}
 
 @sphinxdirective
 
