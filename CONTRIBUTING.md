@@ -21,7 +21,7 @@ We welcome community contributions to OpenVINO™. Please read the following gui
 -   Choose a base branch for your work. More details about branches and policies are here:  [Branches](https://github.com/openvinotoolkit/openvino/wiki/Branches)
 -   Clone your fork to your computer.
 -   Create a new branch (with a meaningful name) from the base branch you chose.
--   Modify / add the code following our  [Coding Style Guide](https://github.com/openvinotoolkit/openvino/wiki/CodingStyleGuideLines).
+-   Modify / add the code following our  [Coding Style Guide](./docs/dev/coding_style.md).
 -   If you want to add a new sample, please look at this  [Guide for contributing to C++/C/Python IE samples](https://github.com/openvinotoolkit/openvino/wiki/SampleContribute)
 -   If you want to contribute to the documentation and want to add a new guide, follow that instruction [Documentation guidelines](https://github.com/openvinotoolkit/openvino/wiki/CodingStyleGuideLinesDocumentation)
 -   Run testsuite locally:
@@ -35,7 +35,7 @@ Following these guidelines will increase the likelihood of your pull request bei
 -   One PR – one issue.
 -   Build perfectly on your local system.
 -   Choose the right base branch [Branches](https://github.com/openvinotoolkit/openvino/wiki/Branches).
--   Follow the  [Coding Style Guide](https://github.com/openvinotoolkit/openvino/wiki/CodingStyleGuideLines) for your code.
+-   Follow the  [Coding Style Guide](./docs/dev/coding_style.md) for your code.
 -   Update documentation using [Documentation guidelines](https://github.com/openvinotoolkit/openvino/wiki/CodingStyleGuideLinesDocumentation) if needed.
 -   Cover your changes with test. 
 -   Add license at the top of new files [C++ example](https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/classification_sample_async/main.cpp#L1-L2), [Python example](https://github.com/openvinotoolkit/openvino/blob/master/samples/python/hello_classification/hello_classification.py#L3-L4). 
@@ -52,4 +52,4 @@ Your pull request will be automatically tested by OpenVINO™'s precommit (testi
 
 ## Merging PR
 
-As soon as the reviewer is fine with the pull request and precommit shows "green" status, the "Approved" review status is put, which signals OpenVINO™ maintainers that they can merge your pull request.
+When the reviewer accepts the pull request and the pre-commit shows a "green" status, the review status is set to "Approved", which signals to the OpenVINO™ maintainers that they can merge your pull request.

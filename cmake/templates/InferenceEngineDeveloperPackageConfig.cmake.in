@@ -79,9 +79,43 @@ if(TARGET IE::runtime::dev AND NOT TARGET openvino::runtime::dev)
 endif()
 
 if(ENABLE_SYSTEM_PUGIXML)
-    find_dependency(PugiXML)
-    set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
-    add_library(IE::pugixml ALIAS pugixml)
+    set(_ov_pugixml_pkgconfig_interface "@pugixml_FOUND@")
+    if(_ov_pugixml_pkgconfig_interface)
+        find_dependency(PkgConfig)
+    else()
+        find_dependency(PugiXML)
+    endif()
+    if(PugiXML_FOUND)
+        set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
+        add_library(IE::pugixml ALIAS pugixml)
+    elseif(PkgConfig_FOUND)
+        if(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY)
+            set(pkg_config_quiet_arg QUIET)
+        endif()
+        if(${CMAKE_FIND_PACKAGE_NAME}_FIND_REQUIRED)
+            set(pkg_config_required_arg REQUIRED)
+        endif()
+
+        pkg_search_module(pugixml
+                          ${pkg_config_quiet_arg}
+                          ${pkg_config_required_arg}
+                          IMPORTED_TARGET GLOBAL
+                          pugixml)
+
+        unset(pkg_config_quiet_arg)
+        unset(pkg_config_required_arg)
+
+        if(pugixml_FOUND)
+            add_library(IE::pugixml ALIAS PkgConfig::pugixml)
+
+            # PATCH: on Ubuntu 18.04 pugixml.pc contains incorrect include directories
+            get_target_property(interface_include_dir PkgConfig::pugixml INTERFACE_INCLUDE_DIRECTORIES)
+            if(interface_include_dir AND NOT EXISTS "${interface_include_dir}")
+                set_target_properties(PkgConfig::pugixml PROPERTIES
+                    INTERFACE_INCLUDE_DIRECTORIES "")
+            endif()
+        endif()
+    endif()
 endif()
 
 # inherit OpenCV from main IE project if enabled

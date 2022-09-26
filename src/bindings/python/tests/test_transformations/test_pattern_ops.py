@@ -85,7 +85,7 @@ def test_any_input_predicate():
 
 def test_all_predicates():
     static_param = opset8.parameter(PartialShape([1, 3, 22, 22]), np.float32)
-    dynamic_param = opset8.parameter(PartialShape([-1, 6]), np.long)
+    dynamic_param = opset8.parameter(PartialShape([-1, 6]), np.compat.long)
     fully_dynamic_param = opset8.parameter(PartialShape.dynamic())
 
     assert Matcher(WrapType("opset8.Parameter", consumers_count(0)), "Test").match(static_param)
@@ -108,9 +108,9 @@ def test_all_predicates():
     assert not Matcher(WrapType("opset8.Parameter",
                                 type_matches(get_element_type(np.float32))), "Test").match(dynamic_param)
 
-    assert Matcher(WrapType("opset8.Parameter",
+    assert Matcher(WrapType("opset8.Parameter",  # noqa: ECE001
                             type_matches_any([get_element_type(np.float32),
-                                              get_element_type(np.long)])), "Test").match(static_param)
-    assert Matcher(WrapType("opset8.Parameter",
+                                              get_element_type(np.compat.long)])), "Test").match(static_param)
+    assert Matcher(WrapType("opset8.Parameter",  # noqa: ECE001
                             type_matches_any([get_element_type(np.float32),
-                                              get_element_type(np.long)])), "Test").match(dynamic_param)
+                                              get_element_type(np.compat.long)])), "Test").match(dynamic_param)

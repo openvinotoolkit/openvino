@@ -693,8 +693,12 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     GPU_DEBUG_GET_INSTANCE(debug_config);
     std::string device_id = GetConfig(ov::device::id.name(), options);
 
-    auto iter = device_map.find(device_id);
-    auto device = iter != device_map.end() ? iter->second : device_map.begin()->second;
+    auto iter = device_map.find(std::to_string(cldnn::device_query::device_id));
+    if (iter == device_map.end())
+        iter = device_map.find(device_id);
+    if (iter == device_map.end())
+        iter = device_map.begin();
+    auto device = iter->second;
     auto device_info = device->get_info();
     bool is_new_api = IsNewAPI();
 
