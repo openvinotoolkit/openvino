@@ -47,7 +47,7 @@ Proceed to the [Get Started Guide](@ref get_started) section to learn the basic 
    ```
 4. Plug in your Intel® Neural Compute Stick 2.
 
-5. (Optional) If you want to compile and run the Image Classification sample to verify the OpenVINO™ Runtime installation follow the next steps.
+5. (Optional) If you want to compile and run the Image Classification sample to verify the installation of OpenVINO, follow the steps below.
 
    a. Navigate to a directory that you have write access to and create a samples build directory. This example uses a directory named `build`:
    ```sh
