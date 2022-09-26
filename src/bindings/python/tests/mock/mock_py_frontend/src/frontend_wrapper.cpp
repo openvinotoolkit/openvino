@@ -4,6 +4,7 @@
 
 #include "mock_py_frontend/frontend_wrappers.hpp"
 
+#ifdef ENABLE_OV_TF_FRONTEND
 FrontEndWrapperTensorflow::FrontEndWrapperTensorflow() = default;
 
 void FrontEndWrapperTensorflow::add_extension(const std::shared_ptr<ov::Extension>& extension) {
@@ -13,7 +14,9 @@ void FrontEndWrapperTensorflow::add_extension(const std::shared_ptr<ov::Extensio
 bool FrontEndWrapperTensorflow::check_conversion_extension_registered(const std::string& name) {
     return m_op_translators.find(name) != m_op_translators.end();
 }
+#endif
 
+#ifdef ENABLE_OV_PADDLE_FRONTEND
 FrontEndWrapperPaddle::FrontEndWrapperPaddle() = default;
 
 void FrontEndWrapperPaddle::add_extension(const std::shared_ptr<ov::Extension>& extension) {
@@ -23,3 +26,4 @@ void FrontEndWrapperPaddle::add_extension(const std::shared_ptr<ov::Extension>& 
 bool FrontEndWrapperPaddle::check_conversion_extension_registered(const std::string& name) {
     return m_op_translators.find(name) != m_op_translators.end();
 }
+#endif
