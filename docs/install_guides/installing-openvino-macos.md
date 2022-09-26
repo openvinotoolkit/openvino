@@ -1,4 +1,4 @@
-# Install OpenVINO™ Runtime for macOS from Installer
+# Install OpenVINO™ Runtime on macOS from Installer
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the OpenVINO Development Tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
 
