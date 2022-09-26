@@ -58,7 +58,7 @@ The following methods are available to install OpenVINO Runtime:
 Source files are also available in the OpenVINO Toolkit GitHub repository. If you want to build OpenVINO from source for your platform, follow the [OpenVINO Build Instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
 ## Next Steps
-Still unsure if you want to install OpenVINO Toolkit? Check out the [OpenVINO tutorial notebooks](../tutorials.md) to run example applications directly in your web browser without needing to install it locally. Here are some exciting demos you can explore:
+Still unsure if you want to install OpenVINO toolkit? Check out the [OpenVINO tutorials](../tutorials.md) to run example applications directly in your web browser without installing it locally. Here are some exciting demos you can explore:
 - [Monodepth Estimation with OpenVINO](https://docs.openvino.ai/latest/notebooks/201-vision-monodepth-with-output.html)
 - [Style Transfer on ONNX Models with OpenVINO](https://docs.openvino.ai/latest/notebooks/212-onnx-style-transfer-with-output.html)
 - [OpenVINO API Tutorial](https://docs.openvino.ai/latest/notebooks/002-openvino-api-with-output.html)
