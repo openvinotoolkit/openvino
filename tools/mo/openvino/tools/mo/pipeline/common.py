@@ -7,7 +7,6 @@ import os
 from operator import itemgetter
 
 import networkx as nx
-
 from openvino.tools.mo.back.RemoveUselessConvert import RemoveUselessConvert
 from openvino.tools.mo.back.ResultRename import ResultRename
 from openvino.tools.mo.back.ie_ir_ver_2.emitter import port_renumber, serialize_constants, generate_ie_ir, \
@@ -16,11 +15,9 @@ from openvino.tools.mo.back.op_versioning import OpVersioning
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.middle.passes import tensor_names, convert_data_type
 from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_np
-from openvino.tools.mo.middle.passes.eliminate import shape_inference
 from openvino.tools.mo.middle.passes.infer import type_infer
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from openvino.tools.mo.ops.Cast import Cast
-from openvino.tools.mo.ops.op import Op
 from openvino.tools.mo.utils.error import Error
 
 
