@@ -581,11 +581,11 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         if (parent0->getParentEdges().size() != 2)
             return false;
 
-        auto arg0 = parent0->getParentEdgesAtPort(1)[0]->getParent();
-        if (arg0->getType() != Type::Input || !arg0->isConstant())
+        auto subtractArg1 = parent0->getParentEdgesAtPort(1)[0]->getParent();
+        if (subtractArg1->getType() != Type::Input || !subtractArg1->isConstant())
             return false;
 
-        if (arg0->getOriginalOutputPrecisionAtPort(0) != Precision::U8)
+        if (subtractArg1->getOriginalOutputPrecisionAtPort(0) != Precision::U8)
             return false;
 
         if (parent0->getInputShapeAtPort(1).getRank() < 2) {
@@ -601,11 +601,11 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
                 return false;
         }
 
-        auto arg1 = parent0->getParentEdgesAtPort(0)[0]->getParent();
-        if (arg1->getOriginalOutputPrecisionAtPort(0) != Precision::U8)
+        auto subtractArg0 = parent0->getParentEdgesAtPort(0)[0]->getParent();
+        if (subtractArg0->getOriginalOutputPrecisionAtPort(0) != Precision::U8)
             return false;
 
-        auto zeroPointsConstant = dynamic_cast<node::Input*>(arg0.get());
+        auto zeroPointsConstant = dynamic_cast<node::Input*>(subtractArg1.get());
         if (zeroPointsConstant == nullptr)
             IE_THROW() << "Cannot cast to Input node";
 

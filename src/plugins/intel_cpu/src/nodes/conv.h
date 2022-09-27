@@ -78,6 +78,11 @@ protected:
     const std::vector<impl_desc_type>& getPrimitivesPriority() override;
 
 private:
+    enum class zpType {
+        None,
+        PerTensor,
+        PerChannel
+    };
     class FusedSubgraph;
     using FusedSubgraphPtr = std::shared_ptr<FusedSubgraph>;
     using executorPtr = std::shared_ptr<DnnlExecutor>;
@@ -120,9 +125,8 @@ private:
     bool withSumBroadcast = false;
     bool preferLegacyPostOps = false;
     bool preferLegacyZeroPoint = false;
-    bool withInputZeroPoint = false;
-    bool zpPerTensor = false;
-    bool zpPerChannel = false;
+    zpType inputZeroPointType = zpType::None;
+
     std::vector<size_t> stride;
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;

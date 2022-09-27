@@ -939,22 +939,21 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
         return;
     }
     //no matter whether shouldTryBrgconv is true, 1 attribute is enough. Avoid duplicated attribute
-    if (!withInputZeroPoint && attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::depthwise) == -1 &&
+    if (inputZeroPointType == zpType::None && attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::depthwise) == -1 &&
         attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::quantization) == -1) {
         return;
     }
     // Per channel zero point can only supported on attr[0].Avoid extra useless attribute.
-    if (zpPerChannel)
+    if (inputZeroPointType == zpType::PerChannel)
         return;
     if (!shouldTryBrgconv)
         return;
     // Try 2 attributes. Consider the shouldTRyBrgconv could be set via RTinfo to enforce brgconv.
     attrs.resize(2);
-    if (zpPerTensor && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx))
+    if (inputZeroPointType == zpType::PerTensor && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx))
         //WR to ONEDNN limitation. attr[1] - legacy post ops + stock zero point.
         //@todo:Unify to use binary postops+stock zero point when limitation is fixed.
-        //ONEDNN limitation: https://jira.devtools.intel.com/browse/MFDNN-8558
-        //Have to switch to JIT_AMX supports input zp for performance.
+        //For now, have to adapt to JIT_AMX kernel for performance.
         setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
     else
         setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
@@ -1047,7 +1046,7 @@ void Convolution::initDescriptor(const NodeConfig& config) {
                     rightConfig = cfg;
                     //attr[0] for legacy post ops;
                     //attr[1] is mostly for binaryPostops except when having per-tensor zp on AMX.
-                    preferLegacyPostOps = (n == 0 || (n == 1 && zpPerTensor &&
+                    preferLegacyPostOps = (n == 0 || (n == 1 && (inputZeroPointType == zpType::PerTensor) &&
                                                     dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)));
                     //attr[0] for legacy zero point.
                     //attr[1] for stock per-tensor zero point.
@@ -1630,23 +1629,20 @@ void Convolution::initTryBrgconvFlag() {
 void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const size_t inputZpSize) {
     if (!stockInputZeroPoints.empty() || !legacyInputZeroPoints.empty())
         IE_THROW() << "input zero point is not empty '" << getName() << "'";
-    zpPerTensor = true;
+    if (inputZpSize)
+        inputZeroPointType = zpType::PerTensor;
     for (int j = 0; j < inputZpSize; j++) {
         legacyInputZeroPoints.push_back(inputZpData[j]);
         if (inputZpData[j] != inputZpData[0])
-            zpPerTensor = false;
+            inputZeroPointType = zpType::PerChannel;
     }
-
     //Only enable per-tensor zero point on avx512-amx and avx512-core.
     //If zero point is pertensor, both legacy zp and stock zp
     //would be passed into conv node. The conv node would determine how to create
     //post-ops attribute and prioritize to choose final onednn kernel.
-    if (zpPerTensor &&
+    if (inputZeroPointType == zpType::PerTensor &&
         (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni)))
         stockInputZeroPoints.push_back(static_cast<int32_t>(inputZpData[0]));
-
-    withInputZeroPoint = (!legacyInputZeroPoints.empty());
-    zpPerChannel = (withInputZeroPoint && !zpPerTensor);
 }
 
 }   // namespace node
