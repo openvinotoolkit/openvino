@@ -96,7 +96,7 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
                            HIDDEN)
 
-    install(DIRECTORY ${PYTHON_SOURCE_DIR}/openvino
+    install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/src/openvino
             DESTINATION ${OV_CPACK_PYTHONDIR}/${pyversion}
             COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
             USE_SOURCE_PERMISSIONS

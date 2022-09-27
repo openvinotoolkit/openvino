@@ -118,7 +118,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
         json_composite info;
         info.add("data type", dt_to_str(fused_desc.output_layout.data_type));
         info.add("format", fmt_to_str(output_layout.format));
-        info.add("size", output_layout.get_tensor().to_string());
+        info.add("size", output_layout.to_short_string());
         fused_node_info.add("output layout", info);
         fused_nodes_info.add("fused primitive idx " + std::to_string(index++), fused_node_info);
     }
@@ -986,8 +986,6 @@ void program_node::init_onednn_primitive_attributes() {
                     update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx);
                 }
             } else {
-                if (in.spatial(0) > 1 || in.spatial(1) > 1 || in.batch() > 1)
-                    throw std::runtime_error("Unsupported eltwise mode for fused onednn op");
                 // convolution using post-op output scales can only be int8/uint8
                 if (idx == 0 && !has_out_scales(attrs) && !is_type<pooling>() && !is_type<reduce>() &&
                     !(is_type<convolution>() && data_type_traits::is_floating_point(output_layout.data_type))) {
