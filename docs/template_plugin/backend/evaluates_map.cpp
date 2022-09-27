@@ -1663,7 +1663,7 @@ bool evaluate(const shared_ptr<op::v8::MatrixNms>& op,
     void* pscores = nullptr;
     void* pselected_num = nullptr;
     void* prois;
-    size_t num_selected = static_cast<size_t>(std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0));
+    size_t num_selected = static_cast<size_t>(std::accumulate(valid_outputs.begin(), valid_outputs.end(), size_t(0)));
 
     outputs[0]->set_shape({num_selected, 6});
     prois = outputs[0]->get_data_ptr();
@@ -1788,7 +1788,7 @@ bool evaluate(const shared_ptr<op::v8::MulticlassNms>& op,
     void* pscores = nullptr;
     void* pselected_num = nullptr;
     void* prois;
-    size_t num_selected = static_cast<size_t>(std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0));
+    size_t num_selected = static_cast<size_t>(std::accumulate(valid_outputs.begin(), valid_outputs.end(), int64_t(0)));
 
     outputs[0]->set_shape({num_selected, 6});
     prois = outputs[0]->get_data_ptr();

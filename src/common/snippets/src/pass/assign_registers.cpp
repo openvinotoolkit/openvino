@@ -105,7 +105,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
     };
 
     for (size_t i = 0; i < stmts.size(); i++) {
-        live_intervals.insert(std::make_pair(i, find_last_use(i)));
+        live_intervals.insert(std::make_pair(static_cast<int>(i), find_last_use(i)));
     }
 
     // http://web.cs.ucla.edu/~palsberg/course/cs132/linearscan.pdf

@@ -45,7 +45,7 @@ inline std::vector<size_t> calc_broadcast_index_offset(const std::vector<size_t>
 }
 
 inline size_t calc_full_broadcast_offset(const std::vector<size_t>& current_dims, const std::vector<size_t>& offsets) {
-    return std::inner_product(begin(current_dims), end(current_dims), begin(offsets), 0);
+    return std::inner_product(begin(current_dims), end(current_dims), begin(offsets), uint64_t(0));
 }
 
 inline Shape align_shape_sizes(const Shape& shape, const Shape& target_shape, const op::AutoBroadcastSpec& broadcast) {

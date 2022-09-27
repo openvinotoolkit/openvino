@@ -567,7 +567,7 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
             }
         });
     }
-    return {*_workerRequests.back(), batch_id};
+    return {*_workerRequests.back(), static_cast<int>(batch_id)};
 }
 
 InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateInferRequest() {

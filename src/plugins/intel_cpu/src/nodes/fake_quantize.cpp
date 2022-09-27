@@ -1316,7 +1316,7 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
             if (isInputLowBroadcasted && axisSize != currentAxisSize) {
                 binarizationThresholds.resize(newPaddedSize);
                 std::fill(binarizationThresholds.begin() + 1, binarizationThresholds.begin() + axisSize, binarizationThresholds[0]);
-                std::fill(binarizationThresholds.begin() + axisSize, binarizationThresholds.end(), 0);
+                std::fill(binarizationThresholds.begin() + axisSize, binarizationThresholds.end(), 0.f);
                 needUpdThr = true;
             }
 
@@ -1453,9 +1453,9 @@ void MKLDNNFakeQuantizeNode::executeReference() {
         auto thresholds = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
         auto output_mask = reinterpret_cast<const uint32_t*>(internalBlobMemory[1]->GetData());
 
-        parallel_nd(N, CB, D, H, W, [&](int n, int cb, int d, int h, int w) {
+        parallel_nd(N, CB, D, H, W, [&](dim_t n, dim_t cb, dim_t d, dim_t h, dim_t w) {
             uint8_t bin_val = 0x00;
-            for (int c = cb * nbits, shift = 0; c < std::min(C, (cb + 1) * nbits); c++, shift++) {
+            for (int c = cb * nbits, shift = 0; c < std::min(static_cast<dim_t>(C), (cb + 1) * nbits); c++, shift++) {
                 size_t src_off = srcDims.size() == 4 ?
                                     n * s_str[0] + c * s_str[1] + h * s_str[2] + w * s_str[3] :
                                  srcDims.size() == 5 ?
@@ -1490,7 +1490,7 @@ void MKLDNNFakeQuantizeNode::executeReference() {
         auto output_scale = reinterpret_cast<const float*>(internalBlobMemory[4]->GetData());
         auto output_shift = reinterpret_cast<const float*>(internalBlobMemory[5]->GetData());
 
-        parallel_nd(N, C, D, H, W, [&](int n, int c, int d, int h, int w) {
+        parallel_nd(N, C, D, H, W, [&](dim_t n, dim_t c, dim_t d, dim_t h, dim_t w) {
             size_t src_off = srcDims.size() == 5 ?
                                 n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3] + w * s_str[4] :
                              srcDims.size() == 4 ?
@@ -1558,7 +1558,7 @@ void MKLDNNFakeQuantizeNode::executeBinarization(const std::unique_ptr<jit_uni_q
 
     int nbits = 8;
 
-    parallel_nd(N, H, W, [&](int n, int h, int w) {
+    parallel_nd(N, H, W, [&](dim_t n, dim_t h, dim_t w) {
         auto arg = jit_quantize_call_args();
 
         arg.from    = &src[(n * s_str[0] + h * s_str[2] + w * s_str[3]) * sizeof(float)];
@@ -1618,7 +1618,7 @@ void MKLDNNFakeQuantizeNode::executeQuantization(const std::unique_ptr<jit_uni_q
     const int W = srcDims.size() > 3 ? srcDims[srcDims.size() - 1] : 1;
 
     if (srcDesc.hasLayoutType(LayoutType::ncsp) && srcDesc.getShape().getRank() == 3) {
-        parallel_nd(N, CB, D, [&](int n, int cb, int d) {
+        parallel_nd(N, CB, D, [&](dim_t n, dim_t cb, dim_t d) {
             auto arg = jit_quantize_call_args();
 
             int c = cb * blk_size;
@@ -1644,7 +1644,7 @@ void MKLDNNFakeQuantizeNode::executeQuantization(const std::unique_ptr<jit_uni_q
     } else if (jqp.is_planar && srcDims.size() > 2) {
         const int batch_size = 256;
         const int B = div_up(H * W, batch_size);
-        parallel_nd(N, CB, D, B, [&](int n, int cb, int d, int b) {
+        parallel_nd(N, CB, D, B, [&](dim_t n, dim_t cb, dim_t d, dim_t b) {
             auto arg = jit_quantize_call_args();
 
             const int c = cb * blk_size;
@@ -1667,12 +1667,12 @@ void MKLDNNFakeQuantizeNode::executeQuantization(const std::unique_ptr<jit_uni_q
             arg.src_step = is_blk_format ? (size_t) blk_size * src_type_size : (size_t) C * src_type_size;
             arg.dst_step = is_blk_format ? (size_t) blk_size * dst_type_size : (size_t) C * dst_type_size;
             arg.block_size = is_blk_format ? (size_t) blk_size : nstl::min(blk_size, C - c);
-            arg.work_amount = (size_t)std::min(batch_size, H * W - b * batch_size);
+            arg.work_amount = (size_t)std::min(static_cast<dim_t>(batch_size), H * W - b * batch_size);
 
             (*pKernel)(&arg);
         });
     } else {
-        parallel_nd_legacy(N, CB, D, H, [&](int n, int cb, int d, int h) {
+        parallel_nd_legacy(N, CB, D, H, [&](dim_t n, dim_t cb, dim_t d, dim_t h) {
             auto arg = jit_quantize_call_args();
 
             int c = cb * blk_size;
@@ -1731,11 +1731,11 @@ void MKLDNNFakeQuantizeNode::initializePostOpData(const VectorDims &dims, const 
 
             if (isInputLowBroadcasted) {
                 std::fill(binarizationThresholds.begin() + 1, binarizationThresholds.begin() + realAxisSize, binarizationThresholds[0]);
-                std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0);
+                std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0.f);
             }
             if (isOutputHighBroadcasted) {
                 std::fill(binarizationOutputMask.begin() + 1, binarizationOutputMask.begin() + realAxisSize, binarizationOutputMask[0]);
-                std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0);
+                std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0.f);
             }
         }
     } else {
@@ -1776,11 +1776,11 @@ void MKLDNNFakeQuantizeNode::initializePostOpDataLegacy(const VectorDims &dims, 
 
             if (isInputLowBroadcasted) {
                 std::fill(binarizationThresholds.begin() + 1, binarizationThresholds.begin() + realAxisSize, binarizationThresholds[0]);
-                std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0);
+                std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0.f);
             }
             if (isOutputHighBroadcasted) {
                 std::fill(binarizationOutputMask.begin() + 1, binarizationOutputMask.begin() + realAxisSize, binarizationOutputMask[0]);
-                std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0);
+                std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0.f);
             }
         }
     } else {

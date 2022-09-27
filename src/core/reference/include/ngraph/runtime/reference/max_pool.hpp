@@ -147,7 +147,7 @@ struct Coord : public std::vector<T> {
     Coord(std::initializer_list<T>&& values) : std::vector<T>{std::move(values)} {}
 };
 
-inline bool elem_in_padding_area(const Coord<int>& kernel_position,
+inline bool elem_in_padding_area(const Coord<size_t>& kernel_position,
                                  const Coord<size_t>& kernel_offset,
                                  const Shape& data_shape) {
     for (size_t dim = 0; dim + 2 < data_shape.size(); ++dim) {
@@ -160,10 +160,10 @@ inline bool elem_in_padding_area(const Coord<int>& kernel_position,
     return false;
 }
 
-inline Coord<int> calculate_kernel_position(const Coord<size_t>& out_elem_coord,
+inline Coord<size_t> calculate_kernel_position(const Coord<size_t>& out_elem_coord,
                                             const Strides& kernel_strides,
                                             const Shape& pads_begin) {
-    Coord<int> top_left_corner;
+    Coord<size_t> top_left_corner;
     top_left_corner.reserve(out_elem_coord.size());
     for (size_t i = 0u; i < out_elem_coord.size(); ++i) {
         top_left_corner.emplace_back(out_elem_coord[i] * kernel_strides[i] - pads_begin[i]);

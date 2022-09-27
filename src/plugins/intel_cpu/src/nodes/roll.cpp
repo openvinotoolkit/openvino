@@ -153,7 +153,7 @@ void MKLDNNRollNode::rollImpl() {
     }
 
     const size_t blockSize = shape.back();
-    const size_t totalElements = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
+    const size_t totalElements = std::accumulate(shape.begin(), shape.end(), size_t(1), std::multiplies<size_t>());
     const size_t leftBlockSize = blockSize - shiftsVector.back();
     const size_t rightBlockSize = blockSize - leftBlockSize;
     const size_t elementSize = sizeof(DataType);

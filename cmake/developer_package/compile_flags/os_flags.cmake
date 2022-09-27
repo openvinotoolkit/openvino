@@ -256,12 +256,11 @@ if(WIN32)
     ie_add_compiler_flags(/Gy) # remove unreferenced functions: function level linking
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LARGEADDRESSAWARE")
 
+    ie_add_compiler_flags(/WX)
     if (TREAT_WARNING_AS_ERROR)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
             ie_add_compiler_flags(/WX)
             ie_add_compiler_flags(/Qdiag-warning:47,1740,1786)
-        elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-           # ie_add_compiler_flags(/WX) # Too many warnings
         endif()
     endif()
 

@@ -24,7 +24,7 @@ void ctc_greedy_decoder_seq_len(const TF* data,
     const auto batch_size = data_shape[0];
     const auto seq_len_max = data_shape[1];
     const auto class_count = data_shape[2];
-    std::fill_n(out1, shape_size(out_shape), -1);
+    std::fill_n(out1, shape_size(out_shape), TCI(-1));
 
     for (std::size_t batch_ind = 0; batch_ind < batch_size; ++batch_ind) {
         TI previous_class_index = static_cast<TI>(-1);

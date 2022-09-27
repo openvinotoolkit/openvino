@@ -299,7 +299,7 @@ void convolution_backprop_in(const T* delta_in,
 
     // extend stride and filter inputs with zero padding for stride and filter_dilation
     // > 1, after that set stride and filter params to 1.
-    const size_t stride_dim = std::accumulate(stride.begin(), stride.end(), 1, std::multiplies<size_t>());
+    const size_t stride_dim = std::accumulate(stride.begin(), stride.end(), int64_t(1), std::multiplies<int64_t>());
     if (stride_dim >= 2) {
         extend_with_zeros(stride, in_shape, delta_in, conv_input_shape, extended_input);
         std::fill(conv_stride.begin(), conv_stride.end(), 1);
@@ -307,7 +307,7 @@ void convolution_backprop_in(const T* delta_in,
     }
 
     const size_t dilation_dim =
-        std::accumulate(filter_dilation.begin(), filter_dilation.end(), 1, std::multiplies<size_t>());
+        std::accumulate(filter_dilation.begin(), filter_dilation.end(), uint64_t(1), std::multiplies<size_t>());
     if (dilation_dim >= 2) {
         extend_with_zeros<T>(filter_dilation,
                              filter_shape,

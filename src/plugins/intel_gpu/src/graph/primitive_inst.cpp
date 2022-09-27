@@ -233,7 +233,7 @@ void primitive_inst::allocate_internal_buffers(void) {
     // Decided the limitation as 85 % empirically, but still it needs further investigation.
     const auto& inst_deps = _network.get_primitives(_node.get_dependencies());
 
-    auto total_device_mem_size = std::accumulate(inst_deps.begin(), inst_deps.end(), 0, device_mem_acc);
+    auto total_device_mem_size = std::accumulate(inst_deps.begin(), inst_deps.end(), size_t(0), device_mem_acc);
     if (_output->get_allocation_type() ==  allocation_type::usm_device) {
         total_device_mem_size += _output->size();
     }

@@ -32,7 +32,7 @@ OutputVector translate_conv_3d_backprop_input_v2_op(const NodeContext& node) {
     std::vector<int64_t> tf_input_sizes;
     get_const_input(node, 0, &tf_input_sizes);
 
-    if (std::any_of(tf_input_sizes.begin(), tf_input_sizes.end(), [](int32_t size) {
+    if (std::any_of(tf_input_sizes.begin(), tf_input_sizes.end(), [](int64_t size) {
             return size <= 0;
         })) {
         FRONT_END_THROW("Conv3DBackpropInputV2 input sizes must be positive integers");

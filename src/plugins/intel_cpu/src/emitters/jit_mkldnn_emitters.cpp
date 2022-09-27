@@ -34,13 +34,14 @@ jit_mkldnn_emitter::jit_mkldnn_emitter(jit_generator *host, cpu_isa_t host_isa,
 void jit_mkldnn_emitter::set_injector() {
     if (host_isa_ == cpu::x64::sse41) {
         eltwise_injector_sse42 = std::make_shared<jit_uni_eltwise_injector_f32<cpu::x64::sse41>>(
-                h, kind, alpha, beta, 1);
+                h, kind, alpha, beta, 1.f);
     } else if (host_isa_ == cpu::x64::avx2) {
         eltwise_injector_avx2 = std::make_shared<jit_uni_eltwise_injector_f32<cpu::x64::avx2>>(
-                h, kind, alpha, beta, 1);
+                h, kind, alpha, beta, 1.f);
     } else if (host_isa_ == cpu::x64::avx512_common) {
         eltwise_injector_avx512_common = std::make_shared<jit_uni_eltwise_injector_f32<cpu::x64::avx512_common>>(
-                h, kind, alpha, beta, 1);
+                h, kind, alpha, beta, 1.f);
+
     } else {
         assert(!"unsupported isa");
     }

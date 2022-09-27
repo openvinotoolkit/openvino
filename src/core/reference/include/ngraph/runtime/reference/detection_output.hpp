@@ -298,7 +298,7 @@ private:
                           std::vector<std::pair<dataType, int>>& scoreIndexVec) {
         for (size_t i = 0; i < scores.size(); ++i) {
             if (scores[i] > threshold) {
-                scoreIndexVec.push_back(std::make_pair(scores[i], i));
+                scoreIndexVec.push_back(std::make_pair(scores[i], static_cast<int>(i)));
             }
         }
 
@@ -381,7 +381,7 @@ private:
                 }
             }
             if (id > 0 && conf >= attrs.confidence_threshold) {
-                scoreIndexPairs.push_back(std::make_pair(conf, std::make_pair(id, p)));
+                scoreIndexPairs.push_back(std::make_pair(conf, std::make_pair(id, static_cast<int>(p))));
             }
         }
         std::sort(

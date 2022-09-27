@@ -401,13 +401,13 @@ void autobroadcast_select(const U* arg0,
                 const Coordinate arg2_coord = reduce(output_coord, arg2_squeezed_axes, false);
 
                 const size_t arg0_idx =
-                    std::inner_product(arg0_coord.begin(), arg0_coord.end(), arg0_strides.begin(), 0);
+                    std::inner_product(arg0_coord.begin(), arg0_coord.end(), arg0_strides.begin(), uint64_t(0));
                 const size_t arg1_idx =
-                    std::inner_product(arg1_coord.begin(), arg1_coord.end(), arg1_strides.begin(), 0);
+                    std::inner_product(arg1_coord.begin(), arg1_coord.end(), arg1_strides.begin(), uint64_t(0));
                 const size_t arg2_idx =
-                    std::inner_product(arg2_coord.begin(), arg2_coord.end(), arg2_strides.begin(), 0);
+                    std::inner_product(arg2_coord.begin(), arg2_coord.end(), arg2_strides.begin(), uint64_t(0));
                 const size_t output_idx =
-                    std::inner_product(output_coord.begin(), output_coord.end(), output_strides.begin(), 0);
+                    std::inner_product(output_coord.begin(), output_coord.end(), output_strides.begin(), uint64_t(0));
                 out[output_idx] = elementwise_functor(arg0[arg0_idx], arg1[arg1_idx], arg2[arg2_idx]);
             }
         }
@@ -476,12 +476,14 @@ void autobroadcast_select(const U* arg0,
             const Coordinate arg0_coord = reduce(output_coord, arg0_squeezed_axes, false);
             const Coordinate arg2_coord = reduce(output_coord, arg2_squeezed_axes, false);
 
-            const size_t arg0_idx = std::inner_product(arg0_coord.begin(), arg0_coord.end(), arg0_strides.begin(), 0);
+            const size_t arg0_idx =
+                std::inner_product(arg0_coord.begin(), arg0_coord.end(), arg0_strides.begin(), uint64_t(0));
             const size_t arg1_idx =
-                std::inner_product(output_coord.begin(), output_coord.end(), output_strides.begin(), 0);
-            const size_t arg2_idx = std::inner_product(arg2_coord.begin(), arg2_coord.end(), arg2_strides.begin(), 0);
+                std::inner_product(output_coord.begin(), output_coord.end(), output_strides.begin(), uint64_t(0));
+            const size_t arg2_idx =
+                std::inner_product(arg2_coord.begin(), arg2_coord.end(), arg2_strides.begin(), uint64_t(0));
             const size_t output_idx =
-                std::inner_product(output_coord.begin(), output_coord.end(), output_strides.begin(), 0);
+                std::inner_product(output_coord.begin(), output_coord.end(), output_strides.begin(), uint64_t(0));
 
             out[output_idx] = elementwise_functor(arg0[arg0_idx], arg1[arg1_idx], arg2[arg2_idx]);
         }

@@ -255,7 +255,7 @@ void DynamicBuffer::init(const mkldnn::engine& eng) {
         IE_THROW() << "TensorIterator (Loop) has incorrect output shape[axis] after iteration for concatenation. " << abs_stride <<
                    " is expected, but actual: " << dims[axis];
 
-    count = std::accumulate(dims.begin(), dims.begin() + map_rule.axis, 1, std::multiplies<size_t>());
+    count = std::accumulate(dims.begin(), dims.begin() + map_rule.axis, size_t(1), std::multiplies<size_t>());
     len = std::accumulate(dims.begin() + map_rule.axis + 1, dims.end(), elem_size, std::multiplies<size_t>());
     mem_holder_buffer.reset(new memory(src_desc, eng));
     copy(reinterpret_cast<const uint8_t*>(from->GetPtr()), get_ptr(*mem_holder_buffer.get()), 0, 0, 1, from->GetSize());
@@ -481,7 +481,7 @@ bool MKLDNNTensorIteratorNode::needPrepareParams() const {
     if (getAlgorithm() == TensorIteratorLoop) {
         const auto tripCountPtr = reinterpret_cast<const uint32_t*>(getParentEdgesAtPort(loopTripCountIdx).front()->getMemoryPtr()->GetPtr());
         const auto condPtr = reinterpret_cast<const uint8_t*>(getParentEdgesAtPort(loopExecutionConditionIdx).front()->getMemoryPtr()->GetPtr());
-        if (tripCountPtr[0] != lastUsedTripCount || condPtr[0] != lastUsedCond)
+        if (tripCountPtr[0] != lastUsedTripCount || static_cast<bool>(condPtr[0]) != lastUsedCond)
             return true;
     }
 

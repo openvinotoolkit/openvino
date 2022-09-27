@@ -95,7 +95,7 @@ static void scatter_update(const char* input_data,
     int iteration{0};
     for (const Coordinate& indices_cord : indices_transform) {
         const size_t indices_idx =
-            std::inner_product(indices_cord.begin(), indices_cord.end(), indices_in_strides.begin(), 0);
+            std::inner_product(indices_cord.begin(), indices_cord.end(), indices_in_strides.begin(), uint64_t(0));
         int64_t slice_index = indices[indices_idx];
 
         Coordinate out_start_corner(data_shape.size(), 0);
@@ -127,9 +127,11 @@ static void scatter_update(const char* input_data,
             out_coord.at(axis) = slice_index;
             update_cord.at(updates_axis_dim) += iteration;
             const auto data_idx =
-                std::inner_product(out_coord.begin(), out_coord.end(), out_transform_in_strides.begin(), 0);
-            const auto updates_idx =
-                std::inner_product(update_cord.begin(), update_cord.end(), updates_update_in_strides.begin(), 0) *
+                std::inner_product(out_coord.begin(), out_coord.end(), out_transform_in_strides.begin(), uint64_t(0));
+            const auto updates_idx = std::inner_product(update_cord.begin(),
+                                                        update_cord.end(),
+                                                        updates_update_in_strides.begin(),
+                                                        uint64_t(0)) *
                 elem_size;
 
             std::copy(updates + updates_idx, updates + (updates_idx + elem_size), out_buf + data_idx * elem_size);

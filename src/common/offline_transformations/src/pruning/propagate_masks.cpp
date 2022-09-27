@@ -817,7 +817,7 @@ public:
                 if (input_shape.size() > output_shape.size() &&
                     output_shape.size() == not_reshaped_dims + 1) {
                     const size_t elems_per_ch = std::accumulate(input_shape.begin() + not_reshaped_dims + 1,
-                                                                input_shape.end(), 1, std::multiplies<size_t>());
+                                                                input_shape.end(), size_t(1), std::multiplies<size_t>());
 
                     input_mask->add_callback([weights_mask_row, not_reshaped_dims, elems_per_ch](Mask::Ptr cur_mask) -> bool {
                         for (size_t dim = 0; dim < not_reshaped_dims; ++dim)

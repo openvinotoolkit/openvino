@@ -436,7 +436,10 @@ void SubgraphExtractor::extract_subgraph_from_onnx_model(const SubgraphComponent
 
 std::vector<OutputEdge> SubgraphExtractor::all_output_edges() const {
     std::vector<OutputEdge> all_outputs;
-
+#if defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4244)
+#endif
     for (const auto& graph_output : m_onnx_graph.output()) {
         const auto node_index = find_source_node_idx(m_onnx_graph, m_onnx_graph.node_size(), graph_output.name());
         OPENVINO_ASSERT(node_index >= 0);
@@ -445,5 +448,8 @@ std::vector<OutputEdge> SubgraphExtractor::all_output_edges() const {
         all_outputs.emplace_back(node_index, output_port_it - std::begin(node_outputs));
     }
 
+#if defined(_MSC_VER)
+#    pragma warning(pop)
+#endif
     return all_outputs;
 }

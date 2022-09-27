@@ -31,11 +31,11 @@ constexpr size_t out_channel_axis = 1;
 constexpr size_t spatial_axis = 2;
 
 struct ConvolutionParams {
-    std::vector<int> strides;
-    std::vector<int> dilation;
-    std::vector<int> pads_begin;
-    std::vector<int> pads_end;
-    std::vector<int> output_padding;
+    std::vector<int64_t> strides;
+    std::vector<int64_t> dilation;
+    std::vector<int64_t> pads_begin;
+    std::vector<int64_t> pads_end;
+    std::vector<int64_t> output_padding;
 
     ConvolutionParams(const Strides& strides_,
                       const Strides& dilation_,

@@ -46,6 +46,12 @@ function(ie_add_mkldnn)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable=10121")
     endif()
 
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        # C4849 OpenMP 'reduction' clause ignored in 'simd' directive
+        ie_add_compiler_flags(/wd4849)
+        # C4661 no suitable definition provided for explicit template instantiation request
+        ie_add_compiler_flags(/wd4661)
+    endif()
     add_subdirectory(mkl-dnn EXCLUDE_FROM_ALL)
     add_library(mkldnn ALIAS dnnl)
     ov_install_static_lib(dnnl cpu)

@@ -159,7 +159,7 @@ void convolve_2D_channels(const ConvolutionParams& p,
                             padding = !((static_cast<int>(rel_i_x) > -1 && static_cast<int>(rel_i_x) < input_size_x) &&
                                         (static_cast<int>(rel_i_y) > -1 && static_cast<int>(rel_i_y) < input_size_y));
                         } else {
-                            padding = !(in_range(rel_i_x, {0, input_size_x}) && in_range(rel_i_y, {0, input_size_y}));
+                            padding = !(in_range(rel_i_x, {T(0), T(input_size_x)}) && in_range(rel_i_y, {T(0), T(input_size_y)}));
                         }
 
                         if (padding)
