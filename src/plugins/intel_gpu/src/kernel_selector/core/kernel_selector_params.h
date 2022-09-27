@@ -580,7 +580,6 @@ struct base_params : public Params {
     std::vector<fused_operation_desc> fused_ops = {};
     MultiDataTensor inputs;
     MultiDataTensor outputs;
-
     std::string to_string() const override;
     std::string to_cache_string_v2() const override;
     ParamsKey GetParamsKey() const override;

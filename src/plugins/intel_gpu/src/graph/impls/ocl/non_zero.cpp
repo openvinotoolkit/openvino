@@ -30,6 +30,8 @@ struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
         auto nonzero_optional_params =
             get_default_optional_params<kernel_selector::count_nonzero_optional_params>(arg.get_program());
 
+        nonzero_params.ov_input_rank = impl_param.get_input_layout().get_shape().size();
+
         auto& kernel_selector = kernel_selector::count_nonzero_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(nonzero_params, nonzero_optional_params);
 
@@ -56,6 +58,7 @@ public:
             get_default_optional_params<kernel_selector::gather_nonzero_optional_params>(arg.get_program());
 
         nonzero_params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
+        nonzero_params.ov_input_rank = impl_param.get_input_layout().get_shape().size();
 
         auto& kernel_selector = kernel_selector::gather_nonzero_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(nonzero_params, nonzero_optional_params);
