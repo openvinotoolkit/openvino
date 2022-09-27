@@ -10,6 +10,11 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage REQUIRED)
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # 4267 conversion from 'XXX' to 'YYY', possible loss of data
+    ie_add_compiler_flags(/wd4244)
+endif()
+
 if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_DEBUG_POSTFIX)
     message(FATAL_ERROR "Building python bindings in debug configuration is not supported on your platform.")
 endif()
