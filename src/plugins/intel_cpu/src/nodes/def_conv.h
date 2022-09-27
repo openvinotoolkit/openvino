@@ -86,7 +86,6 @@ public:
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
-private:
     struct DefConvAttr {
         size_t group = 1;
         int deformable_group = 1;
@@ -96,6 +95,7 @@ private:
         std::vector<ptrdiff_t> padL;
     } defConvAttr;
 
+private:
     std::vector<int> sampledCoordsVector;
     std::vector<float> interpWeightsVector;
 
