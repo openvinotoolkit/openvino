@@ -807,21 +807,32 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_pt
     CC_TRANSFORMATIONS_MODEL_SCOPE(GraphRewrite)
     {
     auto ric_prop = m.register_pass<GraphRewrite>();
+    CC_TRANSFORMATIONS_MATCH_SCOPE(SplitConcat)
     ric_prop->add_matcher<init::SplitConcat>();
+    CC_TRANSFORMATIONS_MATCH_SCOPE(Gather)
     ric_prop->add_matcher<init::Gather>();
+    CC_TRANSFORMATIONS_MATCH_SCOPE(Convolution)
     ric_prop->add_matcher<prop::Convolution>();
+    CC_TRANSFORMATIONS_MATCH_SCOPE(GroupConvolution)
     ric_prop->add_matcher<prop::GroupConvolution>();
+    CC_TRANSFORMATIONS_MATCH_SCOPE(Binary)
     ric_prop->add_matcher<prop::Binary>();
+    CC_TRANSFORMATIONS_MATCH_SCOPE(ShapeOf)
     ric_prop->add_matcher<prop::ShapeOf>();
+    CC_TRANSFORMATIONS_MATCH_SCOPE(Transpose)
     ric_prop->add_matcher<prop::Transpose>();
+    CC_TRANSFORMATIONS_MATCH_SCOPE(PassThrough)
     ric_prop->add_matcher<prop::PassThrough>();
+    CC_TRANSFORMATIONS_MATCH_SCOPE(Unsupported)
     ric_prop->add_matcher<prop::Unsupported>();
     }
     // Handle quantized weights case (dequantize sub-graph is on the weights path)
     CC_TRANSFORMATIONS_MODEL_SCOPE(BackwardGraphRewrite)
     {
     auto ric_back_prop = m.register_pass<ov::pass::BackwardGraphRewrite>();
+    CC_TRANSFORMATIONS_MATCH_SCOPE(Binary)
     ric_back_prop->add_matcher<back_prop::Binary>();
+    CC_TRANSFORMATIONS_MATCH_SCOPE(ConvertPassThrough)
     ric_back_prop->add_matcher<back_prop::ConvertPassThrough>();
     }
     CC_TRANSFORMATIONS_FUNCTION_SCOPE(Constant)
@@ -832,8 +843,11 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_pt
     CC_TRANSFORMATIONS_MODEL_SCOPE(GraphRewrite)
     {
     auto ric_fuse = m.register_pass<GraphRewrite>();
+    CC_TRANSFORMATIONS_MATCH_SCOPE(InsertReverseInputChannel)
     ric_fuse->add_matcher<fuse::InsertReverseInputChannel>();
+    CC_TRANSFORMATIONS_MATCH_SCOPE(EraseSplitConcat)
     ric_fuse->add_matcher<fuse::EraseSplitConcat>();
+    CC_TRANSFORMATIONS_MATCH_SCOPE(EraseGather)
     ric_fuse->add_matcher<fuse::EraseGather>();
     }
     m.run_passes(model);
