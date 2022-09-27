@@ -21,9 +21,9 @@ namespace py = pybind11;
 inline py::dict run_sync_infer(InferRequestWrapper& self) {
     {
         py::gil_scoped_release release;
-        self._start_time = Time::now();
+        *self._start_time = Time::now();
         self._request.infer();
-        self._end_time = Time::now();
+        *self._end_time = Time::now();
     }
     return Common::outputs_to_dict(self._outputs, self._request);
 }
@@ -231,7 +231,7 @@ void regclass_InferRequest(py::module m) {
                 }
             }
             py::gil_scoped_release release;
-            self._start_time = Time::now();
+            *self._start_time = Time::now();
             self._request.start_async();
         },
         py::arg("inputs"),
@@ -270,7 +270,7 @@ void regclass_InferRequest(py::module m) {
                 }
             }
             py::gil_scoped_release release;
-            self._start_time = Time::now();
+            *self._start_time = Time::now();
             self._request.start_async();
         },
         py::arg("inputs"),
@@ -338,7 +338,7 @@ void regclass_InferRequest(py::module m) {
             self.userdata = userdata;
             self.user_callback_defined = true;
             self._request.set_callback([&self, callback](std::exception_ptr exception_ptr) {
-                self._end_time = Time::now();
+                *self._end_time = Time::now();
                 try {
                     if (exception_ptr) {
                         std::rethrow_exception(exception_ptr);

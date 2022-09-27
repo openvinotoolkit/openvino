@@ -77,7 +77,7 @@ public:
     void set_default_callbacks() {
         for (size_t handle = 0; handle < _requests.size(); handle++) {
             _requests[handle]._request.set_callback([this, handle /* ... */](std::exception_ptr exception_ptr) {
-                _requests[handle]._end_time = Time::now();
+                *_requests[handle]._end_time = Time::now();
                 {
                     // acquire the mutex to access _idle_handles
                     std::lock_guard<std::mutex> lock(_mutex);
@@ -101,7 +101,7 @@ public:
     void set_custom_callbacks(py::function f_callback) {
         for (size_t handle = 0; handle < _requests.size(); handle++) {
             _requests[handle]._request.set_callback([this, f_callback, handle](std::exception_ptr exception_ptr) {
-                _requests[handle]._end_time = Time::now();
+                *_requests[handle]._end_time = Time::now();
                 if (exception_ptr == nullptr) {
                     // Acquire GIL, execute Python function
                     py::gil_scoped_acquire acquire;
@@ -203,7 +203,7 @@ void regclass_AsyncInferQueue(py::module m) {
             // Now GIL can be released - we are NOT working with Python objects in this block
             {
                 py::gil_scoped_release release;
-                self._requests[handle]._start_time = Time::now();
+                *self._requests[handle]._start_time = Time::now();
                 // Start InferRequest in asynchronus mode
                 self._requests[handle]._request.start_async();
             }
@@ -249,7 +249,7 @@ void regclass_AsyncInferQueue(py::module m) {
             // Now GIL can be released - we are NOT working with Python objects in this block
             {
                 py::gil_scoped_release release;
-                self._requests[handle]._start_time = Time::now();
+                *self._requests[handle]._start_time = Time::now();
                 // Start InferRequest in asynchronus mode
                 self._requests[handle]._request.start_async();
             }

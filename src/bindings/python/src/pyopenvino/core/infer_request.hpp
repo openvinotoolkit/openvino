@@ -20,14 +20,19 @@ public:
     InferRequestWrapper(ov::InferRequest request)
         : _request(request)
     {
+        _start_time = std::make_shared<Time::time_point>();
+        _end_time = std::make_shared<Time::time_point>();
         // AsyncInferQueue uses this constructor - setting callback for computing a latency will be done there
     }
 
     InferRequestWrapper(ov::InferRequest request, const std::vector<ov::Output<const ov::Node>>& inputs, const std::vector<ov::Output<const ov::Node>>& outputs)
         : _request(request), _inputs(inputs), _outputs(outputs)
     {
-        _request.set_callback([this](std::exception_ptr exception_ptr) {
-            _end_time = Time::now();
+        _start_time = std::make_shared<Time::time_point>();
+        _end_time = std::make_shared<Time::time_point>();
+        auto end_time = _end_time;
+        _request.set_callback([end_time](std::exception_ptr exception_ptr) {
+            *end_time = Time::now();
             try {
                 if (exception_ptr) {
                     std::rethrow_exception(exception_ptr);
@@ -59,7 +64,7 @@ public:
     py::object userdata;
 
     double get_latency() {
-        auto execTime = std::chrono::duration_cast<ns>(_end_time - _start_time);
+        auto execTime = std::chrono::duration_cast<ns>(*_end_time - *_start_time);
         return static_cast<double>(execTime.count()) * 0.000001;
     }
 
@@ -67,8 +72,8 @@ public:
     std::vector<ov::Output<const ov::Node>> _inputs;
     std::vector<ov::Output<const ov::Node>> _outputs;
 
-    Time::time_point _start_time;
-    Time::time_point _end_time;
+    std::shared_ptr<Time::time_point> _start_time;
+    std::shared_ptr<Time::time_point> _end_time;
 };
 
 void regclass_InferRequest(py::module m);
