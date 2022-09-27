@@ -1495,26 +1495,11 @@ void EltwiseSplitOverChannelsPass::run() {
         if (totalElementsSize <= GNALimitations::bufferMaxSize) {
             continue;
         }
+        auto splitSizesPerAxis = AlignedSplitSizesPerAxis(oDims);
 
-        auto firstValuableDim = std::find_if(std::begin(oDims), std::end(oDims), [](size_t val) { return val > 1; });
-        IE_ASSERT(firstValuableDim != std::end(oDims));
-        auto splittedElementsSize = *firstValuableDim;
-        auto splittedDimIx = std::distance(std::begin(oDims), firstValuableDim);
-        auto alignment = GNALimitations::inputByteAlignment;
-
-        // Split output size should be multiple by 64 to avoid align filters insertion,
-        // but we need to check if our input size to split exceeds 64; if not we can always
-        // split if the remaining size is aligned
-        if (splittedElementsSize <= 64) {
-            if ((totalElementsSize / splittedElementsSize) % alignment == 0) {
-                alignment = 1;
-            } else {
-                THROW_GNA_LAYER_EXCEPTION(l) << "splitting didn't succeed\n";
-            }
+        if (0 == splitSizesPerAxis.second.size()) {
+            THROW_GNA_LAYER_EXCEPTION(l) << "splitting didn't succeed\n";
         }
-
-        auto splitSizes = GetAlignedSplitSizes(splittedElementsSize,
-            GNALimitations::bufferMaxSize * splittedElementsSize / totalElementsSize, alignment);
 
         pass_trace() << "transforming " << LAYER_NAME(l) << " by splitting it to multiple eltwise operations\n";
         auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(l);
@@ -1532,9 +1517,9 @@ void EltwiseSplitOverChannelsPass::run() {
             auto inputDesc = l->insData[kThEltwiseInput].lock()->getTensorDesc();
 
             // create split layer outputs
-            for (auto elementsNum : splitSizes) {
+            for (auto elementsNum : splitSizesPerAxis.second) {
                 auto newDims = oDims;
-                newDims[splittedDimIx] = elementsNum;
+                newDims[splitSizesPerAxis.first] = elementsNum;
                 auto newDesc = TensorDesc(inputDesc.getPrecision(), newDims, inputDesc.getLayout());
                 auto data = std::make_shared<Data>(l->name + "/" + std::to_string(kThEltwiseInput) + "/1", newDesc);
                 getCreatorLayer(data) = split;
@@ -1558,7 +1543,7 @@ void EltwiseSplitOverChannelsPass::run() {
         concat->outData.push_back(masterEltwise->outData.front());
         getCreatorLayer(masterEltwise->outData.front()) = concat;
 
-        for (size_t k = 0; k != splitSizes.size(); k++) {
+        for (size_t k = 0; k != splitSizesPerAxis.second.size(); k++) {
             auto eltwiseRaw = std::make_shared<EltwiseLayer>(
                     LayerParams{l->name + "/eltwise/" + std::to_string(k), "Eltwise", Precision::FP32});
             IE_ASSERT(eltwiseRaw != nullptr);
