@@ -19,7 +19,7 @@
       ```
    * To support conditional compilation add following for each Operation method in `*.cpp` file:
       ```cpp
-      NGRAPH_OP_SCOPE(<operation_version>_<operation_name>_<method_name>);
+      OV_OP_SCOPE(<operation_version>_<operation_name>_<method_name>);
       ```
    * Add shape infer unit-tests to the `src/core/tests/type_prop/`
 
