@@ -49,7 +49,8 @@ void slice(const char* data,
         for (size_t i = 0; i < in_data_coord.size(); ++i) {
             in_data_coord[i] = aligned_starts[i] + (out_idx / out_data_strides[i] % out_shape[i]) * aligned_steps[i];
         }
-        const auto in_idx = std::inner_product(in_data_coord.begin(), in_data_coord.end(), in_data_strides.begin(), uint64_t(0));
+        const auto in_idx =
+            std::inner_product(in_data_coord.begin(), in_data_coord.end(), in_data_strides.begin(), uint64_t(0));
         const auto in_mem = data + in_idx * elem_size;
         std::memcpy(out, in_mem, elem_size);
         out += elem_size;

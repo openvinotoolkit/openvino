@@ -22,11 +22,11 @@
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/type/element_type.hpp"
-#include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/shape.hpp"
+#include "ngraph/type/element_type.hpp"
+#include "ngraph/type/element_type_traits.hpp"
 #include "openvino/core/enum_mask.hpp"
 
 namespace ov {

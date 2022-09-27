@@ -161,8 +161,8 @@ inline bool elem_in_padding_area(const Coord<size_t>& kernel_position,
 }
 
 inline Coord<size_t> calculate_kernel_position(const Coord<size_t>& out_elem_coord,
-                                            const Strides& kernel_strides,
-                                            const Shape& pads_begin) {
+                                               const Strides& kernel_strides,
+                                               const Shape& pads_begin) {
     Coord<size_t> top_left_corner;
     top_left_corner.reserve(out_elem_coord.size());
     for (size_t i = 0u; i < out_elem_coord.size(); ++i) {

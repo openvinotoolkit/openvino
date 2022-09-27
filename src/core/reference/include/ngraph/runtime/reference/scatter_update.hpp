@@ -132,7 +132,7 @@ static void scatter_update(const char* input_data,
                                                         update_cord.end(),
                                                         updates_update_in_strides.begin(),
                                                         uint64_t(0)) *
-                elem_size;
+                                     elem_size;
 
             std::copy(updates + updates_idx, updates + (updates_idx + elem_size), out_buf + data_idx * elem_size);
             updates_update_coord_iter++;

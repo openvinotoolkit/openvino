@@ -26,8 +26,10 @@ void reduce_l2(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduc
     for (const Coordinate& input_coord : input_transform) {
         const Coordinate output_coord = reduce(input_coord, reduction_axes, dont_keep_dims_in_output);
 
-        const size_t in_idx = std::inner_product(input_coord.begin(), input_coord.end(), in_strides.begin(), uint64_t(0));
-        const size_t out_idx = std::inner_product(output_coord.begin(), output_coord.end(), out_strides.begin(), uint64_t(0));
+        const size_t in_idx =
+            std::inner_product(input_coord.begin(), input_coord.end(), in_strides.begin(), uint64_t(0));
+        const size_t out_idx =
+            std::inner_product(output_coord.begin(), output_coord.end(), out_strides.begin(), uint64_t(0));
 
         out[out_idx] = out[out_idx] + arg[in_idx] * arg[in_idx];
     }
