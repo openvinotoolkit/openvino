@@ -20,14 +20,27 @@ class Tile : public ngraph::op::Op {
 public:
     OPENVINO_OP("Tile", "SnippetsOpset");
 
-    Tile(const std::vector<std::pair<std::shared_ptr<ngraph::snippets::Emitter>, ngraph::snippets::RegInfo>>& region);
+    /// \brief Construct an Tile
+    /// \param region The vector of pairs: emitters and the corresponding registers
+    /// \param increment Tile size - count of elements to load and store.
+    ///                  Vector Tile should have size of vector register and Scalar Tile should have 1
+    /// \param num_inputs Count of inputs
+    /// \param num_outputs Count of outputs
+    /// \param io_dims Vector of last dimensions of inputs and outputs
+    /// \param io_data_sizes Vector of data type sizes of inputs and outputs
+    Tile(const std::vector<AllocatedEmitter>& region, size_t increment, size_t num_inputs, size_t num_outputs,
+         const std::vector<size_t>& io_dims, const std::vector<size_t>& io_data_sizes);
     Tile() = default;
-    std::vector<std::pair<std::shared_ptr<ngraph::snippets::Emitter>, ngraph::snippets::RegInfo>> region;
+    std::vector<AllocatedEmitter> region;
+    size_t increment = 0;
+    size_t num_inputs = 0;
+    size_t num_outputs = 0;
+    std::vector<size_t> io_dims {};
+    std::vector<size_t> io_data_size {};
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
-        return std::make_shared<Tile>(region);
+        return std::make_shared<Tile>(region, increment, num_inputs, num_outputs, io_dims, io_data_size);
     }
-    const void *compile_params;
 };
 
 } // namespace op

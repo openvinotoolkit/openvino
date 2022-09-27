@@ -106,7 +106,6 @@ KernelsPriority ResampleKernelOpt::GetKernelsPriority(const Params& /*params*/, 
 
 bool ResampleKernelOpt::Validate(const Params& p, const optional_params& o) const {
     const resample_params& params = static_cast<const resample_params&>(p);
-
     if (!Parent::Validate(p, o))
         return false;
 

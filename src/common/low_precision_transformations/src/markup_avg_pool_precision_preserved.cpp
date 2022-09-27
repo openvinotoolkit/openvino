@@ -9,6 +9,7 @@
 #include "low_precision/rt_info/avg_pool_precision_preserved_attribute.hpp"
 #include "low_precision/propagate_through_precision_preserved.hpp"
 #include "low_precision/update_shared_precision_preserved.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
 
@@ -16,6 +17,7 @@ ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved::MarkupAvgPoolPreci
     : defaultPrecisions(defaultPrecisions) {}
 
 bool ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+    RUN_ON_FUNCTION_SCOPE(MarkupAvgPoolPrecisionPreserved);
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
     std::shared_ptr<ngraph::pass::GraphRewrite> markupAvgPoolPrecision = manager.register_pass<ngraph::pass::GraphRewrite>();

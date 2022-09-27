@@ -16,7 +16,6 @@ namespace ov {
 namespace op {
 namespace v8 {
 
-class MulticlassNms;
 class MatrixNms;
 
 }  // namespace v8
@@ -84,7 +83,7 @@ void NmsStaticShapeIE<BaseNmsOp>::validate_and_infer_types() {
                 max_output_boxes_per_class = num_boxes;
 
             auto max_output_boxes_per_batch = max_output_boxes_per_class * num_classes;
-            if (this->m_keep_top_k >= 0)
+            if (this->m_attrs.keep_top_k >= 0)
                 max_output_boxes_per_batch =
                     std::min(max_output_boxes_per_batch, static_cast<int64_t>(this->m_attrs.keep_top_k));
 
@@ -136,7 +135,6 @@ const ::ngraph::Node::type_info_t NmsStaticShapeIE<BaseNmsOp>::type_info =
 #endif
 
 #ifdef __clang__
-extern template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<ov::op::v8::MulticlassNms>;
 extern template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>;
 #endif  // __clang__
 

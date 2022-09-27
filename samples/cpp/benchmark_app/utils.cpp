@@ -109,9 +109,10 @@ std::vector<std::string> parse_devices(const std::string& device_string) {
     std::string comma_separated_devices = device_string;
     auto colon = comma_separated_devices.find(":");
     if (colon != std::string::npos) {
-        if (comma_separated_devices.substr(0, colon) == "AUTO") {
+        auto target_device = comma_separated_devices.substr(0, colon);
+        if (target_device == "AUTO" || target_device == "MULTI") {
             std::vector<std::string> result;
-            result.push_back("AUTO");
+            result.push_back(target_device);
             return result;
         }
         auto bracket = comma_separated_devices.find("(");  // e.g. in BATCH:GPU(4)
@@ -473,7 +474,10 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
             if (info.layout.empty()) {
                 switch (item.get_partial_shape().size()) {
                 case 3:
-                    newLayout = "CHW";
+                    newLayout = (item.get_partial_shape()[2].get_max_length() <= 4 &&
+                                 item.get_partial_shape()[0].get_max_length() > 4)
+                                    ? "HWC"
+                                    : "CHW";
                     break;
                 case 4:
                     // Rough check for layout type, basing on max number of image channels

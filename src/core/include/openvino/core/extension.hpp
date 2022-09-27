@@ -26,6 +26,7 @@ class Extension;
 
 /**
  * @brief The class provides the base interface for OpenVINO extensions
+ * @ingroup ov_model_cpp_api
  */
 class OPENVINO_API Extension {
 public:

@@ -8,7 +8,7 @@ SETLOCAL EnableDelayedExpansion
 set "ROOT_DIR=%~dp0"
 FOR /F "delims=\" %%i IN ("%ROOT_DIR%") DO set SAMPLES_TYPE=%%~nxi
 
-set "SAMPLE_BUILD_DIR=%USERPROFILE%\Documents\Intel\OpenVINO\inference_engine_%SAMPLES_TYPE%_samples_build"
+set "SAMPLE_BUILD_DIR=%USERPROFILE%\Documents\Intel\OpenVINO\openvino_%SAMPLES_TYPE%_samples_build"
 set SAMPLE_INSTALL_DIR=
 
 :: command line arguments parsing
@@ -52,7 +52,7 @@ if exist "%SAMPLE_BUILD_DIR%\CMakeCache.txt" del "%SAMPLE_BUILD_DIR%\CMakeCache.
 cd /d "%ROOT_DIR%" && cmake -E make_directory "%SAMPLE_BUILD_DIR%" && cd /d "%SAMPLE_BUILD_DIR%" && cmake -G "Visual Studio 16 2019" -A %PLATFORM% "%ROOT_DIR%"
 
 echo.
-echo ###############^|^| Build Inference Engine samples using MS Visual Studio (MSBuild.exe) ^|^|###############
+echo ###############^|^| Build OpenVINO Runtime samples using MS Visual Studio (MSBuild.exe) ^|^|###############
 echo.
 
 echo cmake --build . --config Release
@@ -65,7 +65,7 @@ echo Done.
 exit /b
 
 :usage
-echo Build inference engine samples
+echo Build OpenVINO Runtime samples
 echo.
 echo Options:
 echo   -h                       Print the help message

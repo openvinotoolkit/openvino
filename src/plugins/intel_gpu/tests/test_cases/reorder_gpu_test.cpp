@@ -21,6 +21,23 @@ using namespace cldnn;
 using namespace ::tests;
 using namespace testing;
 
+template <typename T>
+static void compare_result(std::map<cldnn::primitive_id, cldnn::network_output> ref_result,
+                           std::map<cldnn::primitive_id, cldnn::network_output> opt_result) {
+    auto output_ref = ref_result.begin()->second.get_memory();
+    mem_lock<T> output_ref_ptr{output_ref, get_test_stream()};
+
+    auto output_opt = opt_result.begin()->second.get_memory();
+    mem_lock<T> output_opt_ptr{output_opt, get_test_stream()};
+
+    // compare results
+    const size_t output_size = output_ref_ptr.size();
+    for (size_t i = 0; i < output_size; i++)
+    {
+        EXPECT_EQ(output_ref_ptr[i], output_opt_ptr[i]);
+    }
+}
+
 static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     const data_types input_data_type, const data_types output_data_type,
     cldnn::format input_format, cldnn::format output_format,
@@ -73,14 +90,9 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     network network_ref(engine, topology, options_ref);
     network_ref.set_input_data("input", input);
 
-    std::map<cldnn::primitive_id, cldnn::network_output> outputs_ref;
-
-    outputs_ref = network_ref.execute();
+    auto outputs_ref = network_ref.execute();
     cldnn::event::ptr e1 = outputs_ref.at("reorder").get_event();
     e1->wait();
-
-    auto output_ref = outputs_ref.begin()->second.get_memory();
-    mem_lock<uint8_t> output_ref_ptr{output_ref, get_test_stream()};
 
     // run on optimized kernel
     cldnn::build_options options;
@@ -90,21 +102,23 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     network network(engine, topology, options);
     network.set_input_data("input", input);
 
-    std::map<cldnn::primitive_id, cldnn::network_output> outputs;
-
-    outputs = network.execute();
+    auto outputs = network.execute();
     cldnn::event::ptr e2 = outputs.at("reorder").get_event();
     e2->wait();
 
-    auto output = outputs.begin()->second.get_memory();
-    mem_lock<uint8_t> output_ptr{output, get_test_stream()};
-
-    // compare results
-    const size_t output_size = output_ref_ptr.size();
-    for (size_t i = 0; i < output_size; i++)
-    {
-        EXPECT_EQ(output_ref_ptr[i], output_ptr[i]);
-    }
+    // compare output_ref and output_opt.
+    if (output_data_type == data_types::i8)
+        compare_result<int8_t>(outputs_ref, outputs);
+    else if (output_data_type == data_types::u8)
+        compare_result<uint8_t>(outputs_ref, outputs);
+    else if (output_data_type == data_types::i32)
+        compare_result<int32_t>(outputs_ref, outputs);
+    else if (output_data_type == data_types::i64)
+        compare_result<int64_t>(outputs_ref, outputs);
+    else if (output_data_type == data_types::f16)
+        compare_result<int16_t>(outputs_ref, outputs);
+    else if (output_data_type == data_types::f32)
+        compare_result<float>(outputs_ref, outputs);
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv32_to_bfyx_f32) {
@@ -195,6 +209,32 @@ TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32) {
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32, 48 + 5, 16, 4, 3);          // f
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32, 48, 48 + 3, 4, 4);          // x
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32 + 2, 48 + 3, 16 + 1, 4, 2);  // b-f-x
+}
+
+TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_bsv16_fsv32) {
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 3, 16, 4, 5, 7);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 1, 1, 1, 1, 1);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32 + 2, 48, 16, 4, 2);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32 + 1, 1, 1, 1, 1);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32, 48 + 5, 16, 4, 3);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32, 48, 48 + 3, 4, 4);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32 + 2, 48 + 3, 16 + 1, 4, 2);
+}
+
+TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_bsv32_fsv16) {
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 1, 1, 1, 1, 1);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32 + 2, 48, 16, 4, 2);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32, 48 + 5, 16, 4, 3);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32, 48, 48 + 3, 4, 4);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32 + 2, 48 + 3, 16 + 1, 4, 2);
+}
+
+TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_bsv32_fsv32) {
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 1, 1, 1, 1, 1);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32 + 2, 48, 16, 4, 2);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32, 48 + 5, 16, 4, 3);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32, 48, 48 + 3, 4, 4);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32 + 2, 48 + 3, 16 + 1, 4, 2);
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_blocked_format_different_datatype) {
@@ -895,7 +935,6 @@ TEST(reorder_gpu, basic_convert_uint8rgbabyxf_to_fp32_bfyx) {
              "reorder_input",               // primitive id of the cropping input
              crop_reference_input_tensor,   // input tensor
              crop_offset_tensor,            // bias primitive id
-             "",
              output_padding
             )
     );
@@ -1000,7 +1039,7 @@ TEST(reorder_gpu_f32, basic_yxfb_to_bfyx_input_padding)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, "", padding{ { 0, 0, 1, 2 }, 0 }),
+        reorder("reorder", "input", input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, padding{ { 0, 0, 1, 2 }, 0 }),
         reorder("reorder2", "reorder", output_layout));
 
     network network(engine, topology);
@@ -1079,7 +1118,7 @@ TEST(reorder_gpu_f32, basic_bfyx_to_yxfb_input_padding)
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, "", padding{ { 0, 0, 2, 1 }, 0 }),
+        reorder("reorder", "input", input->get_layout().format, input->get_layout().data_type, "", reorder_mean_mode::subtract, padding{ { 0, 0, 2, 1 }, 0 }),
         reorder("reorder2", "reorder", output_layout));
 
     network network(engine, topology);
@@ -1367,7 +1406,7 @@ TEST(reorder_gpu_opt, remove_redundant_activation_fuse)
         reorder("r1", "in", format::bfyx, data_types::f32),
         activation("relu", "r1", activation_func::relu_negative_slope, { 0.01f, 0.0f }),
         data("scale_data", scale_mem),
-        scale("output", "relu", "scale_data")
+        eltwise("output", { "relu", "scale_data" }, eltwise_mode::prod)
     };
 
     build_options opts;
@@ -1496,7 +1535,7 @@ TEST(reorder_gpu_opt, mean_mul)
     cldnn::mem_lock<float> ptr(output, get_test_stream());
     float* a_ptr = answers;
     for (auto& val : ptr)
-        EXPECT_FLOAT_EQ(*(a_ptr++), val);;
+        EXPECT_FLOAT_EQ(*(a_ptr++), val);
 
 }
 
@@ -1531,7 +1570,7 @@ TEST(reorder_gpu_opt, mean_div)
     cldnn::mem_lock<float> ptr(output, get_test_stream());
     float* a_ptr = answers;
     for (auto& val : ptr)
-        EXPECT_FLOAT_EQ(*(a_ptr++), val);;
+        EXPECT_FLOAT_EQ(*(a_ptr++), val);
 
 }
 
@@ -1562,7 +1601,7 @@ TEST(reorder_gpu_opt, mean_mul_val)
     cldnn::mem_lock<float> ptr(output, get_test_stream());
     float* a_ptr = answers;
     for (auto& val : ptr)
-        EXPECT_FLOAT_EQ(*(a_ptr++), val);;
+        EXPECT_FLOAT_EQ(*(a_ptr++), val);
 }
 
 TEST(reorder_gpu_opt, mean_mul_val_float_to_int)
@@ -2290,7 +2329,7 @@ public:
 
         for (const auto& test_param : all_generic_params)
         {
-            cldnn::tensor input_tensor = test_param->input_layouts[0].size;
+            cldnn::tensor input_tensor = test_param->input_layouts[0].get_tensor();
 
             std::vector<cldnn::layout> output_layouts = {};
 
@@ -2335,7 +2374,7 @@ public:
         assert(mean == "");
         assert(subtract_per_feature.size() == 0);
 
-        auto output = engine.allocate_memory(cldnn::layout(*reorder->output_data_type, inputs[0]->get_layout().format, inputs[0]->get_layout().size));
+        auto output = engine.allocate_memory(cldnn::layout(*reorder->output_data_type, inputs[0]->get_layout().format, inputs[0]->get_layout().get_tensor()));
 
         cldnn::mem_lock<InputType> input_mem(inputs[0], get_test_stream());
         cldnn::mem_lock<OutputType> output_mem(output, get_test_stream());
@@ -2457,7 +2496,7 @@ public:
 
     cldnn::memory::ptr get_mem(cldnn::layout l) {
         auto prim = engine.allocate_memory(l);
-        tensor s = l.size;
+        tensor s = l.get_tensor();
         if (l.data_type == data_types::bin) {
             VF<int32_t> rnd_vec = generate_random_1d<int32_t>(s.count() / 32, min_random, max_random);
             set_values(prim, rnd_vec);
@@ -2542,6 +2581,8 @@ TEST_P(testing_removal_reorder, only_remove_reorder_shallow_depth_input) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
 // Check to remove reorder between onednn and cldnn conv if the reorder has no padded output
 TEST_P(testing_removal_reorder, removal_no_padded_reorder) {
+    if (!engine.get_device_info().supports_immad)
+        return;
     auto p = GetParam();
     layout reorder_layout(data_types::f16, format::b_fs_yx_fsv16, p.in_shape, padding({0, }, 0));
 
@@ -2564,14 +2605,13 @@ TEST_P(testing_removal_reorder, removal_no_padded_reorder) {
 
     execute(p);
 
-    if (!check_supports_immad())
-        return;
-
     EXPECT_EQ(check_optimized_out(p, "reorder_conv"), true);
 }
 
 // Check not to remove reorder between onednn and cldnn conv if the reorder has padded output
 TEST_P(testing_removal_reorder, removal_padded_reorder) {
+    if (!engine.get_device_info().supports_immad)
+        return;
     auto p = GetParam();
     layout reorder_layout(data_types::f16, format::b_fs_yx_fsv16, p.in_shape, padding({0, 0, 1, 1}, 0));
 
@@ -2594,9 +2634,6 @@ TEST_P(testing_removal_reorder, removal_padded_reorder) {
 
     execute(p);
 
-    if (!check_supports_immad())
-        return;
-
     EXPECT_EQ(check_optimized_out(p, "reorder_conv"), false);
 }
 #endif // ENABLE_ONEDNN_FOR_GPU
@@ -2611,6 +2648,8 @@ INSTANTIATE_TEST_SUITE_P(reorder_gpu_testing, testing_removal_reorder,
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(reorder_onednn_gpu, basic_convert_int8) {
     auto& engine = get_onednn_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
     layout in_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 3, 3 } };
     layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx, { 1, 1, 3, 3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.6f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.0f };

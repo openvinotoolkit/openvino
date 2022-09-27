@@ -192,8 +192,11 @@ def get_quantized_input_key(quantized_node):
     Otherwise, key is tuple (fq_input name, output port number)
     """
     quantized_input = get_node_input(quantized_node, 0)
-    quantized_key = create_node_name(quantized_input)
-    return quantized_key
+    key = quantized_input.fullname
+    if len(quantized_input.out_ports()) > 1:
+        port_number = quantized_node.in_port(0).get_source().out
+        key = (quantized_input.fullname, port_number)
+    return key
 
 
 def node_with_quantized_weights(node):
@@ -204,6 +207,20 @@ def node_with_quantized_weights(node):
     """
     weights_input = get_node_input(node, 1)
     if weights_input.type == 'FakeQuantize' and get_node_input(weights_input, 0).type == 'Const':
+        return True
+
+    return False
+
+
+def node_with_quantized_input_and_bias(node):
+    """
+    Check that node havs two quantized input (inputs on port 0 and 1).
+    :param node: operation node
+    :return: True if node has quantized inputs and False instead
+    """
+    input_node = get_node_input(node, 0)
+    bias_node = get_node_input(node, 1)
+    if input_node is not None and input_node.type == 'FakeQuantize' and bias_node is not None and bias_node.type == 'FakeQuantize':
         return True
 
     return False

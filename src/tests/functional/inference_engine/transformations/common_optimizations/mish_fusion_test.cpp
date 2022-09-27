@@ -23,9 +23,9 @@ using namespace testing;
 // https://openvino-ci.intel.com/job/private-ci/job/ie/job/build-linux-ubuntu18_i386/478/
 TEST_F(TransformationTestsF, MishFusing) {
     {
-        auto input0 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f64, ngraph::Shape{3, 1, 2});
+        auto input0 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
         auto exp = std::make_shared<ngraph::opset4::Exp>(input0);
-        auto input_const = ngraph::opset4::Constant::create(ngraph::element::f64, ngraph::Shape{1}, {-1});
+        auto input_const = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {-1});
         auto add = std::make_shared<ngraph::opset4::Add>(exp, input_const);
         auto log = std::make_shared<ngraph::opset4::Log>(add);
         auto tanh = std::make_shared<ngraph::opset4::Tanh>(log);
@@ -37,7 +37,7 @@ TEST_F(TransformationTestsF, MishFusing) {
     }
 
     {
-        auto data = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f64, ngraph::Shape{3, 1, 2});
+        auto data = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
         auto mish = std::make_shared<ngraph::opset4::Mish>(data);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mish}, ngraph::ParameterVector{data});
@@ -47,7 +47,7 @@ TEST_F(TransformationTestsF, MishFusing) {
 
 TEST_F(TransformationTestsF, MishWithSoftPlusFusing) {
     {
-        auto input0 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f64, ngraph::Shape{3, 1, 2});
+        auto input0 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
         auto softplus = std::make_shared<ngraph::opset4::SoftPlus>(input0);
         auto tanh = std::make_shared<ngraph::opset4::Tanh>(softplus);
         auto mul = std::make_shared<ngraph::opset4::Multiply>(input0, tanh);
@@ -58,7 +58,7 @@ TEST_F(TransformationTestsF, MishWithSoftPlusFusing) {
     }
 
     {
-        auto data = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f64, ngraph::Shape{3, 1, 2});
+        auto data = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
         auto mish = std::make_shared<ngraph::opset4::Mish>(data);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mish}, ngraph::ParameterVector{data});

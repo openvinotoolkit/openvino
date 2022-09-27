@@ -6,10 +6,9 @@
 #include "ie_parallel.hpp"
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <math.h>
-#include <mkldnn.hpp>
+#include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
 #include <selective_build.h>
-#include <mkldnn_types.h>
 #include <ngraph/opsets/opset8.hpp>
 #include <string>
 #include <utils/bfloat16.hpp>
@@ -17,8 +16,8 @@
 #include <vector>
 
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl::cpu::x64;
+using namespace dnnl;
+using namespace dnnl::impl::cpu::x64;
 
 namespace ov {
 namespace intel_cpu {
@@ -48,7 +47,7 @@ bool AdaptivePooling::isSupportedOperation(const std::shared_ptr<const ngraph::N
     return true;
 }
 
-AdaptivePooling::AdaptivePooling(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+AdaptivePooling::AdaptivePooling(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
                                            WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -148,14 +147,14 @@ void AdaptivePooling::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void AdaptivePooling::executeDynamicImpl(mkldnn::stream strm) {
+void AdaptivePooling::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void AdaptivePooling::execute(mkldnn::stream strm) {
+void AdaptivePooling::execute(dnnl::stream strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().GetDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().GetDataType();
-    if (!(inputPrec == mkldnn_f32 && outputPrec == mkldnn_f32))
+    if (!(inputPrec == dnnl_f32 && outputPrec == dnnl_f32))
         IE_THROW() << errorPrefix << "doesn't support demanded precisions";
 
     auto &srcMemory0 = getParentEdgeAt(0)->getMemory();

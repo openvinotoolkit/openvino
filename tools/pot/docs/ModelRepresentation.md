@@ -1,4 +1,4 @@
-# Low-precision model representation {#pot_docs_model_representation}
+# Low-precision model representation
 
 ## Introduction
 The goal of this document is to describe how optimized models are represented in OpenVINO Intermediate Representation (IR) and provide guidance on interpretation rules for such models at runtime.

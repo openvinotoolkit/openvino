@@ -14,6 +14,7 @@ namespace v0 {
 /// All input values that are outside of the <min;max> range are set to 'min' or 'max'
 /// depending on which side of the <min;max> range they are. The values that fall into
 /// this range remain unchanged.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Clamp : public Op {
 public:
     OPENVINO_OP("Clamp", "opset1");

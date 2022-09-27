@@ -25,6 +25,7 @@
         "runtime/bin/intel64/Release/openvino_ir_frontend.dll",
         "runtime/bin/intel64/Release/openvino_onnx_frontend.dll",
         "runtime/bin/intel64/Release/openvino_paddle_frontend.dll",
+        "runtime/lib/intel64/Release/openvino_tensorflow_fe.dll",
         "runtime/bin/intel64/Release/plugins.xml",
         "runtime/3rdparty/tbb"
       ]

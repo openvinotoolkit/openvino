@@ -49,7 +49,7 @@ addIeTarget(
                 ${PUBLIC_HEADERS_DIR}
         LINK_LIBRARIES
             PUBLIC
-                pugixml::static
+                openvino::pugixml
                 funcTestUtils
                 ngraph_test_util
                 ngraphFunctions
@@ -58,6 +58,7 @@ addIeTarget(
             PRIVATE
                 openvino::util
                 openvino::runtime::dev
+                snippetsNgraphFunctions
         DEPENDENCIES
             ${DEPENDENCIES}
 )

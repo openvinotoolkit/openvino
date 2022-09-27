@@ -8,8 +8,12 @@
 
 namespace SubgraphTestsDefinitions {
 
-TEST_P(ParameterResultSubgraphTest, CompareWithRefs) {
+TEST_P(ParameterResultSubgraphTestLegacyApi, CompareWithRefs) {
     Run();
+}
+
+TEST_P(ParameterResultSubgraphTest, CompareWithRefs) {
+    run();
 }
 
 }  // namespace SubgraphTestsDefinitions

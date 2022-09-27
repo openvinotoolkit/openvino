@@ -96,5 +96,8 @@ int main() {
         // process output data
     }
     //! [ie:get_output_tensor]
+    //! [ie:load_old_extension]
+    core.AddExtension(std::make_shared<InferenceEngine::Extension>("path_to_extension_library.so"));
+    //! [ie:load_old_extension]
     return 0;
 }

@@ -4,11 +4,17 @@
 
 if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
     # 'target_link_libraries' does not work correctly when called from
-    # different directly where 'add_library' is called: CMake generates
+    # different directory where 'add_library' is called: CMake generates
     # incorrect OpenVINOConfig.cmake in this case
     cmake_minimum_required(VERSION 3.17)
 else()
-    cmake_minimum_required(VERSION 3.13)
+    if(CPACK_GENERATOR STREQUAL "DEB")
+        # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
+        cmake_minimum_required(VERSION 3.20)
+    else()
+        # default choice
+        cmake_minimum_required(VERSION 3.13)
+    endif()
 endif()
 
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
@@ -16,8 +22,6 @@ project(OpenVINO DESCRIPTION "OpenVINO toolkit")
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type" FORCE)
 endif()
-
-set(IE_MAIN_SOURCE_DIR ${OpenVINO_SOURCE_DIR}/inference-engine)
 
 find_package(IEDevScripts REQUIRED
              PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
@@ -53,6 +57,7 @@ file(REMOVE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
 file(REMOVE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 foreach(component IN LISTS openvino_export_components)
     file(REMOVE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
+    file(REMOVE "${CMAKE_BINARY_DIR}/ov_${component}_dev_targets.cmake")
     unset(${component} CACHE)
 endforeach()
 unset(openvino_export_components CACHE)
@@ -94,7 +99,9 @@ function(openvino_developer_export_targets)
 endfunction()
 
 # add target with processed tests model zoo
-include(cmake/test_model_zoo.cmake)
+if (ENABLE_TESTS)
+    include(cmake/test_model_zoo.cmake)
+endif()
 
 add_subdirectory(thirdparty)
 add_subdirectory(src)
@@ -113,5 +120,8 @@ add_subdirectory(licensing)
 #
 # CPack
 #
+
+# provides a callback function to describe each component in repo
+include(cmake/packaging/packaging.cmake)
 
 ie_cpack(${IE_CPACK_COMPONENTS_ALL})

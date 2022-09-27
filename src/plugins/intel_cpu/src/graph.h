@@ -34,6 +34,7 @@ public:
     };
 
     Graph() = default;
+    ~Graph();
 
     Status GetStatus() {
         return status;
@@ -76,7 +77,7 @@ public:
         return graphNodes;
     }
 
-    std::string GetName() {
+    std::string GetName() const {
         return _name;
     }
 
@@ -110,7 +111,7 @@ public:
         return outputNodesMap.count(name);
     }
 
-    mkldnn::engine getEngine() const {
+    dnnl::engine getEngine() const {
         return eng;
     }
 
@@ -137,12 +138,14 @@ public:
      * output memory descriptor
      * @param isOptimized
      * optimization flag; if isOptimized is true then Reorder node does nothing
+     * @param src_perm
+     * optimization flag; permutation applied to input desc before passing to reorder primitive
      * @param scales
      * pointer to the blob containing scales
      * @return pointer to the new Reorder node.
      */
     NodePtr InsertReorder(EdgePtr edge, std::string layerName, const MemoryDesc& inDesc,
-            const MemoryDesc& outDesc, bool isOptimized = false);
+            const MemoryDesc& outDesc, bool isOptimized = false, const std::vector<int> & src_perm = {});
 
     /**
      * @brief Insert Node at the edge-specified location.
@@ -198,7 +201,7 @@ protected:
 
     void ForgetGraphData() {
         status = NotReady;
-        eng = mkldnn::engine(mkldnn::engine::kind::cpu, 0);
+        eng = dnnl::engine(dnnl::engine::kind::cpu, 0);
 
         inputNodesMap.clear();
         outputNodesMap.clear();
@@ -226,7 +229,7 @@ protected:
     bool isQuantizedFlag = false;
     bool graphHasDynamicInput = false;
 
-    static mkldnn::engine eng;
+    static dnnl::engine eng;
 
     void Replicate(const InferenceEngine::CNNNetwork &network, const ExtensionManager::Ptr& extMgr);
     void Replicate(const std::shared_ptr<const ov::Model> &subgraph, const ExtensionManager::Ptr& extMgr);
@@ -239,7 +242,7 @@ protected:
     void AllocateWithReuse();
     void CreatePrimitives();
     void ExtractConstantAndExecutableNodes();
-    void ExecuteNode(const NodePtr& node, const mkldnn::stream& stream) const;
+    void ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const;
     void ExecuteConstantNodesOnly() const;
 
     friend class LegacyInferRequest;

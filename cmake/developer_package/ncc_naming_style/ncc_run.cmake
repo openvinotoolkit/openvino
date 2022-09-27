@@ -26,7 +26,7 @@ execute_process(
         --include ${ADDITIONAL_INCLUDE_DIRECTORIES}
     RESULT_VARIABLE result
     OUTPUT_VARIABLE output
-    ERROR_VARIABLE output)
+    ERROR_VARIABLE error)
 
 file(WRITE "${OUTPUT_FILE}" "${output}")
 
@@ -40,6 +40,6 @@ endif()
 
 if(failed AND NOT EXPECTED_FAIL)
     # Display the output to console (to parse it form IDE)
-    message("${output}")
+    message("${output}\n${error}")
     message(FATAL_ERROR  "[ncc naming style] Naming style check failed for ${INPUT_FILE}")
 endif()

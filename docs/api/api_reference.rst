@@ -10,6 +10,7 @@ API references available:
 
 .. toctree::
    :maxdepth: 2
-   
-   ../groupie_cpp_api
+
+   ../groupov_cpp_api
+   ../groupie_c_api
    ie_python_api/api

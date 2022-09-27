@@ -4,7 +4,7 @@
 
 #include <vector>
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "ie_parallel.hpp"
 #include <selective_build.h>
 #include "batch_to_space.h"
@@ -36,7 +36,7 @@ bool BatchToSpace::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-BatchToSpace::BatchToSpace(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+BatchToSpace::BatchToSpace(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -232,11 +232,11 @@ void BatchToSpace::batchToSpaceKernel() {
     });
 }
 
-void BatchToSpace::executeDynamicImpl(mkldnn::stream strm) {
+void BatchToSpace::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void BatchToSpace::execute(mkldnn::stream strm) {
+void BatchToSpace::execute(dnnl::stream strm) {
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision().size()) {
         case 1: batchToSpaceKernel<PrecisionTrait<Precision::U8>::value_type>();  break;
         case 2: batchToSpaceKernel<PrecisionTrait<Precision::U16>::value_type>(); break;

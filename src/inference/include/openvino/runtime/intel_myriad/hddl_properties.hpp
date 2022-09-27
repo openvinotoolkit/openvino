@@ -18,68 +18,81 @@ namespace hddl {
 
 /**
  * @brief Property to get a int of the device number
+ * @ingroup ov_runtime_hddl_prop_cpp_api
  */
 static constexpr Property<int, PropertyMutability::RO> device_num{"HDDL_DEVICE_NUM"};
 
 /**
  * @brief Property to get a std::vector<std::string> of device names
+ * @ingroup ov_runtime_hddl_prop_cpp_api
  */
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> device_name{"HDDL_DEVICE_NAME"};
 
 /**
  * @brief  Property to get a std::vector<float> of device thermal
+ * @ingroup ov_runtime_hddl_prop_cpp_api
  */
 static constexpr Property<std::vector<float>, PropertyMutability::RO> device_thermal{"HDDL_DEVICE_THERMAL"};
 
 /**
  * @brief  Property to get a std::vector<uint32> of device ids
+ * @ingroup ov_runtime_hddl_prop_cpp_api
  */
 static constexpr Property<std::vector<unsigned int>, PropertyMutability::RO> device_id{"HDDL_DEVICE_ID"};
 
 /**
  * @brief  Property to get a std::vector<int> of device subclasses
+ * @ingroup ov_runtime_hddl_prop_cpp_api
  */
 static constexpr Property<std::vector<int>, PropertyMutability::RO> device_subclass{"HDDL_DEVICE_SUBCLASS"};
 
 /**
  * @brief  Property to get a std::vector<uint32> of device total memory
+ * @ingroup ov_runtime_hddl_prop_cpp_api
  */
 static constexpr Property<std::vector<unsigned int>, PropertyMutability::RO> device_memory_total{
     "HDDL_DEVICE_MEMORY_TOTAL"};
 
 /**
  * @brief  Property to get a std::vector<uint32> of device used memory
+ * @ingroup ov_runtime_hddl_prop_cpp_api
  */
 static constexpr Property<std::vector<unsigned int>, PropertyMutability::RO> device_memory_used{
     "HDDL_DEVICE_MEMORY_USED"};
 
 /**
  * @brief  Property to get a std::vector<float> of device utilization
+ * @ingroup ov_runtime_hddl_prop_cpp_api
  */
 static constexpr Property<std::vector<float>, PropertyMutability::RO> device_utilization{"HDDL_DEVICE_UTILIZATION"};
 
 /**
  * @brief  Property to get a std::vector<std::string> of stream ids
+ * @ingroup ov_runtime_hddl_prop_cpp_api
  */
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> stream_id{"HDDL_STREAM_ID"};
 
 /**
  * @brief  Property to get a std::vector<std::string> of device tags
+ * @ingroup ov_runtime_hddl_prop_cpp_api
  */
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> device_tag{"HDDL_DEVICE_TAG"};
 
 /**
  * @brief  Property to get a std::vector<int> of group ids
+ * @ingroup ov_runtime_hddl_prop_cpp_api
  */
 static constexpr Property<std::vector<int>, PropertyMutability::RO> group_id{"HDDL_GROUP_ID"};
 
 /**
  * @brief  Property to get a int number of device be using for group
+ * @ingroup ov_runtime_hddl_prop_cpp_api
  */
 static constexpr Property<int, PropertyMutability::RO> device_group_using_num{"HDDL_DEVICE_GROUP_USING_NUM"};
 
 /**
  * @brief  Property to get a int number of total device
+ * @ingroup ov_runtime_hddl_prop_cpp_api
  */
 static constexpr Property<int, PropertyMutability::RO> device_total_num{"HDDL_DEVICE_TOTAL_NUM"};
 
@@ -100,6 +113,7 @@ static constexpr Property<int, PropertyMutability::RO> device_total_num{"HDDL_DE
  *     }
  * }
  * It means that an executable network marked with tagA will be executed on 3 devices
+ * @ingroup ov_runtime_hddl_prop_cpp_api
  */
 static constexpr Property<std::string, PropertyMutability::RW> graph_tag{"HDDL_GRAPH_TAG"};
 
@@ -116,6 +130,7 @@ static constexpr Property<std::string, PropertyMutability::RW> graph_tag{"HDDL_G
  *     "stream_device_number":5
  * }
  * It means that 5 device will be used for stream-affinity
+ * @ingroup ov_runtime_hddl_prop_cpp_api
  */
 static constexpr Property<std::string, PropertyMutability::RW> set_stream_id{"HDDL_SET_STREAM_ID"};
 
@@ -132,6 +147,7 @@ static constexpr Property<std::string, PropertyMutability::RW> set_stream_id{"HD
  *     "bypass_device_number": 5
  * }
  * It means that 5 device will be used for Bypass scheduler.
+ * @ingroup ov_runtime_hddl_prop_cpp_api
  */
 static constexpr Property<std::string, PropertyMutability::RW> set_device_tag{"HDDL_SET_DEVICE_TAG"};
 
@@ -145,6 +161,7 @@ static constexpr Property<std::string, PropertyMutability::RW> set_device_tag{"H
  * If "NO", the network allocated is not bind to the device (with the specified "DEVICE_TAG"). If the same network
  * is allocated on multiple other devices (also set BIND_DEVICE to "False"), then inference through any handle of these
  * networks may be executed on any of these devices those have the network loaded.
+ * @ingroup ov_runtime_hddl_prop_cpp_api
  */
 static constexpr Property<bool, PropertyMutability::RW> bind_device{"HDDL_BIND_DEVICE"};
 
@@ -155,6 +172,7 @@ static constexpr Property<bool, PropertyMutability::RW> bind_device{"HDDL_BIND_D
  * When there are multiple devices running a certain network (a same network running on multiple devices in Bypass
  * Scheduler), the device with a larger number has a higher priority, and more inference tasks will be fed to it with
  * priority.
+ * @ingroup ov_runtime_hddl_prop_cpp_api
  */
 static constexpr Property<std::string, PropertyMutability::RW> runtime_priority{"HDDL_RUNTIME_PRIORITY"};
 
@@ -164,6 +182,7 @@ static constexpr Property<std::string, PropertyMutability::RW> runtime_priority{
  * SGAD is short for "Single Graph All Device". With this scheduler, once application allocates 1 network, all devices
  * (managed by SGAD scheduler) will be loaded with this graph. The number of network that can be loaded to one device
  * can exceed one. Once application deallocates 1 network from device, all devices will unload the network from them.
+ * @ingroup ov_runtime_hddl_prop_cpp_api
  */
 static constexpr Property<bool, PropertyMutability::RW> use_sgad{"HDDL_USE_SGAD"};
 
@@ -173,6 +192,7 @@ static constexpr Property<bool, PropertyMutability::RW> use_sgad{"HDDL_USE_SGAD"
  * This config gives a "group id" for a certain device when this device has been reserved for certain client, client
  * can use this device grouped by calling this group id while other client can't use this device
  * Each device has their own group id. Device in one group shares same group id.
+ * @ingroup ov_runtime_hddl_prop_cpp_api
  */
 static constexpr Property<std::string, PropertyMutability::RW> group_device{"HDDL_GROUP_DEVICE"};
 

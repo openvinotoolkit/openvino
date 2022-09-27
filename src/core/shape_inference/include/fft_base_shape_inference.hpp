@@ -53,22 +53,26 @@ void shape_infer(const ov::op::util::FFTBase* op,
         // [n_0, ..., n_{r - 1}, 2] is interpreted as a complex tensor with the shape
         // [n_0, ..., n_{r - 1}].
         if (axes_shape.rank().is_static() && axes_are_known) {
+            const auto axis_min_value = -static_cast<int64_t>(input_rank);
+            const auto axis_max_value = static_cast<int64_t>(input_rank) - 1;
+            ov::AxisSet axes_set;
             for (int64_t& axis : axes) {
+                NODE_VALIDATION_CHECK(op,
+                                      axis_min_value < axis && axis < axis_max_value,
+                                      "FFT op axis ",
+                                      axis,
+                                      " must be in the input rank range (",
+                                      axis_min_value,
+                                      ", ",
+                                      axis_max_value,
+                                      ").");
                 if (axis < 0) {
                     axis += input_rank - 1;
                 }
-            }
-
-            ov::AxisSet axes_set;
-            for (const auto& axis : axes) {
                 axes_set.insert(static_cast<size_t>(axis));
             }
 
             NODE_VALIDATION_CHECK(op, axes.size() == axes_set.size(), "FFT op axes must be unique.");
-
-            NODE_VALIDATION_CHECK(op,
-                                  std::find(axes.begin(), axes.end(), input_rank - 1) == axes.end(),
-                                  "FFT op axes cannot contain the last axis.");
         }
     }
 

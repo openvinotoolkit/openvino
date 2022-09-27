@@ -16,7 +16,7 @@ from data import digits
 
 
 def create_ngraph_function(model_path: str) -> Model:
-    """Create a model on the fly from the source code using ngraph"""
+    """Create a model on the fly from the source code using ngraph."""
 
     def shape_and_length(shape: list) -> typing.Tuple[list, int]:
         length = reduce(lambda x, y: x * y, shape)
@@ -133,7 +133,7 @@ def main():
     device_name = sys.argv[2]
     labels = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
     number_top = 1
-    # ---------------------------Step 1. Initialize inference engine core--------------------------------------------------
+    # ---------------------------Step 1. Initialize OpenVINO Runtime Core--------------------------------------------------
     log.info('Creating OpenVINO Runtime Core')
     core = Core()
 

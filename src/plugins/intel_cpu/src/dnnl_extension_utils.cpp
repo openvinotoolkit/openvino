@@ -7,26 +7,26 @@
 #include <vector>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace mkldnn;
+using namespace dnnl;
 
 namespace ov {
 namespace intel_cpu {
 
-uint8_t DnnlExtensionUtils::sizeOfDataType(mkldnn::memory::data_type dataType) {
+uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     switch (dataType) {
-    case mkldnn::memory::data_type::f32:
+    case dnnl::memory::data_type::f32:
         return 4;
-    case mkldnn::memory::data_type::s32:
+    case dnnl::memory::data_type::s32:
         return 4;
-    case mkldnn::memory::data_type::bf16:
+    case dnnl::memory::data_type::bf16:
         return 2;
-    case mkldnn::memory::data_type::s8:
+    case dnnl::memory::data_type::s8:
         return 1;
-    case mkldnn::memory::data_type::u8:
+    case dnnl::memory::data_type::u8:
         return 1;
-    case mkldnn::memory::data_type::bin:
+    case dnnl::memory::data_type::bin:
         return 1;
-    case mkldnn::memory::data_type::undef:
+    case dnnl::memory::data_type::undef:
         return 0;
     default:
         IE_THROW() << "Unsupported data type.";
@@ -82,7 +82,7 @@ Dim DnnlExtensionUtils::convertToDim(const dnnl::memory::dim &dim) {
     return dim == DNNL_RUNTIME_DIM_VAL ?  Shape::UNDEFINED_DIM : static_cast<size_t>(dim);
 }
 dnnl::memory::dim DnnlExtensionUtils::convertToDnnlDim(const Dim &dim) {
-    return dim == Shape::UNDEFINED_DIM ? DNNL_RUNTIME_DIM_VAL : static_cast<mkldnn::memory::dim>(dim);
+    return dim == Shape::UNDEFINED_DIM ? DNNL_RUNTIME_DIM_VAL : static_cast<dnnl::memory::dim>(dim);
 }
 
 VectorDims DnnlExtensionUtils::convertToVectorDims(const memory::dims& dims) {
@@ -121,7 +121,7 @@ memory::format_tag DnnlExtensionUtils::GetPlainFormatByRank(size_t rank) {
     }
 }
 
-DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc) {
+DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const dnnl::memory::desc &desc) {
     if (desc.data.format_kind == dnnl_blocked) {
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc));
     } else {
@@ -129,7 +129,7 @@ DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const mkldnn::memory::desc 
     }
 }
 
-size_t DnnlExtensionUtils::getMemSizeForDnnlDesc(const mkldnn::memory::desc& desc) {
+size_t DnnlExtensionUtils::getMemSizeForDnnlDesc(const dnnl::memory::desc& desc) {
     auto tmpDesc = desc;
     const auto offset0 = tmpDesc.data.offset0;
     tmpDesc.data.offset0 = 0;

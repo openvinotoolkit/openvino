@@ -24,7 +24,6 @@ protected:
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ELTWISE,
                  FusedOpType::QUANTIZE,
-                 FusedOpType::SCALE,
                  FusedOpType::REORDER,
                  FusedOpType::ACTIVATION };
     }

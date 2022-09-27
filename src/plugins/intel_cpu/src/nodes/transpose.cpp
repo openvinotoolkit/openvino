@@ -10,7 +10,7 @@
 #include <dnnl_extension_utils.h>
 #include <common/primitive_hashing_utils.hpp>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -18,8 +18,8 @@ namespace intel_cpu {
 namespace node {
 namespace {
 struct TransposeAsReorderKey {
-    mkldnn::memory::desc src;
-    mkldnn::memory::desc dest;
+    dnnl::memory::desc src;
+    dnnl::memory::desc dest;
     size_t hash() const;
     bool operator==(const TransposeAsReorderKey& rhs) const;
 };
@@ -61,7 +61,7 @@ bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
     return true;
 }
 
-Transpose::Transpose(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+Transpose::Transpose(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -146,13 +146,8 @@ bool Transpose::needPrepareParams() const {
 }
 
 void Transpose::prepareParams() {
-    auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    params.src_block_dims = srcDesc->getBlockDims();
-    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    params.dst_block_dims = dstDesc->getBlockDims();
-
     if (performAsReorder) {
-        mkldnn::primitive_attr attr;
+        dnnl::primitive_attr attr;
         const auto engine = getEngine();
         auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
         auto& srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
@@ -164,22 +159,22 @@ void Transpose::prepareParams() {
             dstMemPtr->GetData(), false);
 
         const auto newDims = dst_blocked->getStaticDims();
-        auto newDesc = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
+        auto newDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
                                             dst_blocked->GetDataType(),
                                             memory::format_tag::acdb);
         src_blocked->Create(DnnlExtensionUtils::makeDescriptor(newDesc), srcMemPtr->GetData(), false);
 
         impl_desc_type impl_type = getSelectedPrimitiveDescriptor()->getImplementationType();
         TransposeAsReorderKey key = {src_blocked->GetPrimitive().get_desc(), dst_blocked->GetPrimitive().get_desc()};
-        auto builder = [&engine, &impl_type](const TransposeAsReorderKey& key) -> std::shared_ptr<mkldnn::primitive> {
-            mkldnn::primitive_attr attr;
-            reorder::primitive_desc pd = mkldnn::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
+        auto builder = [&engine, &impl_type](const TransposeAsReorderKey& key) -> std::shared_ptr<dnnl::primitive> {
+            dnnl::primitive_attr attr;
+            reorder::primitive_desc pd = dnnl::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
 
             if (!pd)
                 return nullptr;
             auto info = pd.impl_info_str();
             impl_type = parse_impl_name(info);
-            return std::make_shared<mkldnn::reorder>(pd);
+            return std::make_shared<dnnl::reorder>(pd);
         };
 
         auto cache = getRuntimeCache();
@@ -196,6 +191,11 @@ void Transpose::prepareParams() {
                     {DNNL_ARG_DST, getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive()}};
         return;
     }
+
+    auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    params.src_block_dims = srcDesc->getBlockDims();
+    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    params.dst_block_dims = dstDesc->getBlockDims();
 
     if (!isInputOrderConst) {
         auto orderPtr = reinterpret_cast<const int32_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
@@ -239,13 +239,15 @@ void Transpose::createPrimitive() {
         return;
     }
 
-    params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->getPrecision().size();
-    if (isInputOrderConst)
-        params.order = order;
-    auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    params.src_block_order = srcDesc->getOrder();
-    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    params.dst_block_order = dstDesc->getOrder();
+    if (!performAsReorder) {
+        params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->getPrecision().size();
+        if (isInputOrderConst)
+            params.order = order;
+        auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+        params.src_block_order = srcDesc->getOrder();
+        auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+        params.dst_block_order = dstDesc->getOrder();
+    }
 
     if (inputShapesDefined() && isExecutable()) {
         prepareParams();
@@ -354,7 +356,7 @@ void Transpose::optimizedExecute(const int MB, const MemoryPtr& srcMemPtr, Memor
     }
 }
 
-void Transpose::execute(mkldnn::stream strm) {
+void Transpose::execute(dnnl::stream strm) {
     if (prim) {
         (*prim).execute(strm, primArgs);
     } else if (execPtr) {
@@ -374,7 +376,7 @@ void Transpose::execute(mkldnn::stream strm) {
     }
 }
 
-void Transpose::executeDynamicImpl(mkldnn::stream strm) {
+void Transpose::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 

@@ -70,11 +70,11 @@ class TestStridedSlice(CommonTFLayerTest):
     @pytest.mark.parametrize('params', test_squeeze_data)
     @pytest.mark.nightly
     def test_strided_slice_replace_with_squeeze(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_new_frontend, api_2):
+                                                temp_dir, use_new_frontend, use_old_api):
         self._test(*self.create_strided_slice_net(**params, ir_version=ir_version,
                                                   use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_unsqueeze_data = [
         dict(input_shape=[1, 5], begin=[0, 0], end=[1, 5], strides=[1, 1], begin_mask=0,
@@ -96,13 +96,16 @@ class TestStridedSlice(CommonTFLayerTest):
         dict(input_shape=[1, 5, 5, 3], begin=[0, 0, 0, 0], end=[1, 5, 5, 3], strides=[1, 1, 1, 1],
              begin_mask=0,
              end_mask=0, ellipsis_mask=0, new_axis_mask=2, shrink_axis_mask=0),
+        dict(input_shape=[16, 4, 64], begin=[0, 0, 0, 0], end=[0, 0, 0, 0], strides=[1, 1, 1, 1],
+             begin_mask=19,
+             end_mask=19, ellipsis_mask=0, new_axis_mask=12, shrink_axis_mask=0),
     ]
 
     @pytest.mark.parametrize('params', test_unsqueeze_data)
     @pytest.mark.nightly
     def test_strided_slice_replace_with_unsqueeze(self, params, ie_device, precision, ir_version,
-                                                  temp_dir, use_new_frontend, api_2):
+                                                  temp_dir, use_new_frontend, use_old_api):
         self._test(*self.create_strided_slice_net(**params, ir_version=ir_version,
                                                   use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)

@@ -9,6 +9,10 @@ core = Core()
 available_devices = core.available_devices
 # [get_available_devices]
 
+# [hetero_priorities]
+device_priorites = core.get_property("HETERO", "MULTI_DEVICE_PRIORITIES")
+# [hetero_priorities]
+
 # [cpu_device_name]
 cpu_device_name = core.get_property("CPU", "FULL_DEVICE_NAME")
 # [cpu_device_name]
@@ -22,7 +26,7 @@ compiled_model = core.compile_model(model, "CPU", config)
 
 # [optimal_number_of_infer_requests]
 compiled_model = core.compile_model(model, "CPU")
-nireq = compiled_model.get_property("OPTIMAL_NUMBER_OF_INFER_REQUESTS");
+nireq = compiled_model.get_property("OPTIMAL_NUMBER_OF_INFER_REQUESTS")
 # [optimal_number_of_infer_requests]
 
 

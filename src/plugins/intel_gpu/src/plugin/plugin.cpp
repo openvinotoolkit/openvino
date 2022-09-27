@@ -54,7 +54,6 @@ using namespace InferenceEngine::gpu;
 using namespace InferenceEngine::details;
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 #define FACTORY_DECLARATION(op_version, op_name) \
@@ -398,10 +397,14 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     auto clonedNetwork = CloneAndTransformNetwork(network, conf);
     auto func = clonedNetwork.getFunction();
     auto ops = func->get_ordered_ops();
-    std::unordered_set<std::string> supported;
+
+    //Mark removed nodes as supported
+    std::unordered_set<std::string> supported = GetRemovedNodes(function, func);
     std::unordered_set<std::string> unsupported;
 
-    std::unordered_set<std::string> constantsNames;
+    std::unordered_set<std::string> supportedNotOriginal;
+    std::unordered_set<std::string> unsupportedNotOriginal;
+
     std::vector<std::shared_ptr<ngraph::Node>> constants;
 
     std::map<std::string, ngraph::PartialShape> shapes;
@@ -442,33 +445,45 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
             return false;
         }
         if (ngraph::is_type<const ngraph::op::v0::Constant>(node)) {
-            constantsNames.emplace(node->get_friendly_name());
             constants.push_back(node);
             return false;
         }
-        return prog.IsOpSupported(network, node) &&
-               !ngraph::op::is_parameter(node) &&
-               !ngraph::op::is_output(node);
+        return prog.IsOpSupported(network, node) ||
+               ngraph::op::is_parameter(node) ||
+               ngraph::op::is_output(node);
     };
 
     // Get ops after transformations and check if it's supported
     // Transformations might lead to the situation when single node is merged to multiple operations,
     // so we mark original op as supported only if all nodes that it was merged into are supported
-    bool wasNodeAlreadyChecked = false;
-    bool isSupported = false;
     for (auto&& op : ops) {
-        wasNodeAlreadyChecked = false;
-        isSupported = false;
+        bool isSupported = layerIsSupported(op);
+        if (InferenceEngine::details::contains(originalOpNames, op->get_friendly_name())) {
+            if (isSupported) {
+                supported.emplace(op->get_friendly_name());
+            } else {
+                unsupported.emplace(op->get_friendly_name());
+            }
+        } else {
+            if (isSupported) {
+                supportedNotOriginal.emplace(op->get_friendly_name());
+            } else {
+                unsupportedNotOriginal.emplace(op->get_friendly_name());
+            }
+        }
+
         for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
             if (InferenceEngine::details::contains(originalOpNames, fusedLayerName)) {
-                if (!wasNodeAlreadyChecked) {
-                    isSupported = layerIsSupported(op);
-                    wasNodeAlreadyChecked = true;
-                }
                 if (isSupported) {
                     supported.emplace(fusedLayerName);
                 } else {
                     unsupported.emplace(fusedLayerName);
+                }
+            } else {
+                if (isSupported) {
+                    supportedNotOriginal.emplace(fusedLayerName);
+                } else {
+                    unsupportedNotOriginal.emplace(fusedLayerName);
                 }
             }
         }
@@ -481,22 +496,35 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     }
     unsupported.clear();
 
+    for (auto&& layerName : unsupportedNotOriginal) {
+        if (InferenceEngine::details::contains(supportedNotOriginal, layerName)) {
+            supportedNotOriginal.erase(layerName);
+        }
+    }
+    unsupportedNotOriginal.clear();
+
     // 1. Constants are marked as supported when all outputs can be offloaded to GPU
     for (const auto& op : constants) {
         bool is_supported = true;
+
         for (size_t i = 0; i < op->get_output_size(); i++) {
             auto outTensors = op->get_output_target_inputs(i);
             for (auto& t : outTensors) {
                 auto output = t.get_node();
                 const auto& name = output->get_friendly_name();
-                if (!InferenceEngine::details::contains(supported, name)) {
+                if (!InferenceEngine::details::contains(supported, name) &&
+                    !InferenceEngine::details::contains(supportedNotOriginal, name)) {
                     is_supported = false;
                     break;
                 }
             }
         }
         if (is_supported) {
-            supported.emplace(op->get_friendly_name());
+            if (InferenceEngine::details::contains(originalOpNames, op->get_friendly_name()))
+                supported.emplace(op->get_friendly_name());
+            for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op))
+                if (InferenceEngine::details::contains(originalOpNames, fusedLayerName))
+                    supported.emplace(fusedLayerName);
         }
     }
 
@@ -546,7 +574,7 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
     }
     Config config = _impl->m_configs.GetConfig(device_id);
 
-    const bool is_new_api = GetCore()->isNewAPI();
+    const bool is_new_api = IsNewAPI();
     if (config.key_config_map.find(name) != config.key_config_map.end()) {
         std::string val = config.key_config_map.find(name)->second;
         if (is_new_api) {
@@ -571,8 +599,9 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
             } else if (name == ov::num_streams) {
                 return ov::util::from_string(val, ov::num_streams);
             } else if (name == ov::hint::num_requests) {
-                auto temp = ov::util::from_string(val, ov::hint::num_requests);;
-                return temp;
+                return ov::util::from_string(val, ov::hint::num_requests);
+            } else if (name == ov::hint::inference_precision) {
+                return ov::util::from_string(val, ov::hint::inference_precision);
             } else if (name == ov::device::id) {
                 return ov::util::from_string(val, ov::device::id);
             } else {
@@ -586,7 +615,7 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
                 return val;
         }
     } else {
-        IE_THROW() << "Unsupported config key : " << name;
+        IE_THROW() << "3-Unsupported config key : " << name;
     }
 }
 
@@ -664,10 +693,14 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     GPU_DEBUG_GET_INSTANCE(debug_config);
     std::string device_id = GetConfig(ov::device::id.name(), options);
 
-    auto iter = device_map.find(device_id);
-    auto device = iter != device_map.end() ? iter->second : device_map.begin()->second;
+    auto iter = device_map.find(std::to_string(cldnn::device_query::device_id));
+    if (iter == device_map.end())
+        iter = device_map.find(device_id);
+    if (iter == device_map.end())
+        iter = device_map.begin();
+    auto device = iter->second;
     auto device_info = device->get_info();
-    bool is_new_api = GetCore()->isNewAPI();
+    bool is_new_api = IsNewAPI();
 
     if (name == ov::supported_properties) {
         return decltype(ov::supported_properties)::value_type {
@@ -679,6 +712,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             ov::PropertyName{ov::optimal_batch_size.name(), PropertyMutability::RO},
             ov::PropertyName{ov::max_batch_size.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::full_name.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::device::uuid.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::type.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::gops.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::capabilities.name(), PropertyMutability::RO},
@@ -699,6 +733,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW},
             ov::PropertyName{ov::num_streams.name(), PropertyMutability::RW},
             ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RW},
+            ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
         };
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
@@ -834,6 +869,10 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             GPU_DEBUG_COUT << "ACTUAL OPTIMAL BATCH: " << batch << std::endl;
         }
         return decltype(ov::optimal_batch_size)::value_type {batch};
+    } else if (name == ov::device::uuid) {
+        ov::device::UUID uuid = {};
+        std::copy_n(std::begin(device_info.uuid.val), cldnn::device_uuid::max_uuid_size, std::begin(uuid.uuid));
+        return decltype(ov::device::uuid)::value_type {uuid};
     } else if (name == ov::device::full_name) {
         auto deviceName = StringRightTrim(device_info.dev_name, "NEO", false);
         deviceName += std::string(" (") + (device_info.dev_type == cldnn::device_type::discrete_gpu ? "dGPU" : "iGPU") + ")";
@@ -967,7 +1006,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         std::shared_ptr<Program> program;
 
         GPU_DEBUG_IF(debug_config->base_batch_for_memory_estimation > 0) {
-            int32_t user_specified_base_batch_size = debug_config->base_batch_for_memory_estimation;
+            size_t user_specified_base_batch_size = debug_config->base_batch_for_memory_estimation;
             base_batch_size = (user_specified_base_batch_size != base_batch_size) ? user_specified_base_batch_size : base_batch_size;
         }
 
@@ -1057,8 +1096,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     }
 }
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
 
 static const Version version = { {2, 1}, CI_BUILD_NUMBER, "Intel GPU plugin" };
-IE_DEFINE_PLUGIN_CREATE_FUNCTION(ov::runtime::intel_gpu::Plugin, version)
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(ov::intel_gpu::Plugin, version)

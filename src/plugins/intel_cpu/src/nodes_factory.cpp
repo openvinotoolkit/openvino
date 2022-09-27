@@ -68,6 +68,7 @@
 #include "nodes/log_softmax.h"
 #include "nodes/strided_slice.h"
 #include "nodes/dft.h"
+#include "nodes/rdft.h"
 #include "nodes/non_max_suppression.h"
 #include "nodes/convert.h"
 #include "nodes/rnn.h"
@@ -76,6 +77,7 @@
 #include "nodes/depth_to_space.h"
 #include "nodes/input.h"
 #include "nodes/experimental_detectron_generate_proposals_single_image.h"
+#include "nodes/generate_proposals.h"
 #include "nodes/embedding_bag_packed_sum.h"
 #include "nodes/reduce.h"
 #include "nodes/if.h"
@@ -85,11 +87,16 @@
 #include "nodes/subgraph.h"
 #include "nodes/priorbox.h"
 #include "nodes/priorbox_clustered.h"
+#include "nodes/eye.h"
+#include "nodes/mha.h"
+
+namespace ov {
+namespace intel_cpu {
 
 #define INTEL_CPU_NODE(__prim, __type) \
     registerNodeIfRequired(intel_cpu, __prim, __type, NodeImpl<__prim>)
 
-ov::intel_cpu::Node::NodesFactory::NodesFactory()
+Node::NodesFactory::NodesFactory()
     : Factory("NodesFactory") {
     using namespace node;
     INTEL_CPU_NODE(Generic, Type::Generic);
@@ -112,12 +119,13 @@ ov::intel_cpu::Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(Eltwise, Type::Eltwise);
     INTEL_CPU_NODE(SoftMax, Type::Softmax);
     INTEL_CPU_NODE(EmbeddingBagPackedSum, Type::EmbeddingBagPackedSum);
-    INTEL_CPU_NODE(node::Input, Type::Input);
-    INTEL_CPU_NODE(node::Input, Type::Output);
+    INTEL_CPU_NODE(Input, Type::Input);
+    INTEL_CPU_NODE(Input, Type::Output);
     INTEL_CPU_NODE(MemoryInput, Type::MemoryInput);
     INTEL_CPU_NODE(MemoryOutput, Type::MemoryOutput);
     INTEL_CPU_NODE(Tile, Type::Tile);
     INTEL_CPU_NODE(DFT, Type::DFT);
+    INTEL_CPU_NODE(RDFT, Type::RDFT);
     INTEL_CPU_NODE(GatherTree, Type::GatherTree);
     INTEL_CPU_NODE(SpaceToDepth, Type::SpaceToDepth);
     INTEL_CPU_NODE(FullyConnected, Type::FullyConnected);
@@ -129,6 +137,7 @@ ov::intel_cpu::Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(Select, Type::Select);
     INTEL_CPU_NODE(ShapeOf, Type::ShapeOf);
     INTEL_CPU_NODE(ExperimentalDetectronGenerateProposalsSingleImage, Type::ExperimentalDetectronGenerateProposalsSingleImage);
+    INTEL_CPU_NODE(GenerateProposals, Type::GenerateProposals);
     INTEL_CPU_NODE(ReverseSequence, Type::ReverseSequence);
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(NonMaxSuppression, Type::NonMaxSuppression);
@@ -179,6 +188,11 @@ ov::intel_cpu::Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(ColorConvert, Type::ColorConvert);
     INTEL_CPU_NODE(PriorBox, Type::PriorBox);
     INTEL_CPU_NODE(PriorBoxClustered, Type::PriorBoxClustered);
+    INTEL_CPU_NODE(Eye, Type::Eye);
+    INTEL_CPU_NODE(MHA, Type::MHA);
 }
 
 #undef INTEL_CPU_NODE
+
+}   // namespace intel_cpu
+}   // namespace ov

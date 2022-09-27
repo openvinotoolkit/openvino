@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "remarks.hpp"
+#include "snippets/remarks.hpp"
 #include <snippets/itt.hpp>
 
 #include "snippets/pass/insert_movebroadcast.hpp"
@@ -177,5 +177,5 @@ ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
             return ((ngraph::op::supports_auto_broadcast(n) || is_type<opset1::SquaredDifference>(n) || is_type<opset1::Mod>(n)) &&
                  n->get_autob().m_type == ngraph::op::AutoBroadcastType::NUMPY) || is_type<opset1::PRelu>(n); });
 
-    register_matcher(std::make_shared<ngraph::pattern::Matcher>(any), callback);
+    register_matcher(std::make_shared<ngraph::pattern::Matcher>(any, matcher_name), callback);
 }

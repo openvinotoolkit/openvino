@@ -15,6 +15,12 @@
 namespace ov {
 
 /**
+ * @defgroup ov_runtime_gna_prop_cpp_api Intel GNA specific properties
+ * @ingroup ov_runtime_cpp_api
+ * Set of Intel GNA specific properties.
+ */
+
+/**
  * @brief Namespace with Intel GNA specific properties
  */
 namespace intel_gna {
@@ -22,12 +28,14 @@ namespace intel_gna {
 /**
  * @brief Property to get an std::string of GNA Library version, usually in the form
  * <API_REVISION>.<RELEASE_LINE>.<RELEASE>.<BUILD>
+ * @ingroup ov_runtime_gna_prop_cpp_api
  */
 static constexpr Property<std::string, PropertyMutability::RO> library_full_version{"GNA_LIBRARY_FULL_VERSION"};
 
 /**
  * @brief Scale factor provided by the user to use static quantization.
  * This option should be used with floating point value serialized to string with . (dot) as a decimal separator
+ * @ingroup ov_runtime_gna_prop_cpp_api
  * @details In the case of multiple inputs, individual scale factors can be provided using the
  *  map where key is layer name and value is scale factor
  * Example:
@@ -45,11 +53,13 @@ static constexpr Property<std::map<std::string, float>> scale_factors_per_input{
 
 /**
  * @brief if turned on, dump GNA firmware model into specified file
+ * @ingroup ov_runtime_gna_prop_cpp_api
  */
 static constexpr Property<std::string> firmware_model_image_path{"GNA_FIRMWARE_MODEL_IMAGE"};
 
 /**
  * @brief Enum to define software acceleration mode
+ * @ingroup ov_runtime_gna_prop_cpp_api
  */
 enum class ExecutionMode {
     AUTO = 0,  //!< Uses Intel GNA if available, otherwise uses software execution mode on CPU.
@@ -103,6 +113,7 @@ inline std::istream& operator>>(std::istream& is, ExecutionMode& execution_mode)
 
 /**
  * @brief Enum to define HW compile and execution targets
+ * @ingroup ov_runtime_gna_prop_cpp_api
  */
 enum class HWGeneration {
     UNDEFINED = 0,  //!< GNA HW generation is undefined
@@ -143,6 +154,7 @@ inline std::istream& operator>>(std::istream& is, HWGeneration& hw_generation) {
 /**
  * @brief GNA proc_type setting that should be one of AUTO, HW, GNA_HW_WITH_SW_FBACK,
  *        GNA_SW_EXACT or SW_FP32
+ * @ingroup ov_runtime_gna_prop_cpp_api
  */
 static constexpr Property<ExecutionMode> execution_mode{"GNA_DEVICE_MODE"};
 
@@ -153,22 +165,26 @@ static constexpr Property<ExecutionMode> execution_mode{"GNA_DEVICE_MODE"};
  * If HW is not present, use the option corresponding to the latest fully supported GNA HW generation.
  * A fully supported GNA HW generation means it must be supported by both the OV GNA Plugin and the core GNA Library.
  * Currently, the latest supported GNA HW generation corresponds to GNA_3_0.
+ * @ingroup ov_runtime_gna_prop_cpp_api
  */
 static constexpr Property<HWGeneration> execution_target{"GNA_HW_EXECUTION_TARGET"};
 
 /**
  * @brief The option to override the GNA HW compile target. May be one of GNA_2_0, GNA_3_0.
  * By default the same as execution_target.
+ * @ingroup ov_runtime_gna_prop_cpp_api
  */
 static constexpr Property<HWGeneration> compile_target{"GNA_HW_COMPILE_TARGET"};
 
 /**
  * @brief if enabled produced minimum memory footprint for compiled model in GNA memory, default value is true
+ * @ingroup ov_runtime_gna_prop_cpp_api
  */
 static constexpr Property<bool> memory_reuse{"GNA_COMPACT_MODE"};
 
 /**
  * @brief Enum to define PWL design algorithm
+ * @ingroup ov_runtime_gna_prop_cpp_api
  */
 enum class PWLDesignAlgorithm {
     UNDEFINED = 0,             //!< PWL approximation algorithm is undefined
@@ -213,6 +229,7 @@ inline std::istream& operator>>(std::istream& is, PWLDesignAlgorithm& pwl_design
  * If value is UNIFORM_DISTRIBUTION then simple uniform distribution is used to create
  * PWL approximation of activation functions.
  * Uniform distribution usually gives poor approximation with the same number of segments
+ * @ingroup ov_runtime_gna_prop_cpp_api
  */
 static constexpr Property<PWLDesignAlgorithm> pwl_design_algorithm{"GNA_PWL_DESIGN_ALGORITHM"};
 
@@ -220,6 +237,7 @@ static constexpr Property<PWLDesignAlgorithm> pwl_design_algorithm{"GNA_PWL_DESI
  * @brief The option to allow to specify the maximum error percent that the optimized algorithm finding
  * will be used to find PWL functions.
  * By default (in case of NO value set), 1.0 value is used.
+ * @ingroup ov_runtime_gna_prop_cpp_api
  */
 static constexpr Property<float> pwl_max_error_percent{"GNA_PWL_MAX_ERROR_PERCENT"};
 

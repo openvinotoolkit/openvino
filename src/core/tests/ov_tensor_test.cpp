@@ -40,6 +40,17 @@ TEST_F(OVTensorTest, canCreateTensor) {
     ASSERT_THROW(t.data<std::int32_t>(), ov::Exception);
 }
 
+TEST_F(OVTensorTest, canAccessF16Tensor) {
+    ov::Shape shape = {4, 3, 2};
+    ov::Tensor t{ov::element::f16, shape};
+    EXPECT_NE(nullptr, t.data());
+    EXPECT_NO_THROW(t.data(ov::element::f16));
+    EXPECT_NO_THROW(t.data<ov::float16>());
+    EXPECT_THROW(t.data<ov::bfloat16>(), ov::Exception);
+    EXPECT_THROW(t.data<std::uint16_t>(), ov::Exception);
+    EXPECT_THROW(t.data<std::int16_t>(), ov::Exception);
+}
+
 TEST_F(OVTensorTest, emptySize) {
     ov::Tensor t(ov::element::f32, {0});
     ASSERT_NE(nullptr, t.data());

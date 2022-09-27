@@ -29,6 +29,8 @@ struct ScoreErrorT {
     float maxRelError;
     float sumRelError;
     float sumSquaredRelError;
+    float maxAbsRefScore;
+    float sumAbsRefScore;
 };
 
 /**
@@ -98,6 +100,8 @@ void clear_score_error(ScoreErrorT* error) {
     error->maxRelError = 0.0;
     error->sumRelError = 0.0;
     error->sumSquaredRelError = 0.0;
+    error->maxAbsRefScore = 0.0;
+    error->sumAbsRefScore = 0.0;
 }
 
 /**
@@ -111,9 +115,13 @@ void update_score_error(ScoreErrorT* error, ScoreErrorT* totalError) {
     totalError->numScores += error->numScores;
     totalError->sumRmsError += error->rmsError;
     totalError->sumError += error->sumError;
+    totalError->sumAbsRefScore += error->sumAbsRefScore;
     totalError->sumSquaredError += error->sumSquaredError;
     if (error->maxError > totalError->maxError) {
         totalError->maxError = error->maxError;
+    }
+    if (error->maxAbsRefScore > totalError->maxAbsRefScore) {
+        totalError->maxAbsRefScore = error->maxAbsRefScore;
     }
     totalError->sumRelError += error->sumRelError;
     totalError->sumSquaredRelError += error->sumSquaredRelError;
@@ -147,13 +155,18 @@ void compare_scores(float* ptrScoreArray,
             float score = A[i * numColumns + j];
             // std::cout << "score" << score << std::endl;
             float refscore = B[i * numColumns + j];
+            float abs_refscore = fabs(refscore);
             float error = fabs(refscore - score);
-            float rel_error = error / (static_cast<float>(fabs(refscore)) + 1e-20f);
+            float rel_error = error / (static_cast<float>(abs_refscore) + 1e-20f);
             float squared_error = error * error;
             float squared_rel_error = rel_error * rel_error;
             scoreError->numScores++;
             scoreError->sumError += error;
+            scoreError->sumAbsRefScore += abs_refscore;
             scoreError->sumSquaredError += squared_error;
+            if (abs_refscore > scoreError->maxAbsRefScore) {
+                scoreError->maxAbsRefScore = abs_refscore;
+            }
             if (error > scoreError->maxError) {
                 scoreError->maxError = error;
             }
@@ -267,6 +280,8 @@ float get_gna_frequency_mhz() {
  * @return none.
  */
 void print_reference_compare_results(ScoreErrorT const& totalError, size_t framesNum, std::ostream& stream) {
+    stream << " max abs ref score: " << totalError.maxAbsRefScore << std::endl;
+    stream << " avg abs ref score: " << totalError.sumAbsRefScore / totalError.numScores << std::endl;
     stream << "         max error: " << totalError.maxError << std::endl;
     stream << "         avg error: " << totalError.sumError / totalError.numScores << std::endl;
     stream << "     avg rms error: " << totalError.sumRmsError / framesNum << std::endl;
@@ -432,7 +447,7 @@ bool check_name(const ov::OutputVector& nodes, const std::string& node_name) {
 
 /**
  * @brief Parse scale factors per input
- * Format : <input_name1>:<sf1>,<input2>:<sf2> or just <sf>
+ * Format : <input_name1>=<sf1>,<input2>=<sf2> or just <sf>
  * @param inputs model inputs
  * @param values_string values_string input string
  * @return map of scale factors per input
@@ -454,11 +469,11 @@ std::map<std::string, float> parse_scale_factors(const ov::OutputVector& inputs,
     std::map<std::string, float> result;
     auto scale_factor_strings = split(values_string, ',');
     for (auto& scale_factor_string : scale_factor_strings) {
-        auto values = split(scale_factor_string, ':');
+        auto values = split(scale_factor_string, '=');
         if (values.size() == 1) {
             if (scale_factor_strings.size() != 1) {
                 throw std::logic_error("Unrecognized scale factor format! "
-                                       "Please specify <input_name1>:<sf1>,<input_name2>:<sf2> or "
+                                       "Please specify <input_name1>=<sf1>,<input_name2>=<sf2> or "
                                        "just <sf> to be applied to all inputs");
             }
             auto scale_factor = get_sf(values.at(0));
@@ -468,8 +483,7 @@ std::map<std::string, float> parse_scale_factors(const ov::OutputVector& inputs,
         } else if (values.size() > 0) {
             auto sf_sting = values.back();
             values.pop_back();
-            // input name can contain port, concat back
-            auto input_name = concat(values, ':');
+            auto input_name = values.back();
             check_name(inputs, input_name);
             result[input_name] = get_sf(sf_sting, input_name);
         }
@@ -534,4 +548,39 @@ std::map<std::string, std::string> parse_input_layouts(const std::string& layout
     if (!search_string.empty())
         throw std::logic_error("Can't parse input parameter string: " + layout_string);
     return return_value;
+}
+
+/**
+ * @brief Parse parameters for inputs/outputs/reference like as "<name1>=<file1.ark/.npz>,<name2>=<file2.ark/.npz>" or
+ * "<file.ark/.npz>" in case of one input/output/reference.
+ * @note Examplary result for given data: {"<file1.ark/.npz>,<file2.ark/.npz>",{"<name1>","<name2>"}}
+ * @param file_paths_string input/output path
+ * @return pair of filename and vector of layers names
+ */
+std::pair<std::string, std::vector<std::string>> parse_parameters(const std::string& file_paths_string) {
+    auto search_string = file_paths_string;
+    char comma_delim = ',';
+    char equal_delim = '=';
+    std::string filename = "";
+    std::vector<std::string> layers_names;
+    std::vector<std::string> filenames;
+    if (!std::count(search_string.begin(), search_string.end(), comma_delim) &&
+        !std::count(search_string.begin(), search_string.end(), equal_delim)) {
+        return {search_string, layers_names};
+    }
+    search_string += comma_delim;
+    std::vector<std::string> splitted = split(search_string, comma_delim);
+    for (size_t j = 0; j < splitted.size(); j++) {
+        auto equal_delim_pos = splitted[j].find_first_of(equal_delim);
+        if (equal_delim_pos != std::string::npos) {
+            layers_names.push_back(splitted[j].substr(0, equal_delim_pos));
+            filenames.push_back(splitted[j].substr(equal_delim_pos + 1, std::string::npos));
+        }
+    }
+    for (std::vector<std::string>::const_iterator name = filenames.begin(); name != filenames.end(); ++name) {
+        filename += *name;
+        if (name != filenames.end() - 1)
+            filename += comma_delim;
+    }
+    return {filename, layers_names};
 }

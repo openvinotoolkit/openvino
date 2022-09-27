@@ -58,17 +58,19 @@ protected:
     }
 
     static kernel_selector::WeightsReorderParams get_weights_reorder(const fully_connected_node& arg, const dnnl::primitive_desc& pd) {
+        auto weights_layout = arg.get_dependency(1).get_output_layout();
+        auto cldnn_prim = arg.get_primitive();
+        auto param_info = arg.get_kernel_impl_params();
+
         kernel_selector::WeightsReorderParams weights_reorder_params;
         auto& reorderKS = kernel_selector::ReorderWeightsKernelSelctor::Instance();
         kernel_selector::reorder_weights_params r_params;
 
-        auto cldnn_prim = arg.get_primitive();
-        auto weights_layout = arg.get_dependency(1).get_output_layout();
         cldnn::format out_fmt = onednn::find_format(pd.weights_desc(0));
         kernel_selector::WeightsLayout req_layout = to_weights_layout(out_fmt, false);
 
         // set engine info & forcing
-        set_params(arg, r_params);
+        set_params(*param_info, r_params);
         r_params.layerID = arg.id() + "_reorder_";
         r_params.input = convert_weights_tensor(weights_layout, false);
         r_params.output = r_params.input.TransformIgnorePadding(req_layout, r_params.input.GetDType(), 1, false);
@@ -125,7 +127,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const fully_connected_node& arg) {
+    static primitive_impl* create(const fully_connected_node& arg, const kernel_impl_params&) {
         auto& engine = arg.get_program().get_engine();
         auto desc = get_fully_connected_descriptor(arg);
         auto attr = arg.get_onednn_primitive_attributes();

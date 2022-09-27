@@ -31,7 +31,6 @@
 #include "reshape_inst.h"
 #include "quantize_inst.h"
 #include "activation_inst.h"
-#include "scale_inst.h"
 #include "depth_to_space_inst.h"
 #include "convolution_inst.h"
 #include "concatenation_inst.h"
@@ -55,6 +54,7 @@
 #include "split_inst.h"
 #include "mvn_inst.h"
 #include "gemm_inst.h"
+#include "adaptive_pooling_inst.h"
 #include "reduce_inst.h"
 #include "region_yolo_inst.h"
 #include "strided_slice_inst.h"
@@ -90,7 +90,7 @@
 #include <sys/resource.h>
 #endif
 
-using namespace ov::runtime::intel_gpu;
+using namespace ov::intel_gpu;
 
 program::program(engine& engine_ref,
                  topology const& topology,
@@ -110,6 +110,8 @@ program::program(engine& engine_ref,
     prepare_nodes(topology);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
+    _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
+    _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
     program_node::reset_unique_id();
     if (no_optimizations) {
         init_graph();
@@ -123,6 +125,7 @@ program::program(engine& engine_ref,
                  build_options const& options,
                  bool is_internal)
     : _engine(engine_ref),
+      _stream(_engine.create_stream()),
       options(options),
       processing_order(),
       tuning_cache(nullptr) {
@@ -130,10 +133,19 @@ program::program(engine& engine_ref,
     set_options();
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
+    _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
+    _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
     build_program(is_internal);
 }
+
+program::program(engine& engine)
+    : _engine(engine),
+      _stream(_engine.create_stream()),
+      options(build_options()),
+      processing_order(),
+      tuning_cache(nullptr) { }
 
 program::~program() {
 }
@@ -158,7 +170,7 @@ void program::compile() {
 void program::init_kernels() {
     for (auto& n : get_processing_order()) {
         if (n->get_selected_impl())
-            n->get_selected_impl()->init_kernels();
+            n->get_selected_impl()->init_kernels(*_kernels_cache);
     }
 }
 
@@ -177,6 +189,10 @@ kernel_id program::add_kernel(const std::shared_ptr<kernel_string>& kernelSring)
 
 kernel::ptr program::get_kernel(kernel_id id) {
     return _kernels_cache->get_kernel(id);
+}
+
+kernels_cache& program::get_kernels_cache() const {
+    return *_kernels_cache;
 }
 
 program::ptr program::build_program(engine& engine,
@@ -228,9 +244,9 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().size;
+            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
 
-            auto inputSize = prim_node.input().get_output_layout().size;
+            auto inputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range =
                 calc_sliding_window_output_range<swor_mode::all>(inputSize,
                                                                  filter_size,
@@ -250,9 +266,9 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().size;
+            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
 
-            auto primInputSize = prim_node.input().get_output_layout().size;
+            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range =
                 calc_sliding_window_output_range<swor_mode::all>(primInputSize,
                                                                  filter_size,
@@ -261,7 +277,6 @@ bool program::analyze_output_size_handling_need() {
                                                                  prim->dilation,
                                                                  true,
                                                                  1);
-
             if (specified_output_range != calc_output_range)
                 handling_needed = true;
         } else if (node->is_type<deconvolution>()) {
@@ -275,14 +290,14 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().size;
+            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
 
-            auto primInputSize = prim_node.input().get_output_layout().size;
+            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range = calc_sliding_window_needed_input_range(primInputSize,
                                                                             filter_size,
                                                                             prim->pad,
                                                                             prim->stride,
-                                                                            {1, 1, 1, 1},
+                                                                            ov::Strides(prim->stride.size(), 1),
                                                                             true,
                                                                             1);
 
@@ -304,7 +319,7 @@ bool program::analyze_output_size_handling_need() {
                 size.spatial[i] = prim->size[prim->size.size() - i - 1];
             }
             // TODO: Check compatibility of output size calculation (with caffe).
-            auto primInputSize = prim_node.input().get_output_layout().size;
+            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(
                 primInputSize,
                 size,
@@ -509,9 +524,13 @@ void program::pre_optimize_graph(bool is_internal) {
 
     reorder_factory rf;
     if (options.get<build_option_type::optimize_data>()->enabled()) {
+        apply_opt_pass<prepare_primitive_fusing_through>();
+
         apply_opt_pass<pre_replace_deconv>(lo);
 
         apply_opt_pass<prepare_primitive_fusing>(lo);
+
+        apply_opt_pass<set_required_layouts>();
 
         apply_opt_pass<reorder_inputs>(lo, rf);
         // Ideally this should be done before fusing to simplify logic and make the pass more powerful,
@@ -578,7 +597,7 @@ void program::post_optimize_graph(bool is_internal) {
     }
 
     if (options.get<build_option_type::optimize_data>()->enabled())
-        apply_opt_pass<remove_redundant_reorders>(lo, false, true, true);  // pass to remove output reorders while all others graph optimizations were done
+        apply_opt_pass<remove_redundant_reorders>(lo, false, true, true); // pass to remove output reorders while all others graph optimizations were done
 
     // update loop input/output primitive mappings
     apply_opt_pass<update_loop_primitive_map>();
@@ -586,7 +605,8 @@ void program::post_optimize_graph(bool is_internal) {
 
 // mark if the node is constant assuming that all dependencies are marked properly
 void program::mark_if_constant(program_node& node) {
-    if (node.get_dependencies().empty() || node.is_type<prior_box>()) {
+    if (node.get_dependencies().empty() || node.is_type<prior_box>() ||
+        node.is_type<assign>() || node.is_type<read_value>()) {
         return;
     }
     node.constant = true;
@@ -629,7 +649,7 @@ void program::transfer_memory_to_device() {
             auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();
 
-            if (!program_helpers::are_layouts_identical(mem_layout, data_node_layout).second) {
+            if (!mem_layout.compatible(data_node_layout)) {
                 std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
                 throw std::invalid_argument(err_str);
             }
@@ -877,13 +897,13 @@ void program::swap_names(program_node& node1, program_node& node2) {
     std::swap(_extract_id(node1), _extract_id(node2));
 }
 
-void program::replace_all_usages(program_node& old_node, program_node& new_node) {
+void program::replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling) {
     // We need a copy of users of old_node because old_node may be removed when doing replace_dependency()
     const std::list<program_node*> users(old_node.users);
     auto itr = users.begin();
     while (itr != users.end()) {
         auto user = *(itr++);
-        user->replace_dependency(old_node, new_node);
+        user->replace_dependency(old_node, new_node, remove_if_dangling);
     }
 }
 
@@ -934,7 +954,8 @@ void program::replace(program_node& old_node, program_node& new_node) {
     new_node.constant = old_node.constant;
     new_node.data_flow = old_node.data_flow;
     new_node.user_mark = old_node.user_mark;
-    const_cast<primitive_id&>(new_node.desc->ext_prim_id) = old_node.desc->ext_prim_id;
+    const_cast<std::string&>(new_node.desc->origin_op_name) = old_node.desc->origin_op_name;
+    const_cast<std::string&>(new_node.desc->origin_op_type_name) = old_node.desc->origin_op_type_name;
 
     processing_order.insert(&old_node, &new_node);
     if (processing_order.get_processing_iterator(old_node) != processing_order.end())
@@ -967,7 +988,7 @@ bool program::remove_if_dangling(program_node& node) {
     return true;
 }
 
-bool program::extract_and_remove(program_node& node) {
+bool program::extract(program_node& node) {
     if (node.get_dependencies().size() != 1)
         return false;
 
@@ -1006,22 +1027,42 @@ bool program::extract_and_remove(program_node& node) {
     node.dependencies.clear();
 
     if (!node.is_endpoint())
-        replace_all_usages(node, input);
-    else
-        remove_if_dangling(node);
+        replace_all_usages(node, input, false);
+
+    if (std::find(processing_order.begin(), processing_order.end(), &node) != processing_order.end())
+        processing_order.erase(&node);
 
     return true;
 }
 
+bool program::extract_and_remove(program_node& node) {
+    if (extract(node)) {
+        return remove_if_dangling(node);
+    }
+
+    return false;
+}
+
+bool program::move_node(program_node& node,
+                        program_node& new_prev,
+                        program_node& new_next) {
+    if (extract(node)) {
+        add_intermediate(node, new_next, new_prev);
+        return true;
+    }
+
+    return false;
+}
 
 void program::fuse_nodes(program_node &fused_node,
                          program_node &peer_node,
                          std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>>* fusing_history) {
     auto peer_layout = peer_node.get_output_layout();
-    fused_primitive_desc local_desc;
-    local_desc.node = get_node_ptr(peer_node.id());
+    fused_primitive_desc local_desc(peer_node.get_primitive());
+    local_desc.f_param = get_node_ptr(peer_node.id())->get_fuse_params();
     local_desc.dep_start_idx = fused_node.get_dependencies().size();
     local_desc.total_num_deps = peer_node.get_dependencies().size();
+    local_desc.input_layout = peer_node.get_dependency(0).get_output_layout();
     local_desc.output_layout = peer_layout;
     local_desc.activation = activation_func::none;
     if (!peer_node.get_fused_activations_funcs().empty()) {
@@ -1299,6 +1340,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t total_1x1_fm_conv_layers = 0;
     size_t total_grouped_conv_layers = 0;
     size_t opt_deconv_layers_b_fs_zyx_fsv16 = 0;
+    size_t opt_deconv_layers_b_fs_yx_fsv16 = 0;
     size_t total_crop_layers = 0;
 
     for (auto& node : get_processing_order()) {
@@ -1314,7 +1356,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             if (conv.get_primitive()->deformable_mode)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::deformable_convolution, 1);
 
-            auto input_size = node->get_dependency(0).get_output_layout().size;
+            auto input_size = node->get_dependency(0).get_output_layout().get_tensor();
             auto ifm = static_cast<uint32_t>(input_size.feature[0]);
             if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
                 total_dw_conv_layers++;
@@ -1334,6 +1376,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         if (prim.type() == cldnn::deconvolution::type_id()) {
             if (lo.is_format_optimized(prim.as<deconvolution>(), format::b_fs_zyx_fsv16))
                 opt_deconv_layers_b_fs_zyx_fsv16 += 1;
+            else if (lo.is_format_supported(prim.as<deconvolution>(), format::b_fs_yx_fsv16))
+                opt_deconv_layers_b_fs_yx_fsv16 += 1;
         }
 
         // list of layers that do not support yxfb or perform worse than bfyx
@@ -1363,7 +1407,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::border::type_id() &&
             prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::crop::type_id() &&
-            prim.type() != cldnn::scale::type_id() &&
             prim.type() != cldnn::depth_to_space::type_id() &&
             prim.type() != cldnn::shuffle_channels::type_id() &&
             (prim.type() != cldnn::mvn::type_id()
@@ -1377,7 +1420,14 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::region_yolo::type_id() &&
             prim.type() != cldnn::normalize::type_id() &&
             prim.type() != cldnn::mvn::type_id() &&
-            prim.type() != cldnn::gather::type_id()) {
+            prim.type() != cldnn::gather::type_id() &&
+            prim.type() != cldnn::scatter_nd_update::type_id() &&
+            prim.type() != cldnn::broadcast::type_id() &&
+            prim.type() != cldnn::non_max_suppression::type_id() &&
+            prim.type() != cldnn::roi_align::type_id() &&
+            prim.type() != cldnn::adaptive_pooling::type_id() &&
+            prim.type() != cldnn::bucketize::type_id() &&
+            prim.type() != cldnn::roll::type_id()) {
             can_use_fsv16 = false;
         }
 
@@ -1399,19 +1449,27 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::reshape::type_id() &&
             prim.type() != cldnn::input_layout::type_id() &&
             prim.type() != cldnn::activation::type_id() &&
-            prim.type() != cldnn::scale::type_id() &&
             prim.type() != cldnn::softmax::type_id() &&
             prim.type() != cldnn::fully_connected::type_id() &&
             prim.type() != cldnn::generic_layer::type_id() &&
-            prim.type() != cldnn::quantize::type_id())
+            prim.type() != cldnn::scatter_nd_update::type_id() &&
+            prim.type() != cldnn::broadcast::type_id() &&
+            prim.type() != cldnn::quantize::type_id() &&
+            prim.type() != cldnn::non_max_suppression::type_id() &&
+            prim.type() != cldnn::roi_align::type_id() &&
+            prim.type() != cldnn::adaptive_pooling::type_id() &&
+            prim.type() != cldnn::bucketize::type_id() &&
+            prim.type() != cldnn::roll::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
+        }
     }
-
 
     size_t total_conv_layers = lo.get_total_conv_count();
     // Due to fact that single winograd convolution is faster than b_fs_yx_fsv16 and
     // using them together leads do redundant reorders, whole topology switch
     // will be performed if at least half of layers can use b_fs_yx_fsv16.
+    // b_fs_yx_fsv16 deconv is faster than bfyx deconv with winograd convolution together,
+    // whole topology switch will be perform if at lease one layer can use b_fs_yx_fsv16.
     // Crop layers are poorly optimized in fsv16 layout so whole topology stays in bfyx
     // if there are many crops (2x more then b_fs_yx_fsv16 convolutions)
     const float cond_denom = total_conv_layers > 0 ? 1.0f / static_cast<float>(total_conv_layers) : 1.0f;
@@ -1420,7 +1478,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     bool should_use_b_fs_yx_fsv16_conv = is_quantized_int8_model ||
                                          (can_use_fsv16 &&
                                           total_conv_layers > 11 &&
-                                          num_of_conv_b_fs_yx_fsv16 * cond_denom > 0.5f &&
+                                          (num_of_conv_b_fs_yx_fsv16 * cond_denom > 0.5f || opt_deconv_layers_b_fs_yx_fsv16 >= 1) &&
                                           num_of_conv_b_fs_yx_fsv16 * 2 > total_crop_layers);
 
     bool should_use_fs_b_yx_fsv32_conv = total_conv_layers > 11 &&
@@ -1522,9 +1580,13 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         } else if (node->is_type<mutable_data>() && node->get_dependencies().empty()) {
             continue;
         } else {
-            allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine, pool, *node, false));
+            allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine, pool, *node, *node->get_kernel_impl_params(), 0, false));
         }
     }
 
     return std::make_pair(const_sum, get_engine().get_used_device_memory(allocation_type::usm_device));
+}
+
+void program::remove_kernel(kernel_id id) {
+    _kernels_cache->remove_kernel(id);
 }

@@ -54,12 +54,12 @@ return 0;
 int main_old() {
     InferenceEngine::Core core;
 //! [core_get_metric]
-auto full_device_name = core.GetConfig("CPU", METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
+auto full_device_name = core.GetMetric("CPU", METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
 //! [core_get_metric]
 
 //! [core_get_config]
 // a user has to parse std::string after
-auto num_streams = core.GetMetric("CPU", CONFIG_KEY(CPU_THROUGHPUT_STREAMS)).as<std::string>();
+auto num_streams = core.GetConfig("CPU", CONFIG_KEY(CPU_THROUGHPUT_STREAMS)).as<std::string>();
 //! [core_get_config]
 
 //! [core_set_config]

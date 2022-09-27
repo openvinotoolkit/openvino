@@ -21,12 +21,11 @@ struct reorg_yolo_impl : typed_primitive_impl_ocl<reorg_yolo> {
         return make_unique<reorg_yolo_impl>(*this);
     }
 
-    static primitive_impl* create(const reorg_yolo_node& arg) {
-        auto ry_params = get_default_params<kernel_selector::reorg_yolo_params>(arg);
+    static primitive_impl* create(const reorg_yolo_node& arg, const kernel_impl_params& impl_param) {
+        const auto& primitive = arg.get_primitive();
+        auto ry_params = get_default_params<kernel_selector::reorg_yolo_params>(impl_param);
         auto ry_optional_params =
             get_default_optional_params<kernel_selector::reorg_yolo_optional_params>(arg.get_program());
-
-        const auto& primitive = arg.get_primitive();
 
         ry_params.stride = primitive->stride;
 

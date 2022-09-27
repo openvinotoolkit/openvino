@@ -38,7 +38,7 @@ namespace {
 
 void check_all_variables_registered(const std::vector<shared_ptr<ov::Node>>& ordered_ops,
                                     const ov::op::util::VariableVector& variables) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraphPass_LT, "Model::check_all_variables_registered");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::ov_pass, "Model::check_all_variables_registered");
     std::stringstream unregistered_variables;
     for (auto& node : ordered_ops) {
         const auto& variable_op = dynamic_pointer_cast<ov::op::util::VariableExtension>(node);
@@ -52,7 +52,7 @@ void check_all_variables_registered(const std::vector<shared_ptr<ov::Node>>& ord
 
 void check_all_parameters_registered(const std::vector<shared_ptr<ov::Node>>& ordered_ops,
                                      const ngraph::ParameterVector& parameters) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Model::check_all_parameters_registered");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::check_all_parameters_registered");
 
     std::stringstream unregistered_parameters;
     for (auto& node : ordered_ops) {
@@ -65,7 +65,7 @@ void check_all_parameters_registered(const std::vector<shared_ptr<ov::Node>>& or
 }
 
 ov::op::util::VariableVector auto_detect_variables(const std::vector<std::shared_ptr<ov::Node>>& ordered_ops) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Model::auto_detect_variables");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::auto_detect_variables");
     unordered_set<ov::op::util::Variable::Ptr> variables;
     for (const auto& op : ordered_ops) {
         if (const auto& variable_op = dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
@@ -76,7 +76,7 @@ ov::op::util::VariableVector auto_detect_variables(const std::vector<std::shared
 }
 
 ngraph::ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr<ov::Node>>& ordered_ops) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Model::auto_detect_parameters");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::auto_detect_parameters");
     ngraph::ParameterVector parameter_vector;
     for (const auto& op : ordered_ops) {
         if (const auto& param = dynamic_pointer_cast<ngraph::opset7::Parameter>(op)) {
@@ -189,7 +189,7 @@ ov::Model::Model(const ngraph::OutputVector& results, const ngraph::SinkVector& 
 ov::Model::Model(const OutputVector& results, const string& name) : Model(results, ngraph::SinkVector{}, name) {}
 
 void ov::Model::prerequirements(bool detect_variables, bool detect_parameters) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Model::prerequirements");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::prerequirements");
 
     m_shared_rt_info = std::make_shared<SharedRTInfo>();
 
@@ -206,7 +206,7 @@ void ov::Model::prerequirements(bool detect_variables, bool detect_parameters) {
 }
 
 void ov::Model::validate_nodes_and_infer_types() const {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Model::validate_nodes_and_infer_types");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::validate_nodes_and_infer_types");
 
     struct Counter {
         int cnt_assign = 0;
@@ -266,7 +266,7 @@ void ov::Model::validate_nodes_and_infer_types() const {
 }
 
 std::vector<shared_ptr<ov::Node>> ov::Model::get_ordered_ops() const {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Model::get_ordered_ops");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::get_ordered_ops");
     lock_guard<mutex> lock(m_topological_sort_mutex);
 
     NodeVector nodes;
@@ -298,6 +298,8 @@ std::vector<shared_ptr<ov::Node>> ov::Model::get_ordered_ops() const {
         m_cached_ordered_ops.push_back(node);
         node->insert_info(m_shared_rt_info);
     });
+    m_cached_output_names.clear();
+    m_cached_op_names.clear();
     m_shared_rt_info->set_use_topological_cache(true);
 
     return order;
@@ -896,35 +898,58 @@ void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& 
 }
 
 ov::Output<ov::Node> ov::Model::add_output(const std::string& tensor_name) {
-    for (const auto& op : get_ops()) {
-        if (ov::op::util::is_output(op))
-            continue;
-        for (const auto& output : op->outputs()) {
-            const auto& names = output.get_tensor().get_names();
-            if (names.find(tensor_name) != names.end()) {
-                return add_output(output);
+    auto cache_valid = [&]() {
+        return m_cached_output_names.count(tensor_name) &&
+               m_cached_output_names[tensor_name].get_names().count(tensor_name) > 0;
+    };
+    if (!m_shared_rt_info->get_use_topological_cache() || !cache_valid()) {
+        m_cached_output_names.clear();
+        // get_ordered_ops will update topological cache if necessary
+        for (const auto& op : get_ordered_ops()) {
+            for (const auto& output : op->outputs()) {
+                for (const auto& name : output.get_names()) {
+                    m_cached_output_names[name] = output;
+                }
             }
         }
     }
-    throw ov::Exception("Tensor name " + tensor_name + " was not found.");
+    OPENVINO_ASSERT(m_cached_output_names.count(tensor_name),
+                    "Model::add_output. Tensor name '",
+                    tensor_name + "' was not found.");
+    return add_output(m_cached_output_names.at(tensor_name));
 }
 
 ov::Output<ov::Node> ov::Model::add_output(const std::string& op_name, size_t output_idx) {
-    for (const auto& op : get_ops()) {
-        if (op->get_friendly_name() == op_name) {
-            OPENVINO_ASSERT(output_idx < op->get_output_size(),
-                            "Cannot add output to port ",
-                            std::to_string(output_idx),
-                            " operation ",
-                            op->get_friendly_name(),
-                            " has only ",
-                            std::to_string(op->get_output_size()),
-                            " outputs.");
-            return add_output(op->output(output_idx));
+    auto cache_valid = [&]() {
+        if (m_cached_op_names.count(op_name)) {
+            auto op = m_cached_op_names[op_name].lock();
+            return op && op->get_friendly_name() == op_name && op->get_output_size() > output_idx;
+        }
+        return false;
+    };
+    if (!m_shared_rt_info->get_use_topological_cache() || !cache_valid()) {
+        m_cached_op_names.clear();
+        // get_ordered_ops will update topological cache to 'true' if necessary
+        for (const auto& op : get_ordered_ops()) {
+            m_cached_op_names[op->get_friendly_name()] = op;
         }
     }
-    throw ov::Exception("Port " + std::to_string(output_idx) + " for operation with name " + op_name +
-                        " was not found.");
+    OPENVINO_ASSERT(m_cached_op_names.count(op_name),
+                    "Model::add_output. Operation with name '",
+                    op_name,
+                    "' was not found.");
+    auto op = m_cached_op_names[op_name].lock();
+    OPENVINO_ASSERT(op, "Model::add_output. Operation with name '", op_name, "' is expired.");
+    OPENVINO_ASSERT(output_idx < op->get_output_size(),
+                    "Cannot add output to port ",
+                    std::to_string(output_idx),
+                    " operation ",
+                    op->get_friendly_name(),
+                    " has only ",
+                    std::to_string(op->get_output_size()),
+                    " outputs.");
+
+    return add_output(op->output(output_idx));
 }
 
 ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
@@ -937,8 +962,17 @@ ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
         }
     }
     auto result = std::make_shared<ov::op::v0::Result>(port);
-    add_results({result});
+    m_results.push_back(result);
+    if (m_shared_rt_info->get_use_topological_cache()) {
+        // Full update of topological cache is not needed, 'result' can be just inserted to the end
+        m_cached_ordered_ops.push_back(result);
+        result->insert_info(m_shared_rt_info);  // Just for consistency, not required for Result nodes
+    }
     return result->output(0);
+}
+
+std::shared_ptr<ov::Model> ov::Model::clone() const {
+    return ov::clone_model(*this);
 }
 
 namespace bs_util {

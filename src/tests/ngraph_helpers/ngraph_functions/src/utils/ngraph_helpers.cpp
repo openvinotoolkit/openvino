@@ -906,15 +906,32 @@ std::ostream& operator<<(std::ostream & os, MemoryTransformation type) {
     return os;
 }
 
-std::ostream& operator<<(std::ostream & os, ngraph::op::util::NmsBase::SortResultType type) {
+std::ostream& operator<<(std::ostream & os, op::v8::MatrixNms::SortResultType type) {
     switch (type) {
-        case op::util::NmsBase::SortResultType::CLASSID:
+        case op::v8::MatrixNms::SortResultType::CLASSID:
             os << "CLASSID";
             break;
-        case op::util::NmsBase::SortResultType::SCORE:
+        case op::v8::MatrixNms::SortResultType::SCORE:
             os << "SCORE";
             break;
-        case op::util::NmsBase::SortResultType::NONE:
+        case op::v8::MatrixNms::SortResultType::NONE:
+            os << "NONE";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::util::MulticlassNmsBase::SortResultType type) {
+    switch (type) {
+        case op::util::MulticlassNmsBase::SortResultType::CLASSID:
+            os << "CLASSID";
+            break;
+        case op::util::MulticlassNmsBase::SortResultType::SCORE:
+            os << "SCORE";
+            break;
+        case op::util::MulticlassNmsBase::SortResultType::NONE:
             os << "NONE";
             break;
         default:

@@ -16,14 +16,14 @@ namespace node {
 
 class ShapeOf : public Node {
 public:
-    ShapeOf(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    ShapeOf(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
     bool needPrepareParams() const override {return false;};
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
     std::vector<VectorDims> shapeInfer() const override {
         return {VectorDims{getParentEdgesAtPort(0)[0]->getMemory().getStaticDims().size()}};
     }

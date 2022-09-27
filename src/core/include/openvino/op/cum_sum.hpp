@@ -14,6 +14,7 @@ namespace v0 {
 ///
 /// Compute the cumulative sum of the input tensor along the axis specified.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API CumSum : public Op {
 public:
     OPENVINO_OP("CumSum", "opset3");

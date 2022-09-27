@@ -3,6 +3,7 @@
 //
 
 #include "multiclass_nms.hpp"
+#include "ngraph_ops/multiclass_nms_ie_internal.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -23,19 +24,15 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-using ngNmsSortResultType = ngraph::op::util::NmsBase::SortResultType;
+using ngNmsSortResultType = ov::op::util::MulticlassNmsBase::SortResultType;
 
-bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto nms = std::dynamic_pointer_cast<const ngraph::op::v8::MulticlassNms>(op);
-        if (!nms) {
-            errorMessage = "Only MulticlassNms operation is supported";
-            return false;
-        }
-        const auto& atrri = nms->get_attrs();
-        const auto& sortType = atrri.sort_result_type;
-        if (!one_of(sortType, ngNmsSortResultType::NONE, ngNmsSortResultType::SCORE, ngNmsSortResultType::CLASSID)) {
-            errorMessage = "Does not support SortResultType mode: " + ngraph::as_string(sortType);
+        if (!one_of(op->get_type_info(),
+                ov::op::v9::MulticlassNms::get_type_info_static(),
+                ov::op::v8::MulticlassNms::get_type_info_static(),
+                ngraph::op::internal::MulticlassNmsIEInternal::get_type_info_static())) {
+            errorMessage = "Node is not an instance of MulticlassNms from opset v8 or v9.";
             return false;
         }
     } catch (...) {
@@ -44,7 +41,7 @@ bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
     return true;
 }
 
-MultiClassNms::MultiClassNms(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr& cache)
+MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache)
     : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -52,15 +49,16 @@ MultiClassNms::MultiClassNms(const std::shared_ptr<ngraph::Node>& op, const mkld
     }
     m_errorPrefix = "MultiClassNms layer with name '" + getName() + "' ";
 
-    if (getOriginalInputsNumber() != 2)
+    if (getOriginalInputsNumber() != 2 && getOriginalInputsNumber() != 3)
         IE_THROW() << m_errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber();
 
     if (getOriginalOutputsNumber() != 3)
         IE_THROW() << m_errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
 
-    const auto nms = std::dynamic_pointer_cast<const ngraph::op::v8::MulticlassNms>(op);
-
-    auto& atrri = nms->get_attrs();
+    auto nmsBase = std::dynamic_pointer_cast<ov::op::util::MulticlassNmsBase>(op);
+    if (nmsBase == nullptr)
+        IE_THROW() << m_errorPrefix << " is not an instance of MulticlassNmsBase.";
+    auto& atrri = nmsBase->get_attrs();
     m_sortResultAcrossBatch = atrri.sort_result_across_batch;
     m_nmsTopK = atrri.nms_top_k;
     m_iouThreshold = atrri.iou_threshold;
@@ -76,14 +74,29 @@ MultiClassNms::MultiClassNms(const std::shared_ptr<ngraph::Node>& op, const mkld
     m_nmsEta = atrri.nms_eta;
     m_normalized = atrri.normalized;
 
+    // boxes [N, M, 4], scores [N, C, M] opset8/9
+    // boxes [C, M, 4], scores [C, M], roisnum [N] opset9
     const auto& boxes_dims = getInputShapeAtPort(NMS_BOXES).getDims();
+    const auto& scores_dims = getInputShapeAtPort(NMS_SCORES).getDims();
+    auto boxes_ps = PartialShape(boxes_dims);
+    auto scores_ps = PartialShape(scores_dims);
     if (boxes_dims.size() != 3)
         IE_THROW() << m_errorPrefix << "has unsupported 'boxes' input rank: " << boxes_dims.size();
     if (boxes_dims[2] != 4)
         IE_THROW() << m_errorPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
-    const auto& scores_dims = getInputShapeAtPort(NMS_SCORES).getDims();
-    if (scores_dims.size() != 3)
+    if (scores_dims.size() == 3) {
+        if (!boxes_ps[0].compatible(scores_ps[0]) || !boxes_ps[1].compatible(scores_ps[2]))
+            IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' shape " << boxes_ps << " v.s. " << scores_ps;
+    } else if (scores_dims.size() == 2) {
+        if (op->get_type_info() == ov::op::v8::MulticlassNms::get_type_info_static())
+            IE_THROW() << m_errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
+        if (!boxes_ps[0].compatible(scores_ps[0]) || !boxes_ps[1].compatible(scores_ps[1]))
+            IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' shape " << boxes_ps << " v.s. " << scores_ps;
+        if (getOriginalInputsNumber() != 3)
+            IE_THROW() << m_errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber() << " when input 'scores' is 2D.";
+    } else {
         IE_THROW() << m_errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
+    }
 }
 
 void MultiClassNms::initSupportedPrimitiveDescriptors() {
@@ -100,25 +113,57 @@ void MultiClassNms::initSupportedPrimitiveDescriptors() {
     checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTEDOUTPUTS), supportedFloatPrecision, "selected_outputs", m_outType);
     checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTEDNUM), supportedIntOutputPrecision, "selected_num", m_outType);
 
-    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32}},
-                         {{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::I32},
-                          {LayoutType::ncsp, Precision::I32}},
-                         impl_desc_type::ref_any);
+    if (getOriginalInputsNumber() == 3) {
+        checkPrecision(getOriginalInputPrecisionAtPort(NMS_ROISNUM), supportedIntOutputPrecision, "roisnum", m_inType);
+        addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
+                            {LayoutType::ncsp, Precision::FP32},
+                            {LayoutType::ncsp, Precision::I32}},
+                            {{LayoutType::ncsp, Precision::FP32},
+                            {LayoutType::ncsp, Precision::I32},
+                            {LayoutType::ncsp, Precision::I32}},
+                            impl_desc_type::ref_any);
+    } else {
+        addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
+                            {LayoutType::ncsp, Precision::FP32}},
+                            {{LayoutType::ncsp, Precision::FP32},
+                            {LayoutType::ncsp, Precision::I32},
+                            {LayoutType::ncsp, Precision::I32}},
+                            impl_desc_type::ref_any);
+    }
 }
 
+// shared           Y               N
+// boxes:       N, M, 4         C, sum(M'), 4
+// scores:      N, C, M         C, sum(M')
 void MultiClassNms::prepareParams() {
     const auto& boxes_dims = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
     const auto& scores_dims = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
-    if (!(boxes_dims[0] == scores_dims[0] && boxes_dims[1] == scores_dims[2])) {
-        IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' input dmensions";
+
+    const bool has_roinum = getOriginalInputsNumber() == 3;
+    const auto shared = scores_dims.size() == 3;  // bboxes shared among classes
+
+    if (shared) {
+        if (boxes_dims[0] != scores_dims[0] || boxes_dims[1] != scores_dims[2])
+            IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' shape " << PartialShape(boxes_dims) << " v.s. " << PartialShape(scores_dims);
+    } else if (scores_dims.size() == 2) {
+        if (boxes_dims[0] != scores_dims[0] || boxes_dims[1] != scores_dims[1])
+            IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' shape " << PartialShape(boxes_dims) << " v.s. " << PartialShape(scores_dims);
+        if (!has_roinum)
+            IE_THROW() << m_errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber() << " when input 'scores' is 2D.";
+    } else {
+        IE_THROW() << m_errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
     }
 
-    m_numBatches = boxes_dims[0];
-    m_numBoxes = boxes_dims[1];
-
-    m_numClasses = scores_dims[1];
+    if (has_roinum) {
+        const auto& roisnum_dims = getParentEdgeAt(NMS_ROISNUM)->getMemory().getStaticDims();
+        if (roisnum_dims.size() != 1)
+            IE_THROW() << m_errorPrefix << "has unsupported 'roisnum' input rank: " << roisnum_dims.size();
+        m_numBatches = shared ? boxes_dims[0] : roisnum_dims[0];
+    } else {
+        m_numBatches = boxes_dims[0];
+    }
+    m_numBoxes = shared ? boxes_dims[1] : boxes_dims[1];
+    m_numClasses = shared ? scores_dims[1] : scores_dims[0];
 
     int max_output_boxes_per_class = 0;
     size_t real_num_classes = m_backgroundClass == -1 ? m_numClasses :
@@ -134,7 +179,7 @@ void MultiClassNms::prepareParams() {
     if (m_keepTopK >= 0)
         m_maxBoxesPerBatch = std::min(m_maxBoxesPerBatch, static_cast<size_t>(m_keepTopK));
 
-    m_numFiltBox.resize(m_numBatches);
+    m_numFiltBox.resize(m_numBatches);  // number of rois after nms for each class in each image
     for (auto &numPerBatch : m_numFiltBox) {
         numPerBatch.resize(m_numClasses, 0);
     }
@@ -145,7 +190,7 @@ bool MultiClassNms::isExecutable() const {
     return isDynamicNode() || Node::isExecutable();
 }
 
-void MultiClassNms::executeDynamicImpl(mkldnn::stream strm) {
+void MultiClassNms::executeDynamicImpl(dnnl::stream strm) {
     if (hasEmptyInputTensors()) {
         redefineOutputMemory({{0, 6}, {0, 1}, {0}});
         return;
@@ -153,14 +198,18 @@ void MultiClassNms::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 }
 
-void MultiClassNms::execute(mkldnn::stream strm) {
+void MultiClassNms::execute(dnnl::stream strm) {
     const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
     const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
 
     auto dims_boxes = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
+    auto dims_scores = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
 
     if (m_nmsRealTopk == 0)
         return;
+
+    const bool has_roinum = getOriginalInputsNumber() == 3;
+    const auto shared = dims_scores.size() == 3;  // bboxes shared among classes
 
     auto selectedOutputsMemPtr = getChildEdgesAtPort(NMS_SELECTEDOUTPUTS)[0]->getMemoryPtr();
     auto selectedIndicesMemPtr = getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr();
@@ -169,10 +218,17 @@ void MultiClassNms::execute(mkldnn::stream strm) {
     auto boxesStrides = getParentEdgeAt(NMS_BOXES)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
     auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
 
+    int* roisnum = nullptr;
+    VectorDims roisnumStrides;
+    if (has_roinum) {
+        roisnum = reinterpret_cast<int*>(getParentEdgeAt(NMS_ROISNUM)->getMemoryPtr()->GetPtr());
+        roisnumStrides = getParentEdgeAt(NMS_ROISNUM)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    }
+
     if ((m_nmsEta >= 0) && (m_nmsEta < 1)) {
-        nmsWithEta(boxes, scores, boxesStrides, scoresStrides);
+        nmsWithEta(boxes, scores, roisnum, boxesStrides, scoresStrides, roisnumStrides, shared);
     } else {
-        nmsWithoutEta(boxes, scores, boxesStrides, scoresStrides);
+        nmsWithoutEta(boxes, scores, roisnum, boxesStrides, scoresStrides, roisnumStrides, shared);
     }
 
     size_t startOffset = m_numFiltBox[0][0];
@@ -229,7 +285,7 @@ void MultiClassNms::execute(mkldnn::stream strm) {
         }
     }
 
-    if (m_sortResultAcrossBatch) {
+    if (m_sortResultAcrossBatch) { /* sort across batch */
         if (m_sortResultType == MulticlassNmsSortResultType::SCORE) {
             parallel_sort(m_filtBoxes.begin(), m_filtBoxes.begin() + startOffset, [](const filteredBoxes& l, const filteredBoxes& r) {
                 return (l.score > r.score) || (l.score == r.score && l.batch_index < r.batch_index) ||
@@ -252,10 +308,11 @@ void MultiClassNms::execute(mkldnn::stream strm) {
         });
     }
 
-    const size_t validOutputs = std::min(startOffset, m_maxBoxesPerBatch * dims_boxes[0]);
+    /* output */
+    const size_t validOutputs = std::min(startOffset, m_maxBoxesPerBatch * m_numBatches);
 
     std::vector<size_t> m_selected_num;
-    m_selected_num.resize(dims_boxes[0]);
+    m_selected_num.resize(m_numBatches);
 
     const size_t selectedBoxesNum_perBatch = m_maxBoxesPerBatch;
 
@@ -272,22 +329,46 @@ void MultiClassNms::execute(mkldnn::stream strm) {
     float* selected_outputs = reinterpret_cast<float*>(selectedOutputsMemPtr->GetPtr());
     int* selected_num = reinterpret_cast<int*>(validOutputsMemPtr->GetPtr());
 
+    auto _flattened_index = [](int batch_idx, int box_idx, int num_box) {
+        return batch_idx * num_box + box_idx;
+    };
+
     int64_t output_offset = 0;
     int64_t original_offset = 0;
-    for (size_t i = 0; i < dims_boxes[0]; i++) {
+    for (size_t i = 0; i < m_numBatches; i++) {
         auto real_boxes = m_selected_num[i];
         selected_num[i] = static_cast<int>(real_boxes);
 
         for (size_t j = 0; j < real_boxes; j++) {
             auto original_index = original_offset + j;
-            selected_indices[j + output_offset] = m_filtBoxes[original_index].batch_index * dims_boxes[1] + m_filtBoxes[original_index].box_index;
+            const auto &box_info = m_filtBoxes[original_index];
+
             auto selected_base = selected_outputs + (output_offset + j) * 6;
-            selected_base[0] = m_filtBoxes[original_index].class_index;
-            selected_base[1] = m_filtBoxes[original_index].score;
-            selected_base[2] = boxes[selected_indices[j + output_offset] * 4];
-            selected_base[3] = boxes[selected_indices[j + output_offset] * 4 + 1];
-            selected_base[4] = boxes[selected_indices[j + output_offset] * 4 + 2];
-            selected_base[5] = boxes[selected_indices[j + output_offset] * 4 + 3];
+            selected_base[0] = box_info.class_index;
+            selected_base[1] = box_info.score;
+
+            auto &selected_index = selected_indices[j + output_offset];
+            if (shared) {
+                selected_index = _flattened_index(box_info.batch_index, box_info.box_index, m_numBoxes);
+                selected_base[2] = boxes[selected_index * 4];
+                selected_base[3] = boxes[selected_index * 4 + 1];
+                selected_base[4] = boxes[selected_index * 4 + 2];
+                selected_base[5] = boxes[selected_index * 4 + 3];
+            } else {
+                int64_t offset = 0;
+                for (int64_t i = 0; i < box_info.batch_index; i++) {
+                    offset += roisnum[i];
+                }
+                // selected index from (M, C, 4)
+                selected_index = _flattened_index((offset + box_info.box_index),
+                                                box_info.class_index, m_numClasses);
+                int idx = box_info.class_index * boxesStrides[0] + offset * boxesStrides[1];
+                const float* curboxes = boxes + idx; // a slice of boxes of current class current image
+                selected_base[2] = curboxes[4 * box_info.box_index];
+                selected_base[3] = curboxes[4 * box_info.box_index + 1];
+                selected_base[4] = curboxes[4 * box_info.box_index + 2];
+                selected_base[5] = curboxes[4 * box_info.box_index + 3];
+            }
         }
         // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
         if (!isDynamicNode()) {
@@ -330,7 +411,13 @@ float MultiClassNms::intersectionOverUnion(const float* boxesI, const float* box
     return intersection_area / (areaI + areaJ - intersection_area);
 }
 
-void MultiClassNms::nmsWithEta(const float* boxes, const float* scores, const SizeVector& boxesStrides, const SizeVector& scoresStrides) {
+void MultiClassNms::nmsWithEta(const float* boxes,
+                                const float* scores,
+                                const int* roisnum,
+                                const SizeVector& boxesStrides,
+                                const SizeVector& scoresStrides,
+                                const SizeVector& roisnumStrides,
+                                const bool shared) {
     auto less = [](const boxInfo& l, const boxInfo& r) {
         return l.score < r.score || ((l.score == r.score) && (l.idx > r.idx));
     };
@@ -340,13 +427,20 @@ void MultiClassNms::nmsWithEta(const float* boxes, const float* scores, const Si
     };
 
     parallel_for2d(m_numBatches, m_numClasses, [&](int batch_idx, int class_idx) {
+        if (!shared) {
+            if (roisnum[batch_idx] <= 0) {
+                m_numFiltBox[batch_idx][class_idx] = 0;
+                return;
+            }
+        }
         if (class_idx != m_backgroundClass) {
             std::vector<filteredBoxes> fb;
-            const float* boxesPtr = boxes + batch_idx * boxesStrides[0];
-            const float* scoresPtr = scores + batch_idx * scoresStrides[0] + class_idx * scoresStrides[1];
+            const float* boxesPtr = slice_class(batch_idx, class_idx, boxes, boxesStrides, true, roisnum, roisnumStrides, shared);
+            const float* scoresPtr = slice_class(batch_idx, class_idx, scores, scoresStrides, false, roisnum, roisnumStrides, shared);
 
             std::priority_queue<boxInfo, std::vector<boxInfo>, decltype(less)> sorted_boxes(less);
-            for (int box_idx = 0; box_idx < m_numBoxes; box_idx++) {
+            int cur_numBoxes = shared ? m_numBoxes : roisnum[batch_idx];
+            for (int box_idx = 0; box_idx < cur_numBoxes; box_idx++) {
                 if (scoresPtr[box_idx] >= m_scoreThreshold)  // algin with ref
                     sorted_boxes.emplace(boxInfo({scoresPtr[box_idx], box_idx, 0}));
             }
@@ -396,15 +490,65 @@ void MultiClassNms::nmsWithEta(const float* boxes, const float* scores, const Si
     });
 }
 
-void MultiClassNms::nmsWithoutEta(const float* boxes, const float* scores, const SizeVector& boxesStrides, const SizeVector& scoresStrides) {
+/* get boxes/scores for current class and image
+//                  shared         not-shared
+// boxes:      [in] N, M, 4         C, M, 4    -> [out] num_priors, 4
+// scores:     [in] N, C, M          C, M      -> [out] num_priors,
+*/
+const float* MultiClassNms::slice_class(const int batch_idx,
+                                        const int class_idx,
+                                        const float* dataPtr,
+                                        const SizeVector& dataStrides,
+                                        const bool is_boxes,
+                                        const int* roisnum,
+                                        const SizeVector& roisnumStrides,
+                                        const bool shared) {
+    if (shared) {
+        if (is_boxes)
+            return dataPtr + batch_idx * dataStrides[0];
+        else
+            return dataPtr + batch_idx * dataStrides[0] + class_idx * dataStrides[1];
+    }
+
+    // get M boxes of current class_idx : 1, M, 4
+    const float* boxesPtr_cls = dataPtr + class_idx * dataStrides[0];
+
+    // then get Mi boxes of current batch_idx and current class_idx : M', 4
+    auto boxes_idx = 0;
+    for (auto i = 0; i < batch_idx; i++) {
+        boxes_idx += roisnum[i];
+    }
+    // auto boxes_num = roisnum[batch_idx];
+    return boxesPtr_cls + boxes_idx * dataStrides[1];
+}
+
+void MultiClassNms::nmsWithoutEta(const float* boxes,
+                                const float* scores,
+                                const int* roisnum,
+                                const SizeVector& boxesStrides,
+                                const SizeVector& scoresStrides,
+                                const SizeVector& roisnumStrides,
+                                const bool shared) {
     parallel_for2d(m_numBatches, m_numClasses, [&](int batch_idx, int class_idx) {
+        /*
+        // nms over a class over an image
+        // boxes:       num_priors, 4
+        // scores:      num_priors, 1
+        */
+        if (!shared) {
+            if (roisnum[batch_idx] <= 0) {
+                m_numFiltBox[batch_idx][class_idx] = 0;
+                return;
+            }
+        }
         if (class_idx != m_backgroundClass) {
-            const float* boxesPtr = boxes + batch_idx * boxesStrides[0];
-            const float* scoresPtr = scores + batch_idx * scoresStrides[0] + class_idx * scoresStrides[1];
+            const float* boxesPtr = slice_class(batch_idx, class_idx, boxes, boxesStrides, true, roisnum, roisnumStrides, shared);
+            const float* scoresPtr = slice_class(batch_idx, class_idx, scores, scoresStrides, false, roisnum, roisnumStrides, shared);
 
             std::vector<std::pair<float, int>> sorted_boxes;
-            for (int box_idx = 0; box_idx < m_numBoxes; box_idx++) {
-                if (scoresPtr[box_idx] >= m_scoreThreshold)  // algin with ref
+            int cur_numBoxes = shared ? m_numBoxes : roisnum[batch_idx];
+            for (int box_idx = 0; box_idx < cur_numBoxes; box_idx++) {
+                if (scoresPtr[box_idx] >= m_scoreThreshold)  // align with ref
                     sorted_boxes.emplace_back(std::make_pair(scoresPtr[box_idx], box_idx));
             }
 

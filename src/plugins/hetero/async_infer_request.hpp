@@ -20,6 +20,7 @@ public:
                             const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
     ~HeteroAsyncInferRequest();
     InferenceEngine::StatusCode Wait(int64_t millis_timeout) override;
+    InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
 
 private:
     HeteroInferRequest::Ptr _heteroInferRequest;

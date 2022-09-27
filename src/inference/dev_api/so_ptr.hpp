@@ -84,7 +84,7 @@ struct SoPtr {
     std::shared_ptr<T> _ptr;
 
     /**
-     * @brief The shared object or dinamic loaded library
+     * @brief The shared object or dynamic loaded library
      */
     std::shared_ptr<void> _so;
 };

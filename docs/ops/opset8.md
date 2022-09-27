@@ -103,7 +103,7 @@ declared in `namespace opset8`.
 * [Mish](activation/Mish_4.md)
 * [Mod](arithmetic/Mod_1.md)
 * [MVN](normalization/MVN_6.md)
-* [MulticlassNMS](sort/MulticlassNMS_8.md)
+* [MulticlassNMS](sort/MulticlassNonMaxSuppression_8.md)
 * [Multiply](arithmetic/Multiply_1.md)
 * [Negative](arithmetic/Negative_1.md)
 * [NonMaxSuppression](sort/NonMaxSuppression_5.md)

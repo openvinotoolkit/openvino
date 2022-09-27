@@ -17,7 +17,6 @@
 #include <stdexcept>
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 using cldnn::tensor;
@@ -157,18 +156,18 @@ inline tensor calc_sliding_window_output_range<swor_mode::exceed_once>(const ten
     if (std::any_of(dilation.begin(), dilation.end(), [](size_t v) { return v <= 0; }))
         throw std::invalid_argument("Sliding window h/v input dialations must be positive (>= 1).");
 
-    auto off_factor = sym_pad ? -2 : -1;
-    auto stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
-    auto stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
-    auto stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+    int64_t off_factor = sym_pad ? -2 : -1;
+    int64_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
+    int64_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
+    int64_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
 
     tensor::value_type dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
     tensor::value_type dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
     tensor::value_type dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
 
-    auto pad_z = pad.size() >= 3 ? pad[pad.size() - 3] : 0;
-    auto pad_y = pad.size() >= 2 ? pad[pad.size() - 2] : 0;
-    auto pad_x = pad.size() >= 1 ? pad[pad.size() - 1] : 0;
+    int64_t pad_z = pad.size() >= 3 ? pad[pad.size() - 3] : 0;
+    int64_t pad_y = pad.size() >= 2 ? pad[pad.size() - 2] : 0;
+    int64_t pad_x = pad.size() >= 1 ? pad[pad.size() - 1] : 0;
 
     tensor extend{0,
                   0,
@@ -428,7 +427,7 @@ inline padding calc_sliding_window_needed_input_padding(const layout& actual_inp
         needed_size = tensor::max(needed_size_sym, needed_size_asym);
     }
 
-    const auto& actual_data_size = actual_input_layout.size;
+    const auto& actual_data_size = actual_input_layout.get_tensor();
     const auto& actual_lpad = actual_input_layout.data_padding.lower_size();
     const auto& actual_upad = actual_input_layout.data_padding.upper_size();
 
@@ -443,5 +442,4 @@ inline padding calc_sliding_window_needed_input_padding(const layout& actual_inp
 }
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

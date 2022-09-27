@@ -10,6 +10,7 @@
 #include <string>
 #include <algorithm>
 #include <map>
+#include <limits>
 
 #if defined __INTEL_COMPILER || defined _MSC_VER
 #include <malloc.h>
@@ -27,6 +28,7 @@
 #include "gna_types.h"
 #include "gna_limitations.hpp"
 #include "layers/gna_convolution_layer.hpp"
+#include "memory/gna_memory.hpp"
 
 #include <gna2-model-api.h>
 #include "gna2_model_helper.hpp"
@@ -50,16 +52,16 @@ using GNAPluginNS::GNAConvolutionLayer::outputFromConv;
 using GNAPluginNS::GNAConvolutionLayer::outputFromPooling;
 using GNAPluginNS::GNAConvolutionLayer::outputFromPoolingLegacy;
 
+using GNAPluginNS::memory::GNAMemoryInterface;
+
 void GNAPluginNS::backend::AMIntelDNN::BeginNewWrite(uint32_t index) {
     dump_write_index = index;
 }
 
-void GNAPluginNS::backend::AMIntelDNN::Init(void *ptr_memory,
-                      uint32_t num_memory_bytes,
+void GNAPluginNS::backend::AMIntelDNN::Init(GNAMemoryInterface* memoryInterface,
                       intel_dnn_number_type_t compute_precision,
                       float scale_factor) {
-    ptr_dnn_memory_ = ptr_memory;
-    num_bytes_dnn_memory_ = num_memory_bytes;
+    memory = memoryInterface;
     compute_precision_ = compute_precision;
     input_scale_factor_ = scale_factor;
 
@@ -740,6 +742,19 @@ void PrintTensors(std::ofstream& out, T tensors) {
     }
 }
 
+void GNAPluginNS::backend::AMIntelDNN::PrintOffset(std::ofstream& out, const std::string& type, void* ptr) {
+    const auto queue = memory->getQueue(ptr);
+    std::string typeOfRegion = "UNKNOWN_QUEUE";
+    auto offset = std::numeric_limits<uint32_t>::max();
+    if (queue != nullptr) {
+        typeOfRegion = GNAPluginNS::memory::rRegionToStr(queue->regionType());
+        offset = queue->getOffset(ptr).second;
+    }
+    out << "<memory_region_type> " << typeOfRegion << "\n";
+    out << "<" << type << "_address> "
+        << "0x" << std::setfill('0') << std::setw(8) << std::hex << offset << "\n";
+}
+
 void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_dnn_number_type_t logging_precision) {
     if ((compute_precision_ == kDnnFloat) && (logging_precision == kDnnInt)) {
         fprintf(stderr, "Error trying to write floating point DNN as integer in GNAPluginNS::backend::AMIntelDNN::WriteDnnText().\n");
@@ -762,7 +777,11 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
         out_file << "<intel_dnn_file>\n";
         out_file << "<number_type> " << intel_dnn_number_type_name[logging_precision] << "\n";
         out_file << "<softmax_type> " << intel_dnn_softmax_name[softmax_type] << "\n";
-        out_file << "<num_memory_bytes> " << std::dec << num_bytes_dnn_memory_ << "\n";
+        const auto& regionsMap = GNAPluginNS::memory::GetAllRegionsToStrMap();
+        for (const auto& regionPair : regionsMap) {
+            out_file << "<memory_region_type> " << std::dec << regionPair.second << "\n";
+            out_file << "<num_memory_region_bytes> " << std::dec << memory->getRegionBytes(regionPair.first) << "\n";
+        }
         out_file << "<num_group> " << std::dec << num_group << "\n";
         out_file << "<number_inputs> " << std::dec << num_inputs << "\n";
         out_file << "<num_outputs> " << std::dec << num_outputs << "\n";
@@ -815,10 +834,8 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                 out_file << "<num_bytes_per_input> " << std::dec << num_bytes_per_input << "\n";
                 out_file << "<num_bytes_per_output> " << std::dec << num_bytes_per_output << "\n";
             }
-            out_file << "<input_address> " << "0x" << std::setfill('0') << std::setw(8) << std::hex
-                     << GNAPluginNS::memory::MemoryOffset(component[i].ptr_inputs, ptr_dnn_memory_) << "\n";
-            out_file << "<output_address> " << "0x" << std::setfill('0') << std::setw(8) << std::hex
-                     << GNAPluginNS::memory::MemoryOffset(component[i].ptr_outputs, ptr_dnn_memory_) << "\n";
+            PrintOffset(out_file, "input", component[i].ptr_inputs);
+            PrintOffset(out_file, "output", component[i].ptr_outputs);
             switch (component[i].operation) {
                 case kDnnAffineOp:
                 case kDnnDiagonalOp: {
@@ -846,10 +863,8 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                         out_file << std::setprecision(12) << std::scientific << "<output_scale_factor> "
                                  << output_scale_factor << "\n";
                     }
-                    out_file << "<weight_address> " << "0x" << std::setfill('0') << std::setw(8) << std::hex
-                             << GNAPluginNS::memory::MemoryOffset(component[i].op.affine.ptr_weights, ptr_dnn_memory_) << "\n";
-                    out_file << "<bias_address> " << "0x" << std::setfill('0') << std::setw(8) << std::hex
-                             << GNAPluginNS::memory::MemoryOffset(component[i].op.affine.ptr_biases, ptr_dnn_memory_) << "\n";
+                    PrintOffset(out_file, "weight", component[i].op.affine.ptr_weights);
+                    PrintOffset(out_file, "bias", component[i].op.affine.ptr_biases);
 #ifdef LIGHT_DUMP
                     std::ofstream out_wfile((out_file_name.str() + "_weights.txt").c_str(), std::ios::out);
                     std::ofstream out_bfile((out_file_name.str() + "_biases.txt").c_str(), std::ios::out);
@@ -996,10 +1011,8 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                         out_file << std::setprecision(12) << std::scientific << "<output_scale_factor> "
                                  << output_scale_factor << "\n";
                     }
-                    out_file << "<filter_address> " << "0x" << std::setfill('0') << std::setw(8) << std::hex
-                             << GNAPluginNS::memory::MemoryOffset(component[i].op.conv1D.ptr_filters, ptr_dnn_memory_) << "\n";
-                    out_file << "<bias_address> " << "0x" << std::setfill('0') << std::setw(8) << std::hex
-                             << GNAPluginNS::memory::MemoryOffset(component[i].op.conv1D.ptr_biases, ptr_dnn_memory_) << "\n";
+                    PrintOffset(out_file, "filter", component[i].op.conv1D.ptr_filters);
+                    PrintOffset(out_file, "bias", component[i].op.conv1D.ptr_biases);
 
 #ifdef LIGHT_DUMP
                     std::ofstream out_wfile((out_file_name.str() + "_weights.txt").c_str(), std::ios::out);
@@ -1145,12 +1158,9 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                         out_file << std::setprecision(12) << std::scientific << "<output_scale_factor> "
                                  << output_scale_factor << "\n";
                     }
-                    out_file << "<weight_address> " << "0x" << std::setfill('0') << std::setw(8) << std::hex
-                             << GNAPluginNS::memory::MemoryOffset(component[i].op.recurrent.ptr_weights, ptr_dnn_memory_) << "\n";
-                    out_file << "<bias_address> " << "0x" << std::setfill('0') << std::setw(8) << std::hex
-                             << GNAPluginNS::memory::MemoryOffset(component[i].op.recurrent.ptr_biases, ptr_dnn_memory_) << "\n";
-                    out_file << "<feedback_address> " << "0x" << std::setfill('0') << std::setw(8) << std::hex
-                             << GNAPluginNS::memory::MemoryOffset(component[i].op.recurrent.ptr_feedbacks, ptr_dnn_memory_) << "\n";
+                    PrintOffset(out_file, "weight", component[i].op.recurrent.ptr_weights);
+                    PrintOffset(out_file, "bias", component[i].op.recurrent.ptr_biases);
+                    PrintOffset(out_file, "feedback", component[i].op.recurrent.ptr_feedbacks);
                     if (num_bytes_per_weight == 1) {
 #ifdef DUMP_WB
                         int8_t *ptr_weight = reinterpret_cast<int8_t *>(component[i].op.recurrent.ptr_weights);
@@ -1308,14 +1318,12 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                     if (logging_precision == kDnnFloat) {
                         out_file << std::setprecision(12) << std::scientific << "<output_scale_factor> " << 1.0 << "\n";
                         out_file << "<num_segments> " << std::dec << 0 << "\n";
-                        out_file << "<segment_address> " << "0x" << std::setfill('0') << std::setw(8) << std::hex
-                                 << GNAPluginNS::memory::MemoryOffset(component[i].op.pwl.ptr_segments, ptr_dnn_memory_) << "\n";
+                        PrintOffset(out_file, "segment", component[i].op.pwl.ptr_segments);
                     } else {
                         out_file << std::setprecision(12) << std::scientific << "<output_scale_factor> "
                                  << output_scale_factor << "\n";
                         out_file << "<num_segments> " << std::dec << num_segments << "\n";
-                        out_file << "<segment_address> " << "0x" << std::setfill('0') << std::setw(8) << std::hex
-                                 << GNAPluginNS::memory::MemoryOffset(component[i].op.pwl.ptr_segments, ptr_dnn_memory_) << "\n";
+                        PrintOffset(out_file, "segment", component[i].op.pwl.ptr_segments);
                         if (compute_precision_ == kDnnInt) {
                             out_file << "<slope> ";
                             for (uint32_t segment = 0; segment < num_segments; segment++) {
@@ -1364,8 +1372,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
             }
         }
         if (ptr_active_outputs() != nullptr) {
-            out_file << "<activelist_address> " << "0x" << std::setfill('0') << std::setw(8) << std::hex
-                     << GNAPluginNS::memory::MemoryOffset(ptr_active_outputs(), ptr_dnn_memory_) << "\n";
+            PrintOffset(out_file, "activelist", ptr_active_outputs());
         }
         out_file << "<end_of_file>\n";
         out_file.close();
@@ -1410,7 +1417,8 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(Gna2Model *gnaModel, const 
     memset(gnaModel->Operations, 0, gnaModel->NumberOfOperations * sizeof(Gna2Operation));
     gnaOperation = gnaModel->Operations;
     for (int i = 0; i < component.size(); i++) {
-        // std::cout << "Component + " << i <<"=GNA_" << std::distance(ptr_nnet->pLayers, pLayer) << "\n";
+        gnalog() << "Component + " << i << "=GNA_" << std::distance(gnaModel->Operations, gnaOperation) << "\n";
+
         auto& comp = component[i];
         switch (comp.operation) {
             case kDnnAffineOp:

@@ -156,6 +156,7 @@ void InferRequestBase::InferImpl() {
     graph = &(graphLock._graph);
 
     ThrowIfCanceled();
+    convertBatchedInputBlobs();
 
     if (graph->hasDynamicInput()) {
         redefineMemoryForInputNodes();
@@ -430,12 +431,8 @@ void LegacyInferRequest::SetBlob(const std::string& name, const InferenceEngine:
                 IE_THROW(ParameterMismatch) << "Failed to set input blob. Blocking descriptor mismatch.";
             }
 
-            auto pBlob = MemoryDescUtils::interpretAsBlob(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory());
-            if (!pBlob) {
-                IE_THROW() << "Blob returned after trying to interpret input node's memory is nullable. Input node name: " << name;
-            }
-
-            if (data->getTensorDesc() == pBlob->getTensorDesc() &&
+            auto pBlobDesc = MemoryDescUtils::interpretAsBlobDesc(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory());
+            if (data->getTensorDesc() == pBlobDesc &&
                 graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getProperty().batchLimit) {
                 externalPtr[name] = data->buffer();
             } else if (externalPtr.find(name) != externalPtr.end()) {
@@ -468,11 +465,8 @@ void LegacyInferRequest::SetBlob(const std::string& name, const InferenceEngine:
                 IE_THROW(ParameterMismatch) << "Failed to set output blob. Blocking descriptor mismatch.";
         }
 
-        auto pBlob = MemoryDescUtils::interpretAsBlob(graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory());
-        if (!pBlob)
-            IE_THROW() << "Blob returned after trying to interpret output node's memory is nullable. Output node name: " << name;
-
-        if (data->getTensorDesc() == pBlob->getTensorDesc() &&
+        auto pBlobDesc = MemoryDescUtils::interpretAsBlobDesc(graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory());
+        if (data->getTensorDesc() == pBlobDesc &&
                 !graph->getProperty().batchLimit) {
             externalPtr[name] = data->buffer();
         } else if (externalPtr.find(name) != externalPtr.end()) {
@@ -501,12 +495,8 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
         }
 
         if (_inputs.find(name) == _inputs.end()) {
-            auto pBlob = MemoryDescUtils::interpretAsBlob(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory());
-            if (!pBlob) {
-                IE_THROW() << "Blob returned after trying to interpret input node's memory is nullable. Input node name: " << name;
-            }
-
-            InferenceEngine::TensorDesc desc = pBlob->getTensorDesc();
+            auto pBlobDesc = MemoryDescUtils::interpretAsBlobDesc(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory());
+            InferenceEngine::TensorDesc desc = pBlobDesc;
 
             if (_networkInputs.find(name) != _networkInputs.end()) {
                 InferenceEngine::Layout l = _networkInputs[name]->getLayout();
@@ -518,7 +508,7 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
 
             _inputs[name] = make_blob_with_precision(desc);
             _inputs[name]->allocate();
-            if (pBlob->getTensorDesc() == desc &&
+            if (pBlobDesc == desc &&
                 graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getProperty().batchLimit) {
                 externalPtr[name] = _inputs[name]->buffer();
             }
@@ -546,11 +536,7 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
 
     if (graph->hasOutputWithName(name)) {
         if (_outputs.find(name) == _outputs.end()) {
-            auto pBlob = MemoryDescUtils::interpretAsBlob(graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory());
-            if (!pBlob) {
-                IE_THROW() << "Blob returned after trying to interpret output node's memory is nullable. Output node name: " << name;
-            }
-
+            auto pBlobDesc = MemoryDescUtils::interpretAsBlobDesc(graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory());
             if (!data) {
                 InferenceEngine::TensorDesc desc = _networkOutputs[name]->getTensorDesc();
                 desc.setPrecision(normalizeToSupportedPrecision(desc.getPrecision()));
@@ -565,7 +551,7 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
                 data = make_blob_with_precision(desc);
                 data->allocate();
             } else {
-                const auto& expectedTensorDesc = pBlob->getTensorDesc();
+                const auto& expectedTensorDesc = pBlobDesc;
 
                 if (expectedTensorDesc.getPrecision() != data->getTensorDesc().getPrecision()) {
                     IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name << " but expect blobs with different precision: "
@@ -585,7 +571,7 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
             }
 
             _outputs[name] = data;
-            if (!externalPtr.count(name) && data->getTensorDesc() == pBlob->getTensorDesc() && !graph->getProperty().batchLimit) {
+            if (!externalPtr.count(name) && data->getTensorDesc() == pBlobDesc && !graph->getProperty().batchLimit) {
                 externalPtr[name] = data->buffer();
             }
         }
@@ -642,11 +628,11 @@ void InferRequest::initBlobs() {
 
 void InferRequest::SetBatch(int new_batch) {
     if (!graph->getProperty().batchLimit || modelInputsMap.begin()->second->get_output_partial_shape(0).is_static()) {
-        IE_THROW() << "Can't SetBatch for model that can't be executed via legacy dynamic batch or for static model";
+        IE_THROW() << "Can't set batch for model that can't be executed via legacy dynamic batch or for static model";
     }
 
     if (new_batch < 1 || new_batch > graph->getProperty().batchLimit) {
-        IE_THROW() << "Can't set batch that more than upper bound";
+        IE_THROW() << "Can't set batch that is bigger than upper bound";
     }
 
     m_curBatch = new_batch;
@@ -671,16 +657,16 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
 
     if (inputNodeItr != modelInputsMap.end()) {
         if (!inputNodeItr->second) {
-            IE_THROW() << "Can't SetBlob with name: " << name << ", because has null pointer to input node";
+            IE_THROW() << "Can't set blob with name: " << name << ", because has null pointer to input node";
         }
         isInput = true;
     } else if (outputNodeItr != modelOutputsMap.end()) {
         if (!outputNodeItr->second) {
-            IE_THROW() << "Can't SetBlob with name: " << name << ", because has null pointer to output node";
+            IE_THROW() << "Can't set blob with name: " << name << ", because has null pointer to output node";
         }
         isInput = false;
     } else {
-        IE_THROW(NotFound) << "Can't SetBlob with name: " << name << ", because input/output with this name doesn't exist";
+        IE_THROW(NotFound) << "Can't set blob with name: " << name << ", because input/output with this name doesn't exist";
     }
 
     const bool compoundBlobPassed = data->is<InferenceEngine::CompoundBlob>();
@@ -699,13 +685,14 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
         const auto shape = inputNodeItr->second->get_output_partial_shape(0);
         const bool isDynamic = shape.is_dynamic();
         if (!shape.compatible(ov::PartialShape(data->getTensorDesc().getDims()))) {
-            IE_THROW() << "Can't SetBlob with name: " << name
+            IE_THROW() << "Can't set input blob with name: " << name
                        << ", because model input (shape=" << shape
                        << ") and blob (shape=" << vec2str(data->getTensorDesc().getDims()) << ") are incompatible";
         }
 
         if (!isDynamic && ngraph::shape_size(shape.to_shape()) != data->size()) {
-            IE_THROW() << "Can't SetBlob with name: " << name << ", because model input and blob have different size";
+            IE_THROW() << "Can't set input blob with name: " << name << ", because model input size = " << ngraph::shape_size(shape.to_shape())
+                       << " and blob size = " << data->size() << " are different.";
         }
 
         MemoryDescPtr actualDesc = graph->getInputNodeByName(name)->getBaseMemDescAtOutputPort(0);
@@ -723,9 +710,10 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
             externalPtr.erase(name);
         }
         _inputs[name] = data;
+        _batched_inputs.erase(name);
     } else {
         if (compoundBlobPassed) {
-            IE_THROW(NotImplemented) << "cannot set compound blob: supported only for input pre-processing";
+            IE_THROW(NotImplemented) << "Can't set compound blob: supported only for input pre-processing";
         }
         const auto netOutPrc = InferenceEngine::details::convertPrecision(outputNodeItr->second->get_input_element_type(0));
         if (netOutPrc != blobDesc.getPrecision()) {
@@ -737,11 +725,14 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
         const bool isDynamic = shape.is_dynamic();
 
         if (!shape.compatible(ov::PartialShape(data->getTensorDesc().getDims()))) {
-            IE_THROW() << "Can't SetBlob with name: " << name << ", because model output and blob are incompatible";
+            IE_THROW() << "Can't set output blob with name: " << name
+                       << ", because model output (shape=" << shape
+                       << ") and blob (shape=" << vec2str(data->getTensorDesc().getDims()) << ") are incompatible";
         }
 
         if (!isDynamic && ngraph::shape_size(shape.to_shape()) != data->size()) {
-            IE_THROW() << "Can't SetBlob with name: " << name << ", because model output and blob have different size";
+            IE_THROW() << "Can't set output blob with name: " << name << ", because model output size = " << ngraph::shape_size(shape.to_shape())
+                       << " and blob size = " << data->size() << " are different.";
         }
 
         const auto &desc = graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory().getDesc();
@@ -752,6 +743,10 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
         }
         _outputs[name] = data;
     }
+}
+
+void InferRequest::SetBlobsImpl(const std::string& name, const InferenceEngine::BatchedBlob::Ptr& batched_blob) {
+    _batched_inputs[name] = batched_blob;
 }
 
 InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
@@ -769,7 +764,7 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
             auto inputNode = modelInputsMap.find(name);
             if (inputNode != modelInputsMap.end()) {
                 if (!inputNode->second) {
-                    IE_THROW() << "Can't GetBlob with name: " << name << ", because has null pointer to input node";
+                    IE_THROW() << "Can't get blob with name: " << name << ", because has null pointer to input node";
                 }
 
                 const auto shape = inputNode->second->get_output_partial_shape(0);
@@ -822,8 +817,16 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                     data = make_blob_with_precision(desc);
                     data->allocate();
                 } else {
-                    if (!shape.compatible(ov::PartialShape(data->getTensorDesc().getDims()))) {
-                        IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name << ", but expect blobs with different shapes.";
+                    const auto& blobDims = data->getTensorDesc().getDims();
+                    // in static shape case is enough information that shapes are incompatible to throw exception
+                    // but in dynamic shape case we also need to handle following corner case:
+                    // on blob initialization stage we create empty blob with dimensions equal 0
+                    // so if we have blob with all zero dimension we mustn't throw exception
+                    if (!shape.compatible(ov::PartialShape(blobDims)) && (!isDynamic || blobDims.size() != shape.rank().get_length() ||
+                            std::any_of(blobDims.begin(), blobDims.end(), [](const size_t& dims) { return dims != 0; } ))) {
+                        IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name
+                                                    << ", but expect blobs with different shapes. Input shape: "
+                                                    << ov::PartialShape(blobDims) << ", output shape: " << shape;
                     }
 
                     const auto netOutPrc = InferenceEngine::details::convertPrecision(outputNode->second->get_input_element_type(0));

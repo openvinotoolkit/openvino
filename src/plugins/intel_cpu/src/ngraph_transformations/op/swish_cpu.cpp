@@ -3,6 +3,7 @@
 //
 
 #include "swish_cpu.hpp"
+#include "../itt.hpp"
 
 ov::intel_cpu::SwishNode::SwishNode(const ngraph::Output<ngraph::Node> & input, const float alpha)
         : Op({input}), m_alpha(alpha) {
@@ -10,16 +11,19 @@ ov::intel_cpu::SwishNode::SwishNode(const ngraph::Output<ngraph::Node> & input, 
 }
 
 std::shared_ptr<ngraph::Node> ov::intel_cpu::SwishNode::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(SwishNode_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<ov::intel_cpu::SwishNode>(new_args.at(0), m_alpha);
 }
 
 bool ov::intel_cpu::SwishNode::visit_attributes(ngraph::AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(SwishNode_visit_attributes);
     visitor.on_attribute("alpha", m_alpha);
     return true;
 }
 
 void ov::intel_cpu::SwishNode::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(SwishNode_validate_and_infer_types);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 

@@ -8,6 +8,7 @@
 
 #include "intel_gpu/runtime/compounds.hpp"
 #include "intel_gpu/runtime/layout.hpp"
+#include "intel_gpu/runtime/optionals.hpp"
 
 #include <algorithm>
 #include <string>
@@ -38,12 +39,10 @@ public:
     primitive(const primitive_type_id& type,
               const primitive_id& id,
               const std::vector<primitive_id>& input,
-              const primitive_id& ext_prim_id = "",
               const padding& output_padding = padding(),
               const optional_data_type output_data_type = optional_data_type())
         : type(type),
           id(id),
-          ext_prim_id(ext_prim_id),
           output_padding(output_padding),
           output_data_type(output_data_type),
           input(input) {}
@@ -81,8 +80,11 @@ public:
     /// @brief Primitive's id.
     const primitive_id id;
 
-    /// @brief Primitive's external id.
-    const primitive_id ext_prim_id;
+    /// @brief Name of original ov operation.
+    std::string origin_op_name;
+
+    /// @brief Type name of original ov operation.
+    std::string origin_op_type_name;
 
     /// @brief Requested output padding.
     padding output_padding;
@@ -109,10 +111,9 @@ class primitive_base : public primitive {
 protected:
     explicit primitive_base(const primitive_id& id,
                             const std::vector<primitive_id>& input,
-                            const primitive_id& ext_prim_id = "",
                             const padding& output_padding = padding(),
                             optional_data_type output_data_type = optional_data_type())
-        : primitive(PType::type_id(), id, input, ext_prim_id, output_padding, output_data_type) {}
+        : primitive(PType::type_id(), id, input, output_padding, output_data_type) {}
 };
 
 struct primitive_info {

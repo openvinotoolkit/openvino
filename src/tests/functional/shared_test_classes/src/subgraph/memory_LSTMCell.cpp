@@ -8,6 +8,7 @@
 #include "ngraph/pass/low_latency.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/subgraph/memory_LSTMCell.hpp"
+#include "functional_test_utils/core_config.hpp"
 
 using namespace ngraph;
 using namespace opset7;
@@ -267,6 +268,7 @@ namespace SubgraphTestsDefinitions {
     void MemoryLSTMCellTest::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         if (transformation != ngraph::helpers::MemoryTransformation::NONE) {
+            CoreConfiguration(this);
             ApplyLowLatency();
         } else {
             LoadNetwork();

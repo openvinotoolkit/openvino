@@ -157,7 +157,9 @@ TEST_P(MulAddConversionTests, CompareFunctions) {
     ASSERT_NO_THROW(manager.run_passes(f));
     f->validate_nodes_and_infer_types();
 
-    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto fc = FunctionsComparator::no_default()
+            .enable(FunctionsComparator::NODES)
+            .enable(FunctionsComparator::PRECISIONS);
     auto res = fc.compare(f, f_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
@@ -178,7 +180,9 @@ TEST_P(MulOrAddConversionTests, CompareFunctions) {
 
     f->validate_nodes_and_infer_types();
 
-    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto fc = FunctionsComparator::no_default()
+            .enable(FunctionsComparator::NODES)
+            .enable(FunctionsComparator::PRECISIONS);
     auto res = fc.compare(f, f_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }

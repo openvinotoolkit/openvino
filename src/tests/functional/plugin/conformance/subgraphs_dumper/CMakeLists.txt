@@ -4,11 +4,11 @@
 
 set(TARGET_NAME subgraphsDumper)
 
-list(APPEND DEPENDENCIES
+list(APPEND LIBRARIES
         gflags
         inference_engine
         funcTestUtils
-        pugixml::static
+        openvino::pugixml
 )
 
 list(APPEND DEFINITIONS)
@@ -40,7 +40,7 @@ addIeTargetTest(
             ${CMAKE_CURRENT_SOURCE_DIR}/include
         LINK_LIBRARIES
             PRIVATE
-                ${DEPENDENCIES}
+                ${LIBRARIES}
         DEPENDENCIES
             ${DEPENDENCIES}
         ADD_CPPLINT

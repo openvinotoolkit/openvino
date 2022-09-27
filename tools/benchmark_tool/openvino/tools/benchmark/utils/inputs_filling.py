@@ -168,7 +168,12 @@ def get_image_tensors(image_paths, info, batch_sizes):
                     red = np.divide(red, info.scale[2])
                 image = cv2.merge([blue, green, red])
 
-            if str(info.layout) in ['[N,C,H,W]', '[C,H,W]']:
+            model_channel = int(str(info.channels))
+            image_channel = image.shape[-1]
+            if model_channel == 1 and image_channel == 3:
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+            if model_channel == image_channel and str(info.layout) in ['[N,C,H,W]', '[C,H,W]']:
                 image = image.transpose((2, 0, 1))
 
             if process_with_original_shapes:
@@ -264,7 +269,8 @@ def fill_tensors_with_random(layer):
         if shape:
             input_tensors.append(Tensor(rs.uniform(rand_min, rand_max, list(shape)).astype(dtype)))
         else:
-            input_tensors.append(Tensor(rs.uniform(rand_min, rand_max)))
+            scalar = rs.uniform(rand_min, rand_max)
+            input_tensors.append(Tensor(np.ndarray([], dtype, np.array(scalar).astype(dtype))))
     return input_tensors
 
 

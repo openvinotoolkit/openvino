@@ -5,130 +5,43 @@
 #include <common_test_utils/test_constants.hpp>
 #include "behavior/infer_request/memory_states.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
+#include "ngraph_functions/builders.hpp"
 
 using namespace BehaviorTestsDefinitions;
 
 namespace {
-static const char model[] = R"V0G0N(
-<net name="model" version="6">
-    <layers>
-        <layer id="0" name="Memory_1" precision="FP32" type="Memory">
-            <data id="r_1-3" index="1" size="2" />
-            <output>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>200</dim>
-                </port>
-            </output>
-        </layer>
-        <layer id="1" name="Input_1" precision="FP32" type="input">
-            <output>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>200</dim>
-                </port>
-            </output>
-        </layer>
-        <layer id="2" name="Eltwise_1" precision="FP32" type="Eltwise">
-            <data operation="mul" />
-            <input>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>200</dim>
-                </port>
-                <port id="1">
-                    <dim>1</dim>
-                    <dim>200</dim>
-                </port>
-            </input>
-            <output>
-                <port id="2">
-                    <dim>1</dim>
-                    <dim>200</dim>
-                </port>
-            </output>
-        </layer>
-        <layer id="3" name="Memory_2" precision="FP32" type="Memory">
-            <data id="c_1-3" index="1" size="2" />
-            <output>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>200</dim>
-                </port>
-            </output>
-        </layer>
-        <layer id="4" name="Eltwise_2" precision="FP32" type="Eltwise">
-            <data operation="mul" />
-            <input>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>200</dim>
-                </port>
-                <port id="1">
-                    <dim>1</dim>
-                    <dim>200</dim>
-                </port>
-            </input>
-            <output>
-                <port id="2">
-                    <dim>1</dim>
-                    <dim>200</dim>
-                </port>
-            </output>
-        </layer>
-        <layer id="5" name="Memory_3" precision="FP32" type="Memory">
-            <data id="c_1-3" index="0" size="2" />
-            <input>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>200</dim>
-                </port>
-            </input>
-        </layer>
-        <layer id="6" name="Activation_1" precision="FP32" type="Activation">
-            <data type="sigmoid" />
-            <input>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>200</dim>
-                </port>
-            </input>
-            <output>
-                <port id="1">
-                    <dim>1</dim>
-                    <dim>200</dim>
-                </port>
-            </output>
-        </layer>
-        <layer id="7" name="Memory_4" precision="FP32" type="Memory">
-            <data id="r_1-3" index="0" size="2" />
-            <input>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>200</dim>
-                </port>
-            </input>
-        </layer>
-    </layers>
-    <edges>
-        <edge from-layer="0" from-port="0" to-layer="2" to-port="0" />
-        <edge from-layer="1" from-port="0" to-layer="2" to-port="1" />
-        <edge from-layer="2" from-port="2" to-layer="4" to-port="1" />
-        <edge from-layer="3" from-port="0" to-layer="4" to-port="0" />
-        <edge from-layer="4" from-port="2" to-layer="5" to-port="0" />
-        <edge from-layer="4" from-port="2" to-layer="6" to-port="0" />
-        <edge from-layer="6" from-port="1" to-layer="7" to-port="0" />
-    </edges>
-</net>
-)V0G0N";
-
 InferenceEngine::CNNNetwork getNetwork() {
-    auto ie = PluginCache::get().ie();
-    return ie->ReadNetwork(model, InferenceEngine::Blob::Ptr{});
+    ngraph::Shape shape = {1, 200};
+    ngraph::element::Type type = ngraph::element::f32;
+
+    auto input = std::make_shared<ngraph::op::v0::Parameter>(type, shape);
+    auto mem_i1 = std::make_shared<ngraph::op::v0::Constant>(type, shape, 0);
+    auto mem_r1 = std::make_shared<ngraph::op::v3::ReadValue>(mem_i1, "r_1-3");
+    auto mul1 = std::make_shared<ngraph::op::v1::Multiply>(mem_r1, input);
+
+    auto mem_i2 = std::make_shared<ngraph::op::v0::Constant>(type, shape, 0);
+    auto mem_r2 = std::make_shared<ngraph::op::v3::ReadValue>(mem_i2, "c_1-3");
+    auto mul2 = std::make_shared<ngraph::op::v1::Multiply>(mem_r2, mul1);
+    auto mem_w2 = std::make_shared<ngraph::op::v3::Assign>(mul2, "c_1-3");
+
+    auto mem_w1 = std::make_shared<ngraph::op::v3::Assign>(mul2, "r_1-3");
+    auto sigm = std::make_shared<ngraph::op::Sigmoid>(mul2);
+
+    sigm->set_friendly_name("sigmod_state");
+    mem_r1->set_friendly_name("Memory_1");
+    mem_w1->add_control_dependency(mem_r1);
+    sigm->add_control_dependency(mem_w1);
+
+    mem_r2->set_friendly_name("Memory_2");
+    mem_w2->add_control_dependency(mem_r2);
+    sigm->add_control_dependency(mem_w2);
+
+    auto function = std::make_shared<ngraph::Function>(ngraph::NodeVector{sigm}, ngraph::ParameterVector{input}, "addOutput");
+    return InferenceEngine::CNNNetwork{function};
 }
 
 std::vector<memoryStateParams> memoryStateTestCases = {
-        memoryStateParams(getNetwork(), {"c_1-3", "r_1-3"}, CommonTestUtils::DEVICE_GNA)
+        memoryStateParams(getNetwork(), {"c_1-3", "r_1-3"}, CommonTestUtils::DEVICE_GNA, {})
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_VariableStateBasic, InferRequestVariableStateTest,

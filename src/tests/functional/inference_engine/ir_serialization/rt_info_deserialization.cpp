@@ -16,7 +16,7 @@
 #include <transformations/rt_info/old_api_map_order_attribute.hpp>
 #include <transformations/rt_info/old_api_map_element_type_attribute.hpp>
 #include "openvino/frontend/manager.hpp"
-#include "graph_comparator.hpp"
+#include "common_test_utils/graph_comparator.hpp"
 #include "ie_blob.h"
 #include "ie_precision.hpp"
 #include "ngraph/node.hpp"
@@ -472,7 +472,7 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         <layer name="Round" id="1" type="Round" version="opset8">
             <data mode="half_to_even"/>
             <rt_info>
-                <attribute name="fused_names" version="0" value="Round1,Round2"/>
+                <attribute name="fused_names" version="0" value="    Round 1  ,  Round 2  "/>
             </rt_info>
             <input>
                 <port id="1" precision="FP32">
@@ -553,7 +553,7 @@ TEST_F(RTInfoDeserialization, NodeV11) {
     auto result = f->get_result();
     check_old_api_map_order(result->get_rt_info(), std::vector<uint64_t>({0, 3, 1, 2}));
     auto round = result->get_input_node_ptr(0);
-    check_fused_names(round->get_rt_info(), "Round1,Round2");
+    check_fused_names(round->get_rt_info(), "Round 1,Round 2");
 
     // read IR v11 with new API
     {

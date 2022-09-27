@@ -50,17 +50,6 @@ shared_tensor.data[0][2] = 0.6
 assert data_to_share[0][2] == 0.6
 #! [tensor_shared_mode]
 
-#! [tensor_slice_mode]
-data_to_share = np.ones(shape=(2,8))
-
-# Specify slice of memory and the shape
-shared_tensor = ov.Tensor(data_to_share[1][:] , shape=ov.Shape([8]))
-
-# Editing of the numpy array affects Tensor's data
-data_to_share[1][:] = 2
-assert np.array_equal(shared_tensor.data, data_to_share[1][:])
-#! [tensor_slice_mode]
-
 infer_request = compiled.create_infer_request()
 data = np.random.randint(-5, 3 + 1, size=(8))
 
@@ -131,3 +120,56 @@ infer_queue.wait_all()
 
 assert all(data_done)
 #! [asyncinferqueue_set_callback]
+
+unt8_data = np.ones([100])
+
+#! [packing_data]
+from openvino.helpers import pack_data
+
+packed_buffer = pack_data(unt8_data, ov.Type.u4)
+# Create tensor with shape in element types
+t = ov.Tensor(packed_buffer, [1, 128], ov.Type.u4)
+#! [packing_data]
+
+#! [unpacking]
+from openvino.helpers import unpack_data
+
+unpacked_data = unpack_data(t.data, t.element_type, t.shape)
+assert np.array_equal(unpacked_data , unt8_data)
+#! [unpacking]
+
+#! [releasing_gil]
+import openvino.runtime as ov
+import cv2 as cv
+from threading import Thread
+
+input_data = []
+
+# Processing input data will be done in a separate thread
+# while compilation of the model and creation of the infer request
+# is going to be executed in the main thread.
+def prepare_data(input, image_path):
+    image = cv.imread(image_path)
+    h, w = list(input.shape)[-2:]
+    image = cv.resize(image, (h, w))
+    image = image.transpose((2, 0, 1))
+    image = np.expand_dims(image, 0)
+    input_data.append(image)
+
+core = ov.Core()
+model = core.read_model("model.xml")
+# Create thread with prepare_data function as target and start it
+thread = Thread(target=prepare_data, args=[model.input(), "path/to/image"])
+thread.start()
+# The GIL will be released in compile_model.
+# It allows a thread above to start the job,
+# while main thread is running in the background.
+compiled = core.compile_model(model, "GPU")
+# After returning from compile_model, the main thread acquires the GIL
+# and starts create_infer_request which releases it once again.
+request = compiled.create_infer_request()
+# Join the thread to make sure the input_data is ready
+thread.join()
+# running the inference
+request.infer(input_data)
+#! [releasing_gil]

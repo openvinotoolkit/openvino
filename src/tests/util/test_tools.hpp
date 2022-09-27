@@ -16,18 +16,6 @@
 #include "gtest/gtest.h"
 #include "ngraph/function.hpp"
 
-template <typename T>
-size_t count_ops_of_type(const std::shared_ptr<ngraph::Function>& f) {
-    size_t count = 0;
-    for (auto op : f->get_ops()) {
-        if (ngraph::is_type<T>(op)) {
-            count++;
-        }
-    }
-
-    return count;
-}
-
 /// \brief      Reads a binary file to a vector.
 ///
 /// \param[in]  path  The path where the file is located.

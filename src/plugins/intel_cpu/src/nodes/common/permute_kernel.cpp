@@ -5,8 +5,8 @@
 #include "permute_kernel.h"
 
 #include <vector>
-#include <mkldnn_types.h>
 #include <ie_parallel.hpp>
+#include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
 #include "cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
@@ -15,10 +15,10 @@
 #include <common/primitive_hashing_utils.hpp>
 
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_args_permute, field)
@@ -257,8 +257,8 @@ void PermuteKernel::prepareParams() {
     jcp.ndims = sorted_order.size();
     jcp.data_size = params.data_size;
 
-    if (mayiuse(cpu::x64::avx512_common)) {
-        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx512_common>(jcp));
+    if (mayiuse(cpu::x64::avx512_core)) {
+        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx512_core>(jcp));
     } else if (mayiuse(cpu::x64::avx2)) {
         permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx2>(jcp));
     } else if (mayiuse(cpu::x64::sse41)) {

@@ -18,10 +18,10 @@
 
 #define THROW_SHCH_ERROR IE_THROW() << "ShuffleChannels layer with name '" << getName() << "' "
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
 
 namespace ov {
 namespace intel_cpu {
@@ -65,7 +65,7 @@ bool ShuffleChannels::isSupportedOperation(const std::shared_ptr<const ngraph::N
     return true;
 }
 
-ShuffleChannels::ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+ShuffleChannels::ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -95,7 +95,7 @@ void ShuffleChannels::initSupportedPrimitiveDescriptors() {
         THROW_SHCH_ERROR << "has unsupported precision: " << precision.name();
 
     impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
@@ -286,11 +286,11 @@ void ShuffleChannels::ShuffleChannelsExecutor::exec(const uint8_t* srcData, uint
         permuteKernel->execute(srcData, dstData);
 }
 
-void ShuffleChannels::executeDynamicImpl(mkldnn::stream strm) {
+void ShuffleChannels::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void ShuffleChannels::execute(mkldnn::stream strm) {
+void ShuffleChannels::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_SHCH_ERROR << "doesn't have a compiled executor.";
 

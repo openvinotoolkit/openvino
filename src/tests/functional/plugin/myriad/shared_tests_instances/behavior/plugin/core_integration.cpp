@@ -21,7 +21,7 @@ std::pair<std::string, std::string> plugins[] = {
 };
 
 //
-// IE Class Common tests with <pluginName, deviceName params>
+// IE Class Common tests with <pluginName, target_device params>
 //
 
 INSTANTIATE_TEST_SUITE_P(
@@ -43,7 +43,7 @@ TEST_P(IEClassNetworkTestP_VPU_GetMetric, smoke_OptimizationCapabilitiesReturnsF
     ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(OPTIMIZATION_CAPABILITIES))
 
     InferenceEngine::Parameter optimizationCapabilitiesParameter;
-    ASSERT_NO_THROW(optimizationCapabilitiesParameter = ie.GetMetric(deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES)));
+    ASSERT_NO_THROW(optimizationCapabilitiesParameter = ie.GetMetric(target_device, METRIC_KEY(OPTIMIZATION_CAPABILITIES)));
 
     const auto optimizationCapabilities = optimizationCapabilitiesParameter.as<std::vector<std::string>>();
     ASSERT_EQ(optimizationCapabilities.size(), 2);

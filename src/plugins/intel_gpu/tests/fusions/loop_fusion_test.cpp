@@ -52,7 +52,7 @@ public:
 };
 
 class permute_eltwise_loop: public LoopFusingTest {};
-TEST_P(permute_eltwise_loop, basic_taylor) {
+TEST_P(permute_eltwise_loop, basic) {
     auto p = GetParam();
     auto num_iteration_mem = engine.allocate_memory({data_types::i64, format::bfyx, {1, 1, 1, 1}});
     auto trip_count_mem = engine.allocate_memory({data_types::i64, format::bfyx, {1, 1, 1, 1}});
@@ -90,8 +90,8 @@ TEST_P(permute_eltwise_loop, basic_taylor) {
     execute(p);
 }
 
-#define CASE_LOOP_F32_1 3, { 1, 8, 3, 2 }, { 1, 2, 8, 3 }, { 1, 2, 8, 1 }, { 0, 3, 1, 2 }, data_types::f32, format::bfyx, data_types::f32
-#define CASE_LOOP_F16_0 4, { 1, 12, 4, 2 }, { 1, 2, 12, 4 }, { 1, 2, 12, 1 }, { 0, 3, 1, 2 }, data_types::f16, format::bfyx, data_types::f16
+#define CASE_LOOP_F32_1 3, { 1, 8, 3, 2 }, { 1, 2, 8, 3 }, { 1, 2, 8, 1 }, { 0, 2, 3, 1 }, data_types::f32, format::bfyx, data_types::f32
+#define CASE_LOOP_F16_0 4, { 1, 12, 4, 2 }, { 1, 2, 12, 4 }, { 1, 2, 12, 1 }, { 0, 2, 3, 1 }, data_types::f16, format::bfyx, data_types::f16
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_eltwise_loop, ::testing::ValuesIn(std::vector<loop_params>{
     loop_params{ CASE_LOOP_F32_1, 3, 5 },

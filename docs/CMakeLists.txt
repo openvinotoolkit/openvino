@@ -36,9 +36,7 @@ if(NOT ENABLE_DOCKER)
     foreach(target openvino_template_plugin template_extension openvino_template_extension)
         if(TARGET ${target})
             install(TARGETS ${target}
-                    LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH}
-                    COMPONENT tests
-                    EXCLUDE_FROM_ALL)
+                    LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
         endif()
     endforeach()
 endif()

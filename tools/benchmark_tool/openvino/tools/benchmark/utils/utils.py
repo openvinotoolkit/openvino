@@ -3,9 +3,8 @@
 
 from collections import defaultdict
 import datetime
-from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type
+from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type, serialize
 from openvino.preprocess import PrePostProcessor
-from openvino.runtime.passes import Manager
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
     CPU_DEVICE_NAME, GPU_DEVICE_NAME
@@ -308,11 +307,7 @@ def process_help_inference_string(benchmark_app, device_number_streams):
 
 
 def dump_exec_graph(compiled_model, model_path):
-    weight_path = model_path[:model_path.find(".xml")] + ".bin"
-    pass_manager = Manager()
-    pass_manager.register_pass("Serialize", model_path, weight_path)
-    pass_manager.run_passes(compiled_model.get_runtime_model())
-
+    serialize(compiled_model.get_runtime_model(), model_path)
 
 
 def print_perf_counters(perf_counts_list):
@@ -542,18 +537,18 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
         elif inputs[i].node.layout != Layout():
             info.layout = inputs[i].node.layout
         else:
-            image_colors_dim = Dimension(3)
+            image_colors_dim_max = 4
             shape = info.partial_shape
             num_dims = len(shape)
             if num_dims == 4:
-                if(shape[1]) == image_colors_dim:
+                if shape[1].get_max_length() <= image_colors_dim_max and shape[3].get_max_length() > image_colors_dim_max:
                     info.layout = Layout("NCHW")
-                elif(shape[3] == image_colors_dim):
+                elif shape[3].get_max_length() <= image_colors_dim_max and shape[1].get_max_length() > image_colors_dim_max:
                     info.layout = Layout("NHWC")
             elif num_dims == 3:
-                if(shape[0]) == image_colors_dim:
+                if shape[0].get_max_length() <= image_colors_dim_max and shape[2].get_max_length() > image_colors_dim_max:
                     info.layout = Layout("CHW")
-                elif(shape[2] == image_colors_dim):
+                elif shape[2].get_max_length() <= image_colors_dim_max and shape[0].get_max_length() > image_colors_dim_max:
                     info.layout = Layout("HWC")
 
         # Update shape with batch if needed

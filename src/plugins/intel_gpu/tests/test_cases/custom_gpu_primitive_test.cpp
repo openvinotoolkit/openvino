@@ -9,11 +9,6 @@
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/custom_gpu_primitive.hpp>
 
-namespace cldnn
-{
-	template<> struct type_to_data_type<FLOAT16> { static const data_types value = data_types::f16; };
-}
-
 using namespace cldnn;
 using namespace ::tests;
 

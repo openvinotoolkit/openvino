@@ -22,6 +22,7 @@
 #include <complex>
 #include <cstring>
 #include <functional>
+#include <ngraph/runtime/reference/utils/fft_common.hpp>
 #include <utility>
 #include <vector>
 
@@ -57,46 +58,11 @@ std::vector<int64_t> canonicalize_axes(const int64_t* axes_data,
 namespace {
 using complex_type = std::complex<float>;
 
-// Calculates strides for all axes.
-std::vector<int64_t> compute_strides(const std::vector<int64_t>& v) {
-    std::vector<int64_t> strides(v.size() + 1);
-    int64_t stride = 1;
-    for (size_t i = 0; i < v.size(); ++i) {
-        strides[i] = stride;
-        stride *= v[i];
-    }
-    strides.back() = stride;
-    return strides;
-}
-
-// To simplify calculation of strides for all axes of 'shape' of some complex
-// tensor, we reverse numbers in 'shape'. Because we have no native support for
-// complex numbers in tensors, we interpret FFT input tensors of the shape
-// [N_0, ..., N_{r - 1}, 2] as a complex tensor with the shape
-// [N_0, ..., N_{r - 1}]. Hence, we convert 'shape=[N_0, ..., N_{r - 1}, 2]'
-// into [N_{r - 1}, ..., N_0].
-std::vector<int64_t> reverse_shape(const Shape& shape) {
-    size_t complex_data_rank = shape.size() - 1;
-
-    std::vector<int64_t> reversed_shape(complex_data_rank);
-    for (size_t i = 0; i < complex_data_rank; ++i) {
-        reversed_shape[i] = static_cast<int64_t>(shape[complex_data_rank - i - 1]);
-    }
-    return reversed_shape;
-}
-
 // This function gets FFT axes from axes_data
 std::vector<int64_t> get_axes(const int64_t* axes_data, const Shape& axes_data_shape, int64_t complex_data_rank) {
     auto axes = canonicalize_axes(axes_data, axes_data_shape, complex_data_rank);
     std::sort(axes.begin(), axes.end(), std::greater<int64_t>{});
     return axes;
-}
-
-// When we reverted shape, we need to revert FFT axes.
-void reverse_fft_axes(std::vector<int64_t>& axes, int64_t complex_data_rank) {
-    for (int64_t& axis : axes) {
-        axis = complex_data_rank - 1 - axis;
-    }
 }
 
 // Helper function to get only length with respect to given axes.
@@ -148,24 +114,6 @@ int64_t compute_buffer_size(const std::vector<int64_t>& fft_lengths) {
     return buffer_size;
 }
 
-// Calculating coordinates c_0, ..., c_{k - 1} from the index of the form
-// c_0 * strides[0] + ... c_{k - 1} * strides[k - 1]
-// where k is the number of strides.
-std::vector<int64_t> coords_from_index(int64_t index, const std::vector<int64_t>& strides) {
-    int64_t num_of_axes = static_cast<int64_t>(strides.size()) - 1;
-    if (num_of_axes == 0) {
-        return std::vector<int64_t>{};
-    }
-    std::vector<int64_t> coords(num_of_axes);
-    int64_t curr = index;
-    for (int64_t j = num_of_axes - 1; j >= 1; --j) {
-        coords[j] = curr / strides[j];
-        curr %= strides[j];
-    }
-    coords[0] = curr;
-    return coords;
-}
-
 // This function gets a complex value from given coords of this value
 complex_type get_value_from_input(const complex_type* input_data,
                                   int64_t src_index,
@@ -194,7 +142,7 @@ void copy_data_from_input(complex_type* result,
                           const std::vector<int64_t>& input_fft_lengths,
                           const std::vector<int64_t>& input_fft_strides) {
     for (int64_t idx = 0; idx < fft_size; ++idx) {
-        auto coords = coords_from_index(idx, fft_strides);
+        auto coords = fft_common::coords_from_index(idx, fft_strides);
         complex_type value = get_value_from_input(input_data, src_index, coords, input_fft_lengths, input_fft_strides);
         result[idx] = value;
     }
@@ -210,16 +158,6 @@ bool blob_is_zero(const complex_type* data, int64_t blob_size) {
     return true;
 }
 
-// Calculates offset of value using corresponding coordinates and strides.
-int64_t offset_from_coords_and_strides(const std::vector<int64_t>& coords, const std::vector<int64_t>& strides) {
-    int64_t offset = 0;
-    int64_t num_of_axes = coords.size();
-    for (int64_t i = 0; i < num_of_axes; ++i) {
-        offset += coords[i] * strides[i];
-    }
-    return offset;
-}
-
 // Copying calculated data to the given memory domain.
 void copy_data_to_output(complex_type* output,
                          const complex_type* data,
@@ -228,9 +166,9 @@ void copy_data_to_output(complex_type* output,
                          const std::vector<int64_t>& fft_strides,
                          const std::vector<int64_t>& output_fft_strides) {
     for (int64_t idx = 0; idx < fft_size; ++idx) {
-        auto coords = coords_from_index(idx, fft_strides);
+        auto coords = fft_common::coords_from_index(idx, fft_strides);
         complex_type value = data[idx];
-        int64_t offset = offset_from_coords_and_strides(coords, output_fft_strides);
+        int64_t offset = fft_common::offset_from_coords_and_strides(coords, output_fft_strides);
 
         output[dst_index + offset] = value;
     }
@@ -372,29 +310,29 @@ InfoForFFTCalculation get_info_for_calculation(const Shape& input_data_shape,
 
     const int64_t complex_data_rank = static_cast<int64_t>(input_data_shape.size() - 1);
 
-    const auto reversed_output_shape = reverse_shape(output_shape);
+    const auto reversed_output_shape = fft_common::reverse_shape_of_emulated_complex_tensor(output_shape);
     auto fft_axes = get_axes(axes_data, axes_data_shape, complex_data_rank);
-    reverse_fft_axes(fft_axes, complex_data_rank);
+    fft_axes = fft_common::reverse_fft_axes(fft_axes, complex_data_rank);
 
     const int64_t fft_rank = fft_axes.size();
     const auto fft_lengths = get_lengths(reversed_output_shape, fft_axes);
-    const auto fft_strides = compute_strides(fft_lengths);
+    const auto fft_strides = fft_common::compute_strides(fft_lengths);
     const int64_t fft_size = fft_strides[fft_rank];
 
     const auto outer_axes = get_outer_axes(fft_axes, complex_data_rank);
     const int64_t outer_rank = outer_axes.size();
     const auto outer_lengths = get_lengths(reversed_output_shape, outer_axes);
-    const auto outer_strides = compute_strides(outer_lengths);
+    const auto outer_strides = fft_common::compute_strides(outer_lengths);
     const int64_t outer_size = outer_strides[outer_rank];
 
     const int64_t buffer_size = compute_buffer_size(fft_lengths);
 
-    const auto output_strides = compute_strides(reversed_output_shape);
+    const auto output_strides = fft_common::compute_strides(reversed_output_shape);
     const auto output_fft_strides = get_lengths(output_strides, fft_axes);
     const auto output_outer_strides = get_lengths(output_strides, outer_axes);
-    const auto reversed_input_shape = reverse_shape(input_data_shape);
+    const auto reversed_input_shape = fft_common::reverse_shape_of_emulated_complex_tensor(input_data_shape);
     const auto input_fft_lengths = get_lengths(reversed_input_shape, fft_axes);
-    const auto input_strides = compute_strides(reversed_input_shape);
+    const auto input_strides = fft_common::compute_strides(reversed_input_shape);
     const auto input_fft_strides = get_lengths(input_strides, fft_axes);
     const auto input_outer_strides = get_lengths(input_strides, outer_axes);
 
@@ -461,8 +399,8 @@ void fft(const float* input_data,
     // Loop along with 'outer' dimensions, that is along with
     // not transformed dimensions.
     for (int64_t outer_idx = 0; outer_idx < outer_size; ++outer_idx) {
-        const auto outer_coords = coords_from_index(outer_idx, outer_strides);
-        int64_t outer_input_offset = offset_from_coords_and_strides(outer_coords, input_outer_strides);
+        const auto outer_coords = fft_common::coords_from_index(outer_idx, outer_strides);
+        int64_t outer_input_offset = fft_common::offset_from_coords_and_strides(outer_coords, input_outer_strides);
 
         // Copying current data to transform
         copy_data_from_input(data.data(),
@@ -482,14 +420,14 @@ void fft(const float* input_data,
                 auto outer_fft_axes = lengths_except_given_axis(fft_axes, axis_idx);
                 int64_t outer_fft_size = fft_size / current_fft_length;
 
-                auto outer_fft_strides = compute_strides(outer_fft_lengths);
+                auto outer_fft_strides = fft_common::compute_strides(outer_fft_lengths);
                 auto fft_strides_for_outer_fft_axes = lengths_except_given_axis(fft_strides, axis_idx);
 
                 // Loop along with all FFT axes, except the current one.
                 for (int64_t outer_fft_idx = 0; outer_fft_idx < outer_fft_size; ++outer_fft_idx) {
-                    const auto outer_fft_coords = coords_from_index(outer_fft_idx, outer_fft_strides);
+                    const auto outer_fft_coords = fft_common::coords_from_index(outer_fft_idx, outer_fft_strides);
                     int64_t outer_fft_offset =
-                        offset_from_coords_and_strides(outer_fft_coords, fft_strides_for_outer_fft_axes);
+                        fft_common::offset_from_coords_and_strides(outer_fft_coords, fft_strides_for_outer_fft_axes);
                     // Calculation of 1D FFT
                     fft1d(current_fft_length,
                           outer_fft_offset,
@@ -502,7 +440,7 @@ void fft(const float* input_data,
         }
 
         // Copying current calculated data to the output blob.
-        int64_t outer_output_offset = offset_from_coords_and_strides(outer_coords, output_outer_strides);
+        int64_t outer_output_offset = fft_common::offset_from_coords_and_strides(outer_coords, output_outer_strides);
         copy_data_to_output(complex_output_ptr,
                             data.data(),
                             outer_output_offset,

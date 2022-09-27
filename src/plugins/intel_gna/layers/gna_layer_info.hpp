@@ -14,7 +14,11 @@
 #include "gna_permute.hpp"
 #include "gna_lib_ver_selector.hpp"
 #include "gna_copy_layer.hpp"
-
+#include <legacy/ngraph_ops/power.hpp>
+#include <ngraph/opsets/opset8.hpp>
+#include "ops/pwl.hpp"
+#include "layers/gna_crop_layer.hpp"
+#include "backend/gna_limitations.hpp"
 
 namespace GNAPluginNS {
 
@@ -118,6 +122,7 @@ class LayerInfo {
             THROW_GNA_EXCEPTION << "batch size is not define in layer '" << layer->name << "'";
         }
     }
+
     bool isActivation() const noexcept {
         IS_VALID();
         static InferenceEngine::details::caseless_set<std::string> activations =
@@ -136,9 +141,10 @@ class LayerInfo {
              "neghalflog",
              "softsign",
              "power",
-             "fakequantize"};
+             "fakequantize",
+             "pwl"};
 
-        if (isPower()) {
+        if (isOfType("power")) {
             auto powerLayer = as<const InferenceEngine::PowerLayer*>();
             return powerLayer != nullptr && powerLayer->power != 1.0f;
         }
@@ -169,7 +175,15 @@ class LayerInfo {
         return isOfType("convolution");
     }
     bool isPower() const noexcept {
-        return isOfType("power");
+        if (isOfType("power")) {
+            return true;
+        }
+        std::shared_ptr<ov::intel_gna::op::Pwl> pwl_node;
+        if (!layer->getNode() || !(pwl_node = std::dynamic_pointer_cast<ov::intel_gna::op::Pwl>(layer->getNode()))) {
+            return false;
+        }
+        return std::dynamic_pointer_cast<ngraph::op::PowerIE>(pwl_node->get_base_node()) ||
+               std::dynamic_pointer_cast<ngraph::opset8::Power>(pwl_node->get_base_node());
     }
     bool has32BInput() const noexcept {
         IS_VALID();
@@ -304,29 +318,8 @@ class LayerInfo {
         auto inputs = layer->insData.begin()->lock();
         auto inputsOrder = inputs->getTensorDesc().getDims();
 
-        // cases when all permutations happened either between 1 and X shape where no other dims in between
-        auto permuteSequence = genPermutations(layerOrder.begin(), layerOrder.end());
-        auto inputsOrderTransformed = inputsOrder;
-        for (auto && permute : permuteSequence) {
-            // check dims of permuted
-            if (inputsOrderTransformed[permute.first] == 1 &&
-                inputsOrderTransformed[permute.second] == 1) {
-                return true;
-            }
-            if (inputsOrderTransformed[permute.first] != 1 &&
-                inputsOrderTransformed[permute.second] != 1) {
-                return false;
-            }
-            // check dims in between
-            for (int j = std::min(permute.first, permute.second) + 1; j < std::max(permute.first, permute.second); j++) {
-                if (inputsOrderTransformed[j] != 1) {
-                    return false;
-                }
-            }
-            // apply permutation
-            std::swap(inputsOrderTransformed[permute.first], inputsOrderTransformed[permute.second]);
-        }
-        return true;
+        return GNAPluginNS::isTrivialPermute(std::vector<int64_t>{begin(layerOrder), end(layerOrder)},
+            inputsOrder);
     }
     bool isNonValuesChangable() const {
         return isNonFunctional() || isSplit() || isSlice() || isConcat();
@@ -348,11 +341,9 @@ class LayerInfo {
     bool isCropAffined() const noexcept {
         auto cropLayer = dynamic_cast<InferenceEngine::CropLayer *> (layer);
         if (cropLayer != nullptr && !cropLayer->offset.empty()) {
-            // currently crop layer only supports 2 bytes in int16 and int8 mode.
-            // In fp32 mode this is not necessary but is useful for testing
-            auto bytesPerCropElement = 2;
-            size_t cropOffset = cropLayer->offset.back() * bytesPerCropElement;
-            return (ALIGN64(cropOffset) != cropOffset);
+            size_t offset;
+            std::tie(offset, std::ignore, std::ignore) = GetCropParams(cropLayer);
+            return GNAPluginNS::GNALimitations::isCropAffinedOffset(offset);
         }
         return false;
     }
