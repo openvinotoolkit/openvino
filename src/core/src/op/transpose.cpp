@@ -7,7 +7,7 @@
 #include "compare.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/transpose.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "ngraph/validation_util.hpp"
 #include "sequnce_generator.hpp"
 #include "transpose_shape_inference.hpp"
 
