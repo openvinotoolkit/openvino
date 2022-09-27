@@ -96,6 +96,7 @@ public:
                                                                        out_scale,
                                                                        out_shift);
     }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 
 private:
     inline float clamp(float val) const {
