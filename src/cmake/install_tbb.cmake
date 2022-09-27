@@ -84,6 +84,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
           DEFINED ENV{TBB_DIR}) OR ENABLE_SYSTEM_TBB ) )
     ie_cpack_add_component(tbb HIDDEN)
     list(APPEND core_components tbb)
+
     if(TBBROOT MATCHES ${TEMP})
         set(tbb_downloaded ON)
     elseif(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR
