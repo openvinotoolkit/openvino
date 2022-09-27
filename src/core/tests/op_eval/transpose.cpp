@@ -13,6 +13,9 @@
 #include "ngraph/runtime/reference/transpose.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/op/util/transpose_attr.hpp"
+#include "openvino/opsets/opset9.hpp"
+#include "sequnce_generator.hpp"
 #include "util/all_close_f.hpp"
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"
@@ -212,4 +215,167 @@ TEST(op_eval, eval_negative_axes_transpose) {
     } catch (...) {
         FAIL() << "Failed for unexpected reason";
     }
+}
+
+template <typename T>
+std::vector<T> to_vector(const ov::Tensor& tensor) {
+    if (ngraph::element::from<T>() != tensor.get_element_type()) {
+        throw std::invalid_argument("read_vector type must match Tensor type");
+    }
+    std::vector<T> rc(tensor.data<T>(), tensor.data<T>() + tensor.get_size());
+    return rc;
+}
+
+using namespace ov::opset9;
+using namespace testing;
+
+using test_param = std::tuple<std::vector<int32_t>, PartialShape>;
+
+class TransposeEvalTest : public TestWithParam<test_param> {
+protected:
+    void SetUp() override {
+        std::tie(axes_order, p_shape) = GetParam();
+
+        std::generate_n(std::back_inserter(lower_values),
+                        ov::shape_size(p_shape.get_min_shape()),
+                        ov::SeqGen<int32_t>(-10));
+        std::generate_n(std::back_inserter(upper_values),
+                        ov::shape_size(p_shape.get_min_shape()),
+                        ov::SeqGen<int32_t>(20));
+
+        lower_v_tensor = std::make_shared<ov::HostTensor>(dtype, p_shape.get_min_shape(), lower_values.data());
+        upper_v_tensor = std::make_shared<ov::HostTensor>(dtype, p_shape.get_min_shape(), upper_values.data());
+        axes_v_tensor = std::make_shared<ov::HostTensor>(dtype, Shape{axes_order.size()}, axes_order.data());
+
+        arg = make_shared<Parameter>(dtype, p_shape);
+        order = make_shared<Parameter>(dtype, Shape{axes_order.size()});
+        transpose = make_shared<Transpose>(arg, order);
+
+        // prepare result tensors for evaluation
+        result = exp_result = ov::TensorVector{ov::Tensor(dtype, {0})};
+    }
+
+    template <class T1, class T2>
+    void node_set_lower_and_upper(ov::Node* node, const T1& lower, const T2& upper) {
+        if (lower) {
+            node->get_output_tensor(0).set_lower_value(lower);
+        }
+
+        if (upper) {
+            node->get_output_tensor(0).set_upper_value(upper);
+        }
+    }
+
+    PartialShape p_shape;
+    ov::element::Type_t dtype{ov::element::from<int32_t>()};
+
+    std::vector<int32_t> axes_order, lower_values, upper_values;
+    HostTensorPtr lower_v_tensor, upper_v_tensor, axes_v_tensor;
+    ov::TensorVector result, exp_result;
+    std::shared_ptr<Transpose> transpose;
+    std::shared_ptr<Parameter> arg, order;
+
+    TensorLabel labels;
+    TensorLabelVector labels_tensor = TensorLabelVector(ov::op::TransposeOut::OUT_COUNT);
+};
+
+INSTANTIATE_TEST_SUITE_P(op_eval,
+                         TransposeEvalTest,
+                         Values(make_tuple(std::vector<int32_t>{0}, PartialShape{4}),
+                                make_tuple(std::vector<int32_t>{0, 1}, PartialShape{2, 5}),
+                                make_tuple(std::vector<int32_t>{1, 0}, PartialShape{2, 5}),
+                                make_tuple(std::vector<int32_t>{0, 1, 2}, PartialShape{2, 3, 1}),
+                                make_tuple(std::vector<int32_t>{1, 2, 0}, PartialShape{2, 3, 1}),
+                                make_tuple(std::vector<int32_t>{1, 3, 2, 0}, PartialShape{2, 3, 1, 5})),
+                         PrintToStringParamName());
+
+TEST_P(TransposeEvalTest, evaluate_lower) {
+    node_set_lower_and_upper(arg.get(), lower_v_tensor, upper_v_tensor);
+    node_set_lower_and_upper(order.get(), axes_v_tensor, axes_v_tensor);
+
+    const auto inputs = ov::TensorVector{ov::Tensor(dtype, p_shape.get_min_shape(), lower_values.data()),
+                                         ov::Tensor(dtype, Shape{axes_order.size()}, axes_order.data())};
+    // evaluate expected values
+    const auto exp_evaluate = transpose->evaluate(exp_result, inputs);
+
+    ASSERT_EQ(transpose->evaluate_lower(result), exp_evaluate);
+    ASSERT_EQ(to_vector<int32_t>(result[ov::op::TransposeOut::ARG_T]),
+              to_vector<int32_t>(exp_result[ov::op::TransposeOut::ARG_T]));
+}
+
+TEST_P(TransposeEvalTest, evaluate_lower_but_arg_lower_values_not_set) {
+    node_set_lower_and_upper(arg.get(), nullptr, upper_v_tensor);
+    node_set_lower_and_upper(order.get(), axes_v_tensor, axes_v_tensor);
+
+    ASSERT_FALSE(transpose->evaluate_lower(result));
+}
+
+TEST_P(TransposeEvalTest, evaluate_lower_but_order_has_no_bounds_set) {
+    node_set_lower_and_upper(arg.get(), lower_v_tensor, upper_v_tensor);
+
+    ASSERT_FALSE(transpose->evaluate_lower(result));
+}
+
+TEST_P(TransposeEvalTest, evaluate_upper) {
+    node_set_lower_and_upper(arg.get(), lower_v_tensor, upper_v_tensor);
+    node_set_lower_and_upper(order.get(), axes_v_tensor, axes_v_tensor);
+
+    auto inputs = ov::TensorVector{ov::Tensor(dtype, p_shape.get_min_shape(), upper_values.data()),
+                                   ov::Tensor(dtype, Shape{axes_order.size()}, axes_order.data())};
+    // evaluate expected values
+    transpose->evaluate(exp_result, inputs);
+
+    ASSERT_TRUE(transpose->evaluate_upper(result));
+    ASSERT_EQ(to_vector<int32_t>(result[ov::op::TransposeOut::ARG_T]),
+              to_vector<int32_t>(exp_result[ov::op::TransposeOut::ARG_T]));
+}
+
+TEST_P(TransposeEvalTest, evaluate_upper_but_arg_upper_values_not_set) {
+    node_set_lower_and_upper(arg.get(), upper_v_tensor, nullptr);
+    node_set_lower_and_upper(order.get(), axes_v_tensor, axes_v_tensor);
+
+    ASSERT_FALSE(transpose->evaluate_upper(result));
+}
+
+TEST_P(TransposeEvalTest, evaluate_upper_but_order_has_no_bounds_set) {
+    node_set_lower_and_upper(arg.get(), lower_v_tensor, upper_v_tensor);
+
+    ASSERT_FALSE(transpose->evaluate_upper(result));
+}
+
+TEST_P(TransposeEvalTest, evaluate_label_but_empty_label_set) {
+    exp_result = ov::TensorVector{ov::Tensor(element::u64, {0})};
+
+    labels.resize(ov::shape_size(p_shape.get_shape()), 0);
+    arg->get_default_output().get_tensor().set_value_label(labels);
+
+    node_set_lower_and_upper(order.get(), axes_v_tensor, axes_v_tensor);
+
+    ASSERT_FALSE(transpose->evaluate_label(labels_tensor));
+}
+
+TEST_P(TransposeEvalTest, evaluate_label_but_order_has_no_bound_set) {
+    exp_result = ov::TensorVector{ov::Tensor(element::u64, {0})};
+
+    std::generate_n(std::back_inserter(labels), ov::shape_size(p_shape.get_shape()), ov::SeqGen<size_t>(30));
+    arg->get_default_output().get_tensor().set_value_label(labels);
+
+    ASSERT_FALSE(transpose->evaluate_label(labels_tensor));
+}
+
+TEST_P(TransposeEvalTest, evaluate_label) {
+    exp_result = ov::TensorVector{ov::Tensor(element::u64, {0})};
+
+    std::generate_n(std::back_inserter(labels), ov::shape_size(p_shape.get_shape()), ov::SeqGen<size_t>(-5));
+    arg->get_default_output().get_tensor().set_value_label(labels);
+
+    node_set_lower_and_upper(order.get(), axes_v_tensor, axes_v_tensor);
+
+    auto inputs = ov::TensorVector{ov::Tensor(element::u64, p_shape.get_shape(), labels.data()),
+                                   ov::Tensor(dtype, Shape{axes_order.size()}, axes_order.data())};
+
+    auto exp_eval_result = transpose->evaluate(exp_result, inputs);
+
+    ASSERT_EQ(transpose->evaluate_label(labels_tensor), exp_eval_result);
+    ASSERT_EQ(labels_tensor[ov::op::TransposeOut::ARG_T], to_vector<size_t>(exp_result[ov::op::TransposeOut::ARG_T]));
 }

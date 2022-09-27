@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/validation_util.hpp>
+#include "ngraph/op/transpose.hpp"
 
 #include "itt.hpp"
 #include "ngraph/op/transpose.hpp"
 #include "ngraph/runtime/reference/transpose.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "transpose_shape_inference.hpp"
 
 using namespace std;
@@ -59,6 +60,8 @@ shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& ne
 
 namespace transpose {
 namespace {
+using namespace ov::op;
+
 bool evaluate_transpose(const HostTensorPtr& arg1, const HostTensorPtr& arg2, const HostTensorPtr& out) {
     NGRAPH_CHECK(arg2->get_element_type().is_integral_number(),
                  "Transpose axis element type has to be integral data type.");
@@ -102,4 +105,18 @@ bool op::v1::Transpose::evaluate(const HostTensorVector& output_values, const Ho
 bool op::v1::Transpose::has_evaluate() const {
     OV_OP_SCOPE(v1_Transpose_has_evaluate);
     return get_input_element_type(1).is_integral_number();
+}
+
+bool op::v1::Transpose::evaluate_lower(const HostTensorVector& output_values) const {
+    return get_input_tensor(TransposeIn::ORDER).has_and_set_bound() &&
+           default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::Transpose::evaluate_upper(const HostTensorVector& output_values) const {
+    return get_input_tensor(TransposeIn::ORDER).has_and_set_bound() &&
+           default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v1::Transpose::evaluate_label(TensorLabelVector& output_labels) const {
+    return get_input_tensor(TransposeIn::ORDER).has_and_set_bound() && default_label_evaluator(this, output_labels);
 }
