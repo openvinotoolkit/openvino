@@ -4,10 +4,12 @@
 
 #include "ngraph/op/transpose.hpp"
 
+#include "compare.hpp"
 #include "itt.hpp"
 #include "ngraph/op/transpose.hpp"
 #include "ngraph/runtime/reference/transpose.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "sequnce_generator.hpp"
 #include "transpose_shape_inference.hpp"
 
 using namespace std;
@@ -34,7 +36,7 @@ void op::v1::Transpose::validate_and_infer_types() {
     const auto& input_order_shape = get_input_partial_shape(TransposeIn::ORDER);
     NODE_VALIDATION_CHECK(this, input_order_shape.rank().compatible(1), "Input order must be a vector.");
 
-    const auto& arg_shape = get_input_partial_shape(0);
+    const auto& arg_shape = get_input_partial_shape(TransposeIn::ARG);
     NODE_VALIDATION_CHECK(
         this,
         input_order_shape.compatible(ov::PartialShape{arg_shape.rank()}) ||
@@ -58,30 +60,38 @@ shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& ne
     return make_shared<v1::Transpose>(new_args[0], new_args[1]);
 }
 
+void op::v1::Transpose::generate_default_order(std::vector<int64_t>& axes_order, const size_t length) {
+    axes_order.reserve(length);
+    std::generate_n(std::back_inserter(axes_order), length, ov::SeqGen<size_t, ov::Direction::BACKWARD>(length - 1));
+}
+
+bool op::v1::Transpose::is_valid_order(const std::vector<int64_t>& axes_order, const size_t size) {
+    return (std::unordered_set<size_t>(axes_order.cbegin(), axes_order.cend()).size() == size) &&
+           std::all_of(axes_order.cbegin(), axes_order.cend(), ov::cmp::Between<int64_t, ov::cmp::LOWER>(0, size));
+}
+
 namespace transpose {
 namespace {
 using namespace ov::op;
 
 bool evaluate_transpose(const HostTensorPtr& arg1, const HostTensorPtr& arg2, const HostTensorPtr& out) {
-    NGRAPH_CHECK(arg2->get_element_type().is_integral_number(),
-                 "Transpose axis element type has to be integral data type.");
+    OPENVINO_ASSERT(arg2->get_element_type().is_integral_number(),
+                    "Transpose axis element type has to be integral data type.");
 
     std::vector<int64_t> axes_order = host_tensor_2_vector<int64_t>(arg2);
     ov::Shape in_shape = arg1->get_shape();
     if (shape_size(arg2->get_shape()) == 0) {
-        axes_order.resize(in_shape.size());
-        std::iota(axes_order.begin(), axes_order.end(), 0);
-        std::reverse(axes_order.begin(), axes_order.end());
+        v1::Transpose::generate_default_order(axes_order, in_shape.size());
     } else {
-        std::unordered_set<int64_t> axes_set(axes_order.begin(), axes_order.end());
-        bool is_unique_order = axes_set.size() == axes_order.size();
-        NGRAPH_CHECK(is_unique_order, "Transpose axes order values must be unique.");
+        OPENVINO_ASSERT(v1::Transpose::is_valid_order(axes_order, in_shape.size()),
+                        "Permutation ",
+                        AxisVector(axes_order.begin(), axes_order.end()),
+                        " is not valid for input shape ",
+                        in_shape);
     }
 
     ov::Shape out_shape(in_shape.size());
-    std::transform(axes_order.begin(), axes_order.end(), out_shape.begin(), [&](const int64_t& v) {
-        NGRAPH_CHECK(v >= 0, "Negative values for transpose axes order are not supported.");
-        NGRAPH_CHECK(v < int64_t(in_shape.size()), "Transpose axis ", v, " is out of shape range.");
+    std::transform(axes_order.begin(), axes_order.end(), out_shape.begin(), [&in_shape](const int64_t& v) {
         return in_shape[v];
     });
 
@@ -97,6 +107,7 @@ bool evaluate_transpose(const HostTensorPtr& arg1, const HostTensorPtr& arg2, co
 }
 }  // namespace
 }  // namespace transpose
+
 bool op::v1::Transpose::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v1_Transpose_evaluate);
     return transpose::evaluate_transpose(input_values[0], input_values[1], output_values[0]);

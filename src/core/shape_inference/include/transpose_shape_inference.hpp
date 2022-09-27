@@ -3,10 +3,8 @@
 //
 #pragma once
 
-#include "compare.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/transpose_attr.hpp"
-#include "sequnce_generator.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -35,20 +33,16 @@ void shape_infer(const Transpose* op,
 
     if (get_data_as_int64<T>(op::TransposeIn::ORDER, op, axes, constant_data) && input_shape.rank().is_static()) {
         const auto out_rank_size = input_shape.rank().get_length();
-        const auto max_dim_num = out_rank_size - 1;
 
         if (axes.empty()) {
-            axes.reserve(out_rank_size);
-            std::generate_n(std::back_inserter(axes), out_rank_size, SeqGen<size_t, Direction::BACKWARD>(max_dim_num));
+            Transpose::generate_default_order(axes, out_rank_size);
         } else {
-            NODE_VALIDATION_CHECK(
-                op,
-                (std::set<size_t>(axes.cbegin(), axes.cend()).size() == out_rank_size &&
-                 std::all_of(axes.cbegin(), axes.cend(), cmp::Between<int64_t, cmp::LOWER>(0, out_rank_size))),
-                "Permutation ",
-                AxisVector(axes.begin(), axes.end()),
-                " is not valid for input shape ",
-                input_shape);
+            NODE_VALIDATION_CHECK(op,
+                                  Transpose::is_valid_order(axes, out_rank_size),
+                                  "Permutation ",
+                                  AxisVector(axes.begin(), axes.end()),
+                                  " is not valid for input shape ",
+                                  input_shape);
         }
 
         output.resize(out_rank_size);
