@@ -354,23 +354,16 @@ def main():
 
         # --------------------- 8. Querying optimal runtime parameters --------------------------------------------------
         next_step()
-        logger.info("Model: ")
-        model_name = compiled_model.get_property('NETWORK_NAME')
-        optimal_nr_req = compiled_model.get_property('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
-
-        logger.info(f"  NETWORK_NAME: {model_name}")
-        logger.info(f"  OPTIMAL_NUMBER_OF_INFER_REQUESTS: {optimal_nr_req}")
 
         ## actual device-deduced settings
-        for device in devices:
-            keys = benchmark.core.get_property(device, 'SUPPORTED_PROPERTIES')
-            logger.info(f'Device: {device}')
-            for k in keys:
-                if k not in ('SUPPORTED_METRICS', 'SUPPORTED_CONFIG_KEYS', 'SUPPORTED_PROPERTIES'):
-                    try:
-                        logger.info(f'  {k}: {benchmark.core.get_property(device, k)}')
-                    except:
-                        pass
+        keys = compiled_model.get_property('SUPPORTED_PROPERTIES')
+        logger.info("Model:")
+        for k in keys:
+            if k not in ('SUPPORTED_METRICS', 'SUPPORTED_CONFIG_KEYS', 'SUPPORTED_PROPERTIES'):
+                try:
+                    logger.info(f'  {k}: {compiled_model.get_property(k)}')
+                except:
+                    pass
 
 
         # Update number of streams

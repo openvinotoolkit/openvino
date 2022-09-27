@@ -90,18 +90,17 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
 
 static void next_step(const std::string additional_info = "") {
     static size_t step_id = 0;
-    static const std::map<size_t, std::string> step_names = {
-        {1, "Parsing and validating input arguments"},
-        {2, "Loading OpenVINO Runtime"},
-        {3, "Setting device configuration"},
-        {4, "Reading model files"},
-        {5, "Resizing model to match image sizes and given batch"},
-        {6, "Configuring input of the model"},
-        {7, "Loading the model to the device"},
-        {8, "Querying optimal runtime parameters"},
-        {9, "Creating infer requests and preparing input tensors"},
-        {10, "Measuring performance"},
-        {11, "Dumping statistics report"}};
+    static const std::map<size_t, std::string> step_names = {{1, "Parsing and validating input arguments"},
+                                                             {2, "Loading OpenVINO Runtime"},
+                                                             {3, "Setting device configuration"},
+                                                             {4, "Reading model files"},
+                                                             {5, "Resizing model to match image sizes and given batch"},
+                                                             {6, "Configuring input of the model"},
+                                                             {7, "Loading the model to the device"},
+                                                             {8, "Querying optimal runtime parameters"},
+                                                             {9, "Creating infer requests and preparing input tensors"},
+                                                             {10, "Measuring performance"},
+                                                             {11, "Dumping statistics report"}};
 
     step_id++;
 
@@ -459,9 +458,8 @@ int main(int argc, char* argv[]) {
             printInputAndOutputsInfoShort(compiledModel);
 
             if (statistics)
-                statistics->add_parameters(
-                    StatisticsReport::Category::EXECUTION_RESULTS,
-                    {StatisticsVariant("load model time (ms)", "load_model_time", duration_ms)});
+                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                           {StatisticsVariant("load model time (ms)", "load_model_time", duration_ms)});
 
             convert_io_names_in_map(inputFiles, compiledModel.inputs());
             app_inputs_info = get_inputs_info(FLAGS_shape,
@@ -491,9 +489,8 @@ int main(int argc, char* argv[]) {
             printInputAndOutputsInfoShort(*model);
 
             if (statistics)
-                statistics->add_parameters(
-                    StatisticsReport::Category::EXECUTION_RESULTS,
-                    {StatisticsVariant("read model time (ms)", "read_model_time", duration_ms)});
+                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                           {StatisticsVariant("read model time (ms)", "read_model_time", duration_ms)});
 
             const auto& inputInfo = std::const_pointer_cast<const ov::Model>(model)->inputs();
             if (inputInfo.empty()) {
@@ -704,26 +701,17 @@ int main(int argc, char* argv[]) {
         // ----------------- 8. Querying optimal runtime parameters
         // -----------------------------------------------------
         next_step();
-        slog::info << "Model: " << slog::endl;
-        auto model_name = compiledModel.get_property(ov::model_name);
-        auto optimal_nr_req = compiledModel.get_property(ov::optimal_number_of_infer_requests);
-
-        slog::info << "  " << ov::model_name << ": " << model_name << slog::endl;
-        slog::info << "  " << ov::optimal_number_of_infer_requests << ": " << optimal_nr_req << slog::endl;
 
         // output of the actual settings that the device selected
-        for (const auto& device : devices) {
-            auto supported_properties = core.get_property(device, ov::supported_properties);
-            slog::info << "Device: " << device << slog::endl;
-            for (const auto& cfg : supported_properties) {
-                try {
-                    if (cfg == ov::supported_properties)
-                        continue;
-
-                    auto prop = core.get_property(device, cfg);
-                    slog::info << "  " << cfg << ": " << prop.as<std::string>() << slog::endl;
-                } catch (const ov::Exception&) {
-                }
+        auto supported_properties = compiledModel.get_property(ov::supported_properties);
+        slog::info << "Model:" << slog::endl;
+        for (const auto& cfg : supported_properties) {
+            try {
+                if (cfg == ov::supported_properties)
+                    continue;
+                auto prop = compiledModel.get_property(cfg);
+                slog::info << "  " << cfg << ": " << prop.as<std::string>() << slog::endl;
+            } catch (const ov::Exception&) {
             }
         }
 

@@ -208,8 +208,7 @@ static const char inference_precision_message[] = "Optional. Inference precision
 
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of the model.";
 
-static constexpr char outputs_precision_message[] =
-    "Optional. Specifies precision for all output layers of the model.";
+static constexpr char outputs_precision_message[] = "Optional. Specifies precision for all output layers of the model.";
 
 static constexpr char iop_message[] =
     "Optional. Specifies precision for input and output layers by name.\n"
