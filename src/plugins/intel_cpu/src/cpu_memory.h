@@ -167,13 +167,19 @@ public:
     dnnl::memory GetPrimitive() const;
 
     bool isAllocated() const noexcept {
-        if (nullptr == pMemDesc) {
+        if (mgrHandle->getRawPtr()) {
+            return true;
+        }
+        if (!pMemDesc) {
             return false;
         }
-        if (pMemDesc->isDefined() && nullptr == mgrHandle->getRawPtr()) {
-            return false;
+        if (!(pMemDesc->isDefined())) {
+            return true;
         }
-        return true;
+        if (pMemDesc->getCurrentMemSize() == 0) {
+            return true;
+        }
+        return false;
     }
 
     /**
