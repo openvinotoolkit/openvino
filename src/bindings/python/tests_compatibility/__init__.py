@@ -147,6 +147,11 @@ xfail_issue_90649 = xfail_test(reason="RuntimeError: OV does not support the fol
                                       "MelWeightMatrix, SequenceMap, STFT")
 xfail_issue_91151 = xfail_test(reason="RuntimeError: model input (shape={3,4}) and blob (shape=(1)) are incompatible")
 xfail_issue_91152 = xfail_test(reason="RuntimeError: Error validating node '<Node(DequantizeLinear): y>'")
-xfail_issue_91490 = xfail_test(reason="y has zero dimension which is not allowed")
+xfail_issue_92713 = xfail_test(reason="Optional, OptionalHasElement, OptionalGetElement are not supported.")
+xfail_issue_92734 = xfail_test(reason="LayerNormalization ONNX function is not expanded properly.")
+xfail_issue_79173 = xfail_test(reason="Add support for operation DFT.")
+xfail_issue_92716 = xfail_test(reason="BlackmanWindow, HammingWindow, HannWindow.")
+xfail_issue_92916 = xfail_test(reason="Add support for MelWeightMatrix.")
+xfail_issue_92907 = xfail_test(reason="Add support for STFT.")
 
 skip_dynamic_model = pytest.mark.skip(reason="CPU plug-in can't load a model with dynamic output shapes via legacy API")

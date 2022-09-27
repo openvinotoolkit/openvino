@@ -51,6 +51,12 @@ from tests import (
     xfail_issue_91151,
     xfail_issue_91152,
     xfail_issue_91490,
+    xfail_issue_92713,
+    xfail_issue_92734,
+    xfail_issue_79173,
+    xfail_issue_92716,
+    xfail_issue_92916,
+    xfail_issue_92907
 )
 from tests.test_onnx.utils.onnx_backend import OpenVinoTestBackend
 
@@ -161,6 +167,17 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_sequence_map_identity_1_sequence_1_tensor_expanded_cpu",
         "OnnxBackendNodeModelTest.test_sequence_map_identity_1_sequence_expanded_cpu",
         "OnnxBackendNodeModelTest.test_sequence_map_identity_2_sequences_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_sequence_map_add_1_sequence_1_tensor_cpu",
+        "OnnxBackendNodeModelTest.test_sequence_map_add_2_sequences_cpu",
+        "OnnxBackendNodeModelTest.test_sequence_map_extract_shapes_cpu",
+        "OnnxBackendNodeModelTest.test_sequence_map_identity_1_sequence_1_tensor_cpu",
+        "OnnxBackendNodeModelTest.test_sequence_map_identity_1_sequence_cpu",
+        "OnnxBackendNodeModelTest.test_sequence_map_identity_2_sequences_cpu",
+        "OnnxBackendNodeModelTest.test_loop13_seq_cpu",
+        "OnnxBackendNodeModelTest.test_sequence_insert_at_back_cpu",
+        "OnnxBackendNodeModelTest.test_sequence_insert_at_front_cpu",
+        "OnnxBackendNodeModelTest.test_loop16_seq_none_cpu",  # OptionalHasElement, SequenceInsert
+        "OnnxBackendNodeModelTest.test_optional_get_element_sequence_cpu",
     ),
     (
         xfail_issue_38701,
@@ -272,12 +289,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_unsqueeze_unsorted_axes_cpu",
     ),
     (
-        xfail_issue_44965,
-        "OnnxBackendNodeModelTest.test_loop13_seq_cpu",
-        "OnnxBackendNodeModelTest.test_sequence_insert_at_back_cpu",
-        "OnnxBackendNodeModelTest.test_sequence_insert_at_front_cpu",
-    ),
-    (
         xfail_issue_44968,
         "OnnxBackendNodeModelTest.test_squeeze_cpu",
         "OnnxBackendNodeModelTest.test_squeeze_negative_axes_cpu",
@@ -319,14 +330,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_bernoulli_seed_expanded_cpu",
     ),
     (
-        xfail_issue_63137,
-        "OnnxBackendNodeModelTest.test_optional_get_element_cpu",
-        "OnnxBackendNodeModelTest.test_optional_get_element_sequence_cpu",
-        "OnnxBackendNodeModelTest.test_optional_has_element_cpu",
-        "OnnxBackendNodeModelTest.test_optional_has_element_empty_cpu",
-        "OnnxBackendNodeModelTest.test_loop16_seq_none_cpu",  # OptionalHasElement, SequenceInsert
-    ),
-    (
         xfail_issue_63138,
         "OnnxBackendNodeModelTest.test_shape_end_1_cpu",
         "OnnxBackendNodeModelTest.test_shape_end_negative_1_cpu",
@@ -365,16 +368,23 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_identity_opt_cpu",
     ),
     (
-        xfail_issue_90649,
-        "OnnxBackendNodeModelTest.test_blackmanwindow_cpu",
-        "OnnxBackendNodeModelTest.test_blackmanwindow_symmetric_cpu",
-        "OnnxBackendNodeModelTest.test_dft_axis_cpu",
-        "OnnxBackendNodeModelTest.test_dft_cpu",
-        "OnnxBackendNodeModelTest.test_dft_inverse_cpu",
-        "OnnxBackendNodeModelTest.test_hammingwindow_cpu",
-        "OnnxBackendNodeModelTest.test_hammingwindow_symmetric_cpu",
-        "OnnxBackendNodeModelTest.test_hannwindow_cpu",
-        "OnnxBackendNodeModelTest.test_hannwindow_symmetric_cpu",
+        xfail_issue_91151,
+        "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_cpu",
+        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
+    ),
+    (
+        xfail_issue_91152,
+        "OnnxBackendNodeModelTest.test_quantizelinear_cpu",
+        "OnnxBackendNodeModelTest.test_dequantizelinear_cpu",
+    ),
+    (
+        xfail_issue_92713,
+        "OnnxBackendNodeModelTest.test_optional_get_element_cpu",
+        "OnnxBackendNodeModelTest.test_optional_has_element_cpu",
+        "OnnxBackendNodeModelTest.test_optional_has_element_empty_cpu",
+    ),
+    (
+        xfail_issue_92734,
         "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis0_cpu",
         "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis1_cpu",
         "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis_negative_1_cpu",
@@ -394,25 +404,30 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_3_cpu",
         "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_4_cpu",
         "OnnxBackendNodeModelTest.test_layer_normalization_default_axis_cpu",
+    ),
+    (
+        xfail_issue_79173,
+        "OnnxBackendNodeModelTest.test_dft_axis_cpu",
+        "OnnxBackendNodeModelTest.test_dft_cpu",
+        "OnnxBackendNodeModelTest.test_dft_inverse_cpu",
+    ),
+    (
+        xfail_issue_92716,
+        "OnnxBackendNodeModelTest.test_blackmanwindow_cpu",
+        "OnnxBackendNodeModelTest.test_blackmanwindow_symmetric_cpu",
+        "OnnxBackendNodeModelTest.test_hammingwindow_cpu",
+        "OnnxBackendNodeModelTest.test_hammingwindow_symmetric_cpu",
+        "OnnxBackendNodeModelTest.test_hannwindow_cpu",
+        "OnnxBackendNodeModelTest.test_hannwindow_symmetric_cpu",
+    ),
+    (
+        xfail_issue_92916,
         "OnnxBackendNodeModelTest.test_melweightmatrix_cpu",
-        "OnnxBackendNodeModelTest.test_sequence_map_add_1_sequence_1_tensor_cpu",
-        "OnnxBackendNodeModelTest.test_sequence_map_add_2_sequences_cpu",
-        "OnnxBackendNodeModelTest.test_sequence_map_extract_shapes_cpu",
-        "OnnxBackendNodeModelTest.test_sequence_map_identity_1_sequence_1_tensor_cpu",
-        "OnnxBackendNodeModelTest.test_sequence_map_identity_1_sequence_cpu",
-        "OnnxBackendNodeModelTest.test_sequence_map_identity_2_sequences_cpu",
+    ),
+    (
+        xfail_issue_92907,
         "OnnxBackendNodeModelTest.test_stft_cpu",
         "OnnxBackendNodeModelTest.test_stft_with_window_cpu",
-    ),
-    (
-        xfail_issue_91151,
-        "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
-    ),
-    (
-        xfail_issue_91152,
-        "OnnxBackendNodeModelTest.test_quantizelinear_cpu",
-        "OnnxBackendNodeModelTest.test_dequantizelinear_cpu",
     ),
 ]
 
