@@ -27,7 +27,7 @@ For the OpenVINO build next tools are required:
 - [CMake]\* 3.14 or higher
 - Microsoft\* Visual Studio 2019, version 16.8 or later
 - (Optional) Intel® Graphics Driver for Windows* (30.0) [driver package](https://www.intel.com/content/www/us/en/download/19344/intel-graphics-windows-dch-drivers.html).
-- Python 3.6 or higher for OpenVINO Runtime Python API
+- Python 3.7 or higher for OpenVINO Runtime Python API
 - [Git for Windows*](https://gitforwindows.org/)
     
 </p>
@@ -37,7 +37,7 @@ For the OpenVINO build next tools are required:
 
 - [CMake] 3.13 or higher
 - GCC 7.5 or higher to build OpenVINO Runtime
-- Python 3.6 or higher for OpenVINO Runtime Python API
+- Python 3.7 or higher for OpenVINO Runtime Python API
 - (Optional) [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.41.14441] to enable inference on Intel integrated GPUs.
     
 <p>
@@ -55,7 +55,7 @@ For the OpenVINO build next tools are required:
   % xcode-select --install
   ``` 
 - The step to install python and python libraries is different depending on host architecture:
-  - **x86_64** Python\* 3.6 or higher for the OpenVINO Runtime Python API, Development tools (Model Optimizer, POT and others):
+  - **x86_64** Python\* 3.7 or higher for the OpenVINO Runtime Python API, Development tools (Model Optimizer, POT and others):
   ```sh
   % # let's have a look what python versions are available in brew
   % brew search python
