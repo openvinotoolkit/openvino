@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 
-#include "op_table.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
 #include "tf_framework_node.hpp"
 
