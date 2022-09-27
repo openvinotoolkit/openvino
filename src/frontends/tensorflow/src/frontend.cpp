@@ -121,7 +121,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
             size_t producer_port_idx;
             try {
                 operation_decoder->get_input_node(input_port_idx, producer_name, producer_port_idx);
-            } catch (const std::exception& e) {
+            } catch (const std::exception&) {
                 FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
                                 " for op '" + operation_decoder->get_op_name() + "', expected input name: '" +
                                 producer_name + "', expected input port index: " + std::to_string(producer_port_idx) +
@@ -248,7 +248,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
             size_t producer_port_idx;
             try {
                 operation_decoder->get_input_node(port_index, producer_name, producer_port_idx);
-            } catch (const std::exception& e) {
+            } catch (const std::exception&) {
                 FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(port_index) +
                                 " for op '" + operation_decoder->get_op_name() + "', expected input name: '" +
                                 producer_name + "', expected input port index: " + std::to_string(producer_port_idx) +

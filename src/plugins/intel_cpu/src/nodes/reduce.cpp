@@ -121,7 +121,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
 
     void generate() override {
         if (jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
-            exp_injector = std::make_shared<jit_uni_eltwise_injector_f32<isa>>(this, alg_kind::eltwise_exp, 0.f, 0.f, 1);
+            exp_injector = std::make_shared<jit_uni_eltwise_injector_f32<isa>>(this, alg_kind::eltwise_exp, 0.f, 0.f, 1.f);
         }
 
         if (mayiuse(avx512_core))
@@ -2681,8 +2681,8 @@ inline void Reduce::calc_process_dst_dims(std::vector<int> &reduce_axes, const S
         }
     }
     if (jit_mode && jit_beyond_5D) {
-        if (std::accumulate(out_dims.begin(), out_dims.end(), 1, std::multiplies<double>()) !=
-            std::accumulate(dst_dims.begin(), dst_dims.end(), 1, std::multiplies<double>()))
+        if (std::accumulate(out_dims.begin(), out_dims.end(), size_t(1), std::multiplies<size_t>()) !=
+            std::accumulate(dst_dims.begin(), dst_dims.end(), size_t(1), std::multiplies<size_t>()))
             IE_THROW() << errorPrefix << "gets incorrect number of output dimensions!";
     } else {
         for (size_t i = 0; i < std::min(out_dims.size(), dst_dims.size()); i++) {
