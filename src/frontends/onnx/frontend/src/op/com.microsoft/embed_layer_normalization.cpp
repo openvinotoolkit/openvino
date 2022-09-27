@@ -5,6 +5,7 @@
 #include "op/com.microsoft/embed_layer_normalization.hpp"
 
 #include "default_opset.hpp"
+#include "ngraph/log.hpp"
 #include "onnx_import/core/null_node.hpp"
 
 namespace ngraph {
@@ -40,10 +41,8 @@ OutputVector embed_layer_normalization(const Node& node) {
         // input_ids' shape is [batchsize, sequence_length]
         // input's shape is [batchsize, sequence_length, hidden_size]
         // position_embeddings's shape is [max_sequence_length, hidden_size]
-        // output = input + position_embeddings,
-        // after broadcast the shape of output is [batchszie, max_sequence_lenght, hidden_size]
-        // the output shape is error.
-        // so, we need slice the position_embeddings to [sequence_length, hidden_size] first
+        // therefore input and position_embeddings cannot be added together
+        // so we need slice the position_embeddings to [sequence_length, hidden_size] first
         // then add it with input.
         const auto one = default_opset::Constant::create(element::i32, Shape{1}, {1});
         const auto input_ids_shape = std::make_shared<default_opset::ShapeOf>(input_ids, element::i32);
