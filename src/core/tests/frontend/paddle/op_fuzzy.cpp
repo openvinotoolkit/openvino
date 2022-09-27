@@ -405,6 +405,10 @@ static const std::vector<std::string> models{
     std::string("strided_slice_input2_3"),
     std::string("strided_slice_input3_1"),
     std::string("strided_slice_input3_2"),
+    std::string("sum_1"),
+    std::string("sum_2"),
+    std::string("sum_3"),
+    std::string("sum_4"),
     std::string("swish_default_params"),
     std::string("swish_beta"),
     std::string("tanh"),
@@ -438,6 +442,12 @@ static const std::vector<std::string> models{
     std::string("where_1"),
     std::string("where_2"),
     std::string("where_3"),
+    std::string("where_index_1"),
+    std::string("where_index_2"),
+    std::string("where_index_3"),
+    std::string("where_index_4"),
+    std::string("where_index_5"),
+    std::string("where_index_6"),
     // Temporily disable them until root caused to secure CI stable.
     // CVS-66703 to track this.
     // std::string("yolo_box_clip_box"),

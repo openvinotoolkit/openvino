@@ -75,12 +75,12 @@ inline const std::string generate_complex_device_name(const std::string deviceNa
     return deviceName + ":" + ov::test::conformance::targetDevice;
 }
 
-inline const std::vector<std::string> return_all_possible_device_combination() {
+inline const std::vector<std::string> return_all_possible_device_combination(bool enable_complex_name = true) {
     std::vector<std::string> res{ov::test::conformance::targetDevice};
     std::vector<std::string> devices{CommonTestUtils::DEVICE_HETERO, CommonTestUtils::DEVICE_AUTO,
                                      CommonTestUtils::DEVICE_BATCH, CommonTestUtils::DEVICE_MULTI};
     for (const auto& device : devices) {
-        res.emplace_back(generate_complex_device_name(device));
+        res.emplace_back(enable_complex_name ? generate_complex_device_name(device) : device);
     }
     return res;
 }
@@ -89,7 +89,7 @@ inline std::vector<std::pair<std::string, std::string>> generate_pairs_plugin_na
     std::vector<std::pair<std::string, std::string>> res;
     for (const auto& device : return_all_possible_device_combination()) {
         std::string real_device = device.substr(0, device.find(':'));
-        res.push_back(std::make_pair(get_plugin_lib_name_by_device(ov::test::conformance::targetDevice),
+        res.push_back(std::make_pair(get_plugin_lib_name_by_device(real_device),
                                      real_device));
     }
     return res;
