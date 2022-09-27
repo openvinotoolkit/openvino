@@ -441,8 +441,6 @@ if (ENABLE_TEMPLATE)
         # It should be a part of template plugin
         op_eval/interpolate.cpp
         op_eval/memory.cpp
-        op_eval/roi_align.cpp
-        op_eval/roi_pooling.cpp
         op_eval/transpose.cpp
         op_eval/variadic_split.cpp)
 endif()
