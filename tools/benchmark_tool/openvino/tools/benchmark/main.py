@@ -41,8 +41,8 @@ def parse_and_check_command_line():
     is_precisiton_set = not (args.input_precision == "" and args.output_precision == "" and args.input_output_precision == "")
 
     if is_network_compiled and is_precisiton_set:
-        raise Exception("Cannot set precision for a compiled network. " \
-                        "Please re-compile your network with required precision " \
+        raise Exception("Cannot set precision for a compiled model. " \
+                        "Please re-compile your model with required precision " \
                         "using compile_tool")
     
     return args, is_network_compiled
@@ -75,7 +75,7 @@ def main():
             load_config(args.load_config, config)
 
         if is_network_compiled:
-            logger.info("Network is compiled")
+            logger.info("Model is compiled")
 
         # ------------------------------ 2. Loading OpenVINO Runtime -------------------------------------------
         next_step(step_id=2)
@@ -264,7 +264,7 @@ def main():
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ('load network time (ms)', duration_ms)
+                                              ('load model time (ms)', duration_ms)
                                           ])
             app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, compiled_model.inputs)
             batch_size = get_network_batch_size(app_inputs_info)
@@ -272,20 +272,20 @@ def main():
             # --------------------- 4. Read the Intermediate Representation of the network -----------------------------
             next_step()
 
-            logger.info("Loading network files")
+            logger.info("Loading model files")
 
             start_time = datetime.utcnow()
             model = benchmark.read_model(args.path_to_model)
             topology_name = model.get_name()
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
-            logger.info(f"Read network took {duration_ms} ms")
-            logger.info("Original network I/O parameters:")
+            logger.info(f"Read model took {duration_ms} ms")
+            logger.info("Original model I/O parameters:")
             print_inputs_and_outputs_info(model)
 
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ('read network time (ms)', duration_ms)
+                                              ('read model time (ms)', duration_ms)
                                           ])
 
             # --------------------- 5. Resizing network to match image sizes and given batch ---------------------------
@@ -295,20 +295,20 @@ def main():
 
             # use batch size according to provided layout and shapes
             batch_size = get_network_batch_size(app_inputs_info)
-            logger.info(f'Network batch size: {batch_size}')
+            logger.info(f'Model batch size: {batch_size}')
 
             if reshape:
                 start_time = datetime.utcnow()
                 shapes = { info.name : info.partial_shape for info in app_inputs_info }
                 logger.info(
-                    'Reshaping network: {}'.format(', '.join("'{}': {}".format(k, str(v)) for k, v in shapes.items())))
+                    'Reshaping model: {}'.format(', '.join("'{}': {}".format(k, str(v)) for k, v in shapes.items())))
                 model.reshape(shapes)
                 duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
-                logger.info(f"Reshape network took {duration_ms} ms")
+                logger.info(f"Reshape model took {duration_ms} ms")
                 if statistics:
                     statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                               [
-                                                  ('reshape network time (ms)', duration_ms)
+                                                  ('reshape model time (ms)', duration_ms)
                                               ])
 
             # --------------------- 6. Configuring inputs and outputs of the model --------------------------------------------------
@@ -327,15 +327,15 @@ def main():
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ('load network time (ms)', duration_ms)
+                                              ('compile model time (ms)', duration_ms)
                                           ])
         else:
             next_step()
-            print("Skipping the step for compiled network")
+            print("Skipping the step for compiled model")
             next_step()
-            print("Skipping the step for compiled network")
+            print("Skipping the step for compiled model")
             next_step()
-            print("Skipping the step for compiled network")
+            print("Skipping the step for compiled model")
 
             # --------------------- 7. Loading the model to the device -------------------------------------------------
             next_step()
@@ -347,7 +347,7 @@ def main():
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ('import network time (ms)', duration_ms)
+                                              ('import model time (ms)', duration_ms)
                                           ])
             app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, compiled_model.inputs)
             batch_size = get_network_batch_size(app_inputs_info)

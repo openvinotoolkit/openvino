@@ -241,51 +241,45 @@ Below are fragments of sample output static and dynamic networks:
 
 * For static network:
    ```
-   [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, limits: 60000 ms duration)
-   [ INFO ] BENCHMARK IS IN INFERENCE ONLY MODE.
-   [ INFO ] Input blobs will be filled once before performance measurements.
-   [ INFO ] First inference took 26.26 ms
-   Progress: [................... ]  99% done
-
+   [Step 10/11] Measuring performance (Start inference asynchronously, 10 inference requests, limits: 10 iterations)
+   [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+   [ INFO ] First inference took 930.52 ms
    [Step 11/11] Dumping statistics report
-   [ INFO ] Count:      6640 iterations
-   [ INFO ] Duration:   60039.70 ms
+   [ INFO ] Count:        10 iterations
+   [ INFO ] Duration:     1543.02 ms
    [ INFO ] Latency:
-   [ INFO ]        Median:  35.36 ms
-   [ INFO ]        Avg:    36.12 ms
-   [ INFO ]        Min:    18.55 ms
-   [ INFO ]        Max:    88.96 ms
-   [ INFO ] Throughput: 110.59 FPS
+   [ INFO ]    Median:     1113.16 ms
+   [ INFO ]    Average:    1182.07 ms
+   [ INFO ]    Min:        1043.88 ms
+   [ INFO ]    Max:        1540.04 ms
+   [ INFO ] Throughput:   6.48 FPS
    ```
 
 * For dynamic network:
    ```
-   [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, limits: 60000 ms duration)
-   [ INFO ] BENCHMARK IS IN FULL MODE.
-   [ INFO ] Inputs setup stage will be included in performance measurements.
-   [ INFO ] First inference took 26.80 ms
-   Progress: [................... ]  99% done
-
+   [Step 10/11] Measuring performance (Start inference asynchronously, 10 inference requests, limits: 10 iterations)
+   [ INFO ] Benchmarking in full mode (inputs filling are included in measurement loop).
+   [ INFO ] First inference took 141.88 ms
    [Step 11/11] Dumping statistics report
-   [ INFO ] Count:      5199 iterations
-   [ INFO ] Duration:   60043.34 ms
+   [ INFO ] Count:        10 iterations
+   [ INFO ] Duration:     188.64 ms
    [ INFO ] Latency:
-   [ INFO ]        Median:  41.58 ms
-   [ INFO ]        Avg:    46.07 ms
-   [ INFO ]        Min:    8.44 ms
-   [ INFO ]        Max:    115.65 ms
+   [ INFO ]    Median:     161.61 ms
+   [ INFO ]    Average:    159.29 ms
+   [ INFO ]    Min:        106.39 ms
+   [ INFO ]    Max:        183.42 ms
    [ INFO ] Latency for each data shape group:
-   [ INFO ] 1. data : [1, 3, 224, 224]
-   [ INFO ]        Median:  38.37 ms
-   [ INFO ]        Avg:    30.29 ms
-   [ INFO ]        Min:    8.44 ms
-   [ INFO ]        Max:    61.30 ms
-   [ INFO ] 2. data : [1, 3, 448, 448]
-   [ INFO ]        Median:  68.21 ms
-   [ INFO ]        Avg:    61.85 ms
-   [ INFO ]        Min:    29.58 ms
-   [ INFO ]        Max:    115.65 ms
-   [ INFO ] Throughput: 86.59 FPS
+   [ INFO ] 1. input_1: {1, 64, 64, 3}
+   [ INFO ]    Median:     173.76 ms
+   [ INFO ]    Average:    173.21 ms
+   [ INFO ]    Min:        161.40 ms
+   [ INFO ]    Max:        183.42 ms
+   [ INFO ] 2. input_1: {1, 32, 32, 3}
+   [ INFO ]    Median:     148.49 ms
+   [ INFO ]    Average:    145.36 ms
+   [ INFO ]    Min:        106.39 ms
+   [ INFO ]    Max:        162.67 ms
+   [ INFO ] Throughput:   53.01 FPS
    ```
 
 ## See Also

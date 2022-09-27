@@ -79,8 +79,8 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
     bool isPrecisionSet = !(FLAGS_ip.empty() && FLAGS_op.empty() && FLAGS_iop.empty());
     if (isNetworkCompiled && isPrecisionSet) {
-        std::string err = std::string("Cannot set precision for a compiled network. ") +
-                          std::string("Please re-compile your network with required precision "
+        std::string err = std::string("Cannot set precision for a compiled model. ") +
+                          std::string("Please re-compile your model with required precision "
                                       "using compile_tool");
 
         throw std::logic_error(err);
@@ -94,8 +94,8 @@ static void next_step(const std::string additional_info = "") {
         {1, "Parsing and validating input arguments"},
         {2, "Loading OpenVINO Runtime"},
         {3, "Setting device configuration"},
-        {4, "Reading network files"},
-        {5, "Resizing network to match image sizes and given batch"},
+        {4, "Reading model files"},
+        {5, "Resizing model to match image sizes and given batch"},
         {6, "Configuring input of the model"},
         {7, "Loading the model to the device"},
         {8, "Querying optimal runtime parameters"},
@@ -168,7 +168,7 @@ int main(int argc, char* argv[]) {
 
         bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
         if (isNetworkCompiled) {
-            slog::info << "Network is compiled" << slog::endl;
+            slog::info << "Model is compiled" << slog::endl;
         }
 
         std::vector<gflags::CommandLineFlagInfo> flags;
@@ -446,22 +446,22 @@ int main(int argc, char* argv[]) {
 
         if (FLAGS_load_from_file && !isNetworkCompiled) {
             next_step();
-            slog::info << "Skipping the step for loading network from file" << slog::endl;
+            slog::info << "Skipping the step for loading model from file" << slog::endl;
             next_step();
-            slog::info << "Skipping the step for loading network from file" << slog::endl;
+            slog::info << "Skipping the step for loading model from file" << slog::endl;
             next_step();
-            slog::info << "Skipping the step for loading network from file" << slog::endl;
+            slog::info << "Skipping the step for loading model from file" << slog::endl;
             auto startTime = Time::now();
             compiledModel = core.compile_model(FLAGS_m, device_name);
             auto duration_ms = get_duration_ms_till_now(startTime);
-            slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
-            slog::info << "Original network I/O parameters:" << slog::endl;
+            slog::info << "Load model took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Original model I/O parameters:" << slog::endl;
             printInputAndOutputsInfoShort(compiledModel);
 
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
-                    {StatisticsVariant("load network time (ms)", "load_network_time", duration_ms)});
+                    {StatisticsVariant("load model time (ms)", "load_model_time", duration_ms)});
 
             convert_io_names_in_map(inputFiles, compiledModel.inputs());
             app_inputs_info = get_inputs_info(FLAGS_shape,
@@ -481,19 +481,19 @@ int main(int argc, char* argv[]) {
             // ----------------------------------------
             next_step();
 
-            slog::info << "Loading network files" << slog::endl;
+            slog::info << "Loading model files" << slog::endl;
 
             auto startTime = Time::now();
             auto model = core.read_model(FLAGS_m);
             auto duration_ms = get_duration_ms_till_now(startTime);
-            slog::info << "Read network took " << double_to_string(duration_ms) << " ms" << slog::endl;
-            slog::info << "Original network I/O parameters:" << slog::endl;
+            slog::info << "Read model took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Original model I/O parameters:" << slog::endl;
             printInputAndOutputsInfoShort(*model);
 
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
-                    {StatisticsVariant("read network time (ms)", "read_network_time", duration_ms)});
+                    {StatisticsVariant("read model time (ms)", "read_model_time", duration_ms)});
 
             const auto& inputInfo = std::const_pointer_cast<const ov::Model>(model)->inputs();
             if (inputInfo.empty()) {
@@ -525,15 +525,15 @@ int main(int argc, char* argv[]) {
                 benchmark_app::PartialShapes shapes = {};
                 for (auto& item : app_inputs_info[0])
                     shapes[item.first] = item.second.partialShape;
-                slog::info << "Reshaping network: " << get_shapes_string(shapes) << slog::endl;
+                slog::info << "Reshaping model: " << get_shapes_string(shapes) << slog::endl;
                 startTime = Time::now();
                 model->reshape(shapes);
                 duration_ms = get_duration_ms_till_now(startTime);
-                slog::info << "Reshape network took " << double_to_string(duration_ms) << " ms" << slog::endl;
+                slog::info << "Reshape model took " << double_to_string(duration_ms) << " ms" << slog::endl;
                 if (statistics)
                     statistics->add_parameters(
                         StatisticsReport::Category::EXECUTION_RESULTS,
-                        {StatisticsVariant("reshape network time (ms)", "reshape_network_time", duration_ms)});
+                        {StatisticsVariant("reshape model time (ms)", "reshape_model_time", duration_ms)});
             }
 
             // ----------------- 6. Configuring inputs and outputs
@@ -625,7 +625,7 @@ int main(int argc, char* argv[]) {
             if (!isDynamicNetwork && app_inputs_info.size()) {
                 batchSize = get_batch_size(app_inputs_info.front());
 
-                slog::info << "Network batch size: " << batchSize << slog::endl;
+                slog::info << "Model batch size: " << batchSize << slog::endl;
             } else if (batchSize == 0) {
                 batchSize = 1;
             }
@@ -641,14 +641,14 @@ int main(int argc, char* argv[]) {
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
-                    {StatisticsVariant("load network time (ms)", "load_network_time", duration_ms)});
+                    {StatisticsVariant("compile model time (ms)", "load_model_time", duration_ms)});
         } else {
             next_step();
-            slog::info << "Skipping the step for compiled network" << slog::endl;
+            slog::info << "Skipping the step for compiled model" << slog::endl;
             next_step();
-            slog::info << "Skipping the step for compiled network" << slog::endl;
+            slog::info << "Skipping the step for compiled model" << slog::endl;
             next_step();
-            slog::info << "Skipping the step for compiled network" << slog::endl;
+            slog::info << "Skipping the step for compiled model" << slog::endl;
             // ----------------- 7. Loading the model to the device
             // --------------------------------------------------------
             next_step();
@@ -662,14 +662,14 @@ int main(int argc, char* argv[]) {
             modelStream.close();
 
             auto duration_ms = get_duration_ms_till_now(startTime);
-            slog::info << "Import network took " << double_to_string(duration_ms) << " ms" << slog::endl;
-            slog::info << "Original network I/O paramteters:" << slog::endl;
+            slog::info << "Import model took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Original model I/O paramteters:" << slog::endl;
             printInputAndOutputsInfoShort(compiledModel);
 
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
-                    {StatisticsVariant("import network time (ms)", "import_network_time", duration_ms)});
+                    {StatisticsVariant("import model time (ms)", "import_model_time", duration_ms)});
 
             convert_io_names_in_map(inputFiles, compiledModel.inputs());
             app_inputs_info = get_inputs_info(FLAGS_shape,
@@ -686,7 +686,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (isDynamicNetwork && FLAGS_api == "sync") {
-            throw std::logic_error("Benchmarking of the model with dynamic shapes is available for async API only."
+            throw std::logic_error("Benchmarking of the model with dynamic shapes is available for async API only. "
                                    "Please use -api async -nstreams 1 -nireq 1 to emulate sync behavior");
         }
 

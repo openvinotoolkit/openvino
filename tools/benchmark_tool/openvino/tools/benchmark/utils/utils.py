@@ -29,8 +29,8 @@ def next_step(additional_info='', step_id=0):
         1: "Parsing and validating input arguments",
         2: "Loading OpenVINO Runtime",
         3: "Setting device configuration",
-        4: "Reading network files",
-        5: "Resizing network to match image sizes and given batch",
+        4: "Reading model files",
+        5: "Resizing model to match image sizes and given batch",
         6: "Configuring input of the model",
         7: "Loading the model to the device",
         8: "Querying optimal runtime parameters",
@@ -145,7 +145,7 @@ def parse_input_output_precision(arg_map: str):
 def print_inputs_and_outputs_info(model: Model):
 
     inputs = model.inputs
-    logger.info("Network inputs:")
+    logger.info("Model inputs:")
     for input in inputs:
         in_name = " , ".join(input.get_names())
         node_name = input.node.get_friendly_name()
@@ -157,7 +157,7 @@ def print_inputs_and_outputs_info(model: Model):
                     f"{str(input.node.layout)} / {'{'}{','.join(str(x) for x in input.partial_shape)}{'}'}")
 
     outputs = model.outputs
-    logger.info("Network outputs:")
+    logger.info("Model outputs:")
     for output in outputs:
         out_name = " , ".join(output.get_names())
         node_name = output.get_node().input(0).get_source_output().get_node().get_friendly_name()
