@@ -124,7 +124,7 @@ const std::string& ov::element::Type::c_type_string() const {
 }
 
 size_t ov::element::Type::size() const {
-    return std::ceil(static_cast<float>(bitwidth()) / 8.0f);
+    return static_cast<size_t>(std::ceil(static_cast<float>(bitwidth()) / 8.0f));
 }
 
 size_t ov::element::Type::hash() const {

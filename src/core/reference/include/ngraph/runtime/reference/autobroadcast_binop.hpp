@@ -28,7 +28,7 @@ inline void row_major_strides(const Shape& shape, size_t* strides, size_t size) 
 
 template <typename C, typename T>
 inline T value_with_padding_or(const C& arr, size_t padding, size_t idx, T&& default_value) {
-    return idx < padding ? std::forward<T>(default_value) : arr[idx - padding];
+    return idx < padding ? std::forward<T>(default_value) : static_cast<T>(arr[idx - padding]);
 }
 
 template <int A0, int A1, typename T, typename U, typename Functor>

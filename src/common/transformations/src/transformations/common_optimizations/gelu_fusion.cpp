@@ -60,7 +60,7 @@ ngraph::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
         }
 
         bool valid_constant_values =
-            op::util::has_constant_value<float>(div_const_value, M_SQRT2) &&
+            op::util::has_constant_value<float>(div_const_value, static_cast<float>(M_SQRT2)) &&
             op::util::has_constant_value<float>(add_const_value, 1.0f) &&
             op::util::has_constant_value<float>(mul_const_value, 0.5f);
 
@@ -130,7 +130,7 @@ ngraph::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
         }
 
         bool valid_constant_values =
-            op::util::has_constant_value<float>(div_const_value, M_SQRT2) &&
+            op::util::has_constant_value<float>(div_const_value, static_cast<float>(M_SQRT2)) &&
             op::util::has_constant_value<float>(add_const_value, 1.0f) &&
             op::util::has_constant_value<float>(mul_const_value, 0.5f);
 
@@ -200,7 +200,7 @@ ngraph::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
         }
 
         bool valid_constant_values =
-            op::util::has_constant_value<float>(div_const_value, M_SQRT2) &&
+            op::util::has_constant_value<float>(div_const_value, static_cast<float>(M_SQRT2)) &&
             op::util::has_constant_value<float>(add_const_value, 1.0f) &&
             op::util::has_constant_value<float>(mul_const_value, 0.5f);
 
