@@ -14,8 +14,6 @@ from openvino.runtime.utils.types import get_dtype
 from .constants import IMAGE_EXTENSIONS, BINARY_EXTENSIONS
 from .logging import logger
 
-cv2: ModuleType = None
-
 class DataQueue:
     def __init__(self, input_data: dict, batch_sizes: list):
         self.input_data = input_data
@@ -37,16 +35,6 @@ class DataQueue:
 
     def get_next_batch_size(self):
         return self.batch_sizes[self.current_group_id]
-
-def import_cv2():
-    global cv2
-    
-    try:
-        import cv2
-    except ImportError as ex:
-        raise Exception("Loading images requires opencv-python module. " \
-            "Please install it before continuing or run benchmark without "\
-            "the -i flag to fill vectors with random data") from ex
 
 def get_group_batch_sizes(app_input_info):
     batch_sizes = []
@@ -136,9 +124,13 @@ def get_input_data(paths_to_input, app_input_info):
     return DataQueue(data, get_group_batch_sizes(app_input_info))
 
 
-def get_image_tensors(image_paths, info, batch_sizes):
-    if cv2 is None:
-        import_cv2()
+def get_image_tensors(image_paths, info, batch_sizes):   
+    try:
+        import cv2
+    except ImportError as ex:
+        raise Exception("Loading images requires opencv-python module. " \
+            "Please install it before continuing or run benchmark without "\
+            "the -i flag to fill vectors with random data.") from ex
 
     processed_frames = 0
     widthes = info.widthes if info.is_dynamic else [info.width]
