@@ -5,7 +5,9 @@
 #include "openvino/frontend/tensorflow/frontend.hpp"
 
 #include "graph_iterator_proto.hpp"
+#include "helper_transforms/block_lstm_replacer.hpp"
 #include "helper_transforms/embedding_segments_feature_fusing.hpp"
+#include "helper_transforms/gru_block_cell_replacer.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
@@ -428,6 +430,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     // Runs middle transformations to convert sub-graphs with intermediate (frontend internal) operations
     // into sub-graphs with only OpenVINO operations
     manager.register_pass<ov::frontend::tensorflow::pass::EmbeddingSegmentSingleFeatureFusion>();
+    manager.register_pass<ov::frontend::tensorflow::pass::BlockLSTMToLSTMSequenceOneOutput>();
+    manager.register_pass<ov::frontend::tensorflow::pass::GRUBlockCellReplacer>();
 
     // TODO: reimplement TransposeSinking that does not corrupt filters for Convolution
     // and preserve tensor names in case of sinking

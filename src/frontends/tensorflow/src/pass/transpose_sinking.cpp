@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transpose_sinking.hpp"
+#include "pass/transpose_sinking.hpp"
 
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset8.hpp"
