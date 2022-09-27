@@ -7,7 +7,6 @@
 #include <inference_engine.hpp>
 #include <memory>
 #include <string>
-#include "openvino/frontend/manager.hpp"
 
 #include "common_test_utils/graph_comparator.hpp"
 #include "ie_blob.h"
@@ -15,11 +14,12 @@
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/variant.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
+#include "openvino/frontend/manager.hpp"
 #include "openvino/runtime/core.hpp"
 
 class PartialShapeDeserialization : public testing::Test {
 protected:
-    std::shared_ptr<ngraph::Function> getWithIRFrontend(const std::string& model) {
+    std::shared_ptr<ov::Model> getWithIRFrontend(const std::string& model) {
         std::istringstream modelStringStream(model);
         std::istream& modelStream = modelStringStream;
 
@@ -263,15 +263,14 @@ TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestDynamicRank) {
     f_11_ref->set_friendly_name("Network");
 
     const auto fc = FunctionsComparator::with_default()
-            .enable(FunctionsComparator::ATTRIBUTES)
-            .enable(FunctionsComparator::PRECISIONS)
-            .enable(FunctionsComparator::RUNTIME_KEYS)
-            .enable(FunctionsComparator::NAMES)
-            .enable(FunctionsComparator::CONST_VALUES);
+                        .enable(FunctionsComparator::ATTRIBUTES)
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::NAMES)
+                        .enable(FunctionsComparator::CONST_VALUES);
     auto res = fc.compare(f, f_11_ref);
     EXPECT_TRUE(res.valid) << res.message;
 }
-
 
 TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestDynamicRankNegative) {
     std::string model = R"V0G0N(
