@@ -18,7 +18,7 @@ std::shared_ptr<Function> ngraph::specialize_function(std::shared_ptr<Function> 
                                                       const std::vector<void*>& parameter_values)
 
 {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "specialize_function");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "specialize_function");
 
     NGRAPH_CHECK(f->get_parameters().size() == parameter_shapes.size());
     NGRAPH_CHECK(f->get_parameters().size() == parameter_element_types.size());

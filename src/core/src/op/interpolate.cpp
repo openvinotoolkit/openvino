@@ -29,7 +29,7 @@ op::v0::Interpolate::Interpolate(const Output<Node>& image, const Output<Node>& 
 }
 
 bool op::v0::Interpolate::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Interpolate_visit_attributes);
+    OV_OP_SCOPE(v0_Interpolate_visit_attributes);
     visitor.on_attribute("align_corners", m_attrs.align_corners);
     visitor.on_attribute("antialias", m_attrs.antialias);
     visitor.on_attribute("axes", m_attrs.axes);
@@ -40,7 +40,7 @@ bool op::v0::Interpolate::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void op::v0::Interpolate::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_Interpolate_validate_and_infer_types);
+    OV_OP_SCOPE(v0_Interpolate_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(1).is_integral_number(),
                           "output shape must be an integral number.");
@@ -56,7 +56,7 @@ void op::v0::Interpolate::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v0::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Interpolate_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Interpolate_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v0::Interpolate>(new_args.at(0), new_args.at(1), m_attrs);
 }
@@ -110,7 +110,7 @@ op::v4::Interpolate::Interpolate(const Output<Node>& image,
 }
 
 bool op::v4::Interpolate::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v4_Interpolate_visit_attributes);
+    OV_OP_SCOPE(v4_Interpolate_visit_attributes);
     visitor.on_attribute("mode", m_attrs.mode);
     visitor.on_attribute("shape_calculation_mode", m_attrs.shape_calculation_mode);
     visitor.on_attribute("coordinate_transformation_mode", m_attrs.coordinate_transformation_mode);
@@ -197,7 +197,7 @@ ov::PartialShape op::v4::Interpolate::get_padded_input_shape(const ov::PartialSh
 }
 
 void op::v4::Interpolate::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v4_Interpolate_validate_and_infer_types);
+    OV_OP_SCOPE(v4_Interpolate_validate_and_infer_types);
     element::Type input_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
                           input_et == element::f32 || input_et == element::f16 || input_et == element::i8 ||
@@ -242,7 +242,7 @@ void op::v4::Interpolate::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v4::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v4_Interpolate_clone_with_new_inputs);
+    OV_OP_SCOPE(v4_Interpolate_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() <= 3) {
         return make_shared<op::v4::Interpolate>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
@@ -472,12 +472,12 @@ bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs, 
 }
 
 bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v4_Interpolate_evaluate);
+    OV_OP_SCOPE(v4_Interpolate_evaluate);
     return evaluate_interpolate(outputs, inputs);
 }
 
 bool op::v4::Interpolate::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v4_Interpolate_has_evaluate);
+    OV_OP_SCOPE(v4_Interpolate_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i8:
     case ngraph::element::u8:

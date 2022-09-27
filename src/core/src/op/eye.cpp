@@ -57,7 +57,7 @@ ov::op::v9::Eye::Eye(const Output<Node>& num_rows,
 }
 
 void ov::op::v9::Eye::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v9_Eye_validate_and_infer_types);
+    OV_OP_SCOPE(v9_Eye_validate_and_infer_types);
     const auto& num_rows_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
                           num_rows_et == element::i32 || num_rows_et == element::i64,
@@ -95,13 +95,13 @@ void ov::op::v9::Eye::validate_and_infer_types() {
 }
 
 bool ov::op::v9::Eye::visit_attributes(ov::AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v9_Eye_visit_attributes);
+    OV_OP_SCOPE(v9_Eye_visit_attributes);
     visitor.on_attribute("output_type", m_output_type);
     return true;
 }
 
 std::shared_ptr<ov::Node> ov::op::v9::Eye::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v9_Eye_clone_with_new_inputs);
+    OV_OP_SCOPE(v9_Eye_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 3) {
         return std::make_shared<v9::Eye>(new_args[0], new_args[1], new_args[2], m_output_type);
@@ -113,7 +113,7 @@ std::shared_ptr<ov::Node> ov::op::v9::Eye::clone_with_new_inputs(const ov::Outpu
 }
 
 bool ov::op::v9::Eye::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v9_Eye_has_evaluate);
+    OV_OP_SCOPE(v9_Eye_has_evaluate);
     switch (m_output_type) {
     case ov::element::i8:
     case ov::element::u8:
@@ -130,7 +130,7 @@ bool ov::op::v9::Eye::has_evaluate() const {
 }
 
 bool ov::op::v9::Eye::evaluate(const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v9_Eye_evaluate);
+    OV_OP_SCOPE(v9_Eye_evaluate);
     OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, get_input_size()), "Invalid Eye input TensorVector.");
     OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1), "Invalid Eye output TensorVector.");
 

@@ -39,7 +39,7 @@ void ov::op::util::ArithmeticReduction::set_reduction_axes(const AxisSet& reduct
 }
 
 void ov::op::util::ArithmeticReduction::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(util_ArithmeticReduction_validate_and_infer_types);
+    OV_OP_SCOPE(util_ArithmeticReduction_validate_and_infer_types);
 
     const PartialShape& axes_shape = get_input_partial_shape(1);
     const Rank axes_rank = axes_shape.rank();

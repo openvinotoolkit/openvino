@@ -21,19 +21,19 @@
 using namespace std;
 
 TEST(conditional_compilation, collect_op_scope) {
-#define ngraph_op_Scope0 1
+#define ov_op_Scope0 1
     int n = 0;
 
     // Simple scope is enabled
-    NGRAPH_OP_SCOPE(Scope0);
+    OV_OP_SCOPE(Scope0);
     n = 42;
     EXPECT_EQ(n, 42);
 
     // Simple scope is disabled
-    NGRAPH_OP_SCOPE(Scope1);
+    OV_OP_SCOPE(Scope1);
     n = 43;
     EXPECT_EQ(n, 43);
-#undef CCTests_Scope0
+#undef ov_op_Scope0
 }
 
 #undef SELECTIVE_BUILD_ANALYZER

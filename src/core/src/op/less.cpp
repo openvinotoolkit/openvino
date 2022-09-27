@@ -60,18 +60,18 @@ op::v1::Less::Less(const Output<Node>& arg0, const Output<Node>& arg1, const Aut
 }
 
 shared_ptr<Node> op::v1::Less::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_Less_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_Less_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v1::Less>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
 bool op::v1::Less::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_Less_evaluate);
+    OV_OP_SCOPE(v1_Less_evaluate);
     return lessop::evaluate_less(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 bool op::v1::Less::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_Less_has_evaluate);
+    OV_OP_SCOPE(v1_Less_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::boolean:
     case ngraph::element::i32:

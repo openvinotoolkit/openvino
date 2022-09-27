@@ -23,18 +23,18 @@ op::v1::GatherTree::GatherTree(const Output<Node>& step_ids,
 }
 
 shared_ptr<Node> op::v1::GatherTree::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_GatherTree_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_GatherTree_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::GatherTree>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
 bool ngraph::op::v1::GatherTree::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_GatherTree_visit_attributes);
+    OV_OP_SCOPE(v1_GatherTree_visit_attributes);
     return true;
 }
 
 void op::v1::GatherTree::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_GatherTree_validate_and_infer_types);
+    OV_OP_SCOPE(v1_GatherTree_validate_and_infer_types);
 
     const auto& step_ids_et = get_input_element_type(0);
     const auto& parent_idx_et = get_input_element_type(1);

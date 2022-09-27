@@ -19,7 +19,7 @@ ov::op::v3::Acosh::Acosh(const Output<Node>& arg) : UnaryElementwiseArithmetic(a
 }
 
 std::shared_ptr<ov::Node> ov::op::v3::Acosh::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v3_Acosh_clone_with_new_inputs);
+    OV_OP_SCOPE(v3_Acosh_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<Acosh>(new_args.at(0));
 }
@@ -52,12 +52,12 @@ bool evaluate_acosh(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorP
 }  // namespace acoshop
 
 bool ov::op::v3::Acosh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v3_Acosh_evaluate);
+    OV_OP_SCOPE(v3_Acosh_evaluate);
     return acoshop::evaluate_acosh(inputs[0], outputs[0]);
 }
 
 bool ov::op::v3::Acosh::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v3_Acosh_has_evaluate);
+    OV_OP_SCOPE(v3_Acosh_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:

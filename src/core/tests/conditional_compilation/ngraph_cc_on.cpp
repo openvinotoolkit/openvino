@@ -21,18 +21,18 @@
 using namespace std;
 
 TEST(conditional_compilation, disabled_op_scope) {
-#define ngraph_op_Scope0 1
+#define ov_op_Scope0 1
     int n = 0;
     const std::string errMsg = "ngraph_op_Scope1 is disabled!";
 
     // Simple scope is enabled
-    NGRAPH_OP_SCOPE(Scope0);
+    OV_OP_SCOPE(Scope0);
     n = 42;
     EXPECT_EQ(n, 42);
 
     // Simple scope is disabled
-    ASSERT_THROW(NGRAPH_OP_SCOPE(Scope1), ngraph::ngraph_error);
-#undef CCTests_Scope0
+    ASSERT_THROW(OV_OP_SCOPE(Scope1), ngraph::ngraph_error);
+#undef ov_op_Scope0
 }
 
 #undef SELECTIVE_BUILD

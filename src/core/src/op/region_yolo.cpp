@@ -35,7 +35,7 @@ op::RegionYolo::RegionYolo(const Output<Node>& input,
 }
 
 bool ngraph::op::v0::RegionYolo::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_RegionYolo_visit_attributes);
+    OV_OP_SCOPE(v0_RegionYolo_visit_attributes);
     visitor.on_attribute("anchors", m_anchors);
     visitor.on_attribute("axis", m_axis);
     visitor.on_attribute("coords", m_num_coords);
@@ -48,7 +48,7 @@ bool ngraph::op::v0::RegionYolo::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void op::RegionYolo::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_RegionYolo_validate_and_infer_types);
+    OV_OP_SCOPE(v0_RegionYolo_validate_and_infer_types);
     auto input_et = get_input_element_type(0);
 
     NODE_VALIDATION_CHECK(this,
@@ -63,7 +63,7 @@ void op::RegionYolo::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::RegionYolo::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_RegionYolo_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_RegionYolo_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<RegionYolo>(new_args.at(0),
                                    m_num_coords,

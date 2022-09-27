@@ -29,7 +29,7 @@ ov::op::util::GatherBase::GatherBase(const Output<Node>& data,
 }
 
 void ov::op::util::GatherBase::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(util_GatherBase_validate_and_infer_types);
+    OV_OP_SCOPE(util_GatherBase_validate_and_infer_types);
     const auto& data_type = get_input_element_type(0);
 
     const auto& data_pshape = get_input_partial_shape(0);
@@ -195,7 +195,7 @@ bool cf_gather_with_subgraph(ov::OutputVector& output_values,
 }  // namespace gather
 
 bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(util_GatherBase_evaluate);
+    OV_OP_SCOPE(util_GatherBase_evaluate);
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(inputs, 3));
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1));
 

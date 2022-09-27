@@ -29,7 +29,7 @@ op::Asin::Asin(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
 }
 
 shared_ptr<Node> op::Asin::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Asin_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Asin_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Asin>(new_args.at(0));
 }
@@ -64,12 +64,12 @@ bool evaluate_asin(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
 }  // namespace asinop
 
 bool op::Asin::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Asin_evaluate);
+    OV_OP_SCOPE(v0_Asin_evaluate);
     return asinop::evaluate_asin(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool op::Asin::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_Asin_has_evaluate);
+    OV_OP_SCOPE(v1_Asin_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:

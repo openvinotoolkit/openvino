@@ -23,7 +23,7 @@ op::v5::Loop::Loop(const Output<Node>& trip_count, const Output<Node>& execution
 }
 
 bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v5_Loop_visit_attributes);
+    OV_OP_SCOPE(v5_Loop_visit_attributes);
     visitor.on_attribute("body", m_bodies[0]);
     visitor.on_attribute("input_descriptions", m_input_descriptions[0]);
     visitor.on_attribute("output_descriptions", m_output_descriptions[0]);
@@ -33,7 +33,7 @@ bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void op::v5::Loop::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v5_Loop_validate_and_infer_types);
+    OV_OP_SCOPE(v5_Loop_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this, m_bodies.size() == 1, "Number of bodies for loop is greater than 1");
 
@@ -240,7 +240,7 @@ void op::v5::Loop::validate_and_infer_types() {
 }
 
 std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v5_Loop_clone_with_new_inputs);
+    OV_OP_SCOPE(v5_Loop_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     auto op = make_shared<op::v5::Loop>();
     NGRAPH_CHECK(op.get(), op != nullptr, "Cannot clone ", description(), " operation with name ", get_friendly_name());
@@ -262,7 +262,7 @@ Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
 }
 
 bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v5_Loop_evaluate);
+    OV_OP_SCOPE(v5_Loop_evaluate);
     ngraph::runtime::reference::loop(m_bodies[0],
                                      m_output_descriptions[0],
                                      m_input_descriptions[0],
@@ -273,7 +273,7 @@ bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVec
 }
 
 bool op::v5::Loop::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v5_Loop_has_evaluate);
+    OV_OP_SCOPE(v5_Loop_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:

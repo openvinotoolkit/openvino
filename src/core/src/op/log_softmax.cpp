@@ -17,13 +17,13 @@ op::v5::LogSoftmax::LogSoftmax(const Output<Node>& arg, const int64_t axis) : Op
 }
 
 bool op::v5::LogSoftmax::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v5_LogSoftmax_visit_attributes);
+    OV_OP_SCOPE(v5_LogSoftmax_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     return true;
 }
 
 void op::v5::LogSoftmax::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v5_LogSoftmax_validate_and_infer_types);
+    OV_OP_SCOPE(v5_LogSoftmax_validate_and_infer_types);
     const ov::PartialShape& input_shape = get_input_partial_shape(0);
     if (input_shape.rank().is_static())
         NODE_VALIDATION_CHECK(this,
@@ -38,7 +38,7 @@ void op::v5::LogSoftmax::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v5::LogSoftmax::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v5_LogSoftmax_clone_with_new_inputs);
+    OV_OP_SCOPE(v5_LogSoftmax_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v5::LogSoftmax>(new_args.at(0), m_axis);
 }

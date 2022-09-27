@@ -41,7 +41,7 @@ op::v1::GroupConvolution::GroupConvolution(const Output<Node>& data_batch,
 }
 
 bool ngraph::op::v1::GroupConvolution::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_GroupConvolution_visit_attributes);
+    OV_OP_SCOPE(v1_GroupConvolution_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("pads_begin", m_pads_begin);
     visitor.on_attribute("pads_end", m_pads_end);
@@ -66,7 +66,7 @@ static Dimension infer_group_from_input_shapes(const ov::PartialShape& data_psha
 }
 
 void op::v1::GroupConvolution::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_GroupConvolution_validate_and_infer_types);
+    OV_OP_SCOPE(v1_GroupConvolution_validate_and_infer_types);
     element::Type data_batch_et = get_input_element_type(0);
     element::Type filters_et = get_input_element_type(1);
 
@@ -102,7 +102,7 @@ void op::v1::GroupConvolution::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v1::GroupConvolution::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_GroupConvolution_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_GroupConvolution_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::GroupConvolution>(new_args.at(0),
                                              new_args.at(1),
@@ -184,7 +184,7 @@ op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData(const Output<
 }
 
 bool ngraph::op::v1::GroupConvolutionBackpropData::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_GroupConvolutionBackpropData_visit_attributes);
+    OV_OP_SCOPE(v1_GroupConvolutionBackpropData_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("pads_begin", m_pads_begin);
     visitor.on_attribute("pads_end", m_pads_end);
@@ -266,7 +266,7 @@ void op::v1::GroupConvolutionBackpropData::infer_conv_backprop_output_spatial_sh
 }
 
 void op::v1::GroupConvolutionBackpropData::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_GroupConvolutionBackpropData_validate_and_infer_types);
+    OV_OP_SCOPE(v1_GroupConvolutionBackpropData_validate_and_infer_types);
     element::Type data_et = get_input_element_type(0);
     element::Type filters_et = get_input_element_type(1);
 
@@ -320,7 +320,7 @@ void op::v1::GroupConvolutionBackpropData::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v1::GroupConvolutionBackpropData::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_GroupConvolutionBackpropData_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_GroupConvolutionBackpropData_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 3) {
         return make_shared<v1::GroupConvolutionBackpropData>(new_args.at(0),

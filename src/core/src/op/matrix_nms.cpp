@@ -26,7 +26,7 @@ op::v8::MatrixNms::MatrixNms(const Output<Node>& boxes, const Output<Node>& scor
 }
 
 std::shared_ptr<Node> op::v8::MatrixNms::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v8_MatrixNms_clone_with_new_inputs);
+    OV_OP_SCOPE(v8_MatrixNms_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this, new_args.size() == 2, "Number of inputs must be 2");
 
@@ -34,7 +34,7 @@ std::shared_ptr<Node> op::v8::MatrixNms::clone_with_new_inputs(const OutputVecto
 }
 
 void op::v8::MatrixNms::validate() {
-    NGRAPH_OP_SCOPE(v8_MatrixNms_validate);
+    OV_OP_SCOPE(v8_MatrixNms_validate);
 
     const auto& nms_attrs = this->get_attrs();
     const auto output_type = nms_attrs.output_type;
@@ -74,7 +74,7 @@ void op::v8::MatrixNms::validate() {
 }
 
 void op::v8::MatrixNms::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v8_MatrixNms_validate_and_infer_types);
+    OV_OP_SCOPE(v8_MatrixNms_validate_and_infer_types);
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
 
@@ -122,7 +122,7 @@ void op::v8::MatrixNms::validate_and_infer_types() {
 }
 
 bool op::v8::MatrixNms::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v8_MatrixNms_visit_attributes);
+    OV_OP_SCOPE(v8_MatrixNms_visit_attributes);
 
     visitor.on_attribute("sort_result_type", m_attrs.sort_result_type);
     visitor.on_attribute("output_type", m_attrs.output_type);

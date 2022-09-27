@@ -42,7 +42,7 @@ ov::op::v9::SoftSign::SoftSign(const Output<Node>& arg) : UnaryElementwiseArithm
 }
 
 void ov::op::v9::SoftSign::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v9_SoftSign_validate_and_infer_types);
+    OV_OP_SCOPE(v9_SoftSign_validate_and_infer_types);
     const element::Type& input_et = get_input_element_type(0);
 
     NODE_VALIDATION_CHECK(this,
@@ -54,18 +54,18 @@ void ov::op::v9::SoftSign::validate_and_infer_types() {
 }
 
 bool ov::op::v9::SoftSign::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v9_SoftSign_visit_attributes);
+    OV_OP_SCOPE(v9_SoftSign_visit_attributes);
     return true;
 }
 
 std::shared_ptr<ov::Node> ov::op::v9::SoftSign::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v9_SoftSign_clone_with_new_inputs);
+    OV_OP_SCOPE(v9_SoftSign_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<ov::op::v9::SoftSign>(new_args.at(0));
 }
 
 bool ov::op::v9::SoftSign::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v9_SoftSign_has_evaluate);
+    OV_OP_SCOPE(v9_SoftSign_has_evaluate);
     switch (get_input_element_type(0)) {
     case ov::element::bf16:
     case ov::element::f16:
@@ -81,7 +81,7 @@ bool ov::op::v9::SoftSign::has_evaluate() const {
 bool ov::op::v9::SoftSign::evaluate(ov::TensorVector& outputs,
                                     const ov::TensorVector& inputs,
                                     const ov::EvaluationContext& evaluation_context) const {
-    NGRAPH_OP_SCOPE(v9_SoftSign_evaluate);
+    OV_OP_SCOPE(v9_SoftSign_evaluate);
 
     OPENVINO_ASSERT(outputs.size() == 1 && inputs.size() == 1,
                     "SoftSign evaluate needs exactly 1 input and 1 output, instead got:",

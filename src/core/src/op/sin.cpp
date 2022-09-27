@@ -20,12 +20,12 @@ op::Sin::Sin(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
 }
 
 bool ngraph::op::v0::Sin::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Sin_visit_attributes);
+    OV_OP_SCOPE(v0_Sin_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::Sin::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Sin_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Sin_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Sin>(new_args.at(0));
 }
@@ -60,12 +60,12 @@ bool evaluate_sin(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
 }  // namespace sinop
 
 bool op::Sin::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Sin_evaluate);
+    OV_OP_SCOPE(v0_Sin_evaluate);
     return sinop::evaluate_sin(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool op::Sin::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Sin_has_evaluate);
+    OV_OP_SCOPE(v0_Sin_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:

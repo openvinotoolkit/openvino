@@ -28,13 +28,13 @@ op::v1::Split::Split(const Output<Node>& data, const Output<Node>& axis, const s
 }
 
 bool ngraph::op::v1::Split::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_Split_visit_attributes);
+    OV_OP_SCOPE(v1_Split_visit_attributes);
     visitor.on_attribute("num_splits", m_num_splits);
     return true;
 }
 
 void op::v1::Split::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_Split_validate_and_infer_types);
+    OV_OP_SCOPE(v1_Split_validate_and_infer_types);
     const element::Type& axis_et = get_input_element_type(1);
 
     NODE_VALIDATION_CHECK(this,
@@ -60,7 +60,7 @@ void op::v1::Split::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v1::Split::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_Split_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_Split_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Split>(new_args.at(0), new_args.at(1), m_num_splits);
 }
@@ -104,7 +104,7 @@ bool evaluate_split(const HostTensorPtr& data_tensor,
 }  // namespace split
 
 bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_Split_evaluate);
+    OV_OP_SCOPE(v1_Split_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, m_num_splits) && validate_host_tensor_vector(inputs, 2));
     const auto& data = inputs[0];
     const auto& axis = inputs[1];
@@ -112,6 +112,6 @@ bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVe
 }
 
 bool op::v1::Split::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_Split_has_evaluate);
+    OV_OP_SCOPE(v1_Split_has_evaluate);
     return get_input_element_type(1).is_integral_number();
 }

@@ -73,13 +73,13 @@ bool evaluate_clamp(const HostTensorPtr& arg, const HostTensorPtr& out, double m
 }  // namespace clamp
 
 bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Clamp_evaluate);
+    OV_OP_SCOPE(v0_Clamp_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     return clamp::evaluate_clamp(inputs[0], outputs[0], get_min(), get_max());
 }
 
 bool op::v0::Clamp::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Clamp_has_evaluate);
+    OV_OP_SCOPE(v0_Clamp_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i8:
     case ngraph::element::i16:
@@ -108,7 +108,7 @@ op::Clamp::Clamp(const Output<Node>& data, const double min, const double max) :
 }
 
 void op::Clamp::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_Clamp_validate_and_infer_types);
+    OV_OP_SCOPE(v0_Clamp_validate_and_infer_types);
     const element::Type& input_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
                           input_et.is_integral_number() || input_et.is_real(),
@@ -124,7 +124,7 @@ void op::Clamp::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::Clamp::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Clamp_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Clamp_clone_with_new_inputs);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() == 1,
                           "Expected 1 element in new_args for the Clamp op but got ",
@@ -134,7 +134,7 @@ shared_ptr<Node> op::Clamp::clone_with_new_inputs(const OutputVector& new_args) 
 }
 
 bool op::Clamp::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Clamp_visit_attributes);
+    OV_OP_SCOPE(v0_Clamp_visit_attributes);
     visitor.on_attribute("min", m_min);
     visitor.on_attribute("max", m_max);
     return true;

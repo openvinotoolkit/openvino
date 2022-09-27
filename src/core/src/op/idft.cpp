@@ -30,12 +30,12 @@ op::v7::IDFT::IDFT(const Output<Node>& data, const Output<Node>& axes, const Out
 }
 
 bool op::v7::IDFT::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v7_IDFT_visit_attributes);
+    OV_OP_SCOPE(v7_IDFT_visit_attributes);
     return true;
 }
 
 std::shared_ptr<Node> op::v7::IDFT::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v7_IDFT_clone_with_new_inputs);
+    OV_OP_SCOPE(v7_IDFT_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this, new_args.size() == 2 || new_args.size() == 3, "Number of inputs must be 2 or 3");
 

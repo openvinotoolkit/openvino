@@ -25,12 +25,12 @@ ov::op::util::ScatterNDBase::ScatterNDBase(const Output<Node>& data,
 }
 
 bool ov::op::util::ScatterNDBase::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(util_ScatterNDBase_visit_attributes);
+    OV_OP_SCOPE(util_ScatterNDBase_visit_attributes);
     return true;
 }
 
 void ov::op::util::ScatterNDBase::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(util_ScatterNDBase_validate_and_infer_types);
+    OV_OP_SCOPE(util_ScatterNDBase_validate_and_infer_types);
     element::Type inputs_et = get_input_element_type(INPUTS);
     element::Type indices_et = get_input_element_type(INDICES);
     element::Type updates_et = get_input_element_type(UPDATES);

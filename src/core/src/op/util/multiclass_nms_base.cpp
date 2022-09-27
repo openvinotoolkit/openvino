@@ -15,7 +15,7 @@ op::util::MulticlassNmsBase::MulticlassNmsBase(const OutputVector& arguments, co
       m_attrs{attrs} {}
 
 void op::util::MulticlassNmsBase::validate() {
-    NGRAPH_OP_SCOPE(util_MulticlassNmsBase_validate);
+    OV_OP_SCOPE(util_MulticlassNmsBase_validate);
 
     const auto& nms_attrs = this->get_attrs();
     const auto output_type = nms_attrs.output_type;
@@ -67,7 +67,7 @@ void op::util::MulticlassNmsBase::validate() {
 }
 
 bool op::util::MulticlassNmsBase::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(util_MulticlassNmsBase_visit_attributes);
+    OV_OP_SCOPE(util_MulticlassNmsBase_visit_attributes);
 
     visitor.on_attribute("sort_result_type", m_attrs.sort_result_type);
     visitor.on_attribute("output_type", m_attrs.output_type);

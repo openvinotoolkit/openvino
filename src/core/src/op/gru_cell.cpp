@@ -80,13 +80,13 @@ op::v3::GRUCell::GRUCell(const Output<Node>& X,
 }
 
 bool op::v3::GRUCell::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v3_GRUCell_visit_attributes);
+    OV_OP_SCOPE(v3_GRUCell_visit_attributes);
     visitor.on_attribute("linear_before_reset", m_linear_before_reset);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
 void op::v3::GRUCell::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v3_GRUCell_validate_and_infer_types);
+    OV_OP_SCOPE(v3_GRUCell_validate_and_infer_types);
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
             set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic());
@@ -179,7 +179,7 @@ void op::v3::GRUCell::add_default_bias_input() {
 }
 
 shared_ptr<Node> op::v3::GRUCell::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v3_GRUCell_clone_with_new_inputs);
+    OV_OP_SCOPE(v3_GRUCell_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 4) {
         return make_shared<GRUCell>(new_args.at(0),

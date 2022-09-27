@@ -26,12 +26,12 @@ op::v3::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
 }
 
 bool op::v3::ScatterElementsUpdate::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_visit_attributes);
+    OV_OP_SCOPE(v3_ScatterElementsUpdate_visit_attributes);
     return true;
 }
 
 void op::v3::ScatterElementsUpdate::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_validate_and_infer_types);
+    OV_OP_SCOPE(v3_ScatterElementsUpdate_validate_and_infer_types);
     element::Type data_et = get_input_element_type(0);
     element::Type indices_et = get_input_element_type(1);
     element::Type updates_et = get_input_element_type(2);
@@ -67,7 +67,7 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v3::ScatterElementsUpdate::clone_with_new_inputs(const OutputVector& inputs) const {
-    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_clone_with_new_inputs);
+    OV_OP_SCOPE(v3_ScatterElementsUpdate_clone_with_new_inputs);
     NODE_VALIDATION_CHECK(this,
                           inputs.size() == get_input_size(),
                           "clone_with_new_inputs() required inputs size: ",
@@ -103,10 +103,10 @@ bool evaluate(const HostTensorPtr& data,
     return true;
 }
 
-#define TYPE_AXS_CASE(a, ...)                                          \
-    case element::Type_t::a: {                                         \
-        NGRAPH_OP_SCOPE(OV_PP_CAT3(scatter_element_update_axs, _, a)); \
-        rc = evaluate<DT, IT, element::Type_t::a>(__VA_ARGS__);        \
+#define TYPE_AXS_CASE(a, ...)                                      \
+    case element::Type_t::a: {                                     \
+        OV_OP_SCOPE(OV_PP_CAT3(scatter_element_update_axs, _, a)); \
+        rc = evaluate<DT, IT, element::Type_t::a>(__VA_ARGS__);    \
     } break;
 
 template <element::Type_t DT, element::Type_t IT>
@@ -137,10 +137,10 @@ bool evaluate(const HostTensorPtr& arg0,
     return rc;
 }
 
-#define TYPE_IND_CASE(a, ...)                                          \
-    case element::Type_t::a: {                                         \
-        NGRAPH_OP_SCOPE(OV_PP_CAT3(scatter_element_update_ind, _, a)); \
-        rc = evaluate<DT, element::Type_t::a>(__VA_ARGS__);            \
+#define TYPE_IND_CASE(a, ...)                                      \
+    case element::Type_t::a: {                                     \
+        OV_OP_SCOPE(OV_PP_CAT3(scatter_element_update_ind, _, a)); \
+        rc = evaluate<DT, element::Type_t::a>(__VA_ARGS__);        \
     } break;
 
 template <element::Type_t DT>
@@ -221,12 +221,12 @@ bool op::v3::ScatterElementsUpdate::evaluate_scatter_element_update(const HostTe
 }
 
 bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_evaluate);
+    OV_OP_SCOPE(v3_ScatterElementsUpdate_evaluate);
     return evaluate_scatter_element_update(outputs, inputs);
 }
 
 bool op::v3::ScatterElementsUpdate::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_has_evaluate);
+    OV_OP_SCOPE(v3_ScatterElementsUpdate_has_evaluate);
 
     switch (get_output_element_type(0)) {
     case ngraph::element::i16:

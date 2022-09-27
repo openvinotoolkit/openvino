@@ -57,7 +57,7 @@ op::v1::DeformablePSROIPooling::DeformablePSROIPooling(const Output<Node>& input
 }
 
 bool op::v1::DeformablePSROIPooling::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_DeformablePSROIPooling_visit_attributes);
+    OV_OP_SCOPE(v1_DeformablePSROIPooling_visit_attributes);
     visitor.on_attribute("output_dim", m_output_dim);
     visitor.on_attribute("spatial_scale", m_spatial_scale);
     visitor.on_attribute("group_size", m_group_size);
@@ -70,7 +70,7 @@ bool op::v1::DeformablePSROIPooling::visit_attributes(AttributeVisitor& visitor)
 }
 
 void op::v1::DeformablePSROIPooling::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_DeformablePSROIPooling_validate_and_infer_types);
+    OV_OP_SCOPE(v1_DeformablePSROIPooling_validate_and_infer_types);
     const auto& input_et = get_input_element_type(0);
 
     const auto& input_pshape = get_input_partial_shape(0);
@@ -115,7 +115,7 @@ void op::v1::DeformablePSROIPooling::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v1::DeformablePSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_DeformablePSROIPooling_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_DeformablePSROIPooling_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 3) {
         return make_shared<v1::DeformablePSROIPooling>(new_args.at(0),

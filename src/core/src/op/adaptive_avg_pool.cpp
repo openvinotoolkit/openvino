@@ -19,12 +19,12 @@ op::v8::AdaptiveAvgPool::AdaptiveAvgPool(const Output<Node>& data, const Output<
 }
 
 bool op::v8::AdaptiveAvgPool::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v8_AdaptiveAvgPool_visit_attributes);
+    OV_OP_SCOPE(v8_AdaptiveAvgPool_visit_attributes);
     return true;
 }
 
 void op::v8::AdaptiveAvgPool::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v8_AdaptiveAvgPool_validate_and_infer_types);
+    OV_OP_SCOPE(v8_AdaptiveAvgPool_validate_and_infer_types);
 
     const ov::PartialShape& data_shape = get_input_partial_shape(0);
 
@@ -57,7 +57,7 @@ void op::v8::AdaptiveAvgPool::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v8::AdaptiveAvgPool::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v8_AdaptiveAvgPool_clone_with_new_inputs);
+    OV_OP_SCOPE(v8_AdaptiveAvgPool_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v8::AdaptiveAvgPool>(new_args.at(0), new_args.at(1));
 }

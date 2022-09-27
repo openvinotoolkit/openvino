@@ -27,7 +27,7 @@ op::Atan::Atan(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
 }
 
 shared_ptr<Node> op::Atan::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Atan_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Atan_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Atan>(new_args.at(0));
 }
@@ -62,12 +62,12 @@ bool evaluate_atan(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
 }  // namespace atanop
 
 bool op::Atan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Atan_evaluate);
+    OV_OP_SCOPE(v0_Atan_evaluate);
     return atanop::evaluate_atan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool op::Atan::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_Atan_has_evaluate);
+    OV_OP_SCOPE(v1_Atan_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:

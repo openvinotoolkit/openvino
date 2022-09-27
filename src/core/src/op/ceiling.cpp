@@ -20,7 +20,7 @@ op::Ceiling::Ceiling(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) 
 }
 
 shared_ptr<Node> op::Ceiling::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Ceiling_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Ceiling_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Ceiling>(new_args.at(0));
 }
@@ -67,12 +67,12 @@ bool evaluate_ceiling(const HostTensorPtr& arg0, const HostTensorPtr& out, const
 }  // namespace ceiling
 
 bool op::Ceiling::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Ceiling_evaluate);
+    OV_OP_SCOPE(v0_Ceiling_evaluate);
     return ceiling::evaluate_ceiling(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool op::Ceiling::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Ceiling_has_evaluate);
+    OV_OP_SCOPE(v0_Ceiling_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i8:
     case ngraph::element::i16:

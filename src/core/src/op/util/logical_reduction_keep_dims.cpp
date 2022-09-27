@@ -20,13 +20,13 @@ ov::op::util::LogicalReductionKeepDims::LogicalReductionKeepDims(const ngraph::O
       m_keep_dims{keep_dims} {}
 
 bool ov::op::util::LogicalReductionKeepDims::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_util_LogicalReductionKeepDims_visit_attributes);
+    OV_OP_SCOPE(v0_util_LogicalReductionKeepDims_visit_attributes);
     visitor.on_attribute("keep_dims", m_keep_dims);
     return true;
 }
 
 void ov::op::util::LogicalReductionKeepDims::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_util_LogicalReductionKeepDims_validate_and_infer_types);
+    OV_OP_SCOPE(v0_util_LogicalReductionKeepDims_validate_and_infer_types);
 
     const element::Type& data_et = get_input_element_type(0);
     const PartialShape& axes_shape = get_input_partial_shape(1);

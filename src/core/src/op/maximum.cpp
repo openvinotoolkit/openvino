@@ -67,18 +67,18 @@ op::v1::Maximum::Maximum(const Output<Node>& arg0, const Output<Node>& arg1, con
 }
 
 shared_ptr<Node> op::v1::Maximum::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_Maximum_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_Maximum_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v1::Maximum>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
 bool op::v1::Maximum::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_Maximum_evaluate);
+    OV_OP_SCOPE(v1_Maximum_evaluate);
     return maximumop::evaluate_maximum(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 bool op::v1::Maximum::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_Maximum_has_evaluate);
+    OV_OP_SCOPE(v1_Maximum_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:

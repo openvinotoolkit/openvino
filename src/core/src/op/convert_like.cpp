@@ -20,23 +20,23 @@ op::v1::ConvertLike::ConvertLike(const Output<Node>& data, const Output<Node>& l
 }
 
 void op::v1::ConvertLike::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_ConvertLike_validate_and_infer_types);
+    OV_OP_SCOPE(v1_ConvertLike_validate_and_infer_types);
     set_output_type(0, get_input_element_type(1), get_input_partial_shape(0));
 }
 
 bool op::v1::ConvertLike::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_ConvertLike_visit_attributes);
+    OV_OP_SCOPE(v1_ConvertLike_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::v1::ConvertLike::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_ConvertLike_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_ConvertLike_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<ConvertLike>(new_args.at(0), new_args.at(1));
 }
 
 bool op::v1::ConvertLike::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "op::v1::ConvertLike::constant_fold");
+    OV_OP_SCOPE(v1_ConvertLike_constant_fold);
     if (is_const_fold_disabled()) {
         return false;
     }

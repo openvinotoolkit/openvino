@@ -65,13 +65,13 @@ op::v8::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
 }
 
 bool op::v8::DeformableConvolution::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(DeformableConvolution_v8_visit_attributes);
+    OV_OP_SCOPE(DeformableConvolution_v8_visit_attributes);
     visitor.on_attribute("bilinear_interpolation_pad", m_bilinear_interpolation_pad);
     return DeformableConvolutionBase::visit_attributes(visitor);
 }
 
 void op::v8::DeformableConvolution::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(DeformableConvolution_v8_validate_and_infer_types);
+    OV_OP_SCOPE(DeformableConvolution_v8_validate_and_infer_types);
 
     DeformableConvolutionBase::validate_and_infer_types();
     if (inputs().size() == 4) {
@@ -144,7 +144,7 @@ void op::v8::DeformableConvolution::validate_and_infer_types() {
 }
 
 std::shared_ptr<Node> op::v8::DeformableConvolution::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(DeformableConvolution_v8_clone_with_new_inputs);
+    OV_OP_SCOPE(DeformableConvolution_v8_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this, new_args.size() >= 3 && new_args.size() <= 4, "Number of inputs must be 3 or 4");
     switch (new_args.size()) {
@@ -198,7 +198,7 @@ op::v1::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
 }
 
 std::shared_ptr<Node> op::v1::DeformableConvolution::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(DeformableConvolution_v1_clone_with_new_inputs);
+    OV_OP_SCOPE(DeformableConvolution_v1_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<DeformableConvolution>(new_args.at(0),
                                                    new_args.at(1),

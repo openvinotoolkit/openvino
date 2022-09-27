@@ -57,7 +57,7 @@ ov::op::v1::BinaryConvolution::BinaryConvolution(const Output<Node>& data,
 }
 
 void ov::op::v1::BinaryConvolution::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_BinaryConvolution_validate_and_infer_types);
+    OV_OP_SCOPE(v1_BinaryConvolution_validate_and_infer_types);
     const ov::PartialShape& data_batch_pshape = get_input_partial_shape(0);
     element::Type data_batch_et = get_input_element_type(0);
     const ov::PartialShape& filters_pshape = get_input_partial_shape(1);
@@ -91,7 +91,7 @@ void ov::op::v1::BinaryConvolution::validate_and_infer_types() {
 }
 
 shared_ptr<ov::Node> ov::op::v1::BinaryConvolution::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_BinaryConvolution_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_BinaryConvolution_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::BinaryConvolution>(new_args.at(0),
                                               new_args.at(1),
@@ -105,7 +105,7 @@ shared_ptr<ov::Node> ov::op::v1::BinaryConvolution::clone_with_new_inputs(const 
 }
 
 bool ov::op::v1::BinaryConvolution::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_BinaryConvolution_visit_attributes);
+    OV_OP_SCOPE(v1_BinaryConvolution_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("pads_begin", m_pads_begin);
     visitor.on_attribute("pads_end", m_pads_end);

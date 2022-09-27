@@ -24,19 +24,19 @@ op::Convert::Convert(const Output<Node>& arg, const element::Type& destination_t
 }
 
 void op::Convert::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_Convert_validate_and_infer_types);
+    OV_OP_SCOPE(v0_Convert_validate_and_infer_types);
 
     set_output_type(0, m_destination_type, get_input_partial_shape(0));
 }
 
 bool op::Convert::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Convert_visit_attributes);
+    OV_OP_SCOPE(v0_Convert_visit_attributes);
     visitor.on_attribute("destination_type", m_destination_type);
     return true;
 }
 
 shared_ptr<Node> op::Convert::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Convert_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Convert_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Convert>(new_args.at(0), m_destination_type);
 }
@@ -69,7 +69,7 @@ bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out)
 
 #define TYPE_OUT_CASE(a, ...)                                     \
     case element::Type_t::a: {                                    \
-        NGRAPH_OP_SCOPE(OV_PP_CAT3(evaluate_covert_out, _, a));   \
+        OV_OP_SCOPE(OV_PP_CAT3(evaluate_covert_out, _, a));       \
         rc = evaluate<INPUT_ET, element::Type_t::a>(__VA_ARGS__); \
     } break
 
@@ -167,14 +167,14 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
 }  // namespace
 }  // namespace convert
 bool op::v0::Convert::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
-    NGRAPH_OP_SCOPE(v0_Convert_evaluate);
+    OV_OP_SCOPE(v0_Convert_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     return convert::evaluate_convert(input_values[0], output_values[0]);
 }
 
 bool op::v0::Convert::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Convert_has_evaluate);
+    OV_OP_SCOPE(v0_Convert_has_evaluate);
 
     switch (get_input_element_type(0)) {
     case ngraph::element::u1:
