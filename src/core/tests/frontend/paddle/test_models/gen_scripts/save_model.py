@@ -42,10 +42,31 @@ def print_alike(arr, seperator_begin='{', seperator_end='}', verbose=False):
         print(print_array(arr, seperator_end))        
 
 
+def saveStaticModel(name, exe, feedlist:list, fetchlist:list, inputs:list, outputs:list, target_dir:str):
+    model_dir = os.path.join(target_dir, name)
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+
+    # print("\n\n------------- %s -----------\n" % (name))
+    for i, input in enumerate(inputs):
+        # print("INPUT %s :" % (feedlist[i].name), input.shape, input.dtype, "\n")
+        # print_alike(input)
+        np.save(os.path.join(model_dir, "input{}".format(i)), input)
+        np.save(os.path.join(model_dir, "input{}.{}.{}".format(i, feedlist[i].name, input.dtype)), input)
+    # print("\n")
+
+    for i, output in enumerate(outputs):
+        # print("OUTPUT %s :" % (fetchlist[i]),output.shape, output.dtype, "\n")
+        # print_alike(output)
+        np.save(os.path.join(model_dir, "output{}".format(i)), output)
+
+    model_name = os.path.join(model_dir, name)
+    paddle.static.io.save_inference_model(model_name, feedlist, fetchlist, exe)
+
 def saveModel(name, exe, feedkeys:list, fetchlist:list, inputs:list, outputs:list, target_dir:str):
     model_dir = os.path.join(target_dir, name)
     if not os.path.exists(model_dir):
-        os.makedirs(model_dir)      
+        os.makedirs(model_dir)
 
     # print("\n\n------------- %s -----------\n" % (name))
     for i, input in enumerate(inputs):
@@ -58,7 +79,7 @@ def saveModel(name, exe, feedkeys:list, fetchlist:list, inputs:list, outputs:lis
     for i, output in enumerate(outputs):
         # print("OUTPUT %s :" % (fetchlist[i]),output.shape, output.dtype, "\n")
         # print_alike(output)
-        np.save(os.path.join(model_dir, "output{}".format(i)), output)     
+        np.save(os.path.join(model_dir, "output{}".format(i)), output)
 
     # composited model + scattered model
     paddle.fluid.io.save_inference_model(model_dir, feedkeys, fetchlist, exe)
