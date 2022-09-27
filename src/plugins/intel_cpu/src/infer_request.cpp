@@ -378,23 +378,14 @@ void LegacyInferRequest::changeDefaultPtr() {
     const auto &inMap = graph->inputNodesMap;
     for (auto it : inMap) {
         auto name = it.first;
-        auto pBlob = MemoryDescUtils::interpretAsBlob(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory());
-        InferenceEngine::TensorDesc desc = pBlob->getTensorDesc();
-        tuneInputDesc(name, desc);
-        if (externalPtr.count(name) &&
-            pBlob->getTensorDesc() == desc &&
-            graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() &&
-            !graph->getProperty().batchLimit) {
+        if (externalPtr.count(name) && externalPtr[name] != _inputs[name]->buffer()) {
             externalPtr[name] = _inputs[name]->buffer();
         }
     }
     const auto &outMap = graph->outputNodesMap;
     for (auto it : outMap) {
         auto name = it.first;
-        auto pBlob = MemoryDescUtils::interpretAsBlob(graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory());
-        InferenceEngine::TensorDesc desc = pBlob->getTensorDesc();
-        tuneOutputDesc(desc);
-        if (externalPtr.count(name) && pBlob->getTensorDesc() == desc && !graph->getProperty().batchLimit) {
+        if (externalPtr.count(name) && externalPtr[name] != _outputs[name]->buffer()) {
             externalPtr[name] = _outputs[name]->buffer();
         }
     }
