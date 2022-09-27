@@ -84,7 +84,9 @@ JitConstants ExperimentalDetectronDetectionOutputKernelRef::GetJitConstants(
     if (params.class_agnostic_box_regression) {
         jit.AddConstant(MakeJitConstant("CLASS_AGNOSTIC_BOX_REGRESSION", true));
     }
-
+    if (!SimpleLayout(params.inputs[0].GetLayout())) {
+        jit.AddConstant(MakeJitConstant("USE_BLOCKED_FORMAT", true));
+    }
     return jit;
 }
 
