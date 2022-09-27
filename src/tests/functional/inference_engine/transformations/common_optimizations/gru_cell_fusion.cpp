@@ -31,8 +31,7 @@ Output <Node> create_activation_by_name(const string &activation_name, const Out
     } else if (activation_name == "relu") {
         return make_shared<Relu>(input);
     }
-    OPENVINO_ASSERT("Unsupported activation function");
-    return {};
+    OPENVINO_ASSERT(false, "Unsupported activation function");
 }
 
 shared_ptr<Model> gen_model(WeightsFormat format, const string& activation_1, const string& activation_2,
