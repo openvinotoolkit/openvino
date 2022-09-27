@@ -401,7 +401,7 @@ public:
     static FactoryRegistry<Node>& get_ops() {
         static FactoryRegistry<Node> registry = [] {
             FactoryRegistry<Node> registry;
-#define _OPENVINO_OP_REG(NAME, NAMESPACE, VERSION) registry.register_factory<NAMESPACE::NAME>();
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) registry.register_factory<NAMESPACE::NAME>();
 #include "op_version_tbl.hpp"
 #undef _OPENVINO_OP_REG
             return registry;

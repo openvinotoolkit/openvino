@@ -21,7 +21,7 @@
 using namespace std;
 
 TEST(conditional_compilation, disabled_op_scope) {
-#define ngraph_op_Scope0 1
+#define ov_op_Scope0 1
     int n = 0;
     const std::string errMsg = "ngraph_op_Scope1 is disabled!";
 
@@ -32,7 +32,7 @@ TEST(conditional_compilation, disabled_op_scope) {
 
     // Simple scope is disabled
     ASSERT_THROW(OV_OP_SCOPE(Scope1), ngraph::ngraph_error);
-#undef CCTests_Scope0
+#undef ov_op_Scope0
 }
 
 #undef SELECTIVE_BUILD
