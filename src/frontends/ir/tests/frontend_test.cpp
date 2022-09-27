@@ -909,7 +909,7 @@ TEST_F(IrFrontendTests, DISABLED_PortsMismatch) {
     std::shared_ptr<ov::Model> model;
 
     ASSERT_THROW(model = core.read_model(testNetwork, ov::Tensor()), ov::Exception);
-    ASSERT_TRUE(!!model);
+    ASSERT_FALSE(!!model);
 }
 
 TEST_F(IrFrontendTests, DISABLED_PortDataMismatch) {
@@ -947,5 +947,267 @@ TEST_F(IrFrontendTests, DISABLED_PortDataMismatch) {
     std::shared_ptr<ov::Model> model;
 
     ASSERT_THROW(model = core.read_model(testNetwork, ov::Tensor()), ov::Exception);
+    ASSERT_FALSE(!!model);
+}
+
+TEST_F(IrFrontendTests, EdgeHasWrongPortId) {
+    std::string testNetwork = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="input" type="Parameter" id="0" version="opset1">
+            <data element_type="f32" shape="1,3,22,22"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="1" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="10"/>
+    </edges>
+</net>
+)V0G0N";
+
+    std::shared_ptr<ov::Model> model;
+
+    ASSERT_THROW(model = core.read_model(testNetwork, ov::Tensor()), ov::Exception);
+    ASSERT_FALSE(!!model);
+}
+
+TEST_F(IrFrontendTests, EdgeHasWrongLayerId) {
+    std::string testNetwork = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="input" type="Parameter" id="0" version="opset1">
+            <data element_type="f32" shape="1,3,22,22"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="1" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    std::shared_ptr<ov::Model> model;
+
+    ASSERT_THROW(model = core.read_model(testNetwork, ov::Tensor()), ov::Exception);
+    ASSERT_FALSE(!!model);
+}
+
+TEST_F(IrFrontendTests, NotOpset1) {
+    std::string testNetwork = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="input" type="Parameter" id="0" version="opset1">
+            <data element_type="f32" shape="1,3,22,22"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="Shape" type="ShapeOf" version="opset3">
+            <data output_type="i32" />
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1" precision="I32">
+                    <dim>4</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset1">
+            <input>
+                <port id="0" precision="I32">
+                    <dim>4</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+        <edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    std::shared_ptr<ov::Model> model;
+
+    ASSERT_NO_THROW(model = core.read_model(testNetwork, ov::Tensor()));
+    ASSERT_TRUE(!!model);
+}
+
+TEST_F(IrFrontendTests, WrongOpset) {
+    std::string testNetwork = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="input" type="Parameter" id="0" version="wrongOpset">
+            <data element_type="f32" shape="1,3,22,22"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="1" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    std::shared_ptr<ov::Model> model;
+
+    ASSERT_THROW(model = core.read_model(testNetwork, ov::Tensor()), ov::Exception);
+    ASSERT_FALSE(!!model);
+}
+
+TEST_F(IrFrontendTests, TensorIterator) {
+    std::string testNetwork = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer id="0" name="Parameter1" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,2,3"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>2</dim>
+                    <dim>3</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="TensorIterator" type="TensorIterator" version="opset1">
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>2</dim>
+                    <dim>3</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>2</dim>
+                    <dim>3</dim>
+                </port>
+            </output>
+            <port_map>
+                <input external_port_id="0" internal_layer_id="0"/>
+                <output external_port_id="1" internal_layer_id="1"/>
+            </port_map>
+            <back_edges>
+                <edge from-layer="2" to-layer="0"/>
+            </back_edges>
+            <body>
+                <layers>
+                    <layer id="0" name="internalParameter1" type="Parameter" version="opset1">
+                        <data element_type="f32" shape="1,2,3"/>
+                        <output>
+                            <port id="0" precision="FP32">
+                                <dim>1</dim>
+                                <dim>2</dim>
+                                <dim>3</dim>
+                            </port>
+                        </output>
+                    </layer>
+                    <layer id="1" name="internalResult1" type="Result" version="opset1">
+                        <input>
+                            <port id="0">
+                                <dim>1</dim>
+                                <dim>2</dim>
+                                <dim>3</dim>
+                            </port>
+                        </input>
+                    </layer>
+                    <layer id="2" name="internalResult2" type="Result" version="opset1">
+                        <input>
+                            <port id="0">
+                                <dim>1</dim>
+                                <dim>2</dim>
+                                <dim>3</dim>
+                            </port>
+                        </input>
+                    </layer>
+                </layers>
+                <edges>
+                    <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+                    <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+                </edges>
+            </body>
+        </layer>
+        <layer id="2" name="Result1" type="Result" version="opset1">
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>2</dim>
+                    <dim>3</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+        <edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    std::shared_ptr<ov::Model> model;
+
+    ASSERT_NO_THROW(model = core.read_model(testNetwork, ov::Tensor()));
     ASSERT_TRUE(!!model);
 }
