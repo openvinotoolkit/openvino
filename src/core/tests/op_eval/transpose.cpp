@@ -13,7 +13,6 @@
 #include "ngraph/runtime/reference/transpose.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
-#include "openvino/op/util/transpose_attr.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "sequnce_generator.hpp"
 #include "util/all_close_f.hpp"
@@ -278,7 +277,7 @@ protected:
     std::shared_ptr<Parameter> arg, order;
 
     TensorLabel labels;
-    TensorLabelVector labels_tensor = TensorLabelVector(ov::op::TransposeOut::OUT_COUNT);
+    TensorLabelVector labels_tensor = TensorLabelVector(Transpose::OUT_COUNT);
 };
 
 INSTANTIATE_TEST_SUITE_P(op_eval,
@@ -301,8 +300,7 @@ TEST_P(TransposeEvalTest, evaluate_lower) {
     const auto exp_evaluate = transpose->evaluate(exp_result, inputs);
 
     ASSERT_EQ(transpose->evaluate_lower(result), exp_evaluate);
-    ASSERT_EQ(to_vector<int32_t>(result[ov::op::TransposeOut::ARG_T]),
-              to_vector<int32_t>(exp_result[ov::op::TransposeOut::ARG_T]));
+    ASSERT_EQ(to_vector<int32_t>(result[Transpose::ARG_T]), to_vector<int32_t>(exp_result[Transpose::ARG_T]));
 }
 
 TEST_P(TransposeEvalTest, evaluate_lower_but_arg_lower_values_not_set) {
@@ -328,8 +326,7 @@ TEST_P(TransposeEvalTest, evaluate_upper) {
     transpose->evaluate(exp_result, inputs);
 
     ASSERT_TRUE(transpose->evaluate_upper(result));
-    ASSERT_EQ(to_vector<int32_t>(result[ov::op::TransposeOut::ARG_T]),
-              to_vector<int32_t>(exp_result[ov::op::TransposeOut::ARG_T]));
+    ASSERT_EQ(to_vector<int32_t>(result[Transpose::ARG_T]), to_vector<int32_t>(exp_result[Transpose::ARG_T]));
 }
 
 TEST_P(TransposeEvalTest, evaluate_upper_but_arg_upper_values_not_set) {
@@ -379,5 +376,5 @@ TEST_P(TransposeEvalTest, evaluate_label) {
     auto exp_eval_result = transpose->evaluate(exp_result, inputs);
 
     ASSERT_EQ(transpose->evaluate_label(labels_tensor), exp_eval_result);
-    ASSERT_EQ(labels_tensor[ov::op::TransposeOut::ARG_T], to_vector<size_t>(exp_result[ov::op::TransposeOut::ARG_T]));
+    ASSERT_EQ(labels_tensor[Transpose::ARG_T], to_vector<size_t>(exp_result[Transpose::ARG_T]));
 }

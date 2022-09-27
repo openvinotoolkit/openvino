@@ -61,6 +61,11 @@ public:
     /// \return true if axes order is valid otherwise false.
     ///
     static bool is_valid_order(const std::vector<int64_t>& axes_order, const size_t size);
+
+    /// \brief Inputs indexes and count.
+    enum Ins : size_t { ARG, ORDER, IN_COUNT };
+    /// \brief Outputs indexes and count.
+    enum Outs : size_t { ARG_T, OUT_COUNT };
 };
 }  // namespace v1
 }  // namespace op

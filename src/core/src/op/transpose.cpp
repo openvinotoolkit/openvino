@@ -6,7 +6,6 @@
 
 #include "compare.hpp"
 #include "itt.hpp"
-#include "ngraph/op/transpose.hpp"
 #include "ngraph/runtime/reference/transpose.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "sequnce_generator.hpp"
@@ -28,36 +27,36 @@ bool ngraph::op::v1::Transpose::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::Transpose::validate_and_infer_types() {
     OV_OP_SCOPE(v1_Transpose_validate_and_infer_types);
-    const auto& input_order_et = get_input_element_type(TransposeIn::ORDER);
+    const auto& input_order_et = get_input_element_type(ORDER);
     NODE_VALIDATION_CHECK(this,
                           input_order_et.is_dynamic() || input_order_et.is_integral_number(),
                           "Input order must have an integral number element type.");
 
-    const auto& input_order_shape = get_input_partial_shape(TransposeIn::ORDER);
+    const auto& input_order_shape = get_input_partial_shape(ORDER);
     NODE_VALIDATION_CHECK(this, input_order_shape.rank().compatible(1), "Input order must be a vector.");
 
-    const auto& arg_shape = get_input_partial_shape(TransposeIn::ARG);
+    const auto& arg_shape = get_input_partial_shape(ARG);
     NODE_VALIDATION_CHECK(
         this,
         input_order_shape.compatible(ov::PartialShape{arg_shape.rank()}) ||
             (input_order_shape.is_static() && input_order_shape.rank() == 1 && input_order_shape[0] == 0),
         "Input order must have shape [n], where n is the rank of arg.");
 
-    set_input_is_relevant_to_shape(TransposeIn::ORDER);
+    set_input_is_relevant_to_shape(ORDER);
 
     std::vector<ov::PartialShape> input_shapes{arg_shape, input_order_shape};
-    std::vector<ov::PartialShape> output_shapes(TransposeOut::OUT_COUNT, ov::PartialShape{});
+    std::vector<ov::PartialShape> output_shapes(OUT_COUNT, ov::PartialShape{});
 
     shape_infer(this, input_shapes, output_shapes);
 
     set_output_size(output_shapes.size());
-    set_output_type(TransposeIn::ARG, get_input_element_type(TransposeIn::ARG), output_shapes[TransposeOut::ARG_T]);
+    set_output_type(ARG, get_input_element_type(ARG), output_shapes[ARG_T]);
 }
 
 shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_Transpose_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v1::Transpose>(new_args[0], new_args[1]);
+    return make_shared<v1::Transpose>(new_args[ARG], new_args[ORDER]);
 }
 
 void op::v1::Transpose::generate_default_order(std::vector<int64_t>& axes_order, const size_t length) {
@@ -110,7 +109,7 @@ bool evaluate_transpose(const HostTensorPtr& arg1, const HostTensorPtr& arg2, co
 
 bool op::v1::Transpose::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v1_Transpose_evaluate);
-    return transpose::evaluate_transpose(input_values[0], input_values[1], output_values[0]);
+    return transpose::evaluate_transpose(input_values[ARG], input_values[ORDER], output_values[ARG_T]);
 }
 
 bool op::v1::Transpose::has_evaluate() const {
@@ -119,15 +118,13 @@ bool op::v1::Transpose::has_evaluate() const {
 }
 
 bool op::v1::Transpose::evaluate_lower(const HostTensorVector& output_values) const {
-    return get_input_tensor(TransposeIn::ORDER).has_and_set_bound() &&
-           default_lower_bound_evaluator(this, output_values);
+    return get_input_tensor(ORDER).has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
 }
 
 bool op::v1::Transpose::evaluate_upper(const HostTensorVector& output_values) const {
-    return get_input_tensor(TransposeIn::ORDER).has_and_set_bound() &&
-           default_upper_bound_evaluator(this, output_values);
+    return get_input_tensor(ORDER).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v1::Transpose::evaluate_label(TensorLabelVector& output_labels) const {
-    return get_input_tensor(TransposeIn::ORDER).has_and_set_bound() && default_label_evaluator(this, output_labels);
+    return get_input_tensor(ORDER).has_and_set_bound() && default_label_evaluator(this, output_labels);
 }

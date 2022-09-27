@@ -71,7 +71,7 @@ TEST_P(StaticShapeInferenceTest, transpose_static) {
 
     shape_infer(transpose.get(), {input_shape, transpose_order}, output_shapes);
 
-    ASSERT_EQ(output_shapes[op::TransposeOut::ARG_T], exp_shape);
+    ASSERT_EQ(output_shapes[op::v1::Transpose::ARG_T], exp_shape);
 }
 
 /** \brief Shape infer when transpose input got dynamic dimensions. */
@@ -83,7 +83,7 @@ TEST(StaticShapeInferenceTest, transpose_input_shape_dim_dynamic) {
     auto output_shapes = std::vector<StaticShape>{StaticShape{}};
 
     shape_infer(transpose.get(), {StaticShape{2, 6, 3}, order}, output_shapes);
-    ASSERT_EQ(output_shapes[op::TransposeOut::ARG_T], StaticShape({6, 3, 2}));
+    ASSERT_EQ(output_shapes[op::v1::Transpose::ARG_T], StaticShape({6, 3, 2}));
 }
 
 /** \brief Shape inference when transpose order stored in constant map. */
@@ -102,5 +102,5 @@ TEST(StaticShapeInferenceTest, transpose_order_in_constant_map) {
     auto output_shapes = std::vector<StaticShape>{StaticShape{}};
     shape_infer(transpose.get(), {StaticShape({2, 4, 6, 8}), StaticShape()}, output_shapes, const_map);
 
-    ASSERT_EQ(output_shapes[op::TransposeOut::ARG_T], StaticShape({4, 6, 2, 8}));
+    ASSERT_EQ(output_shapes[op::v1::Transpose::ARG_T], StaticShape({4, 6, 2, 8}));
 }

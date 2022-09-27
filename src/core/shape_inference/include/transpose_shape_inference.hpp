@@ -4,7 +4,6 @@
 #pragma once
 
 #include "openvino/op/transpose.hpp"
-#include "openvino/op/util/transpose_attr.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -26,12 +25,12 @@ void shape_infer(const Transpose* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    const auto& input_shape = input_shapes[TransposeIn::ARG];
-    auto& output = output_shapes[TransposeOut::ARG_T];
+    const auto& input_shape = input_shapes[Transpose::ARG];
+    auto& output = output_shapes[Transpose::ARG_T];
 
     std::vector<int64_t> axes;
 
-    if (get_data_as_int64<T>(op::TransposeIn::ORDER, op, axes, constant_data) && input_shape.rank().is_static()) {
+    if (get_data_as_int64<T>(Transpose::ORDER, op, axes, constant_data) && input_shape.rank().is_static()) {
         const auto out_rank_size = input_shape.rank().get_length();
 
         if (axes.empty()) {

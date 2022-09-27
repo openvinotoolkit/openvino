@@ -4,7 +4,6 @@
 
 #include "dimension_tracker.hpp"
 #include "ngraph/ngraph.hpp"
-#include "openvino/op/util/transpose_attr.hpp"
 #include "sequnce_generator.hpp"
 #include "util/type_prop.hpp"
 
@@ -264,8 +263,8 @@ TEST(type_prop, transpose_order_as_parameter_shape) {
 
     const auto r = make_shared<v1::Transpose>(arg, gather);
 
-    ASSERT_EQ(r->get_output_element_type(TransposeOut::ARG_T), element::f32);
-    ASSERT_EQ(r->get_output_partial_shape(TransposeOut::ARG_T), PartialShape({Dimension(4, 16), 6, Dimension(2, 8)}));
+    ASSERT_EQ(r->get_output_element_type(v1::Transpose::ARG_T), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(v1::Transpose::ARG_T), PartialShape({Dimension(4, 16), 6, Dimension(2, 8)}));
 }
 
 /** \brief Transpose with order as paramater shape dimensions after multiple transformations. */
@@ -286,8 +285,8 @@ TEST(type_prop, transpose_order_as_parameter_shape_after_transformation) {
 
     const auto r = make_shared<v1::Transpose>(arg, gather);
 
-    ASSERT_EQ(r->get_output_element_type(TransposeOut::ARG_T), element::f32);
-    ASSERT_EQ(r->get_output_partial_shape(TransposeOut::ARG_T), PartialShape({6, Dimension(4, 16), Dimension(2, 8)}));
+    ASSERT_EQ(r->get_output_element_type(v1::Transpose::ARG_T), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(v1::Transpose::ARG_T), PartialShape({6, Dimension(4, 16), Dimension(2, 8)}));
 }
 
 /**
@@ -303,8 +302,8 @@ TEST(type_prop, transpose_when_order_is_shape_of_dynamic_partial_shape) {
 
     const auto r = make_shared<v1::Transpose>(arg, shape_of);
 
-    ASSERT_EQ(r->get_output_element_type(TransposeOut::ARG_T), element::f32);
-    ASSERT_EQ(r->get_output_partial_shape(TransposeOut::ARG_T), PartialShape::dynamic(3));
+    ASSERT_EQ(r->get_output_element_type(v1::Transpose::ARG_T), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(v1::Transpose::ARG_T), PartialShape::dynamic(3));
 }
 
 using transpose_prop_params = tuple<vector<int64_t>,  // transpose order
@@ -386,8 +385,8 @@ TEST_P(TransposeTest, use_default_ctor) {
     output->set_arguments(NodeVector{input, order});
     output->validate_and_infer_types();
 
-    EXPECT_EQ(output->get_output_element_type(0), exp_type);
-    EXPECT_EQ(output->get_output_partial_shape(0), exp_p_shape);
+    EXPECT_EQ(output->get_output_element_type(op::Transpose::ARG_T), exp_type);
+    EXPECT_EQ(output->get_output_partial_shape(op::Transpose::ARG_T), exp_p_shape);
 }
 
 /**
@@ -401,8 +400,8 @@ TEST_P(TransposeTest, propagate_interval_shape) {
 
     const auto output = make_shared<op::Transpose>(input, order);
 
-    EXPECT_EQ(output->get_output_element_type(0), exp_type);
-    EXPECT_EQ(output->get_output_partial_shape(0), exp_p_shape);
+    EXPECT_EQ(output->get_output_element_type(op::Transpose::ARG_T), exp_type);
+    EXPECT_EQ(output->get_output_partial_shape(op::Transpose::ARG_T), exp_p_shape);
 }
 
 /**
@@ -422,5 +421,5 @@ TEST_P(TransposeTest, propagate_labels) {
     const auto order = op::Constant::create(element::i64, Shape{transpose_order.size()}, transpose_order);
     const auto output = make_shared<op::Transpose>(input, order);
 
-    ASSERT_EQ(get_labels(output->get_output_partial_shape(0)), exp_labels);
+    ASSERT_EQ(get_labels(output->get_output_partial_shape(op::Transpose::ARG_T)), exp_labels);
 }
