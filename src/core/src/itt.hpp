@@ -27,18 +27,18 @@ OV_ITT_DOMAIN(ov_op, "ov::Op");
 OV_CC_DOMAINS(ov_op);
 
 #if defined(SELECTIVE_BUILD_ANALYZER)
-#    define NGRAPH_OP_SCOPE(region) OV_SCOPE(ov_op, region)
+#    define OV_OP_SCOPE(region) OV_SCOPE(ov_op, region)
 #    define OV_PASS_CALLBACK(matcher)                                   \
         openvino::itt::handle_t m_callback_handle;                      \
         m_callback_handle = openvino::itt::handle(matcher->get_name()); \
         OV_ITT_SCOPED_TASK(SIMPLE_ov_pass, m_callback_handle)
 #elif defined(SELECTIVE_BUILD)
-#    define NGRAPH_OP_SCOPE(region)                                    \
+#    define OV_OP_SCOPE(region)                                        \
         if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_op, _, region)) == 0) \
         throw ngraph::ngraph_error(std::string(OV_PP_TOSTRING(OV_PP_CAT3(ov_op, _, region))) + " is disabled!")
 #    define OV_PASS_CALLBACK(matcher)
 #else
-#    define NGRAPH_OP_SCOPE(region) OV_ITT_SCOPED_TASK(ov::itt::domains::ov_op, OV_PP_TOSTRING(region))
+#    define OV_OP_SCOPE(region) OV_ITT_SCOPED_TASK(ov::itt::domains::ov_op, OV_PP_TOSTRING(region))
 #    define OV_PASS_CALLBACK(matcher)
 #endif
 
