@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "convolution_shape_inference.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
@@ -314,7 +315,7 @@ TEST(type_prop, convolution_backprop_data_dyn_static_ranks_data_spatial_dims_dyn
         make_shared<op::v1::ConvolutionBackpropData>(data, filters, strides, padding_begin, padding_end, dilations);
 
     ASSERT_EQ(conv_backprop->get_output_partial_shape(0),
-              PartialShape(PartialShape{Dimension::dynamic(), 16, Dimension::dynamic(), 447}));
+              PartialShape(PartialShape{Dimension::dynamic(), 16, Dimension(1, -1), 447}));
 }
 
 TEST(type_prop, convolution_backprop_data_dyn_static_ranks_filters_spatial_dims_dyn) {
@@ -333,7 +334,7 @@ TEST(type_prop, convolution_backprop_data_dyn_static_ranks_filters_spatial_dims_
         make_shared<op::v1::ConvolutionBackpropData>(data, filters, strides, padding_begin, padding_end, dilations);
 
     ASSERT_EQ(conv_backprop->get_output_partial_shape(0),
-              PartialShape(PartialShape{Dimension::dynamic(), 16, 447, Dimension::dynamic()}));
+              PartialShape(PartialShape{Dimension::dynamic(), 16, 447, Dimension(445, -1)}));
 }
 
 TEST(type_prop, convolution_backprop_data_with_output_shape_dyn_data_batch) {
@@ -428,7 +429,7 @@ TEST(type_prop, convolution_backprop_data_shape_dyn_data) {
                                                                       Strides{});
 
     ASSERT_EQ(conv_backprop->get_output_partial_shape(0),
-              PartialShape(PartialShape{Dimension::dynamic(), 2, Dimension::dynamic(), Dimension::dynamic()}));
+              PartialShape(PartialShape{Dimension::dynamic(), 2, Dimension(3, -1), Dimension(3, -1)}));
 }
 
 TEST(type_prop, convolution_backprop_data_shape_dyn_filters) {
@@ -446,7 +447,7 @@ TEST(type_prop, convolution_backprop_data_shape_dyn_filters) {
                                                                       Strides{});
 
     ASSERT_EQ(conv_backprop->get_output_partial_shape(0),
-              PartialShape(PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
+              PartialShape(PartialShape{1, Dimension::dynamic(), Dimension(224, -1), Dimension(224, -1)}));
 }
 
 TEST(type_prop, convolution_backprop_data_dyn_data_and_filters) {
@@ -767,7 +768,7 @@ TEST(type_prop, convolution_backprop_data_invalid_conv_param_spatial_dims) {
             make_shared<op::v1::ConvolutionBackpropData>(data, filters, strides, pads_begin, pads_end, dilations);
         FAIL() << "Invalid padding spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Pads begin should be defined for all and only spatial dimensions.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Pads end should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Padding spatial dimensions validation check failed for unexpected reason";
     }
@@ -821,4 +822,19 @@ TEST(type_prop, convolution_backprop_data_invalid_conv_param_spatial_dims) {
     } catch (...) {
         FAIL() << "Output padding spatial dimensions validation check failed for unexpected reason";
     }
+}
+
+TEST(type_prop, convolution_back_prop_data_default_constructed) {
+    auto conv = make_shared<op::v1::ConvolutionBackpropData>();
+
+    const auto &input_shape = ov::PartialShape::dynamic(), filters_shape = ov::PartialShape{1, 1, 3, 3},
+               output_spatial_shape_shape = ov::PartialShape({2});
+    const auto& input_shapes = std::vector<ov::PartialShape>{input_shape, filters_shape, output_spatial_shape_shape};
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
+    auto pad_begin = CoordinateDiff{}, pad_end = CoordinateDiff{};
+    const auto& output_spatial_shape = ov::PartialShape{3, 3};
+    int64_t num_spatial =
+        calculate_num_spatial(conv.get(), input_shape, filters_shape, output_spatial_shape_shape, 2, 2);
+    update_and_validate_attributes_back_prop(conv.get(), num_spatial);
+    EXPECT_NO_THROW(shape_infer(conv.get(), pad_begin, pad_end, output_spatial_shape, input_shapes, output_shapes));
 }

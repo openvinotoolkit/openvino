@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "convolution_shape_inference.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
@@ -197,7 +198,7 @@ TEST(type_prop, group_convolution_data_batch_dynamic) {
     ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{0, 0}));
     ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{0, 0}));
     ASSERT_EQ(groupConv->get_output_partial_shape(0),
-              PartialShape({Dimension::dynamic(), 2, Dimension::dynamic(), Dimension::dynamic()}));
+              PartialShape({Dimension::dynamic(), 2, Dimension(1, -1), Dimension(1, -1)}));
 }
 
 TEST(type_prop, group_convolution_filters_dynamic_auto_pad_explicit) {
@@ -220,7 +221,7 @@ TEST(type_prop, group_convolution_filters_dynamic_auto_pad_explicit) {
     ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{0, 0}));
     ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{0, 0}));
     ASSERT_EQ(groupConv->get_output_partial_shape(0),
-              PartialShape({1, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
+              PartialShape({1, Dimension::dynamic(), Dimension{1, 5}, Dimension{1, 5}}));
 }
 
 TEST(type_prop, group_convolution_filters_dynamic_auto_pad_same) {
@@ -243,8 +244,7 @@ TEST(type_prop, group_convolution_filters_dynamic_auto_pad_same) {
     // pads should be as default since filters shape is dynamic
     ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{0, 0}));
     ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{0, 0}));
-    ASSERT_EQ(groupConv->get_output_partial_shape(0),
-              PartialShape({1, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
+    ASSERT_EQ(groupConv->get_output_partial_shape(0), PartialShape({1, Dimension::dynamic(), 5, 5}));
 }
 
 TEST(type_prop, group_convolution_data_batch_and_filters_dynamic) {
@@ -497,8 +497,22 @@ TEST(type_prop, group_convolution_invalid_conv_param_spatial_dims) {
             make_shared<op::v1::GroupConvolution>(data_batch, filters, strides, pads_begin, pads_end, dilations);
         FAIL() << "Invalid padding spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Pads begin should be defined for all and only spatial dimensions.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Pads end should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Padding spatial dimensions validation check failed for unexpected reason";
     }
+}
+
+TEST(type_prop, group_convolution_default_constructed) {
+    auto conv = make_shared<op::v1::GroupConvolution>();
+    conv->set_auto_pad(op::PadType::SAME_LOWER);
+
+    const auto &input_shape = ov::PartialShape::dynamic(), filters_shape = ov::PartialShape{1, 1, 1, 3, 3};
+    const auto& input_shapes = std::vector<ov::PartialShape>{input_shape, filters_shape};
+    std::vector<ov::PartialShape> output_shapes(1);
+    auto pad_begin = CoordinateDiff{}, pad_end = CoordinateDiff{};
+
+    int64_t num_spatial = calculate_num_spatial(conv.get(), input_shape, filters_shape, 2, 3);
+    update_and_validate_attributes(conv.get(), num_spatial);
+    EXPECT_NO_THROW(shape_infer(conv.get(), pad_begin, pad_end, input_shapes, output_shapes));
 }

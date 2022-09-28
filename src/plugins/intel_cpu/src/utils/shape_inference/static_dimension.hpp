@@ -27,6 +27,11 @@ public:
     /// \param dimension Value of the dimension.
     StaticDimension(value_type dimension);
 
+    /// \brief Construct a static dimension.
+    /// \param ldimension Value of the dimension (must be equal to udimension)
+    /// \param udimension Value of the dimension (must be equal to ldimension)
+    StaticDimension(value_type ldimension, value_type udimension);
+
     /// \brief Construct a zero dimension
     StaticDimension() = default;
 

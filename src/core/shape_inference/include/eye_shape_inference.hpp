@@ -4,13 +4,14 @@
 #pragma once
 #include <openvino/core/validation_util.hpp>
 #include <openvino/opsets/opset9.hpp>
+
 #include "utils.hpp"
 
 namespace ov {
 namespace op {
 namespace util {
 
-template<class T>
+template <class T>
 void check_1D_or_scalar_shape(const ov::op::v9::Eye* op, const T& input_shape, const std::string name) {
     if (input_shape.is_static()) {
         const auto& num_rows_rank = input_shape.rank().get_length();
@@ -24,11 +25,12 @@ void check_1D_or_scalar_shape(const ov::op::v9::Eye* op, const T& input_shape, c
     }
 }
 
-
 }  // namespace util
 
-template<class T>
-void shape_infer(const ov::op::v9::Eye* op, const std::vector<T> &input_shapes, std::vector<T> &output_shapes,
+template <class T>
+void shape_infer(const ov::op::v9::Eye* op,
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == op->get_input_size() && output_shapes.size() == 1);
     // output_shape = dims_batch_shape + dims_matrix

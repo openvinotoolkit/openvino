@@ -38,7 +38,11 @@ void rdft_shape_infer(const ov::op::v9::RDFT* op,
     std::vector<int64_t> axes;
     bool axes_are_known = get_data_as_int64<T>(1, op, axes, constant_data);
 
-    rfft_common_validation::shape_validation(op, input_shapes, axes, axes_are_known, rfft_common_validation::RFFTKind::Forward);
+    rfft_common_validation::shape_validation(op,
+                                             input_shapes,
+                                             axes,
+                                             axes_are_known,
+                                             rfft_common_validation::RFFTKind::Forward);
 
     if (input_shape.rank().is_dynamic()) {
         output_shape = ov::PartialShape::dynamic();
