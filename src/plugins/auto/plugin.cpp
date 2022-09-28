@@ -267,7 +267,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::stri
 }
 
 void MultiDeviceInferencePlugin::SetConfig(const std::map<std::string, std::string> & config) {
-    _pluginConfig.UpdateFromMap(config, GetName(), true);
+    _pluginConfig.UpdateFromMap(config, GetName());
 }
 
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "MultiDevicePlugin"};
@@ -368,7 +368,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     _LogTag = GetName();
     auto loadConfig = _pluginConfig;
     // updateFromMap will check config valid
-    loadConfig.UpdateFromMap(config, GetName(), false);
+    loadConfig.UpdateFromMap(config, GetName());
     auto fullConfig = loadConfig._keyConfigMap;
     // collect the settings that are applicable to the devices we are loading the network to
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;

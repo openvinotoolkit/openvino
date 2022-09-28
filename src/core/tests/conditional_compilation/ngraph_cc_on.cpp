@@ -3,6 +3,9 @@
 //
 
 #include <ngraph/except.hpp>
+#include <openvino/op/abs.hpp>
+#include <openvino/op/constant.hpp>
+#include <openvino/opsets/opset.hpp>
 
 #include "gtest/gtest.h"
 
@@ -21,18 +24,30 @@
 using namespace std;
 
 TEST(conditional_compilation, disabled_op_scope) {
-#define ngraph_op_Scope0 1
+#define ov_op_Scope0 1
     int n = 0;
-    const std::string errMsg = "ngraph_op_Scope1 is disabled!";
 
-    // Simple scope is enabled
-    NGRAPH_OP_SCOPE(Scope0);
+    // Simple Scope0 is enabled
+    OV_OP_SCOPE(Scope0);
     n = 42;
     EXPECT_EQ(n, 42);
 
-    // Simple scope is disabled
-    ASSERT_THROW(NGRAPH_OP_SCOPE(Scope1), ngraph::ngraph_error);
-#undef CCTests_Scope0
+    // Simple Scope1 is disabled and throws exception
+    ASSERT_THROW(OV_OP_SCOPE(Scope1), ngraph::ngraph_error);
+#undef ov_op_Scope0
+}
+
+TEST(conditional_compilation, disabled_Constant_in_opset) {
+    ov::OpSet opset("test_opset3");
+#define ov_opset_test_opset3_Abs 1
+    INSERT_OP(test_opset3, Abs, ov::op::v0);
+    EXPECT_NE(opset.create("Abs"), nullptr);
+    EXPECT_NE(opset.create_insensitive("Abs"), nullptr);
+#undef ov_opset_test_opset3_Abs
+
+    INSERT_OP(test_opset3, Constant, ov::op::v0);
+    EXPECT_EQ(opset.create("Constant"), nullptr);
+    EXPECT_EQ(opset.create_insensitive("Constant"), nullptr);
 }
 
 #undef SELECTIVE_BUILD

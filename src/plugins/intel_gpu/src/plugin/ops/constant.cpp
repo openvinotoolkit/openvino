@@ -101,7 +101,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
                    ngraph::is_type<ngraph::op::v0::SquaredDifference>(outOp)) {
             bool all_inputs_1d = true;
             for (size_t j = 0; j < outOp->get_input_size(); j++) {
-                auto& in_shape = outOp->get_input_shape(j);
+                auto& in_shape = outOp->get_input_partial_shape(j);
                 if (in_shape.size() > 1)
                     all_inputs_1d = false;
             }
@@ -125,7 +125,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             //    'https://docs.openvino.ai/latest/openvino_docs_ops_broadcast_rules.html'.
             //   ex) [N, 1, 1] --> [1, N, 1, 1]
             //       [N, M, 1] --> [1, N, M, 1]
-            auto input_shape = outOp->get_input_shape(0);
+            auto input_shape = outOp->get_input_partial_shape(0);
             if (constDims.size() != 1 && constDims.size() < input_shape.size()) {
                 // Reshape 'constDims' according to the numpy broadcasting rule.
                 ngraph::Shape slope_shape(input_shape.size(), 1);
