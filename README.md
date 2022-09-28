@@ -99,7 +99,7 @@ The OpenVINO™ Runtime can infer models on different hardware devices. This sec
     </tbody>
 </table>
 
-Also OpenVINO™ Toolkit contains several plugins which should simplify loading model on several hardware devices:
+Also OpenVINO™ Toolkit also contains several plugins which simplify loading models on several hardware devices:
 <table>
     <thead>
         <tr>
@@ -144,7 +144,7 @@ The latest documentation for OpenVINO™ Toolkit is available [here](https://doc
 
 ### Developer documentation
 
-[Developer documentation](#todo-add) contains information about architectural decisions which are applied inside the OpenVINO components. This documentation provides all the necessary information you may need to contribute to OpenVINO.
+[Developer documentation](#todo-add) contains information about architectural decisions which are applied inside the OpenVINO components.
 
 ## Tutorials
 
@@ -161,7 +161,7 @@ The list of OpenVINO tutorials:
 
 ## System requirements
 
-The system requirements vary depending on a platform and are available on dedicated pages:
+The system requirements vary depending on platform and are available on dedicated pages:
 - [Linux](https://docs.openvino.ai/2022.2/openvino_docs_install_guides_installing_openvino_linux_header.html)
 - [Windows](https://docs.openvino.ai/2022.2/openvino_docs_install_guides_installing_openvino_windows_header.html)
 - [macOS](https://docs.openvino.ai/2022.2/openvino_docs_install_guides_installing_openvino_macos_header.html)
@@ -194,7 +194,7 @@ Report questions, issues and suggestions, using:
 * [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) - a suite of advanced algorithms for model inference optimization including quantization, filter pruning, binarization and sparsity
 * [OpenVINO™ Training Extensions (OTE)](https://github.com/openvinotoolkit/training_extensions) - a convenient environment to train Deep Learning models and convert them using OpenVINO for optimized inference.
 * [OpenVINO™ Model Server (OVMS)](https://github.com/openvinotoolkit/model_server) - a scalable, high-performance solution for serving deep learning models optimized for Intel architectures
-* [DL Workbench](https://docs.openvino.ai/2022.2/workbench_docs_Workbench_DG_Introduction.html) - an alternative, web-based version of OpenVINO designed to significantly facilitate production of pre-trained deep learning models.
+* [DL Workbench](https://docs.openvino.ai/2022.2/workbench_docs_Workbench_DG_Introduction.html) - an alternative, web-based version of OpenVINO designed to facilitate optimization and compression of pre-trained deep learning models.
 * [Computer Vision Annotation Tool (CVAT)](https://github.com/opencv/cvat) - an online, interactive video and image annotation tool for computer vision purposes.
 * [Dataset Management Framework (Datumaro)](https://github.com/openvinotoolkit/datumaro) - a framework and CLI tool to build, transform, and analyze datasets.
 
