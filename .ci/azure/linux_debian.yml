@@ -60,6 +60,7 @@ jobs:
     LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
     SAMPLES_INSTALL_DIR: /usr/share/openvino/samples
     PYTHON_SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/share/openvino/samples/python
+    PYTHON_WHEEL_INSTALL_DIR: $HOME/.local/lib/python3.8/site-packages
     TMP_DIR: /mnt/tmp
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
@@ -243,7 +244,8 @@ jobs:
       export MODELS_PATH=$(MODELS_PATH)
       # for libopenvino_template_extension.so
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$(INSTALL_DIR)/python/python3.8:$LD_LIBRARY_PATH
-      export OV_FRONTEND_PATH=$HOME/.local/lib/python3.8/site-packages/openvino/libs:$(INSTALL_TEST_DIR)
+      export OV_FRONTEND_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR)
+      export PYTHONPATH=$(INSTALL_TEST_DIR)
       echo $PYTHONPATH
       echo $LD_LIBRARY_PATH
       echo $OV_FRONTEND_PATH
