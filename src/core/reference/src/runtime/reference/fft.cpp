@@ -65,13 +65,6 @@ std::vector<int64_t> get_axes(const int64_t* axes_data, const Shape& axes_data_s
     return axes;
 }
 
-// When we reverted shape, we need to revert FFT axes.
-void reverse_fft_axes(std::vector<int64_t>& axes, int64_t complex_data_rank) {
-    for (int64_t& axis : axes) {
-        axis = complex_data_rank - 1 - axis;
-    }
-}
-
 // Helper function to get only length with respect to given axes.
 std::vector<int64_t> get_lengths(const std::vector<int64_t>& shape, const std::vector<int64_t>& axes) {
     std::vector<int64_t> lengths;
@@ -319,7 +312,7 @@ InfoForFFTCalculation get_info_for_calculation(const Shape& input_data_shape,
 
     const auto reversed_output_shape = fft_common::reverse_shape_of_emulated_complex_tensor(output_shape);
     auto fft_axes = get_axes(axes_data, axes_data_shape, complex_data_rank);
-    reverse_fft_axes(fft_axes, complex_data_rank);
+    fft_axes = fft_common::reverse_fft_axes(fft_axes, complex_data_rank);
 
     const int64_t fft_rank = fft_axes.size();
     const auto fft_lengths = get_lengths(reversed_output_shape, fft_axes);

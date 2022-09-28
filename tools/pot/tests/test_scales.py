@@ -16,6 +16,9 @@ from openvino.tools.pot.graph.node_utils import get_node_inputs, get_node_input,
 from openvino.tools.pot.graph import model_utils as mu
 from openvino.tools.pot.statistics.collector import StatisticsCollector
 
+
+EPS = 1e-6
+
 class NumpyEncoder(json.JSONEncoder):
     """ Special json encoder for numpy types """
     # pylint: disable=W0221, E0202
@@ -27,6 +30,7 @@ class NumpyEncoder(json.JSONEncoder):
         if isinstance(o, np.ndarray):
             return o.tolist()
         return json.JSONEncoder.default(self, o)
+
 
 def get_fq_nodes_stats_algo(model, preset, bits, is_weights, clipping_value=None):
     test_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)),
@@ -129,7 +133,6 @@ def test_activation_scales(tmp_path, models, preset, bits, stats_path, clipping_
 
     assert len(ref_nodes) == len(nodes)
     processed_nodes = []
-    eps = 1e-3
     for ref_name in ref_nodes:
 
         ref_min, ref_max = ref_nodes[ref_name]
@@ -137,7 +140,7 @@ def test_activation_scales(tmp_path, models, preset, bits, stats_path, clipping_
 
         error = max(abs(node_min - ref_min), abs(node_max - ref_max))
 
-        if error <= eps and ref_name not in processed_nodes:
+        if error <= EPS and ref_name not in processed_nodes:
             processed_nodes.append((
                 ref_name, abs(node_min - ref_min), abs(node_max - ref_max)))
 
@@ -163,8 +166,8 @@ def test_weights_scales(tmp_path, models):
         ref_min, ref_max = ref_weights[fq_name]['low_level'], ref_weights[fq_name]['high_level']
         assert_flag = False
 
-        if np.array_equal(ref_min, item_min) and \
-                np.array_equal(ref_max, item_max):
+        if np.max(np.abs(ref_min - item_min)) < EPS and \
+                np.max(np.abs(ref_max - item_max)) < EPS:
             assert_flag = True
 
         if not assert_flag:
@@ -259,7 +262,6 @@ def test_fake_quantize_configurations(tmp_path, models, model_name, model_framew
     local_file = open(local_path, 'w')
     model_values = {}
 
-    eps = 1e-3
     fq_list = mu.get_nodes_by_type(model, ['FakeQuantize'])
     for fq in sorted(fq_list, key=lambda item: item.name):
         min_levels, max_levels = tuple([get_node_value(node)
@@ -292,8 +294,8 @@ def test_fake_quantize_configurations(tmp_path, models, model_name, model_framew
 
         for min_level, max_level, ref_min, ref_max in zip(
                 min_levels, max_levels, refs_min_levels, refs_max_levels):
-            assert abs(min_level - ref_min) < eps
-            assert abs(max_level - ref_max) < eps
+            assert abs(min_level - ref_min) < EPS
+            assert abs(max_level - ref_max) < EPS
 
 
 def _get_pytorch_accuracy_checker_config(path_to_dataset):

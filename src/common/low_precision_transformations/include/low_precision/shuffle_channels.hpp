@@ -16,7 +16,7 @@ namespace low_precision {
  * @brief ShuffleChannelsTransformation propagates dequantization operations through ShuffleChannels operation.
  *
  * For more details about the transformation, refer to
- * [ShuffleChannelsTransformation](@ref openvino_docs_IE_DG_lpt_ShuffleChannelsTransformation) page
+ * [ShuffleChannelsTransformation](@ref openvino_docs_OV_UG_lpt_ShuffleChannelsTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API ShuffleChannelsTransformation : public LayerTransformation {

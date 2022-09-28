@@ -41,11 +41,14 @@ class BiasCorrection(Algorithm):
             self._config.get('stat_subset_size', len(self._engine.data_loader)),
             len(self._engine.data_loader)
         )
+        self._stat_batch_size = min(
+            self._config.get('stat_batch_size', 1), len(self._engine.data_loader))
         self._batch_stat_size = max(np.int(self._stat_subset_size * 0.2), 1)
         self._graph_transformer = GraphTransformer(load_hardware_config(self._config))
         self._shuffle_data = self._config.get('shuffle_data', False)
         self._seed = self._config.get('seed', 0)
-        self._sampler = create_sampler(engine, self._batch_stat_size, self._shuffle_data, self._seed)
+        self._sampler = create_sampler(
+            engine, self._batch_stat_size, self._shuffle_data, self._seed, self._stat_batch_size)
         self._types_with_bias = [op['type'] for op in OPERATIONS_WITH_BIAS]
         self._split_types = [op['type'] for op in SPLIT_OPERATIONS]
         self._nodes_with_bias_names = []

@@ -113,8 +113,8 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::DetectionOutp
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     InputGenerateData inGenData;
-    inGenData.range = 1;
     inGenData.start_from = 0;
+    inGenData.range = 1;
 
     switch (port) {
         case 1:
@@ -419,8 +419,8 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::GatherTree>& 
         case 2:
         case 3: {
             InputGenerateData inGenData;
-            inGenData.range = maxBeamIndx;
             inGenData.start_from = maxBeamIndx / 2;
+            inGenData.range = maxBeamIndx;
             return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
         }
         default:
@@ -486,8 +486,8 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v3::Bucketize>& n
     InferenceEngine::Blob::Ptr blobPtr;
     switch (port) {
         case 0: {
-            unsigned long data_size = std::accumulate(begin(targetShape), end(targetShape), 1, std::multiplies<uint64_t>());
-            return create_and_fill_tensor(elemType, ov::Shape{data_size * 5}, 0, 10, 7235346);
+            auto data_size = shape_size(targetShape);
+            return create_and_fill_tensor(elemType, targetShape, data_size * 5, 0, 10, 7235346);
         }
         case 1: {
             return  create_and_fill_tensor_unique_sequence(elemType, targetShape, 0, 10, 8234231);
@@ -629,6 +629,33 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::NonMaxSuppres
     }
 }
 
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v9::NonMaxSuppression>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    switch (port) {
+        case 1: {
+            ov::runtime::Tensor tensor = ov::runtime::Tensor(elemType, targetShape);
+
+            const size_t range = 1;
+            const size_t startFrom = 0;
+            const size_t k = 1000;
+            const int seed = 1;
+            std::default_random_engine random(seed);
+            std::uniform_int_distribution<int32_t> distribution(k * startFrom, k * (startFrom + range));
+
+            auto *dataPtr = tensor.data<float>();
+            for (size_t i = 0; i < tensor.get_size(); i++) {
+                auto value = static_cast<float>(distribution(random));
+                dataPtr[i] = value / static_cast<float>(k);
+            }
+            return tensor;
+        }
+        default:
+            return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+    }
+}
+
 template<ov::element::Type_t elemType>
 ov::runtime::Tensor generate_unique_possibilities(const ov::Shape &targetShape) {
     using value_type = typename element_type_traits<elemType>::value_type;
@@ -704,6 +731,7 @@ InputsMap getInputMap() {
 #include "ngraph/opsets/opset6_tbl.hpp"
 #include "ngraph/opsets/opset7_tbl.hpp"
 #include "ngraph/opsets/opset8_tbl.hpp"
+#include "ngraph/opsets/opset9_tbl.hpp"
 
 #undef NGRAPH_OP
     };

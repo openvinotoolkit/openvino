@@ -11,7 +11,6 @@
 #include <intel_gpu/primitives/pooling.hpp>
 #include <intel_gpu/primitives/condition.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
-#include <intel_gpu/primitives/scale.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
 #include <cstddef>
@@ -68,7 +67,7 @@ TEST(DISABLED_condition_gpu, basic_equal_comp) {
         condition("condi", "input", branch_true, branch_false, "compare", cond_functions::EQUAL)
     );
     topology.add(
-        scale("output", "condi", "scale_data")
+        eltwise("output", { "condi", "scale_data" }, eltwise_mode::prod)
     );
 
     network net(engine, topology, bs);
@@ -402,12 +401,12 @@ TEST(DISABLED_condition_gpu, basic_nested_ifs) {
 
     topology nested_true;
     {
-        nested_true.add(scale("scale_5", "condi_nested", "scale_5_data"),
+        nested_true.add(eltwise("scale_5", { "condi_nested", "scale_5_data" }, eltwise_mode::prod),
             data("scale_5_data", scale_5_mem));
     }
     topology nested_false;
     {
-        nested_false.add(scale("scale_10", "condi_nested", "scale_10_data"),
+        nested_false.add(eltwise("scale_10", { "condi_nested", "scale_10_data" }, eltwise_mode::prod),
             data("scale_10_data", scale_10_mem));
     }
 

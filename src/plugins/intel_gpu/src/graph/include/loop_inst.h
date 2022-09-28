@@ -41,8 +41,8 @@ public:
         back_edges(this->get_primitive()->back_edges),
         use_current_iteration(!this->get_primitive()->current_iteration_id.empty()),
         use_execution_condition(!this->get_primitive()->condition_id.empty()),
-        max_iteration(this->get_primitive()->max_iteration < 0 ? DEFAULT_MAX_NUM_ITERATION : this->get_primitive()->max_iteration),
-        iteration_axis(0) {}
+        iteration_axis(0),
+        max_iteration(this->get_primitive()->max_iteration < 0 ? DEFAULT_MAX_NUM_ITERATION : this->get_primitive()->max_iteration) {}
 
     mutable size_t iteration_axis;
     int64_t max_iteration;
@@ -174,11 +174,13 @@ public:
             throw std::runtime_error("Can't find input from dependency_list");
         }
         layout calculated_layout = (*input)->get_output_layout();
-        auto shape = calculated_layout.size.sizes(calculated_layout.format);
+        auto shape = calculated_layout.get_tensor().sizes(calculated_layout.format);
 
         if (inputDesc.axis >= 0) {
             iteration_axis = convert_to_raw_axis(static_cast<size_t>(inputDesc.axis), shape.size());
-            calculated_layout.size.raw[iteration_axis] = 1; // cropped inputs shape
+            auto calculated_size = calculated_layout.get_tensor();
+            calculated_size.raw[iteration_axis] = 1; // cropped inputs shape
+            calculated_layout.set_tensor(calculated_size);
         }
 
         return calculated_layout;
@@ -480,10 +482,10 @@ private:
 
             int64_t batch_size = 1;
             for (int64_t i = 0; i < axis; ++i) {
-                batch_size *= mem_layout.size.raw[i];
+                batch_size *= mem_layout.get_tensor().raw[i];
             }
             for (int64_t i = axis-1; i >= 2; --i) {
-                batch_size *= mem_layout.size.raw[i];
+                batch_size *= mem_layout.get_tensor().raw[i];
             }
             return batch_size;
         }
@@ -546,7 +548,7 @@ private:
         const int64_t bytes_iteration_initial_offset;
     };
 
-    static layout calc_output_layout(const loop_node& node);
+    static layout calc_output_layout(const loop_node& node, kernel_impl_params const& impl_param);
     bool preproc_memories_done;
     std::vector<backedge_memory_mapping> backedge_memory_mappings;
     std::vector<concatenated_memory_mapping> concatenated_input_mem_mappings;

@@ -13,6 +13,7 @@
 #include "low_precision/group_convolution.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
 
@@ -20,6 +21,7 @@ ngraph::pass::low_precision::MarkupCanBeQuantized::MarkupCanBeQuantized(const st
     : defaultPrecisions(defaultPrecisions) {}
 
 bool ngraph::pass::low_precision::MarkupCanBeQuantized::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+    RUN_ON_FUNCTION_SCOPE(MarkupCanBeQuantized);
     auto setEmptyPrecisions = [](const std::shared_ptr<ngraph::Node>& node) {
         for (auto& input : node->inputs()) {
             auto& rt = input.get_rt_info();

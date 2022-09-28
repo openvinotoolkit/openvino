@@ -25,10 +25,10 @@ ie_faster_build(${TARGET_NAME}_obj
     PCH PRIVATE "src/precomp.hpp"
 )
 
-target_link_libraries(${TARGET_NAME}_obj PRIVATE ngraph_reference openvino::itt ngraph::builder ov_core_dev)
+target_link_libraries(${TARGET_NAME}_obj PRIVATE ngraph_reference openvino::itt ngraph::builder openvino::core::dev)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-                                              "${CMAKE_CURRENT_SOURCE_DIR}/src")
+                                                     "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
 

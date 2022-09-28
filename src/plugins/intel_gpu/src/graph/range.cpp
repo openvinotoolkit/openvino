@@ -21,8 +21,8 @@ primitive_type_id range::type_id() {
     return &instance;
 }
 
-layout range_inst::calc_output_layout(range_node const& node) {
-    return node.get_primitive()->output_layout;
+layout range_inst::calc_output_layout(range_node const& node, kernel_impl_params const& impl_param) {
+    return impl_param.typed_desc<range>()->output_layout;
 }
 
 std::string range_inst::to_string(range_node const& node) {

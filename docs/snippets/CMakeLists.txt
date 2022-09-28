@@ -53,26 +53,20 @@ if (NOT (OpenCL_FOUND AND OpenCL_HEADERS))
 endif()
 
 # try to find VA libraries
-find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND)
-    pkg_search_module(LIBVA QUIET libva)
-endif()
-
-# TODO: pkg_search_module finds libva not in sysroot
-if(ANDROID)
-    set(LIBVA_FOUND OFF CACHE BOOL "" FORCE)
+if(NOT ANDROID)
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_search_module(libva QUIET IMPORTED_TARGET libva)
+        if(libva_FOUND)
+            message(STATUS "${PKG_CONFIG_EXECUTABLE}: libva (${libva_VERSION}) is found at ${libva_PREFIX}")
+        endif()
+    endif()
 endif()
 
 # remove OpenCV related sources
-if (ENABLE_OPENCV)
-    find_package(OpenCV QUIET)
-else()
-    set(OpenCV_FOUND OFF)
-endif()
-
+find_package(OpenCV QUIET COMPONENTS core imgcodecs)
 if(NOT OpenCV_FOUND)
-    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide5.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/ShapeInference.cpp")
+    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ShapeInference.cpp")
 endif()
 
 # requires mfxFrameSurface1 and MSS API
@@ -89,10 +83,9 @@ if(OpenCL_FOUND AND OpenCL_HEADERS)
     target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCL_LIB})
     target_include_directories(${TARGET_NAME} PRIVATE ${OpenCL_HEADERS})
 
-    if(LIBVA_FOUND)
+    if(libva_FOUND)
         target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_LIBVA)
-        target_include_directories(${TARGET_NAME} PRIVATE ${LIBVA_INCLUDE_DIRS})
-        target_link_libraries(${TARGET_NAME} PRIVATE ${LIBVA_LINK_LIBRARIES})
+        target_link_libraries(${TARGET_NAME} PRIVATE PkgConfig::libva)
     endif()
 
     if(WIN32)

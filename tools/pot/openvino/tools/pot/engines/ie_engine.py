@@ -229,12 +229,43 @@ class IEEngine(Engine):
         :param image_batch: list of ndarray images or list with a dictionary of inputs mapping
         """
         input_info = model.inputs
+        batch_dim = self.config.get('batch_dim', 0)
 
         def is_dynamic_input(input_blob):
             return input_blob.partial_shape.is_dynamic
 
+        def input_dim(input_blob):
+            return len(input_blob.partial_shape)
+
         def process_input(input_blob, input_data):
-            return input_data if is_dynamic_input(input_blob) else np.reshape(input_data, input_blob.shape)
+            is_sampler_batchfied = len(input_data) != 1
+            is_loader_batchfied = input_dim(input_blob) == input_data[0].ndim
+
+            if is_loader_batchfied:
+                if input_data[0].shape[batch_dim] == 1:
+                    input_data = [np.squeeze(d, batch_dim) for d in input_data]
+                    is_loader_batchfied = False
+            if not is_sampler_batchfied and not is_loader_batchfied:
+                is_sampler_batchfied = True
+
+            assert not (is_sampler_batchfied and is_loader_batchfied), (
+                "Data have to be batchfied by either 'stat_batch_size' parameter "
+                "in quantization algorithm "
+                "or a '__getitem__' method of 'DataLoader' not both."
+            )
+
+            input_data_batched = np.concatenate(
+                [np.expand_dims(i, batch_dim) for i in input_data], axis=batch_dim
+            )
+            input_data_batched = input_data_batched.squeeze()
+            if is_sampler_batchfied:
+                if input_data_batched.shape[batch_dim] != len(input_data):
+                    input_data_batched = np.expand_dims(input_data_batched, batch_dim)
+
+            if is_dynamic_input(input_blob):
+                return input_data_batched
+            else:
+                return np.reshape(input_data_batched, input_blob.shape)
 
         if isinstance(image_batch[0], dict):
             feed_dict = {}
@@ -242,13 +273,31 @@ class IEEngine(Engine):
             for input_name in image_batch[0].keys():
                 input_blob = input_blobs[input_name]
                 input_blob_name = self._get_input_any_name(input_blob)
-                feed_dict[input_blob_name] = process_input(input_blob, image_batch[0][input_name])
+                feed_dict[input_blob_name] = process_input(
+                    input_blob, [data[input_name] for data in image_batch]
+                )
+                if input_dim(input_blob) != feed_dict[input_blob_name].ndim:
+                    raise ValueError(
+                        "Incompatible input dimension. "
+                        f"Cannot infer dimension {feed_dict[input_blob_name].ndim} "
+                        f"{Shape(feed_dict[input_blob_name].shape)} "
+                        f"into {input_dim(input_blob)}. "
+                        "Please make sure batch of input is properly configured."
+                    )
             return feed_dict
 
         if len(input_info) == 1:
             input_blob = next(iter(input_info))
             input_blob_name = self._get_input_any_name(input_blob)
             image_batch = {input_blob_name: process_input(input_blob, image_batch)}
+            if input_dim(input_blob) != image_batch[input_blob_name].ndim:
+                raise ValueError(
+                    "Incompatible input dimension. "
+                    f"Cannot infer dimension {image_batch[input_blob_name].ndim} "
+                    f"{Shape(image_batch[input_blob_name].shape)} "
+                    f"into {input_dim(input_blob)}. "
+                    "Please make sure batch of input is properly configured."
+                )
             if not is_dynamic_input(input_blob) and Shape(image_batch[input_blob_name].shape) != input_info[0].shape:
                 raise ValueError(f"Incompatible input shapes. "
                                  f"Cannot infer {Shape(image_batch[input_blob_name].shape)} into {input_info[0].shape}."

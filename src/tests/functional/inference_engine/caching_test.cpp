@@ -17,6 +17,7 @@
 #include "ie_metric_helpers.hpp"
 #include "openvino/op/logical_not.hpp"
 
+#include "openvino/util/file_util.hpp"
 #include "ie_remote_context.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
@@ -197,9 +198,10 @@ public:
     using CheckConfigCb = std::function<void(const std::map<std::string, std::string> &)>;
     CheckConfigCb m_checkConfigCb = nullptr;
 
-    static std::string get_mock_engine_name() {
+    static std::string get_mock_engine_path() {
         std::string mockEngineName("mock_engine");
-        return CommonTestUtils::pre + mockEngineName + IE_BUILD_POSTFIX + CommonTestUtils::ext;
+        return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+            mockEngineName + IE_BUILD_POSTFIX);
     }
 
     static std::string generateTestFilePrefix() {
@@ -288,8 +290,8 @@ public:
         initParamTest();
         mockPlugin = std::make_shared<MockCachingInferencePlugin>();
         setupMock(*mockPlugin);
-        std::string libraryName = get_mock_engine_name();
-        sharedObjectLoader = ov::util::load_shared_object(libraryName.c_str());
+        std::string libraryPath = get_mock_engine_path();
+        sharedObjectLoader = ov::util::load_shared_object(libraryPath.c_str());
         injectProxyEngine = make_std_function<void(IInferencePlugin*)>("InjectProxyEngine");
 
         FuncTestUtils::TestModel::generateTestModel(modelName, weightsName);
@@ -308,7 +310,8 @@ public:
     void testLoad(const std::function<void(Core& ie)>& func) {
         Core ie;
         injectProxyEngine(mockPlugin.get());
-        ie.RegisterPlugin(std::string("mock_engine") + IE_BUILD_POSTFIX, deviceName);
+        ie.RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+            std::string("mock_engine") + IE_BUILD_POSTFIX), deviceName);
         func(ie);
         ie.UnregisterPlugin(deviceName);
     }
@@ -1951,6 +1954,67 @@ TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
             networks.clear();
         });
     }
+}
+
+//AUTO-DEVICE test
+//Single device
+TEST_P(CachingTest, LoadAUTO_OneDevice) {
+    const auto TEST_COUNT = 2;
+    EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return; // skip the remote Context test for Auto plugin
+    }
+    int index = 0;
+    m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
+        EXPECT_CALL(net, Export(_)).Times(1);
+    });
+    std::string cacheDir = m_cacheDir;
+    MkDirGuard guard(cacheDir);
+    for (index; index < TEST_COUNT; index++) {
+        deviceToLoad = CommonTestUtils::DEVICE_AUTO;
+        deviceToLoad += ":mock.0";
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(TEST_COUNT - index - 1);
+        EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(index);
+        ASSERT_NO_THROW(testLoad([&](Core &ie) {
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), cacheDir}});
+            m_testFunction(ie);
+        }));
+    }
+    std::cout << "Caching LoadAuto Test completed. Tried " << index << " times" << std::endl;
+}
+//Single device not support import/export
+TEST_P(CachingTest, LoadAUTO_OneDeviceNoImportExport) {
+    EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _))
+            .Times(AnyNumber()).WillRepeatedly(Return(false));
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::device::capabilities.name(), _)).Times(AnyNumber()).
+            WillRepeatedly(Return(decltype(ov::device::capabilities)::value_type{}));
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return; // skip the remote Context test for Auto plugin
+    }
+    EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 2 : 0);
+    EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 2 : 0);
+    EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(m_type == TestLoadType::EModelName ? 2 : 0);
+    EXPECT_CALL(*mockPlugin, ImportNetwork(_, _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(0);
+    testLoad([&](Core &ie) {
+        m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
+            EXPECT_CALL(net, Export(_)).Times(0);
+        });
+        deviceToLoad = CommonTestUtils::DEVICE_AUTO;
+        deviceToLoad += ":mock.0";
+        ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+        m_testFunction(ie);
+        m_post_mock_net_callbacks.pop_back();
+        m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
+            EXPECT_CALL(net, Export(_)).Times(0);
+        });
+        m_testFunction(ie);
+    });
 }
 
 // MULTI-DEVICE test

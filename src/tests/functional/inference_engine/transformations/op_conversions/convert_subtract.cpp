@@ -6,7 +6,7 @@
 
 #include <ngraph/function.hpp>
 #include <transformations/op_conversions/convert_subtract.hpp>
-#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
+#include <transformations/mark_dequantization_subgraph.hpp>
 #include <transformations/utils/utils.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
 

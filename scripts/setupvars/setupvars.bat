@@ -22,13 +22,13 @@ if not "%1"=="" (
 
 :: OpenCV
 if exist "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat" (
-call "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat"
-goto :opencv_done
+   call "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat"
+   goto :opencv_done
 )
 
 if exist "%INTEL_OPENVINO_DIR%\extras\opencv\setupvars.bat" (
-call "%INTEL_OPENVINO_DIR%\extras\opencv\setupvars.bat"
-goto :opencv_done
+   call "%INTEL_OPENVINO_DIR%\extras\opencv\setupvars.bat"
+   goto :opencv_done
 )
 :opencv_done
 
@@ -41,13 +41,20 @@ set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release;%INTEL_
 
 :: TBB
 if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb (
-set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin;%OPENVINO_LIB_PATHS%"
-set "TBB_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\cmake"
+   set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin;%OPENVINO_LIB_PATHS%"
+
+   if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\cmake (
+      set "TBB_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\cmake"
+   ) else if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\lib\cmake\TBB (
+      set "TBB_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\lib\cmake\TBB"
+   ) else if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\lib64\cmake\TBB (
+      set "TBB_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\lib64\cmake\TBB"
+   )
 )
 
 :: Compile tool
 if exist %INTEL_OPENVINO_DIR%\tools\compile_tool (
-set "PATH=%INTEL_OPENVINO_DIR%\tools\compile_tool;%PATH%"
+   set "PATH=%INTEL_OPENVINO_DIR%\tools\compile_tool;%PATH%"
 )
 
 :: Add libs dirs to the PATH

@@ -13,13 +13,14 @@ function(ie_plugin_get_file_name target_name library_name)
     set("${library_name}" "${LIB_PREFIX}${target_name}${LIB_SUFFIX}" PARENT_SCOPE)
 endfunction()
 
-if(NOT TARGET ie_plugins)
-    add_custom_target(ie_plugins)
+if(NOT TARGET ov_plugins)
+    add_custom_target(ov_plugins)
 endif()
 
 #
 # ie_add_plugin(NAME <targetName>
 #               DEVICE_NAME <deviceName>
+#               [PSEUDO_DEVICE]
 #               [PSEUDO_PLUGIN_FOR <actual_device>]
 #               [AS_EXTENSION]
 #               [DEFAULT_CONFIG <key:value;...>]
@@ -32,7 +33,7 @@ endif()
 #               )
 #
 function(ie_add_plugin)
-    set(options SKIP_INSTALL ADD_CLANG_FORMAT AS_EXTENSION SKIP_REGISTRATION)
+    set(options SKIP_INSTALL PSEUDO_DEVICE ADD_CLANG_FORMAT AS_EXTENSION SKIP_REGISTRATION)
     set(oneValueArgs NAME DEVICE_NAME VERSION_DEFINES_FOR PSEUDO_PLUGIN_FOR)
     set(multiValueArgs DEFAULT_CONFIG SOURCES OBJECT_LIBRARIES CPPLINT_FILTERS)
     cmake_parse_arguments(IE_PLUGIN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -79,7 +80,7 @@ function(ie_add_plugin)
         endif()
 
         ie_add_vs_version_file(NAME ${IE_PLUGIN_NAME}
-            FILEDESCRIPTION "Inference Engine ${IE_PLUGIN_DEVICE_NAME} device plugin library")
+            FILEDESCRIPTION "OpenVINO Runtime ${IE_PLUGIN_DEVICE_NAME} device plugin library")
 
         target_link_libraries(${IE_PLUGIN_NAME} PRIVATE openvino::runtime openvino::runtime::dev)
 
@@ -102,30 +103,13 @@ function(ie_add_plugin)
             add_cpplint_target(${IE_PLUGIN_NAME}_cpplint FOR_TARGETS ${IE_PLUGIN_NAME} CUSTOM_FILTERS ${custom_filter})
         endif()
 
-        add_dependencies(ie_plugins ${IE_PLUGIN_NAME})
-        if(TARGET openvino_gapi_preproc)
-            if(BUILD_SHARED_LIBS)
-                add_dependencies(${IE_PLUGIN_NAME} openvino_gapi_preproc)
-            else()
-                target_link_libraries(${IE_PLUGIN_NAME} PRIVATE openvino_gapi_preproc)
-            endif()
-        endif()
+        add_dependencies(ov_plugins ${IE_PLUGIN_NAME})
 
         # fake dependencies to build in the following order:
-        # IE -> IE readers -> IE inference plugins -> IE-based apps
+        # OV -> OV frontends -> OV inference plugins -> OV-based apps
         if(BUILD_SHARED_LIBS)
-            if(TARGET openvino_ir_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} openvino_ir_frontend)
-            endif()
-            if(TARGET openvino_onnx_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} openvino_onnx_frontend)
-            endif()
-            if(TARGET openvino_paddle_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} openvino_paddle_frontend)
-            endif()
-            if(TARGET openvino_tensorflow_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} openvino_tensorflow_frontend)
-            endif()
+            add_dependencies(${IE_PLUGIN_NAME} ov_frontends)
+
             # TODO: remove with legacy CNNNLayer API / IR v7
             if(TARGET inference_engine_ir_v7_reader)
                 add_dependencies(${IE_PLUGIN_NAME} inference_engine_ir_v7_reader)
@@ -135,11 +119,22 @@ function(ie_add_plugin)
         # install rules
         if(NOT IE_PLUGIN_SKIP_INSTALL OR NOT BUILD_SHARED_LIBS)
             string(TOLOWER "${IE_PLUGIN_DEVICE_NAME}" install_component)
-            ie_cpack_add_component(${install_component} REQUIRED DEPENDS core)
+
+            if(IE_PLUGIN_PSEUDO_DEVICE)
+                set(plugin_hidden HIDDEN)
+            endif()
+            ie_cpack_add_component(${install_component} 
+                                   DISPLAY_NAME "${IE_PLUGIN_DEVICE_NAME} runtime"
+                                   DESCRIPTION "${IE_PLUGIN_DEVICE_NAME} runtime"
+                                   ${plugin_hidden}
+                                   DEPENDS ${OV_CPACK_COMP_CORE})
 
             if(BUILD_SHARED_LIBS)
                 install(TARGETS ${IE_PLUGIN_NAME}
-                        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH}
+                        LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
+                        COMPONENT ${install_component})
+                install(TARGETS ${IE_PLUGIN_NAME}
+                        LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
                         COMPONENT ${install_component})
             else()
                 ov_install_static_lib(${IE_PLUGIN_NAME} ${install_component})
@@ -326,7 +321,9 @@ function(ie_generate_plugins_hpp)
 
         # add default plugin config options
         if(${device_name}_CONFIG)
-            list(APPEND device_configs -D "${device_name}_CONFIG=${${device_name}_CONFIG}")
+            # Replace ; to @ in order to have list inside list
+            string(REPLACE ";" "@" config "${${device_name}_CONFIG}")
+            list(APPEND device_configs -D "${device_name}_CONFIG=${config}")
         endif()
     endforeach()
 

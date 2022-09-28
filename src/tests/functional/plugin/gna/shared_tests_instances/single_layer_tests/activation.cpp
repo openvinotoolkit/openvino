@@ -11,12 +11,32 @@ namespace LayerTestsDefinitions {
 class ActivationLayerGNATest : public ActivationLayerTest {
 protected:
     void SetUp() override {
-        ActivationLayerTest::SetUp();
+        InferenceEngine::Precision netPrecision;
+        std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
+        std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
+        std::tie(activationDecl, netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, targetDevice) = GetParam();
+
+        const auto& inputShape = shapes.first;
+        const std::size_t inputDim = std::accumulate(inputShape.begin(), inputShape.end(), 1, std::multiplies<size_t>());
+        const std::vector<size_t> inputDims{1, inputDim};
+        activationType = activationDecl.first;
+        const auto& constantsValue = activationDecl.second;
+        const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto params = ngraph::builder::makeParams(ngPrc, {inputDims});
+        params[0]->set_friendly_name("Input");
+
         // TODO: remove after integer inference output support
-        auto ngPrc = function->get_parameters()[0]->get_element_type().get_type_name();
-        if (ngPrc == "u8" || ngPrc == "i16") {
+        if (ngPrc == ngraph::element::u8 || ngPrc == ngraph::element::i16) {
             threshold = 1.0;
         }
+
+        const auto inputReshapePattern = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{inputShape.size()}, inputShape);
+        const auto inputReshape = std::make_shared<ngraph::opset1::Reshape>(params[0], inputReshapePattern, false);
+        const auto activation = ngraph::builder::makeActivation(inputReshape, ngPrc, activationType, shapes.second, constantsValue);
+        const auto outputReshapePattern = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{2}, inputDims);
+        const auto outputReshape = std::make_shared<ngraph::opset1::Reshape>(activation, outputReshapePattern, false);
+
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{outputReshape}, params);
     }
 
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {
@@ -89,13 +109,14 @@ const std::vector<InferenceEngine::Precision> preluNetPrecisions = {
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
-        {Sigmoid, {}},
-        {Tanh,    {}},
-        {Relu,    {}},
-        {Exp,     {}},
-        {Log,     {}},
-        {Sign,    {}},
-        {Abs,     {}}
+        {Sigmoid,  {}},
+        {Tanh,     {}},
+        {Relu,     {}},
+        {Exp,      {}},
+        {Log,      {}},
+        {Sign,     {}},
+        {Abs,      {}},
+        {Clamp,    {{-5, 5}}}
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> preluActivationTypes = {
@@ -115,7 +136,8 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
         {{1, 4, 4, 128}, {{}}},
         {{8}, {{}}},
         {{5}, {{}}},
-        {{1, 936, 513}, {{}}}
+        {{1, 936, 513}, {{}}},
+        {{2, 32, 8}, {{}}}
 };
 
 const auto basicCases = ::testing::Combine(

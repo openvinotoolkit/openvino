@@ -39,12 +39,12 @@ void ov::op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_a
 }
 
 void ov::op::util::BinaryElementwiseArithmetic::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseArithmetic_validate_and_infer_types);
+    OV_OP_SCOPE(v0_util_BinaryElementwiseArithmetic_validate_and_infer_types);
     validate_and_infer_elementwise_arithmetic(m_autob);
 }
 
 bool ov::op::util::BinaryElementwiseArithmetic::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseArithmetic_visit_attributes);
+    OV_OP_SCOPE(v0_util_BinaryElementwiseArithmetic_visit_attributes);
     visitor.on_attribute("auto_broadcast", m_autob);
     return true;
 }

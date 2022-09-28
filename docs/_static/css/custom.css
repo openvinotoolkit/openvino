@@ -10,6 +10,12 @@ main img {
     margin-bottom: 0;
 }
 
+/* code reference text formatting override */
+code {
+    color: black !important;
+    font-weight: bold;
+}
+
 /* Performance Benchmark Graphs */
 
 .chart {
@@ -114,4 +120,9 @@ div.highlight {
     .container, .container-lg, .container-md, .container-sm, .container-xl {
         max-width: 1800px;
     }
+}
+
+main  .searchForm {
+    margin-bottom: 2rem;
+    margin-top: 2rem;
 }

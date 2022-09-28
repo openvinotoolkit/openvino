@@ -1,16 +1,15 @@
-# Converting a Caffe* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe}
+# Converting a Caffe Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe}
 
-## Convert a Caffe* Model <a name="Convert_From_Caffe"></a>
-To convert a Caffe\* model, run Model Optimizer with the path to the input model `.caffemodel` file:
+<a name="Convert_From_Caffe"></a>To convert a Caffe model, run Model Optimizer with the path to the input model `.caffemodel` file:
 
 ```sh
  mo --input_model <INPUT_MODEL>.caffemodel
 ```
 
-The following list provides the Caffe\*-specific parameters.
+The following list provides the Caffe-specific parameters.
 
 ```
-Caffe*-specific parameters:
+Caffe-specific parameters:
   --input_proto INPUT_PROTO, -d INPUT_PROTO
                         Deploy-ready prototxt file that contains a topology
                         structure and layer attributes
@@ -45,14 +44,16 @@ Caffe*-specific parameters:
                         attributes without flattening nested parameters.
 ```
 
-### Command-Line Interface (CLI) Examples Using Caffe\*-Specific Parameters
+### CLI Examples Using Caffe-Specific Parameters
 
-* Launching the Model Optimizer for the [bvlc_alexnet.caffemodel](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) with a specified `prototxt` file. This is needed when the name of the Caffe\* model and the `.prototxt` file are different or are placed in different directories. Otherwise, it is enough to provide only the path to the input `model.caffemodel` file.
+* Launching Model Optimizer for [bvlc_alexnet.caffemodel](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) with a specified `prototxt` file.
+   This is needed when the name of the Caffe model and the `.prototxt` file are different or are placed in different directories. Otherwise, it is enough to provide only the path to the input `model.caffemodel` file.
    ```sh
    mo --input_model bvlc_alexnet.caffemodel --input_proto bvlc_alexnet.prototxt
    ```
-* Launching the Model Optimizer for the [bvlc_alexnet.caffemodel](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) with a specified `CustomLayersMapping` file. This is the legacy method of quickly enabling model conversion if your model has custom layers. This requires the Caffe\* system on the computer.
-Optional parameters without default values and not specified by the user in the `.prototxt` file are removed from the Intermediate Representation, and nested parameters are flattened:
+* Launching Model Optimizer for [bvlc_alexnet.caffemodel](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) with a specified `CustomLayersMapping` file.
+   This is the legacy method of quickly enabling model conversion if your model has custom layers. This requires the Caffe system on the computer.
+The optional parameters without default values and not specified by the user in the `.prototxt` file are removed from the Intermediate Representation, and nested parameters are flattened:
    ```sh
    mo --input_model bvlc_alexnet.caffemodel -k CustomLayersMapping.xml --disable_omitting_optional --enable_flattening_nested_params
    ```
@@ -82,22 +83,22 @@ Optional parameters without default values and not specified by the user in the 
    ```
 ## Custom Layer Definition
 
-Internally, when you run the Model Optimizer, it loads the model, goes through the topology, and tries to find each layer type in a list of known layers. Custom layers are layers that are not included in the list of known layers. If your topology contains any layers that are not in this list of known layers, the Model Optimizer classifies them as custom.
+Internally, when you run Model Optimizer, it loads the model, goes through the topology, and tries to find each layer type in a list of known layers. Custom layers are layers that are not included in the list. If your topology contains such kind of layers, Model Optimizer classifies them as custom.
 
-## Supported Caffe\* Layers
-Refer to [Supported Framework Layers](../Supported_Frameworks_Layers.md) for the list of supported standard layers.
+## Supported Caffe Layers
+For the list of supported standard layers, refer to the [Supported Framework Layers](../Supported_Frameworks_Layers.md) page.
 
 ## Frequently Asked Questions (FAQ)
 
-The Model Optimizer provides explanatory messages if it is unable to run to completion due to issues like typographical errors, incorrectly used options, or other issues. The message describes the potential cause of the problem and gives a link to the [Model Optimizer FAQ](../Model_Optimizer_FAQ.md). The FAQ has instructions on how to resolve most issues. The FAQ also includes links to relevant sections in the Model Optimizer Developer Guide to help you understand what went wrong.
+Model Optimizer provides explanatory messages when it is unable to complete conversions due to typographical errors, incorrectly used options, or other issues. A message describes the potential cause of the problem and gives a link to [Model Optimizer FAQ](../Model_Optimizer_FAQ.md) which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections to help you understand what went wrong.
 
 ## Summary
 
 In this document, you learned:
 
-* Basic information about how the Model Optimizer works with Caffe\* models
-* Which Caffe\* models are supported
-* How to convert a trained Caffe\* model using the Model Optimizer with both framework-agnostic and Caffe-specific command-line options
+* Basic information about how the Model Optimizer works with Caffe models.
+* Which Caffe models are supported.
+* How to convert a trained Caffe model by using Model Optimizer with both framework-agnostic and Caffe-specific command-line options.
 
 ## See Also
 [Model Conversion Tutorials](Convert_Model_Tutorials.md)

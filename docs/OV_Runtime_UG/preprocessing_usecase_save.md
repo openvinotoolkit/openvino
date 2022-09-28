@@ -1,21 +1,20 @@
-# Use Case - Integrate and Save Preprocessing Steps Into IR {#openvino_docs_OV_Runtime_UG_Preprocess_Usecase_save}
+# Use Case - Integrate and Save Preprocessing Steps Into IR {#openvino_docs_OV_UG_Preprocess_Usecase_save}
 
-## Introduction
 
-In previous sections we've covered how to add [preprocessing steps](./preprocessing_details.md) and got the overview of [Layout](./layout_overview.md) API.
+Previous sections covered the topic of the [preprocessing steps](@ref openvino_docs_OV_UG_Preprocessing_Details) and the overview of [Layout](@ref openvino_docs_OV_UG_Layout_Overview) API.
 
-For many applications it is also important to minimize model's read/load time, so performing integration of preprocessing steps every time on application startup after `ov::runtime::Core::read_model` may look not convenient. In such cases, after adding of Pre- and Post-processing steps it can be useful to store new execution model to Intermediate Representation (IR, .xml format).
+For many applications, it is also important to minimize read/load time of a model. Therefore, performing integration of preprocessing steps every time on application startup, after `ov::runtime::Core::read_model`, may seem inconvenient. In such cases, once pre and postprocessing steps have been added, it can be useful to store new execution model to OpenVINO Intermediate Representation (OpenVINO IR, `.xml` format).
 
-Most part of existing preprocessing steps can also be performed via command line options using Model Optimizer tool. Refer to [Model Optimizer - Optimize Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md) for details os such command line options.
+Most available preprocessing steps can also be performed via command-line options, using Model Optimizer. For details on such command-line options, refer to the [Optimizing Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md).
 
-## Code example - saving model with preprocessing to IR
+## Code example - Saving Model with Preprocessing to OpenVINO IR
 
-In case if you have some preprocessing steps which can't be integrated into execution graph using Model Optimizer command line options (e.g. `YUV->RGB` color space conversion, Resize, etc.) it is possible to write simple code which:
- - Reads original model (IR, ONNX, Paddle)
- - Adds preprocessing/postprocessing steps
- - Saves resulting model as IR (.xml/.bin)
+When some preprocessing steps cannot be integrated into the execution graph using Model Optimizer command-line options (for example, `YUV`->`RGB` color space conversion, `Resize`, etc.), it is possible to write a simple code which:
+ - Reads the original model (OpenVINO IR, ONNX, PaddlePaddle).
+ - Adds the preprocessing/postprocessing steps.
+ - Saves resulting model as IR (`.xml` and `.bin`).
 
-Let's consider the example, there is an original `ONNX` model which takes one `float32` input with shape `{1, 3, 224, 224}` with `RGB` channels order, with mean/scale values applied. User's application can provide `BGR` image buffer with not fixed size. Additionally, we'll also imagine that our application provides input images as batches, each batch contains 2 images. Here is how model conversion code may look like in your model preparation script
+Consider the example, where an original ONNX model takes one `float32` input with the `{1, 3, 224, 224}` shape, the `RGB` channel order, and mean/scale values applied. In contrast, the application provides `BGR` image buffer with a non-fixed size and input images as batches of two. Below is the model conversion code that can be applied in the model preparation script for such a case.
 
 - Includes / Imports
 
@@ -35,7 +34,7 @@ Let's consider the example, there is an original `ONNX` model which takes one `f
 
 @endsphinxtabset
 
-- Preprocessing & Saving to IR code
+- Preprocessing & Saving to the OpenVINO IR code.
 
 @sphinxtabset
 
@@ -54,9 +53,9 @@ Let's consider the example, there is an original `ONNX` model which takes one `f
 @endsphinxtabset
 
 
-## Application code - load model to target device
+## Application Code - Load Model to Target Device
 
-After this, your application's code can load saved file and don't perform preprocessing anymore. In this example we'll also enable [model caching](./Model_caching_overview.md) to minimize load time when cached model is available
+After this, the application code can load a saved file and stop preprocessing. In this case, enable [model caching](./Model_caching_overview.md) to minimize load time when the cached model is available.
 
 @sphinxtabset
 
@@ -75,11 +74,11 @@ After this, your application's code can load saved file and don't perform prepro
 @endsphinxtabset
 
 
-## See Also
-* [Preprocessing Details](./preprocessing_details.md)
-* [Layout API overview](./layout_overview.md)
+## Additional Resources
+* [Preprocessing Details](@ref openvino_docs_OV_UG_Preprocessing_Details)
+* [Layout API overview](@ref openvino_docs_OV_UG_Layout_Overview)
 * [Model Optimizer - Optimize Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md)
 * [Model Caching Overview](./Model_caching_overview.md)
-* <code>ov::preprocess::PrePostProcessor</code> C++ class documentation
-* <code>ov::pass::Serialize</code> - pass to serialize model to XML/BIN
-* <code>ov::set_batch</code> - update batch dimension for a given model
+* The `ov::preprocess::PrePostProcessor` C++ class documentation
+* The `ov::pass::Serialize` - pass to serialize model to XML/BIN
+* The `ov::set_batch` - update batch dimension for a given model

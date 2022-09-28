@@ -78,7 +78,7 @@ struct jit_uni_topk_kernel {
 
 class TopK : public Node {
 public:
-    TopK(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    TopK(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
     ~TopK() override = default;
 
     void getSupportedDescriptors() override;
@@ -89,8 +89,8 @@ public:
     void prepareParams() override;
     void createPrimitive() override;
     bool created() const override;
-    void execute(mkldnn::stream strm) override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     bool canBeInPlace() const override {
         return false;
     }

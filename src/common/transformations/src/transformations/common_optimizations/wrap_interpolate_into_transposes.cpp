@@ -61,7 +61,7 @@ ngraph::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
             return false;
 
         int64_t input_rank = interpolate->get_input_partial_shape(0).rank().get_length();
-        // If the input rank is equal to 1 or 2, then such Interpolate is supported by MKLDNN.
+        // If the input rank is equal to 1 or 2, then such Interpolate is supported by OneDNN.
         if (input_rank < 3)
             return false;
 

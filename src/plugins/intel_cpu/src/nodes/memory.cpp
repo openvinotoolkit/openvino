@@ -3,15 +3,16 @@
 //
 
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
 #include "memory.hpp"
+#include "common/cpu_convert.h"
 #include "common/cpu_memcpy.h"
 #include "utils/general_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/ngraph_utils.hpp"
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -47,7 +48,7 @@ bool MemoryOutput::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-MemoryOutput::MemoryOutput(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+MemoryOutput::MemoryOutput(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node(op, eng, cache) , MemoryNode(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -78,7 +79,7 @@ void MemoryOutput::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
-void MemoryOutput::execute(mkldnn::stream strm)  {
+void MemoryOutput::execute(dnnl::stream strm)  {
     auto& srcMemory = getParentEdgeAt(0)->getMemory();
 
     auto inputMemoryNode = dynamic_cast<MemoryInput*>(inputNode);
@@ -105,7 +106,7 @@ bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
     return true;
 }
 
-MemoryInput::MemoryInput(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+MemoryInput::MemoryInput(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Input(op, eng, cache), MemoryNode(op), dataStore(new Memory{eng}) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -136,12 +137,17 @@ inline
 static void simple_copy(const Memory& dst, const Memory& src) {
     auto srcPtr = static_cast<uint8_t*>(src.GetPtr());
     auto dstPtr = static_cast<uint8_t*>(dst.GetPtr());
-    auto srcSizeInByte = src.GetSize();
-    auto dstSizeInByte = dst.GetSize();
+    if (src.GetDataType() == dst.GetDataType()) {
+        auto srcSizeInByte = src.GetSize();
+        auto dstSizeInByte = dst.GetSize();
 
-    IE_ASSERT(srcSizeInByte == dstSizeInByte) << "MemoryNode objects are not compatible. Has different sizes.";
+        IE_ASSERT(srcSizeInByte == dstSizeInByte) << "MemoryNode objects are not compatible. Has different sizes.";
 
-    cpu_memcpy(dstPtr, srcPtr, srcSizeInByte);
+        cpu_memcpy(dstPtr, srcPtr, srcSizeInByte);
+    } else {
+        cpu_convert(srcPtr, dstPtr, src.getDesc().getPrecision(),
+            dst.getDesc().getPrecision(), src.getDesc().getShape().getElementsCount());
+    }
 }
 
 MemoryInput::~MemoryInput() {
@@ -159,7 +165,7 @@ void MemoryInput::storeState(const Memory &new_state) {
     simple_copy(*dataStore, new_state);
 }
 
-void MemoryInput::execute(mkldnn::stream strm) {
+void MemoryInput::execute(dnnl::stream strm) {
     // TODO: Should be simple call of:
     //           dst_mem.SetData(dataStore, false);
     //       But because of performance reason we use simple manual copy

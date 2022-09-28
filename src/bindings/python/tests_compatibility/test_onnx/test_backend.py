@@ -8,7 +8,6 @@ from tests_compatibility import (
     BACKEND_NAME,
     skip_rng_tests,
     xfail_issue_33488,
-    xfail_issue_33538,
     xfail_issue_33581,
     xfail_issue_33589,
     xfail_issue_33595,
@@ -40,18 +39,16 @@ from tests_compatibility import (
     xfail_issue_63036,
     xfail_issue_63039,
     xfail_issue_63043,
-    xfail_issue_63044,
-    xfail_issue_63136,
     xfail_issue_63137,
     xfail_issue_63138,
     xfail_issue_69444,
     xfail_issue_78741,
-    xfail_issue_81974,
     xfail_issue_81976,
     skip_segfault,
     xfail_issue_82038,
     xfail_issue_82039,
-    xfail_issue_82040,
+    xfail_issue_91490,
+    skip_dynamic_model,
 )
 from tests_compatibility.test_onnx.utils.onnx_backend import OpenVinoTestBackend
 
@@ -200,11 +197,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu",
     ),
     (
-        xfail_issue_33538,
-        "OnnxBackendNodeModelTest.test_scan_sum_cpu",
-        "OnnxBackendNodeModelTest.test_scan9_sum_cpu",
-    ),
-    (
         xfail_issue_33581,
         "OnnxBackendNodeModelTest.test_gather_elements_negative_indices_cpu",
     ),
@@ -304,25 +296,13 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_reshape_allowzero_reordered_cpu",
     ),
     (
-        xfail_issue_63044,
-        "OnnxBackendNodeModelTest.test_tril_cpu",
-        "OnnxBackendNodeModelTest.test_tril_neg_cpu",
-        "OnnxBackendNodeModelTest.test_tril_one_row_neg_cpu",
-        "OnnxBackendNodeModelTest.test_tril_out_neg_cpu",
-        "OnnxBackendNodeModelTest.test_tril_out_pos_cpu",
-        "OnnxBackendNodeModelTest.test_tril_pos_cpu",
-        "OnnxBackendNodeModelTest.test_tril_square_cpu",
-        "OnnxBackendNodeModelTest.test_tril_square_neg_cpu",
+        xfail_issue_91490,
         "OnnxBackendNodeModelTest.test_tril_zero_cpu",
-        "OnnxBackendNodeModelTest.test_triu_cpu",
-        "OnnxBackendNodeModelTest.test_triu_neg_cpu",
-        "OnnxBackendNodeModelTest.test_triu_one_row_cpu",
-        "OnnxBackendNodeModelTest.test_triu_out_neg_out_cpu",
-        "OnnxBackendNodeModelTest.test_triu_out_pos_cpu",
-        "OnnxBackendNodeModelTest.test_triu_pos_cpu",
-        "OnnxBackendNodeModelTest.test_triu_square_cpu",
-        "OnnxBackendNodeModelTest.test_triu_square_neg_cpu",
         "OnnxBackendNodeModelTest.test_triu_zero_cpu",
+    ),
+    (
+        skip_dynamic_model,
+        "OnnxBackendNodeModelTest.test_triu_one_row_cpu"
     ),
     (
         skip_rng_tests,
@@ -332,17 +312,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_bernoulli_expanded_cpu",
         "OnnxBackendNodeModelTest.test_bernoulli_seed_cpu",
         "OnnxBackendNodeModelTest.test_bernoulli_seed_expanded_cpu",
-    ),
-    (
-        xfail_issue_63136,
-        "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_DOUBLE_to_FLOAT16_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_DOUBLE_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_DOUBLE_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_DOUBLE_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_FLOAT16_cpu",
     ),
     (
         xfail_issue_63137,
@@ -457,17 +426,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_mean_weight_log_prob_cpu",  # ticket: 81976
     ),
     (
-        xfail_issue_81974,
-        "OnnxBackendNodeModelTest.test_gridsample_aligncorners_true_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_bicubic_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_bilinear_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_border_padding_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_nearest_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_reflection_padding_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_zeros_padding_cpu",
-    ),
-    (
         xfail_issue_81976,  # SoftmaxCrossEntropyLoss operator
         "OnnxBackendNodeModelTest.test_sce_NCd1d2d3_none_no_weight_negative_ii_cpu",
         "OnnxBackendNodeModelTest.test_sce_NCd1d2d3_none_no_weight_negative_ii_log_prob_cpu",
@@ -497,10 +455,6 @@ tests_expected_to_fail = [
     (
         xfail_issue_82039,
         "OnnxBackendNodeModelTest.test_identity_opt_cpu",
-    ),
-    (
-        xfail_issue_82040,
-        "OnnxBackendNodeModelTest.test_roialign_aligned_true_cpu",
     ),
 ]
 

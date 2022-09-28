@@ -4,7 +4,7 @@
 
 #include <ngraph/opsets/opset8.hpp>
 
-#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
+#include <transformations/mark_dequantization_subgraph.hpp>
 #include <transformations/rt_info/dequantization_node.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 

@@ -1,4 +1,4 @@
-Supported Devices {#openvino_docs_IE_DG_supported_plugins_Supported_Devices}
+Supported Devices {#openvino_docs_OV_UG_supported_plugins_Supported_Devices}
 ==================
 
 The OpenVINO Runtime can infer models in different formats with various input and output formats. This section provides supported and optimal configurations per device. In OpenVINO™ documentation, "device" refers to an Intel® processors used for inference, which can be a supported CPU, GPU, VPU (vision processing unit), or GNA (Gaussian neural accelerator coprocessor), or a combination of those devices.
@@ -68,7 +68,7 @@ the supported models formats depends on the actual underlying devices. _Generall
 
 |Plugin             |FP32      |FP16           |U8             |U16            |I8            |I16            |
 |:------------------|:--------:|:-------------:|:-------------:|:-------------:|:------------:|:-------------:|
-|CPU plugin         |Supported |Not supported  |Supported      |Supported      |Not supported |Supported      |
+|CPU plugin         |Supported |Supported      |Supported      |Supported      |Supported     |Supported      |
 |GPU plugin         |Supported |Supported\*    |Supported\*    |Supported\*    |Not supported |Supported\*    |
 |VPU plugins        |Supported |Supported      |Supported      |Not supported  |Not supported |Not supported  |
 |GNA plugin         |Supported |Not supported  |Supported      |Not supported  |Supported     |Supported      |
@@ -82,7 +82,7 @@ the supported input precision  depends on the actual underlying devices. _Genera
 
 |Plugin             |FP32      |FP16          |
 |:------------------|:--------:|:------------:|
-|CPU plugin         |Supported |Not supported |
+|CPU plugin         |Supported |Supported     |
 |GPU plugin         |Supported |Supported     |
 |VPU plugins        |Supported |Supported     |
 |GNA plugin         |Supported |Not supported |
@@ -192,10 +192,10 @@ The following layers are supported by the plugins:
 | Log                            | Supported     | Supported\*\* | Supported     | Supported     | Supported       |
 | LRN (Norm)                     | Supported     | Supported     | Supported     | Not Supported | Supported\*     |
 | LSTMCell                       | Supported     | Supported     | Supported     | Supported     | Supported       |
-| GRUCell                        | Supported     | Supported     | Not Supported | Not Supported | Supported       |
+| GRUCell                        | Supported     | Supported     | Not Supported | Supported     | Supported       |
 | RNNCell                        | Supported     | Supported     | Not Supported | Not Supported | Supported       |
-| LSTMSequence                   | Supported     | Supported     | Supported     | Not Supported |Supported\*\*\*\*|
-| GRUSequence                    | Supported     | Supported     | Not Supported | Not Supported |Supported\*\*\*\*|
+| LSTMSequence                   | Supported     | Supported     | Supported     | Supported     |Supported\*\*\*\*|
+| GRUSequence                    | Supported     | Supported     | Not Supported | Supported     |Supported\*\*\*\*|
 | RNNSequence                    | Supported     | Supported     | Not Supported | Not Supported |Supported\*\*\*\*|
 | LogSoftmax                     | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       |
 | Memory                         | Not Supported | Supported     | Not Supported | Supported     | Not Supported   |

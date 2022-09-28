@@ -93,7 +93,7 @@ bool Proposal::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
     return true;
 }
 
-Proposal::Proposal(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+Proposal::Proposal(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -158,11 +158,11 @@ void Proposal::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void Proposal::executeDynamicImpl(mkldnn::stream strm) {
+void Proposal::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void Proposal::execute(mkldnn::stream strm) {
+void Proposal::execute(dnnl::stream strm) {
     try {
         const float* probabilitiesData = reinterpret_cast<const float *>(getParentEdgeAt(PROBABILITIES_IN_IDX)->getMemoryPtr()->GetPtr());
         const float* anchorsData = reinterpret_cast<const float *>(getParentEdgeAt(ANCHORS_IN_IDX)->getMemoryPtr()->GetPtr());

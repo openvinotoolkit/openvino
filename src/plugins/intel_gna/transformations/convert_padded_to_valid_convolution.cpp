@@ -16,8 +16,8 @@
 #include <ie_common.h>
 #include "utils/transformation_helper.hpp"
 
-
-using namespace GNAPluginNS;
+using namespace ov::intel_gna::pass;
+using namespace ov::intel_gna::pass::helper;
 
 static bool VerifyAndGetConvData(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& conv_data) {
     const auto& input = conv->input_value(0);
@@ -172,12 +172,6 @@ static bool Convert(std::shared_ptr<ngraph::Node> leading_transpose,
         std::dynamic_pointer_cast<ngraph::opset7::Convolution>(conv), conv_data);
 
     return true;
-}
-
-static std::function<bool(ngraph::Output<ngraph::Node>)> consumers_and_rank(const size_t expected_count, const ngraph::Dimension& expected_rank) {
-    return [=](ngraph::Output<ngraph::Node> output) -> bool {
-        return ngraph::pattern::consumers_count(expected_count) && ngraph::pattern::rank_equals(expected_rank);
-    };
 }
 
 ConvertPaddedToValidConv::ConvertPaddedToValidConv() {

@@ -5,13 +5,13 @@
 #include "dnnl_memory_desc.h"
 #include <dnnl_extension_utils.h>
 #include <common/memory_desc_wrapper.hpp>
-#include "mkldnn/ie_mkldnn.h"
+#include <onednn/dnnl.h>
 
 namespace ov {
 namespace intel_cpu {
 
-DnnlMemoryDesc::DnnlMemoryDesc(const mkldnn::memory::desc& desc) :
-    MemoryDesc(Shape(DnnlExtensionUtils::convertToVectorDims(desc.dims())), Mkldnn), desc(desc) {
+DnnlMemoryDesc::DnnlMemoryDesc(const dnnl::memory::desc& desc) :
+    MemoryDesc(Shape(DnnlExtensionUtils::convertToVectorDims(desc.dims())), Dnnl), desc(desc) {
     if (desc.data.format_kind == dnnl::impl::format_kind::any)
         IE_THROW(Unexpected) << "Memory format any is prohibited!";
 }
@@ -25,12 +25,12 @@ size_t DnnlMemoryDesc::getCurrentMemSizeImp() const {
 }
 
 size_t DnnlMemoryDesc::getElementOffset(size_t elemNumber) const {
-    mkldnn::impl::memory_desc_wrapper wrapped(desc.data);
+    dnnl::impl::memory_desc_wrapper wrapped(desc.data);
     return wrapped.off_l(elemNumber);
 }
 
 bool DnnlMemoryDesc::isCompatible(const MemoryDesc &rhs) const {
-    if (MemoryDescType::Mkldnn == rhs.getType()) {
+    if (MemoryDescType::Dnnl == rhs.getType()) {
         return this->desc == rhs.as<DnnlMemoryDesc>()->desc;
     } else {
         return false;
@@ -52,7 +52,7 @@ std::string DnnlMemoryDesc::serializeFormat() const {
 }
 
 bool DnnlMemoryDesc::isDefinedImp() const {
-    mkldnn::impl::memory_desc_wrapper wrappedThis(desc.data);
+    dnnl::impl::memory_desc_wrapper wrappedThis(desc.data);
 
     if (wrappedThis.has_runtime_dims_or_strides()) {
         return false;

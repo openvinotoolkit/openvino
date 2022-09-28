@@ -17,12 +17,10 @@ std::string OVInferRequestInferenceTests::getTestCaseName(
 }
 
 void OVInferRequestInferenceTests::SetUp() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     m_param = std::get<0>(GetParam());
-    m_device_name = std::get<1>(GetParam());
-}
-
-void OVInferRequestInferenceTests::TearDown() {
+    target_device = std::get<1>(GetParam());
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    APIBaseTest::SetUp();
 }
 
 std::shared_ptr<Model> OVInferRequestInferenceTests::create_n_inputs(size_t n,
@@ -50,7 +48,7 @@ std::shared_ptr<Model> OVInferRequestInferenceTests::create_n_inputs(size_t n,
 TEST_P(OVInferRequestInferenceTests, Inference_ROI_Tensor) {
     auto shape_size = ov::shape_size(m_param.m_shape);
     auto model = OVInferRequestInferenceTests::create_n_inputs(1, element::f32, m_param.m_shape);
-    auto execNet = ie->compile_model(model, m_device_name);
+    auto execNet = ie->compile_model(model, target_device);
     // Create InferRequest
     ov::InferRequest req;
     req = execNet.create_infer_request();

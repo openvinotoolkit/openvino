@@ -109,6 +109,8 @@ struct KernelData {
 
     int autoTuneIndex = -1;
 
+    bool can_reuse_memory = true;
+
     template <typename T>
     inline static KernelData Default(const Params& _params, size_t kernel_nums = 1) {
         KernelData kd;
@@ -118,6 +120,7 @@ struct KernelData {
         kd.runTime = std::numeric_limits<uint64_t>::max();
         kd.reorderInput = false;  // for KW
         kd.autoTuneIndex = -1;
+        kd.can_reuse_memory = true;
         return kd;
     }
 };
@@ -137,7 +140,6 @@ std::string toString(ReorderMode mode);
 std::string toString(MeanSubtractMode mode);
 std::string toString(ArgMaxMinOut mode);
 std::string toString(ArgMaxMinAxis mode);
-std::string toString(LookUpTableAxis mode);
 std::string toString(PoolType mode);
 std::string toString(LRNMode mode);
 std::string toString(KernelDividerMode mode);

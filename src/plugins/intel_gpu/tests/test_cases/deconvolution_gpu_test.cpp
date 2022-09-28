@@ -12,10 +12,6 @@
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
-namespace cldnn {
-template<> struct type_to_data_type<FLOAT16> { static const data_types value = data_types::f16; };
-}
-
 using namespace cldnn;
 using namespace ::tests;
 
@@ -62,25 +58,25 @@ VVVF<OutputT> reference_deconvolution(
     size_t input_f_start
 ) {
     auto ifm = weights.size();
-    auto filter_z = static_cast<int>(weights[0].size());
-    auto filter_y = static_cast<int>(weights[0][0].size());
-    auto filter_x = static_cast<int>(weights[0][0][0].size());
+    int64_t filter_z = static_cast<int64_t>(weights[0].size());
+    int64_t filter_y = static_cast<int64_t>(weights[0][0].size());
+    int64_t filter_x = static_cast<int64_t>(weights[0][0][0].size());
 
-    auto in_z = static_cast<int>(input[0].size());
-    auto in_y = static_cast<int>(input[0][0].size());
-    auto in_x = static_cast<int>(input[0][0][0].size());
+    int64_t in_z = static_cast<int64_t>(input[0].size());
+    int64_t in_y = static_cast<int64_t>(input[0][0].size());
+    int64_t in_x = static_cast<int64_t>(input[0][0][0].size());
 
-    auto offset_x = offset.size() >= 1 ? -offset[offset.size() - 1] : 0;
-    auto offset_y = offset.size() >= 2 ? -offset[offset.size() - 2] : 0;
-    auto offset_z = offset.size() >= 3 ? -offset[offset.size() - 3] : 0;
+    int64_t offset_x = offset.size() >= 1 ? -offset[offset.size() - 1] : 0;
+    int64_t offset_y = offset.size() >= 2 ? -offset[offset.size() - 2] : 0;
+    int64_t offset_z = offset.size() >= 3 ? -offset[offset.size() - 3] : 0;
 
-    auto stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
-    auto stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
-    auto stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
+    int64_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+    int64_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
+    int64_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
 
-    int out_x = 2 * offset_x + (in_x - 1) * stride_x + filter_x;
-    int out_y = 2 * offset_y + (in_y - 1) * stride_y + filter_y;
-    int out_z = 2 * offset_z + (in_z - 1) * stride_z + filter_z;
+    int64_t out_x = 2 * offset_x + (in_x - 1) * stride_x + filter_x;
+    int64_t out_y = 2 * offset_y + (in_y - 1) * stride_y + filter_y;
+    int64_t out_z = 2 * offset_z + (in_z - 1) * stride_z + filter_z;
     VVVF<OutputT> output(static_cast<size_t>(out_z), VVF<OutputT>(static_cast<size_t>(out_y), VF<OutputT>(static_cast<size_t>(out_x))));
 
     for (int oz = 0; oz < out_z; ++oz) {
@@ -2862,6 +2858,8 @@ TEST(deconvolution_f32_fw_gpu_onednn, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
     //  Stride : 2x2
 
     auto& engine = get_onednn_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
 
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 2, 2 } });
     auto weights = engine.allocate_memory({ data_types::f32, format::oiyx, { 1, 1, 2, 2 } });

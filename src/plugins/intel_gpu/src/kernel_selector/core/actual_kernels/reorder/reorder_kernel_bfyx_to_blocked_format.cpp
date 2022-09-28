@@ -31,6 +31,9 @@ ParamsKey ReorderKernel_bfyx_to_blocked_format::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv32);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv32);
+    k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv32_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv32_fsv32);
 
     k.EnableDifferentTypes();
     k.EnableBatching();
@@ -65,17 +68,39 @@ static inline size_t GetFsvAlignment(const reorder_params& params) {
     case DataLayout::b_fs_zyx_fsv16:
     case DataLayout::bs_fs_yx_bsv16_fsv16:
     case DataLayout::bs_fs_zyx_bsv16_fsv16:
+    case DataLayout::bs_fs_zyx_bsv32_fsv16:
         fsv_alignment = 16;
         break;
     case DataLayout::b_fs_yx_fsv32:
     case DataLayout::fs_b_yx_fsv32:
     case DataLayout::b_fs_zyx_fsv32:
+    case DataLayout::bs_fs_zyx_bsv16_fsv32:
+    case DataLayout::bs_fs_zyx_bsv32_fsv32:
         fsv_alignment = 32;
         break;
     default:
         throw std::runtime_error("Unsupported combination\n");
     }
     return fsv_alignment;
+}
+
+static inline size_t GetBsvAlignment(const reorder_params& params) {
+    const auto& out = params.outputs[0];
+    int alignment = -1;
+    switch (out.GetLayout()) {
+    case DataLayout::bs_fs_yx_bsv16_fsv16:
+    case DataLayout::bs_fs_zyx_bsv16_fsv16:
+    case DataLayout::bs_fs_zyx_bsv16_fsv32:
+        alignment = 16;
+        break;
+    case DataLayout::bs_fs_zyx_bsv32_fsv32:
+    case DataLayout::bs_fs_zyx_bsv32_fsv16:
+        alignment = 32;
+        break;
+    default:
+        throw std::runtime_error("Unsupported combination\n");
+    }
+    return alignment;
 }
 
 static inline size_t GetTileSize(const reorder_params& params) {
@@ -172,9 +197,14 @@ JitConstants ReorderKernel_bfyx_to_blocked_format::GetJitConstants(const reorder
     }
 
     if (params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
-        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16) {
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 ||
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv32 ||
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv16 ||
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32) {
+        const size_t bsv_alignment = GetBsvAlignment(params);
         jit.AddConstant(MakeJitConstant("DOUBLE_BLOCKED_FORMAT", 1));
-        jit.AddConstant(MakeJitConstant("INPUT0_BATCH_SLICE_NUM", CeilDiv(b, fsv_alignment)));
+        jit.AddConstant(MakeJitConstant("INPUT0_BATCH_SLICE_NUM", CeilDiv(b, bsv_alignment)));
+        jit.AddConstant(MakeJitConstant("BSV_ALIGNMENT", bsv_alignment));
     }
 
     // whether F is tile_size-aligned

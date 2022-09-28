@@ -16,7 +16,7 @@ from data import digits
 
 
 def create_ngraph_function(model_path: str) -> Model:
-    """Create a model on the fly from the source code using ngraph"""
+    """Create a model on the fly from the source code using ngraph."""
 
     def shape_and_length(shape: list) -> typing.Tuple[list, int]:
         length = reduce(lambda x, y: x * y, shape)

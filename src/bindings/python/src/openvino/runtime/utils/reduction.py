@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -13,7 +14,8 @@ def get_reduction_axes(node: Node, reduction_axes: Optional[Iterable[int]]) -> I
 
     :param node: The node we fill reduction axes for.
     :param reduction_axes: The collection of indices of axes to reduce. May be None.
-    returns Set filled with indices of axes we want to reduce.
+
+    returns: Set filled with indices of axes we want to reduce.
     """
     if reduction_axes is None:
         reduction_axes = set(range(len(node.shape)))

@@ -23,15 +23,16 @@ struct extract_image_patches_impl : typed_primitive_impl_ocl<extract_image_patch
     }
 
 public:
-    static primitive_impl* create(const extract_image_patches_node& arg) {
-        auto params = get_default_params<kernel_selector::extract_image_patches_params>(arg);
+    static primitive_impl* create(const extract_image_patches_node& arg, const kernel_impl_params& impl_param) {
+        const auto& prim = arg.get_primitive();
+        auto params = get_default_params<kernel_selector::extract_image_patches_params>(impl_param);
         auto optional_params =
             get_default_optional_params<kernel_selector::extract_image_patches_optional_params>(arg.get_program());
 
-        params.sizes = arg.get_primitive()->sizes;
-        params.strides = arg.get_primitive()->strides;
-        params.rates = arg.get_primitive()->rates;
-        params.auto_pad = arg.get_primitive()->auto_pad;
+        params.sizes = prim->sizes;
+        params.strides = prim->strides;
+        params.rates = prim->rates;
+        params.auto_pad = prim->auto_pad;
 
         auto& kernel_selector = kernel_selector::extract_image_patches_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);

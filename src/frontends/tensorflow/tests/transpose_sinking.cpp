@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transpose_sinking.hpp"
+#include "pass/transpose_sinking.hpp"
 
 #include <frontend/shared/include/utils.hpp>
 #include <openvino/frontend/manager.hpp>
@@ -82,7 +82,6 @@ TEST(TransposeSinkingTest, PoolAdd1) {
     ngraph::Shape input_shape{1, 3, 3, 1};  // NHWC (N=1, H=3, W=3, C=1)
 
     auto input_type = ngraph::element::f32;
-    auto output_type = ngraph::element::f32;
 
     auto X = make_shared<Parameter>(input_type, input_shape);  // NHWC
 
@@ -123,7 +122,6 @@ TEST(TransposeSinkingTest, PoolAdd2) {
     ngraph::Shape input_shape{1, 3, 3, 1};  // NHWC (N=1, H=3, W=3, C=1)
 
     auto input_type = ngraph::element::f32;
-    auto output_type = ngraph::element::f32;
 
     auto X = make_shared<Parameter>(input_type, input_shape);  // NHWC
 
@@ -178,7 +176,6 @@ TEST(TransposeSinkingTest, PoolAdd3) {
     ngraph::Shape input_shape{1, 3, 3, 1};  // NHWC (N=1, H=3, W=3, C=1)
 
     auto input_type = ngraph::element::f32;
-    auto output_type = ngraph::element::f32;
 
     auto X = make_shared<Parameter>(input_type, input_shape);  // NHWC
 
@@ -346,6 +343,58 @@ TEST(TransposeSinkingTest, SimpleUnary) {
     EXPECT_EQ(after_count, 0);
 }
 
+TEST(TransposeSinkingTest, SinkingThroughPreLUWithScalarSlope) {
+    auto input = make_shared<Parameter>(ov::element::f32, ov::Shape{1, 105, 30, 30});
+    auto transpose_before =
+        make_shared<Transpose>(input,
+                               make_shared<Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 3, 1}));
+
+    auto prelu = make_shared<PRelu>(transpose_before,
+                                    make_shared<Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0.8}));
+    auto transpose_after =
+        make_shared<Transpose>(prelu,
+                               make_shared<Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 3, 1, 2}));
+
+    auto model = make_shared<ov::Model>(ov::OutputVector{transpose_after}, ov::ParameterVector{input});
+    size_t before_count = count_ops_of_type<Transpose>(model);
+
+    ov::pass::Manager pass_manager;
+    pass_manager.register_pass<TransposeSinking>();
+    pass_manager.run_passes(model);
+
+    size_t after_count = count_ops_of_type<Transpose>(model);
+
+    EXPECT_EQ(before_count, 2);
+    EXPECT_EQ(after_count, 0);
+}
+
+TEST(TransposeSinkingTest, SinkingThroughPreLUWithNonScalarSlope) {
+    auto input = make_shared<Parameter>(ov::element::f32, ov::Shape{1, 3, 3, 3});
+    auto transpose_before =
+        make_shared<Transpose>(input,
+                               make_shared<Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 3, 1}));
+
+    auto prelu =
+        make_shared<PRelu>(transpose_before,
+                           make_shared<Constant>(ov::element::f32, ov::Shape{3}, std::vector<float>{0.8, 0.7, 0.1}));
+    auto transpose_after =
+        make_shared<Transpose>(prelu,
+                               make_shared<Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 3, 1, 2}));
+
+    auto model = make_shared<ov::Model>(ov::OutputVector{transpose_after}, ov::ParameterVector{input});
+    size_t before_count = count_ops_of_type<Transpose>(model);
+
+    ov::pass::Manager pass_manager;
+    pass_manager.register_pass<TransposeSinking>();
+    pass_manager.run_passes(model);
+
+    size_t after_count = count_ops_of_type<Transpose>(model);
+
+    EXPECT_EQ(before_count, 2);
+    // Now Transpose Sinking is not applied to Prelu with non-scalar slope
+    EXPECT_EQ(after_count, 2);
+}
+
 //            X (NCHW)
 //            |
 //         Transpose1
@@ -371,7 +420,6 @@ TEST(TransposeSinkingTest, MultiOutput) {
     ngraph::Shape shape_nchw{1, 1, 4, 6};
 
     auto input_type = ngraph::element::f32;
-    auto output_type = ngraph::element::f32;
 
     auto X = make_shared<Parameter>(input_type, shape_nchw);  // NCHW
 
@@ -441,7 +489,6 @@ TEST(TransposeSinkingTest, AlexnetPattern) {
     ngraph::Shape shape_nchw{1, 96, 55, 55};
 
     auto input_type = ngraph::element::f32;
-    auto output_type = ngraph::element::f32;
 
     // X
     auto X = make_shared<Parameter>(input_type, shape_nhwc);  // NHWC

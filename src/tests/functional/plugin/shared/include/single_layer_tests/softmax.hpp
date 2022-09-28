@@ -18,6 +18,14 @@ TEST_P(SoftMaxLayerTest, CompareQueryModel) {
     query_model();
 }
 
+TEST_P(SoftMax8LayerTest, CompareWithRefs) {
+    run();
+}
+
+TEST_P(SoftMax8LayerTest, CompareQueryModel) {
+    query_model();
+}
+
 }  // namespace subgraph
 }  // namespace test
 }  // namespace ov

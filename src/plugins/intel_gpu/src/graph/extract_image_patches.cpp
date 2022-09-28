@@ -15,10 +15,10 @@ primitive_type_id extract_image_patches::type_id() {
     return &instance;
 }
 
-layout extract_image_patches_inst::calc_output_layout(extract_image_patches_node const& node) {
-    auto desc = node.get_primitive();
+layout extract_image_patches_inst::calc_output_layout(extract_image_patches_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<extract_image_patches>();
 
-    auto input_layout = node.input(0).get_output_layout();
+    auto input_layout = impl_param.get_input_layout();
     auto input_format = input_layout.format;
 
     auto output_shape = desc->output_shape;
@@ -39,12 +39,10 @@ std::string extract_image_patches_inst::to_string(extract_image_patches_node con
 
     json_composite extract_image_patches_info;
     extract_image_patches_info.add("input id", input.id());
-    extract_image_patches_info.add("input shape", input.get_output_layout().size.to_string());
     extract_image_patches_info.add("sizes", sizes.str());
     extract_image_patches_info.add("strides", strides.str());
     extract_image_patches_info.add("rates", rates.str());
     extract_image_patches_info.add("auto_pad", desc->auto_pad);
-    extract_image_patches_info.add("output shape", input.calc_output_layout().size.to_string());
 
     node_info->add("extract_image_patches info", extract_image_patches_info);
     node_info->dump(primitive_description);

@@ -14,6 +14,7 @@
 #include "serial/headers/latest/gna_model_header.hpp"
 #include "gna2-model-api.h"
 
+#include "gna_device_allocation.hpp"
 
 /**
  * @brief implements serialization tasks for GNAGraph
@@ -38,6 +39,12 @@ private:
     void ImportTranspositionInfo(std::istream &is, std::string &name, std::vector<TranspositionInfo> &transpositionInfo);
 
     void ExportTranspositionInfo(std::ostream &os, const TranspositionInfoMap &transpositionInfoMap) const;
+
+    /**
+     * @brief Update input or output description to support importing of < 2.8 format where tensor_names were not present
+     * @param nodeDesc input or output description to be appended
+     */
+    void AppendTensorNameIfNeeded(GNAPluginNS::GnaDesc& nodeDesc) const;
 
  public:
     GNAModelSerial(Gna2Model * model, MemoryType & states_holder)
@@ -100,11 +107,9 @@ private:
 
     /**
      * save gna graph to an outpus stream
-     * @param basePtr
-     * @param gnaGraphSize
+     * @param allocations
      * @param os
      */
-    void Export(void *basePtr,
-                size_t gnaGraphSize,
+    void Export(const GnaAllocations& allocations,
                 std::ostream &os) const;
 };

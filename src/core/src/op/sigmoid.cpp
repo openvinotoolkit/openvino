@@ -18,7 +18,7 @@ using namespace ngraph;
 BWDCMP_RTTI_DEFINITION(ov::op::v0::Sigmoid);
 
 shared_ptr<Node> ov::op::v0::Sigmoid::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Sigmoid_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Sigmoid_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Sigmoid>(new_args.at(0));
 }
@@ -58,13 +58,13 @@ bool evaluate_sigmoid(const HostTensorPtr& arg0, const HostTensorPtr& out) {
 }  // namespace sigmoid
 
 bool ov::op::v0::Sigmoid::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Sigmoid_evaluate);
+    OV_OP_SCOPE(v0_Sigmoid_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     return sigmoid::evaluate_sigmoid(inputs[0], outputs[0]);
 }
 
 bool ov::op::v0::Sigmoid::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Sigmoid_has_evaluate);
+    OV_OP_SCOPE(v0_Sigmoid_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:

@@ -57,11 +57,13 @@ def part3():
     core = Core()
     # Read a network in IR, PaddlePaddle, or ONNX format:
     model = core.read_model(model_path)
-    # compile a model on AUTO with Performance Hints enabled:
-    # To use the “throughput” mode:
+    # Compile a model on AUTO with Performance Hints enabled:
+    # To use the “THROUGHPUT” mode:
     compiled_model = core.compile_model(model=model, device_name="AUTO", config={"PERFORMANCE_HINT":"THROUGHPUT"})
-    # or the “latency” mode:
+    # To use the “LATENCY” mode:
     compiled_model = core.compile_model(model=model, device_name="AUTO", config={"PERFORMANCE_HINT":"LATENCY"})
+    # To use the “CUMULATIVE_THROUGHPUT” mode:
+    compiled_model = core.compile_model(model=model, device_name="AUTO", config={"PERFORMANCE_HINT":"CUMULATIVE_THROUGHPUT"})
 #! [part3]
 
 def part4():

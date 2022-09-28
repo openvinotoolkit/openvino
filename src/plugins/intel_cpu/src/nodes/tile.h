@@ -14,12 +14,12 @@ namespace node {
 
 class Tile : public Node, public TileBroadcastCommon {
 public:
-    Tile(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    Tile(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
@@ -31,7 +31,7 @@ protected:
     std::vector<VectorDims> shapeInfer() const override;
 
 private:
-    void plainExecute(mkldnn::stream strm);
+    void plainExecute(dnnl::stream strm);
 
     static constexpr size_t TILE_INPUT = 0lu;
     static constexpr size_t TILE_REPEATS = 1lu;
