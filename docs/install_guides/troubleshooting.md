@@ -19,6 +19,6 @@
 
 This guide provides general troubleshooting steps and solutions to possible issues that can be encountered while installing and configuring OpenVINO™.
 
-The [Issues & Solutions](./troubleshooting-issues.md) page lists common installation errors and their solutions. If you encountered a specific error while installing OpenVINO, check this page to see if there is a solution.
+The [Issues & Solutions](./troubleshooting-issues.md) page lists common installation and configuration errors, and their possible solutions. If you encountered a specific error while installing or configuring OpenVINO, check this page to see if there is a solution.
 
 The [Troubleshooting Steps](./troubleshooting-steps.md) page provides a set of instructions for diagnosing and resolving installation and configuration issues. If you had problems during installation and configuration, walk through these steps to try and resolve your issue.
