@@ -198,8 +198,7 @@ TYPED_TEST_P(ArithmeticOperator, full_dynamic_shape) {
     ASSERT_TRUE(op->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
-TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_a)
-{
+TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_a) {
     Dimension b = -1;
     ov::DimensionTracker::set_label(b, 10);
     PartialShape A = {b, 3, 224, 224}, B = {1, 3, 1, 1};
@@ -217,8 +216,7 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_a)
     ASSERT_EQ(ov::DimensionTracker::get_label(shape[3]), 0);
 }
 
-TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_b)
-{
+TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_b) {
     Dimension b = -1;
     ov::DimensionTracker::set_label(b, 10);
     PartialShape A = {b, 3, 224, 224}, B = {1, 3, 1, 1};
@@ -236,8 +234,7 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_b)
     ASSERT_EQ(ov::DimensionTracker::get_label(shape[3]), 0);
 }
 
-TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_different_rank)
-{
+TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_different_rank) {
     Dimension b = -1;
     ov::DimensionTracker::set_label(b, 10);
     PartialShape A = {b, -1, -1, -1}, B = {3, 1, 1};
