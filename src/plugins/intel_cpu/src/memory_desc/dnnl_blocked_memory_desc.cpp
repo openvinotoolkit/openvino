@@ -455,9 +455,7 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims)
         IE_THROW() << "Can't clone desc if new dims are undefined";
     }
 
-    // // TODO [DS]: add stride recalculation for strided blobs
-    // getStrides();
-    // getBlockDims();
+    // TODO [DS]: add stride recalculation for strided blobs
     for (int i = strides.size() - 2; i >= 0 ; i--) {
         if (strides[i] == Shape::UNDEFINED_DIM)
             break;

@@ -264,7 +264,7 @@ private:
     friend DnnlMemoryMngr;
 
 private:
-    void Create(const dnnl::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true) const;
+    void createDnnlPrim(const dnnl::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true) const;
     void update();
     void resetDnnlPrim();
     bool testDnnlPrim() const;
