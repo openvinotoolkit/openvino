@@ -250,7 +250,7 @@ cmake --build .
 
 ## Additional Resources
 
- - See the [OpenVINO Samples](Samples_Overview.md) page or the [Open Model Zoo Demos](https://docs.openvino.ai/latest/omz_demos.html) page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
+ - See the [OpenVINO Samples](Samples_Overview.md) page or the [Open Model Zoo Demos](https://docs.openvino.ai/2022.2/omz_demos.html) page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
  - [OpenVINO™ Runtime Preprocessing](./preprocessing_overview.md)
  - [Using Encrypted Models with OpenVINO&trade;](./protecting_model_guide.md)
  - [OpenVINO Samples](Samples_Overview.md)
