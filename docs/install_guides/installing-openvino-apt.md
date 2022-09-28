@@ -116,9 +116,20 @@ Intel® OpenVINO™ Toolkit will be installed in: `/opt/intel/openvino_<VERSION>
 
 A symlink will be created: `/opt/intel/openvino_<VERSION>`
 
+#### To Install a Default Version
+
+You can install the default version by using the following command:
+```sh
+sudo apt install intel-openvino-<PACKAGE_TYPE>-ubuntu<OS_VERSION>-<VERSION>.<UPDATE>
+```
+For example:
+```sh
+sudo apt install intel-openvino-runtime-ubuntu18-2021.4
+```
+
 #### To Install a Specific Version
 
-1. Get a list of OpenVINO packages available for installation:
+1. Get a list of OpenVINO packages available for installation (taking Ubuntu 18 for example):
 ```sh
 sudo apt-cache search intel-openvino-runtime-ubuntu18
 ```
@@ -145,12 +156,6 @@ See the example commands below:
   ```sh
   sudo apt install intel-openvino-dev-ubuntu20-2021.4.752
   ```
-
-You can also specify the version only, without a specific build number, for example:
-```sh
-apt install intel-openvino-runtime-ubuntu18-2021.4
-```
-This will install the latest build.
 
 #### To check for Installed Packages and Versions
 
