@@ -149,7 +149,7 @@ Start with some Python tutorials:
    * [Convert TensorFlow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
    * [Convert a PyTorch model and remove the image background](https://docs.openvino.ai/latest/notebooks/205-vision-background-removal-with-output.html)
 
-To start with C++ samples, see [Build Sample Applications on Linux](../OV_Runtime_UG/Samples_Overview.md#build_samples_linux) first, and then you can try the following samples:
+To start with C++ samples, see <a href="openvino_docs_OV_UG_Samples_Overview.html#build-samples-linux">Build Sample Applications on Linux</a> first, and then you can try the following samples:
    * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
    * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
    * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
