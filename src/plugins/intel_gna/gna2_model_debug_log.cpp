@@ -485,15 +485,23 @@ void DumpGna2Model(const Gna2Model& gnaModel,
             } else if (operand.Type == Gna2DataTypeCompoundBias) {
                 DumpCompoundBias(dumpFile, operand);
             } else if (dumpData) {
-                std::ofstream datFile(dumpFileName.str() + ".dat", std::ios::out);
+                std::ofstream datFile(dumpFileName.str() + ".dat", std::ios::app);
                 std::vector<uint32_t> elementIndex(operand.Shape.NumberOfDimensions);
 
-                datFile << "Layer " << i << ", type " << GetLayerType(operation.Type) <<
-                    ", operand " << j << " - " << GetOperandName(operation.Type, j) << "\n";
+                auto beginItr = operand.Shape.Dimensions + 1;
+                auto endIter = operand.Shape.Dimensions + operand.Shape.NumberOfDimensions;
+                auto columnsValue = std::accumulate(beginItr, endIter, 1, std::multiplies<int>());
+                datFile << "Layer " << i << ", type " << GetLayerType(operation.Type) << ", operand " << j << " - "
+                        << GetOperandName(operation.Type, j) << ", rows: " << operand.Shape.Dimensions[0]
+                        << ", columns: " << columnsValue << "\n";
+
+                uint32_t ind = 0;
 
                 do {
                     int32_t value = GetValue(operand, elementIndex);
-                    datFile << value << "\n";
+                    datFile << std::setw(6) << value;
+                    auto postValueCharackters = (++ind % columnsValue == 0) ? "\n" : ", ";
+                    datFile << postValueCharackters;
                 } while (NextElement(elementIndex, operand.Shape));
             }
         }

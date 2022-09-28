@@ -1492,12 +1492,12 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 #ifdef PLOT
             if (f) {
                 if (isScalar) {
-                    fprintf(f, "%.2f ", outputBlob->cbuffer().as<float*>()[0]);
+                    fprintf(f, "%.7f ", outputBlob->cbuffer().as<float*>()[0]);
                 } else {
                     auto dims = outputBlob->getTensorDesc().getDims();
                     for (int i = 0; i < batchSize; i++) {
                         for (int j = 0; j < dims[dims.size() - 1]; j++) {
-                            fprintf(f, "%.2f ", outputBlob->cbuffer().as<float*>()[dims[dims.size() - 1] * i + j]);
+                            fprintf(f, "%.7f ", outputBlob->cbuffer().as<float*>()[dims[dims.size() - 1] * i + j]);
                         }
                         fprintf(f, "\n");
                     }
