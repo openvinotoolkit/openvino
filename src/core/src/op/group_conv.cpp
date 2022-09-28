@@ -88,7 +88,7 @@ void op::v1::GroupConvolution::validate_and_infer_types() {
     auto& filter_shape = get_input_partial_shape(1);
 
     m_num_spatial = calculate_num_spatial(this, data_shape, filter_shape, 2, 3);
-    update_and_validate_attributes(this);
+    update_and_validate_attributes(this, m_num_spatial);
 
     std::vector<ov::PartialShape> input_shapes = {data_shape, filter_shape};
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
@@ -301,7 +301,7 @@ void op::v1::GroupConvolutionBackpropData::validate_and_infer_types() {
     auto& output_shapes_shape = output_shape_input_present ? get_input_partial_shape(2) : PartialShape::dynamic();
 
     m_num_spatial = calculate_num_spatial(this, data_shape, filter_shape, output_shapes_shape, 2, 3);
-    update_and_validate_attributes_back_prop(this);
+    update_and_validate_attributes_back_prop(this, m_num_spatial);
 
     std::vector<ov::PartialShape> input_shapes = {data_shape, filter_shape};
     if (output_shape_input_present)
