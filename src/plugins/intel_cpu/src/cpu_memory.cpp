@@ -46,7 +46,7 @@ size_t Memory::GetSize() const {
     return size;
 }
 
-void Memory::Create(const dnnl::memory::desc& desc, const void *data, bool pads_zeroing) const {
+void Memory::createDnnlPrim(const dnnl::memory::desc& desc, const void *data, bool pads_zeroing) const {
     // OneDNN accepts not a const data, probably need to remove some level of consteness in a call stack
 
     // ========================
@@ -176,7 +176,7 @@ void Memory::resetDnnlPrim() {
 dnnl::memory Memory::GetPrimitive() const {
     if (!testDnnlPrim()) {
         if (pMemDesc->isDefined()) {
-            Create(MemoryDescUtils::convertToDnnlMemoryDesc(pMemDesc)->getDnnlDesc(), mgrHandle->getRawPtr(), padsZeroing);
+            createDnnlPrim(MemoryDescUtils::convertToDnnlMemoryDesc(pMemDesc)->getDnnlDesc(), mgrHandle->getRawPtr(), padsZeroing);
         } else {
             IE_THROW() << "Can not create oneDNN memory from undefined memory descriptor";
         }
