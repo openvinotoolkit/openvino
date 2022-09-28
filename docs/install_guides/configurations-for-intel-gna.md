@@ -16,7 +16,29 @@ Intel® GNA hardware requires a driver to be installed on the system.
 
 ## Linux
 
-[Download Intel® GNA driver for Ubuntu Linux 18.04.3 LTS (with HWE Kernel version 5.4+)](https://storage.openvinotoolkit.org/drivers/gna/)
+### Prerequisites
+
+Ensure that make, gcc, and Linux kernel headers are installed.
+
+### Configuration steps
+
+1. Download [Intel® GNA driver for Ubuntu Linux 18.04.3 LTS (with HWE Kernel version 5.4+)](https://storage.openvinotoolkit.org/drivers/gna/)
+2. Run the sample_install.sh script provided in the installation package:
+   ```sh
+   prompt$ ./scripts/sample_install.sh
+   ```
+
+You can also build and install the driver manually by using the following commands:
+```sh
+prompt$ cd src/
+prompt$ make
+prompt$ sudo insmod intel_gna.ko
+```
+
+To unload the driver:
+```sh
+prompt$ sudo rmmod intel_gna
+```
 
 @sphinxdirective
 
@@ -26,5 +48,5 @@ Intel® GNA hardware requires a driver to be installed on the system.
 
 ## Windows
 
-Intel® GNA driver for Windows is available through Windows Update\*
+Intel® GNA driver for Windows is available through Windows Update.
 
