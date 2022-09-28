@@ -79,11 +79,45 @@ public:
         return reinterpret_cast<std::vector<std::shared_ptr<const primitive_inst>> const&>(_deps);
     }
 
-    memory& dep_memory(size_t index) const { return dependencies().at(index)->output_memory(); }
-    memory::ptr dep_memory_ptr(size_t index) const { return dependencies().at(index)->output_memory_ptr(); }
-    memory& output_memory() const { return *_output; }
-    memory::ptr output_memory_ptr() const { return _output; }
+    const std::vector<std::pair<std::shared_ptr<const primitive_inst>, int32_t>>& dependencies_new() const {
+        return reinterpret_cast<std::vector<std::pair<std::shared_ptr<const primitive_inst>, int32_t>> const&>(_deps_new);
+    }
+
+    memory& dep_memory(size_t index) const {
+        if (!dependencies_new().empty()) {
+            auto dep = dependencies_new().at(index);
+            return dep.first->output_memory(dep.second);
+        }
+        return dependencies().at(index)->output_memory();
+    }
+    memory::ptr dep_memory_ptr(size_t index) const {
+        if (!dependencies_new().empty()) {
+            auto dep = dependencies_new().at(index);
+            return dep.first->output_memory_ptr(dep.second);
+        }
+        return dependencies().at(index)->output_memory_ptr();
+    }
+    memory& output_memory(size_t index = 0) const {
+        if (index == 0)
+            return *_output;
+        else
+            return *_outputs[index];
+    }
+    memory::ptr output_memory_ptr(size_t index = 0) const {
+        if (index == 0)
+            return _output;
+        else
+            return _outputs[index];
+    }
     size_t inputs_memory_count() const { return _node.get_primitive()->input_size(); }
+    size_t outputs_memory_count() const { return _node.get_primitive()->output_size(); }
+    bool outputs_allocated() const {
+        if (_outputs.empty()) return false;
+        for (auto& o : _outputs) {
+            if (!o) return false;
+        }
+        return true;
+    }
     primitive_type_id type() const { return _node.type(); }
     primitive_id id() const { return _node.id(); }
     primitive_id org_id() const { return _node.get_org_primitive_id(); }
@@ -183,6 +217,7 @@ protected:
     // this is a set of dependencies in terms of memory, if execution of this primitive requires data from another one,
     // it should be added to this set
     std::vector<std::shared_ptr<primitive_inst>> _deps;
+    std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> _deps_new;
 
     // this is a set of dependencies in terms of execution
     // execution of all primitives from this set should be enough to guarantee that all memory deps (see _deps)
@@ -192,6 +227,7 @@ protected:
     // manner) in general - this member is introduced to relax logical connection between primitives which have to be
     // executed and memories which are used by this primitive
     std::vector<std::shared_ptr<primitive_inst>> _exec_deps;
+    std::vector<std::pair<std::shared_ptr<primitive_inst>, int>> _exec_deps_new;
 
     // This is sub-network generated on demand to execute unfused primitives sequence instead of single fused primitive
     // Needed for dynamic path only, as fusion in some cases may be illegal, but it can't be checked on program build phase,
@@ -202,6 +238,7 @@ protected:
     // buffer or attach input as output
     // depending on reshape_node.is_in_place())
     memory::ptr _output;
+    std::vector<memory::ptr> _outputs;
 
     std::vector<memory::cptr> _intermediates_memory;
 
@@ -216,8 +253,11 @@ protected:
     size_t max_output_layout_size = 0;
 
     memory::ptr allocate_output();
+    std::vector<memory::ptr> allocate_outputs();
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::shared_ptr<primitive_inst>> const& mem_deps);
+    static std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> build_exec_deps_new(
+        std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> const& mem_deps);
 
     // event function called by primitive_inst::execute after checking if primitive should rerun and before calling
     // _impl->execute() mainly for reshape (to update output memory if reshape_node.is_in_place() == true)

@@ -129,15 +129,28 @@ void primitive_inst::set_output_memory(memory::ptr mem_new, bool check) {
         return;
     }
 
+    if (!_outputs.empty()) {
+        bool all_same_buffer = true;
+        for (auto& o : _outputs) {
+            all_same_buffer &= eng.is_the_same_buffer(*mem_new, *o);
+        }
+        if (all_same_buffer) return;
+    }
+
     auto ol = _node.get_output_layout();
 
     if (check)
         check_memory_to_set(*mem_new, ol);
 
     if (_node.is_constant()) {
-        mem_new->copy_from(_network.get_stream(), *_output);
+        if (_outputs.empty())
+            mem_new->copy_from(_network.get_stream(), *_output);
+        else
+            mem_new->copy_from(_network.get_stream(), *_outputs[0]);
     } else {
         _output = mem_new;
+        if (!_outputs.empty())
+            _outputs[0] = mem_new;
     }
 }
 
@@ -430,6 +443,10 @@ void primitive_inst::build_deps() {
         _deps = _network.get_primitives(_node.get_dependencies());
         _exec_deps = build_exec_deps(_deps);
     }
+    if (_deps_new.empty() && !_node.get_dependencies_new().empty()) {
+        _deps_new = _network.get_primitives(_node.get_dependencies_new());
+        _exec_deps_new = build_exec_deps_new(_deps_new);
+    }
 }
 
 primitive_inst::primitive_inst(network& network, program_node const& node, bool allocate_memory)
@@ -438,6 +455,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     , _impl_params(node.get_kernel_impl_params())
     , _impl(node.get_selected_impl() ? node.get_selected_impl()->clone() : nullptr)
     , _output()
+    , _outputs({})
     , _output_changed(false)
     , _mem_allocated(allocate_memory)
     , _is_dynamic(_node.is_dynamic() || _node.generates_dynamic_output()) {
@@ -464,6 +482,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
                     _output = user->as<mutable_data>().get_attached_memory_ptr();
         } else {
             _output = allocate_output();
+            _outputs = allocate_outputs();
         }
     }
     if (_impl)
@@ -703,12 +722,33 @@ memory::ptr primitive_inst::allocate_output() {
     return allocate_output(get_network().get_engine(), _network.get_memory_pool(), _node, *_impl_params, get_network_id(), _network.is_internal());
 }
 
+std::vector<memory::ptr> primitive_inst::allocate_outputs() {
+    std::vector<memory::ptr> outputs;
+    for (size_t i = 0; i < get_node().get_outputs_count() ; ++i) {
+        outputs.push_back(allocate_output(get_network().get_engine(), _network.get_memory_pool(), _node, *_impl_params,
+                          get_network_id(), _network.is_internal()));
+    }
+    return outputs;
+}
+
+
 std::vector<std::shared_ptr<primitive_inst>> primitive_inst::build_exec_deps(
     std::vector<std::shared_ptr<primitive_inst>> const& deps) {
     std::vector<std::shared_ptr<primitive_inst>> exec_deps;
     exec_deps.reserve(deps.size());
     for (auto& dep : deps)
         if (dep->get_impl() != nullptr || dep->is_dynamic())
+            exec_deps.push_back(dep);
+
+    return exec_deps;
+}
+
+std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> primitive_inst::build_exec_deps_new(
+    std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> const& deps) {
+    std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> exec_deps;
+    exec_deps.reserve(deps.size());
+    for (auto& dep : deps)
+        if (dep.first->get_impl() != nullptr || dep.first->is_dynamic())
             exec_deps.push_back(dep);
 
     return exec_deps;
