@@ -116,7 +116,7 @@ Intel® OpenVINO™ Toolkit will be installed in: `/opt/intel/openvino_<VERSION>
 
 A symlink will be created: `/opt/intel/openvino_<VERSION>`
 
-#### To Install a Default Version
+#### To Install the Default Version
 
 You can install the default version by using the following command:
 ```sh
