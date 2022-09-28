@@ -79,8 +79,7 @@ shared_ptr<RNNCellBase> find_cell_chain(ov::pass::NodeRegister& cp_from,
                                         const shared_ptr<RNNCellBase>& current_cell,
                                         ov::OutputVector& x_to_concat,
                                         ov::OutputVector& attention_to_concat,
-                                        map<int, set<ov::Input<ov::Node>>>& h_inputs_to_redirect,
-                                        map<int, set<ov::Input<ov::Node>>>& c_inputs_to_redirect,
+                                        map<int, ov::Output<ov::Node>>& h_outputs_to_redirect,
                                         int& cells_cnt,
                                         const shared_ptr<ov::Node>& axis_1) {
     cells_cnt = 1;
@@ -97,26 +96,22 @@ shared_ptr<RNNCellBase> find_cell_chain(ov::pass::NodeRegister& cp_from,
 
             auto in_X = current->input(0);
             x_to_concat.push_back(cp_to.make<Unsqueeze>(in_X.get_source_output(), axis_1));
+            h_outputs_to_redirect[cells_cnt] = current->output(0);
 
-            // collect inputs (target_inputs) connected to H output of prev_node except H input of the current node
-            auto in_H = current->input(1);
-            for (const auto& input : prev_cell->get_output_target_inputs(0)) {
-                if (input != in_H) {
-                    h_inputs_to_redirect[cells_cnt].insert(input);
+            // check intermediate C outputs in case of LSTMCell
+            if (dynamic_pointer_cast<LSTMCell>(current) && cells_cnt != 1) {
+                const auto& target_inputs = current->get_output_target_inputs(1);
+                bool valid = target_inputs.empty() ||
+                             (target_inputs.size() == 1 && dynamic_cast<LSTMCell*>(target_inputs.begin()->get_node()) &&
+                              target_inputs.begin()->get_index() == 2);
+                if (!valid) {
+                    // if intermediate C output is connected to other node, except LSTMCell,
+                    // we can't replace cells with sequence. Sequence doesn't provide access to these outputs.
+                    return {};
                 }
             }
 
-            if (auto lstm = dynamic_pointer_cast<LSTMCell>(current)) {
-                auto in_C = current->input(2);
-                // collect inputs (target_inputs) connected to C output of prev_node except C input of the current node
-                for (const auto& input : prev_cell->get_output_target_inputs(1)) {
-                    if (input != in_C) {
-                        c_inputs_to_redirect[cells_cnt].insert(input);
-                    }
-                }
-            }
-
-            if (auto augru = dynamic_pointer_cast<ov::op::internal::AUGRUCell>(prev_cell)) {
+            if (auto augru = dynamic_pointer_cast<ov::op::internal::AUGRUCell>(current)) {
                 attention_to_concat.push_back(cp_to.make<Unsqueeze>(augru->input_value(5), axis_1));
             }
 
@@ -128,6 +123,7 @@ shared_ptr<RNNCellBase> find_cell_chain(ov::pass::NodeRegister& cp_from,
             if (auto augru = dynamic_pointer_cast<ov::op::internal::AUGRUCell>(current)) {
                 attention_to_concat.push_back(cp_to.make<Unsqueeze>(augru->input_value(5), axis_1));
             }
+            h_outputs_to_redirect[cells_cnt] = current->output(0);
             break;
         }
     }
@@ -142,8 +138,7 @@ bool create_sequence(ov::pass::NodeRegister& cp_to,
                      const shared_ptr<RNNCellBase>& last_cell,
                      const ov::OutputVector& x_to_concat,
                      const ov::OutputVector& attention_to_concat,
-                     const map<int, set<ov::Input<ov::Node>>>& h_inputs_to_redirect,
-                     const map<int, set<ov::Input<ov::Node>>>& c_inputs_to_redirect,
+                     const map<int, ov::Output<ov::Node>>& h_outputs_to_redirect,
                      int cells_cnt,
                      const shared_ptr<ov::Node>& axis_0,
                      const shared_ptr<ov::Node>& axis_1) {
@@ -168,10 +163,11 @@ bool create_sequence(ov::pass::NodeRegister& cp_to,
     auto seq_lengths_scalar = cp_to.make<Constant>(i64, ov::Shape{}, cells_cnt);
     auto sequence_lengths_in =
         cp_to.add(ngraph::op::util::make_try_fold<Broadcast>(seq_lengths_scalar, batch_dimension));
-
     shared_ptr<ov::Node> sequence;
+    bool is_lstm = false;
     ov::OutputVector outputs(1);
     if (dynamic_pointer_cast<LSTMCell>(first_cell)) {
+        is_lstm = true;
         const auto Ct_in = cp_to.make<Unsqueeze>(first_cell->input_value(2), axis_1);
         sequence = cp_to.make<LSTMSequence>(X_in,
                                             Ht_in,
@@ -186,12 +182,6 @@ bool create_sequence(ov::pass::NodeRegister& cp_to,
                                             first_cell->get_activations_beta(),
                                             first_cell->get_activations(),
                                             first_cell->get_clip());
-        if (!c_inputs_to_redirect.empty()) {
-            // if intermediate C outputs are used in the network,
-            // then we cannot fuse Cells to Sequence.
-            // Sequence doesn't provide access to these C outputs.
-            return false;
-        }
         outputs.resize(2);
         outputs[1] = cp_to.make<Squeeze>(sequence->output(2), axis_1);
     } else if (auto gru_cell = dynamic_pointer_cast<GRUCell>(first_cell)) {
@@ -236,20 +226,30 @@ bool create_sequence(ov::pass::NodeRegister& cp_to,
         return false;
     }
 
-    outputs[0] = cp_to.make<Squeeze>(sequence->output(1), axis_1);
-    replace_outputs_update_names(last_cell->outputs(), outputs);
-
-    if (!h_inputs_to_redirect.empty()) {
+    if (!h_outputs_to_redirect.empty()) {
         auto squeeze_Y = cp_to.make<Squeeze>(sequence->output(0), axis_1);
         auto split = cp_to.make<Split>(squeeze_Y, axis_1, cells_cnt);
 
-        for (const auto& it : h_inputs_to_redirect) {
-            for (const auto& in : it.second) {
-                auto squeeze = cp_to.make<Squeeze>(split->output(cells_cnt - it.first - 1), axis_1);
-                in.replace_source_output(squeeze);
+        for (auto it : h_outputs_to_redirect) {
+            auto Hi = split->output(cells_cnt - it.first);
+            auto friendly_name = it.second.get_node_shared_ptr()->get_friendly_name();
+            if (it.first == 1) {
+                Hi = sequence->output(1);
             }
+            auto squeeze = cp_to.make<Squeeze>(Hi, axis_1);
+            it.second.replace(squeeze);
+            if (is_lstm) {
+                friendly_name += ":1";
+            }
+            squeeze->set_friendly_name(friendly_name);
         }
     }
+    if (is_lstm) {
+        auto squeeze = cp_to.make<Squeeze>(sequence->output(2), axis_1);
+        last_cell->output(1).replace(squeeze);
+        squeeze->set_friendly_name(last_cell->get_friendly_name() + ":2");
+    }
+
     return true;
 }
 }  // namespace
@@ -280,10 +280,9 @@ ov::pass::SequenceFusion::SequenceFusion() {
         int cells_cnt;
         ov::OutputVector x_to_concat;
         ov::OutputVector attention_to_concat;
-        map<int, set<ov::Input<ov::Node>>> h_inputs_to_redirect;
-        map<int, set<ov::Input<ov::Node>>> c_inputs_to_redirect;
-        auto axis_0 = copy_to.make<Constant>(i64, ov::Shape{}, 0);
-        auto axis_1 = copy_to.make<Constant>(i64, ov::Shape{}, 1);
+        map<int, ov::Output<ov::Node>> h_outputs_to_redirect;
+        auto axis_0 = copy_to.make<Constant>(i64, Shape{}, 0);
+        auto axis_1 = copy_to.make<Constant>(i64, Shape{}, 1);
 
         // detect chain (Cell->Cell->Cell->..)
         auto first_cell = find_cell_chain(copy_from,
@@ -291,10 +290,12 @@ ov::pass::SequenceFusion::SequenceFusion() {
                                           current_cell,
                                           x_to_concat,
                                           attention_to_concat,
-                                          h_inputs_to_redirect,
-                                          c_inputs_to_redirect,
+                                          h_outputs_to_redirect,
                                           cells_cnt,
                                           axis_1);
+        if (!first_cell) {
+            return false;
+        }
 
         // no reasons to create sequence if the single cell detected.
         // TODO: investigate optimal cnt of cells
@@ -308,8 +309,7 @@ ov::pass::SequenceFusion::SequenceFusion() {
                                    current_cell,
                                    x_to_concat,
                                    attention_to_concat,
-                                   h_inputs_to_redirect,
-                                   c_inputs_to_redirect,
+                                   h_outputs_to_redirect,
                                    cells_cnt,
                                    axis_0,
                                    axis_1);

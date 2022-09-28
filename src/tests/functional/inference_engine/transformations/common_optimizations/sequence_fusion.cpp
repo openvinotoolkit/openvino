@@ -38,15 +38,15 @@ namespace {
     }
 
     OutputVector create_cell(RNN_TYPE rnn_type,
-                                     const shared_ptr<Node>& X,
-                                     const shared_ptr<Node>& H,
-                                     const shared_ptr<Node>& C,
-                                     const shared_ptr<Node>& W,
-                                     const shared_ptr<Node>& R,
-                                     const shared_ptr<Node>& B,
-                                     const shared_ptr<Node>& A,
-                                     size_t hidden_size,
-                                     int64_t cells_cnt) {
+                             const shared_ptr<Node>& X,
+                             const shared_ptr<Node>& H,
+                             const shared_ptr<Node>& C,
+                             const shared_ptr<Node>& W,
+                             const shared_ptr<Node>& R,
+                             const shared_ptr<Node>& B,
+                             const shared_ptr<Node>& A,
+                             size_t hidden_size,
+                             int64_t cells_cnt) {
         shared_ptr<Node> cell;
         Output<Node> cur_H = H;
         Output<Node> cur_C = C;
@@ -75,7 +75,7 @@ namespace {
     }
 
     shared_ptr<Model> gen_model(RNN_TYPE rnn_type, size_t batch, size_t hidden_size, size_t input_size,
-                                    int64_t cells_cnt) {
+                                int64_t cells_cnt) {
         int gate = get_gate_by_rnn_type(rnn_type);
         auto X = make_shared<Parameter>(f32, Shape{batch, input_size});
         auto H = make_shared<Parameter>(f32, Shape{batch, hidden_size});
@@ -96,7 +96,7 @@ namespace {
     }
 
     shared_ptr<Model> gen_reference(RNN_TYPE rnn_type, size_t batch, size_t hidden_size, size_t input_size,
-                                        int64_t cells_cnt) {
+                                    int64_t cells_cnt) {
         int gate = get_gate_by_rnn_type(rnn_type);
         auto axis_0 = make_shared<Constant>(i64, Shape{}, 0);
         auto axis_1 = make_shared<Constant>(i64, Shape{}, 1);
@@ -194,6 +194,7 @@ TEST_P(SequenceFusionTest, SequencePattern) {
 }
 
 static const std::vector<SequenceFusionParams> params = {
+        SequenceFusionParams{RNN_TYPE::LSTM, 2, 128, 32, 10},
         SequenceFusionParams{RNN_TYPE::GRU, 2, 128, 32, 10},
         SequenceFusionParams{RNN_TYPE::RNN, 2, 128, 32, 10},
         SequenceFusionParams{RNN_TYPE::AUGRU, 2, 128, 32, 10},
