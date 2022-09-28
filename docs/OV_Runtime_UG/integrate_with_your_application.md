@@ -254,7 +254,7 @@ cmake --build .
  - [OpenVINO™ Runtime Preprocessing](./preprocessing_overview.md)
  - [Using Encrypted Models with OpenVINO&trade;](./protecting_model_guide.md)
  - [OpenVINO Samples](Samples_Overview.md)
- - [Open Model Zoo Demos](https://docs.openvino.ai/latest/omz_demos.html)
+ - [Open Model Zoo Demos](https://docs.openvino.ai/2022.2/omz_demos.html)
 
 [ie_api_flow_cpp]: img/BASIC_IE_API_workflow_Cpp.svg
 [ie_api_use_cpp]: img/IMPLEMENT_PIPELINE_with_API_C.svg
