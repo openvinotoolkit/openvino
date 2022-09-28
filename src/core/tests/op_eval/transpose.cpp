@@ -256,13 +256,12 @@ protected:
         result = exp_result = ov::TensorVector{ov::Tensor(dtype, {0})};
     }
 
-    template <class T1, class T2>
-    void node_set_lower_and_upper(ov::Node* node, const T1& lower, const T2& upper) {
-        if (lower) {
+    void node_set_lower_and_upper(ov::Node* node, const HostTensorPtr& lower, const HostTensorPtr& upper) {
+        if (lower != nullptr) {
             node->get_output_tensor(0).set_lower_value(lower);
         }
 
-        if (upper) {
+        if (upper != nullptr) {
             node->get_output_tensor(0).set_upper_value(upper);
         }
     }
