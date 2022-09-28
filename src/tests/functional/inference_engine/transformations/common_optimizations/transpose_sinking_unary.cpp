@@ -33,26 +33,22 @@ public:
 };
 
 template <>
-NodePtr UnaryFactory<ov::opset9::Elu>::create(NodePtr parent_node) const
-{
+NodePtr UnaryFactory<ov::opset9::Elu>::create(NodePtr parent_node) const {
     return std::make_shared<ov::opset9::Elu>(parent_node, 0.1);
 }
 
 template <>
-NodePtr UnaryFactory<ov::opset9::Clamp>::create(NodePtr parent_node) const
-{
+NodePtr UnaryFactory<ov::opset9::Clamp>::create(NodePtr parent_node) const {
     return std::make_shared<ov::opset9::Clamp>(parent_node, 0.1, 0.2);
 }
 
 template <>
-NodePtr UnaryFactory<ov::opset9::Convert>::create(NodePtr parent_node) const
-{
+NodePtr UnaryFactory<ov::opset9::Convert>::create(NodePtr parent_node) const {
     return std::make_shared<ov::opset9::Convert>(parent_node, ov::element::f64);
 }
 
 template <typename UnaryT>
-UnaryFactoryPtr CreateUnaryFactory()
-{
+UnaryFactoryPtr CreateUnaryFactory() {
     return std::make_shared<UnaryFactory<UnaryT>>();
 }
 
@@ -74,8 +70,7 @@ public:
 };
 
 template <typename PassT>
-ov::pass::Manager PassManagerFactory<PassT>::createManager() const
-{
+ov::pass::Manager PassManagerFactory<PassT>::createManager() const {
     ov::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<PassT>();
@@ -83,8 +78,7 @@ ov::pass::Manager PassManagerFactory<PassT>::createManager() const
 }
 
 template <typename PassT>
-PassManagerFactoryPtr CreatePassManagerFactory()
-{
+PassManagerFactoryPtr CreatePassManagerFactory() {
     return std::make_shared<PassManagerFactory<PassT>>();
 }
 
@@ -121,21 +115,19 @@ void TransposeSinkingUnaryTestFixture::SetUp() {
 
 namespace {
 
-std::string GetFinalNodeName(std::shared_ptr<ov::Model> model, int index = 0)
-{
+std::string GetFinalNodeName(std::shared_ptr<ov::Model> model, int index = 0) {
     NodePtr result_node = model->get_results()[index];
     return result_node->get_input_node_ptr(0)->get_friendly_name();
 }
 
 void execute_test(std::shared_ptr<ov::Model> model,
                   std::shared_ptr<ov::Model> reference_model,
-                  ov::pass::Manager pass_manager)
-{
+                  ov::pass::Manager pass_manager) {
     std::shared_ptr<ov::Model> original_model = model->clone();
 
     pass_manager.run_passes(model);
     ASSERT_NO_THROW(check_rt_info(model));
-    
+
     EXPECT_EQ(GetFinalNodeName(model), GetFinalNodeName(original_model));
 
     FunctionsComparator func_comparator = FunctionsComparator::with_default();
@@ -144,8 +136,7 @@ void execute_test(std::shared_ptr<ov::Model> model,
     ASSERT_TRUE(result.valid) << result.message;
 }
 
-std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_factory)
-{
+std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_factory) {
         ov::Shape input_shape{1, 96, 55, 55};
         auto input_type = ov::element::f32;
 
@@ -158,8 +149,7 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_f
         return std::make_shared<ov::Model>(elu, ov::ParameterVector{X});
 }
 
-std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_factory)
-{
+std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_factory) {
         ov::Shape input_shape{1, 96, 55, 55};
         auto input_type = ov::element::f32;
 

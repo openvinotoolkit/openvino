@@ -19,8 +19,7 @@ namespace {
 using NodePtr = std::shared_ptr<ov::Node>;
 using NodePair = std::pair<NodePtr, NodePtr>;
 
-NodePair DoTransformation(NodePtr first_node, NodePtr second_node)
-{
+NodePair DoTransformation(NodePtr first_node, NodePtr second_node) {
     auto second_node_inputs = second_node->input_values();
     second_node_inputs[0] = first_node->input_value(0);
     auto new_first_node = second_node->clone_with_new_inputs(second_node_inputs);
