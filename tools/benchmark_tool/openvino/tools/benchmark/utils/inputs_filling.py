@@ -36,6 +36,7 @@ class DataQueue:
     def get_next_batch_size(self):
         return self.batch_sizes[self.current_group_id]
 
+
 def get_group_batch_sizes(app_input_info):
     batch_sizes = []
     niter = max(len(info.shapes) for info in app_input_info)
