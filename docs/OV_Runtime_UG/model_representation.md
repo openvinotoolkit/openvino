@@ -193,7 +193,7 @@ OpenVINO™ provides several debug capabilities:
 
      @endsphinxtab
 
-## See Also
+## Additional Resources
 
 * [Available Operation Sets](../ops/opset.md)
 * [OpenVINO™ Runtime Extensibility Developer Guide](../Extensibility_UG/Intro.md)
