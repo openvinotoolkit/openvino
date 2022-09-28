@@ -762,6 +762,24 @@ TEST(type_prop, slice_v8_basic_const_inputs_MAX_MIN_32_no_upper_bounds_neg_step)
     EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
 }
 
+TEST(type_prop, slice_v8_dynamic_dim_zero_start_negative_stop) {
+    PartialShape data_shape{Dimension(-1)};
+    PartialShape expected_out_shape{Dimension(-1)};
+
+    std::vector<int32_t> start_val{0};
+    std::vector<int32_t> stop_val{-2};
+    std::vector<int32_t> step_val{1};
+
+    std::vector<int32_t> axes_val{0};
+
+    element::Type_t et = element::i32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
 TEST(type_prop, slice_v8_duplicated_axes) {
     PartialShape data_shape{100, 100, 100, 100};
     PartialShape expected_out_shape{100, 100, 100, 100};

@@ -305,7 +305,7 @@ PartialShape op::v8::Slice::calculate_output_shape(const std::vector<int64_t>& s
             if (is_max_int(get_input_element_type(2), stop) || is_max_int(get_input_element_type(1), start)) {
                 output_shape[norm_axis] = Dimension(-1);
                 continue;
-            } else if ((step < 0 && start < 0 && stop > 0) || (step > 0 && stop < 0 && start > 0)) {
+            } else if ((step < 0 && start < 0 && stop > 0) || (step > 0 && stop < 0 && start >= 0)) {
                 output_shape[norm_axis] = Dimension(-1);
                 continue;
             } else if (step < 0 && start > 0 && stop < 0) {
