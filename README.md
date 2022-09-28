@@ -161,7 +161,7 @@ The list of OpenVINO tutorials:
 
 ## System requirements
 
-The system requirements vary depending on a platform and are available on dedicated pages:
+The system requirements vary depending on platform and are available on dedicated pages:
 - [Linux](https://docs.openvino.ai/nightly/openvino_docs_install_guides_installing_openvino_linux_header.html)
 - [Windows](https://docs.openvino.ai/nightly/openvino_docs_install_guides_installing_openvino_windows_header.html)
 - [macOS](https://docs.openvino.ai/nightly/openvino_docs_install_guides_installing_openvino_macos_header.html)
