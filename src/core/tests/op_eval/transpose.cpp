@@ -267,8 +267,8 @@ protected:
     }
 
     PartialShape p_shape;
-    ov::element::Type_t dtype{ov::element::from<int32_t>()};
-    ov::element::Type_t label_dtype{ov::element::from<size_t>()};
+    ov::element::Type dtype{ov::element::from<int32_t>()};
+    ov::element::Type label_dtype{ov::element::from<uint64_t>()};
 
     std::vector<int32_t> axes_order, lower_values, upper_values;
     HostTensorPtr lower_v_tensor, upper_v_tensor, axes_v_tensor;
@@ -376,5 +376,7 @@ TEST_P(TransposeEvalTest, evaluate_label) {
     auto exp_eval_result = transpose->evaluate(exp_result, inputs);
 
     ASSERT_EQ(transpose->evaluate_label(labels_tensor), exp_eval_result);
-    ASSERT_EQ(labels_tensor[Transpose::ARG_T], to_vector<size_t>(exp_result[Transpose::ARG_T]));
+    const auto labels =
+        std::vector<uint64_t>(labels_tensor[Transpose::ARG_T].cbegin(), labels_tensor[Transpose::ARG_T].cend());
+    ASSERT_EQ(labels, to_vector<uint64_t>(exp_result[Transpose::ARG_T]));
 }
