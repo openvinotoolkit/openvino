@@ -317,10 +317,10 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
     if (!m_config.graph_dumps_dir.empty()) {
         options.set_option(cldnn::build_option::graph_dumps_dir(m_config.graph_dumps_dir));
     }
-
     for (const auto& op : ops) {
         if (op->is_dynamic()) {
             allow_new_shape_infer = true;
+            options.set_option(cldnn::build_option::is_dynamic(true));
             break;
         }
     }

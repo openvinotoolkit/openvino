@@ -170,6 +170,17 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
     }
 }
 
+template<typename ShapeType>
+std::vector<layout> reorder_inst::calc_output_layouts(reorder_node const& /*node*/, const kernel_impl_params& impl_param) {
+    auto desc = impl_param.typed_desc<reorder>();
+    auto input_layout = impl_param.get_input_layout();
+
+    auto ifmt = input_layout.format;
+    auto ofmt = desc->output_format == format::any ? ifmt : desc->output_format;
+
+    return { layout(input_layout.get_partial_shape(), desc->output_data_type.value(), ofmt, desc->output_padding) };
+}
+
 std::string reorder_inst::to_string(reorder_node const& node) {
     auto desc = node.get_primitive();
     auto mean = desc->mean;

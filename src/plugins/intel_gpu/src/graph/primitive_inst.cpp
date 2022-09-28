@@ -154,8 +154,17 @@ void primitive_inst::update_shape() {
     if (input_shape_changed)
         set_shape_change();
 
+    // Even though the predecessors' shapes are not changed, the output shape might be udpated by the mem_dep
+    auto memory_deps = _node.get_const_memory_deps();
+    for (auto& i : _node.get_shape_infer_dependencies()) {
+        if (memory_deps.count(i) > 0) {
+            continue;
+        }
+        input_shape_changed = true;
+    }
+
     // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
-    if (_node.is_type<shape_of>())
+    if (_node.is_type<shape_of>() && !input_shape_changed)
         return;
 
     // Strided slice loads data from {1,2,3} dependencies in impl::create method.
@@ -173,7 +182,6 @@ void primitive_inst::update_shape() {
     if (!strided_slice_wa && !input_shape_changed && !_node.generates_dynamic_output() && _impl_params->output_layout.is_static())
         return;
 
-    auto memory_deps = _node.get_const_memory_deps();
     std::vector<event::ptr> dependencies_events;
     for (auto& i : _node.get_shape_infer_dependencies()) {
         // Some primitives may have flexible count of deps (e.g. reshape), thus allow skipping some deps
