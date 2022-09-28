@@ -472,6 +472,14 @@ TEST_P(ov_core, ov_core_get_versions_by_device_name) {
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+const std::vector<std::wstring> test_unicode_postfix_vector = {L"unicode_Яㅎあ",
+                                                               L"ひらがな日本語",
+                                                               L"大家有天分",
+                                                               L"עפצקרשתםןףץ",
+                                                               L"ث خ ذ ض ظ غ",
+                                                               L"그것이정당하다",
+                                                               L"АБВГДЕЁЖЗИЙ",
+                                                               L"СТУФХЦЧШЩЬЮЯ"};
 TEST(ov_core, ov_core_create_with_config_unicode) {
     ov_core_t* core = nullptr;
 

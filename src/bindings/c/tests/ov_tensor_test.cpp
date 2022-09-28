@@ -158,3 +158,43 @@ TEST(ov_tensor, ov_tensor_data) {
     ov_shape_free(&shape);
     ov_tensor_free(tensor);
 }
+
+TEST(ov_tensor, ov_tensor_element_type_test) {
+    ov_element_type_e type_list[] = {
+        ov_element_type_e::BOOLEAN,
+        ov_element_type_e::BF16,
+        ov_element_type_e::F16,
+        ov_element_type_e::F32,
+        ov_element_type_e::F64,
+        ov_element_type_e::I4,
+        ov_element_type_e::I8,
+        ov_element_type_e::I16,
+        ov_element_type_e::I32,
+        ov_element_type_e::I64,
+        ov_element_type_e::U1,
+        ov_element_type_e::U4,
+        ov_element_type_e::U8,
+        ov_element_type_e::U16,
+        ov_element_type_e::U32,
+        ov_element_type_e::U64,
+    };
+    ov_shape_t shape;
+    int64_t dims[2] = {32, 128};
+    ov_tensor_t* tensor = nullptr;
+    size_t size = 0;
+    size_t size_res;
+    for (size_t i = 0; i < sizeof(type_list) / sizeof(type_list[0]); i++) {
+        ov_element_type_e type = type_list[i];
+        OV_EXPECT_OK(ov_shape_create(2, dims, &shape));
+
+        OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
+        EXPECT_NE(nullptr, tensor);
+        size = calculate_byteSize(shape, type);
+
+        OV_EXPECT_OK(ov_tensor_get_byte_size(tensor, &size_res));
+        EXPECT_EQ(size_res, size);
+
+        ov_shape_free(&shape);
+        ov_tensor_free(tensor);
+    }
+}
