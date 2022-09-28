@@ -236,7 +236,8 @@ std::shared_ptr<Function> Graph::create_function() {
     for (std::size_t i{0}; i < function->get_output_size(); ++i) {
         // the suffix makes the Result's name unique in case the nodes in the model don't have a name
         auto ov_result = function->get_output_op(i);
-        ov_result->set_friendly_name(detail::generate_result_name(onnx_outputs.Get(static_cast<int>(i)).name(), ov_result));
+        ov_result->set_friendly_name(
+            detail::generate_result_name(onnx_outputs.Get(static_cast<int>(i)).name(), ov_result));
     }
     return function;
 }

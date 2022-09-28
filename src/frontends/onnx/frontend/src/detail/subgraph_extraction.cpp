@@ -270,7 +270,6 @@ void discard_nodes(Container& all_nodes, const std::set<int>& nodes_to_keep) {
     const auto new_end = std::remove_if(begin(all_nodes), end(all_nodes), discard_node);
 
     all_nodes.erase(new_end, end(all_nodes));
-
 }
 }  // namespace
 

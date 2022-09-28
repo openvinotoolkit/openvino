@@ -147,8 +147,9 @@ inline T quantize(const T& arg,
     } else if (arg > std::max(in_low, in_high)) {
         return out_high;
     }
-    return static_cast<T>(std::nearbyint((arg - in_low) / (in_high - in_low) * (levels - 1)) / (levels - 1) * (out_high - out_low) +
-           out_low);
+    return static_cast<T>(std::nearbyint((arg - in_low) / (in_high - in_low) * (levels - 1)) / (levels - 1) *
+                              (out_high - out_low) +
+                          out_low);
 }
 
 }  // namespace fake_quantize_details

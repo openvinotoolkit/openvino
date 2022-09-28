@@ -401,7 +401,8 @@ void max_pool(const Values_t* data,
 
     // adjust the calculated indices to the requested range (specified by the axis attribute) if needed
     if (axis != 0) {
-        const Indices_t max_index = static_cast<Indices_t>(shape_size(std::begin(data_shape) + axis, std::end(data_shape)));
+        const Indices_t max_index =
+            static_cast<Indices_t>(shape_size(std::begin(data_shape) + axis, std::end(data_shape)));
 
         const auto indices_number = shape_size(out_shape);
         for (size_t i = 0; i < indices_number; ++i) {
