@@ -9,7 +9,6 @@
 #include "itt.hpp"
 #include "ngraph_ops/augru_cell.hpp"
 #include "ngraph_ops/augru_sequence.hpp"
-#include "node_register.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -74,8 +73,8 @@ bool is_equal_cells(const shared_ptr<RNNCellBase>& cell_1, const shared_ptr<RNNC
     return is_equal;
 }
 
-shared_ptr<RNNCellBase> find_cell_chain(ov::pass::NodeRegister& cp_from,
-                                        ov::pass::NodeRegister& cp_to,
+shared_ptr<RNNCellBase> find_cell_chain(ov::pass::NodeRegistry& cp_from,
+                                        ov::pass::NodeRegistry& cp_to,
                                         const shared_ptr<RNNCellBase>& current_cell,
                                         ov::OutputVector& x_to_concat,
                                         ov::OutputVector& attention_to_concat,
@@ -133,7 +132,7 @@ shared_ptr<RNNCellBase> find_cell_chain(ov::pass::NodeRegister& cp_from,
     return current;
 }
 
-bool create_sequence(ov::pass::NodeRegister& cp_to,
+bool create_sequence(ov::pass::NodeRegistry& cp_to,
                      const shared_ptr<RNNCellBase>& first_cell,
                      const shared_ptr<RNNCellBase>& last_cell,
                      const ov::OutputVector& x_to_concat,
@@ -259,8 +258,8 @@ ov::pass::SequenceFusion::SequenceFusion() {
 
     auto cell = pattern::wrap_type<RNNCellBase>();
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        NodeRegister copy_from;
-        NodeRegister copy_to;
+        NodeRegistry copy_from;
+        NodeRegistry copy_to;
         auto cell = m.get_match_root();
         shared_ptr<RNNCellBase> current_cell = dynamic_pointer_cast<RNNCellBase>(cell);
         if (!current_cell) {

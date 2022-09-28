@@ -50,7 +50,6 @@
 #include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <transformations/common_optimizations/reshape_sequence_fusion.hpp>
 #include <transformations/common_optimizations/ric_fusion.hpp>
-#include <transformations/common_optimizations/sequence_fusion.hpp>
 #include <transformations/common_optimizations/shuffle_channels_fusion.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
 #include <transformations/common_optimizations/softmax_fusion.hpp>
