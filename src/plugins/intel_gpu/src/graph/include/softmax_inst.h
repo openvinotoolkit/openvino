@@ -10,6 +10,15 @@
 #include <string>
 
 namespace cldnn {
+template <>
+struct typed_program_node<softmax> : public typed_program_node_base<softmax> {
+    using parent = typed_program_node_base<softmax>;
+
+public:
+    using parent::parent;
+
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+};
 using softmax_node = typed_program_node<softmax>;
 
 template <>
