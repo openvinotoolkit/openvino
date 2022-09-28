@@ -183,8 +183,7 @@ Begin this step on the Intel® Core™ or Xeon® processor machine that meets th
 9.  Install the software tool [tpm2-abmrd](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz). For innstallation information follow [here](https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md)
 10. Install the [tpm2-tools](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz). For innstallation information follow [here](https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md)
 11. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/).
-
-   > **NOTE**: Regardless of whether you used the `install_host_deps.sh` script, complete step 12 to finish setting up the packages on the Host Machine.
+    > **NOTE**: Regardless of whether you used the `install_host_deps.sh` script, complete step 12 to finish setting up the packages on the Host Machine.
 
 12. If you are running behind a proxy, [set up a proxy for Docker](https://docs.docker.com/config/daemon/systemd/). 
 
@@ -365,7 +364,6 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
    /usr/share/swtpm/swtpm-create-user-config-files
    swtpm_setup --tpmstate /var/OVSA/vtpm/vtpm_isv_dev --create-ek-cert --create-platform-cert --overwrite --tpm2 --pcr-banks -
    ```
-
     > **NOTE**: For steps 10 and 11, you can copy and edit the script named `start_ovsa_isv_dev_vm.sh` in the `Scripts/reference` directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. If using the script, select the script with `isv` in the file name regardless of whether you are playing the role of the Model Developer or the role of the Independent Software Vendor. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM.
 
 
@@ -728,7 +726,6 @@ The access controlled model is ready to be shared with the User and the referenc
    cd $OVSA_DEV_ARTEFACTS
    /opt/ovsa/bin/ovsatool licgen -t TimeLimit -l30 -n "Time Limit License Config" -v 1.0 -u "<isv-developer-vm-ip-address>:<license_server-port>" /opt/ovsa/certs/server.crt  -k isv_keystore -o 30daylicense.config
    ```
-
     > **NOTE**: The parameter /opt/ovsa/certs/server.crt  contains the certificate used by the License Server. The server certificate will be added to the customer license and validated during use. Refer to [OpenVINO™ Security Add-on License Server Certificate Pinning](https://github.com/openvinotoolkit/security_addon/blob/master/docs/ovsa_license_server_cert_pinning.md)
 
 3. Create the customer license
