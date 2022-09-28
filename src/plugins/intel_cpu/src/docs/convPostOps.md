@@ -1,8 +1,8 @@
 # Why legacy Post-ops/zero-point in OpenVINO
 OpenVINO designed post-ops/zero-points optimization before onednn. Depthwise,FQ postops, and pre-calculated output compensation caused by
-input zero-point are introduced into OpenVINO before mature archetecture is developed in onednn. Now, onednn has finalized the post-ops/zero-points
-optimization mechanism/API and has some diverges with OV mechanism. To benefit perf improvement from onednn for a long term, no further investment would be applied onto
-legacy post-ops/zero-point. So current code would have to support both legacy post-ops/zero-point and onednn post-ops/zero point mechanism.
+input zero-point were introduced into OpenVINO before mature archetecture is developed in onednn. Now, onednn has finalized the post-ops/zero-points
+optimization mechanism/API and has some diverges with OV mechanism. To benefit perf improvement from onednn for a long term, no further investment will be applied onto
+legacy post-ops/zero-point. So current code will have to support both legacy post-ops/zero-point and onednn post-ops/zero point mechanism.
 
 # Legacy post-ops in OpenVINO
 Legacy post-ops in CONV node include depthwise, fake quantization and dwconv.
@@ -14,26 +14,26 @@ Legacy post-ops in CONV node include depthwise, fake quantization and dwconv.
 |FQ                                     |on All ISAs                               |not supported on brgconv_amx and brgconv_avx512_core
 |dw conv                                |only on avx2 ISA && not support avx512    |only supported on avx2 conv kernel
 
-**dwconv would not be fused on CPU above avx2. So no need to consider.**
+**dwconv is not fused on CPU above avx2. So no need to consider.**
 
 **depthwise/FQ post-ops may be implemented with onednn binary post-ops in brgconv(brgconv avx512 core and brgconv amx) kernels. Disable brgconv on avx512 core cpu when having depthwise/FQ post-ops** 
 
 # Legacy per-channel input zero point in OpenVINO
 
-OpenVINO legacy input zero point can support per-channel input tensor zero point. The pre-calculated output compensation would
-be passed into ondnn forked kernel.
+OpenVINO legacy input zero point can support per-channel input tensor zero point. The pre-calculated output compensation will
+be passed into onednn forked kernel.
 
 |Legacy input zero point                  |Fused into conv                 |kernel support list in forked onednn 2.6
 --- | --- | ---|
 |**Per-channel input zero point**             |on all platform                   |not supported on jit amx kernel, brgconv_amx , brgconv_avx512_vnni
 
-Fused legacy per-channel input zero point can not be supported on amx cpu platforms and will fall back on vnni. The perf would greatly lower than amx.
+Fused legacy per-channel input zero point can not be supported on amx cpu platforms and will fall back on vnni. The perf will be greatly lower than amx.
 The stock onednn supports the per-tensor zero points. **Only on AMX/VNNI platform, per-tensor zero point is fused into conv**
 
 # App can enforce BRGCONV kernel
-On AMX platform, even conv fuses binary post-ops, conv node would try using brgconv no matter whether app enforces brgconv.
+On AMX platform, even if conv fuses binary post-ops, the conv node will try to use brgconv no matter whether app enforces brgconv.
 
-On AVX-512 platform, when conv fuses binary post-ops,conv node would try using brgconv only when app enforce via rtinfo.
+On AVX-512 platform, when conv fuses binary post-ops, the conv node will try to use brgconv only when the app enforce it via rtinfo.
 # post-ops attribute in conv
 
 ## on avx512-core AMX platform:
