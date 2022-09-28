@@ -91,6 +91,7 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 #include "transformations/insert_copy_layer.hpp"
+#include "transformations/split_eltwise.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -732,6 +733,11 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
               transormations
         */
         manager.register_pass<ov::intel_gna::pass::BroadcastAddMultiplyConst>();
+        /*
+            SplitEltwise has dependency on BroadcastAddMultiplyConst for case when spliting of Constant
+            input is doing
+        */
+        manager.register_pass<ov::intel_gna::pass::SplitEltwise>();
         if (!config.gnaFlags.sw_fp32 && !config.gnaFlags.uniformPwlDesign) {
             manager.register_pass<ov::intel_gna::pass::PWLApproximationWithFq>(config.gnaFlags.pwlMaxErrorPercent);
             manager.register_pass<ov::intel_gna::pass::PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
@@ -823,9 +829,9 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
 
         if (!isNgraphPassesUsed) {
             passes->registerPass<ReorderMaxPoolPass>();
+            passes->registerPass<EltwiseSplitOverChannelsPass>();
         }
 
-        passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
         if (!isNgraphPassesUsed) {
