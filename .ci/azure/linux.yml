@@ -100,16 +100,16 @@ jobs:
         echo cmake info ; which cmake ; cmake --version
         lsb_release
         env
-      cat /proc/cpuinfo
-      cat /proc/meminfo
-      cat /etc/fstab
-      vmstat -s
-      df
-      lsblk -o NAME,HCTL,SIZE,MOUNTPOINT | grep -i "sd"
-      free -h
-      echo TargetBranch: $(System.PullRequest.TargetBranch)
-      echo SourceBranch: $(Build.SourceBranch)
-    displayName: 'System info'
+        cat /proc/cpuinfo
+        cat /proc/meminfo
+        cat /etc/fstab
+        vmstat -s
+        df
+        lsblk -o NAME,HCTL,SIZE,MOUNTPOINT | grep -i "sd"
+        free -h
+        echo TargetBranch: $(System.PullRequest.TargetBranch)
+        echo SourceBranch: $(Build.SourceBranch)
+      displayName: 'System info'
 
   - script: |
       set -e
@@ -479,4 +479,4 @@ jobs:
         #testRunTitle: 'Pre/Post-Commit' # Optional
         buildPlatform: 'x64' # Optional
         buildConfiguration: 'Linux' # Optional
-      #publishRunAttachments: true # Optional
+        #publishRunAttachments: true # Optional
