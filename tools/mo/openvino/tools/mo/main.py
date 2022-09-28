@@ -23,7 +23,7 @@ from openvino.tools.mo.back.ie_ir_ver_2.emitter import append_ir_info
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager
-from openvino.offline_transformations import generate_mapping_file
+from openvino._offline_transformations import generate_mapping_file
 from openvino.runtime import serialize
 
 

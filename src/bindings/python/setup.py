@@ -43,6 +43,7 @@ packages = [
     "openvino.frontend",
     "openvino.preprocess",
     "openvino.offline_transformations",
+    "openvino._offline_transformations",
     "openvino.runtime",
     "openvino.runtime.opset1",
     "openvino.runtime.opset2",

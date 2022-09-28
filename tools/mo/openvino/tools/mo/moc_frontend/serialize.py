@@ -23,7 +23,7 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
         apply_moc_legacy_transformations
 
     apply_moc_transformations(ngraph_function)
-    from openvino.offline_transformations import compress_quantize_weights_transformation
+    from openvino._offline_transformations import compress_quantize_weights_transformation
     compress_quantize_weights_transformation(ngraph_function)
 
     if argv.framework == "onnx":

@@ -241,6 +241,6 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_frontend_ProgressReporterExtension(m);
     regclass_frontend_OpExtension(m);
 
-    // transformations
+    // transformations - private module
     regmodule_offline_transformations(m);
 }
