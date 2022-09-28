@@ -93,9 +93,14 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
+    if (orgParams.outputs.size() == 1) {
+        FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
+    } else {
+        FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
+                         "", false, false, 1, GetFusedPrimitiveInputsCount(params), 2);
+    }
 
-    if (orgParams.outputs_num == 2) {
+    if (orgParams.outputs_num == 2 && orgParams.outputs.size() == 1) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
     }
 
@@ -117,6 +122,9 @@ JitConstants ArgMaxMinKernelAxis::GetJitConstants(const arg_max_min_params& para
 
     if (params.outputs_num == 2) {
         jit.AddConstant(MakeJitConstant("SECOND_OUTPUT_EXIST", 1));
+        if (params.outputs.size() > 1) {
+            jit.AddConstant(MakeJitConstant("MULTIPLE_OUTPUTS", 1));
+        }
     }
 
     if (params.values_first)
