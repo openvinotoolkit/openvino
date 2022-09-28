@@ -13,6 +13,7 @@ main img {
 
 [aria-labelledby="version-selector"]  {
     min-width: 125px!important;
+    overflow-x: hidden!important;
 }
 
 .sst-dropdown #version-selector {
