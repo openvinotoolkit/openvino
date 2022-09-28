@@ -28,7 +28,7 @@ OutputVector translate_strided_slice_op(const NodeContext& node) {
 
     auto mask_to_vec = [](int64_t mask, const ov::Rank& rank) {
         auto length = sizeof(mask) * CHAR_BIT;
-        if (rank.is_static() && rank.get_length() < length) {
+        if (rank.is_static() && rank.get_length() < static_cast<int64_t>(length)) {
             length = rank.get_length();
         }
         vector<int64_t> vec(length, 0);

@@ -79,14 +79,6 @@ if(ENABLE_OV_CORE_UNIT_TESTS OR ENABLE_TESTS)
 endif()
 
 #
-# ZLib
-#
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # 4244 conversion from 'XXX' to 'YYY', possible loss of data
-    target_compile_options(zlib PRIVATE /wd4244)
-endif()
-
-#
 # Protobuf
 #
 

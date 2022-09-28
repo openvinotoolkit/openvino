@@ -41,7 +41,7 @@ OutputVector translate_arg_min_max(const NodeContext& node, std::string mode) {
     std::string sort = "none";
     auto ng_topk = std::make_shared<TopK>(ng_input, ng_k, k_axis, mode, sort, ng_et);
     auto ng_indices = ng_topk->output(1);
-    int axis = ng_topk->get_axis();
+    int axis = static_cast<int>(ng_topk->get_axis());
     auto axis_to_remove = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>({axis}));
     auto res = make_shared<Squeeze>(ng_indices, axis_to_remove);
     set_node_name(node.get_name(), res);

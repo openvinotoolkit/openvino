@@ -54,7 +54,7 @@ public:
                        InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32)
         : jit_mkldnn_emitter(host, host_isa, n, exec_prc) {
             kind = mkldnn_eltwise_elu;
-            alpha = ngraph::as_type_ptr<ngraph::opset1::Elu>(n)->get_alpha();
+            alpha = static_cast<float>(ngraph::as_type_ptr<ngraph::opset1::Elu>(n)->get_alpha());
             beta = 0.f;
 
             set_injector();
@@ -94,8 +94,8 @@ public:
         : jit_mkldnn_emitter(host, host_isa, n, exec_prc) {
             kind = dnnl_eltwise_clip;
             auto op = ngraph::as_type_ptr<ngraph::opset1::Clamp>(n);
-            alpha = op->get_min();
-            beta = op->get_max();
+            alpha = static_cast<float>(op->get_min());
+            beta = static_cast<float>(op->get_max());
 
             set_injector();
         }

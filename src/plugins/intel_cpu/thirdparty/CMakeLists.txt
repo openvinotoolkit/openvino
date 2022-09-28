@@ -51,6 +51,11 @@ function(ie_add_mkldnn)
         ie_add_compiler_flags(/wd4849)
         # C4661 no suitable definition provided for explicit template instantiation request
         ie_add_compiler_flags(/wd4661)
+        # C4267, 4244 conversion from 'XXX' to 'YYY', possible loss of data
+        ie_add_compiler_flags(/wd4267)
+        ie_add_compiler_flags(/wd4244)
+        # C4334 '<<': result of 32-bit shift implicitly converted to 64 bits
+        ie_add_compiler_flags(/wd4334)
     endif()
     add_subdirectory(mkl-dnn EXCLUDE_FROM_ALL)
     add_library(mkldnn ALIAS dnnl)

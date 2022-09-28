@@ -124,7 +124,7 @@ void multiclass_nms(const float* boxes_data,
                 }
             }
 
-            int candiate_size = candidate_boxes.size();
+            int candiate_size = static_cast<int>(candidate_boxes.size());
 
             // threshold nms_top_k for each class
             // NOTE: "nms_top_k" in PDPD not exactly equal to

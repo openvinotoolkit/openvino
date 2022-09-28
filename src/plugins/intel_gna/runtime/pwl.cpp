@@ -83,7 +83,7 @@ double pivot_search(std::vector<pwl_t>& result,
     j = 0;
     Delta = 1.0;
 
-    for (int i = 0; i < N; i++) {
+    for (uint32_t i = 0; i < N; i++) {
         t[i].push_back(alpha_0 + (static_cast<double>((i + 1)) / static_cast<double>((N + 1))) * (alpha_N - alpha_0));
     }
 
@@ -91,7 +91,7 @@ double pivot_search(std::vector<pwl_t>& result,
         // Figure 4:  Box #2
         alpha[0].resize(j + 1);
         alpha[0][j] = alpha_0;
-        for (int i = 1; i < N; i++) {
+        for (uint32_t i = 1; i < N; i++) {
             alpha[i].resize(j + 1);
             alpha[i][j] = (f(t[i - 1][j]) - f(t[i][j]) + first_deriv_f(t[i][j]) * t[i][j] - first_deriv_f(t[i - 1][j]) * t[i - 1][j])
                 / (first_deriv_f(t[i][j]) - first_deriv_f(t[i - 1][j]));
@@ -100,7 +100,7 @@ double pivot_search(std::vector<pwl_t>& result,
         alpha[N][j] = alpha_N;
 
         // Figure 4:  Box #3
-        for (int i = 0; i < N; i++) {
+        for (uint32_t i = 0; i < N; i++) {
             epsilon[i].resize(j + 1);
             epsilon[i][j] = sgn * (first_deriv_f(t[i][j]) * (alpha[i][j] - t[i][j]) + f(t[i][j]) - f(alpha[i][j]));
         }
@@ -111,7 +111,7 @@ double pivot_search(std::vector<pwl_t>& result,
         max_epsilon_prev = max_epsilon;
         max_epsilon = fabs(epsilon[0][j]);
         min_epsilon = fabs(epsilon[0][j]);
-        for (int i = 1; i < N + 1; i++) {
+        for (uint32_t i = 1; i < N + 1; i++) {
             if (fabs(epsilon[i][j]) > max_epsilon) max_epsilon = fabs(epsilon[i][j]);
             if (fabs(epsilon[i][j]) < min_epsilon) min_epsilon = fabs(epsilon[i][j]);
         }
@@ -119,7 +119,7 @@ double pivot_search(std::vector<pwl_t>& result,
             pwl_t value;
             result.resize(0);
             epsilon_final = (max_epsilon + min_epsilon) / 4.0;  // Andrzej's modification
-            for (int i = 0; i < N; i++) {
+            for (uint32_t i = 0; i < N; i++) {
                 double val, val_next;
                 value.t = t[i][j];
                 value.alpha = alpha[i][j];
@@ -156,14 +156,14 @@ double pivot_search(std::vector<pwl_t>& result,
         }
 
         // Figure 4:  Box #4
-        for (int i = 0; i < N; i++) {
+        for (uint32_t i = 0; i < N; i++) {
             d[i].resize(j + 1);
             d[i][j] = Delta * (epsilon[i + 1][j] - epsilon[i][j]) /
                 ((epsilon[i + 1][j] / (alpha[i + 1][j] - t[i][j])) + (epsilon[i][j] / (t[i][j] - alpha[i][j])));
         }
 
         // Figure 4:  Box #5
-        for (int i = 0; i < N; i++) {
+        for (uint32_t i = 0; i < N; i++) {
             t[i].resize(j + 2);
             t[i][j + 1] = t[i][j] + d[i][j];
         }
@@ -563,7 +563,7 @@ void PwlDesignOpt(const DnnActivation& activation_type,
             auto input_min_value = static_cast<double>(std::numeric_limits<int32_t>::min());
             auto input_max_value = static_cast<double>(std::numeric_limits<int32_t>::max());
 
-            auto x_min = fp32eq(fmod(activation_type.args.pow.exponent, 1.0), 0.0f) ? input_min_value / scale_in: 0;
+            auto x_min = fp32eq(static_cast<float>(fmod(activation_type.args.pow.exponent, 1.0)), 0.0f) ? input_min_value / scale_in: 0;
             x_min = std::max(x_min, -POW_DOMAIN);
 
             auto x_max = input_max_value / scale_in;
@@ -701,8 +701,8 @@ void PwlDesign(const DnnActivation& activation_type,
                     float floatarg = static_cast<float>(xbase / (2 * scale_in));
                     float floatargnext = static_cast<float>(xbasenext / (2 * scale_in));
                     float floatval, floatvalnext, slope;
-                    floatval = softsign(floatarg);
-                    floatvalnext = softsign(floatargnext);
+                    floatval = static_cast<float>(softsign(floatarg));
+                    floatvalnext = static_cast<float>(softsign(floatargnext));
                     slope = scale_out * (floatvalnext - floatval) / static_cast<float>(xbasenext - xbase);
                     {
                         // find best scale factor
@@ -799,7 +799,7 @@ void PwlDesign(const DnnActivation& activation_type,
 
             auto input_min_value = static_cast<double>(std::numeric_limits<int32_t>::min());
             auto input_max_value = static_cast<double>(std::numeric_limits<int32_t>::max());
-            double x_min = fp32eq(fmod(activation_type.args.pow.exponent, 1.0), 0.0f)? input_min_value / scale_in: 0.0;
+            double x_min = fp32eq(static_cast<float>(fmod(activation_type.args.pow.exponent, 1.0)), 0.0f)? input_min_value / scale_in: 0.0;
             x_min = std::max(x_min, -POW_DOMAIN);
 
             double x_max = input_max_value / scale_in;
@@ -808,7 +808,7 @@ void PwlDesign(const DnnActivation& activation_type,
             double pow_domain = x_max - x_min;
             ptr_segment[0].xBase = static_cast<int32_t>(INT32_MIN & XBASEMASK);  // zero out the 2 lsb
             num_segment_size = static_cast<int32_t>(pow_domain * scale_in / (num_segments - 2) + 0.5);
-            int32_t x_min_scaled = x_min * scale_in + 0.5;
+            int32_t x_min_scaled = static_cast<uint32_t>(x_min * scale_in + 0.5);
             int32_t offset = x_min_scaled;
             for (uint32_t i = 1; i < num_segments; i++) {
                 ptr_segment[i].xBase = static_cast<int32_t>(offset & XBASEMASK);  // zero out the 2 lsb
@@ -870,7 +870,7 @@ void PwlApply32(intel_dnn_component_t *component,
         case kActSigmoid:
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                    ptr_out[i * num_columns + j] = 0.5 * (1.0 + tanh(0.5 * ptr_in[i * num_columns + j]));
+                    ptr_out[i * num_columns + j] = static_cast<float>(0.5 * (1.0 + tanh(0.5 * ptr_in[i * num_columns + j])));
                 }
             }
             break;
@@ -884,7 +884,7 @@ void PwlApply32(intel_dnn_component_t *component,
         case kActSoftSign:
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                    ptr_out[i * num_columns + j] = ptr_in[i * num_columns + j] / (1.0 + fabs(ptr_in[i * num_columns + j]));
+                    ptr_out[i * num_columns + j] = static_cast<float>(ptr_in[i * num_columns + j] / (1.0 + fabs(ptr_in[i * num_columns + j])));
                 }
             }
             break;
@@ -946,21 +946,21 @@ void PwlApply32(intel_dnn_component_t *component,
         case kActSign:
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                    ptr_out[i * num_columns + j] = (ptr_in[i * num_columns + j] == 0) ? 0.0 : ((ptr_in[i * num_columns + j] > 0) ? 1.0 : -1.0);
+                    ptr_out[i * num_columns + j] = (ptr_in[i * num_columns + j] == 0.f) ? 0.0f : ((ptr_in[i * num_columns + j] > 0) ? 1.0f : -1.0f);
                 }
             }
             break;
         case kActNegLog:
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                    ptr_out[i * num_columns + j] = -1.0 * log(ptr_in[i * num_columns + j]);
+                    ptr_out[i * num_columns + j] = static_cast<float>(-1.0 * log(ptr_in[i * num_columns + j]));
                 }
             }
             break;
         case kActNegHalfLog:
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                    ptr_out[i * num_columns + j] = -0.5 * log(ptr_in[i * num_columns + j]);
+                    ptr_out[i * num_columns + j] = static_cast<float>(-0.5 * log(ptr_in[i * num_columns + j]));
                 }
             }
             break;
@@ -970,13 +970,13 @@ void PwlApply32(intel_dnn_component_t *component,
                 float offset = transform->func_id.args.pow.offset;
                 for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                     for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                        ptr_out[i * num_columns + j] = pow(offset + scale * ptr_in[i * num_columns + j], exponent);
+                        ptr_out[i * num_columns + j] = static_cast<float>(pow(offset + scale * ptr_in[i * num_columns + j], exponent));
                     }
                 }
             }
             break;
         case kActFakeQuantize: {
-            double levels  = transform->func_id.fqParams.levels;
+            double levels = static_cast<double>(transform->func_id.fqParams.levels);
 
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 auto inputChannel  = transform->func_id.fqParams.inputPerChannel ? i : 0;
@@ -992,12 +992,12 @@ void PwlApply32(intel_dnn_component_t *component,
                     auto x = ptr_in[offset];
 
                     if (x <= std::min(input_low, input_high)) {
-                        ptr_out[offset] = output_low;
+                        ptr_out[offset] = static_cast<float>(output_low);
                     } else if (x > std::max(input_low, input_high)) {
-                        ptr_out[offset] = output_high;
+                        ptr_out[offset] = static_cast<float>(output_high);
                     } else {
-                        ptr_out[offset] = nearbyint((x - input_low) / (input_high - input_low) * (levels - 1)) /
-                            (levels - 1) * (output_high - output_low) + output_low;
+                        ptr_out[offset] = static_cast<float>(nearbyint((x - input_low) / (input_high - input_low) * (levels - 1)) /
+                            (levels - 1) * (output_high - output_low) + output_low);
                     }
                 }
             }

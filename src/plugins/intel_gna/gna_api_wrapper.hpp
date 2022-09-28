@@ -43,11 +43,11 @@ class CPPWrapper<Gna2Model> {
         if (n == 0) {
             THROW_GNA_EXCEPTION << "Can't allocate array of intel_nnet_layer_t objects of zero length";
         }
-        obj.Operations = reinterpret_cast<Gna2Operation*>(gnaUserAllocator(n * sizeof(Gna2Operation)));
+        obj.Operations = reinterpret_cast<Gna2Operation*>(gnaUserAllocator(static_cast<uint32_t>(n * sizeof(Gna2Operation))));
         if (obj.Operations == nullptr) {
             THROW_GNA_EXCEPTION << "out of memory in while allocating "<< n << " GNA layers";
         }
-        obj.NumberOfOperations = n;
+        obj.NumberOfOperations = static_cast<uint32_t>(n);
         for (uint32_t i = 0; i < obj.NumberOfOperations; i++) {
             obj.Operations[i].Type = Gna2OperationTypeNone;
             obj.Operations[i].Operands = nullptr;

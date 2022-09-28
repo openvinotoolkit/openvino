@@ -20,17 +20,17 @@ static size_t _asIndex(const char* source, const element::Type& element_type) {
     case element::Type_t::f16: {
         ngraph::float16 tmpBuff = 0.f;
         memcpy(&tmpBuff, source, sizeof(ngraph::float16));
-        return tmpBuff;
+        return static_cast<size_t>(tmpBuff);
     }
     case element::Type_t::f32: {
         float tmpBuff = 0.f;
         memcpy(&tmpBuff, source, sizeof(float));
-        return tmpBuff;
+        return static_cast<size_t>(tmpBuff);
     }
     case element::Type_t::i32: {
         int32_t tmpBuff = 0;
         memcpy(&tmpBuff, source, sizeof(int32_t));
-        return tmpBuff;
+        return static_cast<size_t>(tmpBuff);
     }
     default: {
         throw ngraph_error(std::string("Unsupported input data type: ") + element_type.get_type_name());

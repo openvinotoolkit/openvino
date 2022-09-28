@@ -3,7 +3,11 @@
 //
 
 #include "subgraph_extraction.hpp"
-
+#if defined(_MSC_VER)
+#    pragma warning(push)
+// Protobuf: conversion from 'XXX' to 'YYY', possible loss of data
+#    pragma warning(disable : 4244)
+#endif
 #include <onnx/onnx_pb.h>
 
 #include <functional>
@@ -264,7 +268,9 @@ void discard_nodes(Container& all_nodes, const std::set<int>& nodes_to_keep) {
     using std::end;
 
     const auto new_end = std::remove_if(begin(all_nodes), end(all_nodes), discard_node);
+
     all_nodes.erase(new_end, end(all_nodes));
+
 }
 }  // namespace
 
@@ -287,7 +293,7 @@ void SubgraphExtractor::add_new_inputs(const std::vector<InputEdge>& new_inputs,
     if (merge_inputs && new_inputs.size() > 1) {
         std::map<std::string, int> new_inputs_consumers;
         int index = 0;
-        int input_consumers = new_inputs.size();
+        int input_consumers = static_cast<int>(new_inputs.size());
 
         // count all input edges
         for (const auto& input_edge : new_inputs) {
@@ -305,7 +311,7 @@ void SubgraphExtractor::add_new_inputs(const std::vector<InputEdge>& new_inputs,
                 auto it = std::find_if(new_inputs.begin(), new_inputs.begin(), [&](const InputEdge& input_edge) {
                     return get_input_tensor_name(m_onnx_graph, input_edge) == input.first;
                 });
-                index = std::distance(new_inputs.begin(), it);
+                index = static_cast<int>(std::distance(new_inputs.begin(), it));
             }
         }
 
@@ -436,10 +442,7 @@ void SubgraphExtractor::extract_subgraph_from_onnx_model(const SubgraphComponent
 
 std::vector<OutputEdge> SubgraphExtractor::all_output_edges() const {
     std::vector<OutputEdge> all_outputs;
-#if defined(_MSC_VER)
-#    pragma warning(push)
-#    pragma warning(disable : 4244)
-#endif
+
     for (const auto& graph_output : m_onnx_graph.output()) {
         const auto node_index = find_source_node_idx(m_onnx_graph, m_onnx_graph.node_size(), graph_output.name());
         OPENVINO_ASSERT(node_index >= 0);
@@ -448,8 +451,8 @@ std::vector<OutputEdge> SubgraphExtractor::all_output_edges() const {
         all_outputs.emplace_back(node_index, output_port_it - std::begin(node_outputs));
     }
 
+    return all_outputs;
+}
 #if defined(_MSC_VER)
 #    pragma warning(pop)
 #endif
-    return all_outputs;
-}

@@ -63,7 +63,7 @@ static void scatter_update(const char* input_data,
     size_t data_ndim = data_shape.size();
 
     const auto size_after_axis = shape_size(Shape(data_shape.begin() + axis + 1, data_shape.end()));
-    int num_axis_jumps{0};
+    size_t num_axis_jumps{0};
     int num_unary_moves{0};
     for (size_t i = axis + 1; i < updates_ndim; ++i) {
         const auto updates_size_after_axis = shape_size(Shape(updates_shape.begin() + i, updates_shape.end()));
@@ -76,7 +76,7 @@ static void scatter_update(const char* input_data,
     if (!num_axis_jumps)
         num_axis_jumps = updates_ndim - data_ndim;
 
-    auto updates_axis_dim = axis + num_axis_jumps + num_unary_moves;
+    auto updates_axis_dim = static_cast<size_t>(axis + num_axis_jumps + num_unary_moves);
 
     if (updates_axis_dim >= updates_ndim)
         updates_axis_dim = updates_ndim - 1;

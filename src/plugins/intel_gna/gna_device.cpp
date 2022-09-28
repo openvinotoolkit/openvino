@@ -220,7 +220,7 @@ uint32_t GNADeviceHelper::selectGnaDevice() {
 void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaModel) {
     if (!Gna2StatusIsSuccessful(status)) {
         std::vector<char> gna2StatusBuffer(1024);
-        const auto s = Gna2StatusGetMessage(status, gna2StatusBuffer.data(), gna2StatusBuffer.size());
+        const auto s = Gna2StatusGetMessage(status, gna2StatusBuffer.data(), static_cast<uint32_t>(gna2StatusBuffer.size()));
         if (!Gna2StatusIsSuccessful(s))
             snprintf(gna2StatusBuffer.data(), gna2StatusBuffer.size(), "Gna2StatusGetMessage(%d) returned (%d)",
                 static_cast<int>(status), static_cast<int>(s));
@@ -278,7 +278,7 @@ void GNADeviceHelper::checkGna2Status(Gna2Status status, const std::string& from
     if (!Gna2StatusIsSuccessful(status)) {
         std::vector<char> gna2StatusBuffer(1024);
         const auto prefix = "Unsuccessful " + from + " call, Gna2Status: (";
-        const auto s = Gna2StatusGetMessage(status, gna2StatusBuffer.data(), gna2StatusBuffer.size());
+        const auto s = Gna2StatusGetMessage(status, gna2StatusBuffer.data(), static_cast<uint32_t>(gna2StatusBuffer.size()));
         if (!Gna2StatusIsSuccessful(s))
             snprintf(gna2StatusBuffer.data(), gna2StatusBuffer.size(), "Gna2StatusGetMessage(%d) returned (%d)",
                 static_cast<int>(status), static_cast<int>(s));
@@ -382,7 +382,7 @@ const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> 
 
 GnaWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-    const auto status = Gna2RequestWait(reqId, millisTimeout);
+    const auto status = Gna2RequestWait(reqId, static_cast<uint32_t>(millisTimeout));
     if (status == Gna2StatusWarningDeviceBusy) {
         return GNA_REQUEST_PENDING;
     }

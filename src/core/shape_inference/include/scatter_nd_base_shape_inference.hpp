@@ -28,7 +28,6 @@ void shape_infer(const ov::op::util::ScatterNDBase* op,
     NODE_VALIDATION_CHECK(
         op,
         inputs_rank.is_dynamic() || indices_rank.is_dynamic() || indices_shape[indices_shape.size() - 1].is_dynamic() ||
-            indices_shape[indices_shape.size() - 1].get_length() >= 0 ||
             static_cast<size_t>(indices_shape[indices_shape.size() - 1].get_length()) <= inputs_shape.size(),
         "Last dimension of indices can be at most the rank of inputs");
 

@@ -554,9 +554,9 @@ const std::vector<Edge> create_edge_mapping(const std::unordered_map<ngraph::Nod
 
             Edge e{};
             e.from_layer = layer_ids.find(source_node)->second;
-            e.from_port = source_node->get_input_size() + source_output.get_index();
+            e.from_port = static_cast<int>(source_node->get_input_size() + source_output.get_index());
             e.to_layer = layer_ids.find(current_node)->second;
-            e.to_port = i.get_index();
+            e.to_port = static_cast<int>(i.get_index());
             edges.push_back(e);
         }
     }

@@ -56,7 +56,7 @@ template <>
 inline float get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
     switch (attribute.type()) {
     case ONNX_NAMESPACE::AttributeProto_AttributeType_INT:
-        return attribute.i();
+        return static_cast<float>(attribute.i());
     case ONNX_NAMESPACE::AttributeProto_AttributeType_FLOAT:
         return attribute.f();
     default:
@@ -86,7 +86,7 @@ inline double get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
     case ONNX_NAMESPACE::AttributeProto_AttributeType_FLOAT:
         return static_cast<double>(attribute.f());
     case ONNX_NAMESPACE::AttributeProto_AttributeType_INT:
-        return attribute.i();
+        return static_cast<double>(attribute.i());
     default:
         throw error::attribute::InvalidData{attribute.type()};
     }

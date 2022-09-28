@@ -73,7 +73,7 @@ void tf_shape_to_ov_shape(const ::tensorflow::TensorShapeProto& tf_shape, ov::Pa
 
 template <typename T>
 void get_const_input(const NodeContext& node, int64_t input_index, std::vector<T>* vector) {
-    auto ng_input = node.get_input(input_index);
+    auto ng_input = node.get_input(static_cast<int>(input_index));
     if (auto constant = std::dynamic_pointer_cast<opset8::Constant>(ng_input.get_node_shared_ptr())) {
         *vector = constant->cast_vector<T>();
         return;
@@ -147,27 +147,27 @@ void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_sha
             case ::tensorflow::DT_INT32:
                 val_size = tensor_proto.int_val_size();
                 if (val_size > 0)
-                    val_i = tensor_proto.int_val()[i];
+                    val_i = static_cast<T>(tensor_proto.int_val()[i]);
                 break;
             case ::tensorflow::DT_INT64:
                 val_size = tensor_proto.int64_val_size();
                 if (val_size > 0)
-                    val_i = tensor_proto.int64_val()[i];
+                    val_i = static_cast<T>(tensor_proto.int64_val()[i]);
                 break;
             case ::tensorflow::DT_FLOAT:
                 val_size = tensor_proto.float_val_size();
                 if (val_size > 0)
-                    val_i = tensor_proto.float_val()[i];
+                    val_i = static_cast<T>(tensor_proto.float_val()[i]);
                 break;
             case ::tensorflow::DT_BOOL:
                 val_size = tensor_proto.bool_val_size();
                 if (val_size > 0)
-                    val_i = tensor_proto.bool_val()[i];
+                    val_i = static_cast<T>(tensor_proto.bool_val()[i]);
                 break;
             case ::tensorflow::DT_DOUBLE:
                 val_size = tensor_proto.double_val_size();
                 if (val_size > 0)
-                    val_i = tensor_proto.double_val()[i];
+                    val_i = static_cast<T>(tensor_proto.double_val()[i]);
                 break;
             default:
                 OPENVINO_DEBUG << "Const node has empty tensor_proto and we don't know how to "

@@ -39,7 +39,7 @@ struct GnaDesc {
 
     // help methods
     uint32_t get_required_size() {
-        return num_elements * tensor_precision.size();
+        return static_cast<uint32_t>(num_elements * tensor_precision.size());
     }
 
     uint32_t get_allocated_size() {
@@ -87,7 +87,7 @@ struct InputDesc : GnaDesc {
         this->model_layout = inputInfo->getLayout();
         this->dims = inputInfo->getTensorDesc().getDims();
         this->name = inputInfo->name();
-        this->num_elements = InferenceEngine::details::product(dims.begin(), dims.end());
+        this->num_elements = static_cast<uint32_t>(InferenceEngine::details::product(dims.begin(), dims.end()));
     }
 
     InferenceEngine::InputInfo::Ptr ToIEInputInfo() {
@@ -109,7 +109,7 @@ struct OutputDesc : GnaDesc {
         this->model_layout = outputData->getLayout();
         this->dims = outputData->getTensorDesc().getDims();
         this->name = outputData->getName();
-        this->num_elements = InferenceEngine::details::product(dims.begin(), dims.end());
+        this->num_elements = static_cast<uint32_t>(InferenceEngine::details::product(dims.begin(), dims.end()));
     }
 };
 

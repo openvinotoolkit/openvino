@@ -100,7 +100,7 @@ void autobroadcast_binop(const T* arg0,
     switch (broadcast_spec.m_type) {
     case op::AutoBroadcastType::NONE:
         for (size_t i = 0; i < shape_size(arg0_shape); i++) {
-            out[i] = elementwise_functor(arg0[i], arg1[i]);
+            out[i] = static_cast<U>(elementwise_functor(arg0[i], arg1[i]));
         }
         break;
     case op::AutoBroadcastType::NUMPY:
@@ -155,23 +155,6 @@ void autobroadcast_binop(const T* arg0,
                 if (dim0 != dim1)
                     axis = std::max(axis, i);
             }
-#if 0
-                        // Universal function without optimisations
-                        CoordinateTransformBasic arg0_transform(arg0_shape);
-                        CoordinateTransformBasic arg1_transform(arg1_shape);
-                        U *dst = out;
-
-                        for(CoordinateIterator it(output_shape),
-                            ite = CoordinateIterator::end();
-                            it != ite;
-                            ++it)
-                        {
-                            const Coordinate& output_coord = *it;
-                            size_t const idx0 = arg0_transform.index(output_coord);
-                            size_t const idx1 = arg1_transform.index(output_coord);
-                            *dst++ = elementwise_functor(arg0[idx0], arg1[idx1]);
-                        }
-#else
 
             if (axis == 0) {
                 for (size_t i = 0, end = strides0[0]; i < end; ++i)
@@ -222,7 +205,6 @@ void autobroadcast_binop(const T* arg0,
                                                 axis,
                                                 strides0[axis],
                                                 elementwise_functor);
-#endif
         }
         break;
     case op::AutoBroadcastType::PDPD:

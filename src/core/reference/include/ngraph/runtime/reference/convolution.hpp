@@ -122,7 +122,7 @@ void convolve_3D_channels(const ConvolutionParams& p,
 }
 
 inline void extend_to_3D(ConvolutionParams& p, Shape& in_shape, Shape& filter_shape) {
-    int spatial_rank = in_shape.size() - 2;
+    int spatial_rank = static_cast<int>(in_shape.size() - 2);
     if (spatial_rank < 3) {
         int missing_dims = 3 - spatial_rank;
         p.dilation.insert(std::prev(p.dilation.end(), spatial_rank), missing_dims, 1);

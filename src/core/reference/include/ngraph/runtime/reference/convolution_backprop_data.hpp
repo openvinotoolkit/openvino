@@ -84,7 +84,7 @@ void infer_forward_convbackprop_output_shape(const Shape& in_spatial_shape,
                                              const Strides& dilations,
                                              const CoordinateDiff& output_padding) {
     for (size_t idx = 0; idx < in_spatial_shape.size(); idx++) {
-        int total_padding = strides[idx] * (in_spatial_shape[idx] - 1) + dilations[idx] * (f_spatial_shape[idx] - 1) +
+        size_t total_padding = strides[idx] * (in_spatial_shape[idx] - 1) + dilations[idx] * (f_spatial_shape[idx] - 1) +
                             1 - out_spatial_shape[idx] + output_padding[idx];
         size_t padded_dim = std::max<size_t>(total_padding, 0);
         size_t filter_dilated_dim = dilations[idx] * (f_spatial_shape[idx] - 1) + 1;

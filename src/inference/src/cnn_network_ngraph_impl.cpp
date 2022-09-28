@@ -53,7 +53,7 @@ using ngraph::Function;
 void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::Node>& output,
                                                const std::string& outName,
                                                DataPtr& ptr) {
-    const auto isCompatible = [](int size, const Layout& l) -> bool {
+    const auto isCompatible = [](int64_t size, const Layout& l) -> bool {
         switch (size) {
         case -1:
             return l == Layout::BLOCKED;
@@ -587,7 +587,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binB
         manager.run_passes(_ngraph_function);
 
         std::streambuf* pbuf = binBuf.rdbuf();
-        unsigned long bufSize = binBuf.tellp();
+        unsigned long bufSize = static_cast<unsigned long>(binBuf.tellp());
 
         TensorDesc tensorDesc(Precision::U8, {bufSize}, Layout::C);
         binBlob = make_shared_blob<uint8_t>(tensorDesc);

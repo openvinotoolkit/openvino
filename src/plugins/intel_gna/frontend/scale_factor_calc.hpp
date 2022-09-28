@@ -86,7 +86,7 @@ static float selectBestOutputScaleFactors(float inScale, std::vector<float> outS
     for (size_t i = 0; i < outScales.size(); ++i) {
         auto outScale = outScales[i];
 
-        auto sd = 0.0;
+        auto sd = 0.0f;
         for (size_t j = 0; j < slopes.size(); ++j) {
             auto s = gna_slope(slopes[j], inScale, outScale);
             auto slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
@@ -96,7 +96,7 @@ static float selectBestOutputScaleFactors(float inScale, std::vector<float> outS
             }
 
             auto testSlope = static_cast<double>(slope) / s.slope_scale * inScale / outScale;
-            if (fp32eq(testSlope, slopes[j], 1.0E-6)) {
+            if (fp32eq(static_cast<float>(testSlope), static_cast<float>(slopes[j]), 1.0E-6f)) {
                 return outScale;
             }
 
@@ -144,7 +144,7 @@ static float selectBestWeightsScaleFactors(float inScale, float outScale, std::v
             }
 
             auto testSlope = static_cast<double>(slope) / s.slope_scale * (inScale * weightScale) / outScale;
-            if (fp32eq(testSlope, slopes[j])) {
+            if (fp32eq(static_cast<float>(testSlope), static_cast<float>(slopes[j]))) {
                 return outScale;
             }
             sd += pow(testSlope - slopes[j], 2.0);
@@ -349,7 +349,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
             auto input_max_value = static_cast<double>(std::numeric_limits<int32_t>::max());
             auto output_max_value = static_cast<double>((inputsSize == 2) ? std::numeric_limits<int16_t>::max() : std::numeric_limits<int8_t>::max());
 
-            auto x_min = fp32eq(fmod(powerLayer->power, 1.0), 0) ? input_min_value / quantizedParams->_src_quant.GetScale() : 0.0;
+            auto x_min = fp32eq(static_cast<float>(fmod(powerLayer->power, 1.0)), 0) ? input_min_value / quantizedParams->_src_quant.GetScale() : 0.0;
             x_min = std::max(x_min, -pow_domain);
 
             auto x_max = input_max_value / quantizedParams->_src_quant.GetScale();
@@ -362,7 +362,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
             auto scale_val = output_max_value / abs_val;
 
             if (!std::isinf(scale_val)) {
-                result = scale_val;
+                result = static_cast<float>(scale_val);
             }
         }
 

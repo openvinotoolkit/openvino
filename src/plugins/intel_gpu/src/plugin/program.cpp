@@ -269,7 +269,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::en
                     it->second->reshape(shape, l);
                     // detect changed output batch dimension
                     SizeVector new_shape = it->second->getTensorDesc().getDims();
-                    for (int64_t i = 0; i < old_shape.size(); i++) {
+                    for (int64_t i = 0; i < static_cast<int64_t>(old_shape.size()); i++) {
                         if (old_shape[i] != new_shape[i]) {
                             m_output_batch_dim[iname] = i;
                             break;

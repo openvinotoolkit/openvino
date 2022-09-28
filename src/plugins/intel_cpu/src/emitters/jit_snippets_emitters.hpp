@@ -214,7 +214,7 @@ private:
         for (auto i = 0; dim == 0 && i < num_params; i++)
             regs[i] = Reg64(reg64_tmp_start + i);
         // Loop processing could be simplified in some cases
-        if (inc > jcp.scheduler_dims[dim]) {
+        if (inc > static_cast<size_t>(jcp.scheduler_dims[dim])) {
             return;
         } else if (inc == jcp.scheduler_dims[dim]) {
             for (auto& c : code) {
@@ -222,7 +222,7 @@ private:
             }
         } else {
             // The previous tile has done nothing, all the work is ours
-            if (previous_inc == 0 || previous_inc > jcp.scheduler_dims[dim]) {
+            if (previous_inc == 0 || previous_inc > static_cast<size_t>(jcp.scheduler_dims[dim])) {
                 h->mov(amount, jcp.scheduler_dims[dim]);
             // The previous tile has done all the work
             } else if (jcp.scheduler_dims[dim] % previous_inc == 0) {
@@ -243,7 +243,7 @@ private:
                 //   To overcome this limitation, we add appropriate negative offsets if necessary.
                 for (auto i = 0; dim == 0 && i < num_params; i++) {
                     if (jcp.scheduler_offsets[i] != 0) {
-                        h->add(regs[i], jcp.scheduler_offsets[i]);
+                        h->add(regs[i], static_cast<uint32_t>(jcp.scheduler_offsets[i]));
                     }
                 }
                     h->sub(amount, inc);
