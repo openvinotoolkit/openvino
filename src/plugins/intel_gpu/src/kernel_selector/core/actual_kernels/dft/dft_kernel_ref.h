@@ -11,10 +11,10 @@ namespace kernel_selector {
 struct dft_params : public base_params {
     std::vector<int64_t> axes;
     std::vector<int64_t> signal_size;
-    enum class Kind {
+    enum class Direction {
         forward,
         inverse,
-    } kind = Kind::forward;
+    } direction = Direction::forward;
     enum class Mode {
         complex,
         real,

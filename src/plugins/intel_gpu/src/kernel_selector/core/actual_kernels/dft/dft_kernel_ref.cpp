@@ -98,7 +98,7 @@ KernelsData DFTKernelRef::GetKernelsData(const Params& params, const optional_pa
     // For IRDFT case we create two kernels with different data
     // First, do IDFT on outer axes and input data
     // Second, do IRDFT on the last axis and data from the first kernel
-    if (derived_params.mode == dft_params::Mode::real && derived_params.kind == dft_params::Kind::inverse &&
+    if (derived_params.mode == dft_params::Mode::real && derived_params.direction == dft_params::Direction::inverse &&
         derived_params.axes.size() > 1) {
         // Helper vector
         std::vector<std::pair<dft_params, cldnn::arguments_desc>> kernels_params;
@@ -214,7 +214,7 @@ JitConstants DFTKernelRef::GetJitConstants(const dft_params& params) const {
         auto signal_size = params.signal_size[i];
 
         // For RDFT case, we need to take signal size into account, as output size can be not the same as signal size
-        if (params.mode == dft_params::Mode::real && params.kind == dft_params::Kind::forward) {
+        if (params.mode == dft_params::Mode::real && params.direction == dft_params::Direction::forward) {
             if (signal_size != -1) {
                 signal_sizes[inverted_axis] = signal_size;
             } else {
@@ -229,7 +229,7 @@ JitConstants DFTKernelRef::GetJitConstants(const dft_params& params) const {
         auto axis_value = std::min(signal_sizes[inverted_axis], in_sizes[inverted_axis]);
 
         // For IRDFT case, we should use full signal size as axis value and interpret input data as Hermitian-symmetric
-        if (params.mode == dft_params::Mode::real && params.kind == dft_params::Kind::inverse) {
+        if (params.mode == dft_params::Mode::real && params.direction == dft_params::Direction::inverse) {
             axis_value = signal_sizes[inverted_axis];
             MakeJitConstForParam(jit, "SYMMETRIC_AXIS", out_rank, axis, true);
         }
@@ -237,7 +237,7 @@ JitConstants DFTKernelRef::GetJitConstants(const dft_params& params) const {
         MakeJitConstForParam(jit, "AXIS", out_rank, axis, axis_value);
         MakeJitConstForParam(jit, "SIGNAL_SIZE", out_rank, axis, signal_sizes[inverted_axis]);
     }
-    if (params.kind == dft_params::Kind::inverse) {
+    if (params.direction == dft_params::Direction::inverse) {
         jit.AddConstant(MakeJitConstant("INVERSE_DFT_MULTIPLIER", 1.f / s));
     }
     if (params.mode == dft_params::Mode::real) {

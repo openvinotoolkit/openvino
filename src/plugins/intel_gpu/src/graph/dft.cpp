@@ -21,7 +21,7 @@ layout dft_inst::calc_output_layout(const dft_node& node, const kernel_impl_para
     std::vector<tensor::value_type> dims_converted(primitive->output_shape.begin(), primitive->output_shape.end());
 
     // Extend output layout for IRDFT case to make output rank match input rank
-    if (primitive->kind == dft_kind::inverse && primitive->mode == dft_mode::real) {
+    if (primitive->direction == dft_direction::inverse && primitive->mode == dft_mode::real) {
         dims_converted.push_back(1);
     }
 

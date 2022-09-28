@@ -13,7 +13,10 @@ namespace intel_gpu {
 
 namespace {
 
-void createDft(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::dft_kind kind, cldnn::dft_mode mode) {
+void createDft(Program& p,
+               const std::shared_ptr<ngraph::Node>& op,
+               cldnn::dft_direction direction,
+               cldnn::dft_mode mode) {
     validate_inputs_count(op, {2, 3});
 
     const auto inputs = p.GetInputPrimitiveIDs(op);
@@ -27,7 +30,7 @@ void createDft(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::dft_k
     }
     auto axes = axes_constant->cast_vector<int64_t>();
     uint8_t axis_correction = op->get_input_shape(0).size();
-    if (kind != cldnn::dft_kind::forward || mode != cldnn::dft_mode::real) {
+    if (direction != cldnn::dft_direction::forward || mode != cldnn::dft_mode::real) {
         --axis_correction;
     }
     ov::normalize_axes(op.get(), axis_correction, axes);
@@ -41,25 +44,25 @@ void createDft(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::dft_k
         signal_size = signal_size_constant->cast_vector<int64_t>();
     }
 
-    const cldnn::dft prim(layer_name, inputs.front(), axes, signal_size, out_shape, kind, mode);
+    const cldnn::dft prim(layer_name, inputs.front(), axes, signal_size, out_shape, direction, mode);
 
     p.add_primitive(*op, prim);
 }
 
 void CreateDFTOp(Program& p, const std::shared_ptr<ngraph::op::v7::DFT>& op) {
-    createDft(p, op, cldnn::dft_kind::forward, cldnn::dft_mode::complex);
+    createDft(p, op, cldnn::dft_direction::forward, cldnn::dft_mode::complex);
 }
 
 void CreateIDFTOp(Program& p, const std::shared_ptr<ngraph::op::v7::IDFT>& op) {
-    createDft(p, op, cldnn::dft_kind::inverse, cldnn::dft_mode::complex);
+    createDft(p, op, cldnn::dft_direction::inverse, cldnn::dft_mode::complex);
 }
 
 void CreateRDFTOp(Program& p, const std::shared_ptr<ngraph::op::v9::RDFT>& op) {
-    createDft(p, op, cldnn::dft_kind::forward, cldnn::dft_mode::real);
+    createDft(p, op, cldnn::dft_direction::forward, cldnn::dft_mode::real);
 }
 
 void CreateIRDFTOp(Program& p, const std::shared_ptr<ngraph::op::v9::IRDFT>& op) {
-    createDft(p, op, cldnn::dft_kind::inverse, cldnn::dft_mode::real);
+    createDft(p, op, cldnn::dft_direction::inverse, cldnn::dft_mode::real);
 }
 
 }  // namespace

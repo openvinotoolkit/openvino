@@ -31,30 +31,30 @@ std::vector<T> convert(const std::vector<float>& v) {
 }
 
 struct dft_type {
-    dft_kind kind;
+    dft_direction direction;
     dft_mode mode;
 };
 
-const dft_type DFT{dft_kind::forward, dft_mode::complex};
-const dft_type IDFT{dft_kind::inverse, dft_mode::complex};
-const dft_type RDFT{dft_kind::forward, dft_mode::real};
-const dft_type IRDFT{dft_kind::inverse, dft_mode::real};
+const dft_type DFT{dft_direction::forward, dft_mode::complex};
+const dft_type IDFT{dft_direction::inverse, dft_mode::complex};
+const dft_type RDFT{dft_direction::forward, dft_mode::real};
+const dft_type IRDFT{dft_direction::inverse, dft_mode::real};
 
 template <class T>
 float getThreshold(dft_type type);
 
 template <>
 float getThreshold<float>(dft_type type) {
-    if (type.kind == dft_kind::forward && type.mode == dft_mode::complex) {
+    if (type.direction == dft_direction::forward && type.mode == dft_mode::complex) {
         return 1e-4f;
     }
-    if (type.kind == dft_kind::inverse && type.mode == dft_mode::complex) {
+    if (type.direction == dft_direction::inverse && type.mode == dft_mode::complex) {
         return 4e-6f;
     }
-    if (type.kind == dft_kind::forward && type.mode == dft_mode::real) {
+    if (type.direction == dft_direction::forward && type.mode == dft_mode::real) {
         return 2e-4f;
     }
-    if (type.kind == dft_kind::inverse && type.mode == dft_mode::real) {
+    if (type.direction == dft_direction::inverse && type.mode == dft_mode::real) {
         return 2e-6f;
     }
     return 0;
@@ -62,16 +62,16 @@ float getThreshold<float>(dft_type type) {
 
 template <>
 float getThreshold<half_t>(dft_type type) {
-    if (type.kind == dft_kind::forward && type.mode == dft_mode::complex) {
+    if (type.direction == dft_direction::forward && type.mode == dft_mode::complex) {
         return 4e-2f;
     }
-    if (type.kind == dft_kind::inverse && type.mode == dft_mode::complex) {
+    if (type.direction == dft_direction::inverse && type.mode == dft_mode::complex) {
         return 5e-4f;
     }
-    if (type.kind == dft_kind::forward && type.mode == dft_mode::real) {
+    if (type.direction == dft_direction::forward && type.mode == dft_mode::real) {
         return 8e-3f;
     }
-    if (type.kind == dft_kind::inverse && type.mode == dft_mode::real) {
+    if (type.direction == dft_direction::inverse && type.mode == dft_mode::real) {
         return 2e-3f;
     }
     return 0;
@@ -112,7 +112,7 @@ public:
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
         topology.add(reorder("reorder_input", "input", blocked_format, data_type));
-        topology.add(dft("dft", "reorder_input", p.axes, p.signal_size, p.output_shape, type.kind, type.mode));
+        topology.add(dft("dft", "reorder_input", p.axes, p.signal_size, p.output_shape, type.direction, type.mode));
         // It's simpler to use "bfwzyx" format for all cases, as input and output can have different ranks
         topology.add(reorder("out", "dft", format::bfwzyx, data_type));
 
@@ -145,7 +145,7 @@ public:
         result << "Precision=" << data_type_traits::name(type_to_data_type<T>::value) << "_";
         result << "Axes=" << vec2str(p.axes) << "_";
         result << "SignalSize=" << vec2str(p.signal_size) << "_";
-        result << "Inverse=" << (type.kind == dft_kind::inverse) << "_";
+        result << "Inverse=" << (type.direction == dft_direction::inverse) << "_";
         result << "Real=" << (type.mode == dft_mode::real) << "_";
         result << "Format=" << fmt_to_str(blocked_format);
         if (!p.test_name.empty()) {

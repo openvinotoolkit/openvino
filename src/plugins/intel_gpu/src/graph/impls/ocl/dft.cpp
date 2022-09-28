@@ -33,15 +33,15 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
             params.signal_size = primitive->signal_size;
         }
 
-        if (primitive->kind == dft_kind::inverse) {
-            params.kind = kernel_selector::dft_params::Kind::inverse;
+        if (primitive->direction == dft_direction::inverse) {
+            params.direction = kernel_selector::dft_params::Direction::inverse;
         }
         if (primitive->mode == dft_mode::real) {
             params.mode = kernel_selector::dft_params::Mode::real;
         }
 
         // Extend input layout for RDFT case to make input rank match output rank
-        if (primitive->kind == dft_kind::forward && primitive->mode == dft_mode::real) {
+        if (primitive->direction == dft_direction::forward && primitive->mode == dft_mode::real) {
             const auto input_layout = impl_param.get_input_layout();
             const auto output_layout = impl_param.output_layout;
             // No need to extend layout for input that has less than 4 dimensions
