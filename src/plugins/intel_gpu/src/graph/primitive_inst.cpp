@@ -249,34 +249,40 @@ void primitive_inst::update_impl() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::update_implementation);
     auto prev_impl_str =  _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
     if (!_node.is_type<data>() && !(_node.is_type<mutable_data>() && _node.get_dependencies().empty())) {
-        auto get_layout_key = [&]()->std::string {
-            std::string layout_key_str = "";
-            layout_key_str = id() + "_" + std::to_string(_node.get_unique_id());
-            layout_key_str += "_" + _impl_params->output_layout.to_string();
-            for (auto in : _impl_params->input_layouts) {
-                layout_key_str += "_" + in.to_string();
+        auto get_layout_key = [&]() -> size_t {
+            size_t seed = 0;
+            auto& id = _impl_params->desc->id;
+            for (size_t i = 0; i < id.size(); i++) {
+                seed = hash_combine(seed, id[i]);
             }
-            return layout_key_str;
+            seed = hash_combine(seed, _node.get_unique_id());
+            for (auto& layout : _impl_params->input_layouts) {
+                for (auto& d : layout.get_shape()) {
+                    seed = hash_combine(seed, d);
+                }
+            }
+            for (auto& d : _impl_params->output_layout.get_shape()) {
+                seed = hash_combine(seed, d);
+            }
+            return seed;
         };
 
         auto layout_key = get_layout_key();
-        if (layout_key != "") {
-            auto& cache = _network.get_program()->get_implementations_cache();
-            if (cache.has(layout_key)) {
-                _impl = cache.get(layout_key)->clone();
-                GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
-            } else {
-                auto lru = cache.get_lru_element();
-                _impl = _node.type()->choose_impl(_node, *_impl_params);
-                bool lru_popped = cache.add(layout_key, _impl->clone());
-                if (lru_popped) {
-                    for (auto& id : lru->get_kernel_ids())
-                        _network.get_program()->remove_kernel(id);
-                }
-                _network.get_program()->compile();
+        auto& cache = _network.get_program()->get_implementations_cache();
+        if (cache.has(layout_key)) {
+            _impl = cache.get(layout_key)->clone();
+            GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
+        } else {
+            auto lru = cache.get_lru_element();
+            _impl = _node.type()->choose_impl(_node, *_impl_params);
+            bool lru_popped = cache.add(layout_key, _impl->clone());
+            if (lru_popped) {
+                for (auto& id : lru->get_kernel_ids())
+                    _network.get_program()->remove_kernel(id);
             }
-            _impl->init_kernels(_network.get_program()->get_kernels_cache());
+            _network.get_program()->compile();
         }
+        _impl->init_kernels(_network.get_program()->get_kernels_cache());
 
         reset_shape_change();
         GPU_DEBUG_GET_INSTANCE(debug_config);
