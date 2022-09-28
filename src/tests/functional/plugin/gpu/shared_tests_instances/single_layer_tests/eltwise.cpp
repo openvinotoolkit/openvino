@@ -80,4 +80,41 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesSingleThread = {
         ngraph::helpers::EltwiseTypes::POWER,
 };
 
+const size_t max_batch_value = 256;
+
+std::vector<std::vector<ov::Shape>> generateInputShapes() {
+        std::vector<std::vector<ov::Shape>> inputShapes;
+        for (size_t i = 2; i < max_batch_value; i *= 2) {
+                inputShapes.push_back({{i}});
+                inputShapes.push_back({{}, {i}});
+                inputShapes.push_back({{i, 200}});
+                inputShapes.push_back({{i, 10, 100}});
+                inputShapes.push_back({{i, 4, 16}});
+                inputShapes.push_back({{i, 1, 1, 3}});
+                inputShapes.push_back({{i, 17, 5, 4}, {i, 17, 1, 1}});
+                inputShapes.push_back({{i, 17, 5, 1}, {i, 17, 1, 4}});
+                inputShapes.push_back({{i, 2, 4}});
+                inputShapes.push_back({{i, 4, 4}});
+                inputShapes.push_back({{i, 4, 4, 1}});
+                inputShapes.push_back({{i, 4, 3, 2, 1, 3}});
+                inputShapes.push_back({{i, 3, 1, 1, 1, 3}, {i, 3, 1, 1, 1, 1}});
+        }
+        return inputShapes;
+}
+
+const std::vector<std::vector<ov::Shape>> nightlyInputShapes(generateInputShapes());
+
+const auto nightly_multiply_params = ::testing::Combine(
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(nightlyInputShapes)),
+        ::testing::ValuesIn(eltwiseOpTypes),
+        ::testing::ValuesIn(secondaryInputTypes),
+        ::testing::ValuesIn(opTypes),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(additional_config));
+
+INSTANTIATE_TEST_SUITE_P(nightly_CompareWithRefs, EltwiseLayerTest, nightly_multiply_params, EltwiseLayerTest::getTestCaseName);
+
 }  // namespace

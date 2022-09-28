@@ -108,4 +108,65 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution3D_Basic1, ConvolutionLayerTest,
                                  ::testing::Values(std::vector<size_t >({1, 3, 10, 10, 10})),
                                  ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                          ConvolutionLayerTest::getTestCaseName);
+
+const size_t max_batch_value = 256;
+
+std::vector<InferenceEngine::SizeVector> generateInputShapes2D() {
+        std::vector<InferenceEngine::SizeVector> inputShapes;
+        for (size_t i = 2; i < max_batch_value; i *= 2) {
+                inputShapes.push_back({i, 3, 30, 30});
+                inputShapes.push_back({i, 5, 30, 30});
+                for (size_t j = 15; j < 18; j++) {
+                        inputShapes.push_back({i, j, 30, 30});
+                }
+        }
+        return inputShapes;
+}
+
+std::vector<InferenceEngine::SizeVector> generateInputShapes3D() {
+        std::vector<InferenceEngine::SizeVector> inputShapes;
+        for (size_t i = 2; i < max_batch_value; i *= 2) {
+                inputShapes.push_back({i, 3, 10, 10, 10});
+        }
+        return inputShapes;
+}
+
+const std::vector<InferenceEngine::SizeVector> nightlyInputShapes2D(generateInputShapes2D());
+const std::vector<InferenceEngine::SizeVector> nightlyInputShapes3D(generateInputShapes3D());
+
+INSTANTIATE_TEST_SUITE_P(nightly_Convolution3D_Basic1, ConvolutionLayerTest,
+                         ::testing::Combine(
+                                 conv3DParams,
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::ValuesIn(nightlyInputShapes3D),
+                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         ConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_Convolution2D_ExplicitPadding, ConvolutionLayerTest,
+                         ::testing::Combine(
+                                 conv2DParams_ExplicitPadding,
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::ValuesIn(nightlyInputShapes2D),
+                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         ConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_Convolution2D_AutoPadValid, ConvolutionLayerTest,
+                         ::testing::Combine(
+                                 conv2DParams_AutoPadValid,
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::ValuesIn(nightlyInputShapes2D),
+                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         ConvolutionLayerTest::getTestCaseName);
 }  // namespace
