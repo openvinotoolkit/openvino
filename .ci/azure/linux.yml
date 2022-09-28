@@ -89,7 +89,7 @@ jobs:
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
 
   steps:
-  - script: |
+    - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
       uname -a
@@ -445,22 +445,30 @@ jobs:
     displayName: 'Samples Smoke Tests'
     continueOnError: false
 
-  - script: |
-      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
-      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
-      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
-    displayName: 'Layer Tests - Tensorflow'
-    continueOnError: false
+    - script: |
+        python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+        export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
+        $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
+      displayName: 'Layer Tests - Tensorflow'
+      continueOnError: false
 
-  - script: |
-      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
-      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
-      export TEST_DEVICE=CPU
-      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow2_keras_tests/test_tf2_keras_activation.py --ir_version=11 --junitxml=./TEST-tf2_Activation.xmlTEST -k "sigmoid"
-    displayName: 'Layer Tests - Tensorflow2 Keras'
-    continueOnError: false
+    - script: |
+        python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+        export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
+        export OV_FRONTEND_PATH=$(INSTALL_DIR)/runtime/lib/intel64
+        $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
+      displayName: 'Layer Tests - Tensorflow New FE'
+      continueOnError: false
 
-  - task: PublishTestResults@2
+    - script: |
+        python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+        export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
+        export TEST_DEVICE=CPU
+        $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow2_keras_tests/test_tf2_keras_activation.py --ir_version=11 --junitxml=./TEST-tf2_Activation.xmlTEST -k "sigmoid"
+      displayName: 'Layer Tests - Tensorflow2 Keras'
+      continueOnError: false
+
+    - task: PublishTestResults@2
     condition: always()
     inputs:
       testResultsFormat: 'JUnit' # Options: JUnit, NUnit, VSTest, xUnit, cTest
