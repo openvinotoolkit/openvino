@@ -466,6 +466,7 @@ struct layout {
     layout convert_to_weights_layout(bool is_grouped) const;
 
     std::string to_string() const;
+    std::string to_short_string() const;
 
     bool is_dynamic() const;
 

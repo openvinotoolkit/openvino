@@ -165,6 +165,12 @@ public:
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
 
+    std::string get_implementation_name() const;
+
+    void add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time);
+    const std::unordered_map<size_t, std::tuple<int64_t, size_t>>& get_profiling_data() const { return _profiling_data; }
+    const std::unordered_map<size_t, instrumentation::perf_counter_key>& get_profiling_info() const { return _profiling_info; }
+
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
@@ -241,6 +247,12 @@ protected:
     bool is_valid_fusion() const;
 
     static std::string generic_to_string(program_node const& node, const char* type_name);
+
+    // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
+    // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key
+    // and store mapping onto original perf_clounter_key for further data analysis and dumps
+    std::unordered_map<size_t, std::tuple<int64_t, size_t>> _profiling_data;
+    std::unordered_map<size_t, instrumentation::perf_counter_key> _profiling_info;
 };
 
 /*

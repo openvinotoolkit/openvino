@@ -38,8 +38,9 @@ if(_ov_dynamic_tbbbind_2_5_found)
     message(STATUS "Static tbbbind_2_5 package usage is disabled, since oneTBB (ver. ${TBB_VERSION}) provides dynamic TBBBind 2.5")
     set(ENABLE_TBBBIND_2_5 OFF)
 elseif(ENABLE_TBBBIND_2_5)
-    if(TBB_VERSION VERSION_GREATER_EQUAL 2021)
-        message(STATUS "oneTBB (ver. ${TBB_VERSION}) is used, but dynamic TBBBind 2.5 is not found. Use custom static TBBBind 2.5")
+    # TMP: for Apple Silicon TBB does not provide TBBBind
+    if(TBB_VERSION VERSION_GREATER_EQUAL 2021 AND NOT (APPLE AND AARCH64))
+        message(STATUS "oneTBB (ver. ${TBB_VERSION}) is used, but dynamic TBBBind 2.5+ is not found. Use custom static TBBBind 2.5")
     endif()
 
     # download and find a prebuilt version of TBBBind_2_5
@@ -83,6 +84,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
           DEFINED ENV{TBB_DIR}) OR ENABLE_SYSTEM_TBB ) )
     ie_cpack_add_component(tbb HIDDEN)
     list(APPEND core_components tbb)
+
     if(TBBROOT MATCHES ${TEMP})
         set(tbb_downloaded ON)
     elseif(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR

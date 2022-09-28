@@ -55,7 +55,7 @@ def test_load_by_unknown_framework():
     try:
         fem.load_by_framework("UnknownFramework")
     except InitializationFailure as exc:
-        print(exc)
+        print(exc)  # noqa: T201
     else:
         raise AssertionError("Unexpected exception.")
 

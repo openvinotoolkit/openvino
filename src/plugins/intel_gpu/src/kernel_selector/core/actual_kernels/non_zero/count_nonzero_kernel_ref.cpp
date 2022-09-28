@@ -40,6 +40,8 @@ KernelsData CountNonzeroKernelRef::GetKernelsData(const Params& params, const op
 
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = MakeBaseParamsJitConstants(newParams);
+
+    cldnn_jit.AddConstant(MakeJitConstant("OV_INPUT_RANK", newParams.ov_input_rank));
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     const auto& in = newParams.inputs[0];
