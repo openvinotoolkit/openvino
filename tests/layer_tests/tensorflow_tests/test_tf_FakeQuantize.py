@@ -89,8 +89,8 @@ class TestFakeQuantize(CommonTFLayerTest):
 
     test_data = [
         # with8BitsNoScalingNoNudging
-        dict(il=0.0, ih=255.0, num_bits=8, narrow_range=False, nudged_il=0.0, nudged_ih=255.0,
-             expected_step=1.0),
+        pytest.param(dict(il=0.0, ih=255.0, num_bits=8, narrow_range=False, nudged_il=0.0, nudged_ih=255.0,
+                          expected_step=1.0), marks=pytest.mark.precommit_tf_fe),
         # with8BitsScalingAndNudgingDown
         dict(il=0.5, ih=128.0, num_bits=8, narrow_range=False, nudged_il=0.0, nudged_ih=127.5,
              expected_step=0.5),
