@@ -17,7 +17,7 @@
 
 @endsphinxdirective
 
-This guide provides general troubleshooting steps and solutions to possible issues that can be encountered while installing and configuration OpenVINO™.
+This guide provides general troubleshooting steps and solutions to possible issues that can be encountered while installing and configuring OpenVINO™.
 
 The [Issues & Solutions](./troubleshooting-issues.md) page lists common installation errors and their solutions. If you encountered a specific error while installing OpenVINO, check this page to see if there is a solution.
 
