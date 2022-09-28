@@ -176,6 +176,21 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_5D) {
     ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{dynamic, 4, dynamic, dynamic, 6}));
 }
 
+TYPED_TEST_P(ArithmeticOperator, dynamic_shape_intervals) {
+    auto A = std::make_shared<op::Parameter>(
+        element::f32,
+        PartialShape{Dimension(1, 3), Dimension(1, 3), Dimension(1, 3), Dimension(4, 8), -1, 1, -1, 1, 3});
+    auto B = std::make_shared<op::Parameter>(
+        element::f32,
+        PartialShape{Dimension(1, 3), Dimension(2, 7), -1, 1, Dimension(1, 3), Dimension(4, 8), -1, 1, 3});
+
+    const auto op = std::make_shared<TypeParam>(A, B);
+
+    ASSERT_EQ(op->get_element_type(), element::f32);
+    ASSERT_EQ(op->get_output_partial_shape(0),
+              (PartialShape{Dimension(1, 3), Dimension(2, 7), -1, Dimension(4, 8), -1, Dimension(4, 8), -1, 1, 3}));
+}
+
 TYPED_TEST_P(ArithmeticOperator, full_dynamic_shape) {
     auto param = std::make_shared<op::Parameter>(element::f64, PartialShape::dynamic());
     const auto op = std::make_shared<TypeParam>(param, param);
@@ -257,6 +272,7 @@ REGISTER_TYPED_TEST_SUITE_P(ArithmeticOperator,
                             shape_inference_5D_x_5D_incompatible,
                             dynamic_shape_3D,
                             dynamic_shape_5D,
+                            dynamic_shape_intervals,
                             full_dynamic_shape,
                             dynamic_shape_static_rank_with_labels_a,
                             dynamic_shape_static_rank_with_labels_b,
