@@ -16,7 +16,7 @@ More resources:
 A suite of advanced algorithms for Neural Network inference optimization with minimal accuracy drop. NNCF applies quantization, filter pruning, binarization and sparsity algorithms to PyTorch and TensorFlow models during training.
 
 More resources:
-* [Documentation](@ref docs_nncf_introduction)
+* [Documentation](@ref tmo_introduction)
 * [GitHub](https://github.com/openvinotoolkit/nncf)
 * [PyPI](https://pypi.org/project/nncf/)
 

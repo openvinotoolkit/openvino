@@ -26,7 +26,7 @@
                 </tab>
             </tab>
             <tab type="user" title="Configuration File Description" url="@ref pot_configs_README"/>
-            <tab type="user" title="Deep neural network protection through range supervision" url="@ref pot_range_supervision_README"/>
+            <tab type="user" title="Deep neural network protection through range supervision" url="@ref pot_ranger_README"/>
             <tab type="user" title="Frequently Asked Questions" url="@ref pot_docs_FrequentlyAskedQuestions"/>
         </tab>
     </navindex>
