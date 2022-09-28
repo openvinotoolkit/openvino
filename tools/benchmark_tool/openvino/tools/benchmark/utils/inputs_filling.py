@@ -4,7 +4,6 @@
 import os
 import re
 import numpy as np
-from types import ModuleType
 from collections import defaultdict
 from pathlib import Path
 
@@ -13,6 +12,7 @@ from openvino.runtime.utils.types import get_dtype
 
 from .constants import IMAGE_EXTENSIONS, BINARY_EXTENSIONS
 from .logging import logger
+
 
 class DataQueue:
     def __init__(self, input_data: dict, batch_sizes: list):
