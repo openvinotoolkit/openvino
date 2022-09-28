@@ -1,4 +1,5 @@
 from asyncio import subprocess
+from cmath import log
 from queue import Empty
 from git import Repo
 from argparse import ArgumentParser
@@ -9,7 +10,7 @@ from shutil import copytree
 from summarize import create_summary
 from merge_xmls import merge_xml
 from pathlib import Path
-from sys import version
+from sys import version, platform
 
 import xml.etree.ElementTree as ET
 
@@ -28,6 +29,11 @@ GTEST_PARALLEL_BRANCH = "master"
 API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
 OP_CONFORMANCE_BIN_NAME = "conformanceTests"
 SUBGRAPH_DUMPER_BIN_NAME = "subgraphsDumper"
+
+IS_WIN = "windows" in platform
+
+OS_SCRYPT_EXT = ".bat" if IS_WIN else ""
+OS_BIN_FILE_EXT = ".exe" if IS_WIN else ""
 
 NO_MODEL_CONSTANT = "NO_MODEL"
 
@@ -65,61 +71,82 @@ def parse_arguments():
 
     return parser.parse_args()
 
+def set_env_variale(env: os.environ, var_name: str, var_value: str):
+    try:
+        env[var_name] = var_value + ":" + env[var_name]
+    except:
+        env[var_name] = var_value
+    return env
+
 class Conformance:
-    def __init__(self, device:str, model_path:str, ov_path:str, type:str, working_dir:str):
+    def __init__(self, device:str, model_path:os.path, ov_path:os.path, type:str, working_dir:os.path):
         self._device = device
         self._model_path = model_path
         self._ov_path = ov_path
         self._ov_bin_path = get_ov_path(self._ov_path, True)
         self._working_dir = working_dir
         if not (type == "OP" or type == "API"):
-            raise Exception("Incorrect conformance type")
+            logger.error(f"Incorrect conformance type: {type}. Please use 'OP' or 'API'")
+            exit(-1)
         self._type = type
 
     def __download_repo(self, https_url: str, version: str):
         repo_name = https_url[https_url.rfind('/') + 1:len(https_url) - 4]
         repo_path = os.path.join(self._working_dir, repo_name)
         if os.path.exists(repo_path):
-            logger.info(f'Repo: {repo_name} exists in {self._working_dir}. Skip the repo download')
+            logger.info(f'Repo: {repo_name} exists in {self._working_dir}. Skip the repo download.')
+            repo = Repo(repo_path)
         else:
             logger.info(f'Started to clone repo: {https_url} to {repo_path}')
             repo = Repo.clone_from(https_url, repo_path)
             repo.submodule_update(recursive=True)
             logger.info(f'Repo {https_url} was cloned sucessful')
-            remote_version = "origin/" + version
-            if remote_version in repo.git.branch('-r').replace(' ', '').split('\n'):
-                branch = repo.git.checkout(version)
-                repo.submodule_update(recursive=True)
-                logger.info(f'Repo {https_url} is on {version}')
+        remote_version = "origin/" + version
+        if remote_version in repo.git.branch('-r').replace(' ', '').split('\n'):
+            repo.git.checkout(version)
+            repo.git.pull()
+            repo.submodule_update(recursive=True)
+            logger.info(f'Repo {https_url} is on {version}')
         return repo_path
 
     def _convert_models(self):
         omz_tools_path = os.path.join(self._omz_path, "tools", "model_tools")
         original_model_path = os.path.join(self._working_dir, "original_models")
         converted_model_path = os.path.join(self._working_dir, "converted_models")
-        converter_path = os.path.join(self._omz_path, "tools", "model_tools", 'converter.py')
         mo_path = os.path.join(self._ov_path, "tools", "mo")
-        logger.info(f"Model conversion from {original_model_path} to {converted_model_path} is started")
         ov_python_path = os.path.join(self._ov_bin_path, "python_api", f"python{version[0:3]}")
 
-        command = f'python3 -m venv .env3; '\
-            f'source .env3/bin/activate; '\
-            f'export OMZ_ROOT={self._omz_path}; ' \
-            f'export PYTHONPATH={ov_python_path}:{mo_path}; ' \
-            f'export LD_LIBRARY_PATH={self._ov_bin_path}; ' \
+        convert_model_env = os.environ.copy()
+        ld_lib_path_name = ""
+        # Windows or MacOS
+        if IS_WIN or platform == "darwin":
+            ld_lib_path_name = "PATH"
+        # Linux
+        elif "lin" in platform:
+            ld_lib_path_name = "LD_LIBRARY_PATH"
+        convert_model_env = set_env_variale(convert_model_env, ld_lib_path_name, self._ov_bin_path)
+        convert_model_env = set_env_variale(convert_model_env, "PYTHONPATH", f"{ov_python_path}:{mo_path}")
+        convert_model_env = set_env_variale(convert_model_env, "OMZ_ROOT", self._omz_path)
+        
+        logger.info(f"Model conversion from {original_model_path} to {converted_model_path} is started")
+        activate_path = os.path.join(".env3", "bin", "activate")
+        
+        command = f'cd "{self._working_dir}"; ' \
+            f'{"" if os.path.exists(".env3") else "python3 -m venv .env3; "} '\
+            f'{"" if IS_WIN else "source"} {activate_path}{OS_SCRYPT_EXT}; '\
             f'pip3 install -e "{mo_path}/.[caffe,kaldi,mxnet,onnx,pytorch,tensorflow2]"; ' \
             f'pip3 install "{omz_tools_path}/.[paddle,pytorch,tensorflow]"; ' \
-            f'omz_downloader --all --output_dir={original_model_path}; '\
-            f'omz_converter --all --download_dir={original_model_path} --output_dir={converted_model_path}; '\
-            f'source .env3/bin/deactivate'
-        process = Popen(command, shell=True)
+            f'omz_downloader --name=vgg16 --output_dir="{original_model_path}"; '\
+            f'omz_converter --name=vgg16 --download_dir="{original_model_path}" --output_dir="{converted_model_path}"; '\
+            f'deactivate'
+        process = Popen(command, shell=True, env=convert_model_env)
         out, err = process.communicate()
         if err is None:
             for line in str(out).split('\n'):
                 logger.info(line)
         else:
             logger.error(err)
-            raise Exception("Process failed on step: 'Model conversion'")
+            exit(-1)
         logger.info(f"Model conversion is successful. Converted models are saved to {converted_model_path}")
         return converted_model_path
 
@@ -135,7 +162,7 @@ class Conformance:
         if not os.path.exists(conformance_ir_path):
             os.mkdir(conformance_ir_path)
         logger.info(f"Stating model dumping from {self._model_path}")
-        cmd = f'{subgraph_dumper_path} --input_folders={self._model_path} --output_folder={conformance_ir_path}'
+        cmd = f'{subgraph_dumper_path}{OS_BIN_FILE_EXT} --input_folders="{self._model_path}" --output_folder="{conformance_ir_path}"'
         process = Popen(cmd, shell=True)
         out, err = process.communicate()
         if err is None:
@@ -144,7 +171,8 @@ class Conformance:
             logger.info(f"Conformance IRs were saved to {conformance_ir_path}")
         else:
             logger.error(err)
-            raise Exception("Process failed on step: 'Subgraph dumping'")
+            logger.error("Process failed on step: 'Subgraph dumping'")
+            exit(-1)
         self._model_path = conformance_ir_path
 
     def _prepare_filelist(self):
@@ -174,8 +202,8 @@ class Conformance:
         if not os.path.exists(logs_dir):
             os.mkdir(logs_dir)
         
-        cmd = f'python3 {gtest_parallel_path}  {conformance_path} -w {worker_num} -d {logs_dir} -- ' \
-            f'--device {self._device} --input_folders {conformance_filelist_path} --report_unique_name --output_folder {parallel_report_dir}'
+        cmd = f'python3 {gtest_parallel_path}  {conformance_path}{OS_BIN_FILE_EXT} -w {worker_num} -d "{logs_dir}" -- ' \
+            f'--device {self._device} --input_folders "{conformance_filelist_path}" --report_unique_name --output_folder "{parallel_report_dir}"'
         logger.info(f"Stating conformance: {cmd}")
         process = Popen(cmd, shell=True)
         out, err = process.communicate()
@@ -185,7 +213,8 @@ class Conformance:
                 logger.info(line)
         else:
             logger.error(err)
-            raise Exception("Process failed on step: 'Run conformance'")
+            logger.error("Process failed on step: 'Run conformance'")
+            exit(-1)
         final_report_name = f'report_{self._type}'
         merge_xml([parallel_report_dir], report_dir, final_report_name, self._type)
         logger.info(f"Conformance is successful. XML reportwas saved to {report_dir}")
@@ -195,9 +224,19 @@ class Conformance:
         summary_root = ET.parse(xml_report_path).getroot()
         create_summary(summary_root, report_dir, "", "", False, True)
         copytree("template/", os.path.join(report_dir, "template"))
-        logger.info(f"Report was saved to {report_dir}/report.html")
+        logger.info(f"Report was saved to {os.path.join(report_dir, 'report.html')}")
 
     def start_pipeline(self, dump_models: bool):
+        command = f'pip3 install -r requirments.txt'
+        process = Popen(command, shell=True)
+        out, err = process.communicate()
+        if err is None:
+            for line in str(out).split('\n'):
+                logger.info(line)
+        else:
+            logger.error(err)
+            logger.error("Impossible to install requirments!")
+            exit(-1)
         logger.info(f"[ARGUMENTS] --device = {self._device}")
         logger.info(f"[ARGUMENTS] --ov_path = {self._ov_path}")
         logger.info(f"[ARGUMENTS] --models_path = {self._model_path}")
