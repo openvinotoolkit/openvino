@@ -22,7 +22,7 @@
 
 #define IE_VERSION_MAJOR 2021
 #define IE_VERSION_MINOR 4
-#define IE_VERSION_PATCH 2
+#define IE_VERSION_PATCH 3
 
 #include "ie_api.h"
 

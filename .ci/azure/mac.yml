@@ -100,7 +100,7 @@ jobs:
       # Disable errors with Ninja
       export CXXFLAGS="-Wno-error=unused-command-line-argument"
       export CFLAGS="-Wno-error=unused-command-line-argument"
-      cmake -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_STRICT_DEPENDENCIES=OFF -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules $(REPO_DIR)
+      cmake -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_STRICT_DEPENDENCIES=OFF -DBUILD_cuda_plugin=OFF -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules $(REPO_DIR)
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
 

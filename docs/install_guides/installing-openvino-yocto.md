@@ -43,26 +43,26 @@ MACHINE = "intel-skylake-64"
 # Enable clDNN GPU plugin when needed.
 # This requires meta-clang and meta-oe layers to be included in bblayers.conf
 # and is not enabled by default.
-PACKAGECONFIG_append_pn-openvino-inference-engine = " opencl"
+PACKAGECONFIG:append:pn-openvino-inference-engine = " opencl"
 
 # Enable building inference engine python API.
 # This requires meta-python layer to be included in bblayers.conf.
-PACKAGECONFIG_append_pn-openvino-inference-engine = " python3"
+PACKAGECONFIG:append:pn-openvino-inference-engine = " python3"
 
 # This adds inference engine related libraries in the target image.
-CORE_IMAGE_EXTRA_INSTALL_append = " openvino-inference-engine"
+CORE_IMAGE_EXTRA_INSTALL:append = " openvino-inference-engine"
 
 # This adds inference engine samples in the target image.
-CORE_IMAGE_EXTRA_INSTALL_append = " openvino-inference-engine-samples"
+CORE_IMAGE_EXTRA_INSTALL:append = " openvino-inference-engine-samples"
 
-# Include inference engine python API package in the target image.
-CORE_IMAGE_EXTRA_INSTALL_append = " openvino-inference-engine-python3"
+# Include inference engine Python API package in the target image.
+CORE_IMAGE_EXTRA_INSTALL:append = " openvino-inference-engine-python3"
 
 # Enable MYRIAD plugin
-CORE_IMAGE_EXTRA_INSTALL_append = " openvino-inference-engine-vpu-firmware"
+CORE_IMAGE_EXTRA_INSTALL:append = " openvino-inference-engine-vpu-firmware"
 
-# Include model optimizer in the target image.
-CORE_IMAGE_EXTRA_INSTALL_append = " openvino-model-optimizer"
+# Include Model Optimizer in the target image.
+CORE_IMAGE_EXTRA_INSTALL:append = " openvino-model-optimizer"
 ```
 
 ## Step 2: Build a Yocto Image with OpenVINO Packages
@@ -88,7 +88,6 @@ openvino-inference-engine-dev
 openvino-inference-engine-python3
 openvino-inference-engine-samples
 openvino-inference-engine-src
-openvino-inference-engine-staticdev
 openvino-inference-engine-vpu-firmware
 openvino-model-optimizer
 openvino-model-optimizer-dbg
