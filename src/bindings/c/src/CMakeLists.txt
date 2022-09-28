@@ -11,7 +11,7 @@ file(GLOB HEADERS ${OpenVINO_C_API_SOURCE_DIR}/include/*)
 add_library(${TARGET_NAME} ${HEADERS} ${SOURCES})
 add_library(openvino::runtime::c ALIAS ${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino openvino::util)
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${OpenVINO_C_API_SOURCE_DIR}/include>)

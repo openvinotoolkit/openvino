@@ -98,6 +98,19 @@ OPENVINO_C_API(ov_status_e) ov_core_create(ov_core_t** core);
  */
 OPENVINO_C_API(ov_status_e) ov_core_create_with_config(const char* xml_config_file, ov_core_t** core);
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+/**
+ * @brief Constructs OpenVINO Core instance using XML configuration file with devices description.
+ * See RegisterPlugins for more details.
+ * @ingroup Core
+ * @param xml_config_file A path to .xml file with devices to load from. If XML configuration file is not specified,
+ * then default plugin.xml file will be used.
+ * @param core A pointer to the newly created ov_core_t.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e) ov_core_create_with_config_unicode(const wchar_t* xml_config_file_ws, ov_core_t** core);
+#endif
+
 /**
  * @brief Release the memory allocated by ov_core_t.
  * @ingroup Core
@@ -123,6 +136,30 @@ OPENVINO_C_API(void) ov_core_free(ov_core_t* core);
  */
 OPENVINO_C_API(ov_status_e)
 ov_core_read_model(const ov_core_t* core, const char* model_path, const char* bin_path, ov_model_t** model);
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+/**
+ * @brief Reads models from IR/ONNX/PDPD formats, path is unicode.
+ * @ingroup Core
+ * @param core A pointer to the ie_core_t instance.
+ * @param model_path Path to a model.
+ * @param bin_path Path to a data file.
+ * For IR format (*.bin):
+ *  * if path is empty, will try to read a bin file with the same name as xml and
+ *  * if the bin file with the same name is not found, will load IR without weights.
+ * For ONNX format (*.onnx):
+ *  * the bin_path parameter is not used.
+ * For PDPD format (*.pdmodel)
+ *  * the bin_path parameter is not used.
+ * @param model A pointer to the newly created model.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_read_model_unicode(const ov_core_t* core,
+                           const wchar_t* model_path,
+                           const wchar_t* bin_path,
+                           ov_model_t** model);
+#endif
 
 /**
  * @brief Reads models from IR/ONNX/PDPD formats.
@@ -186,6 +223,31 @@ ov_core_compile_model_from_file(const ov_core_t* core,
                                 const size_t property_args_size,
                                 ov_compiled_model_t** compiled_model,
                                 ...);
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+/**
+ * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
+ * This can be more efficient than using the ov_core_read_model_from_XXX + ov_core_compile_model flow,
+ * especially for cases when caching is enabled and a cached model is available.
+ * @ingroup Core
+ * @param core A pointer to the ie_core_t instance.
+ * @param model_path Path to a model.
+ * @param device_name Name of a device to load a model to.
+ * @param property_args_size How many properties args will be passed, each property contains 2 args: key and value.
+ * @param compiled_model A pointer to the newly created compiled_model.
+ * @param property paramater: Optional pack of pairs: <char* property_key, char* property_value> relevant only
+ * for this load operation operation. Supported property key please see ov_property.h.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_compile_model_from_file_unicode(const ov_core_t* core,
+                                        const wchar_t* model_path,
+                                        const char* device_name,
+                                        const size_t property_args_size,
+                                        ov_compiled_model_t** compiled_model,
+                                        ...);
+
+#endif
 
 /**
  * @brief Sets properties for a device, acceptable keys can be found in ov_property_key_xxx.
