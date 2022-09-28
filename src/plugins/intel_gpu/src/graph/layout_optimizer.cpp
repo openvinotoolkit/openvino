@@ -1633,9 +1633,9 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 expected = format::bfyx;
             }
             // TODO: check other types for first conv
-        } else if (layout.format.spatial_num() == 2 &&
-            (layout.data_type == data_types::i8 || layout.data_type == data_types::u8) &&
-            layout.batch() % 16 == 0) {
+        } else if (layout.is_static() && layout.format.spatial_num() == 2 &&
+                  (layout.data_type == data_types::i8 || layout.data_type == data_types::u8) &&
+                  layout.batch() % 16 == 0) {
             if (use_onednn_impls && layout.batch() % 32 == 0) {
                 if (node.get_users().size() == 1 && node.get_users().front()->is_type<convolution>()) {
                     auto& conv = node.get_users().front()->as<convolution>();
