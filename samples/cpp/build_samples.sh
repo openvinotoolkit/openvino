@@ -14,7 +14,7 @@ usage() {
     exit 1
 }
 
-samples_type=$(basename "$( dirname "${BASH_SOURCE[0]-$0}" )" )
+samples_type="$(basename "$(dirname "$(realpath "$BASH_SOURCE")")")"
 build_dir="$HOME/openvino_${samples_type}_samples_build"
 sample_install_dir=""
 
