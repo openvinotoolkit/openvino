@@ -21,13 +21,13 @@ op::v1::LogicalAnd::LogicalAnd(const Output<Node>& arg0,
 }
 
 bool op::v1::LogicalAnd::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_LogicalAnd_visit_attributes);
+    OV_OP_SCOPE(v1_LogicalAnd_visit_attributes);
     BinaryElementwiseLogical::visit_attributes(visitor);
     return true;
 }
 
 shared_ptr<Node> op::v1::LogicalAnd::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_LogicalAnd_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_LogicalAnd_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::LogicalAnd>(new_args.at(0), new_args.at(1), this->get_autob());
 }
@@ -66,13 +66,13 @@ bool evaluate_logand(const HostTensorPtr& arg0,
 }  // namespace logand
 
 bool op::v1::LogicalAnd::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_LogicalAnd_evaluate);
+    OV_OP_SCOPE(v1_LogicalAnd_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
     return logand::evaluate_logand(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 bool op::v1::LogicalAnd::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_LogicalAnd_has_evaluate);
+    OV_OP_SCOPE(v1_LogicalAnd_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::boolean:
         return true;

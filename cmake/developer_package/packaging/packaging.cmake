@@ -27,14 +27,17 @@ macro(ov_cpack_set_dirs)
         set(OV_CPACK_LIBRARYDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG>)
         set(OV_CPACK_RUNTIMEDIR runtime/bin/${ARCH_FOLDER}/$<CONFIG>)
         set(OV_CPACK_ARCHIVEDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG>)
+        set(OV_WHEEL_RUNTIMEDIR runtime/lib/${ARCH_FOLDER}/Release)
     elseif(APPLE)
         set(OV_CPACK_LIBRARYDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG>)
         set(OV_CPACK_RUNTIMEDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG>)
         set(OV_CPACK_ARCHIVEDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG>)
+        set(OV_WHEEL_RUNTIMEDIR runtime/lib/${ARCH_FOLDER}/Release)
     else()
         set(OV_CPACK_LIBRARYDIR runtime/lib/${ARCH_FOLDER})
         set(OV_CPACK_RUNTIMEDIR runtime/lib/${ARCH_FOLDER})
         set(OV_CPACK_ARCHIVEDIR runtime/lib/${ARCH_FOLDER})
+        set(OV_WHEEL_RUNTIMEDIR ${OV_CPACK_RUNTIMEDIR})
     endif()
     set(OV_CPACK_PLUGINSDIR ${OV_CPACK_RUNTIMEDIR})
 
@@ -57,11 +60,10 @@ function(ie_cpack_add_component name)
 
         # need to store informarion about cpack_add_component arguments in CMakeCache.txt
         # to restore it later
-        set(_${name}_cpack_component_args "${ARGN}" CACHE STRING "Argument for cpack_add_component for ${name} cpack component" FORCE)
-        mark_as_advanced(_${name}_cpack_component_args)
+        set(_${name}_cpack_component_args "${ARGN}" CACHE INTERNAL "Argument for cpack_add_component for ${name} cpack component" FORCE)
 
         list(APPEND IE_CPACK_COMPONENTS_ALL ${name})
-        set(IE_CPACK_COMPONENTS_ALL "${IE_CPACK_COMPONENTS_ALL}" CACHE STRING "" FORCE)
+        set(IE_CPACK_COMPONENTS_ALL "${IE_CPACK_COMPONENTS_ALL}" CACHE INTERNAL "" FORCE)
     endif()
 endfunction()
 
