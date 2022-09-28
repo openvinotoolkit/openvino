@@ -12,10 +12,8 @@ project(OpenVINOPython DESCRIPTION "OpenVINO Runtime Python bindings")
 
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage REQUIRED)
+    set(OpenVINO_BINARY_DIR "${InferenceEngineDeveloperPackage_DIR}")
 endif()
-
-set(PYTHON_SOURCE_DIR ${OpenVINOPython_SOURCE_DIR}/src)
-
 
 #
 # Check python requirements
@@ -128,14 +126,8 @@ endif()
 
 set(wheel_reqs "${OpenVINOPython_SOURCE_DIR}/wheel/requirements-dev.txt")
 ov_check_pip_packages(REQUIREMENTS_FILE "${OpenVINOPython_SOURCE_DIR}/wheel/requirements-dev.txt"
-                      RESULT_VAR wheel_req_FOUND
+                      RESULT_VAR ENABLE_WHEEL_DEFAULT
                       MESSAGE_MODE WARNING)
-
-if(wheel_req_FOUND AND "${CMAKE_SOURCE_DIR}" STREQUAL "${OpenVINO_SOURCE_DIR}")
-    set(ENABLE_WHEEL_DEFAULT ON)
-else()
-    set(ENABLE_WHEEL_DEFAULT OFF)
-endif()
 
 if(LINUX)
     find_host_program(patchelf_program
@@ -154,6 +146,7 @@ ie_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_
 #
 # Build the code
 #
+
 add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
 add_subdirectory(src/compatibility/pyngraph)
 add_subdirectory(src/pyopenvino)

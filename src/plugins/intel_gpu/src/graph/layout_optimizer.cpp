@@ -82,6 +82,20 @@ static size_t get_post_ops_count(const program_node& node) {
     return onednn_post_ops_count;
 }
 
+static bool is_reduce_blocked_axes(reduce_node const& node) {
+    auto prim = node.get_primitive();
+    auto reduce_axes = prim->axes;
+    auto input_layout = node.input().get_output_layout();
+
+    if (prim->keep_dims == false &&
+        (count(reduce_axes.begin(), reduce_axes.end(), 1) > 0 ||
+        (count(reduce_axes.begin(), reduce_axes.end(), 0) > 0 && input_layout.batch() > 1))) {
+        return true;
+    }
+
+    return false;
+}
+
 std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
                                                                        const layout& in_layout,
                                                                        const layout& out_layout) {
@@ -767,6 +781,12 @@ static bool is_node_for_onednn(reduce_node const& node, format preferred_format)
     // oneDNN reduction selects ref kernel for simple formats(bfyx..) which has perf regression with a decent tensor size.
     if (format::is_simple_data_format(preferred_format)) {
         return false;
+    } else {
+        // Onednn reduction does NOT support reordering of unreduced-axes.
+        // Currently, an Onednn reduce layer which contains reduction of blocked axes(b-f) is expected to select planar format.
+        if (is_reduce_blocked_axes(node)) {
+            return false;
+        }
     }
 
     return true;
@@ -1687,15 +1707,10 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         }
     } else if (node.is_type<reduce>()) {
         auto& reduce_node = node.as<reduce>();
-        auto prim = reduce_node.get_primitive();
-        auto reduce_axes = prim->axes;
-        auto input_layout = reduce_node.input().get_output_layout();
         // if blocked axes are reduced, it will have huge memory overhead. A clDNN reduce reorders un-reduced axes to b-f and w-x axis for this.
         // But oneDNN does not allow this. So planar format is used for this case.
-        if (prim->keep_dims == false &&
-            (find(reduce_axes.begin(), reduce_axes.end(), 1) != reduce_axes.end() ||
-            (find(reduce_axes.begin(), reduce_axes.end(), 0) != reduce_axes.end() && input_layout.batch() > 1)) &&
-            use_onednn_impls) {
+        if (is_reduce_blocked_axes(reduce_node) && use_onednn_impls) {
+            auto input_layout = reduce_node.input().get_output_layout();
             if (input_layout.format.dimension() == 6)
                 expected = format::bfwzyx;
             else if (input_layout.format.dimension() == 5)
