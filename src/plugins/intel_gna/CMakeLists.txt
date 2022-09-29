@@ -129,10 +129,6 @@ if(NOT BUILD_SHARED_LIBS)
     endif()
 endif()
 
-if(ENABLE_TESTS)
-    add_subdirectory(tests/unit)
-endif()
+add_subdirectory(tests)
 
-if(ENABLE_FUNCTIONAL_TESTS)
-    add_subdirectory(tests/functional)
-endif()
+
