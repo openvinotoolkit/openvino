@@ -31,6 +31,7 @@ void set_required_layouts::run(program& p) {
         return;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     for (auto n : p.get_processing_order()) {
         if (!n->is_type<convolution>()
             || !layout_optimizer::are_data_types_suitable_for_onednn(*n)) {
@@ -39,17 +40,23 @@ void set_required_layouts::run(program& p) {
         }
         auto& node = n->as<convolution>();
 
-        auto desc = onednn::get_convolution_descriptor(node, dnnl::memory::format_tag::any);
-        // Note: did not handle attribute properly. especially for zero-point
-        dnnl::primitive_desc prim_desc{&desc->data, nullptr, engine.get_onednn_engine(), nullptr};
-        auto src_fmt = onednn::find_data_format(prim_desc.src_desc());
-        auto dst_fmt = onednn::find_data_format(prim_desc.dst_desc());
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            std::cout << "set_required_layouts:" << node.id() << ": " << fmt_to_str(src_fmt) << " --> " << fmt_to_str(dst_fmt) << std::endl;
+        // Onednn primitive descriptor creation may fail, for example, due to asymmetric weight.
+        try {
+            auto desc = onednn::get_convolution_descriptor(*node.get_kernel_impl_params(), dnnl::memory::format_tag::any);
+            // Note: did not handle attribute properly. especially for zero-point
+            dnnl::primitive_desc prim_desc{&desc->data, nullptr, engine.get_onednn_engine(), nullptr};
+            auto src_fmt = onednn::find_data_format(prim_desc.src_desc());
+            auto dst_fmt = onednn::find_data_format(prim_desc.dst_desc());
+            GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                std::cout << "set_required_layouts:" << node.id() << ": " << fmt_to_str(src_fmt) << " --> " << fmt_to_str(dst_fmt) << std::endl;
+            }
+            node.set_required_input0(src_fmt);
+            node.set_required_output(dst_fmt);
+        } catch(std::exception &exception) {
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                std::cout << "WARNING(set_required_layouts): " << exception.what() << std::endl;
+            }
         }
-        node.set_required_input0(src_fmt);
-        node.set_required_output(dst_fmt);
     }
 #endif
 }
