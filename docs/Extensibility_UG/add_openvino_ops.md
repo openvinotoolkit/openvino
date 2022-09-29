@@ -6,7 +6,7 @@ OpenVINO™ Extension API allows you to register custom operations to support mo
 
 To add your custom operation, create a new class that extends `ov::Op`, which is in turn derived from `ov::Node`, the base class for all graph operations in OpenVINO™. To add `ov::Op` please include next file:
 
-@snippet template_extension/new/identity.hpp op:common_include
+@snippet template/extension/new/identity.hpp op:common_include
 
 Follow the steps below to add a custom operation:
 
@@ -31,29 +31,29 @@ OpenVINO™ operation contains two constructors:
 * Default constructor, which enables you to create an operation without attributes 
 * Constructor that creates and validates an operation with specified inputs and attributes
 
-@snippet template_extension/new/identity.cpp op:ctor
+@snippet template/extension/new/identity.cpp op:ctor
 
 ### `validate_and_infer_types()`
 
 `ov::Node::validate_and_infer_types` method validates operation attributes and calculates output shapes using attributes of the operation.
 
-@snippet template_extension/new/identity.cpp op:validate
+@snippet template/extension/new/identity.cpp op:validate
 
 ### `clone_with_new_inputs()`
 
 `ov::Node::clone_with_new_inputs` method creates a copy of the operation with new inputs.
 
-@snippet template_extension/new/identity.cpp op:copy
+@snippet template/extension/new/identity.cpp op:copy
 
 ### `visit_attributes()`
 
 `ov::Node::visit_attributes` method enables you to visit all operation attributes.
 
-@snippet template_extension/new/identity.cpp op:visit_attributes
+@snippet template/extension/new/identity.cpp op:visit_attributes
 
 ### evaluate() and has_evaluate()
 
 `ov::Node::evaluate` method enables you to apply constant folding to an operation.
 
-@snippet template_extension/new/identity.cpp op:evaluate
+@snippet template/extension/new/identity.cpp op:evaluate
 

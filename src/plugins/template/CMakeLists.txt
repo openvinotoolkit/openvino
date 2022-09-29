@@ -2,6 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# Enable interpreter backend
+if (ENABLE_TESTS OR ENABLE_TEMPLATE)
+    add_subdirectory(backend)
+endif()
+add_subdirectory(extension)
+
+if (NOT ENABLE_TEMPLATE)
+    return()
+endif()
+
 # [cmake:main]
 cmake_minimum_required(VERSION 3.13)
 

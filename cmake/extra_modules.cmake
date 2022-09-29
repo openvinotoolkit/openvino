@@ -72,6 +72,8 @@ function(register_extra_modules)
 
     set(InferenceEngineDeveloperPackage_DIR "${CMAKE_CURRENT_BINARY_DIR}/runtime")
     set(OpenVINODeveloperPackage_DIR "${CMAKE_BINARY_DIR}/runtime")
+    set(OpenVINO_DIR ${CMAKE_BINARY_DIR})
+
 
     function(generate_fake_dev_package NS)
         if(NS STREQUAL "openvino")
@@ -107,7 +109,7 @@ function(register_extra_modules)
 
     # add template plugin
     if(ENABLE_TEMPLATE)
-        list(APPEND extra_modules "${OpenVINO_SOURCE_DIR}/docs/template_plugin")
+        list(APPEND extra_modules "${OpenVINO_SOURCE_DIR}/src/plugins/template")
     endif()
 
     # add each extra module
