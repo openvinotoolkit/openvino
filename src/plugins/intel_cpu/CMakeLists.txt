@@ -9,7 +9,7 @@ endif()
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
 if(CMAKE_COMPILER_IS_GNUCC)
-    ie_add_compiler_flags(-Wno-all)
+    ie_add_compiler_flags(-Wno-all -Werror -Wundef -Wreturn-type -Wunused-variable -Wunused-value -Wswitch -Wformat -Wformat-security)
 endif()
 
 if (WIN32)
