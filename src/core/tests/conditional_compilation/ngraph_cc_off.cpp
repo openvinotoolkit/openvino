@@ -17,7 +17,7 @@
 #    undef SELECTIVE_BUILD
 #endif
 
-#include "../src/itt.hpp"
+#include "itt.hpp"
 
 using namespace std;
 

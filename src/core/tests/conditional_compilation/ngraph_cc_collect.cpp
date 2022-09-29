@@ -19,7 +19,7 @@
 
 #define SELECTIVE_BUILD_ANALYZER
 
-#include "../src/itt.hpp"
+#include "itt.hpp"
 
 using namespace std;
 
@@ -40,6 +40,7 @@ TEST(conditional_compilation, collect_op_scope) {
 }
 
 TEST(conditional_compilation, collect_ops_in_opset) {
+#define ov_opset_test_opset1_Abs 1
     ov::OpSet opset("test_opset1");
     INSERT_OP(test_opset1, Abs, ov::op::v0);
     EXPECT_NE(opset.create("Abs"), nullptr);
@@ -48,6 +49,7 @@ TEST(conditional_compilation, collect_ops_in_opset) {
     INSERT_OP(test_opset1, Constant, ov::op::v0);
     EXPECT_NE(opset.create("Constant"), nullptr);
     EXPECT_NE(opset.create_insensitive("Constant"), nullptr);
+#undef ov_opset_test_opset1_Abs
 }
 
 #undef SELECTIVE_BUILD_ANALYZER

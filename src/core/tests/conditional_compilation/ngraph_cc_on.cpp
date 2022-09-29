@@ -19,7 +19,7 @@
 
 #define SELECTIVE_BUILD
 
-#include "../src/itt.hpp"
+#include "itt.hpp"
 
 using namespace std;
 
@@ -38,16 +38,16 @@ TEST(conditional_compilation, disabled_op_scope) {
 }
 
 TEST(conditional_compilation, disabled_Constant_in_opset) {
-    ov::OpSet opset("test_opset3");
 #define ov_opset_test_opset3_Abs 1
+    ov::OpSet opset("test_opset3");
     INSERT_OP(test_opset3, Abs, ov::op::v0);
     EXPECT_NE(opset.create("Abs"), nullptr);
     EXPECT_NE(opset.create_insensitive("Abs"), nullptr);
-#undef ov_opset_test_opset3_Abs
 
     INSERT_OP(test_opset3, Constant, ov::op::v0);
     EXPECT_EQ(opset.create("Constant"), nullptr);
     EXPECT_EQ(opset.create_insensitive("Constant"), nullptr);
+#undef ov_opset_test_opset3_Abs
 }
 
 #undef SELECTIVE_BUILD
