@@ -124,8 +124,8 @@ private:
         };
     };
 
-    template <typename T> struct ROIPoolingJitExecutor;
-    template <typename T> struct ROIPoolingRefExecutor;
+    template <typename T> class ROIPoolingJitExecutor;
+    template <typename T> class ROIPoolingRefExecutor;
 
     using executorPtr = std::shared_ptr<ROIPoolingExecutor>;
     executorPtr execPtr = nullptr;

@@ -158,9 +158,9 @@ private:
         };
     };
 
-    template <typename in_data_t, typename out_data_t> struct NormalizeL2CornerCaseExecutor;
-    template <typename in_data_t, typename out_data_t> struct NormalizeL2JitExecutor;
-    template <typename in_data_t, typename out_data_t> struct NormalizeL2ReferenceExecutor;
+    template <typename in_data_t, typename out_data_t> class NormalizeL2CornerCaseExecutor;
+    template <typename in_data_t, typename out_data_t> class NormalizeL2JitExecutor;
+    template <typename in_data_t, typename out_data_t> class NormalizeL2ReferenceExecutor;
 
     mkldnn::primitive_attr kernel_attrs;
 

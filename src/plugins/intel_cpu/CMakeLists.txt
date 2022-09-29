@@ -14,6 +14,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4244)
     # mkldnn headers: '<<': result of 32-bit shift implicitly converted to 64 bits
     ie_add_compiler_flags(/wd4334)
+    # plugin: inherits 'XXX' via dominance
+    ie_add_compiler_flags(/wd4250)
+    # '<': signed/unsigned mismatch
+    ie_add_compiler_flags(/wd4018)
 endif()
 
 if (WIN32)

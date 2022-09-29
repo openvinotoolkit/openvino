@@ -25,9 +25,9 @@ void extend_with_zeros(const Strides& strides,
                        const T* in,
                        Shape& output_shape,
                        std::vector<T>& input_zeros) {
-    std::vector<int> input_3d(3, 1);
-    std::vector<int> strides_3d(3, 1);
-    std::vector<int> output_3d(3, 1);
+    std::vector<size_t> input_3d(3, 1);
+    std::vector<size_t> strides_3d(3, 1);
+    std::vector<size_t> output_3d(3, 1);
 
     for (size_t i = 0; i < strides.size(); ++i) {
         output_shape[i + 2] = input_shape[i + 2] + (strides[i] - 1) * (input_shape[i + 2] - 1);
@@ -187,7 +187,7 @@ void convolution_backprop_impl(const T* in,
     // convert output shape to 3D, contains only dimensions
     Shape out_shape_3d{out_shape.begin() + 2, out_shape.end()};
 
-    int out_shape_rank = out_shape.size() - 2;
+    int out_shape_rank = static_cast<int>(out_shape.size()) - 2;
     if (out_shape_rank < 3) {
         int missing_dims = 3 - out_shape_rank;
         out_shape_3d.insert(std::prev(out_shape_3d.end(), out_shape_rank), missing_dims, 1);

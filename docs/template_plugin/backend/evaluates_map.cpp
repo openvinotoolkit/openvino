@@ -609,15 +609,15 @@ template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v8::If>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     std::vector<std::shared_ptr<Function>> bodies;
     for (size_t i = 0; i < op->get_internal_subgraphs_size(); i++) {
-        bodies.emplace_back(op->get_function(i));
+        bodies.emplace_back(op->get_function(static_cast<int>(i)));
     }
     std::vector<ov::op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector> in_descs;
     for (size_t i = 0; i < op->get_input_descriptions_size(); i++) {
-        in_descs.emplace_back(op->get_input_descriptions(i));
+        in_descs.emplace_back(op->get_input_descriptions(static_cast<int>(i)));
     }
     std::vector<ov::op::util::MultiSubGraphOp::MultiSubgraphOutputDescriptionVector> out_descs;
     for (size_t i = 0; i < op->get_output_descriptions_size(); i++) {
-        out_descs.emplace_back(op->get_output_descriptions(i));
+        out_descs.emplace_back(op->get_output_descriptions(static_cast<int>(i)));
     }
     try {
         runtime::reference::if_reference(bodies, out_descs, in_descs, outputs, inputs);
@@ -952,10 +952,10 @@ void normalize_center(float* boxes, const Shape& boxes_shape) {
         float width = current_box[2];
         float height = current_box[3];
 
-        float y1 = y_center - height / 2.0;
-        float x1 = x_center - width / 2.0;
-        float y2 = y_center + height / 2.0;
-        float x2 = x_center + width / 2.0;
+        float y1 = y_center - height / 2.0f;
+        float x1 = x_center - width / 2.0f;
+        float y2 = y_center + height / 2.0f;
+        float x2 = x_center + width / 2.0f;
 
         current_box[0] = y1;
         current_box[1] = x1;
@@ -1123,10 +1123,10 @@ void normalize_center(float* boxes, const Shape& boxes_shape) {
         float width = current_box[2];
         float height = current_box[3];
 
-        float y1 = y_center - height / 2.0;
-        float x1 = x_center - width / 2.0;
-        float y2 = y_center + height / 2.0;
-        float x2 = x_center + width / 2.0;
+        float y1 = y_center - height / 2.0f;
+        float x1 = x_center - width / 2.0f;
+        float y2 = y_center + height / 2.0f;
+        float x2 = x_center + width / 2.0f;
 
         current_box[0] = y1;
         current_box[1] = x1;
@@ -1294,10 +1294,10 @@ void normalize_center(float* boxes, const Shape& boxes_shape) {
         float width = current_box[2];
         float height = current_box[3];
 
-        float y1 = y_center - height / 2.0;
-        float x1 = x_center - width / 2.0;
-        float y2 = y_center + height / 2.0;
-        float x2 = x_center + width / 2.0;
+        float y1 = y_center - height / 2.0f;
+        float x1 = x_center - width / 2.0f;
+        float y2 = y_center + height / 2.0f;
+        float x2 = x_center + width / 2.0f;
 
         current_box[0] = y1;
         current_box[1] = x1;
@@ -1465,10 +1465,10 @@ void normalize_center(float* boxes, const Shape& boxes_shape) {
         float width = current_box[2];
         float height = current_box[3];
 
-        float y1 = y_center - height / 2.0;
-        float x1 = x_center - width / 2.0;
-        float y2 = y_center + height / 2.0;
-        float x2 = x_center + width / 2.0;
+        float y1 = y_center - height / 2.0f;
+        float x1 = x_center - width / 2.0f;
+        float y2 = y_center + height / 2.0f;
+        float x2 = x_center + width / 2.0f;
 
         current_box[0] = y1;
         current_box[1] = x1;
@@ -2472,7 +2472,7 @@ bool evaluate(const shared_ptr<op::v0::BatchNormInference>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::batch_norm_inference<T>(op->get_eps_value(),
+    runtime::reference::batch_norm_inference<T>(static_cast<float>(op->get_eps_value()),
                                                 inputs[2]->get_data_ptr<T>(),
                                                 inputs[0]->get_data_ptr<T>(),
                                                 inputs[1]->get_data_ptr<T>(),
@@ -2488,7 +2488,7 @@ bool evaluate(const shared_ptr<op::v5::BatchNormInference>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::batch_norm_inference<T>(op->get_eps_value(),
+    runtime::reference::batch_norm_inference<T>(static_cast<float>(static_cast<float>(op->get_eps_value())),
                                                 inputs[0]->get_data_ptr<const T>(),
                                                 inputs[1]->get_data_ptr<const T>(),
                                                 inputs[2]->get_data_ptr<const T>(),
@@ -3050,9 +3050,9 @@ bool evaluate(const shared_ptr<op::v0::RegionYolo>& op,
     runtime::reference::region_yolo<T>(inputs[0]->get_data_ptr<const T>(),
                                        outputs[0]->get_data_ptr<T>(),
                                        inputs[0]->get_shape(),
-                                       op->get_num_coords(),
-                                       op->get_num_classes(),
-                                       op->get_num_regions(),
+                                       static_cast<int>(op->get_num_coords()),
+                                       static_cast<int>(op->get_num_classes()),
+                                       static_cast<int>(op->get_num_regions()),
                                        op->get_do_softmax(),
                                        op->get_mask());
     return true;
@@ -3126,7 +3126,7 @@ inline void evaluate(const shared_ptr<op::v6::CTCGreedyDecoderSeqLen>& op,
     using TF = typename element_type_traits<T1>::value_type;
     using TI = typename element_type_traits<T2>::value_type;
     using TIND1 = typename element_type_traits<TOUT>::value_type;
-    TI blank_index_val = inputs[0]->get_shape().back() - 1;
+    TI blank_index_val = static_cast<TI>(inputs[0]->get_shape().back() - 1);
     const TI* blank_index = &blank_index_val;
     if (inputs.size() == 3) {
         blank_index = inputs[2]->get_data_ptr<const TI>();
@@ -3309,7 +3309,7 @@ bool evaluate(const shared_ptr<op::v5::GatherND>& op, const HostTensorVector& ou
                                                   inputs[0]->get_shape(),
                                                   inputs[1]->get_shape(),
                                                   outputs[0]->get_shape(),
-                                                  op->get_batch_dims());
+                                                  static_cast<int>(op->get_batch_dims()));
     } else if (op->get_input_element_type(1) == element::i32) {
         runtime::reference::gather_nd<T, int32_t>(inputs[0]->get_data_ptr<T>(),
                                                   inputs[1]->get_data_ptr<int32_t>(),
@@ -3317,7 +3317,7 @@ bool evaluate(const shared_ptr<op::v5::GatherND>& op, const HostTensorVector& ou
                                                   inputs[0]->get_shape(),
                                                   inputs[1]->get_shape(),
                                                   outputs[0]->get_shape(),
-                                                  op->get_batch_dims());
+                                                  static_cast<int>(op->get_batch_dims()));
     } else {
         throw ngraph_error("Unexpected indices type for GatherND operation");
     }
@@ -3334,7 +3334,7 @@ bool evaluate(const shared_ptr<op::v8::GatherND>& op, const HostTensorVector& ou
                                                   inputs[0]->get_shape(),
                                                   inputs[1]->get_shape(),
                                                   outputs[0]->get_shape(),
-                                                  op->get_batch_dims());
+                                                  static_cast<int>(op->get_batch_dims()));
     } else if (op->get_input_element_type(1) == element::i32) {
         runtime::reference::gather_nd<T, int32_t>(inputs[0]->get_data_ptr<T>(),
                                                   inputs[1]->get_data_ptr<int32_t>(),
@@ -3342,7 +3342,7 @@ bool evaluate(const shared_ptr<op::v8::GatherND>& op, const HostTensorVector& ou
                                                   inputs[0]->get_shape(),
                                                   inputs[1]->get_shape(),
                                                   outputs[0]->get_shape(),
-                                                  op->get_batch_dims());
+                                                  static_cast<int>(op->get_batch_dims()));
     } else {
         throw ngraph_error("Unexpected indices type for GatherND operation");
     }

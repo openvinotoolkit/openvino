@@ -500,7 +500,7 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
                     for (int64_t j = 0; j < spatial_rank; ++j) {
                         coeff *= (i & (static_cast<int64_t>(1) << (spatial_rank - 1 - j))) ? d1[j] : d2[j];
                     }
-                    sum += coeff * values_of_input_points[points_in_neighbor - 1 - i];
+                    sum += coeff * static_cast<float>(values_of_input_points[points_in_neighbor - 1 - i]);
                 }
 
                 // 6. Store result.
@@ -553,7 +553,7 @@ void InterpolateEval<T>::cubic_func(const T* input_data, T* out) {
                 coeffs_prod *= cubic_coeffs[axis][idx[i]];
             }
 
-            summa += coeffs_prod * input_data[input_transform.index(coords_for_sum)];
+            summa += coeffs_prod * static_cast<float>(input_data[input_transform.index(coords_for_sum)]);
         }
 
         out[output_transform.index(output_coord)] = static_cast<T>(summa);

@@ -56,7 +56,7 @@ void shape_infer(const ov::opset1::Reshape* op, const std::vector<T> &input_shap
     }
     size_t input_product(1);
     for (size_t i = 0; i < input_shape.size(); ++i) {
-        if (i < static_cast<int64_t>(output_pattern.size()) && output_pattern[i] == 0)
+        if (i < output_pattern.size() && output_pattern[i] == 0)
             continue;
         input_product = input_shape[i].get_length() * input_product;
     }

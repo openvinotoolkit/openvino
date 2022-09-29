@@ -61,30 +61,30 @@ void convolve_3D_channels(const ConvolutionParams& p,
                           const T* filter,
                           const Shape& filter_shape,
                           T*& out) {
-    const int input_size_z = batch_shape[1];
-    const int input_size_y = batch_shape[2];
-    const int input_size_x = batch_shape[3];
-    const int filter_size_z = filter_shape[1];
-    const int filter_size_y = filter_shape[2];
-    const int filter_size_x = filter_shape[3];
-    const int dilated_filter_size_z = filter_size_z + (filter_size_z - 1) * (p.dilation[0] - 1);
-    const int dilated_filter_size_y = filter_size_y + (filter_size_y - 1) * (p.dilation[1] - 1);
-    const int dilated_filter_size_x = filter_size_x + (filter_size_x - 1) * (p.dilation[2] - 1);
+    const int input_size_z = static_cast<int>(batch_shape[1]);
+    const int input_size_y = static_cast<int>(batch_shape[2]);
+    const int input_size_x = static_cast<int>(batch_shape[3]);
+    const int filter_size_z = static_cast<int>(filter_shape[1]);
+    const int filter_size_y = static_cast<int>(filter_shape[2]);
+    const int filter_size_x = static_cast<int>(filter_shape[3]);
+    const int dilated_filter_size_z = static_cast<int>(filter_size_z + (filter_size_z - 1) * (p.dilation[0] - 1));
+    const int dilated_filter_size_y = static_cast<int>(filter_size_y + (filter_size_y - 1) * (p.dilation[1] - 1));
+    const int dilated_filter_size_x = static_cast<int>(filter_size_x + (filter_size_x - 1) * (p.dilation[2] - 1));
 
     const Shape input_channel_shape(++batch_shape.begin(), batch_shape.end());
     const size_t input_channel_size = shape_size(input_channel_shape);
     const Shape filter_channel_shape(++filter_shape.begin(), filter_shape.end());
     const size_t filter_channel_size = shape_size(filter_channel_shape);
 
-    for (int i_z = -p.pads_begin[0];
-         i_z <= (p.pads_end[0] + input_size_z - dilated_filter_size_z + p.output_padding[0]);
-         i_z += p.strides[0]) {
-        for (int i_y = -p.pads_begin[1];
-             i_y <= (p.pads_end[1] + input_size_y - dilated_filter_size_y + p.output_padding[1]);
-             i_y += p.strides[1]) {
-            for (int i_x = -p.pads_begin[2];
-                 i_x <= (p.pads_end[2] + input_size_x - dilated_filter_size_x + p.output_padding[2]);
-                 i_x += p.strides[2]) {
+    for (int i_z = static_cast<int>(-p.pads_begin[0]);
+         i_z <= static_cast<int>(p.pads_end[0] + input_size_z - dilated_filter_size_z + p.output_padding[0]);
+         i_z += static_cast<int>(p.strides[0])) {
+        for (int i_y = static_cast<int>(-p.pads_begin[1]);
+             i_y <= static_cast<int>(p.pads_end[1] + input_size_y - dilated_filter_size_y + p.output_padding[1]);
+             i_y += static_cast<int>(p.strides[1])) {
+            for (int i_x = static_cast<int>(-p.pads_begin[2]);
+                 i_x <= static_cast<int>(p.pads_end[2] + input_size_x - dilated_filter_size_x + p.output_padding[2]);
+                 i_x += static_cast<int>(p.strides[2])) {
                 auto input_channel = batch;
                 auto filter_channel = filter;
                 T sum = 0;
@@ -93,9 +93,9 @@ void convolve_3D_channels(const ConvolutionParams& p,
                     for (int f_z = 0; f_z < filter_size_z; ++f_z) {
                         for (int f_y = 0; f_y < filter_size_y; ++f_y) {
                             for (int f_x = 0; f_x < filter_size_x; ++f_x) {
-                                int rel_i_z = i_z + (f_z * p.dilation[0]);
-                                int rel_i_y = i_y + (f_y * p.dilation[1]);
-                                int rel_i_x = i_x + (f_x * p.dilation[2]);
+                                int rel_i_z = i_z + (f_z * static_cast<int>(p.dilation[0]));
+                                int rel_i_y = i_y + (f_y * static_cast<int>(p.dilation[1]));
+                                int rel_i_x = i_x + (f_x * static_cast<int>(p.dilation[2]));
 
                                 bool padding =
                                     !(in_range(rel_i_x, {0, input_size_x}) && in_range(rel_i_y, {0, input_size_y}) &&

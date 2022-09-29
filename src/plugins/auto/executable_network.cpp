@@ -372,7 +372,7 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
         context.deviceInfo = _multiPlugin->SelectDevice(deviceList,
                 context.networkPrecision, _context.modelPriority);
     }
-    catch (const std::exception& e) {
+    catch (const std::exception&) {
         return;
     }
 
@@ -600,7 +600,7 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
         if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
             try {
                 ctx = GetCore()->GetDefaultContext(_loadContext[ACTUALDEVICE].deviceInfo.deviceName);
-            } catch (InferenceEngine::Exception& ex) {
+            } catch (InferenceEngine::Exception&) {
                 // plugin does not support context, say CPU
                 LOG_DEBUG("[AUTOPLUGIN]context not supported for %s, fallback to default memory",
                                 _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
@@ -627,7 +627,7 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
         if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
             try {
                 ctx = GetCore()->GetDefaultContext(_loadContext[ACTUALDEVICE].deviceInfo.deviceName);
-            } catch (InferenceEngine::Exception& ex) {
+            } catch (InferenceEngine::Exception&) {
                 // plugin does not support context
                 LOG_DEBUG("[AUTOPLUGIN]context not supported for %s, fallback to default memory",
                                 _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
@@ -776,7 +776,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                         auto rangeOfStreams = _core->GetMetric(deviceInfo.deviceName,
                                                         METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
                         upperBoundStreamsNum = std::get<1>(rangeOfStreams);
-                    } catch (const InferenceEngine::Exception &iie) {
+                    } catch (const InferenceEngine::Exception &) {
                         LOG_DEBUG("[AUTOPLUGIN] GetMetric RANGE_FOR_STREAMS failed");
                     }
                     if (!_context.batchingDisabled) {
