@@ -80,10 +80,11 @@ PassFactoryPtr CreatePassFactory() {
 
 using FloatPtr = std::unique_ptr<float[]>;
 
-using CreateGraphF = std::function< std::shared_ptr<ov::Model> (UnaryFactoryPtr unary_factory) >;
+using CreateGraphF = std::function< std::shared_ptr<ov::Model> (UnaryFactoryPtr unary_factory, size_t num_unary_ops) >;
 
 using TestParams = std::tuple<UnaryFactoryPtr,
                               PassFactoryPtr,
+                              size_t, /* num_unary_ops */
                               CreateGraphF, /* model_factory */
                               CreateGraphF>; /* reference_model_factory */
 
@@ -97,7 +98,7 @@ std::string GetFinalNodeName(std::shared_ptr<ov::Model> model, int index = 0) {
     return result_node->get_input_node_ptr(0)->get_friendly_name();
 }
 
-std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_factory) {
+std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_factory, size_t num_unary_ops) {
         ov::Shape input_shape{1, 96, 55, 55};
         auto input_type = ov::element::f32;
 
@@ -106,20 +107,27 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_f
         auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
         auto transpose0 = std::make_shared<ov::opset9::Transpose>(X, ng_order0);
 
-        auto elu = unary_factory->create(transpose0);
-        return std::make_shared<ov::Model>(elu, ov::ParameterVector{X});
+        NodePtr in_op = transpose0;
+        for (int i = 0; i < num_unary_ops; ++i) {
+            in_op = unary_factory->create(in_op);
+        }
+
+        return std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
 }
 
-std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_factory) {
+std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_factory, size_t num_unary_ops) {
         ov::Shape input_shape{1, 96, 55, 55};
         auto input_type = ov::element::f32;
 
         auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
-        auto elu = unary_factory->create(X);
+        NodePtr in_op = X;
+        for (int i = 0; i < num_unary_ops; ++i) {
+            in_op = unary_factory->create(in_op);
+        }
 
         auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
-        auto transpose0 = std::make_shared<ov::opset9::Transpose>(elu, ng_order0);
+        auto transpose0 = std::make_shared<ov::opset9::Transpose>(in_op, ng_order0);
 
         return std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
 }
@@ -156,28 +164,33 @@ std::vector<UnaryFactoryPtr> unary_factories = {
     CreateUnaryFactory<ov::opset9::Tanh>()
 };
 
+std::vector<size_t> unary_operations_numbers = {1, 10};
+
 } // namespace
 
 TEST_P(TransposeSinkingUnaryTestFixture, CompareFunctions) {
     UnaryFactoryPtr unary_factory;
     PassFactoryPtr pass_factory;
+    size_t num_unary_ops;
     CreateGraphF model_factory;
     CreateGraphF reference_model_factory;
-    std::tie(unary_factory, pass_factory, model_factory, reference_model_factory) = this->GetParam();
+    std::tie(unary_factory, pass_factory, num_unary_ops, model_factory, reference_model_factory) = this->GetParam();
 
-    model = model_factory(unary_factory);
-    model_ref = reference_model_factory(unary_factory);
+    model = model_factory(unary_factory, num_unary_ops);
+    model_ref = reference_model_factory(unary_factory, num_unary_ops);
     pass_factory->registerPass(manager);
 }
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryForwardTestSuite, TransposeSinkingUnaryTestFixture,
                          ::testing::Combine(::testing::ValuesIn(unary_factories),
                                             ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingUnaryForward>()),
+                                            ::testing::ValuesIn(unary_operations_numbers),
                                             ::testing::Values(CreateFunctionTransposeBefore),
                                             ::testing::Values(CreateFunctionTransposeAfter)));
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackwardTestSuite, TransposeSinkingUnaryTestFixture,
                          ::testing::Combine(::testing::ValuesIn(unary_factories),
                                             ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingUnaryBackward>()),
+                                            ::testing::ValuesIn(unary_operations_numbers),
                                             ::testing::Values(CreateFunctionTransposeAfter),
                                             ::testing::Values(CreateFunctionTransposeBefore)));
