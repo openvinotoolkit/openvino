@@ -32,16 +32,18 @@ SUBGRAPH_DUMPER_BIN_NAME = "subgraphsDumper"
 
 IS_WIN = "windows" in platform
 
-OS_SCRYPT_EXT = ".bat" if IS_WIN else ""
+OS_SCRIPT_EXT = ".bat" if IS_WIN else ""
 OS_BIN_FILE_EXT = ".exe" if IS_WIN else ""
 
 NO_MODEL_CONSTANT = "NO_MODEL"
 
+ENV_SEPARATOR = ";" if IS_WIN else ":"
+
 def get_ov_path(ov_dir=None, is_bin=False):
     if ov_dir is None or not os.path.exists(ov_dir):
-        try:
+        if 'INTEL_OPENVINO_DIR' in os.environ:
             ov_dir = os.environ['INTEL_OPENVINO_DIR']
-        except:
+        else:
             ov_dir = os.path.abspath(os.getcwd())[:os.path.abspath(os.getcwd()).find(OPENVINO_NAME) + len(OPENVINO_NAME)]
     if is_bin:
         ov_dir = os.path.join(ov_dir, 'bin')
@@ -71,10 +73,10 @@ def parse_arguments():
 
     return parser.parse_args()
 
-def set_env_variale(env: os.environ, var_name: str, var_value: str):
-    try:
-        env[var_name] = var_value + ":" + env[var_name]
-    except:
+def set_env_variable(env: os.environ, var_name: str, var_value: str):
+    if var_name in env:
+        env[var_name] = var_value + ENV_SEPARATOR + env[var_name]
+    else:
         env[var_name] = var_value
     return env
 
@@ -124,16 +126,16 @@ class Conformance:
         # Linux
         elif "lin" in platform:
             ld_lib_path_name = "LD_LIBRARY_PATH"
-        convert_model_env = set_env_variale(convert_model_env, ld_lib_path_name, self._ov_bin_path)
-        convert_model_env = set_env_variale(convert_model_env, "PYTHONPATH", f"{ov_python_path}:{mo_path}")
-        convert_model_env = set_env_variale(convert_model_env, "OMZ_ROOT", self._omz_path)
+        convert_model_env = set_env_variable(convert_model_env, ld_lib_path_name, self._ov_bin_path)
+        convert_model_env = set_env_variable(convert_model_env, "PYTHONPATH", f"{ov_python_path}:{mo_path}")
+        convert_model_env = set_env_variable(convert_model_env, "OMZ_ROOT", self._omz_path)
         
         logger.info(f"Model conversion from {original_model_path} to {converted_model_path} is started")
         activate_path = os.path.join(".env3", "bin", "activate")
         
         command = f'cd "{self._working_dir}"; ' \
             f'{"" if os.path.exists(".env3") else "python3 -m venv .env3; "} '\
-            f'{"" if IS_WIN else "source"} {activate_path}{OS_SCRYPT_EXT}; '\
+            f'{"" if IS_WIN else "source"} {activate_path}{OS_SCRIPT_EXT}; '\
             f'pip3 install -e "{mo_path}/.[caffe,kaldi,mxnet,onnx,pytorch,tensorflow2]"; ' \
             f'pip3 install "{omz_tools_path}/.[paddle,pytorch,tensorflow]"; ' \
             f'omz_downloader --all --output_dir="{original_model_path}"; '\
@@ -232,7 +234,7 @@ class Conformance:
         logger.info(f"Report was saved to {os.path.join(report_dir, 'report.html')}")
 
     def start_pipeline(self, dump_models: bool):
-        command = f'pip3 install -r requirments.txt'
+        command = f'pip3 install -r requirements.txt'
         process = Popen(command, shell=True)
         out, err = process.communicate()
         if err is None:
@@ -240,7 +242,7 @@ class Conformance:
                 logger.info(line)
         else:
             logger.error(err)
-            logger.error("Impossible to install requirments!")
+            logger.error("Impossible to install requirements!")
             exit(-1)
         logger.info(f"[ARGUMENTS] --device = {self._device}")
         logger.info(f"[ARGUMENTS] --ov_path = {self._ov_path}")
