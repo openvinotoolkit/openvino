@@ -19,7 +19,7 @@ namespace {
 using NodePtr = std::shared_ptr<ov::Node>;
 using NodePair = std::pair<NodePtr, NodePtr>;
 
-NodePair DoTransformation(NodePtr first_node, NodePtr second_node) {
+NodePair SwapNodes(NodePtr first_node, NodePtr second_node) {
     auto second_node_inputs = second_node->input_values();
     second_node_inputs[0] = first_node->input_value(0);
     auto new_first_node = second_node->clone_with_new_inputs(second_node_inputs);
@@ -57,7 +57,7 @@ ov::pass::TransposeSinkingUnaryForward::TransposeSinkingUnaryForward() {
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
 
-        auto new_nodes = DoTransformation(transpose, unary);
+        auto new_nodes = SwapNodes(transpose, unary);
     
         register_new_node(new_nodes.first);
         register_new_node(new_nodes.second);
@@ -91,7 +91,7 @@ ov::pass::TransposeSinkingUnaryBackward::TransposeSinkingUnaryBackward() {
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
 
-        auto new_nodes = DoTransformation(unary, transpose);
+        auto new_nodes = SwapNodes(unary, transpose);
 
         register_new_node(new_nodes.first);
         register_new_node(new_nodes.second);

@@ -54,32 +54,26 @@ UnaryFactoryPtr CreateUnaryFactory() {
 
 // ----------------------------------------------------------------------------
 
-class IPassManagerFactory {
+class IPassFactory {
 public:
-    IPassManagerFactory() = default;
-    virtual ~IPassManagerFactory() = default;
-    virtual ov::pass::Manager createManager() const = 0;
+    IPassFactory() = default;
+    virtual ~IPassFactory() = default;
+    virtual void registerPass(ov::pass::Manager & pass_manager) const = 0;
 };
 
-using PassManagerFactoryPtr = std::shared_ptr<IPassManagerFactory>;
+using PassFactoryPtr = std::shared_ptr<IPassFactory>;
 
 template <typename PassT>
-class PassManagerFactory : public IPassManagerFactory {
+class PassFactory : public IPassFactory {
 public:
-    ov::pass::Manager createManager() const override;
+    void registerPass(ov::pass::Manager & pass_manager) const override {
+        pass_manager.register_pass<PassT>();
+    }
 };
 
 template <typename PassT>
-ov::pass::Manager PassManagerFactory<PassT>::createManager() const {
-    ov::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<PassT>();
-    return manager;
-}
-
-template <typename PassT>
-PassManagerFactoryPtr CreatePassManagerFactory() {
-    return std::make_shared<PassManagerFactory<PassT>>();
+PassFactoryPtr CreatePassFactory() {
+    return std::make_shared<PassFactory<PassT>>();
 }
 
 // ----------------------------------------------------------------------------
@@ -88,52 +82,19 @@ using FloatPtr = std::unique_ptr<float[]>;
 
 using CreateGraphF = std::function< std::shared_ptr<ov::Model> (UnaryFactoryPtr unary_factory) >;
 
-class TransposeSinkingUnaryTestFixture: public CommonTestUtils::TestsCommon,
-                                        public ::testing::WithParamInterface<std::tuple<UnaryFactoryPtr,
-                                                                                        PassManagerFactoryPtr,
-                                                                                        CreateGraphF /* function factory */,
-                                                                                        CreateGraphF /* reference_function factory */>> {
-public:
-    void SetUp() override;
-public:
-    std::shared_ptr<ov::Model> model, reference_model;
-    ov::pass::Manager pass_manager;
-};
+using TestParams = std::tuple<UnaryFactoryPtr,
+                              PassFactoryPtr,
+                              CreateGraphF, /* model_factory */
+                              CreateGraphF>; /* reference_model_factory */
 
-void TransposeSinkingUnaryTestFixture::SetUp() {
-    // TODO: use auto & [ ... ] = this->GetParam() when C++17
-    UnaryFactoryPtr unary_factory;
-    PassManagerFactoryPtr pass_manager_factory;
-    CreateGraphF model_factory;
-    CreateGraphF reference_model_factory;
-    std::tie(unary_factory, pass_manager_factory, model_factory, reference_model_factory) = this->GetParam();
-
-    model = model_factory(unary_factory);
-    reference_model = reference_model_factory(unary_factory);
-    pass_manager = pass_manager_factory->createManager();
-}
+class TransposeSinkingUnaryTestFixture: public ::testing::WithParamInterface<TestParams>,
+                                        public TransformationTestsF {};
 
 namespace {
 
 std::string GetFinalNodeName(std::shared_ptr<ov::Model> model, int index = 0) {
     NodePtr result_node = model->get_results()[index];
     return result_node->get_input_node_ptr(0)->get_friendly_name();
-}
-
-void execute_test(std::shared_ptr<ov::Model> model,
-                  std::shared_ptr<ov::Model> reference_model,
-                  ov::pass::Manager pass_manager) {
-    std::shared_ptr<ov::Model> original_model = model->clone();
-
-    pass_manager.run_passes(model);
-    ASSERT_NO_THROW(check_rt_info(model));
-
-    EXPECT_EQ(GetFinalNodeName(model), GetFinalNodeName(original_model));
-
-    FunctionsComparator func_comparator = FunctionsComparator::with_default();
-    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    const FunctionsComparator::Result result = func_comparator(model, reference_model);
-    ASSERT_TRUE(result.valid) << result.message;
 }
 
 std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_factory) {
@@ -198,17 +159,25 @@ std::vector<UnaryFactoryPtr> unary_factories = {
 } // namespace
 
 TEST_P(TransposeSinkingUnaryTestFixture, CompareFunctions) {
-    execute_test(model, reference_model, pass_manager);
+    UnaryFactoryPtr unary_factory;
+    PassFactoryPtr pass_factory;
+    CreateGraphF model_factory;
+    CreateGraphF reference_model_factory;
+    std::tie(unary_factory, pass_factory, model_factory, reference_model_factory) = this->GetParam();
+
+    model = model_factory(unary_factory);
+    model_ref = reference_model_factory(unary_factory);
+    pass_factory->registerPass(manager);
 }
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryForwardTestSuite, TransposeSinkingUnaryTestFixture,
                          ::testing::Combine(::testing::ValuesIn(unary_factories),
-                                            ::testing::Values(CreatePassManagerFactory<ov::pass::TransposeSinkingUnaryForward>()),
+                                            ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingUnaryForward>()),
                                             ::testing::Values(CreateFunctionTransposeBefore),
                                             ::testing::Values(CreateFunctionTransposeAfter)));
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackwardTestSuite, TransposeSinkingUnaryTestFixture,
                          ::testing::Combine(::testing::ValuesIn(unary_factories),
-                                            ::testing::Values(CreatePassManagerFactory<ov::pass::TransposeSinkingUnaryBackward>()),
+                                            ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingUnaryBackward>()),
                                             ::testing::Values(CreateFunctionTransposeAfter),
                                             ::testing::Values(CreateFunctionTransposeBefore)));
