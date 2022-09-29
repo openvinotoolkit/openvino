@@ -242,15 +242,16 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      # for libopenvino_template_extension.so
+      # Required by python imports to load requires libraries
+      # - tests install dir for mock_py
+      # - OpenVINO wheel installation dir for others frontend required by mock_py (is not part of wheel pkg)
       export LD_LIBRARY_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
+      # For frontend manager to load frontend libraries:
+      # - tests install dir for mock_py
+      # - OpenVINO wheel installation dir for others frontend (not required if this variable is not set)
       export OV_FRONTEND_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR)
+      # For python import to import pybind_mock_frontend
       export PYTHONPATH=$(INSTALL_TEST_DIR):$PYTHONPATH
-      python3 -c "import sys; print(sys.path)"
-      python3 -c "from pybind_mock_frontend import get_fe_stat"
-      echo $PYTHONPATH
-      echo $LD_LIBRARY_PATH
-      echo $OV_FRONTEND_PATH
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
