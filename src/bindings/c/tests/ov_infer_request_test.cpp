@@ -17,7 +17,7 @@ inline void get_tensor_info(ov_model_t* model, bool input, char** name, ov_shape
     OV_EXPECT_OK(ov_port_get_any_name(port, name));
     EXPECT_NE(nullptr, *name);
 
-    OV_EXPECT_OK(ov_const_port_get_shape(port, shape));
+    OV_ASSERT_OK(ov_const_port_get_shape(port, shape));
     OV_EXPECT_OK(ov_port_get_element_type(port, type));
 
     ov_partial_shape_t p_shape;
@@ -41,7 +41,7 @@ protected:
         infer_request = nullptr;
 
         OV_EXPECT_OK(ov_core_create(&core));
-        ASSERT_NE(nullptr, core);
+        EXPECT_NE(nullptr, core);
 
         OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
         EXPECT_NE(nullptr, model);
@@ -106,18 +106,18 @@ protected:
         infer_request = nullptr;
 
         OV_EXPECT_OK(ov_core_create(&core));
-        ASSERT_NE(nullptr, core);
+        EXPECT_NE(nullptr, core);
 
         OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
         EXPECT_NE(nullptr, model);
 
-        OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
+        OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
         EXPECT_NE(nullptr, preprocess);
 
-        OV_ASSERT_OK(ov_preprocess_prepostprocessor_get_input_info_by_index(preprocess, 0, &input_info));
+        OV_EXPECT_OK(ov_preprocess_prepostprocessor_get_input_info_by_index(preprocess, 0, &input_info));
         EXPECT_NE(nullptr, input_info);
 
-        OV_ASSERT_OK(ov_preprocess_input_info_get_tensor_info(input_info, &input_tensor_info));
+        OV_EXPECT_OK(ov_preprocess_input_info_get_tensor_info(input_info, &input_tensor_info));
         EXPECT_NE(nullptr, input_tensor_info);
 
         ov_shape_t shape = {0, nullptr};
@@ -134,13 +134,13 @@ protected:
         OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_layout(input_tensor_info, layout));
         ov_layout_free(layout);
 
-        OV_ASSERT_OK(ov_preprocess_input_info_get_preprocess_steps(input_info, &input_process));
-        ASSERT_NE(nullptr, input_process);
+        OV_EXPECT_OK(ov_preprocess_input_info_get_preprocess_steps(input_info, &input_process));
+        EXPECT_NE(nullptr, input_process);
         OV_EXPECT_OK(
             ov_preprocess_preprocess_steps_resize(input_process, ov_preprocess_resize_algorithm_e::RESIZE_LINEAR));
 
         OV_EXPECT_OK(ov_preprocess_input_info_get_model_info(input_info, &input_model));
-        ASSERT_NE(nullptr, input_model);
+        EXPECT_NE(nullptr, input_model);
 
         const char* model_layout_desc = "NCHW";
         OV_EXPECT_OK(ov_layout_create(model_layout_desc, &model_layout));
