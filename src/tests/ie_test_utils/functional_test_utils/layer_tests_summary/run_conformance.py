@@ -127,7 +127,7 @@ class Conformance:
         elif "lin" in platform:
             ld_lib_path_name = "LD_LIBRARY_PATH"
         convert_model_env = set_env_variable(convert_model_env, ld_lib_path_name, self._ov_bin_path)
-        convert_model_env = set_env_variable(convert_model_env, "PYTHONPATH", f"{ov_python_path}:{mo_path}")
+        convert_model_env = set_env_variable(convert_model_env, "PYTHONPATH", f"{ov_python_path}{ENV_SEPARATOR}{mo_path}")
         convert_model_env = set_env_variable(convert_model_env, "OMZ_ROOT", self._omz_path)
         
         logger.info(f"Model conversion from {original_model_path} to {converted_model_path} is started")
