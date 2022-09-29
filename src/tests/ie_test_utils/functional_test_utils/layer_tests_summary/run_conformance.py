@@ -6,7 +6,7 @@ from argparse import ArgumentParser
 from utils import utils
 from glob import glob
 from subprocess import Popen
-from shutil import copytree
+from shutil import copytree, rmtree
 from summarize import create_summary
 from merge_xmls import merge_xml
 from pathlib import Path
@@ -40,7 +40,7 @@ NO_MODEL_CONSTANT = "NO_MODEL"
 ENV_SEPARATOR = ";" if IS_WIN else ":"
 
 def get_ov_path(ov_dir=None, is_bin=False):
-    if ov_dir is None or not os.path.exists(ov_dir):
+    if ov_dir is None or not os.path.isdir(ov_dir):
         if 'INTEL_OPENVINO_DIR' in os.environ:
             ov_dir = os.environ['INTEL_OPENVINO_DIR']
         else:
@@ -95,7 +95,7 @@ class Conformance:
     def __download_repo(self, https_url: str, version: str):
         repo_name = https_url[https_url.rfind('/') + 1:len(https_url) - 4]
         repo_path = os.path.join(self._working_dir, repo_name)
-        if os.path.exists(repo_path):
+        if os.path.isdir(repo_path):
             logger.info(f'Repo: {repo_name} exists in {self._working_dir}. Skip the repo download.')
             repo = Repo(repo_path)
         else:
@@ -115,12 +115,12 @@ class Conformance:
         omz_tools_path = os.path.join(self._omz_path, "tools", "model_tools")
         original_model_path = os.path.join(self._working_dir, "original_models")
         converted_model_path = os.path.join(self._working_dir, "converted_models")
-        if os.path.exist(original_model_path):
+        if os.path.isdir(original_model_path):
             logger.info(f"Original model path: {original_model_path} is removed")
-            os.rmdir(original_model_path)
-        if os.path.exist(converted_model_path):
+            rmtree(original_model_path)
+        if os.path.isdir(converted_model_path):
             logger.info(f"Converted model path: {converted_model_path} is removed")
-            os.rmdir(converted_model_path)
+            rmtree(converted_model_path)
         mo_path = os.path.join(self._ov_path, "tools", "mo")
         ov_python_path = os.path.join(self._ov_bin_path, "python_api", f"python{version[0:3]}")
 
@@ -140,7 +140,7 @@ class Conformance:
         activate_path = os.path.join(".env3", "bin", "activate")
         
         command = f'cd "{self._working_dir}"; ' \
-            f'{"" if os.path.exists(".env3") else "python3 -m venv .env3; "} '\
+            f'{"" if os.path.isdir(".env3") else "python3 -m venv .env3; "} '\
             f'{"" if IS_WIN else "source"} {activate_path}{OS_SCRIPT_EXT}; '\
             f'pip3 install -e "{mo_path}/.[caffe,kaldi,mxnet,onnx,pytorch,tensorflow2]"; ' \
             f'pip3 install "{omz_tools_path}/.[paddle,pytorch,tensorflow]"; ' \
@@ -167,9 +167,9 @@ class Conformance:
     def dump_subgraph(self):
         subgraph_dumper_path = os.path.join(self._ov_bin_path, SUBGRAPH_DUMPER_BIN_NAME)
         conformance_ir_path = os.path.join(self._working_dir, "conformance_ir")
-        if os.path.exists(conformance_ir_path):
+        if os.path.isdir(conformance_ir_path):
             logger.info(f"Remove directory {conformance_ir_path}")
-            os.rmdir(conformance_ir_path)
+            rmtree(conformance_ir_path)
         os.mkdir(conformance_ir_path)
         logger.info(f"Stating model dumping from {self._model_path}")
         cmd = f'{subgraph_dumper_path}{OS_BIN_FILE_EXT} --input_folders="{self._model_path}" --output_folder="{conformance_ir_path}"'
@@ -209,12 +209,12 @@ class Conformance:
         report_dir = os.path.join(self._working_dir, 'report')
         if os.path.isdir(report_dir):
             logger.info(f"Report dir {report_dir} is cleaned up")
-            os.rmdir(report_dir)
+            rmtree(report_dir)
         parallel_report_dir = os.path.join(report_dir, 'parallel')
         conformance_filelist_path = self._prepare_filelist()
-        if not os.path.exists(report_dir):
+        if not os.path.isdir(report_dir):
             os.mkdir(report_dir)
-        if not os.path.exists(logs_dir):
+        if not os.path.isdir(logs_dir):
             os.mkdir(logs_dir)
         
         cmd = f'python3 {gtest_parallel_path}  {conformance_path}{OS_BIN_FILE_EXT} -w {worker_num} -d "{logs_dir}" -- ' \
