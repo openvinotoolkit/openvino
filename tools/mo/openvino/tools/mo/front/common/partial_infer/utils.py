@@ -329,9 +329,9 @@ def reverse_bypass_infer(node, in_ports: List[int]):
     :param in_ports: input ports for which shape will be updated
     :return:
     """
-    # WA: for cases when terminal Identity node have output control dependency edges
-    # For this case the graph is not correctly build because Identity nodes go
-    # without Result nodes
+    # WA: for cases when terminal Identity node has only output control dependency edges
+    # For this case the graph is not correctly build because the Identity node goes
+    # without Result node
     if node.out_port(0).disconnected():
         return
 
