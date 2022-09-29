@@ -2,7 +2,7 @@
 OpenVINO designed post-ops/zero-points optimization before onednn. Depthwise,FQ postops, and pre-calculated output compensation caused by
 input zero-point were introduced into OpenVINO before mature archetecture is developed in onednn. Now, onednn has finalized the post-ops/zero-points
 optimization mechanism/API and has some diverges with OV mechanism. To benefit perf improvement from onednn for a long term, no further investment will be applied onto
-legacy post-ops/zero-point. So current code will have to support both legacy post-ops/zero-point and onednn post-ops/zero point mechanism.
+legacy post-ops/zero-point. So current code will have to support both legacy post-ops/zero-point and onednn stock post-ops/zero point mechanism.
 
 # Legacy post-ops in OpenVINO
 Legacy post-ops in CONV node include depthwise, fake quantization and dwconv.
@@ -61,4 +61,4 @@ attr[0] is for legacy post-ops or/and legacy zero point;
 
 attr[1] is aims to append binary post-ops or/and per tensor zero point. 
 
-**When there is no legagy post ops or legacy zero point, only need attr[0].**
+**When there is no legacy post ops or legacy zero point, only need attr[0].**
