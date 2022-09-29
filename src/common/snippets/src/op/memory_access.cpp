@@ -12,8 +12,7 @@ namespace ngraph {
 namespace snippets {
 namespace op {
 
-MemoryAccess::MemoryAccess(const Output<Node>& x, const size_t count) : Op({x}), m_count(count) {
-}
+MemoryAccess::MemoryAccess(const Output<Node>& x, const size_t count, const size_t offset) : Op({x}), m_count(count), m_offset(offset) {}
 
 bool MemoryAccess::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("count", m_count);
@@ -24,8 +23,16 @@ size_t MemoryAccess::get_count() const {
     return m_count;
 }
 
+size_t MemoryAccess::get_offset() const {
+    return m_offset;
+}
+
 void MemoryAccess::set_count(const size_t count) {
     m_count = count;
+}
+
+void MemoryAccess::set_offset(const size_t offset) {
+    m_offset = offset;
 }
 
 void MemoryAccess::validate_and_infer_types() {

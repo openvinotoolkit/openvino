@@ -8,6 +8,7 @@
 #include "snippets_helpers.hpp"
 #include "subgraph_simple.hpp"
 #include "subgraph_converts.hpp"
+#include "subgraph_softmax.hpp"
 
 /* This file provides lowered representations (after the generate() was calles) for some simple functions.
  * This is required to test snippets lowering and optimization passes. All the functions are expected to be direct
@@ -49,6 +50,22 @@ protected:
     std::shared_ptr<ov::Model> initLowered() const override;
 private:
     std::vector<Shape> broadcast_shapes;
+};
+
+class SoftmaxLoweredFunction : public SoftmaxFunction {
+public:
+    explicit SoftmaxLoweredFunction(const std::vector<PartialShape>& inputShapes, int axis) : SoftmaxFunction(inputShapes, axis) {}
+
+protected:
+    std::shared_ptr<ov::Model> initLowered() const override;
+};
+
+class AddSoftmaxLoweredFunction : public AddSoftmaxFunction {
+public:
+    explicit AddSoftmaxLoweredFunction(const std::vector<PartialShape>& inputShapes, int axis) : AddSoftmaxFunction(inputShapes, axis) {}
+
+protected:
+    std::shared_ptr<ov::Model> initLowered() const override;
 };
 
 }  // namespace snippets

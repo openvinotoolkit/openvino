@@ -66,7 +66,10 @@ private:
     void updateSrcDstPtrs(jit_snippets_call_args&) const;
     // Evaluates generated snippet using parallel backend
     void schedule_6d(const jit_snippets_call_args& const_args) const;
+    void schedule_6d_per_thread(const std::vector<jit_snippets_call_args>& const_args) const;
     void schedule_nt(const jit_snippets_call_args& const_args) const;
+    void schedule_nt_per_thread(const std::vector<jit_snippets_call_args>& const_args) const;
+    void schedule_with_buffer_scratchpad(const jit_snippets_call_args& const_args);
 
     // Original subgraph node
     std::shared_ptr<ngraph::snippets::op::Subgraph> original_snippet;
@@ -107,6 +110,10 @@ private:
 
     std::vector<ptrdiff_t> start_offset_in = {};
     std::vector<ptrdiff_t> start_offset_out = {};
+
+    // Buffer scratchpad
+    std::vector<uint8_t> buffer_scratchpad = {};
+    size_t buffer_scratchpad_size = 0;
 };
 
 }   // namespace node

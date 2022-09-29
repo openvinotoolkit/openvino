@@ -28,6 +28,7 @@ namespace intel_cpu {
 struct jit_snippets_call_args {
     const void *src_ptrs[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
     void *dst_ptrs[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
+    void *buffer_scratchpad = nullptr;
 };
 
 struct jit_snippets_compile_args {
@@ -89,12 +90,13 @@ private:
                    const std::vector<size_t>& pool,
                    const std::vector<size_t>& gpr,
                    const ov::intel_cpu::emitter_context *emit_context) const override;
-    void init_data_pointers(size_t, size_t, const Reg64&, const Reg64&, const std::vector<Reg64>&) const;
+    void init_data_pointers(size_t, size_t, bool, const Reg64&, const Reg64&, const std::vector<Reg64>&) const;
 
     jit_snippets_compile_args jcp;
     std::vector<size_t> gp_regs_pool;
     size_t num_inputs;
     size_t num_outputs;
+    bool is_buffer_needed;
     // Vector of indices (lenght = input tensor rank) per every input and output that describes in which order
     // corresponding tensor dimensions are accessed (default: consecutive dense, e.g. 0,1,2,3 for 4D tensor).
     // Needed to calc i/o offsets.
@@ -249,6 +251,9 @@ public:
 protected:
     Precision src_prc;
     Precision dst_prc;
+
+    size_t count = 0;
+    size_t byte_offset = 0;
 };
 
 class StoreEmitter : public MemoryEmitter  {
@@ -269,7 +274,6 @@ private:
     void emit_data() const override;
 
 private:
-    size_t count;
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
 };
 
@@ -291,7 +295,6 @@ private:
     void emit_data() const override;
 
 private:
-    size_t count;
     std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
 };
 
@@ -330,7 +333,6 @@ private:
     void emit_data() const override;
 
 private:
-    size_t count;
     std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
 };
 
@@ -352,8 +354,94 @@ private:
     void emit_data() const override;
 
 private:
-    size_t count;
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
 };
+
+class HorizonMaxEmitter : public jit_emitter {
+public:
+    HorizonMaxEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+
+    size_t get_inputs_num() const override {return 1;}
+
+protected:
+    size_t aux_gprs_count() const override {return 1;}
+    size_t aux_vecs_count() const override {return 1;}
+
+private:
+    void emit_impl(const std::vector<size_t>& in,
+                   const std::vector<size_t>& out,
+                   const std::vector<size_t>& pool,
+                   const std::vector<size_t>& gpr,
+                   const ov::intel_cpu::emitter_context *emit_context) const override;
+
+    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
+
+    void register_table_entries() override;
+};
+
+class HorizonSumEmitter : public jit_emitter {
+public:
+    HorizonSumEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+
+    size_t get_inputs_num() const override {return 1;}
+
+protected:
+    size_t aux_gprs_count() const override {return 1;}
+    size_t aux_vecs_count() const override {return 1;}
+
+private:
+    void emit_impl(const std::vector<size_t>& in,
+                   const std::vector<size_t>& out,
+                   const std::vector<size_t>& pool,
+                   const std::vector<size_t>& gpr,
+                   const ov::intel_cpu::emitter_context *emit_context) const override;
+
+    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
+};
+
+class ZeroEmitter : public jit_emitter {
+public:
+    ZeroEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+
+    size_t get_inputs_num() const override {return 0;}
+
+private:
+    void emit_impl(const std::vector<size_t>& in,
+                   const std::vector<size_t>& out,
+                   const std::vector<size_t>& pool,
+                   const std::vector<size_t>& gpr,
+                   const ov::intel_cpu::emitter_context *emit_context) const override;
+
+    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
+};
+
+class FillEmitter : public jit_emitter {
+public:
+    FillEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+
+    size_t get_inputs_num() const override {return 1;}
+
+protected:
+    size_t aux_gprs_count() const override;
+
+private:
+    void emit_impl(const std::vector<size_t>& in,
+                   const std::vector<size_t>& out,
+                   const std::vector<size_t>& pool,
+                   const std::vector<size_t>& gpr,
+                   const ov::intel_cpu::emitter_context *emit_context) const override;
+
+    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
+
+    void register_table_entries() override;
+
+    size_t offset = 0;
+    uint32_t fill_value = 0x0;
+};
+
 }   // namespace intel_cpu
 }   // namespace ov

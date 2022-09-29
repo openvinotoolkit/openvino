@@ -28,9 +28,12 @@ ngraph::snippets::pass::LoadMoveBroadcastToBroadcastLoad::LoadMoveBroadcastToBro
             const auto param = pm.at(param_pattern).get_node_shared_ptr();
 
             // Cannot rewrite Broadcast + Load if load has more than 1 user
-            // or more than one input, or if Broadcast has several inputs
+            // or more than one input,
+            // or if Broadcast has several inputs,
+            // or if Load has offset (TODO [96353]: It's CPU Plugin limitation)
             if (input->output(0).get_target_inputs().size() != 1 ||
-                root->inputs().size() != 1 || input->inputs().size() != 1) {
+                root->inputs().size() != 1 || input->inputs().size() != 1 ||
+                ov::as_type_ptr<snippets::op::Load>(input)->get_offset() > 0) {
                 return false;
             }
 

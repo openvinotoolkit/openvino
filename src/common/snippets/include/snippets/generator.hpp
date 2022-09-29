@@ -8,6 +8,7 @@
  */
 #pragma once
 
+#include "snippets/config.hpp"
 #include "snippets_isa.hpp"
 #include "emitter.hpp"
 
@@ -115,9 +116,11 @@ public:
     /**
      * @brief virtual method any specific implementation should implement
      * @param m model in canonical for for table-based code generation
+     * @param config config with transformation and optimization parameters
+     * @param compile_params parameters for generated code
      * @return pointer to generated code
      */
-    code generate(std::shared_ptr<ov::Model>& m, const void* compile_params = nullptr) const;
+    code generate(std::shared_ptr<ov::Model>& m, const SubgraphConfig& config, const void* compile_params = nullptr) const;
 
     /**
      * @brief gets target machine

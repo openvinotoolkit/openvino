@@ -15,12 +15,12 @@
 ngraph::snippets::pass::InsertLoad::InsertLoad(const size_t count) {
     MATCHER_SCOPE(InsertLoad);
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<ngraph::opset1::Parameter>(), matcher_name),
+        ngraph::pattern::wrap_type<ngraph::opset1::Parameter, ngraph::snippets::op::Buffer>(), matcher_name),
             [this, count](ngraph::pattern::Matcher &m) {
             OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::InsertLoad")
             auto root = m.get_match_root();
 
-            // check if already has Load as an output
+            // check if already has Load or LoopBegin as an output
             for (auto output : root->outputs()) {
                 for (auto consumer : output.get_target_inputs()) {
                     // if a parameter is connected to a Load => we don't need another one
@@ -54,12 +54,12 @@ ngraph::snippets::pass::InsertLoad::InsertLoad(const size_t count) {
 ngraph::snippets::pass::InsertStore::InsertStore(const size_t count) {
     MATCHER_SCOPE(InsertStore);
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<ngraph::opset1::Result>(), matcher_name),
+        ngraph::pattern::wrap_type<ngraph::opset1::Result, ngraph::snippets::op::Buffer>(), matcher_name),
             [this, count](ngraph::pattern::Matcher &m) {
             OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::InsertStore")
             auto root = m.get_match_root();
 
-            // check if already has Store as an input
+            // check if already has Store or LoopEnd as an input
             for (auto input : root->inputs()) {
                 const auto& parent_node = input.get_source_output().get_node();
                 if (ov::is_type<ngraph::snippets::op::Store>(parent_node) ||
@@ -68,7 +68,7 @@ ngraph::snippets::pass::InsertStore::InsertStore(const size_t count) {
                 }
             }
 
-            auto store = std::make_shared<ngraph::snippets::op::Store> (root->input_value(0), count);
+            auto store = std::make_shared<ngraph::snippets::op::Store>(root->input_value(0), count);
             ngraph::copy_runtime_info(root, store);
             root->set_argument(0, store);
             return true;

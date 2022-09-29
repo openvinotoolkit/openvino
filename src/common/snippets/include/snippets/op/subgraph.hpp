@@ -12,6 +12,7 @@
 #include <ngraph/pass/manager.hpp>
 
 #include "snippets/generator.hpp"
+#include "snippets/config.hpp"
 
 namespace ngraph {
 namespace snippets {
@@ -89,21 +90,13 @@ public:
         return m_generator;
     }
 
-    size_t get_non_scalar_constants_count() const {
-        return m_non_scalar_constants_count;
-    }
-
-    bool is_quantized() const {
-        return config.m_is_quantized;
-    }
-
-    bool has_type_relaxed_ops() const {
-        return config.m_has_type_relaxed_ops;
-    }
-
-    bool has_domain_sensitive_ops() const {
-        return config.m_has_domain_sensitive_ops;
-    }
+    // Return common memory size for all buffers in body
+    size_t get_buffer_scratchpad_size() const;
+    size_t get_virtual_port_count() const { return m_virtual_port_count; }
+    bool is_buffer_needed() const { return m_buffer_needed; }
+    bool is_quantized() const { return config.m_is_quantized; }
+    bool has_type_relaxed_ops() const { return config.m_has_type_relaxed_ops; }
+    bool has_domain_sensitive_ops() const { return config.m_has_domain_sensitive_ops; }
 
     size_t tileRank = 0; // set by plugin to facilitate scheduling
 
@@ -120,7 +113,8 @@ public:
     // plugin sets generator for a snippet to some specific generator.
     // it's going to be replaced with Jitters table later
     void set_generator(std::shared_ptr<ngraph::snippets::Generator> generator);
-    void set_non_scalar_constants_count(const size_t count);
+    void set_virtual_port_count(const size_t count);
+    void buffer_needed(const bool need);
 
     void print() const;
     void print_statistics(bool verbose);
@@ -134,11 +128,15 @@ public:
 private:
     void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
     void convert_to_snippet_dialect();
-    // Count of potentional non-scalar Consants that will be created after some tranformations
-    // At the moment it's relevant only for FakeQuantize decomposition
-    // NOTE: To avoid overheads in each calcution of this count (for example, in validate_and_type_infer()),
+    void init_config();
+    // Count of Subgraph virtual ports:
+    //  - Potential non-scalar Constants that will be created after some transformations (At the moment it's relevant only for FakeQuantize decomposition)
+    // Need Buffer op or not
+    //  - Buffers. All Buffers are considered as one common additional virtual port. So we cannot summarize them as potential non-scalar Constants
+    // NOTE: To avoid overheads in each calculation of this count (for example, in validate_and_type_infer()),
     //       we should MANUALLY calculate it where it needed.
-    size_t m_non_scalar_constants_count = 0;
+    size_t m_virtual_port_count = 0;
+    bool m_buffer_needed = false;
     Shape exec_domain = {};
     std::shared_ptr<ov::Model> m_body = nullptr;
     std::shared_ptr<ngraph::snippets::Generator> m_generator = nullptr;
@@ -146,20 +144,7 @@ private:
     // TODO: Change logic of insert Converts. This exec element type can be different for plugins
     const ov::element::Type execution_element_type = ov::element::f32;
 
-    // Config to know which transformations should be called.
-    // It helps to avoid overheads of extra transformation calls
-    struct {
-        // True if Subgraph contains FakeQuantize -> FQ decomposition should be called
-        bool m_is_quantized = false;
-        // True if we should align element types indise body
-        bool m_is_needed_to_align_precision = false;
-        // True if Subgraph contains TypeRelaxed nodes -> for several streams in tp mode we should copy body using mutexes
-        // because TypeRelaxed::copy_with_new_inputs() isn't save-thread method
-        bool m_has_type_relaxed_ops = false;
-        // True if body has operations that don't support plugin-side domain optimizations
-        // (e.g. Transpose in general doesn't support dimensions collapsing)
-        bool m_has_domain_sensitive_ops = false;
-    } config;
+    SubgraphConfig config;
 
     ov::PartialShape master_shape;
 };

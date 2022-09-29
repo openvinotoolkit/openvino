@@ -18,6 +18,10 @@
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/pass/transform_convert.hpp"
 #include "snippets/pass/align_element_type.hpp"
+#include "snippets/pass/softmax_decomposition.hpp"
+#include "snippets/pass/set_buffer_offset.hpp"
+#include "snippets/pass/reset_buffer.hpp"
+#include "snippets/pass/insert_buffer.hpp"
 #include "snippets/utils.hpp"
 
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -39,21 +43,40 @@ void snippets::op::Subgraph::set_generator(std::shared_ptr<ngraph::snippets::Gen
     m_generator = generator;
 }
 
-void snippets::op::Subgraph::set_non_scalar_constants_count(const size_t count) {
-    m_non_scalar_constants_count = count;
+void snippets::op::Subgraph::set_virtual_port_count(const size_t count) {
+    m_virtual_port_count = count;
+}
+
+void snippets::op::Subgraph::buffer_needed(const bool need) {
+    m_buffer_needed = need;
+}
+
+void snippets::op::Subgraph::init_config() {
+    const auto ops = m_body->get_ops();
+    for (const auto& op : ops) {
+        config.m_is_quantized = config.m_is_quantized ||
+            ov::is_type<ov::op::v0::FakeQuantize>(op);
+        config.m_need_fill_tail_register = config.m_need_fill_tail_register ||
+            ov::is_type<ov::op::v1::Softmax>(op) ||
+            ov::is_type<ov::op::v8::Softmax>(op);
+        config.m_has_type_relaxed_ops = config.m_has_type_relaxed_ops ||
+            std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(op);
+        config.m_is_needed_to_align_precision = config.m_is_needed_to_align_precision ||
+            is_quantized() ||
+            has_type_relaxed_ops() ||
+            snippets::pass::AlignElementType::opNeedsAlignElementType(op, execution_element_type);
+        config.m_has_domain_sensitive_ops = config.m_has_domain_sensitive_ops ||
+            ov::is_type<ov::op::v1::Transpose>(op) ||
+            ov::is_type<ov::op::v1::Softmax>(op) ||
+            ov::is_type<ov::op::v8::Softmax>(op);
+    }
+    // Domain sensitive ops are decomposed with explicit Loops. So, we should explicitly insert Loops in Subgraph if it contains these ops
+    config.m_explicit_loop_insertion = config.m_has_domain_sensitive_ops;
 }
 
 snippets::op::Subgraph::Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body)
-    : Op(args), m_body(std::move(body)), m_generator(nullptr) {
-    const auto ops = m_body->get_ops();
-    for (const auto& op : ops) {
-        config.m_is_quantized = config.m_is_quantized || ov::is_type<ov::op::v0::FakeQuantize>(op);
-        config.m_has_type_relaxed_ops = config.m_has_type_relaxed_ops || std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(op);
-        config.m_is_needed_to_align_precision = config.m_is_needed_to_align_precision || is_quantized() || has_type_relaxed_ops() ||
-            snippets::pass::AlignElementType::opNeedsAlignElementType(op, execution_element_type);
-        config.m_has_domain_sensitive_ops = config.m_has_domain_sensitive_ops || ov::is_type<ov::op::v1::Transpose>(op);
-    }
-
+    : Op(args), m_body(body), m_generator(nullptr) {
+    init_config();
     constructor_validate_and_infer_types();
 }
 
@@ -168,9 +191,17 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
     auto body = create_body(node->get_friendly_name(), body_results, body_parameters);
     auto subgraph = build_subgraph(node, subgraph_inputs, body);
 
+    bool need_buffer = false;
+    size_t hidden_data_count = 0lu;
     if (auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node)) {
-        subgraph->set_non_scalar_constants_count(utils::get_non_scalar_constant_count_for_fq(fq_node));
+        hidden_data_count += utils::get_non_scalar_constant_count_for_fq(fq_node);
+    // Ops that requires Buffer
+    } else if (ov::is_type<ov::op::v1::Softmax>(node) ||
+               ov::is_type<ov::op::v8::Softmax>(node)) {
+        need_buffer |= true;
     }
+    subgraph->set_virtual_port_count(hidden_data_count);
+    subgraph->buffer_needed(need_buffer);
 
     for (size_t i = 0; i < body->get_parameters().size(); i++) {
         body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
@@ -250,10 +281,13 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
                                   equal(baseOrder.begin(), baseOrder.end(), inOrder.begin()),
                                   "Snippets canonicalization got input shapes of equal ranks but different layouts, which is not supported");
         }
-        ov::PartialShape tmpPShape(baseShape);
-        NODE_VALIDATION_CHECK(this,
-                              PartialShape::broadcast_merge_into(tmpPShape, inShape, ::ngraph::op::AutoBroadcastType::NUMPY),
-                              "Failed to create broadcastable shapes in snippets canonicalization");
+        if (!config.m_has_domain_sensitive_ops) {
+            ov::PartialShape tmpPShape(baseShape);
+            NODE_VALIDATION_CHECK(this,
+                                  PartialShape::broadcast_merge_into(tmpPShape, inShape,
+                                                                     ::ngraph::op::AutoBroadcastType::NUMPY),
+                                  "Failed to create broadcastable shapes in snippets canonicalization");
+        }
         const auto paramShape = m_body->get_parameters()[i]->get_partial_shape();
         const auto paramType =  m_body->get_parameters()[i]->get_element_type();
         if (paramShape.size() != inShape.size() || !equal(paramShape.begin(), paramShape.end(), inShape.begin()))
@@ -308,6 +342,17 @@ PartialShape snippets::op::Subgraph::get_master_shape() {
                                            ::ngraph::op::AutoBroadcastType::NUMPY);
     master_shape = outPShape;
     return master_shape;
+}
+
+size_t snippets::op::Subgraph::get_buffer_scratchpad_size() const {
+    size_t buffer_size = 0;
+    const auto ops = m_body->get_ops();
+    for (const auto& op : ops) {
+        if (const auto buffer = ov::as_type_ptr<ngraph::snippets::op::Buffer>(op)) {
+            buffer_size += ngraph::shape_size(buffer->get_shape()) * buffer->get_element_type().size();
+        }
+    }
+    return buffer_size;
 }
 
 void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outputShapes,
@@ -365,11 +410,14 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
                                                         return p->get_partial_shape().rbegin()->is_dynamic();
                                                     });
     ngraph::pass::Manager manager;
+    manager.register_pass<snippets::pass::InsertBuffer>();
+    manager.register_pass<snippets::pass::SoftmaxDecomposition>(count);
+    manager.register_pass<snippets::pass::TransposeDecomposition>();
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
-    manager.register_pass<snippets::pass::TransposeDecomposition>();
     manager.register_pass<snippets::pass::InsertLoad>(count);
     manager.register_pass<snippets::pass::InsertStore>(count);
+    manager.register_pass<snippets::pass::SetBufferOffset>();
     // todo: presently dynamic pipeline is activated even if the last two dimension are static
     //  In general, we can use static kernels in this case, but several parameters (src and dst memory pointers for example)
     //  should be passed as run-time args, so it's a mixed regime: kernel is shape-aware, but some additional runtime args are required
@@ -401,12 +449,13 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
             manager.get_pass_config()->
                     set_callback<ngraph::snippets::pass::SetScalarCountForStore>(skip_matching_domain);
         }
-        // todo: get_lanes() assumes fp32. Could there be any int8 issues?
         // Note that InsertLoops requires validate_and_infer_types afterwards, so add it manually if
         // automatic validation will be disabled in the pass manager
-        if (!has_domain_sensitive_ops())
-            manager.register_pass<snippets::pass::InsertLoops>(master_shape, tileRank,
-                                                           m_generator->get_target_machine()->get_lanes());
+        manager.register_pass<snippets::pass::InsertLoops>(master_shape, tileRank,
+            m_generator->get_target_machine()->get_lanes(), !config.m_explicit_loop_insertion);
+        if (config.m_has_domain_sensitive_ops) {
+            manager.register_pass<snippets::pass::ResetBufferState>();
+        }
     }
     manager.run_passes(m_body);
 }
@@ -442,9 +491,17 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
 
     snippets::pass::AssignRegisters().run_on_model(m_body);
 
+    // Buffer ops have the same register so after storing we should reset memory pointer for the following calculations
+    // One evaluation optimizations breaks finalization offsets for Buffers
+    // TODO: Add One evaluation optimizations for Subgraph's with Buffer
+    const auto ops = m_body->get_ops();
+    config.m_one_evaluation_optimizations = std::none_of(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& op) {
+        return ov::is_type<ngraph::snippets::op::Buffer>(op);
+    });
+
     // schedule generation should go here and be target agnostic
     // actual code emission
-    ngraph::snippets::code ptr = m_generator->generate(m_body, compile_params);
+    ngraph::snippets::code ptr = m_generator->generate(m_body, config, compile_params);
 
     // check that body doesn't have constants for scheduling
     std::vector<std::shared_ptr<opset1::Constant>> constants;
