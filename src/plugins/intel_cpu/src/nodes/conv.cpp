@@ -370,7 +370,7 @@ void Convolution::getSupportedDescriptors() {
 
     withBiases = getOriginalInputsNumber() == 3;
 
-    initTryBrgconvFlag();
+    bool userForceBrgconv = false;
 
     if (!implPriorities.empty()) {
         isPrimitivesPriorityDefined = true;
@@ -381,12 +381,12 @@ void Convolution::getSupportedDescriptors() {
                  (withBiases ? (getParentEdgeAt(2)->getParent()->isConstant() && getParentEdgeAt(2)->getParent()->getType() == Type::Input) : true);
 
         // AVX512 brconv may be disabled by heuristics due to performance issues. User can force it via Primitives priority mechanism.
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
-            std::for_each(implPriorities.begin(), implPriorities.end(), [&](const impl_desc_type& desc_type) {
-                if (desc_type & impl_desc_type::brgconv_avx512) {
-                    shouldTryBrgconv = true;
-                }
-            });
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+            std::any_of(implPriorities.begin(), implPriorities.end(), [](const impl_desc_type& desc_type) {
+                return static_cast<bool>(desc_type & impl_desc_type::brgconv_avx512);
+            })) {
+            shouldTryBrgconv = true;
+            userForceBrgconv = true;
         }
     }
 
@@ -491,6 +491,11 @@ void Convolution::getSupportedDescriptors() {
             outputDataType = memory::data_type::f32;
         if (eltwisePrecision == Precision::BF16)
             eltwisePrecision = Precision::FP32;
+
+        // initTryBrgconvFlag depends on outputDataType, should be after outputDataType computed
+        if (!userForceBrgconv)
+            initTryBrgconvFlag();
+
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType,
             ndims == 3 ? memory::format_tag::nwc : (ndims == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc));
         out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), outputDataType,
@@ -525,6 +530,9 @@ void Convolution::getSupportedDescriptors() {
             outputDataType = memory::data_type::f32;
             eltwisePrecision = Precision::FP32;
         }
+
+        if (!userForceBrgconv)
+            initTryBrgconvFlag();
 
         if (one_of(ndims, 3, 4, 5)) {
             memory::format_tag nspc = ndims == 3 ? memory::format_tag::nwc : (ndims == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc);
