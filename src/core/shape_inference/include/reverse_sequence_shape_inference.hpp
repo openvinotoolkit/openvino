@@ -31,17 +31,18 @@ void shape_infer(const ReverseSequence* op, const std::vector<T>& input_shapes, 
     output_pshape = data_pshape;
     if (data_rank.is_static() && seq_lengths_rank.is_static()) {
         DimType merged_sequence_length;
-        NODE_VALIDATION_CHECK(op,
-                              DimType::merge(merged_sequence_length, data_pshape[op->m_normalized_batch_axis], seq_lengths_pshape[0]),
-                              "Sequence lengths input size (",
-                              seq_lengths_pshape[0],
-                              ") is not equal to batch axis dimension of data input (",
-                              data_pshape[op->m_normalized_batch_axis],
-                              ") (argument shape: ",
-                              data_pshape,
-                              ", sequence indices shape: ",
-                              seq_lengths_pshape,
-                              ").");
+        NODE_VALIDATION_CHECK(
+            op,
+            DimType::merge(merged_sequence_length, data_pshape[op->m_normalized_batch_axis], seq_lengths_pshape[0]),
+            "Sequence lengths input size (",
+            seq_lengths_pshape[0],
+            ") is not equal to batch axis dimension of data input (",
+            data_pshape[op->m_normalized_batch_axis],
+            ") (argument shape: ",
+            data_pshape,
+            ", sequence indices shape: ",
+            seq_lengths_pshape,
+            ").");
         output_pshape[op->m_normalized_batch_axis] = merged_sequence_length;
     }
 }
