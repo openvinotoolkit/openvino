@@ -97,18 +97,8 @@ public:
         }
         return dependencies().at(index)->output_memory_ptr();
     }
-    memory& output_memory(size_t index = 0) const {
-        if (index == 0)
-            return *_output;
-        else
-            return *_outputs[index];
-    }
-    memory::ptr output_memory_ptr(size_t index = 0) const {
-        if (index == 0)
-            return _output;
-        else
-            return _outputs[index];
-    }
+    memory& output_memory(size_t index = 0) const { return *_outputs[index]; }
+    memory::ptr output_memory_ptr(size_t index = 0) const { return _outputs[index]; }
     size_t inputs_memory_count() const { return _node.get_primitive()->input_size(); }
     size_t outputs_memory_count() const { return _node.get_primitive()->output_size(); }
     bool outputs_allocated() const {
@@ -237,7 +227,6 @@ protected:
     // _output is optional because its initialization might be postponed (reshape_inst may either allocate it's own
     // buffer or attach input as output
     // depending on reshape_node.is_in_place())
-    memory::ptr _output;
     std::vector<memory::ptr> _outputs;
 
     std::vector<memory::cptr> _intermediates_memory;
@@ -373,7 +362,7 @@ protected:
 
     typed_primitive_inst_base(network& network, typed_node const& node, memory::ptr buffer)
         : typed_primitive_inst_base(network, node, false) {
-        _output = buffer;
+        _outputs[0] = buffer;
     }
 
 private:
