@@ -129,7 +129,7 @@ def get_image_tensors(image_paths, info, batch_sizes):
     try:
         import cv2
     except ImportError as ex:
-        raise Exception("Loading images requires opencv-python module. " \
+        raise Exception("Loading images requires the opencv-python or opencv-python-headless package. " \
             "Please install it before continuing or run benchmark without "\
             "the -i flag to fill vectors with random data.") from ex
 
