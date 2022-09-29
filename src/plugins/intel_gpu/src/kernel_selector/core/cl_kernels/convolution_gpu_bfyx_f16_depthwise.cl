@@ -8,7 +8,6 @@
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
 #define FEATURE_SLICE_SIZE 16
-#define X_BLOCK_SIZE 8
 
 #define INPUT_TYPE        INPUT0_TYPE
 #define INPUT_TYPE8       MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)
@@ -220,6 +219,7 @@ KERNEL(convolution_depthwise)(
                                 (OUTPUT_PAD_BEFORE_SIZE_Y + y) * output_y_pitch +
                                 (OUTPUT_PAD_BEFORE_SIZE_X) * output_x_pitch;
 
+#if X_BLOCK_SIZE == 8
     OUTPUT_TYPE8 res;
 #if OUTPUT_LEFTOVERS
     if ((f_block + 1) * FEATURE_SLICE_SIZE >= OUTPUT_FEATURE_NUM)
@@ -261,6 +261,34 @@ KERNEL(convolution_depthwise)(
             }
         }
     }
+#else // X_BLOCK_SIZE == 1
+    OUTPUT_TYPE res;
+#if OUTPUT_LEFTOVERS
+    if ((f_block + 1) * FEATURE_SLICE_SIZE >= OUTPUT_FEATURE_NUM)
+    {
+#if HAS_FUSED_OPS
+        uint i = 0;
+        FUSED_OPS_SCALAR;
+        res = FUSED_OPS_RESULT_SCALAR;
+#else
+        res = TO_OUTPUT_TYPE(dst[0]);
+#endif // HAS_FUSED_OPS
+        if (x < OUTPUT_SIZE_X && f_block * FEATURE_SLICE_SIZE + lid < OUTPUT_FEATURE_NUM)
+            output[output_offset + x * output_x_pitch + lid] = res;
+    }
+    else
+#endif // OUTPUT_LEFTOVERS
+    {
+#if HAS_FUSED_OPS
+        uint i = 0;
+        FUSED_OPS_SCALAR;
+        res = FUSED_OPS_RESULT_SCALAR;
+#else
+        res = TO_OUTPUT_TYPE(dst[0]);
+#endif // HAS_FUSED_OPS
+        OUTPUT_BLOCK_WRITE(output, output_offset + x * output_x_pitch, res);
+    }
+#endif
 }
 
 #undef unroll_for
