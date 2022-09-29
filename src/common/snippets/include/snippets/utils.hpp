@@ -29,6 +29,9 @@ ov::PartialShape get_reordered_planar_shape(const ov::PartialShape& shape, const
 std::vector<size_t> get_node_output_layout(const std::shared_ptr<Node>& node);
 std::vector<size_t> get_node_output_layout(const Node* node);
 
+inline ov::Dimension get_inner_dim(const ov::PartialShape &shape) { return *(shape.rbegin()); }
+inline ov::Dimension get_outer_dim(const ov::PartialShape &shape) { return *(shape.rbegin() + 1); }
+
 } // namespace utils
 } // namespace snippets
 } // namespace ngraph

@@ -12,19 +12,19 @@ namespace ngraph {
 namespace snippets {
 namespace op {
 
-Load::Load(const Output<Node>& x, const size_t count) : MemoryAccess({x}, count) {
+Load::Load(const Output<Node>& x, const size_t count, const size_t offset) : MemoryAccess({x}, count, offset) {
     constructor_validate_and_infer_types();
 }
 
 std::shared_ptr<Node> Load::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(Load);
     check_new_args_count(this, new_args);
-    return std::make_shared<Load>(new_args.at(0), m_count);
+    return std::make_shared<Load>(new_args.at(0), m_count, m_offset);
 }
 
 
-LoadReshape::LoadReshape(const Output<ov::Node>& x, const size_t count, std::vector<size_t> order)
-                            : Load(x, count), m_order(std::move(order)) {
+LoadReshape::LoadReshape(const Output<ov::Node>& x, const size_t count, const size_t offset, std::vector<size_t> order)
+                            : Load(x, count, offset), m_order(std::move(order)) {
     const auto& in_shape = x.get_partial_shape();
     NGRAPH_CHECK(in_shape.is_static(), "LoadReshape supports only static input shapes");
     const auto in_shape_size = in_shape.size();
@@ -45,7 +45,7 @@ void snippets::op::LoadReshape::validate_and_infer_types() {
 }
 
 bool snippets::op::LoadReshape::visit_attributes(AttributeVisitor& visitor) {
-    visitor.on_attribute("count", m_count);
+    Load::visit_attributes(visitor);
     visitor.on_attribute("order", m_order);
     return true;
 }
@@ -53,7 +53,7 @@ bool snippets::op::LoadReshape::visit_attributes(AttributeVisitor& visitor) {
 std::shared_ptr<Node> snippets::op::LoadReshape::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(LoadReshape);
     check_new_args_count(this, new_args);
-    return std::make_shared<LoadReshape>(new_args.at(0), m_count, m_order);
+    return std::make_shared<LoadReshape>(new_args.at(0), m_count, m_offset, m_order);
 }
 
 }// namespace op

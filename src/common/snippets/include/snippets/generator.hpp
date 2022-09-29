@@ -120,10 +120,16 @@ public:
     public:
         // True if the lowered Emitters need to be accessed during runtime. Normally they're destroyed after code emission.
         bool m_save_lowered_code = false;
+        // True if one evaluation optimizations are enabled
+        bool m_one_evaluation_optimizations = true;
+        // True if we should check runtime info for nodes to call specific needed transformations
+        bool m_need_fill_tail_register = false;
     };
     /**
      * @brief virtual method any specific implementation should implement
      * @param m model in canonical for for table-based code generation
+     * @param config config with transformation and optimization parameters
+     * @param compile_params parameters for generated code
      * @return pointer to generated code
      */
     code generate(std::shared_ptr<ov::Model>& m, const GeneratorConfig& config, const void* compile_params = nullptr);

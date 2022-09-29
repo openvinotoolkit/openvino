@@ -9,8 +9,12 @@
 
 #include "op/broadcastload.hpp"
 #include "op/broadcastmove.hpp"
+#include "op/buffer.hpp"
 #include "op/convert_saturation.hpp"
 #include "op/convert_truncation.hpp"
+#include "op/horizon_max.hpp"
+#include "op/horizon_sum.hpp"
+#include "op/fill.hpp"
 #include "op/kernel.hpp"
 #include "op/load.hpp"
 #include "op/nop.hpp"
@@ -19,6 +23,7 @@
 #include "op/store.hpp"
 #include "op/loop.hpp"
 #include "op/brgemm.hpp"
+#include "op/vector_buffer.hpp"
 
 namespace ngraph {
 namespace snippets {

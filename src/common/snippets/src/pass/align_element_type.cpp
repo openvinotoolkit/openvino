@@ -20,7 +20,8 @@ inline auto is_in_op(const std::shared_ptr<ov::Node>& n) -> bool {
         || ov::is_type<ov::op::v0::Constant>(n);
 }
 
-// At the moment Subgraph supports only Eltwise, Convert and FQ (which is decomposed into Eltwises and Convert)
+// At the moment Subgraph supports only Eltwise, Convert, FQ (which is decomposed into Eltwises and Convert) and
+// Softmax (which is decompsed into Eltwises as well)
 // And only Eltwises supports execution only in "exec_type". So we can check op type from the opposite
 // NOTE: This check is only for executable which isn't Parameter/Constant/Result
 inline auto op_supports_only_exec_type(const std::shared_ptr<ov::Node>& n) -> bool {

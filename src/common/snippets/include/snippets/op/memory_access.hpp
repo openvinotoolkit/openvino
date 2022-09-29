@@ -24,14 +24,17 @@ public:
     OPENVINO_OP("MemoryAccess", "SnippetsOpset");
 
     size_t get_count() const;
-    void set_count(size_t count);
+    size_t get_offset() const;
+    void set_count(const size_t count);
+    void set_offset(const size_t offset);
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
 
 protected:
-    explicit MemoryAccess(const Output<Node>& x, size_t count = 1lu);
+    explicit MemoryAccess(const Output<Node>& x, size_t count = 1lu, size_t offset = 0lu);
     MemoryAccess() = default;
     size_t m_count = 0lu;
+    size_t m_offset = 0lu;
 };
 
 } // namespace op

@@ -21,7 +21,12 @@ DummyTargetMachine::DummyTargetMachine() {
     jitters[op::v1::Add::get_type_info_static()] = dummy_functor;
     jitters[op::v1::Subtract::get_type_info_static()] = dummy_functor;
     jitters[op::v1::Multiply::get_type_info_static()] = dummy_functor;
-    jitters[op::v1::Multiply::get_type_info_static()] = dummy_functor;
+    jitters[op::v1::Divide::get_type_info_static()] = dummy_functor;
+    jitters[op::v1::Maximum::get_type_info_static()] = dummy_functor;
+    jitters[op::v0::Exp::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::PowerStatic::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::HorizonMax::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::HorizonSum::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::Load::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::BroadcastLoad::get_type_info_static()] = dummy_functor;
 
@@ -33,6 +38,9 @@ DummyTargetMachine::DummyTargetMachine() {
     jitters[ngraph::snippets::op::LoopBegin::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::LoopEnd::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::Brgemm::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::Buffer::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::VectorBuffer::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::Fill::get_type_info_static()] = dummy_functor;
 }
 
 void LoweringTests::SetUp() {
