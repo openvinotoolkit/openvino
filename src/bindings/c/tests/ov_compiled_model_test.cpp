@@ -9,7 +9,7 @@ TEST_P(ov_compiled_model, ov_compiled_model_inputs_size) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
-    ASSERT_NE(nullptr, core);
+    EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
@@ -21,7 +21,7 @@ TEST_P(ov_compiled_model, ov_compiled_model_inputs_size) {
 
     size_t input_size;
     OV_EXPECT_OK(ov_compiled_model_inputs_size(compiled_model, &input_size));
-    ASSERT_NE(0, input_size);
+    EXPECT_NE(0, input_size);
 
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
@@ -32,7 +32,7 @@ TEST_P(ov_compiled_model, ov_compiled_model_input) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
-    ASSERT_NE(nullptr, core);
+    EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
@@ -44,7 +44,7 @@ TEST_P(ov_compiled_model, ov_compiled_model_input) {
 
     ov_output_const_port_t* input_port = nullptr;
     OV_EXPECT_OK(ov_compiled_model_input(compiled_model, &input_port));
-    ASSERT_NE(nullptr, input_port);
+    EXPECT_NE(nullptr, input_port);
 
     ov_output_const_port_free(input_port);
     ov_compiled_model_free(compiled_model);
@@ -56,11 +56,11 @@ TEST_P(ov_compiled_model, ov_compiled_model_input_by_index) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
-    ASSERT_NE(nullptr, core);
+    EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
-    ASSERT_NE(nullptr, model);
+    EXPECT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
@@ -68,10 +68,10 @@ TEST_P(ov_compiled_model, ov_compiled_model_input_by_index) {
 
     ov_output_const_port_t* input_port = nullptr;
     OV_EXPECT_OK(ov_compiled_model_input_by_index(compiled_model, 0, &input_port));
-    ASSERT_NE(nullptr, input_port);
+    EXPECT_NE(nullptr, input_port);
 
     ov_shape_t shape;
-    OV_EXPECT_OK(ov_const_port_get_shape(input_port, &shape));
+    OV_ASSERT_OK(ov_const_port_get_shape(input_port, &shape));
     ov_shape_free(&shape);
 
     ov_output_const_port_free(input_port);
@@ -84,11 +84,11 @@ TEST_P(ov_compiled_model, ov_compiled_model_input_by_name) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
-    ASSERT_NE(nullptr, core);
+    EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
-    ASSERT_NE(nullptr, model);
+    EXPECT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
@@ -96,10 +96,10 @@ TEST_P(ov_compiled_model, ov_compiled_model_input_by_name) {
 
     ov_output_const_port_t* input_port = nullptr;
     OV_EXPECT_OK(ov_compiled_model_input_by_name(compiled_model, "data", &input_port));
-    ASSERT_NE(nullptr, input_port);
+    EXPECT_NE(nullptr, input_port);
 
     ov_shape_t shape;
-    OV_EXPECT_OK(ov_const_port_get_shape(input_port, &shape));
+    OV_ASSERT_OK(ov_const_port_get_shape(input_port, &shape));
     ov_shape_free(&shape);
 
     ov_output_const_port_free(input_port);
@@ -113,7 +113,7 @@ TEST_P(ov_compiled_model, set_and_get_property) {
     auto device_name = "MULTI:GPU,CPU";
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
-    ASSERT_NE(nullptr, core);
+    EXPECT_NE(nullptr, core);
 
     char* info = nullptr;
     const char* key_0 = ov_property_key_available_devices;
@@ -151,7 +151,7 @@ TEST_P(ov_compiled_model, get_property) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
-    ASSERT_NE(nullptr, core);
+    EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
@@ -175,7 +175,7 @@ TEST_P(ov_compiled_model, create_compiled_model_with_property) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
-    ASSERT_NE(nullptr, core);
+    EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
@@ -200,7 +200,7 @@ TEST_P(ov_compiled_model, ov_compiled_model_outputs_size) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
-    ASSERT_NE(nullptr, core);
+    EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
@@ -212,7 +212,7 @@ TEST_P(ov_compiled_model, ov_compiled_model_outputs_size) {
 
     size_t output_size;
     OV_EXPECT_OK(ov_compiled_model_outputs_size(compiled_model, &output_size));
-    ASSERT_NE(0, output_size);
+    EXPECT_NE(0, output_size);
 
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
@@ -223,7 +223,7 @@ TEST_P(ov_compiled_model, ov_compiled_model_output) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
-    ASSERT_NE(nullptr, core);
+    EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
@@ -235,7 +235,7 @@ TEST_P(ov_compiled_model, ov_compiled_model_output) {
 
     ov_output_const_port_t* output_port = nullptr;
     OV_EXPECT_OK(ov_compiled_model_output(compiled_model, &output_port));
-    ASSERT_NE(nullptr, output_port);
+    EXPECT_NE(nullptr, output_port);
 
     ov_output_const_port_free(output_port);
     ov_compiled_model_free(compiled_model);
@@ -247,11 +247,11 @@ TEST_P(ov_compiled_model, ov_compiled_model_output_by_index) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
-    ASSERT_NE(nullptr, core);
+    EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
-    ASSERT_NE(nullptr, model);
+    EXPECT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
@@ -259,10 +259,10 @@ TEST_P(ov_compiled_model, ov_compiled_model_output_by_index) {
 
     ov_output_const_port_t* output_port = nullptr;
     OV_EXPECT_OK(ov_compiled_model_output_by_index(compiled_model, 0, &output_port));
-    ASSERT_NE(nullptr, output_port);
+    EXPECT_NE(nullptr, output_port);
 
     ov_shape_t shape;
-    OV_EXPECT_OK(ov_const_port_get_shape(output_port, &shape));
+    OV_ASSERT_OK(ov_const_port_get_shape(output_port, &shape));
     ov_shape_free(&shape);
 
     ov_output_const_port_free(output_port);
@@ -275,11 +275,11 @@ TEST_P(ov_compiled_model, ov_compiled_model_output_by_name) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
-    ASSERT_NE(nullptr, core);
+    EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
-    ASSERT_NE(nullptr, model);
+    EXPECT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
@@ -287,10 +287,10 @@ TEST_P(ov_compiled_model, ov_compiled_model_output_by_name) {
 
     ov_output_const_port_t* output_port = nullptr;
     OV_EXPECT_OK(ov_compiled_model_output_by_name(compiled_model, "fc_out", &output_port));
-    ASSERT_NE(nullptr, output_port);
+    EXPECT_NE(nullptr, output_port);
 
     ov_shape_t shape;
-    OV_EXPECT_OK(ov_const_port_get_shape(output_port, &shape));
+    OV_ASSERT_OK(ov_const_port_get_shape(output_port, &shape));
     ov_shape_free(&shape);
 
     ov_output_const_port_free(output_port);
@@ -303,7 +303,7 @@ TEST_P(ov_compiled_model, get_runtime_model) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
-    ASSERT_NE(nullptr, core);
+    EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
@@ -327,7 +327,7 @@ TEST_P(ov_compiled_model, get_runtime_model_error_handling) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
-    ASSERT_NE(nullptr, core);
+    EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
@@ -351,7 +351,7 @@ TEST_P(ov_compiled_model, create_infer_request) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
-    ASSERT_NE(nullptr, core);
+    EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
@@ -375,7 +375,7 @@ TEST_P(ov_compiled_model, create_infer_request_error_handling) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
-    ASSERT_NE(nullptr, core);
+    EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
