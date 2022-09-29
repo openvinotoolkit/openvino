@@ -5,7 +5,7 @@ import pytest
 from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
 
-from tools.mo.unit_tests.utils.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 class TestPooling(CommonTFLayerTest):

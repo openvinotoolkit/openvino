@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from common.tf_layer_test_class import CommonTFLayerTest
 
-from tools.mo.unit_tests.utils.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 class TestResamplePattern(CommonTFLayerTest):

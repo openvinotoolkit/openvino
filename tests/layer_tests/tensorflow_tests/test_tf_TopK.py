@@ -7,7 +7,7 @@ from common.tf_layer_test_class import CommonTFLayerTest
 from common.utils.tf_utils import permute_nchw_to_nhwc, permute_axis
 from openvino.tools.mo.ops.op import PermuteAttrs
 
-from tools.mo.unit_tests.utils.graph import build_graph
+from unit_tests.utils.graph import build_graph
 
 
 class Test_TopK(CommonTFLayerTest):

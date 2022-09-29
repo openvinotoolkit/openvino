@@ -8,7 +8,7 @@ from common.tf_layer_test_class import CommonTFLayerTest
 from common.utils.tf_utils import permute_nchw_to_nhwc
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 
-from tools.mo.unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, connect, \
+from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, connect, \
     shaped_data, connect_front
 
 
