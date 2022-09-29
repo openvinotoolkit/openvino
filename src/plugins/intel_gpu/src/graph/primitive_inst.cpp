@@ -175,6 +175,8 @@ void primitive_inst::update_shape() {
 
     auto memory_deps = _node.get_const_memory_deps();
     std::vector<event::ptr> dependencies_events;
+    auto queue_type = get_network().get_stream().get_queue_type();
+    bool has_runtime_deps = false;
     for (auto& i : _node.get_shape_infer_dependencies()) {
         // Some primitives may have flexible count of deps (e.g. reshape), thus allow skipping some deps
         if (memory_deps.count(i) > 0 || i >= _node.get_dependencies().size()) {
@@ -182,7 +184,8 @@ void primitive_inst::update_shape() {
         }
         auto& dep = _node.get_dependency(i);
         auto dep_id = dep.id();
-        if (_network.has_event(dep.id())) {
+        // Events may be not created for in-order queue, so take them for OOO queue only
+        if (_network.has_event(dep.id()) && queue_type == queue_types::out_of_order) {
             dependencies_events.push_back(_network.get_primitive_event(dep_id));
             GPU_DEBUG_IF(debug_config->verbose >= 4) {
                 GPU_DEBUG_COUT << id() << ": shape infer waits for " << i << " dependency\n";
@@ -190,10 +193,16 @@ void primitive_inst::update_shape() {
         }
         auto dep_mem = _network.get_output_memory(dep_id);
         memory_deps.insert({i, dep_mem});
+        has_runtime_deps = true;
     }
 
-    if (!dependencies_events.empty())
-        _network.get_stream().wait_for_events(dependencies_events);
+    if (has_runtime_deps) {
+        if (!dependencies_events.empty() && queue_type == queue_types::out_of_order) {
+            _network.get_stream().wait_for_events(dependencies_events);
+        } else if (queue_type == queue_types::in_order) {
+            _network.get_stream().finish();
+        }
+    }
 
     _impl_params->memory_deps = memory_deps;
     auto new_layouts = _node.type()->calc_output_layouts(_node, *_impl_params);
