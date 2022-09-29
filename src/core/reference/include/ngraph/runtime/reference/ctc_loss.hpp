@@ -107,7 +107,8 @@ void CTCLoss(const T* logits,
                         if (res > prevLogProb)
                             res = res + static_cast<T>(std::log1pf(static_cast<float>(std::exp(prevLogProb - res))));
                         else
-                            res = prevLogProb + static_cast<T>(std::log1pf(static_cast<float>(std::exp(res - prevLogProb))));
+                            res = prevLogProb +
+                                  static_cast<T>(std::log1pf(static_cast<float>(std::exp(res - prevLogProb))));
                     }
                     return;
                 }

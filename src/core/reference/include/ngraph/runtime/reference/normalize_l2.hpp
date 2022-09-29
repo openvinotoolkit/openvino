@@ -47,7 +47,8 @@ void normalize_l2(const T* data,
                         reduce_shape,
                         op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY),
                         [&eps, &eps_mode](T x, T y) -> T {
-                            T arg = (eps_mode == op::EpsMode::ADD) ? y + static_cast<T>(eps) : std::max(y, static_cast<T>(eps));
+                            T arg = (eps_mode == op::EpsMode::ADD) ? y + static_cast<T>(eps)
+                                                                   : std::max(y, static_cast<T>(eps));
                             return x / static_cast<T>(std::sqrt(arg));
                         });
 }

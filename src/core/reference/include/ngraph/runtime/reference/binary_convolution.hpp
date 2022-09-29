@@ -73,7 +73,8 @@ void binary_convolve_3D_channels(const ConvolutionParams& p,
                                 T_IN in_val = padding ? static_cast<T_IN>(pad_value)
                                                       : static_cast<T_IN>(input_channel[i_buf_idx]);
 
-                                int f_buf_idx = static_cast<int>((f_z * filter_size_y * filter_size_x) + (f_y * filter_size_x) + f_x);
+                                int f_buf_idx = static_cast<int>((f_z * filter_size_y * filter_size_x) +
+                                                                 (f_y * filter_size_x) + f_x);
 
                                 int f_byte_idx = (f_buf_idx + filter_count) / n_bits;
                                 int bit_idx = (n_bits - 1) - ((f_buf_idx + filter_count) % n_bits);

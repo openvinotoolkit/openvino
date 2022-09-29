@@ -134,9 +134,11 @@ void convolve_2D_channels(const ConvolutionParams& p,
     const int mask_spatial_size = static_cast<int>(shape_size(shape_reduce(mask_shape)));
 
     int out_idx = 0;
-    for (int i_y = static_cast<int>(-p.pads_begin[0]); i_y <= static_cast<int>(p.pads_end[0] + input_size_y - dilated_filter_size_y);
+    for (int i_y = static_cast<int>(-p.pads_begin[0]);
+         i_y <= static_cast<int>(p.pads_end[0] + input_size_y - dilated_filter_size_y);
          i_y += static_cast<int>(p.strides[0])) {
-        for (int i_x = static_cast<int>(-p.pads_begin[1]); i_x <= static_cast<int>(p.pads_end[1] + input_size_x - dilated_filter_size_x);
+        for (int i_x = static_cast<int>(-p.pads_begin[1]);
+             i_x <= static_cast<int>(p.pads_end[1] + input_size_x - dilated_filter_size_x);
              i_x += static_cast<int>(p.strides[1])) {
             auto input_channel = batch;
             auto filter_channel = filter;
@@ -169,11 +171,11 @@ void convolve_2D_channels(const ConvolutionParams& p,
                         T mask_scalar =
                             mask[deformable_group_idx * mask_size + f_buf_idx * mask_spatial_size + out_idx];
                         sum += static_cast<T>(bilinear_interpolation(input_channel,
-                                                      static_cast<float>(rel_i_x),
-                                                      static_cast<float>(rel_i_y),
-                                                      input_size_x,
-                                                      input_size_y,
-                                                      bilinear_interpolation_pad)) *
+                                                                     static_cast<float>(rel_i_x),
+                                                                     static_cast<float>(rel_i_y),
+                                                                     input_size_x,
+                                                                     input_size_y,
+                                                                     bilinear_interpolation_pad)) *
                                filter_channel[f_buf_idx] * mask_scalar;
                     }
                 }

@@ -113,7 +113,8 @@ private:
                         std::vector<std::vector<std::vector<dataType>>>& priorVariances) {
         priorBboxes.resize(priorsBatchSize);
         priorVariances.resize(priorsBatchSize);
-        int off = static_cast<int>(attrs.variance_encoded_in_target ? (numPriors * priorSize) : (2 * numPriors * priorSize));
+        int off =
+            static_cast<int>(attrs.variance_encoded_in_target ? (numPriors * priorSize) : (2 * numPriors * priorSize));
         for (size_t n = 0; n < priorsBatchSize; n++) {
             std::vector<NormalizedBBox>& currPrBbox = priorBboxes[n];
             std::vector<std::vector<dataType>>& currPrVar = priorVariances[n];

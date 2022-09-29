@@ -37,7 +37,8 @@ static inline void softmax_generic(const T* src_data, T* dst_data, int batches, 
 
             T sum = 0;
             for (int channel_idx = 0; channel_idx < channels; channel_idx++) {
-                dst_data[offset + channel_idx * area + i] = static_cast<T>(std::exp(src_data[offset + channel_idx * area + i] - max));
+                dst_data[offset + channel_idx * area + i] =
+                    static_cast<T>(std::exp(src_data[offset + channel_idx * area + i] - max));
                 sum += dst_data[offset + channel_idx * area + i];
             }
 

@@ -122,8 +122,10 @@ void psroi_pooling(const T* input,
                                     T bottom_right = input_offset[bottom * width + right];
 
                                     T top_interp = top_left + (top_right - top_left) * static_cast<T>(point_x - left);
-                                    T bottom_interp = bottom_left + (bottom_right - bottom_left) * static_cast<T>(point_x - left);
-                                    output[index] += top_interp + (bottom_interp - top_interp) * static_cast<T>(point_y - top);
+                                    T bottom_interp =
+                                        bottom_left + (bottom_right - bottom_left) * static_cast<T>(point_x - left);
+                                    output[index] +=
+                                        top_interp + (bottom_interp - top_interp) * static_cast<T>(point_y - top);
                                 }
                                 c_in++;
                             }

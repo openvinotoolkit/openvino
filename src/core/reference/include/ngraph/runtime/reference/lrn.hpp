@@ -81,7 +81,9 @@ void lrn(const T* arg,
         for (size_t i = 0; i < axes_map.size(); i++) {
             if (axes_map[i]) {
                 begin_area[i] = std::max<int>(0, static_cast<int>(in_coord.at(i)) - (static_cast<int>(size) - 1) / 2);
-                area_shape[i] = std::min<int>(static_cast<int>(arg_shape.at(i)), static_cast<int>(in_coord.at(i)) + (static_cast<int>(size) - 1) / 2 + 1) - begin_area[i];
+                area_shape[i] = std::min<int>(static_cast<int>(arg_shape.at(i)),
+                                              static_cast<int>(in_coord.at(i)) + (static_cast<int>(size) - 1) / 2 + 1) -
+                                begin_area[i];
             } else {
                 begin_area[i] = in_coord.at(i);
             }

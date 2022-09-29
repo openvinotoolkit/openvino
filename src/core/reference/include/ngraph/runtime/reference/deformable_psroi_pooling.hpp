@@ -150,11 +150,13 @@ void deformable_psroi_pooling(const T* data_input,
                             const float delta_left_x = std::fabs(sub_bin_x1_idx - left_x);
                             const float delta_top_y = std::fabs(sub_bin_y1_idx - top_y);
 
-                            const T top_interp = top_left_sample + (top_right_sample - top_left_sample) * static_cast<T>(delta_left_x);
-                            const T bottom_interp =
-                                bottom_left_sample + (bottom_right_sample - bottom_left_sample) * static_cast<T>(delta_left_x);
+                            const T top_interp =
+                                top_left_sample + (top_right_sample - top_left_sample) * static_cast<T>(delta_left_x);
+                            const T bottom_interp = bottom_left_sample + (bottom_right_sample - bottom_left_sample) *
+                                                                             static_cast<T>(delta_left_x);
 
-                            const T sub_bin_value = top_interp + (bottom_interp - top_interp) * static_cast<T>(delta_top_y);
+                            const T sub_bin_value =
+                                top_interp + (bottom_interp - top_interp) * static_cast<T>(delta_top_y);
 
                             legit_sub_bin_count++;
                             sub_bins_val_sum += sub_bin_value;
