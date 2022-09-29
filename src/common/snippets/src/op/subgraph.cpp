@@ -47,13 +47,9 @@ snippets::op::Subgraph::Subgraph(const OutputVector& args, std::shared_ptr<ov::M
     for (const auto& op : ops) {
         config.m_is_quantized = config.m_is_quantized || ov::is_type<ov::op::v0::FakeQuantize>(op);
         config.m_has_type_relaxed_ops = config.m_has_type_relaxed_ops || std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(op);
+        config.m_is_needed_to_align_precision = config.m_is_needed_to_align_precision || is_quantized() || has_type_relaxed_ops() ||
+            snippets::pass::AlignElementType::opNeedsAlignElementType(op, execution_element_type);
     }
-
-    config.m_is_needed_to_align_precision = is_quantized() || has_type_relaxed_ops() ||
-        std::any_of(ops.begin(), ops.end(), [&](const std::shared_ptr<ov::Node>& op) {
-            // At the moment Snippets support only Eltwise/Convert/FQ which one output so we can just call get_element_type()
-            return ngraph::snippets::utils::is_executable_op_only_on_exec_type(op) && op->get_element_type() != execution_element_type;
-        });
 
     constructor_validate_and_infer_types();
 }

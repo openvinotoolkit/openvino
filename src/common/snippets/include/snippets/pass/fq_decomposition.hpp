@@ -80,7 +80,6 @@ public:
  *          1. FakeQuantization decomposition
  *          2. ConstantFolding
  *          3. Validate
- *          4. TransformConvertToConvertSaturation - Converts after FQ decomposition should have saturation behavior
  */
 class CommonFakeQuantizeDecomposition: public ngraph::pass::FunctionPass {
 public:

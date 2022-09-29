@@ -36,26 +36,3 @@ ngraph::snippets::pass::TransformConvertToConvertTruncation::TransformConvertToC
             return true;
         });
 }
-
-ngraph::snippets::pass::TransformConvertToConvertSaturation::TransformConvertToConvertSaturation() {
-    MATCHER_SCOPE(TransformConvertToConvertSaturation);
-    auto convert_after_fq_decomp = std::make_shared<pattern::op::Label>(pattern::any_input(),
-                                                [](std::shared_ptr<Node> n) {
-                                                    return ov::is_type<ngraph::opset1::Convert>(n) &&
-                                                        !ov::is_type<op::ConvertTruncation>(n) &&
-                                                        !ov::is_type<op::ConvertSaturation>(n);
-                                                });
-    register_matcher(std::make_shared<ngraph::pattern::Matcher>(convert_after_fq_decomp, matcher_name),
-            [this](ngraph::pattern::Matcher &m) {
-            OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::TransformConvertToConvertSaturation")
-            const auto root = m.get_match_root();
-            const auto convert = ngraph::as_type_ptr<ngraph::opset1::Convert>(root);
-            auto convert_saturation = std::make_shared<op::ConvertSaturation>(convert->get_input_source_output(0),
-                                                                              convert->get_destination_type());
-            convert_saturation->set_friendly_name(convert->get_friendly_name());
-            ngraph::copy_runtime_info(convert, convert_saturation);
-            ngraph::replace_node(convert, convert_saturation);
-
-            return true;
-        });
-}

@@ -50,10 +50,12 @@ public:
     void setProperty(const std::map<std::string, std::string> &properties);
     Config getProperty() const;
 
+    // NOTE: At the moment Snippets aren't supported inside If, TensorIterator so we move nullptr for these cases
     template<typename NET>
     void CreateGraph(NET &network,
                      const ExtensionManager::Ptr& extMgr,
-                     WeightsSharing::Ptr &w_cache);
+                     WeightsSharing::Ptr &w_cache,
+                     const std::shared_ptr<std::mutex>& snippetMutex = nullptr);
 
     void CreateGraph(const std::vector<NodePtr> &graphNodes,
                      const std::vector<EdgePtr> &graphEdges,
@@ -231,8 +233,10 @@ protected:
 
     static dnnl::engine eng;
 
-    void Replicate(const InferenceEngine::CNNNetwork &network, const ExtensionManager::Ptr& extMgr);
-    void Replicate(const std::shared_ptr<const ov::Model> &subgraph, const ExtensionManager::Ptr& extMgr);
+    void Replicate(const InferenceEngine::CNNNetwork &network, const ExtensionManager::Ptr& extMgr,
+                   const std::shared_ptr<std::mutex>& snippetMutex);
+    void Replicate(const std::shared_ptr<const ov::Model> &subgraph, const ExtensionManager::Ptr& extMgr,
+                   const std::shared_ptr<std::mutex>& snippetMutex);
     void InitGraph();
     void InitNodes();
     void InitDescriptors();

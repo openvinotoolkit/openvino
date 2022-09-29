@@ -3,6 +3,7 @@
 //
 
 #include "snippets/pass/fq_decomposition.hpp"
+#include "snippets/op/convert_saturation.hpp"
 #include "snippets/itt.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
@@ -90,7 +91,7 @@ ngraph::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         ngraph::NodeVector decomp_ops;
         if (input_type != input_low.get_element_type()) {
             input_type = input_low.get_element_type();
-            data = std::make_shared<ngraph::opset1::Convert>(data, input_type);
+            data = std::make_shared<ngraph::snippets::op::ConvertSaturation>(data, input_type);
             decomp_ops.push_back(data.get_node_shared_ptr());
         }
 
@@ -164,7 +165,7 @@ ngraph::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         }
 
         if (result->get_output_element_type(0) != fake_quantize_node->get_output_element_type(0)) {
-            result = std::make_shared<ngraph::opset1::Convert>(result, fake_quantize_node->get_output_element_type(0));
+            result = std::make_shared<snippets::op::ConvertSaturation>(result, fake_quantize_node->get_output_element_type(0));
             decomp_ops.push_back(result);
         }
 
@@ -302,7 +303,6 @@ bool ngraph::snippets::pass::CommonFakeQuantizeDecomposition::run_on_model(const
     manager.register_pass<ngraph::snippets::pass::FakeQuantizeDecomposition>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::Validate>();
-    manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertSaturation>();
     manager.run_passes(f);
     return false;
 }

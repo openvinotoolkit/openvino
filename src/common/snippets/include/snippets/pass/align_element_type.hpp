@@ -17,7 +17,7 @@ namespace pass {
  *        and reset element type for type relaxed nodes inside body to align element type between nodes.
  *        Example 1:
  *          - After FQ decomposition there may be Convert[U8/I8]. If after the Convert there are other operations
- *            that don't support U8/I8, new ConvertSaturatio[exec_type] will be inserted after the FQ decomposition Convert
+ *            that don't support U8/I8, new ConvertSaturation[exec_type] will be inserted after the FQ decomposition
  *            to execute these operations on supported element type
  *        Example 2:
  *          - Input[I8] -> Unsupported I8 op -> Movement op -> Output[I8]. There will be inserted two ConvertSaturation:
@@ -35,6 +35,8 @@ public:
     OPENVINO_RTTI("AlignElementType", "0");
     AlignElementType(const ov::element::Type exec_type = ov::element::f32);
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+
+    static bool opNeedsAlignElementType(const std::shared_ptr<ov::Node>& n, const ov::element::Type exec_type = ov::element::f32);
 private:
     ov::element::Type exec_type;
 };

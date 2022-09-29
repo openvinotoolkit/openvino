@@ -13,6 +13,27 @@
 
 #include <ngraph/rt_info.hpp>
 
+namespace {
+
+auto is_in_out_op(const std::shared_ptr<ov::Node>& n) -> bool {
+    return ov::is_type<ov::op::v0::Parameter>(n)
+        || ov::is_type<ov::op::v0::Constant>(n)
+        || ov::is_type<ov::op::v0::Result>(n);
+}
+
+// At the moment Subgraph supports only Eltwise, Convert and FQ (which is decomposed into Eltwises and Convert)
+// And only Eltwises supports execution only in "exec_type". So we can check op type from the opposite
+auto op_supports_only_exec_type(const std::shared_ptr<ov::Node>& n) -> bool {
+    return !ov::is_type<ov::op::v0::Convert>(n);
+}
+
+// Check if executable operation supports only execution element type f32
+// NOTE: Executable op is node that isn't Parameter/Constant/Result
+auto is_executable_op_only_on_exec_type(const std::shared_ptr<ov::Node>& n) -> bool {
+    return op_supports_only_exec_type(n) && !is_in_out_op(n);
+}
+
+}  // namespace
 
 ngraph::snippets::pass::AlignElementType::AlignElementType(const ov::element::Type exec_type) : exec_type(exec_type) { }
 
@@ -29,11 +50,11 @@ bool ngraph::snippets::pass::AlignElementType::run_on_model(const std::shared_pt
     bool rewritten = false;
     auto ops = m->get_ordered_ops();
     for (auto& op : ops) {
-        if (ngraph::snippets::utils::is_special_op(op) || ov::is_type<ov::op::v0::Convert>(op)) {
+        if (is_in_out_op(op) || ov::is_type<ov::op::v0::Convert>(op)) {
             continue;
         }
 
-        if (ngraph::snippets::utils::op_supports_only_exec_type(op)) {
+        if (op_supports_only_exec_type(op)) {
             for (auto i = 0; i < op->inputs().size(); i++) {
                 auto shared_input = op->get_input_node_shared_ptr(i);
                 auto existing_convert = ov::as_type_ptr<ov::op::v0::Convert>(shared_input);
@@ -42,8 +63,7 @@ bool ngraph::snippets::pass::AlignElementType::run_on_model(const std::shared_pt
                 //  - Input is Op which support any element type
                 // We couldn't unite these conditions and just check that element type isn't supported exec type
                 // because we don't call validate_and_infer_types() so we don't know new precisions
-                if ((existing_convert && existing_convert->get_destination_type() != exec_type) ||
-                    (!ngraph::snippets::utils::is_executable_op_only_on_exec_type(shared_input))) {
+                if ((existing_convert && existing_convert->get_destination_type() != exec_type) || (!is_executable_op_only_on_exec_type(shared_input))) {
                     insertConvert(op, i, exec_type);
                     rewritten |= true;
                 }
@@ -60,7 +80,7 @@ bool ngraph::snippets::pass::AlignElementType::run_on_model(const std::shared_pt
                 // If before op there is another op that doesn't support execution on original element type, we know that
                 // before this op will be inserted reverse Convert to support execution on supported element type (first branch of condition).
                 // So we should return original element type for operations that can support low precision
-                if (ngraph::snippets::utils::is_executable_op_only_on_exec_type(shared_input) && original_eltype != exec_type) {
+                if (is_executable_op_only_on_exec_type(shared_input) && original_eltype != exec_type) {
                     insertConvert(op, i, original_eltype);
                     rewritten |= true;
                 }
@@ -69,4 +89,9 @@ bool ngraph::snippets::pass::AlignElementType::run_on_model(const std::shared_pt
     }
 
     return rewritten;
+}
+
+bool ngraph::snippets::pass::AlignElementType::opNeedsAlignElementType(const std::shared_ptr<ov::Node>& op, const ov::element::Type exec_type) {
+    // At the moment Snippets support only Eltwise/Convert/FQ which one output so we can just call get_element_type()
+    return is_executable_op_only_on_exec_type(op) && op->get_element_type() != exec_type;
 }

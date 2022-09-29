@@ -28,9 +28,6 @@ Config::Config() {
     // this is default mode
     streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::CORES;
 
-    // shared mutex for snippet nodes
-    snippetMutex = std::make_shared<std::mutex>();
-
     // for the TBB code-path, additional configuration depending on the OS and CPU types
     #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         #if defined(__APPLE__) || defined(_WIN32)

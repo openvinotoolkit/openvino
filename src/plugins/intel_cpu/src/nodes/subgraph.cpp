@@ -59,7 +59,7 @@ void Snippet::copy_snippet() {
         subgraph_node_inputs.push_back(new_input);
     }
     std::shared_ptr<ov::Model> new_body = nullptr;
-    // TypeRelaxed ops aren't thread safe so we use mutex to avoid collision in throughput mode
+    // Ticket[79554]: TypeRelaxed ops aren't thread safe so we use mutex to avoid collision in throughput mode
     if (original_snippet->has_type_relaxed_ops()) {
         if (!snippetMutex) {
             IE_THROW() << "Subgraph doesn't have shared mutex";

@@ -35,7 +35,6 @@ struct Config {
     std::string dumpToDot = "";
     int batchLimit = 0;
     size_t rtCacheCapacity = 5000ul;
-    std::shared_ptr<std::mutex> snippetMutex;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
     InferenceEngine::PerfHintsConfig  perfHintsConfig;
 #if defined(__arm__) || defined(__aarch64__)
