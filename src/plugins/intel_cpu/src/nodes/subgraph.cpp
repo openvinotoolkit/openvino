@@ -20,6 +20,8 @@
 #include <ngraph/rt_info.hpp>
 #include <ie_ngraph_utils.hpp>
 
+#include <shared_mutex>
+
 #include <snippets/op/subgraph.hpp>
 #include "emitters/cpu_generator.hpp"
 #include "snippets_transformations/fuse_load_store_and_convert.hpp"
@@ -36,39 +38,45 @@ namespace intel_cpu {
 namespace node {
 
 
-std::mutex type_relax_mutex;
-
 Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node(op, eng, cache) {
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
         dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
-
-    // Create a deep local copy of the input snippet to perform canonicalization & code generation
-    // Todo: Probably better to implement a proper copy constructor
-    if (const auto tmp_snippet =  ov::as_type_ptr<ngraph::snippets::op::Subgraph>(op)) {
-        ngraph::OutputVector subgraph_node_inputs;
-        for (const auto &input : tmp_snippet->input_values()) {
-            auto new_input = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
-            subgraph_node_inputs.push_back(new_input);
-        }
-        std::shared_ptr<ov::Model> new_body = nullptr;
-        // TypeRelaxed ops aren't thread safe
-        if (tmp_snippet->has_type_relaxed_ops()) {
-            std::lock_guard<std::mutex> lock(type_relax_mutex);
-            new_body = ov::clone_model(*tmp_snippet->get_body().get());
-        } else {
-            new_body = ov::clone_model(*tmp_snippet->get_body().get());
-        }
-        snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
-        ngraph::copy_runtime_info(tmp_snippet, snippet);
-        snippet->set_friendly_name(tmp_snippet->get_friendly_name());
-        snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
-    } else {
+    original_snippet = ov::as_type_ptr<ngraph::snippets::op::Subgraph>(op);
+    if (!original_snippet) {
         IE_THROW(NotImplemented) << "Node is not an instance of snippets::op::Subgraph";
     }
 }
 
+void Snippet::setSharedMutex(const std::shared_ptr<std::mutex>& mutex) {
+    snippetMutex = mutex;
+}
+
+void Snippet::copy_snippet() {
+    ngraph::OutputVector subgraph_node_inputs;
+    for (const auto &input : original_snippet->input_values()) {
+        auto new_input = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
+        subgraph_node_inputs.push_back(new_input);
+    }
+    std::shared_ptr<ov::Model> new_body = nullptr;
+    // TypeRelaxed ops aren't thread safe so we use mutex to avoid collision in throughput mode
+    if (original_snippet->has_type_relaxed_ops()) {
+        if (!snippetMutex) {
+            IE_THROW() << "Subgraph doesn't have shared mutex";
+        }
+        std::lock_guard<std::mutex> lock(*snippetMutex.get());
+        new_body = ov::clone_model(*original_snippet->get_body().get());
+    } else {
+        new_body = ov::clone_model(*original_snippet->get_body().get());
+    }
+    snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
+    ngraph::copy_runtime_info(original_snippet, snippet);
+    snippet->set_friendly_name(original_snippet->get_friendly_name());
+    snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
+}
+
 void Snippet::initSupportedPrimitiveDescriptors() {
+    copy_snippet();
     if (!supportedPrimitiveDescriptors.empty())
         return;
 

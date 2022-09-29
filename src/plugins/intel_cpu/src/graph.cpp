@@ -25,6 +25,7 @@
 #include "nodes/input.h"
 #include <nodes/reorder.h>
 #include "nodes/convert.h"
+#include "nodes/subgraph.h"
 
 #include <ie_algorithm.hpp>
 #include <blob_factory.hpp>
@@ -153,6 +154,9 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph, const Ex
         if (isQuantized()) {
             node->setQuantizedGraphFlag(true);
         }
+        if (auto snippet = std::dynamic_pointer_cast<ov::intel_cpu::node::Snippet>(node)) {
+            snippet->setSharedMutex(config.snippetMutex);
+        }
         node->setRuntimeCache(rtParamsCache);
 
         graphNodes.push_back(node);
@@ -264,6 +268,9 @@ void Graph::Replicate(const CNNNetwork &network, const ExtensionManager::Ptr& ex
         const NodePtr node(Node::factory().create(op, getEngine(), extMgr, weightsCache));
         if (isQuantized()) {
             node->setQuantizedGraphFlag(true);
+        }
+        if (auto snippet = std::dynamic_pointer_cast<ov::intel_cpu::node::Snippet>(node)) {
+            snippet->setSharedMutex(config.snippetMutex);
         }
         node->setRuntimeCache(rtParamsCache);
         graphNodes.push_back(node);
