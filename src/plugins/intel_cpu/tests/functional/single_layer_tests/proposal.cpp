@@ -337,5 +337,117 @@ INSTANTIATE_TEST_SUITE_P(smoke_Proposal_Dynamic_Test_Case2, ProposalLayerCPUTest
                                             ::testing::ValuesIn(netPrecision)),
                          ProposalLayerCPUTest::getTestCaseName);
 
+const auto proposal_39436 = std::make_tuple(
+        base_size_type {256},
+        box_coordinate_scale_type {10.f},
+        box_size_scale_type {5.f},
+        clip_after_nms_type {false},
+        clip_before_nms_type {true},
+        feat_stride_type {8},
+        framework_type {"tensorflow"},
+        min_size_type {1},
+        nms_thresh_type {0.69999998807907104},
+        normalize_type {true},
+        post_nms_topn_type {100},
+        pre_nms_topn_type {2147483647},
+        ratio_type {0.5f, 1.f, 2.f},
+        scale_type {0.25f, 0.5f, 1.f, 2.f}
+);
+
+std::vector<std::vector<ov::Shape>> static_input_shapes_case_39436 = {
+        {{1, 24, 100, 171}, {1, 48, 100, 171}, {3}}
+};
+
+const auto proposal_523716 = std::make_tuple(
+        base_size_type {256},
+        box_coordinate_scale_type {10.f},
+        box_size_scale_type {5.f},
+        clip_after_nms_type {false},
+        clip_before_nms_type {true},
+        feat_stride_type {8},
+        framework_type {"tensorflow"},
+        min_size_type {1},
+        nms_thresh_type {0.69999998807907104},
+        normalize_type {true},
+        post_nms_topn_type {300},
+        pre_nms_topn_type {2147483647},
+        ratio_type {0.5f, 1.f, 2.f},
+        scale_type {0.25f, 0.5f, 1.f, 2.f}
+);
+
+std::vector<std::vector<ov::Shape>> static_input_shapes_case_523716 = {
+        {{1, 24, 75, 128}, {1, 48, 75, 128}, {3}}
+};
+
+const auto proposal_1201148 = std::make_tuple(
+        base_size_type {16},
+        box_coordinate_scale_type {1.f},
+        box_size_scale_type {1.f},
+        clip_after_nms_type {false},
+        clip_before_nms_type {true},
+        feat_stride_type {16},
+        framework_type {""}, // empty string corresponds to Caffe framework
+        min_size_type {12},
+        nms_thresh_type {0.69999998807907104},
+        normalize_type {true},
+        post_nms_topn_type {300},
+        pre_nms_topn_type {6000},
+        ratio_type {0.5f, 1.f, 2.f},
+        scale_type {2, 4, 8, 16, 32}
+);
+
+std::vector<std::vector<ov::Shape>> static_input_shapes_case_1201148 = {
+        {{1, 30, 50, 80}, {1, 60, 50, 80}, {3}}
+};
+
+const auto proposal_1417785 = std::make_tuple(
+        base_size_type {16},
+        box_coordinate_scale_type {1.f},
+        box_size_scale_type {1.f},
+        clip_after_nms_type {false},
+        clip_before_nms_type {true},
+        feat_stride_type {16},
+        framework_type {""}, // empty string corresponds to Caffe framework
+        min_size_type {16},
+        nms_thresh_type {0.60000002384185791},
+        normalize_type {true},
+        post_nms_topn_type {200},
+        pre_nms_topn_type {6000},
+        ratio_type {2.669f},
+        scale_type {4, 6, 9, 16, 24, 32}
+);
+
+std::vector<std::vector<ov::Shape>> static_input_shapes_case_1417785 = {
+        {{1, 12, 34, 62}, {1, 24, 34, 62}, {3}}
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Proposal_Static_Test_39436, ProposalLayerCPUTest,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(static_shapes_to_test_representation(static_input_shapes_case_39436)),
+                             ::testing::ValuesIn({proposal_39436}),
+                             ::testing::ValuesIn(netPrecision)),
+                         ProposalLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Proposal_Static_Test_523716, ProposalLayerCPUTest,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(static_shapes_to_test_representation(static_input_shapes_case_523716)),
+                             ::testing::ValuesIn({proposal_523716}),
+                             ::testing::ValuesIn(netPrecision)),
+                         ProposalLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Proposal_Static_Test_1201148, ProposalLayerCPUTest,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(static_shapes_to_test_representation(static_input_shapes_case_1201148)),
+                             ::testing::ValuesIn({proposal_1201148}),
+                             ::testing::ValuesIn(netPrecision)),
+                         ProposalLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Proposal_Static_Test_1417785, ProposalLayerCPUTest,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(static_shapes_to_test_representation(static_input_shapes_case_39436)),
+                             ::testing::ValuesIn({proposal_39436}),
+                             ::testing::ValuesIn(netPrecision)),
+                         ProposalLayerCPUTest::getTestCaseName);
+
 }  // namespace
 }  // namespace CPULayerTestsDefinitions
