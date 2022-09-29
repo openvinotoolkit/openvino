@@ -132,6 +132,25 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_fa
         return std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
 }
 
+std::shared_ptr<ov::Model> CreateFunctionTranspose2Consumers(UnaryFactoryPtr unary_factory, size_t num_unary_ops) {
+        ov::Shape input_shape{1, 96, 55, 55};
+        auto input_type = ov::element::f32;
+
+        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+
+        NodePtr in_op = X;
+        for (int i = 0; i < num_unary_ops; ++i) {
+            in_op = unary_factory->create(in_op);
+        }
+
+        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+        auto transpose0 = std::make_shared<ov::opset9::Transpose>(in_op, ng_order0);
+
+        auto cosh = std::make_shared<ov::opset9::Cosh>(in_op);
+
+        return std::make_shared<ov::Model>(ov::OutputVector{transpose0, cosh}, ov::ParameterVector{X});
+}
+
 std::vector<UnaryFactoryPtr> unary_factories = {
     CreateUnaryFactory<ov::opset9::Clamp>(),
     CreateUnaryFactory<ov::opset9::Elu>(),
@@ -194,3 +213,10 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackwardTestSuite, TransposeSinkin
                                             ::testing::ValuesIn(unary_operations_numbers),
                                             ::testing::Values(CreateFunctionTransposeAfter),
                                             ::testing::Values(CreateFunctionTransposeBefore)));
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackward2ConsumersTestSuite, TransposeSinkingUnaryTestFixture,
+                         ::testing::Combine(::testing::ValuesIn(unary_factories),
+                                            ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingUnaryBackward>()),
+                                            ::testing::ValuesIn(unary_operations_numbers),
+                                            ::testing::Values(CreateFunctionTranspose2Consumers),
+                                            ::testing::Values(CreateFunctionTranspose2Consumers)));

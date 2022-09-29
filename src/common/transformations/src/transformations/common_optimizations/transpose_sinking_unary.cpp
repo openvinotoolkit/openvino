@@ -79,12 +79,12 @@ ov::pass::TransposeSinkingUnaryBackward::TransposeSinkingUnaryBackward() {
                                  ov::opset9::Elu,
                                  ov::opset9::SoftPlus,
                                  ov::opset9::LogicalNot,
-                                 ov::opset9::Convert>({ov::pass::pattern::any_input()});
+                                 ov::opset9::Convert>({ov::pass::pattern::any_input()},
+                                 ov::pass::pattern::consumers_count(1));
 
     auto transpose_label =
         ov::pass::pattern::wrap_type<ov::opset9::Transpose>({unary_label,
-                                                             ov::pass::pattern::wrap_type<ov::opset9::Constant>()},
-                                                            ov::pass::pattern::consumers_count(1));
+                                                             ov::pass::pattern::wrap_type<ov::opset9::Constant>()});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
