@@ -707,22 +707,4 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSplitWithEmptyPor
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{input1});
         manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
     }
-    {
-        auto input1 = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 96, 96});
-
-        auto split1_axis = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, {axis});
-        auto split1 = std::make_shared<ngraph::opset8::Split>(input1, split1_axis, num_splits);
-
-        auto concat_const1 = ngraph::opset8::Constant::create(ngraph::element::f32,
-                                                              ngraph::Shape{1, 1, 96, 96},
-                                                              std::vector<float>(96 * 96, 0));
-        auto concat_const2 = ngraph::opset8::Constant::create(ngraph::element::f32,
-                                                              ngraph::Shape{1, 1, 96, 96},
-                                                              std::vector<float>(96 * 96, 0));
-
-        ngraph::OutputVector concat_inputs_vec{split1->output(0), concat_const1, concat_const2};
-
-        auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{input1});
-    }
 }
