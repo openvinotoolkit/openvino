@@ -4,8 +4,6 @@
 
 set(TARGET_NAME "inference_engine_transformations")
 
-add_compile_options("/Zi")
-
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
