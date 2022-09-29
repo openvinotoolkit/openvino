@@ -24,18 +24,19 @@ protected:
         return make_unique<pooling_onednn>(*this);
     }
 
-    static std::shared_ptr<dnnl::pooling_forward::desc> get_pooling_descriptor(const pooling_node& arg) {
-        auto prim = arg.get_primitive();
+    static std::shared_ptr<dnnl::pooling_forward::desc> get_pooling_descriptor(const kernel_impl_params& impl_params) {
+        auto prim = impl_params.typed_desc<pooling>();
 
-        auto& input = arg.get_dependency(0);
+        auto input_layout = impl_params.get_input_layout(0);
+        auto output_layout = impl_params.output_layout;
 
         dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
         dnnl::memory::dims kernel(prim->size.begin(), prim->size.end());
         dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
         dnnl::memory::dims pad_r(prim->pad_end.begin(), prim->pad_end.end());
 
-        auto input_md = onednn::layout_to_memory_desc(input.get_output_layout());
-        auto output_md = onednn::layout_to_memory_desc(arg.get_output_layout());
+        auto input_md = onednn::layout_to_memory_desc(input_layout);
+        auto output_md = onednn::layout_to_memory_desc(output_layout);
 
         if (prim->global_pooling) {
             for (size_t i = 0; i < kernel.size(); i++)
@@ -66,75 +67,40 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const pooling_node& arg, const kernel_impl_params&) {
-        auto& engine = arg.get_program().get_engine();
-        auto desc = get_pooling_descriptor(arg);
+    static primitive_impl* create(const pooling_node& arg, const kernel_impl_params& impl_params) {
+        auto& engine = impl_params.prog.get_engine();
+        auto desc = get_pooling_descriptor(impl_params);
         auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return new pooling_onednn(arg, desc, attr, prim_desc);
+        return new pooling_onednn(engine, desc, attr, prim_desc);
     }
 };
 
 namespace detail {
 
 attach_pooling_onednn::attach_pooling_onednn() {
-    implementation_map<pooling>::add(impl_types::onednn, pooling_onednn::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
+    std::vector<data_types> dt = {
+        data_types::f32,
+        data_types::f16,
+        data_types::u8,
+        data_types::i8,
+    };
+    std::vector<format::type> fmt = {
+        format::bfyx,
+        format::b_fs_yx_fsv16,
+        format::b_fs_zyx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::b_fs_zyx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
+        format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv32_fsv16,
+        format::bs_fs_zyx_bsv32_fsv32,
+    };
 
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-
-        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
-
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
-
-        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv32),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
-
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv16_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv16),
-
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv16),
-
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv32),
-    });
+    implementation_map<pooling>::add(impl_types::onednn, pooling_onednn::create, dt, fmt);
 }
 
 }  // namespace detail
