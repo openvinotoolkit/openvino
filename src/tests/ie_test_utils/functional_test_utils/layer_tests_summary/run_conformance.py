@@ -136,8 +136,8 @@ class Conformance:
             f'{"" if IS_WIN else "source"} {activate_path}{OS_SCRYPT_EXT}; '\
             f'pip3 install -e "{mo_path}/.[caffe,kaldi,mxnet,onnx,pytorch,tensorflow2]"; ' \
             f'pip3 install "{omz_tools_path}/.[paddle,pytorch,tensorflow]"; ' \
-            f'omz_downloader --name=vgg16 --output_dir="{original_model_path}"; '\
-            f'omz_converter --name=vgg16 --download_dir="{original_model_path}" --output_dir="{converted_model_path}"; '\
+            f'omz_downloader --all --output_dir="{original_model_path}"; '\
+            f'omz_converter --all --download_dir="{original_model_path}" --output_dir="{converted_model_path}"; '\
             f'deactivate'
         process = Popen(command, shell=True, env=convert_model_env)
         out, err = process.communicate()
@@ -187,6 +187,8 @@ class Conformance:
     def run_conformance(self):
         gtest_parallel_path = os.path.join(self.__download_repo(GTEST_PARALLEL_URL, GTEST_PARALLEL_BRANCH), "thirdparty", "gtest-parallel", "gtest_parallel.py")
         worker_num = os.cpu_count()
+        if worker_num > 2:
+            worker_num = worker_num - 1
         conformance_path = None
         if self._type == "OP":
             conformance_path = os.path.join(self._ov_bin_path, OP_CONFORMANCE_BIN_NAME)
@@ -195,6 +197,9 @@ class Conformance:
 
         logs_dir = os.path.join(self._working_dir, f'{self._device}_logs')
         report_dir = os.path.join(self._working_dir, 'report')
+        if os.path.isdir(report_dir):
+            logger.info(f"Report dir {report_dir} is cleaned up")
+            os.rmdir(report_dir)
         parallel_report_dir = os.path.join(report_dir, 'parallel')
         conformance_filelist_path = self._prepare_filelist()
         if not os.path.exists(report_dir):
