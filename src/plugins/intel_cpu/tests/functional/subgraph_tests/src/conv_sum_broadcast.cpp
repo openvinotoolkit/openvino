@@ -333,7 +333,12 @@ const std::vector<InputShape> secondInp = {
             {1, 64, 8, 1}
         }
     },
-    {{1, 64, 8, 8}, {{1, 64, 8, 8}}},
+    {
+        {1, 64, 8, 8},
+        {
+            {1, 64, 8, 8}
+        }
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP32, ConcatConvSumInPlaceTest,
