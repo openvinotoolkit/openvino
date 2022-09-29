@@ -51,16 +51,13 @@ protected:
         }
     }
 
-    static std::shared_ptr<dnnl::matmul::desc> get_gemm_descriptor(const gemm_node& arg) {
-        auto prim = arg.get_primitive();
+    static std::shared_ptr<dnnl::matmul::desc> get_gemm_descriptor(const kernel_impl_params& impl_params) {
+        auto prim = impl_params.typed_desc<gemm>();
         auto gemm_with_bias = prim->dependencies().size() == 3;
 
-        auto& input0 = arg.get_dependency(0);
-        auto& input1 = arg.get_dependency(1);
-
-        auto in0_l = input0.get_output_layout();
-        auto in1_l = input1.get_output_layout();
-        auto out_l = arg.get_output_layout();
+        auto in0_l = impl_params.get_input_layout(0);
+        auto in1_l = impl_params.get_input_layout(1);
+        auto out_l = impl_params.output_layout;
 
         size_t in0_batched_size = in0_l.count() / (in0_l.spatial(0) * in0_l.spatial(1));
         size_t in1_batched_size = in1_l.count() / (in1_l.spatial(0) * in1_l.spatial(1));
@@ -68,7 +65,7 @@ protected:
 
         auto batched_dims_can_be_removed = in0_batched_size == 1 && in1_batched_size == 1 && out_batched_size == 1;
         if (gemm_with_bias) {
-            auto bias_l = arg.get_dependency(2).get_output_layout();
+            auto bias_l = impl_params.get_input_layout(2);
             size_t bias_batched_size = bias_l.count() / (bias_l.spatial(0) * bias_l.spatial(1));
             batched_dims_can_be_removed &= bias_batched_size == 1;
         }
@@ -102,7 +99,7 @@ protected:
         dnnl::memory::desc out_md(out_dims, out_dt, out_fmt);
 
         if (gemm_with_bias) {
-            auto bias_l = arg.get_dependency(2).get_output_layout();
+            auto bias_l = impl_params.get_input_layout(2);
             auto bias_rank = cldnn::format::dimension(bias_l.format);
             dnnl::memory::data_type bias_dt = onednn::convert_data_type(bias_l.data_type);
             dnnl::memory::dims bias_dims = onednn::convert_gemm_tensor(bias_l.get_tensor(), bias_rank, batched_dims_can_be_removed);
@@ -123,35 +120,31 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const gemm_node& arg, const kernel_impl_params&) {
-        auto& engine = arg.get_program().get_engine();
-        auto desc = get_gemm_descriptor(arg);
+    static primitive_impl* create(const gemm_node& arg, const kernel_impl_params& impl_params) {
+        auto& engine = impl_params.prog.get_engine();
+        auto desc = get_gemm_descriptor(impl_params);
         auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return new gemm_onednn(arg, desc, attr, prim_desc);
+        return new gemm_onednn(engine, desc, attr, prim_desc);
     }
 };
 
 namespace detail {
 
 attach_gemm_onednn::attach_gemm_onednn() {
-    implementation_map<gemm>::add(impl_types::onednn, gemm_onednn::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::u8, format::bfwzyx),
-        std::make_tuple(data_types::i8, format::bfwzyx),
-    });
+    std::vector<data_types> dt = {
+        data_types::f32,
+        data_types::f16,
+        data_types::u8,
+        data_types::i8,
+    };
+    std::vector<format::type> fmt = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx,
+    };
+    implementation_map<gemm>::add(impl_types::onednn, gemm_onednn::create, dt, fmt);
 }
 
 }  // namespace detail
