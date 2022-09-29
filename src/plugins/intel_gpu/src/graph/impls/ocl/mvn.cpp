@@ -26,16 +26,17 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
     }
 
 public:
-    static primitive_impl* create(const mvn_node& arg) {
-        auto mvn_params = get_default_params<kernel_selector::mvn_params>(arg);
+    static primitive_impl* create(const mvn_node& arg, const kernel_impl_params& impl_param) {
+        const auto& prim = arg.get_primitive();
+        auto mvn_params = get_default_params<kernel_selector::mvn_params>(impl_param);
         auto mvn_optional_params = get_default_optional_params<kernel_selector::mvn_optional_params>(arg.get_program());
 
-        mvn_params.mvnMode = arg.get_primitive()->across_channels ? kernel_selector::mvn_mode::ACROSS_CHANNELS
+        mvn_params.mvnMode = prim->across_channels ? kernel_selector::mvn_mode::ACROSS_CHANNELS
                                                                   : kernel_selector::mvn_mode::WITHIN_CHANNELS;
-        mvn_params.mvnNormalizeVariance = arg.get_primitive()->normalize_variance;
-        mvn_params.epsilon = arg.get_primitive()->epsilon;
+        mvn_params.mvnNormalizeVariance = prim->normalize_variance;
+        mvn_params.epsilon = prim->epsilon;
 
-        mvn_params.mvnEpsMode = arg.get_primitive()->eps_inside_sqrt ? kernel_selector::mvn_eps_mode::INSIDE_SQRT
+        mvn_params.mvnEpsMode = prim->eps_inside_sqrt ? kernel_selector::mvn_eps_mode::INSIDE_SQRT
                                                                      : kernel_selector::mvn_eps_mode::OUTSIDE_SQRT;
 
         auto& kernel_selector = kernel_selector::mvn_kernel_selector::Instance();

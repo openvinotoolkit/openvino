@@ -26,7 +26,7 @@ public:
     using parent = typed_primitive_inst_base<roll>;
     using parent::parent;
 
-    static layout calc_output_layout(const roll_node& node);
+    static layout calc_output_layout(const roll_node& node, kernel_impl_params const& impl_param);
     static std::string to_string(const roll_node& node);
 };
 

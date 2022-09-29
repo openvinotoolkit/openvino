@@ -53,13 +53,14 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const non_max_suppression_node& arg) {
-        auto params = get_default_params<kernel_selector::non_max_suppression_params>(arg);
+    static primitive_impl* create(const non_max_suppression_node& arg, const kernel_impl_params& impl_param) {
+        const auto& primitive = arg.get_primitive();
+        auto params = get_default_params<kernel_selector::non_max_suppression_params>(impl_param);
         auto optional_params =
             get_default_optional_params<kernel_selector::non_max_suppression_optional_params>(arg.get_program());
 
-        const auto& primitive = arg.get_primitive();
-        params.inputs.push_back(convert_data_tensor(arg.input_scores().get_output_layout()));
+        const auto input_scores_idx = 1;
+        params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[input_scores_idx]));
 
         if (arg.has_num_select_per_class()) {
             cldnn::program_node& node = arg.num_select_per_class_node();
@@ -68,7 +69,7 @@ public:
                 params.num_select_per_class = get_value<int>(node);
             } else {
                 params.num_select_per_class_type = kernel_selector::NmsArgType::Input;
-                params.inputs.push_back(convert_data_tensor(node.get_output_layout()));
+                params.inputs.push_back(convert_data_tensor(impl_param.output_layout));
             }
         }
 
@@ -79,7 +80,7 @@ public:
                 params.iou_threshold = get_value<float>(node);
             } else {
                 params.iou_threshold_type = kernel_selector::NmsArgType::Input;
-                params.inputs.push_back(convert_data_tensor(node.get_output_layout()));
+                params.inputs.push_back(convert_data_tensor(impl_param.output_layout));
             }
         }
 
@@ -90,7 +91,7 @@ public:
                 params.score_threshold = get_value<float>(node);
             } else {
                 params.score_threshold_type = kernel_selector::NmsArgType::Input;
-                params.inputs.push_back(convert_data_tensor(node.get_output_layout()));
+                params.inputs.push_back(convert_data_tensor(impl_param.output_layout));
             }
         }
 
@@ -101,21 +102,28 @@ public:
                 params.soft_nms_sigma = get_value<float>(node);
             } else {
                 params.soft_nms_sigma_type = kernel_selector::NmsArgType::Input;
-                params.inputs.push_back(convert_data_tensor(node.get_output_layout()));
+                params.inputs.push_back(convert_data_tensor(impl_param.output_layout));
             }
         }
 
+        auto get_additional_output_node_idx = [&] (bool is_third) {
+            size_t offset = 2;
+            offset += arg.has_num_select_per_class();
+            offset += arg.has_iou_threshold();
+            offset += arg.has_score_threshold();
+            offset += arg.has_soft_nms_sigma();
+            if (is_third)
+                offset += arg.has_second_output();
+            return offset;
+        };
+
         if (arg.has_second_output()) {
-            layout second_output_layout = arg.second_output_node().get_output_layout();
-            second_output_layout.format = arg.input_scores().get_output_layout().format;
-            params.inputs.push_back(convert_data_tensor(second_output_layout));
+            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(false)]));
             params.has_second_output = true;
         }
 
         if (arg.has_third_output()) {
-            layout third_output_layout = arg.third_output_node().get_output_layout();
-            third_output_layout.format = arg.input_scores().get_output_layout().format;
-            params.inputs.push_back(convert_data_tensor(third_output_layout));
+            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(true)]));
             params.has_third_output = true;
         }
 

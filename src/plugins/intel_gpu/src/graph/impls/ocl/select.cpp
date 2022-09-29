@@ -22,13 +22,13 @@ struct select_impl : typed_primitive_impl_ocl<select> {
     }
 
 public:
-    static primitive_impl* create(const select_node& arg) {
-        auto select_params = get_default_params<kernel_selector::select_params>(arg);
+    static primitive_impl* create(const select_node& arg, const kernel_impl_params& impl_param) {
+        auto select_params = get_default_params<kernel_selector::select_params>(impl_param);
         auto select_optional_params =
             get_default_optional_params<kernel_selector::select_optional_params>(arg.get_program());
 
         for (size_t i = 1; i < arg.inputs_count(); i++) {
-            select_params.inputs.push_back(convert_data_tensor(arg.input(i).get_output_layout()));
+            select_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
 
         auto& kernel_selector = kernel_selector::select_kernel_selector::Instance();

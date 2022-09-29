@@ -23,9 +23,8 @@ struct slice : public primitive_base<slice> {
     slice(const primitive_id& id,
                   const std::vector<primitive_id>& inputs,
                   const tensor output_shape,
-                  const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
-        : primitive_base{id, inputs, ext_prim_id, output_padding},
+        : primitive_base{id, inputs, output_padding},
           output_shape {output_shape}
     {}
 

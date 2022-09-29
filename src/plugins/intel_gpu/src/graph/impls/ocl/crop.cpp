@@ -21,22 +21,36 @@ struct crop_impl : typed_primitive_impl_ocl<crop> {
         return make_unique<crop_impl>(*this);
     }
 
+    explicit crop_impl(const crop_impl& other) : parent(other),
+        _can_be_optimized(other._can_be_optimized) {}
+
+    crop_impl(const crop_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+        set_node_params(arg);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<crop>());
+        const auto& node = arg.as<crop>();
+        _can_be_optimized = node.can_be_optimized();
+    }
+
 protected:
     bool optimized_out(crop_inst& instance) const override {
-        return parent::optimized_out(instance) || _outer.can_be_optimized();
+        return parent::optimized_out(instance) || _can_be_optimized;
     }
 
 public:
-    static primitive_impl* create(const crop_node& arg) {
-        auto ew_params = get_default_params<kernel_selector::eltwise_params>(arg, 1);
-        auto ew_optional_params =
-            get_default_optional_params<kernel_selector::eltwise_optional_params>(arg.get_program());
+    static primitive_impl* create(const crop_node& arg, const kernel_impl_params& impl_param) {
+        const auto& primitive = arg.get_primitive();
+
+        auto ew_params = get_default_params<kernel_selector::eltwise_params>(impl_param, 1);
+        auto ew_optional_params = get_default_optional_params<kernel_selector::eltwise_optional_params>(arg.get_program());
 
         ew_params.operations.push_back(
             {{kernel_selector::eltwise_params::InputType::Buffer(0)}, kernel_selector::eltwise_mode::ASSIGN});
 
-        const auto& input_layout = arg.input().get_output_layout();
-        ew_params.inputs[0] = convert_data_tensor(input_layout, 1, arg.get_primitive()->offsets);
+        const auto& input_layout = impl_param.input_layouts[0];
+        ew_params.inputs[0] = convert_data_tensor(input_layout, 1, primitive->offsets);
 
         auto& kernel_selector = kernel_selector::eltwise_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(ew_params, ew_optional_params);
@@ -50,6 +64,9 @@ public:
 
         return crop;
     }
+
+private:
+    bool _can_be_optimized;
 };
 
 namespace detail {

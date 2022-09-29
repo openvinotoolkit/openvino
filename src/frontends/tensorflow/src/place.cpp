@@ -4,11 +4,8 @@
 
 #include "place.hpp"
 
-#include "op_def.pb.h"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
-#include "tensor.pb.h"
-#include "types.pb.h"
 
 namespace ov {
 namespace frontend {

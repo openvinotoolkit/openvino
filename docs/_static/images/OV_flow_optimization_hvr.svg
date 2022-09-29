@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 300 500" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <g transform="matrix(1,0,0,1,-973.897,-1386.47)">
+        <g id="Artboard3" transform="matrix(1.2405,0,0,1,-4217.7,1302.18)">
+            <rect x="3400" y="0" width="1650" height="1199.97" style="fill:none;"/>
+            <g transform="matrix(0.635579,0,0,2.23727,4105.41,-3971.85)">
+                <rect x="125.413" y="1812.98" width="380.444" height="223.486" style="fill:white;"/>
+            </g>
+            <g id="C--btm" serif:id="C -btm">
+            </g>
+            <g id="C--btm1" serif:id="C -btm">
+            </g>
+            <g id="C-onhover" serif:id="C onhover">
+            </g>
+            <g id="C-norm" serif:id="C norm">
+            </g>
+            <g id="B--btm" serif:id="B -btm">
+            </g>
+            <g id="B--btm1" serif:id="B -btm" transform="matrix(1.83177,0,0,1,-2587.57,48.5296)">
+                <g transform="matrix(0.137935,0,0,0.919528,3659.56,24.2016)">
+                    <rect x="273.804" y="280.744" width="12.871" height="4.375" style="fill:rgb(0,163,246);"/>
+                </g>
+                <g transform="matrix(0.441902,0,0,1,3575.02,-5.12162)">
+                    <path d="M282.818,287.475L575.546,287.475L575.546,345.292L276.783,345.292L276.783,293.518L280.783,293.518L280.783,341.292C313.643,341.292 538.687,341.292 571.546,341.292L571.546,291.475L571.546,291.475L282.818,291.475L282.818,287.475Z" style="fill:rgb(0,104,181);"/>
+                </g>
+                <g transform="matrix(0.813335,0,0,1.84815,3445.44,-263.116)">
+                    <text x="319.206px" y="315.715px" style="font-family:'IntelOneDisplay-Regular', 'IntelOne Display', sans-serif;font-size:14.068px;fill:rgb(0,104,181);">r<tspan x="323.666px " y="315.715px ">e</tspan>tr<tspan x="339.858px " y="315.715px ">a</tspan>in with optimiza<tspan x="439.587px " y="315.715px ">t</tspan>ion</text>
+                </g>
+                <g transform="matrix(0.137935,0,0,0.919528,3659.56,94.8808)">
+                    <rect x="273.804" y="280.744" width="12.871" height="4.375" style="fill:rgb(0,163,246);"/>
+                </g>
+                <g transform="matrix(0.441902,0,0,1,3575.02,65.5576)">
+                    <path d="M282.818,287.475L575.546,287.475L575.546,345.292L276.783,345.292L276.783,293.518L280.783,293.518L280.783,341.292C313.643,341.292 538.687,341.292 571.546,341.292L571.546,291.475L571.546,291.475L282.818,291.475L282.818,287.475Z" style="fill:rgb(0,104,181);"/>
+                </g>
+                <g transform="matrix(0.813335,0,0,1.84815,3445.44,-192.437)">
+                    <text x="364.759px" y="315.715px" style="font-family:'IntelOneDisplay-Regular', 'IntelOne Display', sans-serif;font-size:14.068px;fill:rgb(0,104,181);">quantiz<tspan x="409.312px " y="315.715px ">e</tspan></text>
+                </g>
+                <g transform="matrix(0.137935,0,0,0.919528,3659.56,165.56)">
+                    <rect x="273.804" y="280.744" width="12.871" height="4.375" style="fill:rgb(0,163,246);"/>
+                </g>
+                <g transform="matrix(0.441902,0,0,1,3575.02,136.237)">
+                    <path d="M282.818,287.475L575.546,287.475L575.546,372.455L276.783,372.455L276.783,293.518L280.783,293.518L280.783,368.455L571.546,368.455L571.546,291.475L571.546,291.475L282.818,291.475L282.818,287.475Z" style="fill:rgb(0,104,181);"/>
+                </g>
+                <g transform="matrix(0.813335,0,0,1.84815,3445.44,-121.758)">
+                    <text x="329.216px" y="315.711px" style="font-family:'IntelOneDisplay-Regular', 'IntelOne Display', sans-serif;font-size:14.068px;fill:rgb(0,104,181);">con<tspan x="352.147px 358.928px " y="315.711px 315.711px ">ve</tspan>rt t<tspan x="382.21px " y="315.711px ">o</tspan> optimiz<tspan x="436.682px " y="315.711px ">e</tspan>d</text>
+                    <text x="348.714px" y="330.416px" style="font-family:'IntelOneDisplay-Regular', 'IntelOne Display', sans-serif;font-size:14.068px;fill:rgb(0,104,181);">Open<tspan x="382.731px " y="330.416px ">V</tspan>INO IR</text>
+                </g>
+                <g transform="matrix(5.9676e-18,0.220543,-0.128168,1.77597e-17,3784.31,239.708)">
+                    <path d="M71.526,170.644L71.526,194.149C71.526,195.463 70.511,196.654 68.934,197.191C67.357,197.727 65.512,197.509 64.224,196.633C52.154,188.426 28.469,172.322 19.381,166.143C18.447,165.508 17.913,164.601 17.913,163.648C17.913,162.695 18.447,161.787 19.381,161.152C28.469,154.973 52.154,138.87 64.224,130.663C65.512,129.787 67.357,129.569 68.934,130.105C70.511,130.642 71.526,131.833 71.526,133.146L71.526,156.652L149.412,156.652C151.832,156.652 153.794,158.143 153.794,159.983C153.794,162.199 153.794,165.097 153.794,167.312C153.794,169.152 151.832,170.644 149.412,170.644C123.816,170.644 71.526,170.644 71.526,170.644Z" style="fill:rgb(0,104,181);"/>
+                </g>
+            </g>
+            <g id="B-onhover" serif:id="B onhover" transform="matrix(0.809463,0,0,1,-201.851,-1187.33)">
+                <g transform="matrix(0.389867,0,0,1.1485,5312.81,949.178)">
+                    <rect x="273.804" y="280.744" width="12.871" height="4.375" style="fill:rgb(0,163,246);"/>
+                </g>
+                <g transform="matrix(1,0,0,1,5142.78,-660.754)">
+                    <path d="M281.783,1939.9L281.783,2126.54C320.467,2126.54 570.546,2126.54 570.546,2126.54L570.546,1937.37L284.31,1937.37L284.31,1932.37L575.546,1932.37L575.546,2131.54L276.783,2131.54L276.783,1939.9L281.783,1939.9Z" style="fill:rgb(0,104,181);"/>
+                </g>
+                <g transform="matrix(1.84054,0,0,1.84815,4850.54,727.12)">
+                    <text x="331.238px" y="353.991px" style="font-family:'IntelOneDisplay-Bold', 'IntelOne Display', sans-serif;font-weight:700;font-size:15.691px;fill:rgb(0,104,181);">OPTIMIZA<tspan x="409.773px " y="353.991px ">T</tspan>ION</text>
+                </g>
+            </g>
+            <g id="B-norm" serif:id="B norm">
+            </g>
+            <g id="A--btm" serif:id="A -btm">
+            </g>
+            <g id="A--btm1" serif:id="A -btm">
+            </g>
+            <g id="A-onhover" serif:id="A onhover">
+            </g>
+            <g id="A-norm" serif:id="A norm">
+            </g>
+        </g>
+    </g>
+</svg>

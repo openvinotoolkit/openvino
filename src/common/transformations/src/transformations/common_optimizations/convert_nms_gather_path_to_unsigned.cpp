@@ -10,6 +10,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset8.hpp>
+#include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <transformations/rt_info/nms_selected_indices.hpp>
@@ -26,14 +27,15 @@ public:
     OPENVINO_RTTI("InitNMSPath", "0");
     InitNMSPath() {
         MATCHER_SCOPE(InitNMSPath);
-        auto nms_pattern =
-            pattern::wrap_type<opset1::NonMaxSuppression, opset3::NonMaxSuppression, opset5::NonMaxSuppression>();
+        auto nms_pattern = pattern::wrap_type<opset1::NonMaxSuppression,
+                                              opset3::NonMaxSuppression,
+                                              opset5::NonMaxSuppression,
+                                              opset9::NonMaxSuppression>();
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& out_nodes = m.get_match_root()->output(0).get_target_inputs();
             for (const auto& out_node : out_nodes) {
                 ov::set_nms_selected_indices(out_node.get_node());
             }
-            MATCHER_SCOPE_ENABLE(InitNMSPath);
             return true;
         };
         auto m = make_shared<pattern::Matcher>(nms_pattern, matcher_name);
@@ -59,7 +61,6 @@ public:
             auto node = m.get_match_root();
             const auto& inputs = node->input_values();
             if (any_of(inputs.begin(), inputs.end(), [](const Output<Node>& output) {
-                    MATCHER_SCOPE_ENABLE(PropagateNMSPath);
                     return ov::has_nms_selected_indices(output.get_node());
                 })) {
                 ov::set_nms_selected_indices(node.get());
@@ -92,7 +93,6 @@ public:
                 gather->input(1).replace_source_output(new_convert_to_unsigned);
                 copy_runtime_info(gather, new_convert_to_unsigned);
             }
-            MATCHER_SCOPE_ENABLE(UpdateConvertGather);
             return true;
         };
         auto m = make_shared<pattern::Matcher>(node_pattern, matcher_name);

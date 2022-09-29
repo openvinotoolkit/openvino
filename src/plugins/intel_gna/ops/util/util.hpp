@@ -4,11 +4,17 @@
 
 #pragma once
 
+#include <legacy/ngraph_ops/crop_ie.hpp>
+#include "gna_lib_ver_selector.hpp"
+#include "backend/gna_limitations.hpp"
+#include "layers/gna_permute.hpp"
+#include <transformations/utils/utils.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <vector>
 #include <memory>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace ngraph_util {
 
 template <typename T>
@@ -57,5 +63,54 @@ static bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& 
     return true;
 }
 
+static bool is_aligned_split(const std::shared_ptr<ngraph::Node> input_op, size_t input_op_out_index) {
+    size_t offset = 0;
+
+    if (std::dynamic_pointer_cast<ngraph::opset8::Split>(input_op) || std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(input_op)) {
+        for (size_t index = 0; index < input_op_out_index; index++) {
+            size_t outputSize = ngraph::shape_size(input_op->get_output_shape(index));
+            offset += outputSize * GNAPluginNS::GNALimitations::bytesPerSplitElement;
+        }
+    }
+    return (offset == ALIGN64(offset));
+}
+
+static bool is_crop_affined(std::shared_ptr<ngraph::Node> node) {
+    auto crop = std::dynamic_pointer_cast<ngraph::op::CropIE>(node);
+    if (crop != nullptr && !crop->offset.empty()) {
+        return GNAPluginNS::GNALimitations::isCropAffinedOffset(crop->offset.back());
+    }
+    return false;
+}
+
+// this not only mathematically trivial
+static bool is_trivial_transpose(std::shared_ptr<ngraph::Node> node) {
+    auto transpose = std::dynamic_pointer_cast<ngraph::opset8::Transpose>(node);
+    if (!transpose) return false;
+
+    if (transpose->get_input_size() == 0)
+        return false; // unsupported case
+
+    auto transpose_const = std::dynamic_pointer_cast<ngraph::op::Constant>(transpose->input_value(1).get_node_shared_ptr());
+    if (!transpose_const) return false;
+
+    auto node_order = transpose_const->cast_vector<int64_t>();
+
+    auto input = transpose->input(0).get_source_output().get_node_shared_ptr();
+    auto input_order = transpose->get_input_shape(0);
+
+    return GNAPluginNS::isTrivialPermute(node_order, input_order);
+}
+
+inline std::shared_ptr<ov::Node> get_prev_node_skipping_certain(const std::shared_ptr<ngraph::Node>& node,
+                                                                const std::function<bool(std::shared_ptr<ngraph::Node>)>& skip) {
+    auto current_node = node;
+    while (skip(current_node)) {
+        current_node = current_node->get_input_node_shared_ptr(0);
+    }
+    return current_node;
+}
+
 } // namespace ngraph_util
-} // namespace GNAPluginNS
+} // namespace intel_gna
+} // namespace ov

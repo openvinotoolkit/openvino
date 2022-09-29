@@ -19,7 +19,6 @@ ov::pass::DisableDecompressionConvertConstantFolding::DisableDecompressionConver
         if (!ov::is_decompression(node))
             return false;
         disable_constant_folding(node);
-        MATCHER_SCOPE_ENABLE(DisableDecompressionConvertConstantFolding);
         return true;
     };
 

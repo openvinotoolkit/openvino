@@ -25,7 +25,6 @@ GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& par
         if (transformation_callback(op)) {
             return false;
         }
-        MATCHER_SCOPE_ENABLE(GroupConvolutionTransformation);
         return transform(*context, m);
     };
 

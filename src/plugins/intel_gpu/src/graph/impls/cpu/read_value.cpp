@@ -36,10 +36,12 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
         return instance.get_network().get_stream().create_user_event(true);
     }
 
-    void init_kernels() override {}
+    void init_kernels(const kernels_cache&) override {}
 
 public:
-    static primitive_impl* create(read_value_node const& arg) { return new read_value_impl{}; }
+    static primitive_impl* create(const read_value_node& arg, const kernel_impl_params& impl_param) {
+        return new read_value_impl{};
+    }
 };
 
 namespace detail {

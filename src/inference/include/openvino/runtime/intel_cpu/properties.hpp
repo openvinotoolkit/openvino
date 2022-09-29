@@ -31,15 +31,15 @@ namespace intel_cpu {
  * @ingroup ov_runtime_cpu_prop_cpp_api
  *
  * Computation with denormals is very time consuming. FTZ(Flushing denormals to zero) and DAZ(Denormals as zero)
- * could significantly improve the performance while it does not comply with IEEE standard. In most cases this behavior
- * has little impact for model accuracy. Users could enable this optimization if see no or acceptable accuracy drop.
+ * could significantly improve the performance, but it does not comply with IEEE standard. In most cases, this behavior
+ * has little impact on model accuracy. Users could enable this optimization if no or acceptable accuracy drop is seen.
  * The following code enables denormals optimization
  *
  * @code
  * ie.set_property(ov::denormals_optimization(true)); // enable denormals optimization
  * @endcode
  *
- * While following code disable denormals optimization
+ * The following code disables denormals optimization
  *
  * @code
  * ie.set_property(ov::denormals_optimization(false)); // disable denormals optimization

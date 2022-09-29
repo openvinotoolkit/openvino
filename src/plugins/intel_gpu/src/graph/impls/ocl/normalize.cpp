@@ -33,16 +33,17 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const normalize_node& arg) {
-        auto norm_params = get_default_params<kernel_selector::normalize_params>(arg);
+    static primitive_impl* create(const normalize_node& arg, const kernel_impl_params& impl_param) {
+        const auto& prim = arg.get_primitive();
+        auto norm_params = get_default_params<kernel_selector::normalize_params>(impl_param);
         auto norm_optional_params =
             get_default_optional_params<kernel_selector::normalize_optional_params>(arg.get_program());
 
-        const auto& scale_layout = arg.scale().get_output_layout();
+        const auto& scale_layout = impl_param.input_layouts[1];
 
-        norm_params.normMode = arg.get_primitive()->across_spatial ? kernel_selector::normalize_mode::ACROSS_SPATIAL
+        norm_params.normMode = prim->across_spatial ? kernel_selector::normalize_mode::ACROSS_SPATIAL
                                                                    : kernel_selector::normalize_mode::WITHIN_SPATIAL;
-        norm_params.epsilon = arg.get_primitive()->epsilon;
+        norm_params.epsilon = prim->epsilon;
         norm_params.scaleTable = convert_data_tensor(scale_layout).FlattenFeatureAndSpatials();
 
         auto& kernel_selector = kernel_selector::normalize_kernel_selector::Instance();

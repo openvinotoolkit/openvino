@@ -7,6 +7,7 @@
 #include <openvino/op/util/framework_node.hpp>
 #include <openvino/opsets/opset8.hpp>
 
+#include "common_test_utils/file_utils.hpp"
 #include "conversion_extension.hpp"
 #include "utils.hpp"
 
@@ -29,7 +30,8 @@ void FrontEndConversionExtensionTest::initParamTest() {
 }
 
 inline std::string get_lib_path(const std::string& lib_name) {
-    return ov::util::make_plugin_library_name<char>(ov::util::get_ov_lib_path(), lib_name + IE_BUILD_POSTFIX);
+    return ov::util::make_plugin_library_name<char>(CommonTestUtils::getExecutableDirectory(),
+                                                    lib_name + IE_BUILD_POSTFIX);
 }
 
 ///////////////////////////////////////////////////////////////////

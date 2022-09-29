@@ -14,9 +14,9 @@ primitive_type_id dft::type_id() {
     return &instance;
 }
 
-layout typed_primitive_inst<dft>::calc_output_layout(const dft_node& node) {
-    auto primitive = node.get_primitive();
-    auto input_layout = node.input().get_output_layout();
+layout typed_primitive_inst<dft>::calc_output_layout(const dft_node& node, kernel_impl_params const& impl_param) {
+    auto primitive = impl_param.typed_desc<dft>();
+    auto input_layout = impl_param.get_input_layout();
 
     std::vector<tensor::value_type> dims_converted(primitive->output_shape.begin(), primitive->output_shape.end());
     auto output_format = input_layout.format;

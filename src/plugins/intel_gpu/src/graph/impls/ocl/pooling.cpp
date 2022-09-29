@@ -77,14 +77,12 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const pooling_node& arg) {
+    static primitive_impl* create(const pooling_node& arg, const kernel_impl_params& impl_param) {
         validate_args(arg);
-
-        auto pool_params = get_default_params<kernel_selector::pooling_params>(arg);
+        const auto primitive = arg.get_primitive();
+        auto pool_params = get_default_params<kernel_selector::pooling_params>(impl_param);
         auto pool_optional_params =
             get_default_optional_params<kernel_selector::pooling_optional_params>(arg.get_program());
-
-        const auto primitive = arg.get_primitive();
 
         pool_params.maxPoolOpset8Features = primitive->maxPoolOpset8Features;
         if (pool_params.maxPoolOpset8Features) {
@@ -107,8 +105,8 @@ public:
         const auto& pad = primitive->pad;
         const auto& dilation = primitive->dilation;
         auto kernel = primitive->size;
-        const auto& input_layout = arg.input().get_output_layout();
-        const auto& output_layout = arg.get_output_layout();
+        const auto& input_layout = impl_param.input_layouts[0];
+        const auto& output_layout = impl_param.output_layout;
         auto spatial_rank = output_layout.get_spatial_rank();
 
         auto& pp = pool_params;

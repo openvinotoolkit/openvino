@@ -1170,6 +1170,15 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::VariadicSp
     return std::make_shared<ov::Model>(results, params, "VariadicSplitGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::GridSample> &node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 4, 4});
+    const auto grid = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 6, 6, 2});
+    const auto attributes = ov::op::v9::GridSample::Attributes{};
+    const auto grid_sample = std::make_shared<ov::op::v9::GridSample>(data, grid, attributes);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(grid_sample->output(0))};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data, grid}, "GridSampleGraph");
+}
+
 std::shared_ptr<ov::Model> generateArithmeticReductionKeepDims(const std::shared_ptr<ov::op::Op> &node) {
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3, 3});
     const auto axes = ov::op::v0::Constant::create(ov::element::i32, {1}, {1});
@@ -1604,6 +1613,10 @@ std::shared_ptr<ov::Model> generateFFTBase(const std::shared_ptr<ov::op::Op> &no
         FFTBaseNode = std::make_shared<ov::op::v7::DFT>(params.at(0), axes);
     } else if (ov::is_type<ov::op::v7::IDFT>(node)) {
         FFTBaseNode = std::make_shared<ov::op::v7::IDFT>(params.at(0), axes);
+    } else if (ov::is_type<ov::op::v9::RDFT>(node)) {
+        FFTBaseNode = std::make_shared<ov::op::v9::RDFT>(params.at(0), axes);
+    } else if (ov::is_type<ov::op::v9::IRDFT>(node)) {
+        FFTBaseNode = std::make_shared<ov::op::v9::IRDFT>(params.at(0), axes);
     } else {
         return nullptr;
     }
@@ -1645,6 +1658,25 @@ std::shared_ptr<ov::Model> generateGatherNDBase(const std::shared_ptr<ov::op::Op
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(GatherNDBaseNode)};
     return std::make_shared<ov::Model>(results, params, "GatherNDBaseGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::GenerateProposals> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{1, 3}, {2, 2, 3, 4}, {1, 12, 2, 2}, {1, 3, 2, 2}});
+    const auto outputs =
+        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
+    ov::op::v9::GenerateProposals::Attributes attrs;
+    attrs.min_size = 1;
+    attrs.nms_threshold = 0.8;
+    attrs.pre_nms_count = 100;
+    attrs.post_nms_count = 100;
+    if (ov::is_type<ov::op::v9::GenerateProposals>(node)) {
+        const auto gp = std::make_shared<ov::op::v9::GenerateProposals>(
+                outputs[0], outputs[1], outputs[2], outputs[3], attrs);
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gp)};
+        return std::make_shared<ov::Model>(results, params, "GenerateProposalsGraph");
+    } else {
+        return nullptr;
+    }
 }
 
 std::shared_ptr<ov::Model> generateRNNCellBase(const std::shared_ptr<ov::op::Op> &node) {

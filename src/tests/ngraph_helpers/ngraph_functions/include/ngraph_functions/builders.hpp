@@ -508,7 +508,8 @@ std::shared_ptr<ngraph::Node> makeLSTM(const OutputVector& in,
                                            float clip = 0.f,
                                            bool make_sequence = false,
                                            ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD,
-                                           ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ);
+                                           ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ,
+                                           float WRB_range = 0.f);
 
 std::shared_ptr<ngraph::Node> makeGRU(const OutputVector& in,
                                       const std::vector<ngraph::Shape>& constants,
@@ -592,6 +593,11 @@ std::shared_ptr<ngraph::Node> makeRoll(const ngraph::Output<Node>& dataNode,
                                        const ngraph::Output<Node>& axesNode);
 
 std::shared_ptr<ngraph::Node> makeDFT(const ngraph::Output<Node> &dataNode,
+                                      const std::vector<int64_t> &axes,
+                                      const std::vector<int64_t> &signalSize,
+                                      const ngraph::helpers::DFTOpType opType);
+
+std::shared_ptr<ngraph::Node> makeRDFT(const ngraph::Output<Node> &dataNode,
                                       const std::vector<int64_t> &axes,
                                       const std::vector<int64_t> &signalSize,
                                       const ngraph::helpers::DFTOpType opType);

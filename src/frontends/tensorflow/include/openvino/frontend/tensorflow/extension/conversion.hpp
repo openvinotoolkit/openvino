@@ -27,6 +27,8 @@ public:
         return m_converter;
     }
 
+    ~ConversionExtension() override;
+
 private:
     ov::frontend::CreatorFunction m_converter;
 };

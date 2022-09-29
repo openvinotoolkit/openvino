@@ -63,11 +63,13 @@ public:
     std::shared_ptr<InferenceEngine::RemoteContext> getContext() const noexcept;
     InferenceEngine::LockedMemory<void> buffer() noexcept;
     InferenceEngine::LockedMemory<const void> cbuffer() const noexcept;
-    InferenceEngine::LockedMemory<void> rwmap()noexcept;
+    InferenceEngine::LockedMemory<void> rwmap() noexcept;
     InferenceEngine::LockedMemory<const void> rmap() const noexcept;
-    InferenceEngine::LockedMemory<void> wmap()noexcept;
+    InferenceEngine::LockedMemory<void> wmap() noexcept;
     const std::shared_ptr<InferenceEngine::IAllocator> &getAllocator() const noexcept;
     void *getHandle() const noexcept { return _handle; }
+
+    void reinterpret(cldnn::layout new_layout);
 
     bool is_allocated() const noexcept;
     bool is_locked() const noexcept;
@@ -111,8 +113,8 @@ public:
                              cldnn::shared_surface surf = 0,
                              uint32_t plane = 0,
                              RemoteBlobImpl::BlobType mem_type = RemoteBlobImpl::BlobType::BT_BUF_INTERNAL)
-        : _impl(context, stream, layout, mem, surf, plane, mem_type)
-        , TpublicAPI(desc) {}
+        : TpublicAPI(desc)
+        , _impl(context, stream, layout, mem, surf, plane, mem_type) {}
 
     void allocate() noexcept override {
         try {

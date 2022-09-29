@@ -66,7 +66,6 @@ void register_implementations() {
     REGISTER_OCL(roi_align);
     REGISTER_OCL(roi_pooling);
     REGISTER_OCL(roll);
-    REGISTER_OCL(scale);
     REGISTER_OCL(scatter_update);
     REGISTER_OCL(scatter_nd_update);
     REGISTER_OCL(scatter_elements_update);
@@ -90,6 +89,8 @@ void register_implementations() {
     REGISTER_OCL(embedding_bag);
     REGISTER_OCL(extract_image_patches);
     REGISTER_OCL(convert_color);
+    REGISTER_OCL(count_nonzero);
+    REGISTER_OCL(gather_nonzero);
 }
 
 }  // namespace ocl

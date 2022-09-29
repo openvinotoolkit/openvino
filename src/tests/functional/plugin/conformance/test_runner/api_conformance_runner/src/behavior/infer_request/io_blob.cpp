@@ -15,6 +15,6 @@ using namespace ov::test::conformance;
 INSTANTIATE_TEST_SUITE_P(ie_infer_request, InferRequestIOBBlobTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(return_all_possible_device_combination()),
-                                ::testing::ValuesIn(empty_config)),
+                                ::testing::Values(ie_config)),
                          InferRequestIOBBlobTest::getTestCaseName);
 }  // namespace

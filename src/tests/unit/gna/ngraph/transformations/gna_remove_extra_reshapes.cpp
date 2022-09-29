@@ -35,7 +35,7 @@ TEST(TransformationTests, RemoveExtraReshapesTestReshapeNotEqualInputOutput) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::RemoveExtraReshapes>();
+        m.register_pass<ov::intel_gna::pass::RemoveExtraReshapes>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
     }
@@ -64,7 +64,7 @@ TEST(TransformationTests, RemoveExtraReshapesTestReshapeEqualInputOutput) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::RemoveExtraReshapes>();
+        m.register_pass<ov::intel_gna::pass::RemoveExtraReshapes>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
     }

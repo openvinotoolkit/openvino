@@ -117,4 +117,30 @@ inline std::vector<int> GetPermuteOrder(InferenceEngine::Layout in_layout, Infer
     return {0, 1, 2, 3};
 }
 
+inline bool isTrivialPermute(const std::vector<int64_t> order, const std::vector<size_t>& input_shape) {
+    // cases when all permutations happened either between 1 and X shape where no other dims in between
+    auto transpose_seq = genPermutations(order.begin(), order.end());
+    auto input_order_transformed = input_shape;
+    for (auto && transp : transpose_seq) {
+        // check dims of transposed
+        if (input_order_transformed[transp.first] == 1 &&
+            input_order_transformed[transp.second] == 1) {
+            return true;
+        }
+        if (input_order_transformed[transp.first] != 1 &&
+            input_order_transformed[transp.second] != 1) {
+            return false;
+        }
+        // check dims in between
+        for (int j = std::min(transp.first, transp.second) + 1; j < std::max(transp.first, transp.second); j++) {
+            if (input_order_transformed[j] != 1) {
+                return false;
+            }
+        }
+        // apply permutation
+        std::swap(input_order_transformed[transp.first], input_order_transformed[transp.second]);
+    }
+    return true;
+}
+
 }  // namespace GNAPluginNS

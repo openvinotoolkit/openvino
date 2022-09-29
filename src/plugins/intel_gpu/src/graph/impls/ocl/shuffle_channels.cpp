@@ -24,18 +24,19 @@ struct shuffle_channels_impl : typed_primitive_impl_ocl<shuffle_channels> {
     }
 
 public:
-    static primitive_impl* create(const shuffle_channels_node& arg) {
-        auto shuffle_channels_params = get_default_params<kernel_selector::shuffle_channels_params>(arg);
+    static primitive_impl* create(const shuffle_channels_node& arg, const kernel_impl_params& impl_param) {
+        const auto& prim = arg.get_primitive();
+        auto shuffle_channels_params = get_default_params<kernel_selector::shuffle_channels_params>(impl_param);
         auto shuffle_channels_optional_params =
             get_default_optional_params<kernel_selector::shuffle_channels_optional_params>(arg.get_program());
 
         const int32_t number_of_dims = 4;
-        int32_t axis = arg.get_primitive()->axis;
+        int32_t axis = prim->axis;
 
         if (axis < 0)
             axis += number_of_dims;
 
-        shuffle_channels_params.group = arg.get_primitive()->group;
+        shuffle_channels_params.group = prim->group;
         shuffle_channels_params.axis = axis;
 
         auto& kernel_selector = kernel_selector::shuffle_channels_kernel_selector::Instance();

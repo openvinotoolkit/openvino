@@ -231,11 +231,11 @@ All parameters must be set before calling `ov::Core::compile_model()` in order t
 - `ov::num_streams`
 - `ov::affinity`
 - `ov::inference_num_threads`
+- `ov::cache_dir`
 - `ov::intel_cpu::denormals_optimization`
 
 
 ### Read-only properties
-- `ov::cache_dir`
 - `ov::supported_properties`
 - `ov::available_devices`
 - `ov::range_for_async_infer_requests`
@@ -270,15 +270,15 @@ For some performance-critical DL operations, the CPU plugin uses optimized imple
 ## Optimization guide
 
 ### Denormals Optimization
-Denormal number is non-zero, finite float number that is very close to zero, i.e. the numbers in (0, 1.17549e-38) and (0, -1.17549e-38). In such case, normalized-number encoding format does not have capability to encode the number and underflow will happen. The computation involving this kind of numbers is extremly slow on many hardware.
+Denormal numbers (denormals) are non-zero, finite float numbers that are very close to zero, i.e. the numbers in (0, 1.17549e-38) and (0, -1.17549e-38). In such cases, normalized-number encoding format does not have a capability to encode the number and underflow will happen. The computation involving such numbers is extremely slow on much hardware.
 
-As denormal number is extremly close to zero, treating denormal as zero directly is a straightforward and simple method to optimize denormals computation. As this optimization does not comply with IEEE standard 754, in case it introduce unacceptable accuracy degradation, the propery(ov::intel_cpu::denormals_optimization) is introduced to control this behavior. If there are denormal numbers in users' use case, and see no or ignorable accuracy drop, we could set this property to "YES" to improve performance, otherwise set this to "NO". If it's not set explicitly by property, this optimization is disabled by default if application program also does not perform any denormals optimization. After this property is turned on, OpenVINO will provide an cross operation-system/compiler and safe optimization on all platform when applicable.
+As a denormal number is extremely close to zero, treating a denormal directly as zero is a straightforward and simple method to optimize computation of denormals. This optimization does not comply with IEEE 754 standard. If it causes unacceptable accuracy degradation, the `denormals_optimization` property is introduced to control this behavior. If there are denormal numbers in use cases, and no or acceptable accuracy drop is seen, set the property to `True` to improve performance, otherwise set it to `False`. If it is not set explicitly by the property and the application does not perform any denormals optimization as well, the optimization is disabled by default. After enabling the `denormals_optimization` property, OpenVINO will provide a cross operation system/ compiler and safe optimization on all platform when applicable.
 
-There are cases that application program where OpenVINO is used also perform this low-level denormals optimization. If it's optimized by setting FTZ(Flush-To-Zero) and DAZ(Denormals-As-Zero) flag in MXCSR register in the begining of thread where OpenVINO is called, OpenVINO will inherite this setting in the same thread and sub-thread, and then no need set with property. In this case, application program users should be responsible for the effectiveness and safty of the settings.
+There are cases when the application in which OpenVINO is used also performs this low-level denormals optimization. If it is optimized by setting the FTZ(Flush-To-Zero) and DAZ(Denormals-As-Zero) flags in MXCSR register at the beginning of the thread where OpenVINO is called, OpenVINO will inherit this setting in the same thread and sub-thread, so there is no need to set the `denormals_optimization` property. In such cases, you are responsible for the effectiveness and safety of the settings.
 
-It need also to be mentioned that this property should must be set before calling 'compile_model()'.
+> **NOTE**: The `denormals_optimization` property must be set before calling `compile_model()`.
 
-To enable denormals optimization, the application must set ov::denormals_optimization property to true:
+To enable denormals optimization in the application, the `denormals_optimization` property must be set to `True`:
 
 @sphinxdirective
 
@@ -296,7 +296,7 @@ To enable denormals optimization, the application must set ov::denormals_optimiz
 
 @endsphinxdirective
 
-## See Also
+## Additional Resources
 * [Supported Devices](Supported_Devices.md)
 * [Optimization guide](@ref openvino_docs_optimization_guide_dldt_optimization_guide)
 * [СPU plugin developers documentation](https://github.com/openvinotoolkit/openvino/wiki/CPUPluginDevelopersDocs)

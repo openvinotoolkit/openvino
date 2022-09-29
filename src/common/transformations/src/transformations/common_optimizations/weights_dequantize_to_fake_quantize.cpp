@@ -73,7 +73,6 @@ ngraph::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize()
 
         if (ov::constant_folding_is_disabled(convert_node))
             ov::enable_constant_folding(convert_node);
-        MATCHER_SCOPE_ENABLE(WeightsDequantizeToFakeQuantize);
         return true;
     };
 

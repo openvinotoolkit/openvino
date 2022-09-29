@@ -63,7 +63,7 @@ template<typename T> void doSmokeRange(T start, T stop, T step) {
     auto output = args.run(outLen);
     mem_lock<T> output_ptr { output, tests::get_test_stream() };
 
-    for (std::size_t i = 0; i < outLen; ++i)
+    for (std::size_t i = 0; i < static_cast<size_t>(outLen); ++i)
         EXPECT_EQ(start + i * step, output_ptr[i]);
 }
 

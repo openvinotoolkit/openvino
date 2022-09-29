@@ -31,9 +31,7 @@ inline const float& clamp(const float& v, const float& lower, const float& upper
 }
 
 inline bool hasSingleBatchOutput(const program_node& node) {
-    const auto batch = node.get_output_layout().size.batch;
-
-    return batch.empty() || (batch.size() == 1 && batch[0] == 1);
+    return node.get_output_layout().batch() == 1;
 }
 
 struct roi_t {
@@ -190,9 +188,7 @@ struct im_info_t {
 };
 
 struct proposal_impl : typed_primitive_impl<proposal> {
-    const proposal_node& outer;
-
-    explicit proposal_impl(const proposal_node& arg) : outer(arg) {}
+    explicit proposal_impl(const proposal_node& arg) {}
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<proposal_impl>(*this);
@@ -213,7 +209,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         int min_bbox_x = 1;
         int min_bbox_y = 1;
 
-        auto image_info_size = image_info->get_layout().size;
+        auto image_info_size = image_info->get_layout().get_tensor();
         auto image_info_count = image_info_size.feature[0] == 1 ? image_info_size.batch[0] : image_info_size.feature[0];
 
         int scaled_min_bbox_size = instance.argument.min_bbox_size;
@@ -427,10 +423,10 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         return ev;
     }
 
-    void init_kernels() override {}
+    void init_kernels(const kernels_cache&) override {}
 
-    static primitive_impl* create(const proposal_node& arg) {
-        const layout& l = arg.image_info().get_output_layout();
+    static primitive_impl* create(const proposal_node& arg, const kernel_impl_params& impl_param) {
+        const layout& l = impl_param.input_layouts[2];
         const size_t count = l.feature() == 1 ? static_cast<size_t>(l.batch()) : static_cast<size_t>(l.feature());
 
         // Supported image_info sizes and components meaning:
