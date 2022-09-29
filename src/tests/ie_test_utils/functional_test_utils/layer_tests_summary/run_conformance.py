@@ -115,6 +115,12 @@ class Conformance:
         omz_tools_path = os.path.join(self._omz_path, "tools", "model_tools")
         original_model_path = os.path.join(self._working_dir, "original_models")
         converted_model_path = os.path.join(self._working_dir, "converted_models")
+        if os.path.exist(original_model_path):
+            logger.info(f"Original model path: {original_model_path} is removed")
+            os.rmdir(original_model_path)
+        if os.path.exist(converted_model_path):
+            logger.info(f"Converted model path: {converted_model_path} is removed")
+            os.rmdir(converted_model_path)
         mo_path = os.path.join(self._ov_path, "tools", "mo")
         ov_python_path = os.path.join(self._ov_bin_path, "python_api", f"python{version[0:3]}")
 
@@ -161,8 +167,10 @@ class Conformance:
     def dump_subgraph(self):
         subgraph_dumper_path = os.path.join(self._ov_bin_path, SUBGRAPH_DUMPER_BIN_NAME)
         conformance_ir_path = os.path.join(self._working_dir, "conformance_ir")
-        if not os.path.exists(conformance_ir_path):
-            os.mkdir(conformance_ir_path)
+        if os.path.exists(conformance_ir_path):
+            logger.info(f"Remove directory {conformance_ir_path}")
+            os.rmdir(conformance_ir_path)
+        os.mkdir(conformance_ir_path)
         logger.info(f"Stating model dumping from {self._model_path}")
         cmd = f'{subgraph_dumper_path}{OS_BIN_FILE_EXT} --input_folders="{self._model_path}" --output_folder="{conformance_ir_path}"'
         process = Popen(cmd, shell=True)
