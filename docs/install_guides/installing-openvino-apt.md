@@ -116,45 +116,31 @@ Intel® OpenVINO™ Toolkit will be installed in: `/opt/intel/openvino_<VERSION>
 
 A symlink will be created: `/opt/intel/openvino_<VERSION>`
 
-#### To Install the Default Version
+#### To Install the Default Build
 
-You can install the default version by using the following command:
+You can install the default build of OpenVINO 2021.4 by using the following command:
 ```sh
 sudo apt install intel-openvino-<PACKAGE_TYPE>-ubuntu<OS_VERSION>-<VERSION>.<UPDATE>
 ```
-For example:
-```sh
-sudo apt install intel-openvino-runtime-ubuntu18-2021.4
-```
 
-#### To Install a Specific Version
-
-1. Get a list of OpenVINO packages available for installation (taking Ubuntu 18 for example):
-```sh
-sudo apt-cache search intel-openvino-runtime-ubuntu18
-```
-2. Install a specific version of an OpenVINO package:
-```sh
-sudo apt install intel-openvino-<PACKAGE_TYPE>-ubuntu<OS_VERSION>-<VERSION>.<UPDATE>.<BUILD_NUM>
-```
 See the example commands below:
 * **Runtime Package**<br>
   On Ubuntu 18.04:
   ```sh
-  sudo apt install intel-openvino-runtime-ubuntu18-2021.4.752
+  sudo apt install intel-openvino-runtime-ubuntu18-2021.4
   ```
   On Ubuntu 20.04:
   ```sh
-  sudo apt install intel-openvino-runtime-ubuntu20-2021.4.752
+  sudo apt install intel-openvino-runtime-ubuntu20-2021.4
   ```
 * **Developer Package**<br>
   On Ubuntu 18.04:
   ```sh
-  sudo apt install intel-openvino-dev-ubuntu18-2021.4.752 
+  sudo apt install intel-openvino-dev-ubuntu18-2021.4 
   ```
   On Ubuntu 20.04:
   ```sh
-  sudo apt install intel-openvino-dev-ubuntu20-2021.4.752
+  sudo apt install intel-openvino-dev-ubuntu20-2021.4
   ```
 
 #### To check for Installed Packages and Versions
@@ -171,6 +157,23 @@ To uninstall a specific package:
 ```sh
 sudo apt autoremove intel-openvino-<PACKAGE_TYPE>-ubuntu<OS_VERSION>-<VERSION>.<UPDATE>.<BUILD_NUM>
 ```
+
+#### Advanced Option
+
+If you need to install a specific build other than the default one, you can use the following steps:
+
+1. Get a list of OpenVINO packages available for installation (taking Ubuntu 18 for example):
+  ```sh
+  sudo apt-cache search intel-openvino-runtime-ubuntu18
+  ```
+2. Install a specific version of an OpenVINO package:
+  ```sh
+  sudo apt install intel-openvino-<PACKAGE_TYPE>-ubuntu<OS_VERSION>-<VERSION>.<UPDATE>.<BUILD_NUM>
+  ```
+  For example:
+  ```sh
+  sudo apt install intel-openvino-runtime-ubuntu18-2021.4.752
+  ```
 
 
 **Additional Resources**
