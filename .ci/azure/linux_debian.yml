@@ -245,7 +245,9 @@ jobs:
       # for libopenvino_template_extension.so
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$(INSTALL_DIR)/python/python3.8:$LD_LIBRARY_PATH
       export OV_FRONTEND_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR)
-      export PYTHONPATH=$(INSTALL_TEST_DIR)
+      export PYTHONPATH=$(INSTALL_TEST_DIR):$PYTHONPATH
+      python3 -c "import sys; print(sys.path)"
+      python3 -c "from pybind_mock_frontend import get_fe_stat"
       echo $PYTHONPATH
       echo $LD_LIBRARY_PATH
       echo $OV_FRONTEND_PATH
