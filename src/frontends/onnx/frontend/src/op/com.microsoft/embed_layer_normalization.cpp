@@ -5,7 +5,6 @@
 #include "op/com.microsoft/embed_layer_normalization.hpp"
 
 #include "default_opset.hpp"
-#include "ngraph/log.hpp"
 #include "onnx_import/core/null_node.hpp"
 
 namespace ngraph {
