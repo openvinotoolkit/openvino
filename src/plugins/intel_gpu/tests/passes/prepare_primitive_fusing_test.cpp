@@ -191,6 +191,58 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_const) {
     ASSERT_EQ(lock[3], 285 + 40);
 }
 
+TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_legal_scalar_const_broadcast) {
+    auto& engine = get_test_engine();
+    auto weights = engine.allocate_memory({ ov::PartialShape{ 2, 10 }, data_types::u8, format::bfyx });
+    auto in_layout = layout{ ov::PartialShape::dynamic(2), data_types::u8, format::bfyx };
+    auto in_eltw_layout = layout{ ov::PartialShape{1}, data_types::f32, format::bfyx };
+
+    set_values<uint8_t>(weights, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+                                  9, 8, 7, 6, 5, 4, 3, 2, 1, 0});
+    auto extra_input_memory = engine.allocate_memory(in_eltw_layout);
+    set_values<float>(extra_input_memory, {10});
+
+    topology topology;
+    topology.add(data("weights", weights));
+    topology.add(input_layout("input", in_layout));
+    topology.add(data("extra_input", extra_input_memory));
+    topology.add(fully_connected("fc", "input", { "weights" }, "", data_types::f32));
+    topology.add(eltwise("eltw", {"fc", "extra_input"}, eltwise_mode::sum));
+    topology.add(reorder("reorder", "eltw", format::bfyx, data_types::f32));
+
+    build_options build_opts;
+    build_opts.set_option(build_option::optimize_data(true));
+    build_opts.set_option(build_option::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, build_opts, false, true);
+
+    layout_optimizer lo(true);
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+
+    ASSERT_NE(prog, nullptr);
+    ASSERT_FALSE(has_node_with_type<eltwise>(*prog));
+
+    cldnn::network net(prog, 0);
+
+    auto input_memory = engine.allocate_memory(layout{ ov::PartialShape{1, 10}, data_types::u8, format::bfyx });
+    set_values<uint8_t>(input_memory, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+
+    net.set_input_data("input", input_memory);
+
+    auto output = net.execute();
+    auto out_mem = output.at("reorder").get_memory();
+
+    ASSERT_NE(out_mem, nullptr);
+
+    ASSERT_EQ(out_mem->count(), 2);
+    ASSERT_EQ(out_mem->size(), 2 * sizeof(float));
+
+    mem_lock<float> lock(out_mem, net.get_stream());
+
+    ASSERT_EQ(lock[0], 285 + 10);
+    ASSERT_EQ(lock[1], 120 + 10);
+}
+
 TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_1) {
     auto& engine = get_test_engine();
     auto weights = engine.allocate_memory({ ov::PartialShape{ 1, 10 }, data_types::u8, format::bfyx });
