@@ -6864,7 +6864,7 @@ TEST_P(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16)
                 }
 }
 
-INSTANTIATE_TEST_SUITE_P(convolution_depthwise_gpu_b_fs_yx_fsv16_x1,
+INSTANTIATE_TEST_SUITE_P(convolution_depthwise_gpu_b_fs_yx_fsv16_1d_depthwise_convolution,
                         convolution_depthwise_gpu_fsv16_xy,
                         ::testing::Values(
                             // Input Y size, Input X size, Filter size Y, Filter size X, groups, Stride, Output padding, With bias
@@ -6988,10 +6988,6 @@ TEST_P(convolution_depthwise_gpu_fsv16_xy, depthwise_conv_b_fs_yx_fsv16)
                         fi % f_group_size];
                     auto equal = are_equal(val_ref, val, 1e-2f);
                     EXPECT_TRUE(equal);
-                    if (!equal)
-                    {
-                        std::cout << "At b = " << bi << ", fi = " << fi << ", yi = " << yi << ", xi = " << xi << std::endl;
-                    }
                 }
 }
 
