@@ -1493,7 +1493,7 @@ void Convolution::redefineOutputMemory(const std::vector<VectorDims> &newOutputS
 
 MemoryDescPtr Convolution::getSumMemDesc(primitive_desc_iterator &primitive_desc_it) {
     if (getOutputShapeAtPort(0).isDynamic()) {
-        return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(0), getInputShapeAtPort(getParentEdges().size() - 1));
+        return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(0), getOutputShapeAtPort(0));
     }
     return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(0));
 }
