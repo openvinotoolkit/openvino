@@ -1278,8 +1278,9 @@ TEST(crop_gpu, dynamic_i32_in2x3x2x2_crop_offsets) {
         4, -5, 8, 8,
         -14, -15, -16, -17 };
     set_values(input, input_vec);
-
-    network network(engine, topology);
+    build_options bo;
+    bo.set_option(build_option::allow_new_shape_infer(true));
+    network network(engine, topology, bo);
 
     network.set_input_data("input", input);
 

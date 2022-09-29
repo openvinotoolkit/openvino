@@ -216,26 +216,10 @@ void primitive_inst::update_shape() {
     }
 
     _impl_params->memory_deps = memory_deps;
+
     auto new_layouts = _node.type()->calc_output_layouts(_node, *_impl_params);
-
-    int output_idx = _node.is_type<crop>() ? _impl_params->typed_desc<crop>()->output_idx : 0;
-    auto new_layout = new_layouts.empty() ? _node.type()->calc_output_layout(_node, *_impl_params) : new_layouts[output_idx];
+    auto new_layout = new_layouts.empty() ? _node.type()->calc_output_layout(_node, *_impl_params) : new_layouts[0];
     new_layout.data_padding = padding::max(_node.get_primitive()->output_padding, new_layout.data_padding);
-
-    // W/A for split offsets... :(
-    if (_node.is_type<crop>() && _node.get_dependencies().size() > 1) {
-        InferenceEngine::SizeVector startOffset(_impl_params->input_layouts[0].get_partial_shape().size());
-        auto input_shape = _impl_params->input_layouts[0].get_partial_shape();
-        auto dims = _impl_params->input_layouts[0].get_partial_shape().size();
-        for (int32_t prev = 0; prev < output_idx; prev++) {
-            auto prev_crop_shape = new_layouts[prev].get_partial_shape().to_shape();
-            for (size_t i = 0; i < dims; ++i) {
-                if (prev_crop_shape[i] != input_shape.to_shape()[i])
-                    startOffset[i] += prev_crop_shape[i];
-            }
-        }
-        _impl_params->input_offsets[0] = ov::intel_gpu::tensor_from_dims(startOffset, 0);
-    }
 
     if (_impl_params->output_layout != new_layout) {
         GPU_DEBUG_IF(debug_config->verbose >= 4) {

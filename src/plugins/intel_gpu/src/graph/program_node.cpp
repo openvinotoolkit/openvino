@@ -7,7 +7,6 @@
 #include "primitive_inst.h"
 #include "loop_inst.h"
 #include "strided_slice_inst.h"
-#include "crop_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
@@ -224,20 +223,10 @@ layout program_node::calc_output_layout() const {
     if (allow_new_shape_infer) {
         auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
         if (!out_layouts.empty()) {
-            auto out_layout = out_layouts[0];
-            // Since multiple output is not supported yet, currently only crops created by Split and VariadicSplit are implemented
-            // as a workaround to return all original output layouts. So this part should be refactored
-            // once multiple output is supported and the splits are implemented for mulitple output.
-            if (is_type<crop>() && (out_layouts.size() > 1)) {
-                const crop_node& crop = *this;
-                out_layout = out_layouts[crop.get_primitive()->output_idx];
-            }
-
             GPU_DEBUG_IF(debug_config->verbose >= 4) {
-                GPU_DEBUG_COUT << id() << ": calc_output_layout(new):" << out_layout << std::endl;
+                GPU_DEBUG_COUT << id() << ": calc_output_layout(new):" << out_layouts[0] << std::endl;
             }
-
-            return out_layout;
+            return out_layouts[0];
         }
     }
 

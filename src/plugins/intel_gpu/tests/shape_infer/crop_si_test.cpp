@@ -105,8 +105,8 @@ TEST_P(crop_si_test, shape_infer) {
         auto params = crop_node.get_kernel_impl_params();
         auto res = crop_inst::calc_output_layouts<ov::PartialShape>(crop_node, *params);
 
-        ASSERT_EQ(res.size(), p.expected_layouts.size());
-        ASSERT_EQ(res[output_idx], p.expected_layouts[output_idx]);
+        ASSERT_EQ(res.size(), 1);
+        ASSERT_EQ(res[0], p.expected_layouts[output_idx]);
     }
 }
 

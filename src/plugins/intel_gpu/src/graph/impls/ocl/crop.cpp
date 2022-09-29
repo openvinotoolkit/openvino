@@ -46,14 +46,7 @@ public:
 
         ew_params.operations.push_back(
             {{kernel_selector::eltwise_params::InputType::Buffer(0)}, kernel_selector::eltwise_mode::ASSIGN});
-
-        const auto& input_layout = impl_param.input_layouts[0];
-        auto desc = impl_param.typed_desc<crop>();
-        if (impl_param.memory_deps.size() > 0) {
-            ew_params.inputs[0] = convert_data_tensor(input_layout, 1, impl_param.input_offsets[0]);
-        } else {
-            ew_params.inputs[0] = convert_data_tensor(input_layout, 1, desc->offsets);
-        }
+        ew_params.inputs[0] = convert_data_tensor(impl_param.get_input_layout(), 1, impl_param.input_offsets[0]);
 
         auto& kernel_selector = kernel_selector::eltwise_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(ew_params, ew_optional_params);
