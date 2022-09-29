@@ -81,7 +81,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
-#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
+#include <transformations/mark_dequantization_subgraph.hpp>
 #include <low_precision/pull_reshape_through_dequantization.hpp>
 #include <low_precision/pull_transpose_through_dequantization.hpp>
 #include <low_precision/convolution.hpp>
