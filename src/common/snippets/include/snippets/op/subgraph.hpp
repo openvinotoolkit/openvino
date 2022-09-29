@@ -96,6 +96,10 @@ public:
         return config.m_is_quantized;
     }
 
+    bool has_type_relaxed_ops() const {
+        return config.m_has_type_relaxed_ops;
+    }
+
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, ngraph::pass::Manager& opt,
                                 const void* compile_params = nullptr);
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, const void* compile_params = nullptr);
@@ -138,6 +142,9 @@ private:
         bool m_is_quantized = false;
         // True if we should align element types indise body
         bool m_is_needed_to_align_precision = false;
+        // True if Subgraph contains TypeRelaxed nodes -> for several streams in tp mode we should copy body using mutexes
+        // because TypeRelaxed::copy_with_new_inputs() isn't save-thread method
+        bool m_has_type_relaxed_ops = false;
     } config;
 };
 

@@ -35,6 +35,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+
+std::mutex type_relax_mutex;
+
 Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node(op, eng, cache) {
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
@@ -48,7 +51,14 @@ Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& en
             auto new_input = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
             subgraph_node_inputs.push_back(new_input);
         }
-        auto new_body = ov::clone_model(*tmp_snippet->get_body().get());
+        std::shared_ptr<ov::Model> new_body = nullptr;
+        // TypeRelaxed ops aren't thread safe
+        if (tmp_snippet->has_type_relaxed_ops()) {
+            std::lock_guard<std::mutex> lock(type_relax_mutex);
+            new_body = ov::clone_model(*tmp_snippet->get_body().get());
+        } else {
+            new_body = ov::clone_model(*tmp_snippet->get_body().get());
+        }
         snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
         ngraph::copy_runtime_info(tmp_snippet, snippet);
         snippet->set_friendly_name(tmp_snippet->get_friendly_name());
