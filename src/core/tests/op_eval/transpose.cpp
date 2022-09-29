@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "engines_util/execute_tools.hpp"
-#include "gtest/gtest.h"
+#include "gmock/gmock.h"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/transpose.hpp"
 #include "ngraph/util.hpp"
@@ -219,10 +219,7 @@ TEST(op_eval, eval_negative_axes_transpose) {
 }
 
 template <typename T>
-std::vector<T> to_vector(const ov::Tensor& tensor) {
-    if (ov::element::from<T>() != tensor.get_element_type()) {
-        throw std::invalid_argument("read_vector type must match Tensor type");
-    }
+std::vector<T> tensor_to_vector(const ov::Tensor& tensor) {
     std::vector<T> rc(tensor.data<T>(), tensor.data<T>() + tensor.get_size());
     return rc;
 }
@@ -268,7 +265,7 @@ protected:
 
     PartialShape p_shape;
     ov::element::Type dtype{ov::element::from<int32_t>()};
-    ov::element::Type label_dtype{ov::element::from<uint64_t>()};
+    ov::element::Type label_dtype{ov::element::u64};
 
     std::vector<int32_t> axes_order, lower_values, upper_values;
     HostTensorPtr lower_v_tensor, upper_v_tensor, axes_v_tensor;
@@ -277,7 +274,7 @@ protected:
     std::shared_ptr<Parameter> arg, order;
 
     TensorLabel labels;
-    TensorLabelVector labels_tensor = TensorLabelVector(Transpose::OUT_COUNT);
+    TensorLabelVector out_labels = TensorLabelVector(Transpose::OUT_COUNT);
 };
 
 INSTANTIATE_TEST_SUITE_P(op_eval,
@@ -300,7 +297,8 @@ TEST_P(TransposeEvalTest, evaluate_lower) {
     const auto exp_evaluate = transpose->evaluate(exp_result, inputs);
 
     ASSERT_EQ(transpose->evaluate_lower(result), exp_evaluate);
-    ASSERT_EQ(to_vector<int32_t>(result[Transpose::ARG_T]), to_vector<int32_t>(exp_result[Transpose::ARG_T]));
+    ASSERT_EQ(tensor_to_vector<int32_t>(result[Transpose::ARG_T]),
+              tensor_to_vector<int32_t>(exp_result[Transpose::ARG_T]));
 }
 
 TEST_P(TransposeEvalTest, evaluate_lower_but_arg_lower_values_not_set) {
@@ -326,7 +324,8 @@ TEST_P(TransposeEvalTest, evaluate_upper) {
     transpose->evaluate(exp_result, inputs);
 
     ASSERT_TRUE(transpose->evaluate_upper(result));
-    ASSERT_EQ(to_vector<int32_t>(result[Transpose::ARG_T]), to_vector<int32_t>(exp_result[Transpose::ARG_T]));
+    ASSERT_EQ(tensor_to_vector<int32_t>(result[Transpose::ARG_T]),
+              tensor_to_vector<int32_t>(exp_result[Transpose::ARG_T]));
 }
 
 TEST_P(TransposeEvalTest, evaluate_upper_but_arg_upper_values_not_set) {
@@ -350,7 +349,7 @@ TEST_P(TransposeEvalTest, evaluate_label_but_empty_label_set) {
 
     node_set_lower_and_upper(order.get(), axes_v_tensor, axes_v_tensor);
 
-    ASSERT_FALSE(transpose->evaluate_label(labels_tensor));
+    ASSERT_FALSE(transpose->evaluate_label(out_labels));
 }
 
 TEST_P(TransposeEvalTest, evaluate_label_but_order_has_no_bound_set) {
@@ -359,7 +358,7 @@ TEST_P(TransposeEvalTest, evaluate_label_but_order_has_no_bound_set) {
     std::generate_n(std::back_inserter(labels), ov::shape_size(p_shape.get_shape()), ov::SeqGen<size_t>(30));
     arg->get_default_output().get_tensor().set_value_label(labels);
 
-    ASSERT_FALSE(transpose->evaluate_label(labels_tensor));
+    ASSERT_FALSE(transpose->evaluate_label(out_labels));
 }
 
 TEST_P(TransposeEvalTest, evaluate_label) {
@@ -370,13 +369,14 @@ TEST_P(TransposeEvalTest, evaluate_label) {
 
     node_set_lower_and_upper(order.get(), axes_v_tensor, axes_v_tensor);
 
-    auto inputs = ov::TensorVector{ov::Tensor(label_dtype, p_shape.get_shape(), labels.data()),
+    auto labels_u64 = std::vector<uint64_t>(labels.cbegin(), labels.cend());
+    auto inputs = ov::TensorVector{ov::Tensor(label_dtype, p_shape.get_shape(), labels_u64.data()),
                                    ov::Tensor(dtype, Shape{axes_order.size()}, axes_order.data())};
 
     auto exp_eval_result = transpose->evaluate(exp_result, inputs);
 
-    ASSERT_EQ(transpose->evaluate_label(labels_tensor), exp_eval_result);
-    const auto labels =
-        std::vector<uint64_t>(labels_tensor[Transpose::ARG_T].cbegin(), labels_tensor[Transpose::ARG_T].cend());
-    ASSERT_EQ(labels, to_vector<uint64_t>(exp_result[Transpose::ARG_T]));
+    ASSERT_EQ(transpose->evaluate_label(out_labels), exp_eval_result);
+    ASSERT_THAT(
+        out_labels[Transpose::ARG_T],
+        ElementsAreArray(exp_result[Transpose::ARG_T].data<uint64_t>(), exp_result[Transpose::ARG_T].get_size()));
 }
