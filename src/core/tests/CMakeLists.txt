@@ -441,8 +441,7 @@ if (ENABLE_TEMPLATE)
         # It should be a part of template plugin
         op_eval/interpolate.cpp
         op_eval/memory.cpp
-        op_eval/transpose.cpp
-        op_eval/variadic_split.cpp)
+        op_eval/transpose.cpp)
 endif()
 
 # SOURCE FOR FRONTEND TESTING
