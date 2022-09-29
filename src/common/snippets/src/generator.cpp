@@ -55,6 +55,7 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
     auto results = m->get_results();
     auto in = params.size();
     auto out = results.size();
+
     std::vector<size_t> io_last_dims(in + out);
     std::vector<size_t> io_data_sizes(in + out);
     std::transform(params.begin(), params.end(), io_last_dims.begin(),

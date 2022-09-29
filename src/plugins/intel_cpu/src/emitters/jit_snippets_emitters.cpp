@@ -695,9 +695,14 @@ void TileBeginEmitter::emit_impl(const std::vector<size_t>& in,
     // todo: skip everything if work_amount == increment
     Reg64 reg_work_amount = Reg64(abi_param2.getIdx());
     Label for_body;
+    // save prew count (for an outer loop for example)
+    h->push(reg_work_amount);
     h->mov(reg_work_amount, work_amount);
-    h->L(for_body);
-
+    // todo fix excessive push-pop with an appropriate gpr assign_registers pass
+    // h->L(for_body);
+    // Note: loop address is not calculated at this point, so need to call calcJmpAddress() which is protected
+    // or ready(), but they both set internal flags and that's not a desired way to use them.
+    // So the most obvious WA is just to use current address manually
     tileBegin->begin_address = h->getCurr();
     tileBegin->input_regs = in;
     std::cerr << "\n\nTileBegin emit_impl: "<< reinterpret_cast<const void*>(tileBegin->begin_address) << "\n";
@@ -724,14 +729,14 @@ TileEndEmitter::TileEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::imp
     //  probably better to implement them in Tile* constructors
     for (int i = 0; i < num_inputs; i++) {
         // todo: we can take the whole partial shape in future, since it should contain only one dim
-        const auto& last_dim = *(tileBegin->get_input_partial_shape(i).rbegin());
-        io_dims.push_back(last_dim.is_static() ? last_dim.get_length() : Subgraph::DYNAMIC_DIMENSION);
+        const auto& relevant_dim = tileBegin->get_input_partial_shape(i)[tileBegin->get_dimension()];
+        io_dims.push_back(relevant_dim.is_static() ? relevant_dim.get_length() : Subgraph::DYNAMIC_DIMENSION);
         io_data_size.push_back(tileBegin->get_input_element_type(i).size());
     }
     for (int i = 0; i < num_outputs; i++) {
         // todo: we can take the whole partial shape in future, since it should contain only one dim
-        const auto& last_dim = *(tileEnd->get_output_partial_shape(i).rbegin());
-        io_dims.push_back(last_dim.is_static() ? last_dim.get_length() : Subgraph::DYNAMIC_DIMENSION);
+        const auto& relevant_dim = tileEnd->get_output_partial_shape(i)[tileEnd->get_dimension()];
+        io_dims.push_back(relevant_dim.is_static() ? relevant_dim.get_length() : Subgraph::DYNAMIC_DIMENSION);
         io_data_size.push_back(tileBegin->get_input_element_type(i).size());
     }
     size_t num_dynamic_inputs = 0;
@@ -767,13 +772,11 @@ void TileEndEmitter::emit_impl(const std::vector<size_t>& in,
     // todo: how to derive work_amount more logically? update assign_registers pass?
     std::vector<size_t> data_ptr_reg_idxs(tileBegin->input_regs);
     data_ptr_reg_idxs.reserve(num_inputs + num_outputs);
+    std::copy(out.begin(), out.end(), std::back_inserter(data_ptr_reg_idxs));
     std::cerr << "TileEnd emit_impl: "<< reinterpret_cast<const void*>(tileBegin->begin_address) << "\n";
-    for (const auto& o : out)
-        data_ptr_reg_idxs.push_back(o);
     std::vector<Reg64> data_ptr_regs;
     transform_idxs_to_regs(data_ptr_reg_idxs, data_ptr_regs);
     Reg64 reg_work_amount = Reg64(abi_param2.getIdx());
-    Reg64 reg_const_params;
     // todo: unify interface for static & dynamic calls for TileEmitter?
     // There is 1 arg for the static case, so we can assign any reg to reg_const_params, since it won't be really used.
     // Anyway, try to assign a reg from the pool to prevent possible work_amount corruption
@@ -795,14 +798,25 @@ void TileEndEmitter::emit_impl(const std::vector<size_t>& in,
 //        if (io_dims[idx] != 1 || master_shape_last_dim == 1)
 //            h->add(data_ptr_regs[idx], increment * io_data_size[idx]);
 //    }
-    auto master_shape_last_dim = *std::max_element(io_dims.begin(), io_dims.end());
+//    auto master_shape_last_dim = *std::max_element(io_dims.begin(), io_dims.end());
+    const auto& apply_increments = tileBegin->get_apply_increment();
     for (int idx = 0; idx < data_ptr_regs.size(); idx++) {
-        if (io_dims[idx] != 1 || master_shape_last_dim == 1)
+        if (apply_increments[idx])
             h->add(data_ptr_regs[idx], increment * io_data_size[idx]);
+//        if (io_dims[idx] != 1 || master_shape_last_dim == 1)
+//            h->add(data_ptr_regs[idx], increment * io_data_size[idx]);
     }
     h->sub(reg_work_amount, increment);
     h->cmp(reg_work_amount, increment);
     h->jge(tileBegin->begin_address);
+
+    const auto& finalization_offsets = tileBegin->get_finalization_offsets();
+    for (int idx = 0; idx < data_ptr_regs.size(); idx++) {
+        if (finalization_offsets[idx] != 0)
+            h->add(data_ptr_regs[idx], finalization_offsets[idx] * io_data_size[idx]);
+    }
+    // restore counter, for an outer loop (if it exists)
+    h->pop(reg_work_amount);
 //    cleanup_broadcasting(reg_const_params, data_ptr_regs);
 }
 

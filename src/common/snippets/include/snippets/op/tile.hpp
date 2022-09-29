@@ -47,23 +47,37 @@ public:
 class TileBase : public ngraph::op::Op {
 public:
     OPENVINO_OP("TileBase", "SnippetsOpset");
-    TileBase(const std::vector<Output<Node>>& args, size_t tileRank, size_t workAmount, size_t increment);
+    TileBase(const std::vector<Output<Node>>& args, size_t dimension, size_t workAmount, size_t increment,
+             std::vector<bool> apply_increment, std::vector<int64_t> finalization_offsets);
+    TileBase(const std::vector<Output<Node>>& args, size_t dimension, size_t workAmount, size_t increment,
+             std::vector<bool> apply_increment);
+    TileBase(const std::vector<Output<Node>>& args, size_t dimension, size_t workAmount, size_t increment);
     TileBase() = default;
     bool visit_attributes(AttributeVisitor& visitor) override;
     size_t get_work_amount() {return workAmount;}
     size_t get_increment() {return increment;}
+    size_t get_dimension() {return dimension;}
+    const std::vector<int64_t>& get_finalization_offsets() {return finalization_offsets; }
+    const std::vector<bool>& get_apply_increment() {return apply_increment;}
+    void set_increment(size_t new_increment) {increment = new_increment;}
 
 protected:
-    size_t tileRank;
+    size_t dimension;
     size_t workAmount;
     size_t increment;
+    std::vector<bool> apply_increment;
+    std::vector<int64_t> finalization_offsets;
 };
 
 class TileBegin : public TileBase {
     friend class TileEnd;
 public:
     OPENVINO_OP("TileBegin", "SnippetsOpset");
-    TileBegin(const std::vector<Output<Node>>& args, size_t tileRank, size_t workAmount, size_t increment);
+    TileBegin(const std::vector<Output<Node>>& args, size_t dimension, size_t workAmount, size_t increment,
+              std::vector<bool> apply_increment, std::vector<int64_t> finalization_offsets);
+    TileBegin(const std::vector<Output<Node>>& args, size_t dimension, size_t workAmount, size_t increment,
+              std::vector<bool> apply_increment);
+    TileBegin(const std::vector<Output<Node>>& args, size_t dimension, size_t workAmount, size_t increment);
     TileBegin() = default;
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs)  const override;
@@ -80,52 +94,11 @@ class TileEnd : public TileBase {
 public:
     OPENVINO_OP("TileEnd", "SnippetsOpset");
     // todo: hide this constructor, as this is not an intended way to create TileEnd
-    TileEnd(const std::vector<Output<Node>>& args);
+    explicit TileEnd(const std::vector<Output<Node>>& args);
     TileEnd() = default;
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs)  const override;
 };
-
-template<typename T>
-std::shared_ptr<TileBegin> insertTileBegin(const T& afterTheseNodes, size_t rank, size_t workAmount, size_t increment) {
-    static_assert(std::is_same<T, ParameterVector>() || std::is_same<T, NodeVector>(),
-            "Unsupported template parameter for insertTileBegin. Only ParameterVector or NodeVector is allowed");
-    OutputVector originalOutputs;
-    std::vector<std::set<Input<Node>>> childInputs;
-    for (const auto &p : afterTheseNodes) {
-        const auto & out = p->output(0);
-        originalOutputs.push_back(out);
-        childInputs.push_back(out.get_target_inputs());
-    }
-    auto tileBegin = std::make_shared<TileBegin>(originalOutputs, rank, workAmount, increment);
-
-    for (int i = 0; i < childInputs.size(); i++) {
-        for (auto& input : childInputs[i]) {
-            input.replace_source_output(tileBegin->output(i));
-        }
-    }
-    return tileBegin;
-}
-
-template<typename T>
-std::shared_ptr<TileEnd> insertTileEnd(const T& beforeTheseNodes, const std::shared_ptr<TileBegin>& tileBegin) {
-    static_assert(std::is_same<T, ResultVector>() || std::is_same<T, NodeVector>(),
-                  "Unsupported template parameter for insertTileBegin. Only ParameterVector or NodeVector is allowed");
-    OutputVector parentOutputs;
-    std::vector<Input<Node>> originalInputs;
-    for (const auto &p : beforeTheseNodes) {
-        const auto &in = p->input(0);
-        originalInputs.push_back(in);
-        parentOutputs.push_back(in.get_source_output());
-    }
-    parentOutputs.push_back(tileBegin->output(tileBegin->get_output_size() - 1));
-    auto tileEnd = std::make_shared<TileEnd>(parentOutputs);
-
-    for (int i = 0; i < originalInputs.size(); i++) {
-        originalInputs[i].replace_source_output(tileEnd->output(i));
-    }
-    return tileEnd;
-}
 
 } // namespace op
 } // namespace snippets

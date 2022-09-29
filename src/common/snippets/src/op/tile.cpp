@@ -17,8 +17,23 @@ Tile::Tile(const std::vector<AllocatedEmitter> &region, size_t increment,
         io_data_size(io_data_sizes) {
 }
 
-TileBase::TileBase(const std::vector<Output<Node>> &args, size_t tileRank, size_t workAmount, size_t increment)
-        : Op(args), tileRank(tileRank), workAmount(workAmount), increment(increment) {
+TileBase::TileBase(const std::vector<Output<Node>> &args, size_t dimension, size_t workAmount, size_t increment,
+                   std::vector<bool> apply_increment, std::vector<int64_t> finalization_offsets)
+        : Op(args), dimension(dimension), workAmount(workAmount), increment(increment),
+          apply_increment(std::move(apply_increment)), finalization_offsets(std::move(finalization_offsets)) {
+}
+
+TileBase::TileBase(const std::vector<Output<Node>> &args, size_t dimension, size_t workAmount, size_t increment,
+                   std::vector<bool> apply_increment)
+        : Op(args), dimension(dimension), workAmount(workAmount), increment(increment),
+        apply_increment(std::move(apply_increment)) {
+    finalization_offsets = std::vector<int64_t>(args.size(), 0);
+}
+
+TileBase::TileBase(const std::vector<Output<Node>> &args, size_t dimension, size_t workAmount, size_t increment)
+        : Op(args), dimension(dimension), workAmount(workAmount), increment(increment) {
+    apply_increment = std::vector<bool> (args.size(), true);
+    finalization_offsets = std::vector<int64_t>(args.size(), 0);
 }
 
 //std::shared_ptr<Node> TileBase::clone_with_new_inputs(const OutputVector& inputs) const {
@@ -26,19 +41,31 @@ TileBase::TileBase(const std::vector<Output<Node>> &args, size_t tileRank, size_
 //}
 
 bool TileBase::visit_attributes(AttributeVisitor &visitor) {
-    visitor.on_attribute("rank", tileRank);
+    visitor.on_attribute("dimension", dimension);
     visitor.on_attribute("work_amount", workAmount);
     visitor.on_attribute("increment", increment);
     return true;
 }
 
-TileBegin::TileBegin(const std::vector<Output<Node>> &args, size_t tileRank, size_t workAmount, size_t increment)
-    : TileBase(args, tileRank, workAmount, increment), begin_address(nullptr) {
+TileBegin::TileBegin(const std::vector<Output<Node>> &args, size_t dimension, size_t workAmount, size_t increment,
+                     std::vector<bool> apply_increments, std::vector<int64_t> finalization_offsets)
+        : TileBase(args, dimension, workAmount, increment, std::move(apply_increments), std::move(finalization_offsets)),
+        begin_address(nullptr) {
+    constructor_validate_and_infer_types();
+}
+TileBegin::TileBegin(const std::vector<Output<Node>> &args, size_t dimension, size_t workAmount, size_t increment,
+                     std::vector<bool> apply_increments)
+        : TileBase(args, dimension, workAmount, increment, std::move(apply_increments)), begin_address(nullptr) {
+    constructor_validate_and_infer_types();
+}
+
+TileBegin::TileBegin(const std::vector<Output<Node>> &args, size_t dimension, size_t workAmount, size_t increment)
+    : TileBase(args, dimension, workAmount, increment), begin_address(nullptr) {
     constructor_validate_and_infer_types();
 }
 
 std::shared_ptr<Node> TileBegin::clone_with_new_inputs(const OutputVector& inputs) const {
-    return std::make_shared<TileBegin>(inputs, tileRank, workAmount, increment);
+    return std::make_shared<TileBegin>(inputs, dimension, workAmount, increment);
 }
 
 
@@ -60,9 +87,18 @@ TileEnd::TileEnd(const std::vector<Output<Node>> &args)
         : TileBase(args, 0, 0, 0) {
     const auto tileBegin = ov::as_type_ptr<TileBegin>(args.back().get_node_shared_ptr());
     NODE_VALIDATION_CHECK(this, tileBegin != nullptr, "TileEnd must have TileBegin as the last argument");
-    tileRank = tileBegin->tileRank;
+    dimension = tileBegin->dimension;
     workAmount = tileBegin->workAmount;
     increment = tileBegin->increment;
+    apply_increment = tileBegin->apply_increment;
+    finalization_offsets = tileBegin->finalization_offsets;
+    const auto io_size = get_output_size() + tileBegin->get_input_size();
+    NODE_VALIDATION_CHECK(this, apply_increment.size() != io_size,
+                          "TileEnd detected invalid size of the apply_increments arg: expected ",
+                          io_size, " got ", apply_increment.size());
+    NODE_VALIDATION_CHECK(this, finalization_offsets.size() != get_input_size(),
+                          "TileEnd detected invalid size of the apply_increments arg: expected ",
+                          io_size, " got ", apply_increment.size());
     constructor_validate_and_infer_types();
 }
 

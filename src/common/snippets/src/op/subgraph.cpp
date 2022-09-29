@@ -25,6 +25,7 @@
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph_ops/type_relaxed.hpp"
 #include <openvino/pass/serialize.hpp>
+#include "snippets/op/tile_helpers.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -439,9 +440,65 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     std::cerr << "Tile before is dumped";
     ov::pass::Serialize("tile_before.xml", "tile_before.bin").run_on_model(m_body);
 
-    auto tileBegin = insertTileBegin(m_body->get_parameters(), 1, 35, 16);
-    auto tileEnd = insertTileEnd(m_body->get_results(), tileBegin);
+    if (master_shape.is_static()) {
+        const auto inner_dim = master_shape.size() - 1;
+        // Note: outer_dim could overflow if master_shape.size() < 2
+        const auto outer_dim = master_shape.size() - 2;
+        const auto inner_WA = master_shape[inner_dim].get_length();
+        const auto outer_WA = master_shape.size() > 2 ? master_shape[outer_dim].get_length() : 1;
+        // todo: get_lanes() assumes fp32. Could there be any int8 issues?
+        const auto vector_size = m_generator->get_target_machine()->get_lanes();
 
+        auto& commonParams = m_body->get_parameters();
+        auto& commonResults = m_body->get_results();
+        std::vector<PartialShape> ioShapes;
+        ioShapes.reserve(commonParams.size() + commonResults.size());
+        std::transform(commonParams.begin(), commonParams.end(), std::back_inserter(ioShapes),
+                       [](const std::shared_ptr<Node>& n) { return n->get_output_partial_shape(0); });
+        std::transform(commonResults.begin(), commonResults.end(), std::back_inserter(ioShapes),
+                       [](const std::shared_ptr<Node>& n) { return n->get_input_partial_shape(0); });
+
+        if (inner_WA > 0) {
+//            const bool skip_counters = vector_work_amount == vector_size;
+//            const bool skip_ptr_increments = outer_dim == 1 && skip_counters;
+            // todo: pass skip_counters and skip_ptr_increments
+            std::vector<bool> apply_increments;
+            apply_increments.reserve(ioShapes.size());
+            // Inner Tile applies increments if a dimension is broadcasted
+            std::transform(ioShapes.begin(), ioShapes.end(), std::back_inserter(apply_increments),
+                            [=](const PartialShape& ps) {
+                                return ps[inner_dim] != 1 && master_shape[inner_dim] != 1;
+                            });
+            std::vector<int64_t> inner_finalization_offsets(ioShapes.size(), 0);
+            if (outer_WA > 1) {
+                // We need to step back if an outer dim is broadcasted, while the corresponding lower one is not
+                std::transform(ioShapes.begin(), ioShapes.end(), inner_finalization_offsets.begin(),
+                               [=](const PartialShape& ps) {
+                                   return ps[outer_dim] == 1 && ps[inner_dim] != 1 ? -inner_WA : 0;
+                               });
+            }
+                const auto& innerTileBegin = insertTileBegin(commonParams, inner_dim, inner_WA, vector_size, apply_increments,
+                                                 inner_finalization_offsets);
+                insertTileEnd(commonResults, innerTileBegin);
+        }
+
+        if (outer_WA > 1) {
+            std::vector<bool> apply_increments;
+            apply_increments.reserve(ioShapes.size());
+            // Outer Tile applies increments only if a corresponding lower dim was broadcasted (or all lower dims == 1)
+            std::transform(ioShapes.begin(), ioShapes.end(), std::back_inserter(apply_increments),
+                           [=](const PartialShape& ps) {
+                               return ps[outer_dim] != 1 && ps[inner_dim] == 1;
+                           });
+            const auto& outerTileBegin = insertTileBegin(commonParams, outer_dim, outer_WA, 1, apply_increments);
+            insertTileEnd(commonResults, outerTileBegin);
+        }
+    } else {
+        throw ngraph_error("Dynamic case is not supported yet");
+    }
+    int i = 0;
+    for (const auto& op : m_body->get_ordered_ops())
+        std::cerr << i++ << " : " << op->get_friendly_name() << "\n";
 //    for (int i = 0; i < tileEnd->get_output_size(); i++) {
 //        std::cerr << i << " : ";
 //        const auto& rt = tileBegin->get_output_tensor(i).get_rt_info();
