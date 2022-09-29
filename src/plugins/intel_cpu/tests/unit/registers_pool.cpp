@@ -32,7 +32,7 @@ TYPED_TEST_P(RegPoolTest, get_return_by_scope) {
     ASSERT_EQ(regPool->countFree<XbyakRegT>(), this->regNumber);
     {
         RegistersPool::Reg<XbyakRegT> reg{regPool};
-        ASSERT_NO_THROW(static_cast<XbyakRegT &>(reg));
+        ASSERT_NO_THROW([[maybe_unused]] auto val = static_cast<XbyakRegT &>(reg));
         ASSERT_EQ(regPool->countFree<XbyakRegT>(), this->regNumber - 1);
     }
     ASSERT_EQ(regPool->countFree<XbyakRegT>(), this->regNumber);
@@ -43,13 +43,13 @@ TYPED_TEST_P(RegPoolTest, get_return_by_method) {
     RegistersPool::Ptr regPool = RegistersPool::create<TypeParam::IsaParam::isa>({});
     ASSERT_EQ(regPool->countFree<XbyakRegT>(), this->regNumber);
     RegistersPool::Reg<XbyakRegT> reg{regPool};
-    ASSERT_NO_THROW(static_cast<XbyakRegT &>(reg));
+    ASSERT_NO_THROW([[maybe_unused]] auto val = static_cast<XbyakRegT &>(reg));
     ASSERT_EQ(regPool->countFree<XbyakRegT>(), this->regNumber - 1);
     reg.release();
-    ASSERT_ANY_THROW(static_cast<XbyakRegT &>(reg));
+    ASSERT_ANY_THROW([[maybe_unused]] auto val = static_cast<XbyakRegT &>(reg));
     ASSERT_EQ(regPool->countFree<XbyakRegT>(), this->regNumber);
     reg = RegistersPool::Reg<XbyakRegT>{regPool};
-    ASSERT_NO_THROW(static_cast<XbyakRegT &>(reg));
+    ASSERT_NO_THROW([[maybe_unused]] auto val = static_cast<XbyakRegT &>(reg));
     ASSERT_EQ(regPool->countFree<XbyakRegT>(), this->regNumber - 1);
 }
 
@@ -58,7 +58,7 @@ TYPED_TEST_P(RegPoolTest, default_ctor) {
     RegistersPool::Ptr regPool = RegistersPool::create<TypeParam::IsaParam::isa>({});
     RegistersPool::Reg<XbyakRegT> reg;
     ASSERT_EQ(regPool->countFree<XbyakRegT>(), this->regNumber);
-    ASSERT_ANY_THROW(static_cast<XbyakRegT &>(reg));
+    ASSERT_ANY_THROW([[maybe_unused]] auto val = static_cast<XbyakRegT &>(reg));
 }
 
 TYPED_TEST_P(RegPoolTest, get_all) {
@@ -79,7 +79,7 @@ TYPED_TEST_P(RegPoolTest, move) {
     using XbyakRegT = typename TypeParam::RegT;
     RegistersPool::Ptr regPool = RegistersPool::create<TypeParam::IsaParam::isa>({});
     RegistersPool::Reg<XbyakRegT> reg{regPool};
-    ASSERT_NO_THROW(static_cast<XbyakRegT &>(reg));
+    ASSERT_NO_THROW([[maybe_unused]] auto val = static_cast<XbyakRegT &>(reg));
     ASSERT_EQ(regPool->countFree<XbyakRegT>(), this->regNumber - 1);
     RegistersPool::Reg<XbyakRegT> reg2{regPool};
     ASSERT_EQ(regPool->countFree<XbyakRegT>(), this->regNumber - 2);
@@ -87,8 +87,8 @@ TYPED_TEST_P(RegPoolTest, move) {
     reg2 = std::move(reg);
     ASSERT_EQ(reg2.getIdx(), regIdx);
     ASSERT_EQ(regPool->countFree<XbyakRegT>(), this->regNumber - 1);
-    ASSERT_ANY_THROW(static_cast<XbyakRegT &>(reg));
-    ASSERT_NO_THROW(static_cast<XbyakRegT &>(reg2));
+    ASSERT_ANY_THROW([[maybe_unused]] auto val = static_cast<XbyakRegT &>(reg));
+    ASSERT_NO_THROW([[maybe_unused]] auto val = static_cast<XbyakRegT &>(reg2));
     ASSERT_EQ(regPool->countFree<XbyakRegT>(), this->regNumber - 1);
 }
 
@@ -212,7 +212,7 @@ TEST(RegistersPoolTests, simd_and_general) {
     ASSERT_EQ(regPool->countFree<Xbyak::Reg64>(), freeGeneralRegNumber);
     {
         RegistersPool::Reg<Xbyak::Xmm> reg{regPool};
-        ASSERT_NO_THROW(static_cast<Xbyak::Xmm &>(reg));
+        ASSERT_NO_THROW([[maybe_unused]] auto val = static_cast<Xbyak::Xmm &>(reg));
         ASSERT_EQ(regPool->countFree<Xbyak::Xmm>(), simdRegNumber - 1);
         ASSERT_EQ(regPool->countFree<Xbyak::Ymm>(), simdRegNumber - 1);
         ASSERT_EQ(regPool->countFree<Xbyak::Reg64>(), freeGeneralRegNumber);
