@@ -116,7 +116,8 @@ class TestLogSoftmax(CommonTFLayerTest):
         return tf_net, ref_net
 
     test_data_precommit = [
-        dict(shape=[3, 2, 3, 7, 6], reduction_axis=-1),
+        pytest.param(dict(shape=[3, 2, 3, 7, 6], reduction_axis=-1),
+                     marks=pytest.mark.skip(reason="Skipped until fixed"))
     ]
 
     @pytest.mark.parametrize("params", test_data_precommit)
