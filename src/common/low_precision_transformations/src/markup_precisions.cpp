@@ -78,6 +78,12 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_model(const std::shar
             continue;
         }
 
+        if (const auto multiSubGraph = ov::as_type_ptr<ngraph::op::util::MultiSubGraphOp>(node)) {
+            for (size_t i = 0; i < multiSubGraph->get_internal_subgraphs_size(); i++)
+                run_on_model(multiSubGraph->get_function(i));
+            continue;
+        }
+
         // TODO: don't need to set restrictions for not supported operations
         // if don't set restrictions for not supported operations then accuracy drop appears, issue #59197
         const bool supported = ov::is_type<opset1::Result>(node) || isSupported(node);
