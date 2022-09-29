@@ -17,9 +17,6 @@ set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release" "Debug" "RelWithD
 # Define directory where artifacts will be placed
 set(OUTPUT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
-# Search OpenVINO Inference Engine installed
-find_package(OpenVINO REQUIRED)
-
 set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
 add_subdirectory(common)

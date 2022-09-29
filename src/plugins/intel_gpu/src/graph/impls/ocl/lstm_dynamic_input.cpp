@@ -34,19 +34,23 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const lstm_dynamic_input_node& arg) {
-        auto dlstm_input_params = get_default_params<kernel_selector::lstm_dynamic_input_params>(arg);
+    static primitive_impl* create(const lstm_dynamic_input_node& arg, const kernel_impl_params& impl_param) {
+        auto dlstm_input_params = get_default_params<kernel_selector::lstm_dynamic_input_params>(impl_param);
 
-        const auto& weights_layout = arg.weights().get_output_layout();
+        const auto dyn_len_idx = 1;
+        const auto weights_idx = 2;
+        const auto bias_idx = 3;
+
+        const auto& weights_layout = impl_param.input_layouts[weights_idx];
         dlstm_input_params.weights = convert_weights_tensor(weights_layout);
 
         if (arg.bias_term()) {
-            const auto& bias_layout = arg.bias().get_output_layout();
+            const auto& bias_layout = impl_param.input_layouts[bias_idx];
             dlstm_input_params.bias.push_back(convert_data_tensor(bias_layout));
         }
 
         // dyn length
-        const auto& dyn_length_tensor = arg.dyn_length().get_output_layout();
+        const auto& dyn_length_tensor = impl_param.input_layouts[dyn_len_idx];
         dlstm_input_params.inputs.push_back(convert_data_tensor(dyn_length_tensor));
 
         dlstm_input_params.direction = arg.direction();

@@ -108,7 +108,6 @@ ngraph::pass::ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_el
             return false;  // because root node wasn't replaced
         }
 
-        MATCHER_SCOPE_ENABLE(ReshapeSequenceFusion);
         return true;
     };
 

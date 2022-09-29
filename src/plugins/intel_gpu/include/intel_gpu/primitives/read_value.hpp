@@ -30,7 +30,7 @@ struct read_value : public primitive_base<read_value> {
                const std::vector<primitive_id>& inputs,
                const std::string& variable_id,
                const layout& output_layout)
-            : primitive_base(id, inputs, "", {}, optional_data_type{output_layout.data_type}),
+            : primitive_base(id, inputs, {}, optional_data_type{output_layout.data_type}),
               variable_id{variable_id},
               output_layout{output_layout} {}
 

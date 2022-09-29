@@ -14,7 +14,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreatePriorBoxClusteredOp(Program& p, const std::shared_ptr<ngraph::op::v0::PriorBoxClustered>& op) {
-    p.ValidateInputs(op, {2});
+    validate_inputs_count(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -26,11 +26,16 @@ static void CreatePriorBoxClusteredOp(Program& p, const std::shared_ptr<ngraph::
     float offset = attrs.offset;
     bool clip = attrs.clip;
 
-    auto inp_dims = op->get_input_shape(0);
-    auto img_dims = op->get_input_shape(1);
+    auto input_pshape = op->get_input_partial_shape(0);
+    auto img_pshape = op->get_input_partial_shape(1);
 
-    int img_w = static_cast<int>(img_dims.back());
-    int img_h = static_cast<int>(img_dims.at(img_dims.size() - 2));
+    OPENVINO_ASSERT(input_pshape.is_static() && img_pshape.is_static(), "Dynamic shapes are not supported for PriorBoxClustered operation yet");
+
+    auto input_shape = input_pshape.to_shape();
+    auto img_shape = img_pshape.to_shape();
+
+    int img_w = static_cast<int>(img_shape.back());
+    int img_h = static_cast<int>(img_shape.at(img_shape.size() - 2));
     cldnn::tensor img_size = (cldnn::tensor) cldnn::spatial(TensorValue(img_w), TensorValue(img_h));
 
     auto step_w = attrs.step_widths;
@@ -41,8 +46,8 @@ static void CreatePriorBoxClusteredOp(Program& p, const std::shared_ptr<ngraph::
     }
 
     if (step_w == 0.0f && step_h == 0.0f) {
-        step_w = static_cast<float>(img_w) / inp_dims.back();
-        step_h = static_cast<float>(img_h) / inp_dims.at(img_dims.size() - 2);
+        step_w = static_cast<float>(img_w) / input_shape.back();
+        step_h = static_cast<float>(img_h) / input_shape.at(img_shape.size() - 2);
     }
 
     auto priorBoxPrim = cldnn::prior_box(layerName,
@@ -55,15 +60,13 @@ static void CreatePriorBoxClusteredOp(Program& p, const std::shared_ptr<ngraph::
                                          offset,
                                          width,
                                          height,
-                                         DataTypeFromPrecision(op->get_output_element_type(0)),
-                                         op->get_friendly_name());
+                                         cldnn::element_type_to_data_type(op->get_output_element_type(0)));
 
-    p.AddPrimitive(priorBoxPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, priorBoxPrim);
 }
 
 static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v0::PriorBox>& op) {
-    p.ValidateInputs(op, {2});
+    validate_inputs_count(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -84,10 +87,13 @@ static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
     auto step_w = attrs.step;
     auto step_h = attrs.step;
 
-    auto img_dims = op->get_input_shape(1);
+    auto img_pshape = op->get_input_partial_shape(1);
+    OPENVINO_ASSERT(img_pshape.is_static(), "Dynamic shapes are not supported for PriorBox operation yet");
+    auto img_shape = img_pshape.to_shape();
 
-    auto wdim = img_dims.back();
-    auto hdim = img_dims.at(img_dims.size()-2);
+
+    auto wdim = img_shape.back();
+    auto hdim = img_shape.at(img_shape.size()-2);
 
     cldnn::tensor img_size = (cldnn::tensor) cldnn::spatial(TensorValue(wdim), TensorValue(hdim));
     auto priorBoxPrim = cldnn::prior_box(layerName,
@@ -105,11 +111,9 @@ static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
                                          scale_all_sizes,
                                          fixed_ratio,
                                          fixed_size,
-                                         density,
-                                         op->get_friendly_name());
+                                         density);
 
-    p.AddPrimitive(priorBoxPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, priorBoxPrim);
 }
 
 REGISTER_FACTORY_IMPL(v0, PriorBoxClustered);

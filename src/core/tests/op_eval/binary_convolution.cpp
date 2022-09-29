@@ -7,14 +7,9 @@
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/test_control.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-static string s_manifest = "${MANIFEST}";
 
 template <typename T_IN, typename T_KERN>
 static void BinaryConvolutionTest(const std::vector<T_IN>& inputs,
@@ -122,7 +117,7 @@ TEST(op_eval, bin_convolution_1D_1batch_1channel_no_padding) {
 
 // --------------------- 3D convolution ------------------------------------------
 // clang-format off
-NGRAPH_TEST(op_eval, bin_convolution_3D_1batch_1channel_no_padding)
+TEST(op_eval, bin_convolution_3D_1batch_1channel_no_padding)
 {
     const Strides strides{1, 1, 1};
     const CoordinateDiff padding{0, 0, 0};

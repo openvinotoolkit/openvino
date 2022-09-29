@@ -26,6 +26,7 @@ ParamsKey GemmKernelRef::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableDifferentTypes();
     k.EnableTensorPitches();
+    k.EnableTensorOffset();
     k.EnableQuantization(QuantizationType::SYMMETRIC);
 
     return k;

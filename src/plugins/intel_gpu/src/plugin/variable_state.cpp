@@ -60,7 +60,7 @@ InferenceEngine::SizeVector VariableState::AggregateShape(const cldnn::layout &l
 }
 
 void VariableState::IterateOverStates(std::function<void(cldnn::network::VariableState&)> f) const {
-    for (int i = 0; i < states_.size(); i++) {
+    for (size_t i = 0; i < states_.size(); i++) {
         auto batch = 1 << i;
         if (batch & currentBatch_)
             f(*states_[i]);

@@ -22,12 +22,11 @@ struct reshape_impl : public typed_primitive_impl_ocl<reshape> {
     }
 
 public:
-    static primitive_impl* create(reshape_node const& arg) {
+    static primitive_impl* create(reshape_node const& arg, const kernel_impl_params& impl_param) {
         if (arg.can_be_optimized()) {
             return new reshape_impl(arg, {});
         }
-
-        auto reorder_params = get_default_params<kernel_selector::reshape_params>(arg);
+        auto reorder_params = get_default_params<kernel_selector::reshape_params>(impl_param);
         auto reorder_optional_params =
             get_default_optional_params<kernel_selector::reshape_optional_params>(arg.get_program());
 

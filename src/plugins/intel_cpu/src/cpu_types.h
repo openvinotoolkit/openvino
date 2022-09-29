@@ -79,6 +79,7 @@ enum class Type {
     Reference,
     ShuffleChannels,
     DFT,
+    RDFT,
     Math,
     CTCLoss,
     Bucketize,
@@ -107,6 +108,7 @@ enum class Type {
     Subgraph,
     PriorBox,
     PriorBoxClustered,
+    MHA
 };
 
 enum class Algorithm {

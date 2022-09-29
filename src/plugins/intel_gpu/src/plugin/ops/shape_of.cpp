@@ -13,18 +13,16 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateShapeOfOpCommon(Program& p, const std::shared_ptr<ngraph::Node>& op) {
-    p.ValidateInputs(op, {1, 2});
+    validate_inputs_count(op, {1, 2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto primitive = cldnn::shape_of(layerName,
                                      inputPrimitives[0],
                                      op->get_output_partial_shape(0).rank().get_length(),
-                                     DataTypeFromPrecision(op->get_output_element_type(0)),
-                                     op->get_friendly_name());
+                                     cldnn::element_type_to_data_type(op->get_output_element_type(0)));
 
-    p.AddPrimitive(primitive);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, primitive);
 }
 
 static void CreateShapeOfOp(Program& p, const std::shared_ptr<ngraph::op::v0::ShapeOf>& op) {

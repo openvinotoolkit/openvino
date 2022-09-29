@@ -181,7 +181,7 @@ std::vector<device::ptr>  ocl_device_detector::create_device_list_from_user_cont
     std::vector<device::ptr> ret;
     for (size_t i = 0; i < all_devices.size(); i++) {
         auto& device = all_devices[i];
-        if (!does_device_match_config(out_out_order, device) || i != ctx_device_id)
+        if (!does_device_match_config(out_out_order, device) || static_cast<int>(i) != ctx_device_id)
             continue;
         ret.emplace_back(std::make_shared<ocl_device>(device, ctx, device.getInfo<CL_DEVICE_PLATFORM>()));
     }

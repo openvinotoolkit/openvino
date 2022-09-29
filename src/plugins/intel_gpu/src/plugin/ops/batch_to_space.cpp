@@ -14,12 +14,12 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateBatchToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v1::BatchToSpace>& op) {
-    p.ValidateInputs(op, {4});
+    validate_inputs_count(op, {4});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto rank = op->get_input_shape(0).size();
-    auto format = DefaultFormatForDims(rank);
+    auto format = cldnn::format::get_default_format(rank);
 
     std::vector<cldnn::tensor> inputs;
     inputs.reserve(3);
@@ -43,11 +43,9 @@ static void CreateBatchToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v
                                                   inputs[0], // block_shape
                                                   inputs[1], // crops_begin
                                                   inputs[2], // crops_end
-                                                  out_size,
-                                                  op->get_friendly_name());
+                                                  out_size);
 
-    p.AddPrimitive(batchToSpacePrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, batchToSpacePrim);
 }
 
 REGISTER_FACTORY_IMPL(v1, BatchToSpace);

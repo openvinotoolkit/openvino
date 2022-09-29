@@ -108,7 +108,7 @@ KERNEL(pooling_gpu_b_fs_yx_fsv4)(
             result[0] = FUNC_CALL(apply_pooling)(result[0], TO_ACCUMULATOR_TYPE(ch4_data[0]));
             result[1] = FUNC_CALL(apply_pooling)(result[1], TO_ACCUMULATOR_TYPE(ch4_data[1]));
             result[2] = FUNC_CALL(apply_pooling)(result[2], TO_ACCUMULATOR_TYPE(ch4_data[2]));
-            result[3] = FUNC_CALL(apply_pooling)(result[3], TO_ACCUMULATOR_TYPE(ch4_data[3]));;
+            result[3] = FUNC_CALL(apply_pooling)(result[3], TO_ACCUMULATOR_TYPE(ch4_data[3]));
 
             input_idx += IN_X_PITCH;
         }

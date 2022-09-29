@@ -24,7 +24,7 @@ def test_compare_functions():
         func = get_test_function()
         status, _ = compare_functions(func, func)
         assert status
-    except RuntimeError:
+    except ModuleNotFoundError:
         print("openvino.test_utils.compare_functions is not available")
 
 

@@ -136,6 +136,46 @@ const std::vector<SplitTransformationTestValues> testValues = {
             }
         }
     },
+    // U8 per tensor quantization / int8 subtraction with Convert from u8 to fp32
+    {
+        { 1, 3, 16, 16 }, std::int64_t{2}, size_t{2},
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::u8, true}, {3.f}}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {
+                {{ngraph::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::u8, true}, {3.f}},
+                {{ngraph::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::u8, true}, {3.f}},
+            }
+        }
+    },
+    // U8 per tensor quantization / int8 subtraction with Convert from fp16 -> fp32
+    {
+        { 1, 3, 16, 16 }, std::int64_t{2}, size_t{2},
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::f16, true}, {3.f}}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {
+                {{ngraph::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::f16, true}, {3.f}},
+                {{ngraph::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::f16, true}, {3.f}},
+            }
+        }
+    },
     {
         { -1, -1, -1, -1 }, std::int64_t{2}, size_t{2},
         LayerTransformation::createParamsU8I8(),

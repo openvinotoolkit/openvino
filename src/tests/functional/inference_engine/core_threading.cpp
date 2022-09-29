@@ -6,7 +6,7 @@
 #include <ie_plugin_config.hpp>
 #include <ie_extension.h>
 
-#include <file_utils.h>
+#include "openvino/util/file_util.hpp"
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <functional_test_utils/test_model/test_model.hpp>
 #include <common_test_utils/file_utils.hpp>
@@ -54,7 +54,7 @@ public:
     void safeAddExtension(InferenceEngine::Core & ie) {
         try {
             auto extension = std::make_shared<InferenceEngine::Extension>(
-                FileUtils::makePluginLibraryName<char>({},
+                ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
                     std::string("template_extension") + IE_BUILD_POSTFIX));
             ie.AddExtension(extension);
         } catch (const InferenceEngine::Exception & ex) {
@@ -84,7 +84,8 @@ TEST_F(CoreThreadingTests, RegisterPlugin) {
     std::atomic<int> index{0};
     runParallel([&] () {
         const std::string deviceName = std::to_string(index++);
-        ie.RegisterPlugin(std::string("mock_engine") + IE_BUILD_POSTFIX, deviceName);
+        ie.RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+            std::string("mock_engine") + IE_BUILD_POSTFIX), deviceName);
         ie.GetVersions(deviceName);
         ie.UnregisterPlugin(deviceName);
     }, 4000);
@@ -97,12 +98,12 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
 
     auto getPluginXml = [&] () -> std::tuple<std::string, std::string> {
         std::string indexStr = std::to_string(index++);
-        std::string pluginsXML = InferenceEngine::getIELibraryPath() +
-            ov::util::FileTraits<char>::file_separator +
-            "test_plugins" + indexStr + ".xml";
+        std::string pluginsXML = "test_plugins" + indexStr + ".xml";
         std::ofstream file(pluginsXML);
 
         file << "<ie><plugins><plugin location=\"";
+        file << CommonTestUtils::getExecutableDirectory();
+        file << ov::util::FileTraits<char>::file_separator;
         file << ov::util::FileTraits<char>::library_prefix();
         file << "mock_engine";
         file << IE_BUILD_POSTFIX;

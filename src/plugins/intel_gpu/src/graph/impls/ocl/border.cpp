@@ -22,34 +22,38 @@ struct border_impl : typed_primitive_impl_ocl<border> {
         return make_unique<border_impl>(*this);
     }
 
-    static primitive_impl* create(const border_node& arg) {
-        auto b_params = get_default_params<kernel_selector::border_params>(arg, 1);
+    static primitive_impl* create(const border_node& arg, const kernel_impl_params& impl_param) {
+        auto desc = arg.get_primitive();
+
+        auto b_params = get_default_params<kernel_selector::border_params>(impl_param, 1);
         auto b_optional_params =
             get_default_optional_params<kernel_selector::border_optional_params>(arg.get_program());
 
-        auto desc = arg.get_primitive();
+        format pads_format = format::adjust_to_rank(format::bfyx, arg.get_input_layouts().front().get_rank());
+        std::vector<tensor::value_type> pads_begin(desc->pads_begin.begin(), desc->pads_begin.end());
+        std::vector<tensor::value_type> pads_end(desc->pads_end.begin(), desc->pads_end.end());
 
-        b_params.lt_sizes = convert_dim_vector(desc->left_top_sizes);
-        b_params.rb_sizes = convert_dim_vector(desc->right_bottom_sizes);
-        b_params.border_value = desc->border_value;
+        b_params.lt_sizes = convert_dim_vector(tensor(pads_format, pads_begin, 0));
+        b_params.rb_sizes = convert_dim_vector(tensor(pads_format, pads_end, 0));
+        b_params.border_value = desc->pad_value;
 
-        switch (desc->type) {
-            case border_type::constant:
+        switch (desc->pad_mode) {
+            case ov::op::PadMode::CONSTANT:
                 b_params.b_type = kernel_selector::border_type::CONSTANT;
                 break;
-            case border_type::edge:
+            case ov::op::PadMode::EDGE:
                 b_params.b_type = kernel_selector::border_type::EDGE;
                 break;
-            case border_type::mirror:
+            case ov::op::PadMode::SYMMETRIC:
                 b_params.b_type = kernel_selector::border_type::MIRROR;
                 break;
-            case border_type::mirror_101:
+            case ov::op::PadMode::REFLECT:
                 b_params.b_type = kernel_selector::border_type::MIRROR_101;
                 break;
             default:
                 assert(
                     false &&
-                    "Encountered unhandled enum case: border_type during translation to kernel selector enumeration.");
+                    "Encountered unhandled enum case: PadMode during translation to kernel selector enumeration.");
         }
 
         auto& kernel_selector = kernel_selector::border_kernel_selector::Instance();

@@ -37,9 +37,8 @@ struct dft : public primitive_base<dft> {
         std::vector<int64_t>&& axes,
         const ov::Shape& output_shape,
         dft_kind kind,
-        const primitive_id& ext_prim_id = {},
         const padding& output_padding = {})
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           axes(std::move(axes)),
           output_shape(output_shape),
           kind(kind) {}

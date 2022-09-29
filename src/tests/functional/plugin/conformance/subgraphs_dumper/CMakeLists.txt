@@ -8,7 +8,7 @@ list(APPEND LIBRARIES
         gflags
         inference_engine
         funcTestUtils
-        pugixml::static
+        openvino::pugixml
 )
 
 list(APPEND DEFINITIONS)

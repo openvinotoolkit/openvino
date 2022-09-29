@@ -1,6 +1,7 @@
 # build/artifact dirs
 _*
 [Bb]uild*/
+cmake-build*
 
 # but ensure we don't skip __init__.py and __main__.py
 !__init__.py
@@ -19,10 +20,7 @@ bin/
 .gdb_history
 .vimspector.json
 doc/
-!ngraph/doc
 docs/build_documentation/work_dir/
-inference-engine/plugins/
-inference-engine/report
 temp/
 .repo/
 docs/template_plugin/html/

@@ -15,7 +15,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::Proposal>& op) {
-    p.ValidateInputs(op, {3});
+    validate_inputs_count(op, {3});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
 
     auto attrs = op->get_attrs();
@@ -60,8 +60,8 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
             mutable_precision = ngraph::element::i32;
         }
 
-        cldnn::layout mutableLayout = cldnn::layout(DataTypeFromPrecision(mutable_precision),
-                                                    DefaultFormatForDims(op->get_output_shape(1).size()),
+        cldnn::layout mutableLayout = cldnn::layout(cldnn::element_type_to_data_type(mutable_precision),
+                                                    cldnn::format::get_default_format(op->get_output_shape(1).size()),
                                                     tensor_from_dims(op->get_output_shape(1)));
 
         GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -72,13 +72,11 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
 
         cldnn::primitive_id proposal_mutable_id_w = layer_type_name_ID(op) + "_md_write";
         auto argmax_mutable_prim = cldnn::mutable_data(proposal_mutable_id_w,
-                                                       shared_memory,
-                                                       op->get_friendly_name());
-        p.primitiveIDs[proposal_mutable_id_w] = proposal_mutable_id_w;
-        p.AddPrimitive(argmax_mutable_prim);
+                                                       shared_memory);
+        p.add_primitive(*op, argmax_mutable_prim);
         inputPrimitives.push_back(proposal_mutable_id_w);
 
-        std::string proposalLayerName = layer_type_name_ID(op) + ".0";
+        std::string proposalLayerName = layer_type_name_ID(op) + ".out0";
         auto proposalPrim = cldnn::proposal(proposalLayerName,
                                             inputPrimitives[0],  // cls_score
                                             inputPrimitives[1],  // bbox_pred
@@ -103,20 +101,15 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
                                             clip_after_nms,
                                             round_ratios,
                                             shift_anchors,
-                                            normalize,
-                                            op->get_friendly_name());
+                                            normalize);
 
-        p.AddPrimitive(proposalPrim);
+        p.add_primitive(*op, proposalPrim);
 
-        cldnn::primitive_id proposal_mutable_id_r = layer_type_name_ID(op) + ".1";
+        cldnn::primitive_id proposal_mutable_id_r = layer_type_name_ID(op) + ".out1";
         auto argmax_mutable_prim_r = cldnn::mutable_data(proposal_mutable_id_r,
                                                          { proposalLayerName },
-                                                         shared_memory,
-                                                         op->get_friendly_name());
-        p.primitiveIDs[proposal_mutable_id_r] = proposal_mutable_id_r;
-        p.AddPrimitive(argmax_mutable_prim_r);
-
-        p.AddPrimitiveToProfiler(proposalLayerName, op);
+                                                         shared_memory);
+        p.add_primitive(*op, argmax_mutable_prim_r);
         return;
     }
 
@@ -144,11 +137,9 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
                                         clip_after_nms,
                                         round_ratios,
                                         shift_anchors,
-                                        normalize,
-                                        op->get_friendly_name());
+                                        normalize);
 
-    p.AddPrimitive(proposalPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, proposalPrim);
 }
 
 REGISTER_FACTORY_IMPL(v0, Proposal);

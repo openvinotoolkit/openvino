@@ -12,11 +12,11 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-ngraph::snippets::pass::InsertLoad::InsertLoad() {
+ngraph::snippets::pass::InsertLoad::InsertLoad(const size_t count) {
     MATCHER_SCOPE(InsertLoad);
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<ngraph::opset1::Parameter>()),
-            [this](ngraph::pattern::Matcher &m) {
+        ngraph::pattern::wrap_type<ngraph::opset1::Parameter>(), matcher_name),
+            [this, count](ngraph::pattern::Matcher &m) {
             OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::InsertLoad")
             auto root = m.get_match_root();
 
@@ -29,7 +29,7 @@ ngraph::snippets::pass::InsertLoad::InsertLoad() {
                 }
             }
 
-            auto load = std::make_shared<ngraph::snippets::op::Load> (root);
+            auto load = std::make_shared<ngraph::snippets::op::Load>(root, count);
             ngraph::copy_runtime_info(root, load);
 
             bool rewritten = false;
@@ -41,16 +41,16 @@ ngraph::snippets::pass::InsertLoad::InsertLoad() {
                     }
                 }
             }
-            MATCHER_SCOPE_ENABLE(InsertLoad);
+
             return rewritten;
         });
 }
 
-ngraph::snippets::pass::InsertStore::InsertStore() {
+ngraph::snippets::pass::InsertStore::InsertStore(const size_t count) {
     MATCHER_SCOPE(InsertStore);
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<ngraph::opset1::Result>()),
-            [this](ngraph::pattern::Matcher &m) {
+        ngraph::pattern::wrap_type<ngraph::opset1::Result>(), matcher_name),
+            [this, count](ngraph::pattern::Matcher &m) {
             OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::InsertStore")
             auto root = m.get_match_root();
 
@@ -61,10 +61,9 @@ ngraph::snippets::pass::InsertStore::InsertStore() {
                 }
             }
 
-            auto store = std::make_shared<ngraph::snippets::op::Store> (root->input_value(0));
+            auto store = std::make_shared<ngraph::snippets::op::Store> (root->input_value(0), count);
             ngraph::copy_runtime_info(root, store);
             root->set_argument(0, store);
-            MATCHER_SCOPE_ENABLE(InsertStore);
             return true;
         });
 }

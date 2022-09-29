@@ -11,8 +11,9 @@ from openvino.tools.mo.moc_frontend.analysis import json_model_analysis_dump
 from openvino.tools.mo.moc_frontend.extractor import fe_user_data_repack
 from openvino.tools.mo.middle.passes.infer import validate_batch_in_shape
 from openvino.tools.mo.utils.class_registration import get_enabled_and_disabled_transforms
+from openvino.tools.mo.utils.error import Error
 
-from openvino.runtime import Dimension, PartialShape        # pylint: disable=no-name-in-module,import-error
+from openvino.runtime import Dimension, PartialShape, Type        # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEnd, InputModel, NotImplementedFailure, Place # pylint: disable=no-name-in-module,import-error
 from openvino.runtime.utils.types import get_element_type   # pylint: disable=no-name-in-module,import-error
 
@@ -78,6 +79,11 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     log.debug('Inputs are same: {}, outputs are same: {}'.format(
         inputs_equal, outputs_equal))
 
+    def create_target_input_shapes(new_input_places):
+        new_input_place_names = [x.get_names()[0] for x in new_input_places]
+        shapes = [shape for shape in argv.placeholder_shapes.values()]
+        return dict(zip(new_input_place_names, shapes))
+
     if not inputs_equal and not outputs_equal:
         log.debug('Using extract subgraph')
         new_input_places = [x['node'] for x in user_shapes]
@@ -86,11 +92,11 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         input_model.extract_subgraph(new_input_places, new_output_places)
         # invalidation of existing Place objects could have happened in the operation above
         if user_shapes:
-            new_input_places_name = [x.get_names()[0] for x in new_input_places]
+            placeholder_shapes = create_target_input_shapes(new_input_places)
             new_output_places_name = [x.get_names()[0] for x in new_output_places]
 
             user_shapes, outputs, _ = fe_user_data_repack(
-                input_model, new_input_places_name, argv.placeholder_data_types,
+                input_model, placeholder_shapes, argv.placeholder_data_types,
                 new_output_places_name, argv.freeze_placeholder_with_value, moc_front_end.get_name())
     elif not inputs_equal:
         log.debug('Using override_all_inputs')
@@ -99,9 +105,10 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         input_model.override_all_inputs(new_input_places)
         # invalidation of existing Place objects could have happened in the operation above
         if user_shapes:
-            new_input_places_name = [x.get_names()[0] for x in new_input_places]
+            placeholder_shapes = create_target_input_shapes(new_input_places)
+
             user_shapes, outputs, _ = fe_user_data_repack(
-                input_model, new_input_places_name, argv.placeholder_data_types,
+                input_model, placeholder_shapes, argv.placeholder_data_types,
                 argv.output, argv.freeze_placeholder_with_value, moc_front_end.get_name())
     elif not outputs_equal:
         log.debug('Using override_all_outputs')
@@ -118,6 +125,21 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 data_type = get_element_type(user_shape['data_type'])
                 log.debug('Set data type: {}'.format(data_type))
                 input_model.set_element_type(user_shape['node'], data_type)
+
+    if freeze_placeholder:
+        for name, value in freeze_placeholder.items():
+            for node in user_shapes:
+                if node.get('input_name') == name:
+                    place = node['node']
+                    if node.get('shape'):
+                        shape = [int(val) for val in node['shape']]
+                        input_model.set_partial_shape(place, PartialShape(shape))
+                    if node.get('data_type'):
+                        value = np.array(value, dtype=node['data_type'])
+                        input_model.set_element_type(place, Type(node['data_type']))
+                    else:
+                        value = np.array(value, dtype=np.float32)
+                    input_model.set_tensor_value(place, value)
 
     def shape_to_array(shape: PartialShape):
         return [shape.get_dimension(i) for i in range(shape.rank.get_length())]

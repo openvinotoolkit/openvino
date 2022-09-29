@@ -13,7 +13,7 @@
 #include "layers/gna_permute.hpp"
 #include "backend/gna_limitations.hpp"
 
-using namespace GNAPluginNS;
+using namespace ov::intel_gna::pass;
 
 static bool BiasValidation(const ngraph::Output<ngraph::Node>& output) {
     auto bias_output_shape = output.get_node()->get_output_shape(0);
@@ -45,10 +45,10 @@ static std::tuple<bool, uint32_t, uint32_t, uint32_t> VerifyAndGetConvParams(std
     const uint32_t width = input1_shape.front();
     const uint32_t in_channels = input2_shape.back();
     const uint32_t out_channels = input2_shape.front();
-    if (input1_shape.front() <= GNALimitations::affineMaxBatchSize ||
-        out_channels % GNALimitations::convFiltersNumDivider != 0 ||
-        out_channels > GNALimitations::convMaxFiltersNum ||
-        in_channels > GNALimitations::convFilterMaxSize) {
+    if (input1_shape.front() <= GNAPluginNS::GNALimitations::affineMaxBatchSize ||
+        out_channels % GNAPluginNS::GNALimitations::convFiltersNumDivider != 0 ||
+        out_channels > GNAPluginNS::GNALimitations::convMaxFiltersNum ||
+        in_channels > GNAPluginNS::GNALimitations::convFilterMaxSize) {
         return std::make_tuple(false, 0, 0, 0);
     }
 
@@ -77,7 +77,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> matmul_node,
 
     auto transpose_before = std::make_shared<ngraph::opset7::Transpose>(reshape_before,
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4},
-        GetPermuteOrder(InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW)));
+        GNAPluginNS::GetPermuteOrder(InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW)));
     transpose_before->set_friendly_name(base_name + "/transpose_in");
     ngraph::copy_runtime_info(matmul_node, transpose_before);
 
@@ -122,7 +122,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> matmul_node,
 
     auto transpose_after = std::make_shared<ngraph::opset7::Transpose>(conv_node,
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4},
-        GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)));
+        GNAPluginNS::GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)));
     transpose_after->set_friendly_name(base_name + "/transpose_out");
     ngraph::copy_runtime_info(conv_node, transpose_after);
 

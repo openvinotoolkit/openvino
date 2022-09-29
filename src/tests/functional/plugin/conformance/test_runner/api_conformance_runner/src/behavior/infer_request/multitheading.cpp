@@ -16,7 +16,7 @@ using namespace BehaviorTestsDefinitions;
 INSTANTIATE_TEST_SUITE_P(ie_infer_request, InferRequestMultithreadingTests,
                         ::testing::Combine(
                                 ::testing::ValuesIn(return_all_possible_device_combination()),
-                                ::testing::ValuesIn(empty_config)),
+                                ::testing::Values(ie_config)),
                          InferRequestMultithreadingTests::getTestCaseName);
 
 }  // namespace

@@ -29,6 +29,9 @@
 #    ifndef TBB_PREVIEW_LOCAL_OBSERVER
 #        define TBB_PREVIEW_LOCAL_OBSERVER 1
 #    endif
+#    ifndef TBB_PREVIEW_WAITING_FOR_WORKERS
+#        define TBB_PREVIEW_WAITING_FOR_WORKERS 1
+#    endif
 #    ifndef TBB_PREVIEW_NUMA_SUPPORT
 #        define TBB_PREVIEW_NUMA_SUPPORT 1
 #    endif

@@ -63,7 +63,7 @@ void GetLSTMActivationParams(const std::shared_ptr<T>& op,
 }
 
 static void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::LSTMCell>& op) {
-    p.ValidateInputs(op, {6});
+    validate_inputs_count(op, {6});
     int lstm_batch_size, lstm_input_size, lstm_hidden_size;
     bool hasBias = true;
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
@@ -94,7 +94,7 @@ static void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::L
     float clip = op->get_clip();
 
     //  LSTM primitive works with single precision for all in/out/weights tensors
-    auto lstm_dtype = DataTypeFromPrecision(op->get_output_element_type(0));
+    auto lstm_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
 
     cldnn::primitive_id inReshapeID = layerName + "_inReshape";
     cldnn::primitive_id permuteID = layerName + "_inputReorder";
@@ -108,45 +108,34 @@ static void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::L
     cldnn::tensor inStateShape = { lstm_batch_size, 1, lstm_hidden_size, 1 };
     cldnn::layout inputLayout = cldnn::layout(lstm_dtype, cldnn::format::bfyx, inputShape);
     cldnn::layout hiddenLayout = cldnn::layout(lstm_dtype, cldnn::format::bfyx, inStateShape);
-    p.AddPrimitive(cldnn::reshape(inReshapeID, inputPrimitives[0], inputShape, op->get_friendly_name()));
-    p.AddPrimitive(cldnn::reorder(permuteID,
+    p.add_primitive(*op, cldnn::reshape(inReshapeID, inputPrimitives[0], inputShape));
+    p.add_primitive(*op, cldnn::reorder(permuteID,
                                   inReshapeID,
                                   inputLayout,
                                   std::vector<float>(),
-                                  cldnn::reorder_mean_mode::subtract,
-                                  op->get_friendly_name()));
+                                  cldnn::reorder_mean_mode::subtract));
 
-    p.AddInnerPrimitiveToProfiler(inReshapeID, op->get_friendly_name(), op);
-    p.AddInnerPrimitiveToProfiler(permuteID, op->get_friendly_name(), op);
 
     std::string hiddenInResh = inHiddenReshapeID + "_1";
     std::string hiddenInStr = inHiddenReorderID + "_1";
     std::string cellInResh = inHiddenReshapeID + "_2";
     std::string cellInStr = inHiddenReorderID + "_2";
-    p.AddPrimitive(cldnn::reshape(hiddenInResh, inputPrimitives[1], inStateShape, op->get_friendly_name()));
-    p.AddPrimitive(cldnn::reorder(hiddenInStr,
-                                  hiddenInResh,
-                                  hiddenLayout,
-                                  std::vector<float>(),
-                                  cldnn::reorder_mean_mode::subtract,
-                                  op->get_friendly_name()));
-    p.AddPrimitive(cldnn::reshape(cellInResh, inputPrimitives[2], inStateShape, op->get_friendly_name()));
-    p.AddPrimitive(cldnn::reorder(cellInStr,
-                                  cellInResh,
-                                  hiddenLayout,
-                                  std::vector<float>(),
-                                  cldnn::reorder_mean_mode::subtract,
-                                  op->get_friendly_name()));
-    p.AddPrimitive(cldnn::concatenation(input_concatID,
-                                        { permuteID, hiddenInStr },
-                                        3,
-                                        op->get_friendly_name()));
+    p.add_primitive(*op, cldnn::reshape(hiddenInResh, inputPrimitives[1], inStateShape));
+    p.add_primitive(*op, cldnn::reorder(hiddenInStr,
+                                        hiddenInResh,
+                                        hiddenLayout,
+                                        std::vector<float>(),
+                                        cldnn::reorder_mean_mode::subtract));
+    p.add_primitive(*op, cldnn::reshape(cellInResh, inputPrimitives[2], inStateShape));
+    p.add_primitive(*op, cldnn::reorder(cellInStr,
+                                        cellInResh,
+                                        hiddenLayout,
+                                        std::vector<float>(),
+                                        cldnn::reorder_mean_mode::subtract));
+    p.add_primitive(*op, cldnn::concatenation(input_concatID,
+                                              { permuteID, hiddenInStr },
+                                              3));
 
-    p.AddInnerPrimitiveToProfiler(hiddenInResh, op->get_friendly_name(), op);
-    p.AddInnerPrimitiveToProfiler(hiddenInStr, op->get_friendly_name(), op);
-    p.AddInnerPrimitiveToProfiler(cellInResh, op->get_friendly_name(), op);
-    p.AddInnerPrimitiveToProfiler(cellInStr, op->get_friendly_name(), op);
-    p.AddInnerPrimitiveToProfiler(input_concatID, op->get_friendly_name(), op);
 
     cldnn::tensor gemmSz = cldnn::tensor{ lstm_batch_size, 1, 4 * lstm_hidden_size, 1 };
     cldnn::layout gemmLayout = cldnn::layout(lstm_dtype, cldnn::format::bfyx, gemmSz);
@@ -158,50 +147,33 @@ static void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::L
     std::string crop_id = layerName + "_crop";
 
     cldnn::primitive_id WRconcatID = layerName + "_WRconcat";
-    p.AddPrimitive(cldnn::concatenation(WRconcatID, { weightID, recurrentID }, 1, op->get_friendly_name()));
-    p.AddInnerPrimitiveToProfiler(WRconcatID, op->get_friendly_name(), op);
+    p.add_primitive(*op, cldnn::concatenation(WRconcatID, { weightID, recurrentID }, 1));
 
-    p.AddPrimitive(cldnn::fully_connected(lstm_fc_id, input_concatID, WRconcatID, hasBias ? biasID : "", op->get_friendly_name()));
-    p.AddPrimitive(cldnn::reshape(gemmReshapeID, lstm_fc_id, gemmSz, op->get_friendly_name()));
-    p.AddPrimitive(cldnn::reorder(gemmReorderID,
-                                  gemmReshapeID,
-                                  gemmLayout,
-                                  std::vector<float>(),
-                                  cldnn::reorder_mean_mode::subtract,
-                                  op->get_friendly_name()));
-    p.AddPrimitive(cldnn::lstm_elt(lstm_elt_id, gemmReorderID, cellInStr, clip, 0, activations,
-                                   activation_params, cldnn::lstm_weights_order::fizo, 0, op->get_friendly_name()));
+    p.add_primitive(*op, cldnn::fully_connected(lstm_fc_id, input_concatID, WRconcatID, hasBias ? biasID : ""));
+    p.add_primitive(*op, cldnn::reshape(gemmReshapeID, lstm_fc_id, gemmSz));
+    p.add_primitive(*op, cldnn::reorder(gemmReorderID,
+                                        gemmReshapeID,
+                                        gemmLayout,
+                                        std::vector<float>(),
+                                        cldnn::reorder_mean_mode::subtract));
+    p.add_primitive(*op, cldnn::lstm_elt(lstm_elt_id, gemmReorderID, cellInStr, clip, 0, activations,
+                                         activation_params, cldnn::lstm_weights_order::fizo, 0));
 
-    p.AddInnerPrimitiveToProfiler(lstm_fc_id, op->get_friendly_name(), op);
-    p.AddInnerPrimitiveToProfiler(gemmReshapeID, op->get_friendly_name(), op);
-    p.AddInnerPrimitiveToProfiler(gemmReorderID, op->get_friendly_name(), op);
-    p.AddInnerPrimitiveToProfiler(lstm_elt_id, op->get_friendly_name(), op);
 
     cldnn::tensor outSz = cldnn::tensor{ lstm_batch_size, lstm_hidden_size, 1, 1 };
     cldnn::primitive_id outputHiddenCropID = layerName + "_hc";
-    cldnn::primitive_id outputHiddenID = layerName + ".0";
-    p.AddPrimitive(cldnn::crop(outputHiddenCropID, lstm_elt_id, hiddenSz, cldnn::tensor{0, 0, 0, 0}, op->get_friendly_name()));
-    p.AddInnerPrimitiveToProfiler(outputHiddenCropID, op->get_friendly_name(), op);
-    p.AddPrimitive(cldnn::reshape(outputHiddenID, outputHiddenCropID, outSz, op->get_friendly_name()));
-    p.AddInnerPrimitiveToProfiler(outputHiddenID, op->get_friendly_name(), op);
+    cldnn::primitive_id outputHiddenID = layerName + ".out0";
+    p.add_primitive(*op, cldnn::crop(outputHiddenCropID, lstm_elt_id, hiddenSz, cldnn::tensor{0, 0, 0, 0}));
+    p.add_primitive(*op, cldnn::reshape(outputHiddenID, outputHiddenCropID, outSz), {layerName});
 
     cldnn::primitive_id outputCellCropID = layerName + "_cc";
-    cldnn::primitive_id outputCellID = layerName + ".1";
-    p.AddPrimitive(cldnn::crop(outputCellCropID, lstm_elt_id, hiddenSz, cellCropSz, op->get_friendly_name()));
-    p.AddInnerPrimitiveToProfiler(outputCellCropID, op->get_friendly_name(), op);
-    p.AddPrimitive(cldnn::reshape(outputCellID, outputCellCropID, outSz, op->get_friendly_name()));
-    p.AddInnerPrimitiveToProfiler(outputCellID, op->get_friendly_name(), op);
-
-    // output primitive IDs
-    p.primitiveIDs[outputHiddenID] = outputHiddenID;     // LSTMCell:LSTMCell - "concat hidden"
-    p.primitiveIDs[layerName] = outputHiddenID;          // LSTMCell:LSTMCell:0 - hidden state
-    p.primitiveIDs[outputCellID] = outputCellID;         // LSTMCell:LSTMCell:1 - cell state
-
-    p.AddPrimitiveToProfiler(layerName, op, outputHiddenID);
+    cldnn::primitive_id outputCellID = layerName + ".out1";
+    p.add_primitive(*op, cldnn::crop(outputCellCropID, lstm_elt_id, hiddenSz, cellCropSz));
+    p.add_primitive(*op, cldnn::reshape(outputCellID, outputCellCropID, outSz));
 }
 
 static void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v5::LSTMSequence>& op) {
-    p.ValidateInputs(op, {7});
+    validate_inputs_count(op, {7});
 
     std::string layerName = layer_type_name_ID(op);
     int lstm_batch_size, lstm_input_size, lstm_hidden_size, lstm_sequence_len;
@@ -233,7 +205,7 @@ static void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v
     bool isForward = op->get_direction() == ngraph::op::RecurrentSequenceDirection::FORWARD;
 
     //  LSTM primitive works with single precision for all in/out/weights tensors
-    auto lstm_dtype = DataTypeFromPrecision(op->get_output_element_type(0));
+    auto lstm_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
 
     cldnn::primitive_id inReshapeID = layerName + "_inReshape";
     cldnn::primitive_id permuteID = layerName + "_inputReorder";
@@ -247,21 +219,15 @@ static void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v
     cldnn::tensor inputShape = { lstm_batch_size, lstm_sequence_len, lstm_input_size, 1 };
     cldnn::tensor inStateShape = { lstm_batch_size, 1, lstm_hidden_size, 1 };
     cldnn::layout inputLayout = cldnn::layout(lstm_dtype, cldnn::format::bfyx, inputShape);
-    p.AddPrimitive(cldnn::reshape(inReshapeID, inputPrimitives[0], inputShape, op->get_friendly_name()));
-    p.AddPrimitive(cldnn::reorder(permuteID,
-                                  inReshapeID,
-                                  inputLayout,
-                                  std::vector<float>(),
-                                  cldnn::reorder_mean_mode::subtract,
-                                  op->get_friendly_name()));
+    p.add_primitive(*op, cldnn::reshape(inReshapeID, inputPrimitives[0], inputShape));
+    p.add_primitive(*op, cldnn::reorder(permuteID,
+                                        inReshapeID,
+                                        inputLayout,
+                                        std::vector<float>(),
+                                        cldnn::reorder_mean_mode::subtract));
 
-    p.AddPrimitive(cldnn::reshape(inHiddenStateID, inputPrimitives[1], inStateShape, op->get_friendly_name()));
-    p.AddPrimitive(cldnn::reshape(inCellStateID, inputPrimitives[2], inStateShape, op->get_friendly_name()));
-
-    p.AddInnerPrimitiveToProfiler(inReshapeID, op->get_friendly_name(), op);
-    p.AddInnerPrimitiveToProfiler(permuteID, op->get_friendly_name(), op);
-    p.AddInnerPrimitiveToProfiler(inHiddenStateID, op->get_friendly_name(), op);
-    p.AddInnerPrimitiveToProfiler(inCellStateID, op->get_friendly_name(), op);
+    p.add_primitive(*op, cldnn::reshape(inHiddenStateID, inputPrimitives[1], inStateShape));
+    p.add_primitive(*op, cldnn::reshape(inCellStateID, inputPrimitives[2], inStateShape));
 
     cldnn::tensor gemmSz = cldnn::tensor{ lstm_batch_size, 1, 4 * lstm_hidden_size, 1 };
     cldnn::layout gemmLayout = cldnn::layout(lstm_dtype, cldnn::format::bfyx, gemmSz);
@@ -272,14 +238,12 @@ static void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v
     cldnn::primitive_id inputCropID = layerName + "_inputCrop";
 
     cldnn::primitive_id WRconcatID = layerName + "_WRconcat";
-    p.AddPrimitive(cldnn::concatenation(WRconcatID, { weightID, recurrentID }, 2, op->get_friendly_name()));
-    p.AddInnerPrimitiveToProfiler(WRconcatID, op->get_friendly_name(), op);
+    p.add_primitive(*op, cldnn::concatenation(WRconcatID, { weightID, recurrentID }, 2));
 
     std::vector<size_t> WRreshapeSize = { 4 * size_t(lstm_hidden_size), size_t(lstm_input_size + lstm_hidden_size) };
     cldnn::primitive_id WRreshapeID = WRconcatID + "_reshape";
-    auto reshapeInPrim = cldnn::reshape(WRreshapeID, WRconcatID, tensor_from_dims(WRreshapeSize), op->get_friendly_name());
-    p.AddPrimitive(reshapeInPrim);
-    p.AddInnerPrimitiveToProfiler(WRreshapeID, op->get_friendly_name(), op);
+    auto reshapeInPrim = cldnn::reshape(WRreshapeID, WRconcatID, tensor_from_dims(WRreshapeSize));
+    p.add_primitive(*op, reshapeInPrim);
 
     for (int i = 0; i < lstm_sequence_len; ++i) {
         const std::string id_str = std::to_string(i);
@@ -296,59 +260,42 @@ static void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v
         cldnn::tensor crop_tensor{ inputShape.batch[0], 1, inputShape.spatial[0], inputShape.spatial[1] };
         cldnn::tensor offset_tensor{ 0, static_cast<cldnn::tensor::value_type>(seqIdx), 0, 0 };
         cldnn::primitive_id inputCrop_id = inputCropID + ":" + seqIdx_str;
-        p.AddPrimitive(cldnn::crop(inputCrop_id, permuteID, crop_tensor, offset_tensor, op->get_friendly_name()));
-        p.AddInnerPrimitiveToProfiler(inputCrop_id, op->get_friendly_name(), op);
+        p.add_primitive(*op, cldnn::crop(inputCrop_id, permuteID, crop_tensor, offset_tensor));
 
-        p.AddPrimitive(cldnn::concatenation(concatID, { inputCrop_id, hiddenStr }, 3, op->get_friendly_name()));
-        p.AddInnerPrimitiveToProfiler(concatID, op->get_friendly_name(), op);
-        p.AddPrimitive(cldnn::fully_connected(lstm_fc_id, concatID, WRreshapeID, biasID, op->get_friendly_name()));
-        p.AddInnerPrimitiveToProfiler(lstm_fc_id, op->get_friendly_name(), op);
+        p.add_primitive(*op, cldnn::concatenation(concatID, { inputCrop_id, hiddenStr }, 3));
+        p.add_primitive(*op, cldnn::fully_connected(lstm_fc_id, concatID, WRreshapeID, biasID));
 
-        p.AddPrimitive(cldnn::reshape(lstm_fc_resh_id, lstm_fc_id, gemmSz, op->get_friendly_name()));
-        p.AddPrimitive(cldnn::reorder(lstm_fc_reor_id,
-                                      lstm_fc_resh_id,
-                                      gemmLayout,
-                                      std::vector<float>(),
-                                      cldnn::reorder_mean_mode::subtract,
-                                      op->get_friendly_name()));
-        p.AddPrimitive(cldnn::lstm_elt(lstm_elt_id, lstm_fc_reor_id, cellStr, clip, 0, activations,
-                                       activation_params, cldnn::lstm_weights_order::fizo, 0, op->get_friendly_name()));
-        p.AddInnerPrimitiveToProfiler(lstm_fc_resh_id, op->get_friendly_name(), op);
-        p.AddInnerPrimitiveToProfiler(lstm_fc_reor_id, op->get_friendly_name(), op);
-        p.AddInnerPrimitiveToProfiler(lstm_elt_id, op->get_friendly_name(), op);
+        p.add_primitive(*op, cldnn::reshape(lstm_fc_resh_id, lstm_fc_id, gemmSz));
+        p.add_primitive(*op, cldnn::reorder(lstm_fc_reor_id,
+                                            lstm_fc_resh_id,
+                                            gemmLayout,
+                                            std::vector<float>(),
+                                            cldnn::reorder_mean_mode::subtract));
+        p.add_primitive(*op, cldnn::lstm_elt(lstm_elt_id, lstm_fc_reor_id, cellStr, clip, 0, activations,
+                                             activation_params, cldnn::lstm_weights_order::fizo, 0));
 
         hiddenStr = crop_id + ":hidden";
         cellStr = crop_id + ":cell";
-        p.AddPrimitive(cldnn::crop(hiddenStr, lstm_elt_id, hiddenSz, cldnn::tensor{ 0, 0, 0, 0 }, op->get_friendly_name()));
-        p.AddInnerPrimitiveToProfiler(hiddenStr, op->get_friendly_name(), op);
+        cldnn::primitive_id outputHiddenID = layerName + ".out1";
+        p.add_primitive(*op, cldnn::crop(hiddenStr, lstm_elt_id, hiddenSz, cldnn::tensor{ 0, 0, 0, 0 }), {outputHiddenID});
         output_ids_offsets.push_back(hiddenStr);
 
         if (i < lstm_sequence_len - 1) {
-            p.AddPrimitive(cldnn::crop(cellStr, lstm_elt_id, hiddenSz, cellCropSz, op->get_friendly_name()));
-            p.AddInnerPrimitiveToProfiler(cellStr, op->get_friendly_name(), op);
+            p.add_primitive(*op, cldnn::crop(cellStr, lstm_elt_id, hiddenSz, cellCropSz));
         } else {
             // last hidden state crop (output 2)
-            cldnn::primitive_id outputHiddenID = layerName + ".1";
-            p.primitiveIDs[hiddenStr] = hiddenStr;
-            p.primitiveIDs[outputHiddenID] = hiddenStr;
 
             // last cell state crop (output 3)
-            p.AddPrimitive(cldnn::crop(cellStr, lstm_elt_id, hiddenSz, cellCropSz, op->get_friendly_name()));
-            cldnn::primitive_id outputCellID = layerName + ".2";
-            p.AddInnerPrimitiveToProfiler(cellStr, op->get_friendly_name(), op);
-            p.primitiveIDs[outputCellID] = cellStr;
+            cldnn::primitive_id outputCellID = layerName + ".out2";
+            p.add_primitive(*op, cldnn::crop(cellStr, lstm_elt_id, hiddenSz, cellCropSz), {outputCellID});
         }
     }
 
     if (!isForward) std::reverse(output_ids_offsets.begin(), output_ids_offsets.end());
     // concatenated hidden state (output 1)
-    cldnn::primitive_id outputConcatID = layerName + ".0";
+    cldnn::primitive_id outputConcatID = layerName + ".out0";
     cldnn::primitive_id concatStr = layerName + ":hiddenConcat";
-    p.AddPrimitive(cldnn::concatenation(concatStr, output_ids_offsets, 1, op->get_friendly_name()));
-
-    p.primitiveIDs[outputConcatID] = concatStr;
-    p.primitiveIDs[layerName] = concatStr;
-    p.AddPrimitiveToProfiler(layerName, op);
+    p.add_primitive(*op, cldnn::concatenation(concatStr, output_ids_offsets, 1), {outputConcatID, layerName});
 }
 
 REGISTER_FACTORY_IMPL(v4, LSTMCell);

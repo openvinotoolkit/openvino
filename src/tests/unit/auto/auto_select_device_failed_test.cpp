@@ -203,7 +203,8 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
                 break;
             case LATENCY:
                 devInfo = {deviceName, {{CONFIG_KEY(PERFORMANCE_HINT),
-                    InferenceEngine::PluginConfigParams::LATENCY}}, 2, ""};
+                    InferenceEngine::PluginConfigParams::LATENCY}, {CONFIG_KEY(ALLOW_AUTO_BATCHING), "YES"}, {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "1000"}},
+                    2, ""};
                 break;
             case THROUGHPUT:
                 devInfo = {deviceName, {{CONFIG_KEY(PERFORMANCE_HINT),

@@ -69,6 +69,5 @@ void pass_manager::run(program& p, base_pass& pass) {
         dump_file_name += "0";
     dump_file_name += std::to_string(pass_count) + "_" + pass.get_name();
     p.dump_program(dump_file_name.c_str(), true);
-    pass.clean_marks(p);
     pass_count++;
 }

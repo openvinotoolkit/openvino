@@ -82,10 +82,10 @@ size_t lstm_dynamic_timeloop_node::get_dependency_idx(std::string val) const {
 // recurr_tensor:  [b: 1, f: direction, x: hidden_size, y: 4 * hidden_size]
 // init_cell:      [b: batch, f: 1, x: hidden_size, y: direction]
 // output_tensor:  [b: batch, f: max_sequence_length, x: hidden_size, y: direction]
-layout lstm_dynamic_timeloop_inst::calc_output_layout(lstm_dynamic_timeloop_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout lstm_dynamic_timeloop_inst::calc_output_layout(lstm_dynamic_timeloop_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for lstm_dynamic_node!");
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = impl_param.get_input_layout();
     auto batch = input_layout.batch();
     auto output_sequence = input_layout.feature();
     auto reccurent_layout = node.recurrent().get_output_layout();
@@ -127,7 +127,6 @@ lstm_dynamic_timeloop_inst::typed_primitive_inst(network& network, lstm_dynamic_
     // TODO: check input sizes
     auto input_id = node.input().id();
     auto input_layout = node.input().get_output_layout();
-    auto input_tensor = input_layout.size;
     auto hidden_size = input_layout.spatial(0) / 4;
     CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
                                   "input format",

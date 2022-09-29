@@ -75,15 +75,15 @@ def create_onnx_model_with_custom_attributes():
                                 attribute_i32=np.int32(10),
                                 attribute_i64=np.int64(10),
                                 attribute_str="string",
-                                attribute_f32=np.float(10),
+                                attribute_f32=float(10),
                                 attribute_f64=np.float64(10),
-                                attribute_bool=np.bool(True),
+                                attribute_bool=True,
                                 attribute_type=onnx.TensorProto.INT32,
 
                                 attribute_list_i32=np.array([1, 2, 3], dtype=np.int32),
                                 attribute_list_i64=np.array([1, 2, 3], dtype=np.int64),
-                                attribute_list_str=np.array(["a", "b", "c"], dtype=np.str),
-                                attribute_list_f32=np.array([1, 2, 3], dtype=np.float),
+                                attribute_list_str=np.array(["a", "b", "c"], dtype=str),
+                                attribute_list_f32=np.array([1, 2, 3], dtype=float),
                                 attribute_list_f64=np.array([1, 2, 3], dtype=np.float64),
                                 attribute_list_bool=[True, False, True],
                                 attribute_list_type=np.array([onnx.TensorProto.INT32,
@@ -142,9 +142,9 @@ def create_onnx_model_for_op_extension():
     return make_model(graph, producer_name="ONNX Frontend")
 
 
-def run_function(function, *inputs, expected):
+def run_model(model, *inputs, expected):
     runtime = get_runtime()
-    computation = runtime.computation(function)
+    computation = runtime.computation(model)
     actual = computation(*inputs)
     assert len(actual) == len(expected)
     for i in range(len(actual)):
@@ -194,13 +194,13 @@ def test_convert():
     model = fe.load(onnx_model_filename)
     assert model
 
-    function = fe.convert(model)
-    assert function
+    converted_model = fe.convert(model)
+    assert converted_model
 
     input_1 = np.array([[1, 2], [3, 4]], dtype=np.float32)
     input_2 = np.array([[2, 3], [4, 5]], dtype=np.float32)
     expected = np.array([[1.5, 5], [10.5, 18]], dtype=np.float32)
-    run_function(function, input_1, input_2, expected=[expected])
+    run_model(converted_model, input_1, input_2, expected=[expected])
 
 
 @pytest.mark.parametrize(("model_filename", "inputs", "expected"), [
@@ -223,19 +223,19 @@ def test_decode_and_convert(model_filename, inputs, expected):
     model = fe.load(model_filename)
     assert model
 
-    decoded_function = fe.decode(model)
-    assert decoded_function
+    decoded_model = fe.decode(model)
+    assert decoded_model
 
-    for op in decoded_function.get_ordered_ops():
+    for op in decoded_model.get_ordered_ops():
         assert op.get_type_name() in ["Parameter", "Constant", "ONNXFrameworkNode",
                                       "ONNXSubgraphFrameworkNode", "Result"]
 
-    fe.convert(decoded_function)
-    assert decoded_function
-    for op in decoded_function.get_ordered_ops():
+    fe.convert(decoded_model)
+    assert decoded_model
+    for op in decoded_model.get_ordered_ops():
         assert op.get_type_name() not in ["ONNXFrameworkNode", "ONNXSubgraphFrameworkNode"]
 
-    run_function(decoded_function, *inputs, expected=[expected])
+    run_model(decoded_model, *inputs, expected=[expected])
 
 
 def test_load_by_model():
@@ -340,15 +340,15 @@ def test_onnx_conversion_extension_attribute_with_default_value():
         check_attribute(node, "attribute_str", "abc")
         check_attribute(node, "attribute_f32", np.float32(5))
         check_attribute(node, "attribute_f64", np.float64(5))
-        check_attribute(node, "attribute_bool", np.bool(False))
+        check_attribute(node, "attribute_bool", False)
         check_attribute(node, "attribute_type", onnx.TensorProto.FLOAT)
 
         check_attribute(node, "attribute_list_i32", np.array([4, 5, 6], dtype=np.int32))
         check_attribute(node, "attribute_list_i64", np.array([4, 5, 6], dtype=np.int64))
-        check_attribute(node, "attribute_list_str", np.array(["d", "e", "f"], dtype=np.str))
-        check_attribute(node, "attribute_list_f32", np.array([4, 5, 6], dtype=np.float))
+        check_attribute(node, "attribute_list_str", np.array(["d", "e", "f"], dtype=str))
+        check_attribute(node, "attribute_list_f32", np.array([4, 5, 6], dtype=float))
         check_attribute(node, "attribute_list_f64", np.array([4, 5, 6], dtype=np.float64))
-        check_attribute(node, "attribute_list_bool", np.array([True, False, True], dtype=np.bool))
+        check_attribute(node, "attribute_list_bool", np.array([True, False, True], dtype=bool))
         check_attribute(node, "attribute_list_type", np.array([onnx.TensorProto.INT32,
                                                                onnx.TensorProto.FLOAT]))
 
@@ -395,7 +395,7 @@ def test_onnx_conversion_extension_cast_attributes():
 
         check_attribute(node, "attribute_i32", 10, float)
         check_attribute(node, "attribute_i64", 10, float)
-        check_attribute(node, "attribute_str", "string", np.str)
+        check_attribute(node, "attribute_str", "string", str)
         check_attribute(node, "attribute_f32", 10, int)
         check_attribute(node, "attribute_f64", 10, int)
         check_attribute(node, "attribute_bool", True, bool)
@@ -403,7 +403,7 @@ def test_onnx_conversion_extension_cast_attributes():
 
         check_attribute(node, "attribute_list_i32", [1., 2., 3.], float)
         check_attribute(node, "attribute_list_i64", [1., 2., 3.], float)
-        check_attribute(node, "attribute_list_str", ["a", "b", "c"], np.str)
+        check_attribute(node, "attribute_list_str", ["a", "b", "c"], str)
         check_attribute(node, "attribute_list_f32", [1, 2, 3], int)
         check_attribute(node, "attribute_list_f64", [1, 2, 3], int)
         check_attribute(node, "attribute_list_bool", [True, False, True], bool)
@@ -490,18 +490,18 @@ def test_op_extension_specify_opset(opset_prefix):
     from openvino.frontend.onnx import OpExtension
     from openvino.runtime import Core
 
-    ie = Core()
+    core = Core()
 
     # check the model is valid
-    model = ie.read_model(onnx_model_for_op_extension_test)
+    model = core.read_model(onnx_model_for_op_extension_test)
     assert model
 
     # add extensions
     fw_operation = "Floor"
     ov_operation = opset_prefix + fw_operation
-    ie.add_extension(OpExtension(ov_operation, fw_operation))
+    core.add_extension(OpExtension(ov_operation, fw_operation))
 
-    model = ie.read_model(onnx_model_for_op_extension_test)
+    model = core.read_model(onnx_model_for_op_extension_test)
     assert model
 
 
@@ -513,14 +513,14 @@ def test_op_extension_specify_wrong_opset(opset_prefix):
     from openvino.frontend.onnx import OpExtension
     from openvino.runtime import Core
 
-    ie = Core()
+    core = Core()
 
     # add extensions
     fw_operation = "Floor"
     ov_operation = opset_prefix + fw_operation
-    ie.add_extension(OpExtension(ov_operation, fw_operation))
+    core.add_extension(OpExtension(ov_operation, fw_operation))
     with pytest.raises(RuntimeError):
-        ie.read_model(onnx_model_for_op_extension_test)
+        core.read_model(onnx_model_for_op_extension_test)
 
 
 def test_op_extension_via_onnx_extension_set_attrs_values():
@@ -530,27 +530,27 @@ def test_op_extension_via_onnx_extension_set_attrs_values():
     from openvino.frontend.onnx import OpExtension
     from openvino.runtime import Core
 
-    ie = Core()
+    core = Core()
 
     # check the model is valid
-    model = ie.read_model(onnx_model_for_op_extension_test)
+    model = core.read_model(onnx_model_for_op_extension_test)
     assert model
 
     # add extensions
-    ie.add_extension(OpExtension("Multiply", "Mul", {}, {"auto_broadcast": "numpy"}))
-    ie.add_extension(OpExtension("Elu", {}, {"alpha": 1.}))
-    ie.add_extension(OpExtension("Floor"))
-    ie.add_extension(OpExtension("Concat", {}, {"axis": 0}))
-    ie.add_extension(OpExtension("Convert", "Cast", {}, {"destination_type": "i64"}))
-    ie.add_extension(OpExtension("AvgPool", "AveragePool", {}, {"kernel": [2, 2],
-                                                                "strides": [2, 2],
-                                                                "pads_begin": [0, 0],
-                                                                "pads_end": [1, 1],
-                                                                "exclude-pad": True,
-                                                                "auto_pad": "same_upper",
-                                                                "rounding_type": "floor"}))
+    core.add_extension(OpExtension("Multiply", "Mul", {}, {"auto_broadcast": "numpy"}))
+    core.add_extension(OpExtension("Elu", {}, {"alpha": 1.}))
+    core.add_extension(OpExtension("Floor"))
+    core.add_extension(OpExtension("Concat", {}, {"axis": 0}))
+    core.add_extension(OpExtension("Convert", "Cast", {}, {"destination_type": "i64"}))
+    core.add_extension(OpExtension("AvgPool", "AveragePool", {}, {"kernel": [2, 2],
+                                                                  "strides": [2, 2],
+                                                                  "pads_begin": [0, 0],
+                                                                  "pads_end": [1, 1],
+                                                                  "exclude-pad": True,
+                                                                  "auto_pad": "same_upper",
+                                                                  "rounding_type": "floor"}))
 
-    model = ie.read_model(onnx_model_for_op_extension_test)
+    model = core.read_model(onnx_model_for_op_extension_test)
     assert model
 
 
@@ -561,26 +561,26 @@ def test_op_extension_via_frontend_extension_set_attrs_values():
     from openvino.frontend import OpExtension
     from openvino.runtime import Core
 
-    ie = Core()
+    core = Core()
     # check the model is valid
-    model = ie.read_model(onnx_model_for_op_extension_test)
+    model = core.read_model(onnx_model_for_op_extension_test)
     assert model
 
     # add extensions
-    ie.add_extension(OpExtension("Multiply", "Mul", {}, {"auto_broadcast": "numpy"}))
-    ie.add_extension(OpExtension("Elu", "Elu", {}, {"alpha": 1.}))
-    ie.add_extension(OpExtension("Floor"))
-    ie.add_extension(OpExtension("Concat", {}, {"axis": 0}))
-    ie.add_extension(OpExtension("Convert", "Cast", {}, {"destination_type": "i64"}))
-    ie.add_extension(OpExtension("AvgPool", "AveragePool", {}, {"kernel": [2, 2],
-                                                                "strides": [2, 2],
-                                                                "pads_begin": [0, 0],
-                                                                "pads_end": [1, 1],
-                                                                "exclude-pad": True,
-                                                                "auto_pad": "same_upper",
-                                                                "rounding_type": "floor"}))
+    core.add_extension(OpExtension("Multiply", "Mul", {}, {"auto_broadcast": "numpy"}))
+    core.add_extension(OpExtension("Elu", "Elu", {}, {"alpha": 1.}))
+    core.add_extension(OpExtension("Floor"))
+    core.add_extension(OpExtension("Concat", {}, {"axis": 0}))
+    core.add_extension(OpExtension("Convert", "Cast", {}, {"destination_type": "i64"}))
+    core.add_extension(OpExtension("AvgPool", "AveragePool", {}, {"kernel": [2, 2],
+                                                                  "strides": [2, 2],
+                                                                  "pads_begin": [0, 0],
+                                                                  "pads_end": [1, 1],
+                                                                  "exclude-pad": True,
+                                                                  "auto_pad": "same_upper",
+                                                                  "rounding_type": "floor"}))
 
-    model = ie.read_model(onnx_model_for_op_extension_test)
+    model = core.read_model(onnx_model_for_op_extension_test)
     assert model
 
 
@@ -591,24 +591,24 @@ def test_op_extension_via_frontend_extension_map_attributes():
     from openvino.frontend import OpExtension
     from openvino.runtime import Core
 
-    ie = Core()
+    core = Core()
     # check the model is valid
-    model = ie.read_model(onnx_model_for_op_extension_test)
+    model = core.read_model(onnx_model_for_op_extension_test)
     assert model
 
     # add extensions
-    ie.add_extension(OpExtension("Elu", "Elu", {"alpha": "alpha"}))
-    ie.add_extension(OpExtension("Concat", {"axis": "axis"}, {"axis": 0}))
+    core.add_extension(OpExtension("Elu", "Elu", {"alpha": "alpha"}))
+    core.add_extension(OpExtension("Concat", {"axis": "axis"}, {"axis": 0}))
 
-    ie.add_extension(OpExtension("AvgPool", "AveragePool", {"kernel": "kernel_shape",
-                                                            "strides": "strides",
-                                                            "auto_pad": "auto_pad"},
-                                 {"pads_begin": [0, 0],
-                                  "pads_end": [1, 1],
-                                  "exclude-pad": True,
-                                  "rounding_type": "floor"}))
+    core.add_extension(OpExtension("AvgPool", "AveragePool", {"kernel": "kernel_shape",
+                                                              "strides": "strides",
+                                                              "auto_pad": "auto_pad"},
+                                                             {"pads_begin": [0, 0],
+                                                              "pads_end": [1, 1],
+                                                              "exclude-pad": True,
+                                                              "rounding_type": "floor"}))
 
-    model = ie.read_model(onnx_model_for_op_extension_test)
+    model = core.read_model(onnx_model_for_op_extension_test)
     assert model
 
 

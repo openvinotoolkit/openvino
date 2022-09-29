@@ -42,10 +42,10 @@ TEST(scatter_elements_update_gpu_fp16, d2411_axisF) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 4, 1, 1 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
-    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // Updates
-    auto axis = cldnn::scatter_elements_update::scatter_elements_update_axis::along_f;
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 4, 1, 1 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Updates
+    auto axis = 1;
 
     set_values(input1, {
         FLOAT16(3.0f), FLOAT16(6.0f), FLOAT16(5.0f), FLOAT16(4.0f),

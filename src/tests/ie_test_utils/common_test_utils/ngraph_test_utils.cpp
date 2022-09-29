@@ -4,7 +4,10 @@
 
 #include "ngraph_test_utils.hpp"
 
-TransformationTestsF::TransformationTestsF() : comparator(FunctionsComparator::no_default()) {
+TransformationTestsF::TransformationTestsF()
+    : model(function),
+      model_ref(function_ref),
+      comparator(FunctionsComparator::no_default()) {
     m_unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
     comparator.enable(FunctionsComparator::CmpValues::NODES);
     comparator.enable(FunctionsComparator::CmpValues::PRECISIONS);
@@ -60,4 +63,8 @@ void check_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_p
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::CheckUniqueNames>(unh, true);
     manager.run_passes(f);
+}
+
+std::shared_ptr<ov::opset8::Constant> create_zero_constant(const ov::element::Type_t& et, const ov::Shape& shape) {
+    return ov::opset8::Constant::create(et, shape, {0});
 }

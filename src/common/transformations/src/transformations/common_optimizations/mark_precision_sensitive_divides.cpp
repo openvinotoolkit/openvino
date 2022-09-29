@@ -7,12 +7,14 @@
 #include <memory>
 #include <vector>
 
+#include "itt.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "transformations/rt_info/nonconvertible_divide.hpp"
 #include "transformations/utils/utils.hpp"
 
 bool ov::pass::MarkPrecisionSensitiveDivides::run_on_model(const std::shared_ptr<ov::Model>& m) {
+    RUN_ON_MODEL_SCOPE(MarkPrecisionSensitiveDivides);
     std::deque<Node*> nodes;
     std::unordered_set<Node*> visited, precision_sensitive_visited;
     for (auto& r : m->get_results()) {

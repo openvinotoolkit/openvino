@@ -63,7 +63,6 @@ ngraph::pass::GroupedGatherElimination::GroupedGatherElimination() {
     auto concat_label = ngraph::pattern::wrap_type<ngraph::opset1::Concat>(pattern::rank_equals(1));
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        MATCHER_SCOPE_ENABLE(GroupedGatherElimination);
         auto concat = m.get_match_root();
         OutputVector inputs = concat->input_values();
         NodeVector new_ops;
@@ -76,7 +75,16 @@ ngraph::pass::GroupedGatherElimination::GroupedGatherElimination() {
                 (curr->input_value(0) != next->input_value(0))) {
                 ++i;
                 continue;
-            }  // curr and next are the same type of gather which takes data from the same source
+            }
+
+            // Scalar inputs are not supported by Concat and we don't want to throw an exception here.
+            // The transformation should not be applied instead.
+            if (curr->input_value(1).get_partial_shape().same_scheme(Shape{}) ||
+                next->input_value(1).get_partial_shape().same_scheme(Shape{})) {
+                return false;
+            }
+
+            // curr and next are the same type of gather which takes data from the same source
             auto joint_indices = ngraph::op::util::make_try_fold<opset1::Concat>(
                 OutputVector{curr->input_value(1), next->input_value(1)},
                 0);

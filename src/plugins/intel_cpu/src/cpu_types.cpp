@@ -141,6 +141,8 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "ShuffleChannels", Type::ShuffleChannels},
         { "DFT", Type::DFT},
         { "IDFT", Type::DFT},
+        { "RDFT", Type::RDFT},
+        { "IRDFT", Type::RDFT},
         { "Abs", Type::Math},
         { "Acos", Type::Math},
         { "Acosh", Type::Math},
@@ -195,6 +197,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "Subgraph", Type::Subgraph},
         { "PriorBox", Type::PriorBox},
         { "PriorBoxClustered", Type::PriorBoxClustered},
+        { "MHA", Type::MHA},
 };
 
 Type TypeFromName(const std::string& type) {
@@ -328,6 +331,8 @@ std::string NameFromType(const Type type) {
             return "ShuffleChannels";
         case Type::DFT:
             return "DFT";
+        case Type::RDFT:
+            return "RDFT";
         case Type::Math:
             return "Math";
         case Type::CTCLoss:
@@ -384,6 +389,8 @@ std::string NameFromType(const Type type) {
             return "Reference";
         case Type::Subgraph:
             return "Subgraph";
+        case Type::MHA:
+            return "MHA";
         default:
             return "Unknown";
     }
