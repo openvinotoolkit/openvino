@@ -53,9 +53,9 @@ class ImportExportGNAModelUnchanged : public ImportReshapePermuteConv {
 private:
     void exportImportNetwork() override {
         {
-            std::ofstream out(fileName);
-            out.write(applicationHeader.c_str(), applicationHeader.size());
-            executableNetwork.Export(out);
+            std::fstream outStream(fileName, std::ios_base::out | std::ios_base::binary);
+            outStream.write(applicationHeader.c_str(), applicationHeader.size());
+            executableNetwork.Export(outStream);
         }
         {
             std::string appHeader(applicationHeader.size(), ' ');
