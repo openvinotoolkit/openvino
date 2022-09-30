@@ -110,6 +110,11 @@ std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc) {
     return os;
 }
 
+std::ostream & operator<<(std::ostream & os, const dnnl::memory::data_type& dtype) {
+    os << " " << dnnl_dt2str(static_cast<dnnl_data_type_t>(dtype));
+    return os;
+}
+
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc) {
     os << "    ImplementationType: " << impl_type_to_string(desc.getImplementationType()) << std::endl;
     for (auto & conf : desc.getConfig().inConfs) {

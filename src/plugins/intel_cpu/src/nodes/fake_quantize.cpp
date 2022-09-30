@@ -1934,6 +1934,7 @@ void FakeQuantize::appendBinPostOpsOptimized(dnnl::post_ops& ops, const VectorDi
                    return val == v[0];
                });
     };
+
     if (IsPerTensor(cropLow) && IsPerTensor(cropHigh) && IsPerTensor(inputScale) && IsPerTensor(inputShift) &&
         IsPerTensor(outputScale) && IsPerTensor(outputShift)) {
         // y = FakeQuantize(x, cropLow, cropHigh, inputScale, inputShift, outputScale, outputShift)
@@ -1960,9 +1961,18 @@ void FakeQuantize::appendBinPostOpsOptimized(dnnl::post_ops& ops, const VectorDi
         };
 
         // crop can be combined into saturation+round
-        auto clo = f_input_linear(cropLow[0]);
-        auto chi = f_input_linear(cropHigh[0]);
+        float clo = f_input_linear(cropLow[0]);
+        float chi = f_input_linear(cropHigh[0]);
         bool crop_by_saturate = ((abs(clo - 0) < 0.001f) && (abs(chi - (levels - 1)) < 0.001f));
+
+        // no step can be skipped
+        auto show_debug = [&](int type) {
+            DEBUG_LOG(getName(), " type=", type, " levels=", levels, " outDataType=", outDataType);
+            DEBUG_LOG("        cropLow/cropHigh :  ", cropLow[0], "/", cropHigh[0]);
+            DEBUG_LOG("   inputScale/inputShift :  ", inputScale[0], "/", inputShift[0]);
+            DEBUG_LOG("                 clo/chi :  ", clo, "/", chi);
+            DEBUG_LOG(" outputScale/outputShift :  ", outputScale[0], "/", outputShift[0]);
+        };
 
         if (isLastPostOp && levels == 256) {
             if (outDataType == memory::data_type::s8 && outputScale[0] == 1.f &&
@@ -1970,6 +1980,7 @@ void FakeQuantize::appendBinPostOpsOptimized(dnnl::post_ops& ops, const VectorDi
                 ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, inputScale[0], inputShift[0] - 0.5f * levels);
                 if (!crop_by_saturate)
                     ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, clo, chi);
+                show_debug(1);
                 return;
             }
             if (outDataType == memory::data_type::u8 && outputScale[0] == 1.f &&
@@ -1977,14 +1988,34 @@ void FakeQuantize::appendBinPostOpsOptimized(dnnl::post_ops& ops, const VectorDi
                 ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, inputScale[0], inputShift[0]);
                 if (!crop_by_saturate)
                     ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, clo, chi);
+                show_debug(2);
                 return;
             }
         }
-        // no step can be skipped
-        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, inputScale[0], inputShift[0]);
-        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, clo, chi);
-        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_round_half_to_even, 0, 0);
-        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, outputScale[0], outputShift[0]);
+
+        bool inputShiftIsZero = abs(inputShift[0]) < 0.0000001f;
+        bool outputShiftIsZero = abs(outputShift[0]) < 0.0000001f;
+        if (inputShiftIsZero && outputShiftIsZero) {
+            ops.append_eltwise(inputScale[0], dnnl::algorithm::eltwise_clip, cropLow[0], cropHigh[0]);
+            ops.append_eltwise(outputScale[0], dnnl::algorithm::eltwise_round_half_to_even, 0, 0);
+            show_debug(3);
+        } else if (inputShiftIsZero) {
+            ops.append_eltwise(inputScale[0], dnnl::algorithm::eltwise_clip, cropLow[0], cropHigh[0]);
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_round_half_to_even, 0, 0);
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, outputScale[0], outputShift[0]);
+            show_debug(4);
+        } else if (outputShiftIsZero) {
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, cropLow[0], cropHigh[0]);
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, inputScale[0], inputShift[0]);
+            ops.append_eltwise(outputScale[0], dnnl::algorithm::eltwise_round_half_to_even, 0, 0);
+            show_debug(5);
+        } else {
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, cropLow[0], cropHigh[0]);
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, inputScale[0], inputShift[0]);
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_round_half_to_even, 0, 0);
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, outputScale[0], outputShift[0]);
+            show_debug(6);
+        }
         return;
     }
 

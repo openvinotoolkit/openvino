@@ -57,6 +57,7 @@ std::ostream & operator<<(std::ostream & os, const NodeDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Node& node);
 std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Edge& edge);
+std::ostream & operator<<(std::ostream & os, const dnnl::memory::data_type& dtype);
 
 }   // namespace intel_cpu
 }   // namespace ov
