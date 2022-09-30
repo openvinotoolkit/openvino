@@ -142,7 +142,7 @@ def collect_statistic(root: ET.Element, is_conformance_mode: bool):
         pass_rate_avg[device.tag] = round(float(pass_rate_avg[device.tag]), 1)
         general_pass_rate[device.tag] = 0 if general_test_count[device.tag] == 0 else (general_passed_tests[device.tag] * 100 / general_test_count[device.tag])
         general_pass_rate[device.tag] = round(float(general_pass_rate[device.tag]), 1)
-        trusted_ops[device.tag] = round(float(trusted_ops[device.tag] * 100 / covered_ops[device.tag]), 1) if device.tag in covered_ops and covered_ops[device.tag] != 0 else 0
+        trusted_ops[device.tag] = round(float(trusted_ops[device.tag] * 100) / covered_ops[device.tag], 1) if device.tag in covered_ops and covered_ops[device.tag] != 0 else 0
 
     logger.info("Test number comparison between devices is started")
     for op in op_res:
@@ -181,11 +181,29 @@ def serialize_to_csv(report_filename: str, output_dir: os.path, op_list: list, d
     csv_filename = os.path.join(output_dir, report_filename + '.csv')
     with open(csv_filename, "w", newline='') as output_csv_file:
         csv_writer = csv.writer(output_csv_file, dialect='excel')
-        csv_writer.writerow(['Operation'] + device_list)
+        # csv_writer.writerow(['Operation'] + device_list)
+        devices_csv = ['Operation']
+        device_res_csv = ['Operation']
+        device_st = ["crashed", "failed", "hanged", "implemented", "passed", "passrate", "skipped"]
+        
+        for device in device_list:
+            for i in range(7):
+                devices_csv.append(device)
+            for device in device_st:
+                device_res_csv.append(device)
+            
+        csv_writer.writerow(devices_csv)
+        csv_writer.writerow(device_res_csv)
+
         for op in op_list:
             list_to_csv = list()
             for device in device_list:
-                list_to_csv.append(format_string(str(results[device][op])) if op in results[device] else "N/A")
+                if op in results[device]:
+                    for key, value in results[device][op].items():
+                        list_to_csv.append(str(value))
+                else:
+                    for i in range(7):
+                        list_to_csv.append("N/A")
             csv_writer.writerow([op] + list_to_csv)
 
     logger.info(f'Final CSV report is saved to {csv_filename}')
@@ -195,6 +213,7 @@ def create_summary(summary_root: ET.Element, output_folder: os.path, report_tag:
                    is_conformance_mode: bool,  is_serialize_to_csv: bool, output_filename='report'):
     if is_conformance_mode:
         utils.update_conformance_test_counters(summary_root, logger)
+        utils.update_passrates(summary_root.find("results"))
     device_list, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops, covered_ops = \
         collect_statistic(summary_root, is_conformance_mode)
 
