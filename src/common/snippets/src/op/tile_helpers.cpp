@@ -15,13 +15,9 @@ std::shared_ptr<TileBegin> insertTileBeginAfterOutputs(const OutputVector& origi
     for (const auto& out : originalOutputs) {
         originalChildInputs.push_back(out.get_target_inputs());
     }
-    if (apply_increment.empty())
-        apply_increment = std::vector<bool>(originalOutputs.size(), true);
-    if (finalization_offsets.empty())
-        finalization_offsets = std::vector<int64_t>(originalOutputs.size(), 0);
 
-    auto tileBegin = std::make_shared<TileBegin>(originalOutputs, dimension, workAmount, increment, apply_increment,
-                                                 finalization_offsets);
+    auto tileBegin = std::make_shared<TileBegin>(originalOutputs, dimension, workAmount, increment, std::move(apply_increment),
+                                                 std::move(finalization_offsets));
 
     for (int i = 0; i < originalChildInputs.size(); i++) {
         for (auto& input : originalChildInputs[i]) {

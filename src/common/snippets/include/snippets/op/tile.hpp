@@ -49,17 +49,13 @@ public:
     OPENVINO_OP("TileBase", "SnippetsOpset");
     TileBase(const std::vector<Output<Node>>& args, size_t dimension, size_t workAmount, size_t increment,
              std::vector<bool> apply_increment, std::vector<int64_t> finalization_offsets);
-    TileBase(const std::vector<Output<Node>>& args, size_t dimension, size_t workAmount, size_t increment,
-             std::vector<bool> apply_increment);
-    TileBase(const std::vector<Output<Node>>& args, size_t dimension, size_t workAmount, size_t increment);
-    TileBase() = default;
+    TileBase() = delete;
     bool visit_attributes(AttributeVisitor& visitor) override;
     size_t get_work_amount() {return workAmount;}
     size_t get_increment() {return increment;}
     size_t get_dimension() {return dimension;}
-    const std::vector<int64_t>& get_finalization_offsets() {return finalization_offsets; }
+    std::vector<int64_t> get_finalization_offsets() {return finalization_offsets; }
     const std::vector<bool>& get_apply_increment() {return apply_increment;}
-    void set_increment(size_t new_increment) {increment = new_increment;}
 
 protected:
     size_t dimension;
@@ -68,24 +64,26 @@ protected:
     std::vector<bool> apply_increment;
     std::vector<int64_t> finalization_offsets;
 };
-
+class TileEnd;
 class TileBegin : public TileBase {
     friend class TileEnd;
 public:
     OPENVINO_OP("TileBegin", "SnippetsOpset");
     TileBegin(const std::vector<Output<Node>>& args, size_t dimension, size_t workAmount, size_t increment,
               std::vector<bool> apply_increment, std::vector<int64_t> finalization_offsets);
-    TileBegin(const std::vector<Output<Node>>& args, size_t dimension, size_t workAmount, size_t increment,
-              std::vector<bool> apply_increment);
-    TileBegin(const std::vector<Output<Node>>& args, size_t dimension, size_t workAmount, size_t increment);
-    TileBegin() = default;
+    TileBegin() = delete;
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs)  const override;
     const uint8_t** get_address_ptr() {return &begin_address;}
     std::vector<size_t>& get_input_regs() {return input_regs;}
-//    std::vector<size_t> input_regs;
+    void set_work_amount(size_t new_work_amount) {workAmount = new_work_amount;}
+    void set_increment(size_t new_increment) {increment = new_increment;}
+    std::shared_ptr<TileEnd> get_tile_end();
     const uint8_t* begin_address;
     std::vector<size_t> input_regs;
+private:
+    void validate_and_infer_types_except_TileEnd();
+//    std::vector<size_t> input_regs;
 };
 
 class TileEnd : public TileBase {
@@ -95,7 +93,7 @@ public:
     OPENVINO_OP("TileEnd", "SnippetsOpset");
     // todo: hide this constructor, as this is not an intended way to create TileEnd
     explicit TileEnd(const std::vector<Output<Node>>& args);
-    TileEnd() = default;
+    TileEnd() = delete;
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs)  const override;
 };

@@ -135,6 +135,10 @@ void KernelEmitter::validate_arguments(const std::vector<size_t> &in,
         IE_THROW() << "KernelEmitter got invalid number of inputs. Expected 2, got " << in.size();
     if (!out.empty())
         IE_THROW() << "KernelEmitter got invalid number of outputs. Expected 0, got " << out.size();
+    const auto num_params = in[0] + in[1];
+    if (gp_regs_used.size() != num_params)
+        IE_THROW() << "KernelEmitter arguments are inconsistent with the gpr_regs_used size: in[0] + in[1] = "
+        << num_params << " gp_regs_used.size() = " << gp_regs_used.size();
 }
 
 void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params,
@@ -642,10 +646,16 @@ TileBeginEmitter::TileBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl:
     const auto tileEnd = ov::as_type_ptr<ngraph::snippets::op::TileEnd>(target_inputs.begin()->get_node()->shared_from_this());
     if (!tileEnd)
         IE_THROW() << "TileBeginEmitter invoked with invalid configuration: the last output must be TileEnd";
+    const auto io_size = tileBegin->get_input_size() + tileEnd->get_output_size();
+    if (tileBegin->get_finalization_offsets().size() != io_size)
+        IE_THROW() << "TileBeginEmitter got invalid op configuration: finalization_offsets size is incorrect";
+    if (tileBegin->get_apply_increment().size() != io_size)
+        IE_THROW() << "TileBeginEmitter got invalid op configuration: apply_increment size is incorrect";
     num_inputs = tileBegin->get_input_size();
     num_outputs = tileEnd->get_output_size();
     increment = tileBegin->get_increment();
     work_amount = tileBegin->get_work_amount();
+    in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     /*
     // todo: add checks on work_amount vs increment consistency + checks on work_amount vs max(last_dim) consistence
     //  probably better to implement them in Tile* constructors
@@ -695,9 +705,12 @@ void TileBeginEmitter::emit_impl(const std::vector<size_t>& in,
     // todo: skip everything if work_amount == increment
     Reg64 reg_work_amount = Reg64(abi_param2.getIdx());
     Label for_body;
-    // save prew count (for an outer loop for example)
-    h->push(reg_work_amount);
-    h->mov(reg_work_amount, work_amount);
+    // save previous register state (if there is an outer loop that uses this reg for example)
+    // if work_amount == 0, it means that work_amount was set in the previous tile, so we should not reset it here
+    if (work_amount != 0) {
+        h->push(reg_work_amount);
+        h->mov(reg_work_amount, work_amount);
+    }
     // todo fix excessive push-pop with an appropriate gpr assign_registers pass
     // h->L(for_body);
     // Note: loop address is not calculated at this point, so need to call calcJmpAddress() which is protected
@@ -718,9 +731,6 @@ TileEndEmitter::TileEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::imp
     // todo: this check could be excessive, since we check for it in validate_and_infer_types()
     if (!tileBegin)
         IE_THROW() << "TileEndEmitter invoked with invalid configuration: the last arg must be TileBegin";
-//    if (tileBegin->begin_address == nullptr)
-//        IE_THROW() << "TileEndEmitter invoked with invalid configuration: TileBegin must contain a valid begin_address";
-    std::cerr << "TileEnd Constructor: "<< reinterpret_cast<const void*>(tileBegin->begin_address) << "\n";
     num_inputs = tileBegin->get_input_size();
     num_outputs = tileEnd->get_output_size();
     increment = tileBegin->get_increment();
@@ -790,16 +800,9 @@ void TileEndEmitter::emit_impl(const std::vector<size_t>& in,
     // todo: who will increment if there is non-zero outer tile?
 //    if (work_amount == increment)
 //        return;
-    // emit_ptr_increments
-    // note that master_shape_last_dim could be equal to Subgraph::DYNAMIC_DIMENSION for dynamic case
-//    auto master_shape_last_dim = *std::max_element(io_dims.begin(), io_dims.end());
-//    for (const auto& idx : static_dims_idx) {
-//        // increment only inputs that are not broadcasted
-//        if (io_dims[idx] != 1 || master_shape_last_dim == 1)
-//            h->add(data_ptr_regs[idx], increment * io_data_size[idx]);
-//    }
-//    auto master_shape_last_dim = *std::max_element(io_dims.begin(), io_dims.end());
     const auto& apply_increments = tileBegin->get_apply_increment();
+    if (apply_increments.size() != data_ptr_regs.size())
+        IE_THROW() << "Inconsistent apply increments and data_ptr_regs size";
     for (int idx = 0; idx < data_ptr_regs.size(); idx++) {
         if (apply_increments[idx])
             h->add(data_ptr_regs[idx], increment * io_data_size[idx]);
@@ -811,12 +814,16 @@ void TileEndEmitter::emit_impl(const std::vector<size_t>& in,
     h->jge(tileBegin->begin_address);
 
     const auto& finalization_offsets = tileBegin->get_finalization_offsets();
+    if (finalization_offsets.size() != data_ptr_regs.size())
+        IE_THROW() << "Inconsistent finalization offsets and data_ptr_regs size";
     for (int idx = 0; idx < data_ptr_regs.size(); idx++) {
         if (finalization_offsets[idx] != 0)
             h->add(data_ptr_regs[idx], finalization_offsets[idx] * io_data_size[idx]);
     }
-    // restore counter, for an outer loop (if it exists)
-    h->pop(reg_work_amount);
+    if (tileBegin->get_work_amount() != 0) {
+        // restore reg state if we've changed it before
+        h->pop(reg_work_amount);
+    }
 //    cleanup_broadcasting(reg_const_params, data_ptr_regs);
 }
 

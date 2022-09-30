@@ -17,7 +17,7 @@
 namespace ngraph {
 namespace snippets {
 
-auto getRegisters(std::shared_ptr<ngraph::Node> &n) -> RegInfo {
+auto getRegisters(const std::shared_ptr<ngraph::Node> &n) -> RegInfo {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::getRegisters")
 
     // ToDo: change to reg_t
@@ -77,48 +77,78 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
 
     OV_ITT_TASK_CHAIN(GENERATE, ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::VectorTile")
     // vector tile
+    std::cerr << "\n\n\nAllocated Emitter debug:\n\n";
     std::vector<AllocatedEmitter> lowered;
-    for (auto n : m->get_ordered_ops()) {
-        lowered.emplace_back(std::make_pair(target->get(n->get_type_info())(n), getRegisters(n)));
+    const auto& ops = m->get_ordered_ops();
+    for (auto op = ops.begin(); op < ops.end(); op++) {
+        const auto& tile_begin = ov::as_type_ptr<ngraph::snippets::op::TileBegin>(*op);
+        // ignore outer tiles and possible manual scalar tiles
+        if (tile_begin && tile_begin->get_increment() != 1) {
+            NodeVector vector_tile;
+            const auto& tile_end = tile_begin->get_tile_end();
+            while (*op != tile_end)
+                vector_tile.push_back(*op++);
+            vector_tile.push_back(*op);
+            // todo: optimization: emit bare body with no WA manipulations or pointer increments,
+            //  but have to know about tile structure. Communicate from op::Subgraph maybe?
+            //if (increment == work_amount)
+            const auto work_amount = tile_begin->get_work_amount();
+            const auto increment = tile_begin->get_increment();
+            // vector tiles are required => Just copy the body, original tile is already a vector one
+            if (work_amount >= increment) {
+                std::cerr << "Vector Tile:\n";
+                for (const auto &k : vector_tile)
+                    std::cerr << k->get_friendly_name() << "\n";
+
+                std::transform(vector_tile.begin(), vector_tile.end(), std::back_inserter(lowered),
+                               [this](const std::shared_ptr<Node>& n){
+                                    return std::make_pair(target->get(n->get_type_info())(n), ngraph::snippets::getRegisters(n));
+                               });
+            }
+            OV_ITT_TASK_NEXT(GENERATE, "::ScalarTile")
+            // scalar tiles are required => transform the body into a scalar representation
+            if (work_amount % increment != 0) {
+                // todo: do we really need to copy? Or can we use vector_tile directly?
+                NodeMap vector_to_scalar_node_map;
+                NodeVector scalar_tile = ngraph::clone_nodes(vector_tile,  vector_to_scalar_node_map);
+                std::transform(scalar_tile.begin(), scalar_tile.end(), scalar_tile.begin(),
+                               [](const std::shared_ptr<Node>& n){
+                                   if (const auto load = ov::as_type_ptr<ngraph::snippets::op::Load>(n))
+                                       load->set_count(1);
+                                   else if (const auto store = ov::as_type_ptr<ngraph::snippets::op::Store>(n))
+                                       store->set_count(1);
+                                   return n;
+                               });
+                // Note: we can use the node map to access scalar counterparts of vector nodes
+                // const auto& scalar_tile_begin = ov::as_type_ptr<op::TileBegin>(vector_to_scalar_node_map[tile_begin.get()]);
+                const auto& scalar_tile_begin = ov::as_type_ptr<op::TileBegin>(*scalar_tile.begin());
+                scalar_tile_begin->set_work_amount(work_amount % increment);
+                // todo: need to communicate to vector tile_end to avoid pop from the stack
+                // zero work_amount means that the WA was set in the vector tile and can be reused
+//                if (work_amount >= increment)
+//                    scalar_tile_begin->set_work_amount(0);
+                scalar_tile_begin->set_increment(1);
+                std::transform(scalar_tile.begin(), scalar_tile.end(), std::back_inserter(lowered),
+                               [this](const std::shared_ptr<Node>& n){
+                                   return std::make_pair(target->get(n->get_type_info())(n), ngraph::snippets::getRegisters(n));
+                               });
+            }
+        } else {
+//            std::vector<size_t> rin, rout;
+//            std::tie(rin, rout) = getRegisters(*op);
+//            std::cerr << "Added as is: " << (*op)->get_friendly_name() << " Regs: ";
+//            for (auto r : rin)
+//                std::cerr << r << " ";
+//            std::cerr << " => ";
+//            for (auto r : rout)
+//                std::cerr << r << " ";
+//            std::cerr << "\n";
+            lowered.emplace_back(std::make_pair(target->get((*op)->get_type_info())(*op), getRegisters(*op)));
+        }
     }
-    OV_ITT_TASK_NEXT(GENERATE, "::ScalarTile")
 
-    // scalar tile
-    auto m_scalar = ov::clone_model(*m.get());
-    ngraph::pass::Manager mng;
-    mng.register_pass<pass::SetScalarCountForLoad>();
-    mng.register_pass<pass::SetScalarCountForStore>();
-    mng.run_passes(m_scalar);
-    OV_ITT_TASK_NEXT(GENERATE, "::ScalarTile_get")
-    std::vector<AllocatedEmitter> scalar_lowered;
-    for (auto n : m_scalar->get_ordered_ops()) {
-        scalar_lowered.emplace_back(std::make_pair(target->get(n->get_type_info())(n), getRegisters(n)));
-    }
-    /*
-    OV_ITT_TASK_NEXT(GENERATE, "::Tiles1D");
-    // wrapping into tiles1D
-    //todo: in, out, and io_last_dims should derive naturally from the graph representation
-    const auto& vector_tile = std::make_shared<op::Tile>(lowered, target->get_lanes(), in, out, io_last_dims, io_data_sizes);
-    const auto& vector_region = std::make_pair(target->get(op::Tile::get_type_info_static())(vector_tile),
-                                               std::make_pair(std::vector<size_t>{}, std::vector<size_t>{}));
-    const auto& scalar_tile = std::make_shared<op::Tile>(scalar_lowered, 1, in, out, io_last_dims, io_data_sizes);
-    const auto& scalar_region = std::make_pair(target->get(op::Tile::get_type_info_static())(scalar_tile),
-                                               std::make_pair(std::vector<size_t>{}, std::vector<size_t>{}));
-
-    OV_ITT_TASK_NEXT(GENERATE, "::Tiles2D")
-    // If compile params are provided then it's a static case
-    AllocatedEmitter tile_scheduler_region;
-    auto tile_scheduler = std::make_shared<op::TileScheduler>(vector_region, scalar_region);
-    tile_scheduler->compile_params = compile_params;
-
-    tile_scheduler_region =
-            std::make_pair(target->get(op::TileScheduler::get_type_info_static())(tile_scheduler),
-                           std::make_pair(std::vector<size_t>({in, out, target->get_lanes()}), std::vector<size_t>{}));
-    */
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")
     // emission
-//    auto tiles2DKernel = std::make_shared<op::Kernel>(std::vector<AllocatedEmitter>{tile_scheduler_region});
-//    tiles2DKernel->compile_params = compile_params;
     auto tiles2DKernel = std::make_shared<op::Kernel>(std::vector<AllocatedEmitter>{lowered});
     tiles2DKernel->compile_params = compile_params;
     std::shared_ptr<Emitter> kernel = target->get(op::Kernel::get_type_info_static())(tiles2DKernel);
@@ -131,11 +161,6 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
         throw ngraph_error("failed to emit code for snippets");
     }
     OV_ITT_TASK_NEXT(GENERATE, "::EmitData")
-    // push back Tiles and TileEmitter to emit data appropriately
-//    lowered.push_back(tile_scheduler_region);
-//    lowered.push_back(vector_region);
-//    lowered.push_back(scalar_region);
-    lowered.insert(lowered.end(), scalar_lowered.begin(), scalar_lowered.end());
     for (auto& op : lowered) {
         op.first->emit_data();
     }
