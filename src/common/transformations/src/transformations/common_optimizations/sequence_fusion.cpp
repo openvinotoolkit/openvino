@@ -10,6 +10,7 @@
 #include "ngraph_ops/augru_cell.hpp"
 #include "ngraph_ops/augru_sequence.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
@@ -35,16 +36,26 @@ bool is_equal_consts(const shared_ptr<ov::Node>& l, const shared_ptr<ov::Node>& 
 
 bool check_WRB(const shared_ptr<RNNCellBase>& cell_1, const shared_ptr<RNNCellBase>& cell_2) {
     int64_t idx_W = 2, idx_R = 3, idx_B = 4;
-
-    auto lstm_cell_1 = dynamic_pointer_cast<LSTMCell>(cell_1);
-    auto lstm_cell_2 = dynamic_pointer_cast<LSTMCell>(cell_2);
-    // 2nd input is Cell State
-    if (lstm_cell_1 && lstm_cell_2) {
+    auto increase_indexes = [&]() {
         ++idx_B;
         ++idx_R;
         ++idx_W;
+    };
+    auto lstm_cell_v4_1 = dynamic_pointer_cast<LSTMCell>(cell_1);
+    auto lstm_cell_v4_2 = dynamic_pointer_cast<LSTMCell>(cell_2);
+    // 2nd input is Cell State
+    if (lstm_cell_v4_1 && lstm_cell_v4_2) {
+        increase_indexes();
     }
-
+    auto lstm_cell_v0_1 = dynamic_pointer_cast<ov::opset3::LSTMCell>(cell_1);
+    auto lstm_cell_v0_2 = dynamic_pointer_cast<ov::opset3::LSTMCell>(cell_2);
+    if (lstm_cell_v0_1 && lstm_cell_v0_2) {
+        if (lstm_cell_v0_1->get_weights_format() != lstm_cell_v0_2->get_weights_format() ||
+            lstm_cell_v0_1->get_input_forget() != lstm_cell_v0_2->get_input_forget()) {
+            return false;
+        }
+        increase_indexes();
+    }
     auto lW = cell_1->input_value(idx_W).get_node_shared_ptr();
     auto lR = cell_1->input_value(idx_R).get_node_shared_ptr();
     auto lB = cell_1->input_value(idx_B).get_node_shared_ptr();
@@ -73,6 +84,23 @@ bool is_equal_cells(const shared_ptr<RNNCellBase>& cell_1, const shared_ptr<RNNC
     return is_equal;
 }
 
+bool check_lstm_cell(const shared_ptr<RNNCellBase>& prev_cell, const shared_ptr<RNNCellBase>& current_cell) {
+    // check intermediate C outputs in case of LSTMCell
+    // LSTMCell - C -> LSTMCell
+    if ((dynamic_pointer_cast<LSTMCell>(prev_cell) || dynamic_pointer_cast<ov::opset3::LSTMCell>(prev_cell))) {
+        const auto& target_inputs = prev_cell->get_output_target_inputs(1);
+        bool valid = target_inputs.empty() ||
+                     (target_inputs.size() == 1 &&
+                      dynamic_cast<RNNCellBase*>(target_inputs.begin()->get_node()) == current_cell.get() &&
+                      target_inputs.begin()->get_index() == 2);
+
+        // if intermediate C output is connected to other node, except LSTMCell,
+        // we can't replace cells with sequence. Sequence doesn't provide access to these outputs.
+        return valid;
+    }
+    return true;
+}
+
 shared_ptr<RNNCellBase> find_cell_chain(ov::pass::NodeRegistry& cp_from,
                                         ov::pass::NodeRegistry& cp_to,
                                         const shared_ptr<RNNCellBase>& current_cell,
@@ -82,47 +110,25 @@ shared_ptr<RNNCellBase> find_cell_chain(ov::pass::NodeRegistry& cp_from,
                                         int& cells_cnt,
                                         const shared_ptr<ov::Node>& axis_1) {
     cells_cnt = 1;
-
     shared_ptr<RNNCellBase> current = current_cell;
     while (true) {
         cp_from.add(current);
         // check the source node of HiddenState input
         auto prev = current->input_value(1).get_node_shared_ptr();
-        if (auto prev_cell = dynamic_pointer_cast<RNNCellBase>(prev)) {
-            if (!is_equal_cells(prev_cell, current)) {
-                break;
-            }
+        auto prev_cell = dynamic_pointer_cast<RNNCellBase>(prev);
 
-            auto in_X = current->input(0);
-            x_to_concat.push_back(cp_to.make<Unsqueeze>(in_X.get_source_output(), axis_1));
-            h_outputs_to_redirect[cells_cnt] = current->output(0);
+        auto in_X = current->input(0);
+        x_to_concat.push_back(cp_to.make<Unsqueeze>(in_X.get_source_output(), axis_1));
+        h_outputs_to_redirect[cells_cnt] = current->output(0);
 
-            // check intermediate C outputs in case of LSTMCell
-            if (dynamic_pointer_cast<LSTMCell>(current) && cells_cnt != 1) {
-                const auto& target_inputs = current->get_output_target_inputs(1);
-                bool valid = target_inputs.empty() ||
-                             (target_inputs.size() == 1 && dynamic_cast<LSTMCell*>(target_inputs.begin()->get_node()) &&
-                              target_inputs.begin()->get_index() == 2);
-                if (!valid) {
-                    // if intermediate C output is connected to other node, except LSTMCell,
-                    // we can't replace cells with sequence. Sequence doesn't provide access to these outputs.
-                    return {};
-                }
-            }
+        if (auto augru = dynamic_pointer_cast<ov::op::internal::AUGRUCell>(current)) {
+            attention_to_concat.push_back(cp_to.make<Unsqueeze>(augru->input_value(5), axis_1));
+        }
 
-            if (auto augru = dynamic_pointer_cast<ov::op::internal::AUGRUCell>(current)) {
-                attention_to_concat.push_back(cp_to.make<Unsqueeze>(augru->input_value(5), axis_1));
-            }
-
+        if (prev_cell && is_equal_cells(prev_cell, current) && check_lstm_cell(prev_cell, current)) {
             current = prev_cell;
             cells_cnt++;
         } else {
-            auto in_X = current->input(0);
-            x_to_concat.push_back(cp_to.make<Unsqueeze>(in_X.get_source_output(), axis_1));
-            if (auto augru = dynamic_pointer_cast<ov::op::internal::AUGRUCell>(current)) {
-                attention_to_concat.push_back(cp_to.make<Unsqueeze>(augru->input_value(5), axis_1));
-            }
-            h_outputs_to_redirect[cells_cnt] = current->output(0);
             break;
         }
     }
@@ -142,9 +148,10 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
                      const shared_ptr<ov::Node>& axis_0,
                      const shared_ptr<ov::Node>& axis_1) {
     int64_t idx_W = 2, idx_R = 3, idx_B = 4;
-    auto lstm_cell_1 = dynamic_pointer_cast<LSTMCell>(last_cell);
     // 2nd input is Cell State
-    if (lstm_cell_1) {
+    bool is_lstm = false;
+    if (dynamic_pointer_cast<LSTMCell>(last_cell) || dynamic_pointer_cast<ov::opset3::LSTMCell>(last_cell)) {
+        is_lstm = true;
         idx_B++;
         idx_R++;
         idx_W++;
@@ -163,10 +170,8 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
     auto sequence_lengths_in =
         cp_to.add(ngraph::op::util::make_try_fold<Broadcast>(seq_lengths_scalar, batch_dimension));
     shared_ptr<ov::Node> sequence;
-    bool is_lstm = false;
     ov::OutputVector outputs(1);
     if (dynamic_pointer_cast<LSTMCell>(first_cell)) {
-        is_lstm = true;
         const auto Ct_in = cp_to.make<Unsqueeze>(first_cell->input_value(2), axis_1);
         sequence = cp_to.make<LSTMSequence>(X_in,
                                             Ht_in,
@@ -175,6 +180,34 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
                                             W_in,
                                             R_in,
                                             B_in,
+                                            first_cell->get_hidden_size(),
+                                            ov::op::RecurrentSequenceDirection::FORWARD,
+                                            first_cell->get_activations_alpha(),
+                                            first_cell->get_activations_beta(),
+                                            first_cell->get_activations(),
+                                            first_cell->get_clip());
+        outputs.resize(2);
+        outputs[1] = cp_to.make<Squeeze>(sequence->output(2), axis_1);
+    } else if (auto lstm_cell_v0 = dynamic_pointer_cast<ov::opset3::LSTMCell>(first_cell)) {
+        // input_forget modification is not supported
+        if (lstm_cell_v0->get_input_forget()) {
+            return false;
+        }
+        auto weights_format = lstm_cell_v0->get_weights_format();
+        ov::Output<ov::Node> W = W_in, R = R_in, B = B_in;
+        if (weights_format != ov::op::LSTMWeightsFormat::FICO) {
+            W = ov::op::util::convert_lstm_node_format(W_in, convert_lstm_weights_enums(weights_format));
+            R = ov::op::util::convert_lstm_node_format(R_in, convert_lstm_weights_enums(weights_format));
+            B = ov::op::util::convert_lstm_node_format(B_in, convert_lstm_weights_enums(weights_format));
+        }
+        const auto Ct_in = cp_to.make<Unsqueeze>(first_cell->input_value(2), axis_1);
+        sequence = cp_to.make<LSTMSequence>(X_in,
+                                            Ht_in,
+                                            Ct_in,
+                                            sequence_lengths_in,
+                                            W,
+                                            R,
+                                            B,
                                             first_cell->get_hidden_size(),
                                             ov::op::RecurrentSequenceDirection::FORWARD,
                                             first_cell->get_activations_alpha(),
@@ -265,7 +298,6 @@ ov::pass::SequenceFusion::SequenceFusion() {
         if (!current_cell) {
             return false;
         }
-
         // check that this is the last Cell in the chain, e.g.
         // GRUCell -> GRUCell (the last cell) -> OtherNode
         // GRUCell (hidden_size = 128) -> GRUCell (hs = 128, the last) -> GRUCell (hs = 64)
@@ -275,7 +307,6 @@ ov::pass::SequenceFusion::SequenceFusion() {
                 return false;
             }
         }
-
         int cells_cnt;
         ov::OutputVector x_to_concat;
         ov::OutputVector attention_to_concat;

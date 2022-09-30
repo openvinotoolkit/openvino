@@ -6,6 +6,7 @@
 #include <queue>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "transformations/common_optimizations/sequence_fusion.hpp"
 #include "ngraph_ops/augru_sequence.hpp"
@@ -19,7 +20,8 @@ using namespace ov::element;
 
 namespace {
     enum class RNN_TYPE {
-        LSTM,
+        LSTM_v0,
+        LSTM_v4,
         GRU,
         RNN,
         AUGRU
@@ -27,7 +29,7 @@ namespace {
 
     int get_gate_by_rnn_type(RNN_TYPE rnn_type) {
         int gate = 1;
-        if (rnn_type == RNN_TYPE::LSTM) {
+        if (rnn_type == RNN_TYPE::LSTM_v4 || rnn_type == RNN_TYPE::LSTM_v0) {
             gate = 4;
         } else if (rnn_type == RNN_TYPE::GRU || rnn_type == RNN_TYPE::AUGRU) {
             gate = 3;
@@ -54,8 +56,11 @@ namespace {
         auto axis_1 = make_shared<Constant>(i64, Shape{}, 1);
 
         for (int i = 0; i < cells_cnt; ++i) {
-            if (rnn_type == RNN_TYPE::LSTM) {
+            if (rnn_type == RNN_TYPE::LSTM_v4) {
                 cell = make_shared<LSTMCell>(X, cur_H, cur_C, W, R, B, hidden_size);
+                cur_C = cell->output(1);
+            } else if (rnn_type == RNN_TYPE::LSTM_v0) {
+                cell = make_shared<opset3::LSTMCell>(X, cur_H, cur_C, W, R, B, hidden_size, ov::op::LSTMWeightsFormat::FICO);
                 cur_C = cell->output(1);
             } else if (rnn_type == RNN_TYPE::GRU) {
                 cell = make_shared<GRUCell>(X, cur_H, W, R, B, hidden_size);
@@ -87,7 +92,7 @@ namespace {
 
         auto outputs = create_cell(rnn_type, X, H, C, W, R, B, A, hidden_size, cells_cnt);
         ParameterVector params = {X, H, W, R, B};
-        if (rnn_type == RNN_TYPE::LSTM) {
+        if (rnn_type == RNN_TYPE::LSTM_v4 || rnn_type == RNN_TYPE::LSTM_v0) {
             params.push_back(C);
         } else if (rnn_type == RNN_TYPE::AUGRU) {
             params.push_back(A);
@@ -111,7 +116,7 @@ namespace {
         auto A = make_shared<Parameter>(f32, Shape{batch, 1});
 
         ParameterVector params = {X, H, W, R, B};
-        if (rnn_type == RNN_TYPE::LSTM) {
+        if (rnn_type == RNN_TYPE::LSTM_v4 || rnn_type == RNN_TYPE::LSTM_v0) {
             params.push_back(C);
         } else if (rnn_type == RNN_TYPE::AUGRU) {
             params.push_back(A);
@@ -132,7 +137,7 @@ namespace {
         auto concat_A = make_shared<Concat>(in_A, 1);
 
         shared_ptr<Node> seq;
-        if (rnn_type == RNN_TYPE::LSTM) {
+        if (rnn_type == RNN_TYPE::LSTM_v4 || rnn_type == RNN_TYPE::LSTM_v0) {
             seq = make_shared<LSTMSequence>(concat_X, unH, unC, seq_len, unW, unR, unB, hidden_size, op::RecurrentSequenceDirection::FORWARD);
         } else if (rnn_type == RNN_TYPE::GRU) {
             seq = make_shared<GRUSequence>(concat_X, unH, seq_len, unW, unR, unB, hidden_size, op::RecurrentSequenceDirection::FORWARD);
@@ -155,7 +160,7 @@ namespace {
 
         auto squeeze_Ht = make_shared<Squeeze>(seq->output(1), axis_1);
         OutputVector outputs = {concat->output(0), squeeze_Ht};
-        if (rnn_type == RNN_TYPE::LSTM) {
+        if (rnn_type == RNN_TYPE::LSTM_v4 || rnn_type == RNN_TYPE::LSTM_v0) {
             auto squeeze_Ct = make_shared<Squeeze>(seq->output(2), axis_1);
             outputs.push_back(squeeze_Ct);
         }
@@ -194,9 +199,15 @@ TEST_P(SequenceFusionTest, SequencePattern) {
 }
 
 static const std::vector<SequenceFusionParams> params = {
-        SequenceFusionParams{RNN_TYPE::LSTM, 2, 128, 32, 10},
+        SequenceFusionParams{RNN_TYPE::LSTM_v4, 2, 128, 32, 1},
+        SequenceFusionParams{RNN_TYPE::LSTM_v4, 2, 128, 32, 10},
+        SequenceFusionParams{RNN_TYPE::LSTM_v0, 2, 128, 32, 1},
+        SequenceFusionParams{RNN_TYPE::LSTM_v0, 2, 128, 32, 10},
+        SequenceFusionParams{RNN_TYPE::GRU, 2, 128, 32, 1},
         SequenceFusionParams{RNN_TYPE::GRU, 2, 128, 32, 10},
+        SequenceFusionParams{RNN_TYPE::RNN, 2, 128, 32, 1},
         SequenceFusionParams{RNN_TYPE::RNN, 2, 128, 32, 10},
+        SequenceFusionParams{RNN_TYPE::AUGRU, 2, 128, 32, 1},
         SequenceFusionParams{RNN_TYPE::AUGRU, 2, 128, 32, 10},
 };
 
