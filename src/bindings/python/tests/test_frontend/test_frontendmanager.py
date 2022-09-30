@@ -32,8 +32,8 @@ except Exception:
 fem = FrontEndManager()
 
 mock_needed = pytest.mark.skipif(not mock_available, reason="Mock frontend is not available. Check paths in:"
-                                                            f" LD_LIBRARY_PATH={os.environ['LD_LIBRARY_PATH']}"
-                                                            f", PYTHONPATH={os.environ['PYTHONPATH']}")
+                                                            f" LD_LIBRARY_PATH={os.environ.get('LD_LIBRARY_PATH','')}"
+                                                            f", PYTHONPATH={os.environ.get('PYTHONPATH','')}")
 
 MOCK_PY_FRONTEND_NAME = "mock_py"
 
