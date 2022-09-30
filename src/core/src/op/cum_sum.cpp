@@ -30,14 +30,14 @@ op::v0::CumSum::CumSum(const Output<Node>& arg, const bool exclusive, const bool
 }
 
 bool op::v0::CumSum::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_CumSum_visit_attributes);
+    OV_OP_SCOPE(v0_CumSum_visit_attributes);
     visitor.on_attribute("exclusive", m_exclusive);
     visitor.on_attribute("reverse", m_reverse);
     return true;
 }
 
 void op::v0::CumSum::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_CumSum_validate_and_infer_types);
+    OV_OP_SCOPE(v0_CumSum_validate_and_infer_types);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 
     const auto& axis_type = get_input_element_type(1);
@@ -51,7 +51,7 @@ void op::v0::CumSum::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v0::CumSum::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_CumSum_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_CumSum_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 2)
         return make_shared<op::v0::CumSum>(new_args.at(0), new_args.at(1), m_exclusive, m_reverse);

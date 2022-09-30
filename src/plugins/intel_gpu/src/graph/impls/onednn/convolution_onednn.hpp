@@ -6,22 +6,23 @@
 namespace cldnn {
 namespace onednn {
 
-static std::shared_ptr<dnnl::convolution_forward::desc> get_convolution_descriptor(const convolution_node& arg,
+static std::shared_ptr<dnnl::convolution_forward::desc> get_convolution_descriptor(const kernel_impl_params& impl_params,
                                             dnnl::memory::format_tag tag_in_out = dnnl::memory::format_tag::undef) {
-    auto prim = arg.get_primitive();
+    auto prim = impl_params.typed_desc<convolution>();
 
-    auto& input = arg.get_dependency(0);
-    auto& weights = arg.get_dependency(1);
+    auto input_layout = impl_params.get_input_layout(0);
+    auto weights_layout = impl_params.get_input_layout(1);
+    auto output_layout = impl_params.output_layout;
 
     dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
     dnnl::memory::dims dilation(prim->dilation.begin(), prim->dilation.end());
     dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
     dnnl::memory::dims pad_r(prim->pad.begin(), prim->pad.end());
 
-    auto input_md = onednn::layout_to_memory_desc(input.get_output_layout(), tag_in_out);
-    auto weights_md = onednn::layout_to_memory_desc(weights.get_output_layout(), dnnl::memory::format_tag::any);
-    auto output_md = onednn::layout_to_memory_desc(arg.get_output_layout(), tag_in_out);
-    auto grouped_weights = format::is_grouped(weights.get_output_layout().format) || prim->grouped_weights_shape;
+    auto input_md = onednn::layout_to_memory_desc(input_layout, tag_in_out);
+    auto weights_md = onednn::layout_to_memory_desc(weights_layout, dnnl::memory::format_tag::any);
+    auto output_md = onednn::layout_to_memory_desc(output_layout, tag_in_out);
+    auto grouped_weights = format::is_grouped(weights_layout.format) || prim->grouped_weights_shape;
 
     // adjust_conv_dilation_pad(dilation, stride, pad_l, pad_r, input_md, output_md, weights_md, grouped_weights);
     for (size_t i = 0; i < dilation.size(); i++) {
@@ -34,8 +35,8 @@ static std::shared_ptr<dnnl::convolution_forward::desc> get_convolution_descript
         pad_r[i] = (os - 1) * stride[i] - is + kernel_range - pad_l[i];
     }
 
-    if (arg.bias_term()) {
-        auto bias_md = onednn::layout_to_memory_desc(arg.get_dependency(2).get_output_layout(), dnnl::memory::format_tag::any, true);
+    if (!prim->bias.empty()) {
+        auto bias_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(2), dnnl::memory::format_tag::any, true);
         return std::make_shared<dnnl::convolution_forward::desc>(
             dnnl::prop_kind::forward_inference,
             dnnl::algorithm::convolution_direct,
