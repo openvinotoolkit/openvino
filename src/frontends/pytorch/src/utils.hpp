@@ -5,6 +5,13 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 
 namespace ov {
+
+namespace op {
+namespace util {
+class FrameworkNode;
+}
+}  // namespace op
+
 namespace frontend {
 namespace pytorch {
 
@@ -33,6 +40,7 @@ OutputVector inplace_op(NodeContext& context) {
     context.mutate_input(idx, translation_res[0]);
     return translation_res;
 }
+std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
 
 }  // namespace pytorch
 }  // namespace frontend
