@@ -30,7 +30,7 @@ class TestReverseV2Ops(CommonTFLayerTest):
     test_data = []
     test_data.extend([
         dict(shape=[5], axis=[0]),
-        dict(shape=[2, 3], axis=[1]),
+        pytest.param(dict(shape=[2, 3], axis=[1]), marks=pytest.mark.precommit_tf_fe),
         dict(shape=[2, 3, 5], axis=[-2]),
         dict(shape=[2, 3, 5, 7], axis=[0]),
     ])
