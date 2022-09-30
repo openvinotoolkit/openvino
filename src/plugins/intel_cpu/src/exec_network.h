@@ -53,7 +53,8 @@ protected:
     ExtensionManager::Ptr extensionManager;
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
     const InferenceEngine::CNNNetwork           _network;
-    // mutex for config and shared mutex for snippet nodes
+    // Generic synchronization primitive on ExecNetwork level.
+    // Usage example: helps to avoid data races during CPU Graph initialization in multi-streams scenario
     mutable std::shared_ptr<std::mutex>         _mutex;
     Config                                      _cfg;
     std::atomic_int                             _numRequests = {0};
