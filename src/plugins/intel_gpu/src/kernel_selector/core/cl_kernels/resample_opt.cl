@@ -44,6 +44,8 @@ inline uint FUNC(get_output_index)(uint b, uint f, uint y, uint x)
 
 inline float FUNC(get_original_coordinate)(float num, float scale, int length_resized, int length_original)
 {
+    if (scale == 1.0f)
+        return num;
 #if defined(COORD_TRANS_MODE_HALF_PIXEL)
     return (num + 0.5f) * scale - 0.5f;
 #elif defined(COORD_TRANS_MODE_PYTORCH_HALF_PIXEL)
@@ -243,6 +245,8 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     typedef IN_VEC_TYPE in_vec_t;
     typedef ACC_VEC_TYPE acc_vec_t;
 
+    const int in_size[5] = { INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X };
+
     if (feature_num >= OUTPUT_FEATURE_NUM)
         return;
 
@@ -284,6 +288,11 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     const ACCUMULATOR_TYPE dy1 = (in_y1 != in_y2) ? TO_ACCUMULATOR_TYPE(fabs(in_y - in_y1)) : 0.5f;
     const ACCUMULATOR_TYPE dy2 = (in_y1 != in_y2) ? TO_ACCUMULATOR_TYPE(fabs(in_y - in_y2)) : 0.5f;
 
+#if PADDING_USED == 1
+    const int saved_in_y1 = in_y1;
+    const int saved_in_y2 = in_y2;
+#endif
+
     unroll_for (uint out_x = 0; out_x < OUTPUT_X_BLOCK_SIZE; out_x++) {
         const ACCUMULATOR_TYPE ix = FUNC_CALL(get_original_coordinate)(x + out_x, SCALES[4], OUTPUT_SIZE_X, PADDED_X);
         float in_x = fmax(0, fmin(ix, PADDED_X - 1));
@@ -292,6 +301,9 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
         const ACCUMULATOR_TYPE dx1 = (in_x1 != in_x2) ? TO_ACCUMULATOR_TYPE(fabs(in_x - in_x1)) : 0.5f;
         const ACCUMULATOR_TYPE dx2 = (in_x1 != in_x2) ? TO_ACCUMULATOR_TYPE(fabs(in_x - in_x2)) : 0.5f;
 #if PADDING_USED == 1
+        in_y1 = saved_in_y1;
+        in_y2 = saved_in_y2;
+
         in_y1 -= PADS_BEGIN[3];
         in_y2 -= PADS_BEGIN[3];
         in_x1 -= PADS_BEGIN[4];
@@ -302,19 +314,19 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
         bool blOutOfBounds = in_y2 < 0 || in_y2 >= in_size[3] || in_x1 < 0 || in_x1 >= in_size[4];
         bool brOutOfBounds = in_y2 < 0 || in_y2 >= in_size[3] || in_x2 < 0 || in_x2 >= in_size[4];
 #endif // PADDING_USED == 1
-        const acc_vec_t top_left     = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y1, in_x1)));
-        const acc_vec_t top_right    = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y1, in_x2)));
-        const acc_vec_t bottom_left  = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y2, in_x1)));
-        const acc_vec_t bottom_right = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y2, in_x2)));
+        acc_vec_t top_left     = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y1, in_x1)));
+        acc_vec_t top_right    = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y1, in_x2)));
+        acc_vec_t bottom_left  = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y2, in_x1)));
+        acc_vec_t bottom_right = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y2, in_x2)));
 #if PADDING_USED == 1
         if (tlOutOfBounds)
-            top_left = INPUT0_VAL_ZERO;
+            top_left = TO_OUT_VEC_TYPE(INPUT0_VAL_ZERO);
         if (trOutOfBounds)
-            top_right = INPUT0_VAL_ZERO;
+            top_right = TO_OUT_VEC_TYPE(INPUT0_VAL_ZERO);
         if (blOutOfBounds)
-            bottom_left = INPUT0_VAL_ZERO;
+            bottom_left = TO_OUT_VEC_TYPE(INPUT0_VAL_ZERO);
         if (brOutOfBounds)
-            bottom_right = INPUT0_VAL_ZERO;
+            bottom_right = TO_OUT_VEC_TYPE(INPUT0_VAL_ZERO);
 #endif // PADDING_USED == 1
         acc_vec_t res = TO_ACC_VEC_TYPE(dx2 * dy2 * top_left) +
                         TO_ACC_VEC_TYPE(dx1 * dy2 * top_right) +

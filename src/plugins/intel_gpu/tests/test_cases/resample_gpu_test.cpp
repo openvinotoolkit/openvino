@@ -1939,16 +1939,19 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
         size_t f = l.feature();
         size_t x = l.spatial(0);
         size_t y = l.spatial(1);
+        size_t z = l.spatial(2);
 
-        auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
+        auto data = generate_random_5d<T>(b, f, z, y, x, min, max, k);
         mem_lock<T> ptr{mem, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {
-                for (size_t yi = 0; yi < y; ++yi) {
-                    for (size_t xi = 0; xi < x; ++xi) {
-                        auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
-                        auto offset = mem->get_layout().get_linear_offset(coords);
-                        ptr[offset] = data[bi][fi][yi][xi];
+                for (size_t zi = 0; zi < z; ++zi) {
+                    for (size_t yi = 0; yi < y; ++yi) {
+                        for (size_t xi = 0; xi < x; ++xi) {
+                            auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
+                            auto offset = mem->get_layout().get_linear_offset(coords);
+                            ptr[offset] = data[bi][fi][zi][yi][xi];
+                        }
                     }
                 }
             }
@@ -1984,24 +1987,27 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
         size_t f = output_lay.feature();
         size_t x = output_lay.spatial(0);
         size_t y = output_lay.spatial(1);
+        size_t z = output_lay.spatial(2);
         mem_lock<T> ref_ptr{out_ref, get_test_stream()};
         mem_lock<T> opt_ptr{out_opt, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {
-                for (size_t yi = 0; yi < y; ++yi) {
-                    for (size_t xi = 0; xi < x; ++xi) {
-                        auto ref_out_coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
-                        auto ref_out_offset = output_lay.get_linear_offset(ref_out_coords);
-                        auto ref_out_val = ref_ptr[ref_out_offset];
+                for (size_t zi = 0; zi < z; ++zi) {
+                    for (size_t yi = 0; yi < y; ++yi) {
+                        for (size_t xi = 0; xi < x; ++xi) {
+                            auto ref_out_coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
+                            auto ref_out_offset = output_lay.get_linear_offset(ref_out_coords);
+                            auto ref_out_val = ref_ptr[ref_out_offset];
 
-                        auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
-                        auto opt_out_val = opt_ptr[opt_out_offset];
+                            auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
+                            auto opt_out_val = opt_ptr[opt_out_offset];
 
-                        EXPECT_EQ(ref_out_offset, opt_out_offset);
-                        if (std::is_same<T, FLOAT16>::value) {
-                            EXPECT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
-                        } else {
-                            EXPECT_EQ(opt_out_val, ref_out_val);
+                            EXPECT_EQ(ref_out_offset, opt_out_offset);
+                            if (std::is_same<T, FLOAT16>::value) {
+                                EXPECT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
+                            } else {
+                                EXPECT_EQ(opt_out_val, ref_out_val);
+                            }
                         }
                     }
                 }
@@ -2014,7 +2020,8 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
     void execute_compare(const resample_opt_random_test_params& params, bool check_result) {
         auto& engine = get_test_engine();
 
-        auto in_layout = layout(params.input_type, format::bfyx, params.input_size);
+        const format origin_format = format::dimension(params.in_format) == 4 ? format::bfyx : format::bfzyx;
+        auto in_layout = layout(params.input_type, origin_format, params.input_size);
         auto in_mem = engine.allocate_memory(in_layout);
         fill_random(in_mem);
 
@@ -2043,11 +2050,10 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
         prim_opt.pads_begin = params.pads_begin;
         prim_opt.pads_end = params.pads_end;
         topo_opt.add(prim_opt);
-        topo_opt.add(reorder("to_output_type", "resample_opt", params.out_format, params.input_type));
-        topo_opt.add(reorder("res_to_bfyx", "to_output_type", format::bfyx, params.input_type));
+        topo_opt.add(reorder("res_to_bfyx", "resample_opt", origin_format, params.input_type));
 
         auto build_opts_opt = build_options();
-        build_opts_opt.set_option(build_option::outputs({"resample_opt", "to_output_type", "res_to_bfyx"}));
+        build_opts_opt.set_option(build_option::outputs({"resample_opt", "res_to_bfyx"}));
 
         network net_opt(engine, topo_opt, build_opts_opt);
 
@@ -2099,11 +2105,20 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_nearest,
                             }
                         ));
 
-INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx,
+INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_4d_padding,
                          resample_opt_random_test,
                          testing::ValuesIn(
                             std::vector<resample_opt_random_test_params>{
-                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {}},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {0, 0, 1, 1}, {0, 0, 1, 1}},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {0, 0, 0, 0}, {0, 0, 1, 1}},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {0, 0, 1, 1}, {0, 0, 0, 0}},
+                            }
+                        ));
+
+INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_4d_simple,
+                         resample_opt_random_test,
+                         testing::ValuesIn(
+                            std::vector<resample_opt_random_test_params>{
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
@@ -2111,3 +2126,26 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx,
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}},
                             }
                         ));
+
+INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_5d_3axes_padding,
+                         resample_opt_random_test,
+                         testing::ValuesIn(
+                            std::vector<resample_opt_random_test_params>{
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {0, 0, 1, 1, 1}, {0, 0, 1, 1, 1}},
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {0, 0, 0, 0, 0}, {0, 0, 1, 1, 1}},
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {0, 0, 1, 1, 1}, {0, 0, 0, 0, 0}},
+                            }
+                        ));
+
+INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_5d_3axes_simple,
+                         resample_opt_random_test,
+                         testing::ValuesIn(
+                            std::vector<resample_opt_random_test_params>{
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}},
+                            }
+                        ));
+
