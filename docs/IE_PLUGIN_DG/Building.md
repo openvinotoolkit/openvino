@@ -97,6 +97,6 @@ endif()
 
 - `tests/functional/CMakeLists.txt` to build a set of functional plugin tests:
 
-@snippet template/tests/functional/CMakeLists.txt cmake:functional_tests
+@snippet template/plugin/tests/functional/CMakeLists.txt cmake:functional_tests
 
 > **NOTE**: The `IE::funcSharedTests` static library with common functional Inference Engine Plugin tests is imported via the Inference Engine Developer Package.
