@@ -258,16 +258,18 @@ function(ie_python_minimal_api target)
     # endif()
 endfunction()
 
+if(NOT DEFINED CMAKE_COMPILE_WARNING_AS_ERROR)
+    set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
+endif()
+
 if(WIN32)
     ie_add_compiler_flags(-D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS)
     ie_add_compiler_flags(/EHsc) # no asynchronous structured exception handling
     ie_add_compiler_flags(/Gy) # remove unreferenced functions: function level linking
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LARGEADDRESSAWARE")
 
-    ie_add_compiler_flags(/WX)
-    if (TREAT_WARNING_AS_ERROR)
+    if (CMAKE_COMPILE_WARNING_AS_ERROR)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-            ie_add_compiler_flags(/WX)
             ie_add_compiler_flags(/Qdiag-warning:47,1740,1786)
         endif()
     endif()
@@ -309,12 +311,6 @@ if(WIN32)
     string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
     string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 else()
-    # TODO: enable for C sources as well
-    # ie_add_compiler_flags(-Werror)
-    if(TREAT_WARNING_AS_ERROR)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
-    endif()
-
     ie_add_compiler_flags(-ffunction-sections -fdata-sections)
     ie_add_compiler_flags(-fdiagnostics-show-option)
     ie_add_compiler_flags(-Wundef)
