@@ -103,8 +103,8 @@ public:
     size_t outputs_memory_count() const { return _node.get_primitive()->output_size(); }
     bool outputs_allocated() const {
         if (_outputs.empty()) return false;
-        for (auto& o : _outputs) {
-            if (!o) return false;
+        for (const auto& output : _outputs) {
+            if (!output) return false;
         }
         return true;
     }
@@ -241,7 +241,6 @@ protected:
 
     size_t max_output_layout_size = 0;
 
-    memory::ptr allocate_output();
     std::vector<memory::ptr> allocate_outputs();
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::shared_ptr<primitive_inst>> const& mem_deps);

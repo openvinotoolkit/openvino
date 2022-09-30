@@ -144,6 +144,7 @@ public:
 
     using input_info_arr = std::vector<input_info>;
 
+    /// @brief List of input info containing id and output index of input primitive.
     input_info_arr input_new;
 
     int num_outputs;

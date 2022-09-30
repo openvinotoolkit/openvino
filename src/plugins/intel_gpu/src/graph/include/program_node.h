@@ -199,11 +199,8 @@ public:
     void remove_dependency(program_node& node);
 
     std::set<primitive_id> get_memory_dependencies() const;
-    std::set<input_info, input_info::cmp> get_memory_dependencies_new() const;
     void add_memory_dependency(primitive_id);
-    void add_memory_dependency_new(input_info);
     void add_memory_dependency(std::vector<primitive_id>);
-    void add_memory_dependency_new(std::vector<input_info>);
 
     template <class PType>
     bool have_user_with_type() const {
@@ -243,24 +240,20 @@ public:
     // uses cached output layout if valid, if not calls 'calc_output_layout' and stores its result + invalidate all
     // users if layout has changed and @p invalidate_users_if_changed is set to true
     layout get_output_layout(bool invalidate_users_if_changed = true);
-    std::vector<layout> get_output_layouts(bool invalidate_users_if_changed = true);
     // returns cached output layout if valid, otherwise throws an exception
     layout get_output_layout() const;
-    std::vector<layout> get_output_layouts() const;
     // returns result of get_output_layout without padding
     layout get_non_padded_output_layout(bool invalidate_users_if_changed = true);
 
     // sets cached output layout to an arbitrary value, invalidates users if new layout differs from previous one and @p
     // invalidate_users_if_changed is set to true returns whether output layout has changed
     bool set_output_layout(layout& new_layout, bool invalidate_users_if_changed = true);
-    bool set_output_layouts(std::vector<layout>& new_layout, bool invalidate_users_if_changed = true);
 
     size_t get_outputs_count() const { return num_outputs; }
 
     // forces recalculation of cached output layout, invalidates users if new layout is different than previous one and
     // @p invalidate_users_if_changed is set to true returns whether output layout has changed
     bool recalc_output_layout(bool invalidate_users_if_changed = true);
-    bool recalc_output_layouts(bool invalidate_users_if_changed = true);
 
     bool is_dynamic() const;
     bool is_dynamic();
@@ -277,12 +270,6 @@ public:
     bool is_output() const { return output; }
 
     bool is_valid_output_layout() const { return valid_output_layout; }
-    bool is_all_valid_output_layout() const {
-        for (auto l : valid_output_layouts) {
-            if (l == false) return false;
-        }
-        return true;
-    }
 
     uint8_t mark(uint8_t val = 1) {
         uint8_t ret = user_mark;
@@ -448,9 +435,7 @@ protected:
     std::unique_ptr<primitive_impl> selected_impl;
 
     bool valid_output_layout = false;
-    std::vector<bool> valid_output_layouts;
     layout output_layout = layout(data_types::f32, format::bfyx, tensor());
-    std::vector<layout> output_layouts;
 
     format::type required_input0;
     format::type required_output;
@@ -461,7 +446,6 @@ protected:
 
     // list of primitives that can reuse same memory buffers due to execution order conflicts
     std::set<primitive_id> memory_dependencies;
-    std::set<input_info, input_info::cmp> memory_dependencies_new;
 
     impl_types impl_type = impl_types::any;
     bool constant = false;

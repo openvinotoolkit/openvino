@@ -34,10 +34,6 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
     if (prim) {
         output_layout.data_padding = prim->output_padding;
         num_outputs = prim->num_outputs;
-        for (size_t i = 0 ; i < num_outputs; ++i) {
-            output_layouts.push_back(output_layout);
-            valid_output_layouts.push_back(false);
-        }
     }
 }
 
@@ -87,18 +83,10 @@ void program_node::remove_dependency(size_t idx) {
 
 std::set<primitive_id> program_node::get_memory_dependencies() const { return memory_dependencies; }
 
-std::set<input_info, input_info::cmp> program_node::get_memory_dependencies_new() const { return memory_dependencies_new; }
-
 void program_node::add_memory_dependency(primitive_id prim) { memory_dependencies.insert(prim); }
-
-void program_node::add_memory_dependency_new(input_info prim) { memory_dependencies_new.insert(prim); }
 
 void program_node::add_memory_dependency(std::vector<primitive_id> prim_list) {
     memory_dependencies.insert(prim_list.begin(), prim_list.end());
-}
-
-void program_node::add_memory_dependency_new(std::vector<input_info> prim_list) {
-    memory_dependencies_new.insert(prim_list.begin(), prim_list.end());
 }
 
 std::unique_ptr<json_composite> program_node::desc_to_json() const {
@@ -265,31 +253,11 @@ layout program_node::get_output_layout(bool invalidate_users_if_changed) {
     return output_layout;
 }
 
-std::vector<layout> program_node::get_output_layouts(bool invalidate_users_if_changed) {
-    if (is_all_valid_output_layout())
-        return output_layouts;
-
-    auto new_layouts = calc_output_layouts();
-    if (new_layouts.empty()) {
-        auto new_layout = calc_output_layout();
-        new_layouts = {new_layout};
-    }
-    set_output_layouts(new_layouts, invalidate_users_if_changed);
-    return output_layouts;
-}
-
 layout program_node::get_output_layout() const {
     if (!valid_output_layout)
         throw std::runtime_error("Output layout not calculated for " + id() + " node");
 
     return output_layout;
-}
-
-std::vector<layout> program_node::get_output_layouts() const {
-    if (!is_all_valid_output_layout())
-        throw std::runtime_error("Output layouts not calculated");
-
-    return output_layouts;
 }
 
 layout program_node::get_non_padded_output_layout(bool invalidate_users_if_changed) {
@@ -310,35 +278,9 @@ bool program_node::set_output_layout(layout& new_layout, bool invalidate_users_i
     return changed;
 }
 
-bool program_node::set_output_layouts(std::vector<layout>& new_layouts, bool invalidate_users_if_changed) {
-    bool changed = false;
-    for (size_t i = 0; i < new_layouts.size(); ++i) {
-        auto new_layout = new_layouts[i];
-        merge_output_padding(new_layout.data_padding);
-        new_layout.data_padding = output_layout.data_padding;
-        changed |= (new_layout != output_layout);
-        if (changed && invalidate_users_if_changed)
-            invalidate_users();
-
-        output_layouts[i] = new_layout;
-    }
-    for (auto v : valid_output_layouts)
-        v = true;
-    return changed;
-}
-
 bool program_node::recalc_output_layout(bool invalidate_users_if_changed) {
     auto new_layout = calc_output_layout();
     return set_output_layout(new_layout, invalidate_users_if_changed);
-}
-
-bool program_node::recalc_output_layouts(bool invalidate_users_if_changed) {
-    auto new_layouts = calc_output_layouts();
-    if (new_layouts.empty()) {
-        auto new_layout = calc_output_layout();
-        new_layouts = {new_layout};
-    }
-    return set_output_layouts(new_layouts, invalidate_users_if_changed);
 }
 
 bool program_node::is_dynamic() const {
