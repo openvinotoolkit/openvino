@@ -11,9 +11,7 @@ namespace op {
 
 namespace v9 {
 template <class T>
-void shape_infer(const GenerateProposals* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes) {
+void shape_infer(const GenerateProposals* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4 && output_shapes.size() == 3);
 
     const auto& im_info_shape = input_shapes[0];
@@ -62,7 +60,7 @@ void shape_infer(const GenerateProposals* op,
                               "equal. Got: ",
                               deltas_shape[0],
                               scores_shape[0]);
-        
+
         NODE_VALIDATION_CHECK(op,
                               deltas_shape[1].compatible(scores_shape[1] * 4),
                               "Anchor number for inputs 'input_deltas' and 'input_scores' should be "
@@ -86,11 +84,11 @@ void shape_infer(const GenerateProposals* op,
 
         if (im_info_shape_rank.is_static()) {
             NODE_VALIDATION_CHECK(op,
-                                deltas_shape[0].compatible(im_info_shape[0]),
-                                "Batch for inputs 'im_info' and 'input_deltas' should be "
-                                "equal. Got: ",
-                                deltas_shape[0],
-                                im_info_shape[0]);
+                                  deltas_shape[0].compatible(im_info_shape[0]),
+                                  "Batch for inputs 'im_info' and 'input_deltas' should be "
+                                  "equal. Got: ",
+                                  deltas_shape[0],
+                                  im_info_shape[0]);
         }
     }
 
