@@ -36,6 +36,12 @@ Include next files to work with OpenVINO™ Runtime:
 
 @endsphinxtab
 
+@sphinxtab{C}
+
+@snippet docs/snippets/src/main.c include
+
+@endsphinxtab
+
 @endsphinxtabset
 
 Use the following code to create OpenVINO™ Core to manage available devices and read model objects:
@@ -51,6 +57,12 @@ Use the following code to create OpenVINO™ Core to manage available devices an
 @sphinxtab{Python}
 
 @snippet docs/snippets/src/main.py part1
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@snippet docs/snippets/src/main.c part1
 
 @endsphinxtab
 
@@ -128,6 +140,38 @@ Compile the model for a specific device using `ov::Core::compile_model()`:
 
 @endsphinxtab
 
+@sphinxtab{C}
+
+@sphinxtabset
+
+@sphinxtab{IR}
+
+@snippet docs/snippets/src/main.c part2_1
+
+@endsphinxtab
+
+@sphinxtab{ONNX}
+
+@snippet docs/snippets/src/main.c part2_2
+
+@endsphinxtab
+
+@sphinxtab{PaddlePaddle}
+
+@snippet docs/snippets/src/main.c part2_3
+
+@endsphinxtab
+
+@sphinxtab{ov::Model}
+
+@snippet docs/snippets/src/main.c part2_4
+
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
 @endsphinxtabset
 
 The `ov::Model` object represents any models inside the OpenVINO™ Runtime.
@@ -155,6 +199,12 @@ To learn how to change the device configuration, read the [Query device properti
 
 @endsphinxtab
 
+@sphinxtab{C}
+
+@snippet docs/snippets/src/main.c part3
+
+@endsphinxtab
+
 @endsphinxtabset
 
 ## Step 4. Set Inputs
@@ -172,6 +222,12 @@ You can use external memory to create `ov::Tensor` and use the `ov::InferRequest
 @sphinxtab{Python}
 
 @snippet docs/snippets/src/main.py part4
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@snippet docs/snippets/src/main.c part4
 
 @endsphinxtab
 
@@ -195,6 +251,12 @@ OpenVINO™ Runtime supports inference in either synchronous or asynchronous mod
 
 @endsphinxtab
 
+@sphinxtab{C}
+
+@snippet docs/snippets/src/main.c part5
+
+@endsphinxtab
+
 @endsphinxtabset
 
 This section demonstrates a simple pipeline. To get more information about other ways to perform inference, read the dedicated ["Run inference" section](./ov_infer_request.md).
@@ -214,6 +276,12 @@ Go over the output tensors and process the inference results.
 @sphinxtab{Python}
 
 @snippet docs/snippets/src/main.py part6
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@snippet docs/snippets/src/main.c part6
 
 @endsphinxtab
 
