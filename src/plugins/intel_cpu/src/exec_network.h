@@ -53,7 +53,8 @@ protected:
     ExtensionManager::Ptr extensionManager;
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
     const InferenceEngine::CNNNetwork           _network;
-    mutable std::mutex                          _cfgMutex;
+    // mutex for config and shared mutex for snippet nodes
+    mutable std::shared_ptr<std::mutex>         _mutex;
     Config                                      _cfg;
     std::atomic_int                             _numRequests = {0};
     std::string                                 _name;
@@ -68,9 +69,6 @@ protected:
     // WARNING: Do not use _graphs directly.
     mutable std::deque<GraphGuard>              _graphs;
     mutable NumaNodesWeights                    _numaNodesWeights;
-
-    // shared mutex for snippet nodes
-    std::shared_ptr<std::mutex>                 _snippetMutex;
 
     /* WARNING: Use GetGraph() function to get access to graph in current stream.
      * NOTE: Main thread is interpreted as master thread of external stream so use this function to get access to graphs
