@@ -24,7 +24,7 @@ NamedOutputs reduce_ops(const NodeContext& node) {
         dims = node.get_attribute<std::vector<int32_t>>("dim");
     }
     auto axesNode = default_opset::Constant::create(ngraph::element::i32, {dims.size()}, dims);
-    bool scalar_output = not keep_dim;
+    bool scalar_output = !keep_dim;
     if (scalar_output) {
         for (int32_t i = 0; i < input_rank; i++) {
             if (std::find(dims.begin(), dims.end(), i) == dims.end()) {
