@@ -122,6 +122,17 @@ TEST(type_prop, transpose_arg_rank_static_dynamic_input_order_rank_dynamic_ok) {
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
 }
 
+TEST(type_prop, transpose_arg_rank_dynamic_input_order_const_ok) {
+    const auto axes_order = std::vector<int64_t>{1, 3, 0, 2};
+    auto arg = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto input_order = op::Constant::create(element::i64, Shape{axes_order.size()}, axes_order);
+
+    auto r = make_shared<op::Transpose>(arg, input_order);
+
+    EXPECT_EQ(r->get_output_element_type(0), element::f32);
+    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(axes_order.size())));
+}
+
 TEST(type_prop, transpose_dynamic_interval_input_data) {
     auto arg = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(4, 6), Dimension(2, 3), 8});
     auto input_order = make_shared<op::Parameter>(element::i64, Shape{3});

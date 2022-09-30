@@ -29,8 +29,9 @@ void shape_infer(const Transpose* op,
     auto& output = output_shapes[Transpose::ARG_T];
 
     std::vector<int64_t> axes;
+    const auto has_order = get_data_as_int64<T>(Transpose::ORDER, op, axes, constant_data);
 
-    if (get_data_as_int64<T>(Transpose::ORDER, op, axes, constant_data) && input_shape.rank().is_static()) {
+    if (has_order && input_shape.rank().is_static()) {
         const auto out_rank_size = input_shape.rank().get_length();
 
         if (axes.empty()) {
@@ -49,7 +50,7 @@ void shape_infer(const Transpose* op,
             return input_shape[axis];
         });
     } else {
-        output = ov::PartialShape::dynamic(input_shape.rank());
+        output = has_order ? ov::PartialShape::dynamic(axes.size()) : ov::PartialShape::dynamic(input_shape.rank());
     }
 }
 }  // namespace v1
