@@ -14,12 +14,12 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_conv_3d_backprop_input_v2_op(const NodeContext& node) {
-    TENSORFLOW_OP_VALIDATION(node, node.get_input_size() >= 3, "Conv3DBackpropInput must have at least three inputs.");
+    default_op_checks(node, 3, {"Conv3DBackpropInputV2"});
     auto input_sizes = node.get_input(0);
     auto filter = node.get_input(1);
     auto out_backprop = node.get_input(2);
 
-    // retrieve attributes for Conv3DBackpropInput
+    // retrieve attributes for Conv3DBackpropInputV2
     auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
     auto tf_padding_type = node.get_attribute<std::string>("padding");
     ov::op::PadType auto_pad = convert_tf_padding(node, tf_padding_type);
@@ -34,11 +34,11 @@ OutputVector translate_conv_3d_backprop_input_v2_op(const NodeContext& node) {
 
     TENSORFLOW_OP_VALIDATION(node,
                              tf_data_format == "NDHWC" || tf_data_format == "NCDHW",
-                             "Conv3DBackpropInput data format is neither NDHWC nor NCDHW");
+                             "Conv3DBackpropInputV2 data format is neither NDHWC nor NCDHW");
     if (auto_pad == ov::op::PadType::EXPLICIT) {
         TENSORFLOW_OP_VALIDATION(node,
                                  tf_explicit_paddings.size() == 10,
-                                 "Conv3DBackpropInput expects 10 padding values for EXPLICIT padding mode.");
+                                 "Conv3DBackpropInputV2 expects 10 padding values for EXPLICIT padding mode.");
     }
     bool is_nhwc = (tf_data_format == "NDHWC");
 
@@ -75,11 +75,11 @@ OutputVector translate_conv_3d_backprop_input_v2_op(const NodeContext& node) {
 
     // prepare inputs to ConvolutionBackpropData
     filter = make_transpose(filter, {4, 3, 0, 1, 2});
-    convert_nhwc_to_nchw(is_nhwc, out_backprop);
+    convert_nhwc_to_nchw(is_nhwc, out_backprop, ov::Rank(5));
 
     // initially think that output shape defined for NCDHW layout
     auto ss_begin = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{2});
-    auto ss_end = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{-1});
+    auto ss_end = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{5});
     auto ss_strides = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
 
     // change range of indices for spatial dimensions in case NDHWC layout
@@ -106,10 +106,10 @@ OutputVector translate_conv_3d_backprop_input_v2_op(const NodeContext& node) {
 
     // insert Transpose only if original Conv3DBackpropInput is in NDHWC layout
     auto conv_backprop_output = conv_backprop->output(0);
-    convert_nchw_to_nhwc(is_nhwc, conv_backprop_output);
+    convert_nchw_to_nhwc(is_nhwc, conv_backprop_output, ov::Rank(5));
 
-    // move the original name to new ConvolutionBackpropData if original layout is NCHW
-    // move the original name to Transpose if original layout is NHWC
+    // move the original name to new ConvolutionBackpropData if original layout is NCDHW
+    // move the original name to Transpose if original layout is NDHWC
     set_node_name(node.get_name(), conv_backprop_output.get_node_shared_ptr());
     return {conv_backprop_output};
 }

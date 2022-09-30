@@ -53,10 +53,13 @@ if (NOT (OpenCL_FOUND AND OpenCL_HEADERS))
 endif()
 
 # try to find VA libraries
-if(NOT CMAKE_CROSSCOMPILING)
-    find_host_package(PkgConfig QUIET)
+if(NOT ANDROID)
+    find_package(PkgConfig QUIET)
     if(PkgConfig_FOUND)
         pkg_search_module(libva QUIET IMPORTED_TARGET libva)
+        if(libva_FOUND)
+            message(STATUS "${PKG_CONFIG_EXECUTABLE}: libva (${libva_VERSION}) is found at ${libva_PREFIX}")
+        endif()
     endif()
 endif()
 

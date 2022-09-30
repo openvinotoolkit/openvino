@@ -61,7 +61,6 @@
 #include "intel_gpu/primitives/roi_align.hpp"
 #include "intel_gpu/primitives/roi_pooling.hpp"
 #include "intel_gpu/primitives/roll.hpp"
-#include "intel_gpu/primitives/scale.hpp"
 #include "intel_gpu/primitives/scatter_elements_update.hpp"
 #include "intel_gpu/primitives/scatter_nd_update.hpp"
 #include "intel_gpu/primitives/scatter_update.hpp"
@@ -73,6 +72,7 @@
 #include "intel_gpu/primitives/space_to_batch.hpp"
 #include "intel_gpu/primitives/strided_slice.hpp"
 #include "intel_gpu/primitives/tile.hpp"
+#include "intel_gpu/primitives/non_zero.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -142,7 +142,6 @@ REGISTER_OCL(reverse_sequence);
 REGISTER_OCL(roi_align);
 REGISTER_OCL(roi_pooling);
 REGISTER_OCL(roll);
-REGISTER_OCL(scale);
 REGISTER_OCL(scatter_update);
 REGISTER_OCL(scatter_elements_update);
 REGISTER_OCL(scatter_nd_update);
@@ -166,6 +165,8 @@ REGISTER_OCL(cum_sum);
 REGISTER_OCL(embedding_bag);
 REGISTER_OCL(extract_image_patches);
 REGISTER_OCL(convert_color);
+REGISTER_OCL(count_nonzero);
+REGISTER_OCL(gather_nonzero);
 
 #undef REGISTER_OCL
 

@@ -18,7 +18,9 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <legacy/ngraph_ops/power.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace pass {
 /**
  * @ingroup ie_transformation_common_api
  * @brief PWLApproximation transformation replaces suitable activation function with pwl
@@ -152,7 +154,7 @@ struct Function<ngraph::opset8::Log> {
     }
 
     double get_value(double x) const {
-        return log(x);
+        return std::log(x);
     }
 
     double first_derivative(double x) const {
@@ -342,4 +344,7 @@ inline int max_iterations<ngraph::opset8::Log>() {
 }
 
 } // namespace details
-} // namespace GNAPluginNS
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov
+

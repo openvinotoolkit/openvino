@@ -6,7 +6,9 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace pass {
 
 /**
  * @brief Brodcast data in Const layer
@@ -50,4 +52,6 @@ public:
   BroadcastAddMultiplyConst();
 };
 
-} // namespace GNAPluginNS
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov

@@ -18,7 +18,7 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-ov::NodeTypeInfo get_type(const std::string& type_name) {
+static ov::NodeTypeInfo get_type(const std::string& type_name) {
     // Supported types: opsetX.OpName or opsetX::OpName
     std::string opset_type;
     auto it = type_name.cbegin();
@@ -60,7 +60,7 @@ ov::NodeTypeInfo get_type(const std::string& type_name) {
     return m_opset.create(operation_type)->get_type_info();
 }
 
-std::vector<ov::NodeTypeInfo> get_types(const std::vector<std::string>& type_names) {
+inline std::vector<ov::NodeTypeInfo> get_types(const std::vector<std::string>& type_names) {
     std::vector<ov::NodeTypeInfo> types;
     for (const auto& type_name : type_names) {
         types.emplace_back(get_type(type_name));
@@ -70,7 +70,7 @@ std::vector<ov::NodeTypeInfo> get_types(const std::vector<std::string>& type_nam
 
 using Predicate = const ov::pass::pattern::op::ValuePredicate;
 
-void reg_pattern_wrap_type(py::module m) {
+static void reg_pattern_wrap_type(py::module m) {
     py::class_<ov::pass::pattern::op::WrapType, std::shared_ptr<ov::pass::pattern::op::WrapType>, ov::Node> wrap_type(
         m,
         "WrapType");
@@ -432,7 +432,7 @@ void reg_pattern_wrap_type(py::module m) {
     )");
 }
 
-void reg_pattern_or(py::module m) {
+static void reg_pattern_or(py::module m) {
     py::class_<ov::pass::pattern::op::Or, std::shared_ptr<ov::pass::pattern::op::Or>, ov::Node> or_type(m, "Or");
     or_type.doc() = "openvino.runtime.passes.Or wraps ov::pass::pattern::op::Or";
 
@@ -459,7 +459,7 @@ void reg_pattern_or(py::module m) {
     )");
 }
 
-void reg_pattern_any_input(py::module m) {
+static void reg_pattern_any_input(py::module m) {
     py::class_<ov::pass::pattern::op::Label, std::shared_ptr<ov::pass::pattern::op::Label>, ov::Node> any_input(
         m,
         "AnyInput");
@@ -486,7 +486,7 @@ void reg_pattern_any_input(py::module m) {
     )");
 }
 
-void reg_predicates(py::module m) {
+inline void reg_predicates(py::module m) {
     m.def("consumers_count", &ov::pass::pattern::consumers_count);
     m.def("has_static_dim", &ov::pass::pattern::has_static_dim);
     m.def("has_static_dims", &ov::pass::pattern::has_static_dims);

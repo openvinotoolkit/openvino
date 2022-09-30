@@ -155,18 +155,19 @@ REGISTER_FACTORY(v3, EmbeddingBagOffsetsSum);
 REGISTER_FACTORY(v3, EmbeddingBagPackedSum);
 REGISTER_FACTORY(v3, EmbeddingSegmentsSum);
 REGISTER_FACTORY(v3, ExtractImagePatches);
+REGISTER_FACTORY(v3, NonZero);
 REGISTER_FACTORY(v3, ROIAlign);
 REGISTER_FACTORY(v3, ScatterUpdate);
 REGISTER_FACTORY(v3, ScatterElementsUpdate);
 REGISTER_FACTORY(v3, ScatterNDUpdate);
 REGISTER_FACTORY(v3, ShapeOf);
+REGISTER_FACTORY(v3, Assign);
+REGISTER_FACTORY(v3, ReadValue);
 // REGISTER_FACTORY(v3, NonMaxSuppression); Supported via v3 -> v5 internal conversion
 
 // ----------------------------- Unsupported v3 ops ----------------------------- //
-// REGISTER_FACTORY(v3, Assign);
 // REGISTER_FACTORY(v3, GRUCell);
 // REGISTER_FACTORY(v3, NonZero);
-// REGISTER_FACTORY(v3, ReadValue);
 // REGISTER_FACTORY(v3, TopK);
 
 // ------------------------------ Supported v4 ops ------------------------------ //

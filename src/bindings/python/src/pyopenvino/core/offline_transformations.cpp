@@ -26,8 +26,10 @@
 namespace py = pybind11;
 
 void regmodule_offline_transformations(py::module m) {
-    py::module m_offline_transformations = m.def_submodule("offline_transformations", "Offline transformations module");
-    m_offline_transformations.doc() = "openvino.offline_transformations module contains different offline passes.";
+    py::module m_offline_transformations =
+        m.def_submodule("_offline_transformations", "Offline transformations module");
+    m_offline_transformations.doc() =
+        "openvino._offline_transformations is a private module contains different offline passes.";
 
     m_offline_transformations.def(
         "apply_moc_transformations",

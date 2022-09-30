@@ -12,6 +12,7 @@ ov_add_test_target(
             openvino_template_plugin
         LINK_LIBRARIES
             openvino::funcSharedTests
+            openvino::runtime::dev
         INCLUDES
             "${TEMPLATE_PLUGIN_SOURCE_DIR}/include"
             "${CMAKE_CURRENT_SOURCE_DIR}/op_reference"

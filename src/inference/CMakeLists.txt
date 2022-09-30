@@ -146,6 +146,7 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
     $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt openvino::util openvino::core::dev)
+ie_mark_target_as_cc(${TARGET_NAME}_obj)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 if (TBBBIND_2_5_FOUND)

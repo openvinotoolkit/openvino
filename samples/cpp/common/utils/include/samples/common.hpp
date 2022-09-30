@@ -10,6 +10,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <functional>
 #include <iomanip>

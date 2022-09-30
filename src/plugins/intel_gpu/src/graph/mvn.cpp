@@ -26,6 +26,25 @@ layout mvn_inst::calc_output_layout(mvn_node const& node, kernel_impl_params con
     return layout(output_type, input_node_layout.format, input_node_layout.get_tensor());
 }
 
+template<typename ShapeType>
+std::vector<layout> mvn_inst::calc_output_layouts(mvn_node const& /*node*/, const kernel_impl_params& impl_param) {
+    auto desc = impl_param.typed_desc<mvn>();
+    auto input_layout = impl_param.get_input_layout(0);
+
+    auto output_type = impl_param.desc->output_data_type ? *impl_param.desc->output_data_type
+                                                         : input_layout.data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
+    }
+
+    ShapeType input_shape = input_layout.get<ShapeType>();
+    ShapeType output_shape = input_shape;
+
+    format output_format = format::adjust_to_rank(input_layout.format, output_shape.size());
+
+    return { layout{output_shape, output_type, output_format} };
+}
+
 std::string mvn_inst::to_string(mvn_node const& node) {
     auto node_info = node.desc_to_json();
     auto desc = node.get_primitive();

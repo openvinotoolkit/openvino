@@ -94,16 +94,10 @@ function(register_extra_modules)
     generate_fake_dev_package("openvino")
     generate_fake_dev_package("IE")
 
-    # automatically import plugins from the 'runtime/plugins' folder
-    file(GLOB local_extra_modules "runtime/plugins/*")
-    # add template plugin
-    if(ENABLE_TEMPLATE)
-        list(APPEND local_extra_modules "${OpenVINO_SOURCE_DIR}/docs/template_plugin")
-    endif()
-
     # detect where IE_EXTRA_MODULES contains folders with CMakeLists.txt
     # other folders are supposed to have sub-folders with CMakeLists.txt
     foreach(module_path IN LISTS IE_EXTRA_MODULES)
+        get_filename_component(module_path "${module_path}" ABSOLUTE)
         if(EXISTS "${module_path}/CMakeLists.txt")
             list(APPEND extra_modules "${module_path}")
         elseif(module_path)
@@ -111,8 +105,13 @@ function(register_extra_modules)
         endif()
     endforeach()
 
+    # add template plugin
+    if(ENABLE_TEMPLATE)
+        list(APPEND extra_modules "${OpenVINO_SOURCE_DIR}/docs/template_plugin")
+    endif()
+
     # add each extra module
-    foreach(module_path IN LISTS extra_modules local_extra_modules)
+    foreach(module_path IN LISTS extra_modules)
         if(module_path)
             get_filename_component(module_name "${module_path}" NAME)
             set(build_module ON)

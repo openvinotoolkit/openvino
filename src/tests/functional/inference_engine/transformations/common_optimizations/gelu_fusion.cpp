@@ -120,6 +120,38 @@ TEST_F(TransformationTestsF, GeluFusionPatternThree) {
     }
 }
 
+TEST_F(TransformationTestsF, GeluFusionPatternFour) {
+    {
+        auto data =
+            std::make_shared<opset9::Parameter>(element::f32, Shape{2, 2});
+
+        auto mul1_const =
+            opset9::Constant::create(element::f32, Shape{1}, {1.0f / M_SQRT2});
+        auto add_const =
+            opset9::Constant::create(element::f32, Shape{1}, {0.5f});
+        auto mul2_const =
+            opset9::Constant::create(element::f32, Shape{1}, {0.5f});
+
+        auto mul1 = std::make_shared<opset9::Multiply>(data, mul1_const);
+        auto erf = std::make_shared<opset9::Erf>(mul1);
+        auto mul2 = std::make_shared<opset9::Multiply>(erf, mul2_const);
+        auto add = std::make_shared<opset9::Add>(mul2, add_const);
+        auto mul3 = std::make_shared<opset9::Multiply>(data, add);
+
+        function = std::make_shared<Function>(NodeVector{mul3}, ParameterVector{data});
+
+        manager.register_pass<ov::pass::GeluFusionWithErfFour>();
+    }
+
+    {
+        auto data =
+            std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto gelu = std::make_shared<opset9::Gelu>(data);
+        function_ref =
+            std::make_shared<Function>(NodeVector{gelu}, ParameterVector{data});
+    }
+}
+
 TEST_F(TransformationTestsF, GeluFusionPatternIncorrectDivConstValue) {
     {
         auto data =

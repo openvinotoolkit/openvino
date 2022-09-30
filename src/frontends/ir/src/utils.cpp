@@ -23,7 +23,7 @@ bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::s
     return true;
 }
 
-bool check_all_digits(const std::string& value) {
+inline bool check_all_digits(const std::string& value) {
     auto val = ov::util::trim(value);
     for (const auto& c : val) {
         if (!std::isdigit(c) || c == '-')
@@ -110,6 +110,17 @@ void str_to_set_of_strings(const std::string& value, std::set<std::string>& res)
         auto strRange = field.find_last_not_of(" ") - strBegin + 1;
 
         res.insert(field.substr(strBegin, strRange));
+    }
+}
+
+void str_to_container(const std::string& value, std::vector<std::string>& res) {
+    std::stringstream ss(value);
+    std::string field;
+    while (getline(ss, field, ',')) {
+        field = ov::util::trim(field);
+        if (!field.empty()) {
+            res.emplace_back(field);
+        }
     }
 }
 

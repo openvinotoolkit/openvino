@@ -64,7 +64,7 @@
 
 namespace py = pybind11;
 
-std::string get_version() {
+inline std::string get_version() {
     auto version = ov::get_openvino_version();
     return version.buildNumber;
 }
@@ -241,6 +241,6 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_frontend_ProgressReporterExtension(m);
     regclass_frontend_OpExtension(m);
 
-    // transformations
+    // transformations - private module
     regmodule_offline_transformations(m);
 }

@@ -23,10 +23,10 @@ function(set_ci_build_number)
     endforeach()
 endfunction()
 
-set_ci_build_number()
-
 include(features)
 include(message)
+
+set_ci_build_number()
 
 #
 # Detect target
@@ -34,7 +34,7 @@ include(message)
 
 include(target_flags)
 
-string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH_FOLDER)
+string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" ARCH_FOLDER)
 if(X86_64)
     set(ARCH_FOLDER intel64)
 elseif(X86)
@@ -43,6 +43,8 @@ elseif(MSVC AND ARM)
     set(ARCH_FOLDER arm)
 elseif(MSVC AND AARCH64)
     set(ARCH_FOLDER arm64)
+elseif(UNIVERSAL2)
+    set(ARCH_FOLDER universal2)
 endif()
 
 #
@@ -75,6 +77,11 @@ endfunction()
 if(NOT COMMAND find_host_package)
     macro(find_host_package)
         find_package(${ARGN})
+    endmacro()
+endif()
+if(NOT COMMAND find_host_library)
+    macro(find_host_library)
+        find_library(${ARGN})
     endmacro()
 endif()
 if(NOT COMMAND find_host_program)
@@ -169,7 +176,7 @@ ov_set_if_not_defined(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FO
 ov_set_if_not_defined(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT AND CPACK_GENERATOR STREQUAL "DEB")
+if(CPACK_GENERATOR STREQUAL "DEB")
     # to make sure that lib/<multiarch-tuple> is created on Debian
     set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Cmake install prefix" FORCE)
 endif()
@@ -275,46 +282,7 @@ function(ov_mark_target_as_cc)
     ie_mark_target_as_cc(${ARGN})
 endfunction()
 
-# check python package
-
-function(ie_check_pip_package full_name message_type)
-    find_package(PythonInterp 3 REQUIRED)
-
-    get_filename_component(PYTHON_EXEC_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
-
-    # extract version if any
-    if(full_name MATCHES "^([a-z_]+)[~=<>!]*(.*)$")
-        set(name ${CMAKE_MATCH_1})
-        set(req_version ${CMAKE_MATCH_2})
-    else()
-        set(name ${full_name})
-    endif()
-
-    execute_process(
-        COMMAND ${PYTHON_EXECUTABLE} -m pip show ${name}
-        WORKING_DIRECTORY ${PYTHON_EXEC_DIR}
-        RESULT_VARIABLE PIP_EXIT_CODE
-        OUTPUT_VARIABLE output)
-
-    if(NOT PIP_EXIT_CODE EQUAL 0)
-        set(${name}_FOUND OFF PARENT_SCOPE)
-        message(${message_type} "${name} package is not installed. Please use \"${PYTHON_EXECUTABLE} -m pip install ${full_name}\".")
-    else()
-        if(req_version)
-            string(REGEX MATCH "Version: ([0-9]+\.?[0-9]*\.?[0-9]*)\n" installed_version "${output}")
-            if(installed_version)
-                set(installed_version "${CMAKE_MATCH_1}")
-            endif()
-
-            if(NOT req_version STREQUAL installed_version)
-                message(${message_type} "${name} package is installed, but may have different version (${installed_version}). "
-                    "Please use \"${PYTHON_EXECUTABLE} -m pip install ${full_name}\".")
-            endif()
-        else()
-            set(${name}_FOUND ON PARENT_SCOPE)
-        endif()
-    endif()
-endfunction()
+include(python_requirements)
 
 # Code style utils
 

@@ -9,6 +9,7 @@
 #include <string>
 
 #include "common_test_utils/file_utils.hpp"
+#include "file_utils.h"
 #include "ngraph/util.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
@@ -16,7 +17,7 @@
 // Helper functions
 namespace FrontEndTestUtils {
 
-int run_tests(int argc, char** argv);
+int run_tests(int argc, char** argv, const std::string& manifest);
 
 inline std::tuple<ov::frontend::FrontEnd::Ptr, ov::frontend::InputModel::Ptr>
 load_from_file(ov::frontend::FrontEndManager& fem, const std::string& frontend_name, const std::string& model_file) {
@@ -50,7 +51,9 @@ inline int set_test_env(const char* name, const char* value) {
 
 inline void setupTestEnv() {
     NGRAPH_SUPPRESS_DEPRECATED_START
-    std::string fePath = ov::util::get_ov_lib_path();
+    // we cannot use ov::util since implementation from that library statically
+    // compiled into tests itelf, so we have to the tests instead of OpenVINO library
+    std::string fePath = InferenceEngine::getIELibraryPath();
     set_test_env("OV_FRONTEND_PATH", fePath.c_str());
     NGRAPH_SUPPRESS_DEPRECATED_END
 }

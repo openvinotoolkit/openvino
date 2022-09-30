@@ -107,6 +107,146 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_pa
     return output_layout;
 }
 
+template<typename ShapeType>
+std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node*/, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<eltwise>();
+    auto input_layout = impl_param.get_non_padded_input_layout(impl_param.primary_input_idx);
+    auto out_data_type = desc->output_data_type.value_or(input_layout.data_type);
+
+    auto get_output_layout = [&]() {
+        const auto& autob = desc->broadcast_spec;
+        auto out_pshape = input_layout.get<ShapeType>();
+        cldnn::format out_format = input_layout.format;
+
+        if (input_layout.format == format::b_fs_zyx_fsv16)  // use optimized 5D
+            out_format = format::b_fs_zyx_fsv16;
+        else if (input_layout.format == format::bs_fs_zyx_bsv16_fsv16)
+            out_format = format::bs_fs_zyx_bsv16_fsv16;
+
+        for (size_t i = 0; i < impl_param.input_layouts.size(); i++) {
+            if (impl_param.primary_input_idx == i)
+                continue;
+
+            auto l = impl_param.get_non_padded_input_layout(i);
+            auto in_pshape = l.get<ShapeType>();
+            if (autob.m_type == ov::op::AutoBroadcastType::NONE) {
+                OPENVINO_ASSERT(ShapeType::merge_into(out_pshape, in_pshape), desc->id + ": Argument shapes are inconsistent.\n");
+            } else if (autob.m_type == ov::op::AutoBroadcastType::NUMPY || autob.m_type == ov::op::AutoBroadcastType::PDPD) {
+                auto origin_out_pshape = out_pshape;
+                // For out_pshape{2,3,15,1} and int_pshae{1,3},
+                // expected output shape for NUMPY should be out_pshape{2,3,15,1} but the actual output will be {2,3,15,3}
+                // So, fill the rank with default dim(1) for shape which has smaller rank.
+                if (autob.m_type == ov::op::AutoBroadcastType::NUMPY
+                        && out_pshape.rank().is_static() && in_pshape.rank().is_static()
+                        && out_pshape.rank() != in_pshape.rank()) {
+                    ov::Dimension default_dim(1);
+                    const auto in_pshape_rank   = in_pshape.rank().get_length();
+                    const auto out_pshape_rank  = out_pshape.rank().get_length();
+                    auto new_rank = std::max(in_pshape_rank, out_pshape_rank);
+                    for (auto i = in_pshape_rank; i < new_rank; i++) {
+                        in_pshape.push_back(default_dim);
+                    }
+                    for (auto i = out_pshape_rank; i < new_rank; i++) {
+                        out_pshape.push_back(default_dim);
+                    }
+                }
+                if (!ShapeType::broadcast_merge_into(out_pshape, in_pshape, autob)) {
+                    // Temporarily add codes which get output shape using max value from each dimension to pass some legacy functional tests.
+                    // IE_THROW() << desc->id << ": incorrect input shapes (" <<  out_pshape << " & " << in_pshape << ")\n" << str_endline;
+                    out_pshape = origin_out_pshape;
+                    if (out_pshape.is_static() && in_pshape.is_static()) {
+                        auto in_shape = in_pshape.to_shape();
+                        auto out_shape = out_pshape.to_shape();
+                        for (size_t i = 0; i < in_shape.size(); i++) {
+                            out_shape[i] = std::max(out_shape[i], in_shape[i]);
+                        }
+                        out_pshape = ShapeType(out_shape);
+                    } else {
+                        if (in_pshape.rank().is_static()) {
+                            out_pshape = ShapeType::dynamic(in_pshape.rank());
+                        }
+                    }
+                }
+            } else {
+                OPENVINO_ASSERT(false, desc->id + ": Unsupported auto broadcast specification\n");
+            }
+
+            if (l.format == format::b_fs_zyx_fsv16)  // use optimized 5D
+                out_format = format::b_fs_zyx_fsv16;
+            else if (l.format == format::bs_fs_zyx_bsv16_fsv16)
+                out_format = format::bs_fs_zyx_bsv16_fsv16;
+        }
+
+        return layout(out_pshape, out_data_type, out_format);
+    };
+
+    auto output_layout = get_output_layout();
+    auto mode = desc->mode;
+    // list of operations supported for integer types
+    if (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8 ||
+        input_layout.data_type == data_types::i32 || input_layout.data_type == data_types::i64) {
+        std::vector<eltwise_mode> eltwise_int_modes = {eltwise_mode::sum,
+                                                       eltwise_mode::sub,
+                                                       eltwise_mode::prod,
+                                                       eltwise_mode::div,
+                                                       eltwise_mode::min,
+                                                       eltwise_mode::max,
+                                                       eltwise_mode::mod,
+                                                       eltwise_mode::eq,
+                                                       eltwise_mode::ne,
+                                                       eltwise_mode::lt,
+                                                       eltwise_mode::le,
+                                                       eltwise_mode::gt,
+                                                       eltwise_mode::ge,
+                                                       eltwise_mode::squared_diff,
+                                                       eltwise_mode::floor_mod,
+                                                       eltwise_mode::logic_and,
+                                                       eltwise_mode::logic_or,
+                                                       eltwise_mode::logic_xor};
+
+        OPENVINO_ASSERT((std::find(eltwise_int_modes.begin(), eltwise_int_modes.end(), mode) != eltwise_int_modes.end()),
+                            desc->id + "Requested eltwise mode is not supported for integer types.");
+    }
+
+    // Logic and comparison operations should return i8 for any inputs
+    std::vector<eltwise_mode> eltwise_bool_modes = {eltwise_mode::eq,
+                                                    eltwise_mode::ne,
+                                                    eltwise_mode::lt,
+                                                    eltwise_mode::le,
+                                                    eltwise_mode::gt,
+                                                    eltwise_mode::ge,
+                                                    eltwise_mode::logic_and,
+                                                    eltwise_mode::logic_or,
+                                                    eltwise_mode::logic_xor};
+    if (std::find(eltwise_bool_modes.begin(), eltwise_bool_modes.end(), mode) != eltwise_bool_modes.end()) {
+        output_layout.data_type = data_types::i8;
+    }
+
+    output_layout.data_type = desc->output_data_type.value_or(output_layout.data_type);
+
+    if (impl_param.has_fused_primitives()) {
+        output_layout.data_type = impl_param.get_fused_output_layout().data_type;
+    }
+
+    if (!desc->stride.empty()) {
+        auto input_pshape = input_layout.get<ShapeType>();
+        if (input_pshape.is_static()) {
+            // we can safely use only first stride, since we're using first input, and input / stride should give exact same
+            // value for every input
+            auto in_shape = input_pshape.get_shape();
+            for (size_t i = 0; i < desc->stride[0].spatial.size(); i++) {
+                const size_t idx = in_shape.size() - 1 - i;
+                if (idx < 0)
+                    break;
+                in_shape[idx] = (in_shape[idx] - 1) / desc->stride[0].spatial[i] + 1;
+            }
+            input_layout.set_partial_shape({in_shape});
+        }
+        return { input_layout };
+    }
+    return { output_layout };
+}
+
 static inline std::string stringify_vector(const std::vector<float>& v) {
     std::stringstream s;
 
@@ -212,6 +352,9 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
     // check for stride
     auto prim = node.get_primitive();
     auto inputs_count = node.inputs_count();
+
+    if (is_dynamic())
+        return;
 
     if (!prim->stride.empty()) {
         // number of strides must match number of inputs

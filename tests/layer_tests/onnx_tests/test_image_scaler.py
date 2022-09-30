@@ -140,26 +140,26 @@ class TestImageScaler(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     def test_image_scaler_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                                    api_2):
+                                    use_old_api):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_image_scaler(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_image_scaler(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     def test_image_scaler_const_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                                          api_2):
+                                          use_old_api):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_image_scaler_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_image_scaler_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)

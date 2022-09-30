@@ -19,10 +19,10 @@ OutputVector translate_max_pool_util(const NodeContext& node,
                                      size_t spatial_dims_num,
                                      const std::vector<int64_t>& tf_kernel_sizes,
                                      const std::vector<int64_t>& tf_strides) {
-    TENSORFLOW_OP_VALIDATION(node, node.get_input_size() > 0, "MaxPool operation must have at least one input.");
+    default_op_checks(node, 1, {"MaxPool", "MaxPoolV2", "MaxPool3D"});
     TENSORFLOW_OP_VALIDATION(node,
                              spatial_dims_num == 2 || spatial_dims_num == 3,
-                             "Only MaxPool2D and MaxPool3D are supported.");
+                             "Only MaxPool, MaxPoolV2 and MaxPool3D are supported.");
     auto input = node.get_input(0);
 
     auto tf_padding_type = node.get_attribute<std::string>("padding");
@@ -38,7 +38,7 @@ OutputVector translate_max_pool_util(const NodeContext& node,
     if (spatial_dims_num == 2) {
         TENSORFLOW_OP_VALIDATION(node,
                                  tf_data_format == "NHWC" || tf_data_format == "NCHW",
-                                 "MaxPool2D or MaxPoolV2 data format is neither NHWC nor NCHW");
+                                 "MaxPool or MaxPoolV2 data format is neither NHWC nor NCHW");
         is_nhwc = (tf_data_format == "NHWC");
     } else {
         TENSORFLOW_OP_VALIDATION(node,
@@ -61,7 +61,7 @@ OutputVector translate_max_pool_util(const NodeContext& node,
     }
 
     // prepare input to MaxPool
-    convert_nhwc_to_nchw(is_nhwc, input);
+    convert_nhwc_to_nchw(is_nhwc, input, ov::Rank(spatial_dims_num + 2));
 
     auto max_pool_node = std::make_shared<ov::opset8::MaxPool>(input,
                                                                strides,
@@ -72,7 +72,7 @@ OutputVector translate_max_pool_util(const NodeContext& node,
                                                                ov::op::RoundingType::FLOOR,
                                                                auto_pad);
     auto max_pool = max_pool_node->output(0);
-    ov::frontend::tensorflow::convert_nchw_to_nhwc(is_nhwc, max_pool);
+    ov::frontend::tensorflow::convert_nchw_to_nhwc(is_nhwc, max_pool, ov::Rank(spatial_dims_num + 2));
     ov::frontend::tensorflow::set_node_name(node.get_name(), max_pool.get_node_shared_ptr());
     return {max_pool};
 }

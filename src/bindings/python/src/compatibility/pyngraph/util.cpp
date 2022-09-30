@@ -15,7 +15,7 @@
 
 namespace py = pybind11;
 
-void* numpy_to_c(py::array a) {
+inline void* numpy_to_c(py::array a) {
     py::buffer_info info = a.request();
     return info.ptr;
 }

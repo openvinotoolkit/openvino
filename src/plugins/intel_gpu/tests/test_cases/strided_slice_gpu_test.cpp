@@ -21,10 +21,10 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full) {
     // Output (BFYX): 2x2x2x2
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2 }, data_types::f32, format::bfyx,  });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i32, format::bfyx,  });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i32, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i32, format::bfyx });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
@@ -79,9 +79,9 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full) {
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
@@ -195,9 +195,9 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_ignore) {
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
@@ -310,9 +310,9 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_single) {
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
@@ -429,9 +429,9 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x3_stride) {
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 3, 4 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
     set_values(input, {
             0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f,
@@ -575,9 +575,9 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x4_part_stride) {
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 4, 4 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f,
@@ -712,9 +712,9 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x1_new_axis_mask) {
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 4 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f,
@@ -822,9 +822,9 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1_new_axis_mask_2) {
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f
@@ -981,9 +981,9 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1) {
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 2, 2, 1, 1, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i32, format::bfyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i32, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i32, format::bfyx });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
@@ -1140,9 +1140,9 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2) {
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 2, 2, 1, 1, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i32, format::bfyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i32, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i32, format::bfyx });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
@@ -1248,10 +1248,10 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full_negative_stride) {
     // Output (BFYX): 2x2x2x2
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2 }, data_types::f32, format::bfyx });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i32, format::bfyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i32, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i32, format::bfyx });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
@@ -1306,9 +1306,9 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full_negative_stride) {
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
@@ -1360,9 +1360,9 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2_negative_all) {
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 2, 2, 1, 1, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i32, format::bfyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i32, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i32, format::bfyx });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
@@ -1440,6 +1440,100 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all) {
     network network(engine, topology);
 
     network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+
+    auto output = outputs.at("strided_slice").get_memory();
+
+    std::vector<float> answers = {
+            0.0f, 4.0f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < answers.size(); ++i)
+    {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
+
+
+TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all_dynamic) {
+    // Input (BFZYX): 2x2x2x1x1
+    // Output (BFZYX): 2x1x1x1x1
+
+    auto& engine = get_test_engine();
+    auto input_lay = layout{ ov::PartialShape::dynamic(3), data_types::f32, format::bfyx };
+    auto input = engine.allocate_memory({  ov::PartialShape{ 2, 2, 2 }, data_types::f32, format::bfyx, });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
+
+    set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f});
+    set_values<int64_t>(begin, {0, 0, 0});
+    set_values<int64_t>(end, {2, 2, 2});
+    set_values<int64_t>(strides, {1, 2, 2});
+
+    topology topology;
+    topology.add(input_layout("input", input_lay));
+    topology.add(data("input2", begin));
+    topology.add(data("input3", end));
+    topology.add(data("input4", strides));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}, {}));
+
+    build_options bo;
+    bo.set_option(build_option::allow_new_shape_infer(true));
+    network network(engine, topology, bo);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+
+    auto output = outputs.at("strided_slice").get_memory();
+
+    std::vector<float> answers = {
+            0.0f, 4.0f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < answers.size(); ++i)
+    {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
+TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all_dynamic_begin) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({  ov::PartialShape{ 2, 2, 2 }, data_types::f32, format::bfyx, });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
+
+    set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f});
+    set_values<int64_t>(begin, {0, 0, 0});
+    set_values<int64_t>(end, {2, 2, 2});
+    set_values<int64_t>(strides, {1, 2, 2});
+
+    topology topology;
+    topology.add(data("input", input));
+    topology.add(input_layout("input2", begin->get_layout()));
+    topology.add(data("input3", end));
+    topology.add(data("input4", strides));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}, {}));
+
+    build_options bo;
+    bo.set_option(build_option::allow_new_shape_infer(true));
+    network network(engine, topology, bo);
+
+    network.set_input_data("input2", begin);
 
     auto outputs = network.execute();
 

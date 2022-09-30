@@ -19,7 +19,10 @@ install(TARGETS ${TARGET_NAME}
         EXCLUDE_FROM_ALL)
 
 # Test model generating
-ie_check_pip_package(paddlepaddle WARNING paddle)
+ov_check_pip_package(REQUIREMENT paddlepaddle
+                     MESSAGE_MODE WARNING
+                     WARNING_MESSAGE "PaddlePaddle frontend unit tests will be skipped"
+                     RESULT_VAR paddlepaddle_FOUND)
 
 set(TEST_PADDLE_MODELS_DIRNAME test_model_zoo/paddle_test_models)
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_PADDLE_MODELS_DIRNAME=\"${TEST_PADDLE_MODELS_DIRNAME}/\")
@@ -34,7 +37,7 @@ DownloadAndCheck(${PADDLEDET_OPS_URL} ${PADDLEDET_DIRNAME}/ops.py PADDLEDET_FATA
 # but models will not be generated and tests will fail
 # This is done this way for 'code style' and check cases - cmake shall pass, but CI machine doesn't need to have
 # 'paddlepaddle' installed to check code style
-if(paddlepaddle_FOUND AND ${PADDLEDET_RESULT} STREQUAL "ON")
+if(paddlepaddle_FOUND AND PADDLEDET_RESULT)
     set(TEST_PADDLE_MODELS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_PADDLE_MODELS_DIRNAME}/)
 
     if(WIN32)

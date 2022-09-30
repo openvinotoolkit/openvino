@@ -14,6 +14,11 @@
 
 #include "gflags/gflags.h"
 
+// gflags supports uint32 starting from v2.2 only
+#ifndef DEFINE_uint32
+#    define DEFINE_uint32(name, val, txt) DEFINE_VARIABLE(GFLAGS_NAMESPACE::uint32, U, name, val, txt)
+#endif
+
 /// @brief message for help argument
 static const char help_message[] = "Print a usage message";
 
@@ -199,7 +204,7 @@ static const char load_from_file_message[] = "Optional. Loads model from file di
                                              " All CNNNetwork options (like re-shape) will be ignored";
 
 // @brief message for inference_precision
-static const char inference_precision_message[] = "Optional. Inference precission";
+static const char inference_precision_message[] = "Optional. Inference precision";
 
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of the network.";
 

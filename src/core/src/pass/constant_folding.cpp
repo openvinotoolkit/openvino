@@ -4,6 +4,8 @@
 
 #include "openvino/pass/constant_folding.hpp"
 
+#include <openvino/cc/pass/itt.hpp>
+
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
@@ -49,6 +51,7 @@ const auto friendly_name_from = [](const ov::Node& node, const size_t output_cou
 };
 
 bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(ConstantFolding);
     bool rewritten = pre_calculated_values_folding(model);
 
     for (const auto& node : model->get_ordered_ops()) {

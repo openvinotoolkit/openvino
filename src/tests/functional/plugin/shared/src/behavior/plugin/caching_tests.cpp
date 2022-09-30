@@ -131,12 +131,15 @@ std::string LoadNetworkCacheTestBase::getTestCaseName(testing::TestParamInfo<loa
     auto precision = std::get<1>(param);
     auto batchSize = std::get<2>(param);
     auto deviceName = std::get<3>(param);
+    std::replace(deviceName.begin(), deviceName.end(), ':', '.');
     return funcName + "_" + ngraph::element::Type(precision).get_type_name() + "_batch" + std::to_string(batchSize) + "_" + deviceName;
 }
 
 void LoadNetworkCacheTestBase::SetUp() {
     nGraphFunctionWithName funcPair;
     std::tie(funcPair, m_precision, m_batchSize, targetDevice) = GetParam();
+    target_device  = targetDevice;
+    APIBaseTest::SetUp();
     auto fGen = std::get<0>(funcPair);
     m_functionName = std::get<1>(funcPair);
     try {
@@ -146,7 +149,7 @@ void LoadNetworkCacheTestBase::SetUp() {
     }
 
     std::stringstream ss;
-    auto hash = std::hash<std::string>()(GetTestName());
+    auto hash = std::hash<std::string>()(LayerTestsUtils::LayerTestsCommon::GetTestName());
     ss << "testCache_" << std::to_string(hash) << "_" << std::this_thread::get_id() << "_" << GetTimestamp();
     for (auto& iter : configuration) {
         ss << "_" << iter.first << "_" << iter.second << "_";
@@ -159,6 +162,7 @@ void LoadNetworkCacheTestBase::TearDown() {
     CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
     std::remove(m_cacheFolderName.c_str());
     core->SetConfig({{CONFIG_KEY(CACHE_DIR), {}}});
+    APIBaseTest::TearDown();
 }
 
 void LoadNetworkCacheTestBase::Run() {
@@ -221,6 +225,7 @@ std::string LoadNetworkCompiledKernelsCacheTest::getTestCaseName(testing::TestPa
     std::string deviceName;
     std::pair<std::map<std::string, std::string>, std::string> userConfig;
     std::tie(deviceName, userConfig) = obj.param;
+    std::replace(deviceName.begin(), deviceName.end(), ':', '.');
     std::map<std::string, std::string> confstr = userConfig.first;
     std::ostringstream result;
     result << "device_name=" << deviceName << "_";

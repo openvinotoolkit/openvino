@@ -4,6 +4,7 @@
 
 #include <openvino/frontend/exception.hpp>
 #include <openvino/frontend/manager.hpp>
+#include <openvino/op/util/framework_node.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "tf_utils.hpp"
@@ -31,7 +32,7 @@ TEST(FrontEndConvertModelTest, test_unsupported_op) {
     ASSERT_THROW(frontEnd->convert(function), OpConversionFailure);
 
     for (auto& node : function->get_ordered_ops()) {
-        if (node->get_friendly_name() == "relu_0") {
+        if (node->get_friendly_name() == "relu_0" && std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node)) {
             function->replace_node(node, std::make_shared<opset6::Relu>(node->input(0).get_source_output()));
         }
     }

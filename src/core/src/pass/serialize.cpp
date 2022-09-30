@@ -9,15 +9,16 @@
 #include <cstdint>
 #include <fstream>
 #include <ngraph/variant.hpp>
+#include <openvino/cc/pass/itt.hpp>
 #include <unordered_map>
 #include <unordered_set>
 
-#include "itt.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/util/file_util.hpp"
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
@@ -724,12 +725,12 @@ void auto_pad_resolving(ov::Node* node) {
     if (auto op = as_type<opset1::Convolution>(node)) {
         if (pad_agnostic_types.count(op->get_auto_pad())) {
             op->set_pads_begin(CoordinateDiff(op->get_pads_begin().size(), 0));
-            op->set_adding_above(CoordinateDiff(op->get_pads_end().size(), 0));
+            op->set_pads_end(CoordinateDiff(op->get_pads_end().size(), 0));
         }
     } else if (auto op = as_type<opset1::GroupConvolution>(node)) {
         if (pad_agnostic_types.count(op->get_auto_pad())) {
             op->set_pads_begin(CoordinateDiff(op->get_pads_begin().size(), 0));
-            op->set_adding_above(CoordinateDiff(op->get_pads_end().size(), 0));
+            op->set_pads_end(CoordinateDiff(op->get_pads_end().size(), 0));
         }
     } else if (auto op = as_type<opset1::ConvolutionBackpropData>(node)) {
         if (pad_agnostic_types.count(op->get_auto_pad())) {
@@ -1017,10 +1018,15 @@ void serializeFunc(std::ostream& xml_file,
 
 namespace ov {
 bool pass::Serialize::run_on_model(const std::shared_ptr<ngraph::Function>& f_orig) {
+    RUN_ON_FUNCTION_SCOPE(Serialize);
     auto f = ov::clone_model(*f_orig);
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, f, m_version, m_custom_opsets);
     } else {
+        auto xmlDir = ov::util::get_directory(m_xmlPath);
+        if (xmlDir != m_xmlPath)
+            ov::util::create_directory_recursive(xmlDir);
+
         std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
         NGRAPH_CHECK(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
 
@@ -1098,6 +1104,7 @@ pass::StreamSerialize::StreamSerialize(std::ostream& stream,
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+    RUN_ON_MODEL_SCOPE(StreamSerialize);
     /*
         Format:
         [ DataHeader  ]
@@ -1199,6 +1206,7 @@ public:
 }  // namespace
 
 bool pass::Hash::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(Hash);
     OstreamHashWrapper xmlHash;
     OstreamHashWrapper binHash;
     std::ostream xml(&xmlHash);

@@ -23,17 +23,17 @@ struct fusing_test_params {
     data_types data_type;
     format input_format;
     format output_format;
-    resample_type type;
+    resample::InterpolateOp::InterpolateMode type;
     data_types default_type;
     format default_format;
     size_t expected_fused_primitives;
     size_t expected_not_fused_primitives;
 };
 
-#define CASE_RESAMPLE_FSV16_1 { 1, 16, 64, 64 }, { 1, 16, 128, 128 }, data_types::f16, format::b_fs_yx_fsv16, format::bfyx, resample_type::nearest, data_types::f16, format::bfyx
-#define CASE_RESAMPLE_FSV16_2 { 1, 2,  32, 32 }, { 1, 2,   64,  64 }, data_types::f16, format::b_fs_yx_fsv16, format::bfyx, resample_type::nearest, data_types::f16, format::bfyx
-#define CASE_RESAMPLE_FSV32_1 { 1, 16, 32, 32 }, { 1, 16,  64,  64 }, data_types::i8,  format::b_fs_yx_fsv32, format::bfyx, resample_type::nearest, data_types::i8, format::bfyx
-#define CASE_RESAMPLE_FSV32_2 { 1, 2,  32, 32 }, { 1, 2,   64,  64 }, data_types::i8,  format::b_fs_yx_fsv32, format::bfyx, resample_type::nearest, data_types::i8, format::bfyx
+#define CASE_RESAMPLE_FSV16_1 { 1, 16, 64, 64 }, { 1, 16, 128, 128 }, data_types::f16, format::b_fs_yx_fsv16, format::bfyx, resample::InterpolateOp::InterpolateMode::NEAREST, data_types::f16, format::bfyx
+#define CASE_RESAMPLE_FSV16_2 { 1, 2,  32, 32 }, { 1, 2,   64,  64 }, data_types::f16, format::b_fs_yx_fsv16, format::bfyx, resample::InterpolateOp::InterpolateMode::NEAREST, data_types::f16, format::bfyx
+#define CASE_RESAMPLE_FSV32_1 { 1, 16, 32, 32 }, { 1, 16,  64,  64 }, data_types::i8,  format::b_fs_yx_fsv32, format::bfyx, resample::InterpolateOp::InterpolateMode::NEAREST, data_types::i8, format::bfyx
+#define CASE_RESAMPLE_FSV32_2 { 1, 2,  32, 32 }, { 1, 2,   64,  64 }, data_types::i8,  format::b_fs_yx_fsv32, format::bfyx, resample::InterpolateOp::InterpolateMode::NEAREST, data_types::i8, format::bfyx
 
 class PrimitiveFusingTest : public ::BaseFusingTest<fusing_test_params> {
 public:
@@ -106,7 +106,7 @@ TEST_P(format_mismatch_multiple_fusing, multiple_fused_node) {
         data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
         data("eltwise_data", get_mem(get_default_layout(p), -10, 10)),
         resample("resample_prim", "input", p.out_shape, p.in_shape.feature[0], p.type),
-        scale("scale", "resample_prim", "scale_data"),
+        eltwise("scale", { "resample_prim", "scale_data" }, eltwise_mode::prod, p.default_type),
         activation("activation", "scale", activation_func::abs),
         eltwise("eltwise", { "activation", "eltwise_data" }, eltwise_mode::sum),
         reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)

@@ -444,10 +444,26 @@ void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
     if (events.empty())
         return;
 
+    bool needs_barrier = false;
     std::vector<cl::Event> clevents;
     for (auto& ev : events) {
-        if (auto ocl_base_ev = downcast<ocl_base_event>(ev.get()))
-            clevents.push_back(ocl_base_ev->get());
+        if (auto ocl_base_ev = downcast<ocl_base_event>(ev.get())) {
+            if (ocl_base_ev->get().get() != nullptr) {
+                clevents.push_back(ocl_base_ev->get());
+            } else {
+                needs_barrier = true;
+            }
+        }
+    }
+
+    if (needs_barrier) {
+        try {
+            cl::Event barrier_ev;
+            _command_queue.enqueueBarrierWithWaitList(nullptr, &barrier_ev);
+            clevents.push_back(barrier_ev);
+        } catch (cl::Error const& err) {
+            throw ocl_error(err);
+        }
     }
 
     try {

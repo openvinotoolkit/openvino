@@ -41,9 +41,8 @@ struct experimental_detectron_generate_proposals_single_image
            float nms_threshold,
            int64_t pre_nms_count,
            int64_t post_nms_count,
-           const primitive_id& ext_prim_id = "",
            const padding& output_padding = {}) :
-            primitive_base{id, {input_im_info, input_anchors, input_deltas, input_scores, output_roi_scores}, ext_prim_id, output_padding},
+            primitive_base{id, {input_im_info, input_anchors, input_deltas, input_scores, output_roi_scores}, output_padding},
             output_roi_scores{output_roi_scores},
             min_size{min_size},
             nms_threshold{nms_threshold},

@@ -8,11 +8,11 @@
 #include <deque>
 #include <iostream>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <openvino/cc/pass/itt.hpp>
 #include <regex>
 #include <unordered_set>
 #include <vector>
 
-#include "itt.hpp"
 #include "ngraph/env_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
@@ -62,6 +62,7 @@ PerfCounters& perf_counters_graph_rewrite() {
 }  // namespace ov
 
 bool ov::pass::BackwardGraphRewrite::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(BackwardGraphRewrite);
     // Initialize execution queue with nodes in topological order
     std::deque<std::weak_ptr<Node>> nodes_to_run;
     for (auto& node : f->get_ordered_ops()) {
@@ -71,6 +72,7 @@ bool ov::pass::BackwardGraphRewrite::run_on_model(const std::shared_ptr<ov::Mode
 }
 
 bool ov::pass::GraphRewrite::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(GraphRewrite);
     // Initialize execution queue with nodes in topological order
     std::deque<std::weak_ptr<Node>> nodes_to_run;
     for (auto& node : f->get_ordered_ops()) {
@@ -81,7 +83,7 @@ bool ov::pass::GraphRewrite::run_on_model(const std::shared_ptr<ov::Model>& f) {
 
 bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
                                                   std::deque<std::weak_ptr<Node>> nodes_to_run) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "pass::GraphRewrite::run_on_function");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::GraphRewrite::apply_matcher_passes");
 
     bool rewritten = false;
     const auto& pass_config = get_pass_config();
@@ -315,8 +317,8 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
 }
 
 bool ov::pass::MatcherPass::apply(std::shared_ptr<ov::Node> node) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, pass::perf_counters_graph_rewrite()[get_type_info()]);
-    m_new_nodes.clear();
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, pass::perf_counters_graph_rewrite()[get_type_info()]);
+    clear_new_nodes();
     if (m_handler)
         return m_handler(node);
     return false;
