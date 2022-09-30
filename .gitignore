@@ -20,10 +20,7 @@ bin/
 .gdb_history
 .vimspector.json
 doc/
-!ngraph/doc
 docs/build_documentation/work_dir/
-inference-engine/plugins/
-inference-engine/report
 temp/
 .repo/
 CMakeLists.txt.user
