@@ -28,7 +28,7 @@ ov::pass::RemoveMultiSubGraphOpDanglingParams::RemoveMultiSubGraphOpDanglingPara
         std::vector<std::vector<size_t>> to_remove_descriptors_indexes;
         const auto subgraphs_size = multi_subgraph_op->get_internal_subgraphs_size();
         to_remove_descriptors_indexes.resize(subgraphs_size);
-        for (size_t body_idx=0; body_idx < subgraphs_size; ++body_idx) {
+        for (size_t body_idx = 0; body_idx < subgraphs_size; ++body_idx) {
             auto& body_func = multi_subgraph_op->get_function(static_cast<int>(body_idx));
             auto& body_params = body_func->get_parameters();
             auto& body_in_descriptors = multi_subgraph_op->get_input_descriptions(static_cast<int>(body_idx));
@@ -54,8 +54,9 @@ ov::pass::RemoveMultiSubGraphOpDanglingParams::RemoveMultiSubGraphOpDanglingPara
                     }
                 }
             };
-            auto update_op_inputs_desc = [&subgraphs_size](const std::shared_ptr<op::util::MultiSubGraphOp>& op, uint64_t removed_loop_idx){
-                for (size_t body_idx=0; body_idx < subgraphs_size; ++body_idx) {
+            auto update_op_inputs_desc = [&subgraphs_size](const std::shared_ptr<op::util::MultiSubGraphOp>& op,
+                                                           uint64_t removed_loop_idx) {
+                for (size_t body_idx = 0; body_idx < subgraphs_size; ++body_idx) {
                     auto& descriptors = op->get_input_descriptions(static_cast<int>(body_idx));
                     for (auto& desc : descriptors) {
                         if (desc->m_input_index > removed_loop_idx) {
@@ -65,7 +66,7 @@ ov::pass::RemoveMultiSubGraphOpDanglingParams::RemoveMultiSubGraphOpDanglingPara
                 }
             };
             // Remove dangling body params and input and update input descriptors
-            for (size_t body_idx=0; body_idx < subgraphs_size; ++body_idx) {
+            for (size_t body_idx = 0; body_idx < subgraphs_size; ++body_idx) {
                 auto& body_in_descriptors = multi_subgraph_op->get_input_descriptions(static_cast<int>(body_idx));
                 auto& body_func = multi_subgraph_op->get_function(static_cast<int>(body_idx));
                 auto& body_params = body_func->get_parameters();

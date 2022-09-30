@@ -83,8 +83,9 @@ static cv::Mat infEngineBlobToMat(const InferenceEngine::Blob::Ptr& blob) {
     // NOTE: Inference Engine sizes are reversed.
     std::vector<size_t> dims = blob->getTensorDesc().getDims();
     std::vector<int> size(dims.size());
-    for (size_t i = 0; i < dims.size(); i++)
-        size[i] = static_cast<int>(dims[i]);
+    std::transform(dims.begin(), dims.end(), size.begin(), [](size_t v) {
+        return static_cast<int>(v);
+    });
     const auto& precision = blob->getTensorDesc().getPrecision();
     CV_Assert(precision == InferenceEngine::Precision::FP32);
     return cv::Mat(size, CV_32F, (void*)blob->buffer());

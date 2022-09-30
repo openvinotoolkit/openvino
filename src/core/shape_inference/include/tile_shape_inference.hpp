@@ -37,8 +37,7 @@ void shape_infer(const Tile* op,
             auto remain_axes = output_rank - repeats_rank;
             for (size_t i = 0; i < static_cast<size_t>(output_rank); i++) {
                 auto data_tmp = i < static_cast<size_t>(remain_arg) ? DimType(1) : arg_shape[i - (remain_arg)];
-                auto repeat_tmp =
-                    i < static_cast<size_t>(remain_axes) ? DimType(1) : axes_val[i - remain_axes];
+                auto repeat_tmp = i < static_cast<size_t>(remain_axes) ? DimType(1) : axes_val[i - remain_axes];
                 output_shape[i] = data_tmp * repeat_tmp;
             }
         }

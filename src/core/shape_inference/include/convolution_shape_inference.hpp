@@ -528,8 +528,10 @@ bool resolve_auto_pad_for_shape_back_prop(const ConvType* op,
         if (data_dim.is_static() && filter_dim.is_static() && output_dim.is_static()) {
             const auto& strides = op->m_strides[i];
             const auto& dilations = op->m_dilations[i];
-            size_t total_padding = std::max<size_t>(
-                    strides * (data_dim.get_length() - 1) + dilations * (filter_dim.get_length() - 1) + 1 - output_dim.get_length() + output_padding, 0);
+            size_t total_padding =
+                std::max<size_t>(strides * (data_dim.get_length() - 1) + dilations * (filter_dim.get_length() - 1) + 1 -
+                                     output_dim.get_length() + output_padding,
+                                 0);
             if (auto_pad != op::PadType::SAME_UPPER) {
                 pads_begin[i] = total_padding / 2;
                 pads_end[i] = total_padding - pads_begin[i];
