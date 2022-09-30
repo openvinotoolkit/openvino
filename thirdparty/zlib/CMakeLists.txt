@@ -5,10 +5,8 @@
 project(zlib)
 
 if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
-    # 4244 conversion from 'XXX' to 'YYY', possible loss of data
-    ie_add_compiler_flags(/wd4244)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4996 /W3")
-    set (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /wd4995 /wd4996")
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4996 /wd4244 /W3")
+    set (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /wd4995 /wd4244 /wd4996")
 else()
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-all")
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
