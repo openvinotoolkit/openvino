@@ -50,6 +50,7 @@ def compress_model(func: object):
 
 
 
+
 def apply_offline_transformations(func: Model, argv: argparse.Namespace):
     from openvino.tools.mo.back.preprocessing import apply_preprocessing  # pylint: disable=no-name-in-module,import-error
 
