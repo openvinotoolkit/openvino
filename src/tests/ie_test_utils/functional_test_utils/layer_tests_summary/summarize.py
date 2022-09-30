@@ -142,7 +142,7 @@ def collect_statistic(root: ET.Element, is_conformance_mode: bool):
         pass_rate_avg[device.tag] = round(float(pass_rate_avg[device.tag]), 1)
         general_pass_rate[device.tag] = 0 if general_test_count[device.tag] == 0 else (general_passed_tests[device.tag] * 100 / general_test_count[device.tag])
         general_pass_rate[device.tag] = round(float(general_pass_rate[device.tag]), 1)
-        trusted_ops[device.tag] = round(float(trusted_ops[device.tag] * 100 / covered_ops[device.tag]), 1) if device.tag in covered_ops and covered_ops[device.tag] != 0 else 0
+        trusted_ops[device.tag] = round(float(trusted_ops[device.tag] * 100) / covered_ops[device.tag], 1) if device.tag in covered_ops and covered_ops[device.tag] != 0 else 0
 
     logger.info("Test number comparison between devices is started")
     for op in op_res:
@@ -195,6 +195,7 @@ def create_summary(summary_root: ET.Element, output_folder: os.path, report_tag:
                    is_conformance_mode: bool,  is_serialize_to_csv: bool, output_filename='report'):
     if is_conformance_mode:
         utils.update_conformance_test_counters(summary_root, logger)
+        utils.update_passrates(summary_root.find("results"))
     device_list, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops, covered_ops = \
         collect_statistic(summary_root, is_conformance_mode)
 
