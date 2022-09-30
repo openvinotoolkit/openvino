@@ -617,10 +617,13 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
             continue;
         }
 
-        if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
+        if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get())) {
             const Dim OC = dims[1];
             auto scale = fakeQuantizeNode->simplifyToScale(outputDataType, OC);
-            if (i == 0) {
+
+            // Note: only int8 convolution support output_scales attr, but some fp32 convolution
+            // may still have FakeQuantize postOps fused which cannot be implemented as output scale
+            if (i == 0 && canBeExecutedInInt8()) {
                 bool hasSubsequentSum = false;
                 bool hasSubsequentFQ = false;
                 for (int j = i + 1; j < fusedWith.size(); j++) {
