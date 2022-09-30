@@ -167,7 +167,7 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
 * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
 * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
 * Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
-* IoT libraries and code samples in the GitHub reposit: `Intel® IoT Developer Kit`_ 
+* IoT libraries and code samples in the GitHub repository: `Intel® IoT Developer Kit`_ 
 
 .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
