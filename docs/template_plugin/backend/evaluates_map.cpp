@@ -3703,7 +3703,7 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposals>& op,
                                            output_scores,
                                            output_num);
 
-    uint64_t num_selected = static_cast<uint64_t>(std::accumulate(output_num.begin(), output_num.end(), 0));
+    size_t num_selected = static_cast<size_t>(std::accumulate(output_num.begin(), output_num.end(), 0));
 
     Shape output_rois_shape = Shape{num_selected, 4};
     Shape output_scores_shape = Shape{num_selected};
