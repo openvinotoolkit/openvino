@@ -347,11 +347,11 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
       3. Shut down the Guest VM.<br>
    * **Option 2** : Manually install additional software
       1. Install the software tool [tpm2-tss](https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz). 
-      For innstallation information follow [here](https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md)
+      For installation information follow [here](https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md)
       2. Install the software tool [tpm2-abmrd](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz). 
-      For innstallation information follow [here](https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md)
+      For installation information follow [here](https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md)
       3. Install the [tpm2-tools](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz). 
-      For innstallation information follow [here](https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md)
+      For installation information follow [here](https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md)
       4. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/)
       5. Shut down the Guest VM.<br>
 9. On the host, create a directory to support the virtual TPM device and provision its certificates. Only `root` should have read/write permission to this directory:
