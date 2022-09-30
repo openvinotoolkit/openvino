@@ -15,7 +15,7 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
   * Ubuntu 20.04 long-term support (LTS), 64-bit
 
   .. note::
-     Since the OpenVINO™ 2022.1 release, CentOS 7.6, 64-bit is not longer supported.
+     Since the OpenVINO™ 2022.1 release, CentOS 7.6, 64-bit is no longer supported.
 
 .. tab:: Hardware
 
@@ -42,7 +42,7 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
   * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
   * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
   * `Python 3.6 - 3.9, 64-bit <https://www.python.org/downloads/windows/>`_
-     * Note that OpenVINO is gradually stopping the support for Python 3.6. Python 3.7 - 3.9 are recommended. 
+     * Note that OpenVINO is gradually stopping the support for Python 3.6. You are encouraged to use Python 3.7 - 3.9. 
 
 @endsphinxdirective
 
@@ -51,7 +51,7 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
 @sphinxdirective
 
 .. important::
-   Before you start your journey with installation of the Intel® Distribution of OpenVINO™ toolkit, we encourage you to check the :ref:`code samples <code samples>` in C, C++, Python and :ref:`notebook tutorials <notebook tutorials>`, so you could see all the amazing things that you can achieve with our tool.
+   Before you start your journey with the installation of the Intel® Distribution of OpenVINO™ toolkit, we encourage you to check the :ref:`code samples <code samples>` in C, C++, Python and :ref:`notebook tutorials <notebook tutorials>`, so you could see all the amazing things that you can achieve with our tool.
 
 @endsphinxdirective
 
@@ -84,11 +84,11 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
 
 If you forgot to set the directory in Step 5, you can then use `sudo mv <extracted_folder> /opt/intel` (for root users or administrators), or `mv <extracted_folder> /home/<USER>/intel/` (for regular users) to set that.
 
-For simplicity, it is useful to create a symbolink link:
+For simplicity, it is useful to create a symbolic link/symlink:
 ```sh
 ln -s /home/<USER>/intel/<extracted_folder> /home/<USER>/intel/openvino_2022
 ```
-If such link already exists, remove the previous link with `rm /home/<USER>/intel/openvino_2022`.
+If such a link already exists, remove the previous link with `rm /home/<USER>/intel/openvino_2022`.
 
 The `/opt/intel/openvino_<version>/` or `/home/<USER>/intel/openvino_<version>/` will be referred as the standard OpenVINO `<INSTALL_DIR>` in this document.
 
@@ -104,7 +104,7 @@ source <INSTALL_DIR>/setupvars.sh
 
 If you have more than one OpenVINO™ version on your machine, you can easily switch its version by sourcing `setupvars.sh` of your choice.
 
-> **NOTE**: You can also run this script every time when you start new terminal session. Open `~/.bashrc` in your favorite editor, and add `source <INSTALL_DIR>/setupvars.sh`. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require different setup.
+> **NOTE**: You can also run this script every time you start a new terminal session. Open `~/.bashrc` in your favorite editor, and add `source <INSTALL_DIR>/setupvars.sh`. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require a different setup.
 
 The environment variables are set. Next, you can download some additional tools.
 
@@ -112,7 +112,7 @@ The environment variables are set. Next, you can download some additional tools.
 
 Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can only be installed via PyPI. See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps.
 
-OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on Github](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
+OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on GitHub](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
 
 ### <a name="optional-steps"></a>Step 4 (Optional): Configure Inference on Non-CPU Devices
 
@@ -167,7 +167,7 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
 * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
 * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
 * Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
-* IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
+* IoT libraries and code samples in the GitHub reposit: `Intel® IoT Developer Kit`_ 
 
 .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
