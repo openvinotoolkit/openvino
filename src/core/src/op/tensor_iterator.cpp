@@ -17,7 +17,7 @@ BWDCMP_RTTI_DEFINITION(op::v0::TensorIterator);
 op::v0::TensorIterator::TensorIterator(const OutputVector& values) : op::util::SubGraphOp(values) {}
 
 bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_TensorIterator_visit_attributes);
+    OV_OP_SCOPE(v0_TensorIterator_visit_attributes);
     visitor.on_attribute("body", m_bodies[0]);
     visitor.on_attribute("input_descriptions", m_input_descriptions[0]);
     visitor.on_attribute("output_descriptions", m_output_descriptions[0]);
@@ -57,7 +57,7 @@ void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops() {
 }
 
 void op::v0::TensorIterator::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_TensorIterator_validate_and_infer_types);
+    OV_OP_SCOPE(v0_TensorIterator_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this, m_bodies.size() == 1, "Number of bodies for loop is greater than 1");
 
@@ -88,19 +88,20 @@ void op::v0::TensorIterator::validate_and_infer_types() {
             auto body_parameter = body->get_parameters().at(slice_input_description->m_body_parameter_index);
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
             auto axis = slice_input_description->m_axis;
-            if (input_partial_shape.rank().is_static() && input_partial_shape[axis].is_static()) {
+            if (input_partial_shape.rank().is_static()) {
                 auto part_size = slice_input_description->m_part_size;
-
-                auto dim_size = input_partial_shape[axis].get_length();
-                auto start = make_positive(slice_input_description->m_start, dim_size);
-                auto end = make_positive(slice_input_description->m_end, dim_size);
-
-                // +1 because the left and right borders are included [start, end]
-                m_num_iterations = (abs(end - start) + 1) / part_size;
                 // infer type for m_body_parameter
                 ov::PartialShape out_shape{input_partial_shape};
                 out_shape[axis] = part_size;
                 body_parameter->set_partial_shape(out_shape);
+                if (input_partial_shape[axis].is_static()) {
+                    auto dim_size = input_partial_shape[axis].get_length();
+                    auto start = make_positive(slice_input_description->m_start, dim_size);
+                    auto end = make_positive(slice_input_description->m_end, dim_size);
+
+                    // +1 because the left and right borders are included [start, end]
+                    m_num_iterations = (abs(end - start) + 1) / part_size;
+                }
             } else {
                 body_parameter->set_partial_shape(ov::PartialShape::dynamic(input_partial_shape.rank()));
             }
@@ -189,7 +190,7 @@ void op::v0::TensorIterator::try_to_set_num_iterations_if_no_slice_inputs() {
 }
 
 std::shared_ptr<Node> op::v0::TensorIterator::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_TensorIterator_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_TensorIterator_clone_with_new_inputs);
     auto op = make_shared<op::v0::TensorIterator>(new_args);
     NGRAPH_CHECK(op.get(), op != nullptr, "Cannot clone ", description(), " operation with name ", get_friendly_name());
     op->set_output_size(m_output_descriptions[0].size());

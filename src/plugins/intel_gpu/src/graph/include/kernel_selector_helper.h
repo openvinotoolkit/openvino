@@ -9,7 +9,6 @@
 #include "intel_gpu/runtime/tensor.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
-#include "intel_gpu/primitives/scale.hpp"
 #include "intel_gpu/primitives/quantize.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
@@ -126,13 +125,14 @@ struct kernel_impl_params {
     optional_layout compensation_layout = optional_layout();
 
     std::map<size_t, memory::ptr> memory_deps = {};
+    size_t primary_input_idx = 0;
 
     memory::ptr reordered_weights = nullptr;
 
     kernel_impl_params(program& _prog,
                        std::shared_ptr<const primitive> _desc,
                        size_t _uid,
-                       const std::vector<layout>& _int_layouts,
+                       const std::vector<layout>& _in_layouts,
                        layout _out_layout,
                        const std::vector<cldnn::fused_primitive_desc>& _fused_descs,
                        const std::vector<activation_func>& _fused_act_funcs,
@@ -141,11 +141,13 @@ struct kernel_impl_params {
                        , prog(_prog)
                        , desc(_desc)
                        , unique_id(_uid)
-                       , input_layouts(_int_layouts)
+                       , input_layouts(_in_layouts)
                        , output_layout(_out_layout)
                        , fused_desc(_fused_descs)
                        , fused_act_funcs(_fused_act_funcs)
-                       , activation_params(_act_params) {}
+                       , activation_params(_act_params)
+                       , primary_input_idx(0) {
+    }
 
     layout get_input_layout(size_t idx = 0) const {
         OPENVINO_ASSERT(input_layouts.size() > idx,

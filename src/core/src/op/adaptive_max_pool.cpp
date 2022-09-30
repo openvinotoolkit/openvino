@@ -22,13 +22,13 @@ op::v8::AdaptiveMaxPool::AdaptiveMaxPool(const Output<Node>& data,
 }
 
 bool op::v8::AdaptiveMaxPool::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v8_AdaptiveMaxPool_visit_attributes);
+    OV_OP_SCOPE(v8_AdaptiveMaxPool_visit_attributes);
     visitor.on_attribute("index_element_type", m_index_element_type);
     return true;
 }
 
 void op::v8::AdaptiveMaxPool::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v8_AdaptiveMaxPool_validate_and_infer_types);
+    OV_OP_SCOPE(v8_AdaptiveMaxPool_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
                           m_index_element_type == element::i64 || m_index_element_type == element::i32,
@@ -66,7 +66,7 @@ void op::v8::AdaptiveMaxPool::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v8::AdaptiveMaxPool::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v8_AdaptiveMaxPool_clone_with_new_inputs);
+    OV_OP_SCOPE(v8_AdaptiveMaxPool_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v8::AdaptiveMaxPool>(new_args.at(0), new_args.at(1), m_index_element_type);
 }

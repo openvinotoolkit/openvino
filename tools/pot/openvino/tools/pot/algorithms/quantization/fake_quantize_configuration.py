@@ -438,7 +438,7 @@ def _fake_quantize_to_types(model, hardware_config):
         while queue:
             current = queue.popleft()
             children = get_all_node_outputs(current)
-            for child in children:
+            for child in sorted(children, key=lambda child: child.fullname):
                 if not _is_quantizable(child):
                     queue.append(child)
                 elif child.type not in descendants:

@@ -3703,7 +3703,7 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposals>& op,
                                            output_scores,
                                            output_num);
 
-    uint64_t num_selected = static_cast<uint64_t>(std::accumulate(output_num.begin(), output_num.end(), 0));
+    size_t num_selected = static_cast<size_t>(std::accumulate(output_num.begin(), output_num.end(), 0));
 
     Shape output_rois_shape = Shape{num_selected, 4};
     Shape output_scores_shape = Shape{num_selected};
@@ -4244,11 +4244,11 @@ bool evaluate_node(std::shared_ptr<Node> node, const HostTensorVector& outputs, 
 
 runtime::interpreter::EvaluatorsMap& runtime::interpreter::get_evaluators_map() {
     static runtime::interpreter::EvaluatorsMap evaluatorsMap{
-#define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), evaluate_node<NAMESPACE::NAME>},
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), evaluate_node<NAMESPACE::NAME>},
 
 #include "opset_int_tbl.hpp"
 
-#undef NGRAPH_OP
+#undef _OPENVINO_OP_REG
     };
     return evaluatorsMap;
 }

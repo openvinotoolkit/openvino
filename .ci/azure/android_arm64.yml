@@ -4,8 +4,21 @@ trigger:
     - master
     - releases/*
   paths:
-    exclude:
-    - docs/*
+    exclude: 
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+
+pr:
+  branches:
+    include:
+    - master
+    - releases/*
+  paths:
+    exclude: 
+    - docs/
+    - /**/docs/*
+    - /**/*.md
 
 resources:
   repositories:
@@ -112,7 +125,6 @@ jobs:
         -DANDROID_PLATFORM=$(ANDROID_SDK_VERSION)
         -DENABLE_TESTS=ON
         -DENABLE_SAMPLES=ON
-        -DENABLE_INTEL_MYRIAD=OFF
         -DBUILD_java_api=ON
         -DBUILD_nvidia_plugin=OFF
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules

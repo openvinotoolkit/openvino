@@ -28,7 +28,7 @@ struct PluginConfig {
         adjustKeyMapValues();
     }
 
-    void UpdateFromMap(const std::map<std::string, std::string>& config, const std::string& pluginName, bool checkValid = false) {
+    void UpdateFromMap(const std::map<std::string, std::string>& config, const std::string& pluginName) {
         const auto perf_hints_configs = PerfHintsConfig::SupportedKeys();
         for (auto&& kvp : config) {
             if (kvp.first == ov::enable_profiling) {
@@ -103,7 +103,7 @@ struct PluginConfig {
             } else if (kvp.first.find("AUTO_") == 0) {
                 _passThroughConfig.emplace(kvp.first, kvp.second);
             } else {
-                if (pluginName.find("AUTO") != std::string::npos || checkValid)
+                if (pluginName.find("AUTO") != std::string::npos)
                     IE_THROW(NotFound) << "Unsupported property " << kvp.first;
                 else
                     _passThroughConfig.emplace(kvp.first, kvp.second);

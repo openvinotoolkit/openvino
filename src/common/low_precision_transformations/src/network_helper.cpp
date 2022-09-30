@@ -1187,6 +1187,16 @@ FakeQuantizeDequantization NetworkHelper::makeDequantization(
     return FakeQuantizeDequantization(input, convert, subtract, nullptr, subtractConstant, multiply, multiplyConstant);
 }
 
+std::shared_ptr<ov::Node> NetworkHelper::makeDequantizationSubtract(
+    const ov::Output<ov::Node>& parent,
+    const ov::Output<ov::Node>& subtract_constant) {
+    return subtract_constant.get_element_type() != parent.get_element_type()
+               ? std::dynamic_pointer_cast<ov::Node>(std::make_shared<opset1::Subtract>(
+                     parent,
+                     std::make_shared<opset1::Convert>(subtract_constant, parent.get_element_type())))
+               : std::make_shared<opset1::Subtract>(parent, subtract_constant);
+}
+
 FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
     std::shared_ptr<opset1::FakeQuantize> fq,
     element::Type precision,
@@ -1644,6 +1654,9 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
                 op::TemporaryReplaceOutputType(foldConvert(dequantization.subtractConstant, parentPrecision), element::f32).get());
             ngraph::copy_runtime_info({ newOperation, parent }, parent);
         } else {
+            // Subtract constant could be changed (including a shape) before propagation in some cases
+            // so it's necessary to compute the shape for a subtractConvert before creating a new subtract
+            dequantization.subtractConvert->validate_and_infer_types();
             parent = std::make_shared<opset1::Subtract>(parent, dequantization.subtractConvert);
             ngraph::copy_runtime_info({ newOperation, parent }, parent);
         }
@@ -1736,6 +1749,9 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefor
                         foldConvert(subtractConstant, parentPrecision), element::f32).get());
                 parent->set_friendly_name(dequantization.subtract->get_friendly_name() + "_" + std::to_string(i + 1));
             } else {
+                // Subtract constant could be changed (including a shape) before propagation in some cases
+                // so it's necessary to compute the shape for a subtractConvert before creating a new subtract
+                dequantization.subtractConvert->validate_and_infer_types();
                 parent = std::make_shared<opset1::Subtract>(parent, dequantization.subtractConvert);
             }
             ngraph::copy_runtime_info(dequantization.subtract, parent);

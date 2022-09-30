@@ -8,7 +8,7 @@ TEST(ov_layout, ov_layout_create_static_layout) {
     const char* desc = "NCHW";
     ov_layout_t* layout = nullptr;
 
-    OV_ASSERT_OK(ov_layout_create(&layout, desc));
+    OV_ASSERT_OK(ov_layout_create(desc, &layout));
     const char* res = ov_layout_to_string(layout);
 
     EXPECT_STREQ(res, str);
@@ -21,7 +21,7 @@ TEST(ov_layout, ov_layout_create_dynamic_layout) {
     const char* desc = "N...C";
     ov_layout_t* layout = nullptr;
 
-    OV_ASSERT_OK(ov_layout_create(&layout, desc));
+    OV_ASSERT_OK(ov_layout_create(desc, &layout));
     const char* res = ov_layout_to_string(layout);
 
     EXPECT_STREQ(res, str);

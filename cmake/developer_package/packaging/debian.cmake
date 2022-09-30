@@ -15,6 +15,7 @@ macro(ov_debian_cpack_set_dirs)
     set(OV_CPACK_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
     set(OV_CPACK_LIBRARYDIR ${CMAKE_INSTALL_LIBDIR})
     set(OV_CPACK_RUNTIMEDIR ${CMAKE_INSTALL_LIBDIR})
+    set(OV_WHEEL_RUNTIMEDIR ${OV_CPACK_RUNTIMEDIR})
     set(OV_CPACK_ARCHIVEDIR ${CMAKE_INSTALL_LIBDIR})
     set(OV_CPACK_PLUGINSDIR ${CMAKE_INSTALL_LIBDIR}/openvino-${OpenVINO_VERSION})
     set(OV_CPACK_IE_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/inferenceengine${OpenVINO_VERSION})
@@ -108,6 +109,18 @@ macro(ov_debian_specific_settings)
     # set(CPACK_DEBIAN_PACKAGE_RELEASE "1")
     # enable this if someday we change the version scheme
     # set(CPACK_DEBIAN_PACKAGE_EPOCH "2")
+
+    # temporary WA for debian package architecture for cross-compilation
+    # proper solution: to force cmake auto-detect this
+    if(CMAKE_CROSSCOMPILING)
+        if(AARCH64)
+            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE arm64)
+        elseif(ARM)
+            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE armhf)
+        elseif(x86)
+            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE i386)
+        endif()
+    endif()
 endmacro()
 
 ov_debian_specific_settings()
