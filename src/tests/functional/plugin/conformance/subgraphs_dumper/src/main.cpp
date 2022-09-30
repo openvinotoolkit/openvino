@@ -25,7 +25,7 @@ static std::vector<std::regex> getRegexByFrontend() {
 #endif
 #ifdef ENABLE_OV_PADDLE_FRONTEND
     result.push_back(std::regex(R"(.*\.pdmodel)"));
-    result.push_back(std::regex(R"(.*\__model__)"));
+    result.push_back(std::regex(R"(.*__model__)"));
 #endif
 #ifdef ENABLE_OV_TF_FRONTEND
     result.push_back(std::regex(R"(.*\.pb)"));
