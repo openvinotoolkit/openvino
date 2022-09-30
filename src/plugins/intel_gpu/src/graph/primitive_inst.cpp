@@ -175,6 +175,8 @@ void primitive_inst::update_shape() {
 
     auto memory_deps = _node.get_const_memory_deps();
     std::vector<event::ptr> dependencies_events;
+    auto queue_type = get_network().get_stream().get_queue_type();
+    bool has_runtime_deps = false;
     for (auto& i : _node.get_shape_infer_dependencies()) {
         // Some primitives may have flexible count of deps (e.g. reshape), thus allow skipping some deps
         if (memory_deps.count(i) > 0 || i >= _node.get_dependencies().size()) {
@@ -182,7 +184,8 @@ void primitive_inst::update_shape() {
         }
         auto& dep = _node.get_dependency(i);
         auto dep_id = dep.id();
-        if (_network.has_event(dep.id())) {
+        // Events may be not created for in-order queue, so take them for OOO queue only
+        if (_network.has_event(dep.id()) && queue_type == queue_types::out_of_order) {
             dependencies_events.push_back(_network.get_primitive_event(dep_id));
             GPU_DEBUG_IF(debug_config->verbose >= 4) {
                 GPU_DEBUG_COUT << id() << ": shape infer waits for " << i << " dependency\n";
@@ -190,10 +193,16 @@ void primitive_inst::update_shape() {
         }
         auto dep_mem = _network.get_output_memory(dep_id);
         memory_deps.insert({i, dep_mem});
+        has_runtime_deps = true;
     }
 
-    if (!dependencies_events.empty())
-        _network.get_stream().wait_for_events(dependencies_events);
+    if (has_runtime_deps) {
+        if (!dependencies_events.empty() && queue_type == queue_types::out_of_order) {
+            _network.get_stream().wait_for_events(dependencies_events);
+        } else if (queue_type == queue_types::in_order) {
+            _network.get_stream().finish();
+        }
+    }
 
     _impl_params->memory_deps = memory_deps;
     auto new_layouts = _node.type()->calc_output_layouts(_node, *_impl_params);
@@ -249,34 +258,40 @@ void primitive_inst::update_impl() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::update_implementation);
     auto prev_impl_str =  _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
     if (!_node.is_type<data>() && !(_node.is_type<mutable_data>() && _node.get_dependencies().empty())) {
-        auto get_layout_key = [&]()->std::string {
-            std::string layout_key_str = "";
-            layout_key_str = id() + "_" + std::to_string(_node.get_unique_id());
-            layout_key_str += "_" + _impl_params->output_layout.to_string();
-            for (auto in : _impl_params->input_layouts) {
-                layout_key_str += "_" + in.to_string();
+        auto get_layout_key = [&]() -> size_t {
+            size_t seed = 0;
+            auto& id = _impl_params->desc->id;
+            for (size_t i = 0; i < id.size(); i++) {
+                seed = hash_combine(seed, id[i]);
             }
-            return layout_key_str;
+            seed = hash_combine(seed, _node.get_unique_id());
+            for (auto& layout : _impl_params->input_layouts) {
+                for (auto& d : layout.get_shape()) {
+                    seed = hash_combine(seed, d);
+                }
+            }
+            for (auto& d : _impl_params->output_layout.get_shape()) {
+                seed = hash_combine(seed, d);
+            }
+            return seed;
         };
 
         auto layout_key = get_layout_key();
-        if (layout_key != "") {
-            auto& cache = _network.get_program()->get_implementations_cache();
-            if (cache.has(layout_key)) {
-                _impl = cache.get(layout_key)->clone();
-                GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
-            } else {
-                auto lru = cache.get_lru_element();
-                _impl = _node.type()->choose_impl(_node, *_impl_params);
-                bool lru_popped = cache.add(layout_key, _impl->clone());
-                if (lru_popped) {
-                    for (auto& id : lru->get_kernel_ids())
-                        _network.get_program()->remove_kernel(id);
-                }
-                _network.get_program()->compile();
+        auto& cache = _network.get_program()->get_implementations_cache();
+        if (cache.has(layout_key)) {
+            _impl = cache.get(layout_key)->clone();
+            GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
+        } else {
+            auto lru = cache.get_lru_element();
+            _impl = _node.type()->choose_impl(_node, *_impl_params);
+            bool lru_popped = cache.add(layout_key, _impl->clone());
+            if (lru_popped) {
+                for (auto& id : lru->get_kernel_ids())
+                    _network.get_program()->remove_kernel(id);
             }
-            _impl->init_kernels(_network.get_program()->get_kernels_cache());
+            _network.get_program()->compile();
         }
+        _impl->init_kernels(_network.get_program()->get_kernels_cache());
 
         reset_shape_change();
         GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -801,13 +816,13 @@ bool primitive_inst::is_valid_fusion() const {
         auto dep = _deps[dep_idx];
 
         auto dep_pshape = dep->_impl_params->output_layout.get_partial_shape();
+        auto merged_shape = out_pshape;
+        auto can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, dep_pshape, fd.typed_desc<eltwise>()->broadcast_spec);
 
-        OPENVINO_ASSERT(out_pshape.rank() == dep_pshape.rank(), "[GPU] Incompatible ranks: ", out_pshape.rank(), " vs ", dep_pshape.rank());
-
-        for (int64_t i = 0; i < dep_pshape.rank().get_length(); i++) {
-            if (dep_pshape[i].get_length() > out_pshape[i].get_length())
-                return false;
-        }
+        // We check that broadcasting of extra input is possible and it doesn't change output shape. If it output shape is changed, then
+        // some dimension of dep_pshape is greater than out_pshape
+        if (!can_broadcast || merged_shape != out_pshape)
+            return false;
     }
 
     return true;
