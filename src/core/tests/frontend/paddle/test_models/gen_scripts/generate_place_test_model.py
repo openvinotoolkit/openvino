@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-from save_model import saveStaticModel
+from save_model import saveModel
 import sys
 
 
@@ -34,10 +34,11 @@ def paddle_rnn_lstm(input_size, hidden_size, layers, direction):
             feed={'x': np.ones([4, 3, input_size]).astype(np.float32)},
             fetch_list=[y, h, c],
             program=main_program)
-        saveStaticModel("place_test_model", exe, feedlist=[data],
+        saveModel("place_test_model", exe, feedkeys=[data],
                   fetchlist=[y, h, c, relu_1, relu_2, relu_3],
                   inputs=[np.ones([4, 3, input_size]).astype(np.float32)],
-                  outputs=[outs[0], outs[1], outs[2]], target_dir=sys.argv[1])
+                  outputs=[outs[0], outs[1], outs[2]], target_dir=sys.argv[1],
+                  use_static_api=True)
     return outs[0]
 
 
