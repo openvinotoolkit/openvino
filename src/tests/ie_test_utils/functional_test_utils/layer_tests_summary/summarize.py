@@ -181,11 +181,29 @@ def serialize_to_csv(report_filename: str, output_dir: os.path, op_list: list, d
     csv_filename = os.path.join(output_dir, report_filename + '.csv')
     with open(csv_filename, "w", newline='') as output_csv_file:
         csv_writer = csv.writer(output_csv_file, dialect='excel')
-        csv_writer.writerow(['Operation'] + device_list)
+        # csv_writer.writerow(['Operation'] + device_list)
+        devices_csv = ['Operation']
+        device_res_csv = ['Operation']
+        device_st = ["crashed", "failed", "hanged", "implemented", "passed", "passrate", "skipped"]
+        
+        for device in device_list:
+            for i in range(7):
+                devices_csv.append(device)
+            for device in device_st:
+                device_res_csv.append(device)
+            
+        csv_writer.writerow(devices_csv)
+        csv_writer.writerow(device_res_csv)
+
         for op in op_list:
             list_to_csv = list()
             for device in device_list:
-                list_to_csv.append(format_string(str(results[device][op])) if op in results[device] else "N/A")
+                if op in results[device]:
+                    for key, value in results[device][op].items():
+                        list_to_csv.append(str(value))
+                else:
+                    for i in range(7):
+                        list_to_csv.append("N/A")
             csv_writer.writerow([op] + list_to_csv)
 
     logger.info(f'Final CSV report is saved to {csv_filename}')
