@@ -718,7 +718,6 @@ void TileBeginEmitter::emit_impl(const std::vector<size_t>& in,
     // So the most obvious WA is just to use current address manually
     tileBegin->begin_address = h->getCurr();
     tileBegin->input_regs = in;
-    std::cerr << "\n\nTileBegin emit_impl: "<< reinterpret_cast<const void*>(tileBegin->begin_address) << "\n";
 }
 
 TileEndEmitter::TileEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
@@ -779,23 +778,12 @@ void TileEndEmitter::emit_impl(const std::vector<size_t>& in,
                                  const std::vector<size_t>& pool,
                                  const std::vector<size_t>& gpr,
                                  const ov::intel_cpu::emitter_context *emit_context) const {
-    // todo: how to derive work_amount more logically? update assign_registers pass?
     std::vector<size_t> data_ptr_reg_idxs(tileBegin->input_regs);
     data_ptr_reg_idxs.reserve(num_inputs + num_outputs);
     std::copy(out.begin(), out.end(), std::back_inserter(data_ptr_reg_idxs));
-    std::cerr << "TileEnd emit_impl: "<< reinterpret_cast<const void*>(tileBegin->begin_address) << "\n";
     std::vector<Reg64> data_ptr_regs;
     transform_idxs_to_regs(data_ptr_reg_idxs, data_ptr_regs);
     Reg64 reg_work_amount = Reg64(abi_param2.getIdx());
-    // todo: unify interface for static & dynamic calls for TileEmitter?
-    // There is 1 arg for the static case, so we can assign any reg to reg_const_params, since it won't be really used.
-    // Anyway, try to assign a reg from the pool to prevent possible work_amount corruption
-//    if (dynamic_dims_idx.empty()) {
-//        reg_const_params = gpr_pool.empty() ? work_amount : Reg64(gpr_pool.back());
-//    } else {
-//        reg_const_params = Reg64(static_cast<int>(in[1]));
-//    }
-//
     // Nothing to do in this case
     // todo: who will increment if there is non-zero outer tile?
 //    if (work_amount == increment)
@@ -806,8 +794,6 @@ void TileEndEmitter::emit_impl(const std::vector<size_t>& in,
     for (int idx = 0; idx < data_ptr_regs.size(); idx++) {
         if (apply_increments[idx])
             h->add(data_ptr_regs[idx], increment * io_data_size[idx]);
-//        if (io_dims[idx] != 1 || master_shape_last_dim == 1)
-//            h->add(data_ptr_regs[idx], increment * io_data_size[idx]);
     }
     h->sub(reg_work_amount, increment);
     h->cmp(reg_work_amount, increment);

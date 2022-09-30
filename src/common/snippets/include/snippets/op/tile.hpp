@@ -78,6 +78,7 @@ public:
     std::vector<size_t>& get_input_regs() {return input_regs;}
     void set_work_amount(size_t new_work_amount) {workAmount = new_work_amount;}
     void set_increment(size_t new_increment) {increment = new_increment;}
+    void set_finalization_offsets(std::vector<int64_t> offsets) {finalization_offsets = std::move(offsets);}
     std::shared_ptr<TileEnd> get_tile_end();
     const uint8_t* begin_address;
     std::vector<size_t> input_regs;

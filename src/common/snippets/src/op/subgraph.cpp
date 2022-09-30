@@ -437,8 +437,6 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
 
     // generation flow
     snippets::pass::AssignRegisters().run_on_model(m_body);
-    std::cerr << "Tile before is dumped";
-    ov::pass::Serialize("tile_before.xml", "tile_before.bin").run_on_model(m_body);
 
     if (master_shape.is_static()) {
         const auto inner_dim = master_shape.size() - 1;
@@ -496,9 +494,6 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     } else {
         throw ngraph_error("Dynamic case is not supported yet");
     }
-    int i = 0;
-    for (const auto& op : m_body->get_ordered_ops())
-        std::cerr << i++ << " : " << op->get_friendly_name() << "\n";
 //    for (int i = 0; i < tileEnd->get_output_size(); i++) {
 //        std::cerr << i << " : ";
 //        const auto& rt = tileBegin->get_output_tensor(i).get_rt_info();
@@ -514,8 +509,8 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
 //    }
     m_body->validate_nodes_and_infer_types();
 
-    std::cerr << "Tile after is dumped";
-    ov::pass::Serialize("tile_after.xml", "tile_after.bin").run_on_model(m_body);
+//    std::cerr << "Tile after is dumped";
+//    ov::pass::Serialize("tile_after.xml", "tile_after.bin").run_on_model(m_body);
 
     // schedule generation should go here and be target agnostic
     // actual code emission

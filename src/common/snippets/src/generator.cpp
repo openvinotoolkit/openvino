@@ -77,8 +77,13 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
 
     OV_ITT_TASK_CHAIN(GENERATE, ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::VectorTile")
     // vector tile
-    std::cerr << "\n\n\nAllocated Emitter debug:\n\n";
     std::vector<AllocatedEmitter> lowered;
+    auto lower_ops = [&lowered, this](const NodeVector& ops){
+        std::transform(ops.begin(), ops.end(), std::back_inserter(lowered),
+                       [this](const std::shared_ptr<Node>& n){
+                           return std::make_pair(target->get(n->get_type_info())(n), ngraph::snippets::getRegisters(n));
+                       });
+    };
     const auto& ops = m->get_ordered_ops();
     for (auto op = ops.begin(); op < ops.end(); op++) {
         const auto& tile_begin = ov::as_type_ptr<ngraph::snippets::op::TileBegin>(*op);
@@ -96,19 +101,11 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
             const auto increment = tile_begin->get_increment();
             // vector tiles are required => Just copy the body, original tile is already a vector one
             if (work_amount >= increment) {
-                std::cerr << "Vector Tile:\n";
-                for (const auto &k : vector_tile)
-                    std::cerr << k->get_friendly_name() << "\n";
-
-                std::transform(vector_tile.begin(), vector_tile.end(), std::back_inserter(lowered),
-                               [this](const std::shared_ptr<Node>& n){
-                                    return std::make_pair(target->get(n->get_type_info())(n), ngraph::snippets::getRegisters(n));
-                               });
+                lower_ops(vector_tile);
             }
             OV_ITT_TASK_NEXT(GENERATE, "::ScalarTile")
             // scalar tiles are required => transform the body into a scalar representation
             if (work_amount % increment != 0) {
-                // todo: do we really need to copy? Or can we use vector_tile directly?
                 NodeMap vector_to_scalar_node_map;
                 NodeVector scalar_tile = ngraph::clone_nodes(vector_tile,  vector_to_scalar_node_map);
                 std::transform(scalar_tile.begin(), scalar_tile.end(), scalar_tile.begin(),
@@ -122,28 +119,20 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
                 // Note: we can use the node map to access scalar counterparts of vector nodes
                 // const auto& scalar_tile_begin = ov::as_type_ptr<op::TileBegin>(vector_to_scalar_node_map[tile_begin.get()]);
                 const auto& scalar_tile_begin = ov::as_type_ptr<op::TileBegin>(*scalar_tile.begin());
+                const auto& scalar_tile_end = ov::as_type_ptr<op::TileBegin>(*scalar_tile.rbegin());
+                const auto& finalization_offsets = tile_begin->get_finalization_offsets();
+                scalar_tile_begin->set_finalization_offsets(finalization_offsets);
+                tile_begin->set_finalization_offsets(std::vector<int64_t>(finalization_offsets.size(), 0));
                 scalar_tile_begin->set_work_amount(work_amount % increment);
                 // todo: need to communicate to vector tile_end to avoid pop from the stack
                 // zero work_amount means that the WA was set in the vector tile and can be reused
 //                if (work_amount >= increment)
 //                    scalar_tile_begin->set_work_amount(0);
                 scalar_tile_begin->set_increment(1);
-                std::transform(scalar_tile.begin(), scalar_tile.end(), std::back_inserter(lowered),
-                               [this](const std::shared_ptr<Node>& n){
-                                   return std::make_pair(target->get(n->get_type_info())(n), ngraph::snippets::getRegisters(n));
-                               });
+                lower_ops(scalar_tile);
             }
         } else {
-//            std::vector<size_t> rin, rout;
-//            std::tie(rin, rout) = getRegisters(*op);
-//            std::cerr << "Added as is: " << (*op)->get_friendly_name() << " Regs: ";
-//            for (auto r : rin)
-//                std::cerr << r << " ";
-//            std::cerr << " => ";
-//            for (auto r : rout)
-//                std::cerr << r << " ";
-//            std::cerr << "\n";
-            lowered.emplace_back(std::make_pair(target->get((*op)->get_type_info())(*op), getRegisters(*op)));
+            lower_ops({*op});
         }
     }
 
@@ -152,14 +141,9 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
     auto tiles2DKernel = std::make_shared<op::Kernel>(std::vector<AllocatedEmitter>{lowered});
     tiles2DKernel->compile_params = compile_params;
     std::shared_ptr<Emitter> kernel = target->get(op::Kernel::get_type_info_static())(tiles2DKernel);
-    try {
-        kernel->emit_code({in, out}, {});
-    } catch (const std::exception& e) {
-        std::cerr << "Exception during snippets kernel generation: " << e.what() << "\n";
-        throw ngraph_error("failed to emit code for snippets");
-    } catch (...) {
-        throw ngraph_error("failed to emit code for snippets");
-    }
+
+    kernel->emit_code({in, out}, {});
+
     OV_ITT_TASK_NEXT(GENERATE, "::EmitData")
     for (auto& op : lowered) {
         op.first->emit_data();
