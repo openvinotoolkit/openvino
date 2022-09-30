@@ -17,7 +17,7 @@ endif()
 
 set(TARGET_NAME "zlib")
 
-set(lib_srcs 
+set(zlib_srcs
     zlib/adler32.c
     zlib/compress.c
     zlib/crc32.c
@@ -32,10 +32,9 @@ set(lib_srcs
     zlib/inffast.c
     zlib/trees.c
     zlib/uncompr.c
-    zlib/zutil.c
-)
+    zlib/zutil.c)
 
-set(lib_hdrs 
+set(zlib_hdrs
     zlib/crc32.h
     zlib/deflate.h
     zlib/gzguts.h
@@ -44,11 +43,13 @@ set(lib_hdrs
     zlib/inflate.h
     zlib/inftrees.h
     zlib/trees.h
-    zlib/zutil.h
-)
+    zlib/zutil.h)
 
-set(lib_ext_hdrs "zlib/zlib.h" "zlib/zconf.h")
-add_library(${TARGET_NAME} STATIC ${lib_srcs} ${lib_hdrs} ${lib_ext_hdrs})
+set(zlib_ext_hdrs
+    zlib/zlib.h
+    zlib/zconf.h)
+
+add_library(${TARGET_NAME} STATIC ${zlib_srcs} ${zlib_hdrs} ${lib_ext_hdrs})
 add_library(${TARGET_NAME}::${TARGET_NAME} ALIAS ${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/zlib")
