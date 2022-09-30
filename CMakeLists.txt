@@ -107,6 +107,10 @@ add_subdirectory(thirdparty)
 add_subdirectory(src)
 add_subdirectory(samples)
 
+# Enable interpreter backend for testst
+if (ENABLE_TESTS OR ENABLE_TEMPLATE)
+    add_subdirectory(src/plugins/template/backend)
+endif()
 include(cmake/extra_modules.cmake)
 add_subdirectory(docs)
 add_subdirectory(tools)

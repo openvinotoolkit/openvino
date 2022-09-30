@@ -862,7 +862,8 @@ EXCLUDE_SYMBOLS        =
 # that contain example code fragments that are included (see the \include
 # command).
 
-EXAMPLE_PATH           = ../../src/plugins/template/src \
+EXAMPLE_PATH           = ../../src/plugins/ \
+                         ../../src/plugins/template/src \
                          ../../src/plugins/template/include \
                          ../../src/plugins/template/src/CMakeLists.txt \
                          ../../src/plugins/template/tests/functional/CMakeLists.txt \
