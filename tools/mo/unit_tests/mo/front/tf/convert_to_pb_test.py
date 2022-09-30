@@ -27,7 +27,8 @@ class ConvertToPBTests(unittest.TestCase):
             model.save(tmp_dir)
             self.argv.saved_model_dir = tmp_dir
             self.argv.output_dir = tmp_dir
-            convert_to_pb(self.argv)
+            path_to_pb = convert_to_pb(self.argv)
+            self.assertTrue(os.path.exists(path_to_pb), "The auxiliary .pb is not generated")
 
     def test_meta_format(self):
         try:
@@ -47,4 +48,5 @@ class ConvertToPBTests(unittest.TestCase):
                 saver.save(sess, os.path.join(tmp_dir, 'model'))
             self.argv.input_meta_graph = os.path.join(tmp_dir, 'model.meta')
             self.argv.output_dir = tmp_dir
-            convert_to_pb(self.argv)
+            path_to_pb = convert_to_pb(self.argv)
+            self.assertTrue(os.path.exists(path_to_pb), "The auxiliary .pb is not generated")

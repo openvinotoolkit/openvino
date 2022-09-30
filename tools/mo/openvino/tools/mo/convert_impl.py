@@ -361,9 +361,10 @@ def prepare_ir(argv: argparse.Namespace):
     # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
     # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
     is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
+    path_to_aux_pb = None
     if argv.use_new_frontend and is_tf:
         from openvino.tools.mo.front.tf.loader import convert_to_pb
-        convert_to_pb(argv)
+        path_to_aux_pb = convert_to_pb(argv)
 
     argv = arguments_post_parsing(argv)
     t = tm.Telemetry()
@@ -389,11 +390,9 @@ def prepare_ir(argv: argparse.Namespace):
 
             # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
             # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
-            if argv.use_new_frontend and is_tf:
-                output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
-                path_to_tmp_pb_file = os.path.normpath(os.path.join(output_dir, argv.model_name + "_tmp.pb"))
-                if os.path.exists(path_to_tmp_pb_file):
-                    os.remove(path_to_tmp_pb_file)
+            if argv.use_new_frontend and is_tf and path_to_aux_pb is not None:
+                if os.path.exists(path_to_aux_pb):
+                    os.remove(path_to_aux_pb)
 
             return graph, ngraph_function
         else:  # apply fallback
@@ -450,7 +449,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     func = read_model(orig_model_name + "_tmp.xml")
 
     return_code = "not executed"
-    if not(argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
+    if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         try:
             from openvino.tools.mo.back.offline_transformations import apply_offline_transformations
             func = apply_offline_transformations(func, argv)
