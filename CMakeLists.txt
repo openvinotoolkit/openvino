@@ -107,7 +107,7 @@ add_subdirectory(thirdparty)
 add_subdirectory(src)
 add_subdirectory(samples)
 
-# Enable interpreter backend for testst
+# Enable interpreter backend for tests
 if (ENABLE_TESTS OR ENABLE_TEMPLATE)
     add_subdirectory(src/plugins/template/plugin/backend)
 endif()
