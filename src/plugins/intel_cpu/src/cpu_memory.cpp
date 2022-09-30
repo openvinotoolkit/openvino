@@ -177,6 +177,10 @@ void Memory::resetDnnlPrim() {
 
 dnnl::memory Memory::GetPrimitive() const {
     if (!testDnnlPrim()) {
+        std::lock_guard<std::mutex> guard(primCachingLock);
+        if (testDnnlPrim()) {
+            return prim;
+        }
         if (pMemDesc->isDefined()) {
             createDnnlPrim(MemoryDescUtils::convertToDnnlMemoryDesc(pMemDesc)->getDnnlDesc(), mgrHandle->getRawPtr(), padsZeroing);
         } else {
