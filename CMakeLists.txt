@@ -109,7 +109,7 @@ add_subdirectory(samples)
 
 # Enable interpreter backend for testst
 if (ENABLE_TESTS OR ENABLE_TEMPLATE)
-    add_subdirectory(src/plugins/template/backend)
+    add_subdirectory(src/plugins/template/plugin/backend)
 endif()
 include(cmake/extra_modules.cmake)
 add_subdirectory(docs)
