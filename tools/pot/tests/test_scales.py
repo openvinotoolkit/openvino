@@ -266,7 +266,7 @@ def test_fake_quantize_configurations(tmp_path, models, model_name, model_framew
     for fq in sorted(fq_list, key=lambda item: item.name):
         min_levels, max_levels = tuple([get_node_value(node)
                                         for node in get_node_inputs(fq)[1:3]])
-        fq_name = fq.name
+        fq_name = fq.fullname
         if get_node_input(fq, 0).type == 'Const':
             min_levels = min_levels.reshape(min_levels.shape[0])
             max_levels = max_levels.reshape(max_levels.shape[0])
