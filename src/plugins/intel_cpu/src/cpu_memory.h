@@ -271,10 +271,11 @@ private:
 
 private:
     MemoryDescPtr pMemDesc;
-    mutable dnnl::memory prim;
     dnnl::engine eng;
     DnnlMemMngrHandle mgrHandle;
     bool padsZeroing = true;
+    mutable std::mutex primCachingLock;
+    mutable dnnl::memory prim;
 };
 
 using MemoryPtr = std::shared_ptr<Memory>;
