@@ -277,7 +277,7 @@ class TestMul(CommonTFLayerTest):
         # Power
         dict(x_shape=[1, 3, 1, 1, 1], y_shape=[1, 1]),
         # ScaleShift
-        dict(x_shape=[1, 3, 1, 1, 1], y_shape=[3]),
+        pytest.param(dict(x_shape=[1, 3, 1, 1, 1], y_shape=[3]), marks=pytest.mark.precommit_tf_fe),
         # Eltwise
         dict(x_shape=[1, 1, 1, 1, 3], y_shape=[3]),
         # Eltwise

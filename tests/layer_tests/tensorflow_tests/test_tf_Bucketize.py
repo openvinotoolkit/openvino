@@ -60,7 +60,8 @@ class TestBucketize(CommonTFLayerTest):
     test_data_float32 = [
         dict(input_shape=[5], input_type=tf.float32, boundaries_size=1),
         dict(input_shape=[5], input_type=tf.float32, boundaries_size=3),
-        dict(input_shape=[4, 8], input_type=tf.float32, boundaries_size=5),
+        pytest.param(dict(input_shape=[4, 8], input_type=tf.float32, boundaries_size=5),
+                     marks=pytest.mark.precommit_tf_fe),
         dict(input_shape=[2, 4, 7], input_type=tf.float32, boundaries_size=10),
         dict(input_shape=[2, 4, 7, 8], input_type=tf.float32, boundaries_size=12),
         dict(input_shape=[2, 4, 7, 8, 10], input_type=tf.float32, boundaries_size=14)]
