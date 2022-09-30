@@ -91,7 +91,7 @@ endif()
 
 - `src/CMakeLists.txt` to build a plugin shared library from sources:
 
-@snippet template/src/CMakeLists.txt cmake:plugin
+@snippet template/plugin/src/CMakeLists.txt cmake:plugin
 
 > **NOTE**: `IE::inference_engine` target is imported from the Inference Engine Developer Package.
 
