@@ -466,7 +466,7 @@ const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> 
 
 GNAPluginNS::RequestStatus GNADeviceHelper::waitForRequest(uint32_t requestID, int64_t timeoutMilliseconds) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-    const auto status = Gna2RequestWait(reqId, static_cast<uint32_t>(millisTimeout));
+    const auto status = Gna2RequestWait(requestID, static_cast<uint32_t>(millisTimeout));
     if (status == Gna2StatusWarningDeviceBusy) {
         return GNAPluginNS::RequestStatus::kPending;
     }
