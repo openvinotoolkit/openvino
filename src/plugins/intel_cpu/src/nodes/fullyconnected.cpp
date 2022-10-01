@@ -399,16 +399,6 @@ void FullyConnected::setPostOps(dnnl::primitive_attr &attr, const VectorDims &di
     bool isINT8Inference = getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::U8 ||
                            getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::I8;
 
-    auto getOutputScaleType = [](const VectorDims& dims) -> int {
-        int k;
-        for (k = 0; k < dims.size() - 1; k++) {
-            if (dims[k] != 1)
-                return -1;
-        }
-        if (dims[k] > 1)
-            return 1;  // per-OC
-        return 0;      // per-tensor
-    };
     // set attr(oscale/zeropoint/post ops/) according to oneDNN computation procedure:
     //  https://oneapi-src.github.io/oneDNN/dev_guide_inference_int8.html
     auto postop = fusedWith.begin();
@@ -417,24 +407,33 @@ void FullyConnected::setPostOps(dnnl::primitive_attr &attr, const VectorDims &di
     //   1. FakeQuantize
     //   2. DequantizeMultiply
     if (isINT8Inference && postop != fusedWith.end()) {
+        bool isLastPostOp = ((*postop) == fusedWith.back());
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(postop->get())) {
-            auto scale = fakeQuantizeNode->simplifyToScale(outputDataType, OC);
-            if (!scale.empty()) {
-                attr.set_output_scales(1 << 1, scale);
+            if (fakeQuantizeNode->optimizeAsOscaleEltwise(attr, ops, isLastPostOp, outputDataType)) {
                 ++postop; // mapped
             }
         } else if (auto* eltwiseNode = dynamic_cast<Eltwise *>(postop->get())) {
-            int const_port = 1 - eltwiseNode->getFusingPort();
-            if (eltwiseNode->getAlgorithm() == Algorithm::EltwiseMultiply && (const_port == 0 || const_port == 1)) {
-                auto t = getOutputScaleType(eltwiseNode->getInputShapeAtPort(const_port).getStaticDims());
-                if (t == 0) {
-                    attr.set_output_scales(0, eltwiseNode->getScales());
-                    ++postop;  // mapped
+            // for inner product, output channel (OC) is always the last dimension (-1)
+            // https://oneapi-src.github.io/oneDNN/dev_guide_inner_product.html
+            if (eltwiseNode->getAlgorithm() == Algorithm::EltwiseRelu) {
+                // There are patterns composed of Relu + A in which A can be optimized as output scales
+                // in this case we can switch the order of these two steps (since oneDNN performs output scale first)
+                // since [Relu, Scale] is equivalent to [Scale, Relu].
+                auto nextop = postop + 1;
+                if (nextop != fusedWith.end()) {
+                    if (auto* eltwiseNode2 = dynamic_cast<Eltwise *>(nextop->get())) {
+                        if (eltwiseNode2->optimizeAsOscaleEltwise(attr, ops, -1, false)) {
+                            // eltwiseNode2 is already mapped first as output scales
+                            // now mapping eltwiseNode:
+                            ops.append_eltwise(1.0, eltwiseNode->getOneDnnAlgorithm(), eltwiseNode->getAlpha(), eltwiseNode->getBeta());
+                            // two ops were mapped now.
+                            ++postop;
+                            ++postop;
+                        }
+                    }
                 }
-                if (t == 1) {
-                    attr.set_output_scales(1 << 1, eltwiseNode->getScales());
-                    ++postop;  // mapped
-                }
+            } else if (eltwiseNode->optimizeAsOscaleEltwise(attr, ops, -1, true)) {
+                ++postop; // mapped
             }
         }
     }
@@ -468,9 +467,12 @@ void FullyConnected::setPostOps(dnnl::primitive_attr &attr, const VectorDims &di
                 }
             }
 
-            fakeQuantizeNode->appendBinPostOpsOptimized(ops, getBinPostOpShape(), postOpsArgs,
-                    node == fusedWith[fusedWith.size() - 1], outputDataType);
+            bool isLastPostOp = node == fusedWith.back();
+            if (fakeQuantizeNode->optimizeAsEltwise(ops, isLastPostOp, outputDataType)) {
+                continue;
+            }
 
+            fakeQuantizeNode->appendBinPostOpsOptimized(ops, getBinPostOpShape(), postOpsArgs, isLastPostOp, outputDataType);
             continue;
         }
 

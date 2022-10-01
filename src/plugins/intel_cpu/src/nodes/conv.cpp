@@ -680,11 +680,16 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
                 }
             }
 
+            bool isLastPostOp = (node == fusedWith.back());
+            if (fakeQuantizeNode->optimizeAsEltwise(ops, isLastPostOp, outputDataType)) {
+                continue;
+            }
+
             if (useLegacyPostOps) {
                 fakeQuantizeNode->appendPostOps(ops, dims, convPostOpsArgs[useLegacyPostOps]);
             } else {
                 fakeQuantizeNode->appendBinPostOpsOptimized(ops, getBinPostOpShape(), convPostOpsArgs[useLegacyPostOps],
-                        node == fusedWith[fusedWith.size() - 1], outputDataType);
+                        isLastPostOp, outputDataType);
             }
 
             continue;

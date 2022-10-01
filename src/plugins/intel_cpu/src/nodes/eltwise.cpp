@@ -2205,6 +2205,50 @@ void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, s
     appendPostOpsImpl(ops, postOpDims, postOpsMem, channelAxis);
 }
 
+bool Eltwise::optimizeAsOscaleEltwise(dnnl::primitive_attr &attr, dnnl::post_ops& ops, int dimOC, bool allowEltwisePostOps) {
+    int const_port = 1 - getFusingPort();
+
+    // only OC dimension can be non-one (per-channel)
+    auto getOutputScaleType = [](const VectorDims& dims, int dimOC) -> int {
+        int k;
+        if (dimOC < 0)
+            dimOC += dims.size();
+        for (k = 0; k < dims.size(); k++) {
+            if (k != dimOC && dims[k] != 1)
+                return -1;
+        }
+        if (dims[dimOC] > 1)
+            return 1;  // per-OC
+        return 0;      // per-tensor
+    };
+
+    if (getAlgorithm() == Algorithm::EltwiseMultiply && (const_port == 0 || const_port == 1)) {
+        auto ostype = getOutputScaleType(getInputShapeAtPort(const_port).getStaticDims(), dimOC);
+        if (ostype == 0) {
+            attr.set_output_scales(0, scales);
+            return true;
+        }
+        if (ostype == 1) {
+            attr.set_output_scales(1 << 1, scales);
+            return true;
+        }
+    }
+
+    const float zero_thr = std::numeric_limits<float>::min();
+    if (getAlgorithm() == Algorithm::EltwisePowerStatic && abs(alpha - 1.0f) < zero_thr) {
+        // return before mapping anything if we are doomed to fail.
+        if ((!allowEltwisePostOps) && (abs(gamma) > zero_thr))
+            return false;
+
+        attr.set_output_scales(0, {beta});
+        if (abs(gamma) > zero_thr) {
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, gamma);
+        }
+        return true;
+    }
+    return false;
+}
+
 void Eltwise::appendBinPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem) {
     const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' as binary post op ";
     VectorDims broadcastBinaryShape(postOpDims.size(), 1);
