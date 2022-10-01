@@ -79,6 +79,10 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
         cldnn::mem_lock<uint8_t, mem_lock_type::read> target_shape_lock(target_shape_mem, impl_param.prog.get_stream());
         const_data.emplace(1, make_host_tensor(target_shape_mem->get_layout(), target_shape_lock.data()));
         ov::op::v3::shape_infer(&op, input_shapes, output_shapes, const_data);
+    } else if (target_shape.empty()) {
+        auto out_shape = ShapeType::dynamic(input0_layout.get<ShapeType>().rank().get_length());
+        auto out_format = format::adjust_to_rank(input0_layout.format, out_shape.size());
+        return { layout{out_shape, output_type, out_format} };
     } else {
         auto target_shape_tensor = make_host_tensor({pattern_shape, data_types::i64, format::bfyx},
                                                      static_cast<void*>(target_shape.data()));
@@ -121,7 +125,8 @@ std::string broadcast_inst::to_string(broadcast_node const& node) {
 
 broadcast_inst::typed_primitive_inst(network& network, broadcast_node const& node) : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
-
+    if (input_layout.is_dynamic())
+        return;
     const auto& output_sizes = argument.broadcast_sizes;
 
     std::vector<tensor::value_type> input_dims = input_layout.get_dims();

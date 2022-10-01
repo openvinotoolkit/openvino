@@ -35,6 +35,8 @@ class typed_primitive_inst<count_nonzero> : public typed_primitive_inst_base<cou
     using parent = typed_primitive_inst_base<count_nonzero>;
 
 public:
+    template <typename ShapeType>
+    static std::vector<layout> calc_output_layouts(count_nonzero_node const& /*node*/, kernel_impl_params const& impl_param);
     static layout calc_output_layout(count_nonzero_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(count_nonzero_node const& node);
 
@@ -62,6 +64,7 @@ public:
         OPENVINO_ASSERT(dependencies.size() == 2, "[GPU] Primitive ", id(), " has invalid number of depndencies");
         return get_dependency(index);
     }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {1}; }
 };
 
 using gather_nonzero_node = typed_program_node<gather_nonzero>;

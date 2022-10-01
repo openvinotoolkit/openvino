@@ -197,8 +197,13 @@ void add_required_reorders::run(program& p) {
 
             if (!correct_layout_selected) {
                 for (auto new_layout_format : preferred_layout_formats) {
-                    layout current_layout(original_layout.data_type, new_layout_format, original_layout.get_tensor());
-                    usr->set_output_layout(current_layout, false);
+                    if (p.get_options().get<build_option_type::allow_new_shape_infer>()->enabled()) {
+                        layout current_layout(original_layout.get_partial_shape(), original_layout.data_type, new_layout_format);
+                        usr->set_output_layout(current_layout, false);
+                    } else {
+                        layout current_layout(original_layout.data_type, new_layout_format, original_layout.get_tensor());
+                        usr->set_output_layout(current_layout, false);
+                    }
                     if (usr->type()->does_possible_implementation_exist(*usr)) {
                         correct_layout_selected = true;
                         break;
@@ -210,25 +215,44 @@ void add_required_reorders::run(program& p) {
                 // goal of this section is to use int32 implementation
                 // if int64 is not available for usr primitive
                 if (original_layout.data_type == data_types::i64) {
-                    layout original_layout_i32(data_types::i32,
-                                          original_layout.format,
-                                          original_layout.get_tensor());
+                    if (p.get_options().get<build_option_type::allow_new_shape_infer>()->enabled()) {
+                        layout original_layout_i32(original_layout.get_partial_shape(), data_types::i32,
+                                original_layout.format);
+                        usr->set_output_layout(original_layout_i32, false);
+                        if (usr->type()->does_possible_implementation_exist(*usr)) {
+                            correct_layout_selected = true;
+                        }
 
-                    usr->set_output_layout(original_layout_i32, false);
+                        if (!correct_layout_selected) {
+                            for (auto new_layout_format : preferred_layout_formats) {
+                                layout current_layout_i32(original_layout_i32.get_partial_shape(), original_layout_i32.data_type,
+                                        new_layout_format);
+                                usr->set_output_layout(current_layout_i32, false);
+                                if (usr->type()->does_possible_implementation_exist(*usr)) {
+                                    correct_layout_selected = true;
+                                    break;
+                                }
+                            }
+                        }
+                    } else {
+                        layout original_layout_i32(data_types::i32,
+                                original_layout.format,
+                                original_layout.get_tensor());
+                        usr->set_output_layout(original_layout_i32, false);
+                        if (usr->type()->does_possible_implementation_exist(*usr)) {
+                            correct_layout_selected = true;
+                        }
 
-                    if (usr->type()->does_possible_implementation_exist(*usr)) {
-                        correct_layout_selected = true;
-                    }
-
-                    if (!correct_layout_selected) {
-                        for (auto new_layout_format : preferred_layout_formats) {
-                            layout current_layout_i32(original_layout_i32.data_type,
-                                                  new_layout_format,
-                                                  original_layout_i32.get_tensor());
-                            usr->set_output_layout(current_layout_i32, false);
-                            if (usr->type()->does_possible_implementation_exist(*usr)) {
-                                correct_layout_selected = true;
-                                break;
+                        if (!correct_layout_selected) {
+                            for (auto new_layout_format : preferred_layout_formats) {
+                                layout current_layout_i32(original_layout_i32.data_type,
+                                        new_layout_format,
+                                        original_layout_i32.get_tensor());
+                                usr->set_output_layout(current_layout_i32, false);
+                                if (usr->type()->does_possible_implementation_exist(*usr)) {
+                                    correct_layout_selected = true;
+                                    break;
+                                }
                             }
                         }
                     }

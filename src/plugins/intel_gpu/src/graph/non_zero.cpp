@@ -27,6 +27,19 @@ layout count_nonzero_inst::calc_output_layout(count_nonzero_node const& node, ke
     return layout{cldnn::data_types::i32, cldnn::format::bfyx, tensor{1, 1, 1, 4}};
 }
 
+template<typename ShapeType>
+std::vector<layout> count_nonzero_inst::calc_output_layouts(count_nonzero_node const& /*node*/, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+           "Output data type forcing is not supported for count_nonzero_node!");
+    if (impl_param.input_layouts[0].is_dynamic()) {
+        return { layout{ov::PartialShape{4}, cldnn::data_types::i32, cldnn::format::bfyx} };
+    } else {
+        auto rank =  static_cast<ov::Dimension::value_type>(impl_param.input_layouts[0].get_shape().size());
+        auto out_layout = layout{ov::PartialShape{rank + 1}, cldnn::data_types::i32, cldnn::format::bfyx};
+        return {out_layout};
+    }
+}
+
 std::string count_nonzero_inst::to_string(count_nonzero_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
@@ -67,7 +80,7 @@ layout gather_nonzero_inst::calc_output_layout(gather_nonzero_node const& node, 
         ov::PartialShape output_pshape(output_shape);
         return layout{output_pshape, cldnn::data_types::i32, cldnn::format::bfyx};
     } else {
-        return layout{ov::PartialShape({ov::Dimension::dynamic(), ov::Dimension::dynamic(), 1, 1}), cldnn::data_types::i32, cldnn::format::bfyx};
+        return layout{ov::PartialShape({ov::Dimension::dynamic(), ov::Dimension::dynamic()}), cldnn::data_types::i32, cldnn::format::bfyx};
     }
 }
 
@@ -80,7 +93,9 @@ std::string gather_nonzero_inst::to_string(gather_nonzero_node const& node) {
 
     json_composite gather_nonzero_info;
     gather_nonzero_info.add("input id", input.id());
-    gather_nonzero_info.add("output layout", node.get_output_layout().to_string());
+    if (node.is_valid_output_layout()) {
+        gather_nonzero_info.add("output layout", node.get_output_layout().to_string());
+    }
 
     node_info->add("gather_nonzero info", gather_nonzero_info);
     node_info->dump(primitive_description);
