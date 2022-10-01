@@ -243,7 +243,7 @@ jobs:
     continueOnError: true
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Tensorflow.xml
-    displayName: 'Tensorflow Frontend UT'
+    displayName: 'TensorFlow Frontend Unit Tests'
     continueOnError: false
 
     # set PATH=$(IB_DIR);%PATH%
