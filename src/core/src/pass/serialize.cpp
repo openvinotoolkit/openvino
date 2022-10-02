@@ -501,7 +501,14 @@ public:
         m_xml_node.append_attribute(name.c_str()).set_value(create_atribute_list(adapter).c_str());
     }
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::shared_ptr<Function>>& adapter) override {
-        if (name == "body" || name == "then_body" || name == "else_body") {
+        if (name == "net") {
+            ngfunction_2_ir(m_xml_node,
+                            *adapter.get(),
+                            m_custom_opsets,
+                            m_constant_write_handler,
+                            m_version,
+                            m_deterministic);
+        } else {
             // TI, Loop do not have attributtes as regular ops, it is necessary to append "body"
             // to layer above (m_xml_node.parent()) as in ngfunction_2_ir() layer (m_xml_node) with empty attributes
             // is removed.
@@ -514,15 +521,6 @@ public:
                             m_deterministic);
             xml_body.remove_attribute("name");
             xml_body.remove_attribute("version");
-        } else if (name == "net") {
-            ngfunction_2_ir(m_xml_node,
-                            *adapter.get(),
-                            m_custom_opsets,
-                            m_constant_write_handler,
-                            m_version,
-                            m_deterministic);
-        } else {
-            NGRAPH_CHECK(false, "Unsupported Model name.");
         }
     }
 };

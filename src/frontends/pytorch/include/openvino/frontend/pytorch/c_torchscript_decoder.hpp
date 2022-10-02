@@ -1,6 +1,8 @@
 // This is torch jit dependent piece of code for decoding TS jit graph inside Torch runtime
 // This code was copied from inside PT source tree from POC branch, it cannot be compiled withou torch dependencies
 
+#pragma once
+
 #include <map>
 #include <exception>
 #include <memory>

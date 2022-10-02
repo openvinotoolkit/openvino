@@ -58,6 +58,9 @@ namespace py = pybind11;
     std::string get_op_type() const override
     { PYBIND11_OVERRIDE_PURE(std::string, Decoder, get_op_type); }
 
+    std::string get_schema() const override
+    { PYBIND11_OVERRIDE_PURE(std::string, Decoder, get_schema); }
+
     size_t num_of_outputs () const override
     { PYBIND11_OVERRIDE_PURE(size_t, Decoder, num_of_outputs); }
 

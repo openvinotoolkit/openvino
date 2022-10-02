@@ -55,8 +55,8 @@ try:
         def inputs (self):
             return [x.unique() for x in self.pt_module.inputs()]
 
-        def input (self, index):
-            return self.inputs()[index] # TODO: find specialized method
+        def input (self, index): # TODO: remove
+            return self.inputs()[index] # TODO: find specialized method 
 
         def get_input_shape (self, index):
             input = self._raw_input(index)
@@ -182,6 +182,9 @@ try:
         def get_op_type (self):
             return self.pt_module.kind()
 
+        def get_schema (self):
+            return self.pt_module.schema()
+
         def outputs (self):
             return [x.unique() for x in self.pt_module.outputs()]
 
@@ -228,7 +231,7 @@ try:
                 if str(pt_value.type()) in ['torch.int32', 'int']:
                     #print(f'Found int value=  {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
                     return op.Constant(OVType.i32, Shape([]), [pt_value.toIValue()]).outputs()
-                if str(pt_value.type()) in ['torch.FloatType', 'float']:
+                if str(pt_value.type()) in ['torch.float', 'torch.FloatType', 'float']:
                     #print(f'Found float value=  {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
                     return op.Constant(OVType.f32, Shape([]), [pt_value.toIValue()]).outputs()
                 if str(pt_value.type()) in ['torch.bool', 'bool']:
@@ -272,7 +275,12 @@ try:
                 return ov_const.outputs()
 
         def input_is_none (self, index):
-            return index >= len(self.inputs()) or self._raw_input(index) is None
+            if index >= len(self.inputs()) or self._raw_input(index) is None:
+                return True
+            else:
+                r_input = self._raw_input(index)
+                return str(r_input.type()) in ['torch.NoneType', 'NoneType']
+
 
         def debug (self):
             print(f'DEBUG CALLED FOR {self._raw_output(0)}')
