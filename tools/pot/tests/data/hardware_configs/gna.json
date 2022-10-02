@@ -140,6 +140,12 @@
             }
         },
         {
+            "type": "SoftSign",
+            "quantization": {
+                "activations": "q32_a"
+            }
+        },
+        {
             "type": "Result",
             "quantization": {
                 "activations": "q16_a"

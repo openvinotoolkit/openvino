@@ -184,6 +184,13 @@
             }
         },
         {
+            "type": "SoftSign",
+            "quantization": {
+                "activations": "q32_a",
+                "outputs": "q16_o"
+            }
+        },
+        {
             "type": "Result",
             "quantization": {
                 "activations": "q16_a"
