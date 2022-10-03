@@ -78,9 +78,6 @@ private:
     // it should be compatible with a schedule's work size
     std::vector<size_t> exec_domain = {};
 
-    // mutex for cloning snippet body
-    std::shared_ptr<std::mutex> snippetMutex = nullptr;
-
     /// scheduling info
     size_t batchDimIdx = 0;
     size_t tensorRank = 0;

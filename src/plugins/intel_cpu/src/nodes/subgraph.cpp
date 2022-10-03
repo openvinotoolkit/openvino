@@ -48,10 +48,6 @@ Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& en
     }
 }
 
-void Snippet::setSharedMutex(const std::shared_ptr<std::mutex>& mutex) {
-    snippetMutex = mutex;
-}
-
 void Snippet::copy_snippet() {
     ngraph::OutputVector subgraph_node_inputs;
     for (const auto &input : original_snippet->input_values()) {
@@ -61,10 +57,10 @@ void Snippet::copy_snippet() {
     std::shared_ptr<ov::Model> new_body = nullptr;
     // Ticket[79554]: TypeRelaxed ops aren't thread safe so we use mutex to avoid collision in throughput mode
     if (original_snippet->has_type_relaxed_ops()) {
-        if (!snippetMutex) {
+        if (!sharedMutex) {
             IE_THROW() << "Subgraph doesn't have shared mutex";
         }
-        std::lock_guard<std::mutex> lock(*snippetMutex.get());
+        std::lock_guard<std::mutex> lock(*sharedMutex.get());
         new_body = ov::clone_model(*original_snippet->get_body().get());
     } else {
         new_body = ov::clone_model(*original_snippet->get_body().get());

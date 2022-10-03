@@ -69,7 +69,7 @@ Graph::~Graph() {
 
 template<typename NET>
 void Graph::CreateGraph(NET &net, const ExtensionManager::Ptr& extMgr,
-        WeightsSharing::Ptr &w_cache, const std::shared_ptr<std::mutex>& snippetMutex) {
+        WeightsSharing::Ptr &w_cache, const std::shared_ptr<std::mutex>& mutex) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "CreateGraph");
 
     if (IsReady())
@@ -78,8 +78,9 @@ void Graph::CreateGraph(NET &net, const ExtensionManager::Ptr& extMgr,
     weightsCache = config.streamExecutorConfig._streams != 1 ? w_cache : nullptr;
 
     rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
+    sharedMutex = mutex;
 
-    Replicate(net, extMgr, snippetMutex);
+    Replicate(net, extMgr);
     InitGraph();
 
     status = Ready;
@@ -120,12 +121,11 @@ void Graph::CreateGraph(const std::vector<NodePtr> &graphNodes,
 }
 
 template void Graph::CreateGraph(const std::shared_ptr<const ngraph::Function>&,
-        const ExtensionManager::Ptr&, WeightsSharing::Ptr&, const std::shared_ptr<std::mutex>& snippetMutex);
+        const ExtensionManager::Ptr&, WeightsSharing::Ptr&, const std::shared_ptr<std::mutex>& mutex);
 template void Graph::CreateGraph(const CNNNetwork&,
-        const ExtensionManager::Ptr&, WeightsSharing::Ptr&, const std::shared_ptr<std::mutex>& snippetMutex);
+        const ExtensionManager::Ptr&, WeightsSharing::Ptr&, const std::shared_ptr<std::mutex>& mutex);
 
-void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph, const ExtensionManager::Ptr& extMgr,
-                      const std::shared_ptr<std::mutex>& snippetMutex) {
+void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph, const ExtensionManager::Ptr& extMgr) {
     this->_name = "subgraph";
     this->reuse_io_tensors = false;
 
@@ -155,10 +155,9 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph, const Ex
         if (isQuantized()) {
             node->setQuantizedGraphFlag(true);
         }
-        if (auto snippet = std::dynamic_pointer_cast<ov::intel_cpu::node::Snippet>(node)) {
-            snippet->setSharedMutex(snippetMutex);
-        }
+
         node->setRuntimeCache(rtParamsCache);
+        node->setSharedMutex(sharedMutex);
 
         graphNodes.push_back(node);
 
@@ -211,8 +210,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph, const Ex
     }
 }
 
-void Graph::Replicate(const CNNNetwork &network, const ExtensionManager::Ptr& extMgr,
-                      const std::shared_ptr<std::mutex>& snippetMutex) {
+void Graph::Replicate(const CNNNetwork &network, const ExtensionManager::Ptr& extMgr) {
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "Graph::Replicate", "CNNNetwork");
 
     InputsDataMap inputsInfo = network.getInputsInfo();
@@ -271,10 +269,10 @@ void Graph::Replicate(const CNNNetwork &network, const ExtensionManager::Ptr& ex
         if (isQuantized()) {
             node->setQuantizedGraphFlag(true);
         }
-        if (auto snippet = std::dynamic_pointer_cast<ov::intel_cpu::node::Snippet>(node)) {
-            snippet->setSharedMutex(snippetMutex);
-        }
+
         node->setRuntimeCache(rtParamsCache);
+        node->setSharedMutex(sharedMutex);
+
         graphNodes.push_back(node);
 
         if (op->get_type_info() == ngraph::op::v0::Parameter::get_type_info_static()) {
