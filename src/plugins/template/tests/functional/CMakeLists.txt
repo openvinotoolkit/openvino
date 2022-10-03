@@ -27,10 +27,6 @@ ov_add_test_target(
             TEMPLATE
 )
 
-if(ENABLE_HETERO)
-    add_dependencies(${TARGET_NAME} openvino_hetero_plugin)
-endif()
-
 find_package(OpenCV QUIET COMPONENTS core imgproc)
 
 if(OpenCV_FOUND)
