@@ -6,7 +6,7 @@
 
 void ov::intel_gna::rt_info::add_transpose_fusable(const std::shared_ptr<Node>& node) {
     auto& rt_info = node->get_rt_info();
-    rt_info[GNATransposeFusable::get_type_info_static()] = GNATransposeFusable{};
+    rt_info[GNATransposeFusable::get_type_info_static()] = std::string();
 }
 
 void ov::intel_gna::rt_info::remove_transpose_fusable(const std::shared_ptr<Node>& node) {
