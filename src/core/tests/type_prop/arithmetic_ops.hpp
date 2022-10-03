@@ -452,19 +452,22 @@ TYPED_TEST_P(ArithmeticOperator, full_dynamic_shape) {
 
 TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_mixed_numpy) {
     {  // Dimension A has label
-        Dimension dim_0_A = Dimension(-1);
+        Dimension dim_0_A = Dimension(2, 4);
         Dimension dim_2_A = Dimension(-1);
 
         ov::DimensionTracker::set_label(dim_0_A, 10);
-        PartialShape pshape_A = {dim_0_A, 3, 1, 224}, pshape_B = {1, 3, 1, 1};
+        ov::DimensionTracker::set_label(dim_2_A, 12);
+
+        PartialShape pshape_A = {dim_0_A, 3, dim_2_A, 224}, pshape_B = {1, 3, 128, 1};
 
         auto param_A = std::make_shared<op::Parameter>(element::f32, pshape_A);
         auto param_B = std::make_shared<op::Parameter>(element::f32, pshape_B);
         const auto op = std::make_shared<TypeParam>(param_A, param_B);
 
         const auto out_shape = op->get_output_partial_shape(0);
+        PartialShape expected_shape = {Dimension(2, 4), 3, 128, 224};
 
-        EXPECT_EQ(out_shape, pshape_A);
+        EXPECT_EQ(out_shape, expected_shape);
         EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[0]), 10);
         EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[1]), 0);
         EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[2]), 0);
@@ -475,21 +478,21 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_mixed_num
         Dimension dim_2_B = Dimension(-1);
 
         ov::DimensionTracker::set_label(dim_0_B, 20);
-        ov::DimensionTracker::set_label(dim_2_B, 12);
+        ov::DimensionTracker::set_label(dim_2_B, 21);
 
-        PartialShape pshape_A = {-1, 3, 224, 224}, pshape_B = {dim_0_B, 3, dim_2_B, 1};
+        PartialShape pshape_A = {-1, 3, 128, 1}, pshape_B = {dim_0_B, 3, dim_2_B, 224};
 
         auto param_A = std::make_shared<op::Parameter>(element::f32, pshape_A);
         auto param_B = std::make_shared<op::Parameter>(element::f32, pshape_B);
         const auto op = std::make_shared<TypeParam>(param_A, param_B);
 
         const auto out_shape = op->get_output_partial_shape(0);
-        PartialShape expected_shape = {Dimension(2, 4), 3, 224, 224};
+        PartialShape expected_shape = {Dimension(2, 4), 3, 128, 224};
 
         EXPECT_EQ(out_shape, expected_shape);
         EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[0]), 20);
         EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[1]), 0);
-        EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[2]), 0);  // TODO: Shouldn't be 12?
+        EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[2]), 0);  // TODO: Shouldn't be 21?
         EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[3]), 0);
     }
     {  // Both params have dimensions with the same labels
