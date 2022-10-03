@@ -172,8 +172,19 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_5D) {
 
     const auto op = std::make_shared<TypeParam>(A, B);
 
-    ASSERT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{dynamic, 4, dynamic, dynamic, 6}));
+TYPED_TEST_P(ArithmeticOperator, dynamic_shape_intervals_broadcast_none) {
+    auto A = std::make_shared<op::Parameter>(
+        element::f32,
+        PartialShape{Dimension(1, 3), Dimension(2, 7), Dimension(6, -1), Dimension(-1, 6), -1, 8});
+    auto B = std::make_shared<op::Parameter>(
+        element::f32,
+        PartialShape{Dimension(1, 3), Dimension(2, 7), Dimension(6, -1), Dimension(-1, 6), -1, 8});
+
+    const auto op = std::make_shared<TypeParam>(A, B, op::AutoBroadcastType::NONE);
+
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0),
+              (PartialShape{Dimension(1, 3), Dimension(2, 7), Dimension(6, -1), Dimension(-1, 6), -1, 8}));
 }
 
 TYPED_TEST_P(ArithmeticOperator, dynamic_shape_intervals) {
