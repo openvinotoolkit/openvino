@@ -178,4 +178,5 @@ const OPENVINO_API OpSet& get_opset8();
  * @ingroup ov_opset_cpp_api
  */
 const OPENVINO_API OpSet& get_opset9();
+const OPENVINO_API OpSet& get_opset10();
 }  // namespace ov

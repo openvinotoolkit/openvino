@@ -10,6 +10,7 @@ from _pyngraph import PartialShape, Dimension
 import ngraph as ng
 import ngraph.opset1 as ng_opset1
 import ngraph.opset5 as ng_opset5
+import ngraph.opset10 as ng_opset10
 from ngraph.utils.types import make_constant_node
 from ngraph.exceptions import UserInputError
 from ngraph.impl import Type
@@ -1044,7 +1045,7 @@ def test_embedding_bag_packed_sum():
 
 
 @pytest.mark.parametrize("dtype", integral_np_types)
-def test_interpolate(dtype):
+def test_interpolate_opset1(dtype):
     image_shape = [1, 3, 1024, 1024]
     output_shape = [64, 64]
     attributes = {
@@ -1055,7 +1056,7 @@ def test_interpolate(dtype):
 
     image_node = ng.parameter(image_shape, dtype, name="Image")
 
-    node = ng.interpolate(image_node, output_shape, attributes)
+    node = ng_opset1.interpolate(image_node, output_shape, attributes)
     expected_shape = [1, 3, 64, 64]
 
     assert node.get_type_name() == "Interpolate"
@@ -2238,3 +2239,28 @@ def test_grid_sample_custom_attributes():
     assert node_attributes["align_corners"] is True
     assert node_attributes["mode"] == "nearest"
     assert node_attributes["padding_mode"] == "reflection"
+
+
+@pytest.mark.parametrize(
+    ("expected_shape", "shape_calculation_mode"),
+    [
+        ([1, 3, 64, 64], "scales"),
+        ([1, 3, 256, 256], "sizes"),
+    ],
+)
+@pytest.mark.parametrize("dtype", np_types)
+def test_interpolate_opset10(dtype, expected_shape, shape_calculation_mode):
+
+    image_shape = [1, 3, 1024, 1024]
+    image_node = ng.parameter(image_shape, dtype, name="Image")
+    output_shape = [256, 256]
+    scales = np.array([1 / 16, 1 / 16], dtype=np.float32)
+    axes = [2, 3]
+    mode = "cubic"
+
+    node = ng_opset10.interpolate(image=image_node, output_shape=output_shape, scales=scales,
+                                  axes=axes,
+                                  mode=mode, shape_calculation_mode=shape_calculation_mode)
+    assert node.get_type_name() == "Interpolate"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == expected_shape
