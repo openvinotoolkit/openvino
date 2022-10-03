@@ -342,7 +342,8 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_intervals_broadcast_none) {
               (PartialShape{Dimension(1, 3), Dimension(2, 7), Dimension(6, -1), Dimension(-1, 6), -1, 8}));
 }
 
-TYPED_TEST_P(ArithmeticOperator, dynamic_shape_intervals) {
+TYPED_TEST_P(ArithmeticOperator, dynamic_shape_intervals_broadcast_numpy) {
+    { // Equal rank
     auto A = std::make_shared<op::Parameter>(
         element::f32,
         PartialShape{Dimension(1, 3), Dimension(1, 3), Dimension(1, 3), Dimension(4, 8), -1, 1, -1, 1, 3});
@@ -352,9 +353,38 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_intervals) {
 
     const auto op = std::make_shared<TypeParam>(A, B);
 
-    ASSERT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_output_partial_shape(0),
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0),
               (PartialShape{Dimension(1, 3), Dimension(2, 7), -1, Dimension(4, 8), -1, Dimension(4, 8), -1, 1, 3}));
+    }
+    { // `A` rank smaller
+    auto A = std::make_shared<op::Parameter>(
+        element::f32,
+        PartialShape{Dimension(1, 3), Dimension(4, 8), -1, 1, -1, 1, 3});
+    auto B = std::make_shared<op::Parameter>(
+        element::f32,
+        PartialShape{Dimension(1, 3), Dimension(2, 7), -1, 1, Dimension(1, 3), Dimension(4, 8), -1, 1, 3});
+
+    const auto op = std::make_shared<TypeParam>(A, B);
+
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0),
+              (PartialShape{Dimension(1, 3), Dimension(2, 7), -1, Dimension(4, 8), -1, Dimension(4, 8), -1, 1, 3}));
+    }
+    { // `B` rank smaller
+    auto A = std::make_shared<op::Parameter>(
+        element::f32,
+        PartialShape{Dimension(1, 3), Dimension(2, 7), Dimension(1, 3), Dimension(4, 8), -1, 1, -1, 1, 3});
+    auto B = std::make_shared<op::Parameter>(
+        element::f32,
+        PartialShape{-1, 1, Dimension(1, 3), Dimension(4, 8), -1, 1, 3});
+
+    const auto op = std::make_shared<TypeParam>(A, B);
+
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0),
+              (PartialShape{Dimension(1, 3), Dimension(2, 7), -1, Dimension(4, 8), -1, Dimension(4, 8), -1, 1, 3}));
+    }
 }
 
 TYPED_TEST_P(ArithmeticOperator, dynamic_shape_intervals_broadcast_pdpd) {
