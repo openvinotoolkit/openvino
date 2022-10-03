@@ -40,10 +40,10 @@ public:
     double get_max() const {
         return m_max;
     }
-    void set_min(double x) {
+    void set_min(const double& x) {
         m_min = x;
     }
-    void set_max(double x) {
+    void set_max(const double& x) {
         m_max = x;
     }
     OPENVINO_SUPPRESS_DEPRECATED_START
