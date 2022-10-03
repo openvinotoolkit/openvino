@@ -89,9 +89,9 @@ Try the [Python Quick Start Example](https://docs.openvino.ai/latest/notebooks/2
 
 ### Get started with Python
 Visit the [Tutorials](../tutorials.md) page for more Jupyter Notebooks to get you started with OpenVINO, such as:
-* [OpenVINO Python API Tutorial](https://docs.openvino.ai/latest/notebooks/002-openvino-api-with-output.html)
-* [Basic image classification program with Hello Image Classification](https://docs.openvino.ai/latest/notebooks/001-hello-world-with-output.html)
-* [Convert a PyTorch model and use it for image background removal](https://docs.openvino.ai/latest/notebooks/205-vision-background-removal-with-output.html)
+* [OpenVINO Python API Tutorial](https://docs.openvino.ai/2022.2/notebooks/002-openvino-api-with-output.html)
+* [Basic image classification program with Hello Image Classification](https://docs.openvino.ai/2022.2/notebooks/001-hello-world-with-output.html)
+* [Convert a PyTorch model and use it for image background removal](https://docs.openvino.ai/2022.2/notebooks/205-vision-background-removal-with-output.html)
 
 ### Run OpenVINO on accelerated devices
 OpenVINO Runtime has a plugin architecture that enables you to run inference on multiple devices without rewriting your code. Supported devices include integrated GPUs, discrete GPUs, NCS2, VPUs, and GNAs. Visit the [Additional Configurations](configurations-header.md) page for instructions on how to configure your hardware devices to work with OpenVINO.
