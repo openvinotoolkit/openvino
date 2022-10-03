@@ -44,7 +44,7 @@ namespace v7 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Gelu : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Gelu", "opset7", op::Op, 7);
+    OPENVINO_OP("Gelu", "opset7", util::UnaryElementwiseArithmetic, 7);
     BWDCMP_RTTI_DECLARATION;
 
     Gelu() = default;
@@ -66,7 +66,9 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     GeluApproximationMode get_approximation_mode() const;
-
+    void set_approximation_mode(const GeluApproximationMode& approximation_mode) {
+        m_approximation_mode = approximation_mode;
+    }
 private:
     GeluApproximationMode m_approximation_mode = GeluApproximationMode::ERF;
 };
