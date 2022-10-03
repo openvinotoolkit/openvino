@@ -93,68 +93,67 @@ void refine_anchors(const float* deltas, const float* scores, const float* ancho
     Indexer4d score_idx(anchors_num, 1, bottom_H, bottom_W);
     Indexer4d proposal_idx(bottom_H, bottom_W, anchors_num, 6);
 
-//    seq::parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
-    parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
-            for (int anchor = 0; anchor < anchors_num; ++anchor) {
-                const int a_idx = anchor_idx(h, w, anchor, 0);
-                const int a_idx_offset = anchor_idx(h, w, anchor, 1) - anchor_idx(h, w, anchor, 0);
-                float x0 = anchors[a_idx + 0 * a_idx_offset];
-                float y0 = anchors[a_idx + 1 * a_idx_offset];
-                float x1 = anchors[a_idx + 2 * a_idx_offset];
-                float y1 = anchors[a_idx + 3 * a_idx_offset];
+    seq::parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
+//    parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
+        for (int anchor = 0; anchor < anchors_num; ++anchor) {
+            const int a_idx = anchor_idx(h, w, anchor, 0);
+            const int a_idx_offset = anchor_idx(h, w, anchor, 1) - anchor_idx(h, w, anchor, 0);
+            float x0 = anchors[a_idx + 0 * a_idx_offset];
+            float y0 = anchors[a_idx + 1 * a_idx_offset];
+            float x1 = anchors[a_idx + 2 * a_idx_offset];
+            float y1 = anchors[a_idx + 3 * a_idx_offset];
 
-                const int d_idx = delta_idx(anchor, 0, h, w);
-                const int d_idx_offset = delta_idx(anchor, 1, h, w) - delta_idx(anchor, 0, h, w);
-                const float dx = deltas[d_idx + 0 * d_idx_offset];
-                const float dy = deltas[d_idx + 1 * d_idx_offset];
-                const float d_log_w = deltas[d_idx + 2 * d_idx_offset];
-                const float d_log_h = deltas[d_idx + 3 * d_idx_offset];
+            const int d_idx = delta_idx(anchor, 0, h, w);
+            const int d_idx_offset = delta_idx(anchor, 1, h, w) - delta_idx(anchor, 0, h, w);
+            const float dx = deltas[d_idx + 0 * d_idx_offset];
+            const float dy = deltas[d_idx + 1 * d_idx_offset];
+            const float d_log_w = deltas[d_idx + 2 * d_idx_offset];
+            const float d_log_h = deltas[d_idx + 3 * d_idx_offset];
 
-                const float score = scores[score_idx(anchor, 0, h, w)];
+            const float score = scores[score_idx(anchor, 0, h, w)];
 
-                // width & height of box
-                const float ww = x1 - x0 + coordinates_offset;
-                const float hh = y1 - y0 + coordinates_offset;
-                // center location of box
-                const float ctr_x = x0 + 0.5f * ww;
-                const float ctr_y = y0 + 0.5f * hh;
+            // width & height of box
+            const float ww = x1 - x0 + coordinates_offset;
+            const float hh = y1 - y0 + coordinates_offset;
+            // center location of box
+            const float ctr_x = x0 + 0.5f * ww;
+            const float ctr_y = y0 + 0.5f * hh;
 
-                // new center location according to deltas (dx, dy)
-                const float pred_ctr_x = dx * ww + ctr_x;
-                const float pred_ctr_y = dy * hh + ctr_y;
-                // new width & height according to deltas d(log w), d(log h)
-                const float pred_w = std::exp(std::min(d_log_w, max_delta_log_wh)) * ww;
-                const float pred_h = std::exp(std::min(d_log_h, max_delta_log_wh)) * hh;
+            // new center location according to deltas (dx, dy)
+            const float pred_ctr_x = dx * ww + ctr_x;
+            const float pred_ctr_y = dy * hh + ctr_y;
+            // new width & height according to deltas d(log w), d(log h)
+            const float pred_w = std::exp(std::min(d_log_w, max_delta_log_wh)) * ww;
+            const float pred_h = std::exp(std::min(d_log_h, max_delta_log_wh)) * hh;
 
-                // update upper-left corner location
-                x0 = pred_ctr_x - 0.5f * pred_w;
-                y0 = pred_ctr_y - 0.5f * pred_h;
-                // update lower-right corner location
-                x1 = pred_ctr_x + 0.5f * pred_w - coordinates_offset;
-                y1 = pred_ctr_y + 0.5f * pred_h - coordinates_offset;
+            // update upper-left corner location
+            x0 = pred_ctr_x - 0.5f * pred_w;
+            y0 = pred_ctr_y - 0.5f * pred_h;
+            // update lower-right corner location
+            x1 = pred_ctr_x + 0.5f * pred_w - coordinates_offset;
+            y1 = pred_ctr_y + 0.5f * pred_h - coordinates_offset;
 
-                // adjust new corner locations to be within the image region,
-                x0 = std::max<float>(0.0f, std::min<float>(x0, img_W - coordinates_offset));
-                auto t = std::min<float>(y0, img_H - coordinates_offset);
-                y0 = std::max<float>(0.0f, t);
-                x1 = std::max<float>(0.0f, std::min<float>(x1, img_W - coordinates_offset));
-                y1 = std::max<float>(0.0f, std::min<float>(y1, img_H - coordinates_offset));
+            // adjust new corner locations to be within the image region,
+            x0 = std::max<float>(0.0f, std::min<float>(x0, img_W - coordinates_offset));
+            auto t = std::min<float>(y0, img_H - coordinates_offset);
+            y0 = std::max<float>(0.0f, t);
+            x1 = std::max<float>(0.0f, std::min<float>(x1, img_W - coordinates_offset));
+            y1 = std::max<float>(0.0f, std::min<float>(y1, img_H - coordinates_offset));
 
-                // recompute new width & height
-                const float box_w = x1 - x0 + coordinates_offset;
-                const float box_h = y1 - y0 + coordinates_offset;
+            // recompute new width & height
+            const float box_w = x1 - x0 + coordinates_offset;
+            const float box_h = y1 - y0 + coordinates_offset;
 
-                const int p_idx = proposal_idx(h, w, anchor, 0);
-                proposals[p_idx + 0] = x0;
-                proposals[p_idx + 1] = y0;
-                proposals[p_idx + 2] = x1;
-                proposals[p_idx + 3] = y1;
-                proposals[p_idx + 4] = score;
-                proposals[p_idx + 5] = (min_box_W <= box_w) * (min_box_H <= box_h) * 1.0;
-            }
+            const int p_idx = proposal_idx(h, w, anchor, 0);
+            proposals[p_idx + 0] = x0;
+            proposals[p_idx + 1] = y0;
+            proposals[p_idx + 2] = x1;
+            proposals[p_idx + 3] = y1;
+            proposals[p_idx + 4] = score;
+            proposals[p_idx + 5] = (min_box_W <= box_w) * (min_box_H <= box_h) * 1.0;
         }
     });
-}
+} // namespace
 
 void refine_anchors_jit(const jit_refine_anchors_kernel& refine_anchors_kernel,
                         const int32_t* refine_anchor_indices,
@@ -178,8 +177,8 @@ void refine_anchors_jit(const jit_refine_anchors_kernel& refine_anchors_kernel,
     const uint32_t proposal_anchor_offset = proposal_idx(0, 0, 1, 0) - proposal_idx(0, 0, 0, 0);
     const uint32_t proposal_idx_offset    = proposal_idx(0, 0, 0, 1) - proposal_idx(0, 0, 0, 0);
 
-//    seq::parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
-    parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
+    seq::parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
+//    parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
         const uint32_t anchor_start_idx = anchor_idx(h, w, 0, 0);
         const uint32_t delta_start_idx = delta_idx(0, 0, h, w);
         const uint32_t score_start_idx = score_idx(0, 0, h, w);
@@ -251,7 +250,7 @@ void fill_output_blobs(const float* proposals, const int* roi_indices,
     }
 }
 
-}  // namespace
+} // namespace
 
 bool GenerateProposals::isSupportedOperation
             (const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {

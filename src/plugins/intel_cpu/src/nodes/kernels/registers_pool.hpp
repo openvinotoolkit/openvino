@@ -314,9 +314,32 @@ public:
     IsaRegistersPool() : IsaRegistersPool<x64::avx512_core>() {}
 };
 
-template <x64::cpu_isa_t isa>
-RegistersPool::Ptr RegistersPool::create(std::initializer_list<Xbyak::Reg> regsToExclude) {
-    return std::make_shared<IsaRegistersPool<isa>>(regsToExclude);
+inline
+RegistersPool::Ptr RegistersPool::create(x64::cpu_isa_t isa) {
+#define ISA_SWITCH_CASE(isa) case isa: return std::make_shared<IsaRegistersPool<isa>>();
+    switch (isa) {
+        ISA_SWITCH_CASE(x64::sse41)
+        ISA_SWITCH_CASE(x64::avx)
+        ISA_SWITCH_CASE(x64::avx2)
+        ISA_SWITCH_CASE(x64::avx2_vnni)
+        ISA_SWITCH_CASE(x64::avx512_core)
+        ISA_SWITCH_CASE(x64::avx512_core_vnni)
+        ISA_SWITCH_CASE(x64::avx512_core_bf16)
+        case x64::avx_vnni: return std::make_shared<IsaRegistersPool<x64::avx>>();
+        case x64::avx512_core_bf16_ymm: return std::make_shared<IsaRegistersPool<x64::avx512_core>>();
+        case x64::avx512_core_bf16_amx_int8: return std::make_shared<IsaRegistersPool<x64::avx512_core>>();
+        case x64::avx512_core_bf16_amx_bf16: return std::make_shared<IsaRegistersPool<x64::avx512_core>>();
+        case x64::avx512_core_amx: return std::make_shared<IsaRegistersPool<x64::avx512_core>>();
+        case x64::avx512_vpopcnt: return std::make_shared<IsaRegistersPool<x64::avx512_core>>();
+        case x64::isa_any:
+        case x64::amx_tile:
+        case x64::amx_int8:
+        case x64::amx_bf16:
+        case x64::isa_all:
+            IE_THROW() << "Invalid isa argument in RegistersPool::create()";
+    }
+    IE_THROW() << "Invalid isa argument in RegistersPool::create()";
+#undef ISA_SWITCH_CASE
 }
 
 inline
