@@ -13,9 +13,9 @@ namespace v0 {
 /// \brief Gaussian Error Linear Unit
 /// f(x) = 0.5 * x * (1 + erf( x / sqrt(2) )
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Gelu : public Op {
+class OPENVINO_API Gelu : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Gelu", "opset2", op::Op, 0);
+    OPENVINO_OP("Gelu", "opset2", util::UnaryElementwiseArithmetic, 0);
     BWDCMP_RTTI_DECLARATION;
 
     Gelu();
