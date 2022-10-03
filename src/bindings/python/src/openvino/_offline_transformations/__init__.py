@@ -10,6 +10,7 @@ add_openvino_libs_to_path()
 from openvino.pyopenvino import get_version
 __version__ = get_version()
 
+from openvino.pyopenvino._offline_transformations import apply_fused_names_cleanup
 from openvino.pyopenvino._offline_transformations import apply_moc_transformations
 from openvino.pyopenvino._offline_transformations import apply_moc_legacy_transformations
 from openvino.pyopenvino._offline_transformations import apply_pot_transformations
