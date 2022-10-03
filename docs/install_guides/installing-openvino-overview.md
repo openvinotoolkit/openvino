@@ -38,7 +38,7 @@ The best way to get started with OpenVINO is to install OpenVINO Development Too
 **Python** <br>
 For developers working in Python, OpenVINO Development Tools can easily be installed using PyPI. See the [For Python Developers](installing-model-dev-tools.md#for-python-developers) section of the Install OpenVINO Development Tools page for instructions.
 
-**C++** <br>
+**C++**
 For developers working in C++, the core OpenVINO Runtime libraries must be installed separately. Then, OpenVINO Development Tools can be installed using requirements files or PyPI. See the [For C++ Developers](installing-model-dev-tools.md#for-c-developers) section of the Install OpenVINO Development Tools page for instructions.
 
 ### Option 2. Install OpenVINO Runtime only
