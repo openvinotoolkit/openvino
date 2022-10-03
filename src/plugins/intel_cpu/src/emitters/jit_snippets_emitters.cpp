@@ -636,64 +636,35 @@ void TileEmitter::emit_impl(const std::vector<size_t>& in,
 
 TileBeginEmitter::TileBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                          const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
-    tileBegin = ov::as_type_ptr<ngraph::snippets::op::TileBegin>(n);
-    if (!tileBegin)
+    tile_begin = ov::as_type_ptr<ngraph::snippets::op::TileBegin>(n);
+    if (!tile_begin)
         IE_THROW() << "TileBeginEmitter invoked with invalid op argument";
-    const auto& target_inputs = tileBegin->output(tileBegin->get_output_size() - 1).get_target_inputs();
+    const auto& target_inputs = tile_begin->output(tile_begin->get_output_size() - 1).get_target_inputs();
     // todo: this check could be excessive, since we check for it in validate_and_infer_types()
     if (target_inputs.size() != 1)
-        IE_THROW() << "TileBeginEmitter invoked with invalid op argument";
-    const auto tileEnd = ov::as_type_ptr<ngraph::snippets::op::TileEnd>(target_inputs.begin()->get_node()->shared_from_this());
-    if (!tileEnd)
+        IE_THROW() << "TileBeginEmitter invoked with invalid configuration: the last output must have exactly one input attached";
+    const auto tile_end = ov::as_type_ptr<ngraph::snippets::op::TileEnd>(target_inputs.begin()->get_node()->shared_from_this());
+    if (!tile_end)
         IE_THROW() << "TileBeginEmitter invoked with invalid configuration: the last output must be TileEnd";
-    const auto io_size = tileBegin->get_input_size() + tileEnd->get_output_size();
-    if (tileBegin->get_finalization_offsets().size() != io_size)
-        IE_THROW() << "TileBeginEmitter got invalid op configuration: finalization_offsets size is incorrect";
-    if (tileBegin->get_apply_increment().size() != io_size)
-        IE_THROW() << "TileBeginEmitter got invalid op configuration: apply_increment size is incorrect";
-    num_inputs = tileBegin->get_input_size();
-    num_outputs = tileEnd->get_output_size();
-    increment = tileBegin->get_increment();
-    work_amount = tileBegin->get_work_amount();
+    work_amount = tile_end->get_work_amount();
+    num_inputs = tile_begin->get_output_size() - 1;
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-    /*
-    // todo: add checks on work_amount vs increment consistency + checks on work_amount vs max(last_dim) consistence
-    //  probably better to implement them in Tile* constructors
-    for (int i = 0; i < num_inputs; i++) {
-        // todo: we can take the whole partial shape in future, since it should contain only one dim
-        const auto& last_dim = *(tileBegin->get_input_partial_shape(i).rbegin());
-        io_dims.push_back(last_dim.is_static() ? last_dim.get_length() : 0);
-        io_data_size.push_back(tileBegin->get_input_element_type(i).size());
-    }
-    for (int i = 0; i < num_outputs; i++) {
-        // todo: we can take the whole partial shape in future, since it should contain only one dim
-        const auto& last_dim = *(tileEnd->get_output_partial_shape(i).rbegin());
-        io_dims.push_back(last_dim.is_static() ? last_dim.get_length() : 0);
-        io_data_size.push_back(tileBegin->get_input_element_type(i).size());
-    }
-    size_t num_dynamic_inputs = 0;
-    const bool has_dynamic_dims = std::any_of(io_dims.begin(), io_dims.end(), [](size_t x) {return x == 0;});
-    for (size_t i = 0; i < io_dims.size(); i ++) {
-        // If a last dim is static, but == 1 and there are some dynamic inputs as well,
-        // then treat the dim as dynamic, since we'll now whether it's broadcasted only at runtime
-        if (io_dims[i] == 0 || (io_dims[i] == 1 && has_dynamic_dims)) {
-            dynamic_dims_idx.push_back(i);
-            if (i < num_inputs)
-                num_dynamic_inputs++;
-        } else {
-            static_dims_idx.push_back(i);
-        }
-    }
-    dynamic_increments.resize(dynamic_dims_idx.size());
-    dynamic_broadcasting.resize(num_dynamic_inputs);
-    */
 }
 
 void TileBeginEmitter::emit_code(const std::vector<size_t> &in,
                                  const std::vector<size_t> &out,
                                  const std::vector<size_t> &pool,
                                  const std::vector<size_t> &gpr) const {
+    validate_arguments(in, out, pool, gpr);
     emit_impl(in, out, pool, gpr, nullptr);
+}
+
+void TileBeginEmitter::validate_arguments(const std::vector<size_t> &in,
+                                        const std::vector<size_t> &out,
+                                        const std::vector<size_t> &pool,
+                                        const std::vector<size_t> &gpr) const {
+    if (in.size() != num_inputs)
+        IE_THROW() << "Invalid inputs size: expected " << num_inputs << " got " << in.size();
 }
 
 void TileBeginEmitter::emit_impl(const std::vector<size_t>& in,
@@ -716,37 +687,41 @@ void TileBeginEmitter::emit_impl(const std::vector<size_t>& in,
     // Note: loop address is not calculated at this point, so need to call calcJmpAddress() which is protected
     // or ready(), but they both set internal flags and that's not a desired way to use them.
     // So the most obvious WA is just to use current address manually
-    tileBegin->begin_address = h->getCurr();
-    tileBegin->input_regs = in;
+    tile_begin->begin_address = h->getCurr();
+    tile_begin->input_regs = in;
 }
 
 TileEndEmitter::TileEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                                    const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
-    const auto tileEnd = ov::as_type_ptr<ngraph::snippets::op::TileEnd>(n);
-    if (!tileEnd)
+    tile_end = ov::as_type_ptr<ngraph::snippets::op::TileEnd>(n);
+    if (!tile_end)
         IE_THROW() << "TileEndEmitter invoked with invalid op argument";
-    tileBegin = ov::as_type_ptr<ngraph::snippets::op::TileBegin>(
-            tileEnd->get_input_source_output(tileEnd->get_input_size() - 1).get_node_shared_ptr());
+    tile_begin = tile_end->get_tile_begin();
     // todo: this check could be excessive, since we check for it in validate_and_infer_types()
-    if (!tileBegin)
+    if (!tile_begin)
         IE_THROW() << "TileEndEmitter invoked with invalid configuration: the last arg must be TileBegin";
-    num_inputs = tileBegin->get_input_size();
-    num_outputs = tileEnd->get_output_size();
-    increment = tileBegin->get_increment();
-    work_amount = tileBegin->get_work_amount();
+    // Note that 1 edge connects TileBegin and TileEnd
+    num_inputs = tile_begin->get_output_size() - 1;
+    num_outputs = tile_end->get_input_size() - 1;
+    increment = tile_end->get_increment();
+    work_amount = tile_end->get_work_amount();
+    apply_increments = tile_end->get_apply_increment();
+    finalization_offsets = tile_end->get_finalization_offsets();
+    // dim_idx must be equal for TileBegin and TileEnd
+    const auto dim_idx = tile_end->get_dimension();
     // todo: add checks on work_amount vs increment consistency + checks on work_amount vs max(last_dim) consistence
     //  probably better to implement them in Tile* constructors
     for (int i = 0; i < num_inputs; i++) {
         // todo: we can take the whole partial shape in future, since it should contain only one dim
-        const auto& relevant_dim = tileBegin->get_input_partial_shape(i)[tileBegin->get_dimension()];
+        const auto& relevant_dim = tile_begin->get_input_partial_shape(i)[dim_idx];
         io_dims.push_back(relevant_dim.is_static() ? relevant_dim.get_length() : Subgraph::DYNAMIC_DIMENSION);
-        io_data_size.push_back(tileBegin->get_input_element_type(i).size());
+        io_data_size.push_back(tile_begin->get_input_element_type(i).size());
     }
     for (int i = 0; i < num_outputs; i++) {
         // todo: we can take the whole partial shape in future, since it should contain only one dim
-        const auto& relevant_dim = tileEnd->get_output_partial_shape(i)[tileEnd->get_dimension()];
+        const auto& relevant_dim = tile_end->get_output_partial_shape(i)[dim_idx];
         io_dims.push_back(relevant_dim.is_static() ? relevant_dim.get_length() : Subgraph::DYNAMIC_DIMENSION);
-        io_data_size.push_back(tileBegin->get_input_element_type(i).size());
+        io_data_size.push_back(tile_end->get_input_element_type(i).size());
     }
     size_t num_dynamic_inputs = 0;
     const bool has_dynamic_dims = std::any_of(io_dims.begin(), io_dims.end(), [](size_t x) {return x == Subgraph::DYNAMIC_DIMENSION;});
@@ -770,7 +745,24 @@ void TileEndEmitter::emit_code(const std::vector<size_t> &in,
                                  const std::vector<size_t> &out,
                                  const std::vector<size_t> &pool,
                                  const std::vector<size_t> &gpr) const {
+    validate_arguments(in, out, pool, gpr);
     emit_impl(in, out, pool, gpr, nullptr);
+}
+
+
+void TileEndEmitter::validate_arguments(const std::vector<size_t> &in,
+                                       const std::vector<size_t> &out,
+                                       const std::vector<size_t> &pool,
+                                       const std::vector<size_t> &gpr) const {
+    if (tile_begin->input_regs.size() != num_inputs)
+        IE_THROW() << "Invalid tile_begin->input_regs size: expected " << num_inputs << " got " << tile_begin->input_regs.size();
+    if (out.size() != num_outputs)
+        IE_THROW() << "Invalid number of out arguments: expected " << num_outputs << " got " << out.size();
+    const auto io_size = num_inputs + num_outputs;
+    if (apply_increments.size() != io_size)
+        IE_THROW() << "Invalid apply_increments size: expected " << io_size << " got " << apply_increments.size();
+    if (finalization_offsets.size() != io_size)
+        IE_THROW() << "Invalid finalization_offsets size: expected: " << io_size << " got " << finalization_offsets.size();
 }
 
 void TileEndEmitter::emit_impl(const std::vector<size_t>& in,
@@ -778,7 +770,7 @@ void TileEndEmitter::emit_impl(const std::vector<size_t>& in,
                                  const std::vector<size_t>& pool,
                                  const std::vector<size_t>& gpr,
                                  const ov::intel_cpu::emitter_context *emit_context) const {
-    std::vector<size_t> data_ptr_reg_idxs(tileBegin->input_regs);
+    std::vector<size_t> data_ptr_reg_idxs(tile_begin->input_regs);
     data_ptr_reg_idxs.reserve(num_inputs + num_outputs);
     std::copy(out.begin(), out.end(), std::back_inserter(data_ptr_reg_idxs));
     std::vector<Reg64> data_ptr_regs;
@@ -788,25 +780,19 @@ void TileEndEmitter::emit_impl(const std::vector<size_t>& in,
     // todo: who will increment if there is non-zero outer tile?
 //    if (work_amount == increment)
 //        return;
-    const auto& apply_increments = tileBegin->get_apply_increment();
-    if (apply_increments.size() != data_ptr_regs.size())
-        IE_THROW() << "Inconsistent apply increments and data_ptr_regs size";
     for (int idx = 0; idx < data_ptr_regs.size(); idx++) {
         if (apply_increments[idx])
             h->add(data_ptr_regs[idx], increment * io_data_size[idx]);
     }
     h->sub(reg_work_amount, increment);
     h->cmp(reg_work_amount, increment);
-    h->jge(tileBegin->begin_address);
+    h->jge(tile_begin->begin_address);
 
-    const auto& finalization_offsets = tileBegin->get_finalization_offsets();
-    if (finalization_offsets.size() != data_ptr_regs.size())
-        IE_THROW() << "Inconsistent finalization offsets and data_ptr_regs size";
     for (int idx = 0; idx < data_ptr_regs.size(); idx++) {
         if (finalization_offsets[idx] != 0)
             h->add(data_ptr_regs[idx], finalization_offsets[idx] * io_data_size[idx]);
     }
-    if (tileBegin->get_work_amount() != 0) {
+    if (work_amount != 0) {
         // restore reg state if we've changed it before
         h->pop(reg_work_amount);
     }

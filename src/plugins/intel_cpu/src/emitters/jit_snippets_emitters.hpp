@@ -211,10 +211,10 @@ public:
     size_t get_inputs_num() const override {return 0;}
 
 private:
-//    void validate_arguments(const std::vector<size_t> &in,
-//                            const std::vector<size_t> &out,
-//                            const std::vector<size_t> &pool,
-//                            const std::vector<size_t> &gpr) const override;
+    void validate_arguments(const std::vector<size_t> &in,
+                            const std::vector<size_t> &out,
+                            const std::vector<size_t> &pool,
+                            const std::vector<size_t> &gpr) const override;
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out,
                    const std::vector<size_t>& pool,
@@ -223,7 +223,7 @@ private:
 
 //    mutable const uint8_t** begin_address_ptr;
 //    std::vector<size_t> &input_regs;
-    std::shared_ptr<ngraph::snippets::op::TileBegin> tileBegin;
+    std::shared_ptr<ngraph::snippets::op::TileBegin> tile_begin;
     size_t num_inputs = 0;
     size_t num_outputs = 0;
     std::vector<size_t> io_dims {};
@@ -247,10 +247,11 @@ public:
     size_t get_inputs_num() const override {return 0;}
 
 private:
-//    void validate_arguments(const std::vector<size_t> &in,
-//                            const std::vector<size_t> &out,
-//                            const std::vector<size_t> &pool,
-//                            const std::vector<size_t> &gpr) const override;
+    void validate_arguments(const std::vector<size_t> &in,
+                            const std::vector<size_t> &out,
+                            const std::vector<size_t> &pool,
+                            const std::vector<size_t> &gpr) const override;
+
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out,
                    const std::vector<size_t>& pool,
@@ -258,7 +259,8 @@ private:
                    const ov::intel_cpu::emitter_context *emit_context) const override;
 //    const uint8_t** begin_address_ptr;
 //    std::vector<size_t> &tile_begin_input_regs;
-    std::shared_ptr<ngraph::snippets::op::TileBegin> tileBegin;
+    std::shared_ptr<ngraph::snippets::op::TileBegin> tile_begin;
+    std::shared_ptr<ngraph::snippets::op::TileEnd> tile_end;
 //    std::shared_ptr<ngraph::snippets::op::TileBegin> ti;
 
     size_t num_inputs = 0;
@@ -266,7 +268,9 @@ private:
     std::vector<size_t> io_dims {};
     std::vector<size_t> io_data_size {};
     size_t increment = 0;
-    size_t work_amount = 0; // need to store work_amount explicitly, since two tiles can work on the same dim (e.g. vector + scalar)
+    size_t work_amount = 0;
+    std::vector<bool> apply_increments;
+    std::vector<int64_t> finalization_offsets;
     std::vector<size_t> static_dims_idx {}; // non-zero io_dims indexes == dims that are not broadcasted
     std::vector<size_t> dynamic_dims_idx {}; // non-zero io_dims indexes == dims that are not broadcasted
     mutable std::vector<Label> dynamic_increments;

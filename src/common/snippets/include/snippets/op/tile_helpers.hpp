@@ -12,14 +12,15 @@ namespace ngraph {
 namespace snippets {
 namespace op {
 
-std::shared_ptr<TileBegin> insertTileBeginAfterOutputs(const OutputVector& originalOutputs, size_t dimension, size_t workAmount,
-                                                       size_t increment, std::vector<bool> apply_increment = {},
-                                                       std::vector<int64_t> finalization_offsets = {});
+std::shared_ptr<TileBegin> insertTileBeginAfterOutputs(const OutputVector& originalOutputs);
 
 std::shared_ptr<TileEnd> insertTileEndBeforeInputs(const std::vector<Input<Node>>& originalInputs,
-                                                  const std::shared_ptr<TileBegin>& tileBegin);
-template<typename T, typename ...Args>
-std::shared_ptr<TileBegin> insertTileBegin(const T& afterTheseNodes, Args ...args) {
+                                                  const std::shared_ptr<TileBegin>& tileBegin,
+                                                  size_t dimension, size_t work_amount, size_t increment,
+                                                  std::vector<bool> apply_increment = {},
+                                                  std::vector<int64_t> finalization_offsets = {});
+template<typename T>
+std::shared_ptr<TileBegin> insertTileBegin(const T& afterTheseNodes) {
     static_assert(std::is_same<T, ParameterVector>() || std::is_same<T, NodeVector>(),
                   "Unsupported template parameter for insertTileBegin. Only ParameterVector or NodeVector is allowed");
     OutputVector originalOutputs;
@@ -30,16 +31,16 @@ std::shared_ptr<TileBegin> insertTileBegin(const T& afterTheseNodes, Args ...arg
         std::move(nodeOutputs.begin(), nodeOutputs.end() - 1 * ov::is_type<TileBegin>(n), std::back_inserter(originalOutputs));
     }
 
-    return insertTileBeginAfterOutputs(originalOutputs, args...);
+    return insertTileBeginAfterOutputs(originalOutputs);
 }
 
-template<typename ...Args>
-std::shared_ptr<TileBegin> insertTileBegin(const OutputVector& afterTheseNodes, Args ...args) {
-   return insertTileBeginAfterOutputs(afterTheseNodes, args...);
+template<>
+inline std::shared_ptr<TileBegin> insertTileBegin(const OutputVector& afterTheseNodes) {
+   return insertTileBeginAfterOutputs(afterTheseNodes);
 }
 
-template<typename T>
-std::shared_ptr<TileEnd> insertTileEnd(const T& beforeTheseNodes, const std::shared_ptr<TileBegin>& tileBegin) {
+template<typename T, typename ...Args>
+std::shared_ptr<TileEnd> insertTileEnd(const T& beforeTheseNodes, Args ...args) {
     static_assert(std::is_same<T, ResultVector>() || std::is_same<T, NodeVector>(),
                   "Unsupported template parameter for insertTileBegin. Only ParameterVector or NodeVector is allowed");
     std::vector<Input<Node>> originalInputs;
@@ -48,11 +49,11 @@ std::shared_ptr<TileEnd> insertTileEnd(const T& beforeTheseNodes, const std::sha
         // Ignore the TileBegin->TileEnd edge to facilitate enclosed Tiles construction
         std::move(nodeInputs.begin(), nodeInputs.end() - 1 * ov::is_type<TileEnd>(n), std::back_inserter(originalInputs));
     }
-    return insertTileEndBeforeInputs(originalInputs, tileBegin);
+    return insertTileEndBeforeInputs(originalInputs, args...);
 }
-template<>
-inline std::shared_ptr<TileEnd> insertTileEnd(const std::vector<Input<Node>>& beforeTheseNodes, const std::shared_ptr<TileBegin>& tileBegin) {
-    return insertTileEndBeforeInputs(beforeTheseNodes, tileBegin);
+template<typename ...Args>
+std::shared_ptr<TileEnd> insertTileEnd(const std::vector<Input<Node>>& beforeTheseNodes,  Args ...args) {
+    return insertTileEndBeforeInputs(beforeTheseNodes, args...);
 }
 
 } // namespace op

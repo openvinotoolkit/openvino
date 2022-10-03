@@ -432,6 +432,9 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
     NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
+
+//    ov::pass::Serialize("tile_initial.xml", "tile_initial.bin").run_on_model(m_body);
+
     convert_to_snippet_dialect();
     opt.run_passes(m_body);
 
@@ -475,9 +478,9 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
                                    return ps[outer_dim] == 1 && ps[inner_dim] != 1 ? -inner_WA : 0;
                                });
             }
-                const auto& innerTileBegin = insertTileBegin(commonParams, inner_dim, inner_WA, vector_size, apply_increments,
-                                                 inner_finalization_offsets);
-                insertTileEnd(commonResults, innerTileBegin);
+                const auto& innerTileBegin = insertTileBegin(commonParams);
+                insertTileEnd(commonResults, innerTileBegin, inner_dim, inner_WA, vector_size, apply_increments,
+                              inner_finalization_offsets);
         }
 
         if (outer_WA > 1) {
@@ -488,8 +491,8 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
                            [=](const PartialShape& ps) {
                                return ps[outer_dim] != 1 && ps[inner_dim] == 1;
                            });
-            const auto& outerTileBegin = insertTileBegin(commonParams, outer_dim, outer_WA, 1, apply_increments);
-            insertTileEnd(commonResults, outerTileBegin);
+            const auto& outerTileBegin = insertTileBegin(commonParams);
+            insertTileEnd(commonResults, outerTileBegin, outer_dim, outer_WA, 1, apply_increments);
         }
     } else {
         throw ngraph_error("Dynamic case is not supported yet");

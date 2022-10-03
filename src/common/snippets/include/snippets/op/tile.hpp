@@ -47,56 +47,56 @@ public:
 class TileBase : public ngraph::op::Op {
 public:
     OPENVINO_OP("TileBase", "SnippetsOpset");
-    TileBase(const std::vector<Output<Node>>& args, size_t dimension, size_t workAmount, size_t increment,
-             std::vector<bool> apply_increment, std::vector<int64_t> finalization_offsets);
+    TileBase(const std::vector<Output<Node>>& args, size_t dimension, size_t work_amount, size_t increment);
     TileBase() = delete;
     bool visit_attributes(AttributeVisitor& visitor) override;
-    size_t get_work_amount() {return workAmount;}
-    size_t get_increment() {return increment;}
-    size_t get_dimension() {return dimension;}
-    std::vector<int64_t> get_finalization_offsets() {return finalization_offsets; }
-    const std::vector<bool>& get_apply_increment() {return apply_increment;}
+    size_t get_work_amount() const;
+    size_t get_increment() const;
+    size_t get_dimension() const;
 
 protected:
     size_t dimension;
-    size_t workAmount;
+    size_t work_amount;
     size_t increment;
-    std::vector<bool> apply_increment;
-    std::vector<int64_t> finalization_offsets;
 };
 class TileEnd;
 class TileBegin : public TileBase {
-    friend class TileEnd;
+    friend TileEnd;
 public:
     OPENVINO_OP("TileBegin", "SnippetsOpset");
-    TileBegin(const std::vector<Output<Node>>& args, size_t dimension, size_t workAmount, size_t increment,
-              std::vector<bool> apply_increment, std::vector<int64_t> finalization_offsets);
+    explicit TileBegin(const std::vector<Output<Node>>& args);
     TileBegin() = delete;
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs)  const override;
-    const uint8_t** get_address_ptr() {return &begin_address;}
-    std::vector<size_t>& get_input_regs() {return input_regs;}
-    void set_work_amount(size_t new_work_amount) {workAmount = new_work_amount;}
-    void set_increment(size_t new_increment) {increment = new_increment;}
-    void set_finalization_offsets(std::vector<int64_t> offsets) {finalization_offsets = std::move(offsets);}
     std::shared_ptr<TileEnd> get_tile_end();
+    // begin_address and input_regs are needed to communicate information between TileBegin and TileEnd emitters
     const uint8_t* begin_address;
     std::vector<size_t> input_regs;
 private:
     void validate_and_infer_types_except_TileEnd();
-//    std::vector<size_t> input_regs;
+    TileBegin(const std::vector<Output<Node>>& args, size_t dimension, size_t work_amount, size_t increment);
 };
 
 class TileEnd : public TileBase {
-    friend class TileBegin;
-
 public:
     OPENVINO_OP("TileEnd", "SnippetsOpset");
-    // todo: hide this constructor, as this is not an intended way to create TileEnd
-    explicit TileEnd(const std::vector<Output<Node>>& args);
+    TileEnd(const std::vector<Output<Node>>& args, size_t dimension, size_t work_amount, size_t increment,
+              std::vector<bool> apply_increment, std::vector<int64_t> finalization_offsets);
     TileEnd() = delete;
+    std::shared_ptr<TileBegin> get_tile_begin();
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs)  const override;
+    const std::vector<int64_t>& get_finalization_offsets() const;
+    const std::vector<bool>& get_apply_increment() const;
+    void set_finalization_offsets(std::vector<int64_t> offsets);
+    void set_apply_increment(std::vector<bool> apply_increment);
+    void set_work_amount(size_t new_work_amount);
+    void set_increment(size_t new_increment);
+
+private:
+    std::vector<bool> apply_increment;
+    std::vector<int64_t> finalization_offsets;
+    size_t tile_io_size;
 };
 
 } // namespace op

@@ -8,16 +8,13 @@
 namespace ngraph {
 namespace snippets {
 namespace op {
-std::shared_ptr<TileBegin> insertTileBeginAfterOutputs(const OutputVector& originalOutputs, size_t dimension, size_t workAmount,
-                                                       size_t increment, std::vector<bool> apply_increment,
-                                                       std::vector<int64_t> finalization_offsets) {
+std::shared_ptr<TileBegin> insertTileBeginAfterOutputs(const OutputVector& originalOutputs) {
     std::vector<std::set<Input<Node>>> originalChildInputs;
     for (const auto& out : originalOutputs) {
         originalChildInputs.push_back(out.get_target_inputs());
     }
 
-    auto tileBegin = std::make_shared<TileBegin>(originalOutputs, dimension, workAmount, increment, std::move(apply_increment),
-                                                 std::move(finalization_offsets));
+    auto tileBegin = std::make_shared<TileBegin>(originalOutputs);
 
     for (int i = 0; i < originalChildInputs.size(); i++) {
         for (auto& input : originalChildInputs[i]) {
@@ -28,13 +25,17 @@ std::shared_ptr<TileBegin> insertTileBeginAfterOutputs(const OutputVector& origi
 }
 
 std::shared_ptr<TileEnd> insertTileEndBeforeInputs(const std::vector<Input<Node>>& originalInputs,
-                                                   const std::shared_ptr<TileBegin>& tileBegin) {
+                                                   const std::shared_ptr<TileBegin>& tileBegin,
+                                                   size_t dimension, size_t work_amount, size_t increment,
+                                                   std::vector<bool> apply_increment,
+                                                   std::vector<int64_t> finalization_offsets) {
     OutputVector originalParentOutputs;
     for (const auto& in : originalInputs) {
         originalParentOutputs.push_back(in.get_source_output());
     }
     originalParentOutputs.push_back(tileBegin->output(tileBegin->get_output_size() - 1));
-    auto tileEnd = std::make_shared<TileEnd>(originalParentOutputs);
+    auto tileEnd = std::make_shared<TileEnd>(originalParentOutputs, dimension, work_amount, increment,
+                                             std::move(apply_increment), std::move(finalization_offsets));
 
     for (int i = 0; i < originalInputs.size(); i++) {
         originalInputs[i].replace_source_output(tileEnd->output(i));
