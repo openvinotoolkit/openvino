@@ -35,7 +35,7 @@ Since the 2022.1 release, the OpenVINO installation package is distributed in tw
 ### Option 1. Install OpenVINO Runtime and OpenVINO Development Tools (recommended)
 The best way to get started with OpenVINO is to install OpenVINO Development Tools, which will also install the OpenVINO Runtime Python package as a dependency. Follow the instructions on the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page to install it.
 
-**Python** <br>
+**Python**
 For developers working in Python, OpenVINO Development Tools can easily be installed using PyPI. See the [For Python Developers](installing-model-dev-tools.md#for-python-developers) section of the Install OpenVINO Development Tools page for instructions.
 
 **C++**
