@@ -202,6 +202,53 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_intervals) {
               (PartialShape{Dimension(1, 3), Dimension(2, 7), -1, Dimension(4, 8), -1, Dimension(4, 8), -1, 1, 3}));
 }
 
+TYPED_TEST_P(ArithmeticOperator, dynamic_shape_intervals_broadcast_pdpd) {
+    { // Equal rank
+    auto A = std::make_shared<op::Parameter>(
+        element::f32,
+        PartialShape{Dimension(1, 3), Dimension(2, 7), Dimension(6, -1), Dimension(-1, 6), -1, 8});
+    auto B = std::make_shared<op::Parameter>(
+        element::f32,
+        PartialShape{Dimension(1, 3), Dimension(2, 7), 1, Dimension(-1, 6), -1, 8});
+
+    const auto op = std::make_shared<TypeParam>(A, B, op::AutoBroadcastType::PDPD);
+
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0),
+              (PartialShape{Dimension(1, 3), Dimension(2, 7), Dimension(6, -1), Dimension(-1, 6), -1, 8}));
+    }
+    { // `A` fully dynamic dimension, axis = 0
+    auto A = std::make_shared<op::Parameter>(
+        element::f32,
+        PartialShape{-1, -1});
+    auto B = std::make_shared<op::Parameter>(
+        element::f32,
+        PartialShape{Dimension(1, 3), Dimension(2, 7)});
+
+    const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 0);
+    const auto op = std::make_shared<TypeParam>(A, B, autob);
+
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0),
+              (PartialShape{-1, -1}));
+    }
+    { // `B` fully dynamic dimension, axis = 0
+    auto A = std::make_shared<op::Parameter>(
+        element::f32,
+        PartialShape{Dimension(1, 3), Dimension(2, 7)});
+    auto B = std::make_shared<op::Parameter>(
+        element::f32,
+        PartialShape{-1, -1});
+
+    const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 0);
+    const auto op = std::make_shared<TypeParam>(A, B, autob);
+
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0),
+              (PartialShape{Dimension(1, 3), Dimension(2, 7)}));
+    }
+}
+
 TYPED_TEST_P(ArithmeticOperator, full_dynamic_shape) {
     auto param = std::make_shared<op::Parameter>(element::f64, PartialShape::dynamic());
     const auto op = std::make_shared<TypeParam>(param, param);
