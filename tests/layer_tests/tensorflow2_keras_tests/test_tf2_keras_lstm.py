@@ -46,9 +46,9 @@ class TestKerasLSTM(CommonTF2LayerTest):
         dict(input_names=["x"], input_shapes=[[2, 3, 4]], input_type=tf.float32, units=1,
              activation='elu', recurrent_activation='softmax', dropouts=(.0, .5), use_bias=True,
              flags=(False, False)),
-        dict(input_names=["x"], input_shapes=[[1, 3, 4]], input_type=tf.float32, units=3,
-             activation='linear', recurrent_activation='sigmoid', dropouts=(.4, .6),
-             flags=(False, False), use_bias=True)
+        pytest.param(dict(input_names=["x"], input_shapes=[[1, 3, 4]], input_type=tf.float32, units=3,
+                          activation='linear', recurrent_activation='sigmoid', dropouts=(.4, .6),
+                          flags=(False, False), use_bias=True), marks=pytest.mark.precommit_tf_fe)
     ]
 
     @pytest.mark.parametrize("params", test_data_simple)

@@ -31,8 +31,8 @@ class TestKerasStackedRNNCells(CommonTF2LayerTest):
         return tf2_net, ref_net
 
     test_data = [
-        dict(input_names=["x1"], input_shapes=[[5, 4, 3]], input_type=tf.float32,
-             rnn_cells="LSTMCell"),
+        pytest.param(dict(input_names=["x1"], input_shapes=[[5, 4, 3]], input_type=tf.float32,
+                          rnn_cells="LSTMCell"), marks=pytest.mark.precommit_tf_fe),
         pytest.param(dict(input_names=["x1"], input_shapes=[[5, 4, 3]], input_type=tf.float32,
                           rnn_cells="GRUCell"),
                      marks=pytest.mark.xfail(reason="Needs tensorflow 2.3 or higher version."))

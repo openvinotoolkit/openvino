@@ -82,9 +82,9 @@ class TestKerasGru(CommonTF2LayerTest):
                    use_new_frontend=use_new_frontend, **params)
 
     test_data_different_flags = [
-        dict(input_names=["x"], input_shapes=[[2, 3, 2]], input_type=tf.float32, units=1,
-             activation='elu', recurrent_activation='sigmoid', dropouts=(.0, .3), use_bias=True,
-             flags=(True, False, False)),
+        pytest.param(dict(input_names=["x"], input_shapes=[[2, 3, 2]], input_type=tf.float32, units=1,
+                          activation='elu', recurrent_activation='sigmoid', dropouts=(.0, .3), use_bias=True,
+                          flags=(True, False, False)), marks=pytest.mark.precommit_tf_fe),
         dict(input_names=["x"], input_shapes=[[4, 8, 3]], input_type=tf.float32, dropouts=(.1, .3),
              units=3, activation='relu', use_bias=False, recurrent_activation='tanh',
              flags=(False, True, False)),
