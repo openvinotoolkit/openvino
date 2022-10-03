@@ -11,6 +11,8 @@
 #include "gna_plugin.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "common/versioning.hpp"
+#include "any_copy.hpp"
 
 using namespace ::testing;
 using GNAPluginNS::GNAPlugin;
@@ -18,7 +20,7 @@ using namespace InferenceEngine;
 
 class GNAExportImportTest : public ::testing::Test {
 public:
-    void ExportModel(std::string exportedModelFileName) {
+    void ExportModel(std::string exportedModelFileName, const ov::AnyMap gnaConfig) {
         auto function = getFunction();
         auto weights = make_shared_blob<uint8_t>({ Precision::U8, {1, 10}, Layout::NC });
         weights->allocate();
@@ -29,17 +31,18 @@ public:
         GNACppApi mockApi;
         std::vector<std::vector<uint8_t>> data;
         ExpectEnqueueCalls(&mockApi, data);
-        GNAPlugin plugin(gna_config);
+        GNAPlugin plugin(any_copy(gnaConfig));
 
         plugin.LoadNetwork(cnnNetwork);
         plugin.Export(exportedModelFileName);
     }
 
-    void ImportModel(std::string modelPath) {
+    void ImportModel(std::string modelPath, const ov::AnyMap gnaConfig) {
         GNACppApi mockApi;
         std::vector<std::vector<uint8_t>> data;
         ExpectEnqueueCalls(&mockApi, data);
-        GNAPlugin plugin(gna_config);
+        EXPECT_CALL(mockApi, Gna2RequestWait(_, _)).WillOnce(Return(Gna2StatusSuccess));
+        GNAPlugin plugin(any_copy(gnaConfig));
         std::fstream inputStream(modelPath, std::ios_base::in | std::ios_base::binary);
         if (inputStream.fail()) {
             THROW_GNA_EXCEPTION << "Cannot open file to import model: " << modelPath;
@@ -53,6 +56,14 @@ public:
         AllocateInput(input, &plugin);
         AllocateOutput(output, &plugin);
         plugin.Infer(input, output);
+    }
+
+    std::string ExportImportModelWithLogLevel(const ov::AnyMap gnaConfig) {
+        exported_file_name = "export_test.bin";
+        ExportModel(exported_file_name, gnaConfig);
+        testing::internal::CaptureStdout();
+        ImportModel(exported_file_name, gnaConfig);
+        return testing::internal::GetCapturedStdout();
     }
 
 protected:
@@ -147,26 +158,43 @@ protected:
     void TearDown() override {
         std::remove(exported_file_name.c_str());
     }
-    std::map<std::string, std::string> gna_config;
     std::string exported_file_name;
 };
 
 TEST_F(GNAExportImportTest, ExportImportI16) {
-    ov::AnyMap gna_config = {
+    const ov::AnyMap gna_config = {
         ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
         ov::hint::inference_precision(ngraph::element::i16)
     };
     exported_file_name = "export_test.bin";
-    ExportModel(exported_file_name);
-    ImportModel(exported_file_name);
+    ExportModel(exported_file_name, gna_config);
+    ImportModel(exported_file_name, gna_config);
 }
 
 TEST_F(GNAExportImportTest, ExportImportI8) {
-    ov::AnyMap gna_config = {
+    const ov::AnyMap gna_config = {
         ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
         ov::hint::inference_precision(ngraph::element::i8)
     };
     exported_file_name = "export_test.bin";
-    ExportModel(exported_file_name);
-    ImportModel(exported_file_name);
+    ExportModel(exported_file_name, gna_config);
+    ImportModel(exported_file_name, gna_config);
+}
+
+TEST_F(GNAExportImportTest, HideLibVersionFromModelInLogNoMode) {
+    const ov::AnyMap gna_config = {ov::log::level(ov::log::Level::NO)};
+    EXPECT_THAT(ExportImportModelWithLogLevel(gna_config),
+        Not(HasSubstr(ov::intel_gna::common::get_openvino_version_string())));
+}
+
+TEST_F(GNAExportImportTest, HideLibVersionFromModelInLogWarnMode) {
+    const ov::AnyMap gna_config = {ov::log::level(ov::log::Level::WARNING)};
+    EXPECT_THAT(ExportImportModelWithLogLevel(gna_config),
+        Not(HasSubstr(ov::intel_gna::common::get_openvino_version_string())));
+}
+
+TEST_F(GNAExportImportTest, ShowLibVersionFromModelInLogDebugMode) {
+    const ov::AnyMap gna_config = {ov::log::level(ov::log::Level::DEBUG)};
+    EXPECT_THAT(ExportImportModelWithLogLevel(gna_config),
+        HasSubstr(ov::intel_gna::common::get_openvino_version_string()));
 }

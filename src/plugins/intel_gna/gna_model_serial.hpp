@@ -17,6 +17,15 @@
 #include "gna_device_allocation.hpp"
 
 /**
+ * @brief helper class for GNAGraph serialization tasks
+ */
+class GNAVersionSerializer {
+public:
+    void Export(std::ostream& os) const;
+    std::string Import(std::istream& is) const;
+};
+
+/**
  * @brief implements serialization tasks for GNAGraph
  */
 class GNAModelSerial {
@@ -31,6 +40,7 @@ private:
     TranspositionInfoMap inputs_transpose_info_;
     TranspositionInfoMap outputs_transpose_info_;
     GNAPluginNS::HeaderLatest::ModelHeader model_header_;
+    GNAVersionSerializer version_;
 
     void ImportInputs(std::istream &is, void* basePtr, GNAPluginNS::GnaInputs &inputs);
 
@@ -47,12 +57,17 @@ private:
     void AppendTensorNameIfNeeded(GNAPluginNS::GnaDesc& nodeDesc) const;
 
  public:
-    GNAModelSerial(Gna2Model * model, MemoryType & states_holder)
-        : gna2model_(model), pstates_(&states_holder) {
+    GNAModelSerial(Gna2Model* model, MemoryType& states_holder)
+         : gna2model_(model),
+           pstates_(&states_holder) {
     }
 
-    GNAModelSerial(Gna2Model * model, GNAPluginNS::GnaInputs &inputs, GNAPluginNS::GnaOutputs &outputs)
-        : gna2model_(model), inputs_(inputs), outputs_(outputs) {
+    GNAModelSerial(Gna2Model* model,
+                   GNAPluginNS::GnaInputs& inputs,
+                   GNAPluginNS::GnaOutputs& outputs)
+        : gna2model_(model),
+          inputs_(inputs),
+          outputs_(outputs) {
     }
 
     void setHeader(GNAPluginNS::HeaderLatest::ModelHeader header) {
@@ -103,7 +118,8 @@ private:
                 GNAPluginNS::GnaInputs &inputs,
                 GNAPluginNS::GnaOutputs &outputs,
                 TranspositionInfoMap& inputstranspositionInfo,
-                TranspositionInfoMap& outputstranspositionInfo);
+                TranspositionInfoMap& outputstranspositionInfo,
+                std::string& modelLibVersion);
 
     /**
      * save gna graph to an outpus stream
