@@ -907,7 +907,7 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
 
 def insert_output_fake_quantize(graph, node, hw_config=None, ignored_params=None):
     activation_nodes_type = ['Power', 'Sigmoid', 'Tanh', 'ReLU', 'PReLU',
-                            'Clamp', 'Log', 'Abs', 'Exp', 'Sign']
+                            'Clamp', 'Log', 'Abs', 'Exp', 'Sign', 'SoftSign']
 
     new_fq = []
     for out_port_id, port in node.out_ports().items():

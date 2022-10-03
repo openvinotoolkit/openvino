@@ -29,6 +29,7 @@ TEST_MODELS = [
     #('multiple_outputs_net_example', 'tf', 'GNA'),
     ('resnet_example', 'pytorch', 'CPU_SPR'),
     #('tensor_iterator_example', 'tf', 'ANY'),
+    ('softsign_example', 'tf', 'GNA'),
 ]
 
 
