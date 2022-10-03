@@ -17,7 +17,7 @@ except ImportError:
 
 from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
 from openvino.tools.mo.moc_frontend.check_config import legacy_transformations_config_used, \
-    new_extensions_used, new_transformations_config_used, input_freezig_used
+    new_extensions_used, new_transformations_config_used
 from openvino.tools.mo.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.mo.moc_frontend.serialize import moc_emit_ir
 from openvino.tools.mo.graph.graph import Graph
@@ -303,8 +303,12 @@ def check_fallback(argv: argparse.Namespace):
     if not any(deduce_legacy_frontend_by_namespace(argv)):
         return fallback_reasons
 
-    # There is no possibility for fallback if a user strictly wants to use new frontend
-    if argv.use_new_frontend:
+    # TODO: Remove this workaround once TensorFlow Frontend becomes default
+    # For testing purpose of TensorFlow Frontend and its fallback,
+    # preserve fallback capability despite of specified use_new_frontend option
+    # There is no possibility for fallback if a user strictly wants to use new frontend (except TF FE now)
+    is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
+    if argv.use_new_frontend and not is_tf:
         return fallback_reasons
 
     fallback_reasons['extensions'] = legacy_extensions_used
