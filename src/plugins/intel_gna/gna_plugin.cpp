@@ -92,6 +92,7 @@
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 #include "transformations/insert_copy_layer.hpp"
 #include "transformations/split_eltwise.hpp"
+#include "transformations/markup_fusable_transpose.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -723,6 +724,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+        manager.register_pass<ov::intel_gna::pass::MarkupFusableTranspose>();
         manager.register_pass<ov::intel_gna::pass::RemoveExtraReshapes>();
         /*
           Put BroadcastAddMultiplyConst here after ConvertOpSet..() transformations since there are conficts with them.

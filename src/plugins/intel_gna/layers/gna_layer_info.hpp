@@ -19,6 +19,7 @@
 #include "ops/pwl.hpp"
 #include "layers/gna_crop_layer.hpp"
 #include "backend/gna_limitations.hpp"
+#include "transformations/rt_info/gna_transpose_fusable.hpp"
 
 namespace GNAPluginNS {
 
@@ -285,6 +286,9 @@ class LayerInfo {
     bool isPermute() const noexcept {
         return isOfType("permute");
     }
+    bool isPermuteFusable() const noexcept {
+        return isPermute() && (layer->params.count(ov::intel_gna::rt_info::GNATransposeFusable::get_type_info_static()) > 0);
+    }
     bool isPermuteViaReshape() const {
         if (!isOfType("reshape")) return false;
 
@@ -303,15 +307,14 @@ class LayerInfo {
         }
         return true;
     }
+
     // @brief this not only mathematically trivial, has some WA for kaldi case
     bool isTrivialPermute() const {
         if (!isPermute()) return false;
 
-        auto layerOrder = layer->GetParamAsInts("order");
+        if (isPermuteFusable()) return true;
 
-        if (layerOrder == std::vector<int>({ 0, 3, 2, 1 })) {
-            return true;  // supported case
-        }
+        auto layerOrder = layer->GetParamAsInts("order");
         if (layer->insData.empty()) {
             return false;  // unsupported case
         }

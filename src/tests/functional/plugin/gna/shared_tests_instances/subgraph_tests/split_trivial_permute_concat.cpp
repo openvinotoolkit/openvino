@@ -18,10 +18,10 @@ namespace {
     };
 
     std::vector<std::vector<size_t>> inputSizes = {
-        { 4, 2, 64, 6 },
-        { 4, 16, 4, 128},
-        { 2, 10, 16, 64},
-        { 2, 32, 64, 2},
+        { 1, 128, 1, 8 },
+        { 1, 4, 1, 128 },
+        { 1, 16, 1, 128 },
+        { 1, 128, 1, 2 },
     };
 
     std::vector<size_t> split_axes = { 1 }; // only channels split is currently supported by gna for 4d inputs
