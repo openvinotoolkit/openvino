@@ -18,6 +18,7 @@
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 
+#include "openvino/op/util/attr_types.hpp"
 
 using namespace ngraph;
 
