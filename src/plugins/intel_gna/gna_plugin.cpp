@@ -1594,6 +1594,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     auto header = GNAModelSerial::ReadHeader(networkModel);
 
     void* basePtr = nullptr;
+    std::string modelLibVersion;  //!< OpenVINO and GNA Library versions read from GNA model file
 
     gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(nullptr, &basePtr, header.gnaMemSize);
 
@@ -1603,7 +1604,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     GNAModelSerial::MemoryType mt;
     auto serial = GNAModelSerial(&model->object(), mt);
 
-
     serial.setHeader(header);
     serial.Import(basePtr,
                   header.gnaMemSize,
@@ -1611,7 +1611,18 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
                   *(inputs_ptr_),
                   outputs_,
                   transpose_inputs_info,
-                  transpose_outputs_info);
+                  transpose_outputs_info,
+                  modelLibVersion);
+
+    // Print OV and GNA Lib versions used for model export
+    if (gnaFlags->log_level >= ov::log::Level::DEBUG) {
+        if (modelLibVersion.length()) {
+            std::cout << modelLibVersion << std::endl;
+        } else {
+            std::cout << "Unable to read OpenVINO or GNA Library version from model file, consider model export with current "
+                    "version of GNA plugin" << std::endl;
+        }
+    }
 
     trivialTopology = (model->object().NumberOfOperations == 0);
 
