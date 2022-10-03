@@ -18,6 +18,7 @@ set (SRC
     )
 
 add_library(interpreter_backend STATIC EXCLUDE_FROM_ALL ${SRC})
+add_library(openvino::interpreter_backend ALIAS interpreter_backend)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wno-missing-declarations)

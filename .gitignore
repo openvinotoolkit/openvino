@@ -23,7 +23,6 @@ doc/
 docs/build_documentation/work_dir/
 temp/
 .repo/
-docs/template_plugin/html/
 CMakeLists.txt.user
 docs/IE_PLUGIN_DG/html/
 
