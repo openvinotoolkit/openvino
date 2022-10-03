@@ -19,8 +19,6 @@ function(add_common_utils ADD_TARGET_NAME)
                     gtest
                     gtest_main
                     ngraphFunctions
-                    openvino::runtime
-                    openvino::runtime::dev
                 PRIVATE
                     openvino::util
     )
@@ -29,7 +27,7 @@ function(add_common_utils ADD_TARGET_NAME)
     if(ARGN)
         target_link_libraries(${ADD_TARGET_NAME} PRIVATE inference_engine_s)
     else()
-        target_link_libraries(${ADD_TARGET_NAME} PRIVATE inference_engine_legacy)
+        target_link_libraries(${ADD_TARGET_NAME} PRIVATE inference_engine_legacy openvino::runtime openvino::runtime::dev)
     endif()
 
     ie_faster_build(${ADD_TARGET_NAME}
