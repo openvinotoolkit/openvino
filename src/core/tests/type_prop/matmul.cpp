@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
+#include "dimension_tracker.hpp"
+#include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
 
 TEST(type_prop, matmul_2D_same) {
     auto A = make_shared<op::Parameter>(element::f32, Shape{2, 2});
@@ -471,4 +473,56 @@ TEST(type_prop, matmul_incompatible_batch_dim_bounds) {
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
     ASSERT_EQ(matmul->get_output_partial_shape(0), expected_output_shape);
+}
+
+TEST(type_prop, matmul_propagate_labels) {
+    const auto a_labels = std::vector<size_t>{1, 0, 2, 5, 6};
+    const auto b_labels = std::vector<size_t>{0, 1, 3, 7, 9};
+
+    auto a_shape = PartialShape{4, 2, 3, 6, 4};
+    auto b_shape = PartialShape{4, 2, 3, 4, 2};
+
+    set_shape_labels(a_shape, a_labels);
+    set_shape_labels(b_shape, b_labels);
+
+    const auto a = make_shared<op::Parameter>(element::f32, a_shape);
+    const auto b = make_shared<op::Parameter>(element::f32, b_shape);
+
+    const auto matmul = make_shared<op::MatMul>(a, b, false, false);
+    const auto& output_shape = matmul->get_output_partial_shape(0);
+    const auto labels = get_shape_labels(output_shape);
+
+    ASSERT_THAT(labels,
+                ElementsAre(a_labels[0],  // use a label, b is not set
+                            b_labels[1],  // use b label, a is not set
+                            0,            // not set label. a,b has different labels
+                            a_labels[3],  // use label from a, b is lost
+                            b_labels[4]   // use label from b, a is lost
+                            ));
+}
+
+TEST(type_prop, matmul_propagate_labels_when_dynamic_dims) {
+    const auto a_labels = std::vector<size_t>{1, 0, 3, 4, 5};
+    const auto b_labels = std::vector<size_t>{0, 1, 3, 4, 7};
+
+    auto a_shape = PartialShape{Dimension(1, 3), 1, Dimension(2, 3), Dimension(3, 4), 4};
+    auto b_shape = PartialShape{1, Dimension(1, 5), Dimension(1, 3), 4, Dimension::dynamic()};
+
+    set_shape_labels(a_shape, a_labels);
+    set_shape_labels(b_shape, b_labels);
+
+    const auto a = make_shared<op::Parameter>(element::f32, a_shape);
+    const auto b = make_shared<op::Parameter>(element::f32, b_shape);
+
+    const auto matmul = make_shared<op::MatMul>(a, b, false, false);
+    const auto& output_shape = matmul->get_output_partial_shape(0);
+    const auto labels = get_shape_labels(output_shape);
+
+    ASSERT_THAT(labels,
+                ElementsAre(a_labels[0],  // use a label, b is not set
+                            b_labels[1],  // use b label, a is not set
+                            a_labels[2],  // use a label, b is same
+                            a_labels[3],  // use label from a, b is lost
+                            b_labels[4]   // use label from a, b is lost
+                            ));
 }
