@@ -90,16 +90,16 @@ jobs:
 
   steps:
     - script: |
-      curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
-      whoami
-      uname -a
-      echo Python3 info ; which python3 ; python3 --version
-      echo Python info ; which python ; python --version
-      echo Java info ; which java ; java -version
-      echo gcc info ; which gcc ; gcc --version
-      echo cmake info ; which cmake ; cmake --version
-      lsb_release
-      env
+        curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
+        whoami
+        uname -a
+        echo Python3 info ; which python3 ; python3 --version
+        echo Python info ; which python ; python --version
+        echo Java info ; which java ; java -version
+        echo gcc info ; which gcc ; gcc --version
+        echo cmake info ; which cmake ; cmake --version
+        lsb_release
+        env
       cat /proc/cpuinfo
       cat /proc/meminfo
       cat /etc/fstab
@@ -455,12 +455,12 @@ jobs:
     displayName: 'TensorFlow 1 Layer Tests - TF FE'
     continueOnError: false
 
-  - script: |
-      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
-      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
-      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
-    displayName: 'TensorFlow 1 Layer Tests - Legacy FE'
-    continueOnError: false
+    - script: |
+        python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+        export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
+        $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
+      displayName: 'TensorFlow 1 Layer Tests - Legacy FE'
+      continueOnError: false
 
     - script: |
         python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
@@ -488,6 +488,6 @@ jobs:
         mergeTestResults: false # Optional
         #failTaskOnFailedTests: false # Optional
         #testRunTitle: 'Pre/Post-Commit' # Optional
-      buildPlatform: 'x64' # Optional
-      buildConfiguration: 'Linux' # Optional
-      #publishRunAttachments: true # Optional
+        buildPlatform: 'x64' # Optional
+        buildConfiguration: 'Linux' # Optional
+        #publishRunAttachments: true # Optional
