@@ -113,6 +113,7 @@ function(register_extra_modules)
     if(ENABLE_TEMPLATE)
         list(APPEND extra_modules "${OpenVINO_SOURCE_DIR}/src/plugins/template")
     endif()
+    list(APPEND extra_modules "${OpenVINO_SOURCE_DIR}/src/core/template_extension")
 
     # add each extra module
     foreach(module_path IN LISTS extra_modules)

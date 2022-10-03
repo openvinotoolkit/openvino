@@ -863,9 +863,9 @@ EXCLUDE_SYMBOLS        =
 # command).
 
 EXAMPLE_PATH           = ../../src/plugins/ \
-                         ../../src/plugins/template/plugin/tests/functional/CMakeLists.txt \
-                         ../../src/plugins/template/plugin/tests/functional/transformations \
-                         ../../src/plugins/template/plugin/tests/functional/shared_tests_instances/ \
+                         ../../src/plugins/template/tests/functional/CMakeLists.txt \
+                         ../../src/plugins/template/tests/functional/transformations \
+                         ../../src/plugins/template/tests/functional/shared_tests_instances/ \
                          ../../src/tests/functional/plugin/shared/include \
                          ../snippets
 

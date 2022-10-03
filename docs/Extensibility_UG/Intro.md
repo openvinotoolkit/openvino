@@ -68,7 +68,7 @@ Remaining part of this guide uses Frontend Extension API applicable for new fron
 
 A custom operation class and a new mapping frontend extension class object should be registered to be usable in OpenVINO runtime.
 
-> **NOTE**: This documentation is written based on the [Template extension](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/template/extension/new), which demonstrates extension development details based on minimalistic `Identity` operation that is a placeholder for your real custom operation. You can review the complete code, which is fully compliable, to see how it works.
+> **NOTE**: This documentation is written based on the [Template extension](https://github.com/openvinotoolkit/openvino/tree/master/src/core/template_extension/new), which demonstrates extension development details based on minimalistic `Identity` operation that is a placeholder for your real custom operation. You can review the complete code, which is fully compliable, to see how it works.
 
 To load the extensions to the `ov::Core` object, use the `ov::Core::add_extension` method, this method allows to load library with extensions or extensions from the code.
 
@@ -127,18 +127,18 @@ This macro should have a vector of all OpenVINO™ Extensions as an argument.
 
 Based on that, the declaration of an extension class can look as follows:
 
-@snippet template/extension/new/ov_extension.cpp ov_extension:entry_point
+@snippet template_extension/new/ov_extension.cpp ov_extension:entry_point
 
 To configure the build of your extension library, use the following CMake script:
 
-@snippet template/extension/new/CMakeLists.txt cmake:extension
+@snippet template_extension/new/CMakeLists.txt cmake:extension
 
 This CMake script finds the OpenVINO™ using the `find_package` CMake command.
 
 To build the extension library, run the commands below:
 
 ```sh
-$ cd src/plugins/template/extension/new
+$ cd src/core/template_extension/new
 $ mkdir build
 $ cd build
 $ cmake -DOpenVINO_DIR=<OpenVINO_DIR> ../
