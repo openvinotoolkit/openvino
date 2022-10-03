@@ -124,6 +124,9 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     inference_engine_lp_transformations
     )
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    target_link_options(${TARGET_NAME} PUBLIC /NODEFAULTLIB:inference_engine_s.lib)
+endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT ENABLE_SANITIZER)
     # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")

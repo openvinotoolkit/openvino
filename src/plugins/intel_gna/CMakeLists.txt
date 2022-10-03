@@ -82,6 +82,10 @@ target_include_directories(${TARGET_NAME}_test_static
         $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
 set_target_properties(${TARGET_NAME}_test_static PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_test_static)
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    target_link_options(${TARGET_NAME}_test_static PUBLIC /NODEFAULTLIB:inference_engine_s.lib)
+endif()
+
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_test_static
                       PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
