@@ -43,7 +43,7 @@ For developers working in C++, the core OpenVINO Runtime libraries must be insta
 
 ### Option 2. Install OpenVINO Runtime only
 
-The OpenVINO Runtime may also be installed on its own without OpenVINO Development Tools. This is recommended for users who already have an optimized model and want to deploy it in an application that uses OpenVINO for inference on their device. To install OpenVINO Runtime only, follow the instructions on the [Install OpenVINO Runtime](installing-openvino-runtime.md) page.
+OpenVINO Runtime may also be installed on its own without OpenVINO Development Tools. This is recommended for users who already have an optimized model and want to deploy it in an application that uses OpenVINO for inference on their device. To install OpenVINO Runtime only, follow the instructions on the [Install OpenVINO Runtime](installing-openvino-runtime.md) page.
 
 The following methods are available to install OpenVINO Runtime:
 
