@@ -18,10 +18,10 @@ namespace pass {
 
 // This transformation handles BlockLSTM with just one output, concatenation of all the intermediate
 // output values of the hidden.
-class TENSORFLOW_API BlockLSTMToLSTMSequenceOneOutput : public ov::pass::MatcherPass {
+class TENSORFLOW_API BlockLSTMReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow::pass::BlockLSTMToLSTMSequenceOneOutput");
-    BlockLSTMToLSTMSequenceOneOutput();
+    OPENVINO_RTTI("ov::frontend::tensorflow::pass::BlockLSTMReplacer");
+    BlockLSTMReplacer();
 };
 
 }  // namespace pass
