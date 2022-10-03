@@ -69,6 +69,7 @@ public:
     void set_approximation_mode(const GeluApproximationMode& approximation_mode) {
         m_approximation_mode = approximation_mode;
     }
+
 private:
     GeluApproximationMode m_approximation_mode = GeluApproximationMode::ERF;
 };
