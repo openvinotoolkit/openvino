@@ -26,6 +26,3 @@ addIeTarget(
             PRIVATE
                 $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
 )
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    target_link_options(${TARGET_NAME} PUBLIC /NODEFAULTLIB:inference_engine_s.lib)
-endif()

@@ -33,10 +33,6 @@ addIeTargetTest(
             CPU
 )
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    target_link_options(${TARGET_NAME} PUBLIC /NODEFAULTLIB:inference_engine_s.lib)
-endif()
-
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
 
