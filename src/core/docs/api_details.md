@@ -2,7 +2,7 @@
 
 OpenVINO Core API contains two folders:
  * [ngraph](../include/ngraph/) - is a legacy API, this API is not developed more. Only aliases to new operation and operation sets extend this API.
- * [openvino](../include/openvino/) - current public API, this part will be described below.
+ * [openvino](../include/openvino/) - current public API, this part is described below.
 
 ## Structure of Core API
 <pre>
