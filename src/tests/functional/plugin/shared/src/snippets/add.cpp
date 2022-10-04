@@ -6,6 +6,7 @@
 #include "snippets/add.hpp"
 #include "subgraph_simple.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 namespace ov {
 namespace test {
@@ -113,6 +114,7 @@ TEST_P(AddSinhConst, CompareWithRefImpl) {
 }
 
 TEST_P(AddSinhDynamic, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     enableSnippetsDynamismSupport();
     run();
     validateNumSubgraphs();

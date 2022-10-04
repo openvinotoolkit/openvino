@@ -164,6 +164,9 @@ std::vector<std::string> disabledTestPatterns() {
         // is shared across plugins
         // passed local test and cpu has specific test cases with nms9 to cover
         R"(smoke_NmsLayerTest.*)",
+        // Issue: 75546
+        R"(smoke_Snippets_Eltwise/AddSinhDynamic.*)",
+        R"(smoke_Snippets_Eltwise/ThreeInputsEltwiseSinhDynamic.*)"
     };
 
 #define FIX_62820 0
