@@ -172,7 +172,9 @@ ov_install_static_lib(fluid ${OV_CPACK_COMP_CORE})
 #
 
 if(NOT APPLE AND NOT DEFINED ENV{CONDA_PREFIX})
-    # on Apple only dynamic libraries are available
+    # - conda-forge contains only dynamic libraries
+    # - on Apple only dynamic libraries are available
+    #   also, we can easily mix arm64 and x86_64 binaries when cross-compile for Intel CPU
     find_package(gflags QUIET COMPONENTS nothreads_static)
 endif()
 
