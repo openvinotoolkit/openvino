@@ -106,14 +106,11 @@ jobs:
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '3.10'
-      #disableDownloadFromRegistry: false # boolean. Disable downloading releases from the GitHub registry. Default: false.
-      #allowUnstable: false # boolean. Optional. Use when disableDownloadFromRegistry = false. Allow downloading unstable releases. Default: false.
-      #githubToken: # string. Optional. Use when disableDownloadFromRegistry = false. GitHub token for GitHub Actions python registry. 
-      addToPath: false # boolean. Required. Add to PATH. Default: true.
-    # Advanced
-      architecture: 'x64' # 'x86' | 'x64'. Required. Architecture. Default: x64.
+      addToPath: false
+      architecture: 'x64'
+    displayName: 'Check python 3.10'
     
-  - script: python3.10 --version
+  - script: echo '$(pythonLocation)'
     displayName: 'Check python 3.10'
 
   - checkout: self
