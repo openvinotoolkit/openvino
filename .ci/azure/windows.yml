@@ -73,7 +73,7 @@ jobs:
     CMAKE_VERSION: 3.21.0
     CMAKE_CMD: $(WORK_DIR)\cmake-$(CMAKE_VERSION)-windows-x86_64\cmake-$(CMAKE_VERSION)-windows-x86_64\bin\cmake.exe
     OV_CMAKE_TOOLCHAIN_FILE: $(REPO_DIR)\cmake\toolchains\mt.runtime.win32.toolchain.cmake
-    GITHUB_TOKEN: $(GITHUB_TOKEN)
+    GITHUB_TOKEN: $(githubToken)
 
   steps:
   - script: |
