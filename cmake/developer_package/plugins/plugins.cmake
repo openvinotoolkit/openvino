@@ -329,8 +329,8 @@ function(ie_generate_plugins_hpp)
 
     # add plugins to libraries including ie_plugins.hpp
     ie_target_link_plugins(openvino)
-    if(TARGET inference_engine_s)
-        ie_target_link_plugins(inference_engine_s)
+    if(TARGET openvino_s)
+        ie_target_link_plugins(openvino_s)
     endif()
 
     set(ie_plugins_hpp "${CMAKE_BINARY_DIR}/src/inference/ie_plugins.hpp")
