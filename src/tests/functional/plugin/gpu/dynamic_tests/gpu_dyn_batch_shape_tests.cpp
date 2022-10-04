@@ -87,10 +87,12 @@ TEST_P(OVDynamicBatchShape_Tests, InferDynamicBatchBound) {
 }
 
 namespace {
-const ov::AnyMap config = {};
+auto config = []() {
+    return ov::AnyMap{};
+};
 
-const ov::AnyMap hetero_config = {
-    {"TARGET_FALLBACK", CommonTestUtils::DEVICE_GPU}
+auto hetero_config = []() {
+    return ov::AnyMap{{"TARGET_FALLBACK", CommonTestUtils::DEVICE_GPU}};
 };
 
 const std::vector<InputShape> inputShapes = {
@@ -107,7 +109,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPU_DynBatch, OVDynamicBatchShape_Tests,
         ::testing::Values(inputShapes),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::Values(config)),
+        ::testing::Values(config())),
     OVDynamicBatchShape_Tests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GPU_DynBatchHetero, OVDynamicBatchShape_Tests,
@@ -115,6 +117,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPU_DynBatchHetero, OVDynamicBatchShape_Tests,
         ::testing::Values(inputShapes),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-        ::testing::Values(hetero_config)),
+        ::testing::Values(hetero_config())),
     OVDynamicBatchShape_Tests::getTestCaseName);
 }  // namespace

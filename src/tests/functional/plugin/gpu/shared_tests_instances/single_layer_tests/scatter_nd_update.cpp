@@ -42,12 +42,12 @@ const std::vector<InferenceEngine::Precision> idxPrecisions = {
         InferenceEngine::Precision::I64,
 };
 
-const auto ScatterNDUpdateCases = ::testing::Combine(
-        ::testing::ValuesIn(ScatterNDUpdateLayerTest::combineShapes(sliceSelectInShape)),
-        ::testing::ValuesIn(inputPrecisions),
-        ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
-);
-
-INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate, ScatterNDUpdateLayerTest, ScatterNDUpdateCases, ScatterNDUpdateLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_ScatterNDUpdate,
+    ScatterNDUpdateLayerTest,
+    ::testing::Combine(::testing::ValuesIn(ScatterNDUpdateLayerTest::combineShapes(sliceSelectInShape)),
+                       ::testing::ValuesIn(inputPrecisions),
+                       ::testing::ValuesIn(idxPrecisions),
+                       ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+    ScatterNDUpdateLayerTest::getTestCaseName);
 }  // namespace

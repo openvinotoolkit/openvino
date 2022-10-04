@@ -24,27 +24,26 @@ const std::vector<InferenceEngine::Precision> idxPrecisions = {
 
 std::vector<bool> mergeRepeated{true, false};
 
-const auto basicCases = ::testing::Combine(
-    ::testing::ValuesIn(inputShape),
-    ::testing::Values(10),
-    ::testing::ValuesIn(probPrecisions),
-    ::testing::ValuesIn(idxPrecisions),
-    ::testing::Values(0),
-    ::testing::ValuesIn(mergeRepeated),
-    ::testing::Values(CommonTestUtils::DEVICE_GPU));
+INSTANTIATE_TEST_SUITE_P(smoke_set1,
+                         CTCGreedyDecoderSeqLenLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShape),
+                                            ::testing::Values(10),
+                                            ::testing::ValuesIn(probPrecisions),
+                                            ::testing::ValuesIn(idxPrecisions),
+                                            ::testing::Values(0),
+                                            ::testing::ValuesIn(mergeRepeated),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         CTCGreedyDecoderSeqLenLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_set1, CTCGreedyDecoderSeqLenLayerTest,
-                        basicCases,
-                        CTCGreedyDecoderSeqLenLayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_set2, CTCGreedyDecoderSeqLenLayerTest,
-        ::testing::Combine(
-                        ::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 8, 11}, {4, 10, 55}}),
-                        ::testing::ValuesIn(std::vector<int>{5, 100}),
-                        ::testing::ValuesIn(probPrecisions),
-                        ::testing::ValuesIn(idxPrecisions),
-                        ::testing::ValuesIn(std::vector<int>{0, 5, 10}),
-                        ::testing::ValuesIn(mergeRepeated),
-                        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
-                    CTCGreedyDecoderSeqLenLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_set2,
+                         CTCGreedyDecoderSeqLenLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 8, 11},
+                                                                                                 {4, 10, 55}}),
+                                            ::testing::ValuesIn(std::vector<int>{5, 100}),
+                                            ::testing::ValuesIn(probPrecisions),
+                                            ::testing::ValuesIn(idxPrecisions),
+                                            ::testing::ValuesIn(std::vector<int>{0, 5, 10}),
+                                            ::testing::ValuesIn(mergeRepeated),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         CTCGreedyDecoderSeqLenLayerTest::getTestCaseName);
 }  // namespace

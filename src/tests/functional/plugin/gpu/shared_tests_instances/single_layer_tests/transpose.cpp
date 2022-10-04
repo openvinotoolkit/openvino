@@ -35,23 +35,17 @@ const std::vector<std::vector<size_t>> inputOrder = {
         std::vector<size_t>{0, 2, 3, 1},
 };
 
-const auto params = testing::Combine(
-        testing::ValuesIn(inputOrder),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::ValuesIn(inputShapes),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_Transpose,
-        TransposeLayerTest,
-        params,
-        TransposeLayerTest::getTestCaseName
-);
+INSTANTIATE_TEST_SUITE_P(smoke_Transpose,
+                         TransposeLayerTest,
+                         testing::Combine(testing::ValuesIn(inputOrder),
+                                          testing::ValuesIn(netPrecisions),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::ValuesIn(inputShapes),
+                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         TransposeLayerTest::getTestCaseName);
 
 /**
  * 5D permute tests
@@ -71,23 +65,17 @@ const std::vector<std::vector<size_t>> inputOrder5D = {
         std::vector<size_t>{0, 2, 3, 4, 1},
 };
 
-const auto params5D = testing::Combine(
-        testing::ValuesIn(inputOrder5D),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::ValuesIn(inputShapes5D),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_Transpose_5D,
-        TransposeLayerTest,
-        params5D,
-        TransposeLayerTest::getTestCaseName
-);
+INSTANTIATE_TEST_SUITE_P(smoke_Transpose_5D,
+                         TransposeLayerTest,
+                         testing::Combine(testing::ValuesIn(inputOrder5D),
+                                          testing::ValuesIn(netPrecisions),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::ValuesIn(inputShapes5D),
+                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         TransposeLayerTest::getTestCaseName);
 
 /**
  * 6D permute tests
@@ -107,23 +95,16 @@ const std::vector<std::vector<size_t>> inputOrder6D = {
         std::vector<size_t>{0, 2, 3, 4, 5, 1},
 };
 
-const auto params6D = testing::Combine(
-        testing::ValuesIn(inputOrder6D),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::ValuesIn(inputShapes6D),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_Transpose_6D,
-        TransposeLayerTest,
-        params6D,
-        TransposeLayerTest::getTestCaseName
-);
-
+INSTANTIATE_TEST_SUITE_P(smoke_Transpose_6D,
+                         TransposeLayerTest,
+                         testing::Combine(testing::ValuesIn(inputOrder6D),
+                                          testing::ValuesIn(netPrecisions),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::ValuesIn(inputShapes6D),
+                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         TransposeLayerTest::getTestCaseName);
 
 }  // namespace

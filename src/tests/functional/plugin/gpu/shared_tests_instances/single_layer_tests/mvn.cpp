@@ -40,17 +40,16 @@ const std::vector<double> epsilon = {
     0.000000001
 };
 
-const auto MvnCases = ::testing::Combine(
-    ::testing::ValuesIn(inputShapes),
-    ::testing::Values(InferenceEngine::Precision::FP32),
-    ::testing::ValuesIn(emptyReductionAxes),
-    ::testing::ValuesIn(acrossChannels),
-    ::testing::ValuesIn(normalizeVariance),
-    ::testing::ValuesIn(epsilon),
-    ::testing::Values(CommonTestUtils::DEVICE_GPU)
-);
-
-INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsMVN, Mvn1LayerTest, MvnCases, Mvn1LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsMVN,
+                         Mvn1LayerTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes),
+                                            ::testing::Values(InferenceEngine::Precision::FP32),
+                                            ::testing::ValuesIn(emptyReductionAxes),
+                                            ::testing::ValuesIn(acrossChannels),
+                                            ::testing::ValuesIn(normalizeVariance),
+                                            ::testing::ValuesIn(epsilon),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         Mvn1LayerTest::getTestCaseName);
 
 std::vector<InferenceEngine::Precision> dataPrecisions = {
     InferenceEngine::Precision::FP32,

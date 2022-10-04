@@ -8,17 +8,19 @@
 #include "multi/multi_remote_blob_tests.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-const std::vector<DevicesNamesAndSupportPair> device_names_and_support_for_remote_blobs {
-        {{GPU}, true}, // GPU via MULTI,
-        {{"GPU.0"}, true}, // GPU.0 via MULTI,
+auto device_names_and_support_for_remote_blobs = []() {
+    return std::vector<DevicesNamesAndSupportPair>{
+        {{GPU}, true},      // GPU via MULTI,
+        {{"GPU.0"}, true},  // GPU.0 via MULTI,
 #ifdef ENABLE_INTEL_CPU
-        {{GPU, CPU}, true}, // GPU+CPU
-        {{CPU, GPU}, true}, // CPU+GPU
+        {{GPU, CPU}, true},  // GPU+CPU
+        {{CPU, GPU}, true},  // CPU+GPU
 #endif
+    };
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlobMultiGPU, MultiDevice_SupportTest,
-                        ::testing::ValuesIn(device_names_and_support_for_remote_blobs), MultiDevice_SupportTest::getTestCaseName);
+                        ::testing::ValuesIn(device_names_and_support_for_remote_blobs()), MultiDevice_SupportTest::getTestCaseName);
 
 TEST_P(MultiDevice_Test, cannotInferRemoteBlobIfNotInitializedForDevice) {
     InferenceEngine::CNNNetwork net(fn_ptr);
