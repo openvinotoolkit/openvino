@@ -4,6 +4,11 @@
 
 set (TARGET_NAME "inference_engine")
 
+if(CMAKE_COMPILER_IS_GNUCC)
+    # inference_engine_obj.dir/cmake_pch.hxx.gch: not used because `USE_STATIC_IE' is defined
+    ie_add_compiler_flags(-Wno-invalid-pch)
+endif()
+
 file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
