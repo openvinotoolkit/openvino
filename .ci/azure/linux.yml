@@ -130,12 +130,18 @@ jobs:
       MAPPED_TOKEN: $(GITHUB_TOKEN)
     displayName: debug
 
+  - script: |
+      echo "##vso[task.setvariable variable=ghToken;issecret=true]$MAPPED_TOKEN"
+    env:
+      MAPPED_TOKEN: $(GITHUB_TOKEN)
+    displayName: setSecret
+
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '3.10'
       addToPath: false
       architecture: 'x64'
-      githubToken: ${{ github_token }}
+      githubToken: $(ghToken)
       displayName: Setup Python 3.10
       name: setupPython
 
