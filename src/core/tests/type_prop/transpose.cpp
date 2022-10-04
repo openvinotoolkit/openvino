@@ -19,7 +19,7 @@ TEST(type_prop, transpose_arg_static_input_order_static_ok) {
     auto r = make_shared<op::Transpose>(arg, input_order);
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape::dynamic(4));
 }
 
 TEST(type_prop, transpose_arg_static_input_order_constant_ok) {
@@ -29,7 +29,7 @@ TEST(type_prop, transpose_arg_static_input_order_constant_ok) {
     auto r = make_shared<op::Transpose>(arg, input_order);
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape{6, 4, 2, 8}));
+    EXPECT_EQ(r->get_output_partial_shape(0), (PartialShape{6, 4, 2, 8}));
 }
 
 TEST(type_prop, transpose_arg_static_input_order_constant_invalid_perm) {
@@ -69,7 +69,7 @@ TEST(type_prop, transpose_arg_rank_static_dynamic_input_order_static_ok) {
     auto r = make_shared<op::Transpose>(arg, input_order);
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape::dynamic(4));
 }
 
 TEST(type_prop, transpose_arg_static_input_order_rank_static_dynamic_ok) {
@@ -79,7 +79,7 @@ TEST(type_prop, transpose_arg_static_input_order_rank_static_dynamic_ok) {
     auto r = make_shared<op::Transpose>(arg, input_order);
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape::dynamic(4));
 }
 
 TEST(type_prop, transpose_arg_rank_static_dynamic_input_order_rank_static_dynamic_ok) {
@@ -89,7 +89,7 @@ TEST(type_prop, transpose_arg_rank_static_dynamic_input_order_rank_static_dynami
     auto r = make_shared<op::Transpose>(arg, input_order);
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape::dynamic(4));
 }
 
 TEST(type_prop, transpose_arg_rank_dynamic_input_order_rank_static_dynamic_ok) {
@@ -99,7 +99,7 @@ TEST(type_prop, transpose_arg_rank_dynamic_input_order_rank_static_dynamic_ok) {
     auto r = make_shared<op::Transpose>(arg, input_order);
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape::dynamic());
 }
 
 TEST(type_prop, transpose_arg_rank_dynamic_input_order_rank_dynamic_ok) {
@@ -109,7 +109,7 @@ TEST(type_prop, transpose_arg_rank_dynamic_input_order_rank_dynamic_ok) {
     auto r = make_shared<op::Transpose>(arg, input_order);
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape::dynamic());
 }
 
 TEST(type_prop, transpose_arg_rank_static_dynamic_input_order_rank_dynamic_ok) {
@@ -119,7 +119,7 @@ TEST(type_prop, transpose_arg_rank_static_dynamic_input_order_rank_dynamic_ok) {
     auto r = make_shared<op::Transpose>(arg, input_order);
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape::dynamic(4));
 }
 
 TEST(type_prop, transpose_arg_rank_dynamic_input_order_const_ok) {
@@ -130,7 +130,7 @@ TEST(type_prop, transpose_arg_rank_dynamic_input_order_const_ok) {
     auto r = make_shared<op::Transpose>(arg, input_order);
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(axes_order.size())));
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape::dynamic(axes_order.size()));
 }
 
 TEST(type_prop, transpose_dynamic_interval_input_data) {
@@ -140,7 +140,7 @@ TEST(type_prop, transpose_dynamic_interval_input_data) {
     auto r = make_shared<op::Transpose>(arg, input_order);
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(3)));
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape::dynamic(3));
 }
 
 TEST(type_prop, transpose_arg_static_input_order_static_input_order_not_vector) {
@@ -234,7 +234,7 @@ TEST(type_prop, transpose_input_order_et_dynamic_ok) {
     auto r = make_shared<op::Transpose>(arg, input_order);
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape::dynamic(4));
 }
 
 TEST(type_prop, transpose_input_order_et_wrong) {
@@ -259,6 +259,7 @@ TEST(type_prop, transpose_with_empty_order) {
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape({300, 1})));
+    EXPECT_EQ(r->get_output_partial_shape(0), (PartialShape{300, 1}));
 }
 
 /** \brief Transpose with order as parameter shape dimensions. */
