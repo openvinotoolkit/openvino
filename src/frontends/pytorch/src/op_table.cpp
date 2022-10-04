@@ -15,6 +15,7 @@ namespace op {
 
 #define OP_CONVERTER(op) OutputVector op(NodeContext& node)
 
+OP_CONVERTER(translate_flatten);
 OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_slice);
@@ -415,27 +416,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
                  std::make_shared<opset8::ReduceMean>(context.get_input(0), context.get_input(1), keep_dims))};
          }},
 
-        {"aten::flatten",
-         [](NodeContext& context) -> OutputVector {
-             auto start_dim = context.const_input<int64_t>(1);
-             auto end_dim = context.const_input<int64_t>(2);
-             auto data_pshape = context.get_input(0).get_partial_shape();
-             OV_FRONTEND_REQUIRE(data_pshape.rank().is_static());  // TODO: support dynamic rank
-             auto rank = data_pshape.rank().get_length();
-             if (start_dim < 0) {
-                 start_dim = rank + start_dim;
-             }
-             if (end_dim < 0) {
-                 end_dim = rank + end_dim;
-             }
-             OV_FRONTEND_REQUIRE(start_dim < end_dim);
-             auto delta = end_dim - start_dim;
-             std::vector<int64_t> new_shape(rank - delta, 0);
-             new_shape[start_dim] = -1;
-             auto new_shape_const =
-                 context.mark_node(opset8::Constant::create(element::i64, {new_shape.size()}, new_shape));
-             return {context.mark_node(std::make_shared<opset8::Reshape>(context.get_input(0), new_shape_const, true))};
-         }},
+        {"aten::flatten", op::translate_flatten},
 
         {"prim::NumToTensor",
          [](NodeContext& context) -> OutputVector {
