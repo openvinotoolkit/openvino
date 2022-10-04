@@ -98,7 +98,7 @@ jobs:
       echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
       echo cmake info ; which cmake ; cmake --version
-      lsb_release
+      lsb_release -a
       env
       cat /proc/cpuinfo
       cat /proc/meminfo
@@ -118,9 +118,7 @@ jobs:
       rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
       sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
       sudo mkdir -p $(SHARE_DIR)
-      lsb_release -a
       sudo apt --assume-yes update && sudo apt --assume-yes install nfs-common
-      sudo apt --assume-yes install software-properties-common && sudo add-apt-repository -y ppa:deadsnakes/ppa && sudo apt --assume-yes install python3.10
       sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(SHARE_DIR) -o vers=4,minorversion=1,sec=sys
       mkdir -p $(CCACHE_DIR)
     displayName: 'Make dir'
@@ -138,6 +136,7 @@ jobs:
     path: openvino_contrib
 
   - script: |
+      sudo apt install -y software-properties-common && sudo add-apt-repository -y ppa:deadsnakes/ppa && sudo apt install -y python3.10
       set -e
       $(REPO_DIR)/install_build_dependencies.sh
       # Move jdk into contrib
