@@ -140,6 +140,7 @@ void primitive_inst::set_output_memory(memory::ptr mem_new, bool check) {
 
 void primitive_inst::update_shape() {
     GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::shape_inference);
 
     bool input_shape_changed = false;
     for (size_t i = 0; i < _deps.size(); i++) {
@@ -174,6 +175,8 @@ void primitive_inst::update_shape() {
 
     auto memory_deps = _node.get_const_memory_deps();
     std::vector<event::ptr> dependencies_events;
+    auto queue_type = get_network().get_stream().get_queue_type();
+    bool has_runtime_deps = false;
     for (auto& i : _node.get_shape_infer_dependencies()) {
         // Some primitives may have flexible count of deps (e.g. reshape), thus allow skipping some deps
         if (memory_deps.count(i) > 0 || i >= _node.get_dependencies().size()) {
@@ -181,7 +184,8 @@ void primitive_inst::update_shape() {
         }
         auto& dep = _node.get_dependency(i);
         auto dep_id = dep.id();
-        if (_network.has_event(dep.id())) {
+        // Events may be not created for in-order queue, so take them for OOO queue only
+        if (_network.has_event(dep.id()) && queue_type == queue_types::out_of_order) {
             dependencies_events.push_back(_network.get_primitive_event(dep_id));
             GPU_DEBUG_IF(debug_config->verbose >= 4) {
                 GPU_DEBUG_COUT << id() << ": shape infer waits for " << i << " dependency\n";
@@ -189,10 +193,16 @@ void primitive_inst::update_shape() {
         }
         auto dep_mem = _network.get_output_memory(dep_id);
         memory_deps.insert({i, dep_mem});
+        has_runtime_deps = true;
     }
 
-    if (!dependencies_events.empty())
-        _network.get_stream().wait_for_events(dependencies_events);
+    if (has_runtime_deps) {
+        if (!dependencies_events.empty() && queue_type == queue_types::out_of_order) {
+            _network.get_stream().wait_for_events(dependencies_events);
+        } else if (queue_type == queue_types::in_order) {
+            _network.get_stream().finish();
+        }
+    }
 
     _impl_params->memory_deps = memory_deps;
     auto new_layouts = _node.type()->calc_output_layouts(_node, *_impl_params);
@@ -217,6 +227,7 @@ void primitive_inst::update_shape() {
 
 void primitive_inst::realloc_if_needed() {
     GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
 
     auto actual_layout = _impl_params->output_layout;
     OPENVINO_ASSERT(actual_layout.is_static(), "[GPU] Can't realloc mem for dynamic layout");
@@ -244,38 +255,43 @@ void primitive_inst::realloc_if_needed() {
 }
 
 void primitive_inst::update_impl() {
+    GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::update_implementation);
     auto prev_impl_str =  _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
     if (!_node.is_type<data>() && !(_node.is_type<mutable_data>() && _node.get_dependencies().empty())) {
-        auto get_layout_key = [&]()->std::string {
-            std::string layout_key_str = "";
-            if (_node.is_valid_output_layout()) {
-                layout_key_str = id() + "_" + std::to_string(_node.get_unique_id());
-                layout_key_str += "_" + _impl_params->output_layout.to_string();
-
-                for (auto in : _impl_params->input_layouts) {
-                    layout_key_str += "_" + in.to_string();
+        auto get_layout_key = [&]() -> size_t {
+            size_t seed = 0;
+            auto& id = _impl_params->desc->id;
+            for (size_t i = 0; i < id.size(); i++) {
+                seed = hash_combine(seed, id[i]);
+            }
+            seed = hash_combine(seed, _node.get_unique_id());
+            for (auto& layout : _impl_params->input_layouts) {
+                for (auto& d : layout.get_shape()) {
+                    seed = hash_combine(seed, d);
                 }
             }
-            return layout_key_str;
+            for (auto& d : _impl_params->output_layout.get_shape()) {
+                seed = hash_combine(seed, d);
+            }
+            return seed;
         };
 
         auto layout_key = get_layout_key();
-        if (layout_key != "") {
-            auto& cache = _network.get_program()->get_implementations_cache();
-            if (cache.has(layout_key)) {
-                _impl = cache.get(layout_key)->clone();
-            } else {
-                auto lru = cache.get_lru_element();
-                _impl = _node.type()->choose_impl(_node, *_impl_params);
-                bool lru_popped = cache.add(layout_key, _impl->clone());
-                if (lru_popped) {
-                    for (auto& id : lru->get_kernel_ids())
-                        _network.get_program()->remove_kernel(id);
-                }
-                _network.get_program()->compile();
+        auto& cache = _network.get_program()->get_implementations_cache();
+        if (cache.has(layout_key)) {
+            _impl = cache.get(layout_key)->clone();
+            GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
+        } else {
+            auto lru = cache.get_lru_element();
+            _impl = _node.type()->choose_impl(_node, *_impl_params);
+            bool lru_popped = cache.add(layout_key, _impl->clone());
+            if (lru_popped) {
+                for (auto& id : lru->get_kernel_ids())
+                    _network.get_program()->remove_kernel(id);
             }
-            _impl->init_kernels(_network.get_program()->get_kernels_cache());
+            _network.get_program()->compile();
         }
+        _impl->init_kernels(_network.get_program()->get_kernels_cache());
 
         reset_shape_change();
         GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -359,28 +375,40 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                        << out_ptr << ")" << std::endl;
     }
 
-    if (_exec_deps.empty() && dependencies.empty())
-        return _impl->execute(events, *this);
-
-    auto queue_type = get_network().get_stream().get_queue_type();
-    if (queue_type == queue_types::out_of_order) {
-        dependencies.reserve(dependencies.size() + _exec_deps.size());
-        for (auto& input : _exec_deps) {
-            auto id = input->id();
-            try {
-                // if the requested event does not exists it means that it has not been executed, so the processing_order is
-                // wrong or synchronization failed.
-                auto ev = get_network().get_primitive_event(id);
-                dependencies.emplace_back(ev);
-            } catch (const std::out_of_range& oor) {
-                OPENVINO_ASSERT(false, "[GPU] execution order corrupted: ", oor.what());
+    if (_exec_deps.empty() && dependencies.empty()) {
+        dependencies = events;
+    } else {
+        auto queue_type = get_network().get_stream().get_queue_type();
+        if (queue_type == queue_types::out_of_order) {
+            dependencies.reserve(dependencies.size() + _exec_deps.size());
+            for (auto& input : _exec_deps) {
+                auto id = input->id();
+                try {
+                    // if the requested event does not exists it means that it has not been executed, so the processing_order is
+                    // wrong or synchronization failed.
+                    auto ev = get_network().get_primitive_event(id);
+                    dependencies.emplace_back(ev);
+                } catch (const std::out_of_range& oor) {
+                    OPENVINO_ASSERT(false, "[GPU] execution order corrupted: ", oor.what());
+                }
             }
         }
     }
-    return _impl->execute(dependencies, *this);
+
+    {
+        GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::inference);
+        auto ev = _impl->execute(dependencies, *this);
+
+        GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+            get_network().get_stream().wait_for_events({ev});
+        }
+
+        return ev;
+    }
 }
 
 void primitive_inst::set_arguments() {
+    GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::set_arguments);
     OPENVINO_ASSERT(_has_valid_input, id(), " has invalid/unset input");
     _impl->set_arguments(*this);
 }
@@ -485,6 +513,7 @@ void primitive_inst::allocate_internal_buffers(void) {
 }
 
 event::ptr primitive_inst::update_weights() {
+    GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::update_weights);
     if (!_impl)
         return nullptr;
 
@@ -498,6 +527,7 @@ event::ptr primitive_inst::update_weights() {
     bool requires_reorder = weights_params.engine != kernel_selector::GenericKernelParams::Engine::NONE &&
                             (!_impl_params->reordered_weights || _impl_params->reordered_weights->get_layout() != from_weights_tensor(weights_params.dest));
     if (requires_reorder) {
+        GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(false);
         auto weights_idx = _node.get_primitive()->input.size();
         auto original_weights_memory = dep_memory_ptr(weights_idx);
         auto original_layout = original_weights_memory->get_layout();
@@ -521,6 +551,7 @@ event::ptr primitive_inst::update_weights() {
                 GPU_DEBUG_IF(debug_config->verbose >= 4) {
                     GPU_DEBUG_COUT << id() << ": reorder weights (cached) from " << original_layout << "\nto " << expected_layout << std::endl;
                 }
+                GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
                 kernel = cache.get(layout_key);
             } else {
                 GPU_DEBUG_IF(debug_config->verbose >= 4) {
@@ -549,8 +580,15 @@ event::ptr primitive_inst::update_weights() {
         args.inputs.push_back(original_weights_memory);
         args.outputs.push_back(_impl_params->reordered_weights);
         stream.set_arguments(*kernel, weights_params.clKernel->params, args);
-        return stream.enqueue_kernel(*kernel, weights_params.clKernel->params, args, {}, true);
+        auto ev = stream.enqueue_kernel(*kernel, weights_params.clKernel->params, args, {}, true);
+
+        GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+            stream.wait_for_events({ev});
+        }
+
+        return ev;
     }
+    GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
 
     return nullptr;
 }
@@ -778,16 +816,46 @@ bool primitive_inst::is_valid_fusion() const {
         auto dep = _deps[dep_idx];
 
         auto dep_pshape = dep->_impl_params->output_layout.get_partial_shape();
+        auto merged_shape = out_pshape;
+        auto can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, dep_pshape, fd.typed_desc<eltwise>()->broadcast_spec);
 
-        OPENVINO_ASSERT(out_pshape.rank() == dep_pshape.rank(), "[GPU] Incompatible ranks: ", out_pshape.rank(), " vs ", dep_pshape.rank());
-
-        for (int64_t i = 0; i < dep_pshape.rank().get_length(); i++) {
-            if (dep_pshape[i].get_length() > out_pshape[i].get_length())
-                return false;
-        }
+        // We check that broadcasting of extra input is possible and it doesn't change output shape. If it output shape is changed, then
+        // some dimension of dep_pshape is greater than out_pshape
+        if (!can_broadcast || merged_shape != out_pshape)
+            return false;
     }
 
     return true;
+}
+
+void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time) {
+    instrumentation::perf_counter_key key {
+            _impl_params->input_layouts,
+            { _impl_params->output_layout },
+            get_implementation_name(),
+            stage,
+            cache_hit
+    };
+
+    auto hash = instrumentation::perf_counter_hash()(key);
+    auto& d = _profiling_data[hash];
+    if (_profiling_info.find(hash) == _profiling_info.end()) {
+        _profiling_info.emplace(hash, key);
+    }
+
+    auto& total_time = std::get<0>(d);
+    auto& total_iter = std::get<1>(d);
+    total_time += time;
+    total_iter++;
+}
+
+std::string primitive_inst::get_implementation_name() const {
+    try {
+        auto kernel_name = _impl ? _impl->get_kernel_name() : "";
+        return !kernel_name.empty() ? kernel_name : "undef";
+    } catch (...) { }
+
+    return "undef";
 }
 
 }  // namespace cldnn

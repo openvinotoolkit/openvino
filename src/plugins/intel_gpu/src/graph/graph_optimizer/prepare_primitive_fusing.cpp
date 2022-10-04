@@ -291,7 +291,7 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
             }
 
             if (use_onednn_impls) {
-                if (input.is_type<reshape>())
+                if (input.is_type<reshape>() || input.is_type<concatenation>())
                     return;
                 #ifdef ENABLE_ONEDNN_FOR_GPU
                 // Activation should not be fused if it isn't supported in onednn
@@ -1034,12 +1034,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 auto eltw_in_size = peer_node->get_output_layout();
                 if (eltw_in_size.is_dynamic())
                     return;
-                // Temporary disable mul fusion with full tensor as onednn doesn't support it
-                if (fused_node->is_type<convolution>() && prim->mode == eltwise_mode::prod &&
-                    (eltw_in_size.spatial(0) > 1 || eltw_in_size.spatial(1) > 1 || eltw_in_size.batch() > 1))
-                    return;
             }
-
             if (parent1->is_type<convolution>() && !conv_supports_fusings(parent1->as<convolution>()))
                 return;
 
