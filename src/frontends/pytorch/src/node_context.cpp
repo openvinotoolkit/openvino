@@ -49,8 +49,8 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) {
         auto parameter = model->get_parameters()[i];
         if (parameter->output(0).get_target_inputs().empty()) {
             // There is no consumers: safe to remove
-            std::cout << "[ WARNING ] Removing parameter " << parameter
-                      << " in converted Pytorch model, because it is never used" << std::endl;
+            //std::cout << "[ WARNING ] Removing parameter " << parameter
+            //          << " in converted Pytorch model, because it is never used" << std::endl;
             model->remove_parameter(parameter);
         }
     }
