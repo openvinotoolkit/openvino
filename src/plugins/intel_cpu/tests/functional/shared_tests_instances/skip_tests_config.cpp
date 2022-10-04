@@ -122,8 +122,6 @@ std::vector<std::string> disabledTestPatterns() {
             *IS=_TS=\(\(4\.5\.6\.7\)\)_RS=\(\(1\.1\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.1\.1\.1\)\)_\(\(1\.1\.6\.1\)\).*)",
         // Issue: 69222
         R"(.*smoke_PriorBoxClustered.*PriorBoxClusteredLayerCPUTest.*_netPRC=f16_.*)",
-        // Issue: 71968
-        R"(.*LSTMSequenceCommonZeroClip.*PURE.*CONST.*hidden_size=10.*sigmoid.sigmoid.sigmoid.*reverse.*FP32_targetDevice=CPU.*)",
         // Issue: 72005
         // there are some inconsistency between cpu plugin and ng ref
         // for ctcMergeRepeated is true when legal randomized inputs value.
