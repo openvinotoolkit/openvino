@@ -126,7 +126,7 @@ jobs:
    
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '3.10.7'
+      versionSpec: '3.10'
       addToPath: false
       architecture: 'x64'
       githubToken: $(GITHUB_TOKEN)
