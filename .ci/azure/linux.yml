@@ -87,7 +87,7 @@ jobs:
     TMP_DIR: /mnt/tmp
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
-    GITHUB_TOKEN: ${{ github_token }}
+    GITHUB_TOKEN: $(github_token)
 
   steps:
   - script: |
@@ -123,13 +123,17 @@ jobs:
       sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(SHARE_DIR) -o vers=4,minorversion=1,sec=sys
       mkdir -p $(CCACHE_DIR)
     displayName: 'Make dir'
-   
+
+  - script: |
+      echo $(GITHUB_TOKEN)
+    displayName:'debug'
+
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '3.10'
       addToPath: false
       architecture: 'x64'
-      githubToken: $(GITHUB_TOKEN)
+      githubToken: ${{ github_token }}
       displayName: Setup Python 3.10
       name: setupPython
 
