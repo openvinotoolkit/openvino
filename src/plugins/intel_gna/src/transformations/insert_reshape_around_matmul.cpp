@@ -61,14 +61,14 @@ static bool InsertReshape(
                 std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{before_shape.size()}, before_shape), false);
             reshape_add_input->set_friendly_name(reshape_add_input->get_friendly_name() + "/reshape_before_add");
             ngraph::copy_runtime_info(add_node, reshape_add_input);
-            for (auto consumer : consumers) {
+            for (auto& consumer : consumers) {
                 consumer.replace_source_output(reshape_add_input);
             }
         }
     }
 
     std::vector<std::shared_ptr<ngraph::Node>> nodes = { matmul_node };
-    for (auto node : {add2, add1, fake_quantize, transpose}) {
+    for (auto& node : {add2, add1, fake_quantize, transpose}) {
         iter = pattern_map.find(node);
         if (iter != pattern_map.end()) {
             nodes.push_back(iter->second.get_node_shared_ptr());

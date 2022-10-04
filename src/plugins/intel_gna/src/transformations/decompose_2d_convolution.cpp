@@ -228,7 +228,7 @@ static std::vector<std::shared_ptr<ngraph::Node>> SplitFilters(const GraphData& 
 
     h_1_filters = Split2DConvFilters(filter_values, vertical_permute, horizontal_permute, graph_data.conv_count);
 
-    for (auto filter : h_1_filters)
+    for (auto& filter : h_1_filters)
         copy_runtime_info(graph_data.conv, filter);
 
     return h_1_filters;
