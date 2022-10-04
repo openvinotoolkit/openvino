@@ -48,8 +48,7 @@ namespace ov {}  // namespace ov
 #    pragma warning(disable : 4275)
 #endif
 
-#if defined(OPENVINO_STATIC_LIBRARY) || \
-    defined(USE_STATIC_IE)  // defined if we are building or calling core as a static library
+#if defined(OPENVINO_STATIC_LIBRARY) || defined(USE_STATIC_IE)  // defined if we are building or calling core as a static library
 #    define OPENVINO_API
 #    define OPENVINO_API_C(...) __VA_ARGS__
 #else
