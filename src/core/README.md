@@ -24,14 +24,11 @@ OpenVINO Core has the next structure:
  * [src](./src) folder contains sources of the core component.
  * [tests](./tests) contains tests for OpenVINO Core components. More information about OpenVINO Core tests can be found [here](./docs/tests.md).
 
-## Debug capabilities
-
-OpenVINO Core contains a set of different debug capabilities which allow to make developer live a little bit easier.
-Different debug capabilities supports to collect information about object statuses in the process of OpenVINO Runtime execution.
- * OpenVINO Model debug capabilities are described in the [OpenVINO Model User Guide](https://docs.openvino.ai/latest/openvino_docs_OV_UG_Model_Representation.html#model-debug-capabilities).
-
 ## Tutorials
-  TODO
+
+ * [How to add new operations](./docs/operation_enabling_flow.md).
+ * [How to add OpenVINO Extension](https://docs.openvino.ai/latest/openvino_docs_Extensibility_UG_Intro.html). This document is based on the [template_extension](./template_extension/new/).
+ * [How to debug the component](./docs/debug_capabilities.md).
 
 ## See also
  * [OpenVINO™ README](../../README.md)
