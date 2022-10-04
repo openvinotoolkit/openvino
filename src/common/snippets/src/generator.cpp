@@ -84,6 +84,31 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
                            return std::make_pair(target->get(n->get_type_info())(n), ngraph::snippets::getRegisters(n));
                        });
     };
+    // *1* solo vector/scalar tile + empty outer tile
+    //      => skip increments (both counter & ptr) : set evaluate_once flag
+    // *2* solo vector/scalar tile + non-empty outer tile
+    //      => skip counter increments but perform ptr increments : set evaluate_once,
+    //         and perform pointer increments through finalization offsets
+    // *3* one vector tile + multiple scalar tiles
+    //      => vector force_ptr_increment=true to enable *2*, scalar as usual
+    // *4* vector tile(s) + one scalar tile
+    //      => vector as usual, scalar depends on outer tile, see *1* and *2*
+    //      todo:
+    //        reuse reg_work amount in scalar tile (it's minor: saves 1 instruction)
+    auto optimize_single_evaluation = [](const std::shared_ptr<op::TileEnd>& tile, bool force_ptr_increment = false) {
+        if (tile->get_work_amount() < 2 * tile->get_increment()) {
+            tile->set_evaluate_once(true);
+            if (force_ptr_increment || tile->has_outer_tile) {
+                const auto increment = tile->get_increment();
+                std::vector<int64_t> new_finalization_offsets(tile->get_finalization_offsets());
+                const auto& apply_increments = tile->get_apply_increment();
+                for (auto i = 0; i < new_finalization_offsets.size(); i++) {
+                    new_finalization_offsets[i] += increment * apply_increments[i];
+                }
+                tile->set_finalization_offsets(new_finalization_offsets);
+            }
+        }
+    };
     const auto& ops = m->get_ordered_ops();
     for (auto op = ops.begin(); op < ops.end(); op++) {
         const auto& tile_begin = ov::as_type_ptr<ngraph::snippets::op::TileBegin>(*op);
@@ -94,9 +119,6 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
             while (*op != tile_end)
                 vector_tile.push_back(*op++);
             vector_tile.push_back(*op);
-            // todo: optimization: emit bare body with no WA manipulations or pointer increments,
-            //  but have to know about tile structure. Communicate from op::Subgraph maybe?
-            //if (increment == work_amount)
             const auto work_amount = tile_end->get_work_amount();
             const auto increment = tile_end->get_increment();
             const auto need_scalar_tile = work_amount % increment != 0;
@@ -110,6 +132,8 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
                 if (!scalar_finalization_offsets.empty()) {
                     tile_end->set_finalization_offsets(std::vector<int64_t>(scalar_finalization_offsets.size(), 0));
                 }
+                // force ptr increments if there is at least one scalar tile
+                optimize_single_evaluation(tile_end, need_scalar_tile);
                 lower_ops(vector_tile);
             }
             OV_ITT_TASK_NEXT(GENERATE, "::ScalarTile")
@@ -127,12 +151,11 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
                                });
                 const auto& scalar_tile_end = ov::as_type_ptr<op::TileEnd>(*scalar_tile.rbegin());
                 scalar_tile_end->set_finalization_offsets(scalar_finalization_offsets);
-                scalar_tile_end->set_work_amount(work_amount % increment);
-                // todo: need to communicate to vector tile_end to avoid pop from the stack
-                // zero work_amount means that the WA was set in the vector tile and can be reused
-//                if (work_amount >= increment)
-//                    scalar_tile_begin->set_work_amount(0);
+                const auto scalar_work_amount = work_amount % increment;
                 scalar_tile_end->set_increment(1);
+                scalar_tile_end->set_work_amount(scalar_work_amount);
+                // ptr increment is applied automatically if there is non-empty outer tile
+                optimize_single_evaluation(scalar_tile_end);
                 lower_ops(scalar_tile);
             }
         } else {

@@ -53,11 +53,13 @@ public:
     size_t get_work_amount() const;
     size_t get_increment() const;
     size_t get_dimension() const;
+    bool get_evaluate_once() const;
 
 protected:
     size_t dimension;
     size_t work_amount;
     size_t increment;
+    bool evaluate_once; // true if the tile is executed only once, used to skip setting and testing the loop counter
 };
 class TileEnd;
 class TileBegin : public TileBase {
@@ -92,6 +94,11 @@ public:
     void set_apply_increment(std::vector<bool> apply_increment);
     void set_work_amount(size_t new_work_amount);
     void set_increment(size_t new_increment);
+    void set_evaluate_once(bool once);
+    // Used to propagate information about tile structure, needed to simplify some optimizations. For example,
+    // to skip pointer increments when outer tile is empty, and work_amount == vector_size (one inner vector Tile)
+    // true by default, the optimizations enabled if it's false;
+    bool has_outer_tile;
 
 private:
     std::vector<bool> apply_increment;

@@ -646,7 +646,8 @@ TileBeginEmitter::TileBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl:
     const auto tile_end = ov::as_type_ptr<ngraph::snippets::op::TileEnd>(target_inputs.begin()->get_node()->shared_from_this());
     if (!tile_end)
         IE_THROW() << "TileBeginEmitter invoked with invalid configuration: the last output must be TileEnd";
-    work_amount = tile_end->get_work_amount();
+    work_amount = tile_begin->get_work_amount();
+    evaluate_once = tile_begin->get_evaluate_once();
     num_inputs = tile_begin->get_output_size() - 1;
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
@@ -678,7 +679,7 @@ void TileBeginEmitter::emit_impl(const std::vector<size_t>& in,
     Label for_body;
     // save previous register state (if there is an outer loop that uses this reg for example)
     // if work_amount == 0, it means that work_amount was set in the previous tile, so we should not reset it here
-    if (work_amount != 0) {
+    if (work_amount != 0 && !evaluate_once) {
         h->push(reg_work_amount);
         h->mov(reg_work_amount, work_amount);
     }
@@ -707,6 +708,7 @@ TileEndEmitter::TileEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::imp
     work_amount = tile_end->get_work_amount();
     apply_increments = tile_end->get_apply_increment();
     finalization_offsets = tile_end->get_finalization_offsets();
+    evaluate_once = tile_end->get_evaluate_once();
     // dim_idx must be equal for TileBegin and TileEnd
     const auto dim_idx = tile_end->get_dimension();
     // todo: add checks on work_amount vs increment consistency + checks on work_amount vs max(last_dim) consistence
@@ -780,19 +782,21 @@ void TileEndEmitter::emit_impl(const std::vector<size_t>& in,
     // todo: who will increment if there is non-zero outer tile?
 //    if (work_amount == increment)
 //        return;
-    for (int idx = 0; idx < data_ptr_regs.size(); idx++) {
-        if (apply_increments[idx])
-            h->add(data_ptr_regs[idx], increment * io_data_size[idx]);
+    if (!evaluate_once) {
+        for (int idx = 0; idx < data_ptr_regs.size(); idx++) {
+            if (apply_increments[idx])
+                h->add(data_ptr_regs[idx], increment * io_data_size[idx]);
+        }
+        h->sub(reg_work_amount, increment);
+        h->cmp(reg_work_amount, increment);
+        h->jge(tile_begin->begin_address);
     }
-    h->sub(reg_work_amount, increment);
-    h->cmp(reg_work_amount, increment);
-    h->jge(tile_begin->begin_address);
 
     for (int idx = 0; idx < data_ptr_regs.size(); idx++) {
         if (finalization_offsets[idx] != 0)
             h->add(data_ptr_regs[idx], finalization_offsets[idx] * io_data_size[idx]);
     }
-    if (work_amount != 0) {
+    if (work_amount != 0 && !evaluate_once) {
         // restore reg state if we've changed it before
         h->pop(reg_work_amount);
     }

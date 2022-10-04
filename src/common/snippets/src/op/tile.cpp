@@ -18,7 +18,7 @@ Tile::Tile(const std::vector<AllocatedEmitter> &region, size_t increment,
 }
 
 TileBase::TileBase(const std::vector<Output<Node>> &args, size_t dimension, size_t work_amount, size_t increment)
-        : Op(args), dimension(dimension), work_amount(work_amount), increment(increment) {
+        : Op(args), dimension(dimension), work_amount(work_amount), increment(increment), evaluate_once(false) {
 }
 
 bool TileBase::visit_attributes(AttributeVisitor &visitor) {
@@ -30,6 +30,10 @@ bool TileBase::visit_attributes(AttributeVisitor &visitor) {
 
 size_t TileBase::get_work_amount() const {
     return work_amount;
+}
+
+bool TileBase::get_evaluate_once() const {
+    return evaluate_once;
 }
 
 size_t TileBase::get_increment() const {
@@ -96,7 +100,7 @@ std::shared_ptr<TileEnd> TileBegin::get_tile_end() {
 TileEnd::TileEnd(const std::vector<Output<Node>> &args, size_t dimension, size_t work_amount, size_t increment,
                  std::vector<bool> apply_increment, std::vector<int64_t> finalization_offsets)
         : TileBase(args, dimension, work_amount, increment), apply_increment(std::move(apply_increment)),
-        finalization_offsets(std::move(finalization_offsets)) {
+        finalization_offsets(std::move(finalization_offsets)), has_outer_tile(true) {
     constructor_validate_and_infer_types();
 }
 
@@ -141,6 +145,12 @@ void TileEnd::set_increment(size_t new_increment) {
     increment = new_increment;
     // Update TileBegin to maintain consistency between the Tiles
     get_tile_begin()->increment = new_increment;
+}
+
+void TileEnd::set_evaluate_once(bool once) {
+    evaluate_once = once;
+    // Update TileBegin to maintain consistency between the Tiles
+    get_tile_begin()->evaluate_once = once;
 }
 
 void TileEnd::validate_and_infer_types() {

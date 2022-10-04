@@ -433,7 +433,6 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
     NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
 
-//    ov::pass::Serialize("tile_initial.xml", "tile_initial.bin").run_on_model(m_body);
 
     convert_to_snippet_dialect();
     opt.run_passes(m_body);
@@ -446,7 +445,7 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
         // Note: outer_dim could overflow if master_shape.size() < 2
         const auto outer_dim = master_shape.size() - 2;
         const auto inner_WA = master_shape[inner_dim].get_length();
-        const auto outer_WA = master_shape.size() > 2 ? master_shape[outer_dim].get_length() : 1;
+        const auto outer_WA = master_shape.size() >= 2 ? master_shape[outer_dim].get_length() : 1;
         // todo: get_lanes() assumes fp32. Could there be any int8 issues?
         const auto vector_size = m_generator->get_target_machine()->get_lanes();
 
@@ -465,7 +464,7 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
             // todo: pass skip_counters and skip_ptr_increments
             std::vector<bool> apply_increments;
             apply_increments.reserve(ioShapes.size());
-            // Inner Tile applies increments if a dimension is broadcasted
+            // Inner Tile applies increments if a dimension is not broadcasted
             std::transform(ioShapes.begin(), ioShapes.end(), std::back_inserter(apply_increments),
                             [=](const PartialShape& ps) {
                                 return ps[inner_dim] != 1 && master_shape[inner_dim] != 1;
@@ -479,8 +478,10 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
                                });
             }
                 const auto& innerTileBegin = insertTileBegin(commonParams);
-                insertTileEnd(commonResults, innerTileBegin, inner_dim, inner_WA, vector_size, apply_increments,
+                const auto& innerTileEnd = insertTileEnd(commonResults, innerTileBegin, inner_dim, inner_WA, vector_size, apply_increments,
                               inner_finalization_offsets);
+                // set internal flag to enable scalar vs vector tile optimizations
+                innerTileEnd->has_outer_tile = outer_WA > 1;
         }
 
         if (outer_WA > 1) {

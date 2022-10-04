@@ -229,6 +229,7 @@ private:
     std::vector<size_t> io_dims {};
     std::vector<size_t> io_data_size {};
     size_t increment = 0;
+    bool evaluate_once = false;
     size_t work_amount = 0; // need to store work_amount explicitly, since two tiles can work on the same dim (e.g. vector + scalar)
     std::vector<size_t> static_dims_idx {}; // non-zero io_dims indexes == dims that are not broadcasted
     std::vector<size_t> dynamic_dims_idx {}; // non-zero io_dims indexes == dims that are not broadcasted
@@ -269,6 +270,7 @@ private:
     std::vector<size_t> io_data_size {};
     size_t increment = 0;
     size_t work_amount = 0;
+    bool evaluate_once = false;
     std::vector<bool> apply_increments;
     std::vector<int64_t> finalization_offsets;
     std::vector<size_t> static_dims_idx {}; // non-zero io_dims indexes == dims that are not broadcasted

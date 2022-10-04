@@ -534,16 +534,32 @@ void Snippet::prepareParams() {
     // initialize start offsets to src and dst memory
     // Needs to be done for every set of input shapes sce memory ptrs could've updated
     initStartMemoryOffsets();
-    scheduler_work_amounts = std::vector<size_t>(maxTileRank, 1);
+    scheduler_work_amounts.clear();
+    scheduler_work_amounts.reserve(tileRank);
     // rename schedulerWorkAmount to harnessWorkAmount?
     harnessWorkAmount = fullWorkAmount;
-    auto scheduler_it = scheduler_work_amounts.rbegin();
-    auto exec_it = exec_domain.rbegin();
-    for (int i = 0; i < tileRank; i++, exec_it++, scheduler_it++) {
-        harnessWorkAmount /= *exec_it;
-        *scheduler_it = *exec_it;
-        *exec_it = 1;
+    const auto rank = exec_domain.size();
+    for (auto i = rank - tileRank; i < rank; i++) {
+        auto& dim = exec_domain[i];
+        harnessWorkAmount /= dim;
+        scheduler_work_amounts.push_back(dim);
+        dim = 1;
     }
+
+    // ov::pass::Serialize("tile_initial.xml", "tile_initial.bin").run_on_model(snippet->get_body());
+    //
+    std::vector<ov::Shape> new_shapes;
+    for (const auto& s : normInputShapes) {
+        ov::Shape ns(tileRank, 0);
+        const int offset = s.size() - tileRank;
+        // todo: this check is excessive, remove it before merge
+        if (offset < 0)
+            IE_THROW() << "Error during creating reduced body shapes: tileRank is larger than the input size";
+        std::copy(s.begin() + offset, s.end(), ns.begin());
+        new_shapes.emplace_back(std::move(ns));
+    }
+    snippet->set_master_shape(PartialShape(scheduler_work_amounts));
+    snippet->reshape_body(new_shapes);
 }
 
 bool Snippet::needPrepareParams() const {
@@ -653,7 +669,6 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
                     return convert->get_input_element_type(0) != ov::element::f32;
                 return true;
             });
-
     schedule = snippet->generate(optManager, reinterpret_cast<const void*>(jcp));
 }
 
