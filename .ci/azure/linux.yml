@@ -87,7 +87,7 @@ jobs:
     TMP_DIR: /mnt/tmp
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
-    GITHUB_TOKEN: $(githubToken)
+    GITHUB_TOKEN: $(test_var)
 
   steps:
   - script: |
