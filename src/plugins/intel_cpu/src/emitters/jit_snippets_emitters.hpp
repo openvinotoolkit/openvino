@@ -226,6 +226,7 @@ private:
     std::shared_ptr<ngraph::snippets::op::TileBegin> tile_begin;
     size_t num_inputs = 0;
     size_t num_outputs = 0;
+    bool reuse_work_amount_reg = false;
     std::vector<size_t> io_dims {};
     std::vector<size_t> io_data_size {};
     size_t increment = 0;
@@ -271,6 +272,7 @@ private:
     size_t increment = 0;
     size_t work_amount = 0;
     bool evaluate_once = false;
+    bool reuse_work_amount_reg = false;
     std::vector<bool> apply_increments;
     std::vector<int64_t> finalization_offsets;
     std::vector<size_t> static_dims_idx {}; // non-zero io_dims indexes == dims that are not broadcasted

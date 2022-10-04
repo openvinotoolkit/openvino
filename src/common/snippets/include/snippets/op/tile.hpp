@@ -54,6 +54,11 @@ public:
     size_t get_increment() const;
     size_t get_dimension() const;
     bool get_evaluate_once() const;
+    // flag is needed for performance optimizations, do scalar can reuse work_amount set by vector tile
+    // if set:
+    // * TileEnd doesn't pop reg_work_amount from the stack on exit (to be disabled after assign_registers refactoring)
+    // * TileBegin doesn't set reg_work_amount (it assumes it's already correct)
+    bool reuse_work_amount_reg;
 
 protected:
     size_t dimension;

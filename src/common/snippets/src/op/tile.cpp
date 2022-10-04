@@ -18,7 +18,8 @@ Tile::Tile(const std::vector<AllocatedEmitter> &region, size_t increment,
 }
 
 TileBase::TileBase(const std::vector<Output<Node>> &args, size_t dimension, size_t work_amount, size_t increment)
-        : Op(args), dimension(dimension), work_amount(work_amount), increment(increment), evaluate_once(false) {
+        : Op(args), dimension(dimension), work_amount(work_amount), increment(increment), evaluate_once(false),
+        reuse_work_amount_reg(false) {
 }
 
 bool TileBase::visit_attributes(AttributeVisitor &visitor) {
