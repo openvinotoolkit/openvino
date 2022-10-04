@@ -1,0 +1,64 @@
+# IsInf {#openvino_docs_ops_comparison_IsInf_10}
+
+**Versioned name**: *IsInf-10*
+
+**Category**: *Comparison*
+
+**Short description**: *IsInf* performs element-wise mapping of infinite values to True.
+
+**Detailed description**: *IsInf* performs element-wise mapping of infinite values to true and other values to false. Attributes `detect_negative` and `detect_positive` can be used to control mapping of nagative and positive infinities.
+
+**Attributes**
+
+* *detect_negative*
+
+  * **Description**: specifies rules used for mapping values with negative infinity.
+  * **Range of values**:
+    * `false` - map negative infinity to `false`
+    * `true` - map negative infinity to `true`
+  * **Type**: `boolean`
+  * **Default value**: `true`
+  * **Required**: *no*
+
+* *detect_positive*
+
+  * **Description**: specifies rules used for mapping values with positive infinity.
+  * **Range of values**:
+    * `false` - map positive infinity to `false`
+    * `true` - map positive infinity to `true`
+  * **Type**: `boolean`
+  * **Default value**: `true`
+  * **Required**: *no*
+
+**Inputs**
+
+* **1**: `data` - Input tensor of type `T` with data and arbitrary shape. **Required.**
+
+**Outputs**
+
+* **1**: The result of element-wise mapping of infinite values applied to the input tensor. A tensor of type `T_BOOL` and shape equal to the input tensor.
+
+**Types**
+
+* **T**: `bfloat16`, `float16`, `float32`, `float64`
+* **T_BOOL**: `boolean`
+
+**Example**
+
+```xml
+<layer ... type="IsInf" ...>
+    <data detect_negative="true" detect_positive="true"/>
+    <input>
+        <port id="0">
+            <dim>256</dim>
+            <dim>128</dim>
+        </port>
+    </input>
+    <output>
+        <port id="0">
+            <dim>256</dim>
+            <dim>128</dim>
+        </port>
+    </output>
+</layer>
+```
