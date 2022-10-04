@@ -11,7 +11,7 @@
  * @brief Defines visibility settings for Inference Engine LP Transformations library
  */
 
-#ifdef OPENVINO_STATIC_LIBRARY
+#if defined(OPENVINO_STATIC_LIBRARY) || defined(USE_STATIC_IE)
 #    define LP_TRANSFORMATIONS_API
 #else
 #    ifdef IMPLEMENT_OPENVINO_API
