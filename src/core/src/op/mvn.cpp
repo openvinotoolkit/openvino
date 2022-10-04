@@ -3,11 +3,11 @@
 //
 
 #include "ngraph/op/mvn.hpp"
-#include "ngraph/runtime/reference/mvn.hpp"
 
 #include <algorithm>
 
 #include "itt.hpp"
+#include "ngraph/runtime/reference/mvn.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -140,7 +140,11 @@ bool op::v6::MVN::visit_attributes(AttributeVisitor& visitor) {
 namespace mvn {
 namespace {
 template <element::Type_t ET>
-bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs, bool normalize_variance, float eps, ov::op::MVNEpsMode eps_mode) {
+bool evaluate(const HostTensorVector& outputs,
+              const HostTensorVector& inputs,
+              bool normalize_variance,
+              float eps,
+              ov::op::MVNEpsMode eps_mode) {
     using T = typename element_type_traits<ET>::value_type;
     AxisSet reduction_axes;
     auto rank = inputs[0]->get_shape().size();
@@ -161,8 +165,11 @@ bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs, b
     return true;
 }
 
-
-bool evaluate_mvn(const HostTensorVector& outputs, const HostTensorVector& inputs, bool normalize_variance, float eps, ov::op::MVNEpsMode eps_mode) {
+bool evaluate_mvn(const HostTensorVector& outputs,
+                  const HostTensorVector& inputs,
+                  bool normalize_variance,
+                  float eps,
+                  ov::op::MVNEpsMode eps_mode) {
     bool rc = true;
     switch (inputs[0]->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_mvn, i8, outputs, inputs, normalize_variance, eps, eps_mode);
@@ -182,8 +189,8 @@ bool evaluate_mvn(const HostTensorVector& outputs, const HostTensorVector& input
     }
     return rc;
 }
-}
-}
+}  // namespace
+}  // namespace mvn
 
 bool op::v6::MVN::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v6_MVN_evaluate);
@@ -193,20 +200,20 @@ bool op::v6::MVN::evaluate(const HostTensorVector& outputs, const HostTensorVect
 bool op::v6::MVN::has_evaluate() const {
     OV_OP_SCOPE(v1_MVN_has_evaluate);
     switch (get_input_element_type(0)) {
-        case ngraph::element::i8:
-        case ngraph::element::i16:
-        case ngraph::element::i32:
-        case ngraph::element::i64:
-        case ngraph::element::u8:
-        case ngraph::element::u16:
-        case ngraph::element::u32:
-        case ngraph::element::u64:
-        case ngraph::element::bf16:
-        case ngraph::element::f16:
-        case ngraph::element::f32:
-            return true;
-        default:
-            break;
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+        return true;
+    default:
+        break;
     }
     return false;
 }

@@ -105,7 +105,6 @@ AxisSet mvn_6_reduction_axes(const HostTensorPtr& axes_input, size_t rank) {
     return AxisSet(axes);
 }
 
-
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph
