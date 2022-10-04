@@ -128,7 +128,7 @@ jobs:
       versionSpec: '3.10'
       addToPath: false
       architecture: 'x64'
-      githubToken: "$MAPPED_GITHUB_TOKEN"
+      githubToken: $(MAPPED_GITHUB_TOKEN)
       displayName: Setup Python 3.10
       name: setupPython
     env:
