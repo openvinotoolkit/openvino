@@ -609,7 +609,7 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_mixed_num
         PartialShape expected_shape = {-1, 3, 224, 224};
 
         EXPECT_EQ(out_shape, expected_shape);
-        EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[0]), 0);  // TODO: Shouldn't be 10 or 11?
+        EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[0]), 0);  // TODO: Shouldn't be 10 or 20?
         EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[1]), 0);
         EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[2]), 0);
         EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[3]), 0);
