@@ -87,7 +87,6 @@ jobs:
     TMP_DIR: /mnt/tmp
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
-    GITHUB_TOKEN: $(github_token)
 
   steps:
   - script: |
@@ -127,13 +126,13 @@ jobs:
   - script: |
       echo $MAPPED_TOKEN
     env:
-      MAPPED_TOKEN: $(GITHUB_TOKEN)
+      MAPPED_TOKEN: $(github_token)
     displayName: debug
 
   - script: |
       echo "##vso[task.setvariable variable=ghToken;issecret=true]$MAPPED_TOKEN"
     env:
-      MAPPED_TOKEN: $(GITHUB_TOKEN)
+      MAPPED_TOKEN: $(github_token)
     displayName: setSecret
 
   - task: UsePythonVersion@0
