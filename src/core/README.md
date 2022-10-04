@@ -18,7 +18,7 @@ OpenVINO Core has the next structure:
  * [builders](./builder) is obsolete component which provides helper methods for operation creations. Please don't use this API, and use public OpenVINO API instead.
  * [dev_api](./dev_api) contains developer API. In order to use this API, you need to link your component against `openvino::runtime::dev`.
  * [docs](./docs) contains developer documentation pages for the component.
- * [include](./include) contains public API. Detailed information about provided API can be found [here](#TODO).
+ * [include](./include) contains public API. Detailed information about provided API can be found [here](./docs/api_details.md).
  * [reference](./reference) is a library which provides reference implementations for all supported operations. Operations with evaluate method use these implementations inside.
  * [shape_inference](./shape_inference) library contains implementation of shape inference for OpenVINO operations.
  * [src](./src) folder contains sources of the core component.
