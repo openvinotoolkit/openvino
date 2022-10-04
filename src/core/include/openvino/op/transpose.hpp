@@ -42,26 +42,6 @@ public:
     bool has_evaluate() const override;
     bool evaluate_label(TensorLabelVector& output_labels) const override;
 
-    /// \brief Generates default axes order at end of input vector.
-    ///
-    /// Default axes order is decreasing sequence numbers which start from `length - 1`.
-    ///
-    /// \param axes_order  Vector where default order will be generated.
-    /// \param length      Sequence length of axes order.
-    ///
-    static void generate_default_order(std::vector<int64_t>& axes_order, const size_t length);
-
-    /// \brief Check if vector of axes order has got valid values.
-    ///
-    /// Axes order has to be unique numbers in range of [0, size)
-    ///
-    /// \param axes_order  Vector with axes order to check.
-    /// \param size        Input for transpose rank size.
-    ///
-    /// \return true if axes order is valid otherwise false.
-    ///
-    static bool is_valid_order(const std::vector<int64_t>& axes_order, const size_t size);
-
     /// \brief Inputs indexes and count.
     enum Ins : size_t { ARG, ORDER, IN_COUNT };
     /// \brief Outputs indexes and count.

@@ -26,7 +26,7 @@ void shape_infer(const Transpose* op,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     const auto& input_shape = input_shapes[Transpose::ARG];
-    auto& output = output_shapes[Transpose::ARG_T];
+    auto& output_shape = output_shapes[Transpose::ARG_T];
 
     std::vector<int64_t> axes;
     const auto has_order = get_data_as_int64<T>(Transpose::ORDER, op, axes, constant_data);
@@ -35,22 +35,23 @@ void shape_infer(const Transpose* op,
         const auto out_rank_size = input_shape.rank().get_length();
 
         if (axes.empty()) {
-            Transpose::generate_default_order(axes, out_rank_size);
+            generate_transpose_default_order(axes, out_rank_size);
         } else {
             NODE_VALIDATION_CHECK(op,
-                                  Transpose::is_valid_order(axes, out_rank_size),
+                                  is_valid_axes_order(axes, out_rank_size),
                                   "Permutation ",
                                   AxisVector(axes.begin(), axes.end()),
                                   " is not valid for input shape ",
                                   input_shape);
         }
 
-        output.resize(out_rank_size);
-        std::transform(axes.cbegin(), axes.cend(), output.begin(), [&input_shape](const size_t axis) {
+        output_shape.resize(out_rank_size);
+        std::transform(axes.cbegin(), axes.cend(), output_shape.begin(), [&input_shape](const size_t axis) {
             return input_shape[axis];
         });
     } else {
-        output = has_order ? ov::PartialShape::dynamic(axes.size()) : ov::PartialShape::dynamic(input_shape.rank());
+        output_shape =
+            has_order ? ov::PartialShape::dynamic(axes.size()) : ov::PartialShape::dynamic(input_shape.rank());
     }
 }
 }  // namespace v1

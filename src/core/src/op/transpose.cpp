@@ -59,16 +59,6 @@ shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& ne
     return make_shared<v1::Transpose>(new_args[ARG], new_args[ORDER]);
 }
 
-void op::v1::Transpose::generate_default_order(std::vector<int64_t>& axes_order, const size_t length) {
-    axes_order.reserve(length);
-    std::generate_n(std::back_inserter(axes_order), length, ov::SeqGen<size_t, ov::Direction::BACKWARD>(length - 1));
-}
-
-bool op::v1::Transpose::is_valid_order(const std::vector<int64_t>& axes_order, const size_t size) {
-    return (std::unordered_set<size_t>(axes_order.cbegin(), axes_order.cend()).size() == size) &&
-           std::all_of(axes_order.cbegin(), axes_order.cend(), ov::cmp::Between<int64_t, ov::cmp::LOWER>(0, size));
-}
-
 namespace transpose {
 namespace {
 using namespace ov::op;
@@ -80,9 +70,9 @@ bool evaluate_transpose(const HostTensorPtr& arg1, const HostTensorPtr& arg2, co
     std::vector<int64_t> axes_order = host_tensor_2_vector<int64_t>(arg2);
     ov::Shape in_shape = arg1->get_shape();
     if (shape_size(arg2->get_shape()) == 0) {
-        v1::Transpose::generate_default_order(axes_order, in_shape.size());
+        ov::generate_transpose_default_order(axes_order, in_shape.size());
     } else {
-        OPENVINO_ASSERT(v1::Transpose::is_valid_order(axes_order, in_shape.size()),
+        OPENVINO_ASSERT(ov::is_valid_axes_order(axes_order, in_shape.size()),
                         "Permutation ",
                         AxisVector(axes_order.begin(), axes_order.end()),
                         " is not valid for input shape ",
