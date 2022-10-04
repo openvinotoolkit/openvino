@@ -123,13 +123,13 @@ jobs:
       mkdir -p $(CCACHE_DIR)
     displayName: 'Make dir'
 
-  - script: |
-      echo $MAPPED_TOKEN
+  - bash: |
+      echo "$MAPPED_TOKEN"
     env:
       MAPPED_TOKEN: $(github_token)
     displayName: debug
 
-  - script: |
+  - bash: |
       echo "##vso[task.setvariable variable=ghToken;issecret=true]$MAPPED_TOKEN"
     env:
       MAPPED_TOKEN: $(github_token)
