@@ -108,9 +108,10 @@ jobs:
       versionSpec: '3.10'
       addToPath: false
       architecture: 'x64'
-    displayName: 'Check python 3.10'
-    
-  - script: echo '$(pythonLocation)'
+    displayName: 'Setup python 3.10'
+    name: setupPython
+
+  - script: dir $(setupPython.pythonLocation)
     displayName: 'Check python 3.10'
 
   - checkout: self
