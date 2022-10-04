@@ -17,6 +17,7 @@ const std::vector<InferenceEngine::Precision> inputPrecisions = {
 
 const std::vector<ShapeRelatedParams> shapeRelatedParams = {
         { { {2, 1, 1, 5, 6}, false }, { {1, 1, 6, 4}, false } },
+        { { {2, 2, 4, 16}, true }, { {1, 1, 1, 4}, true } },
         { { {2, 1, 2, 3, 5, 6}, false }, { {1, 1, 6, 4}, false } },
         { { {1, 4, 5, 6}, false }, { {1, 4, 6, 4}, false } },
         { { {1, 16, 128}, false }, { {1, 64, 128}, true } },

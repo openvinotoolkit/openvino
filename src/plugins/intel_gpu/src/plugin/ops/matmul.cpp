@@ -129,7 +129,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
         };
 
         if (reshape_fc) {
-            inputName = reshape_to_2d(shape_a, inputName, shape_a.back(), "_cldnn_reshape_in");
+            inputName = reshape_to_2d(shape_a, inputName, K, "_cldnn_reshape_in");
         }
 
         if (shape_b.size() != 2) {
