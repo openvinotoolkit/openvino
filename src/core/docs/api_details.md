@@ -22,7 +22,7 @@ OpenVINO Core API contains two folders:
 * `ov::Node` is a base class for all OpenVINO operations, the class is located in the [openvino/core/node.hpp](../include/openvino/core/node.hpp).
 * `ov::Shape` and `ov::PartialShape` classes represents shapes in the OpenVINO, these classes are located in the [openvino/core/shape.hpp](../include/openvino/core/shape.hpp) and [openvino/core/partial_shape.hpp](../include/openvino/core/partial_shape.hpp) respectively. For more information please read [OpenVINO Shapes representation](./shape_propagation.md#openvino-shapes-representation).
 * `ov::element::Type` class represents element type for OpenVINO Tensors and Operations. The class is located in the [openvino/core/type/element_type.hpp](../include/openvino/core/type/element_type.hpp).
-* `ov::Tensor` is used for memory representation inside the OpenVINO. The class is located in the [openvino/runtime/tensor.hpp](../include/openvino/runtime/tensor.hpp).
+* `ov::Tensor` is used for memory representation inside OpenVINO. The class is located in the [openvino/runtime/tensor.hpp](../include/openvino/runtime/tensor.hpp).
 
 ## See also
  * [OpenVINO™ Core README](../README.md)
