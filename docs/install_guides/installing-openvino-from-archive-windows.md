@@ -62,7 +62,7 @@ mkdir "C:\Program Files (x86)\Intel"
 cd "C:\Program Files (x86)\Intel"
 ```
 
-Note: C:\Program Files (x86)\Intel is the recommended folder path, but you may use a different path if desired or if you don't have administrator priveleges on your PC. If the C:\Program Files (x86)\Intel folder already exists, skip the `mkdir` command.
+> **NOTE**: C:\Program Files (x86)\Intel is the recommended folder path, but you may use a different path if desired or if you don't have administrator priveleges on your PC. If the C:\Program Files (x86)\Intel folder already exists, skip the `mkdir` command.
 
 Next, issue the following command to download the OpenVINO Runtime 2022.2 archive file, unzip it, and rename the folder to `openvino_2022.2.0.7713`:
 ```sh
@@ -76,7 +76,7 @@ Finally, create a symbolic link to the folder by issuing:
 mklink /D openvino_2022 openvino_2022.2.0.7713
 ```
 
-Note: If you have already installed a previous version of OpenVINO, a symbolic link to the `openvino_2022` folder may already exist. If you want to override it, nagivate to the `C:\Program Files (x86)\Intel` folder and delete the existing linked folder before running the `mklink` command.
+> **NOTE**: If you have already installed a previous version of OpenVINO, a symbolic link to the `openvino_2022` folder may already exist. If you want to override it, nagivate to the `C:\Program Files (x86)\Intel` folder and delete the existing linked folder before running the `mklink` command.
 
 Congratulations, you finished installation! The C:\Program Files (x86)\Intel\openvino_2022 folder now contains the core components for OpenVINO™. When other pages in OpenVINO™ documentation refer to the <INSTALL_DIR> directory, this is the folder they're referring to. If you installed OpenVINO™ in a different location, make sure to use that instead.
 
