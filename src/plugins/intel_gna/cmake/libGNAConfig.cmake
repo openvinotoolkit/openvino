@@ -25,12 +25,12 @@ if(libGNA_FIND_REQUIRED_KERNEL)
                  HINTS ${libGNA_LIBRARIES_BASE_PATH}
                  NO_CMAKE_FIND_ROOT_PATH)
 
-    if(NOT GNA_KERNEL_LIBRARY MATCHES NOTFOUND)
+    if(GNA_KERNEL_LIBRARY)
         add_library(libGNA::KERNEL SHARED IMPORTED)
         set_target_properties(libGNA::KERNEL PROPERTIES IMPORTED_LOCATION ${GNA_KERNEL_LIBRARY})
         set(libGNA_KERNEL_FOUND TRUE)
     else()
-        message(SEND_ERROR "GNA KERNEL library was not found in ${libGNA_LIBRARIES_BASE_PATH}")
+        message(SEND_ERROR "GNA KERNEL library (${GNA_KERNEL_LIB_NAME}) was not found in ${libGNA_LIBRARIES_BASE_PATH}")
     endif()
 endif()
 
@@ -38,12 +38,12 @@ if(libGNA_FIND_REQUIRED_API)
     find_path(libGNA_INCLUDE_DIRS gna2-api.h
               PATHS "${GNA_EXT_DIR}/include"
               NO_CMAKE_FIND_ROOT_PATH)
-    if(NOT libGNA_INCLUDE_DIRS MATCHES NOTFOUND)
+    if(libGNA_INCLUDE_DIRS)
         add_library(libGNA::API INTERFACE IMPORTED)
         set_target_properties(libGNA::API PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${libGNA_INCLUDE_DIRS})
         set(libGNA_API_FOUND TRUE)
     else()
-        message(SEND_ERROR "GNA API headers was not found in ${GNA_EXT_DIR}/include")
+        message(SEND_ERROR "GNA API headers (gna2-api.h) was not found in ${GNA_EXT_DIR}/include")
     endif()
 endif()
 
