@@ -77,6 +77,7 @@
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include <transformations/op_conversions/gelu7_downgrade.hpp>
 #include <transformations/op_conversions/convert_softmax_downgrade.hpp>
+#include <transformations/op_conversions/convert_prior_box_v8_to_v0.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -160,6 +161,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ngraph::pass::ConvertNMS5ToNMS9>();
         manager.register_pass<ngraph::pass::ConvertNMS9ToNMSIEInternal>();
         manager.register_pass<ngraph::pass::ConvertGather0D>();
+        manager.register_pass<ngraph::pass::ConvertPriorBox8To0, false>();
 
         precisions_array convert_precision_list {
                 {ngraph::element::f64, ngraph::element::f32},
