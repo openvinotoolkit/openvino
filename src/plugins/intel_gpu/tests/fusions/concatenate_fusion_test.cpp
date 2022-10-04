@@ -136,7 +136,7 @@ TEST_P(concat_onednn_eltwise, along_f) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, concat_onednn_activation, ::testing::ValuesIn(std::vector<concat_test_params>{
-    concat_test_params{ CASE_CONCAT_F16_1, 3, 3, "" },
+    concat_test_params{ CASE_CONCAT_F16_1, 4, 4, "" },
 }));
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, concat_onednn_eltwise, ::testing::ValuesIn(std::vector<concat_test_params>{

@@ -1118,6 +1118,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_multi_eltwise_quantization, ::te
 class conv_fp32_multi_eltwise_concat : public ConvFusingTest {};
 TEST_P(conv_fp32_multi_eltwise_concat, basic) {
     auto p = GetParam();
+    data_types output_type = data_types::i8;
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("eltwise_data1", get_mem(get_output_layout(p))),
@@ -1129,15 +1130,15 @@ TEST_P(conv_fp32_multi_eltwise_concat, basic) {
         eltwise("eltwise2", "conv_prim", "eltwise_data2", eltwise_mode::sum),
         concatenation("concat",
             { "eltwise1", "eltwise2" },
-            1,
-            data_types::i8,
+            2,
+            output_type,
             padding{ { 0, 0, 0, 0 }, 0 }),
         reorder("reorder_bfyx", "concat", p.default_format, data_types::f32)
     );
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
     bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = default_tolerance(output_type);
     execute(p);
 }
 

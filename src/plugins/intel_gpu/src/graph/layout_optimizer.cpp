@@ -1284,7 +1284,13 @@ impl_types layout_optimizer::get_forced_impl_type_by_config(program_node& node) 
                 return impl_types::ocl;
             else if (forced_impl_type == "reduce:onednn")
                 return impl_types::onednn;
-        }
+        } else if (node.is_type<concatenation>()) {
+            if (forced_impl_type == "concat:ocl")
+                return impl_types::ocl;
+            else if (forced_impl_type == "concat:onednn")
+                return impl_types::onednn;
+         }
+
 
         // Forcing one layer
         size_t found_type = forced_impl_type.rfind(":");
