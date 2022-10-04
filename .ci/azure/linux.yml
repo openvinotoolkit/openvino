@@ -140,7 +140,7 @@ jobs:
       $(REPO_DIR)/install_build_dependencies.sh
       # Move jdk into contrib
       # 'clang' compiler is to check that samples can be built using it
-      sudo apt --assume-yes install openjdk-11-jdk clang
+      sudo apt --assume-yes install openjdk-11-jdk clang python3.10
       # For opencv-python: python3-setuptools and pip upgrade
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
