@@ -487,8 +487,8 @@ TEST(type_prop, matmul_propagate_labels) {
 
     const auto a = make_shared<op::Parameter>(element::f32, a_shape);
     const auto b = make_shared<op::Parameter>(element::f32, b_shape);
-
     const auto matmul = make_shared<op::MatMul>(a, b, false, false);
+
     const auto& output_shape = matmul->get_output_partial_shape(0);
     const auto labels = get_shape_labels(output_shape);
 
@@ -501,7 +501,7 @@ TEST(type_prop, matmul_propagate_labels) {
                             ));
 }
 
-TEST(type_prop, matmul_propagate_labels_when_dynamic_dims) {
+TEST(type_prop, matmul_propagate_labels_on_interval_dims) {
     const auto a_labels = std::vector<size_t>{1, 0, 3, 4, 5};
     const auto b_labels = std::vector<size_t>{0, 1, 3, 4, 7};
 
@@ -513,8 +513,8 @@ TEST(type_prop, matmul_propagate_labels_when_dynamic_dims) {
 
     const auto a = make_shared<op::Parameter>(element::f32, a_shape);
     const auto b = make_shared<op::Parameter>(element::f32, b_shape);
-
     const auto matmul = make_shared<op::MatMul>(a, b, false, false);
+
     const auto& output_shape = matmul->get_output_partial_shape(0);
     const auto labels = get_shape_labels(output_shape);
 
@@ -525,4 +525,33 @@ TEST(type_prop, matmul_propagate_labels_when_dynamic_dims) {
                             a_labels[3],  // use label from a, b is lost
                             b_labels[4]   // use label from a, b is lost
                             ));
+}
+
+TEST(type_prop, matmul_propagate_label_on_b_input_after_reshape) {
+    constexpr size_t my_label = 2;
+    auto marked_dim = Dimension(2, 3);
+    ov::DimensionTracker::set_label(marked_dim, my_label);
+
+    const auto a_shape = PartialShape{Dimension::dynamic(), 5, 3};
+    const auto b_shape = PartialShape{3, marked_dim, 2};
+
+    const auto b = make_shared<op::Parameter>(element::f32, b_shape);
+    const auto shape_of_b = std::make_shared<op::ShapeOf>(b);
+    const auto gather = std::make_shared<op::v7::Gather>(
+        shape_of_b,
+        std::make_shared<op::Constant>(element::i64, Shape{2}, std::vector<int64_t>{1, 0}),
+        std::make_shared<op::Constant>(element::i64, Shape{}, 0));
+    const auto concat =
+        std::make_shared<op::Concat>(OutputVector{gather, std::make_shared<op::Constant>(element::i64, Shape{1}, 8)},
+                                     0);
+    const auto reshape_b = make_shared<op::v1::Reshape>(b, concat, false);
+
+    const auto a = make_shared<op::Parameter>(element::f32, a_shape);
+    const auto matmul = make_shared<op::MatMul>(a, reshape_b, false, false);
+
+    const auto& output_shape = matmul->get_output_partial_shape(0);
+    const auto labels = get_shape_labels(output_shape);
+
+    ASSERT_THAT(labels, ElementsAre(my_label, 0, 0));
+    ASSERT_EQ(output_shape, (PartialShape{marked_dim, 5, 8}));
 }
