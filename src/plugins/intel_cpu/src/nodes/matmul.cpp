@@ -193,7 +193,7 @@ void MatMul::setPostOps(dnnl::primitive_attr &attr, const VectorDims& dims, bool
             }
         } else if (auto* eltwiseNode = dynamic_cast<Eltwise *>(postop->get())) {
             // -1 means the OC channel is the last dimension
-            if (eltwiseNode->getAlgorithm() == Algorithm::EltwiseRelu) {
+            if (eltwiseNode->getOneDnnAlgorithm() == dnnl::algorithm::eltwise_relu) {
                 // There are patterns composed of Relu + A in which A can be optimized as output scales
                 // in this case we can switch the order of these two steps (since oneDNN performs output scale first)
                 // since [Relu, Scale] is equivalent to [Scale, Relu].

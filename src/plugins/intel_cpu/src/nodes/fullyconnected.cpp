@@ -415,7 +415,7 @@ void FullyConnected::setPostOps(dnnl::primitive_attr &attr, const VectorDims &di
         } else if (auto* eltwiseNode = dynamic_cast<Eltwise *>(postop->get())) {
             // for inner product, output channel (OC) is always the last dimension (-1)
             // https://oneapi-src.github.io/oneDNN/dev_guide_inner_product.html
-            if (eltwiseNode->getAlgorithm() == Algorithm::EltwiseRelu) {
+            if (eltwiseNode->getOneDnnAlgorithm() == dnnl::algorithm::eltwise_relu) {
                 // There are patterns composed of Relu + A in which A can be optimized as output scales
                 // in this case we can switch the order of these two steps (since oneDNN performs output scale first)
                 // since [Relu, Scale] is equivalent to [Scale, Relu].

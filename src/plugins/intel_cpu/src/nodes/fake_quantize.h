@@ -135,7 +135,11 @@ public:
     // avoid costly binary postOps in this optimization)
     // if it happens to be the last postOp, the outDataType determines which type of suration will be performed
     // by oneDNN thus some crop/round steps can be further optimized.
-    bool optimizeAsOscaleEltwise(dnnl::primitive_attr &attr, dnnl::post_ops& ops, bool isLastPostOp, dnnl::memory::data_type outDataType);
+    bool optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
+                                 dnnl::post_ops& ops,
+                                 bool isLastPostOp,
+                                 dnnl::memory::data_type outDataType,
+                                 bool allowShift = true);
 
     // called when it's not the first fused OP thus output scale is not an option, and this optimization try to
     // use only eltwise postOps to perform per-tensor FQ.

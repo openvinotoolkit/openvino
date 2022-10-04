@@ -596,8 +596,56 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
         return binaryShape;
     };
 
-    for (int i = 0; i < fusedWith.size(); i++) {
-        auto& node = fusedWith[i];
+    DEBUG_LOG(getName());
+    bool isINT8Inference = canBeExecutedInInt8();
+    auto postop = fusedWith.begin();
+
+    // only the first postop may be mapped as output scale:
+    //   1. FakeQuantize
+    //   2. DequantizeMultiply
+    if (isINT8Inference && postop != fusedWith.end()) {
+        bool isLastPostOp = ((*postop) == fusedWith.back());
+        if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(postop->get())) {
+            if (fakeQuantizeNode->optimizeAsOscaleEltwise(attr, ops, isLastPostOp, outputDataType)) {
+                ++postop; // mapped
+            }
+        } else if (auto* eltwiseNode = dynamic_cast<Eltwise *>(postop->get())) {
+            // for inner product, output channel (OC) is always the last dimension (-1)
+            // https://oneapi-src.github.io/oneDNN/dev_guide_inner_product.html
+            if (eltwiseNode->getOneDnnAlgorithm() == dnnl::algorithm::eltwise_relu) {
+                // There are patterns composed of Relu + A in which A can be optimized as output scales
+                // in this case we can switch the order of these two steps (since oneDNN performs output scale first)
+                // since [Relu, Scale] is equivalent to [Scale, Relu].
+                auto nextop = postop + 1;
+                if (nextop != fusedWith.end()) {
+                    if (auto* eltwiseNode2 = dynamic_cast<Eltwise *>(nextop->get())) {
+                        if (eltwiseNode2->optimizeAsOscaleEltwise(attr, ops, 1, false)) {
+                            // eltwiseNode2 is already mapped first as output scales
+                            // now mapping eltwiseNode:
+                            ops.append_eltwise(1.0, eltwiseNode->getOneDnnAlgorithm(), eltwiseNode->getAlpha(), eltwiseNode->getBeta());
+                            // two ops were mapped now.
+                            ++postop;
+                            ++postop;
+                        }
+                    } else if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(nextop->get())) {
+                        if (fakeQuantizeNode->optimizeAsOscaleEltwise(attr, ops, isLastPostOp, outputDataType, false)) {
+                            ops.append_eltwise(1.0, eltwiseNode->getOneDnnAlgorithm(), eltwiseNode->getAlpha(), eltwiseNode->getBeta());
+                            // two ops were mapped now.
+                            ++postop;
+                            ++postop;
+                        }
+                    }
+                }
+            } else if (eltwiseNode->optimizeAsOscaleEltwise(attr, ops, 1, true)) {
+                ++postop; // mapped
+            }
+        }
+    }
+
+    // all the rest must be mapped as postOps
+    while (postop != fusedWith.end()) {
+        auto& node = *postop++;
+
         if (node->getType() == Type::Split || node->getType() == Type::Concatenation)
             continue;
 
@@ -620,7 +668,7 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get())) {
             const Dim OC = dims[1];
             auto scale = fakeQuantizeNode->simplifyToScale(outputDataType, OC);
-
+#if 0
             // Note: only int8 convolution support output_scales attr, but some fp32 convolution
             // may still have FakeQuantize postOps fused which cannot be implemented as output scale
             if (i == 0 && canBeExecutedInInt8()) {
@@ -663,8 +711,9 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
                     continue;
                 }
             }
-
-            if (node == fusedWith[fusedWith.size() - 1] && !scale.empty()) {
+#endif
+            bool isLastPostOp = (node == fusedWith.back());
+            if (isLastPostOp && !scale.empty()) {
                 if (ops.len() == 1 && ops.kind(0) == primitive::kind::sum &&
                     outputDataType == memory::data_type::u8 &&
                     std::all_of(scale.cbegin(), scale.cend(), [&](float val) { return val == scale[0]; })) {
@@ -680,7 +729,6 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
                 }
             }
 
-            bool isLastPostOp = (node == fusedWith.back());
             if (fakeQuantizeNode->optimizeAsEltwise(ops, isLastPostOp, outputDataType)) {
                 continue;
             }

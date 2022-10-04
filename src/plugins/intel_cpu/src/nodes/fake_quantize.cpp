@@ -1985,7 +1985,11 @@ static bool isPerTensor(const std::vector<float>& v, const float zero_thr = std:
         });
 }
 
-bool FakeQuantize::optimizeAsOscaleEltwise(dnnl::primitive_attr &attr, dnnl::post_ops& ops, bool isLastPostOp, dnnl::memory::data_type outDataType) {
+bool FakeQuantize::optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
+                                           dnnl::post_ops& ops,
+                                           bool isLastPostOp,
+                                           dnnl::memory::data_type outDataType,
+                                           bool allowShift) {
     // in this optimization, output scale (can be per-channel or per-tensor) is an option
 
     // All postOps in oneDNN are performed in FP32, thus rounding in FQ can always be dropped (w/o jeopardizing accuracy),
@@ -2051,6 +2055,10 @@ bool FakeQuantize::optimizeAsOscaleEltwise(dnnl::primitive_attr &attr, dnnl::pos
     if (!isPerTensor(clipLow, zero_thr))
         return false;
     if (!isPerTensor(clipHigh, zero_thr))
+        return false;
+
+    // return before change anything if we're doomed to failed
+    if (!allowShift && abs(combinedShift[0]) > zero_thr)
         return false;
 
     // combined scale implemented by output scale
