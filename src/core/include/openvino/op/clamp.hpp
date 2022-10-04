@@ -40,6 +40,12 @@ public:
     double get_max() const {
         return m_max;
     }
+    void set_min(const double& x) {
+        m_min = x;
+    }
+    void set_max(const double& x) {
+        m_max = x;
+    }
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
