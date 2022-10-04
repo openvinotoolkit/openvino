@@ -19,10 +19,6 @@ class TestSelect(CommonTFLayerTest):
             Input_2-----|               Input_2-----|
         """
 
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()

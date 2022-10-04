@@ -14,13 +14,9 @@ class TestPooling(CommonTFLayerTest):
         """
             Tensorflow net                 IR net
 
-            Input->Pooling        =>       Input->Pooling
+            Input->Pooling        =>       Input->Pooling (AvgPool, MaxPool)
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
 
         import tensorflow as tf
 

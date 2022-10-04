@@ -18,11 +18,6 @@ class TestResamplePattern(CommonTFLayerTest):
         """
             The sub-graph in TF that could be expressed as a single Resample operation.
         """
-
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()

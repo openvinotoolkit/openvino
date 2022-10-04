@@ -10,15 +10,11 @@ class TestBatchToSpace(CommonTFLayerTest):
     def create_batch_to_space_net(self, in_shape, crops_value, block_shape_value, out_shape,
                                   ir_version, use_new_frontend):
         """
-            Tensorflow net               IR net
+            Tensorflow net                     IR net
 
             Input->BatchToSpace        =>      Input->BatchToSpace
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
 
         import tensorflow as tf
 

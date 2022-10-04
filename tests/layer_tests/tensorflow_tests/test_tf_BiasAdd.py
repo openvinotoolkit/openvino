@@ -12,15 +12,11 @@ class TestBiasAdd(CommonTFLayerTest):
         """
             Tensorflow net                      IR net
 
-            Placeholder->BiasAdd       =>       Placeholder->Power or ScaleShift
+            Placeholder->BiasAdd       =>       Placeholder->Add
                          /                                   /
             Const-------/                       Const-------/
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
 
         import tensorflow as tf
         import numpy as np

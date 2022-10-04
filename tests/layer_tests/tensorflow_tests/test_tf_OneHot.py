@@ -23,10 +23,6 @@ class TestOneHot(CommonTFLayerTest):
             Input (> 3D)  -> Permute (NCHW -> NHWC) -> OneHot ->   Permute (NHWC -> NCHW)
         """
 
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()

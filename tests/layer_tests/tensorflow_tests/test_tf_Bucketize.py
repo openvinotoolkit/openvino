@@ -21,12 +21,12 @@ class TestBucketize(CommonTFLayerTest):
            {attrs: boundaries}
         """
 
-        # create Tensorflow model
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
             x = tf.compat.v1.placeholder(input_type, input_shape, 'Input')
             constant_value = np.arange(-boundaries_size * 5, boundaries_size * 5, 10,
                                        dtype=np.float32)
+            # TODO: Bucketize is not tested here. Need to re-write the test
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 

@@ -82,10 +82,6 @@ class TestUnaryOps(CommonTFLayerTest):
             'ReLU': tf.nn.relu,
         }
 
-        #
-        #   Create Tensorflow model
-        #
-
         tf.compat.v1.reset_default_graph()
 
         type = tf.float32
