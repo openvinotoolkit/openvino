@@ -310,9 +310,8 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
     exeNetwork->SetPointerToPlugin(shared_from_this());
 }
 
-std::unordered_set<std::string> GetRemovedNodes(
-    const std::shared_ptr<const ov::Model>& originalFunction,
-    const std::shared_ptr<const ov::Model>& transformedFunction) {
+std::unordered_set<std::string> GetRemovedNodes(const std::shared_ptr<const ov::Model>& originalFunction,
+                                                const std::shared_ptr<const ov::Model>& transformedFunction) {
     std::unordered_set<std::string> result = {};
     std::unordered_set<std::string> transformedNodeNames = {};
 
