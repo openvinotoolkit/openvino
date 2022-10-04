@@ -11,6 +11,40 @@ namespace op {
 namespace v1 {
 
 /**
+ * \brief Calculate transpose output shape.
+ *
+ * \tparam T           Type of shape
+ *
+ * \param op           Transpose operator pointer.
+ * \param input_shape  Transpose input shape.
+ * \param axes_order   Transpose axes order (modified if empty).
+ *
+ * \return Output shape
+ */
+template <class T>
+T calc_output_shape(const Transpose* const op, const T& input_shape, std::vector<int64_t>& axes_order) {
+    const auto output_rank = input_shape.size();
+
+    if (axes_order.empty()) {
+        generate_transpose_default_order(axes_order, output_rank);
+    } else {
+        NODE_VALIDATION_CHECK(op,
+                              is_valid_axes_order(axes_order, output_rank),
+                              "Permutation ",
+                              AxisVector(axes_order.begin(), axes_order.end()),
+                              " is not valid for input shape ",
+                              input_shape);
+    }
+
+    T output_shape;
+    for (auto&& axis : axes_order) {
+        output_shape.push_back(input_shape[axis]);
+    }
+
+    return output_shape;
+}
+
+/**
  * \brief Do transpose inference on input and output shapes.
  *
  * \tparam T             Type of inference shapes.
@@ -32,26 +66,11 @@ void shape_infer(const Transpose* op,
     const auto has_order = get_data_as_int64<T>(Transpose::ORDER, op, axes, constant_data);
 
     if (has_order && input_shape.rank().is_static()) {
-        const auto out_rank_size = input_shape.rank().get_length();
-
-        if (axes.empty()) {
-            generate_transpose_default_order(axes, out_rank_size);
-        } else {
-            NODE_VALIDATION_CHECK(op,
-                                  is_valid_axes_order(axes, out_rank_size),
-                                  "Permutation ",
-                                  AxisVector(axes.begin(), axes.end()),
-                                  " is not valid for input shape ",
-                                  input_shape);
-        }
-
-        output_shape.resize(out_rank_size);
-        std::transform(axes.cbegin(), axes.cend(), output_shape.begin(), [&input_shape](const size_t axis) {
-            return input_shape[axis];
-        });
+        output_shape = calc_output_shape(op, input_shape, axes);
+    } else if (has_order) {
+        output_shape = ov::PartialShape::dynamic(axes.size());
     } else {
-        output_shape =
-            has_order ? ov::PartialShape::dynamic(axes.size()) : ov::PartialShape::dynamic(input_shape.rank());
+        output_shape = ov::PartialShape::dynamic(input_shape.rank());
     }
 }
 }  // namespace v1

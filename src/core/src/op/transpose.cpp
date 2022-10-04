@@ -4,11 +4,9 @@
 
 #include "ngraph/op/transpose.hpp"
 
-#include "compare.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/transpose.hpp"
 #include "ngraph/validation_util.hpp"
-#include "sequnce_generator.hpp"
 #include "transpose_shape_inference.hpp"
 
 using namespace std;
@@ -20,7 +18,7 @@ op::v1::Transpose::Transpose(const Output<Node>& arg, const Output<Node>& input_
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v1::Transpose::visit_attributes(AttributeVisitor& visitor) {
+bool op::v1::Transpose::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v1_Transpose_visit_attributes);
     return true;
 }
@@ -59,47 +57,27 @@ shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& ne
     return make_shared<v1::Transpose>(new_args[ARG], new_args[ORDER]);
 }
 
-namespace transpose {
-namespace {
-using namespace ov::op;
-
-bool evaluate_transpose(const HostTensorPtr& arg1, const HostTensorPtr& arg2, const HostTensorPtr& out) {
-    OPENVINO_ASSERT(arg2->get_element_type().is_integral_number(),
-                    "Transpose axis element type has to be integral data type.");
-
-    std::vector<int64_t> axes_order = host_tensor_2_vector<int64_t>(arg2);
-    ov::Shape in_shape = arg1->get_shape();
-    if (shape_size(arg2->get_shape()) == 0) {
-        ov::generate_transpose_default_order(axes_order, in_shape.size());
-    } else {
-        OPENVINO_ASSERT(ov::is_valid_axes_order(axes_order, in_shape.size()),
-                        "Permutation ",
-                        AxisVector(axes_order.begin(), axes_order.end()),
-                        " is not valid for input shape ",
-                        in_shape);
-    }
-
-    ov::Shape out_shape(in_shape.size());
-    std::transform(axes_order.begin(), axes_order.end(), out_shape.begin(), [&in_shape](const int64_t& v) {
-        return in_shape[v];
-    });
-
-    out->set_shape(out_shape);
-    out->set_element_type(arg1->get_element_type());
-    runtime::reference::transpose(arg1->get_data_ptr<char>(),
-                                  out->get_data_ptr<char>(),
-                                  arg1->get_shape(),
-                                  arg1->get_element_type().size(),
-                                  axes_order.data(),
-                                  out_shape);
-    return true;
-}
-}  // namespace
-}  // namespace transpose
-
 bool op::v1::Transpose::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v1_Transpose_evaluate);
-    return transpose::evaluate_transpose(input_values[ARG], input_values[ORDER], output_values[ARG_T]);
+
+    const auto& order = input_values[ORDER];
+    OPENVINO_ASSERT(order->get_element_type().is_integral_number(),
+                    "Transpose axis element type has to be integral data type.");
+
+    const auto& arg = input_values[ARG];
+    std::vector<int64_t> axes_order = host_tensor_2_vector<int64_t>(order);
+    auto out_shape = calc_output_shape(this, arg->get_shape(), axes_order);
+
+    auto& out = output_values[ARG_T];
+    out->set_shape(out_shape);
+    out->set_element_type(arg->get_element_type());
+    ngraph::runtime::reference::transpose(arg->get_data_ptr<char>(),
+                                          out->get_data_ptr<char>(),
+                                          arg->get_shape(),
+                                          arg->get_element_type().size(),
+                                          axes_order.data(),
+                                          out_shape);
+    return true;
 }
 
 bool op::v1::Transpose::has_evaluate() const {
