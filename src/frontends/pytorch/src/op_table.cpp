@@ -208,28 +208,26 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
                  ))};
          }},
 
-        /*{"aten::layer_norm",
+        {"aten::layer_norm",
          [](NodeContext& context) -> OutputVector {
              auto normalized_shape = context.const_input<Shape>(1);
-             auto in_pshape_last_dim = *context.get_input(0).get_partial_shape().rbegin();
-             OV_FRONTEND_REQUIRE(normalized_shape.size() == 1 && in_pshape_last_dim.is_static() &&
-                                 static_cast<uint64_t>(in_pshape_last_dim.get_length()) == normalized_shape.back());
+             // TODO: do we need this check?
+             //auto in_pshape_last_dim = *context.get_input(0).get_partial_shape().rbegin();
+             //OV_FRONTEND_REQUIRE(normalized_shape.size() == 1 && in_pshape_last_dim.is_static() &&
+             //                    static_cast<uint64_t>(in_pshape_last_dim.get_length()) == normalized_shape.back());
              auto eps = context.const_input<float>(4);
              auto axes = context.mark_node(
                  opset8::Constant::create(element::i64, Shape{1}, {-1}));  // TODO: support any dimention
-             auto mvn = context.mark_node(
+             auto out_node = context.mark_node(
                  std::make_shared<opset8::MVN>(context.get_input(0), axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT));
-             std::shared_ptr<ov::Node> out_node = std::dynamic_pointer_cast<ov::Node>(mvn);
              if (!context.input_is_none(2)) {
-                 auto mul = std::make_shared<opset8::Multiply>(out_node, context.get_input(2));
-                 out_node = std::dynamic_pointer_cast<ov::Node>(mul);
+                 out_node = context.mark_node(std::make_shared<opset8::Multiply>(out_node, context.get_input(2)));
              }
              if (!context.input_is_none(3)) {
-                 auto add = std::make_shared<opset8::Add>(out_node, context.get_input(3));
-                 out_node = std::dynamic_pointer_cast<ov::Node>(add);
+                 out_node = context.mark_node(std::make_shared<opset8::Add>(out_node, context.get_input(3)));
              }
-             return {context.mark_node(out_node)};
-         }},*/
+             return {out_node};
+         }},
 
         {"aten::add", op::add},
         {"aten::add_", inplace_op<op::add>},
