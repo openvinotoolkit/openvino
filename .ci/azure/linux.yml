@@ -119,7 +119,7 @@ jobs:
       sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
       sudo mkdir -p $(SHARE_DIR)
       lsb_release -a
-      sudo apt --assume-yes update && sudo apt --assume-yes install nfs-common python3.10
+      sudo apt --assume-yes update && sudo apt --assume-yes install nfs-common
       sudo apt --assume-yes install software-properties-common && sudo add-apt-repository -y ppa:deadsnakes/ppa && sudo apt --assume-yes install python3.10
       sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(SHARE_DIR) -o vers=4,minorversion=1,sec=sys
       mkdir -p $(CCACHE_DIR)
