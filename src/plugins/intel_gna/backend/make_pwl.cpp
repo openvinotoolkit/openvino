@@ -17,7 +17,7 @@
 #include "pwl_input_params.hpp"
 #include "pwl_segments_creator_factory.hpp"
 
-// This function performes emulatation of HW saturation of PWL segments in SW
+// This function performs emulation of HW saturation of PWL segments in SW
 // by inserting additional segments when overflow would happen
 static void insert_extra_pwl_segments(std::vector<gna_pwl_segment_t>& gna_pwl,
     const int16_t y_min,
@@ -80,59 +80,6 @@ static void print_segment(double x, double y, double slope) {
                 y << std::setw(12) << std::setfill(' ') << slope << std::endl;
 }
 
-static std::vector<gna_pwl_segment_t> create_multisegment_gna_pwl(const std::vector<pwl_t>& pwl,
-                                                                  double in_scale,
-                                                                  double out_scale,
-                                                                  double min_x_val,
-                                                                  double max_x_val,
-                                                                  double min_y_val,
-                                                                  double max_y_val,
-                                                                  bool fake_quantize,
-                                                                  bool add_last_seg) {
-    std::vector<gna_pwl_segment_t> gna_pwl;
-
-    int32_t xbase = static_cast<int32_t> (INT32_MIN & XBASEMASK);  // zero out the 2 lsb
-    int16_t ybase = FLOAT_TO_INT16(min_y_val * out_scale);
-    int16_t slope = 0;
-    gna_pwl.push_back({xbase, ybase, slope});
-    print_segment(xbase / in_scale, min_y_val, slope);
-
-    if (!fake_quantize && min_x_val > INT32_MIN / in_scale) {
-        auto s = gna_slope(pwl[0].m, in_scale, out_scale);
-        slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
-        xbase = (static_cast<int32_t>(min_x_val * in_scale) & XBASEMASK) | s.slope_scale_index;
-        ybase = FLOAT_TO_INT16(min_y_val * out_scale);
-        gna_pwl.push_back({xbase, ybase, slope});
-        print_segment(min_x_val, min_y_val, pwl[0].m);
-    }
-
-    for (uint32_t i = 0; i < pwl.size(); ++i) {
-        if (!fake_quantize && (pwl[i].alpha <= min_x_val ||
-            pwl[i].alpha <= INT32_MIN / in_scale ||
-            pwl[i].alpha >= max_x_val)) {
-            continue;
-        }
-
-        auto s = gna_slope(pwl[i].m, in_scale, out_scale);
-        xbase = ((static_cast<int32_t> (in_scale * pwl[i].alpha)) & XBASEMASK) | s.slope_scale_index;
-        ybase = FLOAT_TO_INT16(pwl[i].beta * out_scale);
-        slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
-        gna_pwl.push_back({xbase, ybase, slope});
-        print_segment(pwl[i].alpha, pwl[i].beta, pwl[i].m);
-    }
-
-    if (!fake_quantize && add_last_seg) {
-        // insert extra segment for xvalues > u_bound
-        xbase = static_cast<int32_t>(max_x_val * in_scale) & XBASEMASK;
-        ybase = FLOAT_TO_INT16(max_y_val * out_scale);
-        slope = 0;
-        gna_pwl.push_back({xbase, ybase, slope});
-        print_segment(max_x_val, max_y_val, slope);
-    }
-
-    return gna_pwl;
-}
-
 void make_gna_pwl(const DnnActivation&  fun,
                   const std::vector<pwl_t>& pwl,
                   const double l_bound,
@@ -140,12 +87,12 @@ void make_gna_pwl(const DnnActivation&  fun,
                   const double in_scale,
                   const double out_scale,
                   const bool low_precision,
+                  const bool is_fused_with_conv2d,
                   std::vector<gna_pwl_segment_t> &gna_pwl) {
     gnalog() << "make_gna_pwl\n";
     gnalog() << "   in_scale  " << in_scale << "\n";
     gnalog() << "   out_scale " << out_scale << "\n";
     print_segments_header(fun);
-
     if (fun.type == kActIdentity) {
         auto pwl_creator = ov::intel_gna::backend::PWLSegmentsCreatorFactory::CreateCreator(fun.type);
         if (pwl_creator == nullptr) {
@@ -155,18 +102,16 @@ void make_gna_pwl(const DnnActivation&  fun,
         auto segments_with_borders = pwl_creator->CreateSegmentsWithBorders(input_data);
         gna_pwl = segments_with_borders.segments;
         auto& y_min_max = segments_with_borders.border_values.y_min_max;
-
-        // looks like insert_extra_pwl_segments is not needed for identity because the left most and the right most
-        // segments meets condition put in the method.
-        insert_extra_pwl_segments(gna_pwl, y_min_max.y_min, y_min_max.y_max);
+        // Extra segments are needed only in case activation function was fused with Conv2D layer
+        if (is_fused_with_conv2d) {
+            insert_extra_pwl_segments(gna_pwl, y_min_max.y_min, y_min_max.y_max);
+        }
         return;
     }
 
     pwl_gna_slope_scale_t s;
     const int16_t y_min = low_precision ? INT8_MIN : INT16_MIN;
     const int16_t y_max = low_precision ? INT8_MAX : INT16_MAX;
-
-
     switch (fun) {
         case kActRelu:
         case kActLeakyRelu: {
@@ -336,7 +281,10 @@ void make_gna_pwl(const DnnActivation&  fun,
             THROW_GNA_EXCEPTION << "Unexpected function activation!" << fun;
     }
 
-    insert_extra_pwl_segments(gna_pwl, y_min, y_max);
+    // Extra segments are needed only in case activation function was fused with Conv2D layer
+    if (is_fused_with_conv2d) {
+        insert_extra_pwl_segments(gna_pwl, y_min, y_max);
+    }
 }
 
 template<typename T>
