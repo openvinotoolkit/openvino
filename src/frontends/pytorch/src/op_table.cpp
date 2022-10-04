@@ -18,6 +18,7 @@ namespace op {
 OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_slice);
+OP_CONVERTER(translate_transpose);
 
 OutputVector relu(NodeContext& context) {
     return {context.mark_node(std::make_shared<opset8::Relu>(context.get_input(0)))};
@@ -210,24 +211,22 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::layer_norm",
          [](NodeContext& context) -> OutputVector {
              auto normalized_shape = context.const_input<Shape>(1);
-             auto in_pshape_last_dim = *context.get_input(0).get_partial_shape().rbegin();
-             OV_FRONTEND_REQUIRE(normalized_shape.size() == 1 && in_pshape_last_dim.is_static() &&
-                                 static_cast<uint64_t>(in_pshape_last_dim.get_length()) == normalized_shape.back());
+             // TODO: do we need this check?
+             //auto in_pshape_last_dim = *context.get_input(0).get_partial_shape().rbegin();
+             //OV_FRONTEND_REQUIRE(normalized_shape.size() == 1 && in_pshape_last_dim.is_static() &&
+             //                    static_cast<uint64_t>(in_pshape_last_dim.get_length()) == normalized_shape.back());
              auto eps = context.const_input<float>(4);
              auto axes = context.mark_node(
                  opset8::Constant::create(element::i64, Shape{1}, {-1}));  // TODO: support any dimention
-             auto mvn = context.mark_node(
+             auto out_node = context.mark_node(
                  std::make_shared<opset8::MVN>(context.get_input(0), axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT));
-             std::shared_ptr<ov::Node> out_node = std::dynamic_pointer_cast<ov::Node>(mvn);
              if (!context.input_is_none(2)) {
-                 auto mul = std::make_shared<opset8::Multiply>(out_node, context.get_input(2));
-                 out_node = std::dynamic_pointer_cast<ov::Node>(mul);
+                 out_node = context.mark_node(std::make_shared<opset8::Multiply>(out_node, context.get_input(2)));
              }
              if (!context.input_is_none(3)) {
-                 auto add = std::make_shared<opset8::Add>(out_node, context.get_input(3));
-                 out_node = std::dynamic_pointer_cast<ov::Node>(add);
+                 out_node = context.mark_node(std::make_shared<opset8::Add>(out_node, context.get_input(3)));
              }
-             return {context.mark_node(out_node)};
+             return {out_node};
          }},
 
         {"aten::add", op::add},
@@ -250,6 +249,12 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
              }
              return {context.mark_node(
                  std::make_shared<opset8::Divide>(context.get_input(0), context.get_input(1), pythondiv))};
+         }},
+
+        {"aten::floordiv",
+         [](NodeContext& context) -> OutputVector {
+             return {
+                 context.mark_node(std::make_shared<opset8::Divide>(context.get_input(0), context.get_input(1), true))};
          }},
 
         {"aten::tanh",
@@ -325,32 +330,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
                  context.mark_node(std::make_shared<opset8::Softmax>(context.get_input(0), static_cast<size_t>(axis)))};
          }},
 
-        {"aten::cat",
-         [](NodeContext& context) -> OutputVector {
-             // aten::cat needs a special handling since it takes a Tensor[] as
-             // input. We set the inputs of ListConstruct as the inputs of cat.
-             //
-             // Pytorch IR:                              LLGA sees:
-             //     %a    %b     %c          %dim              %a    %b    %c
-             //      \     |     /             |                \     |    /
-             //   prim::ListConstruct   prim::Constant     llga::Concat[axis=%dim]
-             //                    \      /
-             //                    aten::cat
-             auto listConstruct = context.get_input(0).get_node();
-             auto listConstruct_fw_node = dynamic_cast<PtFrameworkNode*>(listConstruct);
-             OV_FRONTEND_REQUIRE(listConstruct_fw_node);
-             OV_FRONTEND_REQUIRE(listConstruct_fw_node->get_op_type() == "prim::ListConstruct");
-             auto axis = context.const_input<int64_t>(1);
-             OutputVector inputs;
-             for (auto& input : listConstruct->inputs()) {
-                 inputs.push_back(input.get_source_output());
-             }
-             auto result = context.mark_node(std::make_shared<opset8::Concat>(inputs, axis));
-             // TODO: do we really need to do that?
-             // auto list_set = listConstruct_fw_node->get_rt_info()["pt_node"].as<std::set<const Node*>>();
-             // result->get_rt_info()["pt_node"].as<std::set<const Node*>>().insert(list_set.begin(), list_set.end());
-             return {result};
-         }},
+        //{"aten::cat", done as transformation},
 
         {"aten::matmul",
          [](NodeContext& context) -> OutputVector {
@@ -494,32 +474,11 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
                  std::make_shared<opset8::Gather>(context.get_input(0), context.get_input(1), axis_0))};
          }},
 
-        {"aten::transpose",
-         [](NodeContext& context) -> OutputVector {
-             auto dim0 = context.const_input<int64_t>(1);
-             auto dim1 = context.const_input<int64_t>(2);
-             auto data_pshape = context.get_input(0).get_partial_shape();
-             auto rank = data_pshape.rank();
-             OV_FRONTEND_REQUIRE(rank.is_static());
-             auto _rank = rank.get_length();
-             if (dim0 < 0) {
-                 dim0 = _rank + dim0;
-             }
-             if (dim1 < 0) {
-                 dim1 = _rank + dim1;
-             }
-             OV_FRONTEND_REQUIRE(dim0 > 0 && dim1 > 0);
-             OV_FRONTEND_REQUIRE(dim0 < _rank && dim1 < _rank);
-             std::vector<int64_t> order(_rank, 0);
-             std::iota(order.begin(), order.end(), 0);
-             std::swap(order[dim0], order[dim1]);
-             auto order_const = context.mark_node(opset8::Constant::create(element::i64, {order.size()}, order));
-             return {context.mark_node(std::make_shared<opset8::Transpose>(context.get_input(0), order_const))};
-         }},
+        {"aten::transpose", op::translate_transpose},
 
         {"aten::size",
          [](NodeContext& context) -> OutputVector {
-             auto shape = context.mark_node(std::make_shared<opset8::ShapeOf>(context.get_input(0)));
+             auto shape = context.mark_node(std::make_shared<opset8::ShapeOf>(context.get_input(0), element::i32));
              if (context.input_is_none(1)) {
                  return shape->outputs();
              } else {
@@ -533,8 +492,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
              auto shape_node = context.get_input(1).get_node();
              auto shape_node_fw_node = dynamic_cast<PtFrameworkNode*>(shape_node);
              std::shared_ptr<ov::Node> reshape;
+             // TODO: move this to transform stage
              if (shape_node_fw_node && shape_node_fw_node->get_decoder()->get_op_type() == "prim::ListConstruct") {
-                 // TODO: maybe use pt shape instead of whole shape subgraph, because it may be more efficent
                  OutputVector inputs;
                  auto axis_0 = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {0}));
                  for (auto& input : shape_node->inputs()) {
@@ -546,8 +505,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
                  }
                  auto concat = context.mark_node(std::make_shared<opset8::Concat>(inputs, 0));
                  reshape = context.mark_node(std::make_shared<opset8::Reshape>(context.get_input(0), concat, false));
-                 auto list_set = shape_node_fw_node->get_rt_info()["pt_node"].as<std::set<const Node*>>();
-                 reshape->get_rt_info()["pt_node"].as<std::set<const Node*>>().insert(list_set.begin(), list_set.end());
+                 // TODO: fix rt_info
+                 // auto list_set = shape_node_fw_node->get_rt_info()["pt_node"].as<std::set<const Node*>>();
+                 // reshape->get_rt_info()["pt_node"].as<std::set<const Node*>>().insert(list_set.begin(),
+                 // list_set.end());
              } else {
                  reshape = context.mark_node(
                      std::make_shared<opset8::Reshape>(context.get_input(0), context.get_input(1), false));

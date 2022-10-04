@@ -42,8 +42,8 @@ public:
                     std::cerr << "[ ERROR ] Cannot retrieve type\n" << e.what() << std::endl;
                 }
             } else {
-                std::cerr << "[ WARNING ] Cannot retrieve type for output not existent in pt node: "
-                          << m_decoder->get_op_type() << " with 0 input: " << m_decoder->input(0) << std::endl;
+                //std::cerr << "[ WARNING ] Cannot retrieve type for output not existent in pt node: "
+                //          << m_decoder->get_op_type() << " with 0 input: " << m_decoder->input(0) << std::endl;
             }
             // Let's see what type we have
             // std::cout << "Can be represented as element::Type: " << type.is<element::Type>() << std::endl;

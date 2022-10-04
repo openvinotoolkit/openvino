@@ -7,6 +7,8 @@
 #include <openvino/frontend/pytorch/decoder.hpp>
 
 #include "transforms.hpp"
+#include "utils.hpp"
+
 
 namespace ov {
 namespace frontend {
@@ -54,21 +56,6 @@ std::shared_ptr<FrameworkNode> make_list_pack (const OutputVector& inputs, Any o
     list_pack->validate_and_infer_types();
     return list_pack;
 }
-
-
-std::shared_ptr<FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type) {
-    auto fw_node = std::dynamic_pointer_cast<FrameworkNode>(node);
-    if(!fw_node) {
-        std::cerr << "[ ERROR ] Incorrect matcher triggering\n";
-        return nullptr;
-    }
-    const auto& attrs = fw_node->get_attrs();
-    if(attrs.find("PtTypeName") == attrs.end() || attrs.at("PtTypeName") != type) {
-        return nullptr;
-    }
-    return fw_node;
-}
-
 
 
 std::shared_ptr<FrameworkNode> cast_internal_node(std::shared_ptr<Node> node, const std::string& type) {

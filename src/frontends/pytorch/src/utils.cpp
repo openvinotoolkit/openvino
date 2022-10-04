@@ -10,8 +10,6 @@
 namespace ov {
 namespace frontend {
 namespace pytorch {
-int LEVEL = 0;
-int NUMBER = 0;
 int COUNTER = 0;
 
 Output<Node> make_optional_bias(Output<Node> base_op,
@@ -89,40 +87,14 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context,
 }
 
 OutputVector convert_node(NodeContext* context) {
-    // std::cout << "[  ----  DEBUG  ---- ] convert_node\n";
-
-    // std::cerr << "---\nAttempting to convert " << node->kind().toQualString() << "\n";
-    // node->dump();
-
-    // std::cerr << "[ DEBUG ] Attempting to convert " << context.get_op_type() << "\n";
-
     try {
         auto CONVERTERS_MAP = get_supported_ops();
         auto it = CONVERTERS_MAP.find(context->get_op_type());
         if (it != CONVERTERS_MAP.end()) {
-            // std::cout << "FOUND converter for " << context.get_op_type() << "\n";
             return it->second(*context);
-        } else {
+        } /*else {
             const std::set<std::string> known_skips{"prim::RaiseException",
-                                                    "aten::warn",
-                                                    // remove all that above
-                                                    "prim::TupleConstruct",
-                                                    "prim::ListConstruct",
-                                                    "aten::format",
-                                                    "aten::append",
-                                                    "aten::update",
-                                                    "aten::dict",
-                                                    "aten::list",
-                                                    "aten::_set_item",
-                                                    "aten::__getitem__",
-                                                    "aten::__isnot__",
-                                                    "aten::__contains__",
-                                                    "prim::unchecked_cast",
-                                                    "prim::Uninitialized",
-                                                    "prim::SetAttr",
-                                                    "prim::GetAttr",
-                                                    "prim::ListUnpack",
-                                                    "aten::__not__"};
+                                                    "aten::warn"};
             if (!known_skips.count(context->get_op_type())) {
                 std::cout << "DIDN'T FIND converter for " << context->get_op_type() << " with inputs:";
                 if (context->inputs().size() == 0) {
@@ -133,29 +105,18 @@ OutputVector convert_node(NodeContext* context) {
                 }
                 std::cout << " with schema: " << context->get_schema() << std::endl;
             }
-        }
+        }*/
 
     }
-    // catch(pybind11::error_already_set& e) {
-    //     std::cout << "Python exception: " << e << "\n";
-    // }
     catch (std::runtime_error& e) {
         std::cout << "Exception happened during conversion of op: " << context->get_op_type()
                   << " with schema: " << context->get_schema() << ": " << e.what() << '\n';
-        // throw;
     } catch (...) {
         std::cout << "Some exception happened during conversion of node of type: " << context->get_op_type()
                   << std::endl;
-        // throw;
     }
-    // if (node->kind() != prim::ListConstruct) {
-    //     std::cout << "Making unsupported " << node->kind().toQualString() << std::endl;
-    //     node->dump();
-    // }
-
     // Create PtFrameworkNode for everything that wasn't able to be converted normally
     // Pay attention to subgraphs that may appear in the node
-    // std::cerr << "[ DEBUG ] Before PtFramewokNode creation\n";
 
     auto schema = context->get_schema();
     if (schema.find('!') != std::string::npos) {
@@ -167,7 +128,7 @@ OutputVector convert_node(NodeContext* context) {
         auto outputs = fw_node->outputs();
         // update writes to input 0, so we need to replace this input with output from update
         context->mutate_input(0, outputs.back());
-        std::cerr << "[ WARNING ] Created node with mutated 0 input. Schema: " << schema << std::endl;
+        //std::cerr << "[ WARNING ] Created node with mutated 0 input. Schema: " << schema << std::endl;
         context->get_decoder()->mark_node(fw_node);
         return outputs;
     }
@@ -217,8 +178,6 @@ OutputVector convert_node(NodeContext* context) {
 
 std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorch_model,
                                                  const TensorMap& external_tensor_map) {
-    LEVEL++;
-    // std::cout << "=====Convert model:" << LEVEL << " start=====" << std::endl;
     std::shared_ptr<ov::Model> resulting_model;  // define here to make a conversion in a nested scope
     {
         ParameterVector parameters;
@@ -227,15 +186,11 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
 
         //  Go over all pytorch_model inputs and register them in the tensor map:
         auto inputs = pytorch_model->inputs();
-        // std::cout << "[  ---  DEBUG --- ] convert_pytorch_model: number of inputs: " << inputs.size() << '\n';
         for (int i = 0; i < inputs.size(); ++i) {
-            // std::cout << "Input: " << i << ": " << inputs[i] << "\n";
             PartialShape ps = pytorch_model->get_input_shape(i);
-            // std::cout << "PartialShape = " << ps << "\n";
             auto parameter =
                 std::make_shared<opset8::Parameter>(ov::element::custom, pytorch_model->get_input_type(i), ps);
             parameter->get_output_tensor(0).add_names({std::to_string(pytorch_model->input(i))});
-            // std::cout << "Parameter: " << parameter << "\n";
             parameters.push_back(parameter);
             auto order = pytorch_model->get_input_transpose_order(i);
             if (order.size() > 0 && !std::is_sorted(order.begin(), order.end())) {
@@ -253,23 +208,18 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
             } else {
                 tensor_map[pytorch_model->input(i)] = parameter;
             }
-            // std::cout << "Level:" << LEVEL << " Added model input: " << tensor_map[pytorch_model->input(i)] <<
-            // std::endl;
         }
 
         auto node_visitor = [&](std::shared_ptr<Decoder> node) {
-            // std::cerr << "Node convert start" << std::endl;
-
             // Explore all inputs of node. Node may refer to input value that hasn't been created in the current scope.
             // But this value can be found in the outer scope, for this purpose we need to search node in
             // external_tensor_map as well
 
+            //std::cout << "Node visitor start: " << node->get_op_type() << ", schema: " << node->get_schema() << std::endl;
             auto raw_inputs = node->inputs();
             for (size_t i = 0; i < raw_inputs.size(); ++i) {
                 auto input = node->input(i);
                 if (tensor_map.find(input) == tensor_map.end()) {
-                    // std::cout << "Level:" << LEVEL << " Trampoline for input index " << i << " with value " << input
-                    // << "\n";
                     //   input refers value in the outer scope, need to create a new Parameter in the current scope
                     //   TODO: Connect outer scope and inner scope properly -- should be handled at the level of that
                     //   operation that introduced this nest of scopes (e.g. loop or if)
@@ -280,20 +230,13 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
                     auto parameter = std::make_shared<opset8::Parameter>(node->get_input_type(i), ps);
                     // TODO: Missing get_input_transpose_order handling for not trivial layouts
                     tensor_map[input] = parameter;
-                    // std::cout << "Parameter created\n";
                     // set name of parameter to the index of node in the model
                     parameter->get_output_tensor(0).add_names({std::to_string(input)});
                     parameters.push_back(parameter);
-                    // std::cout << "External tensor: " << input << " node: " << external_tensor_map.at(input) <<
-                    // std::endl;
                 }
             }
-            // std::cerr << "Node convert before translator: " << node->get_op_type() << ", schema: " <<
-            // node->get_schema() << std::endl;
-
             auto context = NodeContext(node, &tensor_map, &parameters, external_tensor_map);
             auto converted_outputs = convert_node(&context);
-            // std::cerr << "Node convert before outputs" << std::endl;
 
             auto mutated_t = context.get_mutated_tensors();
             mutated_tensors.insert(mutated_t.begin(), mutated_t.end());
@@ -310,37 +253,24 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
             for (size_t i = 0; i < fw_outputs.size(); ++i) {
                 size_t fw_tensor_id = node->output(i);
                 if (tensor_map.find(fw_tensor_id) != tensor_map.end()) {
-                    // std::cerr << "Duplicated producer for tensor with id = " << fw_tensor_id << " discovered at
-                    // output "
-                    //     << "port " << i << " of node " << node->kind().toQualString() << "\n";
                     throw std::runtime_error("Duplicated producer for PT value with unique ID: " +
                                              std::to_string(fw_tensor_id));
                 }
 
                 // Output shape of converted node should match the original output shape
-                // std::cerr << "[ DEBUG ] PT output shape = " << get_ov_shape(fw_outputs[i]) << '\n';
-                // std::cerr << "[ DEBUG ] OV output shape = " << converted_outputs[i].get_partial_shape() << '\n';
                 // OV_FRONTEND_REQUIRE(get_ov_shape(fw_outputs[i]) == converted_outputs[i].get_partial_shape());
 
                 tensor_map[fw_tensor_id] = converted_outputs[i];
                 converted_outputs[i].get_tensor().add_names({std::to_string(fw_tensor_id)});
-                // std::cout << "Level:" << LEVEL << " Added node: " << converted_outputs[i] << std::endl;
-                //  std::cout << "Converted node output " << fw_tensor_id << ": " << converted_outputs[i] << std::endl;
             }
-            // std::cout << "Node convert end" << std::endl;
         };
 
         OV_FRONTEND_REQUIRE(pytorch_model->get_subgraph_size() == 1);
         pytorch_model->visit_subgraph(0, node_visitor);
-        // std::cout << "All nodes convert end" << std::endl;
 
         ResultVector results;
-        // std::cerr << "Outputs:" << pytorch_model->num_of_outputs() << "\n";
         for (size_t i = 0; i < pytorch_model->num_of_outputs(); ++i) {
             size_t id = pytorch_model->output(i);
-            // std::cerr << "Output:" << i << ": " << id << "\n";
-            // std::cout << "value = " << id << '\n';
-            // std::cout << "X\n";
             if (tensor_map.find(id) == tensor_map.end()) {
                 // Not found in this scope, searching in the outer scope
                 // TODO: do real search here, skipped for now
@@ -349,23 +279,16 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
                 parameter->get_output_tensor(0).add_names({std::to_string(id)});
                 parameters.push_back(parameter);
                 tensor_map[id] = parameter;
-                // std::cout << "Level:" << LEVEL << "Added new parameter based on external value " << id << "\n";
             }
             auto ov_output = tensor_map[id];
-            // std::cout << "X\n";
             auto order = pytorch_model->get_output_transpose_order(i);
-            // std::cout << "X\n";
             if (order.size() > 0 && !std::is_sorted(order.begin(), order.end())) {
                 throw "Output strides have wrong order.";
             }
             // TODO: remove when all nodes has ids
             ov_output.add_names({std::to_string(id)});
-            // std::cout << "X\n";
-            // std::cout << ov_output << '\n';
             auto result = std::make_shared<opset8::Result>(ov_output);
-            // std::cout << "X\n";
             results.push_back(result);
-            // std::cerr << "Model result " << result << "\n";
         }
 
         // Since parameters can be added we need to list all current parameters
@@ -382,37 +305,23 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
                 results.push_back(std::make_shared<opset8::Result>(tensor_map.at(tensor)));
             }
         }
-        // std::cout << "Y\n";
-
-        /*for (size_t i = 0; i < parameters.size(); ++i) {
-            auto parameter = parameters[i];
-            // std::cerr << "parameter[" << i << "].shape = "
-            //     << parameter->get_output_shape(0) << ", consumers: " <<
-            //     parameter->output(0).get_target_inputs().size() << "\n";
-        }*/
-        // std::cout << "Convert end" << std::endl;
-        // std::cout << "Number of values collected: " << tensor_map.size() << "\n";
-
-        // std::cout << "=====Construct model start=====" << std::endl;
-        /*std::cout << "=====Tensor map start=====" << std::endl;
-        for (auto node : tensor_map) {
-            std::cout << node.first << ": " << node.second.get_node_shared_ptr() << std::endl;
-        }*/
         resulting_model = std::make_shared<ov::Model>(results, parameters);
-        /*std::string m_name = "model_" + std::to_string(LEVEL) + "_" + std::to_string(NUMBER++);
-        try {
-            ov::serialize(resulting_model, m_name + ".xml", m_name + ".bin");
-        } catch (...) {
-            std::cout << "Exception happened during model serialization: " + m_name << std::endl;
-        }*/
-        // std::cout << "=====Construct model end=====" << std::endl;
-
         // Did a conversion in a nested scope to automatically remove any holders of nodes except those in the graph
     }
 
-    // std::cout << "=====Convert model:" << LEVEL << " end=====" << std::endl;
-    LEVEL--;
     return resulting_model;
+}
+
+std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type) {
+    auto fw_node = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node);
+    if (!fw_node) {
+        return nullptr;
+    }
+    const auto& attrs = fw_node->get_attrs();
+    if (attrs.find("PtTypeName") == attrs.end() || attrs.at("PtTypeName") != type) {
+        return nullptr;
+    }
+    return fw_node;
 }
 
 }  // namespace pytorch
