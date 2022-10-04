@@ -33,7 +33,7 @@
 #include "gtest/gtest.h"
 #include "gflags/gflags.h"
 #include "test_utils/test_utils.h"
-#include "../../intel_gpu/include/intel_gpu/runtime/device_query.hpp"
+#include "intel_gpu/runtime/device_query.hpp"
 
 DEFINE_int32(device_id, -1, "GPU Device ID (a number starts from 0)");
 

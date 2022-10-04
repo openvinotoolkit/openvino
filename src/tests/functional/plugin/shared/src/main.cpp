@@ -9,7 +9,12 @@
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
-DEFINE_int32(gpu_device_id, -1, "GPU Device ID (a number starts from 0)");
+DEFINE_string(device_id, "0", "GPU Device ID (a number starts from 0)");
+DEFINE_bool(disable_tests_skipping, false, "");
+DEFINE_bool(extract_body, false, "");
+DEFINE_string(output_folder, ".", "");
+DEFINE_bool(report_unique_name, false, "");
+DEFINE_uint32(save_report_timeout, 0, "");
 
 int main(int argc, char *argv[]) {
     printf("Running main() from %s\n", __FILE__);
@@ -17,62 +22,13 @@ int main(int argc, char *argv[]) {
     GFLAGS_NAMESPACE::AllowCommandLineReparsing();
     gflags::ParseCommandLineFlags(&argc, &argv, false);
 
-    if (FLAGS_gpu_device_id != -1) {
-        char* str = new char[7]{};
-        if (FLAGS_gpu_device_id > 99) {
-            printf("Device id should not exceed 99.\n");
-            return 1;
-        }
-        snprintf(str, sizeof(str)-1, "GPU.%d", FLAGS_gpu_device_id);
-        CommonTestUtils::DEVICE_GPU = str;
-    }
-
-    FuncTestUtils::SkipTestsConfig::disable_tests_skipping = false;
-    bool print_custom_help = false;
-    std::string outputFolderPath(".");
-    for (int i = 0; i < argc; ++i) {
-        if (std::string(argv[i]) == "--disable_tests_skipping") {
-            FuncTestUtils::SkipTestsConfig::disable_tests_skipping = true;
-        } else if (std::string(argv[i]) == "--extract_body") {
-            ov::test::utils::OpSummary::setExtractBody(true);
-        } else if (std::string(argv[i]) == "--help") {
-            print_custom_help = true;
-        } else if (std::string(argv[i]).find("--output_folder") != std::string::npos) {
-            outputFolderPath = std::string(argv[i]).substr(std::string("--output_folder").length() + 1);
-            ov::test::utils::OpSummary::setOutputFolder(outputFolderPath);
-        } else if (std::string(argv[i]).find("--report_unique_name") != std::string::npos) {
-            ov::test::utils::OpSummary::setSaveReportWithUniqueName(true);
-        } else if (std::string(argv[i]).find("--save_report_timeout") != std::string::npos) {
-            size_t timeout;
-            try {
-                timeout = std::stoi(std::string(argv[i]).substr(std::string("--save_report_timeout").length() + 1));
-            } catch (...) {
-                throw std::runtime_error("Incorrect value of \"--save_report_timeout\" argument");
-            }
-            ov::test::utils::OpSummary::setSaveReportTimeout(timeout);
-        }
-    }
-
-    if (print_custom_help) {
-        std::cout << "Custom command line argument:" << std::endl;
-        std::cout << "  --disable_tests_skipping" << std::endl;
-        std::cout << "       Ignore tests skipping rules and run all the test" << std::endl;
-        std::cout << "       (except those which are skipped with DISABLED prefix)" << std::endl;
-        std::cout << "  --extend_report" << std::endl;
-        std::cout << "       Extend operation coverage report without overwriting the device results. " <<
-                  "Mutually exclusive with --report_unique_name" << std::endl;
-        std::cout << "  --output_folder" << std::endl;
-        std::cout << "       Folder path to save the report. Example is --output_folder=/home/user/report_folder"
-                  << std::endl;
-        std::cout << "  --report_unique_name" << std::endl;
-        std::cout << "       Allow to save report with unique name (report_pid_timestamp.xml). " <<
-                  "Mutually exclusive with --extend_report." << std::endl;
-        std::cout << "  --save_report_timeout" << std::endl;
-        std::cout << "       Allow to try to save report in cycle using timeout (in seconds). " << std::endl;
-        std::cout << "  --extract_body" << std::endl;
-        std::cout << "       Allow to count extracted operation bodies to report. " << std::endl;
-        std::cout << std::endl;
-    }
+    if (FLAGS_device_id != "0")
+        CommonTestUtils::DEVICE_GPU = (new std::string("GPU."))->append(FLAGS_device_id).c_str();
+    FuncTestUtils::SkipTestsConfig::disable_tests_skipping = FLAGS_disable_tests_skipping;
+    ov::test::utils::OpSummary::setExtractBody(FLAGS_extract_body);
+    ov::test::utils::OpSummary::setOutputFolder(FLAGS_output_folder);
+    ov::test::utils::OpSummary::setSaveReportWithUniqueName(FLAGS_report_unique_name);
+    ov::test::utils::OpSummary::setSaveReportTimeout(FLAGS_save_report_timeout);
 
     if (ov::test::utils::OpSummary::getSaveReportWithUniqueName() &&
             ov::test::utils::OpSummary::getExtendReport()) {

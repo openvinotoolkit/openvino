@@ -55,11 +55,11 @@ addIeTarget(
                 ngraphFunctions
                 lptNgraphFunctions
                 sharedTestClasses
+                gflags
             PRIVATE
                 openvino::util
                 openvino::runtime::dev
                 snippetsNgraphFunctions
-                gflags
         DEPENDENCIES
             ${DEPENDENCIES}
 )

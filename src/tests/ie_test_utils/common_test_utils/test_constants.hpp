@@ -5,11 +5,10 @@
 #pragma once
 
 namespace CommonTestUtils {
-
 const char DEVICE_AUTO[] = "AUTO";
 const char DEVICE_CPU[] = "CPU";
 const char DEVICE_GNA[] = "GNA";
-extern const char* DEVICE_GPU; //definition: test_common.cpp
+extern const char* DEVICE_GPU;
 const char DEVICE_BATCH[] = "BATCH";
 const char DEVICE_HDDL[] = "HDDL";
 const char DEVICE_MYRIAD[] = "MYRIAD";
