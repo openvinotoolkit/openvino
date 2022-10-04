@@ -125,8 +125,10 @@ jobs:
     displayName: 'Make dir'
 
   - script: |
-      echo $(GITHUB_TOKEN)
-    displayName:'debug'
+      echo $MAPPED_TOKEN
+    env:
+      MAPPED_TOKEN: $(GITHUB_TOKEN)
+    displayName: debug
 
   - task: UsePythonVersion@0
     inputs:
