@@ -64,7 +64,7 @@ cd "C:\Program Files (x86)\Intel"
 
 > **NOTE**: C:\Program Files (x86)\Intel is the recommended folder path, but you may use a different path if desired or if you don't have administrator priveleges on your PC. If the C:\Program Files (x86)\Intel folder already exists, skip the `mkdir` command.
 
-Next, download the OpenVINO Runtime 2022.2 archive file from the [OpenVINO archives](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/windows). Issue the following command to download archive file, unzip it, and rename the folder to `openvino_2022.2.0.7713`:
+Next, you'll download the OpenVINO Runtime 2022.2 archive file from the [OpenVINO archives](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/windows) site. Issue the following command to download archive file, unzip it, and rename the folder to `openvino_2022.2.0.7713`:
 ```sh
 curl https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/windows/w_openvino_toolkit_windows_2022.2.0.7713.af16ea1d79a_x86_64.zip --output openvino_2022.2.0.7713.zip
 tar -xf openvino_2022.2.0.7713.zip
