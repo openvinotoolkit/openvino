@@ -25,10 +25,7 @@ using namespace ov::frontend::tensorflow;
 namespace {
 std::function<bool(ov::Output<ov::Node>)> can_have_outputs(const std::vector<size_t>& allowed_output_indices) {
     return [=](ov::Output<ov::Node> output) -> bool {
-        auto block_lstm_node = std::dynamic_pointer_cast<BlockLSTM>(output.get_node_shared_ptr());
-        if (!block_lstm_node) {
-            return false;
-        }
+        auto block_lstm_node = output.get_node_shared_ptr();
         auto output_size = block_lstm_node->get_output_size();
         for (size_t output_ind = 0; output_ind < output_size; ++output_ind) {
             if (std::find(allowed_output_indices.begin(), allowed_output_indices.end(), output_ind) !=
@@ -57,26 +54,26 @@ pass::BlockLSTMReplacer::BlockLSTMReplacer() {
     auto root = std::make_shared<pattern::op::Or>(OutputVector{pattern1, pattern2});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto pattern_map = m.get_pattern_value_map();
+        auto pattern_map = m.get_pattern_map();
         auto is_pattern1 = (pattern_map.find(pattern1) != std::end(pattern_map));
         auto is_pattern2 = (pattern_map.find(pattern2) != std::end(pattern_map));
 
         // find for each pattern BlockLSTM node for which we adjust inputs
         // and check its attributes before the transformation
-        std::shared_ptr<BlockLSTM> block_lstm_node = nullptr;
-        std::shared_ptr<Node> last_state_c_node = nullptr;
+        std::shared_ptr<BlockLSTM> block_lstm_node;
+        std::shared_ptr<Node> last_state_c_node;
         ov::NodeVector rt_info_from;
         if (is_pattern1) {
-            block_lstm_node = std::dynamic_pointer_cast<BlockLSTM>(pattern_map.at(block_lstm_1).get_node_shared_ptr());
-            auto concat_node = std::dynamic_pointer_cast<Concat>(pattern_map.at(states_cell_1).get_node_shared_ptr());
-            if (concat_node->get_axis() != 0) {
+            block_lstm_node = std::dynamic_pointer_cast<BlockLSTM>(pattern_map.at(block_lstm_1));
+            auto concat_node = std::dynamic_pointer_cast<Concat>(pattern_map.at(states_cell_1));
+            if (!concat_node || concat_node->get_axis() != 0) {
                 // timestep is the first dimension
                 return false;
             }
-            last_state_c_node = pattern_map.at(pattern1).get_node_shared_ptr();
+            last_state_c_node = pattern_map.at(pattern1);
             rt_info_from = {block_lstm_node, concat_node, last_state_c_node};
         } else if (is_pattern2) {
-            block_lstm_node = std::dynamic_pointer_cast<BlockLSTM>(pattern_map.at(pattern2).get_node_shared_ptr());
+            block_lstm_node = std::dynamic_pointer_cast<BlockLSTM>(pattern_map.at(pattern2));
             rt_info_from = {block_lstm_node};
         }
         if (!block_lstm_node) {
