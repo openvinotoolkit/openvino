@@ -1032,7 +1032,12 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch || (conf.enforceBF16
             && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)));
 
-    auto supported = GetSupportedNodes(network,
+    auto model = network.getFunction();
+    if (model == nullptr) {
+        IE_THROW() << "Only ngraph-based models are supported!";
+    }
+
+    auto supported = GetSupportedNodes(model,
     [&](std::shared_ptr<ov::Model>& model) {
             TransformationUpToCPUSpecificOpSet(model, enableLPT, conf.enforceBF16, enableSnippets, isLegacyAPI());
             ConvertToCPUSpecificOpset(model);

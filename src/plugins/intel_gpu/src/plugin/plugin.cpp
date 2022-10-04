@@ -389,7 +389,12 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     Program prog(m_defaultContext->getImpl()->GetEngine(), conf);
     bool dyn_shape_batch_found = false;
 
-    auto supported = GetSupportedNodes(network,
+    auto model = network.getFunction();
+    if (model == nullptr) {
+        IE_THROW() << "Only ngraph-based models are supported!";
+    }
+
+    auto supported = GetSupportedNodes(model,
     [&](std::shared_ptr<ov::Model>& model) {
         std::map<std::string, ngraph::PartialShape> shapes;
         std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;

@@ -137,8 +137,13 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
 
     Configuration fullConfig{config, _cfg, false};
 
+    auto model = network.getFunction();
+    if (model == nullptr) {
+        IE_THROW() << "Only ngraph-based models are supported!";
+    }
+
     auto supported = GetSupportedNodes(
-        network,
+        model,
         [&](std::shared_ptr<ov::Model>& model) {
             // 1. It is needed to apply all transformations as it is done in LoadExeNetworkImpl
             TransformNetwork(model, network.getInputsInfo(), network.getOutputsInfo());

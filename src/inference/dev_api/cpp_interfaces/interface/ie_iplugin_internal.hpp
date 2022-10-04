@@ -357,8 +357,16 @@ protected:
      */
     std::unordered_set<std::string> GetRemovedNodes(const std::shared_ptr<const ov::Model>& originalFunction,
                                                     const std::shared_ptr<const ov::Model>& transformedFunction) const;
+    /**
+     * @brief Returns set of nodes from original model which are
+     * determined as supported after applied transformation pipeline.
+     * @param model Original model
+     * @param transform Transformation pipeline function
+     * @param is_node_supported Function returning whether node is supported or not
+     * @return Set of strings which contains supported node names
+     */
     std::unordered_set<std::string> GetSupportedNodes(
-        const CNNNetwork& network,
+        const std::shared_ptr<const ov::Model>& model,
         std::function<void(std::shared_ptr<ov::Model>&)> transform,
         std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported) const;
 

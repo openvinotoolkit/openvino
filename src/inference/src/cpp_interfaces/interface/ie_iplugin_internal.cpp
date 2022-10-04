@@ -331,22 +331,16 @@ std::unordered_set<std::string> IInferencePlugin::GetRemovedNodes(
 }
 
 std::unordered_set<std::string> IInferencePlugin::GetSupportedNodes(
-    const CNNNetwork& network,
+    const std::shared_ptr<const ov::Model>& model,
     std::function<void(std::shared_ptr<ov::Model>&)> transform,
     std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported) const {
-    auto model = network.getFunction();
-    if (model == nullptr) {
-        IE_THROW() << "Only ngraph-based models are supported!";
-    }
-
     // Collect original operation names
     std::unordered_set<std::string> original_ops;
     for (auto&& node : model->get_ops()) {
         original_ops.emplace(node->get_friendly_name());
     }
 
-    auto cloned_network = InferenceEngine::details::cloneNetwork(network);
-    auto transformed_model = cloned_network.getFunction();
+    auto transformed_model = model->clone();
     transform(transformed_model);
     auto ops = transformed_model->get_ordered_ops();
 
