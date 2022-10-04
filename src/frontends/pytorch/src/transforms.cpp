@@ -22,6 +22,8 @@ using std::shared_ptr;
 
 
 std::tuple<bool, Any> is_list_of_tensors (const descriptor::Tensor& tensor) {
+    if(tensor.get_element_type() != element::custom)
+        return std::make_tuple(false, Any());
     Any custom_type = tensor.get_custom_element_type();
     std::cerr << "Custom type: ";
     Type::print(custom_type);
