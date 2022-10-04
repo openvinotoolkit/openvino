@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/op/mvn.hpp"
+#include "ngraph/runtime/reference/mvn.hpp"
 
 #include <algorithm>
 
@@ -134,4 +135,78 @@ bool op::v6::MVN::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("normalize_variance", m_normalize_variance);
     visitor.on_attribute("eps_mode", m_eps_mode);
     return true;
+}
+
+namespace mvn {
+namespace {
+template <element::Type_t ET>
+bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs, bool normalize_variance, float eps, ov::op::MVNEpsMode eps_mode) {
+    using T = typename element_type_traits<ET>::value_type;
+    AxisSet reduction_axes;
+    auto rank = inputs[0]->get_shape().size();
+    if (inputs[1]->get_element_type() == element::i64) {
+        reduction_axes = runtime::reference::mvn_6_reduction_axes<int64_t>(inputs[1], rank);
+    } else if (inputs[1]->get_element_type() == element::i32) {
+        reduction_axes = runtime::reference::mvn_6_reduction_axes<int32_t>(inputs[1], rank);
+    } else {
+        throw ngraph_error("Unexpected indices type");
+    }
+    runtime::reference::mvn_6<T>(inputs[0]->get_data_ptr<ET>(),
+                                 outputs[0]->get_data_ptr<ET>(),
+                                 inputs[0]->get_shape(),
+                                 reduction_axes,
+                                 normalize_variance,
+                                 eps,
+                                 eps_mode);
+    return true;
+}
+
+
+bool evaluate_mvn(const HostTensorVector& outputs, const HostTensorVector& inputs, bool normalize_variance, float eps, ov::op::MVNEpsMode eps_mode) {
+    bool rc = true;
+    switch (inputs[0]->get_element_type()) {
+        NGRAPH_TYPE_CASE(evaluate_mvn, i8, outputs, inputs, normalize_variance, eps, eps_mode);
+        NGRAPH_TYPE_CASE(evaluate_mvn, i16, outputs, inputs, normalize_variance, eps, eps_mode);
+        NGRAPH_TYPE_CASE(evaluate_mvn, i32, outputs, inputs, normalize_variance, eps, eps_mode);
+        NGRAPH_TYPE_CASE(evaluate_mvn, i64, outputs, inputs, normalize_variance, eps, eps_mode);
+        NGRAPH_TYPE_CASE(evaluate_mvn, u8, outputs, inputs, normalize_variance, eps, eps_mode);
+        NGRAPH_TYPE_CASE(evaluate_mvn, u16, outputs, inputs, normalize_variance, eps, eps_mode);
+        NGRAPH_TYPE_CASE(evaluate_mvn, u32, outputs, inputs, normalize_variance, eps, eps_mode);
+        NGRAPH_TYPE_CASE(evaluate_mvn, u64, outputs, inputs, normalize_variance, eps, eps_mode);
+        NGRAPH_TYPE_CASE(evaluate_mvn, bf16, outputs, inputs, normalize_variance, eps, eps_mode);
+        NGRAPH_TYPE_CASE(evaluate_mvn, f16, outputs, inputs, normalize_variance, eps, eps_mode);
+        NGRAPH_TYPE_CASE(evaluate_mvn, f32, outputs, inputs, normalize_variance, eps, eps_mode);
+    default:
+        rc = false;
+        break;
+    }
+    return rc;
+}
+}
+}
+
+bool op::v6::MVN::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    OV_OP_SCOPE(v6_MVN_evaluate);
+    return mvn::evaluate_mvn(outputs, inputs, get_normalize_variance(), get_eps(), get_eps_mode());
+}
+
+bool op::v6::MVN::has_evaluate() const {
+    OV_OP_SCOPE(v1_MVN_has_evaluate);
+    switch (get_input_element_type(0)) {
+        case ngraph::element::i8:
+        case ngraph::element::i16:
+        case ngraph::element::i32:
+        case ngraph::element::i64:
+        case ngraph::element::u8:
+        case ngraph::element::u16:
+        case ngraph::element::u32:
+        case ngraph::element::u64:
+        case ngraph::element::bf16:
+        case ngraph::element::f16:
+        case ngraph::element::f32:
+            return true;
+        default:
+            break;
+    }
+    return false;
 }
