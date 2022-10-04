@@ -692,6 +692,99 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_different
     EXPECT_EQ(ov::DimensionTracker::get_label(shape[3]), 0);
 }
 
+TYPED_TEST_P(ArithmeticOperator, static_shape_labels_numpy) {
+    { // Static shape
+        std::vector<Dimension> dims_A{Dimension(2), Dimension(1), Dimension(224), Dimension(1)};
+        std::vector<Dimension> dims_B{Dimension(2), Dimension(1), Dimension(1), Dimension(128)};
+
+        ov::DimensionTracker::set_label(dims_A[0], 10);
+        ov::DimensionTracker::set_label(dims_A[1], 11);
+        ov::DimensionTracker::set_label(dims_A[2], 12);
+        ov::DimensionTracker::set_label(dims_A[3], 13);
+
+        ov::DimensionTracker::set_label(dims_B[0], 20);
+        ov::DimensionTracker::set_label(dims_B[1], 21);
+        ov::DimensionTracker::set_label(dims_B[2], 22);
+        ov::DimensionTracker::set_label(dims_B[3], 23);
+
+        PartialShape pshape_A = PartialShape(dims_A), pshape_B = PartialShape(dims_B);
+
+        auto param_A = std::make_shared<op::Parameter>(element::f32, pshape_A);
+        auto param_B = std::make_shared<op::Parameter>(element::f32, pshape_B);
+        const auto op = std::make_shared<TypeParam>(param_A, param_B, op::AutoBroadcastType::NUMPY);
+
+        const auto out_shape = op->get_output_partial_shape(0);
+        PartialShape expected_shape = {2, 1, 224, 128};
+
+        EXPECT_EQ(out_shape, expected_shape);
+        EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[0]), 0);   // TODO: Shouldn't be 10 or 20?
+        EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[1]), 0);   // TODO: Shouldn't be 11 or 21?
+        EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[2]), 12);
+        EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[3]), 23);
+    }
+}
+
+TYPED_TEST_P(ArithmeticOperator, shape_labels_broadcast_none) {
+    { // Static shape
+        std::vector<Dimension> dims_A{Dimension(2), Dimension(3), Dimension(224), Dimension(128)};
+        std::vector<Dimension> dims_B{Dimension(2), Dimension(3), Dimension(224), Dimension(128)};
+
+        ov::DimensionTracker::set_label(dims_A[0], 10);
+        ov::DimensionTracker::set_label(dims_A[1], 11);
+        ov::DimensionTracker::set_label(dims_A[2], 12);
+        ov::DimensionTracker::set_label(dims_A[3], 13);
+
+        ov::DimensionTracker::set_label(dims_B[0], 20);
+        ov::DimensionTracker::set_label(dims_B[1], 21);
+        ov::DimensionTracker::set_label(dims_B[2], 22);
+        ov::DimensionTracker::set_label(dims_B[3], 23);
+
+        PartialShape pshape_A = PartialShape(dims_A), pshape_B = PartialShape(dims_B);
+
+        auto param_A = std::make_shared<op::Parameter>(element::f32, pshape_A);
+        auto param_B = std::make_shared<op::Parameter>(element::f32, pshape_B);
+        const auto op = std::make_shared<TypeParam>(param_A, param_B, op::AutoBroadcastType::NONE);
+
+        const auto out_shape = op->get_output_partial_shape(0);
+        PartialShape expected_shape = {2, 3, 224, 128};
+
+        EXPECT_EQ(out_shape, expected_shape);
+        EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[0]), 20);
+        EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[1]), 21);
+        EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[2]), 22);
+        EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[3]), 23);
+    }
+    { // Dynamic shape
+        std::vector<Dimension> dims_A{Dimension(-1), Dimension(3), Dimension(2, 224), Dimension(1, 128)};
+        std::vector<Dimension> dims_B{Dimension(-1), Dimension(3), Dimension(2, 224), Dimension(1, 128)};
+
+        ov::DimensionTracker::set_label(dims_A[0], 10);
+        ov::DimensionTracker::set_label(dims_A[1], 11);
+        ov::DimensionTracker::set_label(dims_A[2], 12);
+        ov::DimensionTracker::set_label(dims_A[3], 13);
+
+        ov::DimensionTracker::set_label(dims_B[0], 20);
+        ov::DimensionTracker::set_label(dims_B[1], 21);
+        ov::DimensionTracker::set_label(dims_B[2], 22);
+        ov::DimensionTracker::set_label(dims_B[3], 23);
+
+        PartialShape pshape_A = PartialShape(dims_A), pshape_B = PartialShape(dims_B);
+
+        auto param_A = std::make_shared<op::Parameter>(element::f32, pshape_A);
+        auto param_B = std::make_shared<op::Parameter>(element::f32, pshape_B);
+        const auto op = std::make_shared<TypeParam>(param_A, param_B, op::AutoBroadcastType::NONE);
+
+        const auto out_shape = op->get_output_partial_shape(0);
+        PartialShape expected_shape = {-1, 3, Dimension(2, 224), Dimension(1, 128)};
+
+        EXPECT_EQ(out_shape, expected_shape);
+        EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[0]), 20);
+        EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[1]), 21);
+        EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[2]), 22);
+        EXPECT_EQ(ov::DimensionTracker::get_label(out_shape[3]), 23);
+    }
+}
+
 REGISTER_TYPED_TEST_SUITE_P(ArithmeticOperator,
                             shape_inference_2D,
                             shape_inference_4D,
@@ -721,6 +814,8 @@ REGISTER_TYPED_TEST_SUITE_P(ArithmeticOperator,
                             dynamic_shape_intervals_broadcast_numpy,
                             dynamic_shape_intervals_broadcast_pdpd,
                             full_dynamic_shape,
+                            shape_labels_broadcast_none,
+                            static_shape_labels_numpy,
                             dynamic_shape_static_rank_with_labels_mixed_numpy,
                             dynamic_shape_static_rank_with_labels_a_numpy,
                             dynamic_shape_static_rank_with_labels_b_numpy,
