@@ -258,10 +258,6 @@ function(ie_python_minimal_api target)
     # endif()
 endfunction()
 
-if(NOT DEFINED CMAKE_COMPILE_WARNING_AS_ERROR)
-    set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
-endif()
-
 if(WIN32)
     ie_add_compiler_flags(-D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS)
     ie_add_compiler_flags(/EHsc) # no asynchronous structured exception handling

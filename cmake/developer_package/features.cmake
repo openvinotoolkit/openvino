@@ -17,8 +17,7 @@ else()
     ie_option(USE_BUILD_TYPE_SUBFOLDER "Create dedicated sub-folder per build type for output binaries" ON)
 endif()
 
-# FIXME: ARM cross-compiler generates several "false positive" warnings regarding __builtin_memcpy buffer overflow
-if(X86 OR X86_64 OR APPLE)
+if(CI_BUILD_NUMBER)
     set(TREAT_WARNING_AS_ERROR_DEFAULT ON)
 else()
     set(TREAT_WARNING_AS_ERROR_DEFAULT OFF)
