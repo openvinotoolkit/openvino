@@ -129,7 +129,6 @@ target_compile_definitions(${TARGET_NAME}_obj PRIVATE
     $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>
     $<TARGET_PROPERTY:frontend_common::static,INTERFACE_COMPILE_DEFINITIONS>
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
-    target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
     $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
@@ -170,7 +169,8 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
 
 # Static library used for unit tests which are always built
 
-file(GLOB_RECURSE legacy_src "${LEGACY_SRC_ROOT}/*.cpp"
+file(GLOB_RECURSE legacy_src ${CMAKE_CURRENT_SOURCE_DIR}/static/*.cpp
+                             "${LEGACY_SRC_ROOT}/*.cpp"
                              "${LEGACY_SRC_ROOT}/*.hpp")
 
 set_source_files_properties(${legacy_src} PROPERTIES

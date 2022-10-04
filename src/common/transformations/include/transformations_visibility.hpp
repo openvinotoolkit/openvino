@@ -30,7 +30,7 @@
  * @}
  */
 
-#ifdef OPENVINO_STATIC_LIBRARY
+#if defined(OPENVINO_STATIC_LIBRARY) || defined(USE_STATIC_IE)
 #    define TRANSFORMATIONS_API
 #else
 #    ifdef IMPLEMENT_OPENVINO_API
