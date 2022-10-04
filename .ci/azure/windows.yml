@@ -103,8 +103,17 @@ jobs:
     workingDirectory: $(WORK_DIR)
     displayName: 'Install IncrediBuild'
 
-  - script: dir C:\hostedtoolcache\windows\Python\3.10.7
-    displayName: 'Check python 3.10'
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.10.7'
+      addToPath: false
+      architecture: 'x64'
+      githubToken: $(GITHUB_TOKEN)
+    displayName: 'Setup python 3.10.7'
+    name: setupPython
+
+  - script: dir $(setupPython.pythonLocation)
+    displayName: 'Check python 3.10.7'
 
   - checkout: self
     clean: true
