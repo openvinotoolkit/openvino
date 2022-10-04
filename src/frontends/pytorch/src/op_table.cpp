@@ -645,6 +645,16 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
              return {context.mark_node(std::make_shared<opset8::Multiply>(x, cast))};
          }},
 
+        {"prim::TupleConstruct",
+         [](NodeContext& context) -> OutputVector {
+             auto n_inputs = context.get_input_size();
+             if(n_inputs == 1) {
+                return {context.get_input(0)};
+             } else {
+                throw std::runtime_error("prim::TupleConstruct conversion doesn't support cases when the number of inputs is not one.");
+             }
+         }},
+
         /* TODO: Don't need a special way to handle prim::ListConstruct as it doesn't provide any extra service extra to FW Node at this moment
         { "prim::ListConstruct", [](NodeContext& context) -> OutputVector {
             // TODO. Probably need to replace by a constant of size 0 in one of the following transformations that embed Lists to Tensors for OV.
