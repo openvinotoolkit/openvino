@@ -27,12 +27,6 @@ inline double get_duration_ms_till_now(Time::time_point& startTime) {
     return std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
 };
 
-inline std::string double_to_string(const double number) {
-    std::stringstream ss;
-    ss << std::fixed << std::setprecision(2) << number;
-    return ss.str();
-};
-
 namespace benchmark_app {
 struct InputInfo {
     ov::element::Type type;

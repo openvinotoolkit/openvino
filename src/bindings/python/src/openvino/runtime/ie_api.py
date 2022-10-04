@@ -274,9 +274,9 @@ class CompiledModel(CompiledModelBase):
 
 
 class AsyncInferQueue(AsyncInferQueueBase):
-    """AsyncInferQueue with pool of asynchronous requests.
+    """AsyncInferQueue with a pool of asynchronous requests.
 
-    AsyncInferQueue represents helper that creates a pool of asynchronous
+    AsyncInferQueue represents a helper that creates a pool of asynchronous
     InferRequests and provides synchronization functions to control flow of
     a simple pipeline.
     """

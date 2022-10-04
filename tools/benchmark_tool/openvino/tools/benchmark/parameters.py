@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import sys,argparse
-from fnmatch import fnmatch
 
 from openvino.tools.benchmark.utils.utils import show_available_devices
 

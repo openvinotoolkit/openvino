@@ -1048,3 +1048,9 @@ static UNUSED void printPerformanceCounts(ov::InferRequest request,
     auto performanceMap = request.get_profiling_info();
     printPerformanceCounts(performanceMap, stream, deviceName, bshowHeader);
 }
+
+static inline std::string double_to_string(const double number) {
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(2) << number;
+    return ss.str();
+};

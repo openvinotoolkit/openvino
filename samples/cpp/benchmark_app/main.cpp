@@ -1116,7 +1116,7 @@ int main(int argc, char* argv[]) {
         }
 
         double totalDuration = inferRequestsQueue.get_duration_in_milliseconds();
-        double fps = (FLAGS_api == "sync") ? batchSize * 1000.0 / generalLatency.median_or_percentile
+        double fps = (FLAGS_api == "sync") ? batchSize * 1000.0 / generalLatency.avg
                                            : 1000.0 * processedFramesN / totalDuration;
 
         if (statistics) {
@@ -1191,7 +1191,7 @@ int main(int argc, char* argv[]) {
         slog::info << "Count:      " << iteration << " iterations" << slog::endl;
         slog::info << "Duration:   " << double_to_string(totalDuration) << " ms" << slog::endl;
         if (device_name.find("MULTI") == std::string::npos) {
-            slog::info << "Latency: " << slog::endl;
+            slog::info << "Latency:" << slog::endl;
             generalLatency.write_to_slog();
 
             if (FLAGS_pcseq && app_inputs_info.size() > 1) {
