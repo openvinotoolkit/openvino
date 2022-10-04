@@ -126,13 +126,13 @@ jobs:
   - bash: |
       echo "$MAPPED_TOKEN"
     env:
-      MAPPED_TOKEN: $(github_token)
+      MAPPED_TOKEN: $(someToken)
     displayName: debug
 
   - bash: |
       echo "##vso[task.setvariable variable=ghToken;issecret=true]$MAPPED_TOKEN"
     env:
-      MAPPED_TOKEN: $(github_token)
+      MAPPED_TOKEN: $(test_var)
     displayName: setSecret
 
   - task: UsePythonVersion@0
