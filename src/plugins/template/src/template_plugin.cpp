@@ -142,7 +142,7 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
         IE_THROW() << "Only ngraph-based models are supported!";
     }
 
-    auto supported = GetSupportedNodes(
+    auto supported = InferenceEngine::GetSupportedNodes(
         model,
         [&](std::shared_ptr<ov::Model>& model) {
             // 1. It is needed to apply all transformations as it is done in LoadExeNetworkImpl

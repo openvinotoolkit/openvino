@@ -310,9 +310,9 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
     exeNetwork->SetPointerToPlugin(shared_from_this());
 }
 
-std::unordered_set<std::string> IInferencePlugin::GetRemovedNodes(
+std::unordered_set<std::string> GetRemovedNodes(
     const std::shared_ptr<const ov::Model>& originalFunction,
-    const std::shared_ptr<const ov::Model>& transformedFunction) const {
+    const std::shared_ptr<const ov::Model>& transformedFunction) {
     std::unordered_set<std::string> result = {};
     std::unordered_set<std::string> transformedNodeNames = {};
 
@@ -330,10 +330,10 @@ std::unordered_set<std::string> IInferencePlugin::GetRemovedNodes(
     return result;
 }
 
-std::unordered_set<std::string> IInferencePlugin::GetSupportedNodes(
+std::unordered_set<std::string> GetSupportedNodes(
     const std::shared_ptr<const ov::Model>& model,
     std::function<void(std::shared_ptr<ov::Model>&)> transform,
-    std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported) const {
+    std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported) {
     // Collect original operation names
     std::unordered_set<std::string> original_ops;
     for (auto&& node : model->get_ops()) {
