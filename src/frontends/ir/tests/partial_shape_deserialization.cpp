@@ -4,15 +4,10 @@
 
 #include <gtest/gtest.h>
 
-#include <inference_engine.hpp>
 #include <memory>
 #include <string>
 
 #include "common_test_utils/graph_comparator.hpp"
-#include "ie_blob.h"
-#include "ngraph/op/parameter.hpp"
-#include "ngraph/type/element_type.hpp"
-#include "ngraph/variant.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/runtime/core.hpp"
@@ -296,7 +291,7 @@ TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestDynamicRankNegative) 
 </net>
 )V0G0N";
     // TODO: change to ov::Exception (69781)
-    ASSERT_ANY_THROW(getWithIRFrontend(model));
+    ASSERT_THROW(getWithIRFrontend(model), ov::Exception);
 }
 
 TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestDynamicDimNegative) {
@@ -323,7 +318,7 @@ TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestDynamicDimNegative) {
 </net>
 )V0G0N";
     // TODO: change to ov::Exception (69781)
-    ASSERT_ANY_THROW(getWithIRFrontend(model));
+    ASSERT_THROW(getWithIRFrontend(model), ov::Exception);
 }
 
 TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestWrongDim) {
@@ -350,7 +345,7 @@ TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestWrongDim) {
 </net>
 )V0G0N";
     // TODO: change to ov::Exception (69781)
-    ASSERT_ANY_THROW(getWithIRFrontend(model));
+    ASSERT_THROW(getWithIRFrontend(model), ov::Exception);
 }
 
 TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestWrongBoundary) {
@@ -377,5 +372,5 @@ TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestWrongBoundary) {
 </net>
 )V0G0N";
     // TODO: change to ov::Exception (69781)
-    ASSERT_ANY_THROW(getWithIRFrontend(model));
+    ASSERT_THROW(getWithIRFrontend(model), ov::Exception);
 }
