@@ -220,9 +220,6 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isSupported(const std::share
         { name<opset1::Transpose>() },
         { name<opset1::Unsqueeze>() },
         { name<opset1::VariadicSplit>() },
-        { name<opset5::LSTMSequence>() },
-        { name<opset5::GRUSequence>() },
-        { name<opset5::RNNSequence>() },
     };
 
     return supportedOps.find(node->get_type_name()) != supportedOps.end();
