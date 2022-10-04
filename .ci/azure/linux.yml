@@ -87,6 +87,7 @@ jobs:
     TMP_DIR: /mnt/tmp
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
+    GITHUB_TOKEN: $(github_token)
 
   steps:
   - script: |
@@ -128,11 +129,9 @@ jobs:
       versionSpec: '3.10'
       addToPath: false
       architecture: 'x64'
-      githubToken: "$env:MAPPED_GITHUB_TOKEN"
+      githubToken: '"$(GITHUB_TOKEN)"'
       displayName: Setup Python 3.10
       name: setupPython
-    env:
-      MAPPED_GITHUB_TOKEN: $(github_token)
 
   - script: ls $(setupPython.pythonLocation)
     displayName: 'Check python 3.10'
