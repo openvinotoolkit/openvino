@@ -20,46 +20,8 @@ pr:
     - /**/docs/*
     - /**/*.md
 
-resources:
-  repositories:
-  - repository: openvino_contrib
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/openvino_contrib
-    ref: master
-
-  - repository: testdata
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/testdata
-    ref: master
-
 jobs:
 - job: Lin
-  strategy:
-    matrix:
-      # Dynamic:
-      #   CMAKE_BUILD_SHARED_LIBS: 'ON'
-      #   PYTHON_STATIC_ARGS:
-      #   CMAKE_CPACK_GENERATOR:
-      #   SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
-      #   PYTHON_SAMPLES_INSTALL_DIR: $(SAMPLES_INSTALL_DIR)/python
-      #   RUN_PREFIX: . $(SETUPVARS) -pyver 3.8 &&
-      # Debian:
-      #   CMAKE_BUILD_SHARED_LIBS: 'ON'
-      #   PYTHON_STATIC_ARGS:
-      #   CMAKE_CPACK_GENERATOR: 'DEB'
-      #   SAMPLES_INSTALL_DIR: /usr/share/openvino/samples
-      #   PYTHON_SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/share/openvino/samples/python
-      #   RUN_PREFIX: LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$(INSTALL_DIR)/opencv/lib:$LD_LIBRARY_PATH
-      Static:
-        CMAKE_BUILD_SHARED_LIBS: 'OFF'
-        PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
-        CMAKE_CPACK_GENERATOR:
-        SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
-        PYTHON_SAMPLES_INSTALL_DIR: $(SAMPLES_INSTALL_DIR)/python
-        RUN_PREFIX: . $(SETUPVARS) -pyver 3.8 &&
-    maxParallel: 2
 
   # About 150% of total time
   timeoutInMinutes: 120
@@ -71,26 +33,10 @@ jobs:
     system.debug: true
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
-    BUILD_TYPE: Release
-    REPO_DIR: $(Build.Repository.LocalPath)
-    OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
-    MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
-    BUILD_DIR: $(WORK_DIR)/build
-    BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
-    BUILD_LAYER_TESTS_DIR: $(WORK_DIR)/build_layer_tests
-    BUILD_SAMPLES_TESTS_DIR: $(WORK_DIR)/build_samples_tests
-    INSTALL_DIR: $(WORK_DIR)/install_pkg
-    INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
-    LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
-    SETUPVARS: $(INSTALL_DIR)/setupvars.sh
-    TMP_DIR: /mnt/tmp
-    SHARE_DIR: /mount/cinfsshare/onnxtestdata
-    CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
 
   steps:
-  - script: echo Hello, $VAR_SECRET!
-    env:
-      VAR_SECRET: $(someToken)
-    displayName: 'TEST'
+  - bash: |
+      echo "someToken: $(someToken)"
+      echo "github_token: $(github_token)"
   
