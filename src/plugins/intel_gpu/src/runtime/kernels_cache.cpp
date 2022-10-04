@@ -148,18 +148,8 @@ kernels_cache::kernels_cache(engine& engine, uint32_t prog_id, const std::vector
 kernel_id kernels_cache::set_kernel_source(
     const std::shared_ptr<kernel_string>& kernel_string,
     bool dump_custom_program) {
-    std::lock_guard<std::mutex> lock(_mutex);
-    // we need unique id in order to avoid conflict across topologies.
-    const auto kernel_num = _kernels.size() + (_kernel_idx++);
-    kernel_id id = kernel_string->entry_point + "_" + std::to_string(kernel_num);
-
-    auto res = _kernels_code.emplace(kernel_string, id, dump_custom_program);
-
-    assert(_kernels.find(id) == _kernels.end());
-    if (res.second) {
-        _pending_compilation = true;
-    }
-    return id;
+    auto kernel_ids = add_kernels_source({kernel_string}, dump_custom_program);
+    return kernel_ids[0];
 }
 
 static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
@@ -384,4 +374,54 @@ void kernels_cache::reset() {
     _pending_compilation = false;
 }
 
+std::vector<kernel_id> kernels_cache::add_kernels_source(std::vector<std::shared_ptr<kernel_string>> kernel_sources, bool dump_custom_program) {
+    std::vector<kernel_id> kernel_ids;
+    kernel_ids.reserve(kernel_sources.size());
+    for (size_t i = 0; i < kernel_sources.size(); ++i) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        auto kernel_string = kernel_sources[i];
+        // we need unique id in order to avoid conflict across topologies.
+        const auto kernel_num = _kernels.size() + (_kernel_idx++);
+        kernel_id id = kernel_string->entry_point + "_" + std::to_string(kernel_num);
+
+        auto res = _kernels_code.emplace(kernel_string, id, dump_custom_program);
+
+        assert(_kernels.find(id) == _kernels.end());
+        if (res.second) {
+            _pending_compilation = true;
+        }
+        kernel_ids.emplace_back(id);
+    }
+    return kernel_ids;
+}
+
+void kernels_cache::compile() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll");
+
+    std::unique_ptr<ocl::ocl_engine> _build_engine = nullptr;
+    if (_engine.type() == engine_types::ocl) {
+        _build_engine = std::unique_ptr<ocl::ocl_engine>(new ocl::ocl_engine(_engine.get_device(), runtime_types::ocl,
+                                                                    _engine.configuration(), _engine.get_task_executor()));
+    }
+
+    // create batches
+    std::vector<batch_program> batches;
+    get_program_source(_kernels_code, &batches);
+
+    // build batches
+    for (size_t idx = 0; idx < batches.size(); idx++) {
+        build_batch(*_build_engine, batches[idx]);
+    }
+
+    _kernels_code.clear();
+    _pending_compilation = false;
+#if defined(__unix__) && !defined(__ANDROID__)
+    //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
+    //  (It is at least 500 MB when we perform parallel compilation)
+    //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
+    //  Also, this is not happening in Windows.
+    //  So, added malloc_trim for linux build until we figure out a better solution.
+        malloc_trim(0);
+#endif
+}
 }  // namespace cldnn
