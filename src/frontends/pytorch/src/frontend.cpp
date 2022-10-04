@@ -64,8 +64,7 @@ std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputMode
             } else {
                 std::cout << "[ WARNING ] Couldn't remove parameter[0] in converted Pytorch model\n";
             }
-        }
-        apply_pytorch_conversion_transforms(model);
+        }        
         return model;
     } catch (const std::runtime_error& e) {
         std::cerr << "[ ERROR ] Unexpected error while converting pytorch model: " << e.what() << "\n";
@@ -85,6 +84,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
 
     manager.run_passes(model);
+    
+    apply_pytorch_conversion_transforms(model);
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
