@@ -238,6 +238,8 @@ REGISTER_FACTORY(v8, Softmax);
 // ------------------------------ Supported v9 ops ------------------------------ //
 REGISTER_FACTORY(v9, SoftSign)
 REGISTER_FACTORY(v9, ROIAlign);
+REGISTER_FACTORY(v9, RDFT);
+REGISTER_FACTORY(v9, IRDFT);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

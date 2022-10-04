@@ -6,6 +6,9 @@
 
 #include <kernel_selector_utils.h>
 
+#include <string>
+#include <vector>
+
 namespace kernel_selector {
 
 namespace {
@@ -15,30 +18,32 @@ CommonDispatchData SetDefault(const dft_params& params) {
     const auto in_layout = params.inputs.front().GetLayout();
     const auto& output = params.outputs.front();
     const auto out_layout = output.GetLayout();
+    const auto out_rank = output.Dimentions();
+
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
     // We are skipping X, since it contains complex pairs and always has dimension 2
-    switch (out_layout) {
-    case DataLayout::bfyx:
+    switch (out_rank) {
+    case 4:
         dispatch_data.gws = {output.Y().v, output.Feature().v, output.Batch().v};
         dims_by_gws = {{Tensor::DataChannelName::Y},
                        {Tensor::DataChannelName::FEATURE},
                        {Tensor::DataChannelName::BATCH}};
         break;
-    case DataLayout::bfzyx:
+    case 5:
         dispatch_data.gws = {output.Y().v, output.Z().v, output.Feature().v * output.Batch().v};
         dims_by_gws = {{Tensor::DataChannelName::Y},
                        {Tensor::DataChannelName::Z},
                        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
         break;
-    case DataLayout::bfwzyx:
+    case 6:
         dispatch_data.gws = {output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
         dims_by_gws = {{Tensor::DataChannelName::Y},
                        {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
                        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
         break;
     default:
-        throw std::invalid_argument("Unsupported data layout for dft primitive");
+        throw std::invalid_argument("Unsupported output rank for dft primitive");
     }
 
     dispatch_data.lws =
@@ -48,8 +53,7 @@ CommonDispatchData SetDefault(const dft_params& params) {
 }
 
 template <class T>
-void MakeJitConstForAxis(JitConstants& jit, const DataLayout& layout, int64_t index, T value) {
-    std::string name = "AXIS";
+void MakeJitConstForParam(JitConstants& jit, const std::string& name, size_t rank, int64_t index, T value) {
     switch (index) {
     case 0:
         jit.AddConstant(MakeJitConstant(name + "_BATCH", value));
@@ -58,18 +62,18 @@ void MakeJitConstForAxis(JitConstants& jit, const DataLayout& layout, int64_t in
         jit.AddConstant(MakeJitConstant(name + "_FEATURE", value));
         break;
     case 2:
-        if (layout == DataLayout::bfwzyx) {
+        if (rank == 6) {
             jit.AddConstant(MakeJitConstant(name + "_W", value));
-        } else if (layout == DataLayout::bfzyx) {
+        } else if (rank == 5) {
             jit.AddConstant(MakeJitConstant(name + "_Z", value));
-        } else {  // DataLayout::bfyx
+        } else {  // rank == 4
             jit.AddConstant(MakeJitConstant(name + "_Y", value));
         }
         break;
     case 3:
-        if (layout == DataLayout::bfwzyx) {
+        if (rank == 6) {
             jit.AddConstant(MakeJitConstant(name + "_Z", value));
-        } else {  // DataLayout::bfzyx
+        } else {  // rank == 5
             jit.AddConstant(MakeJitConstant(name + "_Y", value));
         }
         break;
@@ -77,31 +81,94 @@ void MakeJitConstForAxis(JitConstants& jit, const DataLayout& layout, int64_t in
         jit.AddConstant(MakeJitConstant(name + "_Y", value));
         break;
     default:
-        throw std::invalid_argument("Unsupported axis for dft primitive");
+        throw std::invalid_argument("Unsupported index for dft primitive");
     }
 }
 
 }  // namespace
 
 KernelsData DFTKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    KernelsData kernels_data;
     if (!Validate(params, options)) {
-        return kernels_data;
+        return {};
     }
-    kernels_data.push_back(KernelData::Default<dft_params>(params));
-    KernelData& kernel_data = kernels_data.front();
-    auto& derived_params = dynamic_cast<dft_params&>(*kernel_data.params.get());
-    auto dispatch_data = SetDefault(derived_params);
-    auto entry_point = GetEntryPoint(kernelName, derived_params.layerID, params, options);
-    auto jit_constants = GetJitConstants(derived_params);
-    auto jit = CreateJit(kernelName, jit_constants, entry_point);
-    auto& clKernelData = kernel_data.kernels[0];
-    FillCLKernelData(clKernelData, dispatch_data, params.engineInfo, kernelName, jit, entry_point);
-    return kernels_data;
-}
 
-KernelsPriority DFTKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
-    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    KernelData kd = KernelData::Default<dft_params>(params);
+    const auto& derived_params = dynamic_cast<const dft_params&>(params);
+
+    // For IRDFT case we create two kernels with different data
+    // First, do IDFT on outer axes and input data
+    // Second, do IRDFT on the last axis and data from the first kernel
+    if (derived_params.mode == dft_params::Mode::real && derived_params.direction == dft_params::Direction::inverse &&
+        derived_params.axes.size() > 1) {
+        // Helper vector
+        std::vector<std::pair<dft_params, cldnn::arguments_desc>> kernels_params;
+
+        // Fill IDFT kernel data
+        auto idft_params = derived_params;
+        idft_params.mode = dft_params::Mode::complex;
+        idft_params.axes.pop_back();
+        idft_params.signal_size.pop_back();
+        const cldnn::arguments_desc idft_arguments{{ArgumentDescriptor::Types::INPUT, 0},
+                                                   {ArgumentDescriptor::Types::INTERNAL_BUFFER, 0}};
+
+        auto& idft_input = idft_params.inputs.front();
+        auto idft_input_sizes = idft_input.LogicalDims();
+        // NOTE: This is a small workaround for a 3d case
+        // We always should have first dimension equal to 2, so we swap it with the second dimension
+        if (idft_input_sizes[0] == 1) {
+            std::swap(idft_input_sizes[0], idft_input_sizes[1]);
+            idft_input = DataTensor(idft_input_sizes, idft_input.GetDType(), idft_input.GetLayout());
+        }
+
+        // Calculate IDFT output sizes
+        auto idft_output_sizes = idft_input_sizes;
+        auto& idft_output = idft_params.outputs.front();
+        for (const auto& axis : idft_params.axes) {
+            auto inverted_axis = idft_output_sizes.size() - 1 - axis;
+            idft_output_sizes[inverted_axis] = idft_output.LogicalDims()[inverted_axis];
+        }
+        idft_output = DataTensor(idft_output_sizes, idft_input.GetDType(), idft_input.GetLayout());
+
+        // Set internal buffer
+        kd.internalBufferDataType = idft_input.GetDType();
+        kd.internalBufferSizes.push_back(idft_output.PhysicalSizeInBytes());
+
+        // Fill IRDFT kernel data
+        auto irdft_params = derived_params;
+        irdft_params.inputs.front() = idft_output;
+        irdft_params.axes = {derived_params.axes.back()};
+        irdft_params.signal_size = {derived_params.signal_size.back()};
+        const cldnn::arguments_desc irdft_arguments{{ArgumentDescriptor::Types::INTERNAL_BUFFER, 0},
+                                                    {ArgumentDescriptor::Types::OUTPUT, 0}};
+
+        // Fill kernels
+        kernels_params.emplace_back(idft_params, idft_arguments);
+        kernels_params.emplace_back(irdft_params, irdft_arguments);
+        const auto kKernelsNum = kernels_params.size();
+        kd.kernels.resize(kKernelsNum);
+        for (size_t i = 0; i < kKernelsNum; ++i) {
+            dft_params kernel_params;
+            cldnn::arguments_desc kernel_arguments;
+            std::tie(kernel_params, kernel_arguments) = kernels_params[i];
+
+            const auto dispatch_data = SetDefault(kernel_params);
+            const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params, options, i);
+            const auto jit_constants = GetJitConstants(kernel_params);
+            const auto jit = CreateJit(kernelName, jit_constants, entry_point);
+            auto& clKernelData = kd.kernels[i];
+            FillCLKernelData(clKernelData, dispatch_data, kernel_params.engineInfo, kernelName, jit, entry_point);
+            clKernelData.params.arguments = kernel_arguments;
+        }
+    } else {
+        const auto dispatch_data = SetDefault(derived_params);
+        const auto entry_point = GetEntryPoint(kernelName, derived_params.layerID, derived_params, options);
+        const auto jit_constants = GetJitConstants(derived_params);
+        const auto jit = CreateJit(kernelName, jit_constants, entry_point);
+        auto& clKernelData = kd.kernels[0];
+        FillCLKernelData(clKernelData, dispatch_data, derived_params.engineInfo, kernelName, jit, entry_point);
+    }
+
+    return {kd};
 }
 
 ParamsKey DFTKernelRef::GetSupportedKey() const {
@@ -110,12 +177,8 @@ ParamsKey DFTKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::bfzyx);
-    k.EnableInputLayout(DataLayout::bfwzyx);
-    k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::bfzyx);
-    k.EnableOutputLayout(DataLayout::bfwzyx);
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
     k.EnableBatching();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
@@ -137,22 +200,48 @@ bool DFTKernelRef::Validate(const Params& p, const optional_params& o) const {
 
 JitConstants DFTKernelRef::GetJitConstants(const dft_params& params) const {
     auto jit = MakeBaseParamsJitConstants(params);
-    const auto out_layout = params.outputs.front().GetLayout();
+    const auto out_rank = params.outputs.front().Dimentions();
     const auto out_sizes = params.outputs.front().LogicalDims();
     const auto in_sizes = params.inputs.front().LogicalDims();
-
-    // We are skipping X, since it contains complex pairs and should not be in axes
     const auto dims_size = in_sizes.size() - 1;
+    auto signal_sizes = out_sizes;
 
     size_t s = 1;
-    for (auto axis : params.axes) {
+    for (size_t i = 0; i < params.axes.size(); ++i) {
         // opencl kernels have inverted order of dimensions with respect to axis spec: x is smallest index, b is largest
+        auto axis = params.axes[i];
         auto inverted_axis = dims_size - axis;
-        s *= out_sizes[inverted_axis];
-        MakeJitConstForAxis(jit, out_layout, axis, std::min(out_sizes[inverted_axis], in_sizes[inverted_axis]));
+        auto signal_size = params.signal_size[i];
+
+        // For RDFT case, we need to take signal size into account, as output size can be not the same as signal size
+        if (params.mode == dft_params::Mode::real && params.direction == dft_params::Direction::forward) {
+            if (signal_size != -1) {
+                signal_sizes[inverted_axis] = signal_size;
+            } else {
+                signal_sizes[inverted_axis] = in_sizes[inverted_axis];
+            }
+        }
+
+        s *= signal_sizes[inverted_axis];
+
+        // NOTE: We can use full signal size as axis value, but this doesn't make much sense, as it will be zero-padded
+        // So, we take minimum size here and save some dummy cycles in kernel
+        auto axis_value = std::min(signal_sizes[inverted_axis], in_sizes[inverted_axis]);
+
+        // For IRDFT case, we should use full signal size as axis value and interpret input data as Hermitian-symmetric
+        if (params.mode == dft_params::Mode::real && params.direction == dft_params::Direction::inverse) {
+            axis_value = signal_sizes[inverted_axis];
+            MakeJitConstForParam(jit, "SYMMETRIC_AXIS", out_rank, axis, true);
+        }
+
+        MakeJitConstForParam(jit, "AXIS", out_rank, axis, axis_value);
+        MakeJitConstForParam(jit, "SIGNAL_SIZE", out_rank, axis, signal_sizes[inverted_axis]);
     }
-    if (params.kind == dft_params::inverse) {
+    if (params.direction == dft_params::Direction::inverse) {
         jit.AddConstant(MakeJitConstant("INVERSE_DFT_MULTIPLIER", 1.f / s));
+    }
+    if (params.mode == dft_params::Mode::real) {
+        jit.AddConstant(MakeJitConstant("REAL_DFT", true));
     }
     return jit;
 }

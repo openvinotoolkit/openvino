@@ -14,22 +14,27 @@ primitive_type_id dft::type_id() {
     return &instance;
 }
 
-layout typed_primitive_inst<dft>::calc_output_layout(const dft_node& node, kernel_impl_params const& impl_param) {
-    auto primitive = impl_param.typed_desc<dft>();
-    auto input_layout = impl_param.get_input_layout();
+layout dft_inst::calc_output_layout(const dft_node& node, const kernel_impl_params& impl_param) {
+    const auto primitive = impl_param.typed_desc<dft>();
+    const auto input_layout = impl_param.get_input_layout();
 
     std::vector<tensor::value_type> dims_converted(primitive->output_shape.begin(), primitive->output_shape.end());
-    auto output_format = input_layout.format;
+
+    // Extend output layout for IRDFT case to make output rank match input rank
+    if (primitive->direction == dft_direction::inverse && primitive->mode == dft_mode::real) {
+        dims_converted.push_back(1);
+    }
 
     // Extend shape to 4d by pushing ones before the last dim
     for (auto i = dims_converted.size(); i < 4; ++i) {
         dims_converted.insert(std::prev(dims_converted.end()), 1);
     }
 
+    const auto output_format = format::adjust_to_rank(input_layout.format, dims_converted.size());
     return {input_layout.data_type, output_format, tensor(output_format, dims_converted)};
 }
 
-std::string typed_primitive_inst<dft>::to_string(const dft_node& node) {
+std::string dft_inst::to_string(const dft_node& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
     std::ostringstream os;
