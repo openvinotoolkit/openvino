@@ -1,14 +1,14 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from genericpath import isfile
-from openvino.runtime import Core
+import xml.etree.ElementTree as ET
+
 from argparse import ArgumentParser
 from pathlib import Path
-from os import path
-from shutil import copytree
 from hashlib import sha256
 from utils import utils
+
+from openvino.runtime import Core
 
 XML_EXTENSION = ".xml"
 BIN_EXTENSION = ".bin"
@@ -33,6 +33,10 @@ def create_hash(in_dir_path: Path):
         if not model_path.is_file:
             logger.error(f"File {model_path} is not exist!")
             exit(-1)
+
+        bin_path = model_path.with_suffix(BIN_EXTENSION)
+        meta_path = model_path.with_suffix(META_EXTENSION)
+
         str_to_hash = str()
         model = core.read_model(model_path)
         for input in model.inputs:
@@ -41,18 +45,18 @@ def create_hash(in_dir_path: Path):
             str_to_hash += str(node.type_info)
         for output in model.outputs:      
             str_to_hash += str(len(output.partial_shape)) + str(output.element_type) + str(output.node.type_info)
+        
+        ports_info = ET.parse(meta_path).getroot().find("ports_info")
+        str_to_hash += ET.tostring(ports_info).decode('utf8');        
 
         old_name = model_path
         new_name = model_path.name[:model_path.name.find('_') + 1] + str(sha256(str_to_hash.encode('utf-8')).hexdigest())
-
-        bin_path = model_path.with_suffix(BIN_EXTENSION)
-        meta_path = model_path.with_suffix(META_EXTENSION)
 
         model_path.rename(Path(model_path.parent, new_name + XML_EXTENSION))
         meta_path.rename(Path(meta_path.parent, new_name + META_EXTENSION))
         bin_path.rename(Path(bin_path.parent, new_name + BIN_EXTENSION))
 
-        logger.info(f"{old_name} -> {model_path}")
+        logger.info(f"{old_name} -> {new_name}")
 
 if __name__=="__main__":
     args = parse_arguments()
