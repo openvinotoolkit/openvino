@@ -461,7 +461,7 @@ jobs:
       export OV_FRONTEND_PATH=$(INSTALL_DIR)/runtime/lib/intel64
       export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=$(INSTALL_TEST_DIR)/TEST-tf2_fe.xmlTEST
-    displayNAME: 'TensorFlow 2 Layer Tests - TF FE'
+    displayName: 'TensorFlow 2 Layer Tests - TF FE'
     continueOnError: false
 
   - script: |
