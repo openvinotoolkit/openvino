@@ -439,7 +439,6 @@ if (ENABLE_TEMPLATE)
     list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_plugin)
     set(OP_EVAL_TEST_SRC
         # It should be a part of template plugin
-        op_eval/interpolate.cpp
         op_eval/memory.cpp)
 endif()
 
