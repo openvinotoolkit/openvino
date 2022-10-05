@@ -144,7 +144,7 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeMultConsumers(UnaryFactoryPtr 
         auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
         NodePtr in_op = X;
-        for (size_t i =  0; i < num_unary_ops; ++i) {
+        for (size_t i = 0; i < num_unary_ops; ++i) {
             in_op = unary_factory->create(in_op);
         }
 
