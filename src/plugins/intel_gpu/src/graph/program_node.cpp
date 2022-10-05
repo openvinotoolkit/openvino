@@ -31,7 +31,7 @@ using namespace cldnn;
 thread_local size_t program_node::cur_id = 0;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
-    : desc(prim), myprog(prog), required_input0(format::any), required_output(format::any), org_id(prim ? (prim->id) : 0) {
+    : desc(prim), myprog(prog), preferred_input_fmts({}), preferred_output_fmts({}), org_id(prim ? (prim->id) : 0) {
     if (prim) {
         output_layout.data_padding = prim->output_padding;
         num_outputs = prim->num_outputs;
@@ -211,6 +211,26 @@ void program_node::remove_dependency(program_node& node) {
             remove_dependency(i);
 }
 
+size_t program_node::get_user_index(program_node& node) const {
+    size_t idx = 0;
+    for (auto& user : users) {
+        if (user == &node)
+            return idx;
+        else
+            idx++;
+    }
+
+    OPENVINO_ASSERT(false, "Search invalid user node" + node.id() + " node");
+}
+
+size_t program_node::get_dependency_index(program_node& node) const {
+    for (size_t i = 0; i < dependencies.size(); ++i)
+        if (dependencies[i] == &node)
+            return i;
+
+    OPENVINO_ASSERT(false, "Search invalid dependency node" + node.id() + " node");
+}
+
 bool program_node::is_detached(bool whole_branch) {
     if (!users.empty())
         return false;
@@ -353,7 +373,7 @@ std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
 void program_node::invalidate_users() const {
     for (auto& user : users) {
         if (user->valid_output_layout) {
-            if (user->get_required_output() != format::any)
+            if (user->get_preferred_output_fmt() != format::any)
                 continue;
             user->valid_output_layout = false;
             user->invalidate_users();
@@ -405,6 +425,25 @@ bool program_node::need_lockable_memory() const {
     });
 
     return need_lockable_mem;
+}
+
+void program_node::init_preferred_fmt(size_t dep_node, size_t user_node) {
+    preferred_input_fmts.resize(dep_node, format::any);
+    preferred_output_fmts.resize(user_node, format::any);
+}
+
+void program_node::set_preferred_input_fmt(size_t idx, format::type type) {
+    if (idx >= preferred_input_fmts.size())
+        preferred_input_fmts.resize(idx+1, format::any);
+
+    preferred_input_fmts.at(idx) = type;
+}
+
+void program_node::set_preferred_output_fmt(size_t idx, format::type type) {
+    if (idx >= preferred_output_fmts.size())
+        preferred_output_fmts.resize(idx+1, format::any);
+
+    preferred_output_fmts.at(idx) = type;
 }
 
     /* ----------------------------------------- */
@@ -1246,5 +1285,6 @@ void program_node::init_onednn_primitive_attributes() {
 
     add_onednn_attrs(attrs);
 }
+
 
 #endif // ENABLE_ONEDNN_FOR_GPU
