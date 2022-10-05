@@ -128,7 +128,8 @@ See the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page
 OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on Github](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
 
 ### <a name="optional-steps"></a>Step 4 (Optional): Configure Inference on Non-CPU Devices
-
+OpenVINO Runtime has a plugin architecture that enables you to run inference on multiple devices without rewriting your code. Supported devices include integrated GPUs, discrete GPUs, NCS2, VPUs, and GNAs. See the instructions below to set up OpenVINO on these devices.
+ 
 @sphinxdirective 
 .. tab:: GPU
 
@@ -154,18 +155,26 @@ OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO sample
 @endsphinxdirective
 
 ## <a name="get-started"></a>What's Next?
+Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
 
-Now you are ready to try out the toolkit.
+### Get started with Python
+<img src="https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif" width=400>
 
-Start with some Python tutorials:
-   * [Hello Image Classification](https://docs.openvino.ai/latest/notebooks/001-hello-world-with-output.html)
-   * [Convert TensorFlow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
-   * [Convert a PyTorch model and remove the image background](https://docs.openvino.ai/latest/notebooks/205-vision-background-removal-with-output.html)
+Try the [Python Quick Start Example](https://docs.openvino.ai/2022.2/notebooks/201-vision-monodepth-with-output.html) to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
-To start with C++ samples, see <a href="openvino_docs_OV_UG_Samples_Overview.html#build-samples-linux">Build Sample Applications on Linux</a> first, and then you can try the following samples:
-   * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
-   * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
-   * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
+Visit the [Tutorials](../tutorials.md) page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+* [OpenVINO Python API Tutorial](https://docs.openvino.ai/2022.2/notebooks/002-openvino-api-with-output.html)
+* [Basic image classification program with Hello Image Classification](https://docs.openvino.ai/2022.2/notebooks/001-hello-world-with-output.html)
+* [Convert a PyTorch model and use it for image background removal](https://docs.openvino.ai/2022.2/notebooks/205-vision-background-removal-with-output.html)
+
+### Get started with C++
+<img src="https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg" width=400>
+
+Try the [C++ Quick Start Example](@ref openvino_docs_get_started_get_started_demos) for step-by-step instructions on building and running a basic image classification C++ application.
+
+Visit the [Samples](../OV_Runtime_UG/Samples_Overview.md) page for other C++ example applications to get you started with OpenVINO, such as:
+* [Basic object detection with the Hello Reshape SSD C++ sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
+* [Automatic speech recognition C++ sample](@ref openvino_inference_engine_samples_speech_sample_README)
 
 ## <a name="uninstall"></a>Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
 
