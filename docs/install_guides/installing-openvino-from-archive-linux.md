@@ -97,53 +97,33 @@ Next, you'll download the OpenVINO Runtime 2022.2 archive file from the [OpenVIN
      
 @endsphinxdirective
 
-3. Change the directory to where you downloaded the archive files.<br>
-   For example, if you downloaded the files to the current user's `Downloads` directory, use the following command:
-   ```sh
-   cd ~/Downloads/
-   ```
-4. To verify the package by using the `.sha256` file:
-   ```sh
-   sha256sum -с <archive name>.tgz.sha256
-   ```
-   If any error message appears, check your network connections, re-download the correct files, and make sure the download process completes successfully.
-5. Extract OpenVINO files from the `.tgz` file:
-   ```sh
-   tar xf <archive name>.tgz -C <destination_dir>
-   ```
-   where the `<destination_dir>` is the directory that you extract OpenVINO files to. You're recommended to set it as:
-   * For root users or administrators: `/opt/intel/`
-   * For regular users: `/home/<USER>/intel/`
+Finally, create a symbolic link to the folder by issuing:
 
-If you forgot to set the directory in Step 5, you can then use `sudo mv <extracted_folder> /opt/intel` (for root users or administrators), or `mv <extracted_folder> /home/<USER>/intel/` (for regular users) to set that.
-
-For simplicity, it is useful to create a symbolink link:
-```sh
-ln -s /home/<USER>/intel/<extracted_folder> /home/<USER>/intel/openvino_2022
 ```
-If such link already exists, remove the previous link with `rm /home/<USER>/intel/openvino_2022`.
+sudo ln -s openvino_2022.2.0.7713 openvino_2022
+```
+> **NOTE**: If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. Remove the previous link with `sudo rm openvino_2022`, then re-issue the previous command.
 
-The `/opt/intel/openvino_<version>/` or `/home/<USER>/intel/openvino_<version>/` will be referred as the standard OpenVINO `<INSTALL_DIR>` in this document.
-
-The core components are now installed. Continue to the next section to install components.
+Congratulations, you finished installation! The `/opt/intel/openvino_2022` folder now contains the core components for OpenVINO™. When other pages in OpenVINO™ documentation refer to the <INSTALL_DIR> directory, this is the folder they're referring to. If you installed OpenVINO™ in a different location (such as `/home/<USER>/Intel/openvino_2022`), make sure to use that instead.
 
 ### <a name="set-the-environment-variables"></a>Step 2: Configure the Environment
 
-You must update several environment variables before you can compile and run OpenVINO™ applications. Set environment variables as follows:
+You must update several environment variables before you can compile and run OpenVINO™ applications. Open a terminal (if it isn't already open) and run the setupvars.bat batch file as shown below to temporarily set your environment variables. Again, if you installed OpenVINO™ in a folder other than `/opt/intel/openvino_2022`, use that location instead.
 
 ```sh
-source <INSTALL_DIR>/setupvars.sh
+source /opt/intel/openvino_2022/setupvars.sh
 ```  
 
 If you have more than one OpenVINO™ version on your machine, you can easily switch its version by sourcing `setupvars.sh` of your choice.
 
-> **NOTE**: You can also run this script every time when you start new terminal session. Open `~/.bashrc` in your favorite editor, and add `source <INSTALL_DIR>/setupvars.sh`. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require different setup.
+> **NOTE**: You can also run this script every time when you start new terminal session. Open `~/.bashrc` in your favorite editor, and add `source /opt/intel/openvino_2022/setupvars.sh`. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require different setup.
 
 The environment variables are set. Next, you can download some additional tools.
 
 ### <a name="model-optimizer">Step 3 (Optional): Install Additional Components
+OpenVINO Development Tools adds even more functionality to OpenVINO. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Development Tools, OpenVINO Runtime will also be installed as a dependency, so you don't need to install OpenVINO Runtime separately. 
 
-Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can only be installed via PyPI. See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps.
+See the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page for step-by-step installation instructions.
 
 OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on Github](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
 
