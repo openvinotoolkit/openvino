@@ -59,7 +59,7 @@ ov::pass::TransposeSinkingUnaryForward::TransposeSinkingUnaryForward() {
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(
         unary_label,
-        "ov::pass::TransposeSinkingUnaryForward" /* matcher_name */);
+        "ov::pass::TransposeSinkingUnaryForward");
     register_matcher(m, matcher_pass_callback);
 }
 
@@ -93,6 +93,6 @@ ov::pass::TransposeSinkingUnaryBackward::TransposeSinkingUnaryBackward() {
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(
         transpose_label,
-        "ov::pass::TransposeSinkingUnaryBackward" /* matcher_name */);
+        "ov::pass::TransposeSinkingUnaryBackward");
     register_matcher(m, matcher_pass_callback);
 }
