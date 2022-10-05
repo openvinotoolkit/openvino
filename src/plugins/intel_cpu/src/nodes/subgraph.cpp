@@ -46,7 +46,6 @@ Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& en
     if (!original_snippet) {
         IE_THROW(NotImplemented) << "Node is not an instance of snippets::op::Subgraph";
     }
-    isa_num_lanes =  original_snippet->get_generator()->get_target_machine()->get_lanes();
 }
 
 void Snippet::copy_snippet() {
@@ -70,6 +69,7 @@ void Snippet::copy_snippet() {
     ngraph::copy_runtime_info(original_snippet, snippet);
     snippet->set_friendly_name(original_snippet->get_friendly_name());
     snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
+    isa_num_lanes =  snippet->get_generator()->get_target_machine()->get_lanes();
 }
 
 VectorDims Snippet::prependWithOnes(const VectorDims& dims, size_t rank) {

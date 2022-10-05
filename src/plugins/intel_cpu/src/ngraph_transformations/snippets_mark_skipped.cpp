@@ -268,8 +268,9 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
 
     // Matmul / FC bias fusion
     if (ov::is_type<ngraph::opset1::Add>(node) &&
-        bias_shape.back() == matmul_shape.back() &&
-        bias_shape.back() == shape_size(bias_shape)) {
+        bias_shape.rbegin()->get_length() == matmul_shape.rbegin()->get_length() &&
+        bias_shape.is_static() &&
+        bias_shape.rbegin()->get_length() == shape_size(bias_shape.get_shape())) {
         return true;
     }
 
