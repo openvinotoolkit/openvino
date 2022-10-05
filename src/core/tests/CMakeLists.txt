@@ -440,8 +440,7 @@ if (ENABLE_TEMPLATE)
     set(OP_EVAL_TEST_SRC
         # It should be a part of template plugin
         op_eval/interpolate.cpp
-        op_eval/memory.cpp
-        op_eval/transpose.cpp)
+        op_eval/memory.cpp)
 endif()
 
 # SOURCE FOR FRONTEND TESTING
