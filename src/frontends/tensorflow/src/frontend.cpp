@@ -430,7 +430,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     // Runs middle transformations to convert sub-graphs with intermediate (frontend internal) operations
     // into sub-graphs with only OpenVINO operations
     manager.register_pass<ov::frontend::tensorflow::pass::EmbeddingSegmentSingleFeatureFusion>();
-    manager.register_pass<ov::frontend::tensorflow::pass::BlockLSTMToLSTMSequenceOneOutput>();
+    manager.register_pass<ov::frontend::tensorflow::pass::BlockLSTMReplacer>();
     manager.register_pass<ov::frontend::tensorflow::pass::GRUBlockCellReplacer>();
 
     // TODO: reimplement TransposeSinking that does not corrupt filters for Convolution
