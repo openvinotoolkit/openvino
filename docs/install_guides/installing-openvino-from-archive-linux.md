@@ -118,7 +118,7 @@ If you have more than one OpenVINO™ version on your machine, you can easily sw
 
 > **NOTE**: The above command must be re-run every time the terminal is opened. To set up Linux so it automatically runs the command every time a new terminal is opened, open `~/.bashrc` in your favorite editor and add `source /opt/intel/openvino_2022/setupvars.sh` after the last line. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require different setup.
 
-The environment variables are set. Next, you can download some additional tools.
+The environment variables are set. Continue to the next section if you want to download any additional components.
 
 ### <a name="model-optimizer">Step 3 (Optional): Install Additional Components
 OpenVINO Development Tools adds even more functionality to OpenVINO. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Development Tools, OpenVINO Runtime will also be installed as a dependency, so you don't need to install OpenVINO Runtime separately. 
