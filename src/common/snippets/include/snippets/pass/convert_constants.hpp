@@ -14,7 +14,7 @@ namespace pass {
 /**
  * @interface ConvertConstantsToScalars
  * @brief Replace only constants which are should be represented as scalars during code generation.
- * Only single-value (0D) constants are currently supported.
+ *        Only single-value (0D) constants are currently supported.
  * @ingroup snippets
  */
 class ConvertConstantsToScalars: public ngraph::pass::MatcherPass {

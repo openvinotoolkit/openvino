@@ -387,13 +387,6 @@ void TileEmitter::emit_impl(const std::vector<size_t>& in,
 
 BroadcastMoveEmitter::BroadcastMoveEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                                            const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
-    if (n->get_input_shape(0).empty())
-        use_broadcast = true;
-    else if (*n->get_input_shape(0).rbegin() != *n->get_output_shape(0).rbegin())
-        use_broadcast = true;
-    else
-        use_broadcast = false;
-
     if (n->get_input_element_type(0) != n->get_output_element_type(0))
         IE_THROW() << "BroadcastMoveEmitter supports only equal input and output types but gets: "
             << n->get_input_element_type(0) << " and " << n->get_output_element_type(0);
@@ -420,20 +413,14 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void BroadcastMoveEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
             Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
-    Vmm vmm_src0 = Vmm(in[0]);
     Xmm xmm_src0 = Xmm(in[0]);
     Vmm vmm_dst  = Vmm(out[0]);
 
-    if (use_broadcast) {
-        switch (byte_size) {
-            case 4: h->uni_vbroadcastss(vmm_dst, xmm_src0); break;
-            case 2: h->vpbroadcastw(vmm_dst, xmm_src0); break;
-            case 1: h->vpbroadcastb(vmm_dst, xmm_src0); break;
-            default: assert(!"unsupported data type");
-        }
-    } else {
-        if (vmm_src0 != vmm_dst)
-            h->uni_vmovups(vmm_dst, vmm_src0);
+    switch (byte_size) {
+        case 4: h->uni_vbroadcastss(vmm_dst, xmm_src0); break;
+        case 2: h->vpbroadcastw(vmm_dst, xmm_src0); break;
+        case 1: h->vpbroadcastb(vmm_dst, xmm_src0); break;
+        default: assert(!"unsupported data type");
     }
 }
 

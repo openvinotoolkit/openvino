@@ -11,18 +11,19 @@
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/pass/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/pass/assign_registers.hpp"
-#include "snippets/pass/convert_constants_to_scalars.hpp"
+#include "snippets/pass/convert_constants.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
 #include "snippets/pass/vector_to_scalar.hpp"
-#include "snippets/pass/transform_convert_to_truncation.hpp"
-#include "snippets/pass/insert_convert_on_inputs.hpp"
-#include "snippets/pass/reset_type_relaxed_node_precision.hpp"
+#include "snippets/pass/transform_convert.hpp"
+#include "snippets/pass/align_element_type.hpp"
+#include "snippets/utils.hpp"
 
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include "ngraph/pass/constant_folding.hpp"
+#include "ngraph_ops/type_relaxed.hpp"
 #include <openvino/pass/serialize.hpp>
 
 #include <algorithm>
@@ -36,8 +37,20 @@ void snippets::op::Subgraph::set_generator(std::shared_ptr<ngraph::snippets::Gen
     m_generator = generator;
 }
 
+void snippets::op::Subgraph::set_non_scalar_constants_count(const size_t count) {
+    m_non_scalar_constants_count = count;
+}
+
 snippets::op::Subgraph::Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body)
     : Op(args), m_body(body), m_generator(nullptr) {
+    const auto ops = m_body->get_ops();
+    for (const auto& op : ops) {
+        config.m_is_quantized = config.m_is_quantized || ov::is_type<ov::op::v0::FakeQuantize>(op);
+        config.m_has_type_relaxed_ops = config.m_has_type_relaxed_ops || std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(op);
+        config.m_is_needed_to_align_precision = config.m_is_needed_to_align_precision || is_quantized() || has_type_relaxed_ops() ||
+            snippets::pass::AlignElementType::opNeedsAlignElementType(op, execution_element_type);
+    }
+
     constructor_validate_and_infer_types();
 }
 
@@ -86,7 +99,8 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
     ngraph::OutputVector subgraph_inputs;
 
     for (const auto& input : node->input_values()) {
-        if (is_scalar_constant(input.get_node_shared_ptr())) {
+        if ((utils::is_scalar_constant(input.get_node_shared_ptr())) ||
+            (ov::is_type<ov::op::v0::FakeQuantize>(node) && ov::is_type<ov::op::v0::Constant>(input.get_node_shared_ptr()))) {
             body_inputs.push_back(input);
         } else {
             auto parameter = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
@@ -118,6 +132,10 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
 
     auto body = create_body(node->get_friendly_name(), body_results, body_parameters);
     auto subgraph = build_subgraph(node, subgraph_inputs, body);
+
+    if (auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node)) {
+        subgraph->set_non_scalar_constants_count(utils::get_non_scalar_constant_count_for_fq(fq_node));
+    }
 
     for (size_t i = 0; i < body->get_parameters().size(); i++) {
         body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
@@ -251,25 +269,18 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
 
 void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outputShapes,
                                                  const BlockedShapeVector& inputShapes) {
-    // TODO: At the moment snippets support execution in only one element type
-    const auto execution_element_type = ov::element::f32;
-
-    ngraph::pass::Manager p_manager;
-    p_manager.register_pass<snippets::pass::TransformConvertToConvertTruncation>();
-    p_manager.run_passes(m_body);
-
     const auto& body_results = m_body->get_results();
     for (size_t i = 0; i < outputShapes.size(); i++) {
         const auto needed_out_type = std::get<2>(outputShapes[i]);
 
-        // If there is real Convert from graph (ConvertTruncation) before Result
+        // If there is real Convert from graph (ConvertTruncation) or after FQ decomp (ConvertSaturation) before Result
         // we should check destination type and insert ConvertSaturation before that if needed.
         // For example, to return original element type after Convert insertion on inputs
         std::shared_ptr<ov::Node> first_convert = body_results[i];
-        while (ov::is_type<ngraph::snippets::op::ConvertTruncation>(first_convert->get_input_node_ptr(0))) {
+        while (ov::is_type<ngraph::op::v0::Convert>(first_convert->get_input_node_ptr(0))) {
             first_convert = first_convert->get_input_node_shared_ptr(0);
         }
-        if (auto existing_convert_t = ngraph::as_type_ptr<ngraph::snippets::op::ConvertTruncation>(first_convert)) {
+        if (auto existing_convert_t = ngraph::as_type_ptr<ngraph::op::v0::Convert>(first_convert)) {
             const auto original_input_element_type = existing_convert_t->get_input_element_type(0);
             if (original_input_element_type != execution_element_type) {
                 const auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
@@ -283,16 +294,16 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
                 body_results[i]->get_input_node_shared_ptr(0), needed_out_type);
         body_results[i]->set_argument(0, convert);
     }
-
-    // After Convert insertion we should make the following steps:
-    //      - insert ConvertSaturation after inputs and scalar to start aligning of exec data type inside body
-    //      - manually set output element types of type relaxed nodes to align element type inside subgraph body
-    //      - after Convert insertion on inputs and after scalars we should use ConstantFolding pass to convert
-    //        element type of Scalars before inference
-    //      - eliminate redundant Convert that could have been inserted
+    // We should align element type inside body using the corresponding pass:
+    //  - Insert Convert before operations that doesn't support original element type for execution
+    //  - Insert reverse Convert before operations that support original element type
+    //    but have inputs that doesn't support it (because before them will be inserted Convert with exec_type - first point)
+    // Then we should use ConstantFolding pass to convert element type of Scalars before inference.
+    // At the end eliminate redundant Convert that could be inserted
     ngraph::pass::Manager manager;
-    manager.register_pass<snippets::pass::InsertConvertOnInputs>(execution_element_type);
-    manager.register_pass<snippets::pass::ResetTypeRelaxedNodePrecision>(execution_element_type);
+    if (config.m_is_needed_to_align_precision) {
+        manager.register_pass<snippets::pass::AlignElementType>(execution_element_type);
+    }
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::EliminateConvert>();
     manager.run_passes(m_body);

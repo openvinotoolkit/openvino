@@ -3,9 +3,12 @@
 //
 
 #include <snippets/itt.hpp>
-#include "snippets/snippets_isa.hpp"
-#include "snippets/pass/convert_constants_to_scalars.hpp"
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+
+#include "snippets/snippets_isa.hpp"
+#include "snippets/pass/convert_constants.hpp"
+#include "snippets/op/subgraph.hpp"
 
 
 ngraph::snippets::pass::ConvertConstantsToScalars::ConvertConstantsToScalars() {
@@ -24,5 +27,5 @@ ngraph::snippets::pass::ConvertConstantsToScalars::ConvertConstantsToScalars() {
 
         return true;
     };
-    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(constants, matcher_name), callback);
+    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(constants), callback);
 }

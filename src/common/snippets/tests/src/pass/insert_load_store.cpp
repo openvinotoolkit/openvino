@@ -41,31 +41,21 @@ TEST_P(InsertLoadStoreTests, ThreeInputsEltwise) {
 
 namespace InsertLoadStoreTestsInstantiation {
 using ov::Shape;
-std::vector<Shape> inputShapes1{{1, 1, 2, 5, 1}, {1, 4, 1, 5, 1}};
-std::vector<Shape> inputShapes2{{1, 1, 2, 5, 1}, {1, 4, 1, 5, 1}, {1, 4, 1, 5, 16}};
+std::vector<Shape> inputShapes{{1, 4, 1, 5, 1}, {1, 4, 2, 5, 1}};
+std::vector<Shape> broadcastShapes{{1, 4, 1, 5, 16}, {1, 4, 2, 5, 16}};
 Shape exec_domain{1, 4, 2, 5, 16};
 Shape emptyShape{};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BroadcastLoad, InsertLoadStoreTests,
                          ::testing::Combine(
                                  ::testing::Values(exec_domain),
-                                 ::testing::ValuesIn(inputShapes1),
-                                 ::testing::ValuesIn(inputShapes1),
+                                 ::testing::Values(inputShapes[0]),
+                                 ::testing::Values(inputShapes[1]),
                                  ::testing::Values(emptyShape),
-                                 ::testing::Values(exec_domain),
-                                 ::testing::Values(exec_domain)),
+                                 ::testing::Values(broadcastShapes[0]),
+                                 ::testing::Values(broadcastShapes[1])),
                          InsertLoadStoreTests::getTestCaseName);
 
-
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BroadcastMove, InsertLoadStoreTests,
-                         ::testing::Combine(
-                                 ::testing::Values(exec_domain),
-                                 ::testing::Values(Shape {1, 4, 1, 5, 16}),
-                                 ::testing::ValuesIn(inputShapes2),
-                                 ::testing::Values(emptyShape),
-                                 ::testing::Values(exec_domain),
-                                 ::testing::Values(exec_domain)),
-                         InsertLoadStoreTests::getTestCaseName);
 } // namespace InsertLoadStoreTestsInstantiation
 }  // namespace snippets
 }  // namespace test

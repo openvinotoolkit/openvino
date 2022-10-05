@@ -36,5 +36,23 @@ void SnippetsTestsCommon::validateNumSubgraphs() {
     ASSERT_EQ(ref_num_subgraphs, num_subgraphs) << "Compiled model contains invalid number of subgraphs.";
 }
 
+void SnippetsTestsCommon::validateOriginalLayersNamesByType(const std::string& layerType, const std::string& originalLayersNames) {
+    const auto& compiled_model = compiledModel.get_runtime_model();
+    for (const auto& op : compiled_model->get_ops()) {
+        const auto& rtInfo = op->get_rt_info();
+
+        const auto& typeIt = rtInfo.find("layerType");
+        const auto type = typeIt->second.as<std::string>();
+        if (type == layerType) {
+            const auto& nameIt = rtInfo.find("originalLayersNames");
+            const auto name = nameIt->second.as<std::string>();
+            ASSERT_EQ(originalLayersNames, name);
+            return;
+        }
+    }
+
+    ASSERT_TRUE(false) << "Layer type '" << layerType << "' was not found in compiled model";
+}
+
 }  // namespace test
 }  // namespace ov

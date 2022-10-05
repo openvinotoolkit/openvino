@@ -52,40 +52,6 @@ TEST(TransformationTests, FuseLoadWithBroadcastMoveByX) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, NotFuseLoadWithBroadcastMoveByY) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
-    {
-        auto data0 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 2});
-        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
-        auto load0 = std::make_shared<snippets::isa::Load>(data0);
-        auto load1 = std::make_shared<snippets::isa::Load>(data1);
-        auto bct = std::make_shared<snippets::isa::BroadcastMove>(load0, load1->get_shape());
-        auto add = std::make_shared<opset1::Add>(bct, load1);
-        auto store = std::make_shared<snippets::isa::Store>(add);
-        f = std::make_shared<Function>(NodeVector{store}, ParameterVector{data0, data1});
-
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<snippets::pass::LoadMoveBroadcastToBroadcastLoad>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
-    }
-
-    {
-        auto data0 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 2});
-        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
-        auto load0 = std::make_shared<snippets::isa::Load>(data0);
-        auto load1 = std::make_shared<snippets::isa::Load>(data1);
-        auto bct = std::make_shared<snippets::isa::BroadcastMove>(load0, load1->get_shape());
-        auto add = std::make_shared<opset1::Add>(bct, load1);
-        auto store = std::make_shared<snippets::isa::Store>(add);
-        f_ref = std::make_shared<Function>(NodeVector{store}, ParameterVector{data0, data1});
-    }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
-}
-
 TEST(TransformationTests, NoFuseLoadWithBroadcastMoveMultipleUsers) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {

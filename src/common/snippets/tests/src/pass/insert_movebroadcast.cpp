@@ -39,7 +39,7 @@ TEST_P(InsertMoveBroadcastTests, AddBroadcast) {
 
 namespace InsertMoveBroadcastTestsInstantiation {
 using ov::Shape;
-std::vector<Shape> inputShapes0 {{1, 1, 1, 3}, {1, 1, 2, 3}, {1, 8, 1, 3}};
+std::vector<Shape> inputShapes0 {{1, 8, 2, 1}};
 std::vector<Shape> inputShapes1 {{1, 8, 2, 3}};
 Shape broadcastShape {1, 8, 2, 3};
 Shape emptyShape {};
@@ -59,12 +59,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BroadcastOn1, InsertMoveBroadcastTests,
                                  ::testing::Values(broadcastShape)),
                          InsertMoveBroadcastTests::getTestCaseName);
 
-std::vector<Shape> inputShapesBoth0 {{4, 1, 2, 3}, {1, 8, 1, 3}, {1, 1, 2, 3}};
-std::vector<Shape> inputShapesBoth1 {{1, 8, 1, 3}, {4, 1, 2, 3}, {4, 8, 1, 3}};
-Shape broadcastShapeBoth{4, 8, 2, 3};
-std::vector<insertMoveBroadcastParams> params = {std::make_tuple(inputShapesBoth0[0], inputShapesBoth1[0], broadcastShapeBoth, broadcastShapeBoth),
-                                        std::make_tuple(inputShapesBoth0[1], inputShapesBoth1[1], broadcastShapeBoth, broadcastShapeBoth),
-                                        std::make_tuple(inputShapesBoth0[2], inputShapesBoth1[2], broadcastShapeBoth, broadcastShapeBoth)};
+std::vector<Shape> inputShapesBoth0 {{4, 1, 2, 1}, {1, 8, 1, 1}, {1, 1, 2, 3}};
+std::vector<Shape> inputShapesBoth1 {{4, 8, 2, 3}, {4, 1, 2, 3}, {4, 8, 1, 1}};
+std::vector<Shape> broadcastShapeBoth{{4, 1, 2, 3}, {1, 8, 1, 3}, {4, 8, 1, 3}};
+std::vector<insertMoveBroadcastParams> params = {std::make_tuple(inputShapesBoth0[0], inputShapesBoth1[0], broadcastShapeBoth[0], emptyShape),
+                                        std::make_tuple(inputShapesBoth0[1], inputShapesBoth1[1], broadcastShapeBoth[1], emptyShape),
+                                        std::make_tuple(inputShapesBoth0[2], inputShapesBoth1[2], emptyShape, broadcastShapeBoth[2])};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BroadcastOnBoth, InsertMoveBroadcastTests,
                          ::testing::ValuesIn(params),
