@@ -289,15 +289,11 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                 transposeOrder.push_back((uint16_t)o);
             std::swap(*(transposeOrder.end() - 1), *(transposeOrder.end() - 2));
 
-            std::vector<uint16_t> cldnnPermuteOrder = ConvertPermuteOrder(transposeOrder);
-
             auto permuteName = op->get_friendly_name() + suffix;
             auto permutePrim = cldnn::permute(permuteName,
                                               primitiveId,
-                                              cldnnPermuteOrder,
-                                              op->get_friendly_name());
-            p.AddPrimitive(permutePrim);
-            p.AddInnerPrimitiveToProfiler(permuteName, layerName, op);
+                                              transposeOrder);
+            p.add_primitive(*op, permutePrim);
             return permuteName;
         };
 
