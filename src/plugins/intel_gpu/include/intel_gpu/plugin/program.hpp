@@ -29,6 +29,18 @@ enum class reduce_mode : uint16_t;
 enum class eltwise_mode : int32_t;
 }  // namespace cldnn
 
+#define REGISTER_FACTORY_IMPL_TYPED(op_version, op_name, type_version, type)                                        \
+void __register ## _ ## op_name ## _ ## op_version();                                                               \
+void __register ## _ ## op_name ## _ ## op_version() {                                                              \
+    Program::RegisterFactory<ngraph::op::op_version::op_name<ngraph::type_version::type>>(                          \
+    [](Program& p, const std::shared_ptr<ngraph::Node>& op) {                                                       \
+        auto op_casted = std::dynamic_pointer_cast<ngraph::op::op_version::op_name<ngraph::type_version::type>>(op);\
+        if (!op_casted)                                                                                             \
+            IE_THROW() << "Invalid ngraph Node type passed into " << __PRETTY_FUNCTION__;                           \
+        Create##op_name##type##Op(p, op_casted);                                                                    \
+       });                                                                                                          \
+}
+
 #define REGISTER_FACTORY_IMPL(op_version, op_name)                                                \
 void __register ## _ ## op_name ## _ ## op_version();                                             \
 void __register ## _ ## op_name ## _ ## op_version() {                                            \

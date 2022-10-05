@@ -20,6 +20,7 @@
 #include "sliding_window_utils.hpp"
 #include "program_helpers.h"
 
+#include "matrix_nms_inst.h"
 #include "roi_pooling_inst.h"
 #include "reorg_yolo_inst.h"
 #include "eltwise_inst.h"
@@ -1442,6 +1443,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::ctc_loss::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
             prim.type() != cldnn::roi_align::type_id() &&
+            prim.type() != cldnn::matrix_nms::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
             prim.type() != cldnn::bucketize::type_id() &&
             prim.type() != cldnn::roll::type_id() &&
@@ -1485,6 +1487,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::ctc_loss::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
             prim.type() != cldnn::roi_align::type_id() &&
+            prim.type() != cldnn::matrix_nms::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
             prim.type() != cldnn::bucketize::type_id() &&
             prim.type() != cldnn::roll::type_id() &&
