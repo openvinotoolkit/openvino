@@ -80,13 +80,18 @@ PassFactoryPtr CreatePassFactory() {
 
 using FloatPtr = std::unique_ptr<float[]>;
 
-using CreateGraphF = std::function< std::shared_ptr<ov::Model> (UnaryFactoryPtr unary_factory, size_t num_unary_ops) >;
+using CreateGraphF = std::function< std::shared_ptr<ov::Model> (UnaryFactoryPtr unary_factory,
+                                                                size_t num_unary_ops,
+                                                                const ov::Shape & input_shape,
+                                                                ov::element::Type input_type) >;
 
 using TestParams = std::tuple<UnaryFactoryPtr,
                               PassFactoryPtr,
                               size_t, /* num_unary_ops */
                               CreateGraphF, /* model_factory */
-                              CreateGraphF>; /* reference_model_factory */
+                              CreateGraphF, /* reference_model_factory */
+                              ov::Shape, /* input shape */
+                              ov::element::Type>; /* input type */
 
 class TransposeSinkingUnaryTestFixture: public ::testing::WithParamInterface<TestParams>,
                                         public TransformationTestsF {};
@@ -98,10 +103,10 @@ std::string GetFinalNodeName(std::shared_ptr<ov::Model> model, int index = 0) {
     return result_node->get_input_node_ptr(0)->get_friendly_name();
 }
 
-std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_factory, size_t num_unary_ops) {
-        ov::Shape input_shape{1, 96, 55, 55};
-        auto input_type = ov::element::f32;
-
+std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_factory,
+                                                         size_t num_unary_ops,
+                                                         const ov::Shape & input_shape,
+                                                         ov::element::Type input_type) {
         auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
         auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
@@ -115,10 +120,10 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_f
         return std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
 }
 
-std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_factory, size_t num_unary_ops) {
-        ov::Shape input_shape{1, 96, 55, 55};
-        auto input_type = ov::element::f32;
-
+std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_factory,
+                                                         size_t num_unary_ops,
+                                                         const ov::Shape & input_shape,
+                                                         ov::element::Type input_type) {
         auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
         NodePtr in_op = X;
@@ -132,10 +137,10 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_fa
         return std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
 }
 
-std::shared_ptr<ov::Model> CreateFunctionTransposeMultConsumers(UnaryFactoryPtr unary_factory, size_t num_unary_ops) {
-        ov::Shape input_shape{1, 96, 55, 55};
-        auto input_type = ov::element::f32;
-
+std::shared_ptr<ov::Model> CreateFunctionTransposeMultConsumers(UnaryFactoryPtr unary_factory,
+                                                                size_t num_unary_ops,
+                                                                const ov::Shape & input_shape,
+                                                                ov::element::Type input_type) {
         auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
         NodePtr in_op = X;
@@ -193,10 +198,18 @@ TEST_P(TransposeSinkingUnaryTestFixture, CompareFunctions) {
     size_t num_unary_ops;
     CreateGraphF model_factory;
     CreateGraphF reference_model_factory;
-    std::tie(unary_factory, pass_factory, num_unary_ops, model_factory, reference_model_factory) = this->GetParam();
+    ov::Shape input_shape;
+    ov::element::Type input_type;
+    std::tie(unary_factory,
+             pass_factory,
+             num_unary_ops,
+             model_factory,
+             reference_model_factory,
+             input_shape,
+             input_type) = this->GetParam();
 
-    model = model_factory(unary_factory, num_unary_ops);
-    model_ref = reference_model_factory(unary_factory, num_unary_ops);
+    model = model_factory(unary_factory, num_unary_ops, input_shape, input_type);
+    model_ref = reference_model_factory(unary_factory, num_unary_ops, input_shape, input_type);
     pass_factory->registerPass(manager);
 }
 
@@ -205,18 +218,24 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryForwardTestSuite, TransposeSinking
                                             ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingUnaryForward>()),
                                             ::testing::ValuesIn(unary_operations_numbers),
                                             ::testing::Values(CreateFunctionTransposeBefore),
-                                            ::testing::Values(CreateFunctionTransposeAfter)));
+                                            ::testing::Values(CreateFunctionTransposeAfter),
+                                            ::testing::Values(ov::Shape{1, 96, 55, 55}),
+                                            ::testing::Values(ov::element::f32)));
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackwardTestSuite, TransposeSinkingUnaryTestFixture,
                          ::testing::Combine(::testing::ValuesIn(unary_factories),
                                             ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingUnaryBackward>()),
                                             ::testing::ValuesIn(unary_operations_numbers),
                                             ::testing::Values(CreateFunctionTransposeAfter),
-                                            ::testing::Values(CreateFunctionTransposeBefore)));
+                                            ::testing::Values(CreateFunctionTransposeBefore),
+                                            ::testing::Values(ov::Shape{1, 96, 55, 55}),
+                                            ::testing::Values(ov::element::f32)));
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackward2ConsumersTestSuite, TransposeSinkingUnaryTestFixture,
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackwardMultConsumersTestSuite, TransposeSinkingUnaryTestFixture,
                          ::testing::Combine(::testing::ValuesIn(unary_factories),
                                             ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingUnaryBackward>()),
                                             ::testing::ValuesIn(unary_operations_numbers),
                                             ::testing::Values(CreateFunctionTransposeMultConsumers),
-                                            ::testing::Values(CreateFunctionTransposeMultConsumers)));
+                                            ::testing::Values(CreateFunctionTransposeMultConsumers),
+                                            ::testing::Values(ov::Shape{1, 96, 55, 55}),
+                                            ::testing::Values(ov::element::f32)));
