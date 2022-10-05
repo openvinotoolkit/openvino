@@ -1,15 +1,15 @@
 # Inference Pipeline {#openvino_2_0_inference_pipeline}
 
 To infer models with OpenVINO™ Runtime, you usually need to perform the following steps in the application pipeline:
-1. [Create a Core object.](@ref create_core)
-   - 1.1. [(Optional) Load extensions.](@ref load_extensions)
-2. [Read a model from a drive.](@ref read_model)
-   - 2.1. [(Optional) Perform model preprocessing.](@ref perform-preprocessing)
-3. [Load the model to the device.](@ref load_model_to_device)
-4. [Create an inference request.](@ref create_inference_request)
-5. [Fill input tensors with data.](@ref fill_tensor)
-6. [Start inference.](@ref start_inference)
-7. [Process the inference results.](@ref process_results)
+1. [Create a Core object](@ref create_core).
+   1.1. [(Optional) Load extensions/](@ref load_extensions)
+2. [Read a model from a drive](@ref read_model).
+   2.1. [(Optional) Perform model preprocessing](@ref perform_preprocessing).
+3. [Load the model to the device](@ref load_model_to_device).
+4. [Create an inference request](@ref create_inference_request).
+5. [Fill input tensors with data](@ref fill_tensor).
+6. [Start inference](@ref start_inference).
+7. [Process the inference results](@ref process_results).
 
 Based on the steps, the following code demostrates how to change the application code to migrate to API 2.0.
 
