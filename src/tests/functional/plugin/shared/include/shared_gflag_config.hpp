@@ -28,6 +28,7 @@ static const char report_unique_name_message[] = "Optional. Allow to save report
 static const char save_report_timeout_message[] = "Optional. Allow to try to save report in cycle using timeout (in seconds). "
                                                   "Default value is 60 seconds";
 static const char extract_body_message[] = "Optional. Allows to count extracted operation bodies to report. Default value is false.";
+static const char device_suffix_message[] = "Optional. Device suffix";
 
 DEFINE_bool(h, false, help_message);
 DEFINE_string(output_folder, ".", output_folder_message);
@@ -36,6 +37,7 @@ DEFINE_bool(disable_test_config, true, disable_test_config_message);
 DEFINE_bool(extend_report, false, extend_report_config_message);
 DEFINE_bool(report_unique_name, false, report_unique_name_message);
 DEFINE_bool(extract_body, false, extract_body_message);
+DEFINE_string(device_suffix, "", device_suffix_message);
 
 /**
 * @brief This function shows a help message
@@ -52,6 +54,7 @@ static void showUsage() {
     std::cout << "    --report_unique_name             " << extend_report_config_message << std::endl;
     std::cout << "    --save_report_timeout            " << extend_report_config_message << std::endl;
     std::cout << "    --output_folder \"<path>\"         " << output_folder_message << std::endl;
+    std::cout << "    --device_suffix                  " << device_suffix_message << std::endl;
 }
 
 }  // namespace test
