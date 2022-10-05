@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 
-#include "ie_parallel.hpp"
 #include "ngraph_transformations/op/interaction.hpp"
 #include "interaction.h"
 #include "utils/general_utils.h"
@@ -106,21 +105,21 @@ void Interaction::execRef(dnnl::stream strm) {
         auto inPtr = reinterpret_cast<const uint8_t*>(getParentEdgeAt(n)->getMemoryPtr()->GetPtr());
         inputPtrs[n] = inPtr;
     }
+    std::unordered_map<int, memory> mem_ags {
+    {DNNL_ARG_SRC, inputMemPtr->GetPrimitive()},
+    {DNNL_ARG_WEIGHTS, inputMemPtr->GetPrimitive()},
+    {DNNL_ARG_DST, outputMemPtr->GetPrimitive()}};
+
     for (int64_t start = 0; start < batchSize; start++) {
-        cat(inputPtr->buffer().as<uint8_t*>(), inputPtrs, featureSizes, start, dataPrecision.size());
-        std::unordered_map<int, memory> mem_ags {
-            {DNNL_ARG_SRC, inputMemPtr->GetPrimitive()},
-            {DNNL_ARG_WEIGHTS, inputMemPtr->GetPrimitive()},
-            {DNNL_ARG_DST, outputMemPtr->GetPrimitive()}
-        };
+        cat(reinterpret_cast<uint8_t*>(inputMemPtr->GetPtr()), inputPtrs, featureSizes, start, dataPrecision.size());
         (*prim).execute(strm, mem_ags);
-        flat_triangle(outputPtr->buffer().as<uint8_t*>(),
-            flatPtr->buffer().as<uint8_t*>(), inputSizes, dataPrecision.size());
+        flat_triangle(reinterpret_cast<const uint8_t*>(outputMemPtr->GetPtr()),
+            reinterpret_cast<uint8_t*>(flatMemPtr->GetPtr()), inputSizes, dataPrecision.size());
         //in1 dense feature
         //in2 flatted interaction features
         cat(
           inputPtrs[0] + start * featureSize * dataPrecision.size(),
-          flatPtr->buffer().as<uint8_t*>(),
+          reinterpret_cast<const uint8_t*>(flatMemPtr->GetPtr()),
           outFeaturesPtr + start * outputFeaturesLen * dataPrecision.size(),
           featureSize,
           interactFeatureSize,
@@ -163,33 +162,14 @@ void Interaction::prepareParams() {
     auto matmul_pd = matmul::primitive_desc(matmul_d, matmul_attr, getEngine());
     prim.reset(new matmul(matmul_pd));
     featureSizes.assign(inputSizes, featureSize);
-    std::vector<InferenceEngine::TensorDesc> internalMemDesc = {
-        InferenceEngine::TensorDesc(
-            dataPrecision,
-            {inputSizes, featureSize},
-            InferenceEngine::Layout::HW),
-        InferenceEngine::TensorDesc(
-            dataPrecision,
-            {inputShapes.size(), inputShapes.size()},
-            InferenceEngine::Layout::HW),
-        InferenceEngine::TensorDesc(
-            dataPrecision,
-            {interactFeatureSize},
-            InferenceEngine::Layout::ANY)
+    auto initMemoryPtr = [&](const InferenceEngine::Precision &prc, const intel_cpu::Shape& shape,
+        MemoryPtr& ptr) {
+        ptr = std::make_shared<Memory>(getEngine());
+        ptr->Create(intel_cpu::DnnlBlockedMemoryDesc(prc, shape));
     };
-
-    if (dataPrecision == InferenceEngine::Precision::FP32) {
-        initializeInternalMemory<float>(internalMemDesc);
-    } else {
-        initializeInternalMemory<int16_t>(internalMemDesc);
-    }
-
-    inputMemPtr = std::make_shared<Memory>(getEngine());
-    outputMemPtr = std::make_shared<Memory>(getEngine());
-    auto inDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(inputPtr->getTensorDesc());
-    auto outDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(outputPtr->getTensorDesc());
-    inputMemPtr->Create(inDesc, inputPtr->buffer());
-    outputMemPtr->Create(outDesc, outputPtr->buffer());
+    initMemoryPtr(dataPrecision, intel_cpu::Shape{inputSizes, featureSize}, inputMemPtr);
+    initMemoryPtr(dataPrecision, intel_cpu::Shape{inputShapes.size(), inputShapes.size()}, outputMemPtr);
+    initMemoryPtr(dataPrecision, intel_cpu::Shape{interactFeatureSize}, flatMemPtr);
 }
 
 void Interaction::executeDynamicImpl(dnnl::stream strm) {

@@ -30,26 +30,14 @@ public:
 
 private:
     void execRef(dnnl::stream strm);
-    template<typename Prec>
-    void inline initializeInternalMemory(const std::vector<InferenceEngine::TensorDesc>& descs) {
-        inputPtr = InferenceEngine::make_shared_blob<Prec>(descs[0]);
-        outputPtr = InferenceEngine::make_shared_blob<Prec>(descs[1]);
-        flatPtr = InferenceEngine::make_shared_blob<Prec>(descs[2]);
-        inputPtr->allocate();
-        outputPtr->allocate();
-        flatPtr->allocate();
-    }
     size_t batchSize = 0;
     size_t featureSize = 0;
     size_t inputSizes = 0;
     size_t outputFeaturesLen = 0;
     size_t interactFeatureSize = 0;
     std::string errorPrefix;
-    dnnl::memory::data_type outputDataType;
-    InferenceEngine::Blob::Ptr inputPtr;
-    InferenceEngine::Blob::Ptr outputPtr;
-    InferenceEngine::Blob::Ptr flatPtr;
     MemoryPtr inputMemPtr;
+    MemoryPtr flatMemPtr;
     MemoryPtr outputMemPtr;
     std::vector<uint32_t> featureSizes;
     InferenceEngine::Precision dataPrecision;
