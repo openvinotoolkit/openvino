@@ -121,10 +121,6 @@ Visit the [Samples](../OV_Runtime_UG/Samples_Overview.md) page for other C++ exa
 
 To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 
-## <a name="uninstall"></a>Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
-
-To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
-
 @sphinxdirective
 .. raw:: html
 
