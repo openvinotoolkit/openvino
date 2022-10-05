@@ -80,15 +80,15 @@ jobs:
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '3.10'
+      versionSpec: '3.10.7'
       addToPath: false
       architecture: 'x64'
       githubToken: $(auth)
     displayName: Setup Python 3.10
     name: setupPython
 
-  - script: dir $(setupPython.pythonLocation)
-    displayName: 'Check python 3.10'
+  - script: $(setupPython.pythonLocation)\python.exe --version
+    displayName: 'Check Python 3.10'
 
   - script: |
       powershell -command "Invoke-RestMethod -Headers @{\"Metadata\"=\"true\"} -Method GET -Uri http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01 | format-custom"
