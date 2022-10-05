@@ -121,7 +121,7 @@ public:
     }
 
     memory::ptr get_output_memory(const primitive_id& output_id);
-    layout get_output_layout(const primitive_id& output_id) const;
+    layout get_node_output_layout(const primitive_id& output_id) const;
 
     /// @brief Returns the list of primitive ids before and after graph optimization.
     /// @details If primitive was not optimized, the old and actual id will be the same.

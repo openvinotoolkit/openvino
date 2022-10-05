@@ -750,7 +750,7 @@ void InferRequest::allocate_outputs() {
     // allocate outputs
     for (auto& no : _networkOutputs) {
         std::string outputID = m_graph->MapOutputName(no.first);
-        const cldnn::layout output_layout = m_graph->GetNetwork()->get_output_layout(outputID);
+        const cldnn::layout output_layout = m_graph->GetNetwork()->get_node_output_layout(outputID);
         TensorDesc desc = no.second->getTensorDesc();
         // Due to some reason TensorDesc in InferRequest contains wrong dims
         // while ExecutableNetwork contains proper ones. Thus replace dims with once from exec network
