@@ -217,7 +217,7 @@ def prepare_graph_def(model):
             tf_v1.reset_default_graph()
             tf_v1.enable_eager_execution()
 
-            # TODO: can we get concrete function if inputs are not set
+            # TODO: can we get concrete function if inputs are not set?
             assert hasattr(model, "inputs") and model.inputs is not None, "Model inputs specification is required."
             #TODO: Add checks of types
             model_inputs = [x if isinstance(x, tf.Tensor) else x.type_spec for x in model.inputs]

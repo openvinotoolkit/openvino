@@ -392,6 +392,7 @@ def prepare_ir(argv: argparse.Namespace):
                         refer_to_faq_msg(105))
 
     t.send_event("mo", "conversion_method", "mo_legacy")
+    print("fallback to legacy")
     graph = unified_pipeline(argv)
 
     return graph, ngraph_function
@@ -468,42 +469,116 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     return func
 
 
-def check_model_framework(model):
-    model_name = 'model'
-    try:
-        import onnx
-        import io
-        #TODO: is it only onnx can by in BytesIO?
-        if isinstance(model, io.BytesIO):
-            if hasattr(model, 'producer_name') and model.producer_name is not None and model.producer_name != '':
-                model_name = model.producer_name
-            return 'onnx', model_name
-    except ImportError:
-        pass
+# def check_model_framework(model):
+#     model_name = 'model'
+#     try:
+#         import onnx
+#         import io
+#         #TODO: is it only onnx can by in BytesIO?
+#         if isinstance(model, io.BytesIO):
+#             if hasattr(model, 'producer_name') and model.producer_name is not None and model.producer_name != '':
+#                 model_name = model.producer_name
+#             return 'onnx', model_name
+#     except ImportError:
+#         pass
+#
+#     try:
+#         import tensorflow as tf
+#         if isinstance(model, tf.compat.v1.GraphDef):
+#             return "tf", model_name
+#     except ImportError:
+#         pass
+#     try:
+#         if isinstance(model, tf.keras.Model):
+#             if hasattr(model, 'name') and model.name is not None:
+#                 model_name = model.name
+#             return "tf", model_name
+#     except ImportError:
+#         pass
+#
+#     try:
+#         import torch
+#         if isinstance(model, torch.nn.Module):
+#             return "pytorch", model_name
+#     except ImportError:
+#         pass
+#     raise Error('Unknown model type: {}'.format(type(model)))
 
-    try:
+def check_model_framework(model):
+    import io
+    model_name = 'model'
+    if 'tensorflow' in sys.modules:
         import tensorflow as tf
         if isinstance(model, tf.compat.v1.GraphDef):
             return "tf", model_name
-    except ImportError:
-        pass
-    try:
         if isinstance(model, tf.keras.Model):
             if hasattr(model, 'name') and model.name is not None:
                 model_name = model.name
             return "tf", model_name
-    except ImportError:
-        pass
-
+    if 'torch' in sys.modules:
+        import torch
+        if isinstance(model, torch.nn.Module):
+            return "pytorch", model_name
+        if isinstance(model, torch.jit.ScriptFunction):
+            return "pytorch", model_name
+    if isinstance(model, io.BytesIO):
+        if hasattr(model, 'producer_name') and model.producer_name is not None and model.producer_name != '':
+            model_name = model.producer_name
+        return 'onnx', model_name
     raise Error('Unknown model type: {}'.format(type(model)))
 
 
 def driver(argv: argparse.Namespace):
-    init_logger(argv.log_level.upper(), argv.silent)
 
     start_time = datetime.datetime.now()
-    if input_model_is_object(argv):
-        model_framework, model_name = check_model_framework(argv.input_model)
+    inp_model_is_object = input_model_is_object(argv)
+    model_framework = None
+    if inp_model_is_object:
+        model_framework, model_name = check_model_framework(argv['input_model'])
+        if model_framework == "pytorch":
+            import torch
+            import io
+            from openvino.runtime import PartialShape
+            model_onnx = io.BytesIO()
+            # add multiple inputs, check dynamic shapes
+            assert argv['input_shape'] is not None, "Convert of PyTorch model requires input shapes."
+
+            inputs = []
+            dynamic_dims_dict = {}
+            input_names = argv['input'] if 'input' in argv else None
+            for shape_idx, shape in enumerate(argv['input_shape']):
+                if isinstance(shape, list):
+                    inputs.append(torch.zeros(shape))
+                if isinstance(shape, PartialShape):
+                    shape_list = [dim.get_min_length() for dim in shape]
+                    inputs.append(torch.zeros(shape_list))
+                    dynamic_dims = [idx for idx, dim in enumerate(shape) if not dim.is_static]
+                    if len(dynamic_dims) > 0:
+                        assert input_names is not None, "To convert model with dynamic shapes, " \
+                                                          "please provide input names in --input parameter."
+                        dynamic_dims_dict[input_names[shape_idx]] = dynamic_dims
+            if len(dynamic_dims_dict) == 0:
+                torch.onnx.export(argv['input_model'], tuple(inputs), model_onnx)
+            else:
+                torch.onnx.export(argv['input_model'], tuple(inputs), model_onnx, dynamic_axes=dynamic_dims_dict)
+
+
+            argv['input_shape'] = None
+            argv['input'] = None
+            argv['input_model'] = model_onnx
+            argv['use_legacy_frontend'] = True
+
+            return driver(argv)
+
+    argv = params_to_string(**argv)
+    argv = pack_params_to_args_namespace(**argv)
+    argv.feManager = FrontEndManager()
+    init_logger(argv.log_level.upper(), argv.silent)
+
+    if argv.model_name is None and not inp_model_is_object:
+        argv.model_name = get_model_name_from_args(argv)
+
+    if model_framework is not None:
         if argv.framework is not None:
             if argv.framework != model_framework:
                 raise Error("Provided model is not corresponds to provided framework. The provided "
@@ -513,8 +588,8 @@ def driver(argv: argparse.Namespace):
                                 model_framework))
         else:
             argv.framework = model_framework
-        if argv.model_name is None:
-            argv.model_name = model_name
+    if argv.model_name is None:
+        argv.model_name = model_name
 
     graph, ngraph_function = prepare_ir(argv)
     if graph is not None:
@@ -584,9 +659,9 @@ def show_mo_convert_help():
 
 
 def input_model_is_object(argv):
-    if isinstance(argv.input_model, str):
+    if isinstance(argv['input_model'], str):
         return False
-    if argv.input_model is None:
+    if argv['input_model'] is None:
         return False
     return True
 
@@ -599,19 +674,13 @@ def _convert(**args):
     telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', get_simplified_mo_version())
-    args = params_to_string(**args)
-    argv = pack_params_to_args_namespace(**args)
-
-    if argv.model_name is None and not input_model_is_object(argv):
-        argv.model_name = get_model_name_from_args(argv)
 
     try:
         # Initialize logger with 'ERROR' as default level to be able to form nice messages
         # before arg parser deliver log_level requested by user
         init_logger('ERROR', False)
 
-        argv.feManager = FrontEndManager()
-        ngraph_function = driver(argv)
+        ngraph_function = driver(args)
 
         telemetry.send_event('mo', 'conversion_result', 'success')
         telemetry.end_session('mo')

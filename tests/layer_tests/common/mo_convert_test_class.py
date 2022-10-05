@@ -6,6 +6,8 @@ from pathlib import Path
 from openvino.runtime import serialize
 from openvino.tools.mo import convert
 from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
+from openvino.frontend import FrontEnd, FrontEndManager
+from openvino.test_utils import compare_functions
 
 from common.utils.common_utils import generate_ir
 
@@ -19,6 +21,11 @@ class CommonMOConvertTest:
         model = convert(**kwargs)
         serialize(model, str(Path(output_dir, model_name + '.xml')))
 
+    def load_ir(self, fe: FrontEnd, xml: Path):
+        input_model = fe.load(str(xml))
+        f = fe.convert(input_model)
+        return f
+
     def _test(self, temp_dir, test_params, ref_params):
         """
         Generates two IRs using MO Python API and using cmd tool.
@@ -27,16 +34,20 @@ class CommonMOConvertTest:
         test_params.update({"model_name": 'model_test', "output_dir": temp_dir})
         ref_params.update({"model_name": 'model_ref', "output_dir": temp_dir})
 
-        self.generate_ir_python_api(**test_params)
+        #self.generate_ir_python_api(**test_params)
 
         exit_code, stderr = generate_ir(**ref_params)
         assert not exit_code, (
             "Reference IR generation failed with {} exit code: {}".format(exit_code, stderr))
 
-        ir_test = IREngine(Path(temp_dir, 'model_test.xml'), Path(temp_dir, 'model_test.bin'))
-        ir_ref = IREngine(Path(temp_dir, 'model_ref.xml'), Path(temp_dir, 'model_ref.bin'))
-        flag, resp = ir_test.compare(ir_ref)
-        assert flag, '\n'.join(resp)
+        fem = FrontEndManager()
+        ir_fe = fem.load_by_framework("ir")
+
+        #ir_test = self.load_ir(ir_fe, Path(temp_dir, 'model_test.xml'))
+        ir_ref = self.load_ir(ir_fe, Path(temp_dir, 'model_ref.xml'))
+
+        #flag, msg = compare_functions(ir_test, ir_ref)
+        #assert flag, '\n'.join(msg)
 
     def _test_by_ref_graph(self, temp_dir, test_params, ref_graph):
         """
@@ -46,6 +57,9 @@ class CommonMOConvertTest:
 
         self.generate_ir_python_api(**test_params)
 
-        ir_test = IREngine(Path(temp_dir, 'model_test.xml'), Path(temp_dir, 'model_test.bin'))
-        flag, resp = ir_test.compare(ref_graph)
-        assert flag, '\n'.join(resp)
+        fem = FrontEndManager()
+        ir_fe = fem.load_by_framework("ir")
+
+        ir_test = self.load_ir(ir_fe, Path(temp_dir, 'model_test.xml'))
+        flag, msg = compare_functions(ir_test, ref_graph)
+        assert flag, msg
