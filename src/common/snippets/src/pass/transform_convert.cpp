@@ -5,7 +5,7 @@
 #include "snippets/remarks.hpp"
 #include <snippets/itt.hpp>
 
-#include "snippets/pass/transform_convert_to_truncation.hpp"
+#include "snippets/pass/transform_convert.hpp"
 #include "snippets/snippets_isa.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
@@ -14,15 +14,19 @@
 
 ngraph::snippets::pass::TransformConvertToConvertTruncation::TransformConvertToConvertTruncation() {
     MATCHER_SCOPE(TransformConvertToConvertTruncation);
+    auto convert = std::make_shared<pattern::op::Label>(pattern::any_input(),
+        [](const std::shared_ptr<const Node> &n) {
+            return ov::is_type<ngraph::opset1::Convert>(n) &&
+                !ov::is_type<op::ConvertTruncation>(n) &&
+                !ov::is_type<op::ConvertSaturation>(n);
+        });
+
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<ngraph::opset1::Convert>()),
+        ngraph::pattern::wrap_type<ngraph::opset1::Convert>(), matcher_name),
             [this](ngraph::pattern::Matcher &m) {
             OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::TransformConvertToConvertTruncation")
             const auto root = m.get_match_root();
             const auto convert = ngraph::as_type_ptr<ngraph::opset1::Convert>(root);
-            if (!convert)
-                return false;
-
             auto convert_truncation = std::make_shared<op::ConvertTruncation>(convert->get_input_source_output(0),
                                                                               convert->get_destination_type());
             convert_truncation->set_friendly_name(convert->get_friendly_name());
