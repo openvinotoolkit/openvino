@@ -11,6 +11,8 @@ With the OpenVINO™ 2022.2 release, you can download and use archive files to i
 
   * Ubuntu 18.04 long-term support (LTS), 64-bit
   * Ubuntu 20.04 long-term support (LTS), 64-bit
+  * Red Hat Enterprise Linux 8, 64-bit
+  * Debian 9 armhf
 
   .. note::
      Since the OpenVINO™ 2022.1 release, CentOS 7.6, 64-bit is not longer supported.
@@ -48,13 +50,53 @@ With the OpenVINO™ 2022.2 release, you can download and use archive files to i
 
 ### <a name="install-openvino"></a>Step 1: Download and Install the OpenVINO Core Components
 
-1. Select and download the OpenVINO™ archive files from [Intel® Distribution of OpenVINO™ toolkit download page](https://software.intel.com/en-us/openvino-toolkit/choose-download). There are typically two files for you to download: 
-   ```sh
-   l_openvino_toolkit_<operating system>_<release version>_<package ID>_x86_64.tgz
-   l_openvino_toolkit_<operating system>_<release version>_<package ID>_x86_64.tgz.sha256
-   ``` 
-   where the `.sha256` file is used to verify the success of the download process.
-2. Open a command prompt terminal window. You can use the keyboard shortcut: Ctrl+Alt+T
+First, open a terminal using Ctrl + Alt + T. Create a folder for OpenVINO and move into it by issuing the following commands. If the `/opt/intel` folder already exists, skip the `mkdir` command.
+
+```sh
+sudo mkdir /opt/intel
+cd /opt/intel
+```
+
+> **NOTE**: The `/opt/intel` path is the recommended folder path for administrators or root users. If you prefer to install OpenVINO in regular userspace, the recommended path is `/home/<USER>/Intel`. You may use a different path if desired.
+
+Next, you'll download the OpenVINO Runtime 2022.2 archive file from the [OpenVINO archives](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/windows) site. Issue the following command to download the archive file, unpack it, and rename the folder to `openvino_2022.2.0.7713`:
+
+@sphinxdirective
+
+.. tab:: Ubuntu 18.04
+
+   .. code-block:: sh
+   
+      sudo wget https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/l_openvino_toolkit_ubuntu18_2022.2.0.7713.af16ea1d79a_x86_64.tgz -O openvino_2022.2.0.7713.tgz
+      sudo tar -xf openvino_2022.2.0.7713.tgz
+      sudo mv l_openvino_toolkit_ubuntu18_2022.2.0.7713.af16ea1d79a_x86_64 openvino_2022.2.0.7713
+      
+.. tab:: Ubuntu 20.04
+
+   .. code-block:: sh
+   
+      sudo wget https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/l_openvino_toolkit_ubuntu20_2022.2.0.7713.af16ea1d79a_x86_64.tgz -O openvino_2022.2.0.7713.tgz
+      sudo tar -xf openvino_2022.2.0.7713.tgz
+      sudo mv l_openvino_toolkit_ubuntu20_2022.2.0.7713.af16ea1d79a_x86_64 openvino_2022.2.0.7713
+      
+.. tab:: Red Hat
+
+   .. code-block:: sh
+   
+      sudo wget https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/l_openvino_toolkit_rhel8_2022.2.0.7713.af16ea1d79a_x86_64.tgz -O openvino_2022.2.0.7713.tgz
+      sudo tar -xf openvino_2022.2.0.7713.tgz
+      sudo mv l_openvino_toolkit_rhel8_2022.2.0.7713.af16ea1d79a_x86_64 openvino_2022.2.0.7713
+      
+.. tab:: Debian
+
+   .. code-block:: sh
+   
+      sudo wget https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/l_openvino_toolkit_debian9_arm_2022.2.0.7713.af16ea1d79a_armhf.tgz -O openvino_2022.2.0.7713.tgz
+      sudo tar -xf openvino_2022.2.0.7713.tgz
+      sudo mv l_openvino_toolkit_debian9_arm_2022.2.0.7713.af16ea1d79a_armhf openvino_2022.2.0.7713
+     
+@endsphinxdirective
+
 3. Change the directory to where you downloaded the archive files.<br>
    For example, if you downloaded the files to the current user's `Downloads` directory, use the following command:
    ```sh
