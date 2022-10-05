@@ -1,8 +1,6 @@
 # Install OpenVINO™ Runtime on Linux from an Archive File {#openvino_docs_install_guides_installing_openvino_from_archive_linux}
 
-With the OpenVINO™ 2022.2 release, you can download and use archive files to install OpenVINO Runtime. 
-
-You can also check the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes) for more information on updates in this release.
+With the OpenVINO™ 2022.2 release, you can download and use archive files to install OpenVINO Runtime. The archive files contain pre-built binaries and library files needed for OpenVINO Runtime, as well as sample code for running demos. This page provides instructions showing how to install OpenVINO Runtime using archive files. Check the Release Notes for more information on updates in the 2022.2 release.
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/) only.
 
@@ -42,20 +40,13 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
   * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
   * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
   * `Python 3.6 - 3.9, 64-bit <https://www.python.org/downloads/windows/>`_
-     * Note that OpenVINO is gradually stopping the support for Python 3.6. Python 3.7 - 3.9 are recommended. 
+     * Note that OpenVINO is gradually phasing out support for Python 3.6. Python 3.7 - 3.9 are recommended. 
 
 @endsphinxdirective
 
 ## Installing OpenVINO Runtime
 
-@sphinxdirective
-
-.. important::
-   Before you start your journey with installation of the Intel® Distribution of OpenVINO™ toolkit, we encourage you to check the :ref:`code samples <code samples>` in C, C++, Python and :ref:`notebook tutorials <notebook tutorials>`, so you could see all the amazing things that you can achieve with our tool.
-
-@endsphinxdirective
-
-### <a name="install-openvino"></a>Step 1: Download and Install the OpenVINO Package
+### <a name="install-openvino"></a>Step 1: Download and Install the OpenVINO Core Components
 
 1. Select and download the OpenVINO™ archive files from [Intel® Distribution of OpenVINO™ toolkit download page](https://software.intel.com/en-us/openvino-toolkit/choose-download). There are typically two files for you to download: 
    ```sh
