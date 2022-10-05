@@ -45,7 +45,5 @@ TEST(StaticShapeInferenceTest, Einsum5) {
     auto I3 = std::make_shared<op::v0::Parameter>(element::i32, ov::PartialShape::dynamic());
     auto O = std::make_shared<op::v7::Einsum>(OutputVector{I1, I2, I3}, "ab,bcd,bc->ca");
 
-    check_static_shape(O.get(),
-                       {StaticShape{2, 5}, StaticShape{5, 3, 6}, StaticShape{5, 3}},
-                       {StaticShape{3, 2}});
+    check_static_shape(O.get(), {StaticShape{2, 5}, StaticShape{5, 3, 6}, StaticShape{5, 3}}, {StaticShape{3, 2}});
 }

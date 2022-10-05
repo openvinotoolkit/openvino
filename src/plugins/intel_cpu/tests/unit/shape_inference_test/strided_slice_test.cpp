@@ -36,17 +36,11 @@ TEST(StaticShapeInferenceTest, StridedSlice2) {
 
     auto ss = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
 
-    check_static_shape(ss.get(),
-                       {StaticShape{3, 2, 3}, {1, 0, 0}, {2, 1, 3}, {1, 1, 1}},
-                       {StaticShape{1, 1, 3}});
+    check_static_shape(ss.get(), {StaticShape{3, 2, 3}, {1, 0, 0}, {2, 1, 3}, {1, 1, 1}}, {StaticShape{1, 1, 3}});
 
-    check_static_shape(ss.get(),
-                       {StaticShape{3, 2, 3}, {1, 0, 0}, {2, 2, 3}, {1, 1, 1}},
-                       {StaticShape{1, 2, 3}});
+    check_static_shape(ss.get(), {StaticShape{3, 2, 3}, {1, 0, 0}, {2, 2, 3}, {1, 1, 1}}, {StaticShape{1, 2, 3}});
 
-    check_static_shape(ss.get(),
-                       {StaticShape{3, 2, 3}, {2, 0, 0}, {3, 2, 3}, {1, 1, 2}},
-                       {StaticShape{1, 2, 2}});
+    check_static_shape(ss.get(), {StaticShape{3, 2, 3}, {2, 0, 0}, {3, 2, 3}, {1, 1, 2}}, {StaticShape{1, 2, 2}});
 }
 
 TEST(StaticShapeInferenceTest, StridedSlice3) {
@@ -60,9 +54,7 @@ TEST(StaticShapeInferenceTest, StridedSlice3) {
 
     auto ss = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
 
-    check_static_shape(ss.get(),
-                       {StaticShape{3, 2, 3}, {1, 0, 0}, {0, 0, 0}, {1, 1, 1}},
-                       {StaticShape{2, 2, 3}});
+    check_static_shape(ss.get(), {StaticShape{3, 2, 3}, {1, 0, 0}, {0, 0, 0}, {1, 1, 1}}, {StaticShape{2, 2, 3}});
 }
 
 TEST(StaticShapeInferenceTest, StridedSlice4) {
@@ -76,9 +68,7 @@ TEST(StaticShapeInferenceTest, StridedSlice4) {
 
     auto ss = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
 
-    check_static_shape(ss.get(),
-                       {StaticShape{3, 2, 3}, {0, 1, 0}, {2, 0, 0}, {1, 1, 2}},
-                       {StaticShape{2, 1, 2}});
+    check_static_shape(ss.get(), {StaticShape{3, 2, 3}, {0, 1, 0}, {2, 0, 0}, {1, 1, 2}}, {StaticShape{2, 1, 2}});
 }
 
 TEST(StaticShapeInferenceTest, StridedSlice5) {
@@ -92,7 +82,5 @@ TEST(StaticShapeInferenceTest, StridedSlice5) {
 
     auto ss = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
 
-    check_static_shape(ss.get(),
-                       {StaticShape{3, 2, 3}, {0, 0, 0}, {1, 0, 0}, {1, 1, -1}},
-                       {StaticShape{1, 2, 3}});
+    check_static_shape(ss.get(), {StaticShape{3, 2, 3}, {0, 0, 0}, {1, 0, 0}, {1, 1, -1}}, {StaticShape{1, 2, 3}});
 }

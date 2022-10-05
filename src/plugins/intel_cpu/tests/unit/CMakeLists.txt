@@ -55,3 +55,5 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/common
     $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/cpu
     $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/include)
+
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})

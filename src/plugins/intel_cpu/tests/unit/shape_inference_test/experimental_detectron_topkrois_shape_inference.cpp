@@ -26,7 +26,8 @@ TEST(StaticShapeInferenceTest, ExperimentalDetectronTopKROIsTest) {
 
     ASSERT_EQ(output_shapes[0], PartialShape({5, 4}));
 
-    std::vector<StaticShape> static_input_shapes = {StaticShape{10, 4}, StaticShape{10}}, static_output_shapes = {StaticShape{}};
+    std::vector<StaticShape> static_input_shapes = {StaticShape{10, 4}, StaticShape{10}},
+                             static_output_shapes = {StaticShape{}};
     shape_infer(rois.get(), static_input_shapes, static_output_shapes);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({5, 4}));

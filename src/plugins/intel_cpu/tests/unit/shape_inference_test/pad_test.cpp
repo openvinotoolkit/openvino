@@ -19,9 +19,6 @@ TEST(StaticShapeInferenceTest, Padv1) {
     const auto pad = std::make_shared<ov::op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT);
 
     check_static_shape(pad.get(),
-                       {StaticShape{3, 6, 5, 5},
-                        StaticShape{4},
-                        StaticShape{4},
-                        StaticShape()},
+                       {StaticShape{3, 6, 5, 5}, StaticShape{4}, StaticShape{4}, StaticShape()},
                        {StaticShape({6, 9, 8, 8})});
 }

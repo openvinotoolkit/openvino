@@ -107,21 +107,21 @@ struct ReorderCPUTestParamSet {
 class ReorderCPUTestGraph {
 public:
     void buildReorderGraph(const ov::intel_cpu::CpuBlockedMemoryDesc& inputDesc,
-                    const ov::intel_cpu::CpuBlockedMemoryDesc& outputDesc) {
+                           const ov::intel_cpu::CpuBlockedMemoryDesc& outputDesc) {
         const dnnl::engine cpuEngine = {dnnl::engine::kind::cpu, 0};
         ov::intel_cpu::WeightsSharing::Ptr weightsCache;
 
         inputNode = std::make_shared<ov::intel_cpu::node::Input>(inputDesc.clone(),
-                                                                      "Reorder_Input",
-                                                                      "Parameter",
-                                                                      cpuEngine,
-                                                                      weightsCache);
+                                                                 "Reorder_Input",
+                                                                 "Parameter",
+                                                                 cpuEngine,
+                                                                 weightsCache);
         reorderNode = std::make_shared<ov::intel_cpu::node::Reorder>("Reorder", cpuEngine, weightsCache);
         outputNode = std::make_shared<ov::intel_cpu::node::Input>(outputDesc.clone(),
-                                                                       "Reorder_Output",
-                                                                       "Result",
-                                                                       cpuEngine,
-                                                                       weightsCache);
+                                                                  "Reorder_Output",
+                                                                  "Result",
+                                                                  cpuEngine,
+                                                                  weightsCache);
 
         parentEdge = std::make_shared<ov::intel_cpu::Edge>(inputNode, reorderNode, 0, 0);
         childEdge = std::make_shared<ov::intel_cpu::Edge>(reorderNode, outputNode, 0, 0);
@@ -162,7 +162,7 @@ protected:
     InferenceEngine::Precision prec;
 };
 
-}// namespace ReorderCPUTest
+}  // namespace ReorderCPUTest
 
 using namespace ReorderCPUTest;
 
@@ -313,8 +313,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReorderTestCustomStrideWithFactor,
  * ReorderCPUTest to test the CPU plugin-in dynamism and RT cache
  */
 class ReorderDynamismCPUTest : public ::testing::Test,
-                       public ::testing::WithParamInterface<ReorderCPUTestParamSet>,
-                       public ::ReorderCPUTest::ReorderCPUTestGraph {
+                               public ::testing::WithParamInterface<ReorderCPUTestParamSet>,
+                               public ::ReorderCPUTest::ReorderCPUTestGraph {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReorderCPUTestParamSet>& obj) {
         ReorderCPUTestParamSet p = obj.param;

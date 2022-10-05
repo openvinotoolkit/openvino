@@ -3,15 +3,16 @@
 //
 #include <gtest/gtest.h>
 
+#include <atomic>
+#include <ngraph_ops/type_relaxed.hpp>
 #include <openvino/core/coordinate_diff.hpp>
 #include <openvino/op/ops.hpp>
 #include <openvino/op/parameter.hpp>
+#include <thread>
 #include <utils/shape_inference/shape_inference.hpp>
 #include <utils/shape_inference/static_shape.hpp>
+
 #include "ngraph_functions/builders.hpp"
-#include <thread>
-#include <atomic>
-#include <ngraph_ops/type_relaxed.hpp>
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -24,8 +25,8 @@ TEST(StaticShapeInferenceTest, MakeShapeInference) {
     auto inp2 = std::make_shared<op::v0::Parameter>(element::i8, PartialShape{-1, -1, -1, -1});
 
     auto matMulRelaxed = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset3::MatMul>>(
-            *as_type_ptr<ngraph::opset3::MatMul>(ngraph::builder::makeMatMul(inp1_f32, inp2_f32, false, false)),
-            element::f32);
+        *as_type_ptr<ngraph::opset3::MatMul>(ngraph::builder::makeMatMul(inp1_f32, inp2_f32, false, false)),
+        element::f32);
 
     auto matMul = matMulRelaxed->clone_with_new_inputs({inp1, inp2});
 

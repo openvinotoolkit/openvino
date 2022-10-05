@@ -20,8 +20,7 @@ TEST(StaticShapeInferenceTest, EmbeddingBagOffsetsSumV3) {
     auto ebos =
         make_shared<op::v3::EmbeddingBagOffsetsSum>(emb_table, indices, offsets, default_index, per_sample_weights);
 
-    check_static_shape(
-        ebos.get(),
-        {StaticShape{5, 2}, StaticShape{4}, StaticShape{3}, StaticShape{}, StaticShape{4}},
-        {StaticShape{3, 2}});
+    check_static_shape(ebos.get(),
+                       {StaticShape{5, 2}, StaticShape{4}, StaticShape{3}, StaticShape{}, StaticShape{4}},
+                       {StaticShape{3, 2}});
 }

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <utility>
+#include <cpu_memory.h>
 #include <gtest/gtest.h>
 
-#include <cpu_memory.h>
+#include <utility>
 
 using namespace ov::intel_cpu;
 using namespace InferenceEngine;

@@ -27,9 +27,7 @@ TEST(StaticShapeInferenceTest, RollTest) {
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
     constant_data[2] = axes_tensor;
 
-    const std::vector<StaticShape> input_shapes = {StaticShape{3, 3, 3},
-                                                   StaticShape{3},
-                                                   StaticShape{3}};
+    const std::vector<StaticShape> input_shapes = {StaticShape{3, 3, 3}, StaticShape{3}, StaticShape{3}};
     std::vector<StaticShape> output_shapes = {StaticShape{}};
     shape_inference(roll.get(), input_shapes, output_shapes, constant_data);
     ASSERT_EQ(output_shapes[0], input_shapes[0]);
@@ -43,9 +41,7 @@ TEST(StaticShapeInferenceTest, RollTestWithConstAxis) {
     auto axes = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{0, 1, -1});
     auto roll = std::make_shared<ov::op::v7::Roll>(arg, shift, axes);
 
-    const std::vector<StaticShape> input_shapes = {StaticShape{3, 3, 3},
-                                                   StaticShape{3},
-                                                   StaticShape{3}};
+    const std::vector<StaticShape> input_shapes = {StaticShape{3, 3, 3}, StaticShape{3}, StaticShape{3}};
     std::vector<StaticShape> output_shapes = {StaticShape{}};
     shape_inference(roll.get(), input_shapes, output_shapes);
     ASSERT_EQ(output_shapes[0], input_shapes[0]);

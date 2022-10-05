@@ -31,12 +31,14 @@ TEST(StaticShapeInferenceTest, BroadcastBidirectionalTest) {
 
     static_input_shapes = {StaticShape{16, 1, 1}, StaticShape{4}};
     static_output_shapes = {StaticShape{}};
-    EXPECT_THROW(shape_inference(broadcast_v3.get(), static_input_shapes, static_output_shapes, {}), NodeValidationFailure);
+    EXPECT_THROW(shape_inference(broadcast_v3.get(), static_input_shapes, static_output_shapes, {}),
+                 NodeValidationFailure);
 }
 
 TEST(StaticShapeInferenceTest, BroadcastBidirectionalConstantTest) {
     auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto target_shape = std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{3}, std::vector<int32_t>{16, 1, 40});
+    auto target_shape =
+        std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{3}, std::vector<int32_t>{16, 1, 40});
     auto broadcast_v3 = std::make_shared<op::v3::Broadcast>(input, target_shape, op::BroadcastType::BIDIRECTIONAL);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 16, 50, 1}, StaticShape{3}},
@@ -63,12 +65,14 @@ TEST(StaticShapeInferenceTest, BroadcastPDPDTest) {
 
     static_input_shapes = {StaticShape{3, 1}, StaticShape{3}};
     static_output_shapes = {StaticShape{}};
-    EXPECT_THROW(shape_inference(broadcast_v3.get(), static_input_shapes, static_output_shapes, {}), NodeValidationFailure);
+    EXPECT_THROW(shape_inference(broadcast_v3.get(), static_input_shapes, static_output_shapes, {}),
+                 NodeValidationFailure);
 }
 
 TEST(StaticShapeInferenceTest, BroadcastPDPDConstantTest) {
     auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    auto target_shape = std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{3}, std::vector<int32_t>{2, 3, 6});
+    auto target_shape =
+        std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{3}, std::vector<int32_t>{2, 3, 6});
     auto broadcast_v3 =
         std::make_shared<op::v3::Broadcast>(input, target_shape, op::BroadcastModeSpec(op::BroadcastType::PDPD, 1));
 
@@ -95,7 +99,8 @@ TEST(StaticShapeInferenceTest, BroadcastNumpyTest) {
 
     static_input_shapes = {StaticShape{16, 1, 1}, StaticShape{4}};
     static_output_shapes = {StaticShape{}};
-    EXPECT_THROW(shape_inference(broadcast_v3.get(), static_input_shapes, static_output_shapes, {}), NodeValidationFailure);
+    EXPECT_THROW(shape_inference(broadcast_v3.get(), static_input_shapes, static_output_shapes, {}),
+                 NodeValidationFailure);
 }
 
 TEST(StaticShapeInferenceTest, BroadcastNumpyConstantTest) {
@@ -133,7 +138,8 @@ TEST(StaticShapeInferenceTest, BroadcastExplicitTest) {
     constant_data.erase(1);
     EXPECT_THROW(shape_inference(broadcast_v3.get(), static_input_shapes, static_output_shapes, constant_data),
                  NodeValidationFailure);
-    EXPECT_THROW(shape_inference(broadcast_v3.get(), static_input_shapes, static_output_shapes, {}), NodeValidationFailure);
+    EXPECT_THROW(shape_inference(broadcast_v3.get(), static_input_shapes, static_output_shapes, {}),
+                 NodeValidationFailure);
 }
 
 TEST(StaticShapeInferenceTest, BroadcastExplicitConstantTest) {
@@ -170,7 +176,8 @@ TEST(StaticShapeInferenceTest, BroadcastV1PDPDTest) {
 
     static_input_shapes = {StaticShape{3, 1}, StaticShape{3}};
     static_output_shapes = {StaticShape{}};
-    EXPECT_THROW(shape_inference(broadcast_v1.get(), static_input_shapes, static_output_shapes, {}), NodeValidationFailure);
+    EXPECT_THROW(shape_inference(broadcast_v1.get(), static_input_shapes, static_output_shapes, {}),
+                 NodeValidationFailure);
 }
 
 TEST(StaticShapeInferenceTest, BroadcastV1NumpyTest) {
@@ -190,7 +197,8 @@ TEST(StaticShapeInferenceTest, BroadcastV1NumpyTest) {
 
     static_input_shapes = {StaticShape{3, 1}, StaticShape{3}};
     static_output_shapes = {StaticShape{}};
-    EXPECT_THROW(shape_inference(broadcast_v1.get(), static_input_shapes, static_output_shapes, {}), NodeValidationFailure);
+    EXPECT_THROW(shape_inference(broadcast_v1.get(), static_input_shapes, static_output_shapes, {}),
+                 NodeValidationFailure);
 }
 
 TEST(StaticShapeInferenceTest, BroadcastV1ExplicitTest) {
@@ -214,5 +222,6 @@ TEST(StaticShapeInferenceTest, BroadcastV1ExplicitTest) {
 
     static_input_shapes = {StaticShape{3, 1}, StaticShape{3}, StaticShape{2}};
     static_output_shapes = {StaticShape{}};
-    EXPECT_THROW(shape_inference(broadcast_v1.get(), static_input_shapes, static_output_shapes, {}), NodeValidationFailure);
+    EXPECT_THROW(shape_inference(broadcast_v1.get(), static_input_shapes, static_output_shapes, {}),
+                 NodeValidationFailure);
 }
