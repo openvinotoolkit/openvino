@@ -36,6 +36,8 @@ def apply_user_transformations(func: object, transforms: list):
 
 def apply_moc_transformations(func: object):
     from openvino._offline_transformations import apply_moc_transformations  # pylint: disable=import-error,no-name-in-module
+    from openvino._offline_transformations import apply_smart_reshape_transformation  # pylint: disable=import-error,no-name-in-module
+    apply_smart_reshape_transformation(func)
     apply_moc_transformations(func, False)
 
 

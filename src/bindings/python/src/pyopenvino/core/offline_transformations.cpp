@@ -19,6 +19,7 @@
 #include <transformations/common_optimizations/moc_transformations.hpp>
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
 #include <transformations/serialize.hpp>
+#include <transformations/smart_reshape/smart_reshape.hpp>
 
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
@@ -76,6 +77,15 @@ void regmodule_offline_transformations(py::module m) {
         [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
             manager.register_pass<ngraph::pass::Pruning>();
+            manager.run_passes(model);
+        },
+        py::arg("model"));
+
+    m_offline_transformations.def(
+        "apply_smart_reshape_transformation",
+        [](std::shared_ptr<ov::Model> model) {
+            ov::pass::Manager manager;
+            manager.register_pass<ngraph::pass::SmartReshape>();
             manager.run_passes(model);
         },
         py::arg("model"));

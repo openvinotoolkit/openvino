@@ -15,6 +15,7 @@ from openvino.offline_transformations import (
     convert_sequence_to_tensor_iterator_transformation,
     apply_fused_names_cleanup,
 )
+from openvino._offline_transformations import apply_smart_reshape_transformation
 
 from openvino.runtime import Model, PartialShape, Core
 import openvino.runtime as ov
@@ -100,6 +101,16 @@ def test_moc_transformations():
 
     assert model is not None
     assert len(model.get_ops()) == 3
+
+
+def test_smart_reshape_transformations():
+    function = get_test_model()
+
+    apply_smart_reshape_transformation(function)
+
+    print(function.get_ops())
+    assert function is not None
+    assert len(function.get_ops()) == 3
 
 
 def test_pot_transformations():
