@@ -34,6 +34,9 @@ resources:
     name: openvinotoolkit/testdata
     ref: master
 
+variables:
+  - group: github
+
 jobs:
 - job: Win
   strategy:
@@ -73,8 +76,21 @@ jobs:
     CMAKE_VERSION: 3.21.0
     CMAKE_CMD: $(WORK_DIR)\cmake-$(CMAKE_VERSION)-windows-x86_64\cmake-$(CMAKE_VERSION)-windows-x86_64\bin\cmake.exe
     OV_CMAKE_TOOLCHAIN_FILE: $(REPO_DIR)\cmake\toolchains\mt.runtime.win32.toolchain.cmake
+    #GITHUB_TOKEN: $(auth)
 
   steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.10'
+      addToPath: false
+      architecture: 'x64'
+      githubToken: $(auth)
+      displayName: Setup Python 3.10
+      name: setupPython
+
+  - script: dir $(setupPython.pythonLocation)
+    displayName: 'Check python 3.10'
+
   - script: |
       powershell -command "Invoke-RestMethod -Headers @{\"Metadata\"=\"true\"} -Method GET -Uri http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01 | format-custom"
       where python3

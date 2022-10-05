@@ -34,6 +34,9 @@ resources:
     name: openvinotoolkit/testdata
     ref: master
 
+variables:
+  - group: github
+
 jobs:
 - job: Lin
   strategy:
@@ -87,8 +90,21 @@ jobs:
     TMP_DIR: /mnt/tmp
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
+    #GITHUB_TOKEN: $(auth)
 
   steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.10'
+      addToPath: false
+      architecture: 'x64'
+      githubToken: $(auth)
+      displayName: Setup Python 3.10
+      name: setupPython
+
+  - script: ls $(setupPython.pythonLocation)
+    displayName: 'Check python 3.10'
+
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
