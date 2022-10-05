@@ -93,11 +93,11 @@ class TestKerasRNN(CommonTF2LayerTest):
              return_state=False, go_backwards=True,
              stateful=False, unroll=False, time_major=False,
              ),
-        pytest.param(dict(input_names=["x1"], input_shapes=[[3, 2, 1]],
-                          cell="SimpleRNNCell", return_sequences=False,
-                          return_state=False, go_backwards=False,
-                          stateful=False, unroll=False, time_major=True,
-                          ), marks=pytest.mark.precommit_tf_fe)
+        dict(input_names=["x1"], input_shapes=[[3, 2, 1]],
+             cell="SimpleRNNCell", return_sequences=False,
+             return_state=False, go_backwards=False,
+             stateful=False, unroll=False, time_major=True,
+             ),
     ]
 
     @pytest.mark.parametrize("params", test_data_others)
