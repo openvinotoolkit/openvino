@@ -332,6 +332,7 @@ public:
     void resolveInPlaceEdges();
 
     virtual void execute(dnnl::stream strm);
+    void prepareNode();
     void executeDynamic(dnnl::stream strm);
     virtual void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
 

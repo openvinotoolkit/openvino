@@ -517,18 +517,25 @@ void Node::execute(dnnl::stream strm) {
     }
 }
 
-void Node::executeDynamic(dnnl::stream strm) {
-    if (needShapeInfer()) {
-        redefineOutputMemory(shapeInfer());
-    }
-    if (isExecutable()) {
-        if (needPrepareParams()) {
-            IE_ASSERT(inputShapesDefined()) << "Can't prepare params for " << getTypeStr() << " node with name: " << getName() <<
-                " since the input shapes are not defined.";
-            DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
-                      " ", getName(), " ", getOriginalLayers());
-            prepareParams();
+void Node::prepareNode() {
+    if (isDynamicNode()) {
+        if (needShapeInfer()) {
+            redefineOutputMemory(shapeInfer());
         }
+        if (isExecutable()) {
+            if (needPrepareParams()) {
+                IE_ASSERT(inputShapesDefined()) << "Can't prepare params for " << getTypeStr() << " node with name: " << getName() <<
+                    " since the input shapes are not defined.";
+                DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
+                        " ", getName(), " ", getOriginalLayers());
+                prepareParams();
+            }
+        }
+    }
+}
+
+void Node::executeDynamic(dnnl::stream strm) {
+    if (isExecutable()) {
         executeDynamicImpl(strm);
     }
     updateLastInputDims();

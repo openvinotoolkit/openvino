@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <memory>
 #include <utility>
+#include <future>
 
 #include "graph.h"
 #include "graph_dumper.h"
@@ -779,19 +780,19 @@ void Graph::AllocateWithReuse() {
         groups.push_back({undefinedBoxes.front()});
         for (size_t i = 1; i < undefinedBoxes.size(); ++i) {
             const auto& box = undefinedBoxes[i];
-            bool groupFound = false;
-            for (auto& group : groups) {
-                const auto& lastBox = group.back();
-                if (lastBox.start > box.finish || lastBox.finish < box.start) {
-                    group.push_back(box);
-                    groupFound = true;
-                    break;
-                }
-            }
+            // bool groupFound = false;
+            // for (auto& group : groups) {
+            //     const auto& lastBox = group.back();
+            //     if (lastBox.start > box.finish || lastBox.finish < box.start) {
+            //         group.push_back(box);
+            //         groupFound = true;
+            //         break;
+            //     }
+            // }
 
-            if (!groupFound) {
+            // if (!groupFound) {
                 groups.push_back({box});
-            }
+            // }
         }
         for (auto& group : groups) {
             auto grpMemMngr =
@@ -1003,13 +1004,29 @@ void Graph::Infer(InferRequestBase* request) {
 
     dnnl::stream stream(eng);
 
-    for (const auto& node : executableGraphNodes) {
+    for (size_t i = 0; i < executableGraphNodes.size(); ++i) {
+        const auto& node = executableGraphNodes[i];
         VERBOSE(node, config.verbose);
         PERF(node, config.collectPerfCounters);
 
         if (request)
             request->ThrowIfCanceled();
+
+        std::future<void> f;
+        if (one_of(node->getType(), Type::Input, Type::Reference, Type::Broadcast)) {
+            node->prepareNode();
+        }
+        if (i + 1 != executableGraphNodes.size()) {
+            const auto& node = executableGraphNodes[i + 1];
+            if (!one_of(node->getType(), Type::Input, Type::Reference, Type::Broadcast))
+                f = std::async(std::launch::deferred, &Node::prepareNode, node.get());
+        }
+
         ExecuteNode(node, stream);
+
+        if (f.valid()) {
+            f.wait();
+        }
     }
 
     if (infer_count != -1) infer_count++;
