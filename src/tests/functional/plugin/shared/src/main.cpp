@@ -8,7 +8,7 @@
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
-#include "gflag_config.hpp"
+#include "shared_gflag_config.hpp"
 
 using namespace ov::test;
 
