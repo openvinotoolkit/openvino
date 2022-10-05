@@ -304,11 +304,12 @@ if(ENABLE_INTEL_GNA)
         endif()
 
         RESOLVE_DEPENDENCY(GNA_EXT_DIR
-                ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"
+                ARCHIVE_UNIFIED "gna/GNA_${GNA_VERSION}.zip"
                 TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
                 FILES_TO_EXTRACT FILES_TO_EXTRACT_LIST
-                SHA256 ${GNA_HASH})
+                SHA256 ${GNA_HASH}
+                USE_NEW_LOCATION TRUE)
     update_deps_cache(GNA_EXT_DIR "${GNA_EXT_DIR}" "Path to GNA root folder")
     debug_message(STATUS "gna=" ${GNA_EXT_DIR})
 
