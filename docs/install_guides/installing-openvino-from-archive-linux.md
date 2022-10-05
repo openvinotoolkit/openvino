@@ -104,7 +104,7 @@ sudo ln -s openvino_2022.2.0.7713 openvino_2022
 ```
 > **NOTE**: If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. Remove the previous link with `sudo rm openvino_2022`, then re-issue the previous command.
 
-Congratulations, you finished installation! The `/opt/intel/openvino_2022` folder now contains the core components for OpenVINO™. When other pages in OpenVINO™ documentation refer to the <INSTALL_DIR> directory, this is the folder they're referring to. If you installed OpenVINO™ in a different location (such as `/home/<USER>/Intel/openvino_2022`), make sure to use that instead.
+Congratulations, you finished installation! The `/opt/intel/openvino_2022` folder now contains the core components for OpenVINO™. When other pages in OpenVINO™ documentation refer to the `<INSTALL_DIR>` directory, this is the folder they're referring to. If you installed OpenVINO™ in a different location (such as `/home/<USER>/Intel/openvino_2022`), make sure to use that instead.
 
 ### <a name="set-the-environment-variables"></a>Step 2: Configure the Environment
 
@@ -116,7 +116,7 @@ source /opt/intel/openvino_2022/setupvars.sh
 
 If you have more than one OpenVINO™ version on your machine, you can easily switch its version by sourcing `setupvars.sh` of your choice.
 
-> **NOTE**: You can also run this script every time when you start new terminal session. Open `~/.bashrc` in your favorite editor, and add `source /opt/intel/openvino_2022/setupvars.sh`. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require different setup.
+> **NOTE**: The above command must be re-run every time the terminal is opened. To set up Linux so it automatically runs the command every time a new terminal is opened, open `~/.bashrc` in your favorite editor and add `source /opt/intel/openvino_2022/setupvars.sh` after the last line. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require different setup.
 
 The environment variables are set. Next, you can download some additional tools.
 
