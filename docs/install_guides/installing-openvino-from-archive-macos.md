@@ -67,21 +67,23 @@ Congratulations, you finished installation! The `/opt/intel/openvino_2022` folde
 
 ### <a name="set-the-environment-variables"></a>Step 2: Configure the Environment
 
-You must update several environment variables before you can compile and run OpenVINO™ applications. Set environment variables as follows:
+You must update several environment variables before you can compile and run OpenVINO™ applications. Open a terminal (if it isn't already open) and run the setupvars.bat batch file as shown below to temporarily set your environment variables. Again, if you installed OpenVINO™ in a folder other than `/opt/intel/openvino_2022`, use that location instead.
 
 ```sh
-source <INSTALL_DIR>/setupvars.sh
-```
+source /opt/intel/openvino_2022/setupvars.sh
+```  
 
 If you have more than one OpenVINO™ version on your machine, you can easily switch its version by sourcing `setupvars.sh` of your choice.
 
-> **NOTE**: You can also run this script every time when you start new terminal session. Open `~/.bashrc` in your favorite editor, and add `source <INSTALL_DIR>/setupvars.sh`. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require different setup.
+> **NOTE**: The above command must be re-run every time the terminal is opened. To set up Linux so it automatically runs the command every time a new terminal is opened, open `~/.bashrc` in your favorite editor and add `source /opt/intel/openvino_2022/setupvars.sh` after the last line. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require different setup.
 
 The environment variables are set. Continue to the next section if you want to download any additional components.
 
 ### <a name="model-optimizer"></a>Step 3 (Optional): Install Additional Components
 
-Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps. 
+OpenVINO Development Tools adds even more functionality to OpenVINO. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Development Tools, OpenVINO Runtime will also be installed as a dependency, so you don't need to install OpenVINO Runtime separately. 
+
+See the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page for step-by-step installation instructions.
 
 OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on Github](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
 
@@ -94,18 +96,30 @@ If you want to run inference on Intel® Neural Compute Stick 2 use the following
 @endsphinxdirective
 
 ## <a name="get-started"></a>What's Next?
+Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
 
-Now you are ready to try out the toolkit. You can use the following tutorials to write your applications using Python and C++.
+### Get started with Python
+<img src="https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif" width=400>
 
-Start with some Python tutorials:
-   * [Hello Image Classification](https://docs.openvino.ai/latest/notebooks/001-hello-world-with-output.html)
-   * [Convert TensorFlow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
-   * [Convert a PyTorch model and remove the image background](https://docs.openvino.ai/latest/notebooks/205-vision-background-removal-with-output.html)
+Try the [Python Quick Start Example](https://docs.openvino.ai/2022.2/notebooks/201-vision-monodepth-with-output.html) to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
-To start with C++ samples, see <a href="openvino_docs_OV_UG_Samples_Overview.html#build-samples-macos">Build Sample Applications on macOS</a> first, and then you can try the following samples:
-   * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
-   * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
-   * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
+Visit the [Tutorials](../tutorials.md) page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+* [OpenVINO Python API Tutorial](https://docs.openvino.ai/2022.2/notebooks/002-openvino-api-with-output.html)
+* [Basic image classification program with Hello Image Classification](https://docs.openvino.ai/2022.2/notebooks/001-hello-world-with-output.html)
+* [Convert a PyTorch model and use it for image background removal](https://docs.openvino.ai/2022.2/notebooks/205-vision-background-removal-with-output.html)
+
+### Get started with C++
+<img src="https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg" width=400>
+
+Try the [C++ Quick Start Example](@ref openvino_docs_get_started_get_started_demos) for step-by-step instructions on building and running a basic image classification C++ application.
+
+Visit the [Samples](../OV_Runtime_UG/Samples_Overview.md) page for other C++ example applications to get you started with OpenVINO, such as:
+* [Basic object detection with the Hello Reshape SSD C++ sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
+* [Automatic speech recognition C++ sample](@ref openvino_inference_engine_samples_speech_sample_README)
+
+## <a name="uninstall"></a>Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
+
+To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 
 ## <a name="uninstall"></a>Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
 
