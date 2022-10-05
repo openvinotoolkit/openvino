@@ -116,37 +116,3 @@ TEST(TransformationTests, ConvertToInteractionTest1) {
         ASSERT_TRUE(res.first) << res.second;
     }
 }
-
-TEST(TransformationTests, ConvertToInteractionDynamicShapeTest1) {
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
-    {
-        using namespace ov;
-        //construct interaction graph
-        auto inputShape = ov::PartialShape::dynamic(2);
-        {
-            f = makeInteraction(inputShape);
-            pass::Manager m;
-            m.register_pass<ngraph::pass::InitNodeInfo>();
-            m.register_pass<ngraph::pass::NopElimination>();
-            m.register_pass<ngraph::pass::TransposeMatMul>();
-            m.register_pass<ConvertToInteraction>();
-            m.run_passes(f);
-        }
-        //construct ref interaction
-        {
-            auto dense_feature = std::make_shared<ngraph::opset1::Parameter>(element::f32, inputShape);
-            NodeVector features{dense_feature};
-            ParameterVector inputsParams{dense_feature};
-            const size_t sparse_feature_num = 26;
-            for (size_t i = 0; i < sparse_feature_num; i++) {
-                auto sparse_feat = std::make_shared<ngraph::opset1::Parameter>(element::f32, inputShape);
-                features.push_back(sparse_feat);
-                inputsParams.push_back(sparse_feat);
-            }
-            auto interaction = std::make_shared<ov::intel_cpu::InteractionNode>(features);
-            f_ref = std::make_shared<ov::Model>(interaction, inputsParams, "interaction");
-        }
-        auto res = compare_functions(f, f_ref);
-        ASSERT_TRUE(res.first) << res.second;
-    }
-}

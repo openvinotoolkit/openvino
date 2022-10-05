@@ -16,12 +16,12 @@
 ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
     MATCHER_SCOPE(ConvertToInteraction);
     using namespace ov::pass::pattern;
-    auto dense_feature_m = any_input(has_static_rank());
+    auto dense_feature_m = any_input(has_static_shape());
     std::vector<std::shared_ptr<Node>> features_m{dense_feature_m};
     OutputVector features_output{dense_feature_m->output(0)};
     const int sparse_feature_num = 26;
     for (size_t i = 0; i < sparse_feature_num; i++) {
-        auto feature = any_input(has_static_rank());
+        auto feature = any_input(has_static_shape());
         features_m.push_back(feature);
         features_output.push_back(feature->output(0));
     }
@@ -50,9 +50,15 @@ ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
             final_concat_node = pattern_map.at(final_concat_m2).get_node_shared_ptr();
         }
         std::vector<std::shared_ptr<Node>> features_node;
-
+        auto first_feature_shape = dense_feature_node->get_output_partial_shape(0);
         for (size_t i = 0; i < features_m.size(); i++) {
             auto old_feature_node = pattern_map.at(features_m[i]).get_node_shared_ptr();
+            auto this_feature_shape = old_feature_node->get_output_partial_shape(0);
+            //check whether inputs are all equal
+            if (!first_feature_shape.compatible(this_feature_shape)) {
+                return false;
+            }
+            first_feature_shape = this_feature_shape;
             features_node.push_back(old_feature_node);
             //disconnect original consumers of features.
             for (auto& input : old_feature_node->output(0).get_target_inputs()) {
