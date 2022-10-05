@@ -12,7 +12,7 @@
 #include <ngraph/rt_info.hpp>
 #include <gna_plugin_log.hpp>
 
-using namespace GNAPluginNS;
+using namespace ov::intel_gna::pass;
 
 ReorderActivationAndPooling::ReorderActivationAndPooling() {
     MATCHER_SCOPE(ReorderActivationAndPooling);

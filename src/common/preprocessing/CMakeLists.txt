@@ -11,23 +11,26 @@ file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 # Provides compilation flags for AVX512F, AVX512BW, AVX512DQ
 # instructions support depending on an OS and a compiler
 #
-function(ie_avx512_core_optimization_flags flags)
+macro(ie_avx512_core_optimization_flags flags)
     if(WIN32)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-            set(${flags} /QxCORE-AVX512 PARENT_SCOPE)
+            set(${flags} /QxCORE-AVX512)
         elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-            set(${flags} /arch:AVX512 PARENT_SCOPE)
+            set(${flags} /arch:AVX512)
         else()
             message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
         endif()
     else()
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-            set(${flags} -xCORE-AVX512 PARENT_SCOPE)
+            set(${flags} -xCORE-AVX512)
         else()
-            set(${flags} -mavx512f -mavx512bw -mavx512dq -mfma PARENT_SCOPE)
+            set(${flags} -mavx512f -mavx512bw -mavx512dq -mfma)
+            if(OV_COMPILER_IS_CONDA)
+                list(APPEND ${flags} -Wno-error=maybe-uninitialized -Wno-maybe-uninitialized)
+            endif()
         endif()
     endif()
-endfunction()
+endmacro()
 
 if(ENABLE_SSE42)
     file(GLOB SSE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/*.cpp)
@@ -140,6 +143,13 @@ if(ENABLE_GAPI_PREPROCESSING)
 
     if(BUILD_SHARED_LIBS)
         target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
+        # make plugin to depend on preprocessing library
+        foreach(plugin IN LISTS PLUGIN_FILES)
+            string(REPLACE ":" ";" plugin "${plugin}")
+            list(REMOVE_AT plugin 0)
+            add_dependencies(${plugin} openvino_gapi_preproc)
+        endforeach()
+        add_dependencies(ov_plugins openvino_gapi_preproc)
     else()
         # for static linkage the dependencies are in opposite order
         target_link_libraries(openvino PRIVATE ${TARGET_NAME})
@@ -156,9 +166,9 @@ if(ENABLE_GAPI_PREPROCESSING)
     endif()
 
     ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
-    
+
     ie_add_vs_version_file(NAME ${TARGET_NAME}
-                           FILEDESCRIPTION "Inference Engine Preprocessing plugin")
+                           FILEDESCRIPTION "OpenVINO Preprocessing plugin")
 endif()
 
 target_include_directories(${TARGET_NAME} INTERFACE
@@ -202,7 +212,7 @@ openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
 
 if(BUILD_SHARED_LIBS)
     install(TARGETS ${TARGET_NAME}
-            LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core)
+            LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT ${OV_CPACK_COMP_CORE})
 else()
-    ov_install_static_lib(${TARGET_NAME} core)
+    ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 endif()

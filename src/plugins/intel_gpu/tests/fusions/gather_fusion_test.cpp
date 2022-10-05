@@ -134,24 +134,24 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_quantize, ::testing::ValuesIn(std::
     gather_test_params{ CASE_GATHER_5D_FP16_5, 2, 3 },
 }));
 
-class gather_scale_activation : public GatherPrimitiveFusingTest {};
-TEST_P(gather_scale_activation, basic) {
+class gather_eltwise_activation : public GatherPrimitiveFusingTest {};
+TEST_P(gather_eltwise_activation, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("gather_indices", get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p) - 1))),
-        data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), -10, 10)),
         gather("gather_prim", "input", "gather_indices", p.axis, p.out_shape),
         activation("activation", "gather_prim", activation_func::abs),
-        scale("scale", "activation", "scale_data"),
-        reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
+        eltwise("eltwise", { "activation", "eltwise_data" }, eltwise_mode::prod),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_scale_activation, ::testing::ValuesIn(std::vector<gather_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_eltwise_activation, ::testing::ValuesIn(std::vector<gather_test_params>{
     gather_test_params{ CASE_GATHER_FP32_1, 2, 4 },
     gather_test_params{ CASE_GATHER_FP32_2, 2, 4 },
     gather_test_params{ CASE_GATHER_FP32_3, 2, 4 },

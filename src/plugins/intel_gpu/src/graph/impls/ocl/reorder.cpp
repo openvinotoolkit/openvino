@@ -21,16 +21,31 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
         return make_unique<reorder_impl>(*this);
     }
 
+    explicit reorder_impl(const reorder_impl& other) : parent(other),
+        _can_be_optimized(other._can_be_optimized),
+        _has_mean(other._has_mean) {}
+
+    reorder_impl(const reorder_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+        set_node_params(arg);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<reorder>());
+        const auto& node = arg.as<reorder>();
+        _can_be_optimized = node.can_be_optimized();
+        _has_mean = node.has_mean();
+    }
+
 protected:
     bool optimized_out(reorder_inst& instance) const override {
-        return parent::optimized_out(instance) || _outer.can_be_optimized();
+        return parent::optimized_out(instance) || _can_be_optimized;
     }
 
     kernel_arguments_data get_arguments(reorder_inst& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
         auto input = &instance.input_memory();
         auto input_layout = input->get_layout();
-        if (_outer.has_mean()) {
+        if (_has_mean) {
             if (input_layout.format == cldnn::format::nv12) {
                 args.bias = instance.mean_nv12_memory();
             } else {
@@ -41,40 +56,40 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const reorder_node& arg) {
-        auto&& input_layout = arg.input().get_output_layout();
-        auto&& output_layout = arg.get_output_layout();
-
-        auto reorder_params = get_default_params<kernel_selector::reorder_params>(arg);
+    static primitive_impl* create(const reorder_node& arg, const kernel_impl_params& impl_param) {
+        const auto& prim = arg.get_primitive();
+        auto&& output_layout = impl_param.output_layout;
+        auto reorder_params = get_default_params<kernel_selector::reorder_params>(impl_param);
         auto reorder_optional_params =
             get_default_optional_params<kernel_selector::reorder_optional_params>(arg.get_program());
 
         for (size_t i = 1; i < arg.inputs_count(); i++) {
-            reorder_params.inputs.push_back(convert_data_tensor(arg.input(i).get_output_layout()));
+            reorder_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
-        if (arg.get_output_layout().data_padding) {
+        if (impl_param.output_layout.data_padding) {
             reorder_params.has_padded_output = true;
         }
 
         if (arg.has_mean()) {
-            if (input_layout.format == cldnn::format::nv12) {
+            if (impl_param.input_layouts[0].format == cldnn::format::nv12) {
                 const auto& mean_layout = arg.mean_nv12().get_output_layout();
                 reorder_params.mean = convert_data_tensor(mean_layout);
                 reorder_params.mode = kernel_selector::mean_subtruct_mode::IN_BUFFER;
             } else {
-                const auto& mean_layout = arg.mean().get_output_layout();
+                const auto mean_idx = 1;
+                const auto& mean_layout = impl_param.input_layouts[mean_idx];
                 reorder_params.mean = convert_data_tensor(mean_layout);
                 reorder_params.mode = kernel_selector::mean_subtruct_mode::IN_BUFFER;
             }
-        } else if (arg.get_primitive()->subtract_per_feature.empty() == false) {
+        } else if (prim->subtract_per_feature.empty() == false) {
             reorder_params.mode = kernel_selector::mean_subtruct_mode::INSIDE_PARAMS;
-            reorder_params.meanValues = arg.get_primitive()->subtract_per_feature;
+            reorder_params.meanValues = prim->subtract_per_feature;
         } else {
             reorder_params.mode = kernel_selector::mean_subtruct_mode::NONE;
         }
 
         if (reorder_params.mode != kernel_selector::mean_subtruct_mode::NONE) {
-            switch (arg.get_primitive()->mean_mode) {
+            switch (prim->mean_mode) {
                 case reorder_mean_mode::none:
                     reorder_params.mean_op = kernel_selector::mean_op::NONE;
                     break;
@@ -98,7 +113,7 @@ public:
             reorder_params.winograd_nr_tiles_x = ceil_div(output_layout.spatial(0), 4);
         }
 
-        reorder_params.winograd = input_layout.format.is_winograd() || output_layout.format.is_winograd();
+        reorder_params.winograd = impl_param.input_layouts[0].format.is_winograd() || output_layout.format.is_winograd();
 
         auto& kernel_selector = kernel_selector::reorder_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(reorder_params, reorder_optional_params);
@@ -112,6 +127,10 @@ public:
 
         return reorder;
     }
+
+private:
+    bool _can_be_optimized;
+    bool _has_mean;
 };
 
 namespace detail {

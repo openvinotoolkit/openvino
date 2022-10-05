@@ -28,7 +28,6 @@ if(ENABLE_CLANG_FORMAT AND NOT TARGET clang_format_check_all)
     add_custom_target(clang_format_fix_all)
     set_target_properties(clang_format_check_all clang_format_fix_all
                           PROPERTIES FOLDER clang_format)
-    set(CLANG_FORMAT_ALL_OUTPUT_FILES "" CACHE INTERNAL "All clang-format output files")
 endif()
 
 function(add_clang_format_target TARGET_NAME)
@@ -88,13 +87,9 @@ function(add_clang_format_target TARGET_NAME)
             "[clang-format] ${source_file}"
             VERBATIM)
 
+        list(APPEND all_input_sources "${source_file}")
         list(APPEND all_output_files "${output_file}")
     endforeach()
-
-    set(CLANG_FORMAT_ALL_OUTPUT_FILES
-        ${CLANG_FORMAT_ALL_OUTPUT_FILES} ${all_output_files}
-        CACHE INTERNAL
-        "All clang-format output files")
 
     add_custom_target(${TARGET_NAME}
         DEPENDS ${all_output_files}
@@ -104,11 +99,11 @@ function(add_clang_format_target TARGET_NAME)
         COMMAND
         "${CMAKE_COMMAND}"
         -D "CLANG_FORMAT=${CLANG_FORMAT}"
-        -D "INPUT_FILES=${CLANG_FORMAT_FOR_SOURCES}"
+        -D "INPUT_FILES=${all_input_sources}"
         -D "EXCLUDE_PATTERNS=${CLANG_FORMAT_EXCLUDE_PATTERNS}"
         -P "${IEDevScripts_DIR}/clang_format/clang_format_fix.cmake"
         DEPENDS
-        "${CLANG_FORMAT_FOR_SOURCES}"
+        "${all_input_sources}"
         "${IEDevScripts_DIR}/clang_format/clang_format_fix.cmake"
         COMMENT
         "[clang-format] ${TARGET_NAME}_fix"

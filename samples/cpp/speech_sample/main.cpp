@@ -85,6 +85,12 @@ int main(int argc, char* argv[]) {
         // --------------------------- Step 1. Initialize OpenVINO Runtime core and read model
         // -------------------------------------
         ov::Core core;
+        try {
+            const auto& gnaLibraryVersion = core.get_property("GNA", ov::intel_gna::library_full_version);
+            slog::info << "Detected GNA Library: " << gnaLibraryVersion << slog::endl;
+        } catch (std::exception& e) {
+            slog::info << "Cannot detect GNA Library version, exception: " << e.what() << slog::endl;
+        }
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
         uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0 || !FLAGS_bs) ? 1 : (uint32_t)FLAGS_bs;
         std::shared_ptr<ov::Model> model;
@@ -245,6 +251,7 @@ int main(int argc, char* argv[]) {
         gnaPluginConfig[ov::intel_gna::compile_target.name()] = parse_target(FLAGS_compile_target);
         gnaPluginConfig[ov::intel_gna::memory_reuse.name()] = !FLAGS_memory_reuse_off;
         gnaPluginConfig[ov::intel_gna::pwl_max_error_percent.name()] = FLAGS_pwl_me;
+        gnaPluginConfig[ov::log::level.name()] = FLAGS_log;
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Write model to file --------------------------------------------------
         // Embedded GNA model dumping (for Intel(R) Speech Enabling Developer Kit)
@@ -299,6 +306,9 @@ int main(int argc, char* argv[]) {
         }
         if (!FLAGS_we.empty()) {
             slog::info << "Exported GNA embedded model to file " << FLAGS_we << slog::endl;
+            if (!FLAGS_compile_target.empty()) {
+                slog::info << "GNA embedded model target: " << FLAGS_compile_target << slog::endl;
+            }
             return 0;
         }
         // ---------------------------------------------------------------------------------------------------------
@@ -318,7 +328,7 @@ int main(int argc, char* argv[]) {
             std::vector<std::string> inputNameBlobs = input_data.second;
             if (inputNameBlobs.size() != cInputInfo.size()) {
                 std::string errMessage(std::string("Number of network inputs ( ") + std::to_string(cInputInfo.size()) +
-                                       " ) is not equal to the number of inputs entered in the -iname argument ( " +
+                                       " ) is not equal to the number of inputs entered in the -i argument ( " +
                                        std::to_string(inputNameBlobs.size()) + " ).");
                 throw std::logic_error(errMessage);
             }

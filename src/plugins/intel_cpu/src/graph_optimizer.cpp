@@ -923,7 +923,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
         if (parentConvolutionNode == nullptr)
             IE_THROW() << "Cannot get convolution node " << parentNode->getName();
 
-        if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_common))
+        if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core))
             return false;
 
         return (dw_conv_input_size + dw_conv_output_size > L3_cache_size / 2);
@@ -1864,7 +1864,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph) {
 
         const auto &outputShape = child->getOutputShapeAtPort(0);
         VectorDims outputDims = outputShape.getDims();
-        const size_t channelPos = parent->getParentEdgeAt(0)->getParent()->getFusingAxis();
+        const auto channelPos = parent->getParentEdgeAt(0)->getParent()->getFusingAxis();
 
         if (outputShape.isDynamic()) {
             if (outputDims[channelPos] == Shape::UNDEFINED_DIM) {
@@ -2124,7 +2124,28 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
             IE_THROW() << "Transpose node '" << parentNode->getName() << "' has invalid edges.";
         }
 
-        auto reorderNode = graph.InsertReorder(edge, reorderlayerName, *reorderInDesc, *reorderOutDesc, true);
+        bool isOptimized = true;
+        std::vector<int> srcPerm;
+        auto configReorder = [&]() {
+            // transposeNode support blocked input & non-blocked output, in the case, the reorder
+            // cannot be optimized
+            auto* transposeNode = dynamic_cast<Transpose*>(parentNode.get());
+            auto inOrder = transposeNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->as<BlockedMemoryDesc>()->getOrder();
+
+            if (inOrder.size() > reorderOutDesc->as<BlockedMemoryDesc>()->getOrder().size()) {
+                isOptimized = false;
+                // inDesc should be permuted before calling reorder
+                auto & ord = transposeNode->getOrder();
+                srcPerm = std::vector<int>(ord.size());
+                for (int i = 0; i < ord.size(); i++) {
+                    srcPerm[ord[i]] = i;
+                }
+            }
+        };
+
+        configReorder();
+
+        auto reorderNode = graph.InsertReorder(edge, reorderlayerName, *reorderInDesc, *reorderOutDesc, isOptimized, srcPerm);
 
         // case 2
         if (inPrec != outPrec) {

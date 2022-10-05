@@ -14,36 +14,28 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_arg_min_max(const NodeContext& node, std::string mode) {
-    Output<Node> ng_input = node.get_input(0);
+    auto input = node.get_input(0);
 
-    std::vector<int64_t> tf_dim;
-    get_const_input(node, 1, &tf_dim);
-
-    Shape input_shape = ng_input.get_shape();
-    size_t input_rank = input_shape.size();
-
-    TENSORFLOW_OP_VALIDATION(node,
-                             tf_dim.size() == 1,
-                             "ArgMax Op: dimension must be scalar, operates on a single axis");
-
-    // If input dimension is negative, make it positive
-    if (tf_dim[0] < 0) {
-        OPENVINO_DEBUG << "Input dimension is negative, make it positive " << tf_dim[0];
-        tf_dim[0] = (int64_t)input_rank + tf_dim[0];
+    // TensorFlow uses axis with default value equal to zero
+    int64_t axis = 0;
+    if (node.get_input_size() > 1) {
+        TENSORFLOW_OP_VALIDATION(node,
+                                 std::dynamic_pointer_cast<opset8::Constant>(node.get_input(1).get_node_shared_ptr()),
+                                 "ArgMax/ArgMin is not supported with non-constant axis input");
+        std::vector<int64_t> axes;
+        get_const_input(node, 1, &axes);
+        TENSORFLOW_OP_VALIDATION(node, axes.size() == 1, "ArgMax/ArgMin must be with a scalar axis input.");
+        axis = axes[0];
     }
-    OPENVINO_DEBUG << "Axis along which to compute " << tf_dim[0];
-    size_t k_axis = tf_dim[0];
+    auto output_type = node.get_attribute<element::Type>("output_type", element::i64);
 
-    auto ng_et = node.get_attribute<element::Type>("output_type");
+    // compute indices of max/min values using TopK
+    auto k = make_shared<Constant>(element::i64, Shape{}, 1);
+    // TODO: define sort attribute for TensorFlow case
+    auto top_k = std::make_shared<TopK>(input, k, axis, mode, "none", output_type);
 
-    auto ng_k = make_shared<Constant>(element::i64, Shape{}, std::vector<int64_t>({1}));
-
-    std::string sort = "none";
-    auto ng_topk = std::make_shared<TopK>(ng_input, ng_k, k_axis, mode, sort, ng_et);
-    auto ng_indices = ng_topk->output(1);
-    int axis = ng_topk->get_axis();
     auto axis_to_remove = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>({axis}));
-    auto res = make_shared<Squeeze>(ng_indices, axis_to_remove);
+    auto res = make_shared<Squeeze>(top_k->output(1), axis_to_remove);
     set_node_name(node.get_name(), res);
     return {res};
 }

@@ -35,13 +35,15 @@ function(ov_generate_dev_package_config)
     find_package(OpenCV QUIET)
 
     foreach(component IN LISTS openvino_export_components)
-        string(FIND "${component}" "_legacy" index)
-        if(index EQUAL -1)
-            # export all targets with prefix and use them during extra modules build
-            export(TARGETS ${${component}} NAMESPACE openvino::
-                   APPEND FILE "${CMAKE_BINARY_DIR}/ov_${component}_dev_targets.cmake")
-            list(APPEND all_dev_targets ${${component}})
-        endif()
+        # TODO: remove legacy targets from tests
+        # string(FIND "${component}" "_legacy" index)
+        # if(index EQUAL -1)
+
+        # export all targets with prefix and use them during extra modules build
+        export(TARGETS ${${component}} NAMESPACE openvino::
+               APPEND FILE "${CMAKE_BINARY_DIR}/ov_${component}_dev_targets.cmake")
+        list(APPEND all_dev_targets ${${component}})
+        # endif()
     endforeach()
     add_custom_target(ov_dev_targets DEPENDS ${all_dev_targets})
 
@@ -72,6 +74,8 @@ function(register_extra_modules)
 
     set(InferenceEngineDeveloperPackage_DIR "${CMAKE_CURRENT_BINARY_DIR}/runtime")
     set(OpenVINODeveloperPackage_DIR "${CMAKE_BINARY_DIR}/runtime")
+    set(OpenVINO_DIR ${CMAKE_BINARY_DIR})
+
 
     function(generate_fake_dev_package NS)
         if(NS STREQUAL "openvino")
@@ -94,16 +98,10 @@ function(register_extra_modules)
     generate_fake_dev_package("openvino")
     generate_fake_dev_package("IE")
 
-    # automatically import plugins from the 'runtime/plugins' folder
-    file(GLOB local_extra_modules "runtime/plugins/*")
-    # add template plugin
-    if(ENABLE_TEMPLATE)
-        list(APPEND local_extra_modules "${OpenVINO_SOURCE_DIR}/docs/template_plugin")
-    endif()
-
     # detect where IE_EXTRA_MODULES contains folders with CMakeLists.txt
     # other folders are supposed to have sub-folders with CMakeLists.txt
     foreach(module_path IN LISTS IE_EXTRA_MODULES)
+        get_filename_component(module_path "${module_path}" ABSOLUTE)
         if(EXISTS "${module_path}/CMakeLists.txt")
             list(APPEND extra_modules "${module_path}")
         elseif(module_path)
@@ -111,8 +109,14 @@ function(register_extra_modules)
         endif()
     endforeach()
 
+    # add template plugin
+    if(ENABLE_TEMPLATE)
+        list(APPEND extra_modules "${OpenVINO_SOURCE_DIR}/src/plugins/template")
+    endif()
+    list(APPEND extra_modules "${OpenVINO_SOURCE_DIR}/src/core/template_extension")
+
     # add each extra module
-    foreach(module_path IN LISTS extra_modules local_extra_modules)
+    foreach(module_path IN LISTS extra_modules)
         if(module_path)
             get_filename_component(module_name "${module_path}" NAME)
             set(build_module ON)

@@ -46,72 +46,6 @@ class ReverseChannels(Op):
         PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])
 
 
-class InsertReverseChannels(BackReplacementPattern):
-    """
-    Searches for all suitable nodes with type=Parameter and inserts internal ReverseChannels op right after them
-    TODO: we should provide user an ability to explicitly specify nodes for input channel reversing
-    """
-    enabled = False
-
-    @staticmethod
-    def get_suitable_channel_index(node: Node, shape):
-        if len(shape) != 4:
-            return None
-
-        guessed_layout = 'NCHW'
-        if node.has_valid('rt_info'):
-            rt_info = node.rt_info
-            if rt_info.contains('old_api_map_order'):
-                old_api_map_version = rt_info.get_attribute_version('old_api_map_order')
-                old_api_map = rt_info.info['old_api_map_order', old_api_map_version]
-                if 'inverse_order' in old_api_map.info:
-                    order = old_api_map.info['inverse_order']
-                    assert len(order) == len(guessed_layout)
-                    guessed_layout = np.array(list(guessed_layout))[order]
-                    guessed_layout = ''.join(guessed_layout)
-        idx, has_layout = get_dim_from_layout(node, 'C')
-        if not has_layout:
-            idx = get_features_dim(guessed_layout, len(node.shape))
-        if compatible_dims(shape[idx], 3):
-            return idx
-        else:
-            return None
-
-    def find_and_replace_pattern(self, graph: Graph):
-        all_params = [(p.soft_get('name', p.id), p, list(p.out_port(0).data.get_shape()))
-                      for p in graph.get_op_nodes(type='Parameter')]
-        suitable_params = []
-        for name, p, shape in all_params:
-            idx = self.get_suitable_channel_index(p, shape)
-            if idx is not None:
-                suitable_params.append((name, p, shape, idx))
-
-        log.debug('All network inputs: {}'.format({name: shape for name, _, shape in all_params}))
-        log.debug('Will reverse input channels for: {}'.format({name: shape for name, _, shape, _ in suitable_params}))
-        if not len(suitable_params):
-            raise Error('Network has {} inputs overall, but none of them are suitable for input channels reversing.\n'
-                        'Suitable for input channel reversing inputs are 4-dimensional with 3 channels (in case of '
-                        'dynamic dimensions C channel must be provided in a layout for this input)\n'
-                        'All inputs: {}'.format(len(all_params), all_params))
-        elif len(suitable_params) < len(all_params):
-            log.error('Network has {} inputs overall, but only {} of them are suitable for input channels reversing.\n'
-                      'Suitable for input channel reversing inputs are 4-dimensional with 3 channels\nAll inputs: {}\n'
-                      'Suitable inputs {}'.format(len(all_params), len(suitable_params),
-                                                  {name: shape for name, _, shape in all_params},
-                                                  {name: shape for name, _, shape, _ in suitable_params}),
-                      extra={'is_warning': True})
-
-        for name, parameter, _, idx in suitable_params:
-            reverse_index = int64_array(idx)
-
-            if parameter.out_port(0).disconnected():
-                continue
-
-            reverse_channels = ReverseChannels(graph, {'name': name + '/reverse_input_channels',
-                                                       'axis': reverse_index}).create_node()
-            parameter.out_port(0).get_connection().insert_node(reverse_channels, attributes_save_mode='source')
-
-
 class ReverseChannelsPropagationDown(BackReplacementPattern):
     """
     Propagates ReverseChannels operations down through nodes that we have rules for
@@ -279,7 +213,7 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
                 continue
             shape = port.data.get_shape()
             non_one_dims = np.where(shape != 1)[0]
-            if shape[reverse_channels.axis] == 1:
+            if len(shape) == 0  or shape[reverse_channels.axis] == 1:
                 continue  # nothing to flip for this input
             if len(non_one_dims) == 1 and shape[non_one_dims.item()] == reverse_channels.order.size:
                 new_axis = non_one_dims.item()
@@ -446,7 +380,7 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
             shape = port.data.get_shape()
 
             non_one_dims = np.where(shape != 1)[0]
-            if shape[reverse_channels.axis] == 1:
+            if len(shape) == 0 or shape[reverse_channels.axis] == 1:
                 continue  # nothing to flip for this input
             if len(non_one_dims) == 1 and shape[non_one_dims.item()] == reverse_channels.order.size:
                 axis = non_one_dims.item()
@@ -544,7 +478,7 @@ class DecomposeReverseChannels(BackReplacementPattern):
 
 class ApplyReverseChannels(BackReplacementPattern):
     """
-    Reverses input channels for suitable Parameter operation if requested by user
+    Reverses input channels for suitable Parameter operation
     Optimizes channel reversing by fusion to Convolution weights if applicable
     """
     enabled = True
@@ -556,8 +490,6 @@ class ApplyReverseChannels(BackReplacementPattern):
         """
         Following transformations should run in strict order, that is why we disabled them all and run here 
         """
-        if graph.graph['cmd_params'].reverse_input_channels:
-            InsertReverseChannels().find_and_replace_pattern(graph)
         ReverseChannelsPropagationDown().find_and_replace_pattern(graph)
         ReverseChannelsPropagationUp().find_and_replace_pattern(graph)
         DecomposeReverseChannels().find_and_replace_pattern(graph)

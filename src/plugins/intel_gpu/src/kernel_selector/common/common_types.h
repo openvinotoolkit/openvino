@@ -17,19 +17,22 @@ enum class KernelType {
     AVERAGE_UNPOOLING,
     CONVOLUTION,
     DECONVOLUTION,
+    DFT,
     LRN,
     NORMALIZE,
     POOLING,
     RANGE,
     ROI_POOLING,
     ROI_ALIGN,
+    ROLL,
     FULLY_CONNECTED,
     ACTIVATION,
     SOFT_MAX,
     ELTWISE,
-    SCALE,
     REORDER,
     RESHAPE,
+    COUNT_NONZERO,
+    GATHER_NONZERO,
     PERMUTE,
     CONCATENATION,
     RESAMPLE,
@@ -43,6 +46,7 @@ enum class KernelType {
     TILE,
     SELECT,
     BROADCAST,
+    BUCKETIZE,
     GEMM,
     PYRAMID_ROI_ALIGN,
     CONTRACT,
@@ -76,10 +80,16 @@ enum class KernelType {
     LOOP,
     NON_MAX_SUPPRESSION,
     DETECTION_OUTPUT,
+    EXPERIMENTAL_DETECTRON_DETECTION_OUTPUT,
+    EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE,
+    EXPERIMENTAL_DETECTRON_PRIOR_GRID_GENERATOR,
     EXPERIMENTAL_DETECTRON_ROI_FEATURE_EXTRACTOR,
     EXPERIMENTAL_DETECTRON_TOPK_ROIS,
     CONVERT_COLOR,
-    RANDOM_UNIFORM
+    RANDOM_UNIFORM,
+    ADAPTIVE_POOLING,
+    REVERSE,
+    PRIOR_BOX,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -191,28 +201,6 @@ enum class LRNMode {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// LookUpTableAxis
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-enum class LookUpTableAxis {
-    BATCH,
-    FEATURE,
-    X,
-    Y,
-    XYF
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// EmbedAxis
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-enum class EmbedAxis {
-    BATCH,
-    FEATURE,
-    X,
-    Y,
-    XYF
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ArgMaxMinDim
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 enum class ArgMaxMinAxis {
@@ -220,8 +208,7 @@ enum class ArgMaxMinAxis {
     FEATURE,
     X,
     Y,
-    Z,
-    XYF
+    Z
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -321,6 +308,7 @@ enum class SoftmaxDim {
     Y,
     Z,
     FEATURE,
+    BATCH,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -606,7 +594,7 @@ enum class BoxEncodingType {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 enum class color_format : uint32_t {
     RGB,       ///< RGB color format
-    BGR,       ///< BGR color format, default in DLDT
+    BGR,       ///< BGR color format, default in OpenVINO
     RGBX,      ///< RGBX color format with X ignored during inference
     BGRX,      ///< BGRX color format with X ignored during inference
     NV12,      ///< NV12 color format represented as compound Y+UV blob

@@ -34,6 +34,7 @@ public:
     };
 
     Graph() = default;
+    ~Graph();
 
     Status GetStatus() {
         return status;
@@ -52,7 +53,8 @@ public:
     template<typename NET>
     void CreateGraph(NET &network,
                      const ExtensionManager::Ptr& extMgr,
-                     WeightsSharing::Ptr &w_cache);
+                     WeightsSharing::Ptr &w_cache,
+                     const std::shared_ptr<std::mutex>& mutex);
 
     void CreateGraph(const std::vector<NodePtr> &graphNodes,
                      const std::vector<EdgePtr> &graphEdges,
@@ -76,7 +78,7 @@ public:
         return graphNodes;
     }
 
-    std::string GetName() {
+    std::string GetName() const {
         return _name;
     }
 
@@ -137,12 +139,14 @@ public:
      * output memory descriptor
      * @param isOptimized
      * optimization flag; if isOptimized is true then Reorder node does nothing
+     * @param src_perm
+     * optimization flag; permutation applied to input desc before passing to reorder primitive
      * @param scales
      * pointer to the blob containing scales
      * @return pointer to the new Reorder node.
      */
     NodePtr InsertReorder(EdgePtr edge, std::string layerName, const MemoryDesc& inDesc,
-            const MemoryDesc& outDesc, bool isOptimized = false);
+            const MemoryDesc& outDesc, bool isOptimized = false, const std::vector<int> & src_perm = {});
 
     /**
      * @brief Insert Node at the edge-specified location.
@@ -259,6 +263,7 @@ private:
     std::vector<NodePtr> executableGraphNodes;
 
     MultiCachePtr rtParamsCache;
+    std::shared_ptr<std::mutex> sharedMutex = nullptr;
 
     void EnforceBF16();
 };

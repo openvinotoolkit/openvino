@@ -20,7 +20,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-using ngNmsSortResultType = ngraph::op::util::NmsBase::SortResultType;
+using ngNmsSortResultType = ngraph::op::v8::MatrixNms::SortResultType;
 using ngNmseDcayFunction = ngraph::op::v8::MatrixNms::DecayFunction;
 
 bool MatrixNms::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
@@ -65,11 +65,11 @@ MatrixNms::MatrixNms(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine
     const auto matrix_nms = std::dynamic_pointer_cast<const ngraph::op::v8::MatrixNms>(op);
 
     auto& attrs = matrix_nms->get_attrs();
-    if (attrs.sort_result_type == ngraph::op::util::NmsBase::SortResultType::CLASSID)
+    if (attrs.sort_result_type == ngraph::op::v8::MatrixNms::SortResultType::CLASSID)
         m_sortResultType = MatrixNmsSortResultType::CLASSID;
-    else if (attrs.sort_result_type == ngraph::op::util::NmsBase::SortResultType::SCORE)
+    else if (attrs.sort_result_type == ngraph::op::v8::MatrixNms::SortResultType::SCORE)
         m_sortResultType = MatrixNmsSortResultType::SCORE;
-    else if (attrs.sort_result_type == ngraph::op::util::NmsBase::SortResultType::NONE)
+    else if (attrs.sort_result_type == ngraph::op::v8::MatrixNms::SortResultType::NONE)
         m_sortResultType = MatrixNmsSortResultType::NONE;
 
     if (attrs.decay_function == ngraph::op::v8::MatrixNms::DecayFunction::GAUSSIAN)

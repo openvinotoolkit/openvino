@@ -35,6 +35,7 @@
 #include "op/com.microsoft/attention.hpp"
 #include "op/com.microsoft/bias_gelu.hpp"
 #include "op/com.microsoft/embed_layer_normalization.hpp"
+#include "op/com.microsoft/fusedgemm.hpp"
 #include "op/com.microsoft/skip_layer_normalization.hpp"
 #include "op/compress.hpp"
 #include "op/concat.hpp"
@@ -69,6 +70,7 @@
 #include "op/global_average_pool.hpp"
 #include "op/global_max_pool.hpp"
 #include "op/greater.hpp"
+#include "op/grid_sample.hpp"
 #include "op/gru.hpp"
 #include "op/hard_sigmoid.hpp"
 #include "op/hard_swish.hpp"
@@ -109,6 +111,7 @@
 #include "op/org.openvinotoolkit/experimental_detectron/roi_feature_extractor.hpp"
 #include "op/org.openvinotoolkit/experimental_detectron/topk_rios.hpp"
 #include "op/org.openvinotoolkit/fake_quantize.hpp"
+#include "op/org.openvinotoolkit/generate_proposals.hpp"
 #include "op/org.openvinotoolkit/group_norm.hpp"
 #include "op/org.openvinotoolkit/normalize.hpp"
 #include "op/org.openvinotoolkit/prior_box.hpp"
@@ -160,6 +163,7 @@
 #include "op/tile.hpp"
 #include "op/topk.hpp"
 #include "op/transpose.hpp"
+#include "op/trilu.hpp"
 #include "op/unsqueeze.hpp"
 #include "op/upsample.hpp"
 #include "op/where.hpp"
@@ -168,14 +172,14 @@
 namespace ngraph {
 namespace onnx_import {
 namespace {
-const std::map<std::int64_t, Operator>::const_iterator find(std::int64_t version,
-                                                            const std::map<std::int64_t, Operator>& map) {
+template <typename Container = std::map<int64_t, Operator>>
+typename Container::const_iterator find(int64_t version, const Container& map) {
     // Get the latest version.
     if (version == -1) {
         return map.empty() ? std::end(map) : --std::end(map);
     }
     while (version > 0) {
-        std::map<std::int64_t, Operator>::const_iterator it = map.find(version--);
+        const auto it = map.find(version--);
         if (it != std::end(map)) {
             return it;
         }
@@ -184,12 +188,10 @@ const std::map<std::int64_t, Operator>::const_iterator find(std::int64_t version
 }
 }  // namespace
 
-void OperatorsBridge::_register_operator(const std::string& name,
-                                         std::int64_t version,
-                                         const std::string& domain,
-                                         Operator fn) {
-    std::lock_guard<std::mutex> guard(lock);
-
+void OperatorsBridge::register_operator(const std::string& name,
+                                        int64_t version,
+                                        const std::string& domain,
+                                        Operator fn) {
     auto it = m_map[domain][name].find(version);
     if (it == std::end(m_map[domain][name])) {
         m_map[domain][name].emplace(version, std::move(fn));
@@ -200,9 +202,7 @@ void OperatorsBridge::_register_operator(const std::string& name,
     }
 }
 
-void OperatorsBridge::_unregister_operator(const std::string& name, std::int64_t version, const std::string& domain) {
-    std::lock_guard<std::mutex> guard(lock);
-
+void OperatorsBridge::unregister_operator(const std::string& name, int64_t version, const std::string& domain) {
     auto domain_it = m_map.find(domain);
     if (domain_it == m_map.end()) {
         NGRAPH_ERR << "unregister_operator: domain '" + domain + "' was not registered before";
@@ -228,15 +228,13 @@ void OperatorsBridge::_unregister_operator(const std::string& name, std::int64_t
     }
 }
 
-OperatorSet OperatorsBridge::_get_operator_set(const std::string& domain, std::int64_t version) {
-    std::lock_guard<std::mutex> guard(lock);
-
+OperatorSet OperatorsBridge::get_operator_set(const std::string& domain, int64_t version) const {
     OperatorSet result;
 
-    auto dm = m_map.find(domain);
+    const auto dm = m_map.find(domain);
     if (dm == std::end(m_map)) {
         NGRAPH_DEBUG << "Domain '" << domain << "' not recognized by nGraph";
-        return OperatorSet{};
+        return result;
     }
     if (domain == "" && version > OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION) {
         NGRAPH_WARN << "Currently ONNX operator set version: " << version
@@ -252,41 +250,41 @@ OperatorSet OperatorsBridge::_get_operator_set(const std::string& domain, std::i
     return result;
 }
 
-bool OperatorsBridge::_is_operator_registered(const std::string& name,
-                                              std::int64_t version,
-                                              const std::string& domain) {
-    std::lock_guard<std::mutex> guard(lock);
+bool OperatorsBridge::is_operator_registered(const std::string& name,
+                                             int64_t version,
+                                             const std::string& domain) const {
     // search for domain
-    auto dm_map = m_map.find(domain);
+    const auto dm_map = m_map.find(domain);
     if (dm_map == std::end(m_map)) {
         return false;
     }
     // search for name
-    auto op_map = dm_map->second.find(name);
+    const auto op_map = dm_map->second.find(name);
     if (op_map == std::end(dm_map->second)) {
         return false;
     }
 
-    if (find(version, op_map->second) != std::end(op_map->second)) {
-        return true;
-    } else {
-        return false;
+    return find(version, op_map->second) != std::end(op_map->second);
+}
+
+void OperatorsBridge::overwrite_operator(const std::string& name, const std::string& domain, Operator fn) {
+    const auto domain_it = m_map.find(domain);
+    if (domain_it != m_map.end()) {
+        auto& domain_opset = domain_it->second;
+        domain_opset[name].clear();
     }
+    register_operator(name, 1, domain, std::move(fn));
 }
 
 static const char* const MICROSOFT_DOMAIN = "com.microsoft";
 
 #define REGISTER_OPERATOR(name_, ver_, fn_) \
-    m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1))
+    m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1));
 
 #define REGISTER_OPERATOR_WITH_DOMAIN(domain_, name_, ver_, fn_) \
-    m_map[domain_][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1))
+    m_map[domain_][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1));
 
 OperatorsBridge::OperatorsBridge() {
-    _load_initial_state();
-}
-
-void OperatorsBridge::_load_initial_state() {
     REGISTER_OPERATOR("Abs", 1, abs);
     REGISTER_OPERATOR("Acos", 1, acos);
     REGISTER_OPERATOR("Acosh", 1, acosh);
@@ -350,6 +348,7 @@ void OperatorsBridge::_load_initial_state() {
     REGISTER_OPERATOR("GlobalLpPool", 1, global_lp_pool);
     REGISTER_OPERATOR("GlobalMaxPool", 1, global_max_pool);
     REGISTER_OPERATOR("Greater", 1, greater);
+    REGISTER_OPERATOR("GridSample", 1, grid_sample);
     REGISTER_OPERATOR("GRU", 1, gru);
     REGISTER_OPERATOR("Hardmax", 1, hardmax);
     REGISTER_OPERATOR("Hardmax", 13, hardmax);
@@ -420,6 +419,7 @@ void OperatorsBridge::_load_initial_state() {
     REGISTER_OPERATOR("ReverseSequence", 1, reverse_sequence);
     REGISTER_OPERATOR("RNN", 1, rnn);
     REGISTER_OPERATOR("RoiAlign", 1, roi_align);
+    REGISTER_OPERATOR("RoiAlign", 16, roi_align);
     REGISTER_OPERATOR("Round", 1, round);
     REGISTER_OPERATOR("Scan", 1, scan);
     REGISTER_OPERATOR("Scan", 9, scan);
@@ -458,6 +458,7 @@ void OperatorsBridge::_load_initial_state() {
     REGISTER_OPERATOR("TopK", 10, topk);
     REGISTER_OPERATOR("TopK", 11, topk);
     REGISTER_OPERATOR("Transpose", 1, transpose);
+    REGISTER_OPERATOR("Trilu", 1, trilu);
     REGISTER_OPERATOR("Unsqueeze", 1, unsqueeze);
     REGISTER_OPERATOR("Unsqueeze", 13, unsqueeze);
     REGISTER_OPERATOR("Where", 1, where);
@@ -496,6 +497,7 @@ void OperatorsBridge::_load_initial_state() {
                                   1,
                                   experimental_detectron_topk_rois);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "FakeQuantize", 1, fake_quantize);
+    REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "GenerateProposals", 1, generate_proposals);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "GroupNorm", 1, group_norm);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Normalize", 1, normalize);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBox", 1, prior_box);
@@ -504,8 +506,10 @@ void OperatorsBridge::_load_initial_state() {
 
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Attention", 1, attention);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "BiasGelu", 1, bias_gelu);
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "FusedGemm", 1, fusedgemm);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Trilu", 1, trilu);
 }
 
 #undef REGISTER_OPERATOR

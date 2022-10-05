@@ -162,3 +162,28 @@ class ScatterSub(Scatter):
 class ScatterUpdate(Scatter):
     op = op_type = 'ScatterUpdate'
     version = 'opset3'
+
+    @staticmethod
+    def infer(node: Node):
+        node_name = node.soft_get('name', node.id)
+        Scatter.infer(node)
+
+        input_shape = node.in_port(0).data.get_shape()
+
+        input_value = node.in_port(0).data.get_value()
+        indices_value = node.in_port(1).data.get_value()
+        updates_value = node.in_port(2).data.get_value()
+
+        axis = node.in_port(3).data.get_value()
+
+        if input_value is not None and indices_value is not None and updates_value is not None and axis is not None:
+            assert axis.size == 1, "The node {} has axis input value size equal to {} but it should be exactly 1.".format(
+                node_name, axis.size)
+            axis = axis.item()
+            if axis < 0:
+                axis = len(input_shape) + axis
+
+            out_value = input_value.copy()
+            for idx in np.ndindex(*input_shape[:axis]):
+                out_value[idx][indices_value] = updates_value[idx]
+            node.out_port(0).data.set_value(out_value)

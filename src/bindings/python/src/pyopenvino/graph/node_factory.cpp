@@ -83,6 +83,8 @@ private:
             {"opset6", OpsetFunction(ov::get_opset6)},
             {"opset7", OpsetFunction(ov::get_opset7)},
             {"opset8", OpsetFunction(ov::get_opset8)},
+            {"opset9", OpsetFunction(ov::get_opset9)},
+            {"opset10", OpsetFunction(ov::get_opset10)},
         };
 
         auto it = s_opsets.find(opset_ver);
@@ -92,7 +94,7 @@ private:
         return it->second();
     }
 
-    const ov::OpSet& m_opset = ov::get_opset8();
+    const ov::OpSet& m_opset = ov::get_opset10();
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> m_variables;
 };
 }  // namespace

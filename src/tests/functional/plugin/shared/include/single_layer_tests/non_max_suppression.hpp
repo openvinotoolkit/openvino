@@ -12,4 +12,8 @@ TEST_P(NmsLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(Nms9LayerTest, CompareWithRefs) {
+    Run();
+};
+
 }  // namespace LayerTestsDefinitions

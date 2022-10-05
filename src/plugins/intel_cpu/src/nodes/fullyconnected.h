@@ -27,7 +27,7 @@ public:
         return false;
     }
 
-    size_t getFusingAxis() const override {
+    int getFusingAxis() const override {
         return getOutputShapeAtPort(0).getRank() == 3 ? 2 : 1;
     }
 
@@ -74,6 +74,7 @@ private:
     static const size_t DATA_ID = 0;
     static const size_t WEIGHTS_ID = 1;
     static const size_t BIAS_ID = 2;
+    dnnl::memory::data_type outputDataType;
 };
 
 }   // namespace node

@@ -206,7 +206,7 @@ std::vector<InputEdge> onnx_editor::EdgeMapper::find_output_consumers(const std:
         const auto node_idx = it->second;
         const auto port_indexes = get_node_input_indexes(node_idx, output_name);
         for (const auto& idx : port_indexes) {
-            const auto consumer_edge = InputEdge{node_idx, idx};
+            const auto consumer_edge = InputEdge{node_idx, idx, output_name};
             if (std::find_if(std::begin(input_edges), std::end(input_edges), [&consumer_edge](const InputEdge& edge) {
                     return edge.m_node_idx == consumer_edge.m_node_idx && edge.m_port_idx == consumer_edge.m_port_idx;
                 }) == std::end(input_edges)) {

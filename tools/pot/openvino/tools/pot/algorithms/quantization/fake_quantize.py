@@ -118,7 +118,7 @@ def compute_stats_layouts(config, model, qscheme=None):
     if not config.preset:
         config.preset = 'performance'
     if not qscheme:
-        fq_configuration = get_configurations_by_preset(config, model, fq_configuration)
+        fq_configuration = get_configurations_by_preset(config, model, fq_configuration, hardware_config)
         fq_configuration = add_range_estimator_configs(fq_configuration, config)
     else:
         fq_configuration = get_configurations_by_qscheme(fq_configuration, qscheme)
@@ -130,12 +130,8 @@ def compute_stats_layouts(config, model, qscheme=None):
 
     fake_quantize_config = {}
     for fq in fq_nodes:
-        node_input = get_node_input(fq, 0)
-        is_weights = node_input.type == 'Const'
-        if is_weights:
-            fq_config = copy(fq_configuration[fq.fullname]['weights'])
-        else:
-            fq_config = copy(fq_configuration[fq.fullname]['activations'])
+        is_weights = fq['fq_group'] == 'weights'
+        fq_config = copy(fq_configuration[fq.name][fq['fq_group']])
         fake_quantize_config[fq.fullname] = fq_config
         if fq.fullname in config.layerwise_configs[0]:
             fq_config = Dict(merge_nested_dicts(fq_config, config.layerwise_configs[0][fq.fullname]))

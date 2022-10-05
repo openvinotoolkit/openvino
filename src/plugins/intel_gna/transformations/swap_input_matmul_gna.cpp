@@ -18,7 +18,7 @@
 
 #include "gna_plugin_log.hpp"
 
-namespace GNAPluginNS {
+using namespace ov::intel_gna::pass;
 
 static void SwapAndTransposeInputs(
     std::shared_ptr<ngraph::opset8::MatMul> matmul_node,
@@ -206,7 +206,7 @@ SwapInputMatMul::SwapInputMatMul() {
         return true;
     };
 
-    auto matcher = std::make_shared<ngraph::pattern::Matcher>(matmul, "SwapInputMatMul");
+    auto matcher = std::make_shared<ngraph::pattern::Matcher>(matmul, matcher_name);
     this->register_matcher(matcher, callback);
 }
 
@@ -234,7 +234,7 @@ SwapInputMatMulWithBias::SwapInputMatMulWithBias() {
         return true;
     };
 
-    auto matcher = std::make_shared<ngraph::pattern::Matcher>(add, "SwapInputMatMulWithBias");
+    auto matcher = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
     this->register_matcher(matcher, callback);
 }
 
@@ -271,7 +271,7 @@ SwapInputMatMulWithFq::SwapInputMatMulWithFq() {
         return true;
     };
 
-    auto matcher = std::make_shared<ngraph::pattern::Matcher>(fq, "SwapInputMatMulWithFq");
+    auto matcher = std::make_shared<ngraph::pattern::Matcher>(fq, matcher_name);
     this->register_matcher(matcher, callback);
 }
 
@@ -314,7 +314,7 @@ SwapInputMatMulWithAct::SwapInputMatMulWithAct() {
         return true;
     };
 
-    auto matcher = std::make_shared<ngraph::pattern::Matcher>(act, "SwapInputMatMulWithAct");
+    auto matcher = std::make_shared<ngraph::pattern::Matcher>(act, matcher_name);
     this->register_matcher(matcher, callback);
 }
 
@@ -361,7 +361,6 @@ SwapInputMatMulWithTrailingTranspose::SwapInputMatMulWithTrailingTranspose() {
         return true;
     };
 
-    auto matcher = std::make_shared<ngraph::pattern::Matcher>(transpose, "SwapInputMatMulWithTrailingTranspose");
+    auto matcher = std::make_shared<ngraph::pattern::Matcher>(transpose, matcher_name);
     this->register_matcher(matcher, callback);
 }
-} // namespace GNAPluginNS

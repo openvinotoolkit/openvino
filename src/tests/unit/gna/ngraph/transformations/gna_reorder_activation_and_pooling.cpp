@@ -170,7 +170,7 @@ std::shared_ptr<ngraph::Function> ConvolutionActivationPoolTestFixture::get_refe
 void execute_test(std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<GNAPluginNS::ReorderActivationAndPooling>();
+    manager.register_pass<ov::intel_gna::pass::ReorderActivationAndPooling>();
     manager.run_passes(function);
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
@@ -239,7 +239,7 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvFqMp) {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
 
-        m.register_pass<GNAPluginNS::ReorderActivationAndPooling>();
+        m.register_pass<ov::intel_gna::pass::ReorderActivationAndPooling>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
     }
@@ -330,7 +330,7 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddFqMp) {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
 
-        m.register_pass<GNAPluginNS::ReorderActivationAndPooling>();
+        m.register_pass<ov::intel_gna::pass::ReorderActivationAndPooling>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
     }

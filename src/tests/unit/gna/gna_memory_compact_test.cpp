@@ -21,7 +21,7 @@ using namespace GNAPluginNS::memory;
 
 class GNAMemoryCompactTest : public ::testing::Test {
  protected:
-    GNAMemory<std::allocator<uint8_t>> mem;
+    GNAMemory<GNAPluginNS::memory::GNAFloatAllocator> mem;
     bool isCompact = true;
 
     void SetUp() override  {
@@ -39,12 +39,12 @@ TEST_F(GNAMemoryCompactTest, canOptimizeReservePtr) {
     float* pFuture1 = reinterpret_cast<float*>(&pFuture1);
     float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
 
-    mem.reserve_ptr(layer1, pFuture1, 3 * sizeof(float));
-    mem.reserve_ptr(layer2, pFuture2, 2 * sizeof(float));
+    auto scratch = mem.getQueue(rRegion::REGION_SCRATCH);
+    scratch->reserve_ptr(layer1, pFuture1, 3 * sizeof(float));
+    scratch->reserve_ptr(layer2, pFuture2, 2 * sizeof(float));
 
     mem.commit(isCompact);
-    ASSERT_EQ(mem.getRWBytes(), 3 * sizeof(float));
-    ASSERT_EQ(mem.getTotalBytes(), 3 * sizeof(float));
+    ASSERT_EQ(scratch->getSize(), 3 * sizeof(float));
 }
 
 TEST_F(GNAMemoryCompactTest, canOptimizePushValue) {
@@ -58,12 +58,12 @@ TEST_F(GNAMemoryCompactTest, canOptimizePushValue) {
     float* pFuture1 = reinterpret_cast<float*>(&pFuture1);
     float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
 
-    mem.push_value(layer1, pFuture1, 1.f, 2);
-    mem.push_value(layer2, pFuture2, 2.f, 3);
+    auto scratch = mem.getQueue(rRegion::REGION_SCRATCH);
+    scratch->push_value(layer1, pFuture1, 1.f, 2);
+    scratch->push_value(layer2, pFuture2, 2.f, 3);
 
     mem.commit(isCompact);
-    ASSERT_EQ(mem.getRWBytes(), 5 * sizeof(float));
-    ASSERT_EQ(mem.getTotalBytes(), 5 * sizeof(float));
+    ASSERT_EQ(mem.getRegionBytes(rRegion::REGION_SCRATCH), 5 * sizeof(float));
 }
 
 TEST_F(GNAMemoryCompactTest, canOptimizePushValueAndReservePtr) {
@@ -80,13 +80,13 @@ TEST_F(GNAMemoryCompactTest, canOptimizePushValueAndReservePtr) {
     float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
     float* pFuture3 = reinterpret_cast<float*>(&pFuture3);
 
-    mem.push_value(layer1, pFuture1, 3.f, 2);
-    mem.bind_ptr(layer2, pFuture2, pFuture1, 0, 2);
-    mem.reserve_ptr(layer3, pFuture3, 2 * sizeof(float));
+    auto scratchQueue = mem.getQueue(rRegion::REGION_SCRATCH);
+    scratchQueue->push_value(layer1, pFuture1, 3.f, 2);
+    scratchQueue->bind_ptr(layer2, pFuture2, pFuture1, 0, 2);
+    scratchQueue->reserve_ptr(layer3, pFuture3, 2 * sizeof(float));
 
     mem.commit(isCompact);
-    ASSERT_EQ(mem.getRWBytes(), 2 * sizeof(float));
-    ASSERT_EQ(mem.getTotalBytes(), 2 * sizeof(float));
+    ASSERT_EQ(scratchQueue->getSize(), 2 * sizeof(float));
 }
 
 TEST_F(GNAMemoryCompactTest, canOptimizeTwoPushValueAndReservePtr) {
@@ -105,14 +105,14 @@ TEST_F(GNAMemoryCompactTest, canOptimizeTwoPushValueAndReservePtr) {
     float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
     float* pFuture3 = reinterpret_cast<float*>(&pFuture3);
 
-    mem.push_value(layer1, pFuture1, 1.f, 2);
-    mem.push_value(layer2, pFuture2, 2.f, 3);
-    mem.reserve_ptr(layer3, pFuture3, 5 * sizeof(float));
-    mem.bind_ptr(layer2, pFuture2, pFuture1, 0, 2);
+    auto scratchQueue = mem.getQueue(rRegion::REGION_SCRATCH);
+    scratchQueue->push_value(layer1, pFuture1, 1.f, 2);
+    scratchQueue->push_value(layer2, pFuture2, 2.f, 3);
+    scratchQueue->reserve_ptr(layer3, pFuture3, 5 * sizeof(float));
+    scratchQueue->bind_ptr(layer2, pFuture2, pFuture1, 0, 2);
 
     mem.commit(isCompact);
-    ASSERT_EQ(mem.getRWBytes(), 5 * sizeof(float));
-    ASSERT_EQ(mem.getTotalBytes(), 5 * sizeof(float));
+    ASSERT_EQ(scratchQueue->getSize(), 5 * sizeof(float));
 }
 
 
@@ -133,13 +133,13 @@ TEST_F(GNAMemoryCompactTest, canOptimizePushPtrAndReservePtr) {
     float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
     float* pFuture3 = reinterpret_cast<float*>(&pFuture3);
 
-    mem.push_ptr(layer1, pFuture1, input, input_size);
-    mem.reserve_ptr(layer2, pFuture2, input_size);
-    mem.bind_ptr(layer3, pFuture3, pFuture2, 0, input_size);
+    auto scratchQueue = mem.getQueue(rRegion::REGION_SCRATCH);
+    scratchQueue->push_ptr(layer1, pFuture1, input, input_size);
+    scratchQueue->reserve_ptr(layer2, pFuture2, input_size);
+    scratchQueue->bind_ptr(layer3, pFuture3, pFuture2, 0, input_size);
 
     mem.commit(isCompact);
-    ASSERT_EQ(mem.getRWBytes(), input_size);
-    ASSERT_EQ(mem.getTotalBytes(), input_size);
+    ASSERT_EQ(scratchQueue->getSize(), input_size);
 }
 
 TEST_F(GNAMemoryCompactTest, canOptimizePushLocalPtrAndReservePtr) {
@@ -156,19 +156,19 @@ TEST_F(GNAMemoryCompactTest, canOptimizePushLocalPtrAndReservePtr) {
     float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
     float* pFuture3 = reinterpret_cast<float*>(&pFuture3);
 
+    auto scratchQueue = mem.getQueue(rRegion::REGION_SCRATCH);
     size_t input_size;
     {
         std::vector<float> input = {1.0f, 2.0f, 3.0f, 4.0f};
         input_size = input.size() * sizeof(float);
-        mem.push_local_ptr(layer1, pFuture1, &*input.begin(), input_size);
+        scratchQueue->push_local_ptr(layer1, pFuture1, &*input.begin(), input_size);
     }
 
-    mem.reserve_ptr(layer2, pFuture2, input_size);
-    mem.bind_ptr(layer3, pFuture3, pFuture2, 0, input_size);
+    scratchQueue->reserve_ptr(layer2, pFuture2, input_size);
+    scratchQueue->bind_ptr(layer3, pFuture3, pFuture2, 0, input_size);
 
     mem.commit(isCompact);
-    ASSERT_EQ(mem.getRWBytes(), input_size);
-    ASSERT_EQ(mem.getTotalBytes(), input_size);
+    ASSERT_EQ(scratchQueue->getSize(), input_size);
 }
 
 TEST_F(GNAMemoryCompactTest, canOptimizePushInitilizerPtrAndReservePtr) {
@@ -185,21 +185,21 @@ TEST_F(GNAMemoryCompactTest, canOptimizePushInitilizerPtrAndReservePtr) {
     float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
     float* pFuture3 = reinterpret_cast<float*>(&pFuture3);
 
+    auto scratchQueue = mem.getQueue(rRegion::REGION_SCRATCH);
     size_t input_size;
     {
         std::vector<float> input = {1.0f, 2.0f, 3.0f};
         input_size = input.size() * sizeof(float);
-        mem.push_initializer(layer1, pFuture1, input_size, [=](void* data, size_t size){
+        scratchQueue->push_initializer(layer1, pFuture1, input_size, [=](void* data, size_t size) {
             ie_memcpy(data, size, &input[0], input.size());
         });
     }
 
-    mem.reserve_ptr(layer2, pFuture2, 2 * input_size);
-    mem.bind_ptr(layer3, pFuture3, pFuture2, 0, input_size);
+    scratchQueue->reserve_ptr(layer2, pFuture2, 2 * input_size);
+    scratchQueue->bind_ptr(layer3, pFuture3, pFuture2, 0, input_size);
 
     mem.commit(isCompact);
-    ASSERT_EQ(mem.getRWBytes(), 2 * input_size);
-    ASSERT_EQ(mem.getTotalBytes(), 2 * input_size);
+    ASSERT_EQ(scratchQueue->getSize(), 2 * input_size);
 }
 
 TEST_F(GNAMemoryCompactTest, canOptimizeBindInitilizerPtrAndReservePtr) {
@@ -219,20 +219,20 @@ TEST_F(GNAMemoryCompactTest, canOptimizeBindInitilizerPtrAndReservePtr) {
     float* pFuture3 = reinterpret_cast<float*>(&pFuture3);
     float* pFuture4 = reinterpret_cast<float*>(&pFuture4);
 
+    auto scratchQueue = mem.getQueue(rRegion::REGION_SCRATCH);
     {
         std::vector<float> input = {1.0f, 2.0f, 3.0f};
-        mem.bind_initializer(layer2, pFuture1, [=](void* data, size_t size){
+        scratchQueue->bind_initializer(layer2, pFuture1, [=](void* data, size_t size) {
             ie_memcpy(data, size, &input[0], input.size());
         });
     }
 
-    mem.reserve_ptr(layer1, pFuture1, 4 * sizeof(float));
-    mem.reserve_ptr(layer3, pFuture3, 2 * sizeof(float));
-    mem.bind_ptr(layer4, pFuture4, pFuture3, 0, 2 * sizeof(float));
+    scratchQueue->reserve_ptr(layer1, pFuture1, 4 * sizeof(float));
+    scratchQueue->reserve_ptr(layer3, pFuture3, 2 * sizeof(float));
+    scratchQueue->bind_ptr(layer4, pFuture4, pFuture3, 0, 2 * sizeof(float));
 
     mem.commit(isCompact);
-    ASSERT_EQ(mem.getRWBytes(), 4 * sizeof(float));
-    ASSERT_EQ(mem.getTotalBytes(), 4 * sizeof(float));
+    ASSERT_EQ(scratchQueue->getSize(), 4 * sizeof(float));
 }
 
 TEST_F(GNAMemoryCompactTest, canOptimizeReservePtrWithOffset) {
@@ -249,24 +249,26 @@ TEST_F(GNAMemoryCompactTest, canOptimizeReservePtrWithOffset) {
     float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
     float* pFuture3 = reinterpret_cast<float*>(&pFuture3);
 
-    mem.reserve_ptr(layer1, pFuture1, 2 * sizeof(float));
-    mem.reserve_ptr(layer2, pFuture2, 2 * sizeof(float));
-    mem.bind_ptr(layer3, pFuture3, pFuture2, 2 * sizeof(float), 2 * sizeof(float));
+    auto scratchQueue = mem.getQueue(rRegion::REGION_SCRATCH);
+    scratchQueue->reserve_ptr(layer1, pFuture1, 2 * sizeof(float));
+    scratchQueue->reserve_ptr(layer2, pFuture2, 2 * sizeof(float));
+    scratchQueue->bind_ptr(layer3, pFuture3, pFuture2, 2 * sizeof(float), 2 * sizeof(float));
 
     mem.commit(isCompact);
-    ASSERT_EQ(mem.getRWBytes(), 4 * sizeof(float));
-    ASSERT_EQ(mem.getTotalBytes(), 4 * sizeof(float));
+    ASSERT_EQ(mem.getRegionBytes(rRegion::REGION_SCRATCH), 4 * sizeof(float));
 }
 
-class GNAMemoryTested : public GNAPluginNS::memory::GNAMemory<GNAPluginNS::memory::PolymorphAllocator<uint8_t>> {
-using GNAMemory::GNAMemory;
+class GNAMemoryTested : public GNAPluginNS::memory::GNAMemory<GNAPluginNS::memory::GNAFloatAllocator> {
+    using GNAMemory::GNAMemory;
 
 public:
     void Test() {
         // filtering RW allocation requests only
-        auto filter_req = [] (const MemRequest &re) { return re._region == REGION_RW && re._type != REQUEST_BIND; };
+        auto filter_req = [] (const MemRequest &re) { return re._region == REGION_SCRATCH && re._type != REQUEST_BIND; };
         std::vector<MemRequest> test_reqs;
-        auto it = std::copy_if(_future_heap.begin(), _future_heap.end(), std::back_inserter(test_reqs), filter_req);
+        const auto& requests = getQueue(REGION_SCRATCH)->_mem_requests;
+
+        auto it = std::copy_if(requests.begin(), requests.end(), std::back_inserter(test_reqs), filter_req);
 
         // intercrossing condition
         auto is_crossed = [] (const MemRequest &re1, const MemRequest &re2) {
@@ -291,7 +293,7 @@ class GNAPluginTested : public GNAPluginNS::GNAPlugin {
 public:
     std::shared_ptr<GNAMemoryTested> gnamem_t;
     GNAPluginTested() : GNAPluginNS::GNAPlugin() {
-        gnamem_t = std::make_shared<GNAMemoryTested>(make_polymorph<std::allocator<uint8_t>>());
+        gnamem_t = std::make_shared<GNAMemoryTested>();
         gnamem = gnamem_t;
         graphCompiler.setGNAMemoryPtr(gnamem);
         gnadevice.reset();

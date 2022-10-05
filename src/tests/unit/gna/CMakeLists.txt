@@ -6,7 +6,7 @@ set(TARGET_NAME gnaUnitTests)
 
 # TODO: fix CVS-71010 and remove BUILD_SHARED_LIBS
 if(NOT BUILD_SHARED_LIBS)
-    set(exclude_path EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/(gna_api_stub|gna_wait_test).cpp")
+    set(exclude_path EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/(gna_api_stub|gna_wait_test|gna_export_import_test).cpp")
 endif()
 
 addIeTargetTest(
@@ -16,10 +16,10 @@ addIeTargetTest(
         LINK_LIBRARIES
             PRIVATE
                 ngraphFunctions
-            gmock
-            commonTestUtils_s
-            openvino_intel_gna_plugin_test_static
-            engines_test_util
+                gmock
+                commonTestUtils_s
+                openvino_intel_gna_plugin_test_static
+                engines_test_util
         ADD_CPPLINT
         LABELS
             GNA

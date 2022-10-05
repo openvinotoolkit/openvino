@@ -14,66 +14,55 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
-    auto ng_input = node.get_input(0);
-    auto ng_filter = node.get_input(1);
+    default_op_checks(node, 2, {"DepthwiseConv2dNative"});
+    auto input = node.get_input(0);
+    auto filter = node.get_input(1);
 
+    // retrive mandatory attributes for DepthwiseConv2dNative
     auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
-    auto tf_dilations = node.get_attribute<std::vector<int64_t>>("dilations");
     auto tf_padding_type = node.get_attribute<std::string>("padding");
-    auto tf_data_format = node.get_attribute<std::string>("data_format");
+    ov::op::PadType auto_pad = convert_tf_padding(node, tf_padding_type);
+
+    // retrieve optional attributes
+    auto tf_data_format = node.get_attribute<std::string>("data_format", "NHWC");
+    auto tf_dilations = node.get_attribute<std::vector<int64_t>>("dilations", {1, 1, 1, 1});
 
     TENSORFLOW_OP_VALIDATION(node,
+                             auto_pad != ov::op::PadType::EXPLICIT,
+                             "Explicit padding for DepthwiseConv2dNative is not supported.");
+    TENSORFLOW_OP_VALIDATION(node,
                              tf_data_format == "NHWC" || tf_data_format == "NCHW",
-                             "DepthwiseConv2D data format is neither NHWC nor NCHW");
+                             "DepthwiseConv2dNative data format is neither NHWC nor NCHW");
 
     bool is_nhwc = (tf_data_format == "NHWC");
 
-    Strides ng_strides(2);
-    Strides ng_dilations(2);
+    Strides strides(2);
+    Strides dilations(2);
+    convert_nhwc_to_hw(is_nhwc, tf_strides, strides);
+    convert_nhwc_to_hw(is_nhwc, tf_dilations, dilations);
+
     Shape ng_image_shape(2);
     Shape ng_kernel_shape(2);
 
-    convert_nhwc_to_hw(is_nhwc, ng_input.get_shape(), ng_image_shape);
-    convert_nhwc_to_hw(is_nhwc, tf_strides, ng_strides);
-    convert_nhwc_to_hw(is_nhwc, tf_dilations, ng_dilations);
-    convert_nhwc_to_nchw(node.get_name(), is_nhwc, ng_input);
+    convert_nhwc_to_nchw(is_nhwc, input, ov::Rank(4));
 
-    auto& ng_filter_shape = ng_filter.get_shape();
-    ng_kernel_shape[0] = ng_filter_shape[0];
-    ng_kernel_shape[1] = ng_filter_shape[1];
+    // prepare filter to have a number of groups equal to CIN
+    auto unsqueeze_filter =
+        make_shared<Unsqueeze>(filter, make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{3}));
+    auto transposed_filter =
+        make_shared<Transpose>(unsqueeze_filter,
+                               make_shared<Constant>(element::i64, Shape{5}, std::vector<int64_t>{2, 4, 3, 0, 1}));
 
-    CoordinateDiff ng_padding_below;
-    CoordinateDiff ng_padding_above;
-    make_padding(tf_padding_type,
-                 ng_image_shape,
-                 ng_kernel_shape,
-                 ng_strides,
-                 ng_dilations,
-                 ng_padding_below,
-                 ng_padding_above);
-
-    // H W I M -> H W I 1 M
-    auto filter_shape = make_shared<Constant>(
-        element::u64,
-        Shape{5},
-        ov::Shape{ng_filter_shape[0], ng_filter_shape[1], ng_filter_shape[2], 1, ng_filter_shape[3]});
-    auto reshaped_filter = make_shared<Reshape>(ng_filter, filter_shape, false);
-
-    // H W I 1 M -> I M 1 H W
-    auto order = make_shared<Constant>(element::i64, Shape{5}, vector<int64_t>{2, 4, 3, 0, 1});
-    auto transposed_filter = make_shared<opset8::Transpose>(reshaped_filter, order);
-
-    auto ng_conv_node = make_shared<GroupConvolution>(ng_input,
-                                                      transposed_filter,
-                                                      ng_strides,
-                                                      ng_padding_below,
-                                                      ng_padding_above,
-                                                      ng_dilations);
-    auto ng_conv = ng_conv_node->output(0);
-
-    convert_nchw_to_nhwc(node.get_name(), is_nhwc, ng_conv);
-    set_node_name(node.get_name(), ng_conv.get_node_shared_ptr());
-    return {ng_conv};
+    ov::Output<ov::Node> group_conv = make_shared<GroupConvolution>(input,
+                                                                    transposed_filter,
+                                                                    strides,
+                                                                    CoordinateDiff({}),
+                                                                    CoordinateDiff({}),
+                                                                    dilations,
+                                                                    auto_pad);
+    ov::frontend::tensorflow::convert_nchw_to_nhwc(is_nhwc, group_conv, ov::Rank(4));
+    ov::frontend::tensorflow::set_node_name(node.get_name(), group_conv.get_node_shared_ptr());
+    return {group_conv};
 }
 }  // namespace op
 }  // namespace tensorflow

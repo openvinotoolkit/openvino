@@ -29,11 +29,16 @@ function(ie_add_onednn)
     set(DNNL_CPU_RUNTIME "${THREADING}" CACHE STRING "" FORCE)
     set(DNNL_GPU_RUNTIME "NONE" CACHE STRING "" FORCE)
     set(DNNL_BLAS_VENDOR "NONE" CACHE STRING "" FORCE)
+
+    # select needed primitives
+    set(DNNL_ENABLE_PRIMITIVE "CONVOLUTION;DECONVOLUTION;CONCAT;LRN;INNER_PRODUCT;MATMUL;POOLING;REDUCTION;REORDER;RNN;SOFTMAX" CACHE STRING "" FORCE)
+    set(DNNL_ENABLE_WORKLOAD "INFERENCE" CACHE STRING "" FORCE)
+
+    # Allow to enable oneDNN verbose with CPU_DEBUG_CAPS and rely on oneDNN default configuration otherwise
     if (ENABLE_CPU_DEBUG_CAPS)
         set(DNNL_VERBOSE "ON" CACHE STRING "" FORCE)
-    else()
-        set(DNNL_VERBOSE "OFF" CACHE STRING "" FORCE)
     endif()
+
     set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on IE level
     if (ANDROID OR ((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC") AND NOT (THREADING STREQUAL "OMP")))
         set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
@@ -43,11 +48,31 @@ function(ie_add_onednn)
         # xbyak compilation fails
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
     endif()
-    if(CMAKE_COMPILER_IS_GNUCXX)
+    if(CMAKE_OSX_ARCHITECTURES STREQUAL "x86_64")
+        set(DNNL_TARGET_ARCH "X64")
+    elseif(CMAKE_OSX_ARCHITECTURES STREQUAL "arm64")
+        set(DNNL_TARGET_ARCH "AARCH64")
+    endif()
+    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
         ie_add_compiler_flags(-Wno-undef)
         ie_add_compiler_flags(-Wno-missing-declarations)
+        if(OV_COMPILER_IS_CONDA)
+            ie_add_compiler_flags(-Wno-error=array-bounds)
+            ie_add_compiler_flags(-Wno-error=stringop-overflow=)
+        endif()
     elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable=10121")
+    endif()
+
+    # WA for old TBBConfig.cmake like tbb2019_20180718oss
+    # they don't check that imported target is already created
+    if(TBB_FOUND)
+        set(TBB_cmake_included ON)
+        set(DNNL_CPU_THREADING_RUNTIME "${THREADING}")
+        function(find_package_tbb)
+            # dummy
+        endfunction()
+        link_libraries(TBB::tbb)
     endif()
 
     add_subdirectory(onednn EXCLUDE_FROM_ALL)

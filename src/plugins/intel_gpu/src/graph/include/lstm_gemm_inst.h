@@ -34,7 +34,7 @@ class typed_primitive_inst<lstm_gemm> : public typed_primitive_inst_base<lstm_ge
     using parent = typed_primitive_inst_base<lstm_gemm>;
 
 public:
-    static layout calc_output_layout(lstm_gemm_node const& node);
+    static layout calc_output_layout(lstm_gemm_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(lstm_gemm_node const& node);
 
 public:

@@ -5,6 +5,7 @@
 #include "input_model.hpp"
 
 #include <fstream>
+#include <iterator>
 #include <queue>
 
 #include "openvino/frontend/exception.hpp"
@@ -13,8 +14,6 @@
 #include "openvino/opsets/opset7.hpp"
 #include "place.hpp"
 #include "utils.hpp"
-
-using namespace google;
 
 namespace ov {
 namespace frontend {
@@ -170,9 +169,10 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::get_op_place
 }
 
 std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cut_nodes() const {
-    std::queue<std::shared_ptr<DecoderBase>> decoders_queue;
-    std::unordered_set<std::string> visited;
-    std::vector<std::shared_ptr<OpPlace>> new_ops;
+    std::vector<std::shared_ptr<OpPlace>> topologically_sorted_ops;
+    std::stack<std::shared_ptr<OpPlace>> ops_to_do;
+    std::unordered_set<std::shared_ptr<OpPlace>> ops_done;
+
     for (const auto& output_place : m_outputs) {
         FRONT_END_GENERAL_CHECK(output_place->get_names().size() > 0, "TensorPlace must have at least one name.");
         auto output_place_name = output_place->get_names()[0];
@@ -180,72 +180,83 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
         size_t port_idx;
         std::string port_type;
         tensorflow::extract_operation_name_and_port(output_place_name, operation_name, port_idx, port_type);
-        if (!visited.count(operation_name)) {
-            visited.insert(operation_name);
-            FRONT_END_GENERAL_CHECK(m_op_places_map.count(operation_name),
-                                    "Custom specified output is incorrect: " + output_place_name);
-            auto output_operation_place = m_op_places_map.at(operation_name);
-            FRONT_END_GENERAL_CHECK(output_operation_place,
-                                    "There is not operation place in the map: " + operation_name);
-            new_ops.push_back(output_operation_place);
-            decoders_queue.push(output_operation_place->get_decoder());
+        FRONT_END_GENERAL_CHECK(m_op_places_map.count(operation_name),
+                                "Custom specified output is incorrect: " + output_place_name);
+        auto output_operation_place = m_op_places_map.at(operation_name);
+        ops_to_do.push(output_operation_place);
+    }
+
+    // the traversing algorithm to compute topologically sorted nodes is taken from topological_sort in
+    // core/graph_util.hpp
+    while (ops_to_do.size() > 0) {
+        auto current_operation_place = ops_to_do.top();
+        auto current_operation_decoder = current_operation_place->get_decoder();
+        auto current_operation_name = current_operation_decoder->get_op_name();
+        if (ops_done.count(current_operation_place) == 0) {
+            bool can_add = true;
+            auto input_count = current_operation_decoder->get_input_size();
+            for (size_t input_port_idx = 0; input_port_idx < input_count; ++input_port_idx) {
+                std::string producer_name;
+                size_t producer_output_port_idx;
+                try {
+                    current_operation_decoder->get_input_node(input_port_idx, producer_name, producer_output_port_idx);
+                } catch (const std::exception& e) {
+                    FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " +
+                                    std::to_string(input_port_idx) + " for op '" +
+                                    current_operation_decoder->get_op_name() + "', expected input name: '" +
+                                    producer_name +
+                                    "', expected input port index: " + std::to_string(producer_output_port_idx) + '\n');
+                }
+
+                // skip conditional edges for all operators
+                if (is_conditional_edge(producer_name)) {
+                    continue;
+                }
+
+                // is_input is a flag to leave producer operation node or not.
+                // this producing node is not left if consumer is pruned by its input port,
+                // the producer node is pruned by its output port or the producer becomes new input
+                // 1. check if the current node is pruned by its input port
+                bool is_input = false;
+                std::string input_port_name = std::to_string(input_port_idx) + ":" + current_operation_name;
+                if (m_tensor_places.find(input_port_name) != m_tensor_places.end()) {
+                    const auto& tensor_place = m_tensor_places[input_port_name];
+                    is_input |= tensor_place->is_input();
+                }
+
+                // 2. check if the producer node is pruned by its output port
+                std::string output_port_name = producer_name + ":" + std::to_string(producer_output_port_idx);
+                if (m_tensor_places.find(output_port_name) != m_tensor_places.end()) {
+                    const auto& tensor_place = m_tensor_places[output_port_name];
+                    is_input |= tensor_place->is_input();
+                }
+
+                // 3. check if the current node is an input
+                FRONT_END_GENERAL_CHECK(m_op_places_map.count(producer_name),
+                                        "There is no operation node with name: " + producer_name);
+                const auto& producer_operation_place = m_op_places_map.at(producer_name);
+                if (m_tensor_places.find(producer_name) != m_tensor_places.end()) {
+                    const auto& tensor_place = m_tensor_places[producer_name];
+                    is_input |= tensor_place->is_input();
+                }
+
+                if (!is_input && ops_done.count(producer_operation_place) == 0) {
+                    can_add = false;
+                    ops_to_do.push(producer_operation_place);
+                }
+            }
+
+            if (can_add) {
+                topologically_sorted_ops.push_back(current_operation_place);
+                ops_to_do.pop();
+                ops_done.insert(current_operation_place);
+            }
+        } else {
+            ops_to_do.pop();
         }
     }
-    while (!decoders_queue.empty()) {
-        auto operation_decoder = decoders_queue.front();
-        decoders_queue.pop();
-        auto current_operation_name = operation_decoder->get_op_name();
-        for (size_t input_port_idx = 0; input_port_idx < operation_decoder->get_input_size(); ++input_port_idx) {
-            std::string producer_name;
-            size_t producer_output_port_idx;
-            try {
-                operation_decoder->get_input_node(input_port_idx, producer_name, producer_output_port_idx);
-            } catch (const std::exception& e) {
-                FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
-                                " for op '" + operation_decoder->get_op_name() + "', expected input name: '" +
-                                producer_name +
-                                "', expected input port index: " + std::to_string(producer_output_port_idx) + '\n');
-            }
 
-            // TODO: re-implement the logic below using Place graph structure (with OpPlace, In/OutPortPlace
-            // connections) and based on check if Place->is_input() decide to leave a node or not
-
-            // is_input is a flag to leave producer operation node or not.
-            // this producing node is not left if consumer is pruned by its input port,
-            // the producer node is pruned by its output port or the producer becomes new input
-            // 1. check if the current node is pruned by its input port
-            bool is_input = false;
-            std::string input_port_name = std::to_string(input_port_idx) + ":" + current_operation_name;
-            if (m_tensor_places.find(input_port_name) != m_tensor_places.end()) {
-                const auto& tensor_place = m_tensor_places[input_port_name];
-                is_input = is_input || (tensor_place->is_input() ? true : false);
-            }
-
-            // 2. check if the producer node is pruned by its output port
-            std::string output_port_name = producer_name + ":" + std::to_string(producer_output_port_idx);
-            if (m_tensor_places.find(output_port_name) != m_tensor_places.end()) {
-                const auto& tensor_place = m_tensor_places[output_port_name];
-                is_input = is_input || (tensor_place->is_input() ? true : false);
-            }
-
-            // 3. check if the current node is an input
-            FRONT_END_GENERAL_CHECK(m_op_places_map.count(producer_name),
-                                    "There is no operation node with name: " + producer_name);
-            const auto& producer_operation_place = m_op_places_map.at(producer_name);
-            if (m_tensor_places.find(producer_name) != m_tensor_places.end()) {
-                const auto& tensor_place = m_tensor_places[producer_name];
-                is_input |= (tensor_place->is_input() ? true : false);
-            }
-
-            if (!is_input && !visited.count(producer_name)) {
-                visited.insert(producer_name);
-                new_ops.push_back(producer_operation_place);
-                decoders_queue.push(producer_operation_place->get_decoder());
-            }
-        }
-    }
-    std::reverse(new_ops.begin(), new_ops.end());
-    return new_ops;
+    return topologically_sorted_ops;
 }
 
 InputModel::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph_iterator,

@@ -117,6 +117,10 @@ foreach (_tbb_component ${TBB_FIND_COMPONENTS})
     endif()
 endforeach()
 
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(TBB
+    REQUIRED_VARS TBB_tbb_FOUND)
+
 unset(_tbb_x32_subdir)
 unset(_tbb_x64_subdir)
 unset(_tbb_arch_subdir)

@@ -78,13 +78,6 @@ public:
         for (size_t handle = 0; handle < _requests.size(); handle++) {
             _requests[handle]._request.set_callback([this, handle /* ... */](std::exception_ptr exception_ptr) {
                 _requests[handle]._end_time = Time::now();
-                try {
-                    if (exception_ptr) {
-                        std::rethrow_exception(exception_ptr);
-                    }
-                } catch (const std::exception& e) {
-                    throw ov::Exception(e.what());
-                }
                 {
                     // acquire the mutex to access _idle_handles
                     std::lock_guard<std::mutex> lock(_mutex);
@@ -93,6 +86,14 @@ public:
                 }
                 // Notify locks in getIdleRequestId()
                 _cv.notify_one();
+
+                try {
+                    if (exception_ptr) {
+                        std::rethrow_exception(exception_ptr);
+                    }
+                } catch (const std::exception& e) {
+                    throw ov::Exception(e.what());
+                }
             });
         }
     }
@@ -101,23 +102,23 @@ public:
         for (size_t handle = 0; handle < _requests.size(); handle++) {
             _requests[handle]._request.set_callback([this, f_callback, handle](std::exception_ptr exception_ptr) {
                 _requests[handle]._end_time = Time::now();
-                try {
-                    if (exception_ptr) {
-                        std::rethrow_exception(exception_ptr);
+                if (exception_ptr == nullptr) {
+                    // Acquire GIL, execute Python function
+                    py::gil_scoped_acquire acquire;
+                    try {
+                        f_callback(_requests[handle], _user_ids[handle]);
+                    } catch (const py::error_already_set& py_error) {
+                        // This should behave the same as assert(!PyErr_Occurred())
+                        // since constructor for pybind11's error_already_set is
+                        // performing PyErr_Fetch which clears error indicator and
+                        // saves it inside itself.
+                        assert(py_error.type());
+                        // acquire the mutex to access _errors
+                        std::lock_guard<std::mutex> lock(_mutex);
+                        _errors.push(py_error);
                     }
-                } catch (const std::exception& e) {
-                    throw ov::Exception(e.what());
                 }
-                // Acquire GIL, execute Python function
-                py::gil_scoped_acquire acquire;
-                try {
-                    f_callback(_requests[handle], _user_ids[handle]);
-                } catch (py::error_already_set py_error) {
-                    assert(PyErr_Occurred());
-                    // acquire the mutex to access _errors
-                    std::lock_guard<std::mutex> lock(_mutex);
-                    _errors.push(py_error);
-                }
+
                 {
                     // acquire the mutex to access _idle_handles
                     std::lock_guard<std::mutex> lock(_mutex);
@@ -126,6 +127,15 @@ public:
                 }
                 // Notify locks in getIdleRequestId()
                 _cv.notify_one();
+
+                try {
+                    if (exception_ptr) {
+                        std::rethrow_exception(exception_ptr);
+                    }
+                } catch (const std::exception& e) {
+                    // Notify locks in getIdleRequestId()
+                    throw ov::Exception(e.what());
+                }
             });
         }
     }
@@ -175,9 +185,56 @@ void regclass_AsyncInferQueue(py::module m) {
                 :rtype: openvino.runtime.AsyncInferQueue
             )");
 
+    // Overload for single input, it will throw error if a model has more than one input.
     cls.def(
         "start_async",
-        [](AsyncInferQueue& self, const py::dict inputs, py::object userdata) {
+        [](AsyncInferQueue& self, const ov::Tensor& inputs, py::object userdata) {
+            // getIdleRequestId function has an intention to block InferQueue
+            // until there is at least one idle (free to use) InferRequest
+            auto handle = self.get_idle_request_id();
+            {
+                std::lock_guard<std::mutex> lock(self._mutex);
+                self._idle_handles.pop();
+            }
+            // Set new inputs label/id from user
+            self._user_ids[handle] = userdata;
+            // Update inputs if there are any
+            self._requests[handle]._request.set_input_tensor(inputs);
+            // Now GIL can be released - we are NOT working with Python objects in this block
+            {
+                py::gil_scoped_release release;
+                self._requests[handle]._start_time = Time::now();
+                // Start InferRequest in asynchronus mode
+                self._requests[handle]._request.start_async();
+            }
+        },
+        py::arg("inputs"),
+        py::arg("userdata"),
+        R"(
+            Run asynchronous inference using the next available InferRequest.
+
+            This function releases the GIL, so another Python thread can
+            work while this function runs in the background.
+
+            :param inputs: Data to set on single input tensor of next available InferRequest from
+            AsyncInferQueue's pool.
+            :type inputs: openvino.runtime.Tensor
+            :param userdata: Any data that will be passed to a callback
+            :type userdata: Any
+            :rtype: None
+
+            GIL is released while waiting for the next available InferRequest.
+        )");
+
+    // Overload for general case, it accepts dict of inputs that are pairs of (key, value).
+    // Where keys types are:
+    // * ov::Output<const ov::Node>
+    // * py::str (std::string)
+    // * py::int_ (size_t)
+    // and values are always of type: ov::Tensor.
+    cls.def(
+        "start_async",
+        [](AsyncInferQueue& self, const py::dict& inputs, py::object userdata) {
             // getIdleRequestId function has an intention to block InferQueue
             // until there is at least one idle (free to use) InferRequest
             auto handle = self.get_idle_request_id();

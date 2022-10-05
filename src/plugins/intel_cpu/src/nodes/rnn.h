@@ -66,10 +66,10 @@ private:
     dnnl::rnn_direction direction = dnnl::rnn_direction::unidirectional;
 
     /** RNN Cell type (type/activation_alg/clip)*/
-    dnnl::algorithm cell_type = dnnl::algorithm::vanilla_lstm;
+    dnnl::algorithm cell_type = dnnl::algorithm::undef;
 
     /** activation type for vanilla RNN cell */
-    dnnl::algorithm cell_act = dnnl::algorithm::eltwise_tanh;
+    dnnl::algorithm cell_act = dnnl::algorithm::undef;
 
     /** Weights data and state memory format: ldigo or any */
     dnnl::memory::format_tag wFormat = dnnl::memory::format_tag::any;

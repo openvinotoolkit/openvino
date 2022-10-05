@@ -119,6 +119,8 @@ struct RNNKey {
     const std::vector<DnnlBlockedMemoryDescPtr> outDataDescs;
     const std::vector<dnnl::memory::desc> wDescs;
     dnnl::algorithm cellType;
+    dnnl::algorithm cellAct;
+    dnnl::rnn_direction direction;
 
     size_t hash() const;
     bool operator==(const RNNKey& rhs) const;
@@ -142,13 +144,16 @@ size_t RNNKey::hash() const {
         seed = hash_combine(seed, get_md_hash(desc.data));
     }
     seed = hash_combine(seed, cellType);
+    seed = hash_combine(seed, cellAct);
+    seed = hash_combine(seed, direction);
     return seed;
 }
 
 bool RNNKey::operator==(const RNNKey& rhs) const {
     if (inDataDescs.size() != rhs.inDataDescs.size() || outDataDescs.size() != rhs.outDataDescs.size() || wDescs.size() != rhs.wDescs.size() ||
-            cellType != rhs.cellType)
+            cellType != rhs.cellType || cellAct != rhs.cellAct || direction != rhs.direction) {
         return false;
+    }
 
     for (size_t i = 0lu; i < inDataDescs.size(); i++) {
         if (inDataDescs[i] != rhs.inDataDescs[i] && (inDataDescs[i] == nullptr || rhs.inDataDescs[i] == nullptr ||
@@ -156,8 +161,8 @@ bool RNNKey::operator==(const RNNKey& rhs) const {
             return false;
     }
     for (size_t i = 0lu; i < outDataDescs.size(); i++) {
-        if (outDataDescs[i] != rhs.outDataDescs[i] && (outDataDescs[i] == nullptr || rhs.outDataDescs[i] ||
-                outDataDescs[i]->getDnnlDesc() == rhs.outDataDescs[i]->getDnnlDesc()))
+        if (outDataDescs[i] != rhs.outDataDescs[i] && (outDataDescs[i] == nullptr || rhs.outDataDescs[i] == nullptr ||
+                outDataDescs[i]->getDnnlDesc() != rhs.outDataDescs[i]->getDnnlDesc()))
             return false;
     }
     for (size_t i = 0lu; i < wDescs.size(); i++) {
@@ -251,16 +256,6 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSh
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
-
-    internalBlobDesc.emplace_back([&](primitive_desc_iterator& primitive_desc_it, size_t idx) -> DnnlMemoryDescPtr {
-        return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(0));
-    });
-    internalBlobDesc.emplace_back([&](primitive_desc_iterator& primitive_desc_it, size_t idx) -> DnnlMemoryDescPtr {
-        return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(1));
-    });
-    internalBlobDesc.emplace_back([&](primitive_desc_iterator& primitive_desc_it, size_t idx) -> DnnlMemoryDescPtr {
-        return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(2));
-    });
 
     is_cell = one_of(op->get_type_info(),
             ov::op::v0::RNNCell::get_type_info_static(),
@@ -826,7 +821,7 @@ void RNN::prepareParams() {
         wDescs[1] = dnnl::memory::desc(statesDims, dataType, wFormat);
     }
 
-    RNNKey key = { inDataDescs, outDataDescs, wDescs, cell_type };
+    RNNKey key = { inDataDescs, outDataDescs, wDescs, cell_type, cell_act, direction };
 
     auto builder = [this](const RNNKey& key) -> std::shared_ptr<dnnl::primitive> {
         fillDescs();
@@ -858,8 +853,20 @@ void RNN::prepareParams() {
     prim = result.first;
 
     if (!wasMemoryPrepared || wFormatWasChanged) {
-        auto itpd = descs[0].createPrimitiveDescriptorIterator(getEngine(), dnnl::primitive_attr());
-        prepareMemory(itpd);
+        auto pd = (*prim).get_primitive_desc();
+        auto query_weights_md = [&](int idx = 0) -> dnnl::memory::desc {
+            auto what = dnnl::convert_to_c(dnnl::query::weights_md);
+            const dnnl_memory_desc_t *cdesc = dnnl_primitive_desc_query_md(pd, what, idx);
+            if (!cdesc)
+                IE_THROW() << "query_weights_md failed for node " << getName() << " idx " << idx << ".";
+            return dnnl::memory::desc(*cdesc);
+        };
+        std::vector<DnnlMemoryDescPtr> intDescs {
+            DnnlExtensionUtils::makeDescriptor(query_weights_md(0)),
+            DnnlExtensionUtils::makeDescriptor(query_weights_md(1)),
+            DnnlExtensionUtils::makeDescriptor(query_weights_md(2))
+        };
+        prepareMemory(intDescs);
         wasMemoryPrepared = true;
     }
 }

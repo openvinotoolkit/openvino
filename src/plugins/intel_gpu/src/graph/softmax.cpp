@@ -13,14 +13,14 @@ primitive_type_id softmax::type_id() {
     return &instance;
 }
 
-layout softmax_inst::calc_output_layout(softmax_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout softmax_inst::calc_output_layout(softmax_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for softmax_node!");
 
-    auto output_layout = node.input().get_output_layout();
+    auto output_layout = impl_param.get_input_layout();
 
-    if (node.has_fused_primitives())
-        output_layout.data_type = node.get_fused_output_layout().data_type;
+    if (impl_param.has_fused_primitives())
+        output_layout.data_type = impl_param.get_fused_output_layout().data_type;
 
     return output_layout;
 }
@@ -31,6 +31,10 @@ std::string softmax_inst::to_string(softmax_node const& node) {
 
     std::stringstream primitive_description;
 
+    json_composite softmax_info;
+    softmax_info.add("dimension", desc->dimension);
+
+    node_info->add("softmax_info", softmax_info);
     node_info->dump(primitive_description);
 
     return primitive_description.str();

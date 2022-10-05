@@ -60,7 +60,8 @@ ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_sel
         dims_by_gws = {{ Tensor::DataChannelName::X },
                        { Tensor::DataChannelName::Y, Tensor::DataChannelName::Z },
                        { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
-    } else if (arg.resampleType == ResampleType::BILINEAR_INTERP || arg.resampleType == ResampleType::LINEAR_ONNX) {
+    } else if ( (arg.resampleType == ResampleType::BILINEAR_INTERP || arg.resampleType == ResampleType::LINEAR_ONNX) &&
+                out.Dimentions() <= 4 ) {
         dispatchData.gws = { Align(out.X().v, 32), out.Y().v, out.Batch().v };
         dims_by_gws = {{ Tensor::DataChannelName::X },
                        { Tensor::DataChannelName::Y },
@@ -79,7 +80,8 @@ ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_sel
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
 
-    if (arg.resampleType == ResampleType::BILINEAR_INTERP || arg.resampleType == ResampleType::LINEAR_ONNX) {
+    if ((arg.resampleType == ResampleType::BILINEAR_INTERP || arg.resampleType == ResampleType::LINEAR_ONNX) &&
+        out.Dimentions() <= 4) {
         dispatchData.lws[0] = 32;
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 1;
@@ -108,7 +110,8 @@ bool ResampleKernelBase::Validate(const Params& p, const optional_params& o) con
     if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
         params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
         params.resampleType != ResampleType::CAFFE_BILINEAR_INTERP &&
-        params.resampleType != ResampleType::BILINEAR_INTERP)
+        params.resampleType != ResampleType::BILINEAR_INTERP &&
+        params.resampleType != ResampleType::LINEAR_ONNX)
         return false;
 
     return true;
@@ -119,7 +122,6 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
 
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
-    const auto align_corners = params.align_corners;
     auto pads_begin = params.pads_begin;
     auto pads_end = params.pads_end;
     if (pads_begin.size() == 4)
@@ -144,29 +146,12 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
         paddingUsed |= (pads_begin[i] != 0 || pads_end[i] != 0);
     }
 
-    if (align_corners) {
-        scales[0] = (out_b_size_padded) > 1
-                        ? static_cast<float>(b_size_padded - 1) / static_cast<float>(out_b_size_padded - 1)
-                        : 0.0f;
-        scales[1] = (out_f_size_padded) > 1
-                        ? static_cast<float>(f_size_padded - 1) / static_cast<float>(out_f_size_padded - 1)
-                        : 0.0f;
-        scales[4] = (out_x_size_padded) > 1
-                        ? static_cast<float>(x_size_padded - 1) / static_cast<float>(out_x_size_padded - 1)
-                        : 0.0f;
-        scales[3] = (out_y_size_padded) > 1
-                        ? static_cast<float>(y_size_padded - 1) / static_cast<float>(out_y_size_padded - 1)
-                        : 0.0f;
-        scales[2] = (out_z_size_padded) > 1
-                        ? static_cast<float>(z_size_padded - 1) / static_cast<float>(out_z_size_padded - 1)
-                        : 0.0f;
-    } else {
-        scales[0] = static_cast<float>(b_size_padded) / static_cast<float>(out_b_size_padded);
-        scales[1] = static_cast<float>(f_size_padded) / static_cast<float>(out_f_size_padded);
-        scales[4] = static_cast<float>(x_size_padded) / static_cast<float>(out_x_size_padded);
-        scales[3] = static_cast<float>(y_size_padded) / static_cast<float>(out_y_size_padded);
-        scales[2] = static_cast<float>(z_size_padded) / static_cast<float>(out_z_size_padded);
-    }
+    scales[0] = static_cast<float>(b_size_padded) / static_cast<float>(out_b_size_padded);
+    scales[1] = static_cast<float>(f_size_padded) / static_cast<float>(out_f_size_padded);
+    scales[4] = static_cast<float>(x_size_padded) / static_cast<float>(out_x_size_padded);
+    scales[3] = static_cast<float>(y_size_padded) / static_cast<float>(out_y_size_padded);
+    scales[2] = static_cast<float>(z_size_padded) / static_cast<float>(out_z_size_padded);
+
     for (const auto& it : params.axesAndScales) {
         int idx = getAxisIndex(it.first);
         axesUsed[idx] = 1;
@@ -187,7 +172,6 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
         MakeJitConstant("PADS_END", pads_end),
         MakeJitConstant("PADDING_USED", static_cast<int>(paddingUsed)),
         MakeJitConstant("AXES_USED", axesUsed),
-        MakeJitConstant("ALIGN_CORNERS", align_corners),
         MakeJitConstant("KERNEL_W", 2),
         MakeJitConstant("ANTIALIAS", params.antialias),
         MakeJitConstant("CUBE_COEFF", params.cube_coeff),

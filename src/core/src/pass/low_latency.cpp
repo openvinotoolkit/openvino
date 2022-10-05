@@ -11,6 +11,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/variant.hpp>
+#include <openvino/cc/pass/itt.hpp>
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency, "LowLatency", 0);
@@ -24,6 +25,7 @@ string generate_variable_name(const string& op_name, const string& param_name, i
 
 }  // namespace
 ngraph::pass::LowLatency::LowLatency() {
+    MATCHER_SCOPE(LowLatency);
     auto tensor_iterator = ov::pass::pattern::wrap_type<opset6::TensorIterator, opset6::Loop>();
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         const auto& sub_graph_op = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(m.get_match_root());
@@ -84,7 +86,7 @@ ngraph::pass::LowLatency::LowLatency() {
         return false;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(tensor_iterator, "LowLatency");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(tensor_iterator, matcher_name);
     register_matcher(m, callback);
 }
 NGRAPH_SUPPRESS_DEPRECATED_END
@@ -151,6 +153,7 @@ ngraph::Output<ngraph::Node> create_init_subgraph(const shared_ptr<ngraph::op::u
 bool ov::pass::LowLatency2::run_on_model(const shared_ptr<Model>& f) {
     using namespace ngraph::opset7;
 
+    RUN_ON_MODEL_SCOPE(LowLatency2);
     ngraph::SinkVector assigns;
     for (const auto& op : f->get_ordered_ops()) {
         if (const auto& sub_graph_op = dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(op)) {

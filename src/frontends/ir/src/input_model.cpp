@@ -214,6 +214,7 @@ public:
         m_opsets["opset6"] = ngraph::get_opset6();
         m_opsets["opset7"] = ngraph::get_opset7();
         m_opsets["opset8"] = ngraph::get_opset8();
+        m_opsets["opset9"] = ngraph::get_opset9();
     }
 
     std::shared_ptr<Function> convert();

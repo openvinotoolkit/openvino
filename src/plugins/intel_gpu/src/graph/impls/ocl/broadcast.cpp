@@ -22,15 +22,16 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         return make_unique<broadcast_impl>(*this);
     }
 
-    static primitive_impl* create(const broadcast_node& arg) {
-        auto bc_params = get_default_params<kernel_selector::broadcast_params>(arg, 1);
+    static primitive_impl* create(const broadcast_node& arg, const kernel_impl_params& impl_param) {
+        const auto& primitive = arg.get_primitive();
+        auto bc_params = get_default_params<kernel_selector::broadcast_params>(impl_param, 1);
         auto bc_optional_params =
             get_default_optional_params<kernel_selector::broadcast_optional_params>(arg.get_program());
 
-        const auto format = arg.get_output_layout().format;
+        const auto format = impl_param.output_layout.format;
         size_t max_axes_num = format.dimension();
 
-        const auto& broadcast_axes = arg.get_primitive()->broadcast_axes;
+        const auto& broadcast_axes = primitive->broadcast_axes;
         uint16_t index = (uint16_t)0;
         uint16_t input_index = (uint16_t)broadcast_axes.size();
 
@@ -81,6 +82,90 @@ attach_broadcast_impl::attach_broadcast_impl() {
         std::make_tuple(data_types::u8, format::bfwzyx),
         std::make_tuple(data_types::i32, format::bfwzyx),
         std::make_tuple(data_types::i64, format::bfwzyx),
+
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv4),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv4),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
+        std::make_tuple(data_types::i32, format::b_fs_yx_fsv4),
+        std::make_tuple(data_types::i64, format::b_fs_yx_fsv4),
+
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::i32, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::i64, format::b_fs_yx_fsv16),
+
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::i32, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::i64, format::b_fs_yx_fsv32),
+
+        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::i32, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::i64, format::b_fs_zyx_fsv16),
+
+        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::i32, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::i64, format::b_fs_zyx_fsv32),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv4_fsv2),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv2),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv2),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv2),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv4_fsv2),
+        std::make_tuple(data_types::i64, format::bs_fs_yx_bsv4_fsv2),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv4_fsv4),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv4),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv4),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv4),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv4_fsv4),
+        std::make_tuple(data_types::i64, format::bs_fs_yx_bsv4_fsv4),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv8_fsv2),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv8_fsv2),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv8_fsv2),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv8_fsv2),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv8_fsv2),
+        std::make_tuple(data_types::i64, format::bs_fs_yx_bsv8_fsv2),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::i64, format::bs_fs_yx_bsv8_fsv4),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::i64, format::bs_fs_yx_bsv16_fsv16),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::i64, format::bs_fs_yx_bsv32_fsv16),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::i64, format::bs_fs_yx_bsv32_fsv32),
     });
 }
 

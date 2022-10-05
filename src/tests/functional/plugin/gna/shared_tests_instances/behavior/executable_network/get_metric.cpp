@@ -78,7 +78,7 @@ TEST_P(IEClassExecutableNetworkSetConfigFromFp32Test, SetConfigFromFp32Throws) {
 
     std::map<std::string, std::string> initialConfig;
     initialConfig[GNA_CONFIG_KEY(DEVICE_MODE)] = InferenceEngine::GNAConfigParams::GNA_SW_FP32;
-    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, deviceName, initialConfig);
+    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device, initialConfig);
 
     ASSERT_THROW(exeNetwork.SetConfig({{configKey, configValue}}), InferenceEngine::Exception);
 }

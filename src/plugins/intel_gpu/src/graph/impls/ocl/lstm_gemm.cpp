@@ -37,21 +37,26 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const lstm_gemm_node& arg) {
-        const auto& weights_layout = arg.weights().get_output_layout();
+    static primitive_impl* create(const lstm_gemm_node& arg, const kernel_impl_params& impl_param) {
+        const auto input_idx = 0;
+        const auto weight_idx = 1;
+        const auto recurrent_idx = 2;
+        const auto bias_idx = 3;
+        const auto hidden_idx = arg.bias_term() ? 4 : 3;
 
-        auto lstm_gemm_params = get_default_params<kernel_selector::lstm_gemm_params>(arg);
+        const auto& weights_layout = impl_param.input_layouts[weight_idx];
+        auto lstm_gemm_params = get_default_params<kernel_selector::lstm_gemm_params>(impl_param);
         lstm_gemm_params.weights = convert_data_tensor(weights_layout);
 
         if (arg.bias_term()) {
-            const auto& bias_layout = arg.bias().get_output_layout();
+            const auto& bias_layout = impl_param.input_layouts[bias_idx];
             lstm_gemm_params.SetBias(convert_data_tensor(bias_layout));
         }
         if (arg.hidden_term()) {
-            const auto& recurrent_layout = arg.recurrent().get_output_layout();
+            const auto& recurrent_layout = impl_param.input_layouts[recurrent_idx];
             lstm_gemm_params.recurrent = convert_data_tensor(recurrent_layout);
 
-            const auto& hidden_layout = arg.hidden().get_output_layout();
+            const auto& hidden_layout = impl_param.input_layouts[hidden_idx];
             lstm_gemm_params.SetHidden(convert_data_tensor(hidden_layout));
             // TODO: make a generic function to get the direction
             if (hidden_layout.spatial(1) > 1) {
@@ -61,7 +66,7 @@ public:
         lstm_gemm_params.direction = arg.direction();
 
         // Update the direction of the input for the gemm kernel
-        const auto& input_layout = arg.input().get_output_layout();
+        const auto& input_layout = impl_param.input_layouts[input_idx];
         size_t input_directions = input_layout.spatial(1);
 
         if (input_directions > 1) {  // For bidirection input, input direction can be 1 or 0

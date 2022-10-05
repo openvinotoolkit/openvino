@@ -78,6 +78,9 @@ void ExperimentalDetectronDetectionOutputLayerTest::SetUp() {
         netPrecision,
         targetName) = this->GetParam();
 
+    if (netPrecision == element::f16)
+        abs_threshold = 0.01;
+
     inType = outType = netPrecision;
     targetDevice = targetName;
 

@@ -45,7 +45,7 @@ struct jit_has_subnormals_base : public jit_generator {
 
     typedef void (*fn_t)(const args_t*);
 
-    jit_has_subnormals_base() {
+    jit_has_subnormals_base() : jit_generator() {
         jit_ker_ = nullptr;
     }
 
@@ -328,7 +328,7 @@ void Input::cloneBlobIfRequired() {
             if (!node
                 || TypeFromName(node->get_type_name()) != Type::FullyConnected)
                 continue;
-            if (mayiuse(cpu_isa_t::avx512_common)) {
+            if (mayiuse(cpu_isa_t::avx512_core)) {
                 if (size % 16)
                     return true;
             } else if (mayiuse(cpu_isa_t::avx)) {

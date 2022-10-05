@@ -8,7 +8,7 @@ set -e
 #===================================================================================================
 # Option parsing
 
-default_comp=(dev python myriad cl_compiler)
+default_comp=(core dev python myriad cl_compiler)
 all_comp=(${default_comp[@]} opencv_req opencv_opt)
 os=${os:-auto}
 
@@ -55,7 +55,7 @@ fi
 #  Selftest
 
 if [ -n "$selftest" ] ; then
-    for image in ubuntu:18.04 ubuntu:20.04 redhat/ubi8 ; do
+    for image in ubuntu:18.04 ubuntu:20.04 ubuntu:21.10 ubuntu:22.04 redhat/ubi8 ; do
         for opt in  "-h" "-p" "-e -p" "-n" "-n -e" "-y" "-y -e" ; do
             echo "||"
             echo "|| Test $image / '$opt'"
@@ -87,7 +87,7 @@ if [ "$os" == "auto" ] ; then
       os="rhel8"
     fi
     case $os in
-        rhel8|ubuntu18.04|ubuntu20.04) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
+        rhel8|ubuntu18.04|ubuntu20.04|ubuntu21.10|ubuntu22.04) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
         *) echo "Unsupported OS: ${os:-detection failed}" >&2 ; exit 1 ;;
     esac
 fi
@@ -99,8 +99,9 @@ extra_repos=()
 
 if [ "$os" == "ubuntu18.04" ] ; then
 
+    pkgs_core=(libtbb2 libpugixml1v5)
     pkgs_opencv_req=(libgtk-3-0 libgl1)
-    pkgs_python=(python3 python3-dev python3-venv python3-setuptools python3-pip)
+    pkgs_python=(python3 libpython3.6 python3-venv python3-pip)
     pkgs_dev=(cmake pkg-config libgflags-dev zlib1g-dev nlohmann-json-dev g++ gcc libc6-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_cl_compiler=(libtinfo5)
@@ -118,10 +119,11 @@ if [ "$os" == "ubuntu18.04" ] ; then
         libswscale4
     )
 
-elif [ "$os" == "ubuntu20.04" ] ; then
+elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] ; then
 
+    pkgs_core=(libtbb2 libpugixml1v5)
     pkgs_opencv_req=(libgtk-3-0 libgl1)
-    pkgs_python=(python3 python3-dev python3-venv python3-setuptools python3-pip)
+    pkgs_python=(python3 python3-venv python3-pip)
     pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json3-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_cl_compiler=(libtinfo5)
@@ -133,23 +135,61 @@ elif [ "$os" == "ubuntu20.04" ] ; then
         gstreamer1.0-tools
         libavcodec58
         libavformat58
-        libavresample4
         libavutil56
         libgstreamer1.0-0
         libswscale5
     )
 
+    if [ "$os" == "ubuntu20.04" ] ; then
+        pkgs_python=(${pkgs_python[@]} libpython3.8)
+        pkgs_opencv_opt=(${pkgs_opencv_opt[@]} libavresample4)
+    elif [ "$os" == "ubuntu21.10" ] ; then
+        pkgs_python=(${pkgs_python[@]} libpython3.9)
+    elif [ "$os" == "ubuntu22.04" ] ; then
+        pkgs_python=(${pkgs_python[@]} libpython3.10)
+    fi
+
 elif [ "$os" == "rhel8" ] ; then
 
+    pkgs_core=(libtbb2 libpugixml1v5)
     pkgs_opencv_req=(gtk3)
-    pkgs_python=(python3 python3-devel python3-setuptools python3-pip)
-    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config gflags-devel.i686 zlib-devel.i686 curl sudo)
+    pkgs_python=(python38 python38-pip)
+    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config zlib-devel.i686 curl sudo)
     pkgs_myriad=()
     pkgs_opencv_opt=(
-        gstreamer1
-        gstreamer1-plugins-bad-free
-        gstreamer1-plugins-good
-        gstreamer1-plugins-ugly-free
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libcdio-2.0.0-3.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libtheora-1.1.1-21.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/opus-1.3-0.4.beta.el8.x86_64.rpm
+        http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/orc-0.4.28-3.el8.x86_64.rpm
+        http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/libglvnd-gles-1.3.4-1.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libdvdread-5.0.3-9.el8.x86_64.rpm
+        http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/libvisual-0.4.0-25.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/liba52-0.7.4-32.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libdvdread-5.0.3-9.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libXv-1.0.11-7.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/taglib-1.11.1-8.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/mpg123-libs-1.25.10-2.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/lame-libs-3.100-6.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/BaseOS/x86_64/os/Packages/libgudev-232-4.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libv4l-1.14.2-3.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/speex-1.2.0-1.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libraw1394-2.1.2-5.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libsrtp-1.5.4-8.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libvpx-1.7.0-8.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/wavpack-5.1.0-15.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libiec61883-1.2.0-18.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libshout-2.2.2-19.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/twolame-libs-0.3.13-12.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libavc1394-0.5.4-7.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libdv-1.0.0-27.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libdvdnav-5.0.3-8.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/webrtc-audio-processing-0.3-9.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/gstreamer1-plugins-base-1.16.1-2.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/gstreamer1-1.16.1-2.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/gstreamer1-plugins-bad-free-1.16.1-1.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/gstreamer1-plugins-good-1.16.1-2.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/gstreamer1-plugins-ugly-free-1.16.1-1.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/soundtouch-2.0.0-3.el8.x86_64.rpm
     )
     extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm)
 
@@ -193,13 +233,14 @@ fi
 
 iopt=
 
-if [ "$os" == "ubuntu18.04" ] || [ "$os" == "ubuntu20.04" ] ; then
+if [ "$os" == "ubuntu18.04" ] || [ "$os" == "ubuntu20.04" ] || \
+   [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] ; then
 
     [ -z "$interactive" ] && iopt="-y"
     [ -n "$dry" ] && iopt="--dry-run"
     [ -n "$keepcache" ] && rm -f /etc/apt/apt.conf.d/docker-clean
 
-    apt-get update && apt-get install --no-install-recommends $iopt ${pkgs[@]}
+    apt-get update && apt-get install -y --no-install-recommends $iopt ${pkgs[@]}
 
 elif [ "$os" == "rhel8" ] ; then
 
@@ -216,3 +257,4 @@ else
 fi
 
 exit 0
+

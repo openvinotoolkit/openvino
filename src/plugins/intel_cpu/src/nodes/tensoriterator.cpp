@@ -363,7 +363,7 @@ void TensorIterator::getSupportedDescriptors() {
         THROW_ERROR << "cannot be cast to ov::op::util::SubGraphOp";
     }
     const std::shared_ptr<const ov::Model> body = tiOp->get_function();
-    sub_graph.CreateGraph(body, ext_mng, weightCache);
+    sub_graph.CreateGraph(body, ext_mng, weightCache, sharedMutex);
 
     const auto &inMap = sub_graph.GetInputNodesMap();
     for (const auto &param : tiOp->get_function()->get_parameters()) {
@@ -692,7 +692,8 @@ void TensorIterator::reshapeAndFillOutput(dnnl::stream strm) {
             auto newDims = newShape.getDims();
             nullifyUndefinedDims(newDims);
 
-            const auto desc = getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(newDims);
+            const bool hasZeroDims = std::count(std::begin(newDims), std::end(newDims), 0) > 0;
+            const auto desc = getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(newDims, hasZeroDims);
             redefineToMemories(to_mems, desc);
 
             if (!newShape.isDynamic()) {

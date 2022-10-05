@@ -15,11 +15,10 @@ primitive_type_id lstm_elt::type_id() {
     return &instance;
 }
 
-layout lstm_elt_inst::calc_output_layout(lstm_elt_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout lstm_elt_inst::calc_output_layout(lstm_elt_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for lstm_elt_node!");
-    auto desc = node.get_primitive();
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = impl_param.get_input_layout();
 
     // tempGEMM{bfyx} = [b: batch, f: direction, x: 1,         y: 4 * hidden_size ] input
     // cell{bfyx}     = [b: batch, f: direction, x: 1,         y: hidden_size ] optional

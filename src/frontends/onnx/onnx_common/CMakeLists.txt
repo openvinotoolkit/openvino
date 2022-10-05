@@ -17,7 +17,8 @@ source_group("include" FILES ${PUBLIC_HEADERS} ${PUBLIC_HEADERS})
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-# TODO Add handling ie_faster_build
+set_target_properties(${TARGET_NAME} PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 set(ONNX_COMMON_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(ONNX_COMMON_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -36,4 +37,4 @@ endif()
 target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR})
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
-ov_install_static_lib(${TARGET_NAME} core)
+ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})

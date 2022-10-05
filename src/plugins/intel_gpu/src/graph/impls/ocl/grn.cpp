@@ -26,11 +26,12 @@ struct grn_impl : typed_primitive_impl_ocl<grn> {
     }
 
 public:
-    static primitive_impl* create(const grn_node& arg) {
-        auto grn_params = get_default_params<kernel_selector::grn_params>(arg);
+    static primitive_impl* create(const grn_node& arg, const kernel_impl_params& impl_param) {
+        const auto& prim = arg.get_primitive();
+        auto grn_params = get_default_params<kernel_selector::grn_params>(impl_param);
         auto grn_optional_params = get_default_optional_params<kernel_selector::grn_optional_params>(arg.get_program());
 
-        grn_params.bias = arg.get_primitive()->bias;
+        grn_params.bias = prim->bias;
 
         auto& kernel_selector = kernel_selector::grn_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(grn_params, grn_optional_params);

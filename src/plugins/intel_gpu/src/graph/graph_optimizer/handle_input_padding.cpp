@@ -88,22 +88,18 @@ void handle_input_padding::run(program& p) {
                 primitive_id input_id = convolution_prim->input[0];
                 primitive_id border_id = input_id + "_border_" + convolution_prim->id;
 
-                tensor padding_above = tensor(0);
-                tensor padding_below = tensor(0);
-
-                padding_above.spatial[0] = pa_x;
-                padding_above.spatial[1] = pa_y;
-                padding_above.spatial[2] = pa_z;
-
-                padding_below.spatial[0] = pb_x;
-                padding_below.spatial[1] = pb_y;
-                padding_below.spatial[2] = pb_z;
+                size_t rank = node->get_input_layouts().front().get_rank();
+                if (pad_above.size() < rank) {
+                    size_t zeros_to_add = rank - pad_above.size();
+                    pad_above.insert(pad_above.begin(), zeros_to_add, 0);
+                    pad_below.insert(pad_below.begin(), zeros_to_add, 0);
+                }
 
                 auto b_prim = std::make_shared<border>(border_id,
                                                        input_id,
-                                                       padding_above,
-                                                       padding_below,
-                                                       border_type::constant,
+                                                       pad_above,
+                                                       pad_below,
+                                                       ov::op::PadMode::CONSTANT,
                                                        0.0f);
 
                 auto& b_prim_node = p.get_or_create(b_prim);

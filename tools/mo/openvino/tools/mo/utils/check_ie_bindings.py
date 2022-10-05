@@ -48,10 +48,10 @@ def import_core_modules(silent: bool, path_to_module: str):
     :return: True if all imports were successful and False otherwise
     """
     try:
-        from openvino.offline_transformations import apply_moc_transformations, apply_moc_legacy_transformations,\
-            apply_low_latency_transformation  # pylint: disable=import-error,no-name-in-module
-        from openvino.offline_transformations import apply_make_stateful_transformation, generate_mapping_file  # pylint: disable=import-error,no-name-in-module
-        from openvino.offline_transformations import generate_mapping_file, apply_make_stateful_transformation  # pylint: disable=import-error,no-name-in-module
+        from openvino._offline_transformations import apply_moc_transformations, apply_moc_legacy_transformations,\
+            apply_low_latency_transformation, apply_fused_names_cleanup  # pylint: disable=import-error,no-name-in-module
+        from openvino._offline_transformations import apply_make_stateful_transformation, generate_mapping_file  # pylint: disable=import-error,no-name-in-module
+        from openvino._offline_transformations import generate_mapping_file, apply_make_stateful_transformation  # pylint: disable=import-error,no-name-in-module
 
         from openvino.runtime import Model, serialize, get_version  # pylint: disable=import-error,no-name-in-module
         from openvino.runtime.op import Parameter  # pylint: disable=import-error,no-name-in-module
@@ -85,7 +85,7 @@ def import_core_modules(silent: bool, path_to_module: str):
             extracted_mo_release_version = v.extract_release_version(mo_version)
             mo_is_custom = extracted_mo_release_version == (None, None)
 
-            print("[ WARNING ] Model Optimizer and OpenVINO runtime versions do no match.")
+            print("[ WARNING ] Model Optimizer and OpenVINO runtime versions do not match.")
             print("[ WARNING ] Consider building the OpenVINO Python API from sources or reinstall OpenVINO "
                   "(TM) toolkit using", end=" ")
             if mo_is_custom:
