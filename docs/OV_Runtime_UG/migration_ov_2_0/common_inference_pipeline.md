@@ -13,7 +13,7 @@ To infer models with OpenVINO™ Runtime, you usually need to perform the follow
 
 Based on the steps, the following code demostrates how to change the application code to migrate to API 2.0.
 
-## <a name="create-core"></a>1. Create a Core Object
+## <a name="create-core">1. Create a Core Object</a>
 
 **Inference Engine API**
 
@@ -43,7 +43,7 @@ Based on the steps, the following code demostrates how to change the application
 
 @endsphinxtabset
 
-### <a name="load-extensions"></a>1.1 (Optional) Load Extensions
+### <a name="load-extensions">1.1 (Optional) Load Extensions</a>
 
 To load a model with custom operations, you need to add extensions for these operations. It is highly recommended to use [OpenVINO Extensibility API](../../Extensibility_UG/Intro.md) to write extensions. However, you can also load the old extensions to the new OpenVINO™ Runtime:
 
@@ -75,7 +75,7 @@ To load a model with custom operations, you need to add extensions for these ope
 
 @endsphinxtabset
 
-## <a name="read-model"></a>2. Read a Model from a Drive
+## <a name="read-model">2. Read a Model from a Drive</a>
 
 **Inference Engine API**
 
@@ -109,11 +109,11 @@ Reading a model has the same structure as the example in the [model creation mig
 
 You can combine reading and compiling a model into a single call `ov::Core::compile_model(filename, devicename)`.
 
-### <a name="perform-preprocessing"></a>2.1 (Optional) Perform Model Preprocessing
+### <a name="perform-preprocessing">2.1 (Optional) Perform Model Preprocessing</a>
 
 When the application input data does not perfectly match the model input format, preprocessing may be necessary. See [preprocessing in API 2.0](./preprocessing.md) for more details.
 
-## <a name="load-model-to-device"></a>3. Load the Model to the Device
+## <a name="load-model-to-device">3. Load the Model to the Device</a>
 
 **Inference Engine API**
 
@@ -145,7 +145,7 @@ When the application input data does not perfectly match the model input format,
 
 If you need to configure devices with additional parameters for OpenVINO Runtime, refer to [Configuring Devices](./configure_devices.md).
 
-## <a name="create-inference-request"></a>4. Create an Inference Request
+## <a name="create-inference-request">4. Create an Inference Request</a>
 
 **Inference Engine API**
 
@@ -175,7 +175,7 @@ If you need to configure devices with additional parameters for OpenVINO Runtime
 
 @endsphinxtabset
 
-## <a name="fill-tensor"></a>5. Fill Input Tensors with Data
+## <a name="fill-tensor">5. Fill Input Tensors with Data</a>
 
 **Inference Engine API**
 
@@ -321,7 +321,7 @@ API 2.0 fills inputs with data of the `I64` precision (aligned with the original
 
 @endsphinxtabset
 
-## <a name="start-inference"></a>6. Start Inference
+## <a name="start-inference">6. Start Inference</a>
 
 **Inference Engine API**
 
@@ -399,7 +399,7 @@ API 2.0 fills inputs with data of the `I64` precision (aligned with the original
 
 @endsphinxtabset
 
-## <a name="process-results"></a>7. Process the Inference Results
+## <a name="process-results">7. Process the Inference Results</a>
 
 **Inference Engine API**
 
@@ -477,8 +477,8 @@ The Inference Engine API processes outputs as they are of the `I32` precision (*
 
 API 2.0 processes outputs:
 
-- as they are of the `I32` precision (**not** aligned with the original model) for OpenVINO IR v10 models, to match the <a href="openvino_2_0_transition_guide#differences-api20-ie">old behavior</a>.
-- as they are of the `I64` precision (aligned with the original model) for OpenVINO IR v11, ONNX, ov::Model and PaddlePaddle models, to match the <a href="openvino_2_0_transition_guide#differences-api20-ie">new behavior</a>.
+- as they are of the `I32` precision (**not** aligned with the original model) for OpenVINO IR v10 models, to match the <a href="#openvino_2_0_transition_guide">old behavior</a>.
+- as they are of the `I64` precision (aligned with the original model) for OpenVINO IR v11, ONNX, ov::Model and PaddlePaddle models, to match the <a href="#openvino_2_0_transition_guide">new behavior</a>.
 
 @sphinxtabset
 
