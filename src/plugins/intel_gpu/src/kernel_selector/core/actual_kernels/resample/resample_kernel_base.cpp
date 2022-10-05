@@ -60,7 +60,8 @@ ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_sel
         dims_by_gws = {{ Tensor::DataChannelName::X },
                        { Tensor::DataChannelName::Y, Tensor::DataChannelName::Z },
                        { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
-    } else if (arg.resampleType == ResampleType::BILINEAR_INTERP || arg.resampleType == ResampleType::LINEAR_ONNX) {
+    } else if ( (arg.resampleType == ResampleType::BILINEAR_INTERP || arg.resampleType == ResampleType::LINEAR_ONNX) &&
+                out.Dimentions() <= 4 ) {
         dispatchData.gws = { Align(out.X().v, 32), out.Y().v, out.Batch().v };
         dims_by_gws = {{ Tensor::DataChannelName::X },
                        { Tensor::DataChannelName::Y },
@@ -79,7 +80,8 @@ ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_sel
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
 
-    if (arg.resampleType == ResampleType::BILINEAR_INTERP || arg.resampleType == ResampleType::LINEAR_ONNX) {
+    if ((arg.resampleType == ResampleType::BILINEAR_INTERP || arg.resampleType == ResampleType::LINEAR_ONNX) &&
+        out.Dimentions() <= 4) {
         dispatchData.lws[0] = 32;
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 1;
@@ -108,7 +110,8 @@ bool ResampleKernelBase::Validate(const Params& p, const optional_params& o) con
     if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
         params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
         params.resampleType != ResampleType::CAFFE_BILINEAR_INTERP &&
-        params.resampleType != ResampleType::BILINEAR_INTERP)
+        params.resampleType != ResampleType::BILINEAR_INTERP &&
+        params.resampleType != ResampleType::LINEAR_ONNX)
         return false;
 
     return true;
