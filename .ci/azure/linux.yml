@@ -99,8 +99,8 @@ jobs:
       addToPath: false
       architecture: 'x64'
       githubToken: $(auth)
-      displayName: Setup Python 3.10
-      name: setupPython
+    displayName: Setup Python 3.10
+    name: setupPython
 
   - script: ls $(setupPython.pythonLocation)
     displayName: 'Check python 3.10'
