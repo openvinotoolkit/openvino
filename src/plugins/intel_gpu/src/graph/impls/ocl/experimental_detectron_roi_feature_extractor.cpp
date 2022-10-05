@@ -80,7 +80,8 @@ attach_experimental_detectron_roi_feature_extractor_impl::attach_experimental_de
         format::bfyx,
     };
 
-    implementation_map<experimental_detectron_roi_feature_extractor>::add(impl_types::ocl, experimental_detectron_roi_feature_extractor_impl::create, types, formats);
+    implementation_map<experimental_detectron_roi_feature_extractor>::add(impl_types::ocl,
+        experimental_detectron_roi_feature_extractor_impl::create, types, formats);
 }
 
 }  // namespace detail

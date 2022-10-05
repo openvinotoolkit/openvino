@@ -74,7 +74,8 @@ attach_experimental_detectron_generate_proposals_single_image_impl::attach_exper
         format::bfyx,
     };
 
-    implementation_map<experimental_detectron_generate_proposals_single_image>::add(impl_types::ocl, experimental_detectron_generate_proposals_single_image_impl::create, types, formats);
+    implementation_map<experimental_detectron_generate_proposals_single_image>::add(impl_types::ocl,
+        experimental_detectron_generate_proposals_single_image_impl::create, types, formats);
 }
 }  // namespace detail
 }  // namespace ocl

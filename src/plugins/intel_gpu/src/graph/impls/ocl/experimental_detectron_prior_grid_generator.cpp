@@ -61,7 +61,8 @@ attach_experimental_detectron_prior_grid_generator_impl::attach_experimental_det
         format::bfyx,
     };
 
-    implementation_map<experimental_detectron_prior_grid_generator>::add(impl_types::ocl, experimental_detectron_prior_grid_generator_impl::create, types, formats);
+    implementation_map<experimental_detectron_prior_grid_generator>::add(impl_types::ocl,
+        experimental_detectron_prior_grid_generator_impl::create, types, formats);
 }
 
 }  // namespace detail
