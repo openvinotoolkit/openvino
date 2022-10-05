@@ -28,7 +28,7 @@ try:
 
     pt_to_ov_type_map = {
         'float': OVType.f32,
-        'int': OVType.i64,
+        'int': OVType.i32,
         'torch.float32': OVType.f32,
         'torch.int32': OVType.i32
     }
@@ -52,6 +52,9 @@ try:
             #print(pt_module)
             #exit()
 
+        def free_decoders(self):
+            decoders.clear()
+        
         def inputs (self):
             return [x.unique() for x in self.pt_module.inputs()]
 
