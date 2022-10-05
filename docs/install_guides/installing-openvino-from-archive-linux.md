@@ -67,7 +67,7 @@ Next, you'll download the OpenVINO Runtime 2022.2 archive file from the [OpenVIN
 
    .. code-block:: sh
    
-      sudo wget https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/l_openvino_toolkit_ubuntu18_2022.2.0.7713.af16ea1d79a_x86_64.tgz -O openvino_2022.2.0.7713.tgz
+      sudo curl -L https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/l_openvino_toolkit_ubuntu18_2022.2.0.7713.af16ea1d79a_x86_64.tgz --output openvino_2022.2.0.7713.tgz
       sudo tar -xf openvino_2022.2.0.7713.tgz
       sudo mv l_openvino_toolkit_ubuntu18_2022.2.0.7713.af16ea1d79a_x86_64 openvino_2022.2.0.7713
       
