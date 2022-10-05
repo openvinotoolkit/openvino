@@ -41,7 +41,7 @@ With the OpenVINO™ 2022.2 release, you can download and use archive files to i
      * Note that OpenVINO is gradually phasing out support for Python 3.6. Python 3.7 - 3.9 are recommended.
 
   .. note::
-     To install Microsoft Visual Studio 2019, follow the `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`_. You can choose to download Community version. During installation in the **Workloads** tab, choose **Desktop development with C++**.
+     To install Microsoft Visual Studio 2019, follow the `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`_. You can choose to download the Community version. During installation in the **Workloads** tab, choose **Desktop development with C++**.
 
   .. note::
     You can either use `cmake<version>.msi` which is the installation wizard or `cmake<version>.zip` where you have to go into the `bin` folder and then manually add the path to environmental variables.
