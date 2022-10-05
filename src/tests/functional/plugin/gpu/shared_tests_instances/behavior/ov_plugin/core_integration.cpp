@@ -199,7 +199,7 @@ TEST_P(OVClassGetPropertyTest_GPU, GetMetricRangeForStreamsAndPrintNoThrow) {
 TEST_P(OVClassGetPropertyTest_GPU, GetMetricOptimalBatchSizeAndPrintNoThrow) {
     ov::Core ie;
 
-    unsigned int property;
+    unsigned int property = 0;
     ASSERT_NO_THROW(property = ie.get_property(target_device, ov::optimal_batch_size));
 
     std::cout << "OPTIMAL_BATCH_SIZE: " << property << std::endl;
@@ -260,7 +260,7 @@ TEST_P(OVClassGetPropertyTest_GPU, GetMetricCapabilitiesAndPrintNoThrow) {
 TEST_P(OVClassGetPropertyTest_GPU, GetMetricDeviceTotalMemSizeAndPrintNoThrow) {
     ov::Core ie;
 
-    uint64_t property;
+    uint64_t property = 0;
     ASSERT_NO_THROW(property = ie.get_property(target_device, ov::intel_gpu::device_total_mem_size));
 
     std::cout << "GPU_DEVICE_TOTAL_MEM_SIZE: " << property << std::endl;
@@ -355,7 +355,7 @@ TEST_P(OVClassGetPropertyTest_GPU, GetAndSetInferencePrecisionNoThrow) {
 TEST_P(OVClassGetPropertyTest_GPU, GetAndSetModelPriorityNoThrow) {
     ov::Core ie;
 
-    ov::hint::Priority defaultValue;
+    ov::hint::Priority defaultValue{};
     ASSERT_NO_THROW(defaultValue = ie.get_property(target_device, ov::hint::model_priority));
 
     std::cout << "Default PERF_COUNT: " << defaultValue << std::endl;
@@ -376,7 +376,7 @@ TEST_P(OVClassGetPropertyTest_GPU, GetAndSetModelPriorityNoThrow) {
 TEST_P(OVClassGetPropertyTest_GPU, GetAndSetQueuePriorityNoThrow) {
     ov::Core ie;
 
-    ov::hint::Priority defaultValue;
+    ov::hint::Priority defaultValue{};
     ASSERT_NO_THROW(defaultValue = ie.get_property(target_device, ov::intel_gpu::hint::queue_priority));
 
     std::cout << "Default GPU_QUEUE_PRIORITY: " << defaultValue << std::endl;
@@ -394,7 +394,7 @@ TEST_P(OVClassGetPropertyTest_GPU, GetAndSetQueuePriorityNoThrow) {
 TEST_P(OVClassGetPropertyTest_GPU, GetAndSetThrottleLevelNoThrow) {
     ov::Core ie;
 
-    ov::intel_gpu::hint::ThrottleLevel defaultValue;
+    ov::intel_gpu::hint::ThrottleLevel defaultValue{};
     ASSERT_NO_THROW(defaultValue = ie.get_property(target_device, ov::intel_gpu::hint::queue_throttle));
 
     std::cout << "Default GPU_QUEUE_THROTTLE: " << defaultValue << std::endl;
@@ -443,7 +443,7 @@ using OVClassGetMetricTest_GPU_OPTIMAL_BATCH_SIZE = OVClassBaseTestP;
 TEST_P(OVClassGetMetricTest_GPU_OPTIMAL_BATCH_SIZE, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::Core ie;
-    unsigned int p;
+    unsigned int p = 0;
 
     ov::AnyMap _options = {ov::hint::model(simpleNetwork)};
     ASSERT_NO_THROW(p = ie.get_property(target_device, ov::optimal_batch_size.name(), _options));
@@ -462,7 +462,7 @@ using OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_DEFAULT = OVClassBaseTestP;
 TEST_P(OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_DEFAULT, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::Core ie;
-    unsigned int p;
+    unsigned int p = 0;
 
     ov::AnyMap _options = {ov::hint::model(simpleNetwork)};
     ASSERT_NO_THROW(p = ie.get_property(target_device, ov::max_batch_size.name(), _options));
@@ -481,7 +481,7 @@ using OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM = OVClassBaseTes
 TEST_P(OVClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::Core ie;
-    unsigned int p;
+    unsigned int p = 0;
     auto exec_net1 = ie.compile_model(simpleNetwork, target_device);
 
     uint32_t n_streams = 2;

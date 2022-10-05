@@ -47,6 +47,8 @@ std::vector<layout> scatter_update_inst::calc_output_layouts(scatter_update_node
     return { layout{output_shape, output_type, output_format} };
 }
 
+template std::vector<layout> scatter_update_inst::calc_output_layouts<ov::PartialShape>(scatter_update_node const& node, const kernel_impl_params& impl_param);
+
 std::string scatter_update_inst::to_string(scatter_update_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();

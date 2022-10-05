@@ -12,12 +12,19 @@
 
 namespace LayerTestsDefinitions {
 
+ReduceMeanOperation::ReduceMeanOperation() : constantValues(), keepDims() { }
+
+ReduceMeanOperation::ReduceMeanOperation(const std::vector<int64_t>& constantValues, const bool keepDims) {
+    this->constantValues = constantValues;
+    this->keepDims = keepDims;
+}
+
 std::string ReduceMeanTransformation::getTestCaseName(const testing::TestParamInfo<ReduceMeanTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    ReduceMeanTransformationParam param;;
+    ReduceMeanTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
@@ -39,7 +46,7 @@ void ReduceMeanTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    ReduceMeanTransformationParam param;;
+    ReduceMeanTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
 
     function = ngraph::builder::subgraph::ReduceFunction::get<ngraph::opset1::ReduceMean>(

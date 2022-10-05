@@ -75,6 +75,8 @@ std::vector<layout> tile_inst::calc_output_layouts(tile_node const& /*node*/, co
     return { layout{output_shapes[0], output_type, output_format} };
 }
 
+template std::vector<layout> tile_inst::calc_output_layouts<ov::PartialShape>(tile_node const& node, const kernel_impl_params& impl_param);
+
 std::string tile_inst::to_string(tile_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();

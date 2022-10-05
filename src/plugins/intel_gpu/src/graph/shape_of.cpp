@@ -48,6 +48,8 @@ std::vector<layout> shape_of_inst::calc_output_layouts(shape_of_node const& /*no
     return { layout{output_shape, output_dt, format::bfyx} };
 }
 
+template std::vector<layout> shape_of_inst::calc_output_layouts<ov::PartialShape>(shape_of_node const& node, const kernel_impl_params& impl_param);
+
 std::string shape_of_inst::to_string(shape_of_node const& node) {
     auto node_info = node.desc_to_json();
     auto desc = node.get_primitive();

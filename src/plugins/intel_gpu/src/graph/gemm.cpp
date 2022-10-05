@@ -80,6 +80,8 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& /*node*/, co
     return { layout{output_shapes[0], output_type, input0_layout.format, prim->output_padding} };
 }
 
+template std::vector<layout> gemm_inst::calc_output_layouts<ov::PartialShape>(gemm_node const& node, const kernel_impl_params& impl_param);
+
 std::string gemm_inst::to_string(gemm_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cinttypes>
+
 #include "jitter.h"
 #include "tensor_type.h"
 #include <string>
@@ -11,7 +13,6 @@
 #include <quantize/quantize_kernel_params.h>
 #include <eltwise/eltwise_kernel_base.h>
 #include <activation/activation_kernel_base.h>
-#include <inttypes.h>
 
 namespace {
 class JitTerm {

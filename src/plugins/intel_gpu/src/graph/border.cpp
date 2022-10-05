@@ -85,6 +85,8 @@ std::vector<layout> border_inst::calc_output_layouts(border_node const& /*node*/
     return { layout{output_shapes[0], output_type, output_format} };
 }
 
+template std::vector<layout> border_inst::calc_output_layouts<ov::PartialShape>(border_node const& node, const kernel_impl_params& impl_param);
+
 std::string border_inst::to_string(border_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
