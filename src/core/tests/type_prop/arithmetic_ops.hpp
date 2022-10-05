@@ -143,18 +143,6 @@ TYPED_TEST_P(ArithmeticOperator, shape_inference_pdpd_doc_examples) {
         EXPECT_EQ(op->get_shape(), (Shape{2, 3, 4, 5}));
         EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
     }
-    // Error: Argument shapes are inconsistent.
-    // {
-    // auto A = std::make_shared<op::Parameter>(element::f32, Shape{2, 3, 4, 5});
-    // auto B = std::make_shared<op::Parameter>(element::f32, Shape{1, 3});
-
-    // const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 0);
-    // const auto op = std::make_shared<TypeParam>(A, B, autob);
-
-    // EXPECT_EQ(op->get_element_type(), element::f32);
-    // EXPECT_EQ(op->get_shape(), (Shape{2, 3, 4, 5}));
-    // EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
-    // }
     {
         auto A = std::make_shared<op::Parameter>(element::f32, Shape{2, 3, 4, 5});
         auto B = std::make_shared<op::Parameter>(element::f32, Shape{});
@@ -177,30 +165,6 @@ TYPED_TEST_P(ArithmeticOperator, shape_inference_pdpd_doc_examples) {
         EXPECT_EQ(op->get_shape(), (Shape{2, 3, 4, 5}));
         EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
     }
-    // // Error: Argument shapes are inconsistent.
-    // {
-    //     auto A = std::make_shared<op::Parameter>(element::f32, Shape{2, 3, 4, 5});
-    //     auto B = std::make_shared<op::Parameter>(element::f32, Shape{5});
-
-    //     const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD);
-    //     const auto op = std::make_shared<TypeParam>(A, B, autob);
-
-    //     EXPECT_EQ(op->get_element_type(), element::f32);
-    //     EXPECT_EQ(op->get_shape(), (Shape{2, 3, 4, 5}));
-    //     EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
-    // }
-    // // Error: Argument shapes are inconsistent.
-    // {
-    //     auto A = std::make_shared<op::Parameter>(element::f32, Shape{2, 3, 4, 5});
-    //     auto B = std::make_shared<op::Parameter>(element::f32, Shape{3, 1, 5});
-
-    //     const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 1);
-    //     const auto op = std::make_shared<TypeParam>(A, B, autob);
-
-    //     EXPECT_EQ(op->get_element_type(), element::f32);
-    //     EXPECT_EQ(op->get_shape(), (Shape{2, 3, 4, 5}));
-    //     EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
-    // }
 }
 
 TYPED_TEST_P(ArithmeticOperator, shape_inference_4D_x_4D_equal_pdpd_broadcast) {
@@ -214,83 +178,6 @@ TYPED_TEST_P(ArithmeticOperator, shape_inference_4D_x_4D_equal_pdpd_broadcast) {
     EXPECT_EQ(op->get_shape(), (Shape{8, 1, 6, 5}));
     EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
 }
-
-// // Error: Argument shapes are inconsistent.
-// TYPED_TEST_P(ArithmeticOperator, shape_inference_4D_x_4D_pdpd_broadcast) {
-//     auto A = std::make_shared<op::Parameter>(element::f32, Shape{8, 7, 6, 5});
-//     auto B = std::make_shared<op::Parameter>(element::f32, Shape{8, 1, 6, 5});
-
-//     const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD);
-//     const auto op = std::make_shared<TypeParam>(A, B, autob);
-
-//     EXPECT_EQ(op->get_element_type(), element::f32);
-//     EXPECT_EQ(op->get_shape(), (Shape{8, 7, 6, 5}));
-//     EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
-// }
-
-// // Error: Argument shapes are inconsistent.
-// TYPED_TEST_P(ArithmeticOperator, shape_inference_4D_x_3D_ax_default_pdpd_broadcast) {
-//     auto A = std::make_shared<op::Parameter>(element::f32, Shape{8, 7, 6, 5});
-//     auto B = std::make_shared<op::Parameter>(element::f32, Shape{7, 1, 5});
-
-//     const auto op = std::make_shared<TypeParam>(A, B, op::AutoBroadcastType::PDPD);
-
-//     EXPECT_EQ(op->get_element_type(), element::f32);
-//     EXPECT_EQ(op->get_shape(), (Shape{8, 7, 6, 5}));
-//     EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
-// }
-
-// // Error: Argument shapes are inconsistent.
-// TYPED_TEST_P(ArithmeticOperator, shape_inference_4D_x_3D_ax_1_pdpd_broadcast) {
-//     auto A = std::make_shared<op::Parameter>(element::f32, Shape{8, 7, 6, 5});
-//     auto B = std::make_shared<op::Parameter>(element::f32, Shape{7, 1, 5});
-
-//     const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 1);
-//     const auto op = std::make_shared<TypeParam>(A, B, autob);
-
-//     EXPECT_EQ(op->get_element_type(), element::f32);
-//     EXPECT_EQ(op->get_shape(), (Shape{8, 7, 6, 5}));
-//     EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
-// }
-
-// // Error: Argument shapes are inconsistent.
-// TYPED_TEST_P(ArithmeticOperator, shape_inference_4D_x_3D_ax_1_pdpd_bdir_broadcast) {
-//     auto A = std::make_shared<op::Parameter>(element::f32, Shape{8, 1, 6, 1});
-//     auto B = std::make_shared<op::Parameter>(element::f32, Shape{7, 1, 5});
-
-//     const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 1);
-//     const auto op = std::make_shared<TypeParam>(A, B, autob);
-
-//     EXPECT_EQ(op->get_element_type(), element::f32);
-//     EXPECT_EQ(op->get_shape(), (Shape{8, 7, 6, 5}));
-//     EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
-// }
-
-// // Error: Argument shapes are inconsistent.
-// TYPED_TEST_P(ArithmeticOperator, shape_inference_5D_x_2D_ax_2_pdpd_broadcast) {
-//     auto A = std::make_shared<op::Parameter>(element::f32, Shape{9, 8, 7, 6, 5});
-//     auto B = std::make_shared<op::Parameter>(element::f32, Shape{1, 6});
-
-//     const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 2);
-//     const auto op = std::make_shared<TypeParam>(A, B, autob);
-
-//     EXPECT_EQ(op->get_element_type(), element::f32);
-//     EXPECT_EQ(op->get_shape(), (Shape{9, 8, 7, 6, 5}));
-//     EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
-// }
-
-// // Error: Argument shapes are inconsistent.
-// TYPED_TEST_P(ArithmeticOperator, shape_inference_5D_x_3D_ax_1_pdpd_broadcast) {
-//     auto A = std::make_shared<op::Parameter>(element::f32, Shape{9, 1, 7, 6, 5});
-//     auto B = std::make_shared<op::Parameter>(element::f32, Shape{8, 1, 6});
-
-//     const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 1);
-//     const auto op = std::make_shared<TypeParam>(A, B, autob);
-
-//     EXPECT_EQ(op->get_element_type(), element::f32);
-//     EXPECT_EQ(op->get_shape(), (Shape{9, 8, 7, 6, 5}));
-//     EXPECT_EQ(op->get_autob().m_type, op::AutoBroadcastType::PDPD);
-// }
 
 TYPED_TEST_P(ArithmeticOperator, incompatible_element_types) {
     auto A = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 3, 3});
@@ -796,13 +683,7 @@ REGISTER_TYPED_TEST_SUITE_P(ArithmeticOperator,
                             shape_inference_3D_x_4D_numpy_broadcast,
                             shape_inference_4D_x_3D_numpy_broadcast,
                             shape_inference_pdpd_doc_examples,
-                            // shape_inference_4D_x_3D_ax_default_pdpd_broadcast,
-                            // shape_inference_4D_x_3D_ax_1_pdpd_broadcast,
-                            // shape_inference_4D_x_3D_ax_1_pdpd_bdir_broadcast,
                             shape_inference_4D_x_4D_equal_pdpd_broadcast,
-                            // shape_inference_4D_x_4D_pdpd_broadcast,
-                            // shape_inference_5D_x_2D_ax_2_pdpd_broadcast,
-                            // shape_inference_5D_x_3D_ax_1_pdpd_broadcast,
                             incompatible_element_types,
                             incompatible_boolean_type,
                             shape_inference_1D_x_1D_incompatible,
