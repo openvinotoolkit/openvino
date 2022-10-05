@@ -28,20 +28,10 @@ namespace intel_cpu {
 struct jit_snippets_call_args {
     const void *src_ptrs[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
     void *dst_ptrs[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
-    int64_t scheduler_offsets[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
-    size_t scheduler_work_amounts[SNIPPETS_MAX_TILE_RANK] = {};
-    int64_t data_offsets[SNIPPETS_MAX_SNIPPETS_DIMS * SNIPPETS_MAX_HARNESS_DIMS] = {};
-    float* broadcasting_scratchpad = nullptr;
-    bool broadcasting_mask[SNIPPETS_MAX_SNIPPETS_DIMS] = {}; // bit is set if broadcasting over this io takes place
-    int64_t vector_tile_increments[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
-    int64_t scalar_tile_increments[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
 };
 
 struct jit_snippets_compile_args {
-    bool is_static = true;
     std::vector<size_t> master_shape{};
-    int64_t scheduler_offsets[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
-    size_t scheduler_work_amounts[SNIPPETS_MAX_TILE_RANK] = {};
     int64_t data_offsets[SNIPPETS_MAX_SNIPPETS_DIMS * SNIPPETS_MAX_HARNESS_DIMS] = {};
 };
 ///
@@ -104,101 +94,6 @@ private:
     std::vector<size_t> gp_regs_used;
     std::vector<size_t> vec_regs_pool;
 };
-///
-/// \brief  TileSchedulerEmitter contains Tiles to be executed (presently vector and scalar). It calculates data offsets
-/// and work amounts, performs data pointer decrements if necessary. It also performs some Tile optimizations: scalar/vector
-/// tiles are emitted only if necessary; Tile body could be emitted directly, if only one Tile evaluation is required.
-///
-/// \param      in[0]      The number of the node inputs
-/// \param      in[1]      The number of the node outputs
-/// \param      in[2]      The number of elements that fits into vector register
-///
-
-class TileSchedulerEmitter : public jit_container_emitter {
-public:
-    TileSchedulerEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                         const std::shared_ptr<ov::Node>& n);
-
-    size_t get_inputs_num() const override {return 0;}
-    void emit_code(const std::vector<size_t> &in,
-                   const std::vector<size_t> &out,
-                   const std::vector<size_t> &pool,
-                   const std::vector<size_t> &gpr) const override;
-
-private:
-    void validate_arguments(const std::vector<size_t> &in,
-                            const std::vector<size_t> &out,
-                            const std::vector<size_t> &pool,
-                            const std::vector<size_t> &gpr) const override;
-    void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
-
-    void emit_static_tiles(const Reg64&, const std::vector<Reg64>&, size_t, const std::vector<size_t>& , const std::vector<size_t>&) const;
-
-    void emit_static_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const;
-
-    void emit_dynamic_impl(const std::vector<size_t>& in,
-                          const std::vector<size_t>& out,
-                          const std::vector<size_t>& pool,
-                          const std::vector<size_t>& gpr,
-                          const ov::intel_cpu::emitter_context *emit_context) const;
-
-    jit_snippets_compile_args jcp;
-};
-
-///
-/// \brief    Tile is designed to organize loop over the input and output data. It is essentially a for(...) loop:
-/// it performs operations specified by enclosed emitters, advances iteration counters
-/// and breaks when necessary.
-///
-/// \param      in[0]    The number of input entities (or scheduler counts) processed during one iteration of the tile.
-///  It is expected to be 1 for outer or scalar tiles and vlen for vector tiles.
-class TileEmitter : public jit_container_emitter {
-public:
-    TileEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
-
-    size_t get_inputs_num() const override {return 0;}
-    std::vector<AllocatedEmitter>& get_nested_code();
-    void emit_code(const std::vector<size_t> &in,
-                   const std::vector<size_t> &out,
-                   const std::vector<size_t> &pool,
-                   const std::vector<size_t> &gpr) const override;
-
-    void emit_body(const std::vector<size_t>& vec_pool, const std::vector<size_t>& gpr_pool) const;
-    void emit_ptr_increments_static(const std::vector<Reg64>& data_ptr_regs) const;
-    void emit_ptr_increments_dynamic(const Reg64& reg_const_params, const std::vector<Reg64>& data_ptr_regs) const;
-    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-    void set_increments_and_broadcast_inputs(const Reg64& reg_const_params, const std::vector<Reg64> &data_ptr_regs) const;
-    void cleanup_broadcasting(const Reg64& reg_const_params, const std::vector<Reg64> &data_ptr_regs) const;
-
-private:
-    void validate_arguments(const std::vector<size_t> &in,
-                            const std::vector<size_t> &out,
-                            const std::vector<size_t> &pool,
-                            const std::vector<size_t> &gpr) const override;
-    void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
-
-    size_t num_inputs = 0;
-    size_t num_outputs = 0;
-    std::vector<size_t> io_dims {};
-    std::vector<size_t> io_data_size {};
-    size_t increment = 0;
-    std::vector<size_t> static_dims_idx {}; // non-zero io_dims indexes == dims that are not broadcasted
-    std::vector<size_t> dynamic_dims_idx {}; // non-zero io_dims indexes == dims that are not broadcasted
-    mutable std::vector<Label> dynamic_increments;
-    mutable std::vector<Label> dynamic_broadcasting;
-};
 
 class TileBeginEmitter : public jit_emitter {
 public:
@@ -207,7 +102,7 @@ public:
                    const std::vector<size_t> &out,
                    const std::vector<size_t> &pool,
                    const std::vector<size_t> &gpr) const override;
-    // todo: why do we need it at all?
+    // todo: it is purely virtual in the base class, but do we need it?
     size_t get_inputs_num() const override {return 0;}
 
 private:
@@ -221,21 +116,11 @@ private:
                    const std::vector<size_t>& gpr,
                    const ov::intel_cpu::emitter_context *emit_context) const override;
 
-//    mutable const uint8_t** begin_address_ptr;
-//    std::vector<size_t> &input_regs;
     std::shared_ptr<ngraph::snippets::op::TileBegin> tile_begin;
-    size_t num_inputs = 0;
-    size_t num_outputs = 0;
     bool reuse_work_amount_reg = false;
-    std::vector<size_t> io_dims {};
-    std::vector<size_t> io_data_size {};
-    size_t increment = 0;
+    size_t num_inputs = 0;
     bool evaluate_once = false;
     size_t work_amount = 0; // need to store work_amount explicitly, since two tiles can work on the same dim (e.g. vector + scalar)
-    std::vector<size_t> static_dims_idx {}; // non-zero io_dims indexes == dims that are not broadcasted
-    std::vector<size_t> dynamic_dims_idx {}; // non-zero io_dims indexes == dims that are not broadcasted
-    mutable std::vector<Label> dynamic_increments;
-    mutable std::vector<Label> dynamic_broadcasting;
 };
 
 class TileEndEmitter : public jit_emitter {
@@ -245,7 +130,7 @@ public:
                    const std::vector<size_t> &out,
                    const std::vector<size_t> &pool,
                    const std::vector<size_t> &gpr) const override;
-    // todo: why do we need it at all?
+    // todo: it is purely virtual in the base class, but do we need it?
     size_t get_inputs_num() const override {return 0;}
 
 private:
@@ -259,15 +144,12 @@ private:
                    const std::vector<size_t>& pool,
                    const std::vector<size_t>& gpr,
                    const ov::intel_cpu::emitter_context *emit_context) const override;
-//    const uint8_t** begin_address_ptr;
-//    std::vector<size_t> &tile_begin_input_regs;
+
     std::shared_ptr<ngraph::snippets::op::TileBegin> tile_begin;
     std::shared_ptr<ngraph::snippets::op::TileEnd> tile_end;
-//    std::shared_ptr<ngraph::snippets::op::TileBegin> ti;
 
     size_t num_inputs = 0;
     size_t num_outputs = 0;
-    std::vector<size_t> io_dims {};
     std::vector<size_t> io_data_size {};
     size_t increment = 0;
     size_t work_amount = 0;
@@ -275,10 +157,6 @@ private:
     bool reuse_work_amount_reg = false;
     std::vector<bool> apply_increments;
     std::vector<int64_t> finalization_offsets;
-    std::vector<size_t> static_dims_idx {}; // non-zero io_dims indexes == dims that are not broadcasted
-    std::vector<size_t> dynamic_dims_idx {}; // non-zero io_dims indexes == dims that are not broadcasted
-    mutable std::vector<Label> dynamic_increments;
-    mutable std::vector<Label> dynamic_broadcasting;
 };
 
 
