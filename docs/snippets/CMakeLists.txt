@@ -77,7 +77,7 @@ list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide2.c
 # create a static library
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
-target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../template_extension/new/")
+target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/template_extension/new/")
 
 if(OpenCL_FOUND AND OpenCL_HEADERS)
     target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCL_LIB})
