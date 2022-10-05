@@ -25,17 +25,22 @@ def parse_arguments():
 
     return parser.parse_args()
 
+def check_file(path: Path):
+    if not path.is_file:
+        logger.error(f"File {path} is not exist!")
+        exit(-1)
+
 
 def create_hash(in_dir_path: Path):
     core = Core()
     models = in_dir_path.rglob("*.xml")
     for model_path in models:
-        if not model_path.is_file:
-            logger.error(f"File {model_path} is not exist!")
-            exit(-1)
-
         bin_path = model_path.with_suffix(BIN_EXTENSION)
         meta_path = model_path.with_suffix(META_EXTENSION)
+
+        check_file(model_path)
+        check_file(bin_path)
+        check_file(meta_path)
 
         str_to_hash = str()
         model = core.read_model(model_path)
@@ -61,6 +66,9 @@ def create_hash(in_dir_path: Path):
 if __name__=="__main__":
     args = parse_arguments()
     for in_dir in args.input_dir:
+        if not Path(in_dir).is_dir:
+            logger.error(f"Directory {in_dir} is not exist!")
+            exit(-1)
         logger.info(f"Starting to rename models in {in_dir}")
         create_hash(Path(in_dir))
     logger.info("The run is successfully completed")
