@@ -725,12 +725,12 @@ void auto_pad_resolving(ov::Node* node) {
     if (auto op = as_type<opset1::Convolution>(node)) {
         if (pad_agnostic_types.count(op->get_auto_pad())) {
             op->set_pads_begin(CoordinateDiff(op->get_pads_begin().size(), 0));
-            op->set_adding_above(CoordinateDiff(op->get_pads_end().size(), 0));
+            op->set_pads_end(CoordinateDiff(op->get_pads_end().size(), 0));
         }
     } else if (auto op = as_type<opset1::GroupConvolution>(node)) {
         if (pad_agnostic_types.count(op->get_auto_pad())) {
             op->set_pads_begin(CoordinateDiff(op->get_pads_begin().size(), 0));
-            op->set_adding_above(CoordinateDiff(op->get_pads_end().size(), 0));
+            op->set_pads_end(CoordinateDiff(op->get_pads_end().size(), 0));
         }
     } else if (auto op = as_type<opset1::ConvolutionBackpropData>(node)) {
         if (pad_agnostic_types.count(op->get_auto_pad())) {
