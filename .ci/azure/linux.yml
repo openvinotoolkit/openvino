@@ -90,7 +90,7 @@ jobs:
     TMP_DIR: /mnt/tmp
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
-    #GITHUB_TOKEN: $(auth)
+    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/3.10.7/lib:$LD_LIBRARY_PATH
 
   steps:
   - task: UsePythonVersion@0
