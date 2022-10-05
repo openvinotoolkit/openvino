@@ -92,7 +92,7 @@ You must update several environment variables before you can compile and run Ope
 
 > **NOTE**: If you see an error indicating Python is not installed, Python may not be added to the PATH environment variable (as described [here](https://docs.python.org/3/using/windows.html#finding-the-python-executable)). Check your system environment variables, and add Python if necessary.
 
-The environment variables are set. Next, you can download some additional tools.
+The environment variables are set. Continue to the next section if you want to download any additional components.
 
 ### <a name="model-optimizer">Step 3 (Optional): Install Additional Components</a>
 
