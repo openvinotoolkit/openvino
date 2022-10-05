@@ -2,9 +2,9 @@
 
 To infer models with OpenVINO™ Runtime, you usually need to perform the following steps in the application pipeline:
 1. [Create a Core object](@ref create_core).
-   1.1. [(Optional) Load extensions/](@ref load_extensions)
+   - 1.1. [(Optional) Load extensions](@ref load_extensions)
 2. [Read a model from a drive](@ref read_model).
-   2.1. [(Optional) Perform model preprocessing](@ref perform_preprocessing).
+   - 2.1. [(Optional) Perform model preprocessing](@ref perform_preprocessing).
 3. [Load the model to the device](@ref load_model_to_device).
 4. [Create an inference request](@ref create_inference_request).
 5. [Fill input tensors with data](@ref fill_tensor).
@@ -44,7 +44,7 @@ Based on the steps, the following code demostrates how to change the application
 
 @endsphinxtabset
 
-@acnhor load_extensions
+@anchor load_extensions
 ### 1.1 (Optional) Load Extensions
 
 To load a model with custom operations, you need to add extensions for these operations. It is highly recommended to use [OpenVINO Extensibility API](@ref openvino_docs_Extensibility_UG_Intro) to write extensions. However, you can also load the old extensions to the new OpenVINO™ Runtime:
