@@ -13,7 +13,9 @@ To infer models with OpenVINO™ Runtime, you usually need to perform the follow
 
 Based on the steps, the following code demostrates how to change the application code to migrate to API 2.0.
 
-## <a name="create-core">1. Create a Core Object</a>
+<a name="create-core"></a>
+
+## 1. Create a Core Object
 
 **Inference Engine API**
 
@@ -43,7 +45,9 @@ Based on the steps, the following code demostrates how to change the application
 
 @endsphinxtabset
 
-### <a name="load-extensions">1.1 (Optional) Load Extensions</a>
+<a name="load-extensions"> </a>
+
+### 1.1 (Optional) Load Extensions
 
 To load a model with custom operations, you need to add extensions for these operations. It is highly recommended to use [OpenVINO Extensibility API](@ref openvino_docs_Extensibility_UG_Intro) to write extensions. However, you can also load the old extensions to the new OpenVINO™ Runtime:
 
@@ -75,7 +79,9 @@ To load a model with custom operations, you need to add extensions for these ope
 
 @endsphinxtabset
 
-## <a name="read-model">2. Read a Model from a Drive</a>
+<a name="read-model"> </a>
+
+## 2. Read a Model from a Drive
 
 **Inference Engine API**
 
@@ -109,11 +115,15 @@ Reading a model has the same structure as the example in the [model creation mig
 
 You can combine reading and compiling a model into a single call `ov::Core::compile_model(filename, devicename)`.
 
-### <a name="perform-preprocessing">2.1 (Optional) Perform Model Preprocessing</a>
+<a name="perform-preprocessing"></a>
+
+### 2.1 (Optional) Perform Model Preprocessing
 
 When the application input data does not perfectly match the model input format, preprocessing may be necessary. See [preprocessing in API 2.0](@ref openvino_2_0_preprocessing) for more details.
 
-## <a name="load-model-to-device">3. Load the Model to the Device</a>
+<a name="load-model-to-device"></a>
+
+## 3. Load the Model to the Device
 
 **Inference Engine API**
 
@@ -145,7 +155,9 @@ When the application input data does not perfectly match the model input format,
 
 If you need to configure devices with additional parameters for OpenVINO Runtime, refer to [Configuring Devices](@ref openvino_2_0_configure_devices).
 
-## <a name="create-inference-request">4. Create an Inference Request</a>
+<a name="create-inference-request"></a>
+
+## 4. Create an Inference Request
 
 **Inference Engine API**
 
@@ -175,7 +187,9 @@ If you need to configure devices with additional parameters for OpenVINO Runtime
 
 @endsphinxtabset
 
-## <a name="fill-tensor">5. Fill Input Tensors with Data</a>
+<a name="fill-tensor"></a>
+
+## 5. Fill Input Tensors with Data
 
 **Inference Engine API**
 
@@ -321,7 +335,9 @@ API 2.0 fills inputs with data of the `I64` precision (aligned with the original
 
 @endsphinxtabset
 
-## <a name="start-inference">6. Start Inference</a>
+<a name="start-inference"></a>
+
+## 6. Start Inference
 
 **Inference Engine API**
 
@@ -399,7 +415,9 @@ API 2.0 fills inputs with data of the `I64` precision (aligned with the original
 
 @endsphinxtabset
 
-## <a name="process-results">7. Process the Inference Results</a>
+<a name="process-results"></a>
+
+## 7. Process the Inference Results
 
 **Inference Engine API**
 
