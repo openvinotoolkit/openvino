@@ -113,7 +113,7 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_f
         auto transpose0 = std::make_shared<ov::opset9::Transpose>(X, ng_order0);
 
         NodePtr in_op = transpose0;
-        for (size_t i =  0; i < num_unary_ops; ++i) {
+        for (size_t i = 0; i < num_unary_ops; ++i) {
             in_op = unary_factory->create(in_op);
         }
 
