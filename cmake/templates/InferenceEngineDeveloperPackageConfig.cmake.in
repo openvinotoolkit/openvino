@@ -85,6 +85,10 @@ endif()
 #
 # Extra Compile Flags
 #
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # Disable warning as error for private components
+    set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
+endif()
 
 if(NOT MSVC)
     ie_add_compiler_flags(-Wno-error=unused-variable)
