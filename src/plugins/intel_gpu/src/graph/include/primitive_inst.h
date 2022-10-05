@@ -116,7 +116,7 @@ public:
     program_node const& get_node() const { return _node; }
     network& get_network() const { return _network; }
     uint32_t get_network_id() const;
-    virtual void set_output_memory(memory::ptr mem, bool check = true);
+    virtual void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
     void check_memory_to_set(const memory& mem, const layout& layout) const;
     const std::list<const cldnn::program_node *>& get_users() const { return _node.get_users(); }
 
@@ -217,7 +217,6 @@ protected:
     // manner) in general - this member is introduced to relax logical connection between primitives which have to be
     // executed and memories which are used by this primitive
     std::vector<std::shared_ptr<primitive_inst>> _exec_deps;
-    std::vector<std::pair<std::shared_ptr<primitive_inst>, int>> _exec_deps_new;
 
     // This is sub-network generated on demand to execute unfused primitives sequence instead of single fused primitive
     // Needed for dynamic path only, as fusion in some cases may be illegal, but it can't be checked on program build phase,
@@ -244,8 +243,6 @@ protected:
     std::vector<memory::ptr> allocate_outputs();
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::shared_ptr<primitive_inst>> const& mem_deps);
-    static std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> build_exec_deps_new(
-        std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> const& mem_deps);
 
     // event function called by primitive_inst::execute after checking if primitive should rerun and before calling
     // _impl->execute() mainly for reshape (to update output memory if reshape_node.is_in_place() == true)

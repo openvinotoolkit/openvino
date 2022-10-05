@@ -46,6 +46,7 @@ void input_layout_inst::set_data(memory::ptr mem) {
     check_memory_to_set(*mem, ol);
 
     if (mem->is_allocated_by(get_network().get_engine())) {
+        OPENVINO_ASSERT(!_outputs.empty(), "[GPU] Can't set data for empty input memory");
         _outputs[0] = mem;
     } else {
         mem_lock<char, mem_lock_type::read> src(mem, get_network().get_stream());
@@ -58,7 +59,7 @@ void input_layout_inst::set_data(memory::ptr mem) {
 }
 
 void input_layout_inst::update_shape() {
-    OPENVINO_ASSERT(_outputs[0] != nullptr, "[GPU] input memory is not set");
+    OPENVINO_ASSERT(!_outputs.empty() && _outputs[0] != nullptr, "[GPU] input memory is not set");
     auto mem_layout = _outputs[0]->get_layout();
     if (_impl_params->output_layout != mem_layout) {
         set_shape_change();

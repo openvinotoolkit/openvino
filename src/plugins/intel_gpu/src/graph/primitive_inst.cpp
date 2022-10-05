@@ -122,14 +122,12 @@ void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout
     }
 }
 
-void primitive_inst::set_output_memory(memory::ptr mem_new, bool check) {
+void primitive_inst::set_output_memory(memory::ptr mem_new, bool check, size_t idx) {
     auto& eng = _network.get_engine();
     // skip all the buzz if no action actually required
-    bool all_same_buffer = true;
-    for (const auto& output : _outputs) {
-        all_same_buffer &= (output && eng.is_the_same_buffer(*mem_new, *output));
+    if (_outputs[idx] && eng.is_the_same_buffer(*mem_new, *_outputs[idx])) {
+        return;
     }
-    if (all_same_buffer) return;
 
     auto ol = _node.get_output_layout();
 
@@ -137,9 +135,9 @@ void primitive_inst::set_output_memory(memory::ptr mem_new, bool check) {
         check_memory_to_set(*mem_new, ol);
 
     if (_node.is_constant()) {
-        mem_new->copy_from(_network.get_stream(), *_outputs[0]);
+        mem_new->copy_from(_network.get_stream(), *_outputs[idx]);
     } else {
-        _outputs[0] = mem_new;
+        _outputs[idx] = mem_new;
     }
 }
 
@@ -434,7 +432,6 @@ void primitive_inst::build_deps() {
     }
     if (_deps_new.empty() && !_node.get_dependencies_new().empty()) {
         _deps_new = _network.get_primitives(_node.get_dependencies_new());
-        _exec_deps_new = build_exec_deps_new(_deps_new);
     }
 }
 
@@ -723,17 +720,6 @@ std::vector<std::shared_ptr<primitive_inst>> primitive_inst::build_exec_deps(
     exec_deps.reserve(deps.size());
     for (auto& dep : deps)
         if (dep->get_impl() != nullptr || dep->is_dynamic())
-            exec_deps.push_back(dep);
-
-    return exec_deps;
-}
-
-std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> primitive_inst::build_exec_deps_new(
-    std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> const& deps) {
-    std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> exec_deps;
-    exec_deps.reserve(deps.size());
-    for (auto& dep : deps)
-        if (dep.first->get_impl() != nullptr || dep.first->is_dynamic())
             exec_deps.push_back(dep);
 
     return exec_deps;

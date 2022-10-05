@@ -62,7 +62,7 @@ public:
               const padding& output_padding = padding(),
               const optional_data_type output_data_type = optional_data_type(),
               const std::vector<input_info>& input_new = {},
-              const int num_outputs = 1)
+              const size_t num_outputs = 1)
         : type(type),
           id(id),
           output_padding(output_padding),
@@ -147,7 +147,7 @@ public:
     /// @brief List of input info containing id and output index of input primitive.
     input_info_arr input_new;
 
-    int num_outputs;
+    size_t num_outputs;
 
 protected:
     virtual std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const { return {}; }
@@ -165,7 +165,7 @@ protected:
                             const padding& output_padding = padding(),
                             optional_data_type output_data_type = optional_data_type(),
                             const std::vector<input_info>& input_new = {},
-                            const int num_outputs = 1)
+                            const size_t num_outputs = 1)
         : primitive(PType::type_id(), id, input, output_padding, output_data_type, input_new, num_outputs) {}
 };
 
