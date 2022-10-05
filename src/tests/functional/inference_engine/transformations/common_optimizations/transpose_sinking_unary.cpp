@@ -132,7 +132,7 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_fa
         return std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
 }
 
-std::shared_ptr<ov::Model> CreateFunctionTranspose2Consumers(UnaryFactoryPtr unary_factory, size_t num_unary_ops) {
+std::shared_ptr<ov::Model> CreateFunctionTransposeMultConsumers(UnaryFactoryPtr unary_factory, size_t num_unary_ops) {
         ov::Shape input_shape{1, 96, 55, 55};
         auto input_type = ov::element::f32;
 
@@ -218,5 +218,5 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackward2ConsumersTestSuite, Trans
                          ::testing::Combine(::testing::ValuesIn(unary_factories),
                                             ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingUnaryBackward>()),
                                             ::testing::ValuesIn(unary_operations_numbers),
-                                            ::testing::Values(CreateFunctionTranspose2Consumers),
-                                            ::testing::Values(CreateFunctionTranspose2Consumers)));
+                                            ::testing::Values(CreateFunctionTransposeMultConsumers),
+                                            ::testing::Values(CreateFunctionTransposeMultConsumers)));
