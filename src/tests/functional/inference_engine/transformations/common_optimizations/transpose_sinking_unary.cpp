@@ -108,7 +108,7 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_f
         auto transpose0 = std::make_shared<ov::opset9::Transpose>(X, ng_order0);
 
         NodePtr in_op = transpose0;
-        for (int i = 0; i < num_unary_ops; ++i) {
+        for (size_t i =  0; i < num_unary_ops; ++i) {
             in_op = unary_factory->create(in_op);
         }
 
@@ -122,7 +122,7 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_fa
         auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
         NodePtr in_op = X;
-        for (int i = 0; i < num_unary_ops; ++i) {
+        for (size_t i =  0; i < num_unary_ops; ++i) {
             in_op = unary_factory->create(in_op);
         }
 
@@ -139,7 +139,7 @@ std::shared_ptr<ov::Model> CreateFunctionTranspose2Consumers(UnaryFactoryPtr una
         auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
         NodePtr in_op = X;
-        for (int i = 0; i < num_unary_ops; ++i) {
+        for (size_t i =  0; i < num_unary_ops; ++i) {
             in_op = unary_factory->create(in_op);
         }
 
