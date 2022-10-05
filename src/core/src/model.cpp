@@ -267,13 +267,8 @@ void ov::Model::validate_nodes_and_infer_types() const {
 }
 
 std::vector<shared_ptr<ov::Node>> ov::Model::get_ordered_ops() const {
-<<<<<<< HEAD
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Model::get_ordered_ops");
-    lock_guard<mutex> lock(m_model_mutex);
-=======
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::get_ordered_ops");
-    lock_guard<mutex> lock(m_topological_sort_mutex);
->>>>>>> upstream/master
+    lock_guard<mutex> lock(m_model_mutex);
 
     NodeVector nodes;
     if (m_shared_rt_info->get_use_topological_cache()) {
