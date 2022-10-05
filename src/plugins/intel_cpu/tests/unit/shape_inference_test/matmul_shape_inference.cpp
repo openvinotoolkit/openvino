@@ -37,23 +37,20 @@ protected:
     }
 
     void set_exp_shape() {
-        if (a_shape.size() > 1 && b_shape.size() > 1)
-        {
-        std::transform(a_shape.cbegin(),
-                       a_shape.cend() - 2,
-                       b_shape.cbegin(),
-                       std::back_inserter(exp_shape),
-                       [](const StaticDimension& a, const StaticDimension& b) {
-                           return std::max(a.get_length(), b.get_length());
-                       });
-        exp_shape.push_back(*std::next(a_shape.rbegin()));
-        exp_shape.push_back(b_shape.back());
-        }
-        else if (a_shape.size() == 1 &&  b_shape.size() > 1){
+        if (a_shape.size() > 1 && b_shape.size() > 1) {
+            std::transform(a_shape.cbegin(),
+                           a_shape.cend() - 2,
+                           b_shape.cbegin(),
+                           std::back_inserter(exp_shape),
+                           [](const StaticDimension& a, const StaticDimension& b) {
+                               return std::max(a.get_length(), b.get_length());
+                           });
+            exp_shape.push_back(*std::next(a_shape.rbegin()));
+            exp_shape.push_back(b_shape.back());
+        } else if (a_shape.size() == 1 && b_shape.size() > 1) {
             exp_shape = b_shape;
             exp_shape.erase(std::prev(exp_shape.end(), 2));
-        }
-        else if(b_shape.size() == 1 &&  a_shape.size() > 1){
+        } else if (b_shape.size() == 1 && a_shape.size() > 1) {
             exp_shape = a_shape;
             exp_shape.erase(std::prev(exp_shape.end()));
         }
@@ -61,7 +58,7 @@ protected:
 
     static StaticShape make_transpose_input(const StaticShape& in) {
         StaticShape out(in);
-        if (out.size() > 1){
+        if (out.size() > 1) {
             std::iter_swap(out.rbegin(), std::next(out.rbegin()));
         }
         return out;
@@ -73,17 +70,16 @@ protected:
 /** \brief Use transpose order -> output shape dimensions shall be as transpose order. */
 INSTANTIATE_TEST_SUITE_P(StaticShapeInference,
                          MatMulTest,
-                         Values(
-                             make_tuple(StaticShape({1}), StaticShape({1})),
-                             make_tuple(StaticShape({1}), StaticShape({1, 3})),
-                             make_tuple(StaticShape({1}), StaticShape({1, 1, 3})),
-                             make_tuple(StaticShape({3, 1}), StaticShape({1})),
-                             make_tuple(StaticShape({3, 2, 1}), StaticShape({1})),
-                             make_tuple(StaticShape({3}), StaticShape({3})),
-                             make_tuple(StaticShape({5, 2}), StaticShape({2, 6})),
-                             make_tuple(StaticShape({2,1, 2}), StaticShape({2, 6})),
-                             make_tuple(StaticShape({10, 8, 9, 2}), StaticShape({10, 8, 2, 8})),
-                             make_tuple(StaticShape({3,1, 4, 3, 4}), StaticShape({3,2, 1, 4, 1}))),
+                         Values(make_tuple(StaticShape({1}), StaticShape({1})),
+                                make_tuple(StaticShape({1}), StaticShape({1, 3})),
+                                make_tuple(StaticShape({1}), StaticShape({1, 1, 3})),
+                                make_tuple(StaticShape({3, 1}), StaticShape({1})),
+                                make_tuple(StaticShape({3, 2, 1}), StaticShape({1})),
+                                make_tuple(StaticShape({3}), StaticShape({3})),
+                                make_tuple(StaticShape({5, 2}), StaticShape({2, 6})),
+                                make_tuple(StaticShape({2, 1, 2}), StaticShape({2, 6})),
+                                make_tuple(StaticShape({10, 8, 9, 2}), StaticShape({10, 8, 2, 8})),
+                                make_tuple(StaticShape({3, 1, 4, 3, 4}), StaticShape({3, 2, 1, 4, 1}))),
                          PrintToStringParamName());
 
 TEST_P(MatMulTest, no_input_transpose) {
