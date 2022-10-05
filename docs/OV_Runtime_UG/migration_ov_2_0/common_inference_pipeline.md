@@ -477,8 +477,8 @@ The Inference Engine API processes outputs as they are of the `I32` precision (*
 
 API 2.0 processes outputs as they are of:
 
-- the `I32` precision (**not** aligned with the original model) for OpenVINO IR v10 models, to match the [old behavior](@ref openvino_2_0_transition_guide).
-- the `I64` precision (aligned with the original model) for OpenVINO IR v11, ONNX, ov::Model and PaddlePaddle models, to match the [new behavior](@ref openvino_2_0_transition_guide).
+- the `I32` precision (**not** aligned with the original model) for OpenVINO IR v10 models, to match the [old behavior](@ref differences_api20_ie).
+- the `I64` precision (aligned with the original model) for OpenVINO IR v11, ONNX, ov::Model and PaddlePaddle models, to match the [new behavior](@ref differences_api20_ie).
 
 @sphinxtabset
 
