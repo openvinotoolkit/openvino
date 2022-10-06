@@ -352,23 +352,6 @@ protected:
         });
         return labels;
     }
-
-    void set_labels(const vector<size_t>& labels, PartialShape& p_shape) {
-        ASSERT_EQ(labels.size(), p_shape.size());
-        auto label_it = labels.begin();
-
-        std::for_each(p_shape.begin(), p_shape.end(), [&label_it](Dimension& dim) {
-            ov::DimensionTracker::set_label(dim, *label_it++);
-        });
-    }
-
-    vector<size_t> get_labels(const PartialShape& p_shape) {
-        vector<size_t> labels;
-        transform(p_shape.cbegin(), p_shape.cend(), back_inserter(labels), [](const Dimension& dim) {
-            return ov::DimensionTracker::get_label(dim);
-        });
-        return labels;
-    }
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -427,11 +410,11 @@ TEST_P(TransposeTest, propagate_labels) {
     const auto labels = make_seq_labels(first_label, transpose_order.size());
     const auto exp_labels = make_seq_labels_by_order(first_label, transpose_order);
 
-    set_labels(labels, input_p_shape);
+    set_shape_labels(input_p_shape, labels);
 
     const auto input = make_shared<op::Parameter>(exp_type, input_p_shape);
     const auto order = op::Constant::create(element::i64, Shape{transpose_order.size()}, transpose_order);
     const auto output = make_shared<op::Transpose>(input, order);
 
-    ASSERT_EQ(get_labels(output->get_output_partial_shape(op::Transpose::ARG_T)), exp_labels);
+    ASSERT_EQ(get_shape_labels(output->get_output_partial_shape(op::Transpose::ARG_T)), exp_labels);
 }
