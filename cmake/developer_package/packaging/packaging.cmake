@@ -128,6 +128,10 @@ if(CPACK_GENERATOR STREQUAL "NSIS")
     include(packaging/nsis)
 endif()
 
+if(CPACK_GENERATOR STREQUAL "CONDA-FORGE")
+    include(packaging/conda-forge)
+endif()
+
 macro(ie_cpack)
     if(NOT DEFINED CPACK_GENERATOR)
         set(CPACK_GENERATOR "TGZ")
