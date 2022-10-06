@@ -11,14 +11,6 @@ The operator can either work in elementwise mode searching for unique values in 
 
 **Attributes**:
 
-* *axis*
-
-  * **Description**: *axis* specifies the input tensor's axis along which the subtensors are processed. When the axis is set to the maximum value of the underlying integer type it means that the input tensor should be processed elementwise (the operator then looks for unique individual numbers in the whole flattened tensor).
-  * **Range of values**: The accepted range of values is `[-R, R-1]` where `R` is the rank of the input tensor.
-  * **Type**: int
-  * **Default value**: MAX_INT
-  * **Required**: *no*
-
 * *sorted*
 
   * **Description**: controls whether the unique elements in the output tensor are sorted in ascending order.
