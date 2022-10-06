@@ -115,7 +115,7 @@ endif()
 
 if(ENABLE_TEMPLATE)
     ov_coverage_extract(INPUT "openvino" OUTPUT "template_plugin"
-                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/docs/template_plugin/*")
+                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/template/*")
     ov_coverage_genhtml(INFO_FILE "template_plugin"
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
