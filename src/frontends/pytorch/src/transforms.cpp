@@ -25,19 +25,21 @@ std::tuple<bool, Any> is_list_of_tensors(const descriptor::Tensor& tensor) {
     if (tensor.get_element_type() != element::custom)
         return std::make_tuple(false, Any());
     Any custom_type = tensor.get_custom_element_type();
-    std::cerr << "Custom type: ";
-    Type::print(custom_type);
-    std::cerr << "\n";
+    //std::cerr << "Custom type: ";
+    //Type::print(custom_type);
+    //std::cerr << "\n";
+
+    // TODO: Sometimes there is uninitialized Any in custom_type, need to understand where it comes from
 
     if (!custom_type.is<Type::List>()) {
-        std::cerr << "[ PASS INFO ] Skipping FW Node because it produces not a list\n";
+        //std::cerr << "[ PASS INFO ] Skipping FW Node because it produces not a list\n";
         return std::make_tuple(false, custom_type);
     }
 
     Any element_type = custom_type.as<Type::List>().element_type;
 
     if (!element_type.is<Type::Tensor>()) {
-        std::cerr << "[ PASS INFO ] Skipping FW Node because element of a List is not a Tensor\n";
+        //std::cerr << "[ PASS INFO ] Skipping FW Node because element of a List is not a Tensor\n";
         return std::make_tuple(false, custom_type);
     }
 
@@ -57,16 +59,16 @@ std::shared_ptr<FrameworkNode> make_list_pack(const OutputVector& inputs, Any ou
 std::shared_ptr<FrameworkNode> cast_internal_node(std::shared_ptr<Node> node, const std::string& type) {
     auto fw_node = std::dynamic_pointer_cast<FrameworkNode>(node);
     if (!fw_node) {
-        std::cerr << "[ ERROR ] Incorrect matcher triggering\n";
+        //std::cerr << "[ ERROR ] Incorrect matcher triggering\n";
         return nullptr;
     }
     if (fw_node->get_attrs().find("PtTypeName") != fw_node->get_attrs().end()) {
         // This is FW node, not PT FW internal node, don't mix them
-        std::cerr << "[ ERROR ] This is PtTypeName-node: " << fw_node->get_attrs().at("PtTypeName") << "\n";
+        //std::cerr << "[ ERROR ] This is PtTypeName-node: " << fw_node->get_attrs().at("PtTypeName") << "\n";
         return nullptr;
     }
     if (fw_node->get_attrs().get_type_name() != type) {
-        std::cerr << "[ ERROR ] Not expected type: " << fw_node->get_type_name() << "\n";
+        //std::cerr << "[ ERROR ] Not expected type: " << fw_node->get_type_name() << "\n";
         return nullptr;
     }
 
@@ -93,7 +95,7 @@ public:
 
             auto custom_type = std::get<1>(custom_types);
 
-            std::cerr << "[ PASS INFO ] Start transformation\n";
+            //std::cerr << "[ PASS INFO ] Start transformation\n";
 
             // Replace a single ListConstruct with 6 constant tensors:
             //   - beginnings of tensor elements of type i32 and shape [0]
@@ -130,7 +132,7 @@ public:
         ParameterVector new_parameters;  // collect decomposed parameters
         for (size_t i = 0; i < parameters.size(); ++i) {
             auto parameter = parameters[i];
-            std::cerr << "[ PARAMETER ] " << i << "\n";
+            //std::cerr << "[ PARAMETER ] " << i << "\n";
             auto custom_types = is_list_of_tensors(parameter->get_output_tensor(0));
 
             if (std::get<0>(custom_types)) {
@@ -289,13 +291,13 @@ public:
 
             auto initial_elements_const = std::dynamic_pointer_cast<opset9::Constant>(matches.at(elements));
             // New elements content depends on whether we appending to an empty list or not
-            std::cerr << "Tried to detect constant here: " << matches.at(elements) << "\n";
-            std::cerr << "Is const: " << bool(initial_elements_const) << " )))))))))))))))))\n";
-            if (initial_elements_const) {
-                std::cerr << "Shape: " << initial_elements_const->get_output_partial_shape(0) << "\n";
-                std::cerr << "Size: " << shape_size(initial_elements_const->get_output_shape(0))
-                          << "  )))))))))))))))))\n";
-            }
+            //std::cerr << "Tried to detect constant here: " << matches.at(elements) << "\n";
+            //std::cerr << "Is const: " << bool(initial_elements_const) << " )))))))))))))))))\n";
+            //if (initial_elements_const) {
+            //    std::cerr << "Shape: " << initial_elements_const->get_output_partial_shape(0) << "\n";
+            //    std::cerr << "Size: " << shape_size(initial_elements_const->get_output_shape(0))
+            //              << "  )))))))))))))))))\n";
+            //}
             auto new_elements =
                 (initial_elements_const && shape_size(initial_elements_const->get_output_shape(0)) == 0)
                     ? shared_ptr<Node>(item_flatten)
@@ -335,7 +337,7 @@ public:
 
         for (size_t i = 0; i < results.size(); ++i) {
             auto result = results[i];
-            std::cerr << "[ RESULT ] " << i << "\n";
+            //std::cerr << "[ RESULT ] " << i << "\n";
             auto custom_types = is_list_of_tensors(result->get_input_tensor(0));
 
             auto list_pack = cast_internal_node(result->get_input_node_shared_ptr(0), "PTFE::ListPack");

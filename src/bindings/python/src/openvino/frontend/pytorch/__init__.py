@@ -83,24 +83,24 @@ try:
             '''
                 Returns known/unknown types wrapped as OVAny
             '''
-            print(f'Trying to parse type {type} of class {type.__class__}')
+            #print(f'Trying to parse type {type} of class {type.__class__}')
             # Check for simple scalar types first
             # TODO: Don't use str, use native types
             if str(type) in pt_to_ov_type_map:
-                print(f'Recognized native type, type.__class__ = {type.__class__}')
+                #print(f'Recognized native type, type.__class__ = {type.__class__}')
                 return OVAny(pt_to_ov_type_map[str(type)])
             elif type.__class__ is torch.TensorType:
-                print(f'Recognized Tensor type with type.dtype() = {type.dtype()}')
+                #print(f'Recognized Tensor type with type.dtype() = {type.dtype()}')
                 # Tensor type, parse element type
                 # TODO: replace string by native type
                 #return OVAny(PartialShape([1,2,3]))
                 return OVAny(DecoderType.Tensor(self._get_known_type_for_value(type.dtype())))
             elif type.__class__ is torch.ListType:
                 element_type = type.getElementType()
-                print(f'Recognized torch List type. Type of element is {element_type}')
+                #print(f'Recognized torch List type. Type of element is {element_type}')
                 return OVAny(DecoderType.List(self._get_known_type_for_value(element_type)))
             else:
-                print(f'Not a tensor nor native type: {type}')
+                #print(f'Not a tensor nor native type: {type}')
                 # Not yet recognized
                 return OVAny(OVType.dynamic)
                 #pt_type_class = value.type().__class__
@@ -121,9 +121,9 @@ try:
             return PartialShape.dynamic()
 
         def get_type_for_value (self, value):
-            print(f'Decoding value type for value {value}')
+            #print(f'Decoding value type for value {value}')
             full_type = self._get_known_type_for_value(value.type())
-            DecoderType.print(full_type)    # new (full) type interpretation
+            #DecoderType.print(full_type)    # new (full) type interpretation
             return full_type
             # Old version of this function directly treat Tensor[type] as type
             # assuming that regular type for vaue is Tensor, so it just
@@ -219,8 +219,8 @@ try:
             pt_value = self._raw_output(0)
             is_tensor = pt_value.isCompleteTensor()
             
-            print(f'Decoding value type for constant value {pt_value}')
-            DecoderType.print(self._get_known_type_for_value(pt_value.type()))
+            #print(f'Decoding value type for constant value {pt_value}')
+            #DecoderType.print(self._get_known_type_for_value(pt_value.type()))
 
             if is_tensor and str(pt_value.type().dtype()) in pt_to_py_type_map:
                 return self.as_constant_tensor(pt_value)
