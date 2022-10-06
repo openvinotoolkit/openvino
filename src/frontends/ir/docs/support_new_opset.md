@@ -1,6 +1,6 @@
 # How to support new OpenVINO opset
 
-The addition of new opset to OpenVINO IR frontend is a very often task, each time when we introduce new operation set we also need to support it inside the Frontend.
+Adding a new opset to the OpenVINO IR Frontend is a very frequent task. When we introduce a new operation set, we must also support it inside the Frontend.
 
 You need to add only new line in to the constructor of `InputModelIRImpl` class:
 
