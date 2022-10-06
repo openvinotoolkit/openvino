@@ -55,6 +55,9 @@ namespace py = pybind11;
     OutputVector as_constant () override
     { PYBIND11_OVERRIDE_PURE(OutputVector, Decoder, as_constant); }
 
+    std::string as_string () override
+    { PYBIND11_OVERRIDE_PURE(std::string, Decoder, as_string); }
+
     std::string get_op_type() const override
     { PYBIND11_OVERRIDE_PURE(std::string, Decoder, get_op_type); }
 

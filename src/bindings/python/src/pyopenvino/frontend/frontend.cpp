@@ -7,13 +7,13 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
+#include "./pytorch/decoder.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
 #include "pyopenvino/graph/model.hpp"
 #include "pyopenvino/utils/utils.hpp"
-#include "./pytorch/decoder.hpp"
 
 namespace py = pybind11;
 
@@ -29,18 +29,18 @@ void regclass_frontend_FrontEnd(py::module m) {
         [](FrontEnd& self, const py::object& path) {
             // TODO: Extend to arbitrary number of any parameters, this code shouldn't gate FE universal load function
             try {
-                //std::cout << "----------- trying to cast to path ------------ \n";
+                // std::cout << "----------- trying to cast to path ------------ \n";
                 std::string model_path = Common::utils::convert_path_to_string(path);
                 return self.load(model_path);
             } catch (...) {
                 // Extended for one argument only for this time
                 // TODO: Remove this excplicit dependency on specific Pytorch FE dependent type
-                //std::cout << "++++++++++ trying to cast to Decoder+++++++++++\n";
-                //std::cout << path.get_type() << '\n';
-                if(py::isinstance<pytorch::Decoder>(path)) {
-                    //std::cout << "********* bingo ************\n";
+                // std::cout << "++++++++++ trying to cast to Decoder+++++++++++\n";
+                // std::cout << path.get_type() << '\n';
+                if (py::isinstance<pytorch::Decoder>(path)) {
+                    // std::cout << "********* bingo ************\n";
                     auto decoder = path.cast<std::shared_ptr<pytorch::Decoder>>();
-                    //std::cout << "Decoder: " << decoder << "\n";
+                    // std::cout << "Decoder: " << decoder << "\n";
                     return self.load({Any(decoder)});
                 }
                 // no idea what this object is, let it throw

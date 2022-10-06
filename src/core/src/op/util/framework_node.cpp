@@ -4,8 +4,8 @@
 
 #include "openvino/op/util/framework_node.hpp"
 
-#include "ngraph/graph_util.hpp"
 #include "itt.hpp"
+#include "ngraph/graph_util.hpp"
 
 BWDCMP_RTTI_DEFINITION(ov::op::util::FrameworkNode);
 

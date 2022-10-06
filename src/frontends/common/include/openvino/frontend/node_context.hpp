@@ -14,7 +14,6 @@
 namespace ov {
 namespace frontend {
 
-
 class FRONTEND_API NodeContext {
 public:
     // TODO: Why this ctor is explicit when get_op_type is virtual so m_op_type looks to be a custom implementation

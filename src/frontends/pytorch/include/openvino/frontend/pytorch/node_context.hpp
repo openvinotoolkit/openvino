@@ -49,7 +49,7 @@ public:
         OutputVector res;
         for (size_t input : m_decoder->inputs()) {
             // std::cerr << "Searching for input: " << input->unique() << "\n";
-            OV_FRONTEND_REQUIRE(m_tensor_map->find(input) != m_tensor_map->end());
+            OV_FRONTEND_REQUIRE(m_tensor_map->count(input));
             res.push_back(m_tensor_map->at(input));
         }
         return res;
@@ -145,7 +145,7 @@ public:
             parameter->get_output_tensor(0).add_names({std::to_string(index)});
             (*m_tensor_map)[index] = parameter;
             m_external_parameters->push_back(parameter);
-            //std::cout << "Nested case, created: " << parameter << std::endl;
+            // std::cout << "Nested case, created: " << parameter << std::endl;
             return parameter;
         }
     }

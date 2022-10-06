@@ -8,11 +8,11 @@
 
 #include "exception.hpp"
 #include "input_model.hpp"
-#include "transforms.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "pt_framework_node.hpp"
+#include "transforms.hpp"
 #include "transforms/aten_cat_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
 #include "utils.hpp"
@@ -64,7 +64,7 @@ std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputMode
             } else {
                 std::cout << "[ WARNING ] Couldn't remove parameter[0] in converted Pytorch model\n";
             }
-        }        
+        }
         return model;
     } catch (const std::runtime_error& e) {
         std::cerr << "[ ERROR ] Unexpected error while converting pytorch model: " << e.what() << "\n";
@@ -84,7 +84,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
 
     manager.run_passes(model);
-    
+
     apply_pytorch_conversion_transforms(model);
 }
 

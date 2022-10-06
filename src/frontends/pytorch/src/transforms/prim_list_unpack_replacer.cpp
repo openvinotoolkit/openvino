@@ -59,7 +59,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
 
             NodeVector to_copy_rt{axis_0, split};
             OutputVector res;
-            for (auto output: split->outputs()) {
+            for (auto output : split->outputs()) {
                 auto squeeze = std::make_shared<opset8::Squeeze>(output, axis_0);
                 to_copy_rt.push_back(squeeze);
                 res.push_back(squeeze);
