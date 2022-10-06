@@ -1,6 +1,6 @@
 # OpenVINO IR Frontend Architecture
 
-OpenVINO IR Frontend uses [pugixml](../../../thirdparty/pugixml/README.md) library to parse xml files. After that based on version and name of operation frontend found supported operation and creates it using OpenVINO Visitor API:
+OpenVINO IR Frontend uses [pugixml](../../../thirdparty/pugixml/README.md) library to parse XML files. After that, based on the version and name of the operation, the Frontend creates the supported operation and initializes it using OpenVINO Visitor API:
 ```mermaid
 flowchart TB
     fw_model[(IR)]
