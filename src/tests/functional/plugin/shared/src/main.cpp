@@ -9,10 +9,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "shared_gflag_config.hpp"
-<<<<<<< HEAD
 #include "set_device_name.hpp"
-=======
->>>>>>> gflags
 
 using namespace ov::test;
 

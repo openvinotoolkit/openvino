@@ -3,6 +3,7 @@
 //
 #include <string>
 #include <algorithm>
+#include <stdexcept>
 
 #include <functional_test_utils/ov_plugin_cache.hpp>
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <string>
+#include <stdexcept>
 
 #include "set_device_name.hpp"
 

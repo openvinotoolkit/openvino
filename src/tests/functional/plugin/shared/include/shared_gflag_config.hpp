@@ -36,12 +36,8 @@ DEFINE_uint32(save_report_timeout, 60, save_report_timeout_message);
 DEFINE_bool(disable_test_config, false, disable_test_config_message);
 DEFINE_bool(extend_report, false, extend_report_config_message);
 DEFINE_bool(report_unique_name, false, report_unique_name_message);
-<<<<<<< HEAD
-DEFINE_bool(extract_body, false, extract_body_message);
-DEFINE_string(device_suffix, "", device_suffix_message);
-=======
 DEFINE_bool(extract_body, true, extract_body_message);
->>>>>>> gflags
+DEFINE_string(device_suffix, "", device_suffix_message);
 
 /**
 * @brief This function shows a help message
