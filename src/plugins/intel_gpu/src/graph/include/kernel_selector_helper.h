@@ -113,6 +113,7 @@ struct kernel_impl_params {
     size_t unique_id;
     std::vector<layout> input_layouts;
     layout output_layout;
+    std::vector<tensor> input_offsets;
     std::vector<cldnn::fused_primitive_desc> fused_desc;
     std::vector<activation_func> fused_act_funcs;
     std::vector<activation_additional_params> activation_params;
@@ -132,7 +133,7 @@ struct kernel_impl_params {
     kernel_impl_params(program& _prog,
                        std::shared_ptr<const primitive> _desc,
                        size_t _uid,
-                       const std::vector<layout>& _int_layouts,
+                       const std::vector<layout>& _in_layouts,
                        layout _out_layout,
                        const std::vector<cldnn::fused_primitive_desc>& _fused_descs,
                        const std::vector<activation_func>& _fused_act_funcs,
@@ -141,12 +142,13 @@ struct kernel_impl_params {
                        , prog(_prog)
                        , desc(_desc)
                        , unique_id(_uid)
-                       , input_layouts(_int_layouts)
+                       , input_layouts(_in_layouts)
                        , output_layout(_out_layout)
                        , fused_desc(_fused_descs)
                        , fused_act_funcs(_fused_act_funcs)
                        , activation_params(_act_params)
-                       , primary_input_idx(0) {}
+                       , primary_input_idx(0) {
+    }
 
     layout get_input_layout(size_t idx = 0) const {
         OPENVINO_ASSERT(input_layouts.size() > idx,

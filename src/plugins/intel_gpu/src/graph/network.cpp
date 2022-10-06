@@ -51,6 +51,73 @@
 namespace cldnn {
 
 #ifdef GPU_DEBUG_CONFIG
+static void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<primitive_inst>>& exec_order) {
+    auto layouts_to_str = [](const std::vector<layout>& layouts) -> std::string {
+        std::stringstream s;
+        for (size_t i = 0; i < layouts.size(); i++) {
+            s << layouts[i].to_short_string();
+            if (i != layouts.size() - 1)
+                s << ";";
+        }
+        return s.str();
+    };
+
+    const std::string perf_raw_csv_header = "prim_id,prim_type,stage,in_shapes,out_shapes,impl,iters,time_usec\n";
+    std::ofstream of(dump_path);
+    if (of.is_open()) {
+        of << perf_raw_csv_header;
+        for (auto& inst : exec_order) {
+            auto prim_id = inst->id();
+            auto& perf_data = inst->get_profiling_data();
+            auto& perf_info = inst->get_profiling_info();
+            std::vector<size_t> sorted_entries;
+            std::transform(perf_data.begin(), perf_data.end(), std::back_inserter(sorted_entries),
+            [](const std::pair<size_t, std::tuple<int64_t, size_t>>& e) {
+                return e.first;
+            });
+            std::sort(sorted_entries.begin(), sorted_entries.end(), [&](size_t a, size_t b) -> bool {
+                auto& a_info = perf_info.at(a);
+                auto& b_info = perf_info.at(b);
+
+                if (a_info.stage != b_info.stage) {
+                    return static_cast<std::underlying_type<instrumentation::pipeline_stage>::type>(a_info.stage) <
+                           static_cast<std::underlying_type<instrumentation::pipeline_stage>::type>(b_info.stage);
+                }
+
+                if (a_info.cache_hit != b_info.cache_hit)
+                    return a_info.cache_hit;
+
+                size_t total_out_size_a = 0;
+                size_t total_out_size_b = 0;
+                for (auto& ol : a_info.output_layouts) {
+                    total_out_size_a += ol.count();
+                }
+                for (auto& ol : b_info.output_layouts) {
+                    total_out_size_b += ol.count();
+                }
+                return total_out_size_a < total_out_size_b;
+            });
+            for (auto& hash : sorted_entries) {
+                auto& key = perf_info.at(hash);
+                auto& entry = perf_data.at(hash);
+                auto& time = std::get<0>(entry);
+                auto& num_iters = std::get<1>(entry);
+                int64_t time_avg = time / num_iters;
+                std::string in_l_str = layouts_to_str(key.input_layouts);
+                std::string out_l_str = layouts_to_str(key.output_layouts);
+                of << prim_id << ","
+                << inst->desc()->type_string() << ","
+                << key.stage << (key.cache_hit ? " (cache_hit)" : "") << ","
+                << in_l_str << ","
+                << out_l_str << ","
+                << (key.stage == instrumentation::pipeline_stage::inference ? key.impl_name : "undef") << ","
+                << num_iters << ","
+                << time_avg << "\n";
+            }
+        }
+    }
+}
+
 static float convert_half_to_float(half_t val, bool flush_denorm_to_zero = false) {
 #if defined HALF_HALF_HPP
     return val;
@@ -227,14 +294,9 @@ static void wait_for_the_turn() {
 }
 
 #else
-static void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName) {
-    (void)mem;
-    (void)stream;
-    (void)layerName;
-}
-
-static void wait_for_the_turn() {
-}
+static void dump_perf_data_raw(std::string, const std::list<std::shared_ptr<primitive_inst>>&) {}
+static void log_memory_to_file(memory::ptr, stream&, std::string) {}
+static void wait_for_the_turn() {}
 #endif
 
 /*
@@ -287,6 +349,10 @@ network::network(program::ptr program, stream::ptr stream, uint16_t stream_id)
 
 network::~network() {
     _memory_pool->clear_pool_for_network(net_id);
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+        dump_perf_data_raw(debug_config->dump_profiling_data + "/perf_raw" + std::to_string(net_id) + ".csv", _exec_order);
+    }
 }
 
 network::ptr network::allocate_network(stream::ptr stream, program::ptr program, bool is_internal, bool is_primary_stream) {
@@ -299,9 +365,9 @@ network::ptr network::allocate_network(engine& engine, program::ptr program, boo
 }
 
 network::ptr network::build_network(engine& engine,
-                                              const topology& topology,
-                                              const build_options& options,
-                                              bool is_internal) {
+                                    const topology& topology,
+                                    const build_options& options,
+                                    bool is_internal) {
     return std::make_shared<network>(engine, topology, options, is_internal);
 }
 
@@ -541,32 +607,17 @@ void network::allocate_primitives() {
                     return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
               });
 
+    // Move layers that can be optimized to the back of nodes_to_allocate
+    std::stable_partition(nodes_to_allocate.begin(),
+                          nodes_to_allocate.end(),
+                          [&po](std::shared_ptr<program_node> const& e) {
+                            return !e->can_be_optimized();
+                          });
+
     for (auto const& node : nodes_to_allocate) {
         allocate_primitive_instance(*node);
     }
 
-    for (auto const& node : po) {
-        if (node->get_preferred_impl_type() == impl_types::onednn) {
-            size_t eltw_dep = 0;
-            for (auto& fused_op : node->get_fused_primitives()) {
-                if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
-                    // If it is first sum, reuse the buffer
-                    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*node, fused_op);
-                    if (fusing_type != add_fusing_type::sum || eltw_dep != 0)
-                        continue;
-                    eltw_dep = fused_op.dep_start_idx;
-                    auto& eltw_in = node->get_dependency(eltw_dep);
-                    if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
-                        auto& eltw_inst = _primitives.at(eltw_in.id());
-                        auto& prim_inst = _primitives.at(node->id());
-                        auto& eltw_mem = eltw_inst->output_memory();
-                        auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node->get_output_layout());
-                        prim_inst->set_output_memory(new_mem);
-                    }
-                }
-            }
-        }
-    }
     // allocate intermediate buffers
     for (auto const& node : po) {
         auto prim = _primitives[node->id()];
@@ -647,7 +698,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     GPU_DEBUG_IF(debug_config->verbose >= 1)
         GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
 
-    std::unique_ptr<cldnn::surfaces_lock> surf_lock;
+    std::vector<memory::ptr> in_out_mem;
     bool shared_mem_found = std::any_of(_in_out_shared_mem_types.begin(),
                                         _in_out_shared_mem_types.end(),
                                         [](const shared_mem_type& shared_mem_type) {
@@ -656,7 +707,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                                         });
 
     if (shared_mem_found) {
-        std::vector<memory::ptr> in_out_mem;
         for (auto& inst : _inputs) {
             if (inst->output_memory_ptr())
                 in_out_mem.push_back(inst->output_memory_ptr());
@@ -666,9 +716,15 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             if (inst->output_memory_ptr())
                 in_out_mem.push_back(inst->output_memory_ptr());
         }
-
-        surf_lock = surfaces_lock::create(get_engine().type(), in_out_mem, get_stream());
     }
+
+    // We shouldn't call surfaces_lock::create() function constantly here, but due to
+    // some changes in assembler code, performance drops in case if we move it under
+    // `shared_mem_found` condition (it somehow connected with get_cl_queue() - this function call
+    // makes asm faster for some reasons). So, as WA we keep this surfaces_lock::create() here
+    // with empty memory vector and do nothing inside this function for saving performance
+    // in some cases.
+    auto surf_lock = surfaces_lock::create(get_engine().type(), in_out_mem, get_stream());
 
     set_arguments();
     for (auto& inst : _exec_order) {
@@ -873,7 +929,7 @@ void network::allocate_primitive_instance(program_node const& node) {
         inst->set_mutable_input(true);
     }
 
-    if (node.is_dynamic()) {
+    if (inst->is_dynamic()) {
         _is_dynamic = true;
     }
 
@@ -894,6 +950,27 @@ void network::allocate_primitive_instance(program_node const& node) {
         _variable_state_primitives.push_back(inst);
     if (node.is_constant())
         transfer_memory_to_device(inst, node);
+
+    if (node.get_preferred_impl_type() == impl_types::onednn) {
+        size_t eltw_dep = 0;
+        for (auto& fused_op : node.get_fused_primitives()) {
+            if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
+                // If it is first sum, reuse the buffer
+                auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(node, fused_op);
+                if (fusing_type != add_fusing_type::sum || eltw_dep != 0)
+                    continue;
+                eltw_dep = fused_op.dep_start_idx;
+                auto& eltw_in = node.get_dependency(eltw_dep);
+                if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node.id()) != _primitives.end()) {
+                    auto& eltw_inst = _primitives.at(eltw_in.id());
+                    auto& prim_inst = _primitives.at(node.id());
+                    auto& eltw_mem = eltw_inst->output_memory();
+                    auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node.get_output_layout());
+                    prim_inst->set_output_memory(new_mem);
+                }
+            }
+        }
+    }
 }
 
 void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node) {

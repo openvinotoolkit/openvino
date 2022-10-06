@@ -20,13 +20,14 @@ from utils.utils import expect_exception
 
 
 def test_wrap_type_pattern_type():
-    last_opstet_number = 9
+    last_opstet_number = 10
     for i in range(1, last_opstet_number + 1):
         WrapType(f"opset{i}.Parameter")
         WrapType(f"opset{i}::Parameter")
 
     # Negative check not to forget to update opset map in get_type function
-    expect_exception(lambda: WrapType("opset10.Parameter"), "Unsupported opset type: opset10")
+    expect_exception(lambda: WrapType(f"opset{last_opstet_number + 1}.Parameter"),
+                     f"Unsupported opset type: opset{last_opstet_number + 1}")
 
     # Generic negative test cases
     expect_exception(lambda: WrapType(""))

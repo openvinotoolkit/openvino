@@ -15,7 +15,7 @@ using namespace ngraph;
 BWDCMP_RTTI_DEFINITION(op::v3::ScatterNDUpdate);
 
 shared_ptr<Node> op::v3::ScatterNDUpdate::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v3_ScatterNDUpdate_clone_with_new_inputs);
+    OV_OP_SCOPE(v3_ScatterNDUpdate_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v3::ScatterNDUpdate>(new_args.at(op::util::ScatterNDBase::INPUTS),
                                                 new_args.at(op::util::ScatterNDBase::INDICES),
@@ -83,7 +83,7 @@ bool evaluate_scatter(const HostTensorPtr& arg0,
 }  // namespace scatter
 
 bool op::v3::ScatterNDUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v3_ScatterNDUpdate_evaluate);
+    OV_OP_SCOPE(v3_ScatterNDUpdate_evaluate);
     NGRAPH_CHECK(!inputs.empty());
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 3));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
@@ -92,7 +92,7 @@ bool op::v3::ScatterNDUpdate::evaluate(const HostTensorVector& outputs, const Ho
 }
 
 bool op::v3::ScatterNDUpdate::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v3_ScatterNDUpdate_has_evaluate);
+    OV_OP_SCOPE(v3_ScatterNDUpdate_has_evaluate);
 
     switch (get_output_element_type(0)) {
     case ngraph::element::i32:

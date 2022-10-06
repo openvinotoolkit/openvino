@@ -19,19 +19,19 @@ op::Elu::Elu(const Output<Node>& data, const double alpha) : Op({data}), m_alpha
 }
 
 bool ngraph::op::v0::Elu::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Elu_visit_attributes);
+    OV_OP_SCOPE(v0_Elu_visit_attributes);
     visitor.on_attribute("alpha", m_alpha);
     return true;
 }
 
 void op::v0::Elu::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_Elu_validate_and_infer_types);
+    OV_OP_SCOPE(v0_Elu_validate_and_infer_types);
     set_output_size(1);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 shared_ptr<Node> op::Elu::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Elu_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Elu_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Elu>(new_args.at(0), m_alpha);
 }

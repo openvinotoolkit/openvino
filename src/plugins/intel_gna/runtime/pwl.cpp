@@ -39,11 +39,12 @@ inline double power(const double x, const std::tuple<double, double, double>& ar
 }
 
 void PwlDesignOpt(const DnnActivation& activation_type,
-                    std::vector<gna_pwl_segment_t> &ptr_segment,
-                    const float scale_in,
-                    const float scale_out,
-                    const bool low_precision,
-                    const std::shared_ptr<ngraph::Node>& node) {
+                  const float scale_in,
+                  const float scale_out,
+                  const bool low_precision,
+                  const std::shared_ptr<ngraph::Node>& node,
+                  const bool is_fused_with_conv2d,
+                  std::vector<gna_pwl_segment_t>& ptr_segment) {
     std::vector<pwl_t> pwl;
     switch (activation_type) {
         case kActPwl: {
@@ -51,24 +52,68 @@ void PwlDesignOpt(const DnnActivation& activation_type,
             break;
         }
         case kActRelu:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, low_precision, ptr_segment);
+            make_gna_pwl(activation_type,
+                         pwl,
+                         -1.0,
+                         1.0,
+                         scale_in,
+                         scale_out,
+                         low_precision,
+                         is_fused_with_conv2d,
+                         ptr_segment);
             break;
         case kActLeakyRelu:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, low_precision, ptr_segment);
+            make_gna_pwl(activation_type,
+                         pwl,
+                         -1.0,
+                         1.0,
+                         scale_in,
+                         scale_out,
+                         low_precision,
+                         is_fused_with_conv2d,
+                         ptr_segment);
             break;
         case kActIdentity:
         case kActFakeQuantize:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, low_precision, ptr_segment);
+            make_gna_pwl(activation_type,
+                         pwl,
+                         -1.0,
+                         1.0,
+                         scale_in,
+                         scale_out,
+                         low_precision,
+                         is_fused_with_conv2d,
+                         ptr_segment);
             break;
         case kActKaldiLstmClipping:
             make_gna_pwl(activation_type, pwl, activation_type.args.clamp.low, activation_type.args.clamp.high,
-                         scale_in, scale_out, low_precision, ptr_segment);
+                         scale_in,
+                         scale_out,
+                         low_precision,
+                         is_fused_with_conv2d,
+                         ptr_segment);
             break;
         case kActSign:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, low_precision, ptr_segment);
+            make_gna_pwl(activation_type,
+                         pwl,
+                         -1.0,
+                         1.0,
+                         scale_in,
+                         scale_out,
+                         low_precision,
+                         is_fused_with_conv2d,
+                         ptr_segment);
             break;
         case kActAbs:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, low_precision, ptr_segment);
+            make_gna_pwl(activation_type,
+                         pwl,
+                         -1.0,
+                         1.0,
+                         scale_in,
+                         scale_out,
+                         low_precision,
+                         is_fused_with_conv2d,
+                         ptr_segment);
             break;
         default:
             THROW_GNA_EXCEPTION << "Unknown piecewise linear function type: " << activation_type.type;

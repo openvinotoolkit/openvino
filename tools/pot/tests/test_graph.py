@@ -24,10 +24,12 @@ TEST_MODELS = [
     ('mobilenetv2_ssd_example', 'pytorch', 'ANY'),
     ('densenet121_example', 'pytorch', 'ANY'),
     ('multiple_out_ports_net', 'tf', 'ANY'),
-    # ('lstm_example', 'pytorch', 'GNA'),
+    ('gru_example', 'pytorch', 'GNA'),
+    ('lstm_example', 'pytorch', 'GNA'),
     #('multiple_outputs_net_example', 'tf', 'GNA'),
     ('resnet_example', 'pytorch', 'CPU_SPR'),
     #('tensor_iterator_example', 'tf', 'ANY'),
+    ('softsign_example', 'tf', 'GNA'),
 ]
 
 
