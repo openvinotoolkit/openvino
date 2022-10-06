@@ -22,6 +22,7 @@
 
 using namespace cldnn;
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
 static dnnl::primitive_desc get_convolution_prim_desc(cldnn::engine& engine, program_node& n) {
     auto desc = onednn::get_convolution_descriptor(*n.get_kernel_impl_params(), dnnl::memory::format_tag::any);
     // Note: did not handle attribute properly. especially for zero-point
@@ -34,6 +35,7 @@ static dnnl::primitive_desc get_deconvolution_prim_desc(cldnn::engine& engine, p
     dnnl::primitive_desc prim_desc{&desc->data, nullptr, engine.get_onednn_engine(), nullptr};
     return prim_desc;
 }
+#endif
 
 void set_required_layouts::run(program& p) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::SetRequiredLayouts");
