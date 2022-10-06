@@ -302,7 +302,7 @@ void lstm_cell_v1(const T* X,
     std::vector<T> XHBPi(gate_shape_size);
     if (input_forget) {
         // it = (1 - ft)
-        std::vector<T> ones(gate_shape_size, 1.f);
+        std::vector<T> ones(gate_shape_size, T(1));
         reference::subtract(ones.data(),
                             XHBPf.data(),
                             XHBPi.data(),

@@ -145,7 +145,7 @@ void InputModel::InputModelImpl::loadPlaces() {
     }
     if (m_telemetry) {
         for (const auto& op : op_statistics) {
-            m_telemetry->send_event("op_count", "paddle_" + op.first, op.second);
+            m_telemetry->send_event("op_count", "paddle_" + op.first, static_cast<int>(op.second));
         }
     }
 }

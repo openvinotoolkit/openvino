@@ -114,7 +114,7 @@ std::shared_ptr<ngraph::Node> make_fake_quantize(const Output<ngraph::Node>& y_s
     std::tie(input_low, input_high) =
         detail::get_input_bands(y_scale, y_zero_point, output_low, output_high, data_type);
 
-    const std::size_t levels = 1 << destination_type.bitwidth();
+    const std::size_t levels = static_cast<size_t>(1) << destination_type.bitwidth();
 
     return std::make_shared<default_opset::Convert>(
         std::make_shared<default_opset::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels),

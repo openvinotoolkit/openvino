@@ -31,7 +31,7 @@ static std::shared_ptr<ov::Node> calculate_output_shape_based_on_scales(const Ou
 
 static std::shared_ptr<ov::Node> calculate_scales_based_on_sizes(const Output<ov::Node>& data,
                                                                  const Output<ov::Node>& sizes) {
-    const float epsilon = 1.0e-5;
+    const float epsilon = 1.0e-5f;
     const auto shape_of_data = std::make_shared<Convert>(std::make_shared<ShapeOf>(data), ov::element::f32);
     const auto converted_sizes = std::make_shared<Convert>(sizes, ov::element::f32);
     const auto divide = std::make_shared<Divide>(converted_sizes, shape_of_data);

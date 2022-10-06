@@ -42,21 +42,21 @@ void psroi_pooling(const T* input,
     int num_spatial_bins = spatial_bins_x * spatial_bins_y;
     for (size_t roi = 0; roi < num_rois; roi++) {
         const T* box = rois + roi * 5;
-        int batch_id = box[0];
+        int batch_id = static_cast<int>(box[0]);
         float start_w = 0;
         float start_h = 0;
         float end_w = 0;
         float end_h = 0;
         if (mode == BILINEAR) {
-            start_w = box[1] * spatial_scale;
-            start_h = box[2] * spatial_scale;
-            end_w = box[3] * spatial_scale;
-            end_h = box[4] * spatial_scale;
+            start_w = static_cast<float>(box[1]) * spatial_scale;
+            start_h = static_cast<float>(box[2]) * spatial_scale;
+            end_w = static_cast<float>(box[3]) * spatial_scale;
+            end_h = static_cast<float>(box[4]) * spatial_scale;
         } else if (mode == AVG) {
-            start_w = std::roundf(box[1]) * spatial_scale;
-            start_h = std::roundf(box[2]) * spatial_scale;
-            end_w = (std::roundf(box[3]) + 1.0f) * spatial_scale;
-            end_h = (std::roundf(box[4]) + 1.0f) * spatial_scale;
+            start_w = std::roundf(static_cast<float>(box[1])) * spatial_scale;
+            start_h = std::roundf(static_cast<float>(box[2])) * spatial_scale;
+            end_w = (std::roundf(static_cast<float>(box[3])) + 1.0f) * spatial_scale;
+            end_h = (std::roundf(static_cast<float>(box[4])) + 1.0f) * spatial_scale;
         }
         float box_width = end_w - start_w;
         float box_height = end_h - start_h;
@@ -94,7 +94,7 @@ void psroi_pooling(const T* input,
                                 sum += input_offset[h * width + w];
                             }
                         }
-                        output[index] = sum / (current_bin_width * current_bin_height);
+                        output[index] = sum / static_cast<T>(current_bin_width * current_bin_height);
                         c_in++;
                     } else if (mode == BILINEAR) {
                         c_in = 0;
@@ -112,18 +112,20 @@ void psroi_pooling(const T* input,
                                                     ? (ph * height_scale + bin_start_h * (height - 1))
                                                     : (bin_start_h + bin_start_h + bin_height) * (height - 1) / 2;
                                 if (point_x < width && point_y < height) {
-                                    size_t left = floorf(point_x);
+                                    size_t left = static_cast<size_t>(floorf(point_x));
                                     size_t right = std::min(static_cast<size_t>(ceilf(point_x)), width - 1);
-                                    size_t top = floorf(point_y);
+                                    size_t top = static_cast<size_t>(floorf(point_y));
                                     size_t bottom = std::min(static_cast<size_t>(ceilf(point_y)), height - 1);
                                     T top_left = input_offset[top * width + left];
                                     T top_right = input_offset[top * width + right];
                                     T bottom_left = input_offset[bottom * width + left];
                                     T bottom_right = input_offset[bottom * width + right];
 
-                                    T top_interp = top_left + (top_right - top_left) * (point_x - left);
-                                    T bottom_interp = bottom_left + (bottom_right - bottom_left) * (point_x - left);
-                                    output[index] += top_interp + (bottom_interp - top_interp) * (point_y - top);
+                                    T top_interp = top_left + (top_right - top_left) * static_cast<T>(point_x - left);
+                                    T bottom_interp =
+                                        bottom_left + (bottom_right - bottom_left) * static_cast<T>(point_x - left);
+                                    output[index] +=
+                                        top_interp + (bottom_interp - top_interp) * static_cast<T>(point_y - top);
                                 }
                                 c_in++;
                             }

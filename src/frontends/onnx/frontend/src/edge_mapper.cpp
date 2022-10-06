@@ -69,7 +69,7 @@ int onnx_editor::EdgeMapper::get_node_output_idx(int node_index, const std::stri
         throw ov::Exception("Node with index: " + std::to_string(node_index) +
                             " has not output with name: " + output_name);
     }
-    return (out_port_idx - std::begin(node_outputs));
+    return static_cast<int>(out_port_idx - std::begin(node_outputs));
 }
 
 std::vector<int> onnx_editor::EdgeMapper::get_node_input_indexes(int node_index, const std::string& input_name) const {

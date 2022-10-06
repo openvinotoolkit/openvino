@@ -113,8 +113,8 @@ float InterpolateEvalHelper::get_in_coord(float coord, int64_t axis_idx) {
 InterpolateEvalHelper::InfoForLinearMode InterpolateEvalHelper::get_info_for_linear_mode() {
     std::size_t num_of_axes = m_axes.size();
     bool is_downsample = false;
-    for (std::size_t scale : m_scales) {
-        is_downsample = is_downsample || (scale < 1.0);
+    for (const auto& scale : m_scales) {
+        is_downsample = is_downsample || (scale < 1.0f);
     }
 
     bool antialias = is_downsample && m_antialias;
@@ -129,7 +129,7 @@ InterpolateEvalHelper::InfoForLinearMode InterpolateEvalHelper::get_info_for_lin
     std::vector<std::size_t> vector_for_indeces(num_of_axes);
     float prod_a = 1;
     for (std::size_t i = 0; i < num_of_axes; ++i) {
-        a[i] = antialias ? m_scales[i] : 1.0;
+        a[i] = antialias ? m_scales[i] : 1.0f;
         prod_a *= a[i];
         r[i] = (m_scales[i] > 1.0) ? static_cast<int64_t>(2) : static_cast<int64_t>(std::ceil(2.0f / a[i]));
         vector_for_indeces[i] = 2 * r[i] + 1;

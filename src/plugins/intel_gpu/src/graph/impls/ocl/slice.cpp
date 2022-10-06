@@ -23,7 +23,9 @@ std::vector<std::int32_t> extractIntegerData(const data_node& node, const stream
     T* data = lock.data();
     std::vector<std::int32_t> integer_data;
     integer_data.reserve(node.get_output_layout().count());
-    std::copy(data, data + node.get_output_layout().count(), std::back_inserter(integer_data));
+    for (size_t i = 0; i < node.get_output_layout().count(); i++) {
+        integer_data.emplace_back(static_cast<std::int32_t>(data[i]));
+    }
     return integer_data;
 }
 

@@ -36,7 +36,7 @@ void mvn(const T* arg,
         mean(tmp_buffer.data(), mean_value.data(), in_shape, reduction_axes);
 
         add(mean_value.data(),
-            std::vector<T>(shape_size(reduced_shape), eps).data(),
+            std::vector<T>(shape_size(reduced_shape), static_cast<T>(eps)).data(),
             tmp_buffer.data(),
             reduced_shape,
             reduced_shape,
@@ -67,7 +67,7 @@ void mvn_6(const T* arg,
 
         if (eps_mode == op::MVNEpsMode::INSIDE_SQRT) {
             add(mean_value.data(),
-                std::vector<T>(shape_size(reduced_shape), eps).data(),
+                std::vector<T>(shape_size(reduced_shape), static_cast<T>(eps)).data(),
                 tmp_buffer.data(),
                 reduced_shape,
                 reduced_shape,
@@ -76,7 +76,7 @@ void mvn_6(const T* arg,
         } else {
             sqrt(mean_value.data(), tmp_buffer.data(), shape_size(reduced_shape));
             add(tmp_buffer.data(),
-                std::vector<T>(shape_size(reduced_shape), eps).data(),
+                std::vector<T>(shape_size(reduced_shape), static_cast<T>(eps)).data(),
                 tmp_buffer.data(),
                 reduced_shape,
                 reduced_shape,

@@ -173,7 +173,7 @@ struct RuntimeEndPoint {
         InferenceEngine::SizeVector dims = {ngroup, elements_count / ngroup};
         shape.NumberOfDimensions = static_cast<uint32_t>(dims.size());
         for (auto i = 0; i < dims.size(); i++) {
-            shape.Dimensions[i] = dims[i];
+            shape.Dimensions[i] = static_cast<uint32_t>(dims[i]);
         }
     }
     RuntimeEndPoint(double scaleFactor,
@@ -183,7 +183,7 @@ struct RuntimeEndPoint {
                     Shape shape,
                     uint8_t layout,
                     uint8_t precision,
-                    intel_dnn_orientation_t orientation) : scaleFactor(scaleFactor),
+                    intel_dnn_orientation_t orientation) : scaleFactor(static_cast<float>(scaleFactor)),
                                                            descriptor_ptr(descriptor_ptr),
                                                            element_size(element_size),
                                                            elements_count(elements_count),

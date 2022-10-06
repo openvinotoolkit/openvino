@@ -4,6 +4,13 @@
 
 file(GLOB_RECURSE UTIL_SRC "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
 
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_add_compiler_flags(/wd4244)
+    ie_add_compiler_flags(/wd4101)
+    ie_add_compiler_flags(/wd4267)
+endif()
+
 add_library(ngraph_test_util STATIC EXCLUDE_FROM_ALL ${UTIL_SRC})
 
 ie_faster_build(ngraph_test_util UNITY)

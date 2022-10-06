@@ -18,6 +18,11 @@ else()
     set(ONNX_USE_LITE_PROTO_DEFAULT ON)
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # 4244 conversion from 'XXX' to 'YYY', possible loss of data
+    ie_add_compiler_flags(/wd4244)
+endif()
+
 set(ONNX_USE_PROTOBUF_SHARED_LIBS OFF CACHE BOOL "Use dynamic protobuf by ONNX library" FORCE)
 set(ONNX_NAMESPACE ${OV_ONNX_NAMESPACE})
 set(ONNX_USE_LITE_PROTO ${ONNX_USE_LITE_PROTO_DEFAULT} CACHE BOOL "Use protobuf lite for ONNX library" FORCE)

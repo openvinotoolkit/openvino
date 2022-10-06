@@ -123,7 +123,7 @@ bool NextElement(T & elementIndex, const Gna2Shape& total) {
 template <class T>
 uint32_t GetLinearIndex(const T & elementIndex, const Gna2Shape& total) {
     uint32_t out = 0;
-    for (int idx = 0; idx < total.NumberOfDimensions; idx++) {
+    for (uint32_t idx = 0; idx < total.NumberOfDimensions; idx++) {
         out += elementIndex[idx];
         if (idx + 1 < total.NumberOfDimensions) out *= total.Dimensions[idx + 1];
     }
@@ -180,7 +180,7 @@ void WriteInputAndOutputTextGNAImpl(const Gna2Model & gnaModel, const std::strin
         std::vector<uint32_t> elementIndex(outputTensor.Shape.NumberOfDimensions);
 
         do {
-            float floatValue = GetValue(outputTensor, elementIndex);
+            float floatValue = static_cast<float>(GetValue(outputTensor, elementIndex));
 
             out_file << std::setw(8) << floatValue << "\n";
             if (ref_out_file) {
@@ -399,7 +399,7 @@ void DumpPwl(std::ostream& dumpFile, const Gna2Tensor& activation) {
 }
 
 void DumpCompoundBias(std::ostream& dumpFile, const Gna2Tensor& tensor) {
-    auto i = 0;
+    uint32_t i = 0;
 
     while (i < tensor.Shape.Dimensions[0]) {
         const Gna2CompoundBias* const bias = static_cast<Gna2CompoundBias*>(tensor.Data) + i;

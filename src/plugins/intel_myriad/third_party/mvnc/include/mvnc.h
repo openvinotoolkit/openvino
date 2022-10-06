@@ -17,7 +17,9 @@ extern "C"
 #define NC_MAX_DEVICES         (32)
 #define NC_MAX_NAME_SIZE       (64)
 
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #define MVNC_EXPORT_API
 
 typedef enum {

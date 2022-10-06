@@ -65,10 +65,10 @@ InferenceEngine::StatusCode OpImplementation::getSupportedConfigurations(
 
             order.push_back(1);
             InferenceEngine::SizeVector inBlkDims = inShape;
-            inBlkDims[1] = div_up(inBlkDims[1], 8);
+            inBlkDims[1] = div_up(static_cast<int>(inBlkDims[1]), 8);
             inBlkDims.push_back(8);
             InferenceEngine::SizeVector outBlkDims = outShape;
-            outBlkDims[1] = div_up(outBlkDims[1], 8);
+            outBlkDims[1] = div_up(static_cast<int>(outBlkDims[1]), 8);
             outBlkDims.push_back(8);
             inData.desc =
                 InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32, inShape, {inBlkDims, order, offset});

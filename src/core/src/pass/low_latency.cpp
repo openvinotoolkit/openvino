@@ -19,7 +19,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency, "LowLatency", 0);
 using namespace std;
 
 namespace {
-string generate_variable_name(const string& op_name, const string& param_name, int variable_idx) {
+string generate_variable_name(const string& op_name, const string& param_name, int64_t variable_idx) {
     return op_name + "/" + param_name + "/" + "variable_" + to_string(variable_idx);
 }
 

@@ -288,7 +288,7 @@ static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::st
 
         // If concat axis > 0, detect any dimension > 1 before the concat axis
         if (concat_axis > 0) {
-            for (auto axis = 0; axis < concat_axis; axis++) {
+            for (unsigned int axis = 0; axis < concat_axis; axis++) {
                 if (in_dims[axis] > 1) {
                     is_not_trivial_concat = true;
                     break;
@@ -352,7 +352,7 @@ static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::st
         // For interleaved inputs start checking from axis 1
         // and allow concatenation on axis 0 only when all other dimesions = 1
         std::rotate(in_dims.begin(), in_dims.begin() + 1, in_dims.end());
-        concat_axis == 0 ? concat_axis = dims_size - 1 : concat_axis--;
+        concat_axis == 0 ? concat_axis = static_cast<unsigned int>(dims_size - 1) : concat_axis--;
 
         // Looking for any axis with dimension > 1 before concatentaion axis;
         // in general such concatenation is unsupported

@@ -34,7 +34,7 @@ void slice(const char* data,
     std::vector<int64_t> aligned_steps(data_rank, 1);
     for (size_t i = 0; i < axes.size(); ++i) {
         const int64_t axis = axes[i] >= 0 ? axes[i] : axes[i] + static_cast<int64_t>(data_rank);
-        OPENVINO_ASSERT(axis >= 0 && axis < data_rank, "Slice `axes` arg has out of range value.");
+        OPENVINO_ASSERT(axis >= 0 && static_cast<size_t>(axis) < data_rank, "Slice `axes` arg has out of range value.");
         const auto& dim = data_shape[axis];
         aligned_starts[axis] = starts[i] >= 0 ? std::min<int64_t>(starts[i], steps[i] < 0 ? dim - 1 : dim)
                                               : std::min<int64_t>(std::max<int64_t>(0, starts[i] + dim), dim - 1);
@@ -49,7 +49,8 @@ void slice(const char* data,
         for (size_t i = 0; i < in_data_coord.size(); ++i) {
             in_data_coord[i] = aligned_starts[i] + (out_idx / out_data_strides[i] % out_shape[i]) * aligned_steps[i];
         }
-        const auto in_idx = std::inner_product(in_data_coord.begin(), in_data_coord.end(), in_data_strides.begin(), 0);
+        const auto in_idx =
+            std::inner_product(in_data_coord.begin(), in_data_coord.end(), in_data_strides.begin(), uint64_t(0));
         const auto in_mem = data + in_idx * elem_size;
         std::memcpy(out, in_mem, elem_size);
         out += elem_size;
@@ -73,7 +74,7 @@ void slice(const char* arg,
 
     auto dst_mem = out;
 
-    for (auto range : coordinates::slice(arg_shape, lower_bounds, upper_bounds, strides)) {
+    for (const auto& range : coordinates::slice(arg_shape, lower_bounds, upper_bounds, strides)) {
         auto src_index = range.begin_index;
         for (size_t i = 0; i < range.element_number; src_index += range.step, ++i) {
             const auto src_mem = arg + src_index * elem_size;

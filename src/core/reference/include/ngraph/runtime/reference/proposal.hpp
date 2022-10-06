@@ -146,15 +146,15 @@ static void enumerate_proposals(const T* bottom4d,
                 const T pred_ctr_x = dx * static_cast<T>(ww) + static_cast<T>(ctr_x);
                 const T pred_ctr_y = dy * static_cast<T>(hh) + static_cast<T>(ctr_y);
                 // new width & height according to gradient d(log w), d(log h)
-                const T pred_w = std::exp(d_log_w) * static_cast<T>(ww);
-                const T pred_h = std::exp(d_log_h) * static_cast<T>(hh);
+                const T pred_w = static_cast<T>(std::exp(d_log_w) * ww);
+                const T pred_h = static_cast<T>(std::exp(d_log_h) * hh);
 
                 // update upper-left corner location
-                x0 = pred_ctr_x - 0.5f * pred_w;
-                y0 = pred_ctr_y - 0.5f * pred_h;
+                x0 = static_cast<float>(pred_ctr_x - 0.5f * pred_w);
+                y0 = static_cast<float>(pred_ctr_y - 0.5f * pred_h);
                 // update lower-right corner location
-                x1 = pred_ctr_x + 0.5f * pred_w;
-                y1 = pred_ctr_y + 0.5f * pred_h;
+                x1 = static_cast<float>(pred_ctr_x + 0.5f * pred_w);
+                y1 = static_cast<float>(pred_ctr_y + 0.5f * pred_h);
 
                 // adjust new corner locations to be within the image region,
                 if (clip_before_nms) {
@@ -230,8 +230,8 @@ static void nms(const int num_boxes,
                 const T x1 = std::min(x1i, x1j);
                 const T y1 = std::min(y1i, y1j);
                 // intersection area
-                const T width = std::max<T>(0.0f, x1 - x0 + coordinates_offset);
-                const T height = std::max<T>(0.0f, y1 - y0 + coordinates_offset);
+                const T width = std::max<T>(static_cast<T>(0), x1 - x0 + coordinates_offset);
+                const T height = std::max<T>(static_cast<T>(0), y1 - y0 + coordinates_offset);
                 const T area = width * height;
                 // area of A, B
                 const T A_area = (x1i - x0i + coordinates_offset) * (y1i - y0i + coordinates_offset);
@@ -267,10 +267,10 @@ static void retrieve_rois(const int num_rois,
         T y1 = proposals[index].y1;
 
         if (clip_after_nms) {
-            x0 = std::max<T>(0.0f, std::min(x0, static_cast<T>(img_w)));
-            y0 = std::max<T>(0.0f, std::min(y0, static_cast<T>(img_h)));
-            x1 = std::max<T>(0.0f, std::min(x1, static_cast<T>(img_w)));
-            y1 = std::max<T>(0.0f, std::min(y1, static_cast<T>(img_h)));
+            x0 = std::max<T>(T(0), std::min(x0, static_cast<T>(img_w)));
+            y0 = std::max<T>(T(0), std::min(y0, static_cast<T>(img_h)));
+            x1 = std::max<T>(T(0), std::min(x1, static_cast<T>(img_w)));
+            y1 = std::max<T>(T(0), std::min(y1, static_cast<T>(img_h)));
         }
 
         if (normalize) {
@@ -326,8 +326,8 @@ static void proposal_exec(const T* class_probs,
     T* p_prob_item = attrs.infer_probs ? out_probs : nullptr;
 
     // bottom shape (batch_size * (2 * num_anchors) * H * W)
-    const unsigned int bottom_H = class_probs_shape[2];
-    const unsigned int bottom_W = class_probs_shape[3];
+    const unsigned int bottom_H = static_cast<unsigned int>(class_probs_shape[2]);
+    const unsigned int bottom_W = static_cast<unsigned int>(class_probs_shape[3]);
     // input image height and width
     const T img_H = image_shape[0];
     const T img_W = image_shape[1];
@@ -337,21 +337,21 @@ static void proposal_exec(const T* class_probs,
     // or be the same for both   {image_height, image_width, scale_height_and_width}
     const T scale_H = image_shape[2];
     const T scale_W = (image_shape_shape.size() < 4 ? scale_H : image_shape[3]);
-    const T min_box_H = attrs.min_size * scale_H;
-    const T min_box_W = attrs.min_size * scale_W;
+    const T min_box_H = static_cast<T>(attrs.min_size * scale_H);
+    const T min_box_W = static_cast<T>(attrs.min_size * scale_W);
     // get number of proposals
     // class_probs shape is {batch_size, anchor_count*2, bottom_H, bottom_W}
-    const unsigned int anchor_count = class_probs_shape[1] / 2;
+    const unsigned int anchor_count = static_cast<unsigned int>(class_probs_shape[1] / 2);
     const unsigned int num_proposals = anchor_count * bottom_H * bottom_W;
     // final RoI count
     int num_rois = 0;
     std::vector<ProposalBox<T>> proposals(num_proposals);
-    const int pre_nms_topn = num_proposals < attrs.pre_nms_topn ? num_proposals : attrs.pre_nms_topn;
+    const int pre_nms_topn = static_cast<int>(num_proposals < attrs.pre_nms_topn ? num_proposals : attrs.pre_nms_topn);
     std::vector<unsigned int> roi_indices(attrs.post_nms_topn);
 
     std::vector<float> anchors = generate_anchors(attrs, anchor_count);
 
-    unsigned int batch_num = class_probs_shape[0];
+    unsigned int batch_num = static_cast<unsigned int>(class_probs_shape[0]);
     float coordinates_offset = attrs.framework == "tensorflow" ? 0.0f : 1.0f;
     bool initial_clip = attrs.framework == "tensorflow";
     bool swap_xy = attrs.framework == "tensorflow";
@@ -367,11 +367,11 @@ static void proposal_exec(const T* class_probs,
                             anchor_count,
                             bottom_H,
                             bottom_W,
-                            img_H,
-                            img_W,
-                            min_box_H,
-                            min_box_W,
-                            attrs.feat_stride,
+                            static_cast<float>(img_H),
+                            static_cast<float>(img_W),
+                            static_cast<float>(min_box_H),
+                            static_cast<float>(min_box_W),
+                            static_cast<int>(attrs.feat_stride),
                             attrs.box_coordinate_scale,
                             attrs.box_size_scale,
                             coordinates_offset,
@@ -391,20 +391,20 @@ static void proposal_exec(const T* class_probs,
             num_rois,
             0,
             attrs.nms_thresh,
-            attrs.post_nms_topn,
+            static_cast<int>(attrs.post_nms_topn),
             static_cast<T>(coordinates_offset));
 
         T* p_probs = p_prob_item ? p_prob_item + batch_idx * attrs.post_nms_topn : nullptr;
         retrieve_rois(num_rois,
-                      batch_idx,
+                      static_cast<int>(batch_idx),
                       pre_nms_topn,
                       proposals,
                       roi_indices,
                       p_roi_item + batch_idx * attrs.post_nms_topn * 5,
-                      attrs.post_nms_topn,
+                      static_cast<int>(attrs.post_nms_topn),
                       attrs.normalize,
-                      img_H,
-                      img_W,
+                      static_cast<float>(img_H),
+                      static_cast<float>(img_W),
                       attrs.clip_after_nms,
                       p_probs);
     }

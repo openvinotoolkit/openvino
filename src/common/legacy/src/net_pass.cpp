@@ -438,16 +438,16 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
         return indx == scope.size() ? -1 : indx;
     };
 
-    int in_dt_idx = _indx_in(ti->body.inputs, rsp1->insData[0].lock());
-    int in_hs_idx = _indx_in(ti->body.inputs, cell->insData[1].lock());
-    int in_cs_idx = NS == 2 ? _indx_in(ti->body.inputs, cell->insData[2].lock()) : -1;
+    int in_dt_idx = static_cast<int>(_indx_in(ti->body.inputs, rsp1->insData[0].lock()));
+    int in_hs_idx = static_cast<int>(_indx_in(ti->body.inputs, cell->insData[1].lock()));
+    int in_cs_idx = NS == 2 ? static_cast<int>(_indx_in(ti->body.inputs, cell->insData[2].lock())) : -1;
 
-    int out_dt_idx = _indx_in(ti->body.outputs, rsp2->outData[0]);
-    int out_hs_idx = _indx_in(ti->body.outputs, cell->outData[0]);
-    int out_cs_idx = NS == 2 ? _indx_in(ti->body.outputs, cell->outData[1]) : -1;
+    int out_dt_idx = static_cast<int>(_indx_in(ti->body.outputs, rsp2->outData[0]));
+    int out_hs_idx = static_cast<int>(_indx_in(ti->body.outputs, cell->outData[0]));
+    int out_cs_idx = NS == 2 ? static_cast<int>(_indx_in(ti->body.outputs, cell->outData[1])) : -1;
 
     // indexes should be [0,1,2] : sum == 3 or [0,1,-1] : sum == 0
-    int sum = (NS - 1) * 3;
+    int sum = (static_cast<int>(NS) - 1) * 3;
     if (in_hs_idx + in_cs_idx + in_dt_idx != sum || out_hs_idx + out_cs_idx + out_dt_idx != sum) return false;
 
     std::map<int, TensorIterator::PortMap> i2map, o2map, be2map;
@@ -1381,7 +1381,7 @@ void convertArrayPrecision(typename PrecisionTrait<PREC_TO>::value_type* dst,
     using dst_type = typename PrecisionTrait<PREC_TO>::value_type;
 
     for (size_t i = 0; i < nelem; i++) {
-        dst[i] = PrecisionUtils::saturate_cast<dst_type>(src[i]);
+        dst[i] = PrecisionUtils::saturate_cast<dst_type>(static_cast<dst_type>(src[i]));
     }
 }
 

@@ -568,15 +568,15 @@ std::map<std::string, InferenceEngineProfileInfo> TemplateInferRequest::GetPerfo
     info.execution_index = 0;
     info.status = InferenceEngineProfileInfo::EXECUTED;
 
-    info.cpu_uSec = info.realTime_uSec = _durations[Preprocess].count();
+    info.cpu_uSec = info.realTime_uSec = static_cast<long long>(_durations[Preprocess].count());
     perfMap["1. input preprocessing"] = info;
     info.cpu_uSec = info.realTime_uSec = 0;
     perfMap["2. input transfer to a device"] = info;
-    info.cpu_uSec = info.realTime_uSec = _durations[StartPipeline].count();
+    info.cpu_uSec = info.realTime_uSec = static_cast<long long>(_durations[StartPipeline].count());
     perfMap["3. execution time"] = info;
     info.cpu_uSec = info.realTime_uSec = 0;
     perfMap["4. output transfer from a device"] = info;
-    info.cpu_uSec = info.realTime_uSec = _durations[Postprocess].count();
+    info.cpu_uSec = info.realTime_uSec = static_cast<long long>(_durations[Postprocess].count());
     perfMap["5. output postprocessing"] = info;
     return perfMap;
 }

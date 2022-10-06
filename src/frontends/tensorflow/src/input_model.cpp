@@ -128,7 +128,7 @@ void InputModel::InputModelTFImpl::loadPlaces() {
             try {
                 node_decoder->get_input_node(input_port_idx, producer_op_name, producer_output_port_idx);
                 op_names_with_consumers.insert(producer_op_name);
-            } catch (const std::exception& e) {
+            } catch (const std::exception&) {
                 FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
                                 " for op '" + node_decoder->get_op_name() + "', expected input name: '" +
                                 producer_op_name +
@@ -139,7 +139,7 @@ void InputModel::InputModelTFImpl::loadPlaces() {
 
     if (m_telemetry) {
         for (const auto& op : op_statistics) {
-            m_telemetry->send_event("op_count", "tf_" + op.first, op.second);
+            m_telemetry->send_event("op_count", "tf_" + op.first, static_cast<int>(op.second));
         }
     }
 

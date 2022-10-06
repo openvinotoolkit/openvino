@@ -301,7 +301,7 @@ Output<Node> legacy_broadcast_for_binary_operation(const Output<Node>& left,
     // Prepare new shape of right operand for broadcasting
     // Remove dimensions with length=1 from back
     auto new_right_shape = right_shape;
-    for (int dimension = new_right_shape.size() - 1; dimension >= 0; --dimension) {
+    for (int dimension = static_cast<int>(new_right_shape.size()) - 1; dimension >= 0; --dimension) {
         if (new_right_shape.at(dimension) == 1) {
             new_right_shape.pop_back();
         } else {

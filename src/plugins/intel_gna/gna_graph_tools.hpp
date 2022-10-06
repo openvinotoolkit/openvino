@@ -270,7 +270,7 @@ inline int CNNLayerFindOutDataIdx(CNNLayerPtr layer, int insDataIdx) {
     auto prevLayer = CNNNetPrevLayer(layer, insDataIdx);
     auto outDataToSearch = layer->insData[insDataIdx].lock();
     auto outDataIt = std::find(prevLayer->outData.begin(), prevLayer->outData.end(), outDataToSearch);
-    return std::distance(prevLayer->outData.begin(), outDataIt);
+    return static_cast<int>(std::distance(prevLayer->outData.begin(), outDataIt));
 }
 
 /// @brief utility to locate output data from given insData index and given layer
@@ -783,7 +783,7 @@ inline void CNNNetworkReconnectLayer(CNNLayerPtr old_prev_layer, CNNLayerPtr new
  */
 inline uint32_t GetDataDimSize(InferenceEngine::DataPtr data, uint32_t backOffset) {
     auto dims = data->getDims();
-    return (dims.size() > backOffset - 1) ? dims[dims.size() - backOffset] : 1;
+    return (dims.size() > backOffset - 1) ? static_cast<uint32_t>(dims[dims.size() - backOffset]) : uint32_t(1);
 }
 
 enum class DataDimName {

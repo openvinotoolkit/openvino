@@ -13,7 +13,7 @@ namespace reference {
 template <typename T>
 void log(const T* arg, T* out, size_t count) {
     for (size_t i = 0; i < count; i++) {
-        out[i] = std::log(arg[i]);
+        out[i] = static_cast<T>(std::log(arg[i]));
     }
 }
 }  // namespace reference

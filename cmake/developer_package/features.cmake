@@ -17,13 +17,17 @@ else()
     ie_option(USE_BUILD_TYPE_SUBFOLDER "Create dedicated sub-folder per build type for output binaries" ON)
 endif()
 
-# FIXME: ARM cross-compiler generates several "false positive" warnings regarding __builtin_memcpy buffer overflow
-if(X86 OR X86_64)
+if(CI_BUILD_NUMBER)
     set(TREAT_WARNING_AS_ERROR_DEFAULT ON)
 else()
     set(TREAT_WARNING_AS_ERROR_DEFAULT OFF)
 endif()
-ie_option (TREAT_WARNING_AS_ERROR "Treat build warnings as errors" ${TREAT_WARNING_AS_ERROR_DEFAULT})
+
+ie_dependent_option (TREAT_WARNING_AS_ERROR "WILL BE REMOVED SOON, NEED TO FIX PRIVATE COMPONENTS" ON "X86_64 OR X86" OFF)
+
+if(NOT DEFINED CMAKE_COMPILE_WARNING_AS_ERROR)
+    set(CMAKE_COMPILE_WARNING_AS_ERROR ${TREAT_WARNING_AS_ERROR_DEFAULT})
+endif()
 
 ie_dependent_option (ENABLE_INTEGRITYCHECK "build DLLs with /INTEGRITYCHECK flag" OFF "CMAKE_CXX_COMPILER_ID STREQUAL MSVC" OFF)
 

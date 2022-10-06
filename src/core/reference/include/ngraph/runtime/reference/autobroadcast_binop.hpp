@@ -28,7 +28,7 @@ inline void row_major_strides(const Shape& shape, size_t* strides, size_t size) 
 
 template <typename C, typename T>
 inline T value_with_padding_or(const C& arr, size_t padding, size_t idx, T&& default_value) {
-    return idx < padding ? std::forward<T>(default_value) : arr[idx - padding];
+    return idx < padding ? std::forward<T>(default_value) : static_cast<T>(arr[idx - padding]);
 }
 
 template <int A0, int A1, typename T, typename U, typename Functor>
@@ -100,7 +100,7 @@ void autobroadcast_binop(const T* arg0,
     switch (broadcast_spec.m_type) {
     case op::AutoBroadcastType::NONE:
         for (size_t i = 0; i < shape_size(arg0_shape); i++) {
-            out[i] = elementwise_functor(arg0[i], arg1[i]);
+            out[i] = static_cast<U>(elementwise_functor(arg0[i], arg1[i]));
         }
         break;
     case op::AutoBroadcastType::NUMPY:
@@ -155,23 +155,6 @@ void autobroadcast_binop(const T* arg0,
                 if (dim0 != dim1)
                     axis = std::max(axis, i);
             }
-#if 0
-                        // Universal function without optimisations
-                        CoordinateTransformBasic arg0_transform(arg0_shape);
-                        CoordinateTransformBasic arg1_transform(arg1_shape);
-                        U *dst = out;
-
-                        for(CoordinateIterator it(output_shape),
-                            ite = CoordinateIterator::end();
-                            it != ite;
-                            ++it)
-                        {
-                            const Coordinate& output_coord = *it;
-                            size_t const idx0 = arg0_transform.index(output_coord);
-                            size_t const idx1 = arg1_transform.index(output_coord);
-                            *dst++ = elementwise_functor(arg0[idx0], arg1[idx1]);
-                        }
-#else
 
             if (axis == 0) {
                 for (size_t i = 0, end = strides0[0]; i < end; ++i)
@@ -222,7 +205,6 @@ void autobroadcast_binop(const T* arg0,
                                                 axis,
                                                 strides0[axis],
                                                 elementwise_functor);
-#endif
         }
         break;
     case op::AutoBroadcastType::PDPD:
@@ -401,13 +383,13 @@ void autobroadcast_select(const U* arg0,
                 const Coordinate arg2_coord = reduce(output_coord, arg2_squeezed_axes, false);
 
                 const size_t arg0_idx =
-                    std::inner_product(arg0_coord.begin(), arg0_coord.end(), arg0_strides.begin(), 0);
+                    std::inner_product(arg0_coord.begin(), arg0_coord.end(), arg0_strides.begin(), uint64_t(0));
                 const size_t arg1_idx =
-                    std::inner_product(arg1_coord.begin(), arg1_coord.end(), arg1_strides.begin(), 0);
+                    std::inner_product(arg1_coord.begin(), arg1_coord.end(), arg1_strides.begin(), uint64_t(0));
                 const size_t arg2_idx =
-                    std::inner_product(arg2_coord.begin(), arg2_coord.end(), arg2_strides.begin(), 0);
+                    std::inner_product(arg2_coord.begin(), arg2_coord.end(), arg2_strides.begin(), uint64_t(0));
                 const size_t output_idx =
-                    std::inner_product(output_coord.begin(), output_coord.end(), output_strides.begin(), 0);
+                    std::inner_product(output_coord.begin(), output_coord.end(), output_strides.begin(), uint64_t(0));
                 out[output_idx] = elementwise_functor(arg0[arg0_idx], arg1[arg1_idx], arg2[arg2_idx]);
             }
         }
@@ -476,12 +458,14 @@ void autobroadcast_select(const U* arg0,
             const Coordinate arg0_coord = reduce(output_coord, arg0_squeezed_axes, false);
             const Coordinate arg2_coord = reduce(output_coord, arg2_squeezed_axes, false);
 
-            const size_t arg0_idx = std::inner_product(arg0_coord.begin(), arg0_coord.end(), arg0_strides.begin(), 0);
+            const size_t arg0_idx =
+                std::inner_product(arg0_coord.begin(), arg0_coord.end(), arg0_strides.begin(), uint64_t(0));
             const size_t arg1_idx =
-                std::inner_product(output_coord.begin(), output_coord.end(), output_strides.begin(), 0);
-            const size_t arg2_idx = std::inner_product(arg2_coord.begin(), arg2_coord.end(), arg2_strides.begin(), 0);
+                std::inner_product(output_coord.begin(), output_coord.end(), output_strides.begin(), uint64_t(0));
+            const size_t arg2_idx =
+                std::inner_product(arg2_coord.begin(), arg2_coord.end(), arg2_strides.begin(), uint64_t(0));
             const size_t output_idx =
-                std::inner_product(output_coord.begin(), output_coord.end(), output_strides.begin(), 0);
+                std::inner_product(output_coord.begin(), output_coord.end(), output_strides.begin(), uint64_t(0));
 
             out[output_idx] = elementwise_functor(arg0[arg0_idx], arg1[arg1_idx], arg2[arg2_idx]);
         }

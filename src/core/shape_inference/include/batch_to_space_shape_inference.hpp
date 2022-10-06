@@ -95,7 +95,8 @@ void shape_infer(const ov::op::v1::BatchToSpace* op,
                 }
             }
 
-            int64_t block_prod = std::accumulate(begin(block_val), end(block_val), 1, std::multiplies<int64_t>());
+            int64_t block_prod =
+                std::accumulate(begin(block_val), end(block_val), int64_t(1), std::multiplies<int64_t>());
             const auto divisor = static_cast<ValType>(block_prod);
 
             output_shape[0] = data_shape[0] / divisor;

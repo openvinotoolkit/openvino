@@ -184,7 +184,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_each_node(
                                                       "The number of output tensors must be equal to "
                                                       "the number of outputs of the OV node.");
                         for (size_t idx = 0; idx < ng_outputs.size(); ++idx) {
-                            const auto& var_name = port.arguments()[idx];
+                            const auto& var_name = port.arguments()[static_cast<int>(idx)];
                             ng_outputs[idx].get_tensor().set_names({var_name});
                             // if nodes_dict already has node mapped to this tensor name it
                             // usually means that it was overwritten using setTensorValue

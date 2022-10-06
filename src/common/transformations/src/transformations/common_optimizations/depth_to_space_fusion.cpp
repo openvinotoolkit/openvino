@@ -26,7 +26,8 @@ bool check_block_first(const ngraph::PartialShape& shape_input,
     }
 
     possible_block_size = shape_reshape_before[1].get_length();
-    ngraph::Dimension c_dim(shape_input[1].get_length() / std::pow(possible_block_size, spatial_dims));
+    ngraph::Dimension c_dim(
+        static_cast<int64_t>(shape_input[1].get_length() / std::pow(possible_block_size, spatial_dims)));
 
     // x' = reshape(data, [N, block_size, block_size, ..., block_size, C / (block_size ^ K), D1, D2, ..., DK])
     ngraph::PartialShape expected_shape = {shape_input[0]};
@@ -76,7 +77,8 @@ bool check_depth_first(const ngraph::PartialShape& shape_input,
     }
 
     possible_block_size = shape_reshape_before[2].get_length();
-    ngraph::Dimension c_dim(shape_input[1].get_length() / std::pow(possible_block_size, spatial_dims));
+    ngraph::Dimension c_dim(
+        static_cast<int>(shape_input[1].get_length() / std::pow(possible_block_size, spatial_dims)));
 
     // x' = reshape(data, [N, C / (block_size ^ K), block_size, block_size, ..., block_size, D1, D2, ..., DK])
     ngraph::PartialShape expected_shape = {shape_input[0], c_dim};

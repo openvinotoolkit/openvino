@@ -4,6 +4,11 @@
 
 set (TARGET_NAME "inference_engine")
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # TODO: Add IMPLEMENT_OPENVINO_API to inference_engine_obj
+    ie_add_compiler_flags(/wd4273)
+endif()
+
 file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp

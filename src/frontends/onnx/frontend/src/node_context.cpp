@@ -18,7 +18,7 @@ ov::Output<ov::Node> ov::frontend::onnx::NodeContext::get_input(int port_idx) co
 ov::Any ov::frontend::onnx::NodeContext::get_attribute_as_any(const std::string& name) const {
     try {
         return m_context.get_attribute_value<ov::Any>(name);
-    } catch (ngraph::onnx_import::error::node::UnknownAttribute& e) {
+    } catch (ngraph::onnx_import::error::node::UnknownAttribute&) {
         return ov::Any();
     }
 }

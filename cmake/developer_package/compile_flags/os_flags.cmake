@@ -264,12 +264,9 @@ if(WIN32)
     ie_add_compiler_flags(/Gy) # remove unreferenced functions: function level linking
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LARGEADDRESSAWARE")
 
-    if (TREAT_WARNING_AS_ERROR)
+    if (CMAKE_COMPILE_WARNING_AS_ERROR)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-            ie_add_compiler_flags(/WX)
             ie_add_compiler_flags(/Qdiag-warning:47,1740,1786)
-        elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-           # ie_add_compiler_flags(/WX) # Too many warnings
         endif()
     endif()
 
@@ -310,12 +307,6 @@ if(WIN32)
     string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
     string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 else()
-    # TODO: enable for C sources as well
-    # ie_add_compiler_flags(-Werror)
-    if(TREAT_WARNING_AS_ERROR)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
-    endif()
-
     ie_add_compiler_flags(-ffunction-sections -fdata-sections)
     ie_add_compiler_flags(-fdiagnostics-show-option)
     ie_add_compiler_flags(-Wundef)

@@ -20,7 +20,7 @@ void mod(const T* arg0,
          const Shape& arg_shape1,
          const op::AutoBroadcastSpec& broadcast_spec) {
     autobroadcast_binop(arg0, arg1, out, arg_shape0, arg_shape1, broadcast_spec, [](T x, T y) -> T {
-        return T(x - std::truncf(x / y) * y);
+        return static_cast<T>(x - std::truncf(static_cast<float>(x / y)) * y);
     });
 }
 }  // namespace reference

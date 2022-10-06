@@ -92,7 +92,7 @@ private:
      * @return
      */
     GNAModelSerial & AddState(void* descriptor_ptr, size_t size, std::string layerName = "noname", float scale_factor = 1.0f) {
-        states.emplace_back(descriptor_ptr, size, layerName, scale_factor);
+        states.emplace_back(descriptor_ptr, static_cast<uint32_t>(size), layerName, scale_factor);
         return *this;
     }
 

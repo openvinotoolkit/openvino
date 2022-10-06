@@ -29,9 +29,9 @@ ov::pass::RemoveMultiSubGraphOpDanglingParams::RemoveMultiSubGraphOpDanglingPara
         const auto subgraphs_size = multi_subgraph_op->get_internal_subgraphs_size();
         to_remove_descriptors_indexes.resize(subgraphs_size);
         for (size_t body_idx = 0; body_idx < subgraphs_size; ++body_idx) {
-            auto& body_func = multi_subgraph_op->get_function(body_idx);
+            auto& body_func = multi_subgraph_op->get_function(static_cast<int>(body_idx));
             auto& body_params = body_func->get_parameters();
-            auto& body_in_descriptors = multi_subgraph_op->get_input_descriptions(body_idx);
+            auto& body_in_descriptors = multi_subgraph_op->get_input_descriptions(static_cast<int>(body_idx));
             // collect all descriptors which should be removed and reqired inputs
             for (size_t i = 0; i < body_in_descriptors.size(); ++i) {
                 auto& body_param = body_params[body_in_descriptors[i]->m_body_parameter_index];
@@ -57,7 +57,7 @@ ov::pass::RemoveMultiSubGraphOpDanglingParams::RemoveMultiSubGraphOpDanglingPara
             auto update_op_inputs_desc = [&subgraphs_size](const std::shared_ptr<op::util::MultiSubGraphOp>& op,
                                                            uint64_t removed_loop_idx) {
                 for (size_t body_idx = 0; body_idx < subgraphs_size; ++body_idx) {
-                    auto& descriptors = op->get_input_descriptions(body_idx);
+                    auto& descriptors = op->get_input_descriptions(static_cast<int>(body_idx));
                     for (auto& desc : descriptors) {
                         if (desc->m_input_index > removed_loop_idx) {
                             desc->m_input_index--;
@@ -67,8 +67,8 @@ ov::pass::RemoveMultiSubGraphOpDanglingParams::RemoveMultiSubGraphOpDanglingPara
             };
             // Remove dangling body params and input and update input descriptors
             for (size_t body_idx = 0; body_idx < subgraphs_size; ++body_idx) {
-                auto& body_in_descriptors = multi_subgraph_op->get_input_descriptions(body_idx);
-                auto& body_func = multi_subgraph_op->get_function(body_idx);
+                auto& body_in_descriptors = multi_subgraph_op->get_input_descriptions(static_cast<int>(body_idx));
+                auto& body_func = multi_subgraph_op->get_function(static_cast<int>(body_idx));
                 auto& body_params = body_func->get_parameters();
                 op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector updated_body_in_descriptors;
                 for (size_t desc_idx = 0; desc_idx < body_in_descriptors.size(); ++desc_idx) {
@@ -93,7 +93,7 @@ ov::pass::RemoveMultiSubGraphOpDanglingParams::RemoveMultiSubGraphOpDanglingPara
                         updated_body_in_descriptors.emplace_back(body_in_descriptors[desc_idx]);
                     }
                 }
-                multi_subgraph_op->set_input_descriptions(body_idx, updated_body_in_descriptors);
+                multi_subgraph_op->set_input_descriptions(static_cast<int>(body_idx), updated_body_in_descriptors);
             }
             multi_subgraph_op->set_arguments(op_inputs);
         }

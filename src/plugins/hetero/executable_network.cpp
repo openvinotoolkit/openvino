@@ -233,7 +233,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                 }
             }
             if (inputs.empty()) {
-                subgraphIds.push_back(subgraphIds.size());
+                subgraphIds.push_back(static_cast<int>(subgraphIds.size()));
                 subgraphIdPtrs.emplace(node.get(), &(subgraphIds.back()));
             } else {
                 auto firstInputSubgraphIdPtr = subgraphIdPtrs[InputNode(inputs.front())];

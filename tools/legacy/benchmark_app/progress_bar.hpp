@@ -20,7 +20,7 @@ public:
     void addProgress(size_t num) {
         _isFinished = false;
         if (_progressEnabled) {
-            _bar->addProgress(num);
+            _bar->addProgress(static_cast<int>(num));
         }
     }
 

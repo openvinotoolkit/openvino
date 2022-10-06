@@ -180,9 +180,9 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
             in_dims_size = parent->insData[0].lock()->getDims().size();
             out_dims_size = parent->outData[0]->getDims().size();
             IE_ASSERT(out_dims_size == 3 || out_dims_size == 4);
-            size_t channels = GetDataDimSize(parent->outData[0], out_dims_size - 1);
+            size_t channels = GetDataDimSize(parent->outData[0], static_cast<uint32_t>(out_dims_size - 1));
             size_t height = out_dims_size == 3 ? 1 : GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::H);
-            size_t width = GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::W);
+            size_t width = GetDataDimSize(parent->outData[0], static_cast<uint32_t>(InferenceEngine::DataDimName::W));
             if (in_dims_size < 3 || channels != 1 && (height != 1 || width != 1)) {
                 return std::make_pair(nullptr, nullptr);
             }

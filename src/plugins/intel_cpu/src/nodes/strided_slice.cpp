@@ -107,10 +107,12 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const dnnl::engi
         const size_t nDims = std::max(inputRank, outputRank);
 
         auto createMask = [&](const std::vector<int64_t> &origMask, const int bit = 0, bool needReverse = false) {
-            std::vector<int> mask(origMask.begin(), origMask.end());
-            if (needReverse) {
-                for (size_t i = 0; i < mask.size(); i++)
+            std::vector<int> mask(origMask.size());
+            for (size_t i = 0; i < mask.size(); i++) {
+                mask[i] = static_cast<int>(origMask[i]);
+                if (needReverse) {
                     mask[i] = 1 - mask[i];
+                }
             }
             for (size_t i = mask.size(); i < nDims; ++i) mask.push_back(bit);
             return mask;

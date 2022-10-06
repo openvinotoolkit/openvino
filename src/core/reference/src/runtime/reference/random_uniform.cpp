@@ -192,7 +192,7 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
     // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
     // Implementation in plugins may differ for this case.
     if (seed == 0 && seed2 == 0) {
-        std::srand(std::time(nullptr));
+        std::srand(static_cast<unsigned int>(std::time(nullptr)));
         seed = std::rand();
     }
 

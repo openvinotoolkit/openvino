@@ -39,7 +39,7 @@ void scatterNdUpdate(const dataType* const inputData,
     for (size_t i = 0; i != num_of_updates; ++i) {
         const auto indices_coord = indices + i * indicesShape.back();
         const auto coord = span(indices_coord, indicesShape.back());
-        const auto out_index = std::inner_product(begin(coord), end(coord), begin(input_data_dim_pading), 0);
+        const auto out_index = std::inner_product(begin(coord), end(coord), begin(input_data_dim_pading), uint64_t(0));
 
         const auto update_data = updates + i * update_el_number;
         const auto update_mem_size = update_el_number * sizeof(dataType);

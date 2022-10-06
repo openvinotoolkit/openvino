@@ -21,7 +21,7 @@
 #include "openvino/core/runtime_attribute.hpp"
 
 namespace InferenceEngine {
-class InferencePlugin;
+struct InferencePlugin;
 class ExecutableNetwork;
 }  // namespace InferenceEngine
 
@@ -627,7 +627,7 @@ class OPENVINO_API Any {
     };
 
     friend class ::ov::RuntimeAttribute;
-    friend class ::InferenceEngine::InferencePlugin;
+    friend struct ::InferenceEngine::InferencePlugin;
     friend class ::InferenceEngine::ExecutableNetwork;
     friend class ::ov::CompiledModel;
     friend class ::ov::RemoteContext;

@@ -42,7 +42,7 @@ namespace {
 template <class T>
 void implementation(const T* input, T* output, int64_t add, size_t size) {
     for (size_t i = 0; i < size; i++) {
-        output[i] = input[i] + add;
+        output[i] = static_cast<T>(input[i] + add);
     }
 }
 

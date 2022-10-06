@@ -602,7 +602,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
     for (int k = 0; k < components.size(); ++k) {
         std::string l = generate_layer_name(k);
         layersNames.insert(l);
-        int lidx = std::distance(layersNames.begin(), layersNames.find(l));
+        int lidx = static_cast<int>(std::distance(layersNames.begin(), layersNames.find(l)));
         int widx = 0;
         int bidx = 0;
 
@@ -610,8 +610,8 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
             weights.insert(components[k].op.affine.ptr_weights);
             biases.insert(components[k].op.affine.ptr_biases);
 
-            widx = std::distance(weights.begin(), weights.find(components[k].op.affine.ptr_weights));
-            bidx = std::distance(biases.begin(), biases.find(components[k].op.affine.ptr_biases));
+            widx = static_cast<int>(std::distance(weights.begin(), weights.find(components[k].op.affine.ptr_weights)));
+            bidx = static_cast<int>(std::distance(biases.begin(), biases.find(components[k].op.affine.ptr_biases)));
         }
 
 
@@ -640,8 +640,8 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
                 weights.insert(components[k2].op.affine.ptr_weights);
                 biases.insert(components[k2].op.affine.ptr_biases);
 
-                w2idx = std::distance(weights.begin(), weights.find(components[k2].op.affine.ptr_weights));
-                b2idx = std::distance(biases.begin(), biases.find(components[k2].op.affine.ptr_biases));
+                w2idx = static_cast<int>(std::distance(weights.begin(), weights.find(components[k2].op.affine.ptr_weights)));
+                b2idx = static_cast<int>(std::distance(biases.begin(), biases.find(components[k2].op.affine.ptr_biases)));
             }
 
             auto rw =  "weights_" + std::to_string(w2idx);
@@ -688,13 +688,13 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
                     auto  updated_ptr  = std::min(startPtr(en.first, en.second.size), startPtr(INPUTS(k)));
                     auto  updated_size = std::max(endPtr(en.first, en.second.size), endPtr(INPUTS(k))) - updated_ptr;
                     outputs.erase(en.first);
-                    outputs[updated_ptr] = InputEndPoint(tidx, updated_size, components[k].num_bytes_per_input);
+                    outputs[updated_ptr] = InputEndPoint(static_cast<int>(tidx), updated_size, components[k].num_bytes_per_input);
                     break;
                 }
             }
 
             if (tidx == -1) {
-                outputs[components[k].ptr_inputs] = InputEndPoint(outputs.size(), sizeofTensor(INPUTS(k)), components[k].num_bytes_per_input);
+                outputs[components[k].ptr_inputs] = InputEndPoint(static_cast<int>(outputs.size()), sizeofTensor(INPUTS(k)), components[k].num_bytes_per_input);
             }
             tidx = outputs[components[k].ptr_inputs].idx;
             graph << "parameter_" << tidx << " -> " << l
@@ -1662,12 +1662,12 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(Gna2Model *gnaModel, const 
         }
     }
     // enable debugging of partial array of components
-    gnaModel->NumberOfOperations = std::distance(gnaModel->Operations, gnaOperation);
+    gnaModel->NumberOfOperations = static_cast<uint32_t>(std::distance(gnaModel->Operations, gnaOperation));
 }
 
 void GNAPluginNS::backend::AMIntelDNN::DestroyGNAStruct(Gna2Model *gnaModel) {
     if (gnaModel->Operations != nullptr) {
-        for (int i = 0; i < gnaModel->NumberOfOperations; i++) {
+        for (uint32_t i = 0; i < gnaModel->NumberOfOperations; i++) {
             switch (gnaModel->Operations[i].Type) {
             case Gna2OperationTypeFullyConnectedAffine:break;
             case Gna2OperationTypeElementWiseAffine:break;
@@ -1696,7 +1696,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteInputAndOutputTextGNA(const Gna2Mode
 
 void GNAPluginNS::backend::AMIntelDNN::WriteInputAndOutputText() {
 #ifdef LIGHT_DUMP
-    for (int i = 0; i < num_components(); i++) {
+    for (uint32_t i = 0; i < num_components(); i++) {
         std::stringstream out_file_name;
         out_file_name << std::setfill('0') << std::setw(2) << i << "_"
                       << intel_dnn_operation_name[component[i].operation]
@@ -1721,8 +1721,8 @@ void GNAPluginNS::backend::AMIntelDNN::WriteInputAndOutputText() {
         float  maxD = 0.0f;
         int    numItems = 0;
 
-        for (int k = 0; k < component[i].num_rows_out; k++) {
-            for (int j = 0; j < component[i].num_columns_out; j++) {
+        for (uint32_t k = 0; k < component[i].num_rows_out; k++) {
+            for (uint32_t j = 0; j < component[i].num_columns_out; j++) {
                 float floatValue = 0.f;
                 if (component[i].num_bytes_per_output == 4) {
                     if (compute_precision_ == kDnnInt) {
@@ -1765,8 +1765,8 @@ void GNAPluginNS::backend::AMIntelDNN::WriteInputAndOutputText() {
 
         float input_scale_factor = component[i].input_scale_factor;
 
-        for (int k = 0; k < component[i].num_rows_in; k++) {
-            for (int j = 0; j < component[i].num_columns_in; j++) {
+        for (uint32_t k = 0; k < component[i].num_rows_in; k++) {
+            for (uint32_t j = 0; j < component[i].num_columns_in; j++) {
                 float floatValue = 0.f;
                 if (component[i].num_bytes_per_input == 4) {
                     if (compute_precision_ == kDnnInt) {

@@ -42,7 +42,7 @@ static void insert_extra_pwl_segments(std::vector<gna_pwl_segment_t>& gna_pwl,
         int16_t slope = gna_pwl[gna_pwl_size - 1].slope;
         int32_t xBase = gna_pwl[gna_pwl_size - 1].xBase & XBASEMASK;
         int16_t yBase = gna_pwl[gna_pwl_size - 1].yBase;
-        float scale = pow(2, ((gna_pwl[gna_pwl_size - 1].xBase & ~XBASEMASK) + 1) * 8);
+        float scale = static_cast<float>(pow(2, ((gna_pwl[gna_pwl_size - 1].xBase & ~XBASEMASK) + 1) * 8));
         float y_value = ((static_cast<float>(INT32_MAX) - xBase) * slope) / scale + yBase;
 
         if (y_value > static_cast<float>(INT16_MAX) || y_value < static_cast<float>(INT16_MIN)) {
@@ -122,11 +122,11 @@ void make_gna_pwl(const DnnActivation&  fun,
             int32_t y_lower = y_min;
             int16_t y_upper = y_max;
             if (fun.fqParams.set) {
-                x_lower = std::max(FLOAT_TO_INT64(*fun.fqParams.input_low * 1.25 * in_scale), static_cast<int64_t>(x_lower));
-                x_upper = std::min(FLOAT_TO_INT64(*fun.fqParams.input_high * 1.25 * in_scale), static_cast<int64_t>(x_upper));
+                x_lower = static_cast<int32_t>(std::max(FLOAT_TO_INT64(*fun.fqParams.input_low * 1.25 * in_scale), static_cast<int64_t>(x_lower)));
+                x_upper = static_cast<int32_t>(std::min(FLOAT_TO_INT64(*fun.fqParams.input_high * 1.25 * in_scale), static_cast<int64_t>(x_upper)));
                 // y_lower can be reduced with negative slope
-                y_lower = *fun.fqParams.input_low * 1.25 * out_scale;
-                y_upper = std::min(FLOAT_TO_INT32(*fun.fqParams.input_high * 1.25 * out_scale), static_cast<int32_t>(y_upper));
+                y_lower = static_cast<int32_t>(*fun.fqParams.input_low * 1.25 * out_scale);
+                y_upper = static_cast<int16_t>(std::min(FLOAT_TO_INT32(*fun.fqParams.input_high * 1.25 * out_scale), static_cast<int32_t>(y_upper)));
             } else {
                 if (x_lower < y_lower * in_scale / out_scale) x_lower = FLOAT_TO_INT32(y_lower * in_scale / out_scale);
                 if (y_lower < x_lower * out_scale / in_scale) y_lower = FLOAT_TO_INT16(x_lower * out_scale / in_scale);

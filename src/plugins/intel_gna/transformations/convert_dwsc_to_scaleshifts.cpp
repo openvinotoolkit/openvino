@@ -45,12 +45,12 @@ static std::shared_ptr<ngraph::Node> DecomposeDWSC(std::shared_ptr<ngraph::opset
     }
 
     // Move filter over input performing multiplication and addition (scaleshift), take padding, stride, dilation and bias into account
-    for (int32_t input_position = -pads_begin, o = 0; o < output_width; input_position += stride_width, o++) {
+    for (int32_t input_position = static_cast<int32_t>(-pads_begin), o = 0; o < output_width; input_position += static_cast<int32_t>(stride_width), o++) {
         std::shared_ptr<ngraph::Node> previous_layer_output, last_layer_output;
-        int32_t filter_end = input_position + filter_width * dilation_width;
+        int32_t filter_end = static_cast<int32_t>(input_position + filter_width * dilation_width);
         bool first = true;
 
-        filter_end = filter_end < input_width ? filter_end : input_width;
+        filter_end = filter_end < input_width ? filter_end : static_cast<int32_t>(input_width);
 
         for (int32_t filter_pos = input_position, filter_idx = 0; filter_pos < filter_end; filter_pos += dilation_width, filter_idx++) {
             if (filter_pos >= 0) {

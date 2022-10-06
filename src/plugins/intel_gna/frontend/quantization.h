@@ -45,9 +45,9 @@ struct QuantizationCallback {
     void runFakeQuantize() const;
 };
 
-template class QuantizationCallback<int16_t, int32_t>;
-template class QuantizationCallback<int8_t, gna_compound_bias_t>;
-template class QuantizationCallback<int8_t, int8_t>;
+template struct QuantizationCallback<int16_t, int32_t>;
+template struct QuantizationCallback<int8_t, gna_compound_bias_t>;
+template struct QuantizationCallback<int8_t, int8_t>;
 
 std::pair<float, float> FindMinMaxValues(void* ptr_float_memory, size_t num_elements);
 float ScaleFactorForQuantization(void *ptr_float_memory, float target_max, size_t num_elements);

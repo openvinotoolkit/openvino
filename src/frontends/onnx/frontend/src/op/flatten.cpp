@@ -25,7 +25,7 @@ OutputVector flatten(const Node& node) {
         // Accepted range is [-r, r] where r = rank(input).
         axis = ngraph::normalize_axis(node.get_description(), axis, data_rank_value, -data_rank_value, data_rank_value);
     }
-    return {ngraph::builder::opset1::flatten(data, axis)};
+    return {ngraph::builder::opset1::flatten(data, static_cast<int>(axis))};
 }
 
 }  // namespace set_1

@@ -65,7 +65,7 @@ void GNAPluginNS::backend::SoftmaxGoogle(float *ptr_output, float *ptr_input, co
     }
     if (sum < 1.0e-20) {
         fprintf(stderr, "Warning:  attempt to take log(0) in SoftmaxGoogle()!\n");
-        sum = 1.0e-20;
+        sum = 1.0e-20f;
     }
     diff = max_score + log(sum);
     for (uint32_t i = 0; i < num_outputs; i++) {

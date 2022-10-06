@@ -24,7 +24,7 @@ void floor_mod(const T* arg0,
         // Cast to double is needed for integer input,
         // otherwise std::floor will act like std::trunc
         const double divisor = static_cast<double>(y);
-        return x - y * std::floor(x / divisor);
+        return static_cast<T>(x - y * std::floor(x / divisor));
     });
 }
 }  // namespace reference

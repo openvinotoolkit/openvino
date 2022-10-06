@@ -14,6 +14,18 @@ if(CMAKE_COMPILER_IS_GNUCC)
     ie_add_compiler_flags(-Wno-all)
 endif()
 
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # 4267 4244 conversion from 'XXX' to 'YYY', possible loss of data
+    ie_add_compiler_flags(/wd4244)
+    # '<': signed/unsigned mismatch
+    ie_add_compiler_flags(/wd4018)
+    # conversion from 'size_t' to 'int', possible loss of data
+    ie_add_compiler_flags(/wd4267)
+    # unreferenced local variable
+    ie_add_compiler_flags(/wd4101)
+endif()
+
 add_subdirectory(common)
 
 if(ENABLE_INTEL_MYRIAD)
