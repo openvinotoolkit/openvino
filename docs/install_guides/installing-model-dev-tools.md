@@ -14,7 +14,7 @@ The instructions on this page show how to install OpenVINO Development Tools. If
 
 ### <a name="python-developers"></a>For Python Developers
 
-If you are a Python developer, follow the steps in the <a href="openvino_docs_install_guides_install_dev_tools.html#install-dev-tools">Installing OpenVINO Development Tools</a> section on this page to install it. Installing OpenVINO Development Tools will also install OpenVINO Runtime as a dependency, so you don’t need to install OpenVINO Runtime separately.
+If you are a Python developer, follow the steps in the <a href="openvino_docs_install_guides_install_dev_tools.html#install-dev-tools">Installing OpenVINO Development Tools</a> section on this page to install it. Installing OpenVINO Development Tools will also install OpenVINO Runtime as a dependency, so you don’t need to install OpenVINO Runtime separately. This option is recommended for new users.
    
 ### <a name="cpp-developers"></a>For C++ Developers
 If you are a C++ developer, you must first install OpenVINO Runtime separately to set up the C++ libraries, sample code, and dependencies for building applications with OpenVINO. These files are not included with the PyPI distribution. Visit the <a href="https://docs.openvino.ai/latest/openvino_docs_install_guides_install_runtime.html">Install OpenVINO Runtime</a> page, select your operating system, and select the option to install OpenVINO Runtime from an archive file.
