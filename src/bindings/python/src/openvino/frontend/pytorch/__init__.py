@@ -246,6 +246,15 @@ try:
 
             return None
 
+        def as_string (self):
+            if not self.get_op_type() == 'prim::Constant':
+                return None
+            pt_value = self._raw_output(0)
+        
+            if str(pt_value.type()) in ['torch.StringType', 'str']:
+                    return pt_value.toIValue()
+            return None
+
         def as_constant_tensor (self, pt_value):
             # Constant interpretation doesn't respect new-full type of PT
             # It recognizes only tensors, and give lists as 1D tensors, and scalars as Tensor scalars

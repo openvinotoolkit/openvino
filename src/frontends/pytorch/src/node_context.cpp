@@ -5,6 +5,7 @@
 #include <openvino/opsets/opset8.hpp>
 
 #include "exception.hpp"
+#include "pt_framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -49,7 +50,7 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) {
         auto parameter = model->get_parameters()[i];
         if (parameter->output(0).get_target_inputs().empty()) {
             // There is no consumers: safe to remove
-            //std::cout << "[ WARNING ] Removing parameter " << parameter
+            // std::cout << "[ WARNING ] Removing parameter " << parameter
             //          << " in converted Pytorch model, because it is never used" << std::endl;
             model->remove_parameter(parameter);
         }
@@ -64,8 +65,10 @@ std::vector<int64_t> NodeContext::const_input<std::vector<int64_t>>(size_t index
 
 template <>
 std::string NodeContext::const_input<std::string>(size_t index) const {
-    throw std::runtime_error("Cannot represent string as OV constant: lack of strings support");
-    // return get_constant_at_input(index)->cast_vector<std::string>()[0];
+    OV_FRONTEND_REQUIRE(!input_is_none(index));
+    auto input_node = get_input(index).get_node_shared_ptr();
+    auto input = std::dynamic_pointer_cast<PtFrameworkNode>(input_node);
+    return input->get_decoder()->as_string();
 }
 
 template <>

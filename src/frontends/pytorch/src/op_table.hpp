@@ -17,6 +17,6 @@ using CreatorFunction = std::function<OutputVector(NodeContext&)>;
 
 const std::map<std::string, CreatorFunction> get_supported_ops();
 
-}  // namespace paddle
+}  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov

@@ -4,8 +4,6 @@
 
 #include "pyopenvino/utils/utils.hpp"
 
-#include "openvino/frontend/pytorch/decoder.hpp"
-
 #include <pybind11/stl.h>
 
 #include <map>
@@ -14,6 +12,7 @@
 #include <vector>
 
 #include "Python.h"
+#include "openvino/frontend/pytorch/decoder.hpp"
 
 namespace Common {
 namespace utils {
@@ -140,12 +139,10 @@ std::string convert_path_to_string(const py::object& path) {
 };  // namespace Common
 
 ov::Any py_object_to_any(const py::object& py_obj) {
-
     // TODO: Investigate if there is a better alternative for converting any registered pybind11 type
     // Just listing all known types here looks a double work as we have already registed a lot of OV types
     // in other pybind11 definitions.
     // Another option is to not unpack pybind object until ov::Any is casted.
-
 
     // Python types
     if (py::isinstance<py::str>(py_obj)) {
@@ -180,18 +177,18 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         }
 
         switch (detected_type) {
-            case PY_TYPE::STR:
-                return _list.cast<std::vector<std::string>>();
-            case PY_TYPE::FLOAT:
-                return _list.cast<std::vector<double>>();
-            case PY_TYPE::INT:
-                return _list.cast<std::vector<int64_t>>();
-            case PY_TYPE::BOOL:
-                return _list.cast<std::vector<bool>>();
-            default:
-                OPENVINO_ASSERT(false, "Unsupported attribute type.");
+        case PY_TYPE::STR:
+            return _list.cast<std::vector<std::string>>();
+        case PY_TYPE::FLOAT:
+            return _list.cast<std::vector<double>>();
+        case PY_TYPE::INT:
+            return _list.cast<std::vector<int64_t>>();
+        case PY_TYPE::BOOL:
+            return _list.cast<std::vector<bool>>();
+        default:
+            OPENVINO_ASSERT(false, "Unsupported attribute type.");
         }
-    // OV types
+        // OV types
     } else if (py::isinstance<ov::Any>(py_obj)) {
         return py::cast<ov::Any>(py_obj);
     } else if (py::isinstance<ov::element::Type>(py_obj)) {
@@ -208,14 +205,14 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::streams::Num>(py_obj);
     } else if (py::isinstance<ov::Affinity>(py_obj)) {
         return py::cast<ov::Affinity>(py_obj);
-    // Custom PT FE Types
+        // Custom PT FE Types
     } else if (py::isinstance<ov::frontend::pytorch::Type::Tensor>(py_obj)) {
         std::cout << "[ ANY PYBIND ] Detected Tensor\n";
         return py::cast<ov::frontend::pytorch::Type::Tensor>(py_obj);
     } else if (py::isinstance<ov::frontend::pytorch::Type::List>(py_obj)) {
         std::cout << "[ ANY PYBIND ] Detected List\n";
         return py::cast<ov::frontend::pytorch::Type::List>(py_obj);
-    // If there is no match fallback to py::object
+        // If there is no match fallback to py::object
     } else if (py::isinstance<py::object>(py_obj)) {
         return py_obj;
     }
