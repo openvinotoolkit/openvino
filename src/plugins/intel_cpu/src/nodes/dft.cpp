@@ -194,9 +194,9 @@ void applyBufferND(const float* buffer, float* output, size_t axis, const std::v
 
 void copyDataToOutputWithSignalSize(const float* input, const std::vector<size_t>& inputShape, const std::vector<size_t>& inputStrides,
                                     float* output, const std::vector<size_t>& outputShape, const std::vector<size_t>& outputStrides) {
-    auto totalInput = std::accumulate(inputShape.begin(), inputShape.end(), 1, std::multiplies<size_t>());
-    auto totalOutput = std::accumulate(outputShape.begin(), outputShape.end(), 1, std::multiplies<size_t>());
-    std::fill_n(output, totalOutput, 0);
+    auto totalInput = std::accumulate(inputShape.begin(), inputShape.end(), size_t(1), std::multiplies<size_t>());
+    auto totalOutput = std::accumulate(outputShape.begin(), outputShape.end(), size_t(1), std::multiplies<size_t>());
+    std::fill_n(output, totalOutput, 0.f);
     size_t lastChangedDim = 0;
     for (size_t index = inputShape.size() - 1; index > 0; --index) {
         if (inputShape[index] != outputShape[index]) {
@@ -217,7 +217,7 @@ void copyDataToOutputWithSignalSize(const float* input, const std::vector<size_t
 
     const std::vector<size_t> inputStridesRange(inputStrides.begin(), inputStrides.begin() + iterationRange.size());
     const std::vector<size_t> outputStridesRange(outputStrides.begin(), outputStrides.begin() + iterationRange.size());
-    const size_t blockSize = std::accumulate(inputShape.begin() + lastChangedDim + 1, inputShape.end(), 1ul, std::multiplies<size_t>());
+    const size_t blockSize = std::accumulate(inputShape.begin() + lastChangedDim + 1, inputShape.end(), size_t(1), std::multiplies<size_t>());
     const size_t blockSizeBytes = blockSize * sizeof(float);
     std::vector<size_t> iterationCounter(iterationRange.size(), 0);
     do {
@@ -259,7 +259,7 @@ void DFT::execute(dnnl::stream strm) {
     if (inputShape != outputShape) {
         copyDataToOutputWithSignalSize(input, inputShape, inputStrides, output, outputShape, outputStrides);
     } else {
-        auto totalElements = std::accumulate(inputShape.begin(), inputShape.end(), 1, std::multiplies<size_t>());
+        auto totalElements = std::accumulate(inputShape.begin(), inputShape.end(), size_t(1), std::multiplies<size_t>());
         cpu_memcpy(output, input, totalElements * sizeof(float));
     }
 

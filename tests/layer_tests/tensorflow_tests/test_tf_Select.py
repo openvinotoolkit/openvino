@@ -19,10 +19,6 @@ class TestSelect(CommonTFLayerTest):
             Input_2-----|               Input_2-----|
         """
 
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
@@ -64,7 +60,7 @@ class TestSelect(CommonTFLayerTest):
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_2D = [
-        dict(shape_condition=[2], shape_input=[2, 3]),
+        pytest.param(dict(shape_condition=[2], shape_input=[2, 3]), marks=pytest.mark.precommit_tf_fe),
         dict(shape_condition=[3, 5], shape_input=[3, 5]),
     ]
 

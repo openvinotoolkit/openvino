@@ -17,6 +17,19 @@ body {
    border-radius: 2px;
    cursor: default;
 }
+
+.nr_value {
+  font-weight: 500;
+  background: #8080803d;
+}
+.nr_value span {
+ display:inline-block;
+ font-weight: 400;
+ padding: 1px 5px;
+ border-radius: 2px;
+ cursor: default;
+}
+
  .green {
     background: #0080002e;
 }
@@ -600,3 +613,7 @@ h2 {
   .impl:hover {
      background: #e0fde6;
   }
+
+  .not_run:hover {
+    background: #8b000040;
+ }
