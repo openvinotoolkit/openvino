@@ -1703,6 +1703,165 @@ TEST(resample_gpu, interpolate_in2x2x3x2_linear) {
     }
 }
 
+static tensor create_tensor(const std::vector<int64_t>& shape) {
+    switch (shape.size()) {
+    case 4:
+        return tensor{batch(shape[0]), feature(shape[1]), spatial(shape[2], shape[3])};
+        break;
+    case 5:
+        return tensor{batch(shape[0]), feature(shape[1]), spatial(shape[4], shape[3], shape[2])};
+        break;
+    default:
+        throw std::runtime_error("Only 4d or 5d formats are supported");
+    }
+}
+
+template <cldnn::format::type FMT>
+struct format_wrapper {
+    static constexpr format fmt = FMT;
+};
+
+template <typename T>
+struct onnx_5d_format : public ::testing::Test {
+    onnx_5d_format() : shapes_and_attrs {// resize_downsample_scales_linear
+                            {{1, 1, 3, 2, 4},
+                             {2, 3, 4},
+                             {1, 1, 2, 1, 2},
+                             {0.8f, 0.6f, 0.6f},
+                             resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL,
+                             resample::InterpolateOp::ShapeCalcMode::SCALES},
+                            // resize_downsample_scales_linear_align_corners
+                            {{1, 1, 3, 2, 4},
+                             {2, 3, 4},
+                             {1, 1, 2, 1, 2},
+                             {0.8f, 0.6f, 0.6f},
+                             resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS,
+                             resample::InterpolateOp::ShapeCalcMode::SCALES},
+                            // resize_upsample_scales_linear
+                            {{1, 1, 2, 2, 2},
+                             {2, 3, 4},
+                             {1, 1, 4, 4, 4},
+                             {2.0, 2.0, 2.0},
+                             resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL,
+                             resample::InterpolateOp::ShapeCalcMode::SCALES},
+                            // resize_upsample_scales_linear_align_corners
+                            {{1, 1, 2, 2, 2},
+                             {2, 3, 4},
+                             {1, 1, 4, 4, 4},
+                             {2.0, 2.0, 2.0},
+                             resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS,
+                             resample::InterpolateOp::ShapeCalcMode::SCALES},
+                            // resize_downsample_sizes_linear_pytorch_half_pixel
+                            {{1, 1, 2, 4, 4},
+                             {2, 3, 4},
+                             {1, 1, 1, 3, 1},
+                             {0.5, 0.75, 0.25},
+                             resample::InterpolateOp::CoordinateTransformMode::PYTORCH_HALF_PIXEL,
+                             resample::InterpolateOp::ShapeCalcMode::SIZES}
+        }
+        , input_data_list {
+            // resize_downsample_scales_linear
+            {1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  9.0f,  10.0f, 11.0f, 12.0f,
+             13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f},
+            // resize_downsample_scales_linear_align_corners
+            {1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  9.0f,  10.0f, 11.0f, 12.0f,
+             13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f},
+            // resize_upsample_scales_linear
+            {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f},
+            // resize_upsample_scales_linear_align_corners
+            {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f},
+            // resize_downsample_sizes_linear_pytorch_half_pixel
+            {1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  9.0f,  10.0f, 11.0f,
+             12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f,
+             23.0f, 24.0f, 25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f, 31.0f, 32.0f}}
+        , expected_results {
+            // resize_downsample_scales_linear
+            {3.6666665, 5.333333, 13.666666, 15.333333},
+            // resize_downsample_scales_linear_align_corners
+            {1.0, 4.0, 17.0, 20.0},
+            // resize_upsample_scales_linear
+            {1.0, 1.25, 1.75, 2.0, 1.5, 1.75, 2.25, 2.5, 2.5, 2.75, 3.25, 3.5, 3.0, 3.25, 3.75, 4.0,
+             2.0, 2.25, 2.75, 3.0, 2.5, 2.75, 3.25, 3.5, 3.5, 3.75, 4.25, 4.5, 4.0, 4.25, 4.75, 5.0,
+             4.0, 4.25, 4.75, 5.0, 4.5, 4.75, 5.25, 5.5, 5.5, 5.75, 6.25, 6.5, 6.0, 6.25, 6.75, 7.0,
+             5.0, 5.25, 5.75, 6.0, 5.5, 5.75, 6.25, 6.5, 6.5, 6.75, 7.25, 7.5, 7.0, 7.25, 7.75, 8.0},
+            // resize_upsample_scales_linear_align_corners
+            {1.0,       1.3333333, 1.6666667, 2.0,       1.6666666, 2.0,       2.3333335, 2.6666667, 2.3333333, 2.6666665,
+             3.0,       3.3333335, 3.0,       3.3333333, 3.6666665, 4.0,       2.3333335, 2.6666665, 3.0,       3.3333333,
+             3.0,       3.333333,  3.6666665, 3.9999995, 3.6666665, 4.0,       4.3333335, 4.6666665, 4.333333,  4.6666665,
+             4.9999995, 5.333333,  3.6666667, 4.0,       4.3333335, 4.6666665, 4.3333335, 4.6666665, 5.0,       5.333333,
+             5.0,       5.3333335, 5.666667,  6.0,       5.666667,  5.9999995, 6.333333,  6.666667,  5.0,       5.333333,
+             5.6666665, 6.0,       5.666667,  5.9999995, 6.333333,  6.666666,  6.3333335, 6.666666,  7.0,       7.3333335,
+             7.0,       7.333333,  7.6666675, 8.0},
+            // resize_downsample_sizes_linear_pytorch_half_pixel
+            {1.6666667, 7.0, 12.333333}}
+      , fmt{T::fmt}
+    {}
+
+    struct ShapesAndAttrs {
+        std::vector<int64_t> input_data_shape;
+        std::vector<int64_t> axes;
+        std::vector<int64_t> out_shape;
+        std::vector<float> scales_data;
+        resample::InterpolateOp::CoordinateTransformMode transform_mode;
+        resample::InterpolateOp::ShapeCalcMode calculation_mode;
+    };
+    std::vector<ShapesAndAttrs> shapes_and_attrs;
+    std::vector<std::vector<float>> input_data_list;
+    std::vector<std::vector<float>> expected_results;
+    format fmt;
+};
+
+using cldnn_5d_formats = testing::Types<format_wrapper<format::bfzyx>,
+                                        format_wrapper<format::bs_fs_zyx_bsv16_fsv32>,
+                                        format_wrapper<format::bs_fs_zyx_bsv16_fsv16>,
+                                        format_wrapper<format::bs_fs_zyx_bsv32_fsv32>,
+                                        format_wrapper<format::bs_fs_zyx_bsv32_fsv16>>;
+TYPED_TEST_SUITE(onnx_5d_format,  cldnn_5d_formats);
+
+TYPED_TEST(onnx_5d_format, interpolate_linear_onnx5d)
+{
+    auto& engine = get_test_engine();
+
+    std::size_t i = 0;
+    for (const auto& s : this->shapes_and_attrs) {
+        tensor input_tensor = create_tensor(s.input_data_shape);
+        auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, input_tensor });;
+        //auto output_tensor = create_tensor(s.out_shape);
+
+        topology topology;
+
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(reorder("input_reordered", "input", this->fmt, data_types::f32));
+        int32_t antialias = 0;
+        float cube_coeff = -0.75f;
+
+        resample::InterpolateOp::InterpolateMode mode = resample::InterpolateOp::InterpolateMode::LINEAR_ONNX;
+        resample::InterpolateOp::CoordinateTransformMode ctm = s.transform_mode;
+        resample::InterpolateOp::ShapeCalcMode shapeCalcMode = s.calculation_mode;
+        topology.add(resample("interpolate", "input_reordered", s.out_shape, s.scales_data, s.axes,
+                   {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm));
+
+        topology.add(reorder("output", "interpolate", format::bfzyx, data_types::f32));
+
+        set_values(input, this->input_data_list[i]);
+
+        cldnn::network net {engine, topology };
+        net.set_input_data("input", input);
+        auto outputs = net.execute();
+
+        auto output = outputs.at("output").get_memory();
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+        ASSERT_EQ(this->expected_results[i].size(), output_ptr.size());
+        for (size_t j = 0; j < this->expected_results[i].size(); ++j) {
+            //EXPECT_TRUE(are_equal(expected_results[i][j], output_ptr[i])) << i;
+            EXPECT_NEAR(this->expected_results[i][j], output_ptr[j], 0.001) << j;
+        }
+
+        ++i;
+    }
+}
+
 TEST(resample_gpu, interpolate_in1x1x2x4_linear_scale) {
     //  Input  : 1x1x2x4
     //  Output : 1x1x1x2
@@ -1888,9 +2047,7 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
         topo_opt.add(reorder("res_to_bfyx", "to_output_type", format::bfyx, params.input_type));
 
         auto build_opts_opt = build_options();
-        build_opts_opt.set_option(build_option::outputs({"to_output_type", "res_to_bfyx"}));
-        // optimize_data is turned on to test cross-layout
-        build_opts_opt.set_option(build_option::optimize_data(true));
+        build_opts_opt.set_option(build_option::outputs({"resample_opt", "to_output_type", "res_to_bfyx"}));
 
         network net_opt(engine, topo_opt, build_opts_opt);
 
@@ -1900,7 +2057,9 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
         // first execution of opt
         auto result_opt = net_opt.execute();
         auto output_opt = result_opt.at("res_to_bfyx").get_memory();
-
+        if (!format::is_simple_data_format(params.in_format)) {
+            ASSERT_FALSE(format::is_simple_data_format(result_opt.at("resample_opt").get_memory()->get_layout().format));
+        }
         if (check_result == true) {
             // Check data_types
             if (params.input_type == data_types::f32) {
@@ -1931,10 +2090,12 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_nearest,
                                 { data_types::i8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
                                 { data_types::i8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
                                 { data_types::i8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
+                                { data_types::i8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {}},
                             }
                         ));
 
@@ -1946,6 +2107,7 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx,
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}},
                             }
                         ));

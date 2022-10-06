@@ -22,10 +22,6 @@ class TestRsqrt(CommonTFLayerTest):
 
         """
 
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
@@ -64,8 +60,8 @@ class TestRsqrt(CommonTFLayerTest):
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data = [dict(shape=[1]),
-                 dict(shape=[1, 224]),
-                 pytest.param(dict(shape=[1, 3, 224]), marks=pytest.mark.xfail(reason="*-19053")),
+                 pytest.param(dict(shape=[1, 224]), marks=pytest.mark.precommit_tf_fe),
+                 dict(shape=[1, 3, 224]),
                  dict(shape=[1, 3, 100, 224]),
                  dict(shape=[1, 3, 50, 100, 224])]
 

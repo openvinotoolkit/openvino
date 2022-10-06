@@ -1,4 +1,4 @@
-# Model Accuracy for INT8 and FP32 Precision {#openvino_docs_performance_int8_vs_fp32}
+# Model Accuracy and Performance for INT8 and FP32 {#openvino_docs_performance_int8_vs_fp32}
 
 The following table presents the absolute accuracy drop calculated as the accuracy difference between FP32 and INT8 representations of a model:
 
@@ -11,7 +11,7 @@ The following table presents the absolute accuracy drop calculated as the accura
         <th></th>
         <th></th>
         <th>Intel® Core™ i9-12900K @ 3.2 GHz (AVX2)</th>
-        <th>Intel® Core™ i9-12900K @ 3.2 GHz (AVX2)</th>
+        <th>Intel® Xeon®  6338 @ 2.0 GHz (VNNI)</th>
         <th>iGPU Gen12LP (Intel® Core™ i9-12900K @ 3.2 GHz)</th>
       </tr>
       <tr align="left">

@@ -27,7 +27,7 @@ ov::op::util::ConvertColorNV12Base::ConvertColorNV12Base(const Output<Node>& arg
 }
 
 void ov::op::util::ConvertColorNV12Base::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v8_Convert_NV12_Base_validate_and_infer_types);
+    OV_OP_SCOPE(v8_Convert_NV12_Base_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
                           get_input_size() == 1 || get_input_size() == 2,

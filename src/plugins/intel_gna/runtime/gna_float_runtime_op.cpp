@@ -16,12 +16,12 @@ void FP::ApplyAffineTransform(intel_dnn_component_t *component, uint32_t *list, 
     }
 
     auto transform = &component->op.affine;
-    int m = component->num_rows_out;
-    int n = component->num_columns_in;
-    int k = component->num_rows_in;
-    int lda = component->num_rows_in;
-    int ldb = component->num_columns_in;
-    int ldc = component->num_columns_out;
+    uint32_t m = component->num_rows_out;
+    uint32_t n = component->num_columns_in;
+    uint32_t k = component->num_rows_in;
+    uint32_t lda = component->num_rows_in;
+    uint32_t ldb = component->num_columns_in;
+    uint32_t ldc = component->num_columns_out;
 
     auto A = reinterpret_cast<float *>(transform->ptr_weights);
     auto B = reinterpret_cast<float *>(component->ptr_inputs);
@@ -35,7 +35,7 @@ void FP::ApplyAffineTransform(intel_dnn_component_t *component, uint32_t *list, 
         }
         cblas_sgemm1(CblasRowMajor, CblasNoTrans, CblasNoTrans, m, n, k, 1.0, A, lda, B, ldb, 1.0, C, ldc);
     } else {
-        for (int l = 0; l < listsize; l++) {
+        for (uint32_t l = 0; l < listsize; l++) {
             int i = list[l];
             for (uint32_t j = 0; j < n; j++) {
                 C[l * ldc + j] = bias[i];
@@ -66,9 +66,9 @@ void FP::ApplyDiagonalTransform(intel_dnn_component_t *component) {
     }
 
     auto transform = &component->op.affine;
-    int m = component->num_rows_out;
-    int n = component->num_columns_in;
-    int ldc = component->num_columns_out;
+    uint32_t m = component->num_rows_out;
+    uint32_t n = component->num_columns_in;
+    uint32_t ldc = component->num_columns_out;
 
     auto A = reinterpret_cast<float *>(transform->ptr_weights);
     auto B = reinterpret_cast<float *>(component->ptr_inputs);
@@ -151,10 +151,10 @@ void FP::ApplyTranspose(intel_dnn_component_t *component) {
         THROW_GNA_EXCEPTION << "Bad data width: " << component->num_bytes_per_input;
     }
 
-    int m = component->num_rows_in;
-    int n = component->num_columns_in;
-    int lda = component->num_columns_in;
-    int ldb = component->num_columns_out;
+    uint32_t m = component->num_rows_in;
+    uint32_t n = component->num_columns_in;
+    uint32_t lda = component->num_columns_in;
+    uint32_t ldb = component->num_columns_out;
     // B = Transpose(A) where A is mxn and B is nxm
     auto A = reinterpret_cast<float *>(component->ptr_inputs);
     auto B = reinterpret_cast<float *>(component->ptr_outputs);
@@ -172,10 +172,10 @@ void FP::ApplyCopy(intel_dnn_component_t *component) {
 
     auto src = reinterpret_cast<uint8_t *>(component->ptr_inputs);
     auto dst = reinterpret_cast<uint8_t *>(component->ptr_outputs);
-    int32_t m = component->op.copy.num_copy_rows;
-    int32_t n = component->op.copy.num_copy_columns;
-    int32_t lda = component->num_columns_in;
-    int32_t ldb = component->num_columns_out;
+    uint32_t m = component->op.copy.num_copy_rows;
+    uint32_t n = component->op.copy.num_copy_columns;
+    uint32_t lda = component->num_columns_in;
+    uint32_t ldb = component->num_columns_out;
     if (m > component->num_rows_in) {
         THROW_GNA_EXCEPTION << "Error:  attempt to copy more columns than matrix has";
     }

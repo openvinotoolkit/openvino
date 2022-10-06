@@ -28,12 +28,12 @@ void shape_infer(const ov::op::v0::DepthToSpace* op,
 
     if (data_rank.is_static()) {
         NODE_VALIDATION_CHECK(op,
-                               data_shape.size() >= 3,
+                              data_shape.size() >= 3,
                               "The input tensor with rank lower than 3 is not supported (input rank: ",
                               data_shape.size(),
                               ")");
 
-        const size_t divider = std::pow(block_size, data_shape.size() - 2);
+        const size_t divider = static_cast<size_t>(std::pow(block_size, data_shape.size() - 2));
         NODE_VALIDATION_CHECK(op, (divider), "DepthToSpace: The divider must not be 0");
 
         auto& output_shape = output_shapes[0];
