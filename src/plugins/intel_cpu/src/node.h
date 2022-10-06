@@ -573,6 +573,10 @@ public:
         rtParamsCache = cache;
     }
 
+    void setSharedMutex(const std::shared_ptr<std::mutex>& mutex) {
+        sharedMutex = mutex;
+    }
+
 protected:
     bool canFuseSimpleOperation(const NodePtr& node) const;
 
@@ -746,6 +750,8 @@ protected:
     std::vector<VectorDims> lastInputDims = {};
 
     std::shared_ptr<IShapeInfer> shapeInference;
+
+    std::shared_ptr<std::mutex> sharedMutex = nullptr;
 
 private:
     std::vector<EdgeWeakPtr> parentEdges;
