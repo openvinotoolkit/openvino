@@ -65,7 +65,7 @@ cd "C:\Program Files (x86)\Intel"
 
 Next, you'll download the OpenVINO Runtime 2022.2 archive file from the [OpenVINO releases page](https://github.com/openvinotoolkit/openvino/releases/tag/2022.2.0). Issue the following commands to download the archive file, unzip it, and rename the folder to `openvino_2022.2.0.7713`:
 ```sh
-curl https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/w_openvino_toolkit_windows_2022.2.0.7713.af16ea1d79a_x86_64.zip --output openvino_2022.2.0.7713.zip
+curl -L https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/w_openvino_toolkit_windows_2022.2.0.7713.af16ea1d79a_x86_64.zip --output openvino_2022.2.0.7713.zip
 tar -xf openvino_2022.2.0.7713.zip
 ren w_openvino_toolkit_windows_2022.2.0.7713.af16ea1d79a_x86_64 openvino_2022.2.0.7713
 ```
