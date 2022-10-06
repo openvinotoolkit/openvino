@@ -8,7 +8,6 @@
 #include <fstream>
 #include <iostream>
 
-#include "openvino/openvino.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/frontend/manager.hpp"
@@ -17,7 +16,6 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset8.hpp"
-
 
 class IRFrontendTestsImpl {
 protected:

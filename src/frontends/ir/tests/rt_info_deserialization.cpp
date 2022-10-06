@@ -537,7 +537,7 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         check_version(f_11, 11);
     }
 
-       // read IR v11 with old API and check that old_api_map is applied
+    // read IR v11 with old API and check that old_api_map is applied
     {
         const ov::PartialShape shape{1, 3, 22, 22};
         auto type = ov::element::f16;
@@ -546,23 +546,20 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         param->get_output_tensor(0).set_names({"input_tensor"});
 
         // TODO: No guarantee that Transpose will use exactly 'uint64_t' constant
-        auto constant_param = std::make_shared<ov::opset8::Constant>(ov::element::u64,
-                                                                 ov::Shape{4},
-                                                                 std::vector<uint64_t>{0, 2, 3, 1});
+        auto constant_param =
+            std::make_shared<ov::opset8::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 2, 3, 1});
         auto transpose_param = std::make_shared<ov::opset8::Transpose>(param, constant_param);
 
         // TODO: No guarantee that only 'convert' will be added by implicit pre-processing
         auto convert_param = std::make_shared<ov::opset8::Convert>(transpose_param, ov::element::f32);
 
-        auto round = std::make_shared<ov::opset8::Round>(convert_param,
-            ov::opset8::Round::RoundMode::HALF_TO_EVEN);
+        auto round = std::make_shared<ov::opset8::Round>(convert_param, ov::opset8::Round::RoundMode::HALF_TO_EVEN);
         // TODO: runtime information should migrate as well?
         round->get_rt_info()[ngraph::FusedNames::get_type_info_static()] = ngraph::FusedNames("Round1,Round2");
 
         // TODO: No guarantee that exactly 'convert, then transpose' will be added by implicit post-processing
-        auto constant_result = std::make_shared<ov::opset8::Constant>(ov::element::u64,
-                                                                  ov::Shape{4},
-                                                                  std::vector<uint64_t>{0, 3, 1, 2});
+        auto constant_result =
+            std::make_shared<ov::opset8::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 3, 1, 2});
         auto transpose_result = std::make_shared<ov::opset8::Transpose>(round, constant_result);
 
         transpose_result->set_friendly_name("Round");
@@ -571,12 +568,11 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         auto result = std::make_shared<ov::opset8::Result>(transpose_result);
         result->set_friendly_name("output");
 
-        auto f_10_ref =
-            std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+        auto f_10_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
         f_10_ref->set_friendly_name("Network");
 
         InferenceEngine::Core core;
-                auto cnn_core = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
+        auto cnn_core = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
         auto f_10_core = cnn_core.getFunction();
         ASSERT_NE(nullptr, f_10_core);
 
@@ -602,10 +598,10 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         EXPECT_EQ(shape, f_10_core->get_output_partial_shape(0));
 
         // check that old api map is removed once applied
-        auto check_old_api_rt_info = [](const ov::RTMap & info) {
-            const std::string & key_order = ov::OldApiMapOrder::get_type_info_static();
+        auto check_old_api_rt_info = [](const ov::RTMap& info) {
+            const std::string& key_order = ov::OldApiMapOrder::get_type_info_static();
             EXPECT_EQ(0, info.count(key_order));
-            const std::string & key_type = ov::OldApiMapElementType::get_type_info_static();
+            const std::string& key_type = ov::OldApiMapElementType::get_type_info_static();
             EXPECT_EQ(0, info.count(key_type));
         };
 
@@ -692,17 +688,14 @@ TEST_F(RTInfoDeserialization, NodeV11_uint8) {
     param->set_friendly_name("in1");
     param->get_output_tensor(0).set_names({"input_tensor"});
 
-    auto constant_param = std::make_shared<ov::opset8::Constant>(ov::element::u64,
-                                                             ov::Shape{4},
-                                                             std::vector<uint64_t>{0, 2, 3, 1});
+    auto constant_param =
+        std::make_shared<ov::opset8::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 2, 3, 1});
     auto transpose_param = std::make_shared<ov::opset8::Transpose>(param, constant_param);
 
-    auto round = std::make_shared<ov::opset8::Round>(transpose_param,
-                                                 ov::opset8::Round::RoundMode::HALF_TO_EVEN);
+    auto round = std::make_shared<ov::opset8::Round>(transpose_param, ov::opset8::Round::RoundMode::HALF_TO_EVEN);
     round->get_rt_info()[ngraph::FusedNames::get_type_info_static()] = ngraph::FusedNames("Round1,Round2");
-    auto constant_result = std::make_shared<ov::opset8::Constant>(ov::element::u64,
-                                                              ov::Shape{4},
-                                                              std::vector<uint64_t>{0, 3, 1, 2});
+    auto constant_result =
+        std::make_shared<ov::opset8::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 3, 1, 2});
     auto transpose_result = std::make_shared<ov::opset8::Transpose>(round, constant_result);
 
     transpose_result->set_friendly_name("Round");
@@ -711,8 +704,7 @@ TEST_F(RTInfoDeserialization, NodeV11_uint8) {
     auto result = std::make_shared<ov::opset8::Result>(transpose_result);
     result->set_friendly_name("output");
 
-    auto f_10_ref =
-            std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+    auto f_10_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     f_10_ref->set_friendly_name("Network");
 
     InferenceEngine::Core core;
@@ -726,11 +718,11 @@ TEST_F(RTInfoDeserialization, NodeV11_uint8) {
     EXPECT_EQ(InferenceEngine::Precision::FP32, cnn_core.getOutputsInfo()["Round"]->getPrecision());
 
     const auto fc = FunctionsComparator::with_default()
-            .enable(FunctionsComparator::ATTRIBUTES)
-            .enable(FunctionsComparator::PRECISIONS)
-            .enable(FunctionsComparator::RUNTIME_KEYS)
-            .enable(FunctionsComparator::NAMES)
-            .enable(FunctionsComparator::CONST_VALUES);
+                        .enable(FunctionsComparator::ATTRIBUTES)
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::NAMES)
+                        .enable(FunctionsComparator::CONST_VALUES);
     auto res = fc.compare(f_10_core, f_10_ref);
     EXPECT_TRUE(res.valid) << res.message;
 
@@ -740,10 +732,10 @@ TEST_F(RTInfoDeserialization, NodeV11_uint8) {
     EXPECT_EQ(shape, f_10_core->get_output_partial_shape(0));
 
     // check that old api map is removed once applied
-    auto check_old_api_rt_info = [](const ov::RTMap & info) {
-        const std::string & key_order = ov::OldApiMapOrder::get_type_info_static();
+    auto check_old_api_rt_info = [](const ov::RTMap& info) {
+        const std::string& key_order = ov::OldApiMapOrder::get_type_info_static();
         EXPECT_EQ(0, info.count(key_order));
-        const std::string & key_type = ov::OldApiMapElementType::get_type_info_static();
+        const std::string& key_type = ov::OldApiMapElementType::get_type_info_static();
         EXPECT_EQ(0, info.count(key_type));
     };
 
@@ -752,9 +744,9 @@ TEST_F(RTInfoDeserialization, NodeV11_uint8) {
 
     // check information about layout
     EXPECT_TRUE(f_10_core->get_parameters()[0]->get_layout().empty())
-                        << f_10_core->get_parameters()[0]->get_layout().to_string();
+        << f_10_core->get_parameters()[0]->get_layout().to_string();
     EXPECT_TRUE(f_10_core->get_results()[0]->get_layout().empty())
-                        << f_10_core->get_results()[0]->get_layout().to_string();
+        << f_10_core->get_results()[0]->get_layout().to_string();
 }
 
 TEST_F(RTInfoDeserialization, NodeV11MultipleRTKeys) {
@@ -1083,7 +1075,6 @@ TEST_F(RTInfoDeserialization, IndexesInputAndOutputV11) {
     ASSERT_EQ(f->get_results()[0]->get_friendly_name(), "output2");
     ASSERT_EQ(f->get_results()[1]->get_friendly_name(), "output1");
 }
-
 
 TEST_F(RTInfoDeserialization, V11toV10WithoutRTInfo) {
     std::string model = R"V0G0N(

@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "frontend_test.hpp"
-
 #include <cstdio>
 #include <fstream>
 #include <iostream>
 
 #include "common_test_utils/graph_comparator.hpp"
+#include "frontend_test.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/op/util/framework_node.hpp"

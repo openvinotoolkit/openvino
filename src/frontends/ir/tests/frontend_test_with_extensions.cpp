@@ -15,7 +15,6 @@ protected:
     };
 };
 
-
 TEST_F(IRFrontendExtensionTests, CustomOpsTestWithFrameworkNodeExtension) {
     static std::string customOpsNetwork = R"V0G0N(
 <net name="Network" version="11">

@@ -15,7 +15,6 @@ protected:
     };
 };
 
-
 TEST_F(IRFrontendTestsTensorIterator, TensorIteratorMergedInput) {
     std::string testNetwork = R"V0G0N(
 <net name="Network" version="11">
