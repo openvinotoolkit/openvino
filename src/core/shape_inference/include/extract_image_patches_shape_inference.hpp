@@ -61,8 +61,8 @@ void shape_infer(const ExtractImagePatches* op, const std::vector<T>& input_shap
         output_shape[1] = input_shape[1] * op->m_patch_sizes[0] * op->m_patch_sizes[1];
         // Determine spatial shape
         if (input_shape[2].is_static() && input_shape[3].is_static()) {
-            int32_t input_rows = input_shape[2].get_length();
-            int32_t input_cols = input_shape[3].get_length();
+            int32_t input_rows = static_cast<int32_t>(input_shape[2].get_length());
+            int32_t input_cols = static_cast<int32_t>(input_shape[3].get_length());
             int32_t out_rows(0);
             int32_t out_cols(0);
             if (input_rows == 0 || input_cols == 0) {
@@ -71,14 +71,14 @@ void shape_infer(const ExtractImagePatches* op, const std::vector<T>& input_shap
             }
 
             out_rows = calc_shape_padding(input_rows,
-                                          op->m_patch_selection_rates[0],
-                                          op->m_patch_movement_strides[0],
-                                          op->m_patch_sizes[0],
+                                          static_cast<int32_t>(op->m_patch_selection_rates[0]),
+                                          static_cast<int32_t>(op->m_patch_movement_strides[0]),
+                                          static_cast<int32_t>(op->m_patch_sizes[0]),
                                           op->m_padding);
             out_cols = calc_shape_padding(input_cols,
-                                          op->m_patch_selection_rates[1],
-                                          op->m_patch_movement_strides[1],
-                                          op->m_patch_sizes[1],
+                                          static_cast<int32_t>(op->m_patch_selection_rates[1]),
+                                          static_cast<int32_t>(op->m_patch_movement_strides[1]),
+                                          static_cast<int32_t>(op->m_patch_sizes[1]),
                                           op->m_padding);
 
             auto out_rows_cast = static_cast<typename DimType::value_type>(out_rows);
