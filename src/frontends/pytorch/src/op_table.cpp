@@ -21,17 +21,14 @@ OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_slice);
 OP_CONVERTER(translate_transpose);
 
-OutputVector relu(NodeContext& context) {
-    return {context.mark_node(std::make_shared<opset8::Relu>(context.get_input(0)))};
+OutputVector translate_add(NodeContext& context) {
+    auto rhs = context.get_input(1);
+    if (context.inputs().size() > 2 && !context.input_is_none(2)) {
+        auto converted_alpha = std::make_shared<opset8::ConvertLike>(context.get_input(2), rhs);
+        rhs = std::make_shared<opset8::Multiply>(converted_alpha, rhs);
+    }
+    return {context.mark_node(std::make_shared<opset8::Add>(context.get_input(0), rhs))};
 };
-OutputVector add(NodeContext& context) {
-    // TODO: there is also the 3rd input for add in some cases, involve it to the conversion
-    return {context.mark_node(std::make_shared<opset8::Add>(context.get_input(0), context.get_input(1)))};
-};
-
-OutputVector mul(NodeContext& context) {
-    return {context.mark_node(std::make_shared<opset8::Multiply>(context.get_input(0), context.get_input(1)))};
-}
 
 OutputVector hardtanh(NodeContext& context) {
     float min = -1;
@@ -43,10 +40,6 @@ OutputVector hardtanh(NodeContext& context) {
         max = context.const_input<float>(2);
     }
     return {context.mark_node(std::make_shared<opset8::Clamp>(context.get_input(0), min, max))};
-}
-
-OutputVector hardswish(NodeContext& context) {
-    return {context.mark_node(std::make_shared<opset8::HSwish>(context.get_input(0)))};
 }
 
 const std::map<int, element::Type> type_map{
@@ -124,8 +117,8 @@ OutputVector translate_as_tensor(NodeContext& context) {
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
-        {"aten::relu", op::relu},
-        {"aten::relu_", inplace_op<op::relu>},
+        {"aten::relu", translate_1to1_match_1_inputs<opset8::Relu>},
+        {"aten::relu_", inplace_op<translate_1to1_match_1_inputs<opset8::Relu>>},
 
         {"aten::conv2d",
          [](NodeContext& context) -> OutputVector {
@@ -153,7 +146,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
                      dilations);
              }
 
-             // FIXME: Doesn't work for dynamic rank// FIXME: Doesn't work for dynamic rank -- why? It supports only 2D convs, but rank value can be not known in static
+             // FIXME: Doesn't work for dynamic rank// FIXME: Doesn't work for dynamic rank -- why? It supports only 2D
+             // convs, but rank value can be not known in static
              // FIXME: Works for 2D convolutions only
              return {context.mark_output(make_optional_bias(conv, context, 2, {-2, -1}))};
          }},
@@ -213,8 +207,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
          [](NodeContext& context) -> OutputVector {
              auto normalized_shape = context.const_input<Shape>(1);
              // TODO: do we need this check?
-             //auto in_pshape_last_dim = *context.get_input(0).get_partial_shape().rbegin();
-             //OV_FRONTEND_REQUIRE(normalized_shape.size() == 1 && in_pshape_last_dim.is_static() &&
+             // auto in_pshape_last_dim = *context.get_input(0).get_partial_shape().rbegin();
+             // OV_FRONTEND_REQUIRE(normalized_shape.size() == 1 && in_pshape_last_dim.is_static() &&
              //                    static_cast<uint64_t>(in_pshape_last_dim.get_length()) == normalized_shape.back());
              auto eps = context.const_input<float>(4);
              auto axes = context.mark_node(
@@ -230,11 +224,11 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
              return {out_node};
          }},
 
-        {"aten::add", op::add},
-        {"aten::add_", inplace_op<op::add>},
+        {"aten::add", op::translate_add},
+        {"aten::add_", inplace_op<op::translate_add>},
 
-        {"aten::mul", op::mul},
-        {"aten::mul_", inplace_op<op::mul>},
+        {"aten::mul", translate_1to1_match_2_inputs<opset8::Multiply>},
+        {"aten::mul_", inplace_op<translate_1to1_match_2_inputs<opset8::Multiply>>},
 
         {"aten::div",
          [](NodeContext& context) -> OutputVector {
@@ -258,10 +252,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
                  context.mark_node(std::make_shared<opset8::Divide>(context.get_input(0), context.get_input(1), true))};
          }},
 
-        {"aten::tanh",
-         [](NodeContext& context) -> OutputVector {
-             return {context.mark_node(std::make_shared<opset8::Tanh>(context.get_input(0)))};
-         }},
+        {"aten::tanh", translate_1to1_match_1_inputs<opset8::Tanh>},
 
         {"aten::elu",
          [](NodeContext& context) -> OutputVector {
@@ -269,25 +260,19 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
              return {context.mark_node(std::make_shared<opset8::Elu>(context.get_input(0), alpha))};
          }},
 
-        {"aten::sigmoid",
-         [](NodeContext& context) -> OutputVector {
-             return {context.mark_node(std::make_shared<opset8::Sigmoid>(context.get_input(0)))};
-         }},
+        {"aten::sigmoid", translate_1to1_match_1_inputs<opset8::Sigmoid>},
 
         {"aten::gelu",
          [](NodeContext& context) -> OutputVector {
+             auto approximate = context.const_input<std::string>(1);
+             // Add support for "tanh" approximate
+             FRONT_END_OP_CONVERSION_CHECK(approximate == "none", "Unsupported approximate for Gelu");
              return {context.mark_node(std::make_shared<opset8::Gelu>(context.get_input(0)))};
          }},
 
-        {"aten::sqrt",
-         [](NodeContext& context) -> OutputVector {
-             return {context.mark_node(std::make_shared<opset8::Sqrt>(context.get_input(0)))};
-         }},
+        {"aten::sqrt", translate_1to1_match_1_inputs<opset8::Sqrt>},
 
-        {"aten::abs",
-         [](NodeContext& context) -> OutputVector {
-             return {context.mark_node(std::make_shared<opset8::Abs>(context.get_input(0)))};
-         }},
+        {"aten::abs", translate_1to1_match_1_inputs<opset8::Abs>},
 
         {"aten::square",
          [](NodeContext& context) -> OutputVector {
@@ -299,13 +284,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::hardtanh", op::hardtanh},
         {"aten::hardtanh_", inplace_op<op::hardtanh>},
 
-        {"aten::hardsigmoid",
-         [](NodeContext& context) -> OutputVector {
-             return {context.mark_node(std::make_shared<opset8::HSigmoid>(context.get_input(0)))};
-         }},
+        {"aten::hardsigmoid", translate_1to1_match_1_inputs<opset8::HSigmoid>},
 
-        {"aten::hardswish", op::hardswish},
-        {"aten::hardswish_", inplace_op<op::hardswish>},
+        {"aten::hardswish", translate_1to1_match_1_inputs<opset8::HSwish>},
+        {"aten::hardswish_", inplace_op<translate_1to1_match_1_inputs<opset8::HSwish>>},
 
         {"aten::silu_",
          [](NodeContext& context) -> OutputVector {
@@ -322,26 +304,15 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::softmax",
          [](NodeContext& context) -> OutputVector {
              auto axis = context.const_input<int64_t>(1);
-             if (axis < 0) {
-                 auto in_rank = context.get_input(0).get_partial_shape().rank();
-                 OV_FRONTEND_REQUIRE(in_rank.is_static());
-                 axis = in_rank.get_length() + axis;
-             }
              return {
                  context.mark_node(std::make_shared<opset8::Softmax>(context.get_input(0), static_cast<size_t>(axis)))};
          }},
 
         //{"aten::cat", done as transformation},
 
-        {"aten::matmul",
-         [](NodeContext& context) -> OutputVector {
-             return {context.mark_node(std::make_shared<opset8::MatMul>(context.get_input(0), context.get_input(1)))};
-         }},
+        {"aten::matmul", translate_1to1_match_2_inputs<opset8::MatMul>},
 
-        {"aten::mm",
-         [](NodeContext& context) -> OutputVector {
-             return {context.mark_node(std::make_shared<opset8::MatMul>(context.get_input(0), context.get_input(1)))};
-         }},
+        {"aten::mm", translate_1to1_match_2_inputs<opset8::MatMul>},
 
         {"aten::linear",
          [](NodeContext& context) -> OutputVector {
@@ -390,11 +361,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
                                                                          rounding_type))};
          }},
 
-        {"aten::adaptive_avg_pool2d",
-         [](NodeContext& context) -> OutputVector {
-             return {context.mark_node(
-                 std::make_shared<opset8::AdaptiveAvgPool>(context.get_input(0), context.get_input(1)))};
-         }},
+        {"aten::adaptive_avg_pool2d", translate_1to1_match_2_inputs<opset8::AdaptiveAvgPool>},
 
         {"aten::adaptive_max_pool2d",
          [](NodeContext& context) -> OutputVector {
@@ -439,11 +406,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
 
         {"aten::to", op::translate_aten_to},
 
-        {"aten::permute",
-         [](NodeContext& context) -> OutputVector {
-             return {
-                 context.mark_node(std::make_shared<opset8::Transpose>(context.get_input(0), context.get_input(1)))};
-         }},
+        {"aten::permute", translate_1to1_match_2_inputs<opset8::Transpose>},
 
         {"aten::embedding",
          [](NodeContext& context) -> OutputVector {
@@ -497,11 +460,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
              return {reshape};
          }},
 
-        {"aten::unsqueeze",
-         [](NodeContext& context) -> OutputVector {
-             return {
-                 context.mark_node(std::make_shared<opset8::Unsqueeze>(context.get_input(0), context.get_input(1)))};
-         }},
+        {"aten::unsqueeze", translate_1to1_match_2_inputs<opset8::Unsqueeze>},
 
         {"aten::rsub",
          [](NodeContext& context) -> OutputVector {

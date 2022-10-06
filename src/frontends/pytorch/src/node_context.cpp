@@ -6,6 +6,7 @@
 
 #include "exception.hpp"
 #include "utils.hpp"
+#include "pt_framework_node.hpp"
 
 namespace ov {
 namespace frontend {
@@ -64,8 +65,10 @@ std::vector<int64_t> NodeContext::const_input<std::vector<int64_t>>(size_t index
 
 template <>
 std::string NodeContext::const_input<std::string>(size_t index) const {
-    throw std::runtime_error("Cannot represent string as OV constant: lack of strings support");
-    // return get_constant_at_input(index)->cast_vector<std::string>()[0];
+    OV_FRONTEND_REQUIRE(!input_is_none(index));
+    auto input_node = get_input(index).get_node_shared_ptr();
+    auto input = std::dynamic_pointer_cast<PtFrameworkNode>(input_node);
+    return input->get_decoder()->as_string();
 }
 
 template <>

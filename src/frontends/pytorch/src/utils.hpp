@@ -40,6 +40,29 @@ OutputVector inplace_op(NodeContext& context) {
     context.mutate_input(idx, translation_res[0]);
     return translation_res;
 }
+
+template <typename T>
+OutputVector translate_1to1_match_1_inputs(NodeContext& context) {
+    auto inputs = context.inputs();
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= 1, "Operation has no inputs.");
+    for (int i = 1; i < inputs.size(); i++) {
+        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
+    }
+    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Input should not be None.");
+    return {context.mark_node(std::make_shared<T>(inputs[0]))};
+}
+
+template <typename T>
+OutputVector translate_1to1_match_2_inputs(NodeContext& context) {
+    auto inputs = context.inputs();
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= 2, "Operation has no inputs.");
+    for (int i = 2; i < inputs.size(); i++) {
+        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
+    }
+    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0) && !context.input_is_none(1), "Inputs should not be None.");
+    return {context.mark_node(std::make_shared<T>(inputs[0], inputs[1]))};
+}
+
 std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
 
 }  // namespace pytorch

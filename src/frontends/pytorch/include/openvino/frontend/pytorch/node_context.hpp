@@ -49,7 +49,7 @@ public:
         OutputVector res;
         for (size_t input : m_decoder->inputs()) {
             // std::cerr << "Searching for input: " << input->unique() << "\n";
-            OV_FRONTEND_REQUIRE(m_tensor_map->find(input) != m_tensor_map->end());
+            OV_FRONTEND_REQUIRE(m_tensor_map->count(input));
             res.push_back(m_tensor_map->at(input));
         }
         return res;

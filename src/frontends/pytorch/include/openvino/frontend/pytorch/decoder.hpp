@@ -110,6 +110,9 @@ public:
     // TODO: why OutputVector instead of just single output?
     virtual OutputVector as_constant () = 0;
 
+    // Get string from constant. Work for natural constant nodes, e.g. for prim::Constant; don't know other nodes kinds that fit
+    virtual std::string as_string () = 0;
+
     // Returns PT node kind as a string mnemonics for native type uint32_t Symbol in Torch
     // Decide whether we need an equivalent member for integer representation (in this case a map is required to understand what it means)
     virtual std::string get_op_type() const = 0;
