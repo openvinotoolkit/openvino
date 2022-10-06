@@ -139,6 +139,7 @@ jobs:
       cmakeArgs: >
         -GNinja
         -DVERBOSE_BUILD=ON
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
         -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8
         -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib/libpython3.8.so
