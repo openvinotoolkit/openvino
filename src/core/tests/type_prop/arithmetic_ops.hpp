@@ -340,7 +340,7 @@ TYPED_TEST_P(ArithmeticOperator, full_dynamic_shape) {
 }
 
 TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_mixed_numpy) {
-    {  // Dimension A has label
+    {  // Dimensions of A have label
         Dimension dim_0_A = Dimension(2, 4);
         Dimension dim_2_A = Dimension(-1);
 
@@ -358,9 +358,9 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_mixed_num
         std::vector<size_t> expected_labels{10, 0, 0, 0};
 
         EXPECT_EQ(out_shape, expected_shape);
-
+        EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
     }
-    {  // Dimension B has labels
+    {  // B dimensions have labels
         Dimension dim_0_B = Dimension(2, 4);
         Dimension dim_2_B = Dimension(2, 128);
         Dimension dim_3_B = Dimension(1, 224);
@@ -381,7 +381,42 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_mixed_num
 
         EXPECT_EQ(out_shape, expected_shape);
         EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
-        EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    }
+    {  // All dimensions of A have labels, B without labels
+        PartialShape pshape_A{Dimension(-1), Dimension(3), Dimension(1), Dimension(2, 128)};
+        PartialShape pshape_B{Dimension(-1), Dimension(3), Dimension(2, 224), Dimension(1)};
+
+        PartialShape expected_shape = {-1, 3, Dimension(2, 224), Dimension(2, 128)};
+
+        set_shape_labels(pshape_A, {10, 11, 12, 13});
+        set_shape_labels(expected_shape, {10, 11, 0, 13});
+
+        auto param_A = std::make_shared<op::Parameter>(element::f32, pshape_A);
+        auto param_B = std::make_shared<op::Parameter>(element::f32, pshape_B);
+        const auto op = std::make_shared<TypeParam>(param_A, param_B);
+
+        const auto out_shape = op->get_output_partial_shape(0);
+
+        EXPECT_EQ(out_shape, expected_shape);
+        EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    }
+    {  // All dimensions of B have labels, A without labels
+        PartialShape pshape_A{Dimension(-1), Dimension(3), Dimension(1), Dimension(2, 128)};
+        PartialShape pshape_B{Dimension(-1), Dimension(3), Dimension(2, 224), Dimension(1)};
+
+        PartialShape expected_shape = {-1, 3, Dimension(2, 224), Dimension(2, 128)};
+
+        set_shape_labels(pshape_B, {20, 21, 22, 23});
+        set_shape_labels(expected_shape, {20, 21, 22, 0});
+
+        auto param_A = std::make_shared<op::Parameter>(element::f32, pshape_A);
+        auto param_B = std::make_shared<op::Parameter>(element::f32, pshape_B);
+        const auto op = std::make_shared<TypeParam>(param_A, param_B);
+
+        const auto out_shape = op->get_output_partial_shape(0);
+
+        EXPECT_EQ(out_shape, expected_shape);
+        EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
     }
     {  // Both params have dimensions with different labels
         PartialShape pshape_A{Dimension(-1), Dimension(3), Dimension(1), Dimension(2, 128)};
@@ -402,7 +437,7 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_mixed_num
         EXPECT_EQ(out_shape, expected_shape);
         EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
     }
-    {  // Both params has dimension labels, output has label B
+    {  // Both params have dimension labels, output has label B
         Dimension dim_0_A = Dimension(-1);
         Dimension dim_0_B = Dimension(2, 4);
 
@@ -442,7 +477,27 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_mixed_num
         EXPECT_EQ(out_shape, expected_shape);
         EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
     }
-    {  // Both params have dynamic interval dimension labels
+    {  // Both params have dynamic interval dimension the same labels
+        Dimension dim_0_A = Dimension(2, 4);
+        Dimension dim_0_B = Dimension(2, 4);
+
+        ov::DimensionTracker::set_label(dim_0_A, 10);
+        ov::DimensionTracker::set_label(dim_0_B, 10);
+
+        PartialShape pshape_A = {dim_0_A, 3, 224, 1}, pshape_B = {dim_0_B, 3, 1, 224};
+
+        auto param_A = std::make_shared<op::Parameter>(element::f32, pshape_A);
+        auto param_B = std::make_shared<op::Parameter>(element::f32, pshape_B);
+        const auto op = std::make_shared<TypeParam>(param_A, param_B);
+
+        const auto out_shape = op->get_output_partial_shape(0);
+        PartialShape expected_shape = {Dimension(2, 4), 3, 224, 224};
+        std::vector<size_t> expected_labels{10, 0, 0, 0};
+
+        EXPECT_EQ(out_shape, expected_shape);
+        EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    }
+    {  // Both params have dynamic interval dimension different labels
         Dimension dim_0_A = Dimension(2, 4);
         Dimension dim_0_B = Dimension(2, 4);
 
@@ -561,14 +616,32 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_different
 }
 
 TYPED_TEST_P(ArithmeticOperator, static_shape_labels_numpy) {
-    { // Static shape
+    { // Static shape, different labels
         PartialShape pshape_A{Dimension(2), Dimension(1), Dimension(224), Dimension(1)};
         PartialShape pshape_B{Dimension(2), Dimension(1), Dimension(1), Dimension(128)};
         PartialShape expected_shape{2, 1, 224, 128};
 
         set_shape_labels(pshape_A, {10, 11, 12, 13});
         set_shape_labels(pshape_B, {20, 21, 22, 23});
-        set_shape_labels(expected_shape, {0, 0, 12, 23}); // TODO: Shouldn't be {10/20, 11/21, 12, 23}
+        set_shape_labels(expected_shape, {0, 0, 12, 23});
+
+        auto param_A = std::make_shared<op::Parameter>(element::f32, pshape_A);
+        auto param_B = std::make_shared<op::Parameter>(element::f32, pshape_B);
+        const auto op = std::make_shared<TypeParam>(param_A, param_B, op::AutoBroadcastType::NUMPY);
+
+        const auto out_shape = op->get_output_partial_shape(0);
+
+        EXPECT_EQ(out_shape, expected_shape);
+        EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    }
+    { // Static shape, the same labels
+        PartialShape pshape_A{Dimension(2), Dimension(1), Dimension(224), Dimension(1)};
+        PartialShape pshape_B{Dimension(2), Dimension(1), Dimension(1), Dimension(128)};
+        PartialShape expected_shape{2, 1, 224, 128};
+
+        set_shape_labels(pshape_A, {30, 31, 32, 33});
+        set_shape_labels(pshape_B, {30, 31, 32, 33});
+        set_shape_labels(expected_shape, {30, 31, 32, 33});
 
         auto param_A = std::make_shared<op::Parameter>(element::f32, pshape_A);
         auto param_B = std::make_shared<op::Parameter>(element::f32, pshape_B);
