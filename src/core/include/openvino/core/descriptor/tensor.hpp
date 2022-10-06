@@ -74,10 +74,11 @@ public:
     }
     /// \brief Returns custom description of element type if element type is set to ov::element::custom
     const ov::Any get_custom_element_type() const {
-        if(get_element_type() == ov::element::custom) {
+        if (get_element_type() == ov::element::custom) {
             return m_custom_element_type;
         } else {
-            throw std::runtime_error("Attempt to query custom data type description for description::Tensor which doesn't have a custom element type");
+            throw std::runtime_error("Attempt to query custom data type description for description::Tensor which "
+                                     "doesn't have a custom element type");
         }
     }
     const Shape& get_shape() const;

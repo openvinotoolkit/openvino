@@ -12,7 +12,7 @@ TENSORFLOW_C_API ov::frontend::FrontEndVersion GetAPIVersion() {
 
 TENSORFLOW_C_API void* GetFrontEndData() {
     auto res = new ov::frontend::FrontEndPluginInfo();
-    res->m_name = "tf"; // TODO: change to tensorflow?
+    res->m_name = "tf";  // TODO: change to tensorflow?
     res->m_creator = []() {
         return std::make_shared<ov::frontend::tensorflow::FrontEnd>();
     };

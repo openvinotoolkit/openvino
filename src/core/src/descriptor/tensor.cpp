@@ -16,8 +16,8 @@ ov::descriptor::Tensor::Tensor(const element::Type& element_type, const PartialS
 
 ov::descriptor::Tensor::Tensor(const ov::Any& custom_element_type, const PartialShape& pshape, const std::string& name)
     : ov::descriptor::Tensor::Tensor(ov::element::custom, pshape, name) {
-        this->m_custom_element_type = custom_element_type;
-    }
+    this->m_custom_element_type = custom_element_type;
+}
 
 ov::descriptor::Tensor::Tensor(const ov::element::Type& element_type,
                                const PartialShape& pshape,
@@ -27,10 +27,13 @@ ov::descriptor::Tensor::Tensor(const ov::element::Type& element_type,
       m_partial_shape(pshape),
       m_shape_changed(true) {}
 
-ov::descriptor::Tensor::Tensor(const ov::Any& custom_element_type, const PartialShape& pshape, Node* node, size_t node_output_number)
+ov::descriptor::Tensor::Tensor(const ov::Any& custom_element_type,
+                               const PartialShape& pshape,
+                               Node* node,
+                               size_t node_output_number)
     : ov::descriptor::Tensor::Tensor(element::custom, pshape, node, node_output_number) {
-        this->m_custom_element_type = custom_element_type;
-    }
+    this->m_custom_element_type = custom_element_type;
+}
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 void ov::descriptor::Tensor::set_tensor_type(const element::Type& element_type, const PartialShape& pshape) {

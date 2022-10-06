@@ -29,7 +29,7 @@ public:
     Parameter(const ov::element::Type& element_type, const PartialShape& pshape);
 
     Parameter(const ov::element::Type& element_type, const ov::Any& element_custom_type, const PartialShape& pshape);
-    
+
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;

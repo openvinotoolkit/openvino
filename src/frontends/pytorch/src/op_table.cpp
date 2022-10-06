@@ -549,16 +549,18 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"prim::TupleConstruct",
          [](NodeContext& context) -> OutputVector {
              auto n_inputs = context.get_input_size();
-             if(n_inputs == 1) {
-                return {context.get_input(0)};
+             if (n_inputs == 1) {
+                 return {context.get_input(0)};
              } else {
-                throw std::runtime_error("prim::TupleConstruct conversion doesn't support cases when the number of inputs is not one.");
+                 throw std::runtime_error(
+                     "prim::TupleConstruct conversion doesn't support cases when the number of inputs is not one.");
              }
          }},
 
-        /* TODO: Don't need a special way to handle prim::ListConstruct as it doesn't provide any extra service extra to FW Node at this moment
-        { "prim::ListConstruct", [](NodeContext& context) -> OutputVector {
-            // TODO. Probably need to replace by a constant of size 0 in one of the following transformations that embed Lists to Tensors for OV.
+        /* TODO: Don't need a special way to handle prim::ListConstruct as it doesn't provide any extra service extra to
+        FW Node at this moment { "prim::ListConstruct", [](NodeContext& context) -> OutputVector {
+            // TODO. Probably need to replace by a constant of size 0 in one of the following transformations that embed
+        Lists to Tensors for OV.
         }},
         */
 
@@ -567,33 +569,37 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
             // Should be handled in a special way: returned tensor is an alias for a part of input list
             // Temporary we replace this semantics loosing aliasing and just returning a part of input tensor.
             // Represent __getitem__ as generic node with only exception for returned type
-            // We can infer output type base on the input type. Also we can verify that input type is really a list (TODO: is only list acceptable for __getitem__?)
-            auto fw_node = make_shared<PtFrameworkNode>(context.get_decoder(), context.inputs());
+            // We can infer output type base on the input type. Also we can verify that input type is really a list
+        (TODO: is only list acceptable for __getitem__?) auto fw_node =
+        make_shared<PtFrameworkNode>(context.get_decoder(), context.inputs());
             OV_FRONTEND_REQUIRE(fw_node->outputs().size() == 1);
-            // TODO: Deduce output type here; do we need it? Looks like PT has already derived all the types, just need to carefully recognize it in original graph
+            // TODO: Deduce output type here; do we need it? Looks like PT has already derived all the types, just need
+        to carefully recognize it in original graph
         }},
         */
 
-        { "aten::append", [](NodeContext& context) -> OutputVector {
-            // Returns a modified list but also modifies the original list as well. So it should replace original list entry point in tensor_map
-            // with a new modified value. So returned value becomes a complete alise of input value with a list.
-            // We replace the original entry point and produces new one for new entry point. It helps to maintain correct data dependencies and keep
-            // graph connected.
+        {"aten::append",
+         [](NodeContext& context) -> OutputVector {
+             // Returns a modified list but also modifies the original list as well. So it should replace original list
+             // entry point in tensor_map with a new modified value. So returned value becomes a complete alise of input
+             // value with a list. We replace the original entry point and produces new one for new entry point. It
+             // helps to maintain correct data dependencies and keep graph connected.
 
-            // We still using FW node to represent this op and going to call transformation that remakes it to supported sub graph
+             // We still using FW node to represent this op and going to call transformation that remakes it to
+             // supported sub graph
 
-            auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), context.inputs());
+             auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), context.inputs());
 
-            // Expect only a single output from aten::append
-            OV_FRONTEND_REQUIRE(fw_node->outputs().size() == 1);
+             // Expect only a single output from aten::append
+             OV_FRONTEND_REQUIRE(fw_node->outputs().size() == 1);
 
-            // Next code is a hack to make alias for a value; in the final version it should be handled via something similar to AliasDB from PT
-            context.mutate_input(0, fw_node->output(0));
+             // Next code is a hack to make alias for a value; in the final version it should be handled via something
+             // similar to AliasDB from PT
+             context.mutate_input(0, fw_node->output(0));
 
-            // TODO: this code won't work incorrectly if it is in a loop and list comes from outer scope
-            return context.mark_node(fw_node)->outputs();
-        }},
-
+             // TODO: this code won't work incorrectly if it is in a loop and list comes from outer scope
+             return context.mark_node(fw_node)->outputs();
+         }},
 
         // TODO: Don't know how to change it quickly to be compiled, consult with Maxim
         /*{ "prim::ConstantChunk", [&]() -> OutputVector {

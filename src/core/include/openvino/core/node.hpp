@@ -274,7 +274,8 @@ public:
     void set_output_type(size_t i, const element::Type& element_type, const PartialShape& pshape);
 
     /// Set custom output type, usually it is not a tensor, so pshape is set as for a scalar by default
-    // TODO: prefer using set_output_type but it conflicts with original function apparently because ov::Any has too generic ctor 
+    // TODO: prefer using set_output_type but it conflicts with original function apparently because ov::Any has too
+    // generic ctor
     void set_custom_output_type(size_t i, ov::Any custom_element_type, const PartialShape& pshape = PartialShape());
 
     /// Sets the number of outputs

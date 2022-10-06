@@ -11,9 +11,7 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 
-
 class InputModel : public ov::frontend::InputModel {
-
     friend class FrontEnd;
     std::shared_ptr<Decoder> m_model;
 
@@ -22,6 +20,6 @@ public:
     // TODO: pass telemetry extension to this ctor
 };
 
-}  // namespace tensorflow
+}  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov

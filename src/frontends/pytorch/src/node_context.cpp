@@ -5,8 +5,8 @@
 #include <openvino/opsets/opset8.hpp>
 
 #include "exception.hpp"
-#include "utils.hpp"
 #include "pt_framework_node.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -50,7 +50,7 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) {
         auto parameter = model->get_parameters()[i];
         if (parameter->output(0).get_target_inputs().empty()) {
             // There is no consumers: safe to remove
-            //std::cout << "[ WARNING ] Removing parameter " << parameter
+            // std::cout << "[ WARNING ] Removing parameter " << parameter
             //          << " in converted Pytorch model, because it is never used" << std::endl;
             model->remove_parameter(parameter);
         }

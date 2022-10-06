@@ -145,7 +145,7 @@ public:
             parameter->get_output_tensor(0).add_names({std::to_string(index)});
             (*m_tensor_map)[index] = parameter;
             m_external_parameters->push_back(parameter);
-            //std::cout << "Nested case, created: " << parameter << std::endl;
+            // std::cout << "Nested case, created: " << parameter << std::endl;
             return parameter;
         }
     }

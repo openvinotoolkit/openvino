@@ -42,7 +42,7 @@ public:
                     std::cerr << "[ ERROR ] Cannot retrieve type\n" << e.what() << std::endl;
                 }
             } else {
-                //std::cerr << "[ WARNING ] Cannot retrieve type for output not existent in pt node: "
+                // std::cerr << "[ WARNING ] Cannot retrieve type for output not existent in pt node: "
                 //          << m_decoder->get_op_type() << " with 0 input: " << m_decoder->input(0) << std::endl;
             }
             // Let's see what type we have
@@ -53,8 +53,8 @@ public:
         }
     }
 
-    PtFrameworkNode(const std::shared_ptr<Decoder>& decoder, const OutputVector& inputs) :
-        PtFrameworkNode(decoder, inputs, decoder->num_of_outputs()) {}
+    PtFrameworkNode(const std::shared_ptr<Decoder>& decoder, const OutputVector& inputs)
+        : PtFrameworkNode(decoder, inputs, decoder->num_of_outputs()) {}
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
         auto op = std::make_shared<PtFrameworkNode>(m_decoder, inputs, get_output_size());

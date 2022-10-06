@@ -107,8 +107,7 @@ OutputVector convert_node(NodeContext* context) {
             }
         }*/
 
-    }
-    catch (std::runtime_error& e) {
+    } catch (std::runtime_error& e) {
         std::cout << "Exception happened during conversion of op: " << context->get_op_type()
                   << " with schema: " << context->get_schema() << ": " << e.what() << '\n';
     } catch (...) {
@@ -128,7 +127,7 @@ OutputVector convert_node(NodeContext* context) {
         auto outputs = fw_node->outputs();
         // update writes to input 0, so we need to replace this input with output from update
         context->mutate_input(0, outputs.back());
-        //std::cerr << "[ WARNING ] Created node with mutated 0 input. Schema: " << schema << std::endl;
+        // std::cerr << "[ WARNING ] Created node with mutated 0 input. Schema: " << schema << std::endl;
         context->get_decoder()->mark_node(fw_node);
         return outputs;
     }
@@ -215,7 +214,8 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
             // But this value can be found in the outer scope, for this purpose we need to search node in
             // external_tensor_map as well
 
-            //std::cout << "Node visitor start: " << node->get_op_type() << ", schema: " << node->get_schema() << std::endl;
+            // std::cout << "Node visitor start: " << node->get_op_type() << ", schema: " << node->get_schema() <<
+            // std::endl;
             auto raw_inputs = node->inputs();
             for (size_t i = 0; i < raw_inputs.size(); ++i) {
                 auto input = node->input(i);
