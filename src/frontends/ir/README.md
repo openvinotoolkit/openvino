@@ -16,7 +16,7 @@ flowchart LR
 
 The primary function of the OpenVINO IR Frontend is to load an OpenVINO IR into memory.
 
-OpenVINO IR frontend uses [the common coding style rules](../../docs/dev/coding_style.md).
+OpenVINO IR frontend uses [the common coding style rules](../../../docs/dev/coding_style.md).
 
 ## Key contacts
 
