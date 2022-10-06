@@ -113,6 +113,7 @@ struct kernel_impl_params {
     size_t unique_id;
     std::vector<layout> input_layouts;
     layout output_layout;
+    std::vector<tensor> input_offsets;
     std::vector<cldnn::fused_primitive_desc> fused_desc;
     std::vector<activation_func> fused_act_funcs;
     std::vector<activation_additional_params> activation_params;

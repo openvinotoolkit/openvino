@@ -10,10 +10,13 @@
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
 #include "convolution_inst.h"
+#include "strided_slice_inst.h"
+#include "crop_inst.h"
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
 #include "strided_slice_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -151,12 +154,18 @@ void primitive_inst::update_shape() {
         }
     }
 
-    if (input_shape_changed)
-        set_shape_change();
-
     // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
-    if (_node.is_type<shape_of>())
+    if (_node.is_type<shape_of>() && !input_shape_changed)
         return;
+
+    // Even though the predecessors' shapes are not changed, the output shape might be udpated by the mem_dep
+    auto memory_deps = _node.get_const_memory_deps();
+    for (auto& i : _node.get_shape_infer_dependencies()) {
+        if (memory_deps.count(i) > 0) {
+            continue;
+        }
+        input_shape_changed = true;
+    }
 
     // Strided slice loads data from {1,2,3} dependencies in impl::create method.
     // It means that this data must be put into impl_params map
@@ -173,7 +182,9 @@ void primitive_inst::update_shape() {
     if (!strided_slice_wa && !input_shape_changed && !_node.generates_dynamic_output() && _impl_params->output_layout.is_static())
         return;
 
-    auto memory_deps = _node.get_const_memory_deps();
+    if (input_shape_changed)
+        set_shape_change();
+
     std::vector<event::ptr> dependencies_events;
     auto queue_type = get_network().get_stream().get_queue_type();
     bool has_runtime_deps = false;
@@ -205,6 +216,7 @@ void primitive_inst::update_shape() {
     }
 
     _impl_params->memory_deps = memory_deps;
+
     auto new_layouts = _node.type()->calc_output_layouts(_node, *_impl_params);
     auto new_layout = new_layouts.empty() ? _node.type()->calc_output_layout(_node, *_impl_params) : new_layouts[0];
     new_layout.data_padding = padding::max(_node.get_primitive()->output_padding, new_layout.data_padding);
