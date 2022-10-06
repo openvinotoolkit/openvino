@@ -27,7 +27,7 @@ People from the [openvino-ir-frontend-maintainers](https://github.com/orgs/openv
 OpenVINO IR Frontend contains the next components:
 
 * [include](./include) is a public frontend API.
-* [src](./src/) folder contains sources of the component.
+* [src](./src/) folder contains the sources of the component.
 
 ## Architecture
 
