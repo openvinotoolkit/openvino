@@ -45,13 +45,23 @@ flowchart LR
 
 OpenVINO Frontends allow to convert model from framework to OpenVINO representation.
 
- * [ir](./frontends/ir)
+ * [ir](./frontends/ir/README.md)
  * [onnx](./frontends/onnx)
+ * [paddle](./frontends/paddle)
+ * [tensorflow](./frontends/tensorflow)
     
 ## OpenVINO Plugins
 
 Plugins provide a support of hardware device
+
+ * [auto](./plugins/auto)
+ * [auto_batch](./plugins/auto_batch)
+ * [hetero](./plugins/hetero)
  * [intel_cpu](./plugins/intel_cpu)
+ * [intel_gna](./plugins/intel_gna)
+ * [intel_gpu](./plugins/intel_gpu)
+ * [intel_myriad](./plugins/intel_myriad)
+ * [template](./plugins/template)
 
 ## OpenVINO Bindings
 
