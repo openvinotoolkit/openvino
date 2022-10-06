@@ -20,7 +20,7 @@ OpenVINO IR frontend uses [the common coding style rules](../../../docs/dev/codi
 
 ## Key contacts
 
-People from the [openvino-ir-frontend-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-ir-frontend-maintainers) have the rights to approve and merge PRs to the core component. They can assist with any questions about the core component.
+People from the [openvino-ir-frontend-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-ir-frontend-maintainers) have the rights to approve and merge PRs to the core component. They can assist with any questions about the component.
 
 ## Components
 
