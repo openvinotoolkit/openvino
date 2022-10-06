@@ -8,7 +8,7 @@
 #include <vector>
 #include <algorithm>
 
-#include "gna_plugin_log.hpp"
+#include "log/gna_plugin_log.hpp"
 #include "gna_mem_regions.hpp"
 
 namespace GNAPluginNS {

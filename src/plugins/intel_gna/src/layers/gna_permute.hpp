@@ -7,7 +7,7 @@
 #include <list>
 #include <utility>
 #include "ie_common.h"
-#include "gna_plugin_log.hpp"
+#include "log/gna_plugin_log.hpp"
 
 namespace GNAPluginNS {
 template <class T>

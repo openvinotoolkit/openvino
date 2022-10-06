@@ -5,7 +5,8 @@
 #pragma once
 
 #include <legacy/graph_tools.hpp>
-#include "gna_plugin_log.hpp"
+#include "log/gna_plugin_log.hpp"
+#include "log/log.hpp"
 #include "frontend/quantized_layer_params.hpp"
 #include <utility>
 #include <string>
@@ -657,7 +658,7 @@ inline void CNNNetworkRemoveLayer(CNNLayerPtr layer, bool checkDims = true) {
     if (!layer) {
         IE_THROW() << "Cannot remove layer pointed to NULL";
     }
-    gnalog() << "Removing " << layer->name << " layer\n";
+    GnaLog::LogDebug() << "Removing " << layer->name << " layer\n";
     if (layer->insData.size() != 1) {
         IE_THROW() << "Cannot remove layer : "<< layer->name <<" that has different number of inputs than 1";
     }
@@ -735,7 +736,7 @@ inline void CNNNetworkReconnectLayer(CNNLayerPtr old_prev_layer, CNNLayerPtr new
         IE_THROW() << "Cannot reconnect layer new parent is NULL";
     }
 
-    gnalog() << "Reconnecting " << old_prev_layer->name << " --> " << layer->name << " layer to "
+    GnaLog::LogDebug() << "Reconnecting " << old_prev_layer->name << " --> " << layer->name << " layer to "
         << new_prev_layer->name << " -- > " << layer->name << "layer\n";
 
     if (layer->insData.size() < 1) {

@@ -11,6 +11,7 @@
 #include "gna/gna_config.hpp"
 #include "common/gna_target.hpp"
 #include "common/versioning.hpp"
+#include "log/log.hpp"
 
 #include "gna2-tlv-writer.h"
 
@@ -123,7 +124,7 @@ std::string WriteAllEndpoints(std::ostream& outStream,
         outStream.write(scaleFactorTlv.data(), scaleFactorTlv.size());
     }
     if (allEndpoints.size() != 1) {
-        gnawarn() << "Number of endpoints: " << allEndpoints.size() << " for " << endPointType << "\n";
+        GnaLog::LogErr() << "Number of endpoints: " << allEndpoints.size() << " for " << endPointType << "\n";
     }
 
     std::stringstream stream;

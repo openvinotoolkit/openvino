@@ -15,7 +15,7 @@
 
 #include "runtime/floatmath.h"
 #include "dnn.hpp"
-#include "gna_plugin_log.hpp"
+#include "log/gna_plugin_log.hpp"
 #include "runtime/pwl.h"
 #include "runtime/cnn.h"
 

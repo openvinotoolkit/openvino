@@ -12,7 +12,7 @@
 
 #include <legacy/ie_layers.h>
 #include "gna_graph_tools.hpp"
-#include "gna_plugin_log.hpp"
+#include "log/gna_plugin_log.hpp"
 
 namespace GNAPluginNS {
 namespace GNAConvolutionLayer {

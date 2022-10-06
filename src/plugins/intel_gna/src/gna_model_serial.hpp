@@ -10,7 +10,7 @@
 #include <ie_input_info.hpp>
 
 #include "descriptions/gna_desc.hpp"
-#include "gna_plugin_log.hpp"
+#include "log/gna_plugin_log.hpp"
 #include "serial/headers/latest/gna_model_header.hpp"
 #include "gna2-model-api.h"
 

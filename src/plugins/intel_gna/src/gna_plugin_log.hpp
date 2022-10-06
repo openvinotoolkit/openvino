@@ -16,8 +16,6 @@
 #define PLOT
 #define GNA_HEAP_PROFILER
 #define MODEL_DUMP
-#define gnalog() std::cout
-#define gnawarn() std::cerr
 #else
 
 #ifdef VERBOSE
@@ -32,26 +30,6 @@
 #define PLOT_LEVEL (0)
 #endif
 
-class GnaLog {
- public :
-    template <class T>
-    GnaLog & operator << (const T &obj) {
-        return *this;
-    }
-
-    GnaLog &  operator<< (std::ostream & (*manip)(std::ostream &)) {
-        return *this;
-    }
-};
-
-inline GnaLog & gnalog() {
-    static GnaLog l;
-    return l;
-}
-inline GnaLog & gnawarn() {
-    return gnalog();
-}
-
 #endif
 
 /**
@@ -65,8 +43,6 @@ inline GnaLog & gnawarn() {
 #else
 # define __PRETTY_FUNCTION__ __FUNCTION__
 #endif
-
-
 
 #define GNA_LAYER_ASSERT(layer, expr)\
 if (!(expr)) { \

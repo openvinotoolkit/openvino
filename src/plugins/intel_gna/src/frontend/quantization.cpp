@@ -3,7 +3,7 @@
 //
 
 #include <cstring>
-#include <gna_plugin_log.hpp>
+#include <log/gna_plugin_log.hpp>
 #include <limits>
 #include "backend/gna_types.h"
 #include "quantization.hpp"

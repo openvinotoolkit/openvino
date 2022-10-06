@@ -25,7 +25,8 @@
 #endif
 
 #include "pwl.h"
-#include "gna_plugin_log.hpp"
+#include "log/gna_plugin_log.hpp"
+#include "log/log.hpp"
 #include "gna_slope_scale.h"
 #include "round_float_define.hpp"
 #include "ops/reference/pwl.hpp"
@@ -129,7 +130,7 @@ void PwlDesign(const DnnActivation& activation_type,
     switch (activation_type) {
         case kActSigmoid:
            {
-                gnalog() <<  "=========================== Sigmoid Segments===========================\n";
+                GnaLog::LogDebug() <<  "=========================== Sigmoid Segments===========================\n";
                 uint32_t num_segment_size = 0;
                 int32_t offset = 0;
                 ptr_segment[0].xBase = static_cast<int32_t>(INT32_MIN & XBASEMASK);  // zero out the 2 lsb
@@ -165,7 +166,7 @@ void PwlDesign(const DnnActivation& activation_type,
                         ptr_segment[i].xBase = ptr_segment[i].xBase | slope_scale_index;
                     }
                     ptr_segment[i].yBase = FLOAT_TO_INT16(floatval * scale_out);
-                    gnalog() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK))/scale_out)
+                    GnaLog::LogDebug() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK))/scale_out)
                              << " "
                              << (static_cast<float>((ptr_segment[i].yBase))/scale_out)
                              << " "
@@ -176,7 +177,7 @@ void PwlDesign(const DnnActivation& activation_type,
             break;
         case kActTanh:
             {
-                gnalog() <<  "=========================== Tanh Segments===========================\n";
+                GnaLog::LogDebug() <<  "=========================== Tanh Segments===========================\n";
                 uint32_t num_segment_size = 0;
                 int32_t offset = 0;
                 ptr_segment[0].xBase = static_cast<int32_t>(INT32_MIN & XBASEMASK);  // zero out the 2 lsb
@@ -212,7 +213,7 @@ void PwlDesign(const DnnActivation& activation_type,
                         ptr_segment[i].xBase = ptr_segment[i].xBase | slope_scale_index;
                     }
                     ptr_segment[i].yBase = FLOAT_TO_INT16(floatval * scale_out);
-                    gnalog() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK))/scale_out)
+                    GnaLog::LogDebug() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK))/scale_out)
                              << " "
                              << (static_cast<float>((ptr_segment[i].yBase))/scale_out)
                              << " "
@@ -226,7 +227,7 @@ void PwlDesign(const DnnActivation& activation_type,
                 auto softsign = [](const double x) {
                     return(x / (1.0 + fabs(x)));
                 };
-                gnalog() << "=========================== SoftSign Segments===========================\n";
+                GnaLog::LogDebug() << "=========================== SoftSign Segments===========================\n";
                 uint32_t num_segment_size = 0;
                 int32_t offset = 0;
                 ptr_segment[0].xBase = static_cast<int32_t>(INT32_MIN & XBASEMASK);  // zero out the 2 lsb
@@ -259,7 +260,7 @@ void PwlDesign(const DnnActivation& activation_type,
                         ptr_segment[i].xBase = ptr_segment[i].xBase | slope_scale_index;
                     }
                     ptr_segment[i].yBase = FLOAT_TO_INT16(floatval * scale_out);
-                    gnalog() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK)) / scale_out)
+                    GnaLog::LogDebug() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK)) / scale_out)
                         << " "
                         << (static_cast<float>((ptr_segment[i].yBase)) / scale_out)
                         << " "
@@ -279,16 +280,16 @@ void PwlDesign(const DnnActivation& activation_type,
                 int16_t y_lower_limit = INT16_MIN;
                 int16_t y_upper_limit = INT16_MAX;
                 if (activation_type == kActKaldiLstmClipping)
-                    gnalog() << "=========================== Clipping Segments ===========================\n";
+                    GnaLog::LogDebug() << "=========================== Clipping Segments ===========================\n";
                 else
-                    gnalog() << "=========================== Identity Segments ===========================\n";
+                    GnaLog::LogDebug() << "=========================== Identity Segments ===========================\n";
                 if (x_lower_limit < INT32_MIN) {
-                    std::cerr << "Warning:  saturation in PwlDesign! " << x_lower_limit  << " < INT32_MIN"<< std::endl;
+                    GnaLog::LogErr() << "Warning:  saturation in PwlDesign! " << x_lower_limit  << " < INT32_MIN"<< std::endl;
                     x_lower_limit = INT32_MIN;
                     y_lower_limit = static_cast<int16_t>((scale_out / scale_in)*static_cast<float>(INT32_MIN) - 0.5);
                 }
                 if (x_upper_limit > INT32_MAX) {
-                    std::cerr << "Warning:  saturation in PwlDesign! " << x_upper_limit  << " > INT32_MAX"<< std::endl;
+                    GnaLog::LogErr() << "Warning:  saturation in PwlDesign! " << x_upper_limit  << " > INT32_MAX"<< std::endl;
                     x_upper_limit = INT32_MAX;
                     y_upper_limit = static_cast<int16_t>((scale_out / scale_in)*static_cast<float>(INT32_MAX) + 0.5);
                 }
@@ -299,7 +300,7 @@ void PwlDesign(const DnnActivation& activation_type,
                 ptr_segment[0].yBase = y_lower_limit;
                 ptr_segment[0].slope = 0;
 
-                gnalog() << ptr_segment[0].xBase / scale_in
+                GnaLog::LogDebug() << ptr_segment[0].xBase / scale_in
                     << " " << ptr_segment[0].yBase / scale_out
                     << " " << 0
                     << "\n";
@@ -327,7 +328,7 @@ void PwlDesign(const DnnActivation& activation_type,
             break;
         case kActPow:
             {
-                gnalog() << "=========================== Pow Segments===========================\n";
+                GnaLog::LogDebug() << "=========================== Pow Segments===========================\n";
                 uint32_t num_segment_size = 0;
 
                 auto fp32eq = [](float p1, float p2) -> bool {
@@ -375,7 +376,7 @@ void PwlDesign(const DnnActivation& activation_type,
                     ptr_segment[i].xBase = ptr_segment[i].xBase | s.slope_scale_index;
 
                     ptr_segment[i].yBase = FLOAT_TO_INT16(val * scale_out);
-                    gnalog() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK)) / scale_out)
+                    GnaLog::LogDebug() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK)) / scale_out)
                         << " "
                         << (static_cast<float>((ptr_segment[i].yBase)) / scale_out)
                         << " "

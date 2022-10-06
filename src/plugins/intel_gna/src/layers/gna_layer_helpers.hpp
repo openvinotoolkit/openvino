@@ -5,7 +5,7 @@
 #pragma once
 
 #include "gna_layer_info.hpp"
-#include "gna_plugin_log.hpp"
+#include "log/gna_plugin_log.hpp"
 
 namespace GNAPluginNS {
 namespace LayerUtils {

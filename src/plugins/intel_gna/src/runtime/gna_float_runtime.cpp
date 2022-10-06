@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gna_plugin_log.hpp>
+#include <log/gna_plugin_log.hpp>
 #include <cstdint>
 #include <backend/dnn_types.h>
 #include "gna_float_runtime.hpp"

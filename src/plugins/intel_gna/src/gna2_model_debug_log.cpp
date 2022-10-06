@@ -10,6 +10,7 @@
 #include "gna2_model_debug_log.hpp"
 #include "gna2-model-api.h"
 #include "gna_device.hpp"
+#include "log/log.hpp"
 
 #include <cstdint>
 #include <fstream>
@@ -199,7 +200,7 @@ void WriteInputAndOutputTextGNAImpl(const Gna2Model & gnaModel, const std::strin
         if (numItems) {
             auto rmse = std::sqrt(summOfSqDiff / numItems);
             auto avg = summOfDiff / numItems;
-            std::cout << std::left << std::setw(55) << out_file_name.str()
+            GnaLog::LogDebug() << std::left << std::setw(55) << out_file_name.str()
                 << " RMSE=" << std::fixed << std::setprecision(5) << std::right << std::setw(8) << rmse
                 << " avg=" << std::fixed << std::setprecision(5) << std::right << std::setw(8) << avg
                 << " maxD=" << std::fixed << std::setprecision(5) << std::right << std::setw(8) << maxD << std::endl;

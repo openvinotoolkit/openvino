@@ -10,7 +10,8 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <gna_plugin_log.hpp>
+#include <log/gna_plugin_log.hpp>
+#include "log/log.hpp"
 
 using namespace ov::intel_gna::pass;
 
@@ -43,7 +44,7 @@ ReorderActivationAndPooling::ReorderActivationAndPooling() {
         auto act = pool_node->input_value(0).get_node_shared_ptr();
         IE_ASSERT(act != nullptr);
 
-        gnalog() << "Reorder " << pool_node->get_friendly_name() << " and  " << act->get_friendly_name() << "\n";
+        GnaLog::LogDebug() << "Reorder " << pool_node->get_friendly_name() << " and  " << act->get_friendly_name() << "\n";
 
         auto node_before_act = act->input_value(0).get_node_shared_ptr();
         IE_ASSERT(node_before_act != nullptr);

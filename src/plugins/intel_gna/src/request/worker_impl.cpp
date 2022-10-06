@@ -6,7 +6,7 @@
 
 #include <gna2-inference-api.h>
 
-#include "gna_plugin_log.hpp"
+#include "log/gna_plugin_log.hpp"
 #include "model_wrapper.hpp"
 #include "subrequest.hpp"
 

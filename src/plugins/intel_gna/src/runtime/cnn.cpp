@@ -6,7 +6,7 @@
 #include <limits>
 #include <cstdint>
 #include <cstdio>
-#include <gna_plugin_log.hpp>
+#include <log/gna_plugin_log.hpp>
 
 #include "cnn.h"
 #include "backend/dnn_types.h"
