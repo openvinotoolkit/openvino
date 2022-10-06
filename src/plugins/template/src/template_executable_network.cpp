@@ -98,17 +98,20 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
 
 // ! [executable_network:map_graph]
 // forward declaration
-std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function,
-                                                   const InferenceEngine::InputsDataMap& inputInfoMap,
-                                                   const InferenceEngine::OutputsDataMap& outputsInfoMap);
+void TransformNetwork(std::shared_ptr<ngraph::Function>& function,
+                      const InferenceEngine::InputsDataMap& inputInfoMap,
+                      const InferenceEngine::OutputsDataMap& outputsInfoMap);
 
 void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<const ngraph::Function>& function,
                                                        const InferenceEngine::InputsDataMap& inputInfoMap,
                                                        const InferenceEngine::OutputsDataMap& outputsInfoMap) {
     // TODO: perform actual graph compilation / mapping to backend graph representation / kernels
 
+    // clone network
+    _function = ngraph::clone_function(*function);
+
     // apply plugins transformations
-    _function = TransformNetwork(function, inputInfoMap, outputsInfoMap);
+    TransformNetwork(_function, inputInfoMap, outputsInfoMap);
 
     // Generate backend specific blob mappings. For example Inference Engine uses not ngraph::Result nodes friendly name
     // as inference request output names but the name of the layer before.

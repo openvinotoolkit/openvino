@@ -97,6 +97,31 @@ SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                   bool new_api);
 
 /**
+ * @brief Returns set of nodes which were removed after transformation.
+ * If originalFunction contains node1 and transformedFunction does not
+ * contains node1 in ops list, node1 will be returned.
+ * @param originalFunction Original network
+ * @param transformedFunction Transformed network
+ * @return Set of strings which contains removed node names
+ */
+INFERENCE_ENGINE_API_CPP(std::unordered_set<std::string>)
+GetRemovedNodes(const std::shared_ptr<const ov::Model>& originalFunction,
+                const std::shared_ptr<const ov::Model>& transformedFunction);
+
+/**
+ * @brief Returns set of nodes from original model which are
+ * determined as supported after applied transformation pipeline.
+ * @param model Original model
+ * @param transform Transformation pipeline function
+ * @param is_node_supported Function returning whether node is supported or not
+ * @return Set of strings which contains supported node names
+ */
+INFERENCE_ENGINE_API_CPP(std::unordered_set<std::string>)
+GetSupportedNodes(const std::shared_ptr<const ov::Model>& model,
+                  std::function<void(std::shared_ptr<ov::Model>&)> transform,
+                  std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported);
+
+/**
  * @interface IInferencePlugin
  * @brief An API of plugin to be implemented by a plugin
  * @ingroup ie_dev_api_plugin_api
@@ -346,17 +371,6 @@ protected:
      */
     void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                            const std::shared_ptr<const ov::Model>& function);
-
-    /**
-     * @brief Returns set of nodes which were removed after transformation.
-     * If originalFunction contains node1 and transformedFunction does not
-     * contains node1 in ops list, node1 will be returned.
-     * @param originalFunction Original network
-     * @param transformedFunction Transformed network
-     * @return Set of strings which contains removed node names
-     */
-    std::unordered_set<std::string> GetRemovedNodes(const std::shared_ptr<const ov::Model>& originalFunction,
-                                                    const std::shared_ptr<const ov::Model>& transformedFunction) const;
 
     std::string _pluginName;                            //!< A device name that plugins enables
     std::map<std::string, std::string> _config;         //!< A map config keys -> values
