@@ -124,7 +124,7 @@ where:
 - `custom_attributes` is a parameter that stores all the YOLOv3 specific attributes:
     - `classes`, `coords`, `num`, and `masks` are attributes that you should copy from the configuration
     file that was used for model training. If you used DarkNet officially shared weights,
-    you can use `yolov3.cfg` or `yolov3-tiny.cfg` configuration file from [GitHub repo](https://github.com/david8862/keras-YOLOv3-model-set/tree/master/cfg). Replace the default values in `custom_attributes` with the parameters that
+    you can use `yolov3.cfg` or `yolov3-tiny.cfg` configuration file from [GitHub repository](https://github.com/david8862/keras-YOLOv3-model-set/tree/master/cfg). Replace the default values in `custom_attributes` with the parameters that
     follow the `[yolo]` titles in the configuration file.
     - `anchors` is an optional parameter that is not used while inference of the model, but it used in a demo to parse `Region` layer output
     - `entry_points` is a node name list to cut off the model and append the `Region` layer with custom attributes specified above.
