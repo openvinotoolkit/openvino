@@ -21,6 +21,7 @@ from setuptools import setup, find_namespace_packages, Extension
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build_clib import build_clib
 from setuptools.command.install import install
+import re
 
 WHEEL_LIBS_INSTALL_DIR = os.path.join("openvino", "libs")
 WHEEL_LIBS_PACKAGE = "openvino.libs"
@@ -49,6 +50,7 @@ TBB_LIBS_DIR = os.getenv("TBB_LIBS_DIR", f"runtime/3rdparty/tbb/{LIBS_DIR}")
 PUGIXML_LIBS_DIR = os.getenv("PUGIXML_LIBS_DIR", f"runtime/3rdparty/pugixml/{LIBS_DIR}")
 PY_PACKAGES_DIR = os.getenv("PY_PACKAGES_DIR", f"python/{PYTHON_VERSION}")
 LIBS_RPATH = "$ORIGIN" if sys.platform == "linux" else "@loader_path"
+
 
 LIB_INSTALL_CFG = {
     "ie_libs": {
@@ -272,14 +274,20 @@ class PrepareLibs(build_clib):
         blacklist = [".lib", ".pdb", "_debug.dll", "_debug.dylib"]
         package_dir = os.path.join(get_package_dir(PY_INSTALL_CFG), WHEEL_LIBS_INSTALL_DIR)
 
+        exclude_patterns = ("*so.*.*.*", "*.so.*.*",
+                            "libpugixml.so", "libtbbmalloc.so", "libtbb.so",
+                            "libopenvino_*.cpython-38-x86_64-linux-gnu.so")
+
         for src_dir in src_dirs:
             local_base_dir = Path(src_dir)
             for file_path in local_base_dir.rglob("*"):
                 file_name = os.path.basename(file_path)
-                if file_path.is_file() and not any(file_name.endswith(ext) for ext in blacklist):
-                    dst_file = os.path.join(package_dir, os.path.relpath(file_path, local_base_dir))
-                    os.makedirs(os.path.dirname(dst_file), exist_ok=True)
-                    copyfile(file_path, dst_file)
+
+                if not any(fnmatchcase(file_name, pattern) for pattern in exclude_patterns):
+                    if file_path.is_file() and not any(file_name.endswith(ext) for ext in blacklist):
+                        dst_file = os.path.join(package_dir, os.path.relpath(file_path, local_base_dir))
+                        os.makedirs(os.path.dirname(dst_file), exist_ok=True)
+                        copyfile(file_path, dst_file)
 
         if Path(package_dir).exists():
             self.announce(f"Adding {WHEEL_LIBS_PACKAGE} package", level=3)
@@ -295,11 +303,23 @@ class CopyExt(build_ext):
             self.run_command("build_clib")
             self.extensions = []
             self.extensions = find_prebuilt_extensions(get_dir_list(PY_INSTALL_CFG))
+
+        exclude_patterns = ("*libopenvino_*",)
+
         for extension in self.extensions:
             if not isinstance(extension, PrebuiltExtension):
                 raise DistutilsSetupError(f"copy_ext can accept PrebuiltExtension only, but got {extension.name}")
             src = extension.sources[0]
-            dst = self.get_ext_fullpath(extension.name)
+
+            try:
+                name_version_with_dots = re.findall(r"openvino-\d*\.\d*\.\d*\.", extension.name)[0][:-1]
+                name_version_without_dots = re.sub(r"\.", "_", name_version_with_dots)
+                extension_name_without_dots = re.sub(name_version_with_dots, name_version_without_dots, extension.name)
+            except IndexError:
+                extension_name_without_dots = extension.name
+
+            dst = self.get_ext_fullpath(extension_name_without_dots)
+
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             # setting relative path to find dlls
             if sys.platform != "win32":
@@ -309,7 +329,9 @@ class CopyExt(build_ext):
                 elif sys.platform == "darwin":
                     rpath = os.path.join("@loader_path", rpath, WHEEL_LIBS_INSTALL_DIR)
                 set_rpath(rpath, os.path.realpath(src))
-            copy_file(src, dst, verbose=self.verbose, dry_run=self.dry_run)
+
+            if not any(fnmatchcase(extension.name, pattern) for pattern in exclude_patterns):
+                copy_file(src, dst, verbose=self.verbose, dry_run=self.dry_run)
 
 
 class CustomInstall(install):
