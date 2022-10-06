@@ -32,7 +32,7 @@ OpenVINO IR Frontend contains the next components:
 ## Architecture
 
 OpenVINO IR Frontend uses [pugixml](../../../thirdparty/pugixml/README.md) library to parse xml files.
-For detailed information about OpenVINO IR Frontend architecture please read [architecture guide](./docs/architecture.md).
+For detailed information about OpenVINO IR Frontend architecture, read the [architecture guide](./docs/architecture.md).
 
 ## Tutorials
 
