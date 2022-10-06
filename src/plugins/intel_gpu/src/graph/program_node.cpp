@@ -351,9 +351,7 @@ std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
 void program_node::invalidate_users() const {
     for (auto& user : users) {
         if (user->valid_output_layout) {
-            if (user->is_type<convolution>() && user->as<convolution>().get_required_output() != format::any)
-                continue;
-            if (user->is_type<deconvolution>() && user->as<deconvolution>().get_required_output() != format::any)
+            if (user->get_required_output() != format::any)
                 continue;
             user->valid_output_layout = false;
             user->invalidate_users();
