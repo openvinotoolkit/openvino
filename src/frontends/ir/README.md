@@ -14,7 +14,7 @@ flowchart LR
     click ir "https://docs.openvino.ai/latest/openvino_docs_MO_DG_IR_and_opsets.html"
 ```
 
-The main responsibility of OpenVINO IR Frontend is load the OpenVINO IR into memory.
+The primary function of the OpenVINO IR Frontend is to load an OpenVINO IR into memory.
 
 OpenVINO IR frontend uses [the common coding style rules](../../docs/dev/coding_style.md).
 
