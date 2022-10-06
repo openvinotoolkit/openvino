@@ -6,7 +6,7 @@ To do this, you need to add a new line to the constructor of the `InputModelIRIm
 
 https://github.com/openvinotoolkit/openvino/blob/5c1ddd32de2ad4f9ec0c2dbc8b256add10896ec3/src/frontends/ir/src/input_model.cpp#L199-L218
 
-This line should add new opset to `m_opsets` map.
+This line adds a new opset to the `m_opsets` map.
 
 ## See also
 
