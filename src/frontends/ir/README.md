@@ -36,7 +36,7 @@ For detailed information about OpenVINO IR Frontend architecture, read the [arch
 
 ## Tutorials
 
- * [How to support new opset](./docs/support_new_opset.md)
+ * [How to support a new opset](./docs/support_new_opset.md)
 
 
 ## See also
