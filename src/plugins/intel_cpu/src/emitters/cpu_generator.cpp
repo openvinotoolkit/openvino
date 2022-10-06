@@ -17,6 +17,7 @@
 
 #include "snippets_transformations/op/load_convert.hpp"
 #include "snippets_transformations/op/store_convert.hpp"
+#include "ngraph_transformations/op/swish_cpu.hpp"
 
 #include <ngraph/opsets/opset5.hpp>
 
@@ -114,6 +115,7 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     // jitters[ngraph::opset1::Tan::get_type_info_static()] = CREATE_EMITTER(); // not supported
     jitters[ngraph::opset1::Tanh::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_tanh_emitter);
 
+    jitters[ov::intel_cpu::SwishNode::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_swish_emitter);
     jitters[ngraph::op::v4::HSwish::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_hswish_emitter);
     // jitters[ngraph::opset1::HardSigmoid::get_type_info_static()] = CREATE_EMITTER(); // not supported
     // jitters[ngraph::opset1::Selu::get_type_info_static()] = CREATE_EMITTER(); // not supported
