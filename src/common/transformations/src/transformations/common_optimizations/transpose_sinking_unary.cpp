@@ -11,21 +11,28 @@ namespace {
 using NodePtr = std::shared_ptr<ov::Node>;
 using NodePair = std::pair<NodePtr, NodePtr>;
 
-NodePair SwapNodes(NodePtr first_node, NodePtr second_node) {
-    auto second_node_inputs = second_node->input_values();
-    second_node_inputs[0] = first_node->input_value(0);
-    auto new_first_node = second_node->clone_with_new_inputs(second_node_inputs);
+void SwapNames(NodePtr first_node, NodePtr second_node) {
+    const std::string first_name = first_node->get_friendly_name();
+    first_node->set_friendly_name(second_node->get_friendly_name());
+    second_node->set_friendly_name(first_name);
+}
+
+void SwapNodes(NodePtr first_node, NodePtr second_node) {
+    const auto first_node_output_names = first_node->output(0).get_names();
+    const auto second_node_output_names = second_node->output(0).get_names();
+
+    auto out_1 = first_node->input_value(0);
+    second_node->input(0).replace_source_output(out_1);
     
-    auto first_node_inputs = first_node->input_values();
-    first_node_inputs[0] = new_first_node;
-    auto new_second_node = first_node->clone_with_new_inputs(first_node_inputs);
+    auto out_2 = second_node->output(0);
+    second_node->output(0).replace(first_node->output(0));
 
-    new_second_node->set_friendly_name(second_node->get_friendly_name());
-    ov::copy_runtime_info({first_node, second_node}, {new_first_node, new_second_node});
+    first_node->input(0).replace_source_output(out_2);
 
-    ov::replace_node(second_node, new_second_node);
+    SwapNames(first_node, second_node);
 
-    return std::make_pair(new_first_node, new_second_node);
+    first_node->output(0).set_names(second_node_output_names);
+    second_node->output(0).set_names(first_node_output_names);
 }
 
 } // namespace
@@ -49,10 +56,10 @@ ov::pass::TransposeSinkingUnaryForward::TransposeSinkingUnaryForward() {
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
 
-        auto new_nodes = SwapNodes(transpose, unary);
-    
-        register_new_node(new_nodes.first);
-        register_new_node(new_nodes.second);
+        SwapNodes(transpose, unary);
+
+        register_new_node(unary);
+        register_new_node(transpose);
 
         return true;
     };
@@ -83,10 +90,10 @@ ov::pass::TransposeSinkingUnaryBackward::TransposeSinkingUnaryBackward() {
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
 
-        auto new_nodes = SwapNodes(unary, transpose);
+        SwapNodes(unary, transpose);
 
-        register_new_node(new_nodes.first);
-        register_new_node(new_nodes.second);
+        register_new_node(transpose);
+        register_new_node(unary);
 
         return true;
     };
