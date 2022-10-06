@@ -34,9 +34,9 @@ flowchart TB
 OpenVINO IR Frontend supports extensions in order to add some extension you can use `ov::frontend::ir::Frontend::add_extension()` API.
 The next extension types are supported:
 
-* `ov::TelemetryExtension` - enable telemenry for frontend
-* `ov::BaseOpExtension` - enable support of custom operation
-* `ov::detail::SOExtension` - allow to support `ov::BaseOpExtension` extensions which were loaded from the external library.
+* `ov::TelemetryExtension` - enable telemetry for the frontend
+* `ov::BaseOpExtension` - enable support of a custom operation
+* `ov::detail::SOExtension` - allow to support `ov::BaseOpExtension` extensions loaded from the external library.
 
 ## See also
 
