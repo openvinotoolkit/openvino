@@ -40,6 +40,8 @@ public:
                 } catch (std::runtime_error& e) {
                     // nothing, means the info cannot be queried and remains unknown
                     std::cerr << "[ ERROR ] Cannot retrieve type\n" << e.what() << std::endl;
+                } catch (...) {
+                    std::cerr << "[ ERROR ] Cannot retrieve type, not recognized exception\n";
                 }
             } else {
                 //std::cerr << "[ WARNING ] Cannot retrieve type for output not existent in pt node: "

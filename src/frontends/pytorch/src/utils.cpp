@@ -227,7 +227,7 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
                     //   TODO: There is no real search for values in outer scope because we don't need to link the usage
                     //   and definition together at this point -- need to do that otherwise graph will fall apart
                     PartialShape ps = node->get_input_shape(i);
-                    auto parameter = std::make_shared<opset8::Parameter>(node->get_input_type(i), ps);
+                    auto parameter = std::make_shared<opset8::Parameter>(element::custom, node->get_input_type(i), ps);
                     // TODO: Missing get_input_transpose_order handling for not trivial layouts
                     tensor_map[input] = parameter;
                     // set name of parameter to the index of node in the model
