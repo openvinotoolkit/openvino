@@ -107,7 +107,7 @@ bool Dimension::merge(Dimension& dst, const Dimension& d1, const Dimension& d2) 
         t->set_as_equal(d1, d2);
     if (d1.m_label == d2.m_label || d2.m_label == 0)
         dst.m_label = d1.m_label;
-    else if (d1.m_label == 0)
+    else
         dst.m_label = d2.m_label;
     return true;
 }

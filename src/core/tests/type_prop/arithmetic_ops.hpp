@@ -426,7 +426,7 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_mixed_num
 
         set_shape_labels(pshape_A, {10, 11, 12, 13});
         set_shape_labels(pshape_B, {20, 21, 22, 23});
-        set_shape_labels(expected_shape, {0, 0, 22, 13});
+        set_shape_labels(expected_shape, {0, 21, 22, 13});
 
         auto param_A = std::make_shared<op::Parameter>(element::f32, pshape_A);
         auto param_B = std::make_shared<op::Parameter>(element::f32, pshape_B);
@@ -501,7 +501,7 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_mixed_num
         PartialShape pshape_B{Dimension(2, 4), Dimension(4, 12), Dimension(10, 12), Dimension(16, 24)};
 
         PartialShape expected_shape = {Dimension(2, 4), Dimension(8, 12), Dimension(10, 12), 16};
-        std::vector<size_t> expected_labels{0, 0, 0, 0};  // TODO: Shouldn't {10/20, 0, 0, 0}?
+        std::vector<size_t> expected_labels{20, 21, 22, 23};
 
         set_shape_labels(pshape_A, {10, 11, 12, 13});
         set_shape_labels(pshape_B, {20, 21, 22, 23});
@@ -534,7 +534,7 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_mixed_num
         const auto out_shape = op->get_output_partial_shape(0);
 
         PartialShape expected_shape = {Dimension(2, 4), 3, 224, 224};
-        std::vector<size_t> expected_labels{0, 0, 0, 0};  // TODO: Shouldn't {10/20, 0, 0, 0}?
+        std::vector<size_t> expected_labels{20, 0, 0, 0};
 
         auto eq_table = table_of_equivalence->get_equivalence_table();
         EXPECT_EQ(eq_table[ov::DimensionTracker::get_label(dim_0_A)], std::unordered_set<size_t>{20});
@@ -649,7 +649,7 @@ TYPED_TEST_P(ArithmeticOperator, static_shape_labels_numpy) {
 
         set_shape_labels(pshape_A, {10, 11, 12, 13});
         set_shape_labels(pshape_B, {20, 21, 22, 23});
-        set_shape_labels(expected_shape, {0, 0, 12, 23});
+        set_shape_labels(expected_shape, {20, 0, 12, 23});
 
         auto param_A = std::make_shared<op::Parameter>(element::f32, pshape_A);
         auto param_B = std::make_shared<op::Parameter>(element::f32, pshape_B);
