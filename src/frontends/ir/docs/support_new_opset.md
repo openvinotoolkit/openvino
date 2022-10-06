@@ -1,4 +1,4 @@
-# How to support new OpenVINO opset
+# How to support a new OpenVINO opset
 
 Adding a new opset to the OpenVINO IR Frontend is a very frequent task. When we introduce a new operation set, we must also support it inside the Frontend.
 
