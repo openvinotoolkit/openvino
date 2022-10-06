@@ -48,6 +48,8 @@ Create a virtual Python environment to avoid dependency conflicts. To create a v
 
 ### Step 2. Activate Virtual Environment
 
+Activate the newly created Python virtual environment by issuing this command:
+
 @sphinxdirective
 
 .. tab:: Linux and macOS
@@ -62,13 +64,16 @@ Create a virtual Python environment to avoid dependency conflicts. To create a v
    
       openvino_env\Scripts\activate
      
-     
+.. important::
+
+  The above command must be re-run every time a new command terminal window is opened.
+  
 @endsphinxdirective
 
 
 ### Step 3. Set Up and Update PIP to the Highest Version
+Make sure `pip` is installed in your environment and upgrade it to the latest version by issuing the following command:
 
-Use the following command:
 ```sh
 python -m pip install --upgrade pip
 ```
