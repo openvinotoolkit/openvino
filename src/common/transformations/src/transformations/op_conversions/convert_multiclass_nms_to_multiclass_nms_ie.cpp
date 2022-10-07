@@ -18,10 +18,10 @@ using namespace ngraph;
 
 pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNmsIE(bool force_i32_output_type) {
     MATCHER_SCOPE(ConvertMulticlassNmsToMulticlassNmsIE);
-    auto nms = pattern::wrap_type<opset9::MulticlassNms>();
+    auto nms = pattern::wrap_type<op::util::MulticlassNmsBase>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto nms = std::dynamic_pointer_cast<opset9::MulticlassNms>(m.get_match_root());
+        auto nms = std::dynamic_pointer_cast<op::util::MulticlassNmsBase>(m.get_match_root());
         if (!nms || transformation_callback(nms)) {
             return false;
         }
