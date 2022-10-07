@@ -60,7 +60,8 @@ void shape_infer(const ov::op::v1::SpaceToBatch* op,
             get_data_as_int64<T>(2, op, pads_begin_val, constant_data) &&
             get_data_as_int64<T>(3, op, pads_end_val, constant_data)) {
             got_const_data = true;
-            int64_t block_prod = std::accumulate(begin(block_val), end(block_val), 1, std::multiplies<int64_t>());
+            int64_t block_prod =
+                std::accumulate(begin(block_val), end(block_val), int64_t(1), std::multiplies<int64_t>());
 
             output_shape[0] = data_shape[0] * static_cast<ValType>(block_prod);
 

@@ -23,6 +23,7 @@ namespace op {
 class ConvertTruncation : public ov::op::v0::Convert {
 public:
     OPENVINO_OP("ConvertTruncation", "SnippetsOpset", ov::op::v0::Convert);
+    BWDCMP_RTTI_DECLARATION;
 
     ConvertTruncation(const Output<Node>& x, const ov::element::Type& destination_type);
     ConvertTruncation() = default;
