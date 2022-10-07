@@ -48,6 +48,18 @@ if(paddlepaddle_FOUND AND PADDLEDET_RESULT)
         set(PATHSEP ":")
     endif()
 
+    if (WIN32)
+        set(PADDLE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/paddle_patch/image.py)
+        set(UPDATE_PADDLE ${TEST_PADDLE_MODELS}/update_paddle_done.txt)
+        set(PADDLE_DEPS ${PADDLE_ALL_SCRIPTS} ${UPDATE_PADDLE})
+        add_custom_command(OUTPUT ${UPDATE_PADDLE}
+            COMMAND start ${CMAKE_CURRENT_SOURCE_DIR}/paddle_patch/update_paddle.bat ${PADDLE_FILE} > ${UPDATE_PADDLE}
+            DEPENDS ${PADDLE_FILE}
+            )
+    else()
+        set(PADDLE_DEPS ${PADDLE_ALL_SCRIPTS})
+    endif()
+
     file(GLOB_RECURSE PADDLE_ALL_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/*.py)
     set(OUT_FILE ${TEST_PADDLE_MODELS}/generate_done.txt)
     add_custom_command(OUTPUT ${OUT_FILE}
@@ -55,7 +67,7 @@ if(paddlepaddle_FOUND AND PADDLEDET_RESULT)
             ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_wrapper.py
             ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_scripts
             ${TEST_PADDLE_MODELS}
-            DEPENDS ${PADDLE_ALL_SCRIPTS}
+            DEPENDS ${PADDLE_DEPS}
             )
     add_custom_target(paddle_test_models DEPENDS ${OUT_FILE})
 
