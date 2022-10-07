@@ -117,8 +117,8 @@ if(ENABLE_SYSTEM_PUGIXML)
                     DESTINATION runtime/3rdparty/pugixml/lib
                     COMPONENT pugixml
                     EXCLUDE_FROM_ALL)
-        elseif(CPACK_GENERATOR STREQUAL "DEB")
-            message(FATAL_ERROR "Debian package build requires shared Pugixml library")
+        elseif(CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
+            message(FATAL_ERROR "Debian | RPM package build requires shared Pugixml library")
         endif()
 
         set_target_properties(${pugixml_target} PROPERTIES IMPORTED_GLOBAL ON)
@@ -270,17 +270,17 @@ ov_install_static_lib(nlohmann_json_schema_validator ${OV_CPACK_COMP_CORE})
 # Install
 #
 
-if(CPACK_GENERATOR STREQUAL "DEB")
-    # These libraries are dependencies for openvino-samples-2022.1 package
+if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE)$")
+    # These libraries are dependencies for openvino-samples package
 
-    if(NOT gflags_FOUND)
-        message(FATAL_ERROR "gflags must be used as a debian package. Install libgflags-dev")
+    if(NOT gflags_FOUND AND CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
+        message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev")
     endif()
     if(NOT zlib_FOUND)
-        message(FATAL_ERROR "zlib must be used as a debian package. Install zlib1g-dev")
+        message(FATAL_ERROR "zlib must be used as a ${CPACK_GENERATOR} package. Install zlib1g-dev")
     endif()
     if(NOT ENABLE_SYSTEM_PUGIXML)
-        message(FATAL_ERROR "Pugixml must be used as a debian package. Install libpugixml-dev")
+        message(FATAL_ERROR "Pugixml must be used as a ${CPACK_GENERATOR} package. Install libpugixml-dev")
     endif()
 else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags

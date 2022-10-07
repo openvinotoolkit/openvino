@@ -93,8 +93,8 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         set(tbb_custom ON)
     endif()
 
-    if(CPACK_GENERATOR STREQUAL "DEB" AND NOT ENABLE_SYSTEM_TBB)
-        message(FATAL_ERROR "Debian packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")
+    if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE)$" AND NOT ENABLE_SYSTEM_TBB)
+        message(FATAL_ERROR "Debian | RPM | Conda-forge packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")
     endif()
 
     if(ENABLE_SYSTEM_TBB)

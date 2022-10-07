@@ -118,17 +118,11 @@ ov_define_component_names()
 #  - ov_add_latest_component()
 if(CPACK_GENERATOR STREQUAL "DEB")
     include(packaging/debian)
-endif()
-
-if(CPACK_GENERATOR STREQUAL "RPM")
+elseif(CPACK_GENERATOR STREQUAL "RPM")
     include(packaging/rpm)
-endif()
-
-if(CPACK_GENERATOR STREQUAL "NSIS")
+elseif(CPACK_GENERATOR STREQUAL "NSIS")
     include(packaging/nsis)
-endif()
-
-if(CPACK_GENERATOR STREQUAL "CONDA-FORGE")
+elseif(CPACK_GENERATOR STREQUAL "CONDA-FORGE")
     include(packaging/conda-forge)
 endif()
 
@@ -184,19 +178,19 @@ macro(ie_cpack)
         set(CPACK_SYSTEM_NAME "${OS_FOLDER}")
     endif()
 
+    # include GENERATOR dedicated per-component configuration file
+    # NOTE: private modules need to define ov_cpack_settings macro
+    # for custom  packages configuration
+    if(COMMAND ov_cpack_settings)
+        ov_cpack_settings()
+    endif()
+
     # generator specific variables
     if(CPACK_GENERATOR MATCHES "^(7Z|TBZ2|TGZ|TXZ|TZ|ZIP)$")
         # New in version 3.18
         set(CPACK_ARCHIVE_THREADS 8)
         # multiple packages are generated
         set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
-    endif()
-    
-    # include GENERATOR dedicated per-component configuration file
-    # NOTE: private modules need to define ov_cpack_settings macro
-    # for custom  packages configuration
-    if(COMMAND ov_cpack_settings)
-        ov_cpack_settings()
     endif()
 
     include(CPack)
