@@ -6,16 +6,14 @@
 
 class IRFrontendTestsPreProcessing : public ::testing::Test, public IRFrontendTestsImpl {
 protected:
-    void SetUp() override {
-        RemoveTemporalFiles();
-    };
+    void SetUp() override{};
 
     void TearDown() override {
         RemoveTemporalFiles();
     };
 };
 
-TEST_F(IRFrontendTestsPreProcessing, PreProcessing) {
+TEST_F(IRFrontendTestsPreProcessing, pre_processing) {
     std::string xmlModel = R"V0G0N(
 <?xml version="1.0" ?>
 <net name="Network" version="10">

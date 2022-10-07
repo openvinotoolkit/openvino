@@ -42,7 +42,7 @@ private:
     ov::frontend::FrontEndManager manager;
 };
 
-TEST_F(RTInfoDeserialization, NodeV10) {
+TEST_F(RTInfoDeserialization, node_v10) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -171,7 +171,7 @@ TEST_F(RTInfoDeserialization, NodeV10) {
     }
 }
 
-TEST_F(RTInfoDeserialization, NamesCollisionV10) {
+TEST_F(RTInfoDeserialization, names_collision_v10) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -261,7 +261,7 @@ TEST_F(RTInfoDeserialization, NamesCollisionV10) {
     }
 }
 
-TEST_F(RTInfoDeserialization, InputAndOutputV10) {
+TEST_F(RTInfoDeserialization, input_and_output_v10) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -413,7 +413,7 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
     }
 }
 
-TEST_F(RTInfoDeserialization, NodeV11) {
+TEST_F(RTInfoDeserialization, node_v11) {
     std::string model = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -616,7 +616,7 @@ TEST_F(RTInfoDeserialization, NodeV11) {
     }
 }
 
-TEST_F(RTInfoDeserialization, NodeV11_uint8) {
+TEST_F(RTInfoDeserialization, node_v11_uint8) {
     std::string model = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -749,7 +749,7 @@ TEST_F(RTInfoDeserialization, NodeV11_uint8) {
         << f_10_core->get_results()[0]->get_layout().to_string();
 }
 
-TEST_F(RTInfoDeserialization, NodeV11MultipleRTKeys) {
+TEST_F(RTInfoDeserialization, node_v11_multiple_rt_keys) {
     std::string model = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -818,7 +818,7 @@ TEST_F(RTInfoDeserialization, NodeV11MultipleRTKeys) {
     ASSERT_THROW(getWithIRFrontend(model), ov::Exception);
 }
 
-TEST_F(RTInfoDeserialization, InputAndOutputV11) {
+TEST_F(RTInfoDeserialization, input_and_output_v11) {
     std::string model = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -958,7 +958,7 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
     }
 }
 
-TEST_F(RTInfoDeserialization, IndexesInputAndOutputV11) {
+TEST_F(RTInfoDeserialization, indexes_input_and_output_v11) {
     std::string model = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -1076,7 +1076,7 @@ TEST_F(RTInfoDeserialization, IndexesInputAndOutputV11) {
     ASSERT_EQ(f->get_results()[1]->get_friendly_name(), "output1");
 }
 
-TEST_F(RTInfoDeserialization, V11toV10WithoutRTInfo) {
+TEST_F(RTInfoDeserialization, v11_to_v10_without_rt_info) {
     std::string model = R"V0G0N(
 <net name="Network" version="11">
     <layers>

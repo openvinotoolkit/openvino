@@ -2,32 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cstdio>
-#include <fstream>
-#include <iostream>
-
-#include "common_test_utils/graph_comparator.hpp"
 #include "frontend_test.hpp"
-#include "openvino/core/extension.hpp"
-#include "openvino/frontend/manager.hpp"
-#include "openvino/op/util/framework_node.hpp"
-#include "openvino/openvino.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 class IRFrontendTests : public ::testing::Test, public IRFrontendTestsImpl {
 protected:
-    void SetUp() override {
-        RemoveTemporalFiles();
-    };
+    void SetUp() override{};
 
     void TearDown() override {
         RemoveTemporalFiles();
     };
 };
 
-TEST_F(IRFrontendTests, ElementaryNetworkReadV11) {
+TEST_F(IRFrontendTests, elementary_network_reading_v11) {
     std::string testNetworkV11 = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -88,7 +74,7 @@ TEST_F(IRFrontendTests, ElementaryNetworkReadV11) {
     EXPECT_TRUE(res.valid) << res.message;
 }
 
-TEST_F(IRFrontendTests, ElementaryNetworkReadV10) {
+TEST_F(IRFrontendTests, elementary_network_reading_v10) {
     std::string testNetworkV10 = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -149,7 +135,7 @@ TEST_F(IRFrontendTests, ElementaryNetworkReadV10) {
     EXPECT_TRUE(res.valid) << res.message;
 }
 
-TEST_F(IRFrontendTests, ElementaryNetworkReadV9) {
+TEST_F(IRFrontendTests, elementary_network_reading_v9) {
     std::string testNetworkV9 = R"V0G0N(
 <net name="Network" version="9">
     <layers>
@@ -186,7 +172,7 @@ TEST_F(IRFrontendTests, ElementaryNetworkReadV9) {
     ASSERT_FALSE(!!modelv9);
 }
 
-TEST_F(IRFrontendTests, NetworkWithMissingWeights) {
+TEST_F(IRFrontendTests, networ_with_missing_weights) {
     std::string testNetworkV11 = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -252,7 +238,7 @@ TEST_F(IRFrontendTests, NetworkWithMissingWeights) {
     ASSERT_THROW((void)core.read_model(testNetworkV11, ov::Tensor()), ov::Exception);
 }
 
-TEST_F(IRFrontendTests, NetworkWithWeightsFromDisk) {
+TEST_F(IRFrontendTests, network_with_weights_reading_from_disk) {
     std::string xmlModel = R"V0G0N(
 <?xml version="1.0" ?>
 <net name="Network" version="11">
@@ -354,7 +340,7 @@ TEST_F(IRFrontendTests, NetworkWithWeightsFromDisk) {
     EXPECT_TRUE(res.valid) << res.message;
 }
 
-TEST_F(IRFrontendTests, NetworkWithoutWeightsFromDisk) {
+TEST_F(IRFrontendTests, network_without_weights_reading_from_disk) {
     std::string xmlModel = R"V0G0N(
 <?xml version="1.0" ?>
 <net name="Network" version="11">
@@ -413,7 +399,7 @@ TEST_F(IRFrontendTests, NetworkWithoutWeightsFromDisk) {
     EXPECT_TRUE(res.valid) << res.message;
 }
 
-TEST_F(IRFrontendTests, NetworkWithWrongShape) {
+TEST_F(IRFrontendTests, network_with_wrong_shape) {
     std::string xmlModel = R"V0G0N(
 <?xml version="1.0" ?>
 <net name="Network" version="11">
@@ -490,7 +476,7 @@ TEST_F(IRFrontendTests, NetworkWithWrongShape) {
     ASSERT_THROW((void)core.read_model(xmlFileName, binFileName), ov::Exception);
 }
 
-TEST_F(IRFrontendTests, NetworkWithUnderallocatedWeightsFromDisk) {
+TEST_F(IRFrontendTests, network_with_underallocated_weights_reading_from_disk) {
     std::string xmlModel = R"V0G0N(
 <?xml version="1.0" ?>
 <net name="Network" version="11">
@@ -566,7 +552,7 @@ TEST_F(IRFrontendTests, NetworkWithUnderallocatedWeightsFromDisk) {
     ASSERT_THROW((void)core.read_model(xmlFileName, binFileName), ov::Exception);
 }
 
-TEST_F(IRFrontendTests, NetworkWithMissingWeightsFromDisk) {
+TEST_F(IRFrontendTests, network_with_missing_weights_from_disk) {
     std::string xmlModel = R"V0G0N(
 <?xml version="1.0" ?>
 <net name="Network" version="11">
@@ -636,7 +622,7 @@ TEST_F(IRFrontendTests, NetworkWithMissingWeightsFromDisk) {
     ASSERT_THROW((void)core.read_model(xmlFileName, binFileName), ov::Exception);
 }
 
-TEST_F(IRFrontendTests, MissingLayerData) {
+TEST_F(IRFrontendTests, missing_layer_data) {
     std::string network = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -670,7 +656,7 @@ TEST_F(IRFrontendTests, MissingLayerData) {
     ASSERT_THROW((void)core.read_model(network, ov::Tensor()), ov::Exception);
 }
 
-TEST_F(IRFrontendTests, NetworkWirhWrongDimensions) {
+TEST_F(IRFrontendTests, network_with_wrong_dimensions) {
     std::string testNetwork = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -708,7 +694,7 @@ TEST_F(IRFrontendTests, NetworkWirhWrongDimensions) {
     ASSERT_TRUE(!model);
 }
 
-TEST_F(IRFrontendTests, NameIsNotUnique) {
+TEST_F(IRFrontendTests, name_is_not_unique) {
     std::string xmlModel = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -784,7 +770,7 @@ TEST_F(IRFrontendTests, NameIsNotUnique) {
     ASSERT_THROW((void)core.read_model(xmlFileName, binFileName), ov::Exception);
 }
 
-TEST_F(IRFrontendTests, EdgeHasWrongPortId) {
+TEST_F(IRFrontendTests, edge_has_wrong_port_id) {
     std::string testNetwork = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -822,7 +808,7 @@ TEST_F(IRFrontendTests, EdgeHasWrongPortId) {
     ASSERT_FALSE(!!model);
 }
 
-TEST_F(IRFrontendTests, EdgeHasWrongLayerId) {
+TEST_F(IRFrontendTests, edge_has_wrong_layer_id) {
     std::string testNetwork = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -860,7 +846,7 @@ TEST_F(IRFrontendTests, EdgeHasWrongLayerId) {
     ASSERT_FALSE(!!model);
 }
 
-TEST_F(IRFrontendTests, NotOpset1) {
+TEST_F(IRFrontendTests, not_opset1) {
     std::string testNetwork = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -932,7 +918,7 @@ TEST_F(IRFrontendTests, NotOpset1) {
     EXPECT_TRUE(res.valid) << res.message;
 }
 
-TEST_F(IRFrontendTests, WrongOpset) {
+TEST_F(IRFrontendTests, wrong_opset) {
     std::string testNetwork = R"V0G0N(
 <net name="Network" version="11">
     <layers>

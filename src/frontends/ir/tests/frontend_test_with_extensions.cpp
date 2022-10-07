@@ -3,19 +3,18 @@
 //
 
 #include "frontend_test.hpp"
+#include "openvino/op/util/framework_node.hpp"
 
 class IRFrontendExtensionTests : public ::testing::Test, public IRFrontendTestsImpl {
 protected:
-    void SetUp() override {
-        RemoveTemporalFiles();
-    };
+    void SetUp() override{};
 
     void TearDown() override {
         RemoveTemporalFiles();
     };
 };
 
-TEST_F(IRFrontendExtensionTests, CustomOpsTestWithFrameworkNodeExtension) {
+TEST_F(IRFrontendExtensionTests, custom_ops_test_with_framework_node_extension) {
     static std::string customOpsNetwork = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -74,7 +73,7 @@ TEST_F(IRFrontendExtensionTests, CustomOpsTestWithFrameworkNodeExtension) {
     ASSERT_TRUE(!!model);
 }
 
-TEST_F(IRFrontendExtensionTests, CustomOpsTestWithoutExtension) {
+TEST_F(IRFrontendExtensionTests, custom_ops_test_without_extension) {
     static std::string customOpsNetwork = R"V0G0N(
 <net name="Network" version="11">
     <layers>

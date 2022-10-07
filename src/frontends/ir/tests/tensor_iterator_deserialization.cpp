@@ -6,16 +6,14 @@
 
 class IRFrontendTestsTensorIterator : public ::testing::Test, public IRFrontendTestsImpl {
 protected:
-    void SetUp() override {
-        RemoveTemporalFiles();
-    };
+    void SetUp() override{};
 
     void TearDown() override {
         RemoveTemporalFiles();
     };
 };
 
-TEST_F(IRFrontendTestsTensorIterator, TensorIteratorMergedInput) {
+TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_merged_input) {
     std::string testNetwork = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -133,7 +131,7 @@ TEST_F(IRFrontendTestsTensorIterator, TensorIteratorMergedInput) {
     EXPECT_TRUE(res.valid) << res.message;
 }
 
-TEST_F(IRFrontendTestsTensorIterator, TensorIteratorSlisedInput) {
+TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_slised_input) {
     std::string testNetwork = R"V0G0N(
 <net name="Network" version="11">
     <layers>

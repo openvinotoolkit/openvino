@@ -37,7 +37,7 @@ private:
     ov::frontend::FrontEndManager manager;
 };
 
-TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestCase1) {
+TEST_F(PartialShapeDeserialization, shape_with_boundaries_test_case1) {
     std::string model = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -119,7 +119,7 @@ TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestCase1) {
     EXPECT_TRUE(res.valid) << res.message;
 }
 
-TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestCase2) {
+TEST_F(PartialShapeDeserialization, shape_with_boundaries_testC_case2) {
     std::string model = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -201,7 +201,7 @@ TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestCase2) {
     EXPECT_TRUE(res.valid) << res.message;
 }
 
-TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestDynamicRank) {
+TEST_F(PartialShapeDeserialization, shape_with_boundaries_test_dynamic_rank) {
     std::string model = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -267,7 +267,7 @@ TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestDynamicRank) {
     EXPECT_TRUE(res.valid) << res.message;
 }
 
-TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestDynamicRankNegative) {
+TEST_F(PartialShapeDeserialization, shape_with_boundaries_test_dynamic_rank_negative) {
     std::string model = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -294,7 +294,7 @@ TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestDynamicRankNegative) 
     ASSERT_THROW(getWithIRFrontend(model), ov::Exception);
 }
 
-TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestDynamicDimNegative) {
+TEST_F(PartialShapeDeserialization, shape_with_boundaries_test_dynamic_dim_negative) {
     std::string model = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -321,7 +321,7 @@ TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestDynamicDimNegative) {
     ASSERT_THROW(getWithIRFrontend(model), ov::Exception);
 }
 
-TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestWrongDim) {
+TEST_F(PartialShapeDeserialization, shape_with_boundaries_test_wrong_dim) {
     std::string model = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -348,7 +348,7 @@ TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestWrongDim) {
     ASSERT_THROW(getWithIRFrontend(model), ov::Exception);
 }
 
-TEST_F(PartialShapeDeserialization, ShapeWithBoundariesTestWrongBoundary) {
+TEST_F(PartialShapeDeserialization, shape_with_boundaries_test_wrong_boundary) {
     std::string model = R"V0G0N(
 <net name="Network" version="11">
     <layers>

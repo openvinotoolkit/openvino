@@ -4,14 +4,10 @@
 
 #include <gtest/gtest.h>
 
-#include <cstdio>
 #include <fstream>
-#include <iostream>
 
 #include "common_test_utils/graph_comparator.hpp"
-#include "openvino/core/extension.hpp"
 #include "openvino/frontend/manager.hpp"
-#include "openvino/op/util/framework_node.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
