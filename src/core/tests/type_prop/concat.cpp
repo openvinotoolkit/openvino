@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <dimension_tracker.hpp>
-
+#include "dimension_tracker.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
 
 TEST(type_prop, concat_deduce) {
     // Deduce type
@@ -124,24 +125,6 @@ TEST(type_prop, concat_partial_et_inconsistent) {
     }
 }
 
-TEST(type_prop, concat_partial_all_rank_dynamic) {
-    auto param0 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto param1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto param2 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto c = make_shared<op::Concat>(NodeVector{param0, param1, param2}, 1);
-
-    ASSERT_TRUE(c->get_output_partial_shape(0).rank().is_dynamic());
-}
-
-TEST(type_prop, concat_partial_some_rank_dynamic_others_rank_static_dynamic_consistent) {
-    auto param0 = make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 3});
-    auto param1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto param2 = make_shared<op::Parameter>(element::f32, PartialShape{2, 3, Dimension::dynamic()});
-    auto c = make_shared<op::Concat>(NodeVector{param0, param1, param2}, 1);
-
-    ASSERT_TRUE(c->get_output_partial_shape(0).same_scheme(PartialShape{2, Dimension::dynamic(), 3}));
-}
-
 TEST(type_prop, concat_partial_some_rank_dynamic_others_rank_static_dynamic_rank_inconsistent) {
     auto param0 = make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 3});
     auto param1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
@@ -197,15 +180,6 @@ TEST(type_prop, concat_partial_some_rank_dynamic_others_rank_static_dynamic_dims
     }
 }
 
-TEST(type_prop, concat_partial_some_rank_dynamic_others_rank_static_with_concat_axis_static) {
-    auto param0 = make_shared<op::Parameter>(element::f32, PartialShape{2, 2, 3});
-    auto param1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto param2 = make_shared<op::Parameter>(element::f32, PartialShape{2, 3, Dimension::dynamic()});
-    auto c = make_shared<op::Concat>(NodeVector{param0, param1, param2}, 1);
-
-    ASSERT_TRUE(c->get_output_partial_shape(0).same_scheme(PartialShape{2, Dimension::dynamic(), 3}));
-}
-
 TEST(type_prop, concat_partial_some_rank_dynamic_others_rank_static_with_concat_axis_static_dims_inconsistent) {
     auto param0 = make_shared<op::Parameter>(element::f32, PartialShape{2, 2, 3});
     auto param1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
@@ -232,15 +206,6 @@ TEST(type_prop, concat_partial_all_static_with_concat_axis_static_compatible_res
     auto c = make_shared<op::Concat>(NodeVector{param0, param1, param2}, 1);
 
     ASSERT_EQ(c->get_shape(), (Shape{2, 9, 3}));
-}
-
-TEST(type_prop, concat_partial_all_static_with_concat_axis_static_compatible_result_dynamic) {
-    auto param0 = make_shared<op::Parameter>(element::f32, PartialShape{2, 2, Dimension::dynamic()});
-    auto param1 = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 4, Dimension::dynamic()});
-    auto param2 = make_shared<op::Parameter>(element::f32, PartialShape{2, 3, Dimension::dynamic()});
-    auto c = make_shared<op::Concat>(NodeVector{param0, param1, param2}, 1);
-
-    ASSERT_TRUE(c->get_output_partial_shape(0).same_scheme(PartialShape{2, 9, Dimension::dynamic()}));
 }
 
 TEST(type_prop, concat_partial_all_static_with_concat_axis_static_dims_incompatible) {
@@ -352,4 +317,99 @@ TEST(type_prop, concat_dynamic_value_and_label_propagation_1) {
     ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[3]), 0);
     ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[4]), 1500);
     ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[5]), 0);
+}
+
+TEST(type_prop, concat_interval_dimensions) {
+    auto param0 = make_shared<op::Parameter>(element::f32, Shape{3, 2, 4});
+    auto param1 = make_shared<op::Parameter>(element::f32, Shape{7, 2, 4});
+    auto param2 = make_shared<op::Parameter>(element::f32, Shape{2, 2, 4});
+
+    auto c = make_shared<op::Concat>(NodeVector{param0, param1, param2}, -3);
+
+    ASSERT_EQ(c->get_element_type(), element::f32);
+    ASSERT_EQ(c->get_shape(), (Shape{12, 2, 4}));
+}
+
+using PartialShapeVector = std::vector<PartialShape>;
+using ConcatTestParams = std::tuple<PartialShapeVector,      // input shapes
+                                    std::tuple<int64_t,      // concatenation axis
+                                               PartialShape  // expected shape
+                                               >>;
+
+class ConcatTest : public TestWithParam<ConcatTestParams> {
+protected:
+    void SetUp() override {
+        int64_t axis;
+        PartialShapeVector input_shapes;
+        ov::pass::NodeRegistry params;
+
+        std::forward_as_tuple(input_shapes, std::tie(axis, exp_shape)) = GetParam();
+
+        for (const auto& shape : input_shapes) {
+            params.make<op::Parameter>(element::f32, shape);
+        }
+
+        c = make_shared<op::Concat>(params.get(), axis);
+    }
+
+    PartialShape exp_shape;
+    std::shared_ptr<op::Concat> c;
+};
+
+const auto shapes_with_interval_dim = Values(PartialShapeVector{(PartialShape::dynamic()),
+                                                                {2, Dimension(2, 5), 3, 1},
+                                                                {2, 4, 3, Dimension(1, 4)},
+                                                                {2, 4, 3, 1}});
+
+INSTANTIATE_TEST_SUITE_P(type_prop_interval_dim_mixed_ranks,
+                         ConcatTest,
+                         Combine(shapes_with_interval_dim,
+                                 Values(std::make_tuple(1, PartialShape({2, Dimension(10, -1), 3, 1})),  // axis 1
+                                        std::make_tuple(-1, PartialShape({2, 4, 3, Dimension(3, -1)})),  // axis 2
+                                        std::make_tuple(2, PartialShape({2, 4, Dimension(9, -1), 1}))    // axis 3
+                                        )),
+                         PrintToStringParamName());
+
+const auto shapes_all_dynamic_ranks = Values(PartialShapeVector{(PartialShape::dynamic()),
+                                                                (PartialShape::dynamic()),
+                                                                (PartialShape::dynamic()),
+                                                                (PartialShape::dynamic())});
+
+INSTANTIATE_TEST_SUITE_P(type_prop_dynamic_ranks_against_axis_range,
+                         ConcatTest,
+                         Combine(shapes_all_dynamic_ranks,
+                                 Combine(Range<int64_t>(-4, 4), Values(PartialShape::dynamic()))),
+                         PrintToStringParamName());
+
+const auto shapes_static_dynamic_ranks =
+    Values(PartialShapeVector{PartialShape({4, 2, Dimension::dynamic(), 3}),
+                              PartialShape::dynamic(),
+                              PartialShape({4, 2, Dimension::dynamic(), Dimension::dynamic()})});
+
+INSTANTIATE_TEST_SUITE_P(type_prop_mixed_ranks_and_dims,
+                         ConcatTest,
+                         Combine(shapes_static_dynamic_ranks,
+                                 Values(
+                                     // concat all dynamic dims
+                                     std::make_tuple(2, PartialShape({4, 2, Dimension::dynamic(), 3})),
+                                     // concat dynamic and interval dim
+                                     std::make_tuple(1, PartialShape({4, Dimension(4, -1), Dimension::dynamic(), 3})))),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(type_prop_1d_shapes,
+                         ConcatTest,
+                         Values(
+                             // concat dynamic and not matching static dims
+                             std::make_tuple(PartialShapeVector{{3}, PartialShape::dynamic(), {2}},
+                                             std::make_tuple(0, PartialShape({Dimension(5, -1)}))),
+                             // concat all static dim
+                             std::make_tuple(PartialShapeVector{{3}, {3}, {3}}, std::make_tuple(0, PartialShape({9}))),
+                             // concat dynamic and interval dim
+                             std::make_tuple(PartialShapeVector{{3}, {Dimension::dynamic()}, {Dimension(3, 4)}},
+                                             std::make_tuple(0, PartialShape({Dimension(6, -1)})))),
+                         PrintToStringParamName());
+
+/** \brief Shape propagation no exception. */
+TEST_P(ConcatTest, partial_shape_propagation) {
+    ASSERT_EQ(c->get_default_output().get_partial_shape(), exp_shape);
 }
