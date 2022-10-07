@@ -1,4 +1,4 @@
-# ONNX FE
+# OpenVINO ONNX Frontend
 
 The main responsibility of ONNX Frontend is import of ONNX models and conversion of these into the `ov::Model` representation. 
 Other capabilities of the ONNX Frontend:
@@ -7,48 +7,67 @@ Other capabilities of the ONNX Frontend:
 * user-friendly searching the models (via tensors and operators names)
 
 The component is written in `C++`, `Python` bindings are also available.
-Each change to ONNX FE component requires `clang-format` code style and `NCC` naming style checks.
+If you want to contribute, please follow [the common coding style rules](../../../docs/dev/coding_style.md).
 
 
 ## Key contacts
 
-In case of any questions, review and merge requests, please contact:
-* Tomasz Dołbniak (tomdol)
-* Mateusz Tabaka (mateusztabaka)
-* Mateusz Bencer (mbencer)
-
-from `openvino-onnx-frontend-maintainers` maintainers group.
+In case of any questions, review and merge requests, please contact [openvino-onnx-frontend-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-onnx-frontend-maintainers) group.
 
 
 ## Components
 
-ONNX Frontend implements an interface common for all frontends defined in [Frontends API](https://github.com/openvinotoolkit/openvino/tree/master/src/frontends/common/include/openvino/frontend).
-The exported symbols are decorated with `ONNX_FRONTEND_API` macro.
-For backward compatibility reasons, the ONNX importer API (more lower-level abstraction approach) is still maintained. It can be found in (ONNX Importer)[https://github.com/openvinotoolkit/openvino/blob/master/src/frontends/onnx/frontend/include/onnx_import/onnx.hpp]. The symbols of ONNX Importer API are decorated with `ONNX_IMPORTER_API` macro.
+ONNX Frontend implements an interface common for all frontends defined in [Frontends API](./src/frontends/common/include/openvino/frontend).
+For backward compatibility reasons, the ONNX importer API (more lower-level abstraction approach) is still maintained. It can be found in [ONNX Importer](.src/frontends/onnx/frontend/include/onnx_import/onnx.hpp).
 
-The crucial place in ONNX Frontend is the directory where the operators are implemented:[https://github.com/openvinotoolkit/openvino/tree/master/src/frontends/onnx/frontend/src/op]. Each operator handler has to be registered in ops bridge - (ops bridge)[https://github.com/openvinotoolkit/openvino/blob/master/src/frontends/onnx/frontend/src/ops_bridge.cpp]. Expect that ONNX frontend has capabilities to register a custom op by a user. It can be achieved via `ConversionExtension` available in (Conversion)[https://github.com/openvinotoolkit/openvino/blob/master/src/frontends/onnx/frontend/include/openvino/frontend/onnx/extension/conversion.hpp].
+The crucial place in ONNX Frontend is [the directory](.src/frontends/onnx/frontend/src/op) where the operators are implemented. Each operator handler has to be registered in [ops bridge](.src/frontends/onnx/frontend/src/ops_bridge.cpp). More details about it you can find in [How to add an new operation](./docs/how_to_add_op.md). Expect that ONNX frontend has capabilities to register a custom op by a user. It can be achieved via [ConversionExtension](.include/openvino/frontend/onnx/extension/conversion.hpp).
 
-API of ONNX Frontend can be called directly, but it is also used internally by (Model Optimizer)[https://github.com/openvinotoolkit/openvino/tree/master/tools/mo] during ONNX to IR (Intermediate Representation) conversion. What's more capabilities of ONNX Frontend are used by ONNX Runtime via OpenVINO Execution Provider (more information can be found in (docs)[https://onnxruntime.ai/docs/build/eps.html#openvino]).
+API of ONNX Frontend can be called directly, but it is also used internally by [Model Optimizer](https://github.com/openvinotoolkit/openvino/tree/master/tools/mo) during ONNX to IR (Intermediate Representation) conversion. What's more capabilities of ONNX Frontend are used by [ONNX Runtime via OpenVINO Execution Provider](https://onnxruntime.ai/docs/build/eps.html#openvino).
 
-ONNX Frontend is tested in few places:
-- [C++ gtest-based tests](https://github.com/openvinotoolkit/openvino/tree/master/src/frontends/onnx/tests)
-- [Python frontend tests](https://github.com/openvinotoolkit/openvino/tree/master/src/bindings/python/tests/test_frontend)
-- [Python operators tests](https://github.com/openvinotoolkit/openvino/tree/master/src/bindings/python/tests/test_onnx)
-- [Python compliance with ONNX standard tests](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/python/tests/test_onnx/test_backend.py)
-- [Python OpenModelZoo tests](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/python/tests/test_onnx/test_zoo_models.py)
+ONNX Frontend is tested in many places (both `C++` and `Python` tests). More details about testing you can find in [ONNX FE tests](./docs/tests#places)
 
 
 ## Architecture
-The overview of components responsible for importing scenario is shown on the diagram below:
-![ONNX overview diagram](docs/img/onnx_fe_overview.png)
+The overview of components responsible for the basic flow which is a model importing is shown on the diagram below:
+
+```mermaid
+flowchart LR
+    onnx[("ONNX (*.onnx)")]
+    ov_model[("OV Model")]
+
+    subgraph InputModel
+        get_place["get_place_by_tensor_name"]
+        set_tensor_name["set_name_for_tensor"]
+        others["..."]
+        set_pt_shape["set_partial_shape"]
+        add_output["add_output"]
+        extract_sub["extract_subgraph"]
+    end
+
+    subgraph Frontend
+        fe_load["load_impl"]
+        fe_convert["convert"]
+        fe_others["..."]
+        fe_decode["decode"]
+        fe_add_extension["add_extension"]
+    end
+
+    style onnx fill:#6c9f7f
+    style ov_model fill:#6c9f7f
+
+    onnx-->fe_load
+    fe_load-->InputModel
+    InputModel-->fe_convert
+    fe_convert-->ov_model
+```
 
 
 ## Tutorials
-TBD
-
+* [How to add an new operation](./docs/how_to_add_op.md)
+* [How ONNX FE is tested](./docs/tests.md)
 
 ## See also
 
- * [ONNX standard repository](https://github.com/onnx/onnx)
+ * [ONNX standard repository](https://github.com/onnx/onnx/blob/main/README.md)
  * [ONNX operators list](https://github.com/onnx/onnx/blob/main/docs/Operators.md)
- * [ONNX Runtime OpenVINO Provider](https://github.com/microsoft/onnxruntime/tree/main/onnxruntime/core/providers/openvino)
+ * [ONNX Runtime OpenVINO Provider](https://github.com/microsoft/onnxruntime-openenclave/blob/openenclave-public/docs/execution_providers/OpenVINO-ExecutionProvider.md)
