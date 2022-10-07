@@ -441,6 +441,9 @@ TEST(type_prop, logic_arith_compare_partial_et) {
     // int -> !
     // boo -> boo
     // dyn -> boo
+    ASSERT_EQ(test_logical_not(element::i32)->get_element_type(), element::i32);
+    ASSERT_EQ(test_logical_not(element::boolean)->get_element_type(), element::boolean);
+    ASSERT_EQ(test_logical_not(element::dynamic)->get_element_type(), element::dynamic);
 }
 
 namespace {
