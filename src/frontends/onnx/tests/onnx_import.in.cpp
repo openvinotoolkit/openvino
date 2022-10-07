@@ -5911,3 +5911,16 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_trilu_dynamic_shapes) {
 
     // clang-format on
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_is_nan) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/is_nan.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{1, 2, 3}, {std::nanf(""), std::nanf(""), -0.6000f, -1.0000f, std::nanf(""), -1.0000f});
+
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 3},
+        {true, true, false, false, true, false});
+
+    test_case.run();
+}

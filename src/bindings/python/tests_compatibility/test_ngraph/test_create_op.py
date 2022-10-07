@@ -2264,3 +2264,13 @@ def test_interpolate_opset10(dtype, expected_shape, shape_calculation_mode):
     assert node.get_type_name() == "Interpolate"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_shape
+
+
+def test_in_nan_opset10():
+    input_shape = [1, 2, 3, 4]
+    input_node = ng.parameter(input_shape, np.float, name="InputData")
+    node = ng_opset10.is_nan(input_node)
+
+    assert node.get_type_name() == "IsNaN"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == input_shape
