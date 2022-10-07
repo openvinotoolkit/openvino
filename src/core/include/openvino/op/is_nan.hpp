@@ -14,9 +14,10 @@ namespace v10 {
 class OPENVINO_API IsNaN : public Op {
 public:
     OPENVINO_OP("IsNaN", "opset10");
-    /// \brief Constructs a isNaN operation.
     IsNaN() = default;
-
+    /// \brief Constructs a isNaN operation.
+    ///
+    /// \param data   Input data tensor
     IsNaN(const Output<Node>& data);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
