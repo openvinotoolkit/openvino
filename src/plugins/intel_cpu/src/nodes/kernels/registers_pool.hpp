@@ -9,6 +9,7 @@
 #include "ie_common.h"
 #include "utils/cpu_utils.hpp"
 #include <utility>
+#include "stack_allocator.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -49,16 +50,22 @@ public:
         Reg(const RegistersPool::Ptr& regPool) { initialize(regPool); }
         Reg(const RegistersPool::Ptr& regPool, int requestedIdx) { initialize(regPool, requestedIdx); }
         ~Reg() { release(); }
+        Reg(Reg&& other)  noexcept {
+            this->operator=(std::move(other));
+        }
         Reg& operator=(Reg&& other)  noexcept {
             release();
             reg = other.reg;
             regPool = std::move(other.regPool);
             return *this;
         }
-        Reg(Reg&& other)  noexcept : reg(other.reg), regPool(std::move(other.regPool)) {}
         operator TReg&() { ensureValid(); return reg; }
         operator const TReg&() const { ensureValid(); return reg; }
         operator Xbyak::RegExp() const { ensureValid(); return reg; }
+        Reg& operator=(const StackAllocator::Address& addr) {
+            stack_mov(*this, addr);
+            return *this;
+        }
         int getIdx() const { ensureValid(); return reg.getIdx(); }
         friend Xbyak::RegExp operator+(const Reg& lhs, const Xbyak::RegExp& rhs) {
             lhs.ensureValid();
