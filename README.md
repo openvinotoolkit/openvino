@@ -51,7 +51,7 @@ source and public models in popular formats such as TensorFlow, ONNX, PaddlePadd
 * [Frontends](./src/frontends) - contains available OpenVINO frontends that allow reading models from the native framework format.
 * [Model Optimizer] - is a cross-platform command-line tool that facilitates the transition between training and deployment environments, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices.
 * [Post-Training Optimization Tool] - is designed to accelerate the inference of deep learning models by applying special methods without model retraining or fine-tuning, for example, post-training 8-bit quantization. 
-* [Samples] - applications on C, C++ and Python languages which shows basic use cases of OpenVINO usages.
+* [Samples] - applications in C, C++ and Python languages that show basic OpenVINO use cases.
 
 ## Supported Hardware matrix
 
