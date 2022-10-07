@@ -17,6 +17,7 @@ from openvino.runtime.utils.types import (
 )
 
 _get_node_factory_opset4 = partial(_get_node_factory, "opset4")
+_get_node_factory_opset10 = partial(_get_node_factory, "opset10")
 
 # -------------------------------------------- ops ------------------------------------------------
 
@@ -82,3 +83,27 @@ def interpolate(
     # This is an update of the operator version, so even though this is opset 10,
     # the operator is taken from opset 4.
     return _get_node_factory_opset4().create("Interpolate", inputs, attrs)
+
+
+def is_inf(
+    data: NodeInput,
+    attributes: dict,
+    name: Optional[str] = None
+) -> Node:
+    """Return a node which perform IsInf operation.
+
+    :param data: The input tensor.
+    :param attributes: A dictionary containing IsInf attributes.
+    :param name: Optional name of the node.
+    Available attributes:
+    * detect_negative   Specifies whether to map negative infinities to true in output map.
+                        Range od values: true, false
+                        Default value: true
+                        Required: no
+    * detect_positive   Specifies whether to map positive infinities to true in output map.
+                        Range od values: true, false
+                        Default value: true
+                        Required: no
+    :return: A new IsInf node.
+    """
+    return _get_node_factory_opset10().create("IsInf", as_nodes(data), attributes)
