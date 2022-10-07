@@ -310,9 +310,8 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
     exeNetwork->SetPointerToPlugin(shared_from_this());
 }
 
-std::unordered_set<std::string> IInferencePlugin::GetRemovedNodes(
-    const std::shared_ptr<const ov::Model>& originalFunction,
-    const std::shared_ptr<const ov::Model>& transformedFunction) const {
+std::unordered_set<std::string> GetRemovedNodes(const std::shared_ptr<const ov::Model>& originalFunction,
+                                                const std::shared_ptr<const ov::Model>& transformedFunction) {
     std::unordered_set<std::string> result = {};
     std::unordered_set<std::string> transformedNodeNames = {};
 
@@ -328,6 +327,87 @@ std::unordered_set<std::string> IInferencePlugin::GetRemovedNodes(
     }
 
     return result;
+}
+
+std::unordered_set<std::string> GetSupportedNodes(
+    const std::shared_ptr<const ov::Model>& model,
+    std::function<void(std::shared_ptr<ov::Model>&)> transform,
+    std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported) {
+    // Collect original operation names
+    std::unordered_set<std::string> original_ops;
+    for (auto&& node : model->get_ops()) {
+        original_ops.emplace(node->get_friendly_name());
+    }
+
+    auto transformed_model = model->clone();
+    transform(transformed_model);
+    auto ops = transformed_model->get_ordered_ops();
+
+    // Mark removed nodes as supported
+    std::unordered_set<std::string> supported = GetRemovedNodes(model, transformed_model);
+    std::unordered_set<std::string> unsupported;
+
+    for (auto&& op : ops) {
+        bool is_supported = false;
+        bool is_checked = false;
+        if (InferenceEngine::details::contains(original_ops, op->get_friendly_name())) {
+            is_supported = is_node_supported(op);
+            is_checked = true;
+            if (is_supported) {
+                supported.emplace(op->get_friendly_name());
+            } else {
+                unsupported.emplace(op->get_friendly_name());
+            }
+        }
+
+        for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
+            if (InferenceEngine::details::contains(original_ops, fusedLayerName)) {
+                if (!is_checked) {
+                    is_supported = is_node_supported(op);
+                    is_checked = true;
+                }
+                if (is_supported) {
+                    supported.emplace(fusedLayerName);
+                } else {
+                    unsupported.emplace(fusedLayerName);
+                }
+            }
+        }
+    }
+    for (auto&& unsupportedNode : unsupported) {
+        supported.erase(unsupportedNode);
+    }
+    for (auto&& node : model->get_ops()) {
+        if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
+            for (auto&& inputNodeOutput : node->input_values()) {
+                if (ngraph::op::is_constant(inputNodeOutput.get_node()) ||
+                    ngraph::op::is_parameter(inputNodeOutput.get_node())) {
+                    supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
+                }
+            }
+            for (auto&& outputs : node->outputs()) {
+                for (auto&& outputNodeInput : outputs.get_target_inputs()) {
+                    if (ngraph::op::is_output(outputNodeInput.get_node())) {
+                        supported.emplace(outputNodeInput.get_node()->get_friendly_name());
+                    }
+                }
+            }
+        }
+
+        if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
+            if (!InferenceEngine::details::contains(
+                    supported,
+                    node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
+                supported.erase(node->get_friendly_name());
+            }
+        } else if (ngraph::op::is_output(node)) {
+            if (!InferenceEngine::details::contains(supported,
+                                                    node->input_values().begin()->get_node()->get_friendly_name())) {
+                supported.erase(node->get_friendly_name());
+            }
+        }
+    }
+    return supported;
 }
 
 void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
