@@ -158,6 +158,7 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
                 const auto scalar_work_amount = work_amount % increment;
                 scalar_tile_end->set_increment(1);
                 scalar_tile_end->set_work_amount(scalar_work_amount);
+                scalar_tile_end->has_outer_tile = tile_end->has_outer_tile;
                 // ptr increment is applied automatically if there is non-empty outer tile
                 optimize_single_evaluation(scalar_tile_end);
                 if (need_vector_tile && !vector_evaluate_once) {
