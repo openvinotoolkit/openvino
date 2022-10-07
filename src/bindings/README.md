@@ -2,8 +2,8 @@
 
 OpenVINO provides bindings for several languages:
 
- * [c](./bindings/c)
- * [python](./bindings/python)
+ * [c](./c)
+ * [python](./python)
 
 ## See also
  * [OpenVINO™ README](../../README.md)
