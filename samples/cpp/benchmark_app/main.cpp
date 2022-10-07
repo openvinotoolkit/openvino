@@ -161,11 +161,19 @@ int main(int argc, char* argv[]) {
 
         // ----------------- 1. Parsing and validating input arguments
         // -------------------------------------------------
+        std::stringstream args_string;
+        args_string << realpath(argv[0], nullptr) << " ";
+        for (int i = 1; i < argc; i++) {
+            args_string << argv[i] << " ";
+        }
+
         next_step();
 
         if (!parse_and_check_command_line(argc, argv)) {
             return 0;
         }
+
+        slog::info << "Input command: " << args_string.str() << slog::endl;
 
         bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
         if (isNetworkCompiled) {
