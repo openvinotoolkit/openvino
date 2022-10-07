@@ -517,11 +517,16 @@ void Node::execute(dnnl::stream strm) {
     }
 }
 
-void Node::prepareNode() {
+void Node::updateShape() {
     if (isDynamicNode()) {
         if (needShapeInfer()) {
             redefineOutputMemory(shapeInfer());
         }
+    }
+}
+
+void Node::prepareNode() {
+    if (isDynamicNode()) {
         if (isExecutable()) {
             if (needPrepareParams()) {
                 IE_ASSERT(inputShapesDefined()) << "Can't prepare params for " << getTypeStr() << " node with name: " << getName() <<

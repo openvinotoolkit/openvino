@@ -780,19 +780,19 @@ void Graph::AllocateWithReuse() {
         groups.push_back({undefinedBoxes.front()});
         for (size_t i = 1; i < undefinedBoxes.size(); ++i) {
             const auto& box = undefinedBoxes[i];
-            // bool groupFound = false;
-            // for (auto& group : groups) {
-            //     const auto& lastBox = group.back();
-            //     if (lastBox.start > box.finish || lastBox.finish < box.start) {
-            //         group.push_back(box);
-            //         groupFound = true;
-            //         break;
-            //     }
-            // }
+            bool groupFound = false;
+            for (auto& group : groups) {
+                const auto& lastBox = group.back();
+                if (lastBox.start > box.finish || lastBox.finish < box.start) {
+                    group.push_back(box);
+                    groupFound = true;
+                    break;
+                }
+            }
 
-            // if (!groupFound) {
+            if (!groupFound) {
                 groups.push_back({box});
-            // }
+            }
         }
         for (auto& group : groups) {
             auto grpMemMngr =
@@ -997,6 +997,70 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
     DEBUG_LOG(*node);
 }
 
+namespace {
+class WorkerThread {
+public:
+    WorkerThread() {
+        m_thread = std::thread(&WorkerThread::run, this);
+    }
+    ~WorkerThread() {
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_exit = true;
+        }
+        m_cv.notify_one();
+        if (m_thread.joinable()) {
+            m_thread.join();
+        }
+    }
+
+    template<typename Fn, typename... Args>
+    std::future<void>
+    send(Fn&& f, Args&&... args) {
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_body = std::packaged_task<void()>(std::bind(std::forward<Fn>(f), std::forward<Args>(args)...));
+            m_busy = true;
+        }
+        m_cv.notify_one();
+        return m_body.get_future();
+    }
+
+private:
+    void run() {
+        std::unique_lock<std::mutex> mlock(m_mutex);
+        while (true) {
+            m_cv.wait(mlock, [this](){return m_busy || m_exit;});
+            if (m_busy) {
+                m_body();
+                m_busy = false;
+            }
+            if (m_exit) {return;}
+        }
+    }
+
+private:
+    std::thread m_thread;
+    std::packaged_task<void()> m_body;
+    std::condition_variable m_cv;
+    std::mutex m_mutex;
+    bool m_busy = false;
+    bool m_exit = false;
+};
+
+class ShapeInfer : public tbb::task {
+public:
+    ShapeInfer(Node* node) : m_node(node) {}
+    tbb::task* execute() override {
+        m_node->updateShape();
+        return nullptr;
+    }
+private:
+    Node* m_node;
+};
+
+}// namespace
+
 void Graph::Infer(InferRequestBase* request) {
     if (!IsReady()) {
         IE_THROW() << "Wrong state. Topology is not ready.";
@@ -1004,30 +1068,66 @@ void Graph::Infer(InferRequestBase* request) {
 
     dnnl::stream stream(eng);
 
-    for (size_t i = 0; i < executableGraphNodes.size(); ++i) {
-        const auto& node = executableGraphNodes[i];
-        VERBOSE(node, config.verbose);
-        PERF(node, config.collectPerfCounters);
+    size_t prepareCounter = 0;
+    size_t inferCounter = 0;
 
-        if (request)
-            request->ThrowIfCanceled();
-
-        std::future<void> f;
-        if (one_of(node->getType(), Type::Input, Type::Reference, Type::Broadcast)) {
-            node->prepareNode();
+    auto runNodes = [&inferCounter, &stream, this](size_t stopValue) {
+        for (; inferCounter < stopValue; ++inferCounter) {
+            auto& node = executableGraphNodes[inferCounter];
+            ExecuteNode(node, stream);
         }
-        if (i + 1 != executableGraphNodes.size()) {
-            const auto& node = executableGraphNodes[i + 1];
-            if (!one_of(node->getType(), Type::Input, Type::Reference, Type::Broadcast))
-                f = std::async(std::launch::deferred, &Node::prepareNode, node.get());
-        }
+    };
 
-        ExecuteNode(node, stream);
+    std::shared_future<void> fShapeInfer;
+    std::future<void> fPrepareParams;
 
-        if (f.valid()) {
-            f.wait();
+    WorkerThread worker0;
+    WorkerThread worker1;
+
+    while (prepareCounter < executableGraphNodes.size()) {
+        for (; prepareCounter < executableGraphNodes.size(); ++prepareCounter) {
+            auto& node = executableGraphNodes[prepareCounter];
+            if (one_of(node->getType(), Type::Input, Type::Reference, Type::Broadcast)) {
+                if (fShapeInfer.valid()) fShapeInfer.wait();
+                if (fPrepareParams.valid()) fPrepareParams.wait();
+                runNodes(prepareCounter);
+            }
+            if (fShapeInfer.valid()) fShapeInfer.wait();
+            fShapeInfer = worker0.send(&Node::updateShape, node); //.share()
+            if (fPrepareParams.valid()) fPrepareParams.wait();
+            fPrepareParams = worker1.send([fShapeInfer, node]() {
+                fShapeInfer.wait();
+                node->prepareNode();
+            });
         }
     }
+
+    //runNodes(executableGraphNodes.size());
+
+    // for (size_t i = 0; i < executableGraphNodes.size(); ++i) {
+    //     const auto& node = executableGraphNodes[i];
+    //     VERBOSE(node, config.verbose);
+    //     PERF(node, config.collectPerfCounters);
+
+    //     if (request)
+    //         request->ThrowIfCanceled();
+
+    //     std::future<void> f;
+    //     if (one_of(node->getType(), Type::Input, Type::Reference, Type::Broadcast)) {
+    //         node->prepareNode();
+    //     }
+    //     if (i + 1 != executableGraphNodes.size()) {
+    //         const auto& node = executableGraphNodes[i + 1];
+    //         if (!one_of(node->getType(), Type::Input, Type::Reference, Type::Broadcast))
+    //           f = std::async(std::launch::deferred, &Node::prepareNode, node.get());
+    //     }
+
+    //     ExecuteNode(node, stream);
+
+    //     if (f.valid()) {
+    //         f.wait();
+    //     }
+    // }
 
     if (infer_count != -1) infer_count++;
 }
