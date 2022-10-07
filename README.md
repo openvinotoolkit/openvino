@@ -2,7 +2,7 @@
 
 <img src="docs/img/openvino-logo-purple-black.png" width="400px">
 
-[![Stable release](https://img.shields.io/badge/version-2022.1-green.svg)](https://github.com/openvinotoolkit/openvino/releases/tag/2022.1)
+[![Stable release](https://img.shields.io/badge/version-2022.2-green.svg)](https://github.com/openvinotoolkit/openvino/releases/tag/2022.2.0)
 [![Apache License Version 2.0](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
 ![GitHub branch checks state](https://img.shields.io/github/checks-status/openvinotoolkit/openvino/master?label=GitHub%20checks)
 ![Azure DevOps builds (branch)](https://img.shields.io/azure-devops/build/openvinoci/b2bab62f-ab2f-4871-a538-86ea1be7d20f/13?label=Public%20CI)
@@ -144,7 +144,7 @@ The latest documentation for OpenVINO™ Toolkit is available [here](https://doc
 
 ### Developer documentation
 
-[Developer documentation](#todo-add) contains information about architectural decisions which are applied inside the OpenVINO components. This documentation has all necessary information which could be needed in order to contribute to OpenVINO.
+[Developer documentation](./docs/dev/index.md) contains information about architectural decisions which are applied inside the OpenVINO components. This documentation has all necessary information which could be needed in order to contribute to OpenVINO.
 
 ## Tutorials
 
@@ -161,10 +161,10 @@ The list of OpenVINO tutorials:
 
 ## System requirements
 
-The full information about system requirements depends on platform and available in section `System requirement` on dedicated pages:
-- [Linux](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_linux.html)
-- [Windows](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_windows.html)
-- [macOS](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_macos.html)
+The full information about system requirements depends on platform and is available on dedicated pages:
+- [Linux](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_linux_header.html)
+- [Windows](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_windows_header.html)
+- [macOS](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_macos_header.html)
 - [Raspbian](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_raspbian.html)
 
 ## How to build

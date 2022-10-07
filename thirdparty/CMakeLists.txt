@@ -92,8 +92,14 @@ if(ENABLE_SYSTEM_PUGIXML)
             get_target_property(imported_config ${pugixml_target} IMPORTED_CONFIGURATIONS)
             get_target_property(pugixml_loc ${pugixml_target} IMPORTED_LOCATION_${imported_config})
             get_filename_component(pugixml_dir "${pugixml_loc}" DIRECTORY)
-            get_target_property(pugixml_soname_loc ${pugixml_target} IMPORTED_SONAME_${imported_config})
-            set(pugixml_libs "${pugixml_loc}" "${pugixml_dir}/${pugixml_soname_loc}")
+            get_filename_component(name_we "${pugixml_loc}" NAME_WE)
+            # grab all tbb files matching pattern
+            file(GLOB pugixml_files "${pugixml_dir}/${name_we}.*")
+            foreach(pugixml_file IN LISTS pugixml_files)
+                if(pugixml_file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)*$")
+                    list(APPEND pugixml_libs "${pugixml_file}")
+                endif()
+            endforeach()
         elseif(target_type STREQUAL "INTERFACE_LIBRARY")
             get_target_property(pugixml_loc ${pugixml_target} INTERFACE_LINK_LIBRARIES)
             file(GLOB pugixml_libs_all "${pugixml_loc}.*")
@@ -165,8 +171,10 @@ ov_install_static_lib(fluid ${OV_CPACK_COMP_CORE})
 # Gflags
 #
 
-if(NOT APPLE)
-    # on Apple only dynamic libraries are available
+if(NOT APPLE AND NOT DEFINED ENV{CONDA_PREFIX})
+    # - conda-forge contains only dynamic libraries
+    # - on Apple only dynamic libraries are available
+    #   also, we can easily mix arm64 and x86_64 binaries when cross-compile for Intel CPU
     find_package(gflags QUIET COMPONENTS nothreads_static)
 endif()
 
@@ -189,7 +197,7 @@ endif()
 # Google Tests framework
 #
 
-if(ENABLE_OV_CORE_UNIT_TESTS OR ENABLE_TESTS)
+if(ENABLE_TESTS)
     add_subdirectory(gtest EXCLUDE_FROM_ALL)
 
     openvino_developer_export_targets(COMPONENT tests
@@ -277,20 +285,55 @@ if(CPACK_GENERATOR STREQUAL "DEB")
 else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+            PATTERN bazel EXCLUDE
+            PATTERN doc EXCLUDE
+            PATTERN .git EXCLUDE
+            PATTERN appveyor.yml EXCLUDE
+            PATTERN AUTHORS.txt EXCLUDE
+            PATTERN BUILD EXCLUDE
+            PATTERN ChangeLog.txt EXCLUDE
+            PATTERN .gitattributes EXCLUDE
+            PATTERN .gitignore EXCLUDE
+            PATTERN .gitmodules EXCLUDE
+            PATTERN test EXCLUDE
+            PATTERN INSTALL.md EXCLUDE
+            PATTERN README.md EXCLUDE
+            PATTERN .travis.yml EXCLUDE
+            PATTERN WORKSPACE EXCLUDE)
 
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
-            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
+    file(GLOB zlib_sources ${CMAKE_CURRENT_SOURCE_DIR}/zlib/zlib/*.c
+                           ${CMAKE_CURRENT_SOURCE_DIR}/zlib/zlib/*.h)
+    install(FILES ${zlib_sources}
+            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib/zlib
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/zlib/CMakeLists.txt
+            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json/nlohmann_json
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            REGEX .*json/nlohmann_json/.github/.* EXCLUDE
-            REGEX .*json/nlohmann_json/benchmarks/.* EXCLUDE
-            REGEX .*json/nlohmann_json/doc/.* EXCLUDE
-            REGEX .*json/nlohmann_json/test/.* EXCLUDE
-            REGEX .*json/nlohmann_json/cpplint/.* EXCLUDE)
+            PATTERN appveyor.yml EXCLUDE
+            PATTERN benchmarks EXCLUDE
+            PATTERN ChangeLog.md EXCLUDE
+            PATTERN CITATION.cff EXCLUDE
+            PATTERN .clang-format EXCLUDE
+            PATTERN .clang-tidy EXCLUDE
+            PATTERN CODE_OF_CONDUCT.md EXCLUDE
+            PATTERN doc EXCLUDE
+            PATTERN .git EXCLUDE
+            PATTERN .drone.yml EXCLUDE
+            PATTERN .github EXCLUDE
+            PATTERN .gitignore EXCLUDE
+            PATTERN Makefile EXCLUDE
+            PATTERN meson.build EXCLUDE
+            PATTERN nlohmann_json.natvis EXCLUDE
+            PATTERN README.md EXCLUDE
+            PATTERN test EXCLUDE
+            PATTERN third_party EXCLUDE
+            PATTERN .travis.yml EXCLUDE
+            PATTERN wsjcpp.yml EXCLUDE)
 endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy

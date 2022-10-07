@@ -53,3 +53,17 @@ TEST(dimension, broadcast_merge_static_0_12_and_1_15) {
     EXPECT_TRUE(success);
     EXPECT_EQ(result, Dimension(0, 15));
 }
+
+TEST(dimension, division_of_static_dims_twenty_three_div_three_eq_seven) {
+    Dimension twenty_three(23);
+    Dimension::value_type three(3);
+    Dimension empty(8, 7);
+    EXPECT_EQ(empty, twenty_three / three);
+}
+
+TEST(dimension, division_of_static_dims) {
+    Dimension seven(7);
+    Dimension::value_type four(4);
+    Dimension empty(2, 1);
+    EXPECT_EQ(seven / four, empty);
+}

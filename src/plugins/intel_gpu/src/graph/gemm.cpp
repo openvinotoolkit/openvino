@@ -80,6 +80,8 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& /*node*/, co
     return { layout{output_shapes[0], output_type, input0_layout.format, prim->output_padding} };
 }
 
+template std::vector<layout> gemm_inst::calc_output_layouts<ov::PartialShape>(gemm_node const& node, const kernel_impl_params& impl_param);
+
 std::string gemm_inst::to_string(gemm_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
@@ -104,6 +106,9 @@ std::string gemm_inst::to_string(gemm_node const& node) {
 }
 
 gemm_inst::typed_primitive_inst(network& network, gemm_node const& node) : parent(network, node) {
+    if (is_dynamic())
+        return;
+
     auto input0_layout = node.input(0).get_output_layout();
     auto input1_layout = node.input(1).get_output_layout();
     bool transpose_input0 = node.get_primitive()->transpose_input0;

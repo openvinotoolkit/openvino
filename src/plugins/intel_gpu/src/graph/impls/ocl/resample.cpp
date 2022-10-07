@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <set>
+
 #include "resample_inst.h"
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
@@ -169,50 +171,36 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
 namespace detail {
 
 attach_resample_impl::attach_resample_impl() {
-    implementation_map<resample>::add(impl_types::ocl, resample_impl::create, {
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
+    std::set<implementation_map<resample>::key_type> keys;
 
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
+    const auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::u8, data_types::i32};
+    const auto formats = {
+        format::bfyx,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
 
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
+        format::bfzyx,
+        format::b_fs_zyx_fsv16,
+        format::b_fs_zyx_fsv32,
+        format::bs_fs_zyx_bsv16_fsv32,
+        format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv32_fsv32,
+        format::bs_fs_zyx_bsv32_fsv16,
+    };
+    for (const auto type : types) {
+        for (const auto format : formats) {
+            keys.emplace(type, format);
+        }
+    }
 
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
+    keys.emplace(data_types::f32, format::yxfb);
+    keys.emplace(data_types::f16, format::yxfb);
+    keys.emplace(data_types::f16, format::fs_b_yx_fsv32);
 
-        std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
-
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
-
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
-    });
+    implementation_map<resample>::add(impl_types::ocl, resample_impl::create, keys);
 }
 
 }  // namespace detail
