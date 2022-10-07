@@ -3,6 +3,9 @@
 #
 
 if (ENABLE_INTEL_MYRIAD)
+    if(CMAKE_COMPILER_IS_GNUCC OR OV_COMPILER_IS_CLANG)
+        ie_add_compiler_flags(-Wno-enum-conversion)
+    endif()
     add_definitions(-DXLINK_USE_BUS)
 
     if(CMAKE_C_COMPILER_VERSION VERSION_LESS 4.9)
