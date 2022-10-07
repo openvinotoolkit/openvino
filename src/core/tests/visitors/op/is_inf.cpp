@@ -20,5 +20,5 @@ TEST(attributes, is_inf_defaults) {
     NodeBuilder builder(op);
 
     const auto expected_attr_count = 2;
-    EXPECT_EQ(builder.get_value_map_size()y, expected_attr_count);
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 }

@@ -8,6 +8,7 @@
 
 #include "openvino/op/op.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset2.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset4.hpp"
@@ -16,7 +17,6 @@
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/opsets/opset9.hpp"
-#include "openvino/opsets/opset10.hpp"
 
 TEST(opset, opset1) {
     auto op = std::make_shared<ov::opset1::Parameter>();
@@ -169,7 +169,7 @@ TEST(opset, opset10) {
 }
 
 TEST(opset, opset10_dump) {
-    const auto& opset = ov::get_opset9();
+    const auto& opset = ov::get_opset10();
     std::cout << "All opset10 operations: ";
     for (const auto& t : opset.get_types_info()) {
         std::cout << t.name << " ";
