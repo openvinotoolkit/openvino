@@ -8,6 +8,7 @@ trigger:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - README.md
 
 pr:
   branches:
@@ -19,6 +20,7 @@ pr:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - README.md
 
 jobs:
 - job: OpenVINO_ONNX_CI
