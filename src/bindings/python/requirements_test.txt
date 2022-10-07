@@ -11,7 +11,6 @@ flake8-docstrings
 flake8-eradicate
 flake8-executable
 flake8-expression-complexity
-flake8-import-order
 flake8-print
 flake8-pytest-style
 flake8-rst-docstrings
