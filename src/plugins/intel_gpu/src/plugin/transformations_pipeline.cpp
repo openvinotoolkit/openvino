@@ -26,6 +26,7 @@
 #include <ie_algorithm.hpp>
 
 #include "transformations/einsum_decomposition.hpp"
+#include "transformations/convert_pooling_to_reduce.hpp"
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
@@ -213,6 +214,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             pass_config->disable<ngraph::pass::ConvertReduceSumToPooling>();
             pass_config->disable<ngraph::pass::ConvertReduceMeanToPooling>();
             pass_config->disable<ngraph::pass::ConvertReduceMaxToPooling>();
+            manager.register_pass<ConvertAvgPoolingToReduce>();
         } else {
             pass_config->set_callback<ngraph::pass::ConvertReduceSumToPooling>(
             [](const_node_ptr &node) -> bool {

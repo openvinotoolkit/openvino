@@ -806,7 +806,7 @@ void ov::Model::reshape(const std::map<size_t, ov::PartialShape>& partial_shapes
     std::unordered_map<ov::Node*, std::string> port_tensor_map;
     for (const auto& it : partial_shapes) {
         const auto port = input(it.first);
-        port_tensor_map[port.get_node()] = it.first;
+        port_tensor_map[port.get_node()] = std::to_string(it.first);
         const_pshape[port] = it.second;
     }
     reshape(const_pshape);

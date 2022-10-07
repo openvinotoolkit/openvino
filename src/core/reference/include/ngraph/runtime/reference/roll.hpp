@@ -57,7 +57,7 @@ void roll(const char* arg,
         size_t p1 = start;
         size_t p2 = start + left_block_size;
         size_t spanned_shape_size = 1;
-        for (int dim = arg_shape.size() - 1; dim >= 0; dim--) {
+        for (int dim = static_cast<int>(arg_shape.size()) - 1; dim >= 0; dim--) {
             p1 = shift_pos(p1, shift_vector[dim], spanned_shape_size, arg_shape[dim]);
             p2 = shift_pos(p2, shift_vector[dim], spanned_shape_size, arg_shape[dim]);
             spanned_shape_size *= arg_shape[dim];
