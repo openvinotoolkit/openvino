@@ -18,7 +18,7 @@ In both cases, the application should be designed to execute multiple inference 
 In general, most throughput-oriented inference applications should:
 * Expose substantial amounts of *input* parallelism (e.g. process multiple video- or audio- sources, text documents, etc).
 * Decompose the data flow into a collection of concurrent inference requests that are aggressively scheduled to be executed in parallel:
-  * Setup the configuration for the *device* (for example, as parameters of the `ov::Core::compile_model`) via either previously introduced [low-level  explicit options](dldt_deployment_optimization_tput_advanced.md) or [OpenVINO performance hints](../OV_Runtime_UG/performance_hints.md)  (**preferable**):
+  * Setup the configuration for the *device* (for example, as parameters of the `ov::Core::compile_model`) via either previously introduced [low-level explicit options](dldt_deployment_optimization_tput_advanced.md) or [OpenVINO performance hints](../OV_Runtime_UG/performance_hints.md) (**preferable**):
 @sphinxdirective
 
 .. tab:: C++
