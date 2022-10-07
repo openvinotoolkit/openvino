@@ -4,7 +4,7 @@
 
 #include "op/is_inf.hpp"
 
-#include "org.openvinotoolkit/opset/opset10.hpp"
+#include "openvino/opsets/opset10.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -14,8 +14,8 @@ OutputVector is_inf(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
 
     ov::opset10::IsInf::Attributes attributes{};
-    attributes.detect_negative = node.get_attribute_values<int64_t>("detect_negative", 1);
-    attributes.detect_positive = node.get_attribute_values<int64_t>("detect_positive", 1);
+    attributes.detect_negative = node.get_attribute_value<int64_t>("detect_negative", 1);
+    attributes.detect_positive = node.get_attribute_value<int64_t>("detect_positive", 1);
 
     return {std::make_shared<ov::opset10::IsInf>(data, attributes)};
 }

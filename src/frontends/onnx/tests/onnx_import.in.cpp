@@ -5912,7 +5912,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_trilu_dynamic_shapes) {
     // clang-format on
 }
 
-
 NGRAPH_TEST(${BACKEND_NAME}, onnx_is_inf) {
     const auto function onnx::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/is_inf.onnx"));
 
