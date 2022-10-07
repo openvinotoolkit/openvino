@@ -40,14 +40,3 @@ std::map<ov_element_type_e, size_t> element_type_size_map = {{ov_element_type_e:
                                                              {ov_element_type_e::U16, 16},
                                                              {ov_element_type_e::U32, 32},
                                                              {ov_element_type_e::U64, 64}};
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-const std::vector<std::wstring> test_unicode_postfix_vector = {L"unicode_Яㅎあ",
-                                                               L"ひらがな日本語",
-                                                               L"大家有天分",
-                                                               L"עפצקרשתםןףץ",
-                                                               L"ث خ ذ ض ظ غ",
-                                                               L"그것이정당하다",
-                                                               L"АБВГДЕЁЖЗИЙ",
-                                                               L"СТУФХЦЧШЩЬЮЯ"};
-#endif

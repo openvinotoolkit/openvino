@@ -117,6 +117,8 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
     return { layout{output_shapes[0], input_layout.data_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
 }
 
+template std::vector<layout> reshape_inst::calc_output_layouts<ov::PartialShape>(reshape_node const& node, const kernel_impl_params& impl_param);
+
 std::string reshape_inst::to_string(reshape_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();

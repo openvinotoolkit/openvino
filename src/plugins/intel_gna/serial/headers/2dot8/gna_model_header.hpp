@@ -184,7 +184,7 @@ struct RuntimeEndPoint {
         precision = old.precision;
         descriptor_offset = old.descriptor_offset;
         shape.NumberOfDimensions = old.shape.NumberOfDimensions;
-        for (auto i = 0; i < shape.NumberOfDimensions; i++) {
+        for (uint32_t i = 0; i < shape.NumberOfDimensions; i++) {
             shape.Dimensions[i] = old.shape.Dimensions[i];
         }
         tensor_names_count = 0;
@@ -198,7 +198,7 @@ struct RuntimeEndPoint {
                     uint8_t layout,
                     uint8_t precision,
                     uint8_t tensor_names_count,
-                    intel_dnn_orientation_t orientation) : scaleFactor(scaleFactor),
+                    intel_dnn_orientation_t orientation) : scaleFactor(static_cast<float>(scaleFactor)),
                                                            descriptor_ptr(descriptor_ptr),
                                                            element_size(element_size),
                                                            elements_count(elements_count),

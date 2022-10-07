@@ -14,6 +14,7 @@
 #include <pruning.hpp>
 #include <transformations/common_optimizations/compress_float_constants.hpp>
 #include <transformations/common_optimizations/division_by_zero_fp16_resolver.hpp>
+#include <transformations/common_optimizations/fused_names_cleanup.hpp>
 #include <transformations/common_optimizations/mark_precision_sensitive_subgraphs.hpp>
 #include <transformations/common_optimizations/moc_legacy_transformations.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
@@ -127,6 +128,15 @@ void regmodule_offline_transformations(py::module m) {
         [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
             manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
+            manager.run_passes(model);
+        },
+        py::arg("model"));
+
+    m_offline_transformations.def(
+        "apply_fused_names_cleanup",
+        [](std::shared_ptr<ov::Model> model) {
+            ov::pass::Manager manager;
+            manager.register_pass<ov::pass::FusedNamesCleanup>();
             manager.run_passes(model);
         },
         py::arg("model"));

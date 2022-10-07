@@ -16,9 +16,9 @@ using namespace ngraph;
 // ------------------------------ V0 ------------------------------
 BWDCMP_RTTI_DEFINITION(op::v0::Gelu);
 
-op::v0::Gelu::Gelu() : Op() {}
+op::v0::Gelu::Gelu() : UnaryElementwiseArithmetic() {}
 
-op::v0::Gelu::Gelu(const Output<Node>& data) : Op({data}) {
+op::v0::Gelu::Gelu(const Output<Node>& data) : UnaryElementwiseArithmetic({data}) {
     constructor_validate_and_infer_types();
 }
 

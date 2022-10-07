@@ -149,7 +149,8 @@ const std::vector<ov::Shape> inputShape = {
     {1, 67000},
     {1, 500000},
     {1, 936, 513},
-    {1, 64, 64, 64}
+    {1, 64, 64, 64},
+    {1, 256, 64, 64}
 };
 
 INSTANTIATE_TEST_SUITE_P(SplitEltwiseTestSuite, SplitEltwiseTestSuiteFixture,

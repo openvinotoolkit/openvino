@@ -179,7 +179,7 @@ double parse_string<double>(const std::string& s) {
 template <>
 int8_t parse_string<int8_t>(const std::string& s) {
     char* err;
-    int8_t result = strtol(s.c_str(), &err, 10);
+    int8_t result = static_cast<int8_t>(strtol(s.c_str(), &err, 10));
 
     // Check that (1) parsing succeeded and (2) the entire string was used.
     if (*err != 0) {
@@ -192,7 +192,7 @@ int8_t parse_string<int8_t>(const std::string& s) {
 template <>
 uint8_t parse_string<uint8_t>(const std::string& s) {
     char* err;
-    uint8_t result = strtol(s.c_str(), &err, 10);
+    int8_t result = static_cast<int8_t>(strtol(s.c_str(), &err, 10));
 
     // Check that (1) parsing succeeded and (2) the entire string was used.
     if (*err != 0) {
