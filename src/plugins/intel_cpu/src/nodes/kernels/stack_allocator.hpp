@@ -26,16 +26,28 @@ public:
         : StackAllocator{code_gen, code_gen.rbp} {
     }
 
+    StackAllocator(x64::jit_generator& code_gen, const Xbyak::Reg& bp)
+        : StackAllocator{code_gen, bp, 1} {
+    }
+
+    StackAllocator(x64::jit_generator& code_gen, const size_t alignment)
+        : StackAllocator{code_gen, code_gen.rbp, alignment} {
+    }
+
     StackAllocator(x64::jit_generator& code_gen,
-                   const Xbyak::Reg& bp)
+                   const Xbyak::Reg& bp,
+                   const size_t alignment)
         : code_generator{code_gen}
-        , base_pointer{bp} {
+        , base_pointer{Xbyak::Reg64{bp.getIdx()}}
+        , alignment{alignment} {
         checkUnique(true);
-        code_gen.mov(base_pointer, code_gen.rsp);
+        alignStack(true);
+        code_generator.mov(base_pointer, code_generator.rsp);
     }
 
     ~StackAllocator() {
         release();
+        alignStack(false);
         checkUnique(false);
     }
 
@@ -76,25 +88,76 @@ private:
         size_t size{};
     };
 
-    Allocation::Ptr allocate(const size_t alloc_size) {
+    void alignStack(bool isCtor) {
+        if (1 != alignment) {
+            constexpr size_t kReg64Size = 0x08;
+            if (isCtor) {
+                Xbyak::Label l_stack_aligned;
+                const Xbyak::Reg64 reg_base_stack_offset{base_pointer.getIdx()};
+                code_generator.mov(reg_base_stack_offset, static_cast<uint64_t>(kReg64Size));
+
+                const Xbyak::Reg64 reg_base_addr{Xbyak::Operand::RAX};
+                const Xbyak::Reg64 reg_reminder{Xbyak::Operand::RDX};
+                const Xbyak::Reg64 reg_alignment{Xbyak::Operand::RCX};
+
+                code_generator.push(reg_base_addr);
+                code_generator.push(reg_reminder);
+                code_generator.push(reg_alignment);
+
+                code_generator.xor_(reg_reminder, reg_reminder);
+
+                code_generator.mov(reg_base_addr, code_generator.rsp);
+                code_generator.add(reg_base_addr, 3 * kReg64Size - kReg64Size);
+                code_generator.mov(reg_alignment, alignment);
+                code_generator.idiv(reg_alignment);
+                code_generator.cmp(reg_reminder, static_cast<uint64_t>(0x00));
+                code_generator.je(l_stack_aligned);
+                code_generator.add(reg_base_stack_offset, reg_reminder);
+                code_generator.L(l_stack_aligned);
+
+                code_generator.pop(reg_alignment);
+                code_generator.pop(reg_reminder);
+                code_generator.pop(reg_base_addr);
+
+                code_generator.sub(code_generator.rsp, reg_base_stack_offset);
+                code_generator.mov(code_generator.ptr[code_generator.rsp], reg_base_stack_offset);
+            } else {
+                code_generator.add(code_generator.rsp, code_generator.ptr[code_generator.rsp]);
+            }
+        }
+    }
+
+    Allocation::Ptr allocate(const size_t alloc_size, const size_t requested_alignment) {
+        if (alignment % requested_alignment != 0) {
+            IE_THROW() << "Requested alignment should have 0 reminder of alignment % align !!";
+        }
+
         std::vector<Allocation::Ptr> free_allocations{};
         for (const auto& alloc : allocations) {
-            if (!alloc->is_used && alloc_size <= alloc->size) {
+            if (!alloc->is_used &&
+                alloc_size <= alloc->size &&
+                (alloc->offset % requested_alignment) == 0) {
                 free_allocations.push_back(alloc);
             }
         }
+        std::sort(free_allocations.begin(), free_allocations.end(),
+            [](const Allocation::Ptr& alloc0, const Allocation::Ptr& alloc1) {
+                return alloc0->size < alloc1->size;
+            });
         if (!free_allocations.empty()) {
-            std::sort(free_allocations.begin(), free_allocations.end(),
-                [](const Allocation::Ptr& alloc0, const Allocation::Ptr& alloc1) {
-                    return alloc0->size < alloc1->size;
-                });
             const auto alloc = free_allocations.front();
             alloc->is_used = true;
             return alloc;
         } else {
-            current_offset += alloc_size;
+            size_t alloc_offset = 0;
+            if (requested_alignment > 1) {
+                alloc_offset = (requested_alignment - ((current_offset+alloc_size) % requested_alignment));
+            }
+
+            const size_t aligned_alloc_size = alloc_offset + alloc_size;
+            current_offset += aligned_alloc_size;
             Xbyak::Address addr = code_generator.ptr[base_pointer - current_offset];
-            const auto alloc = std::make_shared<Allocation>(addr, current_offset, alloc_size);
+            const auto alloc = std::make_shared<Allocation>(addr, current_offset, aligned_alloc_size);
             allocations.push_back(alloc);
             return alloc;
         }
@@ -124,21 +187,28 @@ private:
     }
 
     x64::jit_generator& code_generator;
-    const Xbyak::Reg& base_pointer;
+    const Xbyak::Reg base_pointer;
 
     size_t offset{};
     size_t current_offset{};
+    size_t alignment{};
     std::vector<Allocation::Ptr> allocations{};
 };
+
+void stack_mov(StackAllocator::Address& addr, const Xbyak::Xmm& vmm);
+void stack_mov(StackAllocator::Address& addr, const Xbyak::Reg& reg);
+void stack_mov(const Xbyak::Xmm& vmm, const StackAllocator::Address& addr);
+void stack_mov(const Xbyak::Reg& reg, const StackAllocator::Address& addr);
 
 class StackAllocator::Address {
 public:
     Address() = default;
 
     Address(StackAllocator::Ptr stack_allocator,
-            const size_t alloc_size)
+            const size_t alloc_size,
+            const size_t requested_alignment = 1)
         : stack_allocator_{stack_allocator}
-        , allocation_{stack_allocator_->allocate(alloc_size)} {
+        , allocation_{stack_allocator_->allocate(alloc_size, requested_alignment)} {
     }
 
     virtual ~Address() {
@@ -204,9 +274,13 @@ private:
     }
 
     void ensureValid() const {
-        if (!stack_allocator_ || !allocation_) {
+        if (!isInitialized()) {
             IE_THROW() << "StackAllocator::Address is either not initialized or released !!";
         }
+    }
+
+    bool isInitialized() const {
+        return stack_allocator_ && allocation_;
     }
 
     x64::jit_generator& generator() const {
@@ -225,7 +299,7 @@ public:
     Reg() = default;
 
     Reg(StackAllocator::Ptr stack_allocator)
-            : Address{stack_allocator, TReg{}.getBit() / sizeof(uint8_t)} {
+        : Address{stack_allocator, TReg{}.getBit() / 8, getAlignment()} {
     }
 
     Reg(Reg&& addr) noexcept = default;
@@ -239,6 +313,19 @@ public:
     Reg& operator=(const Xbyak::Reg& reg) override {
         Address::operator=(reg);
         return *this;
+    }
+
+private:
+    static size_t getAlignment() {
+        if (std::is_same<TReg, Xbyak::Zmm>::value) {
+            return x64::cpu_isa_traits<x64::avx512_core>::vlen;
+        } else if (std::is_same<TReg, Xbyak::Ymm>::value) {
+            return x64::cpu_isa_traits<x64::avx2>::vlen;
+        } else if (std::is_same<TReg, Xbyak::Xmm>::value) {
+            return x64::cpu_isa_traits<x64::sse41>::vlen;
+        } else {
+            return 1;
+        }
     }
 };
 
