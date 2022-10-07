@@ -67,7 +67,9 @@ flowchart LR
 * [How ONNX FE is tested](./docs/tests.md)
 
 ## See also
-
+ * [OpenVINO™ README](../../../README.md)
+ * [OpenVINO Core Components](../../README.md)
+ * [Developer documentation](../../../docs/dev/index.md)
  * [ONNX standard repository](https://github.com/onnx/onnx/blob/main/README.md)
  * [ONNX operators list](https://github.com/onnx/onnx/blob/main/docs/Operators.md)
  * [ONNX Runtime OpenVINO Provider](https://github.com/microsoft/onnxruntime-openenclave/blob/openenclave-public/docs/execution_providers/OpenVINO-ExecutionProvider.md)
