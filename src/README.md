@@ -45,7 +45,7 @@ flowchart LR
 
 OpenVINO Frontends allow to convert model from framework to OpenVINO representation.
 
-Please go to the [Frontends page](./frontends/README.md) to get more information.
+Go to the [Frontends page](./frontends/README.md) to get more information.
 
 ## OpenVINO Plugins
 
