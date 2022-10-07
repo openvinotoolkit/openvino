@@ -49,7 +49,7 @@ Go to the [Frontends page](./frontends/README.md) to get more information.
 
 ## OpenVINO Plugins
 
-OpenVINO Plugins provide a support of hardware device.
+OpenVINO Plugins provide support for hardware devices.
 
 To get more information about supported OpenVINO Plugins, go to the [Plugins page](./plugins/README.md).
 
