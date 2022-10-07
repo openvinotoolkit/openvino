@@ -2268,7 +2268,7 @@ def test_interpolate_opset10(dtype, expected_shape, shape_calculation_mode):
 def test_is_inf_opset10_default():
     input_shape = [2, 2, 2, 2]
     input_node = ng.parameter(input_shape, dtype=np.float, name="InputData")
-    node = ng_opset10.is_inf(input_node)
+    node = ng_opset10.is_inf(input_node, {})
 
     assert node.get_type_name() == "IsInf"
     assert node.get_output_size() == 1

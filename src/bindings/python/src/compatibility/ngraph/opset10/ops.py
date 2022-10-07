@@ -88,14 +88,16 @@ def interpolate(
 def is_inf(
     data: NodeInput,
     attributes: dict,
-    name: Optional[str] = None
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which perform IsInf operation.
 
     :param data: The input tensor.
     :param attributes: A dictionary containing IsInf attributes.
     :param name: Optional name of the node.
+
     Available attributes:
+
     * detect_negative   Specifies whether to map negative infinities to true in output map.
                         Range od values: true, false
                         Default value: true
@@ -104,6 +106,7 @@ def is_inf(
                         Range od values: true, false
                         Default value: true
                         Required: no
+
     :return: A new IsInf node.
     """
     return _get_node_factory_opset10().create("IsInf", as_nodes(data), attributes)

@@ -336,7 +336,7 @@ set(SRC
     visitors/op/if.cpp
     visitors/op/idft.cpp
     visitors/op/irdft.cpp
-    visitor/op/is_inf.cpp
+    visitors/op/is_inf.cpp
     visitors/op/less_equal.cpp
     visitors/op/less.cpp
     visitors/op/log.cpp
