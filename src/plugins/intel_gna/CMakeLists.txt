@@ -12,6 +12,22 @@ if(CMAKE_COMPILER_IS_GNUCC)
     ie_add_compiler_flags(-Wno-all)
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # C4267, 4244 issues from mkl-dnn headers conversion from 'XXX' to 'YYY', possible loss of data
+    ie_add_compiler_flags(/wd4267)
+    ie_add_compiler_flags(/wd4244)
+    # '<': signed/unsigned mismatch
+    ie_add_compiler_flags(/wd4018)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # C4661: no suitable definition provided for explicit template instantiation request
+    ie_add_compiler_flags(/wd4661)
+    # C4297: function assumed not to throw an exception but does
+    ie_add_compiler_flags(/wd4297)
+endif()
+
+
 file(GLOB_RECURSE SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 

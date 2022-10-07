@@ -21,7 +21,7 @@ OutputVector compress(const Node& node) {
     if (node.has_attribute("axis")) {
         axis = node.get_attribute_value<int64_t>("axis");
     } else {
-        data = std::make_shared<default_opset::Squeeze>(ngraph::builder::opset1::flatten(data, axis));
+        data = std::make_shared<default_opset::Squeeze>(ngraph::builder::opset1::flatten(data, static_cast<int>(axis)));
     }
     auto axis_node = default_opset::Constant::create(element::i64, Shape{}, {axis});
     auto zero_node = default_opset::Constant::create(element::i64, Shape{}, {0});
