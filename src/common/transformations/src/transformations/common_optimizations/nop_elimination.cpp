@@ -7,6 +7,7 @@
 #include <ngraph/log.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset8.hpp>
+#include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/util.hpp>
 #include <numeric>
@@ -477,6 +478,139 @@ pass::EliminateSqueeze::EliminateSqueeze() {
     this->register_matcher(m, callback);
 }
 
+namespace {
+bool check_squeeze(const shared_ptr<Node>& node) {
+    auto squeeze = std::dynamic_pointer_cast<opset9::Squeeze>(node);
+    if (squeeze) {
+        auto axis = std::dynamic_pointer_cast<opset9::Constant>(squeeze->input_value(1).get_node_shared_ptr());
+        if (axis) {
+            auto axis_val = axis->cast_vector<int64_t>();
+            if (axis_val.size() == 1 && axis_val[0] == 1) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool check_reshape(const shared_ptr<Node>& node) {
+    auto reshape = std::dynamic_pointer_cast<opset9::Reshape>(node);
+    if (reshape) {
+        auto shape_pattern = std::dynamic_pointer_cast<opset9::Constant>(reshape->input_value(1).get_node_shared_ptr());
+        if (shape_pattern) {
+            auto pattern_val = shape_pattern->cast_vector<int64_t>();
+            pattern_val.insert(pattern_val.begin() + 1, 1);
+            auto in_shape = reshape->input_value(0).get_partial_shape();
+            if (in_shape.compatible(pattern_val)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+template <class T>
+std::shared_ptr<T> check_all_inputs(const std::shared_ptr<opset9::Concat>& concat) {
+    shared_ptr<T> split;
+    const auto concat_in_values = concat->input_values();
+    int idx = 0;
+    for (const auto& in_to_concat : concat_in_values) {
+        const auto& cast_to_split = std::dynamic_pointer_cast<T>(in_to_concat.get_node_shared_ptr());
+        // There is a special case with (GRU/RNN/LSTM)Sequence ops
+        // Sequence->output(1) can be connected directly to the last input to Concat
+        // and the last Split output is not used. This is also a valid case for this Elimination.
+        if (!cast_to_split) {
+            if (idx != (concat_in_values.size() - 1)) {
+                return {};
+            }
+            shared_ptr<Node> in_to_split = split->input_value(0).get_node_shared_ptr();
+            auto seq_out = in_to_split->input_value(0);
+            auto seq_node = seq_out.get_node_shared_ptr();
+            if (seq_out.get_index() != 0 || !(dynamic_pointer_cast<opset9::RNNSequence>(seq_node) ||
+                                              dynamic_pointer_cast<opset9::GRUSequence>(seq_node) ||
+                                              dynamic_pointer_cast<opset9::LSTMSequence>(seq_node))) {
+                return {};
+            }
+
+            // check that Split is connected to Sequence->output(0)
+            // possible patterns:
+            // Sequence:0->Squeeze->Split
+            bool valid_pattern = check_squeeze(in_to_split);
+            // Sequence:0->Reshape->Split
+            if (!valid_pattern) {
+                valid_pattern = check_reshape(in_to_split);
+            }
+
+            if (!valid_pattern) {
+                return {};
+            }
+
+            // check that Sequence->output(1) is connected to this input
+            if (in_to_concat != seq_node->output(1)) {
+                return {};
+            }
+            return split;
+        }
+        // input (split op) should be the same for all inputs
+        if (!split) {
+            split = cast_to_split;
+        } else if (cast_to_split.get() != split.get()) {
+            // not all inputs to concat belong to the same Split op
+            return {};
+        }
+
+        // Split to Concat edges are not in orderl
+        // should be (0, 1, 2, ... , split->outputs().size()-1)
+        if (in_to_concat.get_index() != idx) {
+            return {};
+        }
+        ++idx;
+    }
+
+    // not all split outputs are used.
+    if (idx != split->outputs().size()) {
+        return {};
+    }
+
+    return split;
+}
+}  // namespace
+
+pass::EliminateSplitConcat::EliminateSplitConcat() {
+    MATCHER_SCOPE(EliminateSplitConcat);
+
+    auto pattern_concat = pattern::wrap_type<opset8::Concat>();
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_map();
+        const auto concat = std::dynamic_pointer_cast<opset9::Concat>(pattern_map.at(pattern_concat));
+        if (!concat) {
+            return false;
+        }
+        shared_ptr<Node> split = check_all_inputs<opset9::Split>(concat);
+        if (!split) {
+            split = check_all_inputs<opset9::VariadicSplit>(concat);
+        }
+
+        if (!split) {
+            return false;
+        }
+
+        auto axis = std::dynamic_pointer_cast<opset9::Constant>(split->input_value(1).get_node_shared_ptr());
+        if (!axis) {
+            return false;
+        }
+        const auto& axis_val = axis->cast_vector<int64_t>();
+        if (axis_val.size() != 1 || axis_val[0] != concat->get_axis()) {
+            return false;
+        }
+
+        return replace_output_update_name(concat->output(0), split->input_value(0));
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(pattern_concat, matcher_name);
+    this->register_matcher(m, callback);
+}
+
 pass::EliminateTranspose::EliminateTranspose() {
     MATCHER_SCOPE(EliminateTranspose);
     auto order = pattern::wrap_type<opset8::Constant>();
@@ -520,7 +654,6 @@ pass::EliminateEltwise::EliminateEltwise() {
         if (!op::util::can_eliminate_eltwise_node(eltwise, constant, non_const_input)) {
             return false;
         }
-
         return replace_output_update_name(eltwise->output(0), non_const_input);
     };
 
@@ -537,7 +670,7 @@ ngraph::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     add_matcher<EliminateSplit>();
     add_matcher<EliminateTranspose>();
     add_matcher<EliminateEltwise>();
-
+    add_matcher<EliminateSplitConcat>();
     // shape-dependent transformations
     if (use_shape_for_elimination) {
         add_matcher<EliminateReshape>();

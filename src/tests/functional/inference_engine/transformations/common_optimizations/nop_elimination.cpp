@@ -12,6 +12,7 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
@@ -1090,3 +1091,105 @@ TEST_F(TransformationTestsF, eliminate_eltwise_dequantization_subgraph) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
+
+enum class SplitType {
+    Split,
+    VariadicSplit
+};
+
+enum class RNNType : size_t {
+    NONE = 0,
+    RNN = 1,
+    GRU = 3,
+    LSTM = 4,
+};
+
+struct SplitConcatEliminationParams {
+    SplitType split_type;
+    RNNType rnn_type;
+};
+
+class SplitConcatElimination
+    : public testing::WithParamInterface<SplitConcatEliminationParams>,
+    public CommonTestUtils::TestsCommon {
+};
+
+TEST_P(SplitConcatElimination, eliminate_split_concat_subgraph) {
+    const auto& p = GetParam();
+    int64_t axis = 1;
+    size_t batch = 2;
+    size_t input_size = 4;
+    size_t hidden_size = 2;
+    size_t seq_len = 10;
+    size_t num_dir = 1;
+
+    ParameterVector params;
+    auto param = make_shared<opset9::Parameter>(element::f32, Shape{batch, seq_len, input_size});
+
+    shared_ptr<Node> data = param;
+    shared_ptr<Node> sequence;
+    auto gate = static_cast<size_t>(p.rnn_type);
+    auto axis_const = make_shared<opset9::Constant>(element::i64, Shape{}, axis);
+    auto H = make_shared<opset9::Parameter>(element::f32, Shape{batch, num_dir, hidden_size});
+    auto C = make_shared<opset9::Parameter>(element::f32, Shape{batch, num_dir, hidden_size});
+    auto seq_lengths = make_shared<opset9::Parameter>(element::i64, Shape{batch});
+    auto W = make_shared<opset9::Parameter>(element::f32, Shape{num_dir, gate * hidden_size, input_size});
+    auto R = make_shared<opset9::Parameter>(element::f32, Shape{num_dir, gate * hidden_size, hidden_size});
+    auto B = make_shared<opset9::Parameter>(element::f32, Shape{num_dir, gate * hidden_size});
+    auto direction = op::RecurrentSequenceDirection::FORWARD;
+    if (p.rnn_type == RNNType::RNN) {
+        sequence = make_shared<opset9::RNNSequence>(data, H, seq_lengths, W, R, B, hidden_size, direction);
+        data = make_shared<opset9::Squeeze>(sequence->output(0), axis_const);
+        params = {H, seq_lengths, W, R, B};
+    } else if (p.rnn_type == RNNType::GRU) {
+        sequence = make_shared<opset9::GRUSequence>(data, H, seq_lengths, W, R, B, hidden_size, direction);
+        data = make_shared<opset9::Squeeze>(sequence->output(0), axis_const);
+        params = {H, seq_lengths, W, R, B};
+    } else if (p.rnn_type == RNNType::LSTM) {
+        sequence = make_shared<opset9::LSTMSequence>(data, H, C, seq_lengths, W, R, B, hidden_size, direction);
+        data = make_shared<opset9::Squeeze>(sequence->output(0), axis_const);
+        params = {H, C, seq_lengths, W, R, B};
+    }
+    params.push_back(param);
+
+    shared_ptr<ov::Node> split;
+    if (p.split_type == SplitType::Split) {
+        split = make_shared<opset9::Split>(data->output(0), axis_const, 10);
+    } else if (p.split_type == SplitType::VariadicSplit) {
+        auto split_lengths = make_shared<opset9::Constant>(element::i64, Shape{seq_len}, std::vector<int64_t>(seq_len, 1));
+        split = make_shared<opset9::VariadicSplit>(data->output(0), axis_const, split_lengths);
+    }
+
+    auto outputs_to_concat = split->outputs();
+    if (sequence) {
+        outputs_to_concat[outputs_to_concat.size() - 1] = sequence->output(1);
+    }
+    auto concat = make_shared<opset9::Concat>(outputs_to_concat, axis);
+    auto sigmoid = make_shared<opset9::Sigmoid>(concat);
+    auto res = make_shared<opset9::Result>(sigmoid);
+    auto model = make_shared<ov::Model>(ResultVector{res}, ParameterVector{params});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::Validate>();
+    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.run_passes(model);
+
+    EXPECT_EQ(count_ops_of_type<opset9::Concat>(model), 0) << "SplitConcatElimination transformation has failed. "
+                                                              "The number of Concat ops is not 0";
+    EXPECT_EQ(count_ops_of_type<opset9::Split>(model), 0) << "SplitConcatElimination transformation has failed. "
+                                                             "The number of Split ops is not 0";
+    EXPECT_EQ(count_ops_of_type<opset9::VariadicSplit>(model), 0) << "SplitConcatElimination transformation has failed. "
+                                                             "The number of VariadicSplit ops is not 0";
+}
+
+static const vector<SplitConcatEliminationParams> params = {
+        SplitConcatEliminationParams{SplitType::Split, RNNType::NONE},
+        SplitConcatEliminationParams{SplitType::Split, RNNType::RNN},
+        SplitConcatEliminationParams{SplitType::Split, RNNType::LSTM},
+        SplitConcatEliminationParams{SplitType::Split, RNNType::GRU},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::NONE},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::RNN},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::LSTM},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::GRU}};
+
+INSTANTIATE_TEST_SUITE_P(SplitConcatElimination, SplitConcatElimination, testing::ValuesIn(params));
