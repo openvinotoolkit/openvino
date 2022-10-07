@@ -1,6 +1,6 @@
 # OpenVINO Frontends
 
-OpenVINO Frontends allow to convert model from framework to OpenVINO representation.
+OpenVINO Frontends allow converting models from the native framework to OpenVINO representation.
 
 Below full list of supported frontends is below:
 
