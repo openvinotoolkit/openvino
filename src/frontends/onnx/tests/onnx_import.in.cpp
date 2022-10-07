@@ -5916,6 +5916,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_is_inf) {
     const auto function onnx::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/is_inf.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
+
+    // clang-format off
+
     test_case.add_input<float>(
         Shape{2, 2, 2},
         {std::numeric_limits<float>::infinity(), 0.0000f,
@@ -5931,4 +5934,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_is_inf) {
         false, false}
     );
     test_case.run();
+
+    // clang-format on
 }

@@ -8,10 +8,10 @@
 #include "ngraph/runtime/host_tensor.hpp"
 
 namespace ov {
-    op::v10::IsInf::IsInf(const Output<Node>& data, const Attributes& attributes)
-        : op::Op{{data}},
-          m_attributes{attributes} {
-        constructor_validate_and_infer_types();
+op::v10::IsInf::IsInf(const Output<Node>& data, const Attributes& attributes)
+    : op::Op{{data}},
+      m_attributes{attributes} {
+    constructor_validate_and_infer_types();
 }
 
 bool op::v10::IsInf::visit_attributes(AttributeVisitor& visitor) {
@@ -34,4 +34,4 @@ std::shared_ptr<Node> op::v10::IsInf::clone_with_new_inputs(const OutputVector& 
     check_new_args_count(this, new_args);
     return std::make_shared<op::v10::IsInf>(new_args.at(0), this->get_attributes());
 }
-} // namespace ov
+}  // namespace ov

@@ -4,19 +4,24 @@
 
 #pragma once
 
-#include "openvino/core/attribute_adapter.hpp"
 #include "openvino/op/op.hpp"
-#include "openvino/op/grid_sample.hpp"
 
 namespace ov {
 namespace op {
 namespace v10 {
+/// \brief Boolean mask that maps infinite values to true.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API IsInf : public Op {
 public:
     OPENVINO_OP("IsInf", "opset10");
 
+    /// \brief A Structure which contains all IsInf attributes
     struct Attributes {
+        // A flag which specifies whether to map negative invinities to true.
+        // If set to false, negative infinite will be mapped to false.
         bool detect_negative = true;
+        // A flag which specifies whether to map positive invinities to true.
+        // If set to false, positive infinite will be mapped to false.
         bool detect_positive = true;
 
         Attributes() = default;
@@ -26,8 +31,12 @@ public:
     };
 
     IsInf() = default;
-
+    /// \brief Constructs a IsInf operation
+    ///
+    /// \param data   Input data tensor
+    /// \param attrs  IsInf attributes
     IsInf(const Output<Node>& data, const Attributes& attributes);
+
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;
@@ -42,5 +51,5 @@ private:
     Attributes m_attributes = {};
 };
 }  // namespace v10
-}  //namespace op
-}  //namespace ov
+}  // namespace op
+}  // namespace ov

@@ -2200,6 +2200,7 @@ def test_interpolate_opset10(dtype, expected_shape, shape_calculation_mode):
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_shape
 
+
 def test_is_inf_opset10_default():
     input_shape = [2, 2, 2, 2]
     input_node = ov.parameter(input_shape, dtype=np.float, name="InputData")
@@ -2213,12 +2214,13 @@ def test_is_inf_opset10_default():
     assert node_attributes["detect_positive"] is True
     assert node_attributes["detect_negative"] is True
 
+
 def test_is_inf_opset10_custom_attributes():
     input_shape = [2, 2, 2]
     input_node = ov.parameter(input_shape, dtype=np.float, name="InputData")
     attributes = {
         "detect_negative": False,
-        "detect_positive": True
+        "detect_positive": True,
     }
     node = ov_opset10.is_inf(input_node, attributes)
 
