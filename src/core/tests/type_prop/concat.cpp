@@ -3,7 +3,7 @@
 //
 
 #include "dimension_tracker.hpp"
-#include "gtest/gtest.h"
+#include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "util/type_prop.hpp"
@@ -276,12 +276,8 @@ TEST(type_prop, concat_dynamic_value_and_label_propagation) {
     ASSERT_EQ(bc->get_shape(), (Shape{3, 4, 5, 4, 5, 9}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[1]), 0);
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[2]), 0);
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[3]), 0);
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[4]), 15);
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[5]), 0);
+    const auto labels = get_shape_labels(output_shape);
+    ASSERT_THAT(labels, ElementsAre(10, 0, 0, 0, 15, 0));
 }
 
 TEST(type_prop, concat_dynamic_value_and_label_propagation_1) {
@@ -311,12 +307,8 @@ TEST(type_prop, concat_dynamic_value_and_label_propagation_1) {
     ASSERT_EQ(bc->get_shape(), (Shape{3, 4, 5, 4, 5, 9}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 1000);
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[1]), 0);
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[2]), 0);
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[3]), 0);
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[4]), 1500);
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[5]), 0);
+    const auto labels = get_shape_labels(output_shape);
+    ASSERT_THAT(labels, ElementsAre(1000, 0, 0, 0, 1500, 0));
 }
 
 TEST(type_prop, concat_interval_dimensions) {
