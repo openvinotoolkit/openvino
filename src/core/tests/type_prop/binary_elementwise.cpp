@@ -507,4 +507,41 @@ TEST(type_prop, interval_value_propagation_sub) {
     }
 }
 
+TEST(type_prop, interval_value_propagation_div) {
+    PartialShape op_shape{Dimension(-1), Dimension(4, -1), Dimension(-1, 6), Dimension(8, 16), Dimension(9, 30), 15};
+    { // const rhs
+        const auto const_op = op::Constant::create(element::f32, {6}, {7, 6, 2, 4, 3, 5});
+        const auto reshape = createReshapeSubgraph<op::v1::Divide>(op_shape, const_op);
+        EXPECT_EQ(reshape->get_element_type(), element::f32);
+        EXPECT_EQ(reshape->get_output_partial_shape(0), PartialShape({-1, -1, -1, -1, -1, -1}));
+
+        // TODO: Why not:
+        // EXPECT_EQ(reshape->get_output_partial_shape(0), PartialShape({-1, -1, Dimension(-1, 3), Dimension(2, 8), Dimension(3, 10), 3}));
+    }
+    { // const lhs
+        const auto const_op = op::Constant::create(element::f32, {6}, {7, 8, 12, 32, 90, 45});
+        const auto reshape = createReshapeSubgraph<op::v1::Divide>(op_shape, const_op, false);
+        EXPECT_EQ(reshape->get_element_type(), element::f32);
+        EXPECT_EQ(reshape->get_output_partial_shape(0), PartialShape({-1, -1, -1, -1, -1, -1}));
+
+        // TODO: Why not:
+        // EXPECT_EQ(reshape->get_output_partial_shape(0), PartialShape({-1, -1, Dimension(-1, 2), Dimension(4, 2), Dimension(3, 10), 3}));
+    }
+}
+
+TEST(type_prop, interval_value_propagation_pow) {
+    PartialShape op_shape{Dimension(-1), Dimension(4, -1), Dimension(-1, 4), Dimension(2, 3), Dimension(3, 4), 2};
+    { // const rhs
+        const auto const_op = op::Constant::create(element::f32, {6}, {2, 2, 2, 2, 2, 2});
+        const auto reshape = createReshapeSubgraph<op::v1::Power>(op_shape, const_op);
+        EXPECT_EQ(reshape->get_element_type(), element::f32);
+        EXPECT_EQ(reshape->get_output_partial_shape(0), PartialShape({-1, -1, Dimension(-1, 16), Dimension(4, 9), Dimension(9, 16), 4}));
+    }
+    { // const lhs
+        const auto const_op = op::Constant::create(element::f32, {6}, {2, 2, 2, 2, 2, 2});
+        const auto reshape = createReshapeSubgraph<op::v1::Power>(op_shape, const_op, false);
+        EXPECT_EQ(reshape->get_element_type(), element::f32);
+        EXPECT_EQ(reshape->get_output_partial_shape(0), PartialShape({-1, -1, Dimension(1, 16), Dimension(4, 8), Dimension(8, 16), 4}));
+    }
+}
 }
