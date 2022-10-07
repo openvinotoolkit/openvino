@@ -577,4 +577,65 @@ TEST(type_prop, interval_value_propagation_min) {
     }
 }
 
+TEST(type_prop, interval_value_propagation_add_sub) {
+    {  // Dimensions with bounds
+        auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(2, 8), Dimension(4, 16), 2});
+
+        auto shape_of = make_shared<op::v3::ShapeOf>(param);
+        auto cast_fp = make_shared<op::Convert>(shape_of, element::f32);
+        auto add =
+            make_shared<op::v1::Add>(cast_fp,
+                                     op::Constant::create(element::f32, {3}, {2, 3, 4}));  // {(4, 10), (7, 19), 6}
+        auto sub =
+            make_shared<op::v1::Subtract>(add,
+                                          op::Constant::create(element::f32, {3}, {3, 2, 1}));  // {(1, 7), (5, 17), 5}
+        auto cast_int = make_shared<op::Convert>(sub, element::i32);
+
+        auto reshape = make_shared<op::v1::Reshape>(param, cast_int, false);
+
+        EXPECT_EQ(reshape->get_element_type(), element::f32);
+        EXPECT_EQ(reshape->get_output_partial_shape(0), PartialShape({Dimension(1, 7), Dimension(5, 17), 5}));
+    }
+    {  // Fully dynamic dimension, no upper, no lower bound
+        auto param =
+            make_shared<op::Parameter>(element::f32, PartialShape{Dimension(-1), Dimension(4, -1), Dimension(-1, 2)});
+
+        auto shape_of = make_shared<op::v3::ShapeOf>(param);
+        auto cast_fp = make_shared<op::Convert>(shape_of, element::f32);
+        auto add = make_shared<op::v1::Add>(cast_fp, op::Constant::create(element::f32, {3}, {2, 3, 4}));
+        auto sub = make_shared<op::v1::Subtract>(add, op::Constant::create(element::f32, {3}, {3, 2, 1}));
+        auto cast_int = make_shared<op::Convert>(sub, element::i32);
+
+        auto reshape = make_shared<op::v1::Reshape>(param, cast_int, false);
+
+        EXPECT_EQ(reshape->get_element_type(), element::f32);
+        EXPECT_EQ(reshape->get_output_partial_shape(0),
+                  PartialShape({Dimension(-1), Dimension(-1), Dimension(3, 5)}));  // Fully dynamic if no upper bound
+    }
+}
+
+TEST(type_prop, interval_value_propagation_add_sub_div_mul) {
+    auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(-1), Dimension(2, 8), Dimension(4, 10), 6});
+
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+    auto cast_fp = make_shared<op::Convert>(shape_of, element::f32);
+    auto add =
+        make_shared<op::v1::Add>(cast_fp,
+                                    op::Constant::create(element::f32, {4}, {2, 2, -1, 3}));  // {(-1), (4, 10), (3, 9), (9)}
+    auto div =
+        make_shared<op::v1::Divide>(add,
+                                        op::Constant::create(element::f32, {4}, {2, 2, -3, 3}));  // {(-1), (2, 5), (-3, -1), (3)}
+    auto sub =
+        make_shared<op::v1::Subtract>(div,
+                                        op::Constant::create(element::f32, {4}, {2, 1, 2, -4}));  // {(-1), (1, 4), (-5, -3), (7)}
+    auto mul =
+        make_shared<op::v1::Multiply>(sub,
+                                        op::Constant::create(element::f32, {4}, {2, 3, -4, 5}));  // {(-1), (3, 12), (12, 20), (35)}
+
+    auto cast_int = make_shared<op::Convert>(mul, element::i32);
+
+    auto reshape = make_shared<op::v1::Reshape>(param, cast_int, false);
+
+    EXPECT_EQ(reshape->get_element_type(), element::f32); // ?,2..8,4..10,6
+    EXPECT_EQ(reshape->get_output_partial_shape(0), PartialShape({Dimension(-1), Dimension(3, 12), Dimension(12, 20), 35}));
 }
