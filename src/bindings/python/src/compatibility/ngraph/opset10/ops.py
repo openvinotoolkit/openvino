@@ -87,8 +87,7 @@ def interpolate(
 
 @nameable_op
 def is_nan(data: NodeInput, name: Optional[str] = None) -> Node:
-    """
-    Performs element-wise mapping from NaN to True. Other values are mapped to False.
+    """Performs element-wise mapping from NaN to True. Other values are mapped to False.
 
     :param  data:          A tensor of floating point numeric type and arbitrary shape.
     :param  name:          Optional name for the output node. Default is None.
