@@ -7,10 +7,10 @@
 #include <ngraph/log.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset8.hpp>
-#include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/util.hpp>
 #include <numeric>
+#include <openvino/opsets/opset9.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/utils/utils.hpp>
 
@@ -480,9 +480,9 @@ pass::EliminateSqueeze::EliminateSqueeze() {
 
 namespace {
 bool check_squeeze(const shared_ptr<Node>& node) {
-    auto squeeze = std::dynamic_pointer_cast<opset9::Squeeze>(node);
+    auto squeeze = std::dynamic_pointer_cast<ov::opset9::Squeeze>(node);
     if (squeeze) {
-        auto axis = std::dynamic_pointer_cast<opset9::Constant>(squeeze->input_value(1).get_node_shared_ptr());
+        auto axis = std::dynamic_pointer_cast<ov::opset9::Constant>(squeeze->input_value(1).get_node_shared_ptr());
         if (axis) {
             auto axis_val = axis->cast_vector<int64_t>();
             if (axis_val.size() == 1 && axis_val[0] == 1) {
@@ -494,9 +494,10 @@ bool check_squeeze(const shared_ptr<Node>& node) {
 }
 
 bool check_reshape(const shared_ptr<Node>& node) {
-    auto reshape = std::dynamic_pointer_cast<opset9::Reshape>(node);
+    auto reshape = std::dynamic_pointer_cast<ov::opset9::Reshape>(node);
     if (reshape) {
-        auto shape_pattern = std::dynamic_pointer_cast<opset9::Constant>(reshape->input_value(1).get_node_shared_ptr());
+        auto shape_pattern =
+            std::dynamic_pointer_cast<ov::opset9::Constant>(reshape->input_value(1).get_node_shared_ptr());
         if (shape_pattern) {
             auto pattern_val = shape_pattern->cast_vector<int64_t>();
             pattern_val.insert(pattern_val.begin() + 1, 1);
@@ -510,7 +511,7 @@ bool check_reshape(const shared_ptr<Node>& node) {
 }
 
 template <class T>
-std::shared_ptr<T> check_all_inputs(const std::shared_ptr<opset9::Concat>& concat) {
+std::shared_ptr<T> check_all_inputs(const std::shared_ptr<ov::opset9::Concat>& concat) {
     shared_ptr<T> split;
     const auto concat_in_values = concat->input_values();
     int idx = 0;
@@ -526,9 +527,9 @@ std::shared_ptr<T> check_all_inputs(const std::shared_ptr<opset9::Concat>& conca
             shared_ptr<Node> in_to_split = split->input_value(0).get_node_shared_ptr();
             auto seq_out = in_to_split->input_value(0);
             auto seq_node = seq_out.get_node_shared_ptr();
-            if (seq_out.get_index() != 0 || !(dynamic_pointer_cast<opset9::RNNSequence>(seq_node) ||
-                                              dynamic_pointer_cast<opset9::GRUSequence>(seq_node) ||
-                                              dynamic_pointer_cast<opset9::LSTMSequence>(seq_node))) {
+            if (seq_out.get_index() != 0 || !(dynamic_pointer_cast<ov::opset9::RNNSequence>(seq_node) ||
+                                              dynamic_pointer_cast<ov::opset9::GRUSequence>(seq_node) ||
+                                              dynamic_pointer_cast<ov::opset9::LSTMSequence>(seq_node))) {
                 return {};
             }
 
@@ -576,26 +577,26 @@ std::shared_ptr<T> check_all_inputs(const std::shared_ptr<opset9::Concat>& conca
 }
 }  // namespace
 
-pass::EliminateSplitConcat::EliminateSplitConcat() {
+ov::pass::EliminateSplitConcat::EliminateSplitConcat() {
     MATCHER_SCOPE(EliminateSplitConcat);
 
     auto pattern_concat = pattern::wrap_type<opset8::Concat>();
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
-        const auto concat = std::dynamic_pointer_cast<opset9::Concat>(pattern_map.at(pattern_concat));
+        const auto concat = std::dynamic_pointer_cast<ov::opset9::Concat>(pattern_map.at(pattern_concat));
         if (!concat) {
             return false;
         }
-        shared_ptr<Node> split = check_all_inputs<opset9::Split>(concat);
+        shared_ptr<Node> split = check_all_inputs<ov::opset9::Split>(concat);
         if (!split) {
-            split = check_all_inputs<opset9::VariadicSplit>(concat);
+            split = check_all_inputs<ov::opset9::VariadicSplit>(concat);
         }
 
         if (!split) {
             return false;
         }
 
-        auto axis = std::dynamic_pointer_cast<opset9::Constant>(split->input_value(1).get_node_shared_ptr());
+        auto axis = std::dynamic_pointer_cast<ov::opset9::Constant>(split->input_value(1).get_node_shared_ptr());
         if (!axis) {
             return false;
         }
@@ -670,7 +671,7 @@ ngraph::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     add_matcher<EliminateSplit>();
     add_matcher<EliminateTranspose>();
     add_matcher<EliminateEltwise>();
-    add_matcher<EliminateSplitConcat>();
+    add_matcher<ov::pass::EliminateSplitConcat>();
     // shape-dependent transformations
     if (use_shape_for_elimination) {
         add_matcher<EliminateReshape>();
