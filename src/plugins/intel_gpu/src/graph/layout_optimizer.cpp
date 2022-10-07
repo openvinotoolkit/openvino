@@ -1685,14 +1685,14 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         }
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
         expected = node.get_output_layout().format;
-    } else if (node.is_type<reshape>()) {
+    /*} else if (node.is_type<reshape>()) {
         if (node.get_output_layout().format.dimension() == 6) {
             expected = format::bfwzyx;
         } else if (node.get_output_layout().format.dimension() == 5) {
             expected = format::bfzyx;
         } else if (node.get_output_layout().format.dimension() == 4) {
             expected = format::bfyx;
-        }
+        }*/
     } else if (node.is_type<deconvolution>()) {
         auto& deconv_node = node.as<deconvolution>();
         auto weights_layout = deconv_node.weights(0).get_output_layout().convert_to_weights_layout(deconv_node.get_primitive()->grouped_weights_shape);

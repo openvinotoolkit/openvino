@@ -47,29 +47,29 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
             auto input_rank = input_pshape.size();
             if (input_rank != out_rank && input_pshape.is_static()) {
                 // Add reorder if changing number of dimensions requires changing format
-                auto targetFormat = cldnn::format::get_default_format(out_rank);
-                if (targetFormat.value != cldnn::format::get_default_format(input_rank).value) {
-                    auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
-                    auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(i));
-                    auto reorderPrim = cldnn::reorder(reorderName,
-                                                    inputPrimitives[i],
-                                                    targetFormat,
-                                                    targetDatatype,
-                                                    std::vector<float>(),
-                                                    cldnn::reorder_mean_mode::subtract);
-
-                    p.add_primitive(*op, reorderPrim);
-                    inputPrimitives[i] = reorderName;
-                }
+               // auto targetFormat = cldnn::format::get_default_format(out_rank);
+                //if (targetFormat.value != cldnn::format::get_default_format(input_rank).value) {
+                //    auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
+                //    auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(i));
+                //    auto reorderPrim = cldnn::reorder(reorderName,
+                //                                    inputPrimitives[i],
+                //                                    targetFormat,
+                //                                    targetDatatype,
+                //                                    std::vector<float>(),
+                //                                    cldnn::reorder_mean_mode::subtract);
+                //
+                //    p.add_primitive(*op, reorderPrim);
+                //    inputPrimitives[i] = reorderName;
+                //}
 
                 auto reshapeName = layerName + "_cldnn_in" + std::to_string(i) + "_reshape";
 
                 // Extend input dimensions by prepending ones
                 input_pshape.insert(input_pshape.begin(), out_rank - input_rank, 1ul);
 
-                auto targetShape = tensor_from_dims(input_pshape.to_shape());
+                //auto targetShape = tensor_from_dims(input_pshape.to_shape());
 
-                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
+                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], input_pshape.to_shape());
                 p.add_primitive(*op, reshapePrim);
 
                 inputPrimitives[i] = reshapeName;

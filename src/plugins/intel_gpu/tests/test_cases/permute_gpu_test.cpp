@@ -1697,7 +1697,7 @@ void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& si
     cldnn::build_options options_tile;
     cldnn::implementation_desc permute_tile_8x8_4x4_fsv = { format_fsv, "permute_tile_8x8_4x4_fsv" };
     options_tile.set_option(cldnn::build_option::force_implementations({ {"output", permute_tile_8x8_4x4_fsv} }));
-
+    options_tile.set_option(build_option::optimize_data(true));
     cldnn::network network_tile(engine, topology_ref, options_tile);
     network_tile.set_input_data("input", input);
     auto outputs_tile = network_tile.execute();

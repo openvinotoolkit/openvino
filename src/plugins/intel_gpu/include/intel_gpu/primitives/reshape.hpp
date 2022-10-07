@@ -5,6 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -14,7 +15,8 @@ namespace cldnn {
 /// @addtogroup cpp_primitives Primitives
 /// @{
 
-/// @brief Changes information about inputs's layout effectively creating new memory which share underlaying buffer
+/// @brief Changes information about inputs's layout effectively cre
+/// ating new memory which share underlaying buffer
 /// but is interpreted in a different way (different shape).
 /// @note reshape primitive is supposed only to reinterpret shape of the memory therefore it's not possible to change
 /// neither data type nor format of the input buffer and total number of elements in input and output (excluding paddings) must match.
@@ -37,14 +39,28 @@ struct reshape : public primitive_base<reshape> {
     /// @param output_padding Requested memory padding.
     reshape(const primitive_id& id,
             const primitive_id& input,
-            const tensor& output_shape,
+            const ov::Shape& output_shape,
             reshape_mode mode = reshape_mode::base,
             const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding)
-        , output_shape(output_shape)
+        , output_shape(ov::intel_gpu::tensor_from_dims(output_shape))
+        , dim_num(output_shape.size())
         , output_pattern({})
         , output_partial_shape({})
         , mode(mode) {}
+
+    reshape(const primitive_id& id,
+            const primitive_id& input,
+            const tensor& output_shape,
+            const int dim_num,
+            reshape_mode mode = reshape_mode::base,
+            const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding)
+          , output_shape(output_shape)
+          , dim_num(dim_num)
+          , output_pattern({})
+          , output_partial_shape({})
+          , mode(mode) {}
 
     /// @brief reshape with dynamic pattern
     reshape(const primitive_id& id,
@@ -78,6 +94,8 @@ struct reshape : public primitive_base<reshape> {
 
     /// @brief Requested memory shape.
     tensor output_shape;
+
+    int dim_num = 0;
 
     bool special_zero = false;
 

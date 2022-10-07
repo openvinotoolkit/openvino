@@ -309,11 +309,10 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
             if (emit_last_cell)
                 concatenate_len++;
 
-            tensor output_size{input_layout.batch(),
-                               static_cast<int32_t>(concatenate_len),
-                               hidden_size.spatial[0],
-                               (int32_t)directions};
-            auto reshape_primitive = std::make_shared<reshape>(node.id() + ":reshape", concatenation_id, output_size);
+            ov::Shape output_shape({static_cast<size_t>(input_layout.batch()),  static_cast<size_t>(concatenate_len),
+                                   static_cast<size_t>(hidden_size.spatial[0]),
+                                   directions});
+            auto reshape_primitive = std::make_shared<reshape>(node.id() + ":reshape", concatenation_id, output_shape);
             auto& reshape_node = p.get_or_create(reshape_primitive);
             p.add_connection(concatenation_node, reshape_node);
             p.replace_all_usages(node, reshape_node);

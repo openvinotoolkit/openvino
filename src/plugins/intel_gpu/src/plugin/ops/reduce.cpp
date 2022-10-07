@@ -69,7 +69,7 @@ static void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, 
                 outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
                                           1, TensorValue(out_shape[2]));
         }
-        auto reshape_prim = cldnn::reshape(resultLayerName, layerName, outTensor);
+        auto reshape_prim = cldnn::reshape(resultLayerName, layerName, outTensor, out_shape.size());
         p.add_primitive(*op, reshape_prim);
     }
 

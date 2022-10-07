@@ -38,22 +38,22 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
             auto input_rank = input_shape.size();
 
             // Add reorder if changing number of dimensions requires changing format
-            auto targetFormat = cldnn::format::get_default_format(output_rank);
+            //auto targetFormat = cldnn::format::get_default_format(output_rank);
 
-            if (targetFormat.value != cldnn::format::get_default_format(input_rank).value) {
-                auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
-                auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(i));
-                auto reorderPrim = cldnn::reorder(reorderName,
-                                                  inputPrimitives[i],
-                                                  targetFormat,
-                                                  targetDatatype,
-                                                  std::vector<float>(),
-                                                  cldnn::reorder_mean_mode::subtract);
-
-                p.add_primitive(*op, reorderPrim);
-
-                inputPrimitives[i] = reorderName;
-            }
+            //if (targetFormat.value != cldnn::format::get_default_format(input_rank).value) {
+            //    auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
+            //    auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(i));
+            //    auto reorderPrim = cldnn::reorder(reorderName,
+            //                                      inputPrimitives[i],
+            //                                      targetFormat,
+            //                                      targetDatatype,
+            //                                      std::vector<float>(),
+            //                                      cldnn::reorder_mean_mode::subtract);
+            //
+            //    p.add_primitive(*op, reorderPrim);
+            //
+            //    inputPrimitives[i] = reorderName;
+            //}
 
             // Reshape input if they differ or select specific shape matches default one
             if (input_rank != output_rank || input_rank < 4) {
@@ -62,9 +62,7 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
                 // Extend input dimensions to the same size as output dimensions by prepending ones
                 input_shape.insert(input_shape.begin(), output_rank - input_rank, 1ul);
 
-                auto targetShape = tensor_from_dims(input_shape);
-
-                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
+                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], input_shape);
 
                 p.add_primitive(*op, reshapePrim);
 

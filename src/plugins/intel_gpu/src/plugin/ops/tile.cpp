@@ -39,9 +39,7 @@ static void CreateTileOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tile>
             // Extend input dimensions to the same size as repeats dimensions by prepending ones
             inputDims.insert(inputDims.begin(), repeats.size() - rank, defaultSize);
 
-            auto targetShape = tensor_from_dims(inputDims);
-
-            auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[0], targetShape);
+            auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[0], inputDims);
 
             p.add_primitive(*op, reshapePrim);
 

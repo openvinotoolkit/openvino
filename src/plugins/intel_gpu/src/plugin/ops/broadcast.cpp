@@ -31,18 +31,20 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
         auto inputShape = op->get_input_shape(0);
         auto outputShape = op->get_output_shape(0);
         // Add reorder if changing number of dimensions requires changing format
-        auto targetFormat = cldnn::format::get_default_format(output_rank);
-        if (targetFormat.value != cldnn::format::get_default_format(input_rank).value) {
-            auto reorderName = layerName + "_cldnn_in_reorder";
-            auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(0));
-            auto reorderPrim = cldnn::reorder(reorderName,
-                                              inputPrimitive,
-                                              targetFormat,
-                                              targetDatatype);
-            p.add_primitive(*op, reorderPrim);
-
-            inputPrimitive = reorderName;
-        }
+        //auto targetFormat = cldnn::format::get_default_format(outputRank);
+        //if (targetFormat.value != cldnn::format::get_default_format(inputRank).value) {
+        //    auto reorderName = layerName + "_cldnn_in_reorder";
+        //    auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(0));
+        //    auto reorderPrim = cldnn::reorder(reorderName,
+        //                                      inputPrimitive,
+        //                                      targetFormat,
+        //                                      targetDatatype,
+        //                                      std::vector<float>(),
+        //                                      cldnn::reorder_mean_mode::subtract);
+        //    p.add_primitive(*op, reorderPrim);
+        //
+        //    inputPrimitive = reorderName;
+        //}
 
         auto reshapeName = layerName + "_cldnn_in_reshape";
 
@@ -68,10 +70,7 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
             }
             inputShape = tmp_shape;
         }
-
-        auto targetShape = tensor_from_dims(inputShape);
-
-        auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitive, targetShape);
+        auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitive, inputShape);
         p.add_primitive(*op, reshapePrim);
 
         inputPrimitive = reshapeName;

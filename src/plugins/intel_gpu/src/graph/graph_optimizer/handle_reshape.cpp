@@ -110,7 +110,7 @@ void handle_reshape::run(program& p) {
                         reorder_node_to_split.end()) {
                         auto new_reshape = std::make_shared<reshape>("reorder:_reshape_split_" + user->id() + "_" + node->id(),
                                                                      input_node.id(),
-                                                                     output_shape);
+                                                                     output_shape, prim->dim_num);
                         auto& new_reshape_node = p.get_or_create(new_reshape);
                         user->replace_dependency(0, input_node);
                         p.add_intermediate(new_reshape_node, *user, 0);
@@ -119,29 +119,29 @@ void handle_reshape::run(program& p) {
                 }
 
                 // add new reorder nodes to proper reshape node
-                auto reshape_reorder_id = 0;
-                for (const auto& reorder_node : reorder_node_to_split) {
-                    auto& reorder_reshape_node = reorder_reshape_nodes[reshape_reorder_id];
-                    auto reshape_in_layout = reorder_node->get_output_layout();
-                    auto dims = cldnn::format::dimension(reshape_in_layout.format);
-                    auto format = cldnn::format::bfyx;
-                    if (dims == 5)
-                        format = cldnn::format::bfzyx;
-                    else if (dims == 6)
-                        format = cldnn::format::bfwzyx;
-                    auto reshape_input = std::make_shared<reorder>(
-                        "reorder:_reshape_input_" + reorder_node->id() + "_" + reorder_reshape_node->id(),
-                        input_node.id(),
-                        format,
-                        reshape_in_layout.data_type);
-                    auto& reshape_input_node = p.get_or_create(reshape_input);
-                    p.add_intermediate(reshape_input_node,
-                                       *reorder_reshape_node,
-                                       0,
-                                       reshape_input_node.get_dependencies().empty());
-                    reshape_reorder_id++;
-                    reshape_input_node.recalc_output_layout();
-                }
+                //auto reshape_reorder_id = 0;
+                //for (const auto& reorder_node : reorder_node_to_split) {
+                //    auto& reorder_reshape_node = reorder_reshape_nodes[reshape_reorder_id];
+                //    auto reshape_in_layout = reorder_node->get_output_layout();
+                //    auto dims = cldnn::format::dimension(reshape_in_layout.format);
+                //    auto format = cldnn::format::bfyx;
+                //    if (dims == 5)
+                //        format = cldnn::format::bfzyx;
+                //    else if (dims == 6)
+                //        format = cldnn::format::bfwzyx;
+                //    auto reshape_input = std::make_shared<reorder>(
+                //        "reorder:_reshape_input_" + reorder_node->id() + "_" + reorder_reshape_node->id(),
+                //        input_node.id(),
+                //        format,
+                //        reshape_in_layout.data_type);
+                //    auto& reshape_input_node = p.get_or_create(reshape_input);
+                //    p.add_intermediate(reshape_input_node,
+                //                       *reorder_reshape_node,
+                //                       0,
+                //                       reshape_input_node.get_dependencies().empty());
+                //    reshape_reorder_id++;
+                //    reshape_input_node.recalc_output_layout();
+                //}
             }
 
             auto reshape_layout = node->get_output_layout();

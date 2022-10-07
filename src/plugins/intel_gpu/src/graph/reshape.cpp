@@ -45,7 +45,7 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
     if (need_recalc)
         sizes[need_recalc] = static_cast<int>(input_layout.count()) / shape_count;
 
-    return layout{input_layout.data_type, input_layout.format, tensor(sizes)};
+    return layout{input_layout.data_type, format::adjust_to_rank(input_layout.format, desc->dim_num), tensor(sizes)};
 }
 
 template<typename ShapeType>

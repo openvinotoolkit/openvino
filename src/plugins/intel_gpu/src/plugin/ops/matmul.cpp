@@ -123,7 +123,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             auto reshapeInName = op->get_friendly_name() + suffix;
             auto reshapeInPrim = cldnn::reshape(reshapeInName,
                                                 inputName,
-                                                tensor_from_dims(reshapeSize));
+                                                reshapeSize);
             p.add_primitive(*op, reshapeInPrim);
             return reshapeInName;
         };
@@ -153,29 +153,29 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
             // add reorder
             auto outDims = op->get_output_shape(0);
-            auto outTensor = tensor_from_dims(outDims);
+            //auto outTensor = tensor_from_dims(outDims);
 
-            if (outDims.size() > 4) {
-                cldnn::format outputFormat = cldnn::format::bfyx;
-                switch (outDims.size()) {
-                case 5: outputFormat = cldnn::format::bfzyx; break;
-                case 6: outputFormat = cldnn::format::bfwzyx; break;
-                default: break;
-                }
-
-                cldnn::primitive_id reorderId = "reorder:" + outReshapeName + "_reorder";
-                cldnn::layout outputLayout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outTensor);
-                auto reorder_prim = cldnn::reorder(reorderId,
-                                            layerName,
-                                            outputLayout,
-                                            std::vector<float>(),
-                                            cldnn::reorder_mean_mode::subtract);
-                p.add_primitive(*op, reorder_prim);
-                lastLayerName = reorderId;
-            }
+            //if (outDims.size() > 4) {
+            //    cldnn::format outputFormat = cldnn::format::bfyx;
+            //    switch (outDims.size()) {
+            //    case 5: outputFormat = cldnn::format::bfzyx; break;
+            //    case 6: outputFormat = cldnn::format::bfwzyx; break;
+            //    default: break;
+            //    }
+            //
+            //    cldnn::primitive_id reorderId = "reorder:" + outReshapeName + "_reorder";
+            //    cldnn::layout outputLayout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outTensor);
+            //    auto reorder_prim = cldnn::reorder(reorderId,
+            //                                layerName,
+            //                                outputLayout,
+            //                                std::vector<float>(),
+            //                                cldnn::reorder_mean_mode::subtract);
+            //    p.add_primitive(*op, reorder_prim);
+            //    lastLayerName = reorderId;
+            //}
 
             // add reshape
-            auto outReshapePrim = cldnn::reshape(outReshapeName, lastLayerName, outTensor);
+            auto outReshapePrim = cldnn::reshape(outReshapeName, lastLayerName, outDims);
 
             p.add_primitive(*op, outReshapePrim);
 
@@ -202,22 +202,22 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             auto inputDimsN = inputDims.size();
 
             // Add reorder if changing number of dimensions requires changing format
-            auto targetFormat = cldnn::format::get_default_format(outDimsN);
+            //auto targetFormat = cldnn::format::get_default_format(outDimsN);
 
-            if (targetFormat.value != cldnn::format::get_default_format(inputDimsN).value) {
-                auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
-                auto targetDatatype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
-                auto reorderPrim = cldnn::reorder(reorderName,
-                                                  inputPrimitives[i],
-                                                  targetFormat,
-                                                  targetDatatype,
-                                                  std::vector<float>(),
-                                                  cldnn::reorder_mean_mode::subtract);
-
-                p.add_primitive(*op, reorderPrim);
-
-                inputPrimitives[i] = reorderName;
-            }
+            //if (targetFormat.value != cldnn::format::get_default_format(inputDimsN).value) {
+            //    auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
+            //    auto targetDatatype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
+            //    auto reorderPrim = cldnn::reorder(reorderName,
+            //                                      inputPrimitives[i],
+            //                                      targetFormat,
+            //                                      targetDatatype,
+            //                                      std::vector<float>(),
+            //                                      cldnn::reorder_mean_mode::subtract);
+            //
+            //    p.add_primitive(*op, reorderPrim);
+            //
+            //    inputPrimitives[i] = reorderName;
+            //}
 
             // Reshape input if they differ or gemm specific shape matches default one
             if (inputDimsN != outDimsN || inputDimsN < 4) {
@@ -250,7 +250,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
                 auto targetShape = gemmSpecificTensor(inputDims);
 
-                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
+                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, inputDims.size());
 
                 p.add_primitive(*op, reshapePrim);
 
@@ -278,9 +278,9 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
         // Reshape output if gemm specific shape does not match default one
         if (outDimsN < 4) {
-            auto outputShape = tensor_from_dims(outDims);
+            //auto outputShape = tensor_from_dims(outDims);
             auto outReshapeName = layerName + "_cldnn_out_reshape";
-            auto outReshapePrim = cldnn::reshape(outReshapeName, layerName, outputShape);
+            auto outReshapePrim = cldnn::reshape(outReshapeName, layerName, outDims);
 
             p.add_primitive(*op, outReshapePrim);
 

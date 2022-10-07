@@ -52,32 +52,32 @@ static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node
     } else {
         OPENVINO_ASSERT(input_pshape.is_static() && output_pshape.is_static(), "Dynamic shapes are not supported for Reshape operation yet");
 
-        auto outTensor = tensor_from_dims(output_pshape.to_shape());
+        //auto outTensor = tensor_from_dims(output_pshape.to_shape());
 
         // if we convert from or to 5D/6D, additional reorder also required to change format
         cldnn::primitive_id reshapeInputId = inputPrimitives[0];
         if (input_pshape.size() != output_pshape.size()) {
-            cldnn::primitive_id reorderId = "reorder:" + op->get_friendly_name() + "_reorder";
-            cldnn::format outputFormat = cldnn::format::bfyx;
-
-            switch (output_pshape.size()) {
-            case 5: outputFormat = cldnn::format::bfzyx; break;
-            case 6: outputFormat = cldnn::format::bfwzyx; break;
-            default: break;
-            }
-
-            cldnn::layout outputLayout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outTensor);
-            p.add_primitive(*op, cldnn::reorder(reorderId,
-                                                reshapeInputId,
-                                                outputLayout,
-                                                std::vector<float>(),
-                                                cldnn::reorder_mean_mode::subtract));
-            reshapeInputId = reorderId;
+            //cldnn::primitive_id reorderId = "reorder:" + op->get_friendly_name() + "_reorder";
+            //cldnn::format outputFormat = cldnn::format::bfyx;
+            //
+            //switch (output_pshape.size()) {
+            //case 5: outputFormat = cldnn::format::bfzyx; break;
+            //case 6: outputFormat = cldnn::format::bfwzyx; break;
+            //default: break;
+            //}
+            //
+            //cldnn::layout outputLayout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outTensor);
+            //p.add_primitive(*op, cldnn::reorder(reorderId,
+            //                                    reshapeInputId,
+            //                                    outputLayout,
+            //                                    std::vector<float>(),
+            //                                    cldnn::reorder_mean_mode::subtract));
+            //reshapeInputId = reorderId;
         }
 
         auto reshapePrim = cldnn::reshape(layerName,
                                         reshapeInputId,
-                                        outTensor,
+                                        output_pshape.get_shape(),
                                         mode);
 
         p.add_primitive(*op, reshapePrim);
