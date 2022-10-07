@@ -17,7 +17,6 @@ class UnsqueezeFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         onnx_opset_version = get_onnx_opset_version(node)
-        import pdb;pdb.set_trace()
         # since unsqueeze-13 axes is no longer an attribute
         if onnx_opset_version < 13:
             axis = int64_array(onnx_attr(node, 'axes', 'ints', default=[]))
