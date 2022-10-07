@@ -47,18 +47,6 @@ template <typename VT>
 class OPENVINO_DEPRECATED("Please use ov::Any to store VT directly") VariantWrapper {};
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-#if defined(_MSC_VER)
-#    pragma warning(push)
-// '__declspec(dllexport)' and 'extern' are incompatible on an explicit instantiation
-#    pragma warning(disable : 4910)
-#endif
-extern template class OPENVINO_API VariantImpl<std::string>;
-extern template class OPENVINO_API VariantImpl<int64_t>;
-extern template class OPENVINO_API VariantImpl<bool>;
-#if defined(_MSC_VER)
-#    pragma warning(pop)
-#endif
-
 template <>
 class OPENVINO_API VariantWrapper<std::string> : public VariantImpl<std::string> {
 public:
