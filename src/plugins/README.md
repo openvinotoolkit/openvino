@@ -1,6 +1,6 @@
 # OpenVINO Plugins
 
-OpenVINO Plugins provide a support of hardware device.
+OpenVINO Plugins provide support for hardware devices.
 
 The list of supported plugins:
 
