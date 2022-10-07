@@ -11,7 +11,6 @@ namespace ov {
 namespace test {
 class SnippetsTestsCommon : virtual public ov::test::SubgraphBaseTest {
 protected:
-    void enableSnippetsDynamismSupport();
     void validateNumSubgraphs();
 
     void validateOriginalLayersNamesByType(const std::string& layerType, const std::string& originalLayersNames);

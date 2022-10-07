@@ -55,10 +55,5 @@ void SnippetsTestsCommon::validateOriginalLayersNamesByType(const std::string& l
     ASSERT_TRUE(false) << "Layer type '" << layerType << "' was not found in compiled model";
 }
 
-void SnippetsTestsCommon::enableSnippetsDynamismSupport() {
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_DYNAMISM_ENABLED)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_DYNAMISM_ENABLED, InferenceEngine::PluginConfigParams::YES});
-    }
-}
 }  // namespace test
 }  // namespace ov

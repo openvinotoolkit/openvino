@@ -55,15 +55,6 @@ protected:
     void SetUp() override;
 };
 
-class AddSinhDynamic : public testing::WithParamInterface<ov::test::snippets::AddDynamicParams>,
-            virtual public ov::test::SnippetsTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddDynamicParams> obj);
-
-protected:
-    void SetUp() override;
-};
-
 } // namespace snippets
 } // namespace test
 } // namespace ov

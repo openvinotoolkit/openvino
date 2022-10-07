@@ -68,36 +68,6 @@ void AddSinhConst::SetUp() {
     function = f.getOriginal();
 }
 
-std::string AddSinhDynamic::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddDynamicParams> obj) {
-    InputShape inputShape1, inputShape2;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(inputShape1, inputShape2, num_nodes, num_subgraphs, targetDevice) = obj.param;
-
-    std::ostringstream result;
-    result << "IS[0]=" << CommonTestUtils::partialShape2str({inputShape1.first}) << "_";
-    result << "IS[1]=" << CommonTestUtils::partialShape2str({inputShape2.first}) << "_";
-    result << "TS[0]=";
-    for (const auto& item : inputShape1.second)
-        result << CommonTestUtils::vec2str(item) << "_";
-    result << "TS[1]=";
-    for (const auto& item : inputShape2.second)
-        result << CommonTestUtils::vec2str(item) << "_";
-    result << "#N=" << num_nodes << "_";
-    result << "#S=" << num_subgraphs << "_";
-    result << "targetDevice=" << targetDevice;
-    return result.str();
-}
-
-void AddSinhDynamic::SetUp() {
-    InputShape inputShape1, inputShape2;
-    std::tie(inputShape1, inputShape2, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes({inputShape1, inputShape2});
-
-    auto f = ov::test::snippets::AddSinhFunction({inputShape1.first, inputShape2.first});
-    function = f.getOriginal();
-}
-
 TEST_P(Add, CompareWithRefImpl) {
     run();
     validateNumSubgraphs();
@@ -109,13 +79,6 @@ TEST_P(AddSinh, CompareWithRefImpl) {
 }
 
 TEST_P(AddSinhConst, CompareWithRefImpl) {
-    run();
-    validateNumSubgraphs();
-}
-
-TEST_P(AddSinhDynamic, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    enableSnippetsDynamismSupport();
     run();
     validateNumSubgraphs();
 }

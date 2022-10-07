@@ -42,16 +42,6 @@ protected:
     void SetUp() override;
 };
 
-class ThreeInputsEltwiseSinhDynamic : public testing::WithParamInterface<ov::test::snippets::ThreeInputsEltwiseDynamicParams>,
-                      virtual public ov::test::SnippetsTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::ThreeInputsEltwiseDynamicParams> obj);
-
-protected:
-    void SetUp() override;
-};
-
-
 } // namespace snippets
 } // namespace test
 } // namespace ov
