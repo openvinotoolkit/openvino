@@ -389,12 +389,7 @@ void MulticlassNmsLayerTest::SetUp() {
     m_attrs.background_class = backgroundClass;
     m_attrs.normalized = normalized;
 
-    std::shared_ptr<opset9::MulticlassNms> nms;
-    if (paramOuts.size() > 2) {
-        nms = std::make_shared<opset9::MulticlassNms>(paramOuts[0], paramOuts[1], paramOuts[2], m_attrs);
-    } else {
-        nms = std::make_shared<opset9::MulticlassNms>(paramOuts[0], paramOuts[1], m_attrs);
-    }
+    const auto nms = CreateNmsOp(paramOuts);
 
     if (!m_outStaticShape) {
         OutputVector results = {
