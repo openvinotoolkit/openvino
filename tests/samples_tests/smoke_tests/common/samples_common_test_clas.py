@@ -393,6 +393,9 @@ class SamplesCommonTestClass():
 
         log.info("Running command: {} {}".format(self.executable_path, cmd_line))
         retcode, stdout, stderr = shell([self.executable_path, cmd_line])
+        print(retcode)
+        print(stdout)
+        print(stderr)
 
         # Execute performance:
         if Environment.env['performance'] and retcode == 0:
