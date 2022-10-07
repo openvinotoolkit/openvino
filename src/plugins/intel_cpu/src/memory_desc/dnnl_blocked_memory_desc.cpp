@@ -400,17 +400,27 @@ bool DnnlBlockedMemoryDesc::isTailCFormat() const {
     return true;
 }
 
+template <class Dest, class Src>
+std::vector<Dest> convert_to_vector(const Src* source, size_t size) {
+    std::vector<Dest> result(size);
+    for (size_t i = 0; i < size; i++) {
+        result[i] = static_cast<Dest>(source[i]);
+    }
+    return result;
+}
+
 static dnnl::memory::desc cloneDescWithNewDims(const dnnl::memory::desc& desc, const VectorDims& dims, const VectorDims& order) {
     using namespace dnnl::impl::utils;
     auto mklDims = DnnlExtensionUtils::convertToDnnlDims(dims);
     const auto offsetPadding = desc.data.offset0;
     dnnl::memory::desc newMklDesc = desc;
     array_copy(newMklDesc.data.dims, mklDims.data(), mklDims.size());
-    std::vector<int> perm(order.begin(), order.begin() + mklDims.size());
+    std::vector<int> perm(convert_to_vector<int, size_t>(order.data(), mklDims.size()));
     auto& blockingDesc = newMklDesc.data.format_desc.blocking;
     auto numInnerBlks = blockingDesc.inner_nblks;
-    std::vector<int> innerBlks(std::begin(blockingDesc.inner_blks), std::begin(blockingDesc.inner_blks) + numInnerBlks);
-    std::vector<int> innerIdxs(std::begin(blockingDesc.inner_idxs), std::begin(blockingDesc.inner_idxs) + numInnerBlks);
+
+    std::vector<int> innerBlks(convert_to_vector<int, dnnl_dim_t>(blockingDesc.inner_blks, numInnerBlks));
+    std::vector<int> innerIdxs(convert_to_vector<int, dnnl_dim_t>(blockingDesc.inner_idxs, numInnerBlks));
     auto retCode = dnnl::impl::fill_blocked(newMklDesc.data, perm, innerBlks, innerIdxs);
     if (retCode != dnnl::impl::status::success) {
         IE_THROW() << "Can not clone DnnlBlockedMemoryDesc with dims: " << MemoryDescUtils::dims2str(dims);

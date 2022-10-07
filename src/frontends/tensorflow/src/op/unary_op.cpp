@@ -4,6 +4,7 @@
 
 #include "op_table.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset9.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -53,6 +54,7 @@ template OutputVector translate_unary_op<Sign>(const NodeContext& node);
 template OutputVector translate_unary_op<SoftPlus>(const NodeContext& node);
 template OutputVector translate_unary_op<Tan>(const NodeContext& node);
 template OutputVector translate_unary_op<Tanh>(const NodeContext& node);
+template OutputVector translate_unary_op<opset9::SoftSign>(const NodeContext& node);
 template OutputVector translate_unary_op<Swish>(const NodeContext& node);
 
 }  // namespace op

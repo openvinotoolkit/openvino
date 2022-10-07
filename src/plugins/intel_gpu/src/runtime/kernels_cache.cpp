@@ -14,6 +14,7 @@
 #include <fstream>
 #include <set>
 #include <string>
+#include <tuple>
 #include <memory>
 #include <utility>
 
@@ -77,7 +78,7 @@ size_t kernels_cache::get_max_kernels_per_batch() const {
 
 void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll::GetProgramSource");
-    std::map<std::string, std::vector<batch_program>> program_buckets;
+    std::map<std::string, std::tuple<int32_t, std::vector<batch_program>>> program_buckets;
 
     for (const auto& code : kernels_source_code) {
         std::string full_code = code.kernel_strings->jit + code.kernel_strings->str + code.kernel_strings->undefs;
@@ -100,16 +101,17 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             key += " __DUMP_CUSTOM_PROGRAM__";  // Adding label to key so it would be separated from other programs
         }
 
-        auto& current_bucket = program_buckets[key];
+        auto& bucket_id = std::get<0>(program_buckets[key]);
+        auto& current_bucket = std::get<1>(program_buckets[key]);
         if (current_bucket.empty()) { // new bucket
             const auto& batch_id = 0;
-            const auto& bucket_id = static_cast<int32_t>(program_buckets.size() - 1);
+            // increase bucket id if and only if new bucket comes
+            bucket_id = static_cast<int32_t>(program_buckets.size() - 1);
             current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
         }
 
         // Create new kernels batch when the limit is reached
         if (current_bucket.back().kernels_counter >= get_max_kernels_per_batch()) {
-            const auto& bucket_id =  static_cast<int32_t>(program_buckets.size());
             const auto& batch_id = static_cast<int32_t>(current_bucket.size());
             current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
         }
@@ -129,7 +131,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
     // full source code (jit + template + undef sections) of all kernels in the batches
     for (auto& c : program_buckets) {
         auto options = c.first;
-        auto& batches = c.second;
+        auto& batches = std::get<1>(c.second);
         for (auto& b : batches) {
             std::string full_code = options + " " + _engine.get_device_info().driver_version;
             for (auto& ss : b.source)

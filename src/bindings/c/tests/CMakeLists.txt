@@ -45,7 +45,7 @@ file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ov_*.cpp)
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 add_executable(${TARGET_NAME} ${SOURCES} ${HEADERS})
-target_link_libraries(${TARGET_NAME} PRIVATE openvino_c
+target_link_libraries(${TARGET_NAME} PRIVATE openvino_c openvino::util
     commonTestUtils gtest_main)
 
 target_include_directories(${TARGET_NAME} PUBLIC

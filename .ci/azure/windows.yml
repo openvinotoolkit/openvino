@@ -156,6 +156,7 @@ jobs:
         -DENABLE_FASTER_BUILD=ON ^
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
         -DENABLE_TESTS=ON ^
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DENABLE_STRICT_DEPENDENCIES=OFF ^
         -DENABLE_PYTHON=ON ^
         -DBUILD_nvidia_plugin=OFF ^
@@ -242,8 +243,8 @@ jobs:
     displayName: 'Paddle Frontend UT'
     continueOnError: true
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\tensorflow_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Tensorflow.xml
-    displayName: 'Tensorflow Frontend UT'
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Tensorflow.xml
+    displayName: 'TensorFlow Frontend Unit Tests'
     continueOnError: false
 
     # set PATH=$(IB_DIR);%PATH%

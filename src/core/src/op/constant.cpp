@@ -462,7 +462,7 @@ void ov::op::v0::Constant::set_data_shape(const ov::Shape& shape) {
 }
 
 shared_ptr<ov::Node> ov::op::v0::Constant::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Constant_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Constant_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Constant>(*this);
 }
@@ -535,7 +535,7 @@ void ov::op::v0::Constant::update_identical_flags(bool is_checked, bool identica
 }
 
 bool ov::op::v0::Constant::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Constant_visit_attributes);
+    OV_OP_SCOPE(v0_Constant_visit_attributes);
     ov::Shape prev_shape = m_shape;
     element::Type prev_type = m_element_type;
     visitor.on_attribute("element_type", m_element_type);
@@ -552,14 +552,14 @@ bool ov::op::v0::Constant::visit_attributes(AttributeVisitor& visitor) {
 }
 
 bool ov::op::v0::Constant::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Constant_evaluate);
+    OV_OP_SCOPE(v0_Constant_evaluate);
     auto output = outputs[0];
     output->write(get_data_ptr(), output->get_size_in_bytes());
     return true;
 }
 
 bool ov::op::v0::Constant::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Constant_has_evaluate);
+    OV_OP_SCOPE(v0_Constant_has_evaluate);
     return true;
 }
 
