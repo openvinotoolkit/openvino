@@ -86,7 +86,7 @@ def interpolate(
 
 
 @nameable_op
-def is_nan(data: NodeInput, name: Optional[str]=None) -> Node:
+def is_nan(data: NodeInput, name: Optional[str] = None) -> Node:
     """
     Performs element-wise mapping from NaN to True. Other values are mapped to False.
 

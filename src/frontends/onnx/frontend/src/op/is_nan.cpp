@@ -3,6 +3,7 @@
 //
 
 #include "op/is_nan.hpp"
+
 #include "openvino/opsets/opset10.hpp"
 
 namespace ngraph {

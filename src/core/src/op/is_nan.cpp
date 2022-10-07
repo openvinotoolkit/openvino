@@ -7,7 +7,7 @@
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
-ov::op::v10::IsNaN::IsNaN(const Output<Node>& data) : op::Op{{data}}{
+ov::op::v10::IsNaN::IsNaN(const Output<Node>& data) : op::Op{{data}} {
     constructor_validate_and_infer_types();
 }
 
@@ -20,8 +20,8 @@ std::shared_ptr<ov::Node> ov::op::v10::IsNaN::clone_with_new_inputs(const Output
 void ov::op::v10::IsNaN::validate_and_infer_types() {
     OV_OP_SCOPE(v10_IsNaN_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this,
-                        get_input_element_type(0).is_real(),
-                        "The element type of the input tensor must be a floating point number.");
+                          get_input_element_type(0).is_real(),
+                          "The element type of the input tensor must be a floating point number.");
     set_output_type(0, ov::element::Type_t::boolean, get_input_partial_shape(0));
 }
 
