@@ -546,7 +546,8 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
     // Read meta data
     // meta_data - MO meta
     // framework_meta - Framework specific meta
-    std::unordered_set<std::string> meta_names = {"meta_data", "framework_meta"};
+    // quantization_parameters - NNCF quantization section
+    std::unordered_set<std::string> meta_names = {"meta_data", "framework_meta", "quantization_parameters"};
     for (const auto& it : meta_names)
         read_meta_data(function, it, root.child(it.c_str()));
 
