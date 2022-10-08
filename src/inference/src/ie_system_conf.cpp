@@ -12,10 +12,10 @@
 
 #ifdef ENABLE_XBYAK
 
-#define XBYAK_NO_OP_NAMES
-#define XBYAK_UNDEF_JNL
+#    define XBYAK_NO_OP_NAMES
+#    define XBYAK_UNDEF_JNL
 
-#include <xbyak/xbyak_util.h>
+#    include <xbyak/xbyak_util.h>
 
 namespace InferenceEngine {
 
@@ -108,7 +108,7 @@ bool with_cpu_x86_avx512_core_amx() {
     return false;
 }
 
-#endif // ENABLE_XBYAK
+#endif  // ENABLE_XBYAK
 
 bool checkOpenMpEnvVars(bool includeOMPNumThreads) {
     for (auto&& var : {"GOMP_CPU_AFFINITY",
