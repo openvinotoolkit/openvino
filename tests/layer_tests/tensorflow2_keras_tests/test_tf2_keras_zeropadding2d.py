@@ -26,8 +26,8 @@ class TestKerasZeroPadding2D(CommonTF2LayerTest):
              padding=2, data_format='channels_last'),
         dict(input_names=["x1"], input_shapes=[[3, 2, 4, 6]], input_type=tf.float32,
              padding=(3, 0), data_format='channels_last'),
-        dict(input_names=["x1"], input_shapes=[[1, 3, 8, 7]], input_type=tf.float32,
-             padding=((5, 1), (3, 4)), data_format='channels_last'),
+        pytest.param(dict(input_names=["x1"], input_shapes=[[1, 3, 8, 7]], input_type=tf.float32,
+                          padding=((5, 1), (3, 4)), data_format='channels_last'), marks=pytest.mark.precommit_tf_fe),
     ]
 
     @pytest.mark.parametrize("params", test_data_channels_last)
