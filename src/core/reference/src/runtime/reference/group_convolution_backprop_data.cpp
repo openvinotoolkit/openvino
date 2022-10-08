@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/group_convolution.hpp"
 #include "ngraph/runtime/reference/group_convolution_backprop_data.hpp"
+
+#include "ngraph/runtime/reference/group_convolution.hpp"
 
 namespace ngraph {
 namespace runtime {

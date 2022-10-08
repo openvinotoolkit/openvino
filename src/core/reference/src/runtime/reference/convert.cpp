@@ -5,8 +5,8 @@
 #include "ngraph/runtime/reference/convert.hpp"
 
 #ifdef ENABLE_XBYAK
-# include "jit_generator.hpp"
-#endif // ENABLE_XBYAK
+#    include "jit_generator.hpp"
+#endif  // ENABLE_XBYAK
 
 namespace ngraph {
 namespace runtime {
@@ -207,7 +207,7 @@ void convert_impl(const TI* arg, TO* out, size_t count) {
     }
 }
 
-#endif // ENABLE_XBYAK
+#endif  // ENABLE_XBYAK
 
 }  // namespace
 
