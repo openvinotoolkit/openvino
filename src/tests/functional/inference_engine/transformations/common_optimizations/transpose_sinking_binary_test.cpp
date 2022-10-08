@@ -1,0 +1,654 @@
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <transformations/common_optimizations/transpose_sinking_binary.hpp>
+
+#include <transformations/init_node_info.hpp>
+#include <openvino/frontend/manager.hpp>
+#include <openvino/opsets/opset8.hpp>
+#include <openvino/pass/manager.hpp>
+#include "common_test_utils/ngraph_test_utils.hpp"
+
+#include "ngraph/pass/visualize_tree.hpp" // DEBUG 
+
+#include <functional>
+
+#include "gtest/gtest.h"
+
+namespace {
+
+using NodePtr = std::shared_ptr<ov::Node>;
+using Nodes = std::vector<NodePtr>;
+using ModelPtr = std::shared_ptr<ov::Model>;
+
+using FloatPtr = std::unique_ptr<float[]>;
+
+template <class IterT, class T>
+void Fill(IterT begin_iter, IterT end_iter, T value, T step)
+{
+    while (begin_iter != end_iter)
+    {
+        *begin_iter = value;
+        value += step;
+        ++begin_iter;
+    }
+}
+
+FloatPtr GenerateTestInput(const ov::Shape & input_shape)
+{
+    const size_t size = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<size_t>());
+
+    FloatPtr input(new float[size]);
+    Fill(input.get(), input.get() + size, 0.01, 0.01);
+
+    return input;
+}
+
+std::string GetFinalNodeName(std::shared_ptr<ov::Model> model, int index = 0)
+{
+    NodePtr result_node = model->get_results()[index];
+    return result_node->get_input_node_ptr(0)->get_friendly_name();
+}
+
+}
+
+TEST(TransposeSinkingBinaryTest, TransposeSinkingConcatMultTransposesForward) {
+
+    ngraph::Shape input_shape{1, 4, 1, 4};
+    auto input_type = ngraph::element::f32;
+
+    std::shared_ptr<ngraph::Function> function, reference_function, original_function;
+    {
+        auto X = std::make_shared<ov::opset8::Parameter>(input_type, input_shape);
+
+        auto const1 = ov::opset8::Constant::create(input_type, ngraph::Shape{1, 4, 1, 4}, {1});
+
+        auto const2 = ov::opset8::Constant::create(input_type, ngraph::Shape{1, 4, 4, 1}, {2});
+        auto ng_order2 = std::make_shared<ov::opset8::Constant>(ngraph::element::u64, ngraph::Shape{4}, ngraph::Shape{0, 2, 3, 1});
+        auto transpose2 = std::make_shared<ov::opset8::Transpose>(const2, ng_order2);
+
+        auto const3 = ov::opset8::Constant::create(input_type, ngraph::Shape{1, 4, 1, 4}, {3});
+
+        auto const4 = ov::opset8::Constant::create(input_type, ngraph::Shape{1, 4, 4, 1}, {4});
+        auto ng_order4 = std::make_shared<ov::opset8::Constant>(ngraph::element::u64, ngraph::Shape{4}, ngraph::Shape{0, 2, 3, 1});
+        auto transpose4 = std::make_shared<ov::opset8::Transpose>(const4, ng_order4);
+
+        auto const5 = ov::opset8::Constant::create(input_type, ngraph::Shape{1, 4, 1, 4}, {5});
+        auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{X, const1, transpose2, const3, transpose4, const5}, 1);
+
+        function = std::make_shared<ngraph::Function>(concat, ngraph::ParameterVector{X});
+        original_function = function->clone();
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::TransposeSinkingConcatForward>();
+        manager.run_passes(function);
+        ASSERT_NO_THROW(check_rt_info(function));
+
+        EXPECT_EQ(GetFinalNodeName(original_function), GetFinalNodeName(function));
+    }
+
+    {
+        auto X = std::make_shared<ov::opset8::Parameter>(input_type, input_shape);
+
+        auto ng_order = std::make_shared<ov::opset8::Constant>(ngraph::element::u64, ngraph::Shape{4}, ngraph::Shape{0, 3, 1, 2});
+        auto transpose = std::make_shared<ov::opset8::Transpose>(X, ng_order);
+
+        auto const1 = ov::opset8::Constant::create(input_type, ngraph::Shape{1, 4, 1, 4}, {1});
+        auto ng_order1 = std::make_shared<ov::opset8::Constant>(ngraph::element::u64, ngraph::Shape{4}, ngraph::Shape{0, 3, 1, 2});
+        auto transpose1 = std::make_shared<ov::opset8::Transpose>(const1, ng_order1);
+        
+        auto const2 = ov::opset8::Constant::create(input_type, ngraph::Shape{1, 4, 4, 1}, {2});
+
+        auto const3 = ov::opset8::Constant::create(input_type, ngraph::Shape{1, 4, 1, 4}, {3});
+        auto ng_order3 = std::make_shared<ov::opset8::Constant>(ngraph::element::u64, ngraph::Shape{4}, ngraph::Shape{0, 3, 1, 2});
+        auto transpose3 = std::make_shared<ov::opset8::Transpose>(const3, ng_order3);
+
+        auto const4 = ov::opset8::Constant::create(input_type, ngraph::Shape{1, 4, 4, 1}, {4});
+        auto ng_order4 = std::make_shared<ov::opset8::Constant>(ngraph::element::u64, ngraph::Shape{4}, ngraph::Shape{0, 2, 3, 1});
+        auto transpose4 = std::make_shared<ov::opset8::Transpose>(const4, ng_order4);
+        auto ng_order4_1 = std::make_shared<ov::opset8::Constant>(ngraph::element::u64, ngraph::Shape{4}, ngraph::Shape{0, 3, 1, 2});
+        auto transpose4_1 = std::make_shared<ov::opset8::Transpose>(transpose4, ng_order4_1);
+
+        auto const5 = ov::opset8::Constant::create(input_type, ngraph::Shape{1, 4, 1, 4}, {5});
+        auto ng_order5 = std::make_shared<ov::opset8::Constant>(ngraph::element::u64, ngraph::Shape{4}, ngraph::Shape{0, 3, 1, 2});
+        auto transpose5 = std::make_shared<ov::opset8::Transpose>(const5, ng_order5);
+
+        auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{transpose, transpose1, const2, transpose3, transpose4_1, transpose5}, 2);
+
+        auto ng_order_after = std::make_shared<ov::opset8::Constant>(ngraph::element::u64, ngraph::Shape{4}, ngraph::Shape{0, 2, 3, 1});
+        auto transpose_after = std::make_shared<ov::opset8::Transpose>(concat, ng_order_after);
+
+        reference_function = std::make_shared<ngraph::Function>(transpose_after, ngraph::ParameterVector{X});
+    }
+
+    FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    const FunctionsComparator::Result result = func_comparator(function, reference_function);
+    ASSERT_TRUE(result.valid) << result.message;
+
+    FloatPtr test_input = GenerateTestInput(input_shape);
+    ov::Tensor input_tensor{input_type, input_shape, test_input.get()};
+    ov::TensorVector function_result(1), reference_function_result(1);
+    ASSERT_TRUE(original_function->evaluate(function_result, ov::TensorVector{input_tensor}));
+    EXPECT_EQ(function_result.size(), 1);
+    EXPECT_EQ(function_result[0].get_element_type(), ngraph::element::f32);
+
+    ASSERT_TRUE(reference_function->evaluate(reference_function_result, ov::TensorVector{input_tensor}));
+    EXPECT_EQ(reference_function_result.size(), 1);
+    EXPECT_EQ(reference_function_result[0].get_element_type(), ngraph::element::f32);
+
+    EXPECT_EQ(reference_function_result[0].get_shape(), function_result[0].get_shape());
+    EXPECT_EQ(reference_function_result[0].get_size(), function_result[0].get_size());
+
+    const float * function_result_data = function_result[0].data<float>();
+    const float * reference_function_result_data = reference_function_result[0].data<float>();
+    for (size_t i = 0; i < reference_function_result[0].get_size(); ++i)
+        EXPECT_EQ(function_result_data[i], reference_function_result_data[i]);
+}
+
+TEST(TransposeSinkingBinaryTest, TransposeSinkingMultipleAddBackward) {
+
+    ngraph::Shape input_shape{1, 4, 1, 4};
+    auto input_type = ngraph::element::f32;
+    const size_t bin_ops_num = 10; 
+
+    std::shared_ptr<ngraph::Function> function, reference_function, original_function;
+    {
+        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+
+        std::shared_ptr<ov::Node> in_operation = X;
+        for (size_t i = 0; i < bin_ops_num; ++i) {
+            auto right_const = ov::opset9::Constant::create(input_type, ngraph::Shape{1, 4, 1, 4}, {2});
+            in_operation = std::make_shared<ov::opset9::Add>(in_operation, right_const);
+        }
+
+        auto ng_order = std::make_shared<ov::opset9::Constant>(ngraph::element::u64, ngraph::Shape{4}, ngraph::Shape{0, 2, 3, 1});
+        auto transpose = std::make_shared<ov::opset9::Transpose>(in_operation, ng_order);
+
+        function = std::make_shared<ngraph::Function>(transpose, ngraph::ParameterVector{X});
+        original_function = function->clone();
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::VisualizeTree>("./0before.png"); // DEBUG
+        manager.register_pass<ov::pass::TransposeSinkingBinaryBackward>();
+        manager.register_pass<ngraph::pass::VisualizeTree>("./1after.png"); // DEBUG
+        manager.run_passes(function);
+        ASSERT_NO_THROW(check_rt_info(function));
+
+        EXPECT_EQ(GetFinalNodeName(original_function), GetFinalNodeName(function));
+    }
+
+    {
+        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+
+        std::shared_ptr<ov::Node> in_operation = X;
+
+        {
+            auto ng_order = std::make_shared<ov::opset9::Constant>(ngraph::element::u64, ngraph::Shape{4}, ngraph::Shape{0, 2, 3, 1});
+            in_operation = std::make_shared<ov::opset9::Transpose>(in_operation, ng_order);
+        }
+
+        for (size_t i = 0; i < bin_ops_num; ++i) {
+            auto right_const = ov::opset9::Constant::create(input_type, ngraph::Shape{1, 4, 1, 4}, {2});
+            auto ng_order = std::make_shared<ov::opset9::Constant>(ngraph::element::u64, ngraph::Shape{4}, ngraph::Shape{0, 2, 3, 1});
+            auto right_operation = std::make_shared<ov::opset9::Transpose>(right_const, ng_order);
+            in_operation = std::make_shared<ov::opset9::Add>(in_operation, right_operation);
+        }
+
+        reference_function = std::make_shared<ngraph::Function>(in_operation, ngraph::ParameterVector{X});
+    }
+
+    FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    const FunctionsComparator::Result result = func_comparator(function, reference_function);
+    ASSERT_TRUE(result.valid) << result.message;
+
+    FloatPtr test_input = GenerateTestInput(input_shape);
+    ov::Tensor input_tensor{input_type, input_shape, test_input.get()};
+    ov::TensorVector function_result(1), reference_function_result(1);
+    ASSERT_TRUE(original_function->evaluate(function_result, ov::TensorVector{input_tensor}));
+    EXPECT_EQ(function_result.size(), 1);
+    EXPECT_EQ(function_result[0].get_element_type(), ngraph::element::f32);
+
+    ASSERT_TRUE(reference_function->evaluate(reference_function_result, ov::TensorVector{input_tensor}));
+    EXPECT_EQ(reference_function_result.size(), 1);
+    EXPECT_EQ(reference_function_result[0].get_element_type(), ngraph::element::f32);
+
+    EXPECT_EQ(reference_function_result[0].get_shape(), function_result[0].get_shape());
+    EXPECT_EQ(reference_function_result[0].get_size(), function_result[0].get_size());
+
+    const float * function_result_data = function_result[0].data<float>();
+    const float * reference_function_result_data = reference_function_result[0].data<float>();
+    for (size_t i = 0; i < reference_function_result[0].get_size(); ++i)
+        EXPECT_EQ(function_result_data[i], reference_function_result_data[i]);
+}
+
+// --------------------------------------------------------------------------------------
+
+struct GraphDesc
+{
+    std::shared_ptr<ov::opset8::Parameter> input;
+    Nodes tail_nodes;
+};
+
+class GraphBuilder {
+using SelfPtr = std::unique_ptr<GraphBuilder>;
+public:
+    GraphBuilder() = default;
+    virtual ~GraphBuilder() = default;
+
+    void SetNextBuilder(SelfPtr next_builder) { _next_builder.swap(next_builder); }
+    void build(GraphDesc & graph) const
+    {
+        buildNodes(graph);
+        if (_next_builder)
+            _next_builder->build(graph);
+    }
+
+    static ov::element::Type GetElementType() { return _element_type; }
+    static void SetElementType(ov::element::Type type) { _element_type = type; }
+protected:
+    virtual void buildNodes(GraphDesc & graph) const = 0;
+private:
+    static ov::element::Type _element_type;
+    SelfPtr _next_builder = nullptr;
+};
+ov::element::Type GraphBuilder::_element_type = ov::element::f32;
+using GraphBuilderPtr = std::unique_ptr<GraphBuilder>;
+
+class CreateInput : public GraphBuilder {
+public:
+    CreateInput(const ov::Shape & input_shape) :
+        _input_shape(input_shape) {}
+    void buildNodes(GraphDesc & graph) const override;
+private:
+    const ov::Shape _input_shape;
+};
+
+void CreateInput::buildNodes(GraphDesc & graph) const
+{
+    graph.input = std::make_shared<ov::opset8::Parameter>(GetElementType(), _input_shape);
+}
+
+namespace {
+
+std::shared_ptr<ov::opset9::Constant> CreateConstant(ov::element::Type element_type, const ov::Shape & shape)
+{
+    const size_t size = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
+
+    std::vector<float> const_values(size);
+    Fill(const_values.begin(), const_values.end(), 0.01, 0.01);
+
+    return ov::opset8::Constant::create(element_type, shape, const_values);
+}
+
+} // namespace
+
+class CreateConstants : public GraphBuilder {
+public:
+    CreateConstants(size_t constants_num,
+                    const ov::Shape & constant_shape) :
+        _constants_num(constants_num),
+        _constant_shape(constant_shape) {}
+    void buildNodes(GraphDesc & graph) const override;
+private:
+    const size_t _constants_num;
+    const ov::Shape _constant_shape;
+};
+
+void CreateConstants::buildNodes(GraphDesc & graph) const
+{
+    graph.tail_nodes.reserve(graph.tail_nodes.size() + _constants_num);
+    for (int i = 0; i < _constants_num; ++i) {
+        graph.tail_nodes.push_back(CreateConstant(GetElementType(), _constant_shape));
+    }
+}
+
+class AppendInput : public GraphBuilder {
+public:
+    AppendInput() = default;
+    void buildNodes(GraphDesc & graph) const override;
+};
+
+void AppendInput::buildNodes(GraphDesc & graph) const
+{
+    graph.tail_nodes.push_back(graph.input);
+}
+
+class AppendInputTranpose : public GraphBuilder {
+public:
+    AppendInputTranpose(const ov::AxisVector & transpose_axis_order) :
+                        _transpose_axis_order(transpose_axis_order) {}
+    void buildNodes(GraphDesc & graph) const override;
+private:
+    const ov::AxisVector _transpose_axis_order;
+};
+
+void AppendInputTranpose::buildNodes(GraphDesc & graph) const
+{
+    auto tranpose_constant = std::make_shared<ov::opset8::Constant>(ngraph::element::u64,
+                                                                    ov::Shape{_transpose_axis_order.size()},
+                                                                    _transpose_axis_order);
+    graph.tail_nodes.push_back(std::make_shared<ov::opset8::Transpose>(graph.input, tranpose_constant));
+}
+
+class AppendTranpose : public GraphBuilder {
+public:
+    AppendTranpose(const ov::AxisVector & transpose_axis_order,
+                           const ov::AxisVector & input_axis) :
+                           _transpose_axis_order(transpose_axis_order),
+                           _input_axis(input_axis) {}
+    void buildNodes(GraphDesc & graph) const override;
+private:
+    const ov::AxisVector _transpose_axis_order;
+    const ov::AxisVector _input_axis;
+};
+
+void AppendTranpose::buildNodes(GraphDesc & graph) const
+{
+    for (size_t i : _input_axis) {
+        auto tranpose_constant = std::make_shared<ov::opset8::Constant>(ngraph::element::u64,
+                                                                    ov::Shape{_transpose_axis_order.size()},
+                                                                    _transpose_axis_order);
+        graph.tail_nodes[i] = std::make_shared<ov::opset8::Transpose>(graph.tail_nodes[i], tranpose_constant);
+    }
+}
+
+class AppendConcat : public GraphBuilder {
+public:
+    AppendConcat(size_t concat_axis,
+                 const ov::AxisVector & input_axis_order) :
+                    _concat_axis(concat_axis),
+                    _input_axis_order(input_axis_order) {}
+    void buildNodes(GraphDesc & graph) const override;
+private:
+    const size_t _concat_axis;
+    const ov::AxisVector _input_axis_order;
+};
+
+void AppendConcat::buildNodes(GraphDesc & graph) const
+{
+    ov::OutputVector input_nodes(_input_axis_order.size());
+    for (size_t i = 0; i < _input_axis_order.size(); ++i) {
+        input_nodes[i] = graph.tail_nodes[_input_axis_order[i]];
+    }
+
+    graph.tail_nodes[0] = std::make_shared<ov::opset8::Concat>(input_nodes, _concat_axis);
+    graph.tail_nodes.resize(1);
+}
+
+template <typename BinaryT>
+class AppendBinary : public GraphBuilder {
+public:
+    AppendBinary(const ov::AxisVector & input_axis_order) :
+                    _input_axis_order(input_axis_order) {}
+    void buildNodes(GraphDesc & graph) const override;
+private:
+    const ov::AxisVector _input_axis_order;
+};
+
+template <typename BinaryT>
+void AppendBinary<BinaryT>::buildNodes(GraphDesc & graph) const
+{
+    ov::OutputVector input_nodes(_input_axis_order.size());
+    for (size_t i = 0; i < _input_axis_order.size(); ++i) {
+        input_nodes[i] = graph.tail_nodes[_input_axis_order[i]];
+    }
+
+    graph.tail_nodes[0] = std::make_shared<BinaryT>(input_nodes[0], input_nodes[1]);
+    graph.tail_nodes.resize(1);
+}
+
+// --------------------------------------------------------------------------------------
+
+namespace {
+#if (__cplusplus < 201402L)
+template<typename T, typename... Args>
+std::unique_ptr<T> openvino_make_unique(Args&&... args)
+{
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+#else
+#define openvino_make_unique std::make_unique
+#endif
+} // namespace
+
+#define NEW(type, ...) \
+    std::move(openvino_make_unique<type>(__VA_ARGS__))
+
+template <typename T>
+GraphBuilderPtr CreateBuilder(T builder)
+{
+    return builder;
+}
+
+template<typename T, typename... Args>
+GraphBuilderPtr CreateBuilder(T builder, Args... args)
+{
+    GraphBuilderPtr prev_builder = CreateBuilder(std::forward<Args>(args)...);
+    builder->SetNextBuilder(std::move(prev_builder));
+    return builder;
+}
+
+template<typename T, typename... Args>
+ModelPtr CreateModel(T builder, Args... args)
+{
+    GraphBuilderPtr graph_builder = CreateBuilder(std::forward<T>(builder), std::forward<Args>(args)...);
+
+    GraphDesc graph_desc;
+    graph_builder->build(graph_desc);
+
+    return std::make_shared<ov::Model>(graph_desc.tail_nodes[0], ngraph::ParameterVector{graph_desc.input});
+}
+
+// ----------------------------------------------------------------------------
+
+class IPassManagerFactory {
+public:
+    IPassManagerFactory() = default;
+    virtual ~IPassManagerFactory() = default;
+    virtual ngraph::pass::Manager createManager() const = 0;
+};
+
+using PassManagerFactoryPtr = std::shared_ptr<IPassManagerFactory>;
+
+template <typename PassT>
+class PassManagerFactory : public IPassManagerFactory {
+public:
+    ngraph::pass::Manager createManager() const override;
+};
+
+template <typename PassT>
+ngraph::pass::Manager PassManagerFactory<PassT>::createManager() const
+{
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<PassT>();
+    return manager;
+}
+
+template <typename PassT>
+PassManagerFactoryPtr CreatePassManagerFactory()
+{
+    return std::make_shared<PassManagerFactory<PassT>>();
+}
+
+// ----------------------------------------------------------------------------
+
+using TestTuple = std::tuple<ModelPtr /* function */,
+                             ModelPtr /* reference_function */,
+                             PassManagerFactoryPtr>;
+
+class TransposeSinkingBinaryTestFixture: public CommonTestUtils::TestsCommon,
+                                        public ::testing::WithParamInterface<TestTuple> {
+public:
+    void SetUp() override;
+public:
+    ModelPtr model, reference_model;
+    ngraph::pass::Manager pass_manager;
+};
+
+void TransposeSinkingBinaryTestFixture::SetUp() {
+    // TODO: use auto & [ ... ] = this->GetParam() when C++17
+    PassManagerFactoryPtr pass_manager_factory;
+    std::tie(model, reference_model, pass_manager_factory) = this->GetParam();
+    pass_manager = pass_manager_factory->createManager();
+}
+
+namespace {
+
+void execute_test(ModelPtr model,
+                  ModelPtr reference_model,
+                  ngraph::pass::Manager pass_manager)
+{
+    ModelPtr original_model = model->clone();
+
+    pass_manager.run_passes(model);
+    
+    ASSERT_NO_THROW(check_rt_info(model));
+    EXPECT_EQ(GetFinalNodeName(model), GetFinalNodeName(original_model));
+
+    FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    const FunctionsComparator::Result result = func_comparator(model, reference_model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+} // namespace
+
+// ----------------------------------------------------------------------------
+
+TEST_P(TransposeSinkingBinaryTestFixture, CompareFunctions) {
+    execute_test(model, reference_model, pass_manager);
+}
+
+template <typename BinaryT>
+TestTuple CreateBinaryBackwardTestTuple(const ov::AxisVector & binary_input_axis_order)
+{
+    return std::make_tuple(CreateModel(NEW(CreateInput, ov::Shape{1, 4, 4, 1} /* input_shape */),
+                                       NEW(CreateConstants,
+                                           1 /* constants_num */,
+                                           ov::Shape{1, 4, 1, 4} /* constant_shape */),
+                                       NEW(AppendInput),
+                                       NEW(AppendBinary<BinaryT>, binary_input_axis_order),
+                                       NEW(AppendTranpose,
+                                           ov::Shape{0, 3, 1, 2} /* transpose_axis_order */,
+                                           ov::AxisVector{0} /* input_axis */)),
+                           CreateModel(NEW(CreateInput,
+                                           ov::Shape{1, 4, 4, 1} /* input_shape */),
+                                       NEW(CreateConstants,
+                                           1 /* constants_num */,
+                                           ov::Shape{1, 4, 1, 4} /* constant_shape */),
+                                       NEW(AppendInput),
+                                       NEW(AppendTranpose,
+                                           ov::Shape{0, 3, 1, 2} /* transpose_axis_order */,
+                                           ov::AxisVector{0, 1} /* input_axis */),
+                                       NEW(AppendBinary<BinaryT>, binary_input_axis_order)),
+                           CreatePassManagerFactory<ngraph::pass::TransposeSinkingBinaryBackward>());
+}
+
+template <typename BinaryT>
+TestTuple CreateBinaryForwardTestTuple(const ov::AxisVector & binary_input_axis_order)
+{
+    return std::make_tuple(CreateModel(NEW(CreateInput,
+                                           ov::Shape{1, 4, 4, 1} /* input_shape */),
+                                       NEW(CreateConstants,
+                                           1 /* constants_num */,
+                                           ov::Shape{1, 4, 1, 4} /* constant_shape */),
+                                       NEW(AppendInputTranpose,
+                                           ov::AxisVector{0, 2, 3, 1} /* transpose_axis_order */),
+                                       NEW(AppendBinary<BinaryT>, binary_input_axis_order)),
+                           CreateModel(NEW(CreateInput,
+                                           ov::Shape{1, 4, 4, 1} /* input_shape */),
+                                       NEW(CreateConstants,
+                                           1 /* constants_num */,
+                                           ov::Shape{1, 4, 1, 4} /* constant_shape */),
+                                       NEW(AppendInput),
+                                       NEW(AppendTranpose,
+                                           ov::Shape{0, 3, 1, 2} /* transpose_axis_order */,
+                                           ov::AxisVector{0} /* input_axis */),
+                                       NEW(AppendBinary<BinaryT>, binary_input_axis_order),
+                                       NEW(AppendTranpose,
+                                           ov::Shape{0, 2, 3, 1} /* transpose_axis_order */,
+                                           ov::AxisVector{0} /* input_axis */)),
+                           CreatePassManagerFactory<ngraph::pass::TransposeSinkingBinaryForward>());
+}
+
+#define NEW_BINARY_TEST(BinaryT) \
+    CreateBinaryBackwardTestTuple<BinaryT>(ov::AxisVector{0, 1} /* binary_input_axis_order */), \
+    CreateBinaryBackwardTestTuple<BinaryT>(ov::AxisVector{1, 0} /* binary_input_axis_order */), \
+    CreateBinaryForwardTestTuple<BinaryT>(ov::AxisVector{0, 1} /* binary_input_axis_order */), \
+    CreateBinaryForwardTestTuple<BinaryT>(ov::AxisVector{1, 0} /* binary_input_axis_order */)
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryTestSuite, TransposeSinkingBinaryTestFixture,
+                         ::testing::Values(
+                                            NEW_BINARY_TEST(ov::opset8::Add),
+                                            NEW_BINARY_TEST(ov::opset8::Divide),
+                                            NEW_BINARY_TEST(ov::opset8::FloorMod),
+                                            NEW_BINARY_TEST(ov::opset8::Maximum),
+                                            NEW_BINARY_TEST(ov::opset8::Minimum),
+                                            NEW_BINARY_TEST(ov::opset8::Mod),
+                                            NEW_BINARY_TEST(ov::opset8::Multiply),
+                                            NEW_BINARY_TEST(ov::opset8::Power),
+                                            NEW_BINARY_TEST(ov::opset8::SquaredDifference),
+                                            NEW_BINARY_TEST(ov::opset8::Subtract)
+                                          )
+                        );
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatTestSuite, TransposeSinkingBinaryTestFixture,
+                         ::testing::Values(std::make_tuple(CreateModel(NEW(CreateInput,
+                                                                           ov::Shape{1, 4, 4, 1})  /* input_shape */,
+                                                                       NEW(CreateConstants,
+                                                                           5 /* constants_num */,
+                                                                           ov::Shape{1, 4, 1, 4} /* constant_shape */),
+                                                                       NEW(AppendInputTranpose,
+                                                                           ov::AxisVector{0, 2, 3, 1} /* transpose_axis_order */),
+                                                                       NEW(AppendConcat,
+                                                                           1 /* concat_axis */,
+                                                                           ov::AxisVector{0, 1, 2, 5, 3, 4}) /* input_axis_order */),
+                                                           CreateModel(NEW(CreateInput,
+                                                                           ov::Shape{1, 4, 4, 1}  /* input_shape */),
+                                                                       NEW(CreateConstants,
+                                                                           5 /* constants_num */,
+                                                                           ov::Shape{1, 4, 1, 4} /* constant_shape */),
+                                                                       NEW(AppendTranpose,
+                                                                           ov::Shape{0, 3, 1, 2} /* transpose_axis_order */,
+                                                                           ov::AxisVector{0, 1, 2, 3, 4} /* input_axis */),
+                                                                       NEW(AppendInput),
+                                                                       NEW(AppendConcat,
+                                                                           2 /* concat_axis */,
+                                                                           ov::AxisVector{0, 1, 2, 5, 3, 4} /* input_axis_order */),
+                                                                       NEW(AppendTranpose,
+                                                                           ov::Shape{0, 2, 3, 1} /* transpose_axis_order */,
+                                                                           ov::AxisVector{0} /* input_axis */)),
+                                                           CreatePassManagerFactory<ngraph::pass::TransposeSinkingConcatForward>()),
+                                           std::make_tuple(CreateModel(NEW(CreateInput,
+                                                                           ov::Shape{1, 4, 4, 1}  /* input_shape */),
+                                                                       NEW(CreateConstants,
+                                                                           5 /* constants_num */,
+                                                                           ov::Shape{1, 4, 4, 1} /* constant_shape */),
+                                                                       NEW(AppendInput),
+                                                                       NEW(AppendConcat,
+                                                                           1 /* concat_axis */,
+                                                                           ov::AxisVector{0, 1, 2, 5, 3, 4} /* input_axis_order */),
+                                                                       NEW(AppendTranpose,
+                                                                           ov::Shape{0, 2, 3, 1} /* transpose_axis_order */,
+                                                                           ov::AxisVector{0} /* input_axis */)),
+                                                           CreateModel(NEW(CreateInput,
+                                                                           ov::Shape{1, 4, 4, 1}  /* input_shape */),
+                                                                       NEW(CreateConstants,
+                                                                           5 /* constants_num */,
+                                                                           ov::Shape{1, 4, 4, 1} /* constant_shape */),
+                                                                       NEW(AppendInput),
+                                                                       NEW(AppendTranpose,
+                                                                           ov::Shape{0, 2, 3, 1} /* transpose_axis_order */,
+                                                                           ov::AxisVector{0, 1, 2, 3, 4, 5} /* input_axis */),
+                                                                       NEW(AppendConcat,
+                                                                           3 /* concat_axis */,
+                                                                           ov::AxisVector{0, 1, 2, 5, 3, 4} /* input_axis_order */)),
+                                                           CreatePassManagerFactory<ngraph::pass::TransposeSinkingConcatBackward>()) 
+                                          )
+                        );
