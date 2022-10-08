@@ -16,6 +16,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <openvino/pass/manager.hpp>
+#include "ngraph_ops/type_relaxed.hpp"
 #include <ie_core.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -24,7 +25,7 @@ using namespace testing;
 using namespace ov::intel_cpu;
 using namespace ov;
 
-static std::shared_ptr<ov::Model> makeInteraction(const ov::PartialShape& inputShape) {
+static std::shared_ptr<ov::Model> makeInteraction(const ov::PartialShape& inputShape, bool withFQ = false) {
     auto dense_feature = std::make_shared<ov::opset1::Parameter>(element::f32, inputShape);
     NodeVector features{dense_feature};
     ParameterVector inputsParams{dense_feature};
@@ -80,7 +81,20 @@ static std::shared_ptr<ov::Model> makeInteraction(const ov::PartialShape& inputS
     auto reshape4_shape =  std::make_shared<opset1::Constant>(element::i32, ov::Shape{2}, reshape4_value);
     auto reshape4 = std::make_shared<opset1::Reshape>(transpose3, reshape4_shape, true);
     auto concat2 = std::make_shared<opset1::Concat>(NodeVector{dense_feature, reshape4}, 1);
-    return std::make_shared<ov::Model>(concat2, inputsParams, "interaction");
+    std::shared_ptr<ov::Model> model;
+    if (withFQ) {
+        auto input_low = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{-5.12978});
+        auto input_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{5.08965});
+        auto output_low = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{-128});
+        auto output_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{127});
+        auto fq = std::make_shared<ngraph::op::TypeRelaxed<opset8::FakeQuantize>>(
+            opset8::FakeQuantize(concat2, input_low, input_high, output_low, output_high, 256),
+            element::i8);
+        model = std::make_shared<ov::Model>(fq, inputsParams, "interaction");
+    } else {
+        model = std::make_shared<ov::Model>(concat2, inputsParams, "interaction");
+    }
+    return model;
 }
 
 TEST(TransformationTests, ConvertToInteractionTest1) {
@@ -96,6 +110,41 @@ TEST(TransformationTests, ConvertToInteractionTest1) {
             m.register_pass<ngraph::pass::NopElimination>();
             m.register_pass<ngraph::pass::TransposeMatMul>();
             m.register_pass<ConvertToInteraction>();
+            m.run_passes(f);
+        }
+        //construct ref interaction
+        {
+            auto dense_feature = std::make_shared<ngraph::opset1::Parameter>(element::f32, inputShape);
+            NodeVector features{dense_feature};
+            ParameterVector inputsParams{dense_feature};
+            const size_t sparse_feature_num = 26;
+            for (size_t i = 0; i < sparse_feature_num; i++) {
+                auto sparse_feat = std::make_shared<ngraph::opset1::Parameter>(element::f32, inputShape);
+                features.push_back(sparse_feat);
+                inputsParams.push_back(sparse_feat);
+            }
+            auto interaction = std::make_shared<ov::intel_cpu::InteractionNode>(features);
+            f_ref = std::make_shared<ov::Model>(interaction, inputsParams, "interaction");
+        }
+        auto res = compare_functions(f, f_ref);
+        ASSERT_TRUE(res.first) << res.second;
+    }
+}
+
+TEST(TransformationTests, FuseFQtoInteractionTest1) {
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
+    {
+        using namespace ov;
+        //construct interaction graph
+        auto inputShape = ov::PartialShape{3, 4};
+        {
+            f = makeInteraction(inputShape, true);
+            pass::Manager m;
+            m.register_pass<ngraph::pass::InitNodeInfo>();
+            m.register_pass<ngraph::pass::NopElimination>();
+            m.register_pass<ngraph::pass::TransposeMatMul>();
+            m.register_pass<ConvertToInteraction>();
+            m.register_pass<FuseFQtoInteraction>();
             m.run_passes(f);
         }
         //construct ref interaction

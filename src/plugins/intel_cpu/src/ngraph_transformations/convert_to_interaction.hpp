@@ -15,5 +15,11 @@ public:
     ConvertToInteraction();
 };
 
+class FuseFQtoInteraction: public ngraph::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("FuseFQtoInteraction", "0");
+    FuseFQtoInteraction();
+};
+
 }   // namespace intel_cpu
 }   // namespace ov
