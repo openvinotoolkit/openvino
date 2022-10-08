@@ -60,6 +60,10 @@ if(ENABLE_SYSTEM_PUGIXML)
         if(TARGET pugixml::shared)
             # example: cross-compilation on debian
             set(pugixml_target pugixml::shared)
+        elseif(TARGET pugixml::pugixml)
+            # or create an alias for pugixml::pugixml shared library
+            # example: pugixml brew package
+            set(pugixml_target pugixml::pugixml)
         elseif(TARGET pugixml)
             # or create an alias for pugixml shared library
             # example: libpugixml-dev debian package
