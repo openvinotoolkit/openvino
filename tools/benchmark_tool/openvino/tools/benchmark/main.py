@@ -32,7 +32,7 @@ def parse_and_check_command_line():
                         "should explicitely set -hint option to none. This is not OpenVINO limitation " \
                         "(those options can be used in OpenVINO together), but a benchmark_app UI rule.")
     
-    if args.report_type == "average_counters" and args.target_device.contains("MULTI"):
+    if args.report_type == "average_counters" and "MULTI" in args.target_device:
         raise Exception("only detailed_counters report type is supported for MULTI device")
     
     _, ext = os.path.splitext(args.path_to_model)
@@ -240,6 +240,10 @@ def main():
         benchmark.set_config(config)
         if args.cache_dir:
             benchmark.set_cache_dir(args.cache_dir)
+
+        ## If set batch size, disable the auto batching
+        if args.batch_size:
+            benchmark.set_allow_auto_batching(False)
 
         topology_name = ""
         load_from_file_enabled = is_flag_set_in_command_line('load_from_file') or is_flag_set_in_command_line('lfile')

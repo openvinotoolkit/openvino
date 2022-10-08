@@ -123,7 +123,7 @@ bool NextElement(T & elementIndex, const Gna2Shape& total) {
 template <class T>
 uint32_t GetLinearIndex(const T & elementIndex, const Gna2Shape& total) {
     uint32_t out = 0;
-    for (int idx = 0; idx < total.NumberOfDimensions; idx++) {
+    for (uint32_t idx = 0; idx < total.NumberOfDimensions; idx++) {
         out += elementIndex[idx];
         if (idx + 1 < total.NumberOfDimensions) out *= total.Dimensions[idx + 1];
     }
@@ -180,7 +180,7 @@ void WriteInputAndOutputTextGNAImpl(const Gna2Model & gnaModel, const std::strin
         std::vector<uint32_t> elementIndex(outputTensor.Shape.NumberOfDimensions);
 
         do {
-            float floatValue = GetValue(outputTensor, elementIndex);
+            float floatValue = static_cast<float>(GetValue(outputTensor, elementIndex));
 
             out_file << std::setw(8) << floatValue << "\n";
             if (ref_out_file) {
@@ -399,7 +399,7 @@ void DumpPwl(std::ostream& dumpFile, const Gna2Tensor& activation) {
 }
 
 void DumpCompoundBias(std::ostream& dumpFile, const Gna2Tensor& tensor) {
-    auto i = 0;
+    uint32_t i = 0;
 
     while (i < tensor.Shape.Dimensions[0]) {
         const Gna2CompoundBias* const bias = static_cast<Gna2CompoundBias*>(tensor.Data) + i;
@@ -485,15 +485,23 @@ void DumpGna2Model(const Gna2Model& gnaModel,
             } else if (operand.Type == Gna2DataTypeCompoundBias) {
                 DumpCompoundBias(dumpFile, operand);
             } else if (dumpData) {
-                std::ofstream datFile(dumpFileName.str() + ".dat", std::ios::out);
+                std::ofstream datFile(dumpFileName.str() + ".dat", std::ios::app);
                 std::vector<uint32_t> elementIndex(operand.Shape.NumberOfDimensions);
 
-                datFile << "Layer " << i << ", type " << GetLayerType(operation.Type) <<
-                    ", operand " << j << " - " << GetOperandName(operation.Type, j) << "\n";
+                auto beginItr = operand.Shape.Dimensions + 1;
+                auto endIter = operand.Shape.Dimensions + operand.Shape.NumberOfDimensions;
+                auto columnsValue = std::accumulate(beginItr, endIter, 1, std::multiplies<int>());
+                datFile << "Layer " << i << ", type " << GetLayerType(operation.Type) << ", operand " << j << " - "
+                        << GetOperandName(operation.Type, j) << ", rows: " << operand.Shape.Dimensions[0]
+                        << ", columns: " << columnsValue << "\n";
+
+                uint32_t ind = 0;
 
                 do {
                     int32_t value = GetValue(operand, elementIndex);
-                    datFile << value << "\n";
+                    datFile << std::setw(6) << value;
+                    auto postValueCharackters = (++ind % columnsValue == 0) ? "\n" : ", ";
+                    datFile << postValueCharackters;
                 } while (NextElement(elementIndex, operand.Shape));
             }
         }

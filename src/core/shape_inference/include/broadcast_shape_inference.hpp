@@ -76,7 +76,7 @@ void validate_target_shape_numpy(const ov::Node* op, const T& arg_shape, const T
                           target_rank_length,
                           " than arg shape ",
                           arg_rank_length);
-    for (auto i = start_axis; i < target_rank_length; i++) {
+    for (size_t i = static_cast<size_t>(start_axis); i < target_rank_length; i++) {
         NODE_VALIDATION_CHECK(op,
                               arg_shape[i - start_axis].is_dynamic() || target_shape[i].is_dynamic() ||
                                   arg_shape[i - start_axis].compatible(1) ||
@@ -165,7 +165,6 @@ void broadcase_base_shape_infer(
     const std::vector<T>& input_shapes,
     std::vector<T>& output_shapes,
     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-
     // shape node should produce a one dimensional shape.
     auto broadcast_shape_rank = input_shapes[1].rank();
     NODE_VALIDATION_CHECK(op,

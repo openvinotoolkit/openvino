@@ -26,7 +26,7 @@ op::v0::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes)
 }
 
 void op::v0::Unsqueeze::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_Unsqueeze_validate_and_infer_types);
+    OV_OP_SCOPE(v0_Unsqueeze_validate_and_infer_types);
     const auto data = input_value(0);
     auto data_partial_shape = data.get_partial_shape();
     const auto data_rank = data_partial_shape.rank();
@@ -62,12 +62,12 @@ void op::v0::Unsqueeze::validate_and_infer_types() {
 }
 
 bool op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Unsqueeze_visit_attributes);
+    OV_OP_SCOPE(v0_Unsqueeze_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Unsqueeze_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Unsqueeze_clone_with_new_inputs);
     if (new_args.size() != 2) {
         throw ngraph_error("Incorrect number of new arguments");
     }
@@ -127,14 +127,14 @@ bool evaluate_unsqueeze(const HostTensorPtr& arg0, const HostTensorPtr& arg1, co
 }  // namespace unsqueeze
 
 bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Unsqueeze_evaluate);
+    OV_OP_SCOPE(v0_Unsqueeze_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     return unsqueeze::evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
 }
 
 bool op::v0::Unsqueeze::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Unsqueeze_has_evaluate);
+    OV_OP_SCOPE(v0_Unsqueeze_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:

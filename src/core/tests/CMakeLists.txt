@@ -10,14 +10,20 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT ENABLE_SANITIZER)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_add_compiler_flags(/wd4305)
+    ie_add_compiler_flags(/wd4244)
+    ie_add_compiler_flags(/wd4267)
+endif()
+
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
 
 if(NOT ENABLE_OV_CORE_UNIT_TESTS)
-    message(STATUS "nGraph unit tests disabled")
+    message(STATUS "OpenVINO Core unit tests disabled")
     return()
 endif()
 
-message(STATUS "nGraph unit tests enabled")
+message(STATUS "OpenVINO Core unit tests enabled")
 
 if(LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)

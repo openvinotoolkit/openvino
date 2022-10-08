@@ -19,7 +19,7 @@ inline InferenceEngine::DataPtr Get2DReshapedData(InferenceEngine::DataPtr input
     size_t maxZeroDimSize) {
     IE_ASSERT(minZeroDimSize > 0);
     auto dims = input->getDims();
-    uint32_t numRowsIn = InferenceEngine::details::product(begin(dims), end(dims));
+    uint32_t numRowsIn = static_cast<uint32_t>(InferenceEngine::details::product(begin(dims), end(dims)));
     uint32_t numColumnsIn = 1;
     // Rows number should be 8-elements aligned
     if (numRowsIn % 8 == 0) {
@@ -29,8 +29,8 @@ inline InferenceEngine::DataPtr Get2DReshapedData(InferenceEngine::DataPtr input
                 if ((numRowsIn / 8) % indexDivide == 0) break;
                 --indexDivide;
             }
-            numRowsIn /= indexDivide;
-            numColumnsIn = indexDivide;
+            numRowsIn /= static_cast<uint32_t>(indexDivide);
+            numColumnsIn = static_cast<uint32_t>(indexDivide);
         }
     }
 
