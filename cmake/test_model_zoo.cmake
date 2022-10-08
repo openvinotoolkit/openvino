@@ -141,10 +141,6 @@ if(ENABLE_TESTS)
         add_dependencies(test_model_zoo test_pip_prerequisites)
     endif()
 
-    if (ENABLE_OV_PADDLE_FRONTEND AND ENABLE_OV_CORE_UNIT_TESTS)
-        add_dependencies(test_model_zoo paddle_test_models)
-    endif()
-
     install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo"
             DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 
