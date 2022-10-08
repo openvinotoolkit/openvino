@@ -23,7 +23,7 @@ ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp")
 
 target_compile_definitions(${TARGET_NAME} PUBLIC
-    $<$<NOT:$<BOOL:BUILD_SHARED_LIBS>>:OPENVINO_STATIC_LIBRARY>)
+    $<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:OPENVINO_STATIC_LIBRARY>)
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${REF_IMPL_INCLUDE_DIR}>
