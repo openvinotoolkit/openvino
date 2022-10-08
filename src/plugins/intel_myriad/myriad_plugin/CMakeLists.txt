@@ -54,7 +54,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 # install
 
-if(LINUX AND NOT CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE)$")
+if(LINUX AND NOT CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
     install(FILES ${mvnc_SOURCE_DIR}/src/97-myriad-usbboot.rules
             DESTINATION install_dependencies
             COMPONENT myriad)

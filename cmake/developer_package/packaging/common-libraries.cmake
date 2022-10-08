@@ -5,12 +5,12 @@
 include(GNUInstallDirs)
 
 #
-# ov_conda_cpack_set_dirs()
+# ov_common_libraries_cpack_set_dirs()
 #
 # Set directories for cpack
 #
-macro(ov_conda_cpack_set_dirs)
-    # override default locations for Debian
+macro(ov_common_libraries_cpack_set_dirs)
+    # override default locations for common libraries
     set(OV_CPACK_TOOLSDIR ${CMAKE_INSTALL_BINDIR}) # only C++ tools are here
     set(OV_CPACK_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
     set(OV_CPACK_LIBRARYDIR ${CMAKE_INSTALL_LIBDIR})
@@ -30,7 +30,7 @@ macro(ov_conda_cpack_set_dirs)
     set(OV_CPACK_DEVREQDIR ${OV_CPACK_SHAREDIR})
     unset(OV_CPACK_SHAREDIR)
 
-    # skipped during debian packaging
+    # skipped during common libraries packaging
     set(OV_CPACK_WHEELSDIR "tools")
 
     # for BW compatibility
@@ -39,10 +39,10 @@ macro(ov_conda_cpack_set_dirs)
     set(IE_CPACK_ARCHIVE_PATH ${OV_CPACK_ARCHIVEDIR})
 endmacro()
 
-ov_conda_cpack_set_dirs()
+ov_common_libraries_cpack_set_dirs()
 
 #
-# Override CPack components name for Conda generator
+# Override CPack components name for common libraries generator
 # This is needed to change the granularity, i.e. merge several components
 # into a single one
 #

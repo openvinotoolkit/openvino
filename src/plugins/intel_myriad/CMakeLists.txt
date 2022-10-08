@@ -33,7 +33,7 @@ if(ENABLE_INTEL_MYRIAD)
     add_subdirectory(graph_transformer)
     add_subdirectory(myriad_plugin)
 
-    if(DEFINED VPU_CLC_MA2X8X_ROOT AND NOT CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE)$")
+    if(DEFINED VPU_CLC_MA2X8X_ROOT AND NOT CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
         install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/custom_kernels/
                 DESTINATION ${OV_CPACK_PLUGINSDIR}/vpu_custom_kernels
                 COMPONENT myriad)

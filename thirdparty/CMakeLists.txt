@@ -270,7 +270,7 @@ ov_install_static_lib(nlohmann_json_schema_validator ${OV_CPACK_COMP_CORE})
 # Install
 #
 
-if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE)$")
+if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
     # These libraries are dependencies for openvino-samples package
 
     if(NOT gflags_FOUND AND CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
