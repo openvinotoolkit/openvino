@@ -2,15 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <utility>
 #include <gtest/gtest.h>
+#include <utility>
 #include <cpu/x64/jit_generator.hpp>
 #include <nodes/kernels/stack_allocator.hpp>
 
 #include <cpu_memory.h>
 
 using namespace ov::intel_cpu;
-using namespace InferenceEngine;
+
+constexpr int x64::cpu_isa_traits<x64::avx512_core>::vlen;
+constexpr int x64::cpu_isa_traits<x64::avx>::vlen;
+constexpr int x64::cpu_isa_traits<x64::sse41>::vlen;
 
 class StackAllocatorTest : public ::testing::Test, public x64::jit_generator {
 protected:
@@ -43,6 +46,32 @@ protected:
 
     std::function<void()> kernel_;
     std::shared_ptr<StackAllocator> stack_allocator_;
+};
+
+class AlignedStackAllocatorTest : public StackAllocatorTest {
+public:
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(AlignedStackAllocatorTest)
+
+    void SetUp() override {
+    }
+
+    void TearDown() override {
+    }
+
+    void generate() override {
+        this->preamble();
+//        if (x64::mayiuse(x64::avx512_core)) {
+//            stack_allocator_ = std::make_shared<StackAllocator>(*this, x64::cpu_isa_traits<x64::avx512_core>::vlen);
+//        } else if (x64::mayiuse(x64::avx2)) {
+//            stack_allocator_ = std::make_shared<StackAllocator>(*this, x64::cpu_isa_traits<x64::avx2>::vlen);
+//        } else {
+            stack_allocator_ = std::make_shared<StackAllocator>(*this, x64::cpu_isa_traits<x64::sse41>::vlen);
+//        }
+        kernel_();
+        stack_allocator_->commit();
+        stack_allocator_.reset();
+        this->postamble();
+    }
 };
 
 TEST_F(StackAllocatorTest, Address_ValueEqual) {
@@ -204,4 +233,59 @@ TEST_F(StackAllocatorTest, LoopFailed) {
         L(l_end);
     };
     EXPECT_ANY_THROW(create_kernel<int(*) ()>());
+}
+
+TEST_F(StackAllocatorTest, AddressCheckAlignmentFailed) {
+    kernel_ = [this]() {
+        Xbyak::Label l_equal;
+        StackAllocator::Address reg_0_5_addr{stack_allocator_, sizeof(int8_t)};
+        StackAllocator::Address reg_0_11_addr{stack_allocator_, 16};
+        stack_allocator_->commit();
+        addps(xmm0, reg_0_11_addr);
+    };
+    auto f = create_kernel<int(*) ()>();
+    ASSERT_DEATH({
+        f();
+    }, "");
+}
+
+TEST_F(AlignedStackAllocatorTest, AddressCheckAlignmentSuccess) {
+    kernel_ = [this]() {
+        Xbyak::Label l_equal;
+        StackAllocator::Address reg_0_5_addr{stack_allocator_, sizeof(int8_t)};
+        StackAllocator::Address reg_0_11_addr{stack_allocator_, 16, 16};
+        stack_allocator_->commit();
+        addps(xmm0, reg_0_11_addr);
+    };
+    auto f = create_kernel<int(*) ()>();
+    f();
+}
+
+TEST_F(AlignedStackAllocatorTest, AddressCheckAlignmentRegSuccess) {
+    kernel_ = [this]() {
+        Xbyak::Label l_equal;
+        StackAllocator::Address reg_0_5_addr{stack_allocator_, sizeof(int8_t)};
+        StackAllocator::Reg<Xbyak::Xmm> reg_0_11_addr{stack_allocator_};
+        stack_allocator_->commit();
+        addps(xmm0, reg_0_11_addr);
+    };
+    auto f = create_kernel<int(*) ()>();
+    f();
+}
+
+TEST_F(AlignedStackAllocatorTest, AddressCheckAlignmentReuseAddressSuccess) {
+    kernel_ = [this]() {
+        Xbyak::Label l_equal;
+        StackAllocator::Address reg_0_5_addr{stack_allocator_, sizeof(int8_t)};
+        StackAllocator::Reg<Xbyak::Xmm> reg_0_11_addr{stack_allocator_};
+        StackAllocator::Address reg_0_7_addr{stack_allocator_, sizeof(int8_t)};
+        stack_allocator_->commit();
+        addps(xmm0, reg_0_11_addr);
+        reg_0_11_addr.release();
+        StackAllocator::Reg<Xbyak::Xmm> reg_0_12_addr{stack_allocator_};
+        stack_allocator_->commit();
+        addps(xmm0, reg_0_12_addr);
+    };
+    auto f = create_kernel<int(*) ()>();
+    f();
 }
