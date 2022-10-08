@@ -271,18 +271,14 @@ int main(int argc, char* argv[]) {
         // check if using the virtual device
         auto if_auto = std::find(devices.begin(), devices.end(), "AUTO") != devices.end();
         auto if_multi = std::find(devices.begin(), devices.end(), "MULTI") != devices.end();
+        auto hardware_devices = devices;
         // Remove the hardware devices if AUTO/MULTI appears in the devices list.
         if (if_auto || if_multi) {
             devices.clear();
-            std::string virtual_device;
-            if (if_auto) {
-                virtual_device = "AUTO";
-                devices.push_back("AUTO");
-            }
-            if (if_multi) {
-                virtual_device = "MULTI";
-                devices.push_back("MULTI");
-            }
+            std::string virtual_device = if_auto ? "AUTO" : "MULTI";
+            auto iter_virtual = std::find(hardware_devices.begin(), hardware_devices.end(), virtual_device);
+            hardware_devices.erase(iter_virtual);
+            devices.push_back(virtual_device);
             parse_value_for_virtual_device(virtual_device, device_nstreams);
             parse_value_for_virtual_device(virtual_device, device_infer_precision);
         }
@@ -410,11 +406,23 @@ int main(int argc, char* argv[]) {
                     return str;
             };
 
-            if (supported(ov::inference_num_threads.name()) && isFlagSetInCommandLine("nthreads")) {
-                device_config.emplace(ov::inference_num_threads(FLAGS_nthreads));
+            if (isFlagSetInCommandLine("nthreads")) {
+                if (supported(ov::inference_num_threads.name()) || if_multi) {
+                    device_config.emplace(ov::inference_num_threads(FLAGS_nthreads));
+                } else if (if_auto) {
+                    for (auto& device : hardware_devices) {
+                        device_config.insert(ov::device::properties(device, ov::inference_num_threads(FLAGS_nthreads)));
+                    }
+                }
             }
-            if (supported(ov::affinity.name()) && isFlagSetInCommandLine("pin")) {
-                device_config.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
+            if (isFlagSetInCommandLine("pin")) {
+                if (supported(ov::affinity.name()) || if_multi) {
+                    device_config.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
+                } else if (if_auto) {
+                    for (auto& device : hardware_devices) {
+                        device_config.insert(ov::device::properties(device, ov::affinity(fix_pin_option(FLAGS_pin))));
+                    }
+                }
             }
 
             if (device.find("CPU") != std::string::npos || device.find("GPU") != std::string::npos) {
