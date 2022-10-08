@@ -240,6 +240,58 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_f
 }
 } // namespace with_eltwise
 
+namespace backward {
+
+std::shared_ptr<ov::Model> CreateFunction(UnaryFactoryPtr unary_factory,
+                                          size_t num_unary_ops,
+                                          const ov::Shape & input_shape,
+                                          ov::element::Type input_type) {
+        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+        ov::OutputVector outputs;
+
+        NodePtr in_op = X;
+        for (size_t i = 0; i < num_unary_ops; ++i) {
+            in_op = unary_factory->create(in_op);
+            auto cosh = std::make_shared<ov::opset9::Cosh>(in_op);
+            outputs.push_back(cosh);
+        }
+
+        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+        auto transpose0 = std::make_shared<ov::opset9::Transpose>(in_op, ng_order0);
+        outputs.push_back(transpose0);
+
+        return std::make_shared<ov::Model>(outputs, ov::ParameterVector{X});
+}
+
+std::shared_ptr<ov::Model> CreateReferenceFunction(UnaryFactoryPtr unary_factory,
+                                                   size_t num_unary_ops,
+                                                   const ov::Shape & input_shape,
+                                                   ov::element::Type input_type) {
+        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+        ov::OutputVector outputs;
+
+        NodePtr in_op = X;
+        for (size_t i = 0; i < num_unary_ops; ++i) {
+            in_op = unary_factory->create(in_op);
+            auto cosh = std::make_shared<ov::opset9::Cosh>(in_op);
+            outputs.push_back(cosh);
+        }
+
+        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+        auto transpose0 = std::make_shared<ov::opset9::Transpose>(X, ng_order0);
+
+        in_op = transpose0;
+        for (size_t i = 0; i < num_unary_ops; ++i) {
+            in_op = unary_factory->create(in_op);
+        }
+
+        outputs.push_back(in_op);
+
+        return std::make_shared<ov::Model>(outputs, ov::ParameterVector{X});
+}
+
+} // namespace backward
+
 } // namespace mult_consumers_last_node
 
 std::vector<UnaryFactoryPtr> unary_factories = {
@@ -353,4 +405,11 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackwardMultConsumersTestSuiteLast
                                             ::testing::Values(ov::Shape{1, 96, 55, 55}),
                                             ::testing::Values(ov::element::f32)));
 
-
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackwardMultConsumersTestSuiteFirstNode, TransposeSinkingUnaryTestFixture,
+                         ::testing::Combine(::testing::ValuesIn(unary_factories),
+                                            ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingUnaryBackward>()),
+                                            ::testing::ValuesIn(unary_operations_numbers),
+                                            ::testing::Values(mult_consumers_last_node::backward::CreateFunction),
+                                            ::testing::Values(mult_consumers_last_node::backward::CreateReferenceFunction),
+                                            ::testing::Values(ov::Shape{1, 96, 55, 55}),
+                                            ::testing::Values(ov::element::f32)));
