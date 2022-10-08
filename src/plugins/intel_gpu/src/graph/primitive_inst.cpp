@@ -10,10 +10,13 @@
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
 #include "convolution_inst.h"
+#include "strided_slice_inst.h"
+#include "crop_inst.h"
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
 #include "strided_slice_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -151,12 +154,18 @@ void primitive_inst::update_shape() {
         }
     }
 
-    if (input_shape_changed)
-        set_shape_change();
-
     // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
-    if (_node.is_type<shape_of>())
+    if (_node.is_type<shape_of>() && !input_shape_changed)
         return;
+
+    // Even though the predecessors' shapes are not changed, the output shape might be udpated by the mem_dep
+    auto memory_deps = _node.get_const_memory_deps();
+    for (auto& i : _node.get_shape_infer_dependencies()) {
+        if (memory_deps.count(i) > 0) {
+            continue;
+        }
+        input_shape_changed = true;
+    }
 
     // Strided slice loads data from {1,2,3} dependencies in impl::create method.
     // It means that this data must be put into impl_params map
@@ -173,8 +182,12 @@ void primitive_inst::update_shape() {
     if (!strided_slice_wa && !input_shape_changed && !_node.generates_dynamic_output() && _impl_params->output_layout.is_static())
         return;
 
-    auto memory_deps = _node.get_const_memory_deps();
+    if (input_shape_changed)
+        set_shape_change();
+
     std::vector<event::ptr> dependencies_events;
+    auto queue_type = get_network().get_stream().get_queue_type();
+    bool has_runtime_deps = false;
     for (auto& i : _node.get_shape_infer_dependencies()) {
         // Some primitives may have flexible count of deps (e.g. reshape), thus allow skipping some deps
         if (memory_deps.count(i) > 0 || i >= _node.get_dependencies().size()) {
@@ -182,7 +195,8 @@ void primitive_inst::update_shape() {
         }
         auto& dep = _node.get_dependency(i);
         auto dep_id = dep.id();
-        if (_network.has_event(dep.id())) {
+        // Events may be not created for in-order queue, so take them for OOO queue only
+        if (_network.has_event(dep.id()) && queue_type == queue_types::out_of_order) {
             dependencies_events.push_back(_network.get_primitive_event(dep_id));
             GPU_DEBUG_IF(debug_config->verbose >= 4) {
                 GPU_DEBUG_COUT << id() << ": shape infer waits for " << i << " dependency\n";
@@ -190,12 +204,19 @@ void primitive_inst::update_shape() {
         }
         auto dep_mem = _network.get_output_memory(dep_id);
         memory_deps.insert({i, dep_mem});
+        has_runtime_deps = true;
     }
 
-    if (!dependencies_events.empty())
-        _network.get_stream().wait_for_events(dependencies_events);
+    if (has_runtime_deps) {
+        if (!dependencies_events.empty() && queue_type == queue_types::out_of_order) {
+            _network.get_stream().wait_for_events(dependencies_events);
+        } else if (queue_type == queue_types::in_order) {
+            _network.get_stream().finish();
+        }
+    }
 
     _impl_params->memory_deps = memory_deps;
+
     auto new_layouts = _node.type()->calc_output_layouts(_node, *_impl_params);
     auto new_layout = new_layouts.empty() ? _node.type()->calc_output_layout(_node, *_impl_params) : new_layouts[0];
     new_layout.data_padding = padding::max(_node.get_primitive()->output_padding, new_layout.data_padding);
@@ -475,7 +496,7 @@ void primitive_inst::allocate_internal_buffers(void) {
     // Decided the limitation as 85 % empirically, but still it needs further investigation.
     const auto& inst_deps = _network.get_primitives(_node.get_dependencies());
 
-    auto total_device_mem_size = std::accumulate(inst_deps.begin(), inst_deps.end(), 0, device_mem_acc);
+    auto total_device_mem_size = std::accumulate(inst_deps.begin(), inst_deps.end(), size_t(0), device_mem_acc);
     if (_output->get_allocation_type() ==  allocation_type::usm_device) {
         total_device_mem_size += _output->size();
     }
@@ -807,13 +828,13 @@ bool primitive_inst::is_valid_fusion() const {
         auto dep = _deps[dep_idx];
 
         auto dep_pshape = dep->_impl_params->output_layout.get_partial_shape();
+        auto merged_shape = out_pshape;
+        auto can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, dep_pshape, fd.typed_desc<eltwise>()->broadcast_spec);
 
-        OPENVINO_ASSERT(out_pshape.rank() == dep_pshape.rank(), "[GPU] Incompatible ranks: ", out_pshape.rank(), " vs ", dep_pshape.rank());
-
-        for (int64_t i = 0; i < dep_pshape.rank().get_length(); i++) {
-            if (dep_pshape[i].get_length() > out_pshape[i].get_length())
-                return false;
-        }
+        // We check that broadcasting of extra input is possible and it doesn't change output shape. If it output shape is changed, then
+        // some dimension of dep_pshape is greater than out_pshape
+        if (!can_broadcast || merged_shape != out_pshape)
+            return false;
     }
 
     return true;

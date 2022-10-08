@@ -6,8 +6,8 @@ import tensorflow as tf
 from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
 from common.utils.tf_utils import permute_nchw_to_nhwc
-
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+
 from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, connect, \
     shaped_data, connect_front
 
@@ -91,8 +91,8 @@ class TestTFRandomUniform(CommonTFLayerTest):
              input_type=tf.float32),
         dict(global_seed=None, op_seed=56197, min_val=-100, max_val=100, x_shape=[1, 2, 1, 1],
              input_type=tf.float32),
-        dict(global_seed=78132, op_seed=None, min_val=-200, max_val=-50, x_shape=[5, 8],
-             input_type=tf.int32),
+        pytest.param(dict(global_seed=78132, op_seed=None, min_val=-200, max_val=-50, x_shape=[5, 8],
+                          input_type=tf.int32), marks=pytest.mark.precommit_tf_fe),
         dict(global_seed=4571, op_seed=48971, min_val=1.5, max_val=2.3, x_shape=[7],
              input_type=tf.float32),
         dict(global_seed=32465, op_seed=12335, min_val=-150, max_val=-100, x_shape=[18],

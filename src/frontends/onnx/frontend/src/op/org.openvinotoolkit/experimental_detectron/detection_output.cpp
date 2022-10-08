@@ -22,8 +22,8 @@ OutputVector experimental_detectron_detection_output(const Node& node) {
     auto im_info = inputs[3];
 
     DetectionOutput::Attributes attrs{};
-    attrs.score_threshold = node.get_attribute_value<float>("score_threshold", 0.05);
-    attrs.nms_threshold = node.get_attribute_value<float>("nms_threshold", 0.5);
+    attrs.score_threshold = node.get_attribute_value<float>("score_threshold", 0.05f);
+    attrs.nms_threshold = node.get_attribute_value<float>("nms_threshold", 0.5f);
     attrs.max_delta_log_wh = node.get_attribute_value<float>("max_delta_log_wh", std::log(1000.0f / 16.0f));
     attrs.num_classes = node.get_attribute_value<std::int64_t>("num_classes", 81);
     attrs.post_nms_count = node.get_attribute_value<std::int64_t>("post_nms_count", 2000);
