@@ -12,8 +12,6 @@
 
 #include "gtest/gtest.h"
 
-#include "ngraph/pass/visualize_tree.hpp" // DEBUG 
-
 using NodePtr = std::shared_ptr<ov::Node>;
 
 class IUnaryFactory {
@@ -69,9 +67,7 @@ template <typename PassT>
 class PassFactory : public IPassFactory {
 public:
     void registerPass(ov::pass::Manager & pass_manager) const override {
-        //pass_manager.register_pass<ngraph::pass::VisualizeTree>("./0before.png"); // DEBUG
         pass_manager.register_pass<PassT>();
-        //pass_manager.register_pass<ngraph::pass::VisualizeTree>("./1after.png"); // DEBUG
     }
 };
 
