@@ -11,7 +11,7 @@ from typing import List, Set
 
 import numpy as np
 from openvino.tools.mo.back.ForceStrictPrecision import ForceStrictPrecision
-from openvino.tools.mo.back.compress_quantized_weights import CompressQuantizeWeights
+from openvino.tools.mo.back.compress_quantized_weights import CompressQuantizeWeights, ZeroPointOptimizer
 from openvino.tools.mo.ops.elementwise import Add
 from openvino.tools.mo.ops.Cast import Cast
 from openvino.tools.mo.ops.fakequantize import FakeQuantize
@@ -907,7 +907,7 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
 
 def insert_output_fake_quantize(graph, node, hw_config=None, ignored_params=None):
     activation_nodes_type = ['Power', 'Sigmoid', 'Tanh', 'ReLU', 'PReLU',
-                            'Clamp', 'Log', 'Abs', 'Exp', 'Sign']
+                            'Clamp', 'Log', 'Abs', 'Exp', 'Sign', 'SoftSign']
 
     new_fq = []
     for out_port_id, port in node.out_ports().items():
@@ -1012,6 +1012,8 @@ def compress_weights(model: Graph):
     """Apply transformations to save model weights to INT8."""
     add_removed_converts(model)
     CompressQuantizeWeights().find_and_replace_pattern(model)
+    model.clean_up()
+    ZeroPointOptimizer().find_and_replace_pattern(model)
     model.clean_up()
     ForceStrictPrecision().find_and_replace_pattern(model)
     model.clean_up()

@@ -108,7 +108,7 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
             xml_reports = glob.glob(os.path.join(folder_path, 'report_op*.xml'))
         elif report_type == "API":
             xml_reports = glob.glob(os.path.join(folder_path, 'report_api*.xml'))
-        print(len(xml_reports))
+        logger.info(f"Num of XML: {len(xml_reports)}")
 
         xml_root = None
         for xml_report in xml_reports:
