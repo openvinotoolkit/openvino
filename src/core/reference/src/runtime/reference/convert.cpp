@@ -5,7 +5,6 @@
 #include "ngraph/runtime/reference/convert.hpp"
 
 #ifdef ENABLE_XBYAK
-cdfvdf
 # include "jit_generator.hpp"
 #endif // ENABLE_XBYAK
 

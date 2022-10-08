@@ -10,16 +10,22 @@ if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
 
-add_subdirectory(ittapi)
-add_subdirectory(itt_collector EXCLUDE_FROM_ALL)
+if(ENABLE_PROFILING_ITT)
+    add_subdirectory(ittapi)
+    add_subdirectory(itt_collector EXCLUDE_FROM_ALL)
+endif()
+
 add_subdirectory(cnpy EXCLUDE_FROM_ALL)
+
 if(ENABLE_INTEL_GPU)
     add_subdirectory(ocl)
 endif()
 
-add_subdirectory(xbyak EXCLUDE_FROM_ALL)
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
-ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
+if(ENABLE_XBYAK)
+    add_subdirectory(xbyak EXCLUDE_FROM_ALL)
+    openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
+    ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
+endif()
 
 #
 # zlib
@@ -151,25 +157,29 @@ endif()
 # Fluid, G-API, OpenCV HAL
 #
 
-add_library(ocv_hal INTERFACE)
-target_include_directories(ocv_hal INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/ocv")
+if(ENABLE_GAPI_PREPROCESSING)
+    add_library(ocv_hal INTERFACE)
+    target_include_directories(ocv_hal INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/ocv")
 
-add_subdirectory(ade EXCLUDE_FROM_ALL)
-add_subdirectory(fluid/modules/gapi EXCLUDE_FROM_ALL)
+    add_subdirectory(ade EXCLUDE_FROM_ALL)
+    add_subdirectory(fluid/modules/gapi EXCLUDE_FROM_ALL)
 
-if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND NOT OV_COMPILER_IS_CLANG)
-    target_compile_options(fluid PRIVATE "-Wno-maybe-uninitialized")
+    if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND NOT OV_COMPILER_IS_CLANG)
+        target_compile_options(fluid PRIVATE "-Wno-maybe-uninitialized")
+    endif()
+
+    set_target_properties(ade fluid PROPERTIES FOLDER thirdparty)
+    openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade fluid)
+
+    ov_install_static_lib(ade ${OV_CPACK_COMP_CORE})
+    ov_install_static_lib(fluid ${OV_CPACK_COMP_CORE})
 endif()
-
-set_target_properties(ade fluid PROPERTIES FOLDER thirdparty)
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade fluid)
-
-ov_install_static_lib(ade ${OV_CPACK_COMP_CORE})
-ov_install_static_lib(fluid ${OV_CPACK_COMP_CORE})
 
 #
 # Gflags
 #
+
+# TODO: allow gflags for BREW type
 
 if(NOT APPLE AND NOT DEFINED ENV{CONDA_PREFIX})
     # - conda-forge contains only dynamic libraries

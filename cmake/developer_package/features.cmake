@@ -47,9 +47,9 @@ ie_dependent_option (ENABLE_AVX2 "Enable AVX2 optimizations" ON "X86_64 OR X86" 
 
 ie_dependent_option (ENABLE_AVX512F "Enable AVX512 optimizations" ON "X86_64 OR X86" OFF)
 
-# Type of build, we add this as an explicit option to default it to ON
-# FIXME: Ah this moment setting this to OFF will only build ngraph a static library
 ie_option (BUILD_SHARED_LIBS "Build as a shared library" ON)
+
+ie_dependent_option (ENABLE_XBYAK "Enable xbyak optimizations" ON "X86 OR X86_64 OR UNIVERSAL2" OFF)
 
 # Android does not support SOVERSION
 # see https://www.opengis.ch/2011/11/23/creating-non-versioned-shared-libraries-for-android/
