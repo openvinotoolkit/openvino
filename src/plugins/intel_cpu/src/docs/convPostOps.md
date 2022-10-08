@@ -16,7 +16,7 @@ Legacy post-ops in CONV node include depthwise, fake quantization and dwconv.
 
 **dwconv is not fused on CPU above avx2. So no need to consider.**
 
-**depthwise/FQ post-ops may be implemented with onednn binary post-ops in brgconv(brgconv avx512 core and brgconv amx) kernels. Disable brgconv on avx512 core cpu when having depthwise/FQ post-ops** 
+**depthwise/FQ post-ops may be implemented with onednn binary post-ops in brgconv(brgconv avx512 core and brgconv amx) kernels. Due to bad performance of binary post-ops in stock ONEDNN, brgconv is disabled on avx512 core cpu for now when having binary post-ops**
 
 # Legacy per-channel input zero point in OpenVINO
 

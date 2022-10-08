@@ -53,7 +53,7 @@ public:
     //Hold legacy pre-calculated output compensation
     std::vector<int32_t> legacyOutputCompensation;
     //Hold stock per-tensor input zero point. Pass to onednn to calculate output compensation.
-    std::vector<int32_t> stockInputZeroPoints;
+    std::vector<int32_t> inputZeroPoints;
     void initializeInputZeroPoints(const uint8_t* inputZpData, const size_t inputZpSize);
 
     const InferenceEngine::SizeVector &getWeightDims() { return weightDims; }
@@ -154,7 +154,6 @@ private:
 
     bool isWino = false;
     bool shouldTryBrgconv = false;
-    bool hasLegacyPostOpZpOnAvx512 = false;
     std::vector<dnnl::primitive_attr> attrs;
     AttrPtr pAttr;
     bool autoPadding = false;

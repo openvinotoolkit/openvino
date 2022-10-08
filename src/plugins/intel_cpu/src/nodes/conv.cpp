@@ -887,13 +887,13 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
 }
 
 void Convolution::addZeroPoints(dnnl::primitive_attr& attr) {
-    if (stockInputZeroPoints.empty())
+    if (inputZeroPoints.empty())
         return;
-    attr.set_zero_points(DNNL_ARG_SRC, 0, stockInputZeroPoints);
+    attr.set_zero_points(DNNL_ARG_SRC, 0, inputZeroPoints);
     if (!stockInputZeroPointsMemPtr) {
         stockInputZeroPointsMemPtr.reset(new Memory(getEngine()));
-        DnnlBlockedMemoryDesc memoryDesc(Precision::I32, {stockInputZeroPoints.size()});
-        stockInputZeroPointsMemPtr->Create(memoryDesc, stockInputZeroPoints.data());
+        DnnlBlockedMemoryDesc memoryDesc(Precision::I32, {inputZeroPoints.size()});
+        stockInputZeroPointsMemPtr->Create(memoryDesc, inputZeroPoints.data());
     }
 }
 
@@ -1627,7 +1627,7 @@ void Convolution::initTryBrgconvFlag() {
 }
 
 void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const size_t inputZpSize) {
-    if (!stockInputZeroPoints.empty() || !legacyInputZeroPoints.empty())
+    if (!inputZeroPoints.empty() || !legacyInputZeroPoints.empty())
         IE_THROW() << "input zero point is not empty '" << getName() << "'";
     if (inputZpSize)
         inputZeroPointType = zpType::PerTensor;
@@ -1642,7 +1642,7 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
     //post-ops attribute and prioritize to choose final onednn kernel.
     if (inputZeroPointType == zpType::PerTensor &&
         (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni)))
-        stockInputZeroPoints.push_back(static_cast<int32_t>(inputZpData[0]));
+        inputZeroPoints.push_back(static_cast<int32_t>(inputZpData[0]));
 }
 
 }   // namespace node
