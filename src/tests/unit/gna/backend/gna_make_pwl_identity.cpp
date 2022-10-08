@@ -144,6 +144,7 @@ TEST_P(MakePWLIdentityTestFixture, check_make_pwl) {
                      input_params.in_scale_,
                      input_params.out_scale_,
                      low_precision_,
+                     false,
                      output_pwl);
         if (input_params.should_throw_) {
             FAIL() << "Should throw, but didn't";

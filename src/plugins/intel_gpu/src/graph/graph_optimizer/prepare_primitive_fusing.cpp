@@ -291,7 +291,7 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
             }
 
             if (use_onednn_impls) {
-                if (input.is_type<reshape>())
+                if (input.is_type<reshape>() || input.is_type<concatenation>())
                     return;
                 #ifdef ENABLE_ONEDNN_FOR_GPU
                 // Activation should not be fused if it isn't supported in onednn
