@@ -289,24 +289,30 @@ Go over the output tensors and process the inference results.
 
 ## Step 7. Link and Build Your Application with OpenVINO™ Runtime (example)
 
-This step may differ for different projects. In this example, a C++ application is used, together with CMake for project configuration.
+This step may differ for different projects. In this example, a C++ & C application is used, together with CMake for project configuration.
 
 For details on additional CMake build options, refer to the [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1)).
 
-### Create a structure for the project:
-   ``` sh
-   project/
-       ├── CMakeLists.txt  - CMake file to build
-       ├── ...             - Additional folders like includes/
-       └── src/            - source folder
-           └── main.cpp
-   build/                  - build directory
-       ...      
-   ```
+@sphinxtabset
 
-### Include OpenVINO™ Runtime libraries in `project/CMakeLists.txt`
+@sphinxtab{C++}
 
-   @snippet snippets/CMakeLists.txt cmake:integration_example
+@snippet docs/snippets/src/main.cpp part7
+
+@snippet snippets/CMakeLists.txt cmake:integration_example_cpp
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@snippet docs/snippets/src/main.c part7
+
+@snippet snippets/CMakeLists.txt cmake:integration_example_c
+
+@endsphinxtab
+
+@endsphinxtabset
+
 
 To build your project using CMake with the default build tools currently available on your machine, execute the following commands:
 
