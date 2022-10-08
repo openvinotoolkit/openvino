@@ -43,6 +43,14 @@ if six.PY3:
     interpreter = sys.executable
     # Note(zhouwei): if use Python/C 'PyRun_SimpleString', 'sys.executable'
     # will be the C++ execubable on Windows
+    print("++++++++++++++++++++++++++++++++++++")
+    print(interpreter)
+    print(os.listdir(os.path.dirname(interpreter)))
+    if sys.platform == 'win32' and 'python.exe' not in interpreter:
+        interpreter = sys.exec_prefix + os.sep + 'python.exe'
+    print("++++++++++++++++++++++++++++++++++++")
+    print(interpreter)
+    print(os.listdir(os.path.dirname(interpreter)))
     import_cv2_proc = subprocess.Popen(
         [interpreter, "-c", "import cv2"],
         stdout=subprocess.PIPE,
