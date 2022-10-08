@@ -28,11 +28,11 @@ void ov::op::util::UnaryElementwiseArithmetic::validate_and_infer_elementwise_ar
 }
 
 void ov::op::util::UnaryElementwiseArithmetic::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(util_UnaryElementwiseArithmetic_validate_and_infer_types);
+    OV_OP_SCOPE(util_UnaryElementwiseArithmetic_validate_and_infer_types);
     validate_and_infer_elementwise_arithmetic();
 }
 
 bool ov::op::util::UnaryElementwiseArithmetic::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(util_UnaryElementwiseArithmetic_visit_attributes);
+    OV_OP_SCOPE(util_UnaryElementwiseArithmetic_visit_attributes);
     return true;
 }

@@ -86,7 +86,7 @@ static float selectBestOutputScaleFactors(float inScale, std::vector<float> outS
     for (size_t i = 0; i < outScales.size(); ++i) {
         auto outScale = outScales[i];
 
-        auto sd = 0.0;
+        auto sd = 0.0f;
         for (size_t j = 0; j < slopes.size(); ++j) {
             auto s = gna_slope(slopes[j], inScale, outScale);
             auto slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
@@ -96,7 +96,7 @@ static float selectBestOutputScaleFactors(float inScale, std::vector<float> outS
             }
 
             auto testSlope = static_cast<double>(slope) / s.slope_scale * inScale / outScale;
-            if (fp32eq(testSlope, slopes[j], 1.0E-6)) {
+            if (fp32eq(static_cast<float>(testSlope), static_cast<float>(slopes[j]), 1.0E-6f)) {
                 return outScale;
             }
 
@@ -144,7 +144,7 @@ static float selectBestWeightsScaleFactors(float inScale, float outScale, std::v
             }
 
             auto testSlope = static_cast<double>(slope) / s.slope_scale * (inScale * weightScale) / outScale;
-            if (fp32eq(testSlope, slopes[j])) {
+            if (fp32eq(static_cast<float>(testSlope), static_cast<float>(slopes[j]))) {
                 return outScale;
             }
             sd += pow(testSlope - slopes[j], 2.0);
@@ -476,7 +476,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
             auto scale_val = output_max_value / abs_val;
 
             if (!std::isinf(scale_val)) {
-                result = scale_val;
+                result = static_cast<float>(scale_val);
             }
         }
 

@@ -246,8 +246,13 @@ if(ENABLE_PKGCONFIG_GEN)
             DESTINATION "${OV_CPACK_RUNTIMEDIR}/pkgconfig"
             COMPONENT ${OV_CPACK_COMP_CORE_DEV})
 
+    if (PKG_CONFIG_VERSION_STRING VERSION_LESS 0.29)
+        set(pkgconfig_option "--exists")
+    else()
+        set(pkgconfig_option "--validate")
+    endif()
     add_custom_command(TARGET openvino PRE_BUILD
-        COMMAND "${PKG_CONFIG_EXECUTABLE}" --validate "${pkgconfig_out}"
+        COMMAND "${PKG_CONFIG_EXECUTABLE}" "${pkgconfig_option}" "${pkgconfig_out}"
         COMMENT "[pkg-config] validating openvino.pc"
         VERBATIM)
 endif()

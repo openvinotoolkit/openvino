@@ -25,6 +25,7 @@
 #include "mvn_inst.h"
 #include "depth_to_space_inst.h"
 #include "region_yolo_inst.h"
+#include "prior_box_inst.h"
 #include <vector>
 #include <memory>
 #include <utility>
@@ -80,6 +81,20 @@ static size_t get_post_ops_count(const program_node& node) {
     }
 
     return onednn_post_ops_count;
+}
+
+static bool is_reduce_blocked_axes(reduce_node const& node) {
+    auto prim = node.get_primitive();
+    auto reduce_axes = prim->axes;
+    auto input_layout = node.input().get_output_layout();
+
+    if (prim->keep_dims == false &&
+        (count(reduce_axes.begin(), reduce_axes.end(), 1) > 0 ||
+        (count(reduce_axes.begin(), reduce_axes.end(), 0) > 0 && input_layout.batch() > 1))) {
+        return true;
+    }
+
+    return false;
 }
 
 std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
@@ -755,7 +770,7 @@ static bool is_node_for_onednn(reduce_node const& node, format preferred_format)
     }
 
     auto input_layout = input.get_output_layout();
-    if (input_layout.get_dims().size() > 4) {
+    if (input_layout.get_partial_shape().size() > 4) {
         return false;
     }
 
@@ -767,6 +782,12 @@ static bool is_node_for_onednn(reduce_node const& node, format preferred_format)
     // oneDNN reduction selects ref kernel for simple formats(bfyx..) which has perf regression with a decent tensor size.
     if (format::is_simple_data_format(preferred_format)) {
         return false;
+    } else {
+        // Onednn reduction does NOT support reordering of unreduced-axes.
+        // Currently, an Onednn reduce layer which contains reduction of blocked axes(b-f) is expected to select planar format.
+        if (is_reduce_blocked_axes(node)) {
+            return false;
+        }
     }
 
     return true;
@@ -776,6 +797,9 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
     auto prim = node.get_primitive();
     auto input_layout = node.get_dependency(0).get_output_layout();
     auto output_layout = node.get_output_layout();
+
+    if (input_layout.is_dynamic() || output_layout.is_dynamic())
+        return false;
 
     // Onednn deconv does not support cross-precision
     bool onednn_valid_dt = (data_type_traits::is_i8_u8(input_layout.data_type) && data_type_traits::is_i8_u8(output_layout.data_type)) ||
@@ -793,7 +817,7 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
 }
 
 
-static bool is_node_for_onednn(program_node& node, fully_connected_node const& fc_node) {
+static bool is_node_for_onednn(fully_connected_node const& node) {
     bool is_suitable_for_onednn = true;
     auto out_layout = node.get_output_layout();
     for (auto& fo : node.get_fused_primitives()) {
@@ -817,12 +841,13 @@ static bool is_node_for_onednn(program_node& node, fully_connected_node const& f
         }
     }
 
-    auto fc_prim = fc_node.get_primitive();
-    int32_t rank = cldnn::format::dimension(out_layout.format);
-    auto size = out_layout.get_tensor();
+    auto fc_prim = node.get_primitive();
+    auto ps = out_layout.get_partial_shape();
+    int rank = ps.size();
+    int non_spatial_count = 2 + (fc_prim->input_size == 3 ? 1 : 0);
     // OneDnn doesn't support spatial dimensions for output
-    for (int i = 0; i < rank - 2 - (fc_prim->input_size == 3 ? 1 : 0); i++) {
-        if (size.spatial[i] != 1) {
+    for (int i = non_spatial_count; i < rank; i++) {
+        if (ps[i].is_dynamic() || ps[i] != 1) {
             return false;
         }
     }
@@ -1260,7 +1285,13 @@ impl_types layout_optimizer::get_forced_impl_type_by_config(program_node& node) 
                 return impl_types::ocl;
             else if (forced_impl_type == "reduce:onednn")
                 return impl_types::onednn;
-        }
+        } else if (node.is_type<concatenation>()) {
+            if (forced_impl_type == "concat:ocl")
+                return impl_types::ocl;
+            else if (forced_impl_type == "concat:onednn")
+                return impl_types::onednn;
+         }
+
 
         // Forcing one layer
         size_t found_type = forced_impl_type.rfind(":");
@@ -1497,11 +1528,11 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         }
 
         if (node.is_type<fully_connected>()) {
-            if (!is_node_for_onednn(node, node.as<fully_connected>()))
+            if (!is_node_for_onednn(node.as<fully_connected>()))
                 impl_candidate = impl_types::ocl;
 
             // WA : Use cldnn FC due to perf drop of small batch size until onednn FC improve perf
-            if (node.get_output_layout().batch() < 32)
+            if (node.get_output_layout().is_static() && node.get_output_layout().batch() < 32)
                 impl_candidate = impl_types::ocl;
         } else {
             for (auto& fo : node.get_fused_primitives()) {
@@ -1518,42 +1549,48 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             }
 
             auto gemm_prim = node.as<gemm>().get_primitive();
-            auto in0_l = node.get_dependency(0).get_output_layout();
-            auto in1_l = node.get_dependency(1).get_output_layout();
-            auto out_l = node.get_output_layout();
-            auto has_input2 = gemm_prim->dependencies().size() == 3;
-            size_t in2_batched_size = 0;
-            if (has_input2) {
-                auto in2_l = node.get_dependency(2).get_output_layout();
-                in2_batched_size = in2_l.count() / (in2_l.spatial(0) * in2_l.spatial(1));
-            }
-            size_t size_k = gemm_prim->transpose_input0 ? in0_l.spatial(1) : in0_l.spatial(0);
+            if (!node.is_dynamic()) {
+                auto in0_l = node.get_dependency(0).get_output_layout();
+                auto in1_l = node.get_dependency(1).get_output_layout();
+                auto out_l = node.get_output_layout();
+                auto has_input2 = gemm_prim->dependencies().size() == 3;
+                size_t in2_batched_size = 0;
+                if (has_input2) {
+                    auto in2_l = node.get_dependency(2).get_output_layout();
+                    in2_batched_size = in2_l.count() / (in2_l.spatial(0) * in2_l.spatial(1));
+                }
+                size_t size_k = gemm_prim->transpose_input0 ? in0_l.spatial(1) : in0_l.spatial(0);
 
-            size_t in0_batched_size = in0_l.count() / (in0_l.spatial(0) * in0_l.spatial(1));
-            size_t in1_batched_size = in1_l.count() / (in1_l.spatial(0) * in1_l.spatial(1));
-            size_t out_batched_size = out_l.count() / (out_l.spatial(0) * out_l.spatial(1));
+                size_t in0_batched_size = in0_l.count() / (in0_l.spatial(0) * in0_l.spatial(1));
+                size_t in1_batched_size = in1_l.count() / (in1_l.spatial(0) * in1_l.spatial(1));
+                size_t out_batched_size = out_l.count() / (out_l.spatial(0) * out_l.spatial(1));
 
-            auto valid_input_batch = in0_batched_size != 1 && (in1_batched_size == in0_batched_size || in1_batched_size == 1);
-            auto valid_output_batch = in0_batched_size > in1_batched_size ? out_batched_size == in0_batched_size :
-                                                                        out_batched_size == in1_batched_size;
-            auto valid_extra_input_batch = has_input2 ? in2_batched_size == 1 || in2_batched_size == out_batched_size : true;
-            auto valid_scale_factor = gemm_prim->alpha == 1.f && (has_input2 ? gemm_prim->beta == 1.f : true);
-            auto unsupported_onednn_gemm = !valid_input_batch ||
-                                           !valid_output_batch ||
-                                           !valid_extra_input_batch ||
-                                           !valid_scale_factor;
+                auto valid_input_batch = in0_batched_size != 1 && (in1_batched_size == in0_batched_size || in1_batched_size == 1);
+                auto valid_output_batch = in0_batched_size > in1_batched_size ? out_batched_size == in0_batched_size :
+                                                                            out_batched_size == in1_batched_size;
+                auto valid_extra_input_batch = has_input2 ? in2_batched_size == 1 || in2_batched_size == out_batched_size : true;
+                auto valid_scale_factor = gemm_prim->alpha == 1.f && (has_input2 ? gemm_prim->beta == 1.f : true);
+                auto unsupported_onednn_gemm = !valid_input_batch ||
+                                            !valid_output_batch ||
+                                            !valid_extra_input_batch ||
+                                            !valid_scale_factor;
 
-            bool is_u8_i8 = data_type_traits::is_i8_u8(in0_l.data_type) && data_type_traits::is_i8_u8(in1_l.data_type);
-            bool use_ops_cldnn_kernel = is_u8_i8 || (in0_l.spatial(0) % 16 == 0 && in0_l.spatial(1) % 16 == 0 &&
-                                                     in1_l.spatial(0) % 16 == 0 && in1_l.spatial(1) % 16 == 0);
+                bool is_u8_i8 = data_type_traits::is_i8_u8(in0_l.data_type) && data_type_traits::is_i8_u8(in1_l.data_type);
+                bool use_ops_cldnn_kernel = is_u8_i8 || (in0_l.spatial(0) % 16 == 0 && in0_l.spatial(1) % 16 == 0 &&
+                                                        in1_l.spatial(0) % 16 == 0 && in1_l.spatial(1) % 16 == 0);
 
-            // Gemm with k < 64 may be faster in cldnn unless ref impl is used
-            if ((size_k < 64 && use_ops_cldnn_kernel) || unsupported_onednn_gemm) {
-                impl_candidate = impl_types::ocl;
+                // Gemm with k < 64 may be faster in cldnn unless ref impl is used
+                if ((size_k < 64 && use_ops_cldnn_kernel) || unsupported_onednn_gemm) {
+                    impl_candidate = impl_types::ocl;
+                }
             }
         }
 
         preferred_impl = impl_candidate;
+    } else if (node.is_type<prior_box>()) {
+        if (node.as<prior_box>().get_primitive()->support_opset8) {
+            preferred_impl = impl_types::ocl;
+        }
     }
 
     return preferred_impl;
@@ -1613,9 +1650,9 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 expected = format::bfyx;
             }
             // TODO: check other types for first conv
-        } else if (layout.format.spatial_num() == 2 &&
-            (layout.data_type == data_types::i8 || layout.data_type == data_types::u8) &&
-            layout.batch() % 16 == 0) {
+        } else if (layout.is_static() && layout.format.spatial_num() == 2 &&
+                  (layout.data_type == data_types::i8 || layout.data_type == data_types::u8) &&
+                  layout.batch() % 16 == 0) {
             if (use_onednn_impls && layout.batch() % 32 == 0) {
                 if (node.get_users().size() == 1 && node.get_users().front()->is_type<convolution>()) {
                     auto& conv = node.get_users().front()->as<convolution>();
@@ -1687,15 +1724,10 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         }
     } else if (node.is_type<reduce>()) {
         auto& reduce_node = node.as<reduce>();
-        auto prim = reduce_node.get_primitive();
-        auto reduce_axes = prim->axes;
-        auto input_layout = reduce_node.input().get_output_layout();
         // if blocked axes are reduced, it will have huge memory overhead. A clDNN reduce reorders un-reduced axes to b-f and w-x axis for this.
         // But oneDNN does not allow this. So planar format is used for this case.
-        if (prim->keep_dims == false &&
-            (find(reduce_axes.begin(), reduce_axes.end(), 1) != reduce_axes.end() ||
-            (find(reduce_axes.begin(), reduce_axes.end(), 0) != reduce_axes.end() && input_layout.batch() > 1)) &&
-            use_onednn_impls) {
+        if (is_reduce_blocked_axes(reduce_node) && use_onednn_impls) {
+            auto input_layout = reduce_node.input().get_output_layout();
             if (input_layout.format.dimension() == 6)
                 expected = format::bfwzyx;
             else if (input_layout.format.dimension() == 5)

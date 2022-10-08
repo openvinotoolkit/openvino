@@ -82,10 +82,6 @@ class TestUnaryOps(CommonTFLayerTest):
             'ReLU': tf.nn.relu,
         }
 
-        #
-        #   Create Tensorflow model
-        #
-
         tf.compat.v1.reset_default_graph()
 
         type = tf.float32
@@ -166,7 +162,7 @@ class TestUnaryOps(CommonTFLayerTest):
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
-    test_data = [dict(shape=[10, 12]),
+    test_data = [pytest.param(dict(shape=[10, 12]), marks=pytest.mark.precommit_tf_fe),
                  dict(shape=[8, 10, 12]),
                  dict(shape=[6, 8, 10, 12]),
                  dict(shape=[4, 6, 8, 10, 12])]

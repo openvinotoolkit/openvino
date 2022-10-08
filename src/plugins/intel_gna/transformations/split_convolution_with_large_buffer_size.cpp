@@ -51,7 +51,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> conv,
                     std::shared_ptr<ngraph::Node> bias,
                     std::shared_ptr<ngraph::Node> fq) {
     auto input_size = std::accumulate(std::begin(conv->get_input_shape(0)),
-        std::end(conv->get_input_shape(0)), 1, std::multiplies<size_t>());
+        std::end(conv->get_input_shape(0)), size_t(1), std::multiplies<size_t>());
     if (input_size <= GNAPluginNS::GNALimitations::bufferMaxSize) {
         return false;
     }

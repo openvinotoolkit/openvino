@@ -41,31 +41,33 @@ protected:
         return args;
     }
 
-    static std::shared_ptr<dnnl::reorder::primitive_desc> get_reorder_descriptor(const reorder_node& arg) {
-        auto prim = arg.get_primitive();
+    static std::shared_ptr<dnnl::reorder::primitive_desc> get_reorder_descriptor(const kernel_impl_params& impl_params, const dnnl::primitive_attr& attr) {
+        auto prim = impl_params.typed_desc<reorder>();
 
-        auto& input = arg.get_dependency(0);
-        auto& engine = arg.get_program().get_engine();
+        auto input_layout = impl_params.get_input_layout(0);
+        auto output_layout = impl_params.output_layout;
+        auto& engine = impl_params.prog.get_engine();
 
-        auto input_md = onednn::layout_to_memory_desc(input.get_output_layout());
-        auto output_md = onednn::layout_to_memory_desc(arg.get_output_layout());
+        auto input_md = onednn::layout_to_memory_desc(input_layout);
+        auto output_md = onednn::layout_to_memory_desc(output_layout);
 
         return std::make_shared<dnnl::reorder::primitive_desc>(
             engine.get_onednn_engine(),
             input_md,
             engine.get_onednn_engine(),
             output_md,
-            *(arg.get_onednn_primitive_attributes()));
+            attr);
     }
 
 public:
-    static primitive_impl* create(const reorder_node& arg, const kernel_impl_params&) {
-        auto desc = get_reorder_descriptor(arg);
+    static primitive_impl* create(const reorder_node& arg, const kernel_impl_params& impl_params) {
+        auto& engine = impl_params.prog.get_engine();
         auto attr = arg.get_onednn_primitive_attributes();
+        auto desc = get_reorder_descriptor(impl_params, *attr);
 
         std::shared_ptr<void> dummy = nullptr;
 
-        return new reorder_onednn(arg, dummy, attr, *desc);
+        return new reorder_onednn(engine, dummy, attr, *desc);
     }
 };
 

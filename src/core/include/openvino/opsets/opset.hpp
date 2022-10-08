@@ -25,6 +25,7 @@ class OPENVINO_API OpSet {
 
 public:
     OpSet() = default;
+    OpSet(const std::string& name);
     virtual ~OpSet() = default;
     std::set<NodeTypeInfo>::size_type size() const {
         std::lock_guard<std::mutex> guard(get_mutex());
@@ -115,6 +116,7 @@ protected:
     }
 
     ngraph::FactoryRegistry<ov::Node> m_factory_registry;
+    std::string m_name;
     std::set<NodeTypeInfo> m_op_types;
     std::map<std::string, NodeTypeInfo> m_name_type_info_map;
     std::map<std::string, NodeTypeInfo> m_case_insensitive_type_info_map;
@@ -171,5 +173,10 @@ const OPENVINO_API OpSet& get_opset7();
  * @ingroup ov_opset_cpp_api
  */
 const OPENVINO_API OpSet& get_opset8();
+/**
+ * @brief Returns opset9
+ * @ingroup ov_opset_cpp_api
+ */
 const OPENVINO_API OpSet& get_opset9();
+const OPENVINO_API OpSet& get_opset10();
 }  // namespace ov
