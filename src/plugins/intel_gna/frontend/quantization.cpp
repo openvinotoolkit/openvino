@@ -27,7 +27,7 @@ void QuantizationCallback<int16_t, int32_t>::runFakeQuantize() const {
     auto input_high = 0.0f;
     auto output_low = 0.0f;
     auto output_high = 0.0f;
-    auto levels = 1;
+    size_t levels = 1;
     if (fq_num_stats > 0) {
         input_low = *fq_ptr_input_low;
         input_high = *fq_ptr_input_high;
@@ -164,8 +164,8 @@ void QuantizationCallback<int16_t, int32_t>::runQuantize() const {
 
 std::pair<float, float> FindMinMaxValues(void* ptr_float_memory, size_t num_elements) {
     float* ptr_float_feat = reinterpret_cast<float*>(ptr_float_memory);
-    float min = num_elements ? ptr_float_feat[0] : 0.0;
-    float max = num_elements ? ptr_float_feat[0] : 0.0;
+    float min = num_elements ? ptr_float_feat[0] : 0.0f;
+    float max = num_elements ? ptr_float_feat[0] : 0.0f;
 
     for (size_t i = 1; i < num_elements; i++) {
         if (fabs(ptr_float_feat[i]) > max) {
@@ -232,8 +232,8 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
     auto input_high = 0.0f;
     auto output_low = 0.0f;
     auto output_high = 0.0f;
-    auto levels = 1;
-    float valueAcc = 0.0;
+    size_t levels = 1;
+    float valueAcc = 0.0f;
     for (uint32_t i = 0; i < num_rows; i++) {
         uint32_t channel_multiplier = 1;
         if (fq_num_stats > 0) {
@@ -244,7 +244,7 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
             output_high = fq_ptr_output_high[idx];
             levels = fq_levels;
 
-            channel_multiplier = ((input_high - input_low) * *ptr_weight_scale_factor) / (levels - 1);
+            channel_multiplier = static_cast<uint32_t>(((input_high - input_low) * *ptr_weight_scale_factor) / (levels - 1));
         } else {
             float scaled_row_max = 0;
             for (uint32_t col = 0; col < num_columns; col++) {
@@ -255,7 +255,7 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
                 }
             }
 
-            channel_multiplier = scaled_row_max / static_cast<float>(MAX_VAL_1B_WEIGHT);
+            channel_multiplier = static_cast<uint32_t>(scaled_row_max / static_cast<float>(MAX_VAL_1B_WEIGHT));
         }
 
         // channel multiplier shouldn't be 0

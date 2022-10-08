@@ -4,6 +4,8 @@
 
 #include "op_table.hpp"
 
+#include "openvino/opsets/opset9.hpp"
+
 using namespace std;
 using namespace ov;
 using namespace ov::frontend::tensorflow;
@@ -28,6 +30,7 @@ OP_CONVERTER(translate_avg_pool_op);
 OP_CONVERTER(translate_batch_mat_mul_op);
 OP_CONVERTER(translate_batch_nd_and_space_nd_op);
 OP_CONVERTER(translate_bias_add_op);
+OP_CONVERTER(translate_block_lstm_op);
 OP_CONVERTER(translate_broadcast_args_op);
 OP_CONVERTER(translate_broadcast_to_op);
 OP_CONVERTER(translate_bucketize_op);
@@ -55,6 +58,7 @@ OP_CONVERTER(translate_fused_batch_norm_op);
 OP_CONVERTER(translate_gather_op);
 OP_CONVERTER(translate_gather_v2_op);
 OP_CONVERTER(translate_gather_nd_op);
+OP_CONVERTER(translate_gru_block_cell_op);
 OP_CONVERTER(translate_identity_op);
 OP_CONVERTER(translate_identity_n_op);
 OP_CONVERTER(translate_interpolate_op);
@@ -91,6 +95,7 @@ OP_CONVERTER(translate_roll_op);
 OP_CONVERTER(translate_round_op);
 OP_CONVERTER(translate_rsqrt_op);
 OP_CONVERTER(translate_scatter_nd_op);
+OP_CONVERTER(translate_segment_sum_op);
 OP_CONVERTER(translate_sparse_to_dense_op);
 OP_CONVERTER(translate_select_op);
 OP_CONVERTER(translate_shape_op);
@@ -145,6 +150,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Sinh", translate_unary_op<opset8::Sinh>},
         {"Sign", translate_unary_op<opset8::Sign>},
         {"Softplus", translate_unary_op<opset8::SoftPlus>},
+        {"Softsign", translate_unary_op<opset9::SoftSign>},
         {"Tan", translate_unary_op<opset8::Tan>},
         {"Tanh", translate_unary_op<opset8::Tanh>},
         {"Swish", translate_unary_op<opset8::Swish>},
@@ -269,6 +275,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Round", translate_round_op},
         {"Rsqrt", translate_rsqrt_op},
         {"ScatterNd", translate_scatter_nd_op},
+        {"SegmentSum", translate_segment_sum_op},
         {"SparseToDense", translate_sparse_to_dense_op},
         {"Select", translate_select_op},
         {"SelectV2", translate_select_op},
@@ -297,6 +304,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ZerosLike", translate_zeros_like_op},
 
         // Translators for internal operations
+        {"BlockLSTM", translate_block_lstm_op},
+        {"GRUBlockCell", translate_gru_block_cell_op},
         {"SparseFillEmptyRows", translate_sparse_fill_empty_rows_op},
         {"SparseSegmentSum", translate_sparse_segment_sum_op},
         {"Unique", translate_unique_op},
