@@ -2,20 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef ENABLE_XBYAK
+#include "jit_generator.hpp"
 
-#    include "jit_generator.hpp"
+#include <xbyak/xbyak_util.h>
 
-#    include <xbyak/xbyak_util.h>
-
-#    include "ngraph/type/float16.hpp"
+#include "ngraph/type/float16.hpp"
 
 namespace ngraph {
 namespace runtime {
 namespace jit {
 using namespace Xbyak;
 
-#    ifdef XBYAK64
+#ifdef XBYAK64
 static const Xbyak::Operand::Code abi_save_gpr_regs[] = {
     Xbyak::Operand::RBX,
     Xbyak::Operand::RBP,
@@ -23,21 +21,21 @@ static const Xbyak::Operand::Code abi_save_gpr_regs[] = {
     Xbyak::Operand::R13,
     Xbyak::Operand::R14,
     Xbyak::Operand::R15,
-#        ifdef _WIN32
+#    ifdef _WIN32
     Xbyak::Operand::RDI,
     Xbyak::Operand::RSI,
-#        endif
+#    endif
 };
 
-#        ifdef _WIN32
+#    ifdef _WIN32
 static const Xbyak::Reg64 abi_param1(Xbyak::Operand::RCX), abi_param2(Xbyak::Operand::RDX),
     abi_param3(Xbyak::Operand::R8), abi_param4(Xbyak::Operand::R9), abi_not_param1(Xbyak::Operand::RDI);
-#        else
+#    else
 static const Xbyak::Reg64 abi_param1(Xbyak::Operand::RDI), abi_param2(Xbyak::Operand::RSI),
     abi_param3(Xbyak::Operand::RDX), abi_param4(Xbyak::Operand::RCX), abi_param5(Xbyak::Operand::R8),
     abi_param6(Xbyak::Operand::R9), abi_not_param1(Xbyak::Operand::RCX);
-#        endif
 #    endif
+#endif
 
 const size_t Generator::num_abi_save_gpr_regs = sizeof(abi_save_gpr_regs) / sizeof(abi_save_gpr_regs[0]);
 
@@ -209,5 +207,3 @@ void Generator::copy<float>(const Xbyak::Reg64& dst, const Xbyak::Reg64& src, co
 }  // namespace jit
 }  // namespace runtime
 }  // namespace ngraph
-
-#endif  // ENABLE_XBYAK

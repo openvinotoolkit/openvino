@@ -21,11 +21,9 @@ if(ENABLE_INTEL_GPU)
     add_subdirectory(ocl)
 endif()
 
-if(ENABLE_XBYAK)
-    add_subdirectory(xbyak EXCLUDE_FROM_ALL)
-    openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
-    ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
-endif()
+add_subdirectory(xbyak EXCLUDE_FROM_ALL)
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
+ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
 
 #
 # zlib

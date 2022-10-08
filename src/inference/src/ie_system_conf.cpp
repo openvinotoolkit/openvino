@@ -10,12 +10,9 @@
 
 #include "threading/ie_parallel_custom_arena.hpp"
 
-#ifdef ENABLE_XBYAK
-
-#    define XBYAK_NO_OP_NAMES
-#    define XBYAK_UNDEF_JNL
-
-#    include <xbyak/xbyak_util.h>
+#define XBYAK_NO_OP_NAMES
+#define XBYAK_UNDEF_JNL
+#include <xbyak/xbyak_util.h>
 
 namespace InferenceEngine {
 
@@ -63,52 +60,6 @@ bool with_cpu_x86_avx512_core_amx_bf16() {
 bool with_cpu_x86_avx512_core_amx() {
     return with_cpu_x86_avx512_core_amx_int8() || with_cpu_x86_avx512_core_amx_bf16();
 }
-
-#else
-
-namespace InferenceEngine {
-
-bool with_cpu_x86_sse42() {
-    return false;
-}
-
-bool with_cpu_x86_avx() {
-    return false;
-}
-
-bool with_cpu_x86_avx2() {
-    return false;
-}
-
-bool with_cpu_x86_avx512f() {
-    return false;
-}
-
-bool with_cpu_x86_avx512_core() {
-    return false;
-}
-
-bool with_cpu_x86_avx512_core_vnni() {
-    return false;
-}
-
-bool with_cpu_x86_bfloat16() {
-    return false;
-}
-
-bool with_cpu_x86_avx512_core_amx_int8() {
-    return false;
-}
-
-bool with_cpu_x86_avx512_core_amx_bf16() {
-    return false;
-}
-
-bool with_cpu_x86_avx512_core_amx() {
-    return false;
-}
-
-#endif  // ENABLE_XBYAK
 
 bool checkOpenMpEnvVars(bool includeOMPNumThreads) {
     for (auto&& var : {"GOMP_CPU_AFFINITY",

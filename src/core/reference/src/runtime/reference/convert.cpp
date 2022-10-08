@@ -4,17 +4,12 @@
 
 #include "ngraph/runtime/reference/convert.hpp"
 
-#ifdef ENABLE_XBYAK
-#    include "jit_generator.hpp"
-#endif  // ENABLE_XBYAK
+#include "jit_generator.hpp"
 
 namespace ngraph {
 namespace runtime {
 namespace reference {
 namespace {
-
-#ifdef ENABLE_XBYAK
-
 template <typename src_t, typename dst_t>
 void jit_convert_vec(jit::Generator&, const Xbyak::RegExp&, const Xbyak::RegExp&);
 
@@ -197,18 +192,6 @@ void convert_impl(const TI* arg, TO* out, size_t count) {
         }
     }
 }
-
-#else
-
-template <typename TI, typename TO>
-void convert_impl(const TI* arg, TO* out, size_t count) {
-    for (size_t i = 0; i < count; ++i) {
-        out[i] = static_cast<TO>(arg[i]);
-    }
-}
-
-#endif  // ENABLE_XBYAK
-
 }  // namespace
 
 template <>

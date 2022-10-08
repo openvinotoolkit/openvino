@@ -4,8 +4,8 @@
 
 #pragma once
 
-#ifndef NOMINMAX
-# define NOMINMAX
+#if defined _WIN32 && !defined NOMINMAX
+#define NOMINMAX
 #endif
 
 #include <functional>
