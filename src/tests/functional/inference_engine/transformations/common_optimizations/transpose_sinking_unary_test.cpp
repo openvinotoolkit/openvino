@@ -141,16 +141,15 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_fa
         return std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
 }
 
-namespace mult_consumers_last_node {
-
-namespace with_reshape {
-
-NodePtr CreateReshape(NodePtr parent_node, const ov::Shape & input_shape)
+static NodePtr CreateReshape(NodePtr parent_node, const ov::Shape & input_shape)
 {
     const size_t mul = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<size_t>());
     auto reshape_const = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{1}, ov::Shape{mul});
     return std::make_shared<ov::opset9::Reshape>(parent_node, reshape_const, false);
 }
+
+namespace mult_consumers_last_node {
+namespace with_reshape {
 
 std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_factory,
                                                                 size_t num_unary_ops,
@@ -294,7 +293,55 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(UnaryFactoryPtr unary_factory
 }
 
 } // namespace backward
+
+namespace forward {
+
+std::shared_ptr<ov::Model> CreateFunction(UnaryFactoryPtr unary_factory,
+                                          size_t num_unary_ops,
+                                          const ov::Shape & input_shape,
+                                          ov::element::Type input_type) {
+        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+
+        auto sinh = std::make_shared<ov::opset9::Sinh>(X);
+
+        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+        auto transpose0 = std::make_shared<ov::opset9::Transpose>(sinh, ng_order0);
+
+        auto reshape = CreateReshape(transpose0, input_shape);
+
+        NodePtr in_op = transpose0;
+        for (size_t i = 0; i < num_unary_ops; ++i) {
+            in_op = unary_factory->create(in_op);
+        }
+
+        return std::make_shared<ov::Model>(ov::OutputVector{in_op, reshape}, ov::ParameterVector{X});
 }
+
+std::shared_ptr<ov::Model> CreateReferenceFunction(UnaryFactoryPtr unary_factory,
+                                                   size_t num_unary_ops,
+                                                   const ov::Shape & input_shape,
+                                                   ov::element::Type input_type) {
+        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+
+        auto sinh = std::make_shared<ov::opset9::Sinh>(X);
+
+        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+        auto transpose0 = std::make_shared<ov::opset9::Transpose>(sinh, ng_order0);
+        auto reshape = CreateReshape(transpose0, input_shape);
+
+        NodePtr in_op = sinh;
+        for (size_t i = 0; i < num_unary_ops; ++i) {
+            in_op = unary_factory->create(in_op);
+        }
+
+        auto ng_order1 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+        auto transpose1 = std::make_shared<ov::opset9::Transpose>(in_op, ng_order1);
+
+        return std::make_shared<ov::Model>(ov::OutputVector{transpose1, reshape}, ov::ParameterVector{X});
+}
+
+} // namespace forward
+} // namespace mult_consumers_first_node 
 
 std::vector<UnaryFactoryPtr> unary_factories = {
     CreateUnaryFactory<ov::opset9::Clamp>(),
@@ -404,6 +451,15 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackwardMultConsumersTestSuiteLast
                                             ::testing::ValuesIn(unary_operations_numbers),
                                             ::testing::Values(mult_consumers_last_node::with_eltwise::CreateFunctionTransposeAfter),
                                             ::testing::Values(mult_consumers_last_node::with_eltwise::CreateFunctionTransposeBefore),
+                                            ::testing::Values(ov::Shape{1, 96, 55, 55}),
+                                            ::testing::Values(ov::element::f32)));
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryForwardMultConsumersTestSuiteFirstNode, TransposeSinkingUnaryTestFixture,
+                         ::testing::Combine(::testing::ValuesIn(unary_factories),
+                                            ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingUnaryForward>()),
+                                            ::testing::ValuesIn(unary_operations_numbers),
+                                            ::testing::Values(mult_consumers_first_node::forward::CreateFunction),
+                                            ::testing::Values(mult_consumers_first_node::forward::CreateReferenceFunction),
                                             ::testing::Values(ov::Shape{1, 96, 55, 55}),
                                             ::testing::Values(ov::element::f32)));
 
