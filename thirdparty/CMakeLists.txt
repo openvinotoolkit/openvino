@@ -214,10 +214,19 @@ endif()
 #
 
 if(ENABLE_TESTS)
-    add_subdirectory(gtest EXCLUDE_FROM_ALL)
+    # TODO: migrate to official version of googltest
+    find_package(GTest QUIET)
 
-    openvino_developer_export_targets(COMPONENT tests
-                                      TARGETS gmock gmock_main gtest gtest_main)
+    if(GTest_FOUND)
+        foreach(gtest_target gtest gtest_main gmock gmock_main)
+            set_target_properties(GTest::${gtest_target} PROPERTIES IMPORTED_GLOBAL ON)
+            add_library(${gtest_target} ALIAS GTest::${gtest_target})
+        endforeach()
+    else()
+        add_subdirectory(gtest EXCLUDE_FROM_ALL)
+        openvino_developer_export_targets(COMPONENT tests
+                                          TARGETS gmock gmock_main gtest gtest_main)
+    endif()
 endif()
 
 #
@@ -274,13 +283,15 @@ endif()
 # nlohmann json
 #
 
-add_subdirectory(json)
+if(NOT CPACK_GENERATOR STREQUAL "BREW")
+    add_subdirectory(json)
 
-openvino_developer_export_targets(COMPONENT openvino_common
-                                  TARGETS nlohmann_json nlohmann_json_schema_validator)
+    openvino_developer_export_targets(COMPONENT openvino_common
+                                      TARGETS nlohmann_json nlohmann_json_schema_validator)
 
-ov_install_static_lib(nlohmann_json ${OV_CPACK_COMP_CORE})
-ov_install_static_lib(nlohmann_json_schema_validator ${OV_CPACK_COMP_CORE})
+    ov_install_static_lib(nlohmann_json ${OV_CPACK_COMP_CORE})
+    ov_install_static_lib(nlohmann_json_schema_validator ${OV_CPACK_COMP_CORE})
+endif()
 
 #
 # Install
