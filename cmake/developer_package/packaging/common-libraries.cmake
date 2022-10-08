@@ -24,7 +24,7 @@ macro(ov_common_libraries_cpack_set_dirs)
     set(OV_CPACK_DOCDIR ${CMAKE_INSTALL_DATADIR}/doc/openvino-${OpenVINO_VERSION})
 
     # non-native stuff
-    set(OV_CPACK_PYTHONDIR ${OV_CPACK_PLUGINSDIR})
+    set(OV_CPACK_PYTHONDIR ${CMAKE_INSTALL_LIBDIR})
     set(OV_CPACK_SHAREDIR ${CMAKE_INSTALL_DATADIR}/openvino) # internal
     set(OV_CPACK_SAMPLESDIR ${OV_CPACK_SHAREDIR}/samples)
     set(OV_CPACK_DEVREQDIR ${OV_CPACK_SHAREDIR})
