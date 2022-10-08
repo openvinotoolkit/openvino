@@ -11,28 +11,21 @@ namespace {
 using NodePtr = std::shared_ptr<ov::Node>;
 using NodePair = std::pair<NodePtr, NodePtr>;
 
-void SwapNodes(NodePtr first_node, NodePtr second_node) {
-    const auto first_node_output_names = first_node->output(0).get_names();
-    const auto second_node_output_names = second_node->output(0).get_names();
+NodePair SwapNodes(NodePtr first_node, NodePtr second_node) {
+    auto second_node_inputs = second_node->input_values();
+    second_node_inputs[0] = first_node->input_value(0);
+    auto new_first_node = second_node->clone_with_new_inputs(second_node_inputs);
 
-    auto swap_names = [&]() {
-        const std::string first_name = first_node->get_friendly_name();
-        first_node->set_friendly_name(second_node->get_friendly_name());
-        second_node->set_friendly_name(first_name);
+    auto first_node_inputs = first_node->input_values();
+    first_node_inputs[0] = new_first_node;
+    auto new_second_node = first_node->clone_with_new_inputs(first_node_inputs);
 
-        first_node->output(0).set_names(second_node_output_names);
-        second_node->output(0).set_names(first_node_output_names);
-    };
+    new_second_node->set_friendly_name(second_node->get_friendly_name());
+    ov::copy_runtime_info({first_node, second_node}, {new_first_node, new_second_node});
 
-    auto out_1 = first_node->input_value(0);
-    second_node->input(0).replace_source_output(out_1);
+    ov::replace_node(second_node, new_second_node);
 
-    auto out_2 = second_node->output(0);
-    second_node->output(0).replace(first_node->output(0));
-
-    first_node->input(0).replace_source_output(out_2);
-
-    swap_names();
+    return std::make_pair(new_first_node, new_second_node);
 }
 
 }  // namespace
@@ -41,8 +34,7 @@ ov::pass::TransposeSinkingUnaryForward::TransposeSinkingUnaryForward() {
     MATCHER_SCOPE(TransposeSinkingUnaryForward);
 
     auto transpose_label = ov::pass::pattern::wrap_type<ov::opset9::Transpose>(
-        {ov::pass::pattern::any_input(), ov::pass::pattern::any_input()},
-        ov::pass::pattern::consumers_count(1));
+        {ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
     auto unary_label = ov::pass::pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic,
                                                     ov::opset9::Clamp,
                                                     ov::opset9::Elu,
@@ -55,10 +47,10 @@ ov::pass::TransposeSinkingUnaryForward::TransposeSinkingUnaryForward() {
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
 
-        SwapNodes(transpose, unary);
+        auto new_nodes = SwapNodes(transpose, unary);
 
-        register_new_node(unary);
-        register_new_node(transpose);
+        register_new_node(new_nodes.first);
+        register_new_node(new_nodes.second);
 
         return true;
     };
@@ -75,8 +67,7 @@ ov::pass::TransposeSinkingUnaryBackward::TransposeSinkingUnaryBackward() {
                                                     ov::opset9::Elu,
                                                     ov::opset9::SoftPlus,
                                                     ov::opset9::LogicalNot,
-                                                    ov::opset9::Convert>({ov::pass::pattern::any_input()},
-                                                                         ov::pass::pattern::consumers_count(1));
+                                                    ov::opset9::Convert>({ov::pass::pattern::any_input()});
 
     auto transpose_label =
         ov::pass::pattern::wrap_type<ov::opset9::Transpose>({unary_label, ov::pass::pattern::any_input()});
@@ -86,10 +77,10 @@ ov::pass::TransposeSinkingUnaryBackward::TransposeSinkingUnaryBackward() {
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
 
-        SwapNodes(unary, transpose);
+        auto new_nodes = SwapNodes(unary, transpose);
 
-        register_new_node(transpose);
-        register_new_node(unary);
+        register_new_node(new_nodes.first);
+        register_new_node(new_nodes.second);
 
         return true;
     };
