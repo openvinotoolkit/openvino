@@ -22,17 +22,18 @@ ie_faster_build(${TARGET_NAME}
     UNITY
     PCH PRIVATE "src/precomp.hpp")
 
-target_compile_definitions(${TARGET_NAME} PRIVATE XBYAK_NO_OP_NAMES XBYAK64)
-
-if(NOT BUILD_SHARED_LIBS)
-    target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
-endif()
+target_compile_definitions(${TARGET_NAME} PUBLIC
+    $<$<NOT:$<BOOL:BUILD_SHARED_LIBS>>:OPENVINO_STATIC_LIBRARY>)
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${REF_IMPL_INCLUDE_DIR}>
     $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>)
 
-link_system_libraries(${TARGET_NAME} PRIVATE xbyak)
+if(ENABLE_XBYAK)
+    target_compile_definitions(${TARGET_NAME}
+        PRIVATE XBYAK_NO_OP_NAMES ENABLE_XBYAK XBYAK64)
+    link_system_libraries(${TARGET_NAME} PRIVATE xbyak)
+endif()
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 

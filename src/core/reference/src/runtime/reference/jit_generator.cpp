@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#ifdef ENABLE_XBYAK
+
 #include "jit_generator.hpp"
 
 #include <xbyak/xbyak_util.h>
@@ -207,3 +209,5 @@ void Generator::copy<float>(const Xbyak::Reg64& dst, const Xbyak::Reg64& src, co
 }  // namespace jit
 }  // namespace runtime
 }  // namespace ngraph
+
+#endif // ENABLE_XBYAK
