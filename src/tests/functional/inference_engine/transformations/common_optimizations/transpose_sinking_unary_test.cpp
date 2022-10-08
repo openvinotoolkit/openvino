@@ -238,8 +238,11 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_f
 
         return std::make_shared<ov::Model>(ov::OutputVector{sinh, cosh}, ov::ParameterVector{X});
 }
-} // namespace with_eltwise
 
+} // namespace with_eltwise
+} // namespace mult_consumers_last_node
+
+namespace mult_consumers_first_node {
 namespace backward {
 
 std::shared_ptr<ov::Model> CreateFunction(UnaryFactoryPtr unary_factory,
@@ -291,8 +294,7 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(UnaryFactoryPtr unary_factory
 }
 
 } // namespace backward
-
-} // namespace mult_consumers_last_node
+}
 
 std::vector<UnaryFactoryPtr> unary_factories = {
     CreateUnaryFactory<ov::opset9::Clamp>(),
@@ -409,7 +411,7 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackwardMultConsumersTestSuiteFirs
                          ::testing::Combine(::testing::ValuesIn(unary_factories),
                                             ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingUnaryBackward>()),
                                             ::testing::ValuesIn(unary_operations_numbers),
-                                            ::testing::Values(mult_consumers_last_node::backward::CreateFunction),
-                                            ::testing::Values(mult_consumers_last_node::backward::CreateReferenceFunction),
+                                            ::testing::Values(mult_consumers_first_node::backward::CreateFunction),
+                                            ::testing::Values(mult_consumers_first_node::backward::CreateReferenceFunction),
                                             ::testing::Values(ov::Shape{1, 96, 55, 55}),
                                             ::testing::Values(ov::element::f32)));
