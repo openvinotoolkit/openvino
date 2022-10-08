@@ -328,7 +328,7 @@ jobs:
 
   - script: |
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
-      $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
+      $(INSTALL_TEST_DIR)/ov_paddle_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
     continueOnError: false
 

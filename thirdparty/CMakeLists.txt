@@ -179,21 +179,23 @@ endif()
 # Gflags
 #
 
-# TODO: allow gflags for BREW type
-
-if(NOT APPLE AND NOT DEFINED ENV{CONDA_PREFIX})
-    # - conda-forge contains only dynamic libraries
+if(NOT APPLE OR CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$")
     # - on Apple only dynamic libraries are available
     #   also, we can easily mix arm64 and x86_64 binaries when cross-compile for Intel CPU
-    find_package(gflags QUIET COMPONENTS nothreads_static)
+    if(CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$")
+        # conda-forge and brew contains only shared version of gflags
+        find_package(gflags QUIET COMPONENTS nothreads_shared)
+    else()
+        find_package(gflags QUIET COMPONENTS nothreads_static)
+    endif()
 endif()
 
 if(gflags_FOUND)
-    if(TARGET gflags_nothreads-static)
-        set_target_properties(gflags_nothreads-static PROPERTIES IMPORTED_GLOBAL ON)
-        add_library(gflags ALIAS gflags_nothreads-static)
-    elseif(TARGET gflags)
+    if(TARGET gflags)
         set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
+    elseif(TARGET ${GFLAGS_TARGET})
+        set_target_properties(${GFLAGS_TARGET} PROPERTIES IMPORTED_GLOBAL ON)
+        add_library(gflags ALIAS ${GFLAGS_TARGET})
     else()
         message(FATAL_ERROR "Internal error: failed to find imported target 'gflags'")
     endif()
@@ -283,7 +285,7 @@ ov_install_static_lib(nlohmann_json_schema_validator ${OV_CPACK_COMP_CORE})
 if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
     # These libraries are dependencies for openvino-samples package
 
-    if(NOT gflags_FOUND AND CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
+    if(NOT gflags_FOUND)
         message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev")
     endif()
     if(NOT zlib_FOUND)

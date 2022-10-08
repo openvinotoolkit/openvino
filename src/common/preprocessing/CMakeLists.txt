@@ -121,8 +121,6 @@ if(ENABLE_GAPI_PREPROCESSING)
     add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
     set(library_sources $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
-else()
-
 endif()
 
 # Create module library file from object library

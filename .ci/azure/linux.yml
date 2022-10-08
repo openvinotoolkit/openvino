@@ -354,7 +354,7 @@ jobs:
     displayName: 'ONNX Frontend Tests'
     continueOnError: false
 
-  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_paddle_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
     continueOnError: false
 
