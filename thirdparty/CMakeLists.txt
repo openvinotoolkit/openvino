@@ -215,7 +215,7 @@ endif()
 
 if(ENABLE_TESTS)
     # TODO: migrate to official version of googltest
-    find_package(GTest QUIET)
+    # find_package(GTest QUIET)
 
     if(GTest_FOUND)
         foreach(gtest_target gtest gtest_main gmock gmock_main)
@@ -283,15 +283,13 @@ endif()
 # nlohmann json
 #
 
-if(NOT CPACK_GENERATOR STREQUAL "BREW")
-    add_subdirectory(json)
+add_subdirectory(json)
 
-    openvino_developer_export_targets(COMPONENT openvino_common
-                                      TARGETS nlohmann_json nlohmann_json_schema_validator)
+openvino_developer_export_targets(COMPONENT openvino_common
+                                  TARGETS nlohmann_json nlohmann_json_schema_validator)
 
-    ov_install_static_lib(nlohmann_json ${OV_CPACK_COMP_CORE})
-    ov_install_static_lib(nlohmann_json_schema_validator ${OV_CPACK_COMP_CORE})
-endif()
+ov_install_static_lib(nlohmann_json ${OV_CPACK_COMP_CORE})
+ov_install_static_lib(nlohmann_json_schema_validator ${OV_CPACK_COMP_CORE})
 
 #
 # Install

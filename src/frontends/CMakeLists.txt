@@ -4,9 +4,6 @@
 
 add_subdirectory(common)
 
-# TMP solution
-set(ENABLE_TESTS OFF)
-
 if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
