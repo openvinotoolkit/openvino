@@ -5,6 +5,21 @@
 include(CPackComponent)
 
 #
+# ov_get_pyversion()
+#
+function(ov_get_pyversion pyversion)
+    find_package(PythonInterp 3 QUIET)
+    if(PythonInterp_FOUND)
+        string(REGEX REPLACE "\\." ";" _PYTHON_VERSION_LIST ${PYTHON_VERSION_STRING})
+        list(GET _PYTHON_VERSION_LIST 0 PYTHON_VERSION_MAJOR)
+        list(GET _PYTHON_VERSION_LIST 1 PYTHON_VERSION_MINOR)
+        set(${pyversion} "python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}" PARENT_SCOPE)
+    else()
+        set(${pyversion} "NOT-FOUND" PARENT_SCOPE)
+    endif()
+endfunction()
+
+#
 # ov_cpack_set_dirs()
 #
 # Set directories for cpack
@@ -18,10 +33,14 @@ macro(ov_cpack_set_dirs)
     set(OV_CPACK_OPENVINO_CMAKEDIR runtime/cmake)
     set(OV_CPACK_DOCDIR docs)
     set(OV_CPACK_SAMPLESDIR samples)
-    set(OV_CPACK_PYTHONDIR python)
     set(OV_CPACK_WHEELSDIR tools)
     set(OV_CPACK_TOOLSDIR tools)
     set(OV_CPACK_DEVREQDIR tools)
+
+    ov_get_pyversion(pyversion)
+    if(pyversion)
+        set(OV_CPACK_PYTHONDIR python/${pyversion})
+    endif()
 
     if(WIN32)
         set(OV_CPACK_LIBRARYDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG>)

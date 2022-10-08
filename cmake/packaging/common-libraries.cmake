@@ -11,14 +11,12 @@ macro(ov_cpack_settings)
     unset(CPACK_COMPONENTS_ALL)
     foreach(item IN LISTS cpack_components_all)
         # filter out some components, which are not needed to be wrapped to conda-forge
-        if(# skip OpenVINO Pyhon API and samples
-           NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" AND
-           NOT item STREQUAL OV_CPACK_COMP_PYTHON_SAMPLES AND
-           # python wheels are not needed to be wrapped by conda packages
+        if(# python wheels are not needed to be wrapped by conda | brew packages
            NOT item STREQUAL OV_CPACK_COMP_PYTHON_WHEELS AND
-           # skip C / C++ samples
+           # skip C / C++ / Python samples
            NOT item STREQUAL OV_CPACK_COMP_CPP_SAMPLES AND
            NOT item STREQUAL OV_CPACK_COMP_C_SAMPLES AND
+           NOT item STREQUAL OV_CPACK_COMP_PYTHON_SAMPLES AND
            # even for case of system TBB we have installation rules for wheels packages
            # so, need to skip this explicitly since they are installed in `host` section
            NOT item MATCHES "^tbb(_dev)?$" AND

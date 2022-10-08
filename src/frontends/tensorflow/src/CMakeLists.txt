@@ -3,13 +3,13 @@
 #
 
 if(NOT CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
-    set(skip_install SKIP_INSTALL)
+    set(linkable_frontend LINKABLE_FRONTEND)
 endif()
 
 ov_add_frontend(NAME tensorflow
+                ${linkable_frontend}
                 FILEDESCRIPTION "FrontEnd to load and convert TensorFlow file format"
-                LINK_LIBRARIES openvino::util openvino::runtime::dev
-                ${skip_install})
+                LINK_LIBRARIES openvino::util openvino::runtime::dev)
 
 # give a different name during installation to OpenVINO package
 set(target_name "${FRONTEND_NAME_PREFIX}tensorflow${FRONTEND_NAME_SUFFIX}")
