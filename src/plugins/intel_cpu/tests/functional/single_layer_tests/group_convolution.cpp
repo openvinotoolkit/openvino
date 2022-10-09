@@ -203,6 +203,34 @@ protected:
 };
 
 TEST_P(GroupConvolutionLayerCPUTest, CompareWithRefs) {
+   // Skip tests for brgconv convolution where kernel size = 1x1
+    if (priority[0] == "brgconv_avx512" || priority[0] == "brgconv_avx512_amx") {
+        bool is_1x1 = true;
+        for (const auto &i : kernel) {
+            if (i != 1) {
+                is_1x1 = false;
+                break;
+            }
+        }
+        if (is_1x1) {
+            GTEST_SKIP() << "Disabled test due to the brgconv does not support 1x1 convolution kernel." << std::endl;
+        }
+    }
+
+    // Skip tests for brgconv_amx convolution where dilation is not 1
+    if (priority[0].find("amx") != std::string::npos) {
+        bool dilation_is_1x1 = true;
+        for (const auto &i : dilation) {
+            if (i != 1) {
+                dilation_is_1x1 = false;
+                break;
+            }
+        }
+        if (!dilation_is_1x1) {
+            GTEST_SKIP() << "Disabled test due to the brgconv amx does not support non 1 dilation convolution kernel." << std::endl;
+        }
+    }
+
     run();
     if (isBias) {
         checkBiasFusing(compiledModel);
