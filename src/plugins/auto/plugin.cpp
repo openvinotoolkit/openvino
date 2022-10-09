@@ -551,13 +551,15 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
     };
     // Push GPU Devices to gpuDevices
-    for (auto iterGPU = metaDevices.begin(); iterGPU != metaDevices.end();) {
-        if (iterGPU->deviceName.find("GPU") != std::string::npos) {
-            gpuDevices.emplace_back(*iterGPU);
-            priorityDevices.emplace_back(*iterGPU);
-            iterGPU = metaDevices.erase(iterGPU);
+    for (auto iterDev = metaDevices.begin(); iterDev != metaDevices.end();) {
+        if (iterDev->deviceName.find("GPU") != std::string::npos) {
+            gpuDevices.emplace_back(*iterDev);
+            // record the order in which devices are loaded
+            priorityDevices.emplace_back(*iterDev);
+            // remove GPU from metaDevices
+            iterDev = metaDevices.erase(iterDev);
         } else {
-            iterGPU++;
+            iterDev++;
         }
     }
     // load GPU Devices first
@@ -578,22 +580,21 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         loads.clear();
     }
 
-    // Check if CPU in device list
+    // Check if CPU is in device list
     auto iterCPU = std::find_if(metaDevices.begin(), metaDevices.end(), [&](DeviceInformation& d) {
         return d.deviceName.find("CPU") != std::string::npos;
     });
-    if (iterCPU != metaDevices.end() &&
+    // target device has CPU and GPU, calculate threads for CPU and set CPU affinity to “NUMA”
+    if (iterCPU != metaDevices.end() && gpuDevices.size() > 0 &&
         iterCPU->config.find(ov::inference_num_threads.name()) == iterCPU->config.end()) {
         int nCPUCores = getNumberOfCPUCores();
-        int nHalfCPUCores = nCPUCores >> 1;
-        int nRemainThreads =
-            (nCPUCores - nTotalGPUStreamsNum) > nHalfCPUCores ? nHalfCPUCores : (nCPUCores - nTotalGPUStreamsNum);
-        // no idle threads for cpu
+        int nRemainThreads = nCPUCores - nTotalGPUStreamsNum;
+        // no idle threads for CPU
         if (nRemainThreads <= 0) {
             LOG_INFO_TAG("CPUCores:%d, totalGPUStreams nums:%d, no threas for CPU, remove CPU",
                          nCPUCores,
                          nTotalGPUStreamsNum);
-            // remove cpu from metaDevices
+            // remove CPU from metaDevices
             metaDevices.erase(iterCPU);
         } else {
             LOG_INFO_TAG("CPU cores:%d, totalGPUStreams nums:%d, Set CPU threads nums:%d",
@@ -602,7 +603,11 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                          nRemainThreads);
             GetCore()->set_property(iterCPU->deviceName,
                                     {{PluginConfigParams::KEY_CPU_THREADS_NUM, std::to_string(nRemainThreads)},
-                                     {CONFIG_KEY(CPU_THROUGHPUT_STREAMS), std::to_string(nRemainThreads)}});
+                                     ov::affinity(ov::Affinity::NUMA)});
+            // if CPU is not the last device, then move CPU to the end of the device list
+            if (std::next(iterCPU) != metaDevices.end()) {
+                std::rotate(iterCPU, iterCPU + 1, metaDevices.end());
+            }
         }
     }
     for (auto& p : metaDevices) {
