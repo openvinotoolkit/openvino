@@ -18,6 +18,7 @@ class StackAllocator final {
 public:
     using Ptr = std::shared_ptr<StackAllocator>;
 
+    class Transaction;
     class Address;
     template<typename TReg>
     class Reg;
@@ -56,16 +57,6 @@ public:
         commit();
     }
 
-    void commit() {
-        if (current_offset > offset) {
-            code_generator.sub(code_generator.rsp, current_offset - offset);
-            offset = current_offset;
-        } else if (offset > current_offset) {
-            code_generator.add(code_generator.rsp, offset - current_offset);
-            offset = current_offset;
-        }
-    }
-
     friend void stack_mov(Address& addr, const Xbyak::Xmm& vmm);
     friend void stack_mov(Address& addr, const Xbyak::Reg& reg);
     friend void stack_mov(const Xbyak::Xmm& vmm, const Address& addr);
@@ -83,6 +74,7 @@ private:
            , size(size) {}
 
         bool is_used = true;
+        bool is_transaction = false;
         Xbyak::Address address;
         size_t offset{};
         size_t size{};
@@ -127,7 +119,9 @@ private:
         }
     }
 
-    Allocation::Ptr allocate(const size_t alloc_size, const size_t requested_alignment) {
+    Allocation::Ptr allocate(const size_t alloc_size,
+                             const size_t requested_alignment,
+                             const bool is_transaction = false) {
         if (alignment % requested_alignment != 0) {
             IE_THROW() << "Requested alignment should have 0 reminder of alignment % align !!";
         }
@@ -147,6 +141,7 @@ private:
         if (!free_allocations.empty()) {
             const auto alloc = free_allocations.front();
             alloc->is_used = true;
+            alloc->is_transaction = is_transaction;
             return alloc;
         } else {
             size_t alloc_offset = 0;
@@ -158,6 +153,7 @@ private:
             current_offset += aligned_alloc_size;
             Xbyak::Address addr = code_generator.ptr[base_pointer - current_offset];
             const auto alloc = std::make_shared<Allocation>(addr, current_offset, aligned_alloc_size);
+            alloc->is_transaction = is_transaction;
             allocations.push_back(alloc);
             return alloc;
         }
@@ -186,9 +182,24 @@ private:
         }
     }
 
+    void commit() {
+        if (current_offset > offset) {
+            code_generator.sub(code_generator.rsp, current_offset - offset);
+            offset = current_offset;
+        } else if (offset > current_offset) {
+            code_generator.add(code_generator.rsp, offset - current_offset);
+            offset = current_offset;
+        }
+        for (auto& alloc : allocations) {
+            alloc->is_transaction = false;
+        }
+        is_transaction_= false;
+    }
+
     x64::jit_generator& code_generator;
     const Xbyak::Reg base_pointer;
 
+    bool is_transaction_{};
     size_t offset{};
     size_t current_offset{};
     size_t alignment{};
@@ -200,52 +211,109 @@ void stack_mov(StackAllocator::Address& addr, const Xbyak::Reg& reg);
 void stack_mov(const Xbyak::Xmm& vmm, const StackAllocator::Address& addr);
 void stack_mov(const Xbyak::Reg& reg, const StackAllocator::Address& addr);
 
+class StackAllocator::Transaction {
+public:
+    friend class StackAllocator::Address;
+
+    Transaction(StackAllocator::Ptr stack_allocator)
+        : stack_allocator_{stack_allocator} {
+        checkUnique(true);
+    }
+
+    ~Transaction() {
+        checkUnique(false);
+        commit();
+    }
+
+    void begin() {
+        stack_allocator_->is_transaction_ = true;
+    }
+
+    void commit() {
+        stack_allocator_->is_transaction_ = false;
+        stack_allocator_->commit();
+    }
+
+private:
+    void checkUnique(bool isCtor) {
+        static thread_local bool isCreated = false;
+        if (isCtor) {
+            if (isCreated) {
+                IE_THROW() << "There should be only one instance of Transaction per thread !!";
+            }
+            isCreated = true;
+        } else {
+            isCreated = false;
+        }
+    }
+
+    StackAllocator::Ptr stack_allocator_;
+};
+
 class StackAllocator::Address {
 public:
     Address() = default;
+
+    Address(Transaction& transaction,
+            const size_t alloc_size,
+            const size_t requested_alignment = 1)
+            : transaction_{&transaction}
+            , stack_allocator_{transaction.stack_allocator_}
+            , allocation_{stack_allocator_->allocate(alloc_size, requested_alignment, true)} {
+        transaction.begin();
+    }
 
     Address(StackAllocator::Ptr stack_allocator,
             const size_t alloc_size,
             const size_t requested_alignment = 1)
         : stack_allocator_{stack_allocator}
         , allocation_{stack_allocator_->allocate(alloc_size, requested_alignment)} {
+        if (stack_allocator_->is_transaction_) {
+            IE_THROW() << "Cannot allocate Address out of transaction. Please, finish first transaction !!";
+        }
+        stack_allocator_->commit();
     }
 
     virtual ~Address() {
-        release();
-    }
-
-    Address(Address&& addr) noexcept {
-        this->operator=(std::move(addr));
-    }
-
-    Address& operator=(Address&& addr) noexcept {
-        release();
-        stack_allocator_ = std::move(addr.stack_allocator_);
-        allocation_ = std::move(addr.allocation_);
-        return *this;
-    }
-
-    void release() {
-        if (allocation_) {
-            allocation_->is_used = false;
+        if (transaction_) {
+            release(*transaction_);
+        } else {
+            release();
+            stack_allocator_->commit();
         }
-        if (stack_allocator_) {
+    }
+
+    Address(Address&& addr) noexcept = delete;
+    Address& operator=(Address&& addr) noexcept = delete;
+
+    void release(Transaction& transaction) {
+        if (allocation_ && stack_allocator_) {
+            transaction.begin();
+            allocation_->is_used = false;
             stack_allocator_->deallocate();
         }
         allocation_ = {};
-        stack_allocator_ = {};
+    }
+
+    void release() {
+        if (allocation_ && stack_allocator_) {
+            if (stack_allocator_->is_transaction_) {
+                IE_THROW() << "Cannot release Address out of transaction. Please, finish first transaction !!";
+            }
+            allocation_->is_used = false;
+            stack_allocator_->deallocate();
+            stack_allocator_->commit();
+        }
+        allocation_ = {};
     }
 
     operator Xbyak::Address&() {
         ensureValid();
-        stack_allocator_->commit();
         return allocation_->address;
     }
 
     operator const Xbyak::Address&() const {
         ensureValid();
-        stack_allocator_->commit();
         return allocation_->address;
     }
 
@@ -280,13 +348,14 @@ private:
     }
 
     bool isInitialized() const {
-        return stack_allocator_ && allocation_;
+        return stack_allocator_ && allocation_ && !allocation_->is_transaction;
     }
 
     x64::jit_generator& generator() const {
         return stack_allocator_->code_generator;
     }
 
+    Transaction* transaction_{};
     StackAllocator::Ptr stack_allocator_;
     Allocation::Ptr allocation_;
 };
@@ -297,6 +366,10 @@ public:
     static_assert(std::is_base_of<Xbyak::Reg, TReg>::value, "TReg should be a Xbyak::Reg based !!");
 
     Reg() = default;
+
+    Reg(StackAllocator::Transaction& transaction)
+        : Address{transaction, TReg{}.getBit() / 8, getAlignment()} {
+    }
 
     Reg(StackAllocator::Ptr stack_allocator)
         : Address{stack_allocator, TReg{}.getBit() / 8, getAlignment()} {
