@@ -182,6 +182,14 @@ private:
         }
     }
 
+    bool isTransaction() const {
+        return is_transaction_;
+    }
+
+    void begin() {
+        is_transaction_ = true;
+    }
+
     void commit() {
         if (current_offset > offset) {
             code_generator.sub(code_generator.rsp, current_offset - offset);
@@ -190,10 +198,10 @@ private:
             code_generator.add(code_generator.rsp, offset - current_offset);
             offset = current_offset;
         }
+        is_transaction_ = false;
         for (auto& alloc : allocations) {
             alloc->is_transaction = false;
         }
-        is_transaction_= false;
     }
 
     x64::jit_generator& code_generator;
@@ -226,11 +234,10 @@ public:
     }
 
     void begin() {
-        stack_allocator_->is_transaction_ = true;
+        stack_allocator_->begin();
     }
 
     void commit() {
-        stack_allocator_->is_transaction_ = false;
         stack_allocator_->commit();
     }
 
@@ -252,8 +259,6 @@ private:
 
 class StackAllocator::Address {
 public:
-    Address() = default;
-
     Address(Transaction& transaction,
             const size_t alloc_size,
             const size_t requested_alignment = 1)
@@ -268,11 +273,16 @@ public:
             const size_t requested_alignment = 1)
         : stack_allocator_{stack_allocator}
         , allocation_{stack_allocator_->allocate(alloc_size, requested_alignment)} {
-        if (stack_allocator_->is_transaction_) {
+        if (stack_allocator_->isTransaction()) {
             IE_THROW() << "Cannot allocate Address out of transaction. Please, finish first transaction !!";
         }
         stack_allocator_->commit();
     }
+
+    Address(const Address& addr) = delete;
+    Address& operator=(const Address& addr) = delete;
+    Address(Address&& addr) noexcept = delete;
+    Address& operator=(Address&& addr) noexcept = delete;
 
     virtual ~Address() {
         if (transaction_) {
@@ -282,9 +292,6 @@ public:
             stack_allocator_->commit();
         }
     }
-
-    Address(Address&& addr) noexcept = delete;
-    Address& operator=(Address&& addr) noexcept = delete;
 
     void release(Transaction& transaction) {
         if (allocation_ && stack_allocator_) {
@@ -297,7 +304,7 @@ public:
 
     void release() {
         if (allocation_ && stack_allocator_) {
-            if (stack_allocator_->is_transaction_) {
+            if (stack_allocator_->isTransaction()) {
                 IE_THROW() << "Cannot release Address out of transaction. Please, finish first transaction !!";
             }
             allocation_->is_used = false;
@@ -365,8 +372,6 @@ class StackAllocator::Reg : public StackAllocator::Address {
 public:
     static_assert(std::is_base_of<Xbyak::Reg, TReg>::value, "TReg should be a Xbyak::Reg based !!");
 
-    Reg() = default;
-
     Reg(StackAllocator::Transaction& transaction)
         : Address{transaction, TReg{}.getBit() / 8, getAlignment()} {
     }
@@ -374,9 +379,6 @@ public:
     Reg(StackAllocator::Ptr stack_allocator)
         : Address{stack_allocator, TReg{}.getBit() / 8, getAlignment()} {
     }
-
-    Reg(Reg&& addr) noexcept = default;
-    Reg& operator=(Reg&& addr) noexcept = default;
 
     Reg& operator=(const Xbyak::Xmm& vmm) override {
         Address::operator=(vmm);
