@@ -20,12 +20,12 @@ ov::op::util::FFTBase::FFTBase(const Output<Node>& data, const Output<Node>& axe
     : Op({data, axes, signal_size}) {}
 
 bool ov::op::util::FFTBase::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(util_FFTBase_visit_attributes);
+    OV_OP_SCOPE(util_FFTBase_visit_attributes);
     return true;
 }
 
 void ov::op::util::FFTBase::validate_types() {
-    NGRAPH_OP_SCOPE(util_FFTBase_validate_types);
+    OV_OP_SCOPE(util_FFTBase_validate_types);
 
     size_t num_of_inputs = get_input_size();
     NODE_VALIDATION_CHECK(this, num_of_inputs == 2 || num_of_inputs == 3, "FFT op must have 2 or 3 inputs.");
@@ -49,7 +49,7 @@ void ov::op::util::FFTBase::validate_types() {
 }
 
 void ov::op::util::FFTBase::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(util_FFTBase_validate_and_infer_types);
+    OV_OP_SCOPE(util_FFTBase_validate_and_infer_types);
 
     validate_types();
 

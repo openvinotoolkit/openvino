@@ -5,9 +5,9 @@
   <div class="dropdown-menu" aria-labelledby="language-selector">
     {% for slug, url in languages %}
       {% if slug == current_language %}
-        <a class="dropdown-item font-weight-bold" href="{{ url }}/{{ pagename }}.html">{{ slug }}</a>
+        <a class="dropdown-item font-weight-bold" href="{{ url }}/index.html">{{ slug }}</a>
       {% else %}
-        <a  class="dropdown-item" href="{{ url }}/{{ pagename }}.html">{{ slug }}</a>
+        <a  class="dropdown-item" href="{{ url }}/index.html">{{ slug }}</a>
       {% endif %}
     {% endfor %}
   </div>

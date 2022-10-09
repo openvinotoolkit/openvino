@@ -198,7 +198,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
                                                                             const bool fp_intesive) {
     const auto envThreads = parallel_get_env_threads();
     const auto& numaNodes = getAvailableNUMANodes();
-    const int numaNodesNum = numaNodes.size();
+    const int numaNodesNum = static_cast<int>(numaNodes.size());
     auto streamExecutorConfig = initial;
     const bool bLatencyCase = streamExecutorConfig._streams <= numaNodesNum;
 

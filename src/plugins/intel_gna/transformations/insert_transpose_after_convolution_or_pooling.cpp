@@ -35,7 +35,7 @@ bool InsertTransposeAfterConvOrPool::run_on_model(const std::shared_ptr<ngraph::
             auto input_shape = next_node->get_input_shape(0);
             auto output_shape = next_node->get_output_shape(0);
             if (input_shape[1] > 1 &&
-                output_shape.back() == std::accumulate(std::begin(output_shape), std::end(output_shape), 1, std::multiplies<size_t>())) {
+                output_shape.back() == std::accumulate(std::begin(output_shape), std::end(output_shape), size_t(1), std::multiplies<size_t>())) {
                 found_reshape_to_1d = true;
                 break;
             }

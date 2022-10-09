@@ -10,10 +10,8 @@
 namespace ov {
 namespace op {
 namespace v0 {
-template<class T>
-void shape_infer(const ov::op::v0::MatMul *op,
-                 const std::vector<T> &input_shapes,
-                 std::vector<T> &output_shapes) {
+template <class T>
+void shape_infer(const ov::op::v0::MatMul* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
 
     auto arg0_shape = input_shapes[0], arg1_shape = input_shapes[1];
@@ -64,7 +62,8 @@ void shape_infer(const ov::op::v0::MatMul *op,
     auto merged_dimension = DimType();
     auto arg0_col_dim = arg0_shape_tmp[arg0_rank - 1];
     auto arg1_row_dim = arg1_shape_tmp[arg1_rank - 2];
-    NODE_VALIDATION_CHECK(op, DimType::merge(merged_dimension, arg0_col_dim, arg1_row_dim) || arg0_col_dim.is_dynamic() ||
+    NODE_VALIDATION_CHECK(op,
+                          DimType::merge(merged_dimension, arg0_col_dim, arg1_row_dim) || arg0_col_dim.is_dynamic() ||
                               arg1_row_dim.is_dynamic(),
                           "Incompatible MatMul matrix dimension. ",
                           "First input dimension=",
@@ -90,7 +89,8 @@ void shape_infer(const ov::op::v0::MatMul *op,
     // Broadcast all batches (last two dimensions represent matrix),
     // expand dim with value 1 to bigger dim if dimensions are not equal.
     for (size_t i = 0; i < max_rank - 2; ++i) {
-        NODE_VALIDATION_CHECK(op, DimType::broadcast_merge(output_shape[i], arg0_shape_tmp[i], arg1_shape_tmp[i]) ||
+        NODE_VALIDATION_CHECK(op,
+                              DimType::broadcast_merge(output_shape[i], arg0_shape_tmp[i], arg1_shape_tmp[i]) ||
                                   arg0_shape_tmp[i].is_dynamic() || arg1_shape_tmp[i].is_dynamic(),
                               "Incompatible MatMul batch dimension. ",
                               "Can't merge first input dimension=",
@@ -118,6 +118,6 @@ void shape_infer(const ov::op::v0::MatMul *op,
     }
     output_shapes[0] = output_shape;
 }
-}
-}
-}
+}  // namespace v0
+}  // namespace op
+}  // namespace ov

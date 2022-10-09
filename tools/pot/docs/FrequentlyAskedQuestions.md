@@ -1,4 +1,4 @@
-# Post-training Optimization Tool Frequently Asked Questions {#pot_docs_FrequentlyAskedQuestions}
+# Post-training Optimization Tool FAQ {#pot_docs_FrequentlyAskedQuestions}
 
 If your question is not covered below, use the [OpenVINO™ Community Forum page](https://community.intel.com/t5/Intel-Distribution-of-OpenVINO/bd-p/distribution-openvino-toolkit),
 where you can participate freely.
@@ -14,7 +14,7 @@ What else can I do?</a>
 - <a href="#quality">I have successfully quantized my model with a low accuracy drop and improved performance but the output video generated from the low precision model is much worse than from the full precision model. What could be the root cause?</a>
 - <a href="#longtime">The quantization process of my model takes a lot of time. Can it be decreased somehow?</a>
 - <a href="#import">I get "Import Error:... No such file or directory". How can I avoid it?</a>
-- <a href="#python">When I execute POT CLI, I get "File "/workspace/venv/lib/python3.6/site-packages/nevergrad/optimization/base.py", line 35... SyntaxError: invalid syntax". What is wrong?</a>
+- <a href="#python">When I execute POT CLI, I get "File "/workspace/venv/lib/python3.7/site-packages/nevergrad/optimization/base.py", line 35... SyntaxError: invalid syntax". What is wrong?</a>
 - <a href="#nomodule">What does a message "ModuleNotFoundError: No module named 'some\_module\_name'" mean?</a>
 - <a href="#dump">Is there a way to collect an intermidiate IR when the AccuracyAware mechanism fails?</a>
 - <a name="#outputs"> What do the messages "Output name: <result_operation_name> not found" or "Output node with <result_operation_name> is not found in graph" mean?</a>
@@ -36,11 +36,9 @@ The POT accepts models in the OpenVINO&trade; Intermediate Representation (IR) f
 
 ### <a name="noac">I'd like to quantize a model and I've converted it to IR but I don't have the Accuracy Checker config. What can I do?</a>
 
-1. Try quantization using Python* API of the Post-training Optimization Tool. For more details see [Default Quantization](@ref pot_default_quantization_usage.
-2. If you consider command-line usage only refer to [Accuracy Checker documentation](@ref omz_tools_accuracy_checker) to create the Accuracy Checker configuration file,  and
-try to find the configuration file for your model among the ones available in the Accuracy Checker examples. 
-3. An alternative way is to quantize the model
-in the [Simplified mode](#ref pot_docs_simplified_mode) but you will not be able to measure the accuracy.
+1. Try quantization using Python API of the Post-training Optimization Tool. For more details see [Default Quantization](@ref pot_default_quantization_usage).
+2. If you consider command-line usage only refer to [Accuracy Checker documentation](@ref omz_tools_accuracy_checker) to create the Accuracy Checker configuration file, and try to find the configuration file for your model among the ones available in the Accuracy Checker examples. 
+3. An alternative way is to quantize the model in the [Simplified mode](#ref pot_docs_simplified_mode) but you will not be able to measure the accuracy.
 
 ### <a name="tradeoff">What is a tradeoff when you go to low precision?</a>
 
@@ -79,7 +77,7 @@ It can happen due to the following reasons:
 ### <a name="longtime">The quantization process of my model takes a lot of time. Can it be decreased somehow?</a>
 
 Quantization time depends on multiple factors such as the size of the model and the dataset. It also depends on the algorithm:
-the [Default Quantization](@ref pot_default_quantization_usage) algorithm takes less time than the [ [Accuracy-aware Quantization](@ref pot_accuracyaware_usage) algorithm.
+the [Default Quantization](@ref pot_default_quantization_usage) algorithm takes less time than the [Accuracy-aware Quantization](@ref pot_accuracyaware_usage) algorithm.
 The following configuration parameters also impact the quantization time duration
 (see details in [Post-Training Optimization Best Practices](BestPractices.md)):
 - `use_fast_bias`: when set to `false`, it increases the quantization time
@@ -89,9 +87,9 @@ The following configuration parameters also impact the quantization time duratio
 - `eval_requests_number`: the lower number, the more time might be required for the quantization
 Note that higher values of `stat_requests_number` and `eval_requests_number` increase memory consumption by POT.
 
-### <a name="python">When I execute POT CLI, I get "File "/workspace/venv/lib/python3.6/site-packages/nevergrad/optimization/base.py", line 35... SyntaxError: invalid syntax". What is wrong?</a>
+### <a name="python">When I execute POT CLI, I get "File "/workspace/venv/lib/python3.7/site-packages/nevergrad/optimization/base.py", line 35... SyntaxError: invalid syntax". What is wrong?</a>
 
-This error is reported when you have a Python version older than 3.6 in your environment. Upgrade your Python version.
+This error is reported when you have a Python version older than 3.7 in your environment. Upgrade your Python version.
 
 ### <a name="nomodule">What does a message "ModuleNotFoundError: No module named 'some\_module\_name'" mean?</a>
 
