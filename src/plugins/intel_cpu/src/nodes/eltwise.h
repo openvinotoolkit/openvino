@@ -102,7 +102,7 @@ public:
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis = 1) override;
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1) override;
     void appendBinPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem) override;
-    bool optimizeAsOscaleEltwise(dnnl::primitive_attr &attr, dnnl::post_ops& ops, int dimOC, bool allowEltwisePostOps);
+    bool optimizeAsOscaleEltwise(dnnl::primitive_attr &attr, dnnl::post_ops& ops, int dimOC, bool allowShift);
     void fuseInto(NodePtr& parentNode) override;
     InferenceEngine::Precision getRuntimePrecision() const override;
 

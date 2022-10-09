@@ -177,44 +177,10 @@ void MatMul::setPostOps(dnnl::primitive_attr &attr, const VectorDims& dims, bool
         outputDataType = outDataDesc->getDataType();
     }
 
-    bool isINT8Inference = canBeExecutedInInt8(getOriginalInputPrecisionAtPort(0), getOriginalInputPrecisionAtPort(1));
-    // set attr(oscale/zeropoint/post ops/) according to oneDNN computation procedure:
-    //  https://oneapi-src.github.io/oneDNN/dev_guide_inference_int8.html
     auto postop = fusedWith.begin();
 
-    // only the first postop may be mapped as output scale:
-    //   1. FakeQuantize
-    //   2. DequantizeMultiply
-    if (isINT8Inference && postop != fusedWith.end()) {
-        bool isLastPostOp = ((*postop) == fusedWith.back());
-        if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(postop->get())) {
-            if (fakeQuantizeNode->optimizeAsOscaleEltwise(attr, ops, isLastPostOp, outputDataType)) {
-                ++postop; // mapped
-            }
-        } else if (auto* eltwiseNode = dynamic_cast<Eltwise *>(postop->get())) {
-            // -1 means the OC channel is the last dimension
-            if (eltwiseNode->getOneDnnAlgorithm() == dnnl::algorithm::eltwise_relu) {
-                // There are patterns composed of Relu + A in which A can be optimized as output scales
-                // in this case we can switch the order of these two steps (since oneDNN performs output scale first)
-                // since [Relu, Scale] is equivalent to [Scale, Relu].
-                auto nextop = postop + 1;
-                if (nextop != fusedWith.end()) {
-                    if (auto* eltwiseNode2 = dynamic_cast<Eltwise *>(nextop->get())) {
-                        if (eltwiseNode2->optimizeAsOscaleEltwise(attr, ops, -1, false)) {
-                            // eltwiseNode2 is already mapped first as output scales
-                            // now mapping eltwiseNode:
-                            ops.append_eltwise(1.0, eltwiseNode->getOneDnnAlgorithm(), eltwiseNode->getAlpha(), eltwiseNode->getBeta());
-                            // two ops were mapped now.
-                            ++postop;
-                            ++postop;
-                        }
-                    }
-                }
-            } else if (eltwiseNode->optimizeAsOscaleEltwise(attr, ops, -1, true)) {
-                ++postop; // mapped
-            }
-        }
-    }
+    if (canBeExecutedInInt8(getOriginalInputPrecisionAtPort(0), getOriginalInputPrecisionAtPort(1)))
+        postop = tryMapFusedOpsToOscales(postop, attr, ops, outputDataType, -1);
 
     // all the rest must be mapped as postOps
     while (postop != fusedWith.end()) {
@@ -229,7 +195,7 @@ void MatMul::setPostOps(dnnl::primitive_attr &attr, const VectorDims& dims, bool
             continue;
         } else if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
             bool isLastPostOp = (node == fusedWith.back());
-            if (fakeQuantizeNode->optimizeAsEltwise(ops, isLastPostOp, outputDataType)) {
+            if (fakeQuantizeNode->optimizeAsOscaleEltwise(attr, ops, isLastPostOp, outputDataType, false, true)) {
                 continue;
             }
 

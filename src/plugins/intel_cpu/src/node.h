@@ -747,6 +747,12 @@ protected:
 
     std::shared_ptr<IShapeInfer> shapeInference;
 
+    std::vector<NodePtr>::iterator tryMapFusedOpsToOscales(std::vector<NodePtr>::iterator postop,
+                                                           dnnl::primitive_attr& attr,
+                                                           dnnl::post_ops& ops,
+                                                           dnnl::memory::data_type outputDataType,
+                                                           int dimOC);
+
 private:
     std::vector<EdgeWeakPtr> parentEdges;
     std::vector<EdgeWeakPtr> childEdges;

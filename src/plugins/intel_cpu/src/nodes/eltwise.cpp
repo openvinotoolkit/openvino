@@ -2205,7 +2205,7 @@ void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, s
     appendPostOpsImpl(ops, postOpDims, postOpsMem, channelAxis);
 }
 
-bool Eltwise::optimizeAsOscaleEltwise(dnnl::primitive_attr &attr, dnnl::post_ops& ops, int dimOC, bool allowEltwisePostOps) {
+bool Eltwise::optimizeAsOscaleEltwise(dnnl::primitive_attr &attr, dnnl::post_ops& ops, int dimOC, bool allowShift) {
     int const_port = 1 - getFusingPort();
 
     // only OC dimension can be non-one (per-channel)
@@ -2237,7 +2237,7 @@ bool Eltwise::optimizeAsOscaleEltwise(dnnl::primitive_attr &attr, dnnl::post_ops
     const float zero_thr = std::numeric_limits<float>::min();
     if (getAlgorithm() == Algorithm::EltwisePowerStatic && abs(alpha - 1.0f) < zero_thr) {
         // return before mapping anything if we are doomed to fail.
-        if ((!allowEltwisePostOps) && (abs(gamma) > zero_thr))
+        if ((!allowShift) && (abs(gamma) > zero_thr))
             return false;
 
         attr.set_output_scales(0, {beta});

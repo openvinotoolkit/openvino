@@ -134,18 +134,13 @@ public:
     // this optimization can be failed due to per-channel shifts not implementable by eltwise (and we explicitly
     // avoid costly binary postOps in this optimization)
     // if it happens to be the last postOp, the outDataType determines which type of suration will be performed
-    // by oneDNN thus some crop/round steps can be further optimized.
+    // by oneDNN thus the final crop steps can be further optimized.
     bool optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
                                  dnnl::post_ops& ops,
                                  bool isLastPostOp,
                                  dnnl::memory::data_type outDataType,
+                                 bool allowOscale,
                                  bool allowShift = true);
-
-    // called when it's not the first fused OP thus output scale is not an option, and this optimization try to
-    // use only eltwise postOps to perform per-tensor FQ.
-    // if it happens to be the last postOp, the outDataType determines which type of suration will be performed
-    // by oneDNN thus some crop/round steps can be further optimized.
-    bool optimizeAsEltwise(dnnl::post_ops& ops, bool isLastPostOp, dnnl::memory::data_type outDataType);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     std::vector<float> simplifyToScale(dnnl::memory::data_type outDataType, size_t OC);

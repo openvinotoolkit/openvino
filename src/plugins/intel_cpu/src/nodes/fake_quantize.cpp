@@ -1985,21 +1985,18 @@ static bool isPerTensor(const std::vector<float>& v, const float zero_thr = std:
         });
 }
 
+// All postOps in oneDNN are performed in FP32, thus rounding in FQ can always be dropped (w/o jeopardizing accuracy),
+// thus input/output linear can be combined into a single one.
+// in this combined linear, scale part will be implemented by output scale and it can be per-channel,
+// but shift-part is implemented by eltwise postOps so it must be per-tensor(or zero).
+// crop step must be postponed after the combined linear step, to be consistent with order of calculation in oneDNN.
+// it may also be implemented as implicit saturation performend by oneDNN by default when output data type is u8/s8.
 bool FakeQuantize::optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
                                            dnnl::post_ops& ops,
                                            bool isLastPostOp,
                                            dnnl::memory::data_type outDataType,
+                                           bool allowOscale,
                                            bool allowShift) {
-    // in this optimization, output scale (can be per-channel or per-tensor) is an option
-
-    // All postOps in oneDNN are performed in FP32, thus rounding in FQ can always be dropped (w/o jeopardizing accuracy),
-    // thus input/output linear can be combined into a single one.
-
-    // in this combined linear, scale part will be implemented by output scale and it can be per-channel,
-    // but shift-part is implemented by eltwise postOps so it must be per-tensor(or zero).
-
-    // crop step must be postponed after the combined linear step, to be consistent with order of calculation in oneDNN.
-    // it may also be implemented as implicit saturation performend by oneDNN by default when output data type is u8/s8.
     int OC = 1;
     auto checkSize = [&](int size) -> bool {
         if (size == 1 || size == OC)
@@ -2063,14 +2060,20 @@ bool FakeQuantize::optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
 
     // combined scale implemented by output scale
     if (isPerTensor(combinedScale)) {
-        attr.set_output_scales(0, combinedScale);
+        if (allowOscale && abs(combinedShift[0]) < zero_thr) {
+            attr.set_output_scales(0, combinedScale);
+        } else {
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, combinedScale[0], combinedShift[0]);
+        }
     } else {
+        // eltwise do not support per-OC linear
+        if (!allowOscale)
+            return false;
         attr.set_output_scales(1 << 1, combinedScale);
-    }
-
-    // combined shift implemented by eltwise postOps
-    if (abs(combinedShift[0]) > zero_thr) {
-        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, combinedShift[0]);
+        // combined shift implemented by eltwise postOps
+        if (abs(combinedShift[0]) > zero_thr) {
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, combinedShift[0]);
+        }
     }
 
     // when FQ is last postOps and output data type is u8/s8
@@ -2091,121 +2094,6 @@ bool FakeQuantize::optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
     return true;
 }
 
-bool FakeQuantize::optimizeAsEltwise(dnnl::post_ops& ops, bool isLastPostOp, dnnl::memory::data_type outDataType) {
-    // fused per-Tensor quantization can be optimized with more efficient eltwise postOps
-    if (isPerTensor(cropLow) && isPerTensor(cropHigh) && isPerTensor(inputScale) && isPerTensor(inputShift) &&
-        isPerTensor(outputScale) && isPerTensor(outputShift)) {
-        // y = FakeQuantize(x, cropLow, cropHigh, inputScale, inputShift, outputScale, outputShift)
-        //
-        //  1. input crop           x1 = crop(x, cropLow[i], cropHigh[i])
-        //  2. input_linear         x2 = x1 * inputScale[i] + inputShift[i]
-        //  3. round                q = round(x2)                               (0 ~ levels-1)
-        //  4. output_linear        y = q * outputScale[i] + outputShift[i]
-
-        // step1 & 2 can be exchanged so crop and round may possibly be combined into a round with saturation
-
-        //  1. input_linear         x1 = x * inputScale[i] + inputShift[i]
-        //  2. crop                 x2 = crop(x1, clo, chi)
-        //  3. round                q = round(x2)                               (0 ~ levels-1)
-        //  4. output_linear        y = q * outputScale[i] + outputShift[i]
-
-        // when FakeQuantize happens to be the last Post Ops before output to u8/i8
-        // oneDNN does the following by default:
-        //       1.saturation(crop) f32 to u8/i8 range
-        //       2.round f32 to u8/i8
-        // which can be used to map to step 2/3
-        auto f_input_linear = [&](float x) {
-            return x * inputScale[0] + inputShift[0];
-        };
-
-        // crop can be combined into saturation+round
-        float clo = f_input_linear(cropLow[0]);
-        float chi = f_input_linear(cropHigh[0]);
-        bool crop_by_saturate = ((abs(clo - 0) < 0.001f) && (abs(chi - (levels - 1)) < 0.001f));
-
-        // no step can be skipped
-        auto show_debug = [&](int type) {
-            DEBUG_LOG(getName(), " type=", type, " levels=", levels, " outDataType=", outDataType);
-            DEBUG_LOG("        cropLow/cropHigh :  ", cropLow[0], "/", cropHigh[0]);
-            DEBUG_LOG("   inputScale/inputShift :  ", inputScale[0], "/", inputShift[0]);
-            DEBUG_LOG("                 clo/chi :  ", clo, "/", chi);
-            DEBUG_LOG(" outputScale/outputShift :  ", outputScale[0], "/", outputShift[0]);
-        };
-
-        if (isLastPostOp && levels == 256) {
-            if (outDataType == memory::data_type::s8 && outputScale[0] == 1.f &&
-                std::abs(outputShift[0] - (-0.5f * levels)) < 0.0001f) {
-                if (!crop_by_saturate)
-                    ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, cropLow[0], cropHigh[0]);
-                ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, inputScale[0], inputShift[0] - 0.5f * levels);
-                show_debug(1);
-                return true;
-            }
-            if (outDataType == memory::data_type::u8 && outputScale[0] == 1.f &&
-                std::abs(outputShift[0] - 0.0f) < 0.0001f) {
-                if (!crop_by_saturate)
-                    ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, cropLow[0], cropHigh[0]);
-                ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, inputScale[0], inputShift[0]);
-                show_debug(2);
-                return true;
-            }
-        }
-
-        // all postOps will be performed in FP32 precision, there is no point to introduce
-        // quantization noise on purpose if FQ cannot be decomposed as Q+DQ
-        bool isOutputINT8 = outDataType == memory::data_type::s8 || outDataType == memory::data_type::u8;
-        bool needRound = isLastPostOp && isOutputINT8 ? true : false;
-        needRound = false;
-
-        if (needRound) {
-            bool inputShiftIsZero = abs(inputShift[0]) < 0.001f * (chi - clo) / levels;
-            bool outputShiftIsZero = abs(outputShift[0]) < 0.00f * (chi - clo) * outputScale[0] / levels;
-
-            if (inputShiftIsZero && outputShiftIsZero) {
-                ops.append_eltwise(inputScale[0], dnnl::algorithm::eltwise_clip, cropLow[0], cropHigh[0]);
-                ops.append_eltwise(outputScale[0], dnnl::algorithm::eltwise_round_half_to_even, 0, 0);
-                show_debug(3);
-            } else if (inputShiftIsZero) {
-                ops.append_eltwise(inputScale[0], dnnl::algorithm::eltwise_clip, cropLow[0], cropHigh[0]);
-                ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_round_half_to_even, 0, 0);
-                ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, outputScale[0], outputShift[0]);
-                show_debug(4);
-            } else if (outputShiftIsZero) {
-                ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, cropLow[0], cropHigh[0]);
-                ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, inputScale[0], inputShift[0]);
-                ops.append_eltwise(outputScale[0], dnnl::algorithm::eltwise_round_half_to_even, 0, 0);
-                show_debug(5);
-            } else {
-                ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, cropLow[0], cropHigh[0]);
-                ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, inputScale[0], inputShift[0]);
-                ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_round_half_to_even, 0, 0);
-                ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, outputScale[0], outputShift[0]);
-                show_debug(6);
-            }
-        } else {
-            // is no round is needed, input and output linear can be combined as single one.
-            //  y = (x*inputScale + inputShift)*outputScale + outputShift
-            //    =  x*inputScale*outputScale + (inputShift*outputScale + outputShift)
-            auto combinedScale = inputScale[0] * outputScale[0];
-            auto combinedShift = inputShift[0] * outputScale[0] + outputShift[0];
-
-            if (abs(combinedShift) < 0.001f * (cropHigh[0] - cropLow[0]) * combinedScale / levels) {
-                ops.append_eltwise(combinedScale, dnnl::algorithm::eltwise_clip, cropLow[0], cropHigh[0]);
-            } else {
-                ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, cropLow[0], cropHigh[0]);
-                ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, combinedScale, combinedShift);
-            }
-            show_debug(7);
-            return true;
-        }
-
-        return true;
-    }
-
-    // per-channel FQ cannot be optimized in this case
-    return false;
-}
-
 std::vector<float> FakeQuantize::simplifyToScale(dnnl::memory::data_type outDataType, size_t OC) {
     auto &cl = getCropLow();
     auto &ch = getCropHigh();
@@ -2215,53 +2103,6 @@ std::vector<float> FakeQuantize::simplifyToScale(dnnl::memory::data_type outData
     auto &osh = getOutputShift();
 
     std::vector<float> outScale;
-
-    if (outDataType == memory::data_type::f32) {
-        // when both input & output data type is f32, round operation can be dropped w/o damaging accuracy
-        // (since quantization noise is removed). but clamp must be retained to be consistent with FQ's definition.
-        // when round is removed, input/output linear transforms are combined as
-        //
-        //   x1 = crop(x0, low, hi)
-        //   y = (x1 * isc + ish)*osc + osh
-        //     = x1 * (isc * osc) + (ish*osc + osh)
-        //  2. mapping between input low/high and output low/high is nearly pure scaling
-        //  3. input range is symmetric (not start from 0), no relu is fused into FQ
-        // in this case, FQ can be simplified as per-oc output scale.
-        //       y = x*s + c  where  s=(oh-ol)/(ih-il) and c=-il*s + ol
-        //  condition 2 requires |c/(oh-ol)| < 0.001
-        //  condition 3 requires (il != 0 && ih != 0)
-        //
-        //      outputScale[i] = (oh - ol) / (levels - 1)
-        //      outputShift[i] = ol;
-        bool isPerTensor = false;//cl.size() == 1 && ch.size() == 1 && ish.size() == 1 && isc.size() == 1 && osh.size() == 1 && osc.size() == 1;
-
-        if (isPerTensor) {
-            std::cout << 1;
-        } else {
-            outScale.resize(OC);
-            for (int i = 0; i < OC; i++) {
-                auto il = cl[cl.size() == 1 ? 0 : i];
-                auto ih = ch[ch.size() == 1 ? 0 : i];
-                auto ol = osh[osh.size() == 1 ? 0 : i];
-                auto oh = osc[osc.size() == 1 ? 0 : i] * (levels - 1) + ol;
-
-                // condition 2: |c/(oh-ol)| < 0.001, thus output zero-point can be omitted
-                if (abs(ol / (oh - ol) - il / (ih - il)) > 0.001f) {
-                    outScale.clear();
-                    break;
-                }
-
-                // condition 3: input range is symmetric, thus clamp can be omitted
-                if (il == 0 || ih == 0) {
-                    outScale.clear();
-                    break;
-                }
-
-                // add scales
-                outScale[i] = (oh-ol)/(ih-il);
-            }
-        }
-    }
 
     if (outDataType == memory::data_type::u8 &&
         getAlgorithm() == Algorithm::FQQuantization &&
