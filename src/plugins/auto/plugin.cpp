@@ -81,7 +81,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     auto setTputAsDefault = [&](const std::string& targetDevice,
                                std::map<std::string, std::string>& deviceConfig,
                                const std::map<std::string, std::string>& mergedConfig) {
-        // Default value of PERFORMACE_HINT is empty string.
+        // Default value of PERFORMANCE_HINT is empty string.
         auto iter = mergedConfig.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
         if (GetName() == "AUTO" && iter->second.empty() &&
             mergedConfig.find(targetDevice) == mergedConfig.end()) {
@@ -482,7 +482,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     if (configIter != fullConfig.end() && configIter->second == InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT) {
         configIter->second = InferenceEngine::PluginConfigParams::THROUGHPUT;
         _LogTag = "AUTO";
-        LOG_INFO_TAG("CUMULATIVE Call MULTI PERFORMACE_HINT set to THROUGHPUT");
+        LOG_INFO_TAG("CUMULATIVE Call MULTI PERFORMANCE_HINT set to THROUGHPUT");
     }
     if (priorities->second.empty()) {
         IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
