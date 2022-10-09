@@ -39,7 +39,7 @@ protected:
         this->preamble();
         stack_allocator_ = std::make_shared<StackAllocator>(*this);
         kernel_();
-        stack_allocator_->commit();
+        stack_allocator_->release();
         stack_allocator_.reset();
         this->postamble();
     }
@@ -68,7 +68,7 @@ public:
             stack_allocator_ = std::make_shared<StackAllocator>(*this, x64::cpu_isa_traits<x64::sse41>::vlen);
 //        }
         kernel_();
-        stack_allocator_->commit();
+        stack_allocator_->release();
         stack_allocator_.reset();
         this->postamble();
     }
@@ -162,7 +162,6 @@ TEST_F(StackAllocatorTest, LoopSuccess) {
         Xbyak::Label l_end;
         xor_(rcx, rcx);
         StackAllocator::Address reg_100_addr{stack_allocator_, sizeof(int32_t)};
-        stack_allocator_->commit();
         L(l_loop);
         {
             cmp(rcx, 10);
@@ -199,11 +198,12 @@ TEST_F(StackAllocatorTest, LoopFailed) {
         Xbyak::Label l_end;
         xor_(rcx, rcx);
 
-        StackAllocator::Address reg_temp0_addr{stack_allocator_, sizeof(float)};
-        StackAllocator::Address reg_temp1_addr{stack_allocator_, sizeof(int32_t)};
-        StackAllocator::Address reg_100_addr{stack_allocator_, sizeof(int32_t)};
-        StackAllocator::Address reg_200_addr{stack_allocator_, sizeof(int32_t)};
-        stack_allocator_->commit();
+        StackAllocator::Transaction transaction{stack_allocator_};
+        StackAllocator::Address reg_temp0_addr{transaction, sizeof(float)};
+        StackAllocator::Address reg_temp1_addr{transaction, sizeof(int32_t)};
+        StackAllocator::Address reg_100_addr{transaction, sizeof(int32_t)};
+        StackAllocator::Address reg_200_addr{transaction, sizeof(int32_t)};
+        transaction.commit();
         L(l_loop);
         {
             cmp(rcx, 10);
@@ -238,9 +238,10 @@ TEST_F(StackAllocatorTest, LoopFailed) {
 TEST_F(StackAllocatorTest, AddressCheckAlignmentFailed) {
     kernel_ = [this]() {
         Xbyak::Label l_equal;
-        StackAllocator::Address reg_0_5_addr{stack_allocator_, sizeof(int8_t)};
-        StackAllocator::Address reg_0_11_addr{stack_allocator_, 16};
-        stack_allocator_->commit();
+        StackAllocator::Transaction transaction{stack_allocator_};
+        StackAllocator::Address reg_0_5_addr{transaction, sizeof(int8_t)};
+        StackAllocator::Address reg_0_11_addr{transaction, 16};
+        transaction.commit();
         addps(xmm0, reg_0_11_addr);
     };
     auto f = create_kernel<int(*) ()>();
@@ -252,9 +253,10 @@ TEST_F(StackAllocatorTest, AddressCheckAlignmentFailed) {
 TEST_F(AlignedStackAllocatorTest, AddressCheckAlignmentSuccess) {
     kernel_ = [this]() {
         Xbyak::Label l_equal;
-        StackAllocator::Address reg_0_5_addr{stack_allocator_, sizeof(int8_t)};
-        StackAllocator::Address reg_0_11_addr{stack_allocator_, 16, 16};
-        stack_allocator_->commit();
+        StackAllocator::Transaction transaction{stack_allocator_};
+        StackAllocator::Address reg_0_5_addr{transaction, sizeof(int8_t)};
+        StackAllocator::Address reg_0_11_addr{transaction, 16, 16};
+        transaction.commit();
         addps(xmm0, reg_0_11_addr);
     };
     auto f = create_kernel<int(*) ()>();
@@ -264,9 +266,10 @@ TEST_F(AlignedStackAllocatorTest, AddressCheckAlignmentSuccess) {
 TEST_F(AlignedStackAllocatorTest, AddressCheckAlignmentRegSuccess) {
     kernel_ = [this]() {
         Xbyak::Label l_equal;
+        StackAllocator::Transaction transaction{stack_allocator_};
         StackAllocator::Address reg_0_5_addr{stack_allocator_, sizeof(int8_t)};
         StackAllocator::Reg<Xbyak::Xmm> reg_0_11_addr{stack_allocator_};
-        stack_allocator_->commit();
+        transaction.commit();
         addps(xmm0, reg_0_11_addr);
     };
     auto f = create_kernel<int(*) ()>();
@@ -276,16 +279,93 @@ TEST_F(AlignedStackAllocatorTest, AddressCheckAlignmentRegSuccess) {
 TEST_F(AlignedStackAllocatorTest, AddressCheckAlignmentReuseAddressSuccess) {
     kernel_ = [this]() {
         Xbyak::Label l_equal;
-        StackAllocator::Address reg_0_5_addr{stack_allocator_, sizeof(int8_t)};
-        StackAllocator::Reg<Xbyak::Xmm> reg_0_11_addr{stack_allocator_};
-        StackAllocator::Address reg_0_7_addr{stack_allocator_, sizeof(int8_t)};
-        stack_allocator_->commit();
+        StackAllocator::Transaction transaction{stack_allocator_};
+        StackAllocator::Address reg_0_5_addr{transaction, sizeof(int8_t)};
+        StackAllocator::Reg<Xbyak::Xmm> reg_0_11_addr{transaction};
+        StackAllocator::Address reg_0_7_addr{transaction, sizeof(int8_t)};
+        transaction.commit();
         addps(xmm0, reg_0_11_addr);
         reg_0_11_addr.release();
-        StackAllocator::Reg<Xbyak::Xmm> reg_0_12_addr{stack_allocator_};
-        stack_allocator_->commit();
+        StackAllocator::Reg<Xbyak::Xmm> reg_0_12_addr{transaction};
+        transaction.commit();
         addps(xmm0, reg_0_12_addr);
     };
     auto f = create_kernel<int(*) ()>();
     f();
+}
+
+TEST_F(AlignedStackAllocatorTest, AddressCheckAlignmentReuseAddressSuccess2) {
+    kernel_ = [this]() {
+        Xbyak::Label l_equal;
+        StackAllocator::Transaction transaction{stack_allocator_};
+        StackAllocator::Address reg_0_5_addr{transaction, sizeof(int8_t)};
+        StackAllocator::Reg<Xbyak::Xmm> reg_0_11_addr{transaction};
+        StackAllocator::Address reg_0_7_addr{transaction, sizeof(int8_t)};
+        StackAllocator::Reg<Xbyak::Xmm> reg_0_122_addr{stack_allocator_};
+        transaction.commit();
+        addps(xmm0, reg_0_11_addr);
+        reg_0_11_addr.release();
+        StackAllocator::Reg<Xbyak::Xmm> reg_0_12_addr{transaction};
+        transaction.commit();
+        addps(xmm0, reg_0_12_addr);
+    };
+
+    EXPECT_ANY_THROW(create_kernel<int(*) ()>());
+}
+
+TEST_F(AlignedStackAllocatorTest, AddressCheckAlignmentReuseAddressSuccess3) {
+    kernel_ = [this]() {
+        Xbyak::Label l_equal;
+        StackAllocator::Transaction transaction{stack_allocator_};
+        StackAllocator::Address reg_0_5_addr{transaction, sizeof(int8_t)};
+        StackAllocator::Reg<Xbyak::Xmm> reg_0_11_addr{transaction};
+        StackAllocator::Address reg_0_7_addr{transaction, sizeof(int8_t)};
+        addps(xmm0, reg_0_11_addr);
+        transaction.commit();
+        reg_0_11_addr.release();
+        StackAllocator::Reg<Xbyak::Xmm> reg_0_12_addr{transaction};
+        transaction.commit();
+        addps(xmm0, reg_0_12_addr);
+    };
+
+    EXPECT_ANY_THROW(create_kernel<int(*) ()>());
+}
+
+TEST_F(AlignedStackAllocatorTest, AddressCheckAlignmentReuseAddressSuccess4) {
+    kernel_ = [this]() {
+        Xbyak::Label l_equal;
+        StackAllocator::Transaction transaction{stack_allocator_};
+        StackAllocator::Address reg_0_5_addr{transaction, sizeof(int8_t)};
+        StackAllocator::Reg<Xbyak::Xmm> reg_0_11_addr{transaction};
+        StackAllocator::Address reg_0_7_addr{transaction, sizeof(int8_t)};
+        transaction.commit();
+        addps(xmm0, reg_0_11_addr);
+        reg_0_11_addr.release(transaction);
+        reg_0_7_addr.release(transaction);
+        StackAllocator::Reg<Xbyak::Xmm> reg_0_12_addr{transaction};
+        transaction.commit();
+        addps(xmm0, reg_0_12_addr);
+    };
+
+    auto f = create_kernel<int(*) ()>();
+    f();
+}
+
+TEST_F(AlignedStackAllocatorTest, AddressCheckAlignmentReuseAddressSuccess5) {
+    kernel_ = [this]() {
+        Xbyak::Label l_equal;
+        StackAllocator::Transaction transaction{stack_allocator_};
+        StackAllocator::Address reg_0_5_addr{transaction, sizeof(int8_t)};
+        StackAllocator::Reg<Xbyak::Xmm> reg_0_11_addr{transaction};
+        StackAllocator::Address reg_0_7_addr{transaction, sizeof(int8_t)};
+        transaction.commit();
+        addps(xmm0, reg_0_11_addr);
+        reg_0_11_addr.release(transaction);
+        reg_0_7_addr.release();
+        StackAllocator::Reg<Xbyak::Xmm> reg_0_12_addr{transaction};
+        transaction.commit();
+        addps(xmm0, reg_0_12_addr);
+    };
+
+    EXPECT_ANY_THROW(create_kernel<int(*) ()>());
 }
