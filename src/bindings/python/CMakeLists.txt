@@ -15,6 +15,8 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     set(OpenVINO_BINARY_DIR "${InferenceEngineDeveloperPackage_DIR}")
 endif()
 
+find_package(pybind11 QUIET)
+
 #
 # Check python requirements
 #
@@ -38,6 +40,7 @@ function(ov_check_python_build_conditions)
         function(_ov_find_python_libs_new)
             set(PYBIND11_PYTHON_VERSION ${PYTHON_VERSION_STRING})
             list(APPEND CMAKE_MODULE_PATH "${OpenVINOPython_SOURCE_DIR}/thirdparty/pybind11/tools")
+            list(APPEND CMAKE_MODULE_PATH "${pybind11_DIR}")
             # use libraries with the same version as python itself
             find_package(PythonLibsNew ${PYBIND11_PYTHON_VERSION} EXACT ${find_package_mode})
             set(PYTHONLIBSNEW_FOUND ${PYTHONLIBS_FOUND} PARENT_SCOPE)
@@ -147,7 +150,10 @@ ie_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_
 # Build the code
 #
 
-add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
+if(NOT pybind11_FOUND)
+    add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
+endif()
+
 add_subdirectory(src/compatibility/pyngraph)
 add_subdirectory(src/pyopenvino)
 
