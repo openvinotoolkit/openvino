@@ -346,8 +346,14 @@ int main(int argc, char* argv[]) {
                             std::map<std::string, std::string> devices_property;
                             ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
                             for (auto it : devices_property) {
-                                device_config.insert(
-                                    ov::device::properties(it.first, ov::num_streams(std::stoi(it.second))));
+                                if (device_config.find(it.first) == device_config.end())
+                                    device_config.insert(
+                                        ov::device::properties(it.first, ov::num_streams(std::stoi(it.second))));
+                                else {
+                                    auto& property = device_config[it.first].as<ov::AnyMap>();
+                                    property.emplace(ov::num_streams(std::stoi(it.second)));
+                                    device_config.insert(ov::device::properties(it.first, property));
+                                }
                             }
                         }
                     } else {
@@ -411,7 +417,14 @@ int main(int argc, char* argv[]) {
                     device_config.emplace(ov::inference_num_threads(FLAGS_nthreads));
                 } else if (if_auto) {
                     for (auto& device : hardware_devices) {
-                        device_config.insert(ov::device::properties(device, ov::inference_num_threads(FLAGS_nthreads)));
+                        if (device_config.find(device) == device_config.end()) {
+                            device_config.insert(
+                                ov::device::properties(device, ov::inference_num_threads(FLAGS_nthreads)));
+                        } else {
+                            auto& property = device_config[device].as<ov::AnyMap>();
+                            property.emplace(ov::inference_num_threads(FLAGS_nthreads));
+                            device_config.insert(ov::device::properties(device, property));
+                        }
                     }
                 }
             }
@@ -420,7 +433,14 @@ int main(int argc, char* argv[]) {
                     device_config.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
                 } else if (if_auto) {
                     for (auto& device : hardware_devices) {
-                        device_config.insert(ov::device::properties(device, ov::affinity(fix_pin_option(FLAGS_pin))));
+                        if (device_config.find(device) == device_config.end()) {
+                            device_config.insert(
+                                ov::device::properties(device, ov::affinity(fix_pin_option(FLAGS_pin))));
+                        } else {
+                            auto& property = device_config[device].as<ov::AnyMap>();
+                            property.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
+                            device_config.insert(ov::device::properties(device, property));
+                        }
                     }
                 }
             }
