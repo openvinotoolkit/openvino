@@ -260,8 +260,8 @@ public:
 template<x64::cpu_isa_t Isa>
 struct IsaParam { static constexpr x64::cpu_isa_t isa = Isa; };
 
-using dasdasd = ::testing::Types<IsaParam<x64::sse41>, IsaParam<x64::avx2>, IsaParam<x64::avx512_core>>;
-TYPED_TEST_SUITE(AlignedStackAllocatorTest, dasdasd);
+using IsaParamTypes = ::testing::Types<IsaParam<x64::sse41>, IsaParam<x64::avx2>, IsaParam<x64::avx512_core>>;
+TYPED_TEST_SUITE(AlignedStackAllocatorTest, IsaParamTypes);
 
 TYPED_TEST(AlignedStackAllocatorTest, AddressCheckAlignmentSuccess) {
     this->kernel_ = [this]() {
