@@ -117,7 +117,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime openvino::runtime
 set(TARGET_NAME "ov_integration_snippet")
 # [cmake:integration_example_cpp]
 # Include OpenVINO™ Runtime libraries in `project/CMakeLists.txt`:
-
 cmake_minimum_required(VERSION 3.10)
 set(CMAKE_CXX_STANDARD 11)
 
@@ -132,7 +131,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
 set(TARGET_NAME_C "ov_integration_snippet_c")
 # [cmake:integration_example_c]
 # Include OpenVINO™ Runtime libraries in `project/CMakeLists.txt`:
-
 cmake_minimum_required(VERSION 3.10)
 set(CMAKE_CXX_STANDARD 11)
 

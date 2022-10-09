@@ -67,6 +67,16 @@ ov_tensor_t* output_tensor = NULL; // need to free by ov_tensor_free(output_tens
 // Get output tensor by tensor index
 ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor);
 //! [part6]
+
+//! [part8]
+ov_tensor_free(output_tensor);
+ov_tensor_free(tensor);
+ov_infer_request_free(infer_request);
+ov_compiled_model_free(compiled_model);
+ov_core_free(core);
+//! [part8]
+
+
 return 0;
 }
 

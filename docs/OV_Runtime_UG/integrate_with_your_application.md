@@ -287,7 +287,21 @@ Go over the output tensors and process the inference results.
 
 @endsphinxtabset
 
-## Step 7. Link and Build Your Application with OpenVINO™ Runtime (example)
+## Step 7. Release the allocated objects (only for C)
+
+To avoid memory leak, applications developed with C API need to release the allocated objects in order.
+
+@sphinxtabset
+
+@sphinxtab{C}
+
+@snippet docs/snippets/src/main.c part8
+
+@endsphinxtab
+
+@endsphinxtabset
+
+## Step 8. Link and Build Your Application with OpenVINO™ Runtime (example)
 
 This step may differ for different projects. In this example, a C++ & C application is used, together with CMake for project configuration.
 
