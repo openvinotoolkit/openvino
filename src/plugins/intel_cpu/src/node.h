@@ -20,7 +20,7 @@
 #include "extension_mngr.h"
 #include "primitive.h"
 #include "weights_cache.hpp"
-#include "scratch_pad.h"
+#include "dnnl_scratch_pad.h"
 #include <openvino/itt.hpp>
 #include "utils/ngraph_utils.hpp"
 #include <ngraph/ops.hpp>
@@ -575,7 +575,7 @@ public:
         rtParamsCache = cache;
     }
 
-    void setRuntimeScratchPad(ScratchPadPtr scratchPad) {
+    void setRuntimeScratchPad(DnnlScratchPadPtr scratchPad) {
         rtScratchPad = scratchPad;
     }
 
@@ -753,7 +753,7 @@ protected:
         return rtParamsCache;
     }
 
-    ScratchPadPtr getRuntimeScratchPad() const {
+    DnnlScratchPadPtr getRuntimeScratchPad() const {
         return rtScratchPad;
     }
 
@@ -785,7 +785,7 @@ private:
     PerfCounters profiling;
 
     MultiCachePtr rtParamsCache;
-    ScratchPadPtr rtScratchPad;
+    DnnlScratchPadPtr rtScratchPad;
 
     bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
 

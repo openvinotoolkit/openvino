@@ -856,15 +856,7 @@ void RNN::prepareParams() {
     prim = result.first;
 
     auto pd = (*prim).get_primitive_desc();
-    auto query_md = [&pd](dnnl::query what, int idx = 0) -> dnnl::memory::desc {
-        auto query = dnnl::convert_to_c(what);
-        const dnnl_memory_desc_t *cdesc = dnnl_primitive_desc_query_md(pd, query, idx);
-        if (!cdesc)
-            IE_THROW() << "query_md failed for query=" << query << " idx=" << idx << ".";
-        return dnnl::memory::desc(*cdesc);
-    };
-
-    scratchpad_md = query_md(dnnl::query::scratchpad_md);
+    scratchpad_md = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
 
     if (!wasMemoryPrepared || wFormatWasChanged) {
         auto pd = (*prim).get_primitive_desc();

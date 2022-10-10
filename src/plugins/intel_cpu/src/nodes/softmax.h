@@ -22,6 +22,7 @@ public:
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     void getSupportedDescriptors() override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
@@ -32,6 +33,7 @@ public:
 
 private:
     size_t axis = 0;
+    DnnlMemoryDescPtr scratchpad_md;
 };
 
 }   // namespace node

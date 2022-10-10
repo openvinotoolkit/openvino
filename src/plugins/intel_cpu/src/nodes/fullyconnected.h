@@ -75,6 +75,8 @@ private:
     static const size_t WEIGHTS_ID = 1;
     static const size_t BIAS_ID = 2;
     dnnl::memory::data_type outputDataType;
+
+    DnnlMemoryDescPtr scratchpad_md;
 };
 
 }   // namespace node

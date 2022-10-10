@@ -11,7 +11,7 @@
 #include "node.h"
 #include "edge.h"
 #include "cache/multi_cache.h"
-#include "scratch_pad.h"
+#include "dnnl_scratch_pad.h"
 #include <map>
 #include <string>
 #include <vector>
@@ -265,7 +265,7 @@ private:
 
     MultiCachePtr rtParamsCache;
     std::shared_ptr<std::mutex> sharedMutex = nullptr;
-    ScratchPadPtr rtScratchPad;
+    DnnlScratchPadPtr rtScratchPad;
 
     void EnforceBF16();
 };

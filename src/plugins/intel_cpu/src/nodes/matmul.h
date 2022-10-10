@@ -25,6 +25,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     MemoryDescPtr getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     bool canFuse(const NodePtr& node) const override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
     size_t getMaxBatch() const override;
 
@@ -62,6 +63,7 @@ private:
 
     std::array<DnnlBlockedMemoryDescPtr, 2> inDataDesc;
     DnnlBlockedMemoryDescPtr outDataDesc;
+    DnnlMemoryDescPtr scratchpad_md;
 };
 
 }   // namespace node

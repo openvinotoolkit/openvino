@@ -50,5 +50,9 @@ bool DnnlExecutor::needReordering() const {
     return !inputReorders.empty() || !outputReorders.empty();
 }
 
-}   // namespace intel_cpu
+Primitive DnnlExecutor::get_execPrim() const {
+    return execPrim;
+}
+
+}  // namespace intel_cpu
 }   // namespace ov

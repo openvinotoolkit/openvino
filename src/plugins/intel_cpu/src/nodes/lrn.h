@@ -25,6 +25,7 @@ public:
         return static_cast<size_t>(getOriginalInputsNumber());
     }
     std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -44,6 +45,7 @@ private:
     float beta = 1.0f;
 
     std::string errorPrefix;
+    DnnlMemoryDescPtr scratchpad_md;
 };
 
 }   // namespace node

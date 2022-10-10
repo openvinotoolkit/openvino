@@ -113,6 +113,8 @@ private:
 
     bool canBeExecutedInInt8() const;
     InferenceEngine::Blob::Ptr createWeiBlobAsIO(InferenceEngine::SizeVector dims);
+
+    DnnlMemoryDescPtr scratchpad_md;
 };
 
 }   // namespace node

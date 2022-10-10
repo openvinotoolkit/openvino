@@ -562,6 +562,7 @@ void Deconvolution::execute(dnnl::stream strm) {
     if (!execPtr) {
         IE_THROW() << "Can't execute Deconvolution node with name: " << getName() << ", because executor is not compiled";
     }
+    getRuntimeScratchPad()->setScratchPad(primArgs, scratchpad_md);
     execPtr->exec(primArgs, strm);
 
     if (externOutShape) {
@@ -872,6 +873,9 @@ void Deconvolution::prepareParams() {
             primArgs[DNNL_ARG_DIFF_SRC] = dstMemPtr->GetPrimitive();
         }
         Node::appendPostOpArgs(*pAttrLocal, primArgs, postOpsArgs);
+
+        auto pd = (*(execPtr->get_execPrim())).get_primitive_desc();
+        scratchpad_md = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
     } else {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }

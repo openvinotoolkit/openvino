@@ -24,6 +24,7 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void initDescriptor(const NodeConfig& config) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -73,6 +74,7 @@ private:
     /// is decreased.
     std::vector<ptrdiff_t> data_pad_begin;
     std::vector<ptrdiff_t> data_pad_end;
+    DnnlMemoryDescPtr scratchpad_md;
 };
 
 }   // namespace node

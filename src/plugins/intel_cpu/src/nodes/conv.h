@@ -166,6 +166,8 @@ private:
     MemoryPtr stockInputZeroPointsMemPtr;
     dnnl::memory::data_type outputDataType;
     InferenceEngine::Precision sumPrc = InferenceEngine::Precision::UNSPECIFIED;
+
+    DnnlMemoryDescPtr scratchpad_md;
 };
 
 }   // namespace node

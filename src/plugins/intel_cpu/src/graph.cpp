@@ -79,7 +79,7 @@ void Graph::CreateGraph(NET &net, const ExtensionManager::Ptr& extMgr,
 
     rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
     sharedMutex = mutex;
-    rtScratchPad = std::make_shared<ScratchPad>(getEngine());
+    rtScratchPad = std::make_shared<DnnlScratchPad>(getEngine());
 
     Replicate(net, extMgr);
     InitGraph();
@@ -99,7 +99,7 @@ void Graph::CreateGraph(const std::vector<NodePtr> &graphNodes,
     weightsCache = config.streamExecutorConfig._streams != 1 ? w_cache : nullptr;
 
     rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
-    rtScratchPad = std::make_shared<ScratchPad>(getEngine());
+    rtScratchPad = std::make_shared<DnnlScratchPad>(getEngine());
 
     this->_name = std::move(name);
     this->reuse_io_tensors = false;
@@ -272,15 +272,11 @@ void Graph::Replicate(const CNNNetwork &network, const ExtensionManager::Ptr& ex
         if (isQuantized()) {
             node->setQuantizedGraphFlag(true);
         }
-<<<<<<< HEAD
 
         node->setRuntimeCache(rtParamsCache);
         node->setSharedMutex(sharedMutex);
-
-=======
-        node->setRuntimeCache(rtParamsCache);
         node->setRuntimeScratchPad(rtScratchPad);
->>>>>>> 62e9fd5ac4 (Split NodeRuntime and use Memory for scratchpad allocation/resize)
+
         graphNodes.push_back(node);
 
         if (op->get_type_info() == ngraph::op::v0::Parameter::get_type_info_static()) {

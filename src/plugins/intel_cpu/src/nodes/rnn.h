@@ -121,7 +121,7 @@ private:
 
     bool wasMemoryPrepared = false;
 
-    dnnl::memory::desc scratchpad_md;
+    DnnlMemoryDescPtr scratchpad_md;
 };
 
 }   // namespace node
