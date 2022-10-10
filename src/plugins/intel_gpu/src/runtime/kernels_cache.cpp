@@ -6,6 +6,7 @@
 #include "kernels_cache.hpp"
 #include "ocl/ocl_engine.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "openvino/util/file_util.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -13,6 +14,7 @@
 #include <fstream>
 #include <set>
 #include <string>
+#include <tuple>
 #include <memory>
 #include <utility>
 
@@ -21,90 +23,8 @@
 #include <malloc.h>
 #endif
 
-#ifndef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-# ifdef _WIN32
-#  if defined __INTEL_COMPILER || defined _MSC_VER
-#   define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#  endif
-# elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
-#  define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-# endif
-#endif
-
-#ifndef _WIN32
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#include <locale>
-#include <codecvt>
-#endif
-#else
-#include <Windows.h>
-#endif
-
 namespace {
 std::mutex cacheAccessMutex;
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-std::wstring multiByteCharToWString(const char* str) {
-#ifdef _WIN32
-    int strSize = static_cast<int>(std::strlen(str));
-    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
-    std::wstring wstrTo(size_needed, 0);
-    MultiByteToWideChar(CP_UTF8, 0, str, strSize, &wstrTo[0], size_needed);
-    return wstrTo;
-#else
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_encoder;
-    std::wstring result = wstring_encoder.from_bytes(str);
-    return result;
-#endif  // _WIN32
-}
-#endif  // defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-
-static std::vector<unsigned char> loadBinaryFromFile(std::string path) {
-    std::lock_guard<std::mutex> lock(cacheAccessMutex);
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widefilename = multiByteCharToWString(path.c_str());
-    const wchar_t* filename = widefilename.c_str();
-    FILE *fp = _wfopen(filename, L"rb");
-#else
-    const char* filename = path.c_str();
-    FILE *fp = fopen(filename, "rb");
-#endif
-
-    if (fp) {
-        fseek(fp, 0, SEEK_END);
-        auto sz = ftell(fp);
-        if (sz < 0) {
-            fclose(fp);
-            return {};
-        }
-        auto nsize = static_cast<size_t>(sz);
-
-        fseek(fp, 0, SEEK_SET);
-
-        std::vector<unsigned char> ret(nsize);
-
-        auto res = fread(ret.data(), sizeof(unsigned char), nsize, fp);
-        (void)res;
-        fclose(fp);
-        return ret;
-    }
-
-    return {};
-}
-static void saveBinaryToFile(std::string path, const std::vector<unsigned char> buffer) {
-    std::lock_guard<std::mutex> lock(cacheAccessMutex);
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widefilename = multiByteCharToWString(path.c_str());
-    const wchar_t* filename = widefilename.c_str();
-#else
-    const char* filename = path.c_str();
-#endif
-    std::ofstream out_file(filename, std::ios::out | std::ios::binary);
-    if (out_file.is_open()) {
-        out_file.write(reinterpret_cast<const char*>(&buffer[0]), buffer.size());
-    }
-}
 
 std::string reorder_options(const std::string& org_options) {
     std::stringstream ss(org_options);
@@ -148,13 +68,17 @@ bool kernels_cache::is_cache_enabled() const {
 }
 
 size_t kernels_cache::get_max_kernels_per_batch() const {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->max_kernels_per_batch >= 1) {
+        return static_cast<size_t>(debug_config->max_kernels_per_batch);
+    }
     return 8;
 }
 
 
 void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll::GetProgramSource");
-    std::map<std::string, std::vector<batch_program>> program_buckets;
+    std::map<std::string, std::tuple<int32_t, std::vector<batch_program>>> program_buckets;
 
     for (const auto& code : kernels_source_code) {
         std::string full_code = code.kernel_strings->jit + code.kernel_strings->str + code.kernel_strings->undefs;
@@ -177,16 +101,17 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             key += " __DUMP_CUSTOM_PROGRAM__";  // Adding label to key so it would be separated from other programs
         }
 
-        auto& current_bucket = program_buckets[key];
+        auto& bucket_id = std::get<0>(program_buckets[key]);
+        auto& current_bucket = std::get<1>(program_buckets[key]);
         if (current_bucket.empty()) { // new bucket
             const auto& batch_id = 0;
-            const auto& bucket_id = static_cast<int32_t>(program_buckets.size() - 1);
+            // increase bucket id if and only if new bucket comes
+            bucket_id = static_cast<int32_t>(program_buckets.size() - 1);
             current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
         }
 
         // Create new kernels batch when the limit is reached
         if (current_bucket.back().kernels_counter >= get_max_kernels_per_batch()) {
-            const auto& bucket_id =  static_cast<int32_t>(program_buckets.size());
             const auto& batch_id = static_cast<int32_t>(current_bucket.size());
             current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
         }
@@ -206,7 +131,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
     // full source code (jit + template + undef sections) of all kernels in the batches
     for (auto& c : program_buckets) {
         auto options = c.first;
-        auto& batches = c.second;
+        auto& batches = std::get<1>(c.second);
         for (auto& b : batches) {
             std::string full_code = options + " " + _engine.get_device_info().driver_version;
             for (auto& ss : b.source)
@@ -225,7 +150,7 @@ kernel_id kernels_cache::set_kernel_source(
     bool dump_custom_program) {
     std::lock_guard<std::mutex> lock(_mutex);
     // we need unique id in order to avoid conflict across topologies.
-    const auto kernel_num = _kernels.size() + _kernels_code.size();
+    const auto kernel_num = _kernels.size() + (_kernel_idx++);
     kernel_id id = kernel_string->entry_point + "_" + std::to_string(kernel_num);
 
     auto res = _kernels_code.emplace(kernel_string, id, dump_custom_program);
@@ -294,7 +219,11 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
     if (is_cache_enabled()) {
         // Try to load file with name ${hash_value}.cl_cache which contains precompiled kernels for current bucket
         // If read is successful, then remove kernels from compilation bucket
-        auto bin = loadBinaryFromFile(cached_bin_name);
+        std::vector<uint8_t> bin;
+        {
+            std::lock_guard<std::mutex> lock(cacheAccessMutex);
+            bin = ov::util::load_binary(cached_bin_name);
+        }
         if (!bin.empty()) {
             precompiled_kernels.push_back(bin);
         }
@@ -325,7 +254,8 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
                 // Note: Bin file contains full bucket, not separate kernels, so kernels reuse across different models is quite limited
                 // Bucket size can be changed in get_max_kernels_per_batch() method, but forcing it to 1 will lead to much longer
                 // compile time.
-                saveBinaryToFile(cached_bin_name, getProgramBinaries(program));
+                std::lock_guard<std::mutex> lock(cacheAccessMutex);
+                ov::util::save_binary(cached_bin_name, getProgramBinaries(program));
             }
         } else {
             cl::Program program(cl_build_engine.get_cl_context(), {cl_build_engine.get_cl_device()}, precompiled_kernels);
@@ -416,7 +346,7 @@ void kernels_cache::build_all() {
     auto _task_executor = _engine.get_task_executor();
     std::exception_ptr exception;
     std::vector<InferenceEngine::Task> tasks;
-    for (int idx = 0; idx < batches.size(); idx++) {
+    for (size_t idx = 0; idx < batches.size(); idx++) {
         auto& batch = batches[idx];
         tasks.push_back([this, &_build_engine, &batch, &exception] {
             try {

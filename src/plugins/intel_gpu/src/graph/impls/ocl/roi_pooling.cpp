@@ -59,10 +59,10 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const roi_pooling_node& arg) {
-        const auto& input_layout = arg.input().get_output_layout();
-        const auto& output_layout = arg.get_output_layout();
-        const auto& rois_layout = arg.rois().get_output_layout();
+    static primitive_impl* create(const roi_pooling_node& arg, const kernel_impl_params& impl_param) {
+        const auto& input_layout = impl_param.input_layouts[0];
+        const auto& output_layout = impl_param.output_layout;
+        const auto& rois_layout = impl_param.input_layouts[1];
         const auto& primitive = arg.get_primitive();
 
         const auto padding_filling_value = output_layout.data_padding.filling_value();
@@ -78,8 +78,7 @@ public:
                                       input_layout.format.value,
                                       "output_layout.format",
                                       output_layout.format);
-
-        auto roi_params = get_default_params<kernel_selector::roi_pooling_params>(arg);
+        auto roi_params = get_default_params<kernel_selector::roi_pooling_params>(impl_param);
         auto roi_optional_params =
             get_default_optional_params<kernel_selector::roi_pooling_optional_params>(arg.get_program());
 
@@ -87,7 +86,7 @@ public:
         const auto roi_bf = roi_bfyx.FlattenFeatureAndSpatials();
         roi_params.inputs.push_back(roi_bf);
         if (primitive->mode == pooling_mode::deformable_bilinear && !primitive->no_trans)
-            roi_params.inputs.push_back(convert_data_tensor(arg.trans().get_output_layout()));
+            roi_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
         roi_params.mode = cldnn_2_pool_type(primitive->mode);
         roi_params.position_sensitive = primitive->position_sensitive;
         roi_params.pooled_width = primitive->pooled_width;

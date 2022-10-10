@@ -26,6 +26,7 @@
 #include <ie_algorithm.hpp>
 
 #include "transformations/einsum_decomposition.hpp"
+#include "transformations/convert_pooling_to_reduce.hpp"
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
@@ -53,6 +54,7 @@
 #include <transformations/op_conversions/convert_space_to_batch.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
 #include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
+#include <transformations/op_conversions/convert_reduce_to_reshape.hpp>
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
@@ -64,9 +66,10 @@
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include <transformations/op_conversions/rnn_cell_decomposition.hpp>
 #include <transformations/op_conversions/mvn6_decomposition.hpp>
+#include <transformations/op_conversions/normalize_l2_decomposition.hpp>
 #include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
-#include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
-#include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
+#include <transformations/op_conversions/convert_previous_nms_to_nms_9.hpp>
+#include <transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/convert_gather_downgrade.hpp>
 #include <transformations/op_conversions/convert_gather_0d.hpp>
@@ -74,6 +77,8 @@
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include <transformations/op_conversions/gelu7_downgrade.hpp>
+#include <transformations/op_conversions/convert_softmax_downgrade.hpp>
+#include <transformations/op_conversions/convert_prior_box_v8_to_v0.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -89,6 +94,7 @@
 #include <low_precision/multiply_to_group_convolution.hpp>
 #include <low_precision/strided_slice.hpp>
 #include <low_precision/network_helper.hpp>
+#include "transformations/op_conversions/eye_decomposition.hpp"
 
 #include "intel_gpu/plugin/itt.hpp"
 
@@ -106,7 +112,6 @@ static bool disableReduceDecomposition(const std::shared_ptr<const ngraph::Node>
 }  // namespace
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
@@ -128,6 +133,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
+
         manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
         manager.register_pass<ngraph::pass::TransposeSinking>();
 
@@ -152,13 +158,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
         }
 
-        manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
-        manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
-        manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
-        manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
+        manager.register_pass<ngraph::pass::ConvertNMS1ToNMS9>();
+        manager.register_pass<ngraph::pass::ConvertNMS3ToNMS9>();
+        manager.register_pass<ngraph::pass::ConvertNMS4ToNMS9>();
+        manager.register_pass<ngraph::pass::ConvertNMS5ToNMS9>();
+        manager.register_pass<ngraph::pass::ConvertNMS9ToNMSIEInternal>();
         manager.register_pass<ngraph::pass::ConvertGather0D>();
+        manager.register_pass<ngraph::pass::ConvertPriorBox8To0, false>();
 
-        static const precisions_array convert_precision_list {
+        precisions_array convert_precision_list {
+                {ngraph::element::f64, ngraph::element::f32},
                 {ngraph::element::i64, ngraph::element::i32},
                 {ngraph::element::u64, ngraph::element::i32},
                 {ngraph::element::u16, ngraph::element::i32},
@@ -168,11 +177,20 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 {ngraph::element::u4, ngraph::element::u8},
         };
 
+        if (config.inference_precision != ov::element::undefined) {
+            std::vector<ov::element::Type> supported_fp_element_types = {ngraph::element::f32, ngraph::element::f16};
+            for (auto& et : supported_fp_element_types) {
+                if (et != config.inference_precision) {
+                    convert_precision_list.push_back({et, config.inference_precision});
+                }
+            }
+        }
+
         manager.register_pass<ngraph::pass::Validate>();
         manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);
 
         auto pass_config = manager.get_pass_config();
-
+        pass_config->disable<ov::pass::EyeDecomposition>();
         pass_config->enable<ov::pass::ConvertCompressedOnlyToLegacy>();
 
         // SpaceToDepth/DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
@@ -187,13 +205,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                   ngraph::pass::ConvertSpaceToBatch>(
                 [](const_node_ptr &node) -> bool {
                     const auto & rank = node->input(0).get_partial_shape().rank().get_length();
-                    return rank <= 5lu;
+                    return rank <= 5;
                 });
 
+        // Convert reduce to reshape expected to be optimized out
+        manager.register_pass<ngraph::pass::ConvertReduceToReshape>();
+
         if (device_info.supports_immad) {
+            // oneDNN reduction is used
             pass_config->disable<ngraph::pass::ConvertReduceSumToPooling>();
             pass_config->disable<ngraph::pass::ConvertReduceMeanToPooling>();
             pass_config->disable<ngraph::pass::ConvertReduceMaxToPooling>();
+            manager.register_pass<ConvertAvgPoolingToReduce>();
         } else {
             pass_config->set_callback<ngraph::pass::ConvertReduceSumToPooling>(
             [](const_node_ptr &node) -> bool {
@@ -301,6 +324,35 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             });
 
+        pass_config->enable<ngraph::pass::NormalizeL2Decomposition>();
+        pass_config->set_callback<ngraph::pass::NormalizeL2Decomposition>(
+            [](const_node_ptr &node) -> bool {
+            // Condition to filter out axes such as [0, 1, 2] which is not supported currently.
+            const auto norm = ov::as_type_ptr<const ngraph::op::v0::NormalizeL2>(node);
+            const auto inputRank = norm->get_input_partial_shape(0).size();
+            auto axesNode = ov::as_type_ptr<const ngraph::op::v0::Constant>(norm->get_input_node_shared_ptr(1));
+            const auto axes = axesNode->cast_vector<size_t>();
+            const auto isSupportedAxes = [](const std::vector<size_t> &axes, const size_t inputRank) {
+                if (axes.size() == 1 && axes[0] == 1) {
+                    return true;
+                } else if (axes.size() == inputRank - 1) {
+                    auto sortAxes = axes;
+                    std::sort(sortAxes.begin(), sortAxes.end());
+                    for (size_t i = 0; i < sortAxes.size(); i++) {
+                        if (sortAxes[i] != i + 1)
+                            return false;
+                    }
+                    return true;
+                }
+                return false;
+            };
+
+            if (!isSupportedAxes(axes, inputRank) && ngraph::shape_size(axesNode->get_shape()) != 0) {
+                return false;
+            }
+            return true;
+            });
+
         pass_config->enable<ngraph::pass::SoftmaxDecomposition>();
         pass_config->set_callback<ngraph::pass::SoftmaxDecomposition>(
             [](const_node_ptr &node) -> bool {
@@ -321,6 +373,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ngraph::pass::ConvertBroadcast3>();
         pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
         pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+        pass_config->disable<ngraph::pass::ConvertSoftMax8ToSoftMax1>();
         pass_config->enable<ngraph::pass::ConvertGather8ToGather7>();
 
         if (!config.enable_loop_unrolling) {
@@ -389,7 +442,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 if (rank.is_dynamic()) {
                     return false;
                 }
-                if (rank.get_length() < 2ul) {
+                if (rank.get_length() < 2l) {
                     return false;
                 }
                 const auto dimension = shape[1];
@@ -400,12 +453,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return true;
             };
 
-            size_t inputChannels;
+            size_t inputChannels = 0;
             if (!fillStaticChannel(node->get_input_partial_shape(0), inputChannels)) {
                 return true;
             }
 
-            size_t outputChannels;
+            size_t outputChannels = 0;
             if (!fillStaticChannel(node->get_output_partial_shape(0), outputChannels)) {
                 return true;
             }
@@ -482,5 +535,4 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     }
 }
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

@@ -23,7 +23,6 @@ ReduceMaxTransformation::ReduceMaxTransformation(const Params& params) : ReduceB
         if (transformation_callback(op)) {
             return false;
         }
-        MATCHER_SCOPE_ENABLE(ReduceMaxTransformation);
         return transform(*context, m);
     };
 

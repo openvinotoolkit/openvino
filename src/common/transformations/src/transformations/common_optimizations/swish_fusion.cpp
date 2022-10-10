@@ -50,7 +50,6 @@ ngraph::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
             {pattern_to_output.at(sigmoid).get_node_shared_ptr(), pattern_to_output.at(mul).get_node_shared_ptr()},
             swish);
         ngraph::replace_node(m.get_match_root(), swish);
-        MATCHER_SCOPE_ENABLE(SwishFusionWithSigmoid);
         return true;
     };
 
@@ -97,7 +96,6 @@ ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
             {pattern_to_output.at(sigmoid).get_node_shared_ptr(), pattern_to_output.at(mul).get_node_shared_ptr()},
             swish);
         ngraph::replace_node(m.get_match_root(), swish);
-        MATCHER_SCOPE_ENABLE(SwishFusionWithSigmoidWithBeta);
         return true;
     };
 
@@ -139,7 +137,6 @@ ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
                                    pattern_to_output.at(div).get_node_shared_ptr()},
                                   swish);
         ngraph::replace_node(m.get_match_root(), swish);
-        MATCHER_SCOPE_ENABLE(SwishFusionWithBeta);
         return true;
     };
 
@@ -177,7 +174,6 @@ ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
                                    pattern_to_output.at(div).get_node_shared_ptr()},
                                   swish);
         ngraph::replace_node(m.get_match_root(), swish);
-        MATCHER_SCOPE_ENABLE(SwishFusionWithoutBeta);
         return true;
     };
 

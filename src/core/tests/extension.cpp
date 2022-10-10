@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/file_utils.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/op_extension.hpp"
 #include "openvino/opsets/opset9.hpp"
@@ -13,7 +14,8 @@
 #include "so_extension.hpp"
 
 inline std::string get_extension_path() {
-    return ov::util::make_plugin_library_name<char>({}, std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
+    return ov::util::make_plugin_library_name<char>(CommonTestUtils::getExecutableDirectory(),
+                                                    std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
 }
 
 TEST(extension, load_extension) {

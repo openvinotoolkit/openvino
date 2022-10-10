@@ -22,14 +22,14 @@ struct gather_tree_impl : typed_primitive_impl_ocl<gather_tree> {
         return make_unique<gather_tree_impl>(*this);
     }
 
-    static primitive_impl* create(const gather_tree_node& arg) {
-        auto b_params = get_default_params<kernel_selector::gather_tree_params>(arg, 1);
+    static primitive_impl* create(const gather_tree_node& arg, const kernel_impl_params& impl_param) {
+        auto desc = arg.get_primitive();
+        auto b_params = get_default_params<kernel_selector::gather_tree_params>(impl_param, 1);
         auto b_optional_params = get_default_optional_params<kernel_selector::gather_tree_optional_params>(arg.get_program());
 
         for (size_t i = 1; i < arg.get_dependencies().size(); i++) {
-            b_params.inputs.push_back(convert_data_tensor(arg.get_dependency(i).get_output_layout(), 1));
+            b_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i], 1));
         }
-        auto desc = arg.get_primitive();
 
         auto& kernel_selector = kernel_selector::gather_tree_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(b_params, b_optional_params);

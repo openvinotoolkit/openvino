@@ -141,38 +141,6 @@ std::map<std::string, std::string> parseArgMap(std::string argMap) {
     return parsedMap;
 }
 
-using supported_precisions_t = std::unordered_map<std::string, InferenceEngine::Precision>;
-
-InferenceEngine::Precision getPrecision(std::string value, const supported_precisions_t& supported_precisions) {
-    std::transform(value.begin(), value.end(), value.begin(), ::toupper);
-
-    const auto precision = supported_precisions.find(value);
-    if (precision == supported_precisions.end()) {
-        throw std::logic_error("\"" + value + "\"" + " is not a valid precision");
-    }
-
-    return precision->second;
-}
-
-InferenceEngine::Precision getPrecision(const std::string& value) {
-    static const supported_precisions_t supported_precisions = {
-        {"FP32", InferenceEngine::Precision::FP32}, {"f32", InferenceEngine::Precision::FP32},
-        {"FP16", InferenceEngine::Precision::FP16}, {"f16", InferenceEngine::Precision::FP16},
-        {"BF16", InferenceEngine::Precision::BF16}, {"bf16", InferenceEngine::Precision::BF16},
-        {"U64", InferenceEngine::Precision::U64},   {"u64", InferenceEngine::Precision::U64},
-        {"I64", InferenceEngine::Precision::I64},   {"i64", InferenceEngine::Precision::I64},
-        {"U32", InferenceEngine::Precision::U32},   {"u32", InferenceEngine::Precision::U32},
-        {"I32", InferenceEngine::Precision::I32},   {"i32", InferenceEngine::Precision::I32},
-        {"U16", InferenceEngine::Precision::U16},   {"u16", InferenceEngine::Precision::U16},
-        {"I16", InferenceEngine::Precision::I16},   {"i16", InferenceEngine::Precision::I16},
-        {"U8", InferenceEngine::Precision::U8},     {"u8", InferenceEngine::Precision::U8},
-        {"I8", InferenceEngine::Precision::I8},     {"i8", InferenceEngine::Precision::I8},
-        {"BOOL", InferenceEngine::Precision::BOOL}, {"boolean", InferenceEngine::Precision::BOOL},
-    };
-
-    return getPrecision(value, supported_precisions);
-}
-
 using supported_type_t = std::unordered_map<std::string, ov::element::Type>;
 ov::element::Type getType(std::string value, const supported_type_t& supported_precisions) {
     std::transform(value.begin(), value.end(), value.begin(), ::toupper);
@@ -198,55 +166,6 @@ ov::element::Type getType(const std::string& value) {
 
     return getType(value, supported_types);
 }
-
-namespace {
-using supported_layouts_t = std::unordered_map<std::string, InferenceEngine::Layout>;
-using matchLayoutToDims_t = std::unordered_map<size_t, size_t>;
-
-InferenceEngine::Layout getLayout(std::string value, const supported_layouts_t& supported_layouts) {
-    std::transform(value.begin(), value.end(), value.begin(), ::toupper);
-
-    const auto layout = supported_layouts.find(value);
-    if (layout == supported_layouts.end()) {
-        throw std::logic_error("\"" + value + "\"" + " is not a valid layout");
-    }
-
-    return layout->second;
-}
-
-InferenceEngine::Layout getLayout(const std::string& value) {
-    static const supported_layouts_t supported_layouts = {
-        {"NCDHW", InferenceEngine::Layout::NCDHW},
-        {"NDHWC", InferenceEngine::Layout::NDHWC},
-        {"NCHW", InferenceEngine::Layout::NCHW},
-        {"NHWC", InferenceEngine::Layout::NHWC},
-        {"CHW", InferenceEngine::Layout::CHW},
-        {"HWC", InferenceEngine::Layout::HWC},
-        {"NC", InferenceEngine::Layout::NC},
-        {"C", InferenceEngine::Layout::C},
-    };
-
-    return getLayout(value, supported_layouts);
-}
-
-bool isMatchLayoutToDims(InferenceEngine::Layout layout, size_t dimension) {
-    static const matchLayoutToDims_t matchLayoutToDims = {{static_cast<size_t>(InferenceEngine::Layout::NCDHW), 5},
-                                                          {static_cast<size_t>(InferenceEngine::Layout::NDHWC), 5},
-                                                          {static_cast<size_t>(InferenceEngine::Layout::NCHW), 4},
-                                                          {static_cast<size_t>(InferenceEngine::Layout::NHWC), 4},
-                                                          {static_cast<size_t>(InferenceEngine::Layout::CHW), 3},
-                                                          {static_cast<size_t>(InferenceEngine::Layout::NC), 2},
-                                                          {static_cast<size_t>(InferenceEngine::Layout::C), 1}};
-
-    const auto dims = matchLayoutToDims.find(static_cast<size_t>(layout));
-    if (dims == matchLayoutToDims.end()) {
-        throw std::logic_error("Layout is not valid.");
-    }
-
-    return dimension == dims->second;
-}
-
-}  // namespace
 
 void printInputAndOutputsInfo(const ov::Model& network) {
     slog::info << "model name: " << network.get_friendly_name() << slog::endl;

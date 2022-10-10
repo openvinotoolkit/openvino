@@ -65,9 +65,9 @@ def import_and_compute_with_axes_as_const(op_type, data, axes, **node_attrs):
 
     model = onnx.helper.make_model(graph, producer_name="ngraph ONNX Importer")
     model.opset_import[0].version = 13
-    ng_model_function = import_onnx_model(model)
+    graph_model = import_onnx_model(model)
     runtime = get_runtime()
-    computation = runtime.computation(ng_model_function)
+    computation = runtime.computation(graph_model)
     return computation(data_input)[0]
 
 
@@ -141,15 +141,15 @@ def test_reduce_l1(reduction_axes):
 
     expected = np.sum(np.abs(input_data), keepdims=True, axis=reduction_axes)
     node = onnx.helper.make_node("ReduceL1", inputs=["x"], outputs=["y"], axes=reduction_axes)
-    ng_result = np.array(run_node(node, [input_data]).pop())
-    assert np.array_equal(expected.shape, ng_result.shape)
-    assert np.allclose(expected, ng_result)
+    graph_result = np.array(run_node(node, [input_data]).pop())
+    assert np.array_equal(expected.shape, graph_result.shape)
+    assert np.allclose(expected, graph_result)
 
     expected = np.sum(np.abs(input_data), keepdims=False, axis=reduction_axes)
     node = onnx.helper.make_node("ReduceL1", inputs=["x"], outputs=["y"], keepdims=0, axes=reduction_axes)
-    ng_result = np.array(run_node(node, [input_data]).pop())
-    assert np.array_equal(expected.shape, ng_result.shape)
-    assert np.allclose(expected, ng_result)
+    graph_result = np.array(run_node(node, [input_data]).pop())
+    assert np.array_equal(expected.shape, graph_result.shape)
+    assert np.allclose(expected, graph_result)
 
 
 def test_reduce_l1_default_axes():
@@ -159,15 +159,15 @@ def test_reduce_l1_default_axes():
 
     expected = np.sum(np.abs(input_data), keepdims=True)
     node = onnx.helper.make_node("ReduceL1", inputs=["x"], outputs=["y"])
-    ng_result = np.array(run_node(node, [input_data]).pop())
-    assert np.array_equal(expected.shape, ng_result.shape)
-    assert np.allclose(expected, ng_result)
+    graph_result = np.array(run_node(node, [input_data]).pop())
+    assert np.array_equal(expected.shape, graph_result.shape)
+    assert np.allclose(expected, graph_result)
 
     expected = np.array(np.sum(np.abs(input_data), keepdims=False))
     node = onnx.helper.make_node("ReduceL1", inputs=["x"], outputs=["y"], keepdims=0)
-    ng_result = np.array(run_node(node, [input_data]).pop())
-    assert np.array_equal(expected.shape, ng_result.shape)
-    assert np.allclose(expected, ng_result)
+    graph_result = np.array(run_node(node, [input_data]).pop())
+    assert np.array_equal(expected.shape, graph_result.shape)
+    assert np.allclose(expected, graph_result)
 
 
 @pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2)])
@@ -179,15 +179,15 @@ def test_reduce_l2(reduction_axes):
     expected = np.sqrt(np.sum(np.square(input_data), keepdims=True, axis=reduction_axes))
     node = onnx.helper.make_node("ReduceL2", inputs=["x"], outputs=["y"], axes=reduction_axes)
     raw_result = run_node(node, [input_data])
-    ng_result = np.array(raw_result.pop())
-    assert np.array_equal(expected.shape, ng_result.shape)
-    assert np.allclose(expected, ng_result)
+    graph_result = np.array(raw_result.pop())
+    assert np.array_equal(expected.shape, graph_result.shape)
+    assert np.allclose(expected, graph_result)
 
     expected = np.sqrt(np.sum(np.square(input_data), keepdims=False, axis=reduction_axes))
     node = onnx.helper.make_node("ReduceL2", inputs=["x"], outputs=["y"], keepdims=0, axes=reduction_axes)
-    ng_result = np.array(run_node(node, [input_data]).pop())
-    assert np.array_equal(expected.shape, ng_result.shape)
-    assert np.allclose(expected, ng_result)
+    graph_result = np.array(run_node(node, [input_data]).pop())
+    assert np.array_equal(expected.shape, graph_result.shape)
+    assert np.allclose(expected, graph_result)
 
 
 def test_reduce_l2_default_axes():
@@ -197,15 +197,15 @@ def test_reduce_l2_default_axes():
 
     expected = np.sqrt(np.sum(np.square(input_data), keepdims=True))
     node = onnx.helper.make_node("ReduceL2", inputs=["x"], outputs=["y"])
-    ng_result = np.array(run_node(node, [input_data]).pop())
-    assert np.array_equal(expected.shape, ng_result.shape)
-    assert np.allclose(expected, ng_result)
+    graph_result = np.array(run_node(node, [input_data]).pop())
+    assert np.array_equal(expected.shape, graph_result.shape)
+    assert np.allclose(expected, graph_result)
 
     expected = np.array(np.sqrt(np.sum(np.square(input_data), keepdims=False)))
     node = onnx.helper.make_node("ReduceL2", inputs=["x"], outputs=["y"], keepdims=0)
-    ng_result = np.array(run_node(node, [input_data]).pop())
-    assert np.array_equal(expected.shape, ng_result.shape)
-    assert np.allclose(expected, ng_result)
+    graph_result = np.array(run_node(node, [input_data]).pop())
+    assert np.array_equal(expected.shape, graph_result.shape)
+    assert np.allclose(expected, graph_result)
 
 
 @pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2)])
@@ -216,15 +216,15 @@ def test_reduce_log_sum(reduction_axes):
 
     expected = np.log(np.sum(input_data, keepdims=True, axis=reduction_axes))
     node = onnx.helper.make_node("ReduceLogSum", inputs=["x"], outputs=["y"], axes=reduction_axes)
-    ng_result = run_node(node, [input_data]).pop()
-    assert np.array_equal(expected.shape, ng_result.shape)
-    assert np.allclose(expected, ng_result)
+    graph_result = run_node(node, [input_data]).pop()
+    assert np.array_equal(expected.shape, graph_result.shape)
+    assert np.allclose(expected, graph_result)
 
     expected = np.log(np.sum(input_data, keepdims=False, axis=reduction_axes))
     node = onnx.helper.make_node("ReduceLogSum", inputs=["x"], outputs=["y"], keepdims=0, axes=reduction_axes)
-    ng_result = run_node(node, [input_data]).pop()
-    assert np.array_equal(expected.shape, ng_result.shape)
-    assert np.allclose(expected, ng_result)
+    graph_result = run_node(node, [input_data]).pop()
+    assert np.array_equal(expected.shape, graph_result.shape)
+    assert np.allclose(expected, graph_result)
 
 
 def test_reduce_log_sum_default_axes():
@@ -234,15 +234,15 @@ def test_reduce_log_sum_default_axes():
 
     expected = np.log(np.sum(input_data, keepdims=True))
     node = onnx.helper.make_node("ReduceLogSum", inputs=["x"], outputs=["y"])
-    ng_result = np.array(run_node(node, [input_data]).pop())
-    assert np.array_equal(expected.shape, ng_result.shape)
-    assert np.allclose(expected, ng_result)
+    graph_result = np.array(run_node(node, [input_data]).pop())
+    assert np.array_equal(expected.shape, graph_result.shape)
+    assert np.allclose(expected, graph_result)
 
     expected = np.log(np.sum(input_data, keepdims=False))
     node = onnx.helper.make_node("ReduceLogSum", inputs=["x"], outputs=["y"], keepdims=0)
-    ng_result = np.array(run_node(node, [input_data]).pop())
-    assert np.array_equal(expected.shape, ng_result.shape)
-    assert np.allclose(expected, ng_result)
+    graph_result = np.array(run_node(node, [input_data]).pop())
+    assert np.array_equal(expected.shape, graph_result.shape)
+    assert np.allclose(expected, graph_result)
 
 
 def test_reduce_log_sum_exp():
@@ -284,15 +284,15 @@ def test_reduce_sum_square(reduction_axes):
 
     expected = np.sum(np.square(input_data), keepdims=True, axis=reduction_axes)
     node = onnx.helper.make_node("ReduceSumSquare", inputs=["x"], outputs=["y"], axes=reduction_axes)
-    ng_result = np.array(run_node(node, [input_data]).pop())
-    assert np.array_equal(expected.shape, ng_result.shape)
-    assert np.allclose(expected, ng_result)
+    graph_result = np.array(run_node(node, [input_data]).pop())
+    assert np.array_equal(expected.shape, graph_result.shape)
+    assert np.allclose(expected, graph_result)
 
     expected = np.sum(np.square(input_data), keepdims=False, axis=reduction_axes)
     node = onnx.helper.make_node("ReduceSumSquare", inputs=["x"], outputs=["y"], keepdims=0, axes=reduction_axes)
-    ng_result = np.array(run_node(node, [input_data]).pop())
-    assert np.array_equal(expected.shape, ng_result.shape)
-    assert np.allclose(expected, ng_result)
+    graph_result = np.array(run_node(node, [input_data]).pop())
+    assert np.array_equal(expected.shape, graph_result.shape)
+    assert np.allclose(expected, graph_result)
 
 
 def test_reduce_sum_square_default_axes():
@@ -302,15 +302,15 @@ def test_reduce_sum_square_default_axes():
 
     expected = np.sum(np.square(input_data), keepdims=True)
     node = onnx.helper.make_node("ReduceSumSquare", inputs=["x"], outputs=["y"])
-    ng_result = np.array(run_node(node, [input_data]).pop())
-    assert np.array_equal(expected.shape, ng_result.shape)
-    assert np.allclose(expected, ng_result)
+    graph_result = np.array(run_node(node, [input_data]).pop())
+    assert np.array_equal(expected.shape, graph_result.shape)
+    assert np.allclose(expected, graph_result)
 
     expected = np.sum(np.square(input_data), keepdims=False)
     node = onnx.helper.make_node("ReduceSumSquare", inputs=["x"], outputs=["y"], keepdims=0)
-    ng_result = np.array(run_node(node, [input_data]).pop())
-    assert np.array_equal(expected.shape, ng_result.shape)
-    assert np.allclose(expected, ng_result)
+    graph_result = np.array(run_node(node, [input_data]).pop())
+    assert np.array_equal(expected.shape, graph_result.shape)
+    assert np.allclose(expected, graph_result)
 
 
 def test_reduce_argmin():

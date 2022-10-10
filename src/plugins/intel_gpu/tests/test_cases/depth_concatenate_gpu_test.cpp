@@ -250,7 +250,7 @@ TEST(concatenate_f32_gpu, test_concatenation_of_pool_and_unpool) {
                          {1, 2}, /*kernel*/
                          {1, 1}  /*stride*/
                          ));
-    topology.add(resample("unpool1", "input1", tensor(1, 1, 2, 2), 0, resample_type::nearest));
+    topology.add(resample("unpool1", "input1", tensor(1, 1, 2, 2), 0, resample::InterpolateOp::InterpolateMode::NEAREST));
     topology.add(concatenation("concat1", {"pool1", "unpool1"}, 3));
     topology.add(data("weights", weights));
     topology.add(convolution("conv", "concat1", {"weights"}));
@@ -1185,7 +1185,7 @@ public:
             features += t.feature();
         }
 
-        const auto& t = generic_params->input_layouts[0].size;
+        const auto& t = generic_params->input_layouts[0].get_tensor();
         return {t.batch[0], features, t.spatial[0], t.spatial[1]};
     }
 
@@ -1262,8 +1262,8 @@ public:
 
             res << "_"
                 << "Input" << i;
-            for (unsigned int j = 0; j < p->input_layouts[i].size.sizes(p->fmt).size(); ++j) {
-                res << chans[j] << p->input_layouts[i].size.sizes(p->fmt)[j];
+            for (unsigned int j = 0; j < p->input_layouts[i].get_tensor().sizes(p->fmt).size(); ++j) {
+                res << chans[j] << p->input_layouts[i].get_tensor().sizes(p->fmt)[j];
             }
         }
 

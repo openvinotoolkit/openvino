@@ -24,15 +24,15 @@ struct scatter_nd_update_impl : typed_primitive_impl_ocl<scatter_nd_update> {
     }
 
 public:
-    static primitive_impl* create(const scatter_nd_update_node& arg) {
-        auto scatter_nd_update_params = get_default_params<kernel_selector::scatter_nd_update_params>(arg);
+    static primitive_impl* create(const scatter_nd_update_node& arg, const kernel_impl_params& impl_param) {
+        auto scatter_nd_update_params = get_default_params<kernel_selector::scatter_nd_update_params>(impl_param);
         auto scatter_nd_update_optional_params =
             get_default_optional_params<kernel_selector::scatter_nd_update_optional_params>(arg.get_program());
 
         scatter_nd_update_params.indices_rank = arg.get_primitive()->indices_rank;
 
-        scatter_nd_update_params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
-        scatter_nd_update_params.inputs.push_back(convert_data_tensor(arg.input(2).get_output_layout()));
+        scatter_nd_update_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
+        scatter_nd_update_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
 
         auto& kernel_selector = kernel_selector::scatter_nd_update_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(scatter_nd_update_params, scatter_nd_update_optional_params);

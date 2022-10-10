@@ -21,7 +21,7 @@
 #include "openvino/core/runtime_attribute.hpp"
 
 namespace InferenceEngine {
-class InferencePlugin;
+struct InferencePlugin;
 class ExecutableNetwork;
 }  // namespace InferenceEngine
 
@@ -345,7 +345,7 @@ class InferencePlugin;
  * @brief This class represents an object to work with different types
  */
 class OPENVINO_API Any {
-    std::shared_ptr<void> _so;
+    std::vector<std::shared_ptr<void>> _so;
 
     template <typename T>
     using decay_t = typename std::decay<T>::type;
@@ -627,14 +627,14 @@ class OPENVINO_API Any {
     };
 
     friend class ::ov::RuntimeAttribute;
-    friend class ::InferenceEngine::InferencePlugin;
+    friend struct ::InferenceEngine::InferencePlugin;
     friend class ::InferenceEngine::ExecutableNetwork;
     friend class ::ov::CompiledModel;
     friend class ::ov::RemoteContext;
     friend class ::ov::RemoteTensor;
     friend class ::ov::InferencePlugin;
 
-    Any(const Any& other, const std::shared_ptr<void>& so);
+    Any(const Any& other, const std::vector<std::shared_ptr<void>>& so);
 
     void impl_check() const;
 

@@ -13,9 +13,11 @@
 #include <pot_transformations.hpp>
 #include <pruning.hpp>
 #include <transformations/common_optimizations/compress_float_constants.hpp>
+#include <transformations/common_optimizations/fused_names_cleanup.hpp>
 #include <transformations/common_optimizations/mark_precision_sensitive_subgraphs.hpp>
 #include <transformations/common_optimizations/moc_legacy_transformations.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
+#include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
 #include <transformations/serialize.hpp>
 
 #include "openvino/pass/low_latency.hpp"
@@ -24,8 +26,10 @@
 namespace py = pybind11;
 
 void regmodule_offline_transformations(py::module m) {
-    py::module m_offline_transformations = m.def_submodule("offline_transformations", "Offline transformations module");
-    m_offline_transformations.doc() = "openvino.offline_transformations module contains different offline passes.";
+    py::module m_offline_transformations =
+        m.def_submodule("_offline_transformations", "Offline transformations module");
+    m_offline_transformations.doc() =
+        "openvino._offline_transformations is a private module contains different offline passes.";
 
     m_offline_transformations.def(
         "apply_moc_transformations",
@@ -113,6 +117,24 @@ void regmodule_offline_transformations(py::module m) {
             ov::pass::Manager manager;
             manager.register_pass<ngraph::pass::CompressQuantizeWeights>();
             manager.register_pass<ngraph::pass::ZeroPointOptimizer>();
+            manager.run_passes(model);
+        },
+        py::arg("model"));
+
+    m_offline_transformations.def(
+        "convert_sequence_to_tensor_iterator_transformation",
+        [](std::shared_ptr<ov::Model> model) {
+            ov::pass::Manager manager;
+            manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
+            manager.run_passes(model);
+        },
+        py::arg("model"));
+
+    m_offline_transformations.def(
+        "apply_fused_names_cleanup",
+        [](std::shared_ptr<ov::Model> model) {
+            ov::pass::Manager manager;
+            manager.register_pass<ov::pass::FusedNamesCleanup>();
             manager.run_passes(model);
         },
         py::arg("model"));

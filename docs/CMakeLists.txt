@@ -17,8 +17,6 @@ if(NOT ENABLE_DOCKER)
 
     add_subdirectory(snippets)
 
-    add_subdirectory(template_extension)
-
     set(all_docs_targets
         ie_docs_snippets ov_template_func_tests
         template_extension openvino_template_extension openvino_template_plugin)
@@ -36,9 +34,7 @@ if(NOT ENABLE_DOCKER)
     foreach(target openvino_template_plugin template_extension openvino_template_extension)
         if(TARGET ${target})
             install(TARGETS ${target}
-                    LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH}
-                    COMPONENT tests
-                    EXCLUDE_FROM_ALL)
+                    LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
         endif()
     endforeach()
 endif()

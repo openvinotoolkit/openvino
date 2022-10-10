@@ -21,7 +21,6 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static cldnn::tensor getConstTensor(const ngraph::Shape constDims) {
@@ -102,7 +101,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
                    ngraph::is_type<ngraph::op::v0::SquaredDifference>(outOp)) {
             bool all_inputs_1d = true;
             for (size_t j = 0; j < outOp->get_input_size(); j++) {
-                auto& in_shape = outOp->get_input_shape(j);
+                auto& in_shape = outOp->get_input_partial_shape(j);
                 if (in_shape.size() > 1)
                     all_inputs_1d = false;
             }
@@ -126,13 +125,19 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             //    'https://docs.openvino.ai/latest/openvino_docs_ops_broadcast_rules.html'.
             //   ex) [N, 1, 1] --> [1, N, 1, 1]
             //       [N, M, 1] --> [1, N, M, 1]
-            auto input_shape = outOp->get_input_shape(0);
+            auto input_shape = outOp->get_input_partial_shape(0);
             if (constDims.size() != 1 && constDims.size() < input_shape.size()) {
                 // Reshape 'constDims' according to the numpy broadcasting rule.
                 ngraph::Shape slope_shape(input_shape.size(), 1);
-                for (int j = 1; j <= constDims.size(); j++)
+                for (size_t j = 1; j <= constDims.size(); j++)
                     slope_shape[slope_shape.size() - j] = constDims[constDims.size() - j];
                 constDims = slope_shape;
+            }
+        } else if (ngraph::is_type<ngraph::op::v1::GroupConvolution>(outOp) && node.get_index() == 1) {
+            auto input_shape = outOp->get_input_shape(0);
+            if (constDims.size() == 4 && input_shape.size() == 3) { // In case of weight dim 4 and input dim 3,
+                constDims[2] = constDims[3];                        // The weight cldnn tensor adds 1d to the end
+                constDims[3] = 1;                                   // as the input cldnn tensor does.
             }
         }
     }
@@ -144,7 +149,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
 
 void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::shared_ptr<ngraph::op::v0::Constant>& op, const ConstProperties& props) {
     cldnn::tensor constTensor = getConstTensor(constDims);
-    auto constFormat = DefaultFormatForDims(constDims.size());
+    auto constFormat = cldnn::format::get_default_format(constDims.size());
 
     if (props.needsBatchInterpretation) {
         constTensor.batch[0] = constTensor.count();
@@ -153,7 +158,7 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
 
     // If constDims has a dimension = 0, then create tensor with single value
     // TODO: check if dim=0 is a valid case
-    if (std::accumulate(constDims.begin(), constDims.end(), 1, std::multiplies<size_t>()) == 0)
+    if (std::accumulate(constDims.begin(), constDims.end(), size_t(1), std::multiplies<size_t>()) == 0)
         constTensor = cldnn::tensor{1};
 
     // Swap O and I dimensions to match expected deconvolution weights format
@@ -180,7 +185,7 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
         constTensor = getConstTensor(newDims);
     }
 
-    cldnn::layout constLayout = cldnn::layout(DataTypeFromPrecision(op->get_output_element_type(0)),
+    cldnn::layout constLayout = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                               constFormat,
                                               constTensor);
 
@@ -192,6 +197,8 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
 
     if (bufIter != p.blobMemCache.end()) {
         constPrimID = bufIter->second;
+        p.primitive_ids[initialconstPrimID] = constPrimID;
+        p.profiling_ids.push_back(initialconstPrimID);
     } else {
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
@@ -227,16 +234,13 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
         } else {
             std::memcpy(&buf[0], &data[0], bufSize);
         }
-        p.AddPrimitive(cldnn::data(initialconstPrimID, mem, op->get_friendly_name()));
+        p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
         p.blobMemCache[std::make_pair(data, newDims)] = initialconstPrimID;
         constPrimID = initialconstPrimID;
     }
-
-    p.AddPrimitiveToProfiler(op, constPrimID);
 }
 
 REGISTER_FACTORY_IMPL(v0, Constant);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

@@ -10,6 +10,7 @@
 
 #include <string>
 #include <map>
+#include <mutex>
 
 namespace ov {
 namespace intel_cpu {
@@ -20,6 +21,12 @@ struct Config {
     enum LPTransformsMode {
         Off,
         On,
+    };
+
+    enum DenormalsOptMode {
+        DO_Keep,
+        DO_Off,
+        DO_On,
     };
 
     bool collectPerfCounters = false;
@@ -41,6 +48,8 @@ struct Config {
 #endif
 
     std::string cache_dir{};
+
+    DenormalsOptMode denormalsOptMode = DenormalsOptMode::DO_Keep;
 
     void readProperties(const std::map<std::string, std::string> &config);
     void updateProperties();

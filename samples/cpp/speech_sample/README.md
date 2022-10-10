@@ -99,24 +99,22 @@ speech_sample [OPTION]
 Options:
 
     -h                         Print a usage message.
-    -i "<path>"                Required. Paths to input files. Example of usage: <file1.ark,file2.ark> or <file.ark> or <file.npz>.
+    -i "<path>"                Required. Paths to input file or Layers names with corresponding paths to the input files. Example of usage for single file: <file.ark> or <file.npz>. Example of usage for named layers: <layer1>=<file1.ark>,<layer2>=<file2.ark>.
     -m "<path>"                Required. Path to an .xml file with a trained model (required if -rg is missing).
-    -o "<path>"                Optional. Output file name to save scores. Example of usage: <output.ark> or <output.npz>
+    -o "<path>"                Optional. Output file name to save scores or Layer names with corresponding files names to save scores. Example of usage for single file: <output.ark> or <output.npz>. Example of usage for named layers: Example of usage for named layers: <layer1:port_num>=<output_file1.ark>,<layer2:port_num>=<output_file2.ark>.
     -d "<device>"              Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, GNA_HW_WITH_SW_FBACK, GNA_SW_FP32, GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. The sample will look for a suitable plugin for device specified.
     -pc                        Optional. Enables per-layer performance report.
-    -q "<mode>"                Optional. Input quantization mode:  static (default), dynamic, or user (use with -sf).
+    -q "<mode>"                Optional. Input quantization mode: static (default), dynamic, or user (use with -sf).
     -qb "<integer>"            Optional. Weight bits for quantization: 8 or 16 (default)
     -sf "<double>"             Optional. User-specified input scale factor for quantization (use with -q user). If the network contains multiple inputs, provide scale factors by separating them with commas.
     -bs "<integer>"            Optional. Batch size 1-8
     -layout "<string>"         Optional. Prompts how network layouts should be treated by application.For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.
-    -r "<path>"                Optional. Read reference score file and compare scores. Example of usage: <reference.ark> or <reference.npz>
+    -r "<path>"                Optional. Read reference score file or named layers with corresponding score files and compare scores. Example of usage for single file: <reference.ark> or <reference.npz>. Example of usage for named layers: Example of usage for named layers: <layer1:port_num>=<reference_file2.ark>,<layer2:port_num>=<reference_file2.ark>.
     -rg "<path>"               Read GNA model from file using path/filename provided (required if -m is missing).
     -wg "<path>"               Optional. Write GNA model to file using path/filename provided.
     -we "<path>"               Optional. Write GNA embedded model to file using path/filename provided.
     -cw_l "<integer>"          Optional. Number of frames for left context windows (default is 0). Works only with context window networks. If you use the cw_l or cw_r flag, then batch size argument is ignored.
     -cw_r "<integer>"          Optional. Number of frames for right context windows (default is 0). Works only with context window networks. If you use the cw_r or cw_l flag, then batch size argument is ignored.
-    -oname "<string>"          Optional. Layer names for output blobs. The names are separated with "," Example: Output1:port,Output2:port
-    -iname "<string>"          Optional. Layer names for input blobs. The names are separated with "," Example: Input1,Input2
     -pwl_me "<double>"         Optional. The maximum percent of error for PWL function.The value must be in <0, 100> range. The default value is 1.0.
     -exec_target "<string>"    Optional. Specify GNA execution target generation. May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. By default, generation corresponds to the GNA HW available in the system or the latest fully supported generation by the software. See the GNA Plugin's GNA_EXEC_TARGET config option description.
     -compile_target "<string>" Optional. Specify GNA compile target generation. May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. By default, generation corresponds to the GNA HW available in the system or the latest fully supported generation by the software. See the GNA Plugin's GNA_COMPILE_TARGET config option description.

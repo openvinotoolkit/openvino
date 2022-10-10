@@ -131,7 +131,7 @@ public:
             bool isLastPostOp, dnnl::memory::data_type outDataType);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
-
+    std::vector<float> simplifyToScale(dnnl::memory::data_type outDataType, size_t OC);
     enum BroadcastingPolicy {
         PerChannel, // all FQ operations are per channel
         PerTensor,  // all FQ operations are per tensor

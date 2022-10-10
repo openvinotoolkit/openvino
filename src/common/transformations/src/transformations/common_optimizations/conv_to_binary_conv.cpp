@@ -93,7 +93,7 @@ ngraph::pass::ConvToBinaryConv::ConvToBinaryConv() {
                 conv->get_pads_end(),
                 conv->get_dilations(),
                 opset5::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
-                -1,
+                -1.f,
                 conv->get_auto_pad());
             new_conv->set_friendly_name(conv->get_friendly_name());
             std::vector<int64_t> axes;
@@ -117,7 +117,7 @@ ngraph::pass::ConvToBinaryConv::ConvToBinaryConv() {
             auto mul = std::make_shared<opset5::Multiply>(add, op::Constant::create(element::f32, Shape{}, {0.5}));
             copy_runtime_info(conv, {new_conv, add, mul});
             replace_node(conv, mul);
-            MATCHER_SCOPE_ENABLE(ConvToBinaryConv);
+
             return true;
         }
 
@@ -129,8 +129,9 @@ ngraph::pass::ConvToBinaryConv::ConvToBinaryConv() {
                                                         conv->get_pads_end(),
                                                         conv->get_dilations(),
                                                         opset5::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
-                                                        0,
+                                                        0.f,
                                                         conv->get_auto_pad());
+
         new_conv->set_friendly_name(conv->get_friendly_name());
         copy_runtime_info(conv, new_conv);
         replace_node(conv, new_conv);

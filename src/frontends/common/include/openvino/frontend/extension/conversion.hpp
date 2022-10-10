@@ -45,7 +45,7 @@ public:
         return m_converter_named;
     };
 
-    ~ConversionExtension() override = default;
+    ~ConversionExtension() override;
 
 private:
     CreatorFunction m_converter;

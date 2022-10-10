@@ -39,7 +39,6 @@ AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::sh
         if (transformation_callback(op)) {
             return false;
         }
-        MATCHER_SCOPE_ENABLE(AssignAndReadValueTransformation);
         return transform(*context, m);
     };
 

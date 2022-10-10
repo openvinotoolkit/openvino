@@ -8,6 +8,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/log.hpp>
+#include <ngraph/validation_util.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -75,8 +76,31 @@ public:
             NodeVector weights_calculation_nodes;
             auto cur_node = matmul->get_input_node_shared_ptr(1);
 
+            if (cur_node->get_output_partial_shape(0).is_dynamic()) return false;
+            const auto input_size = cur_node->get_output_shape(0).size();
+            auto dim_order = std::vector<int64_t>(input_size);
+            std::iota(dim_order.begin(), dim_order.end(), 0);
+
             while (!ngraph::is_type<opset6::Constant>(cur_node) && cur_node->inputs().size()) {
                 weights_calculation_nodes.push_back(cur_node);
+                if (ngraph::is_type<opset6::Transpose>(cur_node)) {
+                    const auto forward_order = get_constant_from_source(cur_node->get_input_node_shared_ptr(1));
+                    if (!forward_order) return false;
+                    const auto forward_order_vec = forward_order->cast_vector<int64_t>();
+                    if (forward_order_vec.size() != input_size) return false;
+                    auto new_order = std::vector<int64_t>(forward_order_vec.size());
+                    for (size_t i = 0; i < forward_order_vec.size(); ++i) {
+                        new_order[forward_order_vec[i]] = dim_order[i];
+                    }
+                    dim_order = new_order;
+                } else {
+                    if (ngraph::is_type<opset6::Reshape>(cur_node) || ngraph::is_type<opset6::MatMul>(cur_node)) {
+                        NGRAPH_DEBUG << "Can't init mask for MatMul: " <<
+                        matmul->get_friendly_name() << " because of node " <<
+                        cur_node->get_friendly_name() << " in the way from weights to Matmul" << std::endl;
+                        return false;
+                    }
+                }
                 cur_node = cur_node->get_input_node_shared_ptr(0);
             }
             if (!ngraph::is_type<opset6::Constant>(cur_node)) {
@@ -93,7 +117,8 @@ public:
                 matmul->get_friendly_name() << std::endl;
                 return false;
             }
-            const size_t outer_dim  = shape_rank - shift;
+            const auto idx = shape_rank - shift;
+            const size_t outer_dim = std::find(dim_order.begin(), dim_order.end(), idx) - dim_order.begin();
             // 3. Init mask for Const node
             InitConstMask({outer_dim}/* check only outer dim */).apply(cur_node);
             return true;

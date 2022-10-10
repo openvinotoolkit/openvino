@@ -165,7 +165,7 @@ public:
        EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AnyNumber());
 
        // test auto plugin
-       config.insert({CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO), InferenceEngine::PluginConfigParams::YES});
+       plugin->SetName("AUTO");
     }
 };
 

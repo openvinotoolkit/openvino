@@ -116,7 +116,6 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
                           {new_const, new_input_low, new_input_high, new_fq});
         new_fq->set_friendly_name(fq->get_friendly_name());
         replace_node(fq, new_fq);
-        MATCHER_SCOPE_ENABLE(MulFakeQuantizeFusion);
         return true;
     };
 

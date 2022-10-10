@@ -22,7 +22,7 @@ ScalarData = Union[int, float]
 NodeInput = Union[Node, NumericData]
 
 ngraph_to_numpy_types_map = [
-    (NgraphType.boolean, np.bool),
+    (NgraphType.boolean, bool),
     (NgraphType.f16, np.float16),
     (NgraphType.f32, np.float32),
     (NgraphType.f64, np.float64),
@@ -38,7 +38,7 @@ ngraph_to_numpy_types_map = [
 ]
 
 ngraph_to_numpy_types_str_map = [
-    ("boolean", np.bool),
+    ("boolean", bool),
     ("f16", np.float16),
     ("f32", np.float32),
     ("f64", np.float64),

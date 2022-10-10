@@ -85,6 +85,12 @@ int main(int argc, char* argv[]) {
         // --------------------------- Step 1. Initialize OpenVINO Runtime core and read model
         // -------------------------------------
         ov::Core core;
+        try {
+            const auto& gnaLibraryVersion = core.get_property("GNA", ov::intel_gna::library_full_version);
+            slog::info << "Detected GNA Library: " << gnaLibraryVersion << slog::endl;
+        } catch (std::exception& e) {
+            slog::info << "Cannot detect GNA Library version, exception: " << e.what() << slog::endl;
+        }
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
         uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0 || !FLAGS_bs) ? 1 : (uint32_t)FLAGS_bs;
         std::shared_ptr<ov::Model> model;
@@ -322,7 +328,7 @@ int main(int argc, char* argv[]) {
             std::vector<std::string> inputNameBlobs = input_data.second;
             if (inputNameBlobs.size() != cInputInfo.size()) {
                 std::string errMessage(std::string("Number of network inputs ( ") + std::to_string(cInputInfo.size()) +
-                                       " ) is not equal to the number of inputs entered in the -iname argument ( " +
+                                       " ) is not equal to the number of inputs entered in the -i argument ( " +
                                        std::to_string(inputNameBlobs.size()) + " ).");
                 throw std::logic_error(errMessage);
             }

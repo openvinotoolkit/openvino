@@ -2,11 +2,31 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if (NOT ENABLE_INTEL_GNA)
+    return()
+endif()
+
 set(TARGET_NAME "openvino_intel_gna_plugin")
 
 if(CMAKE_COMPILER_IS_GNUCC)
     ie_add_compiler_flags(-Wno-all)
 endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # C4267, 4244 issues from mkl-dnn headers conversion from 'XXX' to 'YYY', possible loss of data
+    ie_add_compiler_flags(/wd4267)
+    ie_add_compiler_flags(/wd4244)
+    # '<': signed/unsigned mismatch
+    ie_add_compiler_flags(/wd4018)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # C4661: no suitable definition provided for explicit template instantiation request
+    ie_add_compiler_flags(/wd4661)
+    # C4297: function assumed not to throw an exception but does
+    ie_add_compiler_flags(/wd4297)
+endif()
+
 
 file(GLOB_RECURSE SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
@@ -82,7 +102,7 @@ foreach(gna_lib IN LISTS gna_libraries)
     if(gna_lib MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)+$" OR
        WIN32 OR NOT BUILD_SHARED_LIBS)
         install(FILES ${gna_lib}
-                DESTINATION ${IE_CPACK_RUNTIME_PATH}
+                DESTINATION ${OV_CPACK_RUNTIMEDIR}
                 COMPONENT gna)
         set(gna_library_installed ON)
     endif()
@@ -97,14 +117,14 @@ endif()
 if(NOT BUILD_SHARED_LIBS)
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/libGNAConfig.cmake ${CMAKE_BINARY_DIR} COPYONLY)
     install(FILES "${CMAKE_BINARY_DIR}/libGNAConfig.cmake"
-            DESTINATION runtime/cmake
+            DESTINATION ${OV_CPACK_IE_CMAKEDIR}
             COMPONENT gna)
 
     # install .lib file on Windows
     if(WIN32)
         file(GLOB_RECURSE gna_libraries  "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_STATIC_LIBRARY_SUFFIX}")
         install(FILES ${gna_libraries}
-                DESTINATION ${IE_CPACK_LIBRARY_PATH}
+                DESTINATION ${OV_CPACK_LIBRARYDIR}
                 COMPONENT gna)
     endif()
 endif()

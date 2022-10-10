@@ -170,7 +170,7 @@ QueryNetworkResult Engine::QueryNetwork(
             consoleOutput());
     std::set<std::string> namesToExclude;
     const auto supportedNetworks = vpu::FrontEnd::checkSupportedNetworks(network, namesToExclude);
-    for (const auto supportedNetwork : supportedNetworks) {
+    for (const auto & supportedNetwork : supportedNetworks) {
         const auto supportedLayers = getSupportedLayers(
                 supportedNetwork,
                 parsedConfigCopy,

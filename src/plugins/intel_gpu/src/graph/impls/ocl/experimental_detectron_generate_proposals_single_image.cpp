@@ -37,8 +37,8 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const experimental_detectron_generate_proposals_single_image_node& arg) {
-        auto params = get_default_params<kernel_selector::experimental_detectron_generate_proposals_single_image_params>(arg);
+    static primitive_impl* create(const experimental_detectron_generate_proposals_single_image_node& arg, const kernel_impl_params& impl_param) {
+        auto params = get_default_params<kernel_selector::experimental_detectron_generate_proposals_single_image_params>(impl_param);
         auto optional_params = get_default_optional_params<
                 kernel_selector::experimental_detectron_generate_proposals_single_image_optional_params>(arg.get_program());
 

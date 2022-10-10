@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
@@ -50,8 +51,7 @@ class TopK(Op):
 
         k = node.in_port(1).data.get_value()
         if k is None:
-            raise Error('The value defining number of output elements for layer "{}" is not defined'
-                        ''.format(node.soft_get('name')))
+            k = dynamic_dimension
         assert node.has_valid('axis'), 'The "axis" attribute is not defined for node {}'.format(node.name)
 
         input_shape = node.in_port(0).data.get_shape()

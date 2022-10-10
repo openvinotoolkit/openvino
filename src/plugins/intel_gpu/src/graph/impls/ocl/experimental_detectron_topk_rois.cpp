@@ -21,13 +21,12 @@ struct experimental_detectron_topk_rois_impl : typed_primitive_impl_ocl<experime
         return make_unique<experimental_detectron_topk_rois_impl>(*this);
     }
 
-    static primitive_impl *create(const experimental_detectron_topk_rois_node &arg) {
-        auto params = get_default_params<kernel_selector::experimental_detectron_topk_roi_params>(
-                arg);
+    static primitive_impl *create(const experimental_detectron_topk_rois_node &arg, const kernel_impl_params& impl_param) {
+        const auto& primitive = arg.get_primitive();
+        auto params = get_default_params<kernel_selector::experimental_detectron_topk_roi_params>(impl_param);
         const auto& experimental_detectron_topk_rois_kernel_selector =
                 kernel_selector::experimental_detectron_topk_rois_kernel_selector::Instance();
-        const auto& primitive = arg.get_primitive();
-        params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
+        params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
         params.max_rois = primitive->max_rois;
         auto best_kernels = experimental_detectron_topk_rois_kernel_selector.GetBestKernels(params,
                                                                                             kernel_selector::experimental_detectron_topk_roi_optional_params());

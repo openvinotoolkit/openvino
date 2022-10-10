@@ -114,7 +114,7 @@ public:
 
     cldnn::memory::ptr get_mem(cldnn::layout l) {
         auto prim = engine.allocate_memory(l);
-        tensor s = l.size;
+        tensor s = l.get_tensor();
         if (l.data_type == data_types::bin) {
             VF<int32_t> rnd_vec = generate_random_1d<int32_t>(s.count() / 32, min_random, max_random);
             set_values(prim, rnd_vec);
@@ -134,7 +134,7 @@ public:
 
     cldnn::memory::ptr get_mem(cldnn::layout l, float fill_value) {
         auto prim = engine.allocate_memory(l);
-        tensor s = l.size;
+        tensor s = l.get_tensor();
         if (l.data_type == data_types::bin) {
             VF<int32_t> rnd_vec(s.count() / 32, static_cast<int32_t>(fill_value));
             set_values(prim, rnd_vec);
@@ -159,7 +159,7 @@ public:
 
     cldnn::memory::ptr get_repeatless_mem(cldnn::layout l, int min, int max) {
         auto prim = engine.allocate_memory(l);
-        tensor s = l.size;
+        tensor s = l.get_tensor();
         if (l.data_type == data_types::f32) {
             VF<float> rnd_vec = generate_random_norepetitions_1d<float>(s.count(), min, max);
             set_values(prim, rnd_vec);
@@ -180,7 +180,7 @@ public:
 
     cldnn::memory::ptr get_mem(cldnn::layout l, int min, int max) {
         auto prim = engine.allocate_memory(l);
-        tensor s = l.size;
+        tensor s = l.get_tensor();
         if (l.data_type == data_types::f32) {
             VF<float> rnd_vec = generate_random_1d<float>(s.count(), min, max);
             set_values(prim, rnd_vec);

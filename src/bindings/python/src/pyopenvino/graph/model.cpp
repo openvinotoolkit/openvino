@@ -24,7 +24,7 @@ using PyRTMap = ov::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 
-void set_tensor_names(const ov::ParameterVector& parameters) {
+static void set_tensor_names(const ov::ParameterVector& parameters) {
     for (const auto& param : parameters) {
         ov::Output<ov::Node> p = param;
         if (p.get_node()->output(0).get_names().empty()) {
@@ -34,7 +34,7 @@ void set_tensor_names(const ov::ParameterVector& parameters) {
     }
 }
 
-ov::SinkVector cast_to_sink_vector(const std::vector<std::shared_ptr<ov::Node>>& nodes) {
+static ov::SinkVector cast_to_sink_vector(const std::vector<std::shared_ptr<ov::Node>>& nodes) {
     ov::SinkVector sinks;
     for (const auto& node : nodes) {
         auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node);

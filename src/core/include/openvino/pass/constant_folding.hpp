@@ -19,13 +19,13 @@ namespace pass {
 class OPENVINO_API ConstantFolding : public ModelPass {
 public:
     OPENVINO_RTTI("ConstantFolding");
-    bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 protected:
     void copy_runtime_info_to_target_inputs(const std::shared_ptr<Node>& node, const Output<Node>& replacement);
     /// \brief Folds pre-calculated output tensor values to constants in case lower and
     /// upper estimations are equal. Traverses graph backwards starting from the results.
-    bool pre_calculated_values_folding(const std::shared_ptr<ov::Model>& f);
+    bool pre_calculated_values_folding(const std::shared_ptr<ov::Model>& model);
 };
 
 /**
@@ -43,7 +43,25 @@ OPENVINO_API void disable_constant_folding(const std::shared_ptr<Node>& node);
 
 OPENVINO_API void enable_constant_folding(const std::shared_ptr<Node>& node);
 
+/**
+ * @brief Check if constant folding is disabled on @ref Node.
+ *
+ * @param node  Smart pointer to the node.
+ *
+ * @return true if attribute constant folding set otherwise false.
+ * @ingroup ov_pass_cpp_api
+ */
 OPENVINO_API bool constant_folding_is_disabled(const std::shared_ptr<Node>& node);
+
+/**
+ * @brief Check if constant folding is disabled on @ref Node.
+ *
+ * @param node  Pointer to the node.
+ *
+ * @return true if attribute constant folding set otherwise false.
+ * @ingroup ov_pass_cpp_api
+ */
+OPENVINO_API bool constant_folding_is_disabled(const Node* const node);
 
 class OPENVINO_API DisableConstantFolding : public ov::RuntimeAttribute {
 public:

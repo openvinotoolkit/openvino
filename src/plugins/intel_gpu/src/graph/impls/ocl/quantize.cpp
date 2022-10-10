@@ -43,8 +43,8 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const quantize_node& arg) {
-        auto quantize_params = get_default_params<kernel_selector::quantize_params>(arg);
+    static primitive_impl* create(const quantize_node& arg, const kernel_impl_params& impl_param) {
+        auto quantize_params = get_default_params<kernel_selector::quantize_params>(impl_param);
         auto quantize_optional_params =
             get_default_optional_params<kernel_selector::quantize_optional_params>(arg.get_program());
 
@@ -75,9 +75,9 @@ public:
         quantize_params.out_shift = arg.get_output_shift_val();
 
         for (size_t i = 1; i < arg.inputs_count(); i++) {
-            quantize_params.inputs.push_back(convert_data_tensor(arg.input(i).get_output_layout()));
+            quantize_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
-        const auto& output_layout = arg.get_output_layout();
+        const auto& output_layout = impl_param.output_layout;
         quantize_params.outputs = { convert_data_tensor(output_layout) };
 
         auto& kernel_selector = kernel_selector::quantize_kernel_selector::Instance();

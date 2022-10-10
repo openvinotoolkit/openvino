@@ -155,18 +155,19 @@ REGISTER_FACTORY(v3, EmbeddingBagOffsetsSum);
 REGISTER_FACTORY(v3, EmbeddingBagPackedSum);
 REGISTER_FACTORY(v3, EmbeddingSegmentsSum);
 REGISTER_FACTORY(v3, ExtractImagePatches);
+REGISTER_FACTORY(v3, NonZero);
 REGISTER_FACTORY(v3, ROIAlign);
 REGISTER_FACTORY(v3, ScatterUpdate);
 REGISTER_FACTORY(v3, ScatterElementsUpdate);
 REGISTER_FACTORY(v3, ScatterNDUpdate);
 REGISTER_FACTORY(v3, ShapeOf);
+REGISTER_FACTORY(v3, Assign);
+REGISTER_FACTORY(v3, ReadValue);
 // REGISTER_FACTORY(v3, NonMaxSuppression); Supported via v3 -> v5 internal conversion
 
 // ----------------------------- Unsupported v3 ops ----------------------------- //
-// REGISTER_FACTORY(v3, Assign);
 // REGISTER_FACTORY(v3, GRUCell);
 // REGISTER_FACTORY(v3, NonZero);
-// REGISTER_FACTORY(v3, ReadValue);
 // REGISTER_FACTORY(v3, TopK);
 
 // ------------------------------ Supported v4 ops ------------------------------ //
@@ -209,6 +210,8 @@ REGISTER_FACTORY(v6, ExperimentalDetectronROIFeatureExtractor);
 REGISTER_FACTORY(v6, ExperimentalDetectronTopKROIs)
 REGISTER_FACTORY(v6, ExperimentalDetectronGenerateProposalsSingleImage);
 REGISTER_FACTORY(v6, ExperimentalDetectronDetectionOutput);
+REGISTER_FACTORY(v6, Assign);
+REGISTER_FACTORY(v6, ReadValue);
 
 // ------------------------------ Supported v7 ops ------------------------------ //
 REGISTER_FACTORY(v7, DFT);
@@ -230,6 +233,15 @@ REGISTER_FACTORY(v8, RandomUniform)
 REGISTER_FACTORY(v8, MaxPool);
 REGISTER_FACTORY(v8, AdaptiveAvgPool);
 REGISTER_FACTORY(v8, AdaptiveMaxPool);
+REGISTER_FACTORY(v8, Softmax);
+REGISTER_FACTORY(v8, PriorBox);
+
+// ------------------------------ Supported v9 ops ------------------------------ //
+REGISTER_FACTORY(v9, SoftSign)
+REGISTER_FACTORY(v9, ROIAlign);
+REGISTER_FACTORY(v9, RDFT);
+REGISTER_FACTORY(v9, IRDFT);
+REGISTER_FACTORY(v9, Eye);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

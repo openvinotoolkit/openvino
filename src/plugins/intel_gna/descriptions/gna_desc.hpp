@@ -87,7 +87,7 @@ struct InputDesc : GnaDesc {
         this->model_layout = inputInfo->getLayout();
         this->dims = inputInfo->getTensorDesc().getDims();
         this->name = inputInfo->name();
-        this->num_elements = InferenceEngine::details::product(dims.begin(), dims.end());
+        this->num_elements = static_cast<uint32_t>(InferenceEngine::details::product(dims.begin(), dims.end()));
     }
 
     InferenceEngine::InputInfo::Ptr ToIEInputInfo() {
@@ -109,7 +109,7 @@ struct OutputDesc : GnaDesc {
         this->model_layout = outputData->getLayout();
         this->dims = outputData->getTensorDesc().getDims();
         this->name = outputData->getName();
-        this->num_elements = InferenceEngine::details::product(dims.begin(), dims.end());
+        this->num_elements = static_cast<uint32_t>(InferenceEngine::details::product(dims.begin(), dims.end()));
     }
 };
 
@@ -129,7 +129,7 @@ public:
         if (key.empty()) {
             throw std::invalid_argument("The key cannot be empty");
         }
-        auto desc_it = std::find_if(infos_.begin(), infos_.end(), [&key](const T& desc){return desc.name == key;});
+        auto desc_it = find(key);
         if (desc_it == infos_.end()) {
             throw std::out_of_range("The key cannot be found");
         }
@@ -138,6 +138,22 @@ public:
 
     T& at(const std::string &key) {
       return const_cast<T&>( static_cast<const GnaNetworkInfo&>(*this).at(key) );
+    }
+
+    typename std::vector<T>::iterator end() {
+        return infos_.end();
+    }
+
+    typename std::vector<T>::const_iterator find(const std::string& key) const {
+        return std::find_if(infos_.cbegin(), infos_.cend(), [&key](const T& desc) {
+            return desc.name == key;
+        });
+    }
+
+    typename std::vector<T>::iterator find(const std::string& key) {
+        return std::find_if(infos_.begin(), infos_.end(), [&key](const T& desc) {
+            return desc.name == key;
+        });
     }
 
     T& operator[](const std::string &key) {

@@ -15,19 +15,20 @@ primitive_type_id select::type_id() {
     return &instance;
 }
 
-layout select_inst::calc_output_layout(select_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout select_inst::calc_output_layout(select_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for select_node!");
 
-    auto output_layout = node.input(1).get_non_padded_output_layout();
+    auto in_layout = impl_param.get_non_padded_input_layout(1);
+    auto output_size = in_layout.get_tensor();
 
-    if (node.get_primitive()->broadcast_type == "numpy") {
-        auto input1_size = node.input(1).get_output_layout().size;
-        auto input2_size = node.input(2).get_output_layout().size;
-        output_layout.size = tensor::max(input1_size, input2_size);
+    if (impl_param.typed_desc<select>()->broadcast_type == "numpy") {
+        auto input1_size = impl_param.get_input_layout(1).get_tensor();
+        auto input2_size = impl_param.get_input_layout(2).get_tensor();
+        output_size = tensor::max(input1_size, input2_size);
     }
 
-    return output_layout;
+    return layout(in_layout.data_type, in_layout.format, output_size);
 }
 
 std::string select_inst::to_string(select_node const& node) {
@@ -57,7 +58,7 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
                                 3,
                                 "");
 
-    if (deps[1]->get_output_layout().size != cldnn::tensor(1))
+    if (deps[1]->get_output_layout().get_tensor() != cldnn::tensor(1))
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Mask format",
                               deps[0]->get_output_layout().format,
@@ -65,7 +66,7 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
                               deps[1]->get_output_layout().format,
                               "");
 
-    if (deps[2]->get_output_layout().size != cldnn::tensor(1))
+    if (deps[2]->get_output_layout().get_tensor() != cldnn::tensor(1))
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Mask format",
                               deps[0]->get_output_layout().format,
@@ -83,12 +84,12 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
 
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                                 "Mask size",
-                                deps[0]->get_output_layout().size,
+                                deps[0]->get_output_layout().get_tensor(),
                                 "Positive input format",
-                                deps[1]->get_output_layout().size,
+                                deps[1]->get_output_layout().get_tensor(),
                                 "");
     } else if (node.get_primitive()->broadcast_type == "numpy") {
-        if (deps[1]->get_output_layout().size != cldnn::tensor(1) && deps[2]->get_output_layout().size != cldnn::tensor(1))
+        if (deps[1]->get_output_layout().get_tensor() != cldnn::tensor(1) && deps[2]->get_output_layout().get_tensor() != cldnn::tensor(1))
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Positive input format",
                                   deps[1]->get_output_layout().format,
@@ -103,14 +104,14 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
                                 deps[2]->get_output_layout().data_type,
                                 "");
 
-        auto dep1_size = deps[1]->get_output_layout().size;
-        auto dep2_size = deps[2]->get_output_layout().size;
+        auto dep1_size = deps[1]->get_output_layout().get_tensor();
+        auto dep2_size = deps[2]->get_output_layout().get_tensor();
         cldnn::tensor output_tensor = tensor::max(dep1_size, dep2_size);
         auto max_dim_count = output_tensor.raw.size();
 
         for (size_t i = 0; i < deps.size(); i++) {
             for (size_t d = 0; d < max_dim_count; d++) {
-                auto current_dim = deps[i]->get_output_layout().size.raw[d];
+                auto current_dim = deps[i]->get_output_layout().get_tensor().raw[d];
 
                 CLDNN_ERROR_BOOL(node.id(),
                                     "Sizes equal or broadcast is possible",

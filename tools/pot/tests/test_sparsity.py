@@ -11,7 +11,8 @@ from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_i
 from openvino.tools.pot.app.run import optimize
 from openvino.tools.pot import MagnitudeSparsity
 from openvino.tools.pot.graph.nx_model import CompressedModel
-from openvino.tools.pot.graph.node_utils import get_node_value
+from openvino.tools.pot.graph.model_utils import get_nodes_by_type
+from openvino.tools.pot.graph.node_utils import get_first_convolutions, get_node_value
 from openvino.tools.pot.utils.logger import stdout_redirect
 from tests.utils.config import get_engine_config, merge_configs
 from tests.utils.check_graph import check_graph
@@ -22,7 +23,14 @@ def check_sparsity_level(model, config, ref_sparsity_level):
     """
     Check that sparsity level of the model is equal to reference sparse level.
     """
-    sparsity_algo = MagnitudeSparsity(config, None)
+    if not config.compression.algorithms[0]['params']['normed_threshold']:
+        input_nodes = get_nodes_by_type(model, ['Parameter'], recursively=False)
+        input_convolutions = get_first_convolutions(input_nodes)
+        ignored_scope = [node.fullname for node in input_convolutions]
+    else:
+        ignored_scope = None
+
+    sparsity_algo = MagnitudeSparsity(config, None, ignored_scope=ignored_scope)
     all_weights_nodes = sparsity_algo._get_all_weights_nodes(model)
     all_weights = [get_node_value(w_node).flatten() for w_node in all_weights_nodes]
     all_weights = np.concatenate(all_weights)

@@ -33,6 +33,7 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 #include <transformations/common_optimizations/dimension_tracking.hpp>
+#include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
 #include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
 #include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <transformations/disable_decompression_convert_constant_folding.hpp>
@@ -54,7 +55,7 @@ using ngraph::Function;
 void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::Node>& output,
                                                const std::string& outName,
                                                DataPtr& ptr) {
-    const auto isCompatible = [](int size, const Layout& l) -> bool {
+    const auto isCompatible = [](int64_t size, const Layout& l) -> bool {
         switch (size) {
         case -1:
             return l == Layout::BLOCKED;
@@ -147,6 +148,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
         m.register_pass<ngraph::pass::FixRtInfo>();
         m.register_pass<ov::pass::RemoveConcatZeroDimInput>();
         m.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
+        m.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
         m.run_passes(_ngraph_function);
     }
     // Restore usual attributes for CNNNetwork
@@ -589,7 +591,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binB
         manager.run_passes(_ngraph_function);
 
         std::streambuf* pbuf = binBuf.rdbuf();
-        unsigned long bufSize = binBuf.tellp();
+        unsigned long bufSize = static_cast<unsigned long>(binBuf.tellp());
 
         TensorDesc tensorDesc(Precision::U8, {bufSize}, Layout::C);
         binBlob = make_shared_blob<uint8_t>(tensorDesc);
