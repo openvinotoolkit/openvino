@@ -31,10 +31,11 @@ class CommonMOConvertTest:
         Generates two IRs using MO Python API and using cmd tool.
         Then two IRs are compared.
         """
+        from openvino.runtime import Core
+        core = Core()
+
         test_params.update({"model_name": 'model_test', "output_dir": temp_dir})
         ref_params.update({"model_name": 'model_ref', "output_dir": temp_dir})
-
-        #self.generate_ir_python_api(**test_params)
 
         exit_code, stderr = generate_ir(**ref_params)
         assert not exit_code, (
@@ -43,23 +44,21 @@ class CommonMOConvertTest:
         fem = FrontEndManager()
         ir_fe = fem.load_by_framework("ir")
 
-        #ir_test = self.load_ir(ir_fe, Path(temp_dir, 'model_test.xml'))
-        ir_ref = self.load_ir(ir_fe, Path(temp_dir, 'model_ref.xml'))
+        ir_test = core.read_model(Path(temp_dir, 'model_test.xml'))
+        ir_ref = core.read_model(Path(temp_dir, 'model_ref.xml'))
 
-        #flag, msg = compare_functions(ir_test, ir_ref)
-        #assert flag, '\n'.join(msg)
+        flag, msg = compare_functions(ir_test, ir_ref)
+        assert flag, '\n'.join(msg)
 
     def _test_by_ref_graph(self, temp_dir, test_params, ref_graph):
         """
         Generates IR using MO Python API, reads it and compares with reference graph.
         """
+        from openvino.runtime import Core
+        core = Core()
+
         test_params.update({"model_name": 'model_test', "output_dir": temp_dir})
-
         self.generate_ir_python_api(**test_params)
-
-        fem = FrontEndManager()
-        ir_fe = fem.load_by_framework("ir")
-
-        ir_test = self.load_ir(ir_fe, Path(temp_dir, 'model_test.xml'))
+        ir_test = core.read_model(Path(temp_dir, 'model_test.xml'))
         flag, msg = compare_functions(ir_test, ref_graph)
         assert flag, msg
