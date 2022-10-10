@@ -18,7 +18,7 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-ngraph::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
+ov::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
     MATCHER_SCOPE(GeluFusionWithErfOne);
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
@@ -78,7 +78,7 @@ ngraph::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
     register_matcher(m, callback);
 }
 
-ngraph::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
+ov::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
     MATCHER_SCOPE(GeluFusionWithErfTwo);
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
@@ -138,7 +138,7 @@ ngraph::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
     register_matcher(m, callback);
 }
 
-ngraph::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
+ov::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
     MATCHER_SCOPE(GeluFusionWithErfThree);
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
@@ -250,7 +250,7 @@ ov::pass::GeluFusionWithErfFour::GeluFusionWithErfFour() {
     register_matcher(m, callback);
 }
 
-ngraph::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
+ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
     MATCHER_SCOPE(GeluFusionWithTanh);
     // Replaces a sub-graph with a Gelu (Tanh) op
     // Gaussian Error Linear Unit, TanH based approximation:
