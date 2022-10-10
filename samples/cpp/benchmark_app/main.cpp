@@ -268,6 +268,24 @@ int main(int argc, char* argv[]) {
         }
 
         bool perf_counts = false;
+        // check if using the virtual device
+        auto if_auto = std::find(devices.begin(), devices.end(), "AUTO") != devices.end();
+        auto if_multi = std::find(devices.begin(), devices.end(), "MULTI") != devices.end();
+        // Remove the hardware devices if AUTO/MULTI appears in the devices list.
+        if (if_auto || if_multi) {
+            devices.clear();
+            std::string virtual_device;
+            if (if_auto) {
+                virtual_device = "AUTO";
+                devices.push_back("AUTO");
+            }
+            if (if_multi) {
+                virtual_device = "MULTI";
+                devices.push_back("MULTI");
+            }
+            parse_value_for_virtual_device(virtual_device, device_nstreams);
+            parse_value_for_virtual_device(virtual_device, device_infer_precision);
+        }
         // Update config per device according to command line parameters
         for (auto& device : devices) {
             auto& device_config = config[device];
@@ -320,6 +338,22 @@ int main(int argc, char* argv[]) {
                         // Use API 2.0 key for streams
                         key = ov::num_streams.name();
                         device_config[key] = it_device_nstreams->second;
+                    } else if (device == "MULTI" || device == "AUTO") {
+                        // check if the element contains the hardware device property
+                        auto value_vec = split(it_device_nstreams->second, ' ');
+                        if (value_vec.size() == 1) {
+                            key = ov::num_streams.name();
+                            device_config[key] = it_device_nstreams->second;
+                        } else {
+                            // set device nstreams properties in the AUTO/MULTI plugin
+                            std::stringstream strm(it_device_nstreams->second);
+                            std::map<std::string, std::string> devices_property;
+                            ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
+                            for (auto& it : devices_property) {
+                                device_config.insert(
+                                    ov::device::properties(it.first, ov::num_streams(std::stoi(it.second))));
+                            }
+                        }
                     } else {
                         throw std::logic_error("Device " + device + " doesn't support config key '" + key + "' " +
                                                "and '" + ov::num_streams.name() + "'!" +
@@ -383,41 +417,41 @@ int main(int argc, char* argv[]) {
                 device_config.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
             }
 
-            if (device.find("CPU") != std::string::npos) {  // CPU supports few special performance-oriented keys
-                // limit threading for CPU portion of inference
-                if (!isFlagSetInCommandLine("pin")) {
-                    auto it_affinity = device_config.find(ov::affinity.name());
-                    if (it_affinity != device_config.end() && (device_name.find("MULTI") != std::string::npos) &&
-                        (device_name.find("GPU") != std::string::npos)) {
-                        slog::warn << "Turn off threads pinning for " << device
-                                   << " device since multi-scenario with GPU device is used." << slog::endl;
-                        it_affinity->second = ov::Affinity::NONE;
-                    }
-                }
-
-                // for CPU execution, more throughput-oriented execution via streams
+            if (device.find("CPU") != std::string::npos || device.find("GPU") != std::string::npos) {
+                // CPU supports few special performance-oriented keys
+                // for CPU and GPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();
                 set_infer_precision();
-            } else if (device.find("GPU") != std::string::npos) {
-                // for GPU execution, more throughput-oriented execution via streams
-                setThroughputStreams();
-                set_infer_precision();
-
-                if ((device_name.find("MULTI") != std::string::npos) &&
-                    (device_name.find("CPU") != std::string::npos)) {
-                    slog::warn << "GPU throttling is turned on. Multi-device execution with "
-                                  "the CPU + GPU performs best with GPU throttling hint, "
-                               << "which releases another CPU thread (that is otherwise "
-                                  "used by the GPU driver for active polling)."
-                               << slog::endl;
-                    device_config[GPU_CONFIG_KEY(PLUGIN_THROTTLE)] = "1";
-                }
             } else if (device.find("MYRIAD") != std::string::npos) {
                 device_config.emplace(ov::log::level(ov::log::Level::WARNING));
                 setThroughputStreams();
             } else if (device.find("GNA") != std::string::npos) {
                 set_infer_precision();
             } else if (device.find("AUTO") != std::string::npos) {
+                setThroughputStreams();
+                set_infer_precision();
+                device_nstreams.erase(device);
+            } else if (device.find("MULTI") != std::string::npos) {
+                setThroughputStreams();
+                set_infer_precision();
+                if ((device_name.find("GPU") != std::string::npos) && (device_name.find("CPU") != std::string::npos)) {
+                    slog::warn << "GPU throttling is turned on. Multi-device execution with "
+                                  "the CPU + GPU performs best with GPU throttling hint, "
+                               << "which releases another CPU thread (that is otherwise "
+                                  "used by the GPU driver for active polling)."
+                               << slog::endl;
+
+                    device_config.insert(ov::device::properties("GPU", {{GPU_CONFIG_KEY(PLUGIN_THROTTLE), 1}}));
+                    // limit threading for CPU portion of inference
+                    if (!isFlagSetInCommandLine("pin")) {
+                        auto it_affinity = device_config.find(ov::affinity.name());
+                        if (it_affinity != device_config.end()) {
+                            slog::warn << "Turn off threads pinning for " << device
+                                       << " device since multi-scenario with GPU device is used." << slog::endl;
+                            it_affinity->second = ov::Affinity::NONE;
+                        }
+                    }
+                }
                 device_nstreams.erase(device);
             }
         }

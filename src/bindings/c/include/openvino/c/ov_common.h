@@ -13,6 +13,22 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+
+#ifndef ENABLE_UNICODE_PATH_SUPPORT
+#    ifdef _WIN32
+#        if defined __INTEL_COMPILER || defined _MSC_VER
+#            define ENABLE_UNICODE_PATH_SUPPORT
+#        endif
+#    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
+#        define ENABLE_UNICODE_PATH_SUPPORT
+#    endif
+#endif
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#    define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#    include <wchar.h>
+#endif
+
 #ifdef __cplusplus
 #    define OPENVINO_C_API_EXTERN extern "C"
 #else

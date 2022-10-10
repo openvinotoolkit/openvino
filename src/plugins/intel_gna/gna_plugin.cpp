@@ -91,6 +91,8 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 #include "transformations/insert_copy_layer.hpp"
+#include "transformations/split_eltwise.hpp"
+#include "transformations/markup_fusable_transpose.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -722,6 +724,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+        manager.register_pass<ov::intel_gna::pass::MarkupFusableTranspose>();
         manager.register_pass<ov::intel_gna::pass::RemoveExtraReshapes>();
         /*
           Put BroadcastAddMultiplyConst here after ConvertOpSet..() transformations since there are conficts with them.
@@ -732,6 +735,11 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
               transormations
         */
         manager.register_pass<ov::intel_gna::pass::BroadcastAddMultiplyConst>();
+        /*
+            SplitEltwise has dependency on BroadcastAddMultiplyConst for case when spliting of Constant
+            input is doing
+        */
+        manager.register_pass<ov::intel_gna::pass::SplitEltwise>();
         if (!config.gnaFlags.sw_fp32 && !config.gnaFlags.uniformPwlDesign) {
             manager.register_pass<ov::intel_gna::pass::PWLApproximationWithFq>(config.gnaFlags.pwlMaxErrorPercent);
             manager.register_pass<ov::intel_gna::pass::PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
@@ -823,9 +831,9 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
 
         if (!isNgraphPassesUsed) {
             passes->registerPass<ReorderMaxPoolPass>();
+            passes->registerPass<EltwiseSplitOverChannelsPass>();
         }
 
-        passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
         if (!isNgraphPassesUsed) {
@@ -1486,12 +1494,12 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 #ifdef PLOT
             if (f) {
                 if (isScalar) {
-                    fprintf(f, "%.2f ", outputBlob->cbuffer().as<float*>()[0]);
+                    fprintf(f, "%.7f ", outputBlob->cbuffer().as<float*>()[0]);
                 } else {
                     auto dims = outputBlob->getTensorDesc().getDims();
                     for (int i = 0; i < batchSize; i++) {
                         for (int j = 0; j < dims[dims.size() - 1]; j++) {
-                            fprintf(f, "%.2f ", outputBlob->cbuffer().as<float*>()[dims[dims.size() - 1] * i + j]);
+                            fprintf(f, "%.7f ", outputBlob->cbuffer().as<float*>()[dims[dims.size() - 1] * i + j]);
                         }
                         fprintf(f, "\n");
                     }
@@ -1588,6 +1596,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     auto header = GNAModelSerial::ReadHeader(networkModel);
 
     void* basePtr = nullptr;
+    std::string modelLibVersion;  //!< OpenVINO and GNA Library versions read from GNA model file
 
     gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(nullptr, &basePtr, header.gnaMemSize);
 
@@ -1597,7 +1606,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     GNAModelSerial::MemoryType mt;
     auto serial = GNAModelSerial(&model->object(), mt);
 
-
     serial.setHeader(header);
     serial.Import(basePtr,
                   header.gnaMemSize,
@@ -1605,7 +1613,18 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
                   *(inputs_ptr_),
                   outputs_,
                   transpose_inputs_info,
-                  transpose_outputs_info);
+                  transpose_outputs_info,
+                  modelLibVersion);
+
+    // Print OV and GNA Lib versions used for model export
+    if (gnaFlags->log_level >= ov::log::Level::DEBUG) {
+        if (modelLibVersion.length()) {
+            std::cout << modelLibVersion << std::endl;
+        } else {
+            std::cout << "Unable to read OpenVINO or GNA Library version from model file, consider model export with current "
+                    "version of GNA plugin" << std::endl;
+        }
+    }
 
     trivialTopology = (model->object().NumberOfOperations == 0);
 
