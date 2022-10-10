@@ -76,10 +76,6 @@ void ov::op::internal::AUGRUSequence::validate_and_infer_types() {
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{4}, ov::PartialShape{3}};
     shape_infer(this, input_shapes, output_shapes);
 
-    // Mark inputs which are relevant to output parameters
-    for (size_t i = 0; i <= 6; ++i)
-        set_input_is_relevant_to_shape(i);
-
     // Set output size, type and shape
     set_output_size(2);
     set_output_type(0, result_et, output_shapes[0]);

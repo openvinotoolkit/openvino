@@ -70,9 +70,7 @@ void op::v5::GRUSequence::validate_and_infer_types() {
     std::vector<ov::PartialShape> input_shapes = {x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape};
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{4}, ov::PartialShape{3}};
     shape_infer(this, input_shapes, output_shapes);
-    // Mark inputs which are relevant to output parameters
-    for (size_t i = 0; i <= 5; ++i)
-        set_input_is_relevant_to_shape(i);
+
     // Set output size, type and shape
     set_output_size(2);
     set_output_type(0, result_et, output_shapes[0]);
