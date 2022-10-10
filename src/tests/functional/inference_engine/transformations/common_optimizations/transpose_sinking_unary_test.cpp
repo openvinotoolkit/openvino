@@ -137,8 +137,7 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_fa
         return std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
 }
 
-static NodePtr CreateReshape(NodePtr parent_node, const ov::Shape & input_shape)
-{
+static NodePtr CreateReshape(NodePtr parent_node, const ov::Shape & input_shape) {
     const size_t mul = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<size_t>());
     auto reshape_const = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{1}, ov::Shape{mul});
     return std::make_shared<ov::opset9::Reshape>(parent_node, reshape_const, false);
@@ -337,7 +336,7 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(UnaryFactoryPtr unary_factory
 }
 
 } // namespace forward
-} // namespace mult_consumers_first_node 
+} // namespace mult_consumers_first_node
 
 std::vector<UnaryFactoryPtr> unary_factories = {
     CreateUnaryFactory<ov::opset9::Clamp>(),
