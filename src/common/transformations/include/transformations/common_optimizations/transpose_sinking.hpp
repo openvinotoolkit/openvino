@@ -85,10 +85,15 @@ class ngraph::pass::TransposeSinking : public ngraph::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("TransposeSinking", "0");
     TransposeSinking() {
+        // CC_TRANSFORMATIONS_MATCH_SCOPE(TransposeFQReduction)
         add_matcher<ngraph::pass::TransposeFQReduction>();
+        // CC_TRANSFORMATIONS_MATCH_SCOPE(TransposeReduction)
         add_matcher<ngraph::pass::TransposeReduction>();
+        // CC_TRANSFORMATIONS_MATCH_SCOPE(TransposeConvert)
         add_matcher<ngraph::pass::TransposeConvert>();
+        // CC_TRANSFORMATIONS_MATCH_SCOPE(TransposeEltwise)
         add_matcher<ngraph::pass::TransposeEltwise>();
+        // CC_TRANSFORMATIONS_MATCH_SCOPE(TransposeFuse)
         add_matcher<ngraph::pass::TransposeFuse>();
     }
 };

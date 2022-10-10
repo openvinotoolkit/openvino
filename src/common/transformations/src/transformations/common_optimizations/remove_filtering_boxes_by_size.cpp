@@ -14,7 +14,9 @@
 #include "transformations/common_optimizations/subtract_fusion.hpp"
 
 ngraph::pass::FuseFilteringBoxesBySize::FuseFilteringBoxesBySize() {
+    CC_TRANSFORMATIONS_MATCH_SCOPE(SubtractFusion)
     add_matcher<SubtractFusion>();
+    CC_TRANSFORMATIONS_MATCH_SCOPE(RemoveFilteringBoxesBySize)
     add_matcher<RemoveFilteringBoxesBySize>();
 }
 

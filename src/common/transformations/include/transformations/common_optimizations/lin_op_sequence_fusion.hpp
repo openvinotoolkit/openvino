@@ -8,7 +8,7 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <utility>
-
+#include "itt.hpp"
 namespace ngraph {
 namespace pass {
 
@@ -46,8 +46,11 @@ class ngraph::pass::LinOpSequenceFusion : public ngraph::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("LinOpSequenceFusion", "0");
     LinOpSequenceFusion() {
+        CC_TRANSFORMATIONS_MATCH_SCOPE(AddMultiplyFusion)
         add_matcher<ngraph::pass::AddMultiplyFusion>();
+        CC_TRANSFORMATIONS_MATCH_SCOPE(AddAddFusion)
         add_matcher<ngraph::pass::AddAddFusion>();
+        CC_TRANSFORMATIONS_MATCH_SCOPE(MultiplyMultiplyFusion)
         add_matcher<ngraph::pass::MultiplyMultiplyFusion>();
     }
 };
