@@ -89,6 +89,7 @@ public:
 
 protected:
     bool isBias = false;
+    InferenceEngine::SizeVector kernel, dilation;
 
     void checkBiasFusing(ov::CompiledModel &execNet) const {
         auto execGraph = execNet.get_runtime_model();
@@ -187,7 +188,7 @@ protected:
         }
 
         ngraph::op::PadType padType;
-        InferenceEngine::SizeVector kernel, stride, dilation;
+        InferenceEngine::SizeVector stride;
         std::vector<ptrdiff_t> padBegin, padEnd;
         size_t convOutChannels, numGroups;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
