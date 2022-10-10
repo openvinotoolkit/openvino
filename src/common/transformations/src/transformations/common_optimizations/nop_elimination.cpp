@@ -521,7 +521,7 @@ std::shared_ptr<T> check_all_inputs(const std::shared_ptr<ov::opset9::Concat>& c
         // Sequence->output(1) can be connected directly to the last input to Concat
         // and the last Split output is not used. This is also a valid case for this Elimination.
         if (!cast_to_split) {
-            if (idx != (concat_in_values.size() - 1)) {
+            if (idx != (concat_in_values.size() - 1) || !split) {
                 return {};
             }
             shared_ptr<Node> in_to_split = split->input_value(0).get_node_shared_ptr();
