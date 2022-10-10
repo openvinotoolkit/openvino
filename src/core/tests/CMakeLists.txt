@@ -449,6 +449,7 @@ if (ENABLE_TEMPLATE)
         op_eval/binary_convolution.cpp
         op_eval/bucketize.cpp
         op_eval/clamp.cpp
+        op_eval/concat.cpp
         op_eval/einsum.cpp
         op_eval/floor_mod.cpp
         op_eval/gelu.cpp
