@@ -1,4 +1,4 @@
-# Unique  {#openvino_docs_ops_comparison_Unique_10}
+# Unique  {#openvino_docs_ops_movement_Unique_10}
 
 **Versioned name**: *Unique-10*
 
