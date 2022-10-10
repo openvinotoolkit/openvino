@@ -47,7 +47,7 @@ op::v5::GRUSequence::GRUSequence(const Output<Node>& X,
 }
 
 void op::v5::GRUSequence::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v5_GRUSequence_validate_and_infer_types);
+    OV_OP_SCOPE(v5_GRUSequence_validate_and_infer_types);
 
     // Validate input types and save result for output type
     auto result_et = element::dynamic;
@@ -80,14 +80,14 @@ void op::v5::GRUSequence::validate_and_infer_types() {
 }
 
 bool op::v5::GRUSequence::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v5_GRUSequence_visit_attributes);
+    OV_OP_SCOPE(v5_GRUSequence_visit_attributes);
     visitor.on_attribute("direction", m_direction);
     visitor.on_attribute("linear_before_reset", m_linear_before_reset);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
 shared_ptr<Node> op::v5::GRUSequence::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v5_GRUSequence_clone_with_new_inputs);
+    OV_OP_SCOPE(v5_GRUSequence_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v5::GRUSequence>(new_args.at(0),
                                             new_args.at(1),

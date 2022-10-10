@@ -44,9 +44,9 @@ def check_graph(tmp_path, graph, model_name, model_framework, check_weights=Fals
 
 def check_model(tmp_path, model, model_name, model_framework, check_weights=False):
     """
-        Checking that graphs of models are equal to their references by comparing topologies and
-        all weights if check_weights is specified as True.
-        """
+    Checking that graphs of models are equal to their references by comparing topologies and
+    all weights if check_weights is specified as True.
+    """
     model_name_ = model_name
     for model_dict in model.models:
         if model.is_cascade:

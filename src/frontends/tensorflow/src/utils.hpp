@@ -54,7 +54,7 @@ void make_padding(const std::string& tf_padding_type,
 
 template <typename T>
 void get_const_input(const NodeContext& node, int64_t input_index, std::vector<T>* vector) {
-    auto ng_input = node.get_input(input_index);
+    auto ng_input = node.get_input(static_cast<int>(input_index));
     if (auto constant = std::dynamic_pointer_cast<opset8::Constant>(ng_input.get_node_shared_ptr())) {
         *vector = constant->cast_vector<T>();
         return;

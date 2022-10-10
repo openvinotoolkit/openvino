@@ -4,8 +4,23 @@ trigger:
     - master
     - releases/*
   paths:
-    exclude:
-    - docs/*
+    exclude: 
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+    - README.md
+
+pr:
+  branches:
+    include:
+    - master
+    - releases/*
+  paths:
+    exclude: 
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+    - README.md
 
 jobs:
 - job: LinCC
@@ -75,6 +90,7 @@ jobs:
       cmakeArgs: >
         -GNinja
         -DVERBOSE_BUILD=ON
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_PROFILING_ITT=ON

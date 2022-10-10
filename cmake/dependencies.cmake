@@ -76,7 +76,7 @@ function(ov_download_tbb)
     if(_ov_download_tbb_done OR NOT THREADING MATCHES "^(TBB|TBB_AUTO)$")
         return()
     endif()
-    set(_ov_download_tbb_done ON CACHE BOOL "Whether prebuilt TBB is already downloaded")
+    set(_ov_download_tbb_done ON CACHE INTERNAL "Whether prebuilt TBB is already downloaded")
 
     reset_deps_cache(TBBROOT TBB_DIR)
 
@@ -119,7 +119,6 @@ function(ov_download_tbb)
                 SHA256 "ad9cf52e657660058aa6c6844914bc0fc66241fec89a392d8b79a7ff69c3c7f6")
     else()
         message(WARNING "Prebuilt TBB is not available on current platform")
-        return()
     endif()
 
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
@@ -142,8 +141,6 @@ function(ov_download_tbb)
     debug_message(STATUS "tbb=" ${TBB})
     debug_message(STATUS "tbb_dir=" ${TBB_DIR})
     debug_message(STATUS "tbbroot=" ${TBBROOT})
-
-    set(TBB "${TBB}" PARENT_SCOPE)
 endfunction()
 
 ## TBBBind_2_5 package
@@ -157,9 +154,9 @@ function(ov_download_tbbbind_2_5)
     if(_ov_download_tbbbind_2_5_done OR NOT ENABLE_TBBBIND_2_5)
         return()
     endif()
-    set(_ov_download_tbbbind_2_5_done ON CACHE BOOL "Whether prebuilt TBBBind_2_5 is already downloaded")
+    set(_ov_download_tbbbind_2_5_done ON CACHE INTERNAL "Whether prebuilt TBBBind_2_5 is already downloaded")
 
-    reset_deps_cache(TBBBIND_2_5_DIR)
+    reset_deps_cache(TBBBIND_2_5_ROOT TBBBIND_2_5_DIR)
 
     if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
         set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
@@ -180,14 +177,16 @@ function(ov_download_tbbbind_2_5)
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
                 SHA256 "865e7894c58402233caf0d1b288056e0e6ab2bf7c9d00c9dc60561c484bc90f4")
     else()
-        message(WARNING "prebuilt TBBBIND_2_5 is not available.
+        # TMP: for Apple Silicon TBB does not provide TBBBind
+        if(NOT (APPLE AND AARCH64))
+            message(WARNING "prebuilt TBBBIND_2_5 is not available.
 Build oneTBB from sources and set TBBROOT environment var before OpenVINO cmake configure")
+        endif()
         return()
     endif()
 
+    update_deps_cache(TBBBIND_2_5_ROOT "${TBBBIND_2_5}" "Path to TBBBIND_2_5 root folder")
     update_deps_cache(TBBBIND_2_5_DIR "${TBBBIND_2_5}/cmake" "Path to TBBBIND_2_5 cmake folder")
-
-    set(TBBBIND_2_5 "${TBBBIND_2_5}" PARENT_SCOPE)
 endfunction()
 
 ## OpenCV

@@ -39,11 +39,12 @@ inline double power(const double x, const std::tuple<double, double, double>& ar
 }
 
 void PwlDesignOpt(const DnnActivation& activation_type,
-                    std::vector<gna_pwl_segment_t> &ptr_segment,
-                    const float scale_in,
-                    const float scale_out,
-                    const bool low_precision,
-                    const std::shared_ptr<ngraph::Node>& node) {
+                  const float scale_in,
+                  const float scale_out,
+                  const bool low_precision,
+                  const std::shared_ptr<ngraph::Node>& node,
+                  const bool is_fused_with_conv2d,
+                  std::vector<gna_pwl_segment_t>& ptr_segment) {
     std::vector<pwl_t> pwl;
     switch (activation_type) {
         case kActPwl: {
@@ -51,24 +52,68 @@ void PwlDesignOpt(const DnnActivation& activation_type,
             break;
         }
         case kActRelu:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, low_precision, ptr_segment);
+            make_gna_pwl(activation_type,
+                         pwl,
+                         -1.0,
+                         1.0,
+                         scale_in,
+                         scale_out,
+                         low_precision,
+                         is_fused_with_conv2d,
+                         ptr_segment);
             break;
         case kActLeakyRelu:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, low_precision, ptr_segment);
+            make_gna_pwl(activation_type,
+                         pwl,
+                         -1.0,
+                         1.0,
+                         scale_in,
+                         scale_out,
+                         low_precision,
+                         is_fused_with_conv2d,
+                         ptr_segment);
             break;
         case kActIdentity:
         case kActFakeQuantize:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, low_precision, ptr_segment);
+            make_gna_pwl(activation_type,
+                         pwl,
+                         -1.0,
+                         1.0,
+                         scale_in,
+                         scale_out,
+                         low_precision,
+                         is_fused_with_conv2d,
+                         ptr_segment);
             break;
         case kActKaldiLstmClipping:
             make_gna_pwl(activation_type, pwl, activation_type.args.clamp.low, activation_type.args.clamp.high,
-                         scale_in, scale_out, low_precision, ptr_segment);
+                         scale_in,
+                         scale_out,
+                         low_precision,
+                         is_fused_with_conv2d,
+                         ptr_segment);
             break;
         case kActSign:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, low_precision, ptr_segment);
+            make_gna_pwl(activation_type,
+                         pwl,
+                         -1.0,
+                         1.0,
+                         scale_in,
+                         scale_out,
+                         low_precision,
+                         is_fused_with_conv2d,
+                         ptr_segment);
             break;
         case kActAbs:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, low_precision, ptr_segment);
+            make_gna_pwl(activation_type,
+                         pwl,
+                         -1.0,
+                         1.0,
+                         scale_in,
+                         scale_out,
+                         low_precision,
+                         is_fused_with_conv2d,
+                         ptr_segment);
             break;
         default:
             THROW_GNA_EXCEPTION << "Unknown piecewise linear function type: " << activation_type.type;
@@ -197,8 +242,8 @@ void PwlDesign(const DnnActivation& activation_type,
                     float floatarg = static_cast<float>(xbase / (2 * scale_in));
                     float floatargnext = static_cast<float>(xbasenext / (2 * scale_in));
                     float floatval, floatvalnext, slope;
-                    floatval = softsign(floatarg);
-                    floatvalnext = softsign(floatargnext);
+                    floatval = static_cast<float>(softsign(floatarg));
+                    floatvalnext = static_cast<float>(softsign(floatargnext));
                     slope = scale_out * (floatvalnext - floatval) / static_cast<float>(xbasenext - xbase);
                     {
                         // find best scale factor
@@ -366,7 +411,7 @@ void PwlApply32(intel_dnn_component_t *component,
         case kActSigmoid:
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                    ptr_out[i * num_columns + j] = 0.5 * (1.0 + tanh(0.5 * ptr_in[i * num_columns + j]));
+                    ptr_out[i * num_columns + j] = 0.5f * (1.0f + tanh(0.5f * ptr_in[i * num_columns + j]));
                 }
             }
             break;
@@ -380,7 +425,7 @@ void PwlApply32(intel_dnn_component_t *component,
         case kActSoftSign:
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                    ptr_out[i * num_columns + j] = ptr_in[i * num_columns + j] / (1.0 + fabs(ptr_in[i * num_columns + j]));
+                    ptr_out[i * num_columns + j] = static_cast<float>(ptr_in[i * num_columns + j] / (1.0 + fabs(ptr_in[i * num_columns + j])));
                 }
             }
             break;
@@ -442,21 +487,21 @@ void PwlApply32(intel_dnn_component_t *component,
         case kActSign:
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                    ptr_out[i * num_columns + j] = (ptr_in[i * num_columns + j] == 0) ? 0.0 : ((ptr_in[i * num_columns + j] > 0) ? 1.0 : -1.0);
+                    ptr_out[i * num_columns + j] = (ptr_in[i * num_columns + j] == 0.f) ? 0.0f : ((ptr_in[i * num_columns + j] > 0) ? 1.0f : -1.0f);
                 }
             }
             break;
         case kActNegLog:
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                    ptr_out[i * num_columns + j] = -1.0 * log(ptr_in[i * num_columns + j]);
+                    ptr_out[i * num_columns + j] = static_cast<float>(-1.0 * log(ptr_in[i * num_columns + j]));
                 }
             }
             break;
         case kActNegHalfLog:
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                    ptr_out[i * num_columns + j] = -0.5 * log(ptr_in[i * num_columns + j]);
+                    ptr_out[i * num_columns + j] = static_cast<float>(-0.5 * log(ptr_in[i * num_columns + j]));
                 }
             }
             break;
@@ -466,13 +511,13 @@ void PwlApply32(intel_dnn_component_t *component,
                 float offset = transform->func_id.args.pow.offset;
                 for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                     for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                        ptr_out[i * num_columns + j] = pow(offset + scale * ptr_in[i * num_columns + j], exponent);
+                        ptr_out[i * num_columns + j] = static_cast<float>(pow(offset + scale * ptr_in[i * num_columns + j], exponent));
                     }
                 }
             }
             break;
         case kActFakeQuantize: {
-            double levels  = transform->func_id.fqParams.levels;
+            double levels = static_cast<double>(transform->func_id.fqParams.levels);
 
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 auto inputChannel  = transform->func_id.fqParams.inputPerChannel ? i : 0;
@@ -488,12 +533,12 @@ void PwlApply32(intel_dnn_component_t *component,
                     auto x = ptr_in[offset];
 
                     if (x <= std::min(input_low, input_high)) {
-                        ptr_out[offset] = output_low;
+                        ptr_out[offset] = static_cast<float>(output_low);
                     } else if (x > std::max(input_low, input_high)) {
-                        ptr_out[offset] = output_high;
+                        ptr_out[offset] = static_cast<float>(output_high);
                     } else {
-                        ptr_out[offset] = nearbyint((x - input_low) / (input_high - input_low) * (levels - 1)) /
-                            (levels - 1) * (output_high - output_low) + output_low;
+                        ptr_out[offset] = static_cast<float>(nearbyint((x - input_low) / (input_high - input_low) * (levels - 1)) /
+                            (levels - 1) * (output_high - output_low) + output_low);
                     }
                 }
             }

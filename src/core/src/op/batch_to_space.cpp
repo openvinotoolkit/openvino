@@ -39,7 +39,7 @@ ngraph::op::v1::BatchToSpace::BatchToSpace(const ngraph::Output<ngraph::Node>& d
 }
 
 void op::v1::BatchToSpace::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_BatchToSpace_validate_and_infer_types);
+    OV_OP_SCOPE(v1_BatchToSpace_validate_and_infer_types);
 
     const auto& data_et = get_input_element_type(0);
     const auto& block_shape_et = get_input_element_type(1);
@@ -72,13 +72,13 @@ void op::v1::BatchToSpace::validate_and_infer_types() {
 }
 
 std::shared_ptr<ngraph::Node> ngraph::op::v1::BatchToSpace::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_BatchToSpace_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_BatchToSpace_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<BatchToSpace>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
 bool ngraph::op::v1::BatchToSpace::visit_attributes(ngraph::AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_BatchToSpace_visit_attributes);
+    OV_OP_SCOPE(v1_BatchToSpace_visit_attributes);
     return true;
 }
 
@@ -123,7 +123,7 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
                  "Invalid element values of crops_begin/crops_end input/s");
 
     const std::size_t block_prod =
-        std::accumulate(block_values, block_values + block_values_size, 1UL, std::multiplies<std::size_t>());
+        std::accumulate(block_values, block_values + block_values_size, int64_t(1), std::multiplies<int64_t>());
     NGRAPH_CHECK(data_shape[0] % block_prod == 0,
                  "Invalid batch axis of data input with respect to block_shape values");
 
@@ -218,14 +218,14 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
 }  // namespace
 
 bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_BatchToSpace_evaluate);
+    OV_OP_SCOPE(v1_BatchToSpace_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 4));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     return batch_to_space_evaluate(outputs, inputs);
 }
 
 bool ngraph::op::v1::BatchToSpace::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_BatchToSpace_has_evaluate);
+    OV_OP_SCOPE(v1_BatchToSpace_has_evaluate);
     return !get_input_partial_shape(0).is_dynamic() && get_input_shape(0).size() >= 2 &&
            get_input_shape(0).size() <= shape_size(get_input_shape(1));
 }

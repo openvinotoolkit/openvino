@@ -52,6 +52,7 @@ void register_implementations() {
     REGISTER_OCL(one_hot);
     REGISTER_OCL(permute);
     REGISTER_OCL(pooling);
+    REGISTER_OCL(prior_box);
     REGISTER_OCL(pyramid_roi_align);
     REGISTER_OCL(quantize);
     REGISTER_OCL(random_uniform);
@@ -91,6 +92,7 @@ void register_implementations() {
     REGISTER_OCL(convert_color);
     REGISTER_OCL(count_nonzero);
     REGISTER_OCL(gather_nonzero);
+    REGISTER_OCL(eye);
 }
 
 }  // namespace ocl

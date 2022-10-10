@@ -165,6 +165,12 @@ public:
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
 
+    std::string get_implementation_name() const;
+
+    void add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time);
+    const std::unordered_map<size_t, std::tuple<int64_t, size_t>>& get_profiling_data() const { return _profiling_data; }
+    const std::unordered_map<size_t, instrumentation::perf_counter_key>& get_profiling_info() const { return _profiling_info; }
+
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
@@ -186,6 +192,11 @@ protected:
     // manner) in general - this member is introduced to relax logical connection between primitives which have to be
     // executed and memories which are used by this primitive
     std::vector<std::shared_ptr<primitive_inst>> _exec_deps;
+
+    // This is sub-network generated on demand to execute unfused primitives sequence instead of single fused primitive
+    // Needed for dynamic path only, as fusion in some cases may be illegal, but it can't be checked on program build phase,
+    // thus we do less restrictive fusion with runtime sanity check and unfusion when needed.
+    cldnn::network::ptr _unfused_subgraph = nullptr;
 
     // _output is optional because its initialization might be postponed (reshape_inst may either allocate it's own
     // buffer or attach input as output
@@ -217,7 +228,31 @@ protected:
     void update_impl();
     void realloc_if_needed();
 
+    cldnn::network::ptr get_unfused_subgraph();
+
+    // This method checks if fusion applied to current primitive is valid.
+    // Needed for dynamic case only, and basically tracks single problematic case at the moment:
+    // eltwise primitive in dynamic case may be expressed as follows:
+    // input1 (dynamic_shape_in1)    input2 (dynamic_shape_in2)
+    //       \                 /
+    //            eltwise (dynamic_shape_out)
+    // Consider that eltwise is fused into primitive that produces input1 tensor. Then
+    // this pattern may lead to the one of the following cases:
+    // 1. dynamic_shape_in1 == dynamic_shape_in2 => supported fusion
+    // 2. dynamic_shape_in1 > dynamic_shape_in2 => supported fusion with additional input broadcast
+    // 3. dynamic_shape_in1 < dynamic_shape_in2 => illegal fusion pattern
+    // If input2 is not constant, then we can't really understand which case it actuall is,
+    // thus for performance reasons we allow fusions for dynamic shape regardless the actual case
+    // and then using this method in runtime we check if the fusion was valid or not
+    bool is_valid_fusion() const;
+
     static std::string generic_to_string(program_node const& node, const char* type_name);
+
+    // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
+    // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key
+    // and store mapping onto original perf_clounter_key for further data analysis and dumps
+    std::unordered_map<size_t, std::tuple<int64_t, size_t>> _profiling_data;
+    std::unordered_map<size_t, instrumentation::perf_counter_key> _profiling_info;
 };
 
 /*
