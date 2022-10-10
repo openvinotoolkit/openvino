@@ -13,12 +13,12 @@ using namespace ov;
 using namespace ov::intel_cpu;
 
 TEST(StaticShapeInferenceTest, GRUSequenceTest_FORWARD) {
-    constexpr int batch_size = 2;
-    constexpr int input_size = 3;
-    constexpr int hidden_size = 5;
-    constexpr int seq_len = 4;
-    constexpr int num_directions = 1;
-    constexpr int gates_count = 3;
+    constexpr size_t batch_size = 2;
+    constexpr size_t input_size = 3;
+    constexpr size_t hidden_size = 5;
+    constexpr size_t seq_len = 4;
+    constexpr size_t num_directions = 1;
+    constexpr size_t gates_count = 3;
 
     const auto direction = op::RecurrentSequenceDirection::FORWARD;
 
@@ -48,12 +48,12 @@ TEST(StaticShapeInferenceTest, GRUSequenceTest_FORWARD) {
 }
 
 TEST(StaticShapeInferenceTest, GRUSequenceTest_FORWARD_linear_before) {
-    constexpr int batch_size = 2;
-    constexpr int input_size = 3;
-    constexpr int hidden_size = 5;
-    constexpr int seq_len = 4;
-    constexpr int num_directions = 1;
-    constexpr int gates_count = 3;
+    constexpr size_t batch_size = 2;
+    constexpr size_t input_size = 3;
+    constexpr size_t hidden_size = 5;
+    constexpr size_t seq_len = 4;
+    constexpr size_t num_directions = 1;
+    constexpr size_t gates_count = 3;
 
     const auto direction = op::RecurrentSequenceDirection::FORWARD;
 
@@ -94,12 +94,12 @@ TEST(StaticShapeInferenceTest, GRUSequenceTest_FORWARD_linear_before) {
 }
 
 TEST(StaticShapeInferenceTest, GRUSequenceTest_REVERSE) {
-    constexpr int batch_size = 2;
-    constexpr int input_size = 3;
-    constexpr int hidden_size = 5;
-    constexpr int seq_len = 4;
-    constexpr int num_directions = 1;
-    constexpr int gates_count = 3;
+    constexpr size_t batch_size = 2;
+    constexpr size_t input_size = 3;
+    constexpr size_t hidden_size = 5;
+    constexpr size_t seq_len = 4;
+    constexpr size_t num_directions = 1;
+    constexpr size_t gates_count = 3;
 
     const auto direction = op::RecurrentSequenceDirection::REVERSE;
 
@@ -129,12 +129,12 @@ TEST(StaticShapeInferenceTest, GRUSequenceTest_REVERSE) {
 }
 
 TEST(StaticShapeInferenceTest, GRUSequenceTest_BIDIRECTIONAL) {
-    constexpr int batch_size = 2;
-    constexpr int input_size = 3;
-    constexpr int hidden_size = 5;
-    constexpr int seq_len = 4;
-    constexpr int num_directions = 2;
-    constexpr int gates_count = 3;
+    constexpr size_t batch_size = 2;
+    constexpr size_t input_size = 3;
+    constexpr size_t hidden_size = 5;
+    constexpr size_t seq_len = 4;
+    constexpr size_t num_directions = 2;
+    constexpr size_t gates_count = 3;
 
     const auto direction = op::RecurrentSequenceDirection::BIDIRECTIONAL;
 
