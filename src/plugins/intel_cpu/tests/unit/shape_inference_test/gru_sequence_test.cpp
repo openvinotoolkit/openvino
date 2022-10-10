@@ -20,7 +20,7 @@ TEST(StaticShapeInferenceTest, GRUSequenceTest_FORWARD) {
     constexpr size_t num_directions = 1;
     constexpr size_t gates_count = 3;
 
-    const auto direction = op::RecurrentSequenceDirection::FORWARD;
+    constexpr auto direction = op::RecurrentSequenceDirection::FORWARD;
 
     const auto X = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
     const auto H_t = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
@@ -55,7 +55,7 @@ TEST(StaticShapeInferenceTest, GRUSequenceTest_FORWARD_linear_before) {
     constexpr size_t num_directions = 1;
     constexpr size_t gates_count = 3;
 
-    const auto direction = op::RecurrentSequenceDirection::FORWARD;
+    constexpr auto direction = op::RecurrentSequenceDirection::FORWARD;
 
     const auto X = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
     const auto H_t = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
@@ -101,7 +101,7 @@ TEST(StaticShapeInferenceTest, GRUSequenceTest_REVERSE) {
     constexpr size_t num_directions = 1;
     constexpr size_t gates_count = 3;
 
-    const auto direction = op::RecurrentSequenceDirection::REVERSE;
+    constexpr auto direction = op::RecurrentSequenceDirection::REVERSE;
 
     const auto X = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
     const auto H_t = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
@@ -136,7 +136,7 @@ TEST(StaticShapeInferenceTest, GRUSequenceTest_BIDIRECTIONAL) {
     constexpr size_t num_directions = 2;
     constexpr size_t gates_count = 3;
 
-    const auto direction = op::RecurrentSequenceDirection::BIDIRECTIONAL;
+    constexpr auto direction = op::RecurrentSequenceDirection::BIDIRECTIONAL;
 
     const auto X = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
     const auto H_t = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));

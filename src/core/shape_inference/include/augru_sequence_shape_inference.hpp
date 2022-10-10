@@ -16,7 +16,7 @@ void shape_infer(const ov::op::internal::AUGRUSequence* op,
                  const std::vector<ShapeType>& input_shapes,
                  std::vector<ShapeType>& output_shapes) {
 
-    constexpr int expected_in_shapes_count = 7;
+    constexpr size_t expected_in_shapes_count = 7;
     NODE_VALIDATION_CHECK(op,
                           input_shapes.size() == expected_in_shapes_count,
                           "Incorrect number of input shapes has been provided. Expected: ",

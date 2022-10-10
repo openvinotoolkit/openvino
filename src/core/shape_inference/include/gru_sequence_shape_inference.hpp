@@ -118,7 +118,7 @@ void gru_shape_infer(const OpType* op,
 
     // Validate dimensions related to hidden_size for W, R, B inputs
     if (merged_hidden_size.is_static()) {
-        auto gru_seq_gates_count = 3;
+        constexpr auto gru_seq_gates_count = 3;
         if (w_pshape.rank().is_static()) {
             NODE_VALIDATION_CHECK(op,
                                   w_pshape[1].compatible(merged_hidden_size * gru_seq_gates_count),
@@ -162,7 +162,7 @@ template <class ShapeType>
 void shape_infer(const ov::op::v5::GRUSequence* op,
                  const std::vector<ShapeType>& input_shapes,
                  std::vector<ShapeType>& output_shapes) {
-    constexpr int expected_in_shapes_count = 6;
+    constexpr size_t expected_in_shapes_count = 6;
     NODE_VALIDATION_CHECK(op,
                           input_shapes.size() == expected_in_shapes_count,
                           "Incorrect number of input shapes has been provided. Expected: ",
