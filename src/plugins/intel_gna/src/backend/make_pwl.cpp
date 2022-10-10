@@ -56,7 +56,7 @@ static void insert_extra_pwl_segments(std::vector<gna_pwl_segment_t>& gna_pwl,
     }
 
     if (!extra_segments.empty())
-        GnaLog::LogDebug() << "Additional segment(s) added to protect against saturation\n";
+        ov::intel_gna::log::debug() << "Additional segment(s) added to protect against saturation\n";
 
     for (auto i = extra_segments.rbegin(); i != extra_segments.rend(); i++) {
         gna_pwl.insert(gna_pwl.begin() + i->first, i->second);
@@ -64,20 +64,20 @@ static void insert_extra_pwl_segments(std::vector<gna_pwl_segment_t>& gna_pwl,
 }
 
 static void print_segments_header(const DnnActivation&  fun) {
-    GnaLog::LogDebug() <<  "=========================== " << intel_dnn_activation_name[fun] <<
+    ov::intel_gna::log::debug() <<  "=========================== " << intel_dnn_activation_name[fun] <<
                  " segments ===========================\n";
-    GnaLog::LogDebug() << std::setw(12) << std::setfill(' ') << "x" << std::setw(12) << std::setfill(' ') <<
+    ov::intel_gna::log::debug() << std::setw(12) << std::setfill(' ') << "x" << std::setw(12) << std::setfill(' ') <<
                 "y" << std::setw(12) << std::setfill(' ') << "slope" << std::endl;
 }
 
 static void print_segments_header() {
-    GnaLog::LogDebug() <<  "=========================== segments ===========================\n";
-    GnaLog::LogDebug() << std::setw(12) << std::setfill(' ') << "x" << std::setw(12) << std::setfill(' ') <<
+    ov::intel_gna::log::debug() <<  "=========================== segments ===========================\n";
+    ov::intel_gna::log::debug() << std::setw(12) << std::setfill(' ') << "x" << std::setw(12) << std::setfill(' ') <<
                 "y" << std::setw(12) << std::setfill(' ') << "slope" << std::endl;
 }
 
 static void print_segment(double x, double y, double slope) {
-    GnaLog::LogDebug() << std::setw(12) << std::setfill(' ') << x << std::setw(12) << std::setfill(' ') <<
+    ov::intel_gna::log::debug() << std::setw(12) << std::setfill(' ') << x << std::setw(12) << std::setfill(' ') <<
                 y << std::setw(12) << std::setfill(' ') << slope << std::endl;
 }
 
@@ -90,9 +90,9 @@ void make_gna_pwl(const DnnActivation&  fun,
                   const bool low_precision,
                   const bool is_fused_with_conv2d,
                   std::vector<gna_pwl_segment_t> &gna_pwl) {
-    GnaLog::LogDebug() << "make_gna_pwl\n";
-    GnaLog::LogDebug() << "   in_scale  " << in_scale << "\n";
-    GnaLog::LogDebug() << "   out_scale " << out_scale << "\n";
+    ov::intel_gna::log::debug() << "make_gna_pwl\n";
+    ov::intel_gna::log::debug() << "   in_scale  " << in_scale << "\n";
+    ov::intel_gna::log::debug() << "   out_scale " << out_scale << "\n";
     print_segments_header(fun);
     if (fun.type == kActIdentity) {
         auto pwl_creator = ov::intel_gna::backend::PWLSegmentsCreatorFactory::CreateCreator(fun.type);
@@ -349,9 +349,9 @@ static void make_gna_pwl(const T* m,
         return a + b;
     };
 
-    GnaLog::LogDebug() << "make_gna_pwl\n";
-    GnaLog::LogDebug() << "   in_scale  " << in_scale << "\n";
-    GnaLog::LogDebug() << "   out_scale " << out_scale << "\n";
+    ov::intel_gna::log::debug() << "make_gna_pwl\n";
+    ov::intel_gna::log::debug() << "   in_scale  " << in_scale << "\n";
+    ov::intel_gna::log::debug() << "   out_scale " << out_scale << "\n";
     print_segments_header();
     gna_pwl.resize(0);
     for (size_t i = 0; i < count; i++) {

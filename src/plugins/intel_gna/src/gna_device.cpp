@@ -67,7 +67,7 @@ uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t *size_granted)
     const auto status = Gna2MemoryAlloc(size_requested, size_granted, &memPtr);
     checkGna2Status(status, "Gna2MemoryAlloc");
 
-    GnaLog::LogDebug() << "Gna2MemoryAlloc(" << size_requested << ") -> " << *size_granted << ", " << memPtr << "\n";
+    ov::intel_gna::log::debug() << "Gna2MemoryAlloc(" << size_requested << ") -> " << *size_granted << ", " << memPtr << "\n";
     allAllocations.Add(memPtr, size_requested, *size_granted);
     if (memPtr == nullptr) {
         THROW_GNA_EXCEPTION << "GNAAlloc failed to allocate memory. Requested: " << size_requested << " Granted: " << *(size_granted);
@@ -95,7 +95,7 @@ void GNADeviceHelper::tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::r
     }
     const auto status = Gna2MemorySetTag(memPtr, memoryTag);
     checkGna2Status(status, "Gna2MemorySetTag");
-    GnaLog::LogDebug() << "Gna2MemorySetTag(" << memPtr << ", " << memoryTag << ")\n";
+    ov::intel_gna::log::debug() << "Gna2MemorySetTag(" << memPtr << ", " << memoryTag << ")\n";
     const auto tagSuccess = allAllocations.SetTagFor(memPtr, memoryTag);
     if (!tagSuccess) {
         THROW_GNA_EXCEPTION << "Allocation not found when tagging memory\n";
@@ -113,10 +113,10 @@ void GNADeviceHelper::free(void* ptr) {
         removeSuccess = allAllocations.Remove(ptr);
     }
     if (!message.empty()) {
-        GnaLog::LogErr() << message;
+        ov::intel_gna::log::error() << message;
     }
     if (!removeSuccess) {
-        GnaLog::LogErr() << "Allocation not found when freeing memory\n";
+        ov::intel_gna::log::error() << "Allocation not found when freeing memory\n";
     }
 }
 
@@ -146,7 +146,7 @@ void GNADeviceHelper::dumpAllAllocations(const uint64_t idx, const std::string& 
         if (file) {
             file.write(static_cast<char*>(a.ptr), a.sizeGranted);
         } else {
-            GnaLog::LogErr() << "Can not dump memory region, file not created: '" << filename << "'\n";
+            ov::intel_gna::log::error() << "Can not dump memory region, file not created: '" << filename << "'\n";
         }
     }
 }
@@ -157,7 +157,7 @@ uint32_t GNADeviceHelper::enqueueRequest(const uint32_t requestConfigID, Gna2Acc
     if ((gna2AccelerationMode == Gna2AccelerationModeHardware ||
          gna2AccelerationMode == Gna2AccelerationModeHardwareWithSoftwareFallback) &&
         detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation) {
-        GnaLog::LogErr() << "GNA Device not detected, consider using other mode of acceleration";
+        ov::intel_gna::log::error() << "GNA Device not detected, consider using other mode of acceleration";
     }
 
     const auto status1 = Gna2RequestConfigSetAccelerationMode(requestConfigID, gna2AccelerationMode);
@@ -553,14 +553,14 @@ void GNADeviceHelper::close() {
         try {
             waitForRequest(requestId);
         } catch (...) {
-            GnaLog::LogErr() << "Request with Id " << requestId << " was not awaited successfully";
+            ov::intel_gna::log::error() << "Request with Id " << requestId << " was not awaited successfully";
         }
     }
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     const auto status = Gna2DeviceClose(nGnaDeviceIndex);
     const auto message = checkGna2Status(status, "Gna2DeviceClose", true);
     if (!message.empty()) {
-        GnaLog::LogErr() << "GNA Device was not successfully closed: " << message << std::endl;
+        ov::intel_gna::log::error() << "GNA Device was not successfully closed: " << message << std::endl;
     }
     deviceOpened = false;
 }

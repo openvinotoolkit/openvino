@@ -52,7 +52,7 @@ std::vector<gna_pwl_segment_t> PWLSegmentsCreatorIdentity::CreateSegments(const 
     auto y0 = CountYAndValidateForX0(border_values, segments[1]);
 
     if (y0 != 0) {
-        GnaLog::LogDebug() << "PWL does not pass (0,0), F(0)=" << y0 << "! Adjusting PWL segments.";
+        ov::intel_gna::log::debug() << "PWL does not pass (0,0), F(0)=" << y0 << "! Adjusting PWL segments.";
         // if y0 != 0 add new segment, update previous one and cound properly next one if needed.
 
         // create a new segment with xBase = 0 and yBase = 0

@@ -58,7 +58,7 @@ static void SwapAndTransposeInputs(
         return matmul_input;
     };
 
-    GnaLog::LogDebug() << "Swap and transpose inputs for " << matmul_node->get_friendly_name() << "\n";
+    ov::intel_gna::log::debug() << "Swap and transpose inputs for " << matmul_node->get_friendly_name() << "\n";
 
     bool first_input_const = false;
     bool second_input_const = false;

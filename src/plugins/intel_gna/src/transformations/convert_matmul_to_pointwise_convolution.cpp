@@ -19,7 +19,7 @@ using namespace ov::intel_gna::pass;
 static bool BiasValidation(const ngraph::Output<ngraph::Node>& output) {
     auto bias_output_shape = output.get_node()->get_output_shape(0);
     if (bias_output_shape.size() > 4) {
-        GnaLog::LogDebug() << "bias output shape (" << output.get_node()->get_friendly_name() << ") is more than 4\n";
+        ov::intel_gna::log::debug() << "bias output shape (" << output.get_node()->get_friendly_name() << ") is more than 4\n";
         return false;
     }
 

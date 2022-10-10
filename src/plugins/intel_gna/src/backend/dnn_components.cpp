@@ -23,7 +23,7 @@ intel_dnn_component_t & DnnComponents::addComponent(const std::string layerName,
     components.emplace_back(DnnComponentExtra{layerName, {}, isDelayed});
     auto &currentComponent = components.back().dnnComponent;
 
-    GnaLog::LogTrace() << "IR layer : " << std::left << std::setw(20) << layerName << " " << layerMetaType << "_" << components.size() - 1 << std::endl;
+    ov::intel_gna::log::trace() << "IR layer : " << std::left << std::setw(20) << layerName << " " << layerMetaType << "_" << components.size() - 1 << std::endl;
     
     currentComponent.original_layer_name = components.back().name.c_str();
     int execOrder = 0;
@@ -34,7 +34,7 @@ intel_dnn_component_t & DnnComponents::addComponent(const std::string layerName,
         execOrder = - static_cast<int>(delayedOperations);
     }
 
-    GnaLog::LogDebug() << "IR layer : " << std::left << std::setw(20) << layerName << " " << layerMetaType << "_" << execOrder << std::endl;
+    ov::intel_gna::log::debug() << "IR layer : " << std::left << std::setw(20) << layerName << " " << layerMetaType << "_" << execOrder << std::endl;
     return currentComponent;
 }
 

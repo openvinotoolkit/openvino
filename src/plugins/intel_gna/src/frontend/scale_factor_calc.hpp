@@ -230,14 +230,14 @@ static bool requantizeInput(InferenceEngine::CNNLayerPtr input, float newOutputS
         auto maxSF = CalculateScaleFactorFromStats(levels, quantDataForInputLayer->_dst_quant.GetMinValues().front(),
             quantDataForInputLayer->_dst_quant.GetMaxValues().front());
         if (newOutputScale > maxSF) {
-            GnaLog::LogDebug() << layer->name << ": Scale factor " << newOutputScale << " is too large. The maximum scale factor: "
+            ov::intel_gna::log::debug() << layer->name << ": Scale factor " << newOutputScale << " is too large. The maximum scale factor: "
                 << maxSF << " levels=" << levels << " min=" << quantDataForInputLayer->_dst_quant.GetMinValues().front()
                 << " max=" << quantDataForInputLayer->_dst_quant.GetMaxValues().front() << "\n";
             return false;
         }
     }
     if (info.isActivation() || info.isConst()) {
-        GnaLog::LogErr() << "[WARNING] requantize " << layer->name
+        ov::intel_gna::log::error() << "[WARNING] requantize " << layer->name
                     << ". Layer new output scale: " << newOutputScale
                     << ", was " << quantDataForInputLayer->_dst_quant.GetScale() << std::endl;
         quantDataForInputLayer->_dst_quant.SetScale(newOutputScale);
@@ -281,7 +281,7 @@ static bool requantizeInput(InferenceEngine::CNNLayerPtr input, float newOutputS
             auto restartedPrevLayer = InferenceEngine::CNNNetPrevLayer(layer, ix);
             auto otherPrevLayer = InferenceEngine::CNNNetPrevLayer(layer, !ix);
             if (infiniteLoopCount % 2 == 1) {
-                GnaLog::LogErr() << "[WARNING] going into the loop: swap inputs order for Eltwise Multiply" << std::endl;
+                ov::intel_gna::log::error() << "[WARNING] going into the loop: swap inputs order for Eltwise Multiply" << std::endl;
                 std::swap(restartedPrevLayer, otherPrevLayer);
             }
             auto otherPrevQuantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*otherPrevLayer);
@@ -378,7 +378,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*> {
             auto scaleFactors = generateScaleFactors(startRange, endRange, steps);
             auto newScaleFactor = selectBestOutputScaleFactors(quantizedParams->_src_quant.GetScale(), scaleFactors, slopes);
             if (!fp32eq(sf, newScaleFactor) && !fp32eq(newScaleFactor, 0.0f) && !std::isinf(newScaleFactor)) {
-                GnaLog::LogDebug() << "[INFO] Adjusting scale factor for " << cnnLayer->name
+                ov::intel_gna::log::debug() << "[INFO] Adjusting scale factor for " << cnnLayer->name
                     << " from: " << sf << " to: " << newScaleFactor << "\n";
                 sf = newScaleFactor;
             }
@@ -656,21 +656,21 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*> {
                         // need to search for requantiseable layer prior memory output layer
                         InferenceEngine::CNNLayerPtr restartedLayer;
 
-                        GnaLog::LogDebug() << "Memory layer :" << input->name << " scale factor: " << quantSibling->_dst_quant.GetScale()
+                        ov::intel_gna::log::debug() << "Memory layer :" << input->name << " scale factor: " << quantSibling->_dst_quant.GetScale()
                             << " doesn't match its outputs counterpart: " << cnnLayer->name << " scale factor: " << inputQuant->_dst_quant.GetScale() << "\n";
-                        GnaLog::LogDebug() << "[UFS] searching for quantizeable input layer for: " << cnnLayer->name << "\n";
+                        ov::intel_gna::log::debug() << "[UFS] searching for quantizeable input layer for: " << cnnLayer->name << "\n";
 
                         CNNNetDFS(InferenceEngine::CNNLayerPtr(cnnLayer, [](InferenceEngine::CNNLayer*) {}),
                             [&restartedLayer, cnnLayer](InferenceEngine::CNNLayerPtr layer) {
-                                GnaLog::LogDebug() << "[UFS] from : " << cnnLayer->name << " reached: " << layer->name;
+                                ov::intel_gna::log::debug() << "[UFS] from : " << cnnLayer->name << " reached: " << layer->name;
                                 // found that direct input to concat is a indirect parent of align filter - so no link required
                                 auto info = LayerInfo(layer);
                                 if (!info.isWeightable() && !info.isActivation()) {
-                                    GnaLog::LogDebug() << "... skipped\n";
+                                    ov::intel_gna::log::debug() << "... skipped\n";
                                     return;
                                 }
                                 restartedLayer = layer;
-                                GnaLog::LogDebug() << "... OK,  need requantize\n";
+                                ov::intel_gna::log::debug() << "... OK,  need requantize\n";
                             }, true, [&restartedLayer, &cnnLayer](InferenceEngine::CNNLayer* from) {
                                 // aborting UFS once found suitable layer
                                 return make_upstream_order(restartedLayer == nullptr ? from : nullptr);
@@ -696,7 +696,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*> {
                         return true;
                     }
 
-                    GnaLog::LogErr() << "[INFO] quantization : input scale factor (" << inputQuant->_dst_quant.GetScale() << ")"
+                    ov::intel_gna::log::error() << "[INFO] quantization : input scale factor (" << inputQuant->_dst_quant.GetScale() << ")"
                         << " for " << cnnLayer->name << ", that is child of " << prevLayer->name << " doesnt match : "
                         << activation_scale_factor << ", restarting from corresponding memory: " << input->name << std::endl;
 
@@ -916,12 +916,12 @@ class ScaleFactorPerLayer<InferenceEngine::EltwiseLayer*> {
                 if (quantData->_weights_quant.GetScale() > maxValue &&
                     !fp32eq(quantData->_weights_quant.GetScale(), maxValue)) {
                     float newOutputScale = quantParams0->_dst_quant.GetScale() * maxValue;
-                    GnaLog::LogDebug() << "[INFO] weights saturated for " << eltwiseLayer->name << ", try to requiantize input " << in1->name << std::endl;
+                    ov::intel_gna::log::debug() << "[INFO] weights saturated for " << eltwiseLayer->name << ", try to requiantize input " << in1->name << std::endl;
                     if (requantizeInput(in1, newOutputScale, result, infiniteLoopCount)) {
                         return true;
                     }
                     // we unable to rescale the input - results might be bad
-                    GnaLog::LogErr() << "[INFO] weights saturated for " << eltwiseLayer->name << "\n";
+                    ov::intel_gna::log::error() << "[INFO] weights saturated for " << eltwiseLayer->name << "\n";
                 }
 
                 if (!quantData->_dst_quant.IsStatsSet()) {
@@ -1101,19 +1101,19 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
             InferenceEngine::CNNLayerPtr restartedLayer;
             // making a link activation possible without extra layer if first input to concat not a parent / indirect parent of second input
             // using ufs - upper first search
-            GnaLog::LogDebug() << "[UFS] searching for quantizeable layer prior: " << concatLayer->name << ", via " << layerIdToUpdate << "\n";
+            ov::intel_gna::log::debug() << "[UFS] searching for quantizeable layer prior: " << concatLayer->name << ", via " << layerIdToUpdate << "\n";
 
             CNNNetDFS(InferenceEngine::CNNLayerPtr(concatLayer, [](InferenceEngine::CNNLayer*) {}),
                 [&restartedLayer, concatLayer](InferenceEngine::CNNLayerPtr layer) {
-                    GnaLog::LogDebug() << "[UFS] from : " << concatLayer->name << " reached: " << layer->name;
+                    ov::intel_gna::log::debug() << "[UFS] from : " << concatLayer->name << " reached: " << layer->name;
                     // found that direct input to concat is a indirect parent of align filter - so no link required
                     auto info = LayerInfo(layer);
                     if (!info.isWeightable() && !info.isActivation() && !info.isConst() && !info.isMemory()) {
-                        GnaLog::LogDebug() << "... skipped\n";
+                        ov::intel_gna::log::debug() << "... skipped\n";
                         return;
                     }
                     restartedLayer = layer;
-                    GnaLog::LogDebug() << "... OK,  need requantize\n";
+                    ov::intel_gna::log::debug() << "... OK,  need requantize\n";
                 }, true, [&restartedLayer, &concatLayer, &layerIdToUpdate](InferenceEngine::CNNLayer* from) {
                     // aborting UFS once found functional layer, and using only specified input of concat
                     return make_upstream_order(restartedLayer == nullptr ? from : nullptr,
@@ -1150,7 +1150,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                             newScaleFactor, weightsScales, { 1.0f });
                     }
                     if (!slopes.empty() && !fp32eq(bestWeightsScale, prevLayerQuant->_weights_quant.GetScale())) {
-                        GnaLog::LogDebug() << "[INFO][Concat] Optimizing weights scale factor for '" << prevLayer->name << "' layer. Change from "
+                        ov::intel_gna::log::debug() << "[INFO][Concat] Optimizing weights scale factor for '" << prevLayer->name << "' layer. Change from "
                             << prevLayerQuant->_weights_quant.GetScale() << " to " << bestWeightsScale << "\n";
 
                         prevLayerQuant->_weights_quant.SetScale(bestWeightsScale);
@@ -1162,7 +1162,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
 
                 quantDataForConCatInput->_dst_quant.SetScale(newScaleFactor);
             } else if (restarLayerInfo.isConst() || restarLayerInfo.isMemory()) {
-                GnaLog::LogDebug() << "... warning " << restartedLayer->type << " layer will be requantized\n";
+                ov::intel_gna::log::debug() << "... warning " << restartedLayer->type << " layer will be requantized\n";
                 quantDataForConCatInput->_src_quant.SetScale(sourceQuantParams->_dst_quant.GetScale());
                 quantDataForConCatInput->_dst_quant.SetScale(sourceQuantParams->_dst_quant.GetScale());
             } else {
@@ -1282,7 +1282,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
 
             if (static_cast<uint64_t>(tmp_dst_quant_scale * quant->_src_quant.GetScale()) >
                 static_cast<uint64_t>(limit - 1) * std::get<0>(*itt)) {
-                GnaLog::LogErr() << "Output scale for " << wl->name
+                ov::intel_gna::log::error() << "Output scale for " << wl->name
                     << " too large and are being reduced. Else saturations likely will happen \n";
                 // reduce weight scale according experimental heuristic
                 while ((itt + 1) != thresholds.end() && quant->_dst_quant.GetScale() * quant->_src_quant.GetScale() /

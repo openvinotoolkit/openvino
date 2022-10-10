@@ -438,9 +438,9 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     const auto num_filter_coefficients = ALIGN(std::max(single_conv_kernel_size, effectiveStride), 8);
     const auto num_conv_kernel_padding = num_filter_coefficients - single_conv_kernel_size;
     if (num_conv_kernel_padding == 0) {
-        GnaLog::LogDebug() << LAYER_NAME(&convolution) << "Kernel is aligned \n";
+        ov::intel_gna::log::debug() << LAYER_NAME(&convolution) << "Kernel is aligned \n";
     } else {
-        GnaLog::LogDebug() << LAYER_NAME(&convolution) << "Kernel padding is " << num_conv_kernel_padding << "\n";
+        ov::intel_gna::log::debug() << LAYER_NAME(&convolution) << "Kernel padding is " << num_conv_kernel_padding << "\n";
     }
 
     // have to pad input to let last kernel meets it's corresponding input
@@ -466,9 +466,9 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     }
 
     if (num_input_padding == 0) {
-        GnaLog::LogDebug() << LAYER_NAME(&convolution) << "Inputs are aligned \n";
+        ov::intel_gna::log::debug() << LAYER_NAME(&convolution) << "Inputs are aligned \n";
     } else {
-        GnaLog::LogDebug() << LAYER_NAME(&convolution) << "Inputs padding is " << num_input_padding << "\n";
+        ov::intel_gna::log::debug() << LAYER_NAME(&convolution) << "Inputs padding is " << num_input_padding << "\n";
     }
 
     if (num_columns_out_unpadded != out_batch * out_channels * out_width) {
@@ -658,9 +658,9 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
 
     // if kernel padding to multiple of 8 will cause missed outputs, need to pad further
     if (num_input_padding == 0) {
-        GnaLog::LogDebug() << LAYER_NAME(&convolution) << "Inputs are aligned \n";
+        ov::intel_gna::log::debug() << LAYER_NAME(&convolution) << "Inputs are aligned \n";
     } else {
-        GnaLog::LogDebug() << LAYER_NAME(&convolution) << "Inputs padding is " << num_input_padding << "\n";
+        ov::intel_gna::log::debug() << LAYER_NAME(&convolution) << "Inputs padding is " << num_input_padding << "\n";
     }
 
     void* ptr_inputs = nullptr;
@@ -1074,7 +1074,7 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
         std::ostringstream in_dims_oss;
         auto in_dims = concatLayer->insData[0].lock()->getDims();
         std::copy(in_dims.begin(), in_dims.end(), std::ostream_iterator<size_t>(in_dims_oss, ","));
-        GnaLog::LogWarn() << "Topology with layer: " + layer->name + ", type: " + layer->type +
+        ov::intel_gna::log::warning() << "Topology with layer: " + layer->name + ", type: " + layer->type +
             ", and concatenation axis(" + std::to_string(concatLayer->_axis) +
             ") for input dimensions(" + in_dims_oss.str() + ") not supported\n";
     }
@@ -1101,7 +1101,7 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
     for (auto &&outLayer : getInputTo(concatLayer->outData.front())) {
         auto concatCandidate = find_cascaded_concat_recursively(outLayer.second);
         if (!concatCandidate) continue;
-        GnaLog::LogDebug() << "Cascaded concat connection found from: " << layer->name << ", to: " << concatCandidate->name << std::endl;
+        ov::intel_gna::log::debug() << "Cascaded concat connection found from: " << layer->name << ", to: " << concatCandidate->name << std::endl;
         connectOutput(layer, &concatLayerInfo.gna_ptr, concatLayerInfo.reserved_size);
     }
 
@@ -1172,7 +1172,7 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
             }
         }
     } else {
-        GnaLog::LogDebug() << "Crop " << layer->name << " is being replaced by Affine layer...\n";
+        ov::intel_gna::log::debug() << "Crop " << layer->name << " is being replaced by Affine layer...\n";
         IE_ASSERT(!layer->outData.empty());
         auto outputs = *layer->outData.begin();
 
@@ -1524,7 +1524,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
                 << layer->name << ", cannot be connected to its parent: " << prevLayer->name
                 << " due to precision mismatch";
         }
-        GnaLog::LogDebug() << "Connection " << prevLayer->name << " to " << layer->name << " is using BIAS as input" << std::endl;
+        ov::intel_gna::log::debug() << "Connection " << prevLayer->name << " to " << layer->name << " is using BIAS as input" << std::endl;
         useBiasConnection = true;
     }
 
@@ -1574,7 +1574,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
         }
 
         // this affine connected to convolution via pool or activation
-        GnaLog::LogDebug() << "Transposing weights for layer: " << layer->name << "\n";
+        ov::intel_gna::log::debug() << "Transposing weights for layer: " << layer->name << "\n";
 
         transpose = !isDiag;
         transposedRows = connectionInfo.permute->input()->getDims()[3];
@@ -2267,7 +2267,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer,
         return output_offset;
     };
 
-    GnaLog::LogDebug() << "Connecting output " << layer->name << " ...\n";
+    ov::intel_gna::log::debug() << "Connecting output " << layer->name << " ...\n";
     // in case of Memory Layer it's input allocated in meminput layer
     if (layer->outData.size() == 1) {
         for (int j = 0; j != getInputTo(layer->outData.front()).size(); j++) {
@@ -2281,7 +2281,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer,
             auto nextLayer = CNNNetGetNextLayerSkipCertain(layer, 0, j, isNonFunctional);
 
             if (!nextLayer.first) {
-                GnaLog::LogDebug() << "for layer: " << layer->name << "outData[0] has non functional connection at " << j;
+                ov::intel_gna::log::debug() << "for layer: " << layer->name << "outData[0] has non functional connection at " << j;
             }
             auto nextMemoryLayerIt =
                     std::find_if(begin(memory_connection), end(memory_connection),
@@ -2460,7 +2460,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         THROW_GNA_EXCEPTION << "Input layer was not found";
     }
 
-    GnaLog::LogDebug() << "Connecting input " << layer->name << " to " << prevLayer->name << " ...\n";
+    ov::intel_gna::log::debug() << "Connecting input " << layer->name << " to " << prevLayer->name << " ...\n";
 
     // real input not a memory input
     if (LayerInfo(prevLayer).isInput()) {
@@ -2478,7 +2478,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
             if (num_data_bytes_in < minInput) {
                 const uint32_t noOfInputsDivisor = gnaFlags->input_low_precision ?
                     GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
-                GnaLog::LogDebug() << "[INPUT] : requested bytes: " << num_data_bytes_in << ", extended to" << ALIGN(minInput, noOfInputsDivisor);
+                ov::intel_gna::log::debug() << "[INPUT] : requested bytes: " << num_data_bytes_in << ", extended to" << ALIGN(minInput, noOfInputsDivisor);
                 num_data_bytes_in = ALIGN(minInput, noOfInputsDivisor);
             }
 
@@ -2545,11 +2545,11 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
                                    });
 
             if (it != splitLayerInfoItem.splitOutputLayers.end()) {
-                GnaLog::LogDebug()  << "Connecting " << splitName << " input \n";
+                ov::intel_gna::log::debug()  << "Connecting " << splitName << " input \n";
                 // splitting layer should take the execution order from the connected layer
                 splittingLayer->userValue = layer->userValue;
                 auto res = connectInput(splittingLayer, ptr, std::max(splitLayerInfoItem.reserved_size, num_data_bytes_in), it->offset + offset, 0);
-                GnaLog::LogDebug()  << "Connected \n";
+                ov::intel_gna::log::debug()  << "Connected \n";
                 return res;
             }
         }
@@ -2616,7 +2616,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
 
     // several layers are to be skipped right now
     if (LayerInfo(prevLayer).isNonFunctional()) {
-        GnaLog::LogDebug()  << "Skipping non functional layer: " << prevLayer->name << "\n";
+        ov::intel_gna::log::debug()  << "Skipping non functional layer: " << prevLayer->name << "\n";
         return connectInput(prevLayer, ptr, num_data_bytes_in, offset, 0);
     }
 
@@ -2626,7 +2626,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
             // we should have GNA primitive for it
             THROW_GNA_EXCEPTION << "missed gna primitive for permute: " << prevLayer->name;
         }
-        GnaLog::LogDebug()  << "Skipping trivial permute layer: " << prevLayer->name << "\n";
+        ov::intel_gna::log::debug()  << "Skipping trivial permute layer: " << prevLayer->name << "\n";
         return connectInput(prevLayer, ptr, num_data_bytes_in, offset, 0);
     }
 
@@ -2643,20 +2643,20 @@ void GNAGraphCompiler::Reset() {
 }
 
 void GNAGraphCompiler::printTensorDesc(const std::string& name, const InferenceEngine::TensorDesc& desc) {
-    GnaLog::LogDebug() << name << " layout: " << desc.getLayout() << " shape: ";
+    ov::intel_gna::log::debug() << name << " layout: " << desc.getLayout() << " shape: ";
     for (auto i = 0; i < desc.getDims().size(); i++) {
         if (i > 0) {
-            GnaLog::LogDebug() << 'x';
+            ov::intel_gna::log::debug() << 'x';
         }
-        GnaLog::LogDebug() << desc.getDims()[i];
+        ov::intel_gna::log::debug() << desc.getDims()[i];
     }
-    GnaLog::LogDebug() << "\n";
+    ov::intel_gna::log::debug() << "\n";
 }
 
 void GNAGraphCompiler::printConvolutionLayer(const InferenceEngine::ConvolutionLayer& layer) {
     const char x = 'x';
 
-    GnaLog::LogDebug() << "ConvolutionLayer '"
+    ov::intel_gna::log::debug() << "ConvolutionLayer '"
         << layer.name
         << "' Kernel: "
         << layer._kernel_x << x << layer._kernel_y
@@ -2668,7 +2668,7 @@ void GNAGraphCompiler::printConvolutionLayer(const InferenceEngine::ConvolutionL
         << layer._dilation_x << x << layer._dilation_y
         << " Auto Padding: '"
         << layer._auto_pad << "'";
-    GnaLog::LogDebug() << "\n";
+    ov::intel_gna::log::debug() << "\n";
     printTensorDesc("Input", layer.input()->getTensorDesc());
     printTensorDesc("Output", layer.outData.front()->getTensorDesc());
 }
@@ -2676,7 +2676,7 @@ void GNAGraphCompiler::printConvolutionLayer(const InferenceEngine::ConvolutionL
 void GNAGraphCompiler::printPoolingLayer(const InferenceEngine::PoolingLayer& layer) {
     const char x = 'x';
 
-    GnaLog::LogDebug() << "PoolingLayer '"
+    ov::intel_gna::log::debug() << "PoolingLayer '"
         << layer.name
         << "' Kernel: "
         << layer._kernel_x << x << layer._kernel_y
@@ -2686,7 +2686,7 @@ void GNAGraphCompiler::printPoolingLayer(const InferenceEngine::PoolingLayer& la
         << layer._stride_x << x << layer._stride_y
         << " Auto Padding: '"
         << layer._auto_pad << "'";
-    GnaLog::LogDebug() << "\n";
+    ov::intel_gna::log::debug() << "\n";
     printTensorDesc("Input", layer.input()->getTensorDesc());
     printTensorDesc("Output", layer.outData.front()->getTensorDesc());
 }

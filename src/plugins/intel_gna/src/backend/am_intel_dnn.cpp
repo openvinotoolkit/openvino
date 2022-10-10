@@ -1418,7 +1418,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(Gna2Model *gnaModel, const 
     memset(gnaModel->Operations, 0, gnaModel->NumberOfOperations * sizeof(Gna2Operation));
     gnaOperation = gnaModel->Operations;
     for (int i = 0; i < component.size(); i++) {
-        GnaLog::LogDebug() << "Component + " << i << "=GNA_" << std::distance(gnaModel->Operations, gnaOperation) << "\n";
+        ov::intel_gna::log::debug() << "Component + " << i << "=GNA_" << std::distance(gnaModel->Operations, gnaOperation) << "\n";
 
         auto& comp = component[i];
         switch (comp.operation) {
@@ -1758,7 +1758,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteInputAndOutputText() {
         if (numItems) {
             auto rmse = sqrt(summOfSqDiff / numItems);
             auto avg = summOfDiff / numItems;
-            GnaLog::LogTrace() << std::left << std::setw(55) << out_file_name.str()
+            ov::intel_gna::log::trace() << std::left << std::setw(55) << out_file_name.str()
                         << " RMSE="<< std::fixed << std::setprecision(5) << std::right << std::setw(8) << rmse
                         << " avg=" << std::fixed << std::setprecision(5) << std::right << std::setw(8) << avg
                         << " maxD="<< std::fixed << std::setprecision(5) << std::right << std::setw(8) << maxD << std::endl;

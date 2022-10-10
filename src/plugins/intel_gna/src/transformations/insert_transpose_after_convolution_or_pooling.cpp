@@ -85,7 +85,7 @@ bool InsertTransposeAfterConvOrPool::run_on_model(const std::shared_ptr<ngraph::
                                 << " min dimension size: " << min << " max dimension size: " << max;
         }
 
-        GnaLog::LogDebug() << "Insert Transpose after " << node->get_friendly_name() << "\n";
+        ov::intel_gna::log::debug() << "Insert Transpose after " << node->get_friendly_name() << "\n";
 
         auto consumers = node->output(0).get_target_inputs();
 

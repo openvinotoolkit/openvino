@@ -61,7 +61,7 @@ SplitEltwise::SplitEltwise() {
 
         auto split_sizes_per_axis = GNAPluginNS::AlignedSplitSizesPerAxis(o_dims);
         if (0 == split_sizes_per_axis.second.size()) {
-            GnaLog::LogDebug() << "Splitting didn't succeed for layer " << eltwise_node->get_friendly_name()
+            ov::intel_gna::log::debug() << "Splitting didn't succeed for layer " << eltwise_node->get_friendly_name()
             << " on axis " << split_sizes_per_axis.first << std::endl;
             return false;
         }

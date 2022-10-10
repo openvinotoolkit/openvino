@@ -7,6 +7,8 @@
 #include <gtest/gtest.h>
 #include "log/log.hpp"
 
+using namespace ov::intel_gna;
+
 using GnaLogTestParams = std::tuple<ov::log::Level, ov::log::Level>;                  
 
 class GnaLogTest : public ::testing::TestWithParam<GnaLogTestParams> {
@@ -35,28 +37,28 @@ TEST_P(GnaLogTest, LogLevel) {
     ov::log::Level log_level, message_level;
     std::tie(log_level, message_level) = GetParam();
     
-    GnaLog::GnaLog(log_level);
+    GnaLog::GnaLog(log_level);;
 
     switch (message_level)
     {
     case ov::log::Level::ERR :
-        GnaLog::LogErr()  << test_message << std::endl;
+        ov::intel_gna::log::error()  << test_message << std::endl;
         break;
 
     case ov::log::Level::WARNING :
-        GnaLog::LogWarn()  << test_message << std::endl;
+        ov::intel_gna::log::warning()  << test_message << std::endl;
         break;
 
     case ov::log::Level::INFO :
-        GnaLog::LogInfo()  << test_message << std::endl;
+        ov::intel_gna::log::info()  << test_message << std::endl;
         break;
 
     case ov::log::Level::DEBUG :
-        GnaLog::LogDebug()  << test_message << std::endl;
+        ov::intel_gna::log::debug()  << test_message << std::endl;
         break;
 
     case ov::log::Level::TRACE :
-        GnaLog::LogTrace()  << test_message << std::endl;
+        ov::intel_gna::log::trace()  << test_message << std::endl;
     break;
     
     default:

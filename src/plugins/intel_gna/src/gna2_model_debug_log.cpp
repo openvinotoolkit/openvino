@@ -200,7 +200,7 @@ void WriteInputAndOutputTextGNAImpl(const Gna2Model & gnaModel, const std::strin
         if (numItems) {
             auto rmse = std::sqrt(summOfSqDiff / numItems);
             auto avg = summOfDiff / numItems;
-            GnaLog::LogDebug() << std::left << std::setw(55) << out_file_name.str()
+            ov::intel_gna::log::debug() << std::left << std::setw(55) << out_file_name.str()
                 << " RMSE=" << std::fixed << std::setprecision(5) << std::right << std::setw(8) << rmse
                 << " avg=" << std::fixed << std::setprecision(5) << std::right << std::setw(8) << avg
                 << " maxD=" << std::fixed << std::setprecision(5) << std::right << std::setw(8) << maxD << std::endl;
