@@ -6,13 +6,37 @@
 
 #include <ie_common.h>
 #include <node.h>
-#include "proposal_imp.hpp"
 #include "kernels/jit_uni_nms_proposal_kernel.hpp"
 #include <memory>
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
+
+struct proposal_conf {
+    size_t feat_stride_;
+    size_t base_size_;
+    size_t min_size_;
+    int pre_nms_topn_;
+    int post_nms_topn_;
+    float nms_thresh_;
+    float box_coordinate_scale_;
+    float box_size_scale_;
+    std::vector<float> scales;
+    std::vector<float> ratios;
+    bool normalize_;
+
+    size_t anchors_shape_0;
+
+    // Framework specific parameters
+    float coordinates_offset;
+    bool swap_xy;
+    bool initial_clip;     // clip initial bounding boxes
+    bool clip_before_nms;  // clip bounding boxes before nms step
+    bool clip_after_nms;   // clip bounding boxes after nms step
+    bool round_ratios;     // round ratios during anchors generation stage
+    bool shift_anchors;    // shift anchors by half size of the box
+};
 
 class Proposal : public Node {
 public:
@@ -46,6 +70,9 @@ private:
     bool store_prob;  // store blob with proposal probabilities
     std::unique_ptr<jit_uni_nms_proposal_kernel> nms_kernel_ {};
 };
+
+void nms_cpu(const int num_boxes, int is_dead[], const float *boxes, int index_out[], std::size_t *const num_out,
+             const int base_index, const float nms_thresh, const int max_num_out, float coordinates_offset);
 
 }   // namespace node
 }   // namespace intel_cpu

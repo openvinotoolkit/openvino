@@ -9,16 +9,11 @@
 #include <vector>
 #include <utility>
 #include <algorithm>
-
-#if defined(HAVE_AVX2)
-#include <immintrin.h>
-#endif
-
 #include <ngraph/op/generate_proposals.hpp>
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "generate_proposals.h"
-#include "proposal_imp.hpp"
+#include "proposal.h"
 
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
