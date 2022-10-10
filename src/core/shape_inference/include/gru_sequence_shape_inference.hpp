@@ -82,7 +82,7 @@ void gru_shape_infer(const OpType* op,
                           "Dimension `hidden_size` is not matched between inputs.");
 
     // Validate num_directions dimension across all inputs
-    auto valid_num_directions = 0;
+    size_t valid_num_directions;
     const auto m_direction = op->get_direction();
     if (m_direction == op::RecurrentSequenceDirection::FORWARD ||
         m_direction == op::RecurrentSequenceDirection::REVERSE) {
