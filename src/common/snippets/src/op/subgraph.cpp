@@ -482,6 +482,17 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
                               inner_finalization_offsets);
                 // set internal flag to enable scalar vs vector tile optimizations
                 innerTileEnd->has_outer_tile = outer_WA > 1;
+                // Due to features of topological sort, some Constants (Scalars) may appear right after Parameters in
+                // sorted ops (so it's between Parameters and TileBegin). Consequently, ScalarEmitters would be called
+                // outside the Tile Loop, and only the first Tile iteration would yield correct data (assuming the vector reg
+                // assigned to scalar will get corrupted inside the tile body). To avoid such cases, we add control dependency
+                // on TileBegin to guarantee that the constants are executed inside the tile loop.
+                for (const auto& n : m_body->get_ordered_ops()) {
+                    if (auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(n))
+                        c->add_control_dependency(innerTileBegin);
+                    else if (n == innerTileBegin)
+                        break;
+                }
         }
 
         if (outer_WA > 1) {
