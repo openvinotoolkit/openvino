@@ -6,8 +6,7 @@ from pathlib import Path
 import pytest
 from common.layer_test_class import get_params
 from common.logger import *
-
-from tests.layer_tests.common.utils.common_utils import copy_files_by_pattern
+from common.utils.common_utils import copy_files_by_pattern
 
 
 def pytest_generate_tests(metafunc):
