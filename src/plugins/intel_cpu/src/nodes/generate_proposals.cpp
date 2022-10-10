@@ -9,17 +9,12 @@
 #include <vector>
 #include <utility>
 #include <algorithm>
-
-#if defined(HAVE_AVX2)
-#include <immintrin.h>
-#endif
-
 #include <ngraph/op/generate_proposals.hpp>
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "generate_proposals.h"
+#include "proposal.h"
 #include <utils/shape_inference/shape_inference_internal_dyn.hpp>
-#include "proposal_imp.hpp"
 
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;

@@ -14,7 +14,7 @@
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "experimental_detectron_generate_proposals_single_image.h"
-#include "proposal_imp.hpp"
+#include "proposal.h"
 
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
