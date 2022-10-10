@@ -128,7 +128,7 @@ TEST_F(StackAllocatorTest, Reg32_ValueNotEqual) {
     EXPECT_EQ(r, 0);
 }
 
-TEST_F(StackAllocatorTest, AddressCheck) {
+TEST_F(StackAllocatorTest, Address_Check) {
     kernel_ = [this]() {
         Xbyak::Label l_equal;
         StackAllocator::Address dword_addr{stack_allocator_, sizeof(int32_t)};
@@ -217,7 +217,7 @@ TEST_F(StackAllocatorTest, LoopFailed) {
     EXPECT_ANY_THROW(create_kernel<int(*) ()>());
 }
 
-TEST_F(StackAllocatorTest, AddressCheckAlignmentFailed) {
+TEST_F(StackAllocatorTest, Address_CheckAlignmentFailed) {
     kernel_ = [this]() {
         Xbyak::Label l_equal;
         StackAllocator::Transaction transaction{stack_allocator_};
@@ -263,7 +263,7 @@ struct IsaParam { static constexpr x64::cpu_isa_t isa = Isa; };
 using IsaParamTypes = ::testing::Types<IsaParam<x64::sse41>, IsaParam<x64::avx2>, IsaParam<x64::avx512_core>>;
 TYPED_TEST_SUITE(AlignedStackAllocatorTest, IsaParamTypes);
 
-TYPED_TEST(AlignedStackAllocatorTest, AddressCheckAlignmentSuccess) {
+TYPED_TEST(AlignedStackAllocatorTest, Address_CheckAlignmentSuccess) {
     this->kernel_ = [this]() {
         Xbyak::Label l_equal;
         StackAllocator::Transaction transaction{this->stack_allocator_};
@@ -276,7 +276,7 @@ TYPED_TEST(AlignedStackAllocatorTest, AddressCheckAlignmentSuccess) {
     f();
 }
 
-TYPED_TEST(AlignedStackAllocatorTest, AddressCheckAlignmentRegSuccess) {
+TYPED_TEST(AlignedStackAllocatorTest, Address_CheckAlignmentRegSuccess) {
     this->kernel_ = [this]() {
         Xbyak::Label l_equal;
         StackAllocator::Address byte0_addr{this->stack_allocator_, sizeof(int8_t)};
@@ -287,7 +287,7 @@ TYPED_TEST(AlignedStackAllocatorTest, AddressCheckAlignmentRegSuccess) {
     f();
 }
 
-TYPED_TEST(AlignedStackAllocatorTest, AddressCheckAlignmentReuseAddressSuccess) {
+TYPED_TEST(AlignedStackAllocatorTest, Address_CheckAlignmentReuseAddressSuccess) {
     this->kernel_ = [this]() {
         Xbyak::Label l_equal;
         StackAllocator::Transaction transaction{this->stack_allocator_};
@@ -305,7 +305,7 @@ TYPED_TEST(AlignedStackAllocatorTest, AddressCheckAlignmentReuseAddressSuccess) 
     f();
 }
 
-TYPED_TEST(AlignedStackAllocatorTest, AddressCheckAlignmentReuseAddressSuccess2) {
+TYPED_TEST(AlignedStackAllocatorTest, Address_CheckAlignmentReuseAddressSuccess2) {
     this->kernel_ = [this]() {
         Xbyak::Label l_equal;
         StackAllocator::Transaction transaction{this->stack_allocator_};
@@ -324,7 +324,7 @@ TYPED_TEST(AlignedStackAllocatorTest, AddressCheckAlignmentReuseAddressSuccess2)
     EXPECT_ANY_THROW(this->template create_kernel<int(*) ()>());
 }
 
-TYPED_TEST(AlignedStackAllocatorTest, AddressCheckAlignmentReuseAddressSuccess3) {
+TYPED_TEST(AlignedStackAllocatorTest, Address_CheckAlignmentReuseAddressSuccess3) {
     this->kernel_ = [this]() {
         Xbyak::Label l_equal;
         StackAllocator::Transaction transaction{this->stack_allocator_};
@@ -342,7 +342,7 @@ TYPED_TEST(AlignedStackAllocatorTest, AddressCheckAlignmentReuseAddressSuccess3)
     EXPECT_ANY_THROW(this->template create_kernel<int(*) ()>());
 }
 
-TYPED_TEST(AlignedStackAllocatorTest, AddressCheckAlignmentReuseAddressSuccess4) {
+TYPED_TEST(AlignedStackAllocatorTest, Address_CheckAlignmentReuseAddressSuccess4) {
     this->kernel_ = [this]() {
         Xbyak::Label l_equal;
         StackAllocator::Transaction transaction{this->stack_allocator_};
@@ -362,7 +362,7 @@ TYPED_TEST(AlignedStackAllocatorTest, AddressCheckAlignmentReuseAddressSuccess4)
     f();
 }
 
-TYPED_TEST(AlignedStackAllocatorTest, AddressCheckAlignmentReuseAddressSuccess5) {
+TYPED_TEST(AlignedStackAllocatorTest, Address_CheckAlignmentReuseAddressSuccess5) {
     this->kernel_ = [this]() {
         Xbyak::Label l_equal;
         StackAllocator::Transaction transaction{this->stack_allocator_};
@@ -379,4 +379,110 @@ TYPED_TEST(AlignedStackAllocatorTest, AddressCheckAlignmentReuseAddressSuccess5)
     };
 
     EXPECT_ANY_THROW(this->template create_kernel<int(*) ()>());
+}
+
+TYPED_TEST(AlignedStackAllocatorTest, Xmm_ValueEqual) {
+    static const uint32_t data[4] = {1024, 2135, 3246, 4357};
+    this->kernel_ = [this]() {
+        Xbyak::Label l_not_equal;
+        Xbyak::Xmm vmm0{0};
+        Xbyak::Xmm vmm1{1};
+        StackAllocator::Reg<Xbyak::Xmm> value_on_stack{this->stack_allocator_};
+        this->mov(this->rbx, reinterpret_cast<uintptr_t>(data));
+        this->uni_vmovups(vmm0, this->ptr[this->rbx]);
+        value_on_stack = vmm0;
+        this->uni_vpxor(vmm1, vmm1, vmm1);
+        this->uni_vmovups(vmm1, value_on_stack);
+        this->mov(this->rax, 0);
+        this->uni_vpcmpeqd(vmm0, vmm0, vmm1);
+        this->uni_vtestps(vmm0, vmm0);
+        this->jz(l_not_equal);
+        this->mov(this->rax, 1);
+        this->L(l_not_equal);
+    };
+    auto f = this->template create_kernel<int(*) ()>();
+    int r = f();
+    EXPECT_EQ(r, 1);
+}
+
+TYPED_TEST(AlignedStackAllocatorTest, Xmm_ValueNotEqual) {
+    static const uint32_t data[4] = {1024, 2135, 3246, 4357};
+    this->kernel_ = [this]() {
+        Xbyak::Label l_not_equal;
+        Xbyak::Xmm vmm0{0};
+        Xbyak::Xmm vmm1{1};
+        StackAllocator::Reg<Xbyak::Xmm> value_on_stack{this->stack_allocator_};
+        this->mov(this->rbx, reinterpret_cast<uintptr_t>(data));
+        this->uni_vmovups(vmm0, this->ptr[this->rbx]);
+        value_on_stack = vmm0;
+        this->uni_vpxor(vmm1, vmm1, vmm1);
+        this->uni_vmovups(vmm1, value_on_stack);
+        this->uni_vpxor(vmm0, vmm0, vmm0);
+        this->mov(this->rax, 0);
+        this->uni_vpcmpeqd(vmm0, vmm0, vmm1);
+        this->uni_vtestps(vmm0, vmm0);
+        this->jz(l_not_equal);
+        this->mov(this->rax, 1);
+        this->L(l_not_equal);
+    };
+    auto f = this->template create_kernel<int(*) ()>();
+    int r = f();
+    EXPECT_EQ(r, 0);
+}
+
+TYPED_TEST(AlignedStackAllocatorTest, Ymm_ValueEqual) {
+    if (TypeParam::isa != x64::avx2) {
+        GTEST_SKIP() << "Skipping test for isa = " << static_cast<int>(TypeParam::isa);
+    }
+    static const uint32_t data[8] = {1024, 2135, 3246, 4357,
+                                     2124, 3235, 4346, 5457};
+    this->kernel_ = [this]() {
+        Xbyak::Label l_not_equal;
+        Xbyak::Ymm vmm0{0};
+        Xbyak::Ymm vmm1{1};
+        StackAllocator::Reg<Xbyak::Ymm> value_on_stack{this->stack_allocator_};
+        this->mov(this->rbx, reinterpret_cast<uintptr_t>(data));
+        this->uni_vmovups(vmm0, this->ptr[this->rbx]);
+        value_on_stack = vmm0;
+        this->uni_vpxor(vmm1, vmm1, vmm1);
+        this->uni_vmovups(vmm1, value_on_stack);
+        this->mov(this->rax, 0);
+        this->uni_vpcmpeqd(vmm0, vmm0, vmm1);
+        this->uni_vtestps(vmm0, vmm0);
+        this->jz(l_not_equal);
+        this->mov(this->rax, 1);
+        this->L(l_not_equal);
+    };
+    auto f = this->template create_kernel<int(*) ()>();
+    int r = f();
+    EXPECT_EQ(r, 1);
+}
+
+TYPED_TEST(AlignedStackAllocatorTest, Ymm_ValueNotEqual) {
+    if (TypeParam::isa != x64::avx2) {
+        GTEST_SKIP() << "Skipping test for isa = " << static_cast<int>(TypeParam::isa);
+    }
+    static const uint32_t data[8] = {1024, 2135, 3246, 4357,
+                                     2124, 3235, 4346, 5457};
+    this->kernel_ = [this]() {
+        Xbyak::Label l_not_equal;
+        Xbyak::Ymm vmm0{0};
+        Xbyak::Ymm vmm1{1};
+        StackAllocator::Reg<Xbyak::Ymm> value_on_stack{this->stack_allocator_};
+        this->mov(this->rbx, reinterpret_cast<uintptr_t>(data));
+        this->uni_vmovups(vmm0, this->ptr[this->rbx]);
+        value_on_stack = vmm0;
+        this->uni_vpxor(vmm1, vmm1, vmm1);
+        this->uni_vmovups(vmm1, value_on_stack);
+        this->uni_vpxor(vmm0, vmm0, vmm0);
+        this->mov(this->rax, 0);
+        this->uni_vpcmpeqd(vmm0, vmm0, vmm1);
+        this->uni_vtestps(vmm0, vmm0);
+        this->jz(l_not_equal);
+        this->mov(this->rax, 1);
+        this->L(l_not_equal);
+    };
+    auto f = this->template create_kernel<int(*) ()>();
+    int r = f();
+    EXPECT_EQ(r, 0);
 }
