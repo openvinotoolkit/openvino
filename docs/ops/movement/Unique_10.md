@@ -7,7 +7,7 @@
 **Short description**: *Unique* finds unique elements of a given input tensor. Depending on the operator's attributes it either looks for unique values globally in the whole (flattened) tensor or performs the search along the specified axis.
 
 **Detailed description**
-The operator can either work in elementwise mode searching for unique values in the whole tensor or it can consider slices of the input tensor along the specified axis. This way the op is able to find unique subtensors in the input data. Except for the unique elements the operator also produces the indices of the unique elements in the input tensor and the number of occurences of unique elements in the input data.
+The operator can either work in elementwise mode searching for unique values in the whole tensor or it can consider slices of the input tensor along the specified axis. This way the op is able to find unique subtensors in the input data. Except for the unique elements the operator also produces the indices of the unique elements in the input tensor and the number of occurrences of unique elements in the input data.
 
 **Attributes**:
 
@@ -16,7 +16,7 @@ The operator can either work in elementwise mode searching for unique values in 
   * **Description**: controls whether the unique elements in the output tensor are sorted in ascending order.
   * **Range of values**:
     * false - output tensor's elements are not sorted
-    * true - output tensor's element are sorted
+    * true - output tensor's elements are sorted
   * **Type**: boolean
   * **Default value**: true
   * **Required**: *no*
@@ -38,15 +38,14 @@ The operator can either work in elementwise mode searching for unique values in 
 **Outputs**
 
 * **1**: The output tensor containing unique elements (individual values or subtensors). This tensor's type matches the type of the first input tensor: *T*. The values in this tensor are either sorted ascendingly or maintain the same order as in the input tensor. The shape of this output depends on the values of the input tensor and will very often be dynamic. Please refer to the article describing how [Dynamic Shapes](https://docs.openvino.ai/latest/openvino_docs_OV_UG_DynamicShapes.html) are handled in OpenVINO.
-* **2**: The output tensor containing indices of the locations of unique elements. The indices map the elements in the first output tensor to their locations in the input tensor. The index always points to the first occurence of a given unique output element in the input tensor. This is a 1D tensor with type *T_IND*.
-* **3**: The output tensor containing indices of the locations of elements of the input tensor in the first output tensor. This means that for each element of the input tensor this output will point to the unique value in the first output tensor of this operator. This is a 1D tensor with type *T_IND*.
-* **4**: The output tensor containing the number of occurences of each unique value produced by this operator in the first output tensor. This is a 1D tensor with type `int64`.
+* **2**: The output tensor containing indices of the locations of unique elements. The indices map the elements in the first output tensor to their locations in the input tensor. The index always points to the first occurrence of a given unique output element in the input tensor. This is a 1D tensor with type controlled by the `index_element_type` attribute.
+* **3**: The output tensor containing indices of the locations of elements of the input tensor in the first output tensor. This means that for each element of the input tensor this output will point to the unique value in the first output tensor of this operator. This is a 1D tensor with type controlled by the `index_element_type` attribute.
+* **4**: The output tensor containing the number of occurrences of each unique value produced by this operator in the first output tensor. This is a 1D tensor with type `int64`.
 
 **Types**
 
 * *T*: any supported data type.
 * *T_AXIS*: `int64` or `int32`.
-* *T_IND*: `int64` or `int32`.
 
 **Examples**
 
