@@ -412,38 +412,29 @@ int main(int argc, char* argv[]) {
                     return str;
             };
 
-            if (isFlagSetInCommandLine("nthreads")) {
-                if (supported(ov::inference_num_threads.name()) || if_multi) {
-                    device_config.emplace(ov::inference_num_threads(FLAGS_nthreads));
+            auto set_nthreads_pin = [&](const std::string& str) {
+                auto property_name = str == "nthreads" ? ov::inference_num_threads.name() : ov::affinity.name();
+                auto property = str == "nthreads" ? ov::inference_num_threads(FLAGS_nthreads)
+                                                  : ov::affinity(fix_pin_option(FLAGS_pin));
+                if (supported(property_name) || if_multi) {
+                    device_config.emplace(property);
                 } else if (if_auto) {
                     for (auto& device : hardware_devices) {
                         if (device_config.find(device) == device_config.end()) {
-                            device_config.insert(
-                                ov::device::properties(device, ov::inference_num_threads(FLAGS_nthreads)));
-                        } else {
-                            auto& property = device_config[device].as<ov::AnyMap>();
-                            property.emplace(ov::inference_num_threads(FLAGS_nthreads));
                             device_config.insert(ov::device::properties(device, property));
+                        } else {
+                            auto& properties = device_config[device].as<ov::AnyMap>();
+                            properties.emplace(property);
+                            device_config.insert(ov::device::properties(device, properties));
                         }
                     }
                 }
-            }
-            if (isFlagSetInCommandLine("pin")) {
-                if (supported(ov::affinity.name()) || if_multi) {
-                    device_config.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
-                } else if (if_auto) {
-                    for (auto& device : hardware_devices) {
-                        if (device_config.find(device) == device_config.end()) {
-                            device_config.insert(
-                                ov::device::properties(device, ov::affinity(fix_pin_option(FLAGS_pin))));
-                        } else {
-                            auto& property = device_config[device].as<ov::AnyMap>();
-                            property.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
-                            device_config.insert(ov::device::properties(device, property));
-                        }
-                    }
-                }
-            }
+            };
+            if (isFlagSetInCommandLine("nthreads"))
+                set_nthreads_pin("nthreads");
+
+            if (isFlagSetInCommandLine("pin"))
+                set_nthreads_pin("pin");
 
             if (device.find("CPU") != std::string::npos || device.find("GPU") != std::string::npos) {
                 // CPU supports few special performance-oriented keys
