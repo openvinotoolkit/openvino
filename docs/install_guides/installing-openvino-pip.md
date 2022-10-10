@@ -80,6 +80,7 @@ OpenVINO Development Tools adds even more functionality to OpenVINO. It provides
 
 See the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page for step-by-step installation instructions.
 
+<a name="whats-next"></a>
 ## What's Next?
 Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
 
