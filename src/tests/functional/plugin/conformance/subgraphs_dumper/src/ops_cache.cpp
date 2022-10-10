@@ -48,10 +48,11 @@ void OPCache::update_ops_cache(const std::shared_ptr<ov::Node> &op,
     } else {
         for (int i = 0; i < op->get_input_size(); i++) {
             auto shape = op->get_input_shape(i);
-            unsigned long shapeSize = ov::shape_size(shape) * op->get_element_type().size();
+            unsigned long shapeSize = ov::shape_size(shape) * op->get_output_element_type(0).size();
 
             auto cachedOpShape = cachedOp->get_input_shape(i);
-            unsigned long cachedOpShapeSize = ov::shape_size(cachedOpShape) * cachedOp->get_element_type().size();
+            unsigned long cachedOpShapeSize =
+                ov::shape_size(cachedOpShape) * cachedOp->get_output_element_type(0).size();
 
             if (shapeSize < cachedOpShapeSize) {
                 m_ops_cache.erase(cachedOp);
@@ -151,7 +152,7 @@ float OPCache::get_size_of_cached_ops() {
                     op.first->get_input_node_shared_ptr(i));
             if (constant != nullptr) {
                 size += static_cast<float>(ov::shape_size(constant->get_shape()) *
-                                           constant->get_element_type().size()) / (1024 * 1024);
+                                           constant->get_output_element_type(0).size()) / (1024 * 1024);
             }
         }
     }
