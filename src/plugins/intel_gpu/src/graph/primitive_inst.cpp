@@ -305,14 +305,11 @@ void primitive_inst::update_impl() {
         } else {
             auto lru = cache.get_lru_element();
             _impl = _node.type()->choose_impl(_node, *_impl_params);
-            bool lru_popped = cache.add(layout_key, _impl->clone());
-            if (lru_popped) {
-                for (auto& id : lru->get_kernel_ids())
-                    _network.get_program()->remove_kernel(id);
-            }
             _network.get_program()->compile();
+            _impl->init_kernels(_network.get_program()->get_kernels_cache());
+            cache.add(layout_key, _impl->clone());
+            _network.get_program()->get_kernels_cache().reset();
         }
-        _impl->init_kernels(_network.get_program()->get_kernels_cache());
 
         reset_shape_change();
         GPU_DEBUG_GET_INSTANCE(debug_config);
