@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
         } else if (std::string(argv[i]).find("--device_suffix") != std::string::npos) {
             std::string deviceSuffix = std::string(argv[i]).substr(std::string("--device_suffix").length() + 1);
             // TODO: uncomment after plugin impl merge
-            ov::test::set_device_suffix(deviceSuffix);
+            // ov::test::set_device_suffix(deviceSuffix);
         }
     }
 
