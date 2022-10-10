@@ -25,7 +25,7 @@ inline INPUT1_TYPE FUNC(decay_gaussian)(INPUT1_TYPE iou, INPUT1_TYPE max_iou) {
 }
 
 inline INPUT1_TYPE FUNC(decay_linear)(INPUT1_TYPE iou, INPUT1_TYPE max_iou) {
-    return (INPUT1_VAL_ONE - iou) / (INPUT1_VAL_ONE - max_iou + 1e-10f);
+    return (INPUT1_VAL_ONE - iou) / (INPUT1_VAL_ONE - max_iou + TINY);
 }
 
 inline void FUNC(swap)(int* a, int* b) {
@@ -134,8 +134,7 @@ inline COORD_TYPE_4 FUNC(getBoxCoords)(const __global INPUT0_TYPE* boxes, const 
 }
 
 inline INPUT0_TYPE FUNC(area)(const INPUT0_TYPE w, const INPUT0_TYPE h) {
-    INPUT0_TYPE norm = NORMALIZED ? INPUT0_VAL_ZERO : INPUT0_VAL_ONE;
-    return (w + norm) * (h + norm);
+    return (w + NORM) * (h + NORM);
 }
 
 inline INPUT0_TYPE FUNC(areaBox)(const COORD_TYPE_4 box) {
@@ -323,3 +322,8 @@ KERNEL(matrix_nms_ref_stage_2)
     }
 }
 #endif /* MATRIX_NMS_STAGE_2 */
+
+#undef NUM_BATCHES
+#undef NUM_BOXES
+#undef NUM_CLASSES
+#undef BOX_INFO

@@ -30,10 +30,10 @@ public:
     memory::ptr input_scores_mem() const {
         return dep_memory_ptr(1);
     }
-    memory::ptr second_output_mem() const {
+    memory::ptr input_selected_boxes_mem() const {
         return dep_memory_ptr(2);
     }
-    memory::ptr third_output_mem() const {
+    memory::ptr input_valid_outputs_mem() const {
         return dep_memory_ptr(3);
     }
 };

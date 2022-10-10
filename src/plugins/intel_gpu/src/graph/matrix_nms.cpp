@@ -39,7 +39,7 @@ layout matrix_nms_inst::calc_output_layout(const matrix_nms_node& node, const ke
     auto output_num = max_output_boxes_per_batch * batches_num;
 
     // BOX_DATA: class_id, box_score, xmin, ymin, xmax, ymax
-    const size_t BOX_DATA = 6;
+    constexpr size_t BOX_DATA{6};
     return layout(boxes_layout.data_type, boxes_layout.format, {output_num, BOX_DATA, 1, 1});
 }
 

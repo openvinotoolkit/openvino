@@ -47,6 +47,25 @@ MatrixNmsKernelRef::DispatchData SetDefault(const matrix_nms_params& params, siz
 
     return dispatch_data;
 }
+
+std::tuple<int, int> GetMaxBoxes(const matrix_nms_params& params) {
+    const int classes_num = params.inputs[1].Feature().v;
+    const int boxes_num = params.inputs[0].Feature().v;
+
+    int max_boxes_per_class{boxes_num};
+    if (params.nms_top_k >= 0)
+        max_boxes_per_class = std::min(max_boxes_per_class, params.nms_top_k);
+
+    auto classes_num_adj = classes_num;
+    if (params.background_class >= 0 && params.background_class < classes_num)
+        classes_num_adj = std::max(1, classes_num - 1);
+
+    auto max_boxes_per_batch = max_boxes_per_class * classes_num_adj;
+    if (params.keep_top_k >= 0)
+        max_boxes_per_batch = std::min(max_boxes_per_batch, params.keep_top_k);
+
+    return {max_boxes_per_class, max_boxes_per_batch};
+}
 }  // anonymous namespace
 
 KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
@@ -54,27 +73,17 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params, const optio
         return {};
     }
 
-    const size_t kernels_num{3};
+    constexpr size_t kernels_num{3};
     KernelData kernel_data = KernelData::Default<matrix_nms_params>(params, kernels_num);
     const matrix_nms_params& new_params = dynamic_cast<const matrix_nms_params&>(*kernel_data.params.get());
 
-    const size_t BOX_INFO_SIZE{16};
+    constexpr size_t BOX_INFO_SIZE{16};
 
     const int batches_num = new_params.inputs[1].Batch().v;
     const int classes_num = new_params.inputs[1].Feature().v;
-    const int boxes_num = new_params.inputs[0].Feature().v;
 
-    int max_boxes_per_class{boxes_num};
-    if (new_params.nms_top_k >= 0)
-        max_boxes_per_class = std::min(max_boxes_per_class, new_params.nms_top_k);
-
-    auto classes_num_adj = classes_num;
-    if (new_params.background_class >= 0 && new_params.background_class < classes_num)
-        classes_num_adj = std::max(1, classes_num - 1);
-
-    auto max_boxes_per_batch = max_boxes_per_class * classes_num_adj;
-    if (new_params.keep_top_k >= 0)
-        max_boxes_per_batch = std::min(max_boxes_per_batch, new_params.keep_top_k);
+    int max_boxes_per_class, max_boxes_per_batch;
+    std::tie(max_boxes_per_class, max_boxes_per_batch) = GetMaxBoxes(new_params);
 
     const size_t box_info_num = batches_num * classes_num * max_boxes_per_class;
 
@@ -108,7 +117,7 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params, const optio
 }
 
 float MatrixNmsKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
-    return FORCE_PRIORITY_1;
+    return FORCE_PRIORITY_9;
 }
 
 bool MatrixNmsKernelRef::Validate(const Params& p, const optional_params& o) const {
@@ -131,10 +140,13 @@ JitConstants MatrixNmsKernelRef::GetJitConstants(const matrix_nms_params& params
     switch (boxes.GetDType()) {
     case Datatype::F32:
         jit.AddConstant(MakeJitConstant("COORD_TYPE_4", "float4"));
+        jit.AddConstant(MakeJitConstant("TINY", "1e-10f"));
         break;
 
     case Datatype::F16:
         jit.AddConstant(MakeJitConstant("COORD_TYPE_4", "half4"));
+        jit.AddConstant(MakeJitConstant("TINY", "1e-7h"));
+        break;
         break;
 
     default:
@@ -149,7 +161,7 @@ JitConstants MatrixNmsKernelRef::GetJitConstants(const matrix_nms_params& params
     jit.AddConstant(MakeJitConstant("DECAY_FUNC", params.decay));
     jit.AddConstant(MakeJitConstant("GAUSSIAN_SIGMA", params.gaussian_sigma));
     jit.AddConstant(MakeJitConstant("POST_THRESHOLD", params.post_threshold));
-    jit.AddConstant(MakeJitConstant("NORMALIZED", params.normalized));
+    jit.AddConstant(MakeJitConstant("NORM", params.normalized ? "INPUT0_VAL_ZERO" : "INPUT0_VAL_ONE"));
     return jit;
 }
 

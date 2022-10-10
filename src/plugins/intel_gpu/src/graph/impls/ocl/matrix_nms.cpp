@@ -50,8 +50,8 @@ protected:
         kernel_arguments_data args;
         args.inputs = {instance.input_boxes_mem(),
                        instance.input_scores_mem(),
-                       instance.second_output_mem(),
-                       instance.third_output_mem()};
+                       instance.input_selected_boxes_mem(),
+                       instance.input_valid_outputs_mem()};
         args.outputs = {instance.output_memory_ptr()};
 
         return args;
