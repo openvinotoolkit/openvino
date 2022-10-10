@@ -573,6 +573,10 @@ public:
         rtParamsCache = cache;
     }
 
+    void setSharedMutex(const std::shared_ptr<std::mutex>& mutex) {
+        sharedMutex = mutex;
+    }
+
 protected:
     bool canFuseSimpleOperation(const NodePtr& node) const;
 
@@ -752,6 +756,7 @@ protected:
                                                            dnnl::post_ops& ops,
                                                            dnnl::memory::data_type outputDataType,
                                                            int dimOC);
+    std::shared_ptr<std::mutex> sharedMutex = nullptr;
 
 private:
     std::vector<EdgeWeakPtr> parentEdges;

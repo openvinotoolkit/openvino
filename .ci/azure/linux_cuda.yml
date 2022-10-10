@@ -3,12 +3,24 @@ trigger:
     include:
     - master
     - releases/*
+  paths:
+    exclude: 
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+    - README.md
 
 pr:
   branches:
     include:
     - master
     - releases/*
+  paths:
+    exclude: 
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+    - README.md
 
 resources:
   repositories:
@@ -112,11 +124,9 @@ jobs:
       -DVERBOSE_BUILD=ON
       -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
       -DIE_EXTRA_MODULES=/root/repos/openvino_contrib/modules
-      -DNGRAPH_ONNX_IMPORT_ENABLE=OFF
-      -DENABLE_MKL_DNN=OFF
-      -DENABLE_CLDNN=OFF
-      -DENABLE_VPU=OFF
-      -DENABLE_GNA=OFF
+      -DENABLE_INTEL_CPU=OFF
+      -DENABLE_INTEL_GPU=OFF
+      -DENABLE_INTEL_GNA=OFF
       -DBUILD_arm_plugin=OFF
       -DBUILD_java_api=OFF
       -DENABLE_PYTHON=OFF

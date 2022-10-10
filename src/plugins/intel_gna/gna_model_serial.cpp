@@ -27,6 +27,7 @@
 #include "gna_plugin.hpp"
 #include "gna_model_serial.hpp"
 #include "serial/headers/latest/gna_model_header.hpp"
+#include "common/versioning.hpp"
 
 using namespace GNAPluginNS;
 
@@ -91,6 +92,20 @@ inline bool is_little_endian() {
     return LECheck.c[0] == 1;
 }
 
+void GNAVersionSerializer::Export(std::ostream& os) const {
+    writeString(ov::intel_gna::common::get_openvino_version_string(), os);
+    writeString(GNADeviceHelper::GetGnaLibraryVersion(), os);
+}
+
+std::string GNAVersionSerializer::Import(std::istream& is) const {
+    std::string version;
+    if (is.peek() && !is.eof()) {
+        version = "The model was exported with OpenVINO version:\n" + readString(is) + "\n";
+        version += "GNA Library version:\n" + readString(is) + "\n";
+    }
+    return version;
+}
+
 const int gna_header_magic = is_little_endian() ?  0x4d414e47 : 0x474e414d;
 
 GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &is) {
@@ -113,9 +128,9 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
     auto size_of_headers_header = sizeof(HeaderLatest::ModelHeader::gnam) + sizeof(HeaderLatest::ModelHeader::headerSize)
                                 + sizeof(HeaderLatest::ModelHeader::Version);
     if (stream_len > size_of_headers_header) {
-        readNBytes(&header, size_of_headers_header, is);
+        readNBytes(&header, static_cast<uint32_t>(size_of_headers_header), is);
     } else {
-        readNBytes(&header, stream_len, is);
+        readNBytes(&header, static_cast<uint32_t>(stream_len), is);
     }
     if (*reinterpret_cast<int*>(header.gnam) != gna_header_magic) {
         THROW_GNA_EXCEPTION << "Imported file unsupported: magic number should be GNAM(0x474e414d), but was 0x"
@@ -247,7 +262,8 @@ void GNAModelSerial::Import(void *basePointer,
         GNAPluginNS::GnaInputs &inputs,
         GNAPluginNS::GnaOutputs &outputs,
         TranspositionInfoMap &inputsTranspositionInfo,
-        TranspositionInfoMap &outputsTranspositionInfo) {
+        TranspositionInfoMap &outputsTranspositionInfo,
+        std::string & libVersionFromFile) {
     is.exceptions(std::istream::failbit);
     // 2. Read inputs names
     if (model_header_.version.major == 2) {
@@ -374,6 +390,11 @@ void GNAModelSerial::Import(void *basePointer,
 
     // once structure has been read lets read whole gna graph
     is.read(reinterpret_cast<char*>(basePointer), gnaGraphSize);
+
+    // read OV and GNA versions if available in model file
+    if (model_header_.version.major == 2 && model_header_.version.minor >= 8) {
+        libVersionFromFile = version_.Import(is);
+    }
 }
 
 void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os) const {
@@ -535,6 +556,9 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
     for (const auto& a : allocationsOrdered) {
         os.write(reinterpret_cast<char*>(a.ptr), a.sizeForExport());
     }
+
+    // write OV & GNA versions
+    version_.Export(os);
 }
 
 void GNAModelSerial::ImportInputs(std::istream &is, void* basePtr, GNAPluginNS::GnaInputs &inputs) {

@@ -247,6 +247,8 @@ std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node
     return { output_layout };
 }
 
+template std::vector<layout> eltwise_inst::calc_output_layouts<ov::PartialShape>(eltwise_node const& node, const kernel_impl_params& impl_param);
+
 static inline std::string stringify_vector(const std::vector<float>& v) {
     std::stringstream s;
 
@@ -352,6 +354,9 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
     // check for stride
     auto prim = node.get_primitive();
     auto inputs_count = node.inputs_count();
+
+    if (is_dynamic())
+        return;
 
     if (!prim->stride.empty()) {
         // number of strides must match number of inputs

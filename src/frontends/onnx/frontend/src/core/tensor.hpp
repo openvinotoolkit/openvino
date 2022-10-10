@@ -65,6 +65,7 @@ inline std::vector<T> __get_data(const Container& container) {
 #if defined(_MSC_VER)
 #    pragma warning(push)
 #    pragma warning(disable : 4267)
+#    pragma warning(disable : 4244)
 #endif
     return std::vector<T>(std::begin(container), std::end(container));
 #if defined(_MSC_VER)

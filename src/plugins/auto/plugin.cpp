@@ -267,7 +267,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::stri
 }
 
 void MultiDeviceInferencePlugin::SetConfig(const std::map<std::string, std::string> & config) {
-    _pluginConfig.UpdateFromMap(config, GetName(), true);
+    _pluginConfig.UpdateFromMap(config, GetName());
 }
 
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "MultiDevicePlugin"};
@@ -368,7 +368,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     _LogTag = GetName();
     auto loadConfig = _pluginConfig;
     // updateFromMap will check config valid
-    loadConfig.UpdateFromMap(config, GetName(), false);
+    loadConfig.UpdateFromMap(config, GetName());
     auto fullConfig = loadConfig._keyConfigMap;
     // collect the settings that are applicable to the devices we are loading the network to
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
@@ -534,7 +534,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
 
     // checking the perf counters config from the loaded network to respect both device's plugin and load-specific setting
     size_t num_plugins_supporting_perf_counters = 0;
-    for (auto n : executableNetworkPerDevice) {
+    for (auto& n : executableNetworkPerDevice) {
             try {
                 num_plugins_supporting_perf_counters +=
                         n.second->GetConfig(PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
@@ -553,10 +553,12 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     multiSContext->_LogTag = _LogTag;
     IExecutableNetworkInternal::Ptr impl;
     auto tmpiter = fullConfig.find(ov::intel_auto::device_bind_buffer.name());
-    if (tmpiter != fullConfig.end() && tmpiter->second == PluginConfigParams::YES)
+    if (tmpiter != fullConfig.end() && tmpiter->second == PluginConfigParams::YES) {
+        multiSContext->_bindBuffer = true;
         impl = std::make_shared<MultiExecutableNetwork>(multiSContext, std::make_shared<BinderMultiSchedule>());
-    else
+    } else {
         impl = std::make_shared<MultiExecutableNetwork>(multiSContext, std::make_shared<MultiSchedule>());
+    }
     if (!modelPath.empty()) {
         SetExeNetworkInfo(impl,
                           executableNetworkPerDevice.begin()->second->GetInputsInfo(),

@@ -30,7 +30,6 @@ KERNEL (count_nonzero_ref)(const __global INPUT0_TYPE* input,
         const uint x = gdim0;
         const uint y = gdim1;
     #endif
-
     const uint f = gdim2 % INPUT0_FEATURE_NUM;
     const uint b = gdim2 / INPUT0_FEATURE_NUM;
 
@@ -41,7 +40,7 @@ KERNEL (count_nonzero_ref)(const __global INPUT0_TYPE* input,
         atomic_add(&(output[1]), count);
 
     if (gdim0 == 0 && gdim1 == 0 && gdim2 == 0) {
-        output[0] = INPUT0_DIMS;
+        output[0] = OV_INPUT_RANK;
         output[2] = 1;
         output[3] = 1;
     }

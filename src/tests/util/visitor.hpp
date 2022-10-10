@@ -401,9 +401,9 @@ public:
     static FactoryRegistry<Node>& get_ops() {
         static FactoryRegistry<Node> registry = [] {
             FactoryRegistry<Node> registry;
-#define NGRAPH_OP(NAME, NAMESPACE, VERSION) registry.register_factory<NAMESPACE::NAME>();
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) registry.register_factory<NAMESPACE::NAME>();
 #include "op_version_tbl.hpp"
-#undef NGRAPH_OP
+#undef _OPENVINO_OP_REG
             return registry;
         }();
         return registry;
