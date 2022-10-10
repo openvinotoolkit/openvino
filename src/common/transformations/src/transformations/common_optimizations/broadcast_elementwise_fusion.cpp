@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 
+#include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
@@ -69,7 +70,7 @@ bool can_eliminate_broadcast(const ngraph::Output<ngraph::Node>& eltwise,
 
 }  // namespace
 
-ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
+ov::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
     MATCHER_SCOPE(BroadcastElementwiseFusion);
     auto broadcast_input = pattern::any_input();
     auto broadcast = pattern::wrap_type<ngraph::opset5::Broadcast>({broadcast_input, pattern::any_input()},
