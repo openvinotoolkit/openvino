@@ -8,6 +8,8 @@
 
 namespace ov {
 namespace test {
+
 void set_device_suffix(const std::string& suffix);
+
 } // namespace test
 } // namespace ov

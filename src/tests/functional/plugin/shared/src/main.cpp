@@ -8,11 +8,12 @@
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
+#include "set_device_name.hpp"
+
 int main(int argc, char *argv[]) {
     FuncTestUtils::SkipTestsConfig::disable_tests_skipping = false;
     bool print_custom_help = false;
     std::string outputFolderPath(".");
-    std::string deviceSuffix = "";
     for (int i = 0; i < argc; ++i) {
         if (std::string(argv[i]) == "--disable_tests_skipping") {
             FuncTestUtils::SkipTestsConfig::disable_tests_skipping = true;
@@ -34,7 +35,9 @@ int main(int argc, char *argv[]) {
             }
             ov::test::utils::OpSummary::setSaveReportTimeout(timeout);
         } else if (std::string(argv[i]).find("--device_suffix") != std::string::npos) {
-            deviceSuffix = std::string(argv[i]).substr(std::string("--device_suffix").length() + 1);
+            std::string deviceSuffix = std::string(argv[i]).substr(std::string("--device_suffix").length() + 1);
+            // TODO: uncomment after plugin impl merge
+            ov::test::set_device_suffix(deviceSuffix);
         }
     }
 
