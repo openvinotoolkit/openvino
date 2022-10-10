@@ -69,7 +69,7 @@ Congratulations, you finished installation! The `/opt/intel/openvino_2022` folde
 
 ### <a name="set-the-environment-variables"></a>Step 2: Configure the Environment
 
-You must update several environment variables before you can compile and run OpenVINO™ applications. Open a terminal (if it isn't already open) and run the setupvars.bat batch file as shown below to temporarily set your environment variables. Again, if you installed OpenVINO™ in a folder other than `/opt/intel/openvino_2022`, use that location instead.
+You must update several environment variables before you can compile and run OpenVINO™ applications. Open a terminal (if it isn't already open) and run the setupvars.sh script as shown below to temporarily set your environment variables. Again, if you installed OpenVINO™ in a folder other than `/opt/intel/openvino_2022`, use that location instead.
 
 ```sh
 source /opt/intel/openvino_2022/setupvars.sh
@@ -77,7 +77,7 @@ source /opt/intel/openvino_2022/setupvars.sh
 
 If you have more than one OpenVINO™ version on your machine, you can easily switch its version by sourcing `setupvars.sh` of your choice.
 
-> **NOTE**: The above command must be re-run every time the terminal is opened. To set up Linux so it automatically runs the command every time a new terminal is opened, open `~/.bashrc` in your favorite editor and add `source /opt/intel/openvino_2022/setupvars.sh` after the last line. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require different setup.
+> **NOTE**: The above command must be re-run every time the terminal is opened. To set up Linux so it automatically runs the command every time a new terminal is opened, open `~/.bashrc` in your favorite editor and add `source /opt/intel/openvino_2022/setupvars.sh` after the last line. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have multiple OpenVINO™ versions on your machine and want to switch among them.
 
 The environment variables are set. Continue to the next section if you want to download any additional components.
 
