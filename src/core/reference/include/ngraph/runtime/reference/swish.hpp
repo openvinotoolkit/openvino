@@ -17,7 +17,7 @@ void swish(const T* arg, const T* beta, T* out, size_t count) {
         beta_value = beta[0];
     }
     for (size_t i = 0; i < count; i++) {
-        out[i] = arg[i] / (1.0 + std::exp(-arg[i] * beta_value));
+        out[i] = static_cast<T>(arg[i] / (1.0 + std::exp(-arg[i] * beta_value)));
     }
 }
 }  // namespace reference

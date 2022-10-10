@@ -8,6 +8,7 @@ trigger:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - README.md
 
 pr:
   branches:
@@ -19,6 +20,7 @@ pr:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - README.md
 
 resources:
   repositories:
@@ -156,6 +158,7 @@ jobs:
         -DENABLE_FASTER_BUILD=ON ^
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
         -DENABLE_TESTS=ON ^
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DENABLE_STRICT_DEPENDENCIES=OFF ^
         -DENABLE_PYTHON=ON ^
         -DBUILD_nvidia_plugin=OFF ^
