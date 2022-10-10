@@ -29,6 +29,8 @@ endif()
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # disable warning: This operator was deprecated and will be removed with v0 operation.
     add_compile_options(/wd4996)
+    # after update to newer version of protobuf
+    add_compile_options(/wd2737)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_compile_options(-Wno-deprecated-register -Wno-range-loop-analysis)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
