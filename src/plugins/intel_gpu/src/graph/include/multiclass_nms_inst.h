@@ -15,44 +15,41 @@ struct typed_program_node<multiclass_nms> : public typed_program_node_base<multi
 
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
-        : parent(prim, prog),
-          has_roisnum_(this->get_primitive()->has_roisnum) {}
+        : parent(prim, prog) {}
 
-    program_node& input() const {
+    const program_node& input() const {
         return boxes();
     }
 
-    program_node& boxes() const {
+    const program_node& boxes() const {
         return get_dependency(0);
     }
 
-    program_node& scores() const {
+    const program_node& scores() const {
         return get_dependency(1);
     }
 
     bool has_roisnum() const {
-        return has_roisnum_;
+        return get_primitive()->has_roisnum;
     }
 
-    program_node& roisnum() const {
-        if (!has_roisnum_)
+    const program_node& roisnum() const {
+        if (!get_primitive()->has_roisnum)
             throw std::runtime_error("there is no roisnum input");
         return get_dependency(2);
     }
 
-    program_node& output_selected_indices() const {
+    const program_node& output_selected_indices() const {
         return get_dependency(input_count());
     }
-    program_node& output_selected_num() const {
+    const program_node& output_selected_num() const {
         return get_dependency(input_count() + 1);
     }
 
 private:
     int input_count() const {
-        return 2 + (has_roisnum_ ? 1 : 0);
+        return 2 + (get_primitive()->has_roisnum ? 1 : 0);
     }
-
-    bool has_roisnum_;
 };
 
 using multiclass_nms_node = typed_program_node<multiclass_nms>;
@@ -68,10 +65,10 @@ public:
     typed_primitive_inst(network& network, const multiclass_nms_node& node) : parent(network, node) {}
 
     memory::ptr output_indices_memory() const {
-        return dep_memory_ptr(node.get_dependencies().size() - 1);
+        return dep_memory_ptr(node.get_dependencies().size() - 2);
     }
     memory::ptr output_num_memory() const {
-        return dep_memory_ptr(node.get_dependencies().size() - 2);
+        return dep_memory_ptr(node.get_dependencies().size() - 1);
     }
 };
 

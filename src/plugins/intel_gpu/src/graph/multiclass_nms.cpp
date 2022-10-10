@@ -4,9 +4,9 @@
 
 #include <string>
 
-#include "multiclass_nms_inst.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
+#include "multiclass_nms_inst.h"
 #include "primitive_type_base.h"
 
 namespace cldnn {
@@ -15,37 +15,39 @@ primitive_type_id multiclass_nms::type_id() {
     return &instance;
 }
 
-layout multiclass_nms_inst::calc_output_layout(
-    const multiclass_nms_node& node, const kernel_impl_params& impl_param) {
+layout multiclass_nms_inst::calc_output_layout(const multiclass_nms_node& node, const kernel_impl_params& impl_param) {
     const auto input_layout = impl_param.get_input_layout();
     const auto desc = impl_param.typed_desc<multiclass_nms>();
 
-    const auto num_batches = node.has_roisnum() ? node.roisnum().get_output_layout().batch() : node.scores().get_output_layout().batch();
-    auto num_classes = node.has_roisnum() ? node.boxes().get_output_layout().batch() : node.scores().get_output_layout().feature();
+    const auto num_batches =
+        node.has_roisnum() ? node.roisnum().get_output_layout().batch() : node.scores().get_output_layout().batch();
+    auto num_classes =
+        node.has_roisnum() ? node.boxes().get_output_layout().batch() : node.scores().get_output_layout().feature();
     const auto num_boxes = node.boxes().get_output_layout().feature();
 
     // see shape_infer() call in MulticlassNmsIEInternal::validate_and_infer_types() - ignore_bg_class == true
-   if (desc->background_class >= 0 && desc->background_class < num_classes) {
+    if (desc->background_class >= 0 && desc->background_class < num_classes) {
         num_classes = std::max(1, num_classes - 1);
     }
 
     int max_output_boxes_per_class = 0;
-    if (desc->nms_top_k >= 0)
+    if (desc->nms_top_k >= 0) {
         max_output_boxes_per_class = std::min(num_boxes, desc->nms_top_k);
-    else
+    } else {
         max_output_boxes_per_class = num_boxes;
+    }
 
     auto max_output_boxes_per_batch = max_output_boxes_per_class * num_classes;
-    if (desc->keep_top_k >= 0)
+    if (desc->keep_top_k >= 0) {
         max_output_boxes_per_batch = std::min(max_output_boxes_per_batch, desc->keep_top_k);
+    }
 
     const auto dim = max_output_boxes_per_batch * num_batches;
-
-    return layout{input_layout.data_type, input_layout.format, {dim, 6, 1, 1}};
+    constexpr auto output_size = 6; // 4 coordinates + 1 class + 1 score
+    return layout{input_layout.data_type, input_layout.format, {dim, output_size, 1, 1}};
 }
 
-std::string multiclass_nms_inst::to_string(
-    const multiclass_nms_node& node) {
+std::string multiclass_nms_inst::to_string(const multiclass_nms_node& node) {
     const auto desc = node.get_primitive();
 
     std::stringstream primitive_description;

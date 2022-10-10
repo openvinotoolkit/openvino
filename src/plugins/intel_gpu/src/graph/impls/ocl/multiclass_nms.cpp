@@ -2,10 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Copyright (C) 2022 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
-//
-
 #include "multiclass_nms_inst.h"
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
@@ -16,6 +12,41 @@
 
 namespace cldnn {
 namespace ocl {
+namespace {
+kernel_selector::SortResultType get_sort_result_type(const cldnn::sort_result_type sort_result_type) {
+    switch (sort_result_type) {
+        case cldnn::sort_result_type::classid:
+            return kernel_selector::SortResultType::CLASSID;
+            break;
+        case cldnn::sort_result_type::score:
+            return kernel_selector::SortResultType::SCORE;
+            break;
+        case cldnn::sort_result_type::none:
+            return kernel_selector::SortResultType::NONE;
+            break;
+        default:
+            throw std::runtime_error{"Not supported sort result type"};
+    }
+    return kernel_selector::SortResultType::NONE;
+}
+
+kernel_selector::Datatype get_indices_output_type(const data_types indices_output_type) {
+    switch (indices_output_type) {
+        case cldnn::data_types::i32: {
+            return kernel_selector::Datatype::INT32;
+            break;
+        }
+        case cldnn::data_types::i64: {
+            return kernel_selector::Datatype::INT64;
+            break;
+        }
+        default:
+            throw std::runtime_error{"Not supported index element type"};
+    }
+    return kernel_selector::Datatype::INT32;
+}
+};  // namespace
+
 struct multiclass_nms_impl : public typed_primitive_impl_ocl<multiclass_nms> {
     using parent = typed_primitive_impl_ocl<multiclass_nms>;
     using parent::parent;
@@ -40,32 +71,9 @@ public:
 
         const auto& primitive = arg.get_primitive();
 
-        switch (primitive->sort_result) {
-            case cldnn::sort_result_type::classid:
-                params.sort_result_type = kernel_selector::SortResultType::CLASSID;
-                break;
-            case cldnn::sort_result_type::score:
-                params.sort_result_type = kernel_selector::SortResultType::SCORE;
-                break;
-            case cldnn::sort_result_type::none:
-                params.sort_result_type = kernel_selector::SortResultType::NONE;
-                break;
-            default:
-                throw std::runtime_error{"Not supported sort result type"};
-        }
+        params.sort_result_type = get_sort_result_type(primitive->sort_result);
         params.sort_result_across_batch = primitive->sort_result_across_batch;
-        switch (primitive->indices_output_type) {
-            case cldnn::data_types::i32: {
-                params.indices_output_type = kernel_selector::Datatype::INT32;
-                break;
-            }
-            case cldnn::data_types::i64: {
-                params.indices_output_type = kernel_selector::Datatype::INT64;
-                break;
-            }
-            default:
-                throw std::runtime_error{"Not supported index element type"};
-        }
+        params.indices_output_type = get_indices_output_type(primitive->indices_output_type);
         params.iou_threshold = primitive->iou_threshold;
         params.score_threshold = primitive->score_threshold;
         params.nms_top_k = primitive->nms_top_k;

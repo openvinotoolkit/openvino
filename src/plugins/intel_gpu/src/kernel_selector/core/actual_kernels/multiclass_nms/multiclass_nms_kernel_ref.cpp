@@ -20,8 +20,6 @@ ParamsKey MulticlassNmsKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
-    k.EnableOutputDataType(Datatype::INT32);
-    k.EnableOutputDataType(Datatype::INT64);
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
 
@@ -41,15 +39,20 @@ bool MulticlassNmsKernelRef::Validate(const Params& p, const optional_params& o)
         return false;
     }
 
-    // FIXME opoluektov: more checks on the attribute values
     return true;
 }
 
 namespace {
-MulticlassNmsKernelRef::DispatchData SetDefault(const multiclass_nms_params& params, size_t idx) {
+MulticlassNmsKernelRef::DispatchData SetDefault(const multiclass_nms_params& params, size_t stage_idx) {
     MulticlassNmsKernelRef::DispatchData dispatch_data;
 
-    if (idx == 0 || idx == 2) {
+    enum KernelStages : size_t {
+        Main = 0,
+        SortAcrossBatches = 1,
+        FillOutputs = 2
+    };
+
+    if (stage_idx == KernelStages::Main || stage_idx == KernelStages::FillOutputs) {
         const auto num_batches = params.has_roisnum ? params.inputs[2].Batch().v : params.inputs[1].Batch().v;
         dispatch_data.gws = {num_batches, 1, 1};
     } else {
@@ -136,7 +139,8 @@ KernelsData MulticlassNmsKernelRef::GetKernelsData(const Params& params, const o
     // buffer for BoxInfos
     kd.internalBufferDataType = Datatype::F32;
     kd.internalBufferSizes.resize(1);
-    const auto box_size = (4 + 1) * sizeof(double) + 3 * sizeof(long); // 5: coordinates + score; 3: class_idx, batch_idx, index
+    // double: 4 coordinates + 1 score; long: 1 class_idx + 1 batch_idx + 1 index
+    const auto box_size = (4 + 1) * sizeof(double) + 3 * sizeof(long);
     const auto total_boxes = num_batches * num_classes * num_boxes;
     kd.internalBufferSizes[0] = box_size * total_boxes;
     const auto common_jit_constants = GetJitConstants(op_params);
