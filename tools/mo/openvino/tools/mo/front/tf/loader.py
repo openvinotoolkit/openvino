@@ -210,6 +210,18 @@ def prepare_graph_def(model):
         for node in nodes_to_clear_device:
             node.device = ""
         return model, {}, "tf", None
+    if isinstance(model, tf_v1.Session):
+        model = model.graph_def
+        nodes_to_clear_device = model.node
+        for node in nodes_to_clear_device:
+            node.device = ""
+        return model, {}, "tf", None
+    if isinstance(model, tf.types.experimental.ConcreteFunction):
+        model = model.graph.as_graph_def()
+        nodes_to_clear_device = model.node
+        for node in nodes_to_clear_device:
+            node.device = ""
+        return model, {}, "tf", None
     try:
         if isinstance(model, tf.keras.Model):
             env_setup = get_environment_setup("tf")
@@ -228,9 +240,28 @@ def prepare_graph_def(model):
 
             conc_func = tf_function.get_concrete_function(model_inputs)
             return freeze_tf2_concrete_function(model, conc_func, env_setup)
+        # tf.saved_model.load() returns object of inner type tensorflow.python.training.base.Trackable,
+        # which cannot be explicitly checked.
+        # So here are checked attributes which should always present in loaded model.
+        if hasattr(model, "signatures") and hasattr(model, "__call__") \
+                and hasattr(model, "variables") and hasattr(model, "trainable_variables"):
+            env_setup = get_environment_setup("tf")
+            # enable eager execution temporarily while TensorFlow 2 model is being loaded
+            tf_v1.reset_default_graph()
+            tf_v1.enable_eager_execution()
+            return saved_model_load(model, env_setup)
     except ImportError:
         pass
     raise Exception("Unknown model type {}.".format(type(model)))
+
+
+def saved_model_load(imported, env_setup):
+    # to get a signature by key throws KeyError for TF 1.x SavedModel format in case TF 2.x installed
+    concrete_func = imported.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
+    # the aggressive inlining parameter needs to freeze a table of embeddings for Keras Embedding operation
+    # and a model with Embedding operation cannot properly converted to IR without this function parameter
+
+    return freeze_tf2_concrete_function(imported, concrete_func, env_setup)
 
 
 def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpoint: str = "",
@@ -303,12 +334,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 except:
                     imported = tf.saved_model.load(model_dir, saved_model_tags)  # pylint: disable=E1120
 
-                # to get a signature by key throws KeyError for TF 1.x SavedModel format in case TF 2.x installed
-                concrete_func = imported.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
-                # the aggressive inlining parameter needs to freeze a table of embeddings for Keras Embedding operation
-                # and a model with Embedding operation cannot properly converted to IR without this function parameter
-
-                return freeze_tf2_concrete_function(imported, concrete_func, env_setup)
+                return saved_model_load(imported, env_setup)
             except:
                 # disable eager execution since TensorFlow 1 model is handled
                 tf_v1.disable_eager_execution()

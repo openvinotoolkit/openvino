@@ -46,6 +46,7 @@ from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension, JsonConfigExtension
+from openvino.runtime import PartialShape
 
 
 def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool,
@@ -469,51 +470,67 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     return func
 
 
-# def check_model_framework(model):
-#     model_name = 'model'
-#     try:
-#         import onnx
-#         import io
-#         #TODO: is it only onnx can by in BytesIO?
-#         if isinstance(model, io.BytesIO):
-#             if hasattr(model, 'producer_name') and model.producer_name is not None and model.producer_name != '':
-#                 model_name = model.producer_name
-#             return 'onnx', model_name
-#     except ImportError:
-#         pass
-#
-#     try:
-#         import tensorflow as tf
-#         if isinstance(model, tf.compat.v1.GraphDef):
-#             return "tf", model_name
-#     except ImportError:
-#         pass
-#     try:
-#         if isinstance(model, tf.keras.Model):
-#             if hasattr(model, 'name') and model.name is not None:
-#                 model_name = model.name
-#             return "tf", model_name
-#     except ImportError:
-#         pass
-#
-#     try:
-#         import torch
-#         if isinstance(model, torch.nn.Module):
-#             return "pytorch", model_name
-#     except ImportError:
-#         pass
-#     raise Error('Unknown model type: {}'.format(type(model)))
+def tuple_from_partial_shape(shape: PartialShape, dynamic_dims_error_message: str):
+    shape_list = []
+    for dim in shape:
+        if not dim.is_static:
+            raise Error(dynamic_dims_error_message)
+        elif dim.get_min_length() > 0:
+            shape_list.append(dim.get_min_length())
+        else:
+            shape_list.append(dim.get_max_length())
+    return tuple(shape_list)
 
-def check_model_framework(model):
+
+def check_model_framework(argv):
+    model = argv['input_model']
     import io
     model_name = 'model'
     if 'tensorflow' in sys.modules:
         import tensorflow as tf
         if isinstance(model, tf.compat.v1.GraphDef):
             return "tf", model_name
+        if isinstance(model, tf.compat.v1.Session):
+            return "tf", model_name
+        # if isinstance(model, tf.Module):
+        #
+        #     return "tf", model_name
+        if isinstance(model, tf.types.experimental.ConcreteFunction):
+            return "tf", model_name
         if isinstance(model, tf.keras.Model):
             if hasattr(model, 'name') and model.name is not None:
                 model_name = model.name
+            return "tf", model_name
+        if isinstance(model, tf.train.Checkpoint):
+            if isinstance(model.root, tf.keras.Model):
+                argv['input_model'] = model.root
+                return "tf", model_name
+            else:
+                raise Error("Unknown checkpoint format.")
+
+        if isinstance(model, tf.keras.layers.Layer) or isinstance(model, tf.Module):
+            assert 'input_shape' in argv and argv['input_shape'] is not None, "Converting of {} " \
+                                                                              "requires providing of input_shape with " \
+                                                                              "static dimensions.".format(type(model))
+            inputs = []
+            for shape_idx, shape in enumerate(argv['input_shape']):
+                if isinstance(shape, list):
+                    inputs.append(tf.keras.Input(shape=shape))
+                if isinstance(shape, PartialShape):
+                    inputs.append(tf.keras.Input(shape=tuple_from_partial_shape(shape,
+                                                                                "For converting {} "
+                                                                                "please provide input_shape with static "
+                                                                                "dimensions.".format(type(model)))))
+            #TODO: sample input?
+            outputs = model(*inputs)
+            argv['input_model'] = tf.keras.Model(inputs, outputs)
+            argv['input_shape'] = None
+            return "tf", model_name
+        # tf.saved_model.load() returns object of inner type tensorflow.python.training.base.Trackable,
+        # which cannot be explicitly checked.
+        # So here are checked attributes which should always present in loaded model.
+        if hasattr(model, "signatures") and hasattr(model, "__call__") \
+                and hasattr(model, "variables") and hasattr(model, "trainable_variables"):
             return "tf", model_name
     if 'torch' in sys.modules:
         import torch
@@ -534,7 +551,7 @@ def driver(argv: argparse.Namespace):
     inp_model_is_object = input_model_is_object(argv)
     model_framework = None
     if inp_model_is_object:
-        model_framework, model_name = check_model_framework(argv['input_model'])
+        model_framework, model_name = check_model_framework(argv)
         if model_framework == "pytorch":
             import torch
             import io
@@ -547,6 +564,7 @@ def driver(argv: argparse.Namespace):
             dynamic_dims_dict = {}
             input_names = argv['input'] if 'input' in argv else None
             for shape_idx, shape in enumerate(argv['input_shape']):
+                # TODO: shape str
                 if isinstance(shape, list):
                     inputs.append(torch.zeros(shape))
                 if isinstance(shape, PartialShape):
@@ -568,7 +586,7 @@ def driver(argv: argparse.Namespace):
             argv['input_model'] = model_onnx
             argv['use_legacy_frontend'] = True
 
-            return driver(argv)
+            return _convert(input_model=model_onnx, use_legacy_frontend=True)
 
     argv = params_to_string(**argv)
     argv = pack_params_to_args_namespace(**argv)
