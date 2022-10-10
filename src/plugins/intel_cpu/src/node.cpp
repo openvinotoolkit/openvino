@@ -1584,14 +1584,17 @@ void Node::addFusedNode(const NodePtr &fusingNode) {
     fusedWith.push_back(fusingNode);
 }
 
-// only the first postop may be mapped as output scale:
-//   1. FakeQuantize
-//   2. DequantizeMultiply
+// try to map first (or first few) fused nodes to oneDNN's
+//  - output scales:
+//     https://oneapi-src.github.io/oneDNN/dev_guide_inference_int8.html?highlight=output%20scales#attributes
+//  - and optionally with some following eltwise ops:
+//     https://oneapi-src.github.io/oneDNN/dev_guide_eltwise.html
+// binary or legacy postops are not used here to keep this optimization efficient.
 std::vector<NodePtr>::iterator Node::tryMapFusedOpsToOscales(std::vector<NodePtr>::iterator postop,
-                                                              dnnl::primitive_attr& attr,
-                                                              dnnl::post_ops& ops,
-                                                              dnnl::memory::data_type outputDataType,
-                                                              int dimOC) {
+                                                             dnnl::primitive_attr& attr,
+                                                             dnnl::post_ops& ops,
+                                                             dnnl::memory::data_type outputDataType,
+                                                             int dimOC) {
     if (postop == fusedWith.end())
         return postop;
 
@@ -1602,49 +1605,48 @@ std::vector<NodePtr>::iterator Node::tryMapFusedOpsToOscales(std::vector<NodePtr
         if (fakeQuantizeNode->optimizeAsOscaleEltwise(attr, ops, isLastPostOp, outputDataType, true)) {
             ++postop;  // mapped
         }
-    } else if (auto* eltwiseNode = dynamic_cast<Eltwise*>(postop->get())) {
-        // for inner product, output channel (OC) is always the last dimension (-1)
-        // https://oneapi-src.github.io/oneDNN/dev_guide_inner_product.html
-        if (eltwiseNode->getOneDnnAlgorithm() == dnnl::algorithm::eltwise_relu && !isLastPostOp) {
-            // There are patterns composed of Relu + A in which A can be optimized as output scales
-            // in this case we can switch the order of these two steps (since oneDNN performs output scale first)
-            // since [Relu, Scale] is equivalent to [Scale, Relu].
+    } else if (auto* eltwiseNode1 = dynamic_cast<Eltwise*>(postop->get())) {
+        if (eltwiseNode1->getOneDnnAlgorithm() == dnnl::algorithm::eltwise_relu && !isLastPostOp) {
+            // for patterns like [Relu, Multiply] or [Relu, FakeQuantize] where Multiply and FakeQuantize OP
+            // can be mapped to output scales and eltwise multiply or clip, we can switch the execution order of these
+            // two fused ops (w/o breaking mathematical equivalence) to take advantage of output scales.
+            // (since oneDNN always performs output scale first before any other post-ops)
             if (auto* eltwiseNode2 = dynamic_cast<Eltwise*>(nextop->get())) {
                 if (eltwiseNode2->optimizeAsOscaleEltwise(attr, ops, dimOC, false)) {
-                    // eltwiseNode2 is already mapped first as output scales
-                    // now mapping eltwiseNode:
+                    // eltwiseNode2 is mapped first using output scales (w/o shift)
+                    // now map eltwiseNode1
                     ops.append_eltwise(1.0,
-                                       eltwiseNode->getOneDnnAlgorithm(),
-                                       eltwiseNode->getAlpha(),
-                                       eltwiseNode->getBeta());
+                                       eltwiseNode1->getOneDnnAlgorithm(),
+                                       eltwiseNode1->getAlpha(),
+                                       eltwiseNode1->getBeta());
                     // two ops were mapped now.
                     ++postop;
                     ++postop;
                 }
             } else if (auto* fakeQuantizeNode2 = dynamic_cast<FakeQuantize*>(nextop->get())) {
-                // eltwise_relu will be swapped with this FQ, thus following OP is not the last postOp
+                // here isLastPostOp is set to false since eltwise_relu will be mapped later
                 if (fakeQuantizeNode2->optimizeAsOscaleEltwise(attr, ops, false, outputDataType, true, false)) {
-                    // nextop is already mapped first as output scales
-                    // clip's threshould, if smaller than 0, must be updated according to Relu's parameter
+                    // fakeQuantizeNode2 is mapped first using output scales and eltwise_clip (w/o shift)
                     auto& lastop = ops.get()->entry_.back();
-                    if (lastop.kind == dnnl::impl::primitive_kind::eltwise) {
-                        if (lastop.eltwise.alg == dnnl_eltwise_clip) {
-                            if (lastop.eltwise.alpha < 0)
-                                lastop.eltwise.alpha *= 1.0f / eltwiseNode->getAlpha();
-                            if (lastop.eltwise.beta < 0)
-                                lastop.eltwise.beta *= 1.0f / eltwiseNode->getAlpha();
-                        }
+                    float relu_alpha = eltwiseNode1->getAlpha();
+                    if (lastop.kind == dnnl::impl::primitive_kind::eltwise && lastop.eltwise.alg == dnnl_eltwise_clip &&
+                        relu_alpha != 0.0f) {
+                        // clip's threshould, if smaller than 0, must be updated according to Relu's alpha parameter
+                        if (lastop.eltwise.alpha < 0)
+                            lastop.eltwise.alpha *= 1.0f / relu_alpha;
+                        if (lastop.eltwise.beta < 0)
+                            lastop.eltwise.beta *= 1.0f / relu_alpha;
                     }
                     ops.append_eltwise(1.0,
-                                       eltwiseNode->getOneDnnAlgorithm(),
-                                       eltwiseNode->getAlpha(),
-                                       eltwiseNode->getBeta());
+                                       eltwiseNode1->getOneDnnAlgorithm(),
+                                       eltwiseNode1->getAlpha(),
+                                       eltwiseNode1->getBeta());
                     // two ops were mapped now.
                     ++postop;
                     ++postop;
                 }
             }
-        } else if (eltwiseNode->optimizeAsOscaleEltwise(attr, ops, dimOC, true)) {
+        } else if (eltwiseNode1->optimizeAsOscaleEltwise(attr, ops, dimOC, true)) {
             ++postop;  // mapped
         }
     }
