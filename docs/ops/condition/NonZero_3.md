@@ -53,7 +53,7 @@
     <output>
         <port id="1">
             <dim>4</dim>
-            <dim>600000</dim>
+            <dim>-1</dim>
         </port>
     </output>
 </layer>
