@@ -46,6 +46,10 @@ NamedOutputs elementwise_greater_equal(const NodeContext& node_context) {
     return elementwise_ops<default_opset::GreaterEqual>(node_context);
 }
 
+NamedOutputs elementwise_mod(const NodeContext& node_context) {
+    return elementwise_ops<default_opset::FloorMod>(node_context);
+}
+
 }  // namespace op
 }  // namespace paddle
 }  // namespace frontend
