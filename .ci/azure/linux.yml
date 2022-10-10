@@ -8,6 +8,7 @@ trigger:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - README.md
 
 pr:
   branches:
@@ -19,6 +20,7 @@ pr:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - README.md
 
 resources:
   repositories:
@@ -454,6 +456,15 @@ jobs:
       export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_fe.xmlTEST
     displayName: 'TensorFlow 1 Layer Tests - TF FE'
+    continueOnError: false
+
+  - script: |
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
+      export OV_FRONTEND_PATH=$(INSTALL_DIR)/runtime/lib/intel64
+      export TEST_DEVICE=CPU
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=$(INSTALL_TEST_DIR)/TEST-tf2_fe.xmlTEST
+    displayName: 'TensorFlow 2 Layer Tests - TF FE'
     continueOnError: false
 
   - script: |
