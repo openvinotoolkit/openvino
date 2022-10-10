@@ -386,7 +386,7 @@ AutoBatchAsyncInferRequest::AutoBatchAsyncInferRequest(
             t.second = std::move(task);
             workerInferRequest._tasks.push(t);
             // it is ok to call size() here as the queue only grows (and the bulk removal happens under the mutex)
-            const int sz = workerInferRequest._tasks.size();
+            const int sz = static_cast<int>(workerInferRequest._tasks.size());
             if (sz == workerInferRequest._batchSize) {
                 workerInferRequest._cond.notify_one();
             }
@@ -527,7 +527,7 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
                 } else {
                     // as we pop the tasks from the queue only here
                     // it is ok to call size() (as the _tasks can only grow in parallel)
-                    const int sz = workerRequestPtr->_tasks.size();
+                    const int sz = static_cast<int>(workerRequestPtr->_tasks.size());
                     if (sz == workerRequestPtr->_batchSize) {
                         std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
                         for (int n = 0; n < sz; n++) {
@@ -567,7 +567,7 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
             }
         });
     }
-    return {*_workerRequests.back(), batch_id};
+    return {*_workerRequests.back(), static_cast<int>(batch_id)};
 }
 
 InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateInferRequest() {
@@ -632,7 +632,7 @@ InferenceEngine::Parameter AutoBatchExecutableNetwork::GetMetric(const std::stri
                 // (multiplied by the devices capabilities to run multiple <batched> requests for further perf)
                 reqs = _device.batchForDevice *
                        _networkWithoutBatch->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
-        } catch (const InferenceEngine::Exception& iie) {
+        } catch (const InferenceEngine::Exception&) {
         }
         reqs = std::max(reqs, _device.batchForDevice);  // round up to the possible  user's value
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, reqs);
@@ -757,7 +757,7 @@ void AutoBatchInferencePlugin::CheckConfig(const std::map<std::string, std::stri
                 auto t = std::stoi(val);
                 if (t < 0)
                     IE_THROW(ParameterMismatch);
-            } catch (const std::exception& e) {
+            } catch (const std::exception&) {
                 IE_THROW(ParameterMismatch)
                     << " Expecting unsigned int value for " << CONFIG_KEY(AUTO_BATCH_TIMEOUT) << " got " << val;
             }
@@ -934,8 +934,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         if (batch1_footprint) {
             const auto total_mem =
                 GetCore()->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)).as<uint64_t>();
-            const int estimated_batch = (total_mem - batch1_footprint) / batch1_footprint;
-            int closest = pow(2, floor(log(estimated_batch) / log(2)));
+            const int estimated_batch = static_cast<int>((total_mem - batch1_footprint) / batch1_footprint);
+            int closest = static_cast<int>(pow(2, floor(log(estimated_batch) / log(2))));
             closest = std::max(1, closest);
             metaDevice.batchForDevice = std::min(metaDevice.batchForDevice, closest);
         }

@@ -9,6 +9,7 @@
 #include "gna_plugin_log.hpp"
 #include "gna_upstream_iterator.hpp"
 #include "layers/gna_layer_info.hpp"
+#include "ops/util/util.hpp"
 
 namespace GNAPluginNS {
 
@@ -179,9 +180,9 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
             in_dims_size = parent->insData[0].lock()->getDims().size();
             out_dims_size = parent->outData[0]->getDims().size();
             IE_ASSERT(out_dims_size == 3 || out_dims_size == 4);
-            size_t channels = GetDataDimSize(parent->outData[0], out_dims_size - 1);
+            size_t channels = GetDataDimSize(parent->outData[0], static_cast<uint32_t>(out_dims_size - 1));
             size_t height = out_dims_size == 3 ? 1 : GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::H);
-            size_t width = GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::W);
+            size_t width = GetDataDimSize(parent->outData[0], static_cast<uint32_t>(InferenceEngine::DataDimName::W));
             if (in_dims_size < 3 || channels != 1 && (height != 1 || width != 1)) {
                 return std::make_pair(nullptr, nullptr);
             }
@@ -218,8 +219,7 @@ inline InferenceEngine::CNNLayerPtr FindPermutationAfterConvolutionInKaldiModel(
     }
 
     // Check if the found layer is NCHW to NWHC permute
-    if (!LayerInfo(next).isPermute() || next->input()->getLayout() != InferenceEngine::Layout::NCHW ||
-        next->GetParamAsInts("order") != std::vector<int>{0, 3, 2, 1}) {
+    if (!LayerInfo(next).isPermuteFusable() || next->input()->getLayout() != InferenceEngine::Layout::NCHW) {
         return nullptr;
     }
 
@@ -240,8 +240,8 @@ inline bool MustBeConvertedFromNCHWToNHWC(const std::vector<InferenceEngine::CNN
         // If a convolution has only 1-dimension input and output we should skip it
         auto in_dims = l->insData.begin()->lock()->getDims();
         auto out_dims = l->outData.front()->getDims();
-        if (std::count_if(std::begin(in_dims), std::end(in_dims), [](size_t dim) { return dim != 1; }) <= 1 &&
-            std::count_if(std::begin(out_dims), std::end(out_dims), [](size_t dim) { return dim != 1; }) <= 1) {
+
+        if (ov::intel_gna::ngraph_util::is_one_dim_shapes(in_dims, out_dims)) {
             continue;
         }
 

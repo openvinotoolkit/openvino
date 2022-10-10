@@ -85,8 +85,9 @@ void PwlDesign(const DnnActivation& activation_type,
                  const float scale_out,
                  const bool low_precision);
 void PwlDesignOpt(const DnnActivation& activation_type,
-                std::vector<gna_pwl_segment_t> &ptr_segment,
-                const float scale_in,
-                const float scale_out,
-                const bool low_precision,
-                const std::shared_ptr<ngraph::Node>& node);
+                  const float scale_in,
+                  const float scale_out,
+                  const bool low_precision,
+                  const std::shared_ptr<ngraph::Node>& node,
+                  const bool is_fused_with_conv2d,
+                  std::vector<gna_pwl_segment_t>& ptr_segment);
