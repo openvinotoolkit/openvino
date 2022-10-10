@@ -19,12 +19,12 @@ op::Negative::Negative(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg
 }
 
 bool ngraph::op::v0::Negative::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Negative_visit_attributes);
+    OV_OP_SCOPE(v0_Negative_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::Negative::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Negative_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Negative_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Negative>(new_args.at(0));
 }
@@ -58,14 +58,14 @@ bool evaluate_negative(const HostTensorPtr& arg0, const HostTensorPtr& out, cons
 }  // namespace negativeop
 
 bool op::Negative::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Negative_evaluate);
+    OV_OP_SCOPE(v0_Negative_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 1));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     return negativeop::evaluate_negative(inputs[0], outputs[0], shape_size(outputs[0]->get_shape()));
 }
 
 bool op::Negative::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Negative_has_evaluate);
+    OV_OP_SCOPE(v0_Negative_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:

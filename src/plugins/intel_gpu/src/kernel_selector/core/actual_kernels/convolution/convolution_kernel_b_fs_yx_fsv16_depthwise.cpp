@@ -10,7 +10,6 @@
 namespace kernel_selector {
 static const size_t sub_group_size = 16;
 static const size_t feature_block_size = 16;
-static const size_t x_block_size = 8;
 
 ParamsKey ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetSupportedKey() const {
     ParamsKey k;
@@ -63,6 +62,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_depthwise::S
     DispatchData dispatchData = Parent::SetDefault(params);
     const auto& out = params.outputs[0];
 
+    size_t x_block_size = (out.X().v != 1) ? 8 : 1;
     dispatchData.gws[0] = CeilDiv(out.X().v, x_block_size) * out.Y().v;
     dispatchData.gws[1] = Align(out.Feature().v, feature_block_size);
     dispatchData.gws[2] = out.Batch().v;
@@ -110,6 +110,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetJitConstants(const co
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
     jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(params.outputs[0].X().v, block_width)));
+    jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", (params.outputs[0].X().v != 1) ? 8 : 1));
     jit.AddConstant(MakeJitConstant("IC_BLOCK", feature_block_size));
     jit.AddConstant(MakeJitConstant("FILTER_SIZE_X_DIV_2", params.filterSize.x / 2));
     if (params.outputs[0].Feature().v % feature_block_size != 0) {

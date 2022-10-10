@@ -23,13 +23,13 @@ op::Concat::Concat(const OutputVector& args, int64_t axis) : Op(args), m_axis(ax
 op::Concat::Concat(const NodeVector& args, int64_t axis) : Concat(as_output_vector(args), axis) {}
 
 bool op::Concat::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Concat_visit_attributes);
+    OV_OP_SCOPE(v0_Concat_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     return true;
 }
 
 void op::Concat::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_Concat_validate_and_infer_types);
+    OV_OP_SCOPE(v0_Concat_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, get_input_size() >= 1, "At least one argument required.");
 
     ov::PartialShape inputs_shape_scheme{ov::PartialShape::dynamic()};
@@ -87,7 +87,7 @@ void op::Concat::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::Concat::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Concat_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Concat_clone_with_new_inputs);
     // TODO(amprocte): Should we check the new_args count here?
     return make_shared<Concat>(new_args, m_axis);
 }
@@ -116,7 +116,7 @@ bool evaluate_concat(const HostTensorVector& args, const HostTensorPtr& out, int
 }  // namespace
 
 bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Concat_evaluate);
+    OV_OP_SCOPE(v0_Concat_evaluate);
     NGRAPH_CHECK(!inputs.empty());
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, inputs.size()));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
@@ -125,7 +125,7 @@ bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVecto
 }
 
 bool op::Concat::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Concat_has_evaluate);
+    OV_OP_SCOPE(v0_Concat_has_evaluate);
     return true;
 }
 

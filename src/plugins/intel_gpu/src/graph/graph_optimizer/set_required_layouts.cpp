@@ -42,7 +42,7 @@ void set_required_layouts::run(program& p) {
 
         // Onednn primitive descriptor creation may fail, for example, due to asymmetric weight.
         try {
-            auto desc = onednn::get_convolution_descriptor(node, dnnl::memory::format_tag::any);
+            auto desc = onednn::get_convolution_descriptor(*node.get_kernel_impl_params(), dnnl::memory::format_tag::any);
             // Note: did not handle attribute properly. especially for zero-point
             dnnl::primitive_desc prim_desc{&desc->data, nullptr, engine.get_onednn_engine(), nullptr};
             auto src_fmt = onednn::find_data_format(prim_desc.src_desc());
