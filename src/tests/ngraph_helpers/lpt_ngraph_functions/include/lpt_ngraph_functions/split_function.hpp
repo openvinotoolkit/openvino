@@ -25,8 +25,7 @@ public:
         const ngraph::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization,
         const int64_t splitedAxis,
-        const size_t numSplits,
-        const bool addUnsupportedConcat = false);
+        const size_t numSplits);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type originalFunctionPrecision,
@@ -43,8 +42,7 @@ public:
         const ngraph::element::Type precisionAfterOperation,
         const std::vector<ngraph::builder::subgraph::DequantizationOperations>& dequantizationAfter,
         const int64_t splitedAxis,
-        const size_t numSplit,
-        const bool addUnsupportedConcat = false);
+        const size_t numSplits);
 };
 }  // namespace subgraph
 }  // namespace builder

@@ -92,6 +92,7 @@ void register_implementations() {
     REGISTER_OCL(convert_color);
     REGISTER_OCL(count_nonzero);
     REGISTER_OCL(gather_nonzero);
+    REGISTER_OCL(eye);
 }
 
 }  // namespace ocl
