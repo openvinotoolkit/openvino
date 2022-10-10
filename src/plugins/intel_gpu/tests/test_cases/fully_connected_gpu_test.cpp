@@ -1629,25 +1629,25 @@ TEST(fully_connected_onednn_gpu, no_biases_int8) {
     //  Output : 4x1
     //  Weights: 4x3
 
-    const int32_t input_x = 3, input_b = 1,     // size of the whole input buffer
-                  weight_b = 4, weight_x = 3;   // size of the whole weights buffer
+    const int32_t input_f = 3, input_b = 1,     // size of the whole input buffer
+                  weight_b = 4, weight_f = 3;   // size of the whole weights buffer
 
     auto& engine = get_onednn_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
     // Change input data of fully-connected node from bx to bf
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { input_b, 1, input_x, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::i8, format::bfyx, { weight_b, weight_x, 1, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { input_b, input_f, 1, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::i8, format::bfyx, { weight_b, weight_f, 1, 1 } });
 
     set_values(input_prim, { 8.4f, 2.3f, -4.49f });
     set_values<char>(weights_prim, { 2, 1, 0, -3, -2, 1, 0, -2, -4, -5, 10, 8 });
 
     auto input = input_layout("input", input_prim->get_layout());
     auto w_data = data("weights", weights_prim);
-    auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, { input_b, 1, input_x, 1 } });
+    auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, { input_b, input_f, 1, 1 } });
     auto fc = fully_connected("fc_prim", "reorder_to_int", "weights");
-    auto rf = reorder("reorder_to_float", "fc_prim", { data_types::f32, format::bfyx, { input_b, 1, 4, 1 } });
+    auto rf = reorder("reorder_to_float", "fc_prim", { data_types::f32, format::bfyx, { input_b, 4, 1, 1 } });
     topology topology;
     topology.add(input);
     topology.add(w_data);
