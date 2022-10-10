@@ -73,7 +73,7 @@ python -c "from openvino.runtime import Core"
 
 If installation was successful, you will not see any error messages (no console output).
 
-Congratulations! You finished installing OpenVINO Runtime. Now you can start exploring OpenVINO's functionality through Jupyter Notebooks and sample applications. See the [What's Next](https://docs.openvino.ai/2022.2/openvino_docs_install_guides_installing_openvino_pip.html#what-s-next) section to learn more!
+Congratulations! You finished installing OpenVINO Runtime. Now you can start exploring OpenVINO's functionality through Jupyter Notebooks and sample applications. See the <a href="#whats-next">What's Next</a> section to learn more!
 
 ## Installing OpenVINO Development Tools
 OpenVINO Development Tools adds even more functionality to OpenVINO. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Development Tools, OpenVINO Runtime will also be installed as a dependency, so you don't need to install OpenVINO Runtime separately. 
