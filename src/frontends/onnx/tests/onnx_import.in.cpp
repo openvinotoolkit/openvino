@@ -5913,9 +5913,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_trilu_dynamic_shapes) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_is_inf) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
-                                                                              SERIALIZED_ZOO,
-                                                                              "onnx/is_inf.onnx"));
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/is_inf.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
