@@ -16,6 +16,7 @@ void make_gna_pwl(const DnnActivation& fun,
                   const double in_scale,
                   const double out_scale,
                   const bool low_precision,
+                  const bool is_fused_with_conv2d,
                   std::vector<gna_pwl_segment_t>& gna_pwl);
 void make_gna_pwl(const std::shared_ptr<ngraph::Node>& node,
                   const double in_scale,

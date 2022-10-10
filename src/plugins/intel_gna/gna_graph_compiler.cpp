@@ -44,6 +44,25 @@ using namespace std;
 using namespace GNAPluginNS;
 using namespace memory;
 
+static bool CheckIFLastComponentIsPrecededByConv2D(const GNAPluginNS::backend::DnnComponents::storage_type& components,
+                                            bool verify_with_pooling = true) {
+    bool proceded_by_conv2D = false;
+    auto last_element = components.rbegin();
+    if (components.size() > 1) {
+        last_element++;
+        if (last_element->dnnComponent.operation == kDnnConvolutional2dOp) {
+            proceded_by_conv2D = true;
+        } else if (verify_with_pooling && components.size() > 2) {
+            auto prev_operation = last_element->dnnComponent.operation;
+            last_element++;
+            if (last_element->dnnComponent.operation == kDnnConvolutional2dOp) {
+                proceded_by_conv2D = (prev_operation == kDnnMaxPoolOp);
+            }
+        }
+    }
+    return proceded_by_conv2D;
+}
+
 #define CREATE(name) [](GNAGraphCompiler *p, CNNLayerPtr l) {p->name(l);}
 
 void GNAGraphCompiler::setGNAMemoryPtr(std::shared_ptr<GNAPluginNS::gna_memory_type> gnaMemPtr) {
@@ -2069,11 +2088,12 @@ case name:\
                 gnaFlags->input_low_precision);
         } else {
             PwlDesignOpt(activation_type,
-                ptr_pwl_segments,
-                input_pwl_scale_factor,
-                output_pwl_scale_factor,
-                gnaFlags->input_low_precision,
-                layer->getNode());
+                         input_pwl_scale_factor,
+                         output_pwl_scale_factor,
+                         gnaFlags->input_low_precision,
+                         layer->getNode(),
+                         CheckIFLastComponentIsPrecededByConv2D(dnnComponents.components),
+                         ptr_pwl_segments);
         }
         ptr_pwl_segments_target = reinterpret_cast<gna_pwl_segment_t*>(&ptr_pwl_segments_target);
     }
