@@ -59,7 +59,7 @@ sudo mkdir /opt/intel
 cd /opt/intel
 ```
 
-> **NOTE**: The `/opt/intel` path is the recommended folder path for administrators or root users. If you prefer to install OpenVINO in regular userspace, the recommended path is `/home/<USER>/Intel`. You may use a different path if desired.
+> **NOTE**: The `/opt/intel` path is the recommended folder path for administrators or root users. If you prefer to install OpenVINO in regular userspace, the recommended path is `/home/<USER>/intel`. You may use a different path if desired.
 
 Next, you'll download the OpenVINO Runtime 2022.2 archive file from the [OpenVINO releases page](https://github.com/openvinotoolkit/openvino/releases/tag/2022.2.0). Issue the following commands to download the archive file, unpack it, and rename the folder to `openvino_2022.2.0.7713`:
 
