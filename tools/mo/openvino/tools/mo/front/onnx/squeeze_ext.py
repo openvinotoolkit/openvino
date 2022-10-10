@@ -3,7 +3,7 @@
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.extractor import FrontExtractorOp
-from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr, get_onnx_opset_version
+from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr
 from openvino.tools.mo.ops.squeeze import Squeeze
 
 
@@ -13,12 +13,15 @@ class SqueezeFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        # since squeeze-13 axes is no longer an attribute
-        if get_onnx_opset_version(node) < 13:
-            axis = int64_array(onnx_attr(node, 'axes', 'ints', default=[]))
+        axis = int64_array(onnx_attr(node, 'axes', 'ints', default=[]))
+        # check if axes attribute was provided, which is required for onnx opset < 13.
+        # Otherwise it means that onnx opset >= 13 and there are no attributes
+        if axis.any():
             attrs = {
                 'squeeze_dims': axis if len(axis) != 0 else None
             }
             # update the attributes of the node
             Squeeze.update_node_stat(node, attrs)
+        else:
+            Squeeze.update_node_stat(node)
         return cls.enabled
