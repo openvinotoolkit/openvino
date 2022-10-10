@@ -227,7 +227,7 @@ __kernel void example_relu_kernel(
 ## Debugging Tips<a name="debugging-tips"></a>
 
 **Using `printf` in the OpenCL™ Kernels**.
-To debug the specific values, you can use `printf` in your kernels.
+To debug the specific values, use `printf` in your kernels.
 However, be careful not to output excessively, which
 could generate too much data. The `printf` output is typical, so
 your output can be truncated to fit the buffer. Also, because of
