@@ -27,6 +27,7 @@
 #include "intel_gpu/primitives/experimental_detectron_prior_grid_generator.hpp"
 #include "intel_gpu/primitives/experimental_detectron_roi_feature_extractor.hpp"
 #include "intel_gpu/primitives/experimental_detectron_topk_rois.hpp"
+#include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/primitives/gather.hpp"
 #include "intel_gpu/primitives/gather_elements.hpp"
@@ -73,6 +74,7 @@
 #include "intel_gpu/primitives/strided_slice.hpp"
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/primitives/non_zero.hpp"
+#include "intel_gpu/primitives/eye.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -168,6 +170,7 @@ REGISTER_OCL(extract_image_patches);
 REGISTER_OCL(convert_color);
 REGISTER_OCL(count_nonzero);
 REGISTER_OCL(gather_nonzero);
+REGISTER_OCL(eye);
 
 #undef REGISTER_OCL
 

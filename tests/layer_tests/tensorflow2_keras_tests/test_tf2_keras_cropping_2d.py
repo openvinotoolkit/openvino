@@ -30,8 +30,8 @@ class TestKerasCropping2D(CommonTF2LayerTest):
 
         dict(cropping=(1, 2), input_names=["x"], input_shapes=[[2, 3, 7, 5]],
              input_type=tf.float32),
-        dict(cropping=((2, 1), (3, 2)), input_names=["x"], input_shapes=[[5, 7, 9, 7]],
-             input_type=tf.float32)]
+        pytest.param(dict(cropping=((2, 1), (3, 2)), input_names=["x"], input_shapes=[[5, 7, 9, 7]],
+                          input_type=tf.float32), marks=pytest.mark.precommit_tf_fe)]
 
     @pytest.mark.parametrize("params", test_data_float32)
     @pytest.mark.nightly
