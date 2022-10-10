@@ -3,8 +3,12 @@
 //
 
 #include "extension/json_config.hpp"
+#include "openvino/core/deprecated.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 #include "nlohmann/json-schema.hpp"
+OPENVINO_SUPPRESS_DEPRECATED_END
+
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "extension/json_transformation.hpp"
 #include "so_extension.hpp"
