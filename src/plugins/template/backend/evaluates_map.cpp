@@ -811,7 +811,6 @@ bool evaluate(const shared_ptr<op::v0::MVN>& op, const HostTensorVector& outputs
     return true;
 }
 
-
 namespace {
 std::vector<float> get_floats(const std::shared_ptr<HostTensor>& input, const Shape& shape) {
     size_t input_size = shape_size(shape);
