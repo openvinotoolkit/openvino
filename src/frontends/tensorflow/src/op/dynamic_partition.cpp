@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <limits>
+
 #include "op_table.hpp"
 #include "openvino/opsets/opset9.hpp"
 
@@ -45,12 +47,23 @@ OutputVector translate_dynamic_partition_op(const NodeContext& node) {
     auto reduction_axis = make_shared<Constant>(element::i64, Shape{1}, 1);
     auto split_legths = make_shared<ReduceSum>(mask_0_1, reduction_axis);
 
+    // for stable sorting using TopK operation, we have to re-scale partition indices by the formula:
+    // partition = partition * scale + partition_ind, where delta = max_int / num_partitions
+    auto squeeze_axis = make_shared<Constant>(element::i64, Shape{1}, 0);
+    auto norm_partitions_shape = make_shared<ShapeOf>(partitions, partitions_type);
+    auto partitions_length = make_shared<Squeeze>(norm_partitions_shape, squeeze_axis);
+    auto start2 = make_shared<Constant>(partitions_type, Shape{}, 0);
+    auto step2 = make_shared<Constant>(partitions_type, Shape{}, 1);
+    auto range_part_length = make_shared<Range>(start2, partitions_length, step2, partitions_type);
+    auto scale = make_shared<Constant>(partitions_type,
+                                       Shape{},
+                                       std::numeric_limits<int32_t>::max() / static_cast<int32_t>(num_partitions));
+    auto term = make_shared<Multiply>(norm_partitions, scale);
+    auto rescaled_partitions = make_shared<Add>(term, range_part_length);
+
     // sort partition indices so that they are ascending
     // and sort slices of data in the same order
-    auto squeeze_axis = make_shared<Constant>(element::i64, Shape{1}, 0);
-    auto norm_partitions_shape = make_shared<ShapeOf>(partitions, element::i64);
-    auto partitions_length = make_shared<Squeeze>(norm_partitions_shape, squeeze_axis);
-    auto sorted_partitions = make_shared<TopK>(norm_partitions,
+    auto sorted_partitions = make_shared<TopK>(rescaled_partitions,
                                                partitions_length,
                                                0,
                                                TopK::Mode::MIN,
