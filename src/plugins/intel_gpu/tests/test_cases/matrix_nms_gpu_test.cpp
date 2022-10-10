@@ -160,10 +160,9 @@ public:
         result << "DecayFunction=" << decay_function_str << "_";
         result << "Format=" << fmt_to_str(std::get<1>(info.param));
 
-        if (!test_inputs.test_name.empty()) {
-            result << "_" << test_inputs.test_name;
+        if (!test_inputs.test_name.empty())
             result << "_TN=" << test_inputs.test_name;
-        }
+
         return result.str();
     }
 };
