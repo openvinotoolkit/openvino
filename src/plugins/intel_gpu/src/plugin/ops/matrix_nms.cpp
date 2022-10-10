@@ -20,41 +20,6 @@ namespace intel_gpu {
 
 namespace {
 
-cldnn::matrix_nms::DecayFunction from(ngraph::op::v8::MatrixNms::DecayFunction decay) {
-    switch (decay) {
-    case ngraph::op::v8::MatrixNms::DecayFunction::GAUSSIAN:
-        return cldnn::matrix_nms::DecayFunction::gaussian;
-    case ngraph::op::v8::MatrixNms::DecayFunction::LINEAR:
-    default:
-        return cldnn::matrix_nms::DecayFunction::linear;
-    }
-}
-
-cldnn::matrix_nms::SortResultType from(ngraph::op::v8::MatrixNms::SortResultType type) {
-    switch (type) {
-    case ngraph::op::v8::MatrixNms::SortResultType::CLASSID:
-        return cldnn::matrix_nms::SortResultType::class_id;
-    case ngraph::op::v8::MatrixNms::SortResultType::SCORE:
-        return cldnn::matrix_nms::SortResultType::score;
-    case ngraph::op::v8::MatrixNms::SortResultType::NONE:
-    default:
-        return cldnn::matrix_nms::SortResultType::none;
-    }
-}
-
-cldnn::matrix_nms::attributes from(const ngraph::op::v8::MatrixNms::Attributes& attrs) {
-    return cldnn::matrix_nms::attributes(from(attrs.sort_result_type),
-                                         attrs.sort_result_across_batch,
-                                         attrs.score_threshold,
-                                         attrs.nms_top_k,
-                                         attrs.keep_top_k,
-                                         attrs.background_class,
-                                         from(attrs.decay_function),
-                                         attrs.gaussian_sigma,
-                                         attrs.post_threshold,
-                                         attrs.normalized);
-}
-
 void CreateNmsStaticShapeIEMatrixNmsOp(Program& p, const std::shared_ptr<ngraph::op::internal::NmsStaticShapeIE<ngraph::opset8::MatrixNms>>& op) {
     validate_inputs_count(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
@@ -96,7 +61,7 @@ void CreateNmsStaticShapeIEMatrixNmsOp(Program& p, const std::shared_ptr<ngraph:
             inputPrimitives[1],
             inputPrimitives[inputPrimitives.size() - 2],
             inputPrimitives[inputPrimitives.size() - 1],
-            from(op->get_attrs()));
+            op->get_attrs());
 
     p.add_primitive(*op, prim);
 
