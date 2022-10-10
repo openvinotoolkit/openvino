@@ -270,4 +270,4 @@ def create_summary(summary_root: ET.Element, output_folder: os.path, expected_de
 if __name__ == "__main__":
     args = parse_arguments()
     summary_root = merge_xmls(args.xml)
-    create_summary(summary_root, args.out, args.expected_devices, args.report_tag, args.report_version, args.conformance_mode, args.csv, args.output_filename)
+    create_summary(summary_root, args.out,  [] if args.expected_devices is None else args.expected_devices, args.report_tag, args.report_version, args.conformance_mode, args.csv, args.output_filename)
