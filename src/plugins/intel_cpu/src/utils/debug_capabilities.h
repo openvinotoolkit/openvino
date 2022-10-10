@@ -14,6 +14,8 @@
 #include <onednn/dnnl.h>
 #include <dnnl_debug.h>
 
+#include "openvino/core/model.hpp"
+
 namespace ov {
 namespace intel_cpu {
 
@@ -44,7 +46,7 @@ static inline std::ostream& write_all_to_stream(std::ostream& os) {
 }
 template <typename T, typename... TS>
 static inline std::ostream& write_all_to_stream(std::ostream& os, const T& arg, TS&&... args) {
-    return write_all_to_stream(os << arg, std::forward<TS>(args)...);
+    return ov::intel_cpu::write_all_to_stream(os << arg, std::forward<TS>(args)...);
 }
 
 class NodeDesc;
@@ -52,12 +54,20 @@ class MemoryDesc;
 class Node;
 class Edge;
 
+class PrintableModel {
+public:
+    PrintableModel(const ov::Model& model, std::string tag = "") : model(model), tag(tag) {}
+    const ov::Model& model;
+    const std::string tag;
+};
+
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::desc& desc);
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Node& node);
 std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Edge& edge);
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::data_type& dtype);
+std::ostream & operator<<(std::ostream & os, const PrintableModel& model);
 
 }   // namespace intel_cpu
 }   // namespace ov

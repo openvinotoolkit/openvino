@@ -344,6 +344,77 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     return os;
 }
 
+std::ostream & operator<<(std::ostream & os, const PrintableModel& model) {
+    const ov::Model& f = model.model;
+    const std::string& tag = model.tag;
+    std::string sep = "";
+    for (auto op : f.get_results()) {
+        os << sep << op->get_name();
+        sep = ",";
+    }
+    os << " " << f.get_friendly_name() << "(\n";
+    for (auto op : f.get_parameters()) {
+        os << "\t" << tag << op->get_friendly_name() << ",\n";
+    }
+    os << ") {\n";
+    for (auto op : f.get_ordered_ops()) {
+        auto type = op->get_type_name();
+        auto name = op->get_friendly_name();
+        os << "\t";
+        if (op->get_output_size() > 1)
+            os << "(";
+        sep = "";
+        for (int i = 0; i < op->get_output_size(); i++) {
+            os << sep << op->get_output_element_type(i) << "_" << op->get_output_partial_shape(i);
+            sep = ",";
+        }
+        if (op->get_output_size() > 1)
+            os << ")";
+        os << "  " << tag << name << " = " << type << "(";
+        sep = "";
+        for (int i = 0; i < op->get_input_size(); i++) {
+            auto vout = op->get_input_source_output(i);
+            auto iop = vout.get_node_shared_ptr();
+            if (iop->get_output_size() > 1) {
+                auto out_port = vout.get_index();
+                os << sep << tag << iop->get_friendly_name() << "[" << out_port << "]";
+            } else {
+                os << sep << tag << iop->get_friendly_name();
+            }
+            sep = ",";
+        }
+
+        if (auto constop = std::dynamic_pointer_cast<op::v0::Constant>(op)) {
+            auto sz = shape_size(constop->get_shape());
+            if (sz < 9) {
+                sep = "";
+                for (auto v : constop->get_value_strings()) {
+                    os << sep << v;
+                    sep = ",";
+                }
+            } else {
+                os << "...";
+            }
+        }
+
+        os << ")";
+        os << std::endl;
+    }
+    os << "}\n";
+
+    // recursively output subgraphs
+    for (auto op : f.get_ordered_ops()) {
+        if (auto subgraph = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
+            auto cnt = subgraph->get_internal_subgraphs_size();
+            for (int i = 0; i < cnt; i++) {
+                os << "MultiSubGraphOp " << tag << subgraph->get_friendly_name() << "[" << i << "]" << std::endl;
+                os << PrintableModel(*subgraph->get_function(i).get(), tag);
+            }
+        }
+    }
+    return os;
+}
+
 }   // namespace intel_cpu
 }   // namespace ov
 

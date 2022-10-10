@@ -797,6 +797,9 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
             || engConfig.enableDynamicBatch;
     const bool enableSnippets = !(enableModelCache || enableDynamicBatch || enableBF16);
     auto nGraphFunc = clonedNetwork.getFunction();
+
+    DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
+
     TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableBF16, enableSnippets, isLegacyAPI());
 
     // need to check that all outputs have static shapes
@@ -812,6 +815,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     ApplyPerformanceHints(config, nGraphFunc);
 
     ConvertToCPUSpecificOpset(nGraphFunc);
+
+    DEBUG_LOG(PrintableModel(*nGraphFunc, "cpu_"));
 
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
