@@ -133,4 +133,24 @@ OPENVINO_API std::shared_ptr<op::v0::Constant> get_constant_from_source(const Ou
 /// \param output_labels Vector of TensorLabel objects representing resulting value labels
 /// \return boolean status if label evaluation was successful.
 OPENVINO_API bool default_label_evaluator(const Node* node, TensorLabelVector& output_labels);
+
+/// \brief Generates transpose default axes order at end of input vector.
+///
+/// Default axes order is decreasing sequence numbers which start from `length - 1`.
+///
+/// \param axes_order  Vector where default order will be generated.
+/// \param length      Sequence length of axes order.
+///
+OPENVINO_API void generate_transpose_default_order(std::vector<int64_t>& axes_order, const size_t length);
+
+/// \brief Check if vector of axes order has got valid values.
+///
+/// Axes order has to be unique numbers in range of [0, size).
+///
+/// \param axes_order  Vector with axes order to check.
+/// \param size        Input for transpose rank size.
+///
+/// \return true if axes order is valid otherwise false.
+///
+OPENVINO_API bool is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_t size);
 }  // namespace ov

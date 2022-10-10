@@ -10,6 +10,7 @@
 #include <ngraph/rt_info.hpp>
 #include <numeric>
 
+#include "compare.hpp"
 #include "ngraph/evaluator.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/convert.hpp"
@@ -23,6 +24,7 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
+#include "sequnce_generator.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
@@ -1641,4 +1643,14 @@ bool ngraph::validate_host_tensor_vector(const HostTensorVector& tensor_vector, 
     return std::all_of(tensor_vector.begin(), tensor_vector.end(), [](const HostTensorPtr& t) {
         return t != nullptr;
     });
+}
+
+void ov::generate_transpose_default_order(std::vector<int64_t>& axes_order, const size_t length) {
+    axes_order.reserve(length);
+    std::generate_n(std::back_inserter(axes_order), length, ov::SeqGen<size_t, ov::Direction::BACKWARD>(length - 1));
+}
+
+bool ov::is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_t size) {
+    return (std::unordered_set<size_t>(axes_order.cbegin(), axes_order.cend()).size() == size) &&
+           std::all_of(axes_order.cbegin(), axes_order.cend(), ov::cmp::Between<int64_t, ov::cmp::LOWER>(0, size));
 }
