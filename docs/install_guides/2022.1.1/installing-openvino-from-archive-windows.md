@@ -1,8 +1,10 @@
-# Install Intel® Distribution of OpenVINO™ Toolkit on Windows 10 Using the Installer{#openvino_docs_install_guides_installing_openvino_windows}
+# Install OpenVINO™ Runtime on Windows 10 from an Archive File {#openvino_docs_install_guides_installing_openvino_from_archive_windows}
 
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
+With the OpenVINO™ 2022.1.1 release, you can download and use archive files to install OpenVINO Runtime.
 
 You can also check the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes) for more information on updates in this release.
+
+> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/) only.
 
 ## System Requirements
 
@@ -38,7 +40,7 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
      * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`_ (optional, only required for building sample applications)
   * For Python developers: `Python 3.6 - 3.9, 64-bit <https://www.python.org/downloads/windows/>`_
      * Note that OpenVINO is gradually stopping the support for Python 3.6. Python 3.7 - 3.9 are recommended.
-  
+
   .. note::
     You can choose to download Community version. Use `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`_ to walk you through the installation. During installation in the **Workloads** tab, choose **Desktop development with C++**.
 
@@ -50,42 +52,39 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
 
 @endsphinxdirective
 
-## Overview
+## Installing OpenVINO Runtime
 
-This guide provides step-by-step instructions on how to install the Intel® Distribution of OpenVINO™ toolkit. Links are provided for each type of compatible hardware including downloads, initialization and configuration steps. The following steps will be covered:
+### <a name="install-openvino"></a>Step 1: Download and Install OpenVINO Core Components
 
-1. <a href="#install-openvino">Install the Intel® Distribution of OpenVINO™ Toolkit</a>
-2. <a href="#set-the-environment-variables">Configure the Environment</a>
-3. <a href="#model-optimizer">Download additional components (Optional)</a>
-4. <a href="#optional-steps">Configure Inference on non-CPU Devices (Optional)</a>  
-5. <a href="#get-started">What's next?</a>
-
-## <a name="install-openvino"></a>Step 1: Install the Intel® Distribution of OpenVINO™ toolkit Core Components
-
-1. Download the Intel® Distribution of OpenVINO™ toolkit package file from [Intel® Distribution of OpenVINO™ toolkit for Windows](https://software.intel.com/en-us/openvino-toolkit/choose-download).
-   Select the Intel® Distribution of OpenVINO™ toolkit for Windows package from the dropdown menu.
+1. Select and download the OpenVINO™ archive files from [Intel® Distribution of OpenVINO™ toolkit download page](https://software.intel.com/en-us/openvino-toolkit/choose-download).
+   There are typically two files for you to download: 
+   ```sh
+   w_openvino_toolkit_<operating system>_<release version>_<package ID>.zip
+   w_openvino_toolkit_<operating system>_<release version>_<package ID>.zip.sha256
+   ``` 
+   where the `.sha256` file is used to verify the success of the download process.
    
-2. Go to the `Downloads` folder and double-click `w_openvino_toolkit_p_<version>.exe`. In the opened window, you can select the folder where installer files will be placed. The directory will be referred to as <INSTALL_DIR> elsewhere in the documentation. Once the files are extracted, you should see the following dialog box open up:
-
-   @sphinxdirective
+2. Locate the downloaded files in your system. This document assumes the files are in your `Downloads` directory. 
    
-   .. image:: _static/images/openvino-install.png
-     :width: 400px
-     :align: center
-   
-   @endsphinxdirective
-   
-3. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. Your acceptance is required to continue. Check out the installation process in the image below:<br>
-   ![](../img/openvino-install-win-run-boostrapper-script.gif)
-   Click on the image to see the details.
-   <br>
-   <br>By default, the Intel® Distribution of OpenVINO™ is installed to the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation: `C:\Program Files (x86)\Intel\openvino_<version>/`.
+3. Open a command prompt terminal window, and run the following command with the `.zip` file:
+   ```sh
+   CertUtil -hashfile <archive name>.zip SHA256
+   ```
+   Compare the returned value in the output with what's in the `<archive name>.zip.sha256` file:
+   * If the values are the same, you have downloaded the correct file successfully.
+   * If not, create a Support ticket [here](https://www.intel.com/content/www/us/en/support/contact-intel.html).
 
-   <br>For simplicity, a symbolic link to the latest installation is also created: `C:\Program Files (x86)\Intel\openvino_2022/`.
+4. Unzip the `<archive name>.zip` file using your preferred archive tool. 
+   > **NOTE**: The name of the archive file might be long. Make sure that you have [enabled long paths on Windows](https://docs.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation?tabs=registry#enable-long-paths-in-windows-10-version-1607-and-later) to avoid possible errors in the unzipping process.
 
-The core components are now installed. Continue to the next section to configure environment.
 
-## <a name="set-the-environment-variables"></a>Step 2: Configure the Environment
+The standard OpenVINO `<INSTALL_DIR>` used in this document is `C:\Program Files (x86)\Intel\openvino_<version>\`. You're recommended to move the extracted files to that directory. 
+
+For simplicity, you can also create a symbolic link to the latest installation: `C:\Program Files (x86)\Intel\openvino_2022\`.
+
+The core components are now installed. Continue to the next section to configure the environment.
+
+### <a name="set-the-environment-variables"></a>Step 2: Configure the Environment
 
 > **NOTE**: If you installed the Intel® Distribution of OpenVINO™ to a non-default install directory, replace `C:\Program Files (x86)\Intel` with that directory in this guide's instructions.
 
@@ -101,43 +100,13 @@ You must update several environment variables before you can compile and run Ope
 
 The environment variables are set. Next, you can download some additional tools.
 
-## <a name="model-optimizer">Step 3 (Optional): Download Additional Components</a>
+### <a name="model-optimizer">Step 3 (Optional): Install Additional Components</a>
 
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps.
+Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Development Tools](../installing-model-dev-tools.md) for detailed steps.
 
-@sphinxdirective
+OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the[instructions on Github](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
 
-.. dropdown:: OpenCV
-
-   OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. The Intel® Distribution of OpenVINO™ provides a script to install OpenCV: ``<INSTALL_DIR>/extras/scripts/download_opencv.sh``.
-
-   .. note::
-      No prerequisites are needed.
-      
-   There are three ways to run the script:
-   
-   * GUI: right-click the script and select ``Run with PowerShell``.
-      
-   * Command prompt (CMD) console:
-   
-   .. code-block:: sh
-   
-      powershell <INSTALL_DIR>\extras\scripts\download_opencv.ps1
-      
-      
-   * PowerShell console:
-   
-   .. code-block:: sh
-   
-      .\<INSTALL_DIR>\scripts\download_opencv.ps1 
-      
-
-   If the Intel® Distribution of OpenVINO™ is installed to the system location (e.g. ``Program Files (x86)``) then privilege elevation dialog will be shown. The script can be run from CMD/PowerShell Administrator console to avoid this dialog in case of system-wide installation. 
-   The script is interactive by default, so during the execution it will wait for user to press ``Enter`` If you want to avoid this, use the ``-batch`` option, e.g. ``powershell <openvino>\extras\scripts\download_opencv.ps1 -batch``. After the execution of the script, you will find OpenCV extracted to ``<INSTALL_DIR>/extras/opencv``.
-
-@endsphinxdirective
-
-## <a name="optional-steps"></a>Step 4 (Optional): Configure Inference on non-CPU Devices
+### <a name="optional-steps"></a>Step 4 (Optional): Configure Inference on non-CPU Devices
 
 @sphinxdirective
 .. tab:: GPU
@@ -158,7 +127,7 @@ The environment variables are set. Next, you can download some additional tools.
    
 @endsphinxdirective
 
-## <a name="get-started"></a>Step 5: What's next?
+## <a name="get-started"></a>What's Next?
 
 Now you are ready to try out the toolkit.
 
@@ -167,14 +136,14 @@ Start with some Python tutorials:
    * [Convert TensorFlow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
    * [Convert a PyTorch model and remove the image background](https://docs.openvino.ai/latest/notebooks/205-vision-background-removal-with-output.html)
 
-To start with C++ samples, see [Build Sample Applications on Windows](../OV_Runtime_UG/Samples_Overview.md#build_samples_windows) first, and then you can try the following samples:
+To start with C++ samples, see [Build Sample Applications on Windows](../../OV_Runtime_UG/Samples_Overview.md#build_samples_windows) first, and then you can try the following samples:
    * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
    * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
    * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
     
 ## <a name="uninstall"></a>Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
 
-To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
+To uninstall the toolkit, follow the steps on the [Uninstalling page](../uninstalling-openvino.md).
 
 @sphinxdirective
 
@@ -190,7 +159,7 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
    To learn more about converting models from specific frameworks, go to: 
    * :ref:`Convert Your Caffe Model <convert model caffe>`
    * :ref:`Convert Your TensorFlow Model <convert model tf>`
-   * :ref:`Convert Your MXNet Modele <convert model mxnet>`
+   * :ref:`Convert Your Apache MXNet Model <convert model mxnet>`
    * :ref:`Convert Your Kaldi Model <convert model kaldi>`
    * :ref:`Convert Your ONNX Model <convert model onnx>`
 --->    
