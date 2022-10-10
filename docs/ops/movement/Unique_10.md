@@ -77,7 +77,7 @@ The operator can either work in elementwise mode searching for unique values in 
         <port id="4" precision="I32">
             <dim>-1</dim>
         </port>
-        <port id="5" precision="I32">
+        <port id="5" precision="I64">
             <dim>-1</dim>
         </port>
     </output>
@@ -103,7 +103,7 @@ The operator can either work in elementwise mode searching for unique values in 
         <port id="3" precision="I32">
             <dim>-1</dim>
         </port>
-        <port id="4" precision="I32">
+        <port id="4" precision="I64">
             <dim>-1</dim>
         </port>
     </output>
