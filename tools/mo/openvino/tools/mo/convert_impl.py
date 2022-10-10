@@ -393,7 +393,6 @@ def prepare_ir(argv: argparse.Namespace):
                         refer_to_faq_msg(105))
 
     t.send_event("mo", "conversion_method", "mo_legacy")
-    print("fallback to legacy")
     graph = unified_pipeline(argv)
 
     return graph, ngraph_function
