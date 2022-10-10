@@ -16,6 +16,7 @@ addIeTarget(
                 "${CMAKE_CURRENT_SOURCE_DIR}/include"
         LINK_LIBRARIES
             PUBLIC
+                gflags
                 funcSharedTests
 )
 
