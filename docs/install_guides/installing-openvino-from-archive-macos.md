@@ -2,6 +2,8 @@
 
 With the OpenVINO™ 2022.2 release, you can download and use archive files to install OpenVINO Runtime. The archive files contain pre-built binaries and library files needed for OpenVINO Runtime, as well as sample code for running demos. This page provides instructions showing how to install OpenVINO Runtime using archive files. Check the Release Notes for more information on updates in the 2022.2 release.
 
+Installing OpenVINO Runtime from archive files is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. Visit the Install OpenVINO from PyPI page for instructions on how to install OpenVINO Runtime for Python using PyPI.
+
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/) only.
 
 > **NOTE**: The Intel® Distribution of OpenVINO™ toolkit is supported on macOS version 10.15 with Intel® processor-based machines.
@@ -81,7 +83,7 @@ The environment variables are set. Continue to the next section if you want to d
 
 ### <a name="model-optimizer"></a>Step 3 (Optional): Install Additional Components
 
-OpenVINO Development Tools adds even more functionality to OpenVINO. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Development Tools, OpenVINO Runtime will also be installed as a dependency, so you don't need to install OpenVINO Runtime separately. 
+OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Runtime using archive files, OpenVINO Development Tools must be installed separately.
 
 See the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page for step-by-step installation instructions.
 
