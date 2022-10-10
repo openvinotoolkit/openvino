@@ -16,8 +16,6 @@ namespace x64 = dnnl::impl::cpu::x64;
 
 class StackAllocator final {
 public:
-    using Ptr = std::shared_ptr<StackAllocator>;
-
     class Transaction;
     class Address;
     template<typename TReg>
@@ -223,7 +221,7 @@ class StackAllocator::Transaction {
 public:
     friend class StackAllocator::Address;
 
-    Transaction(StackAllocator::Ptr stack_allocator)
+    Transaction(StackAllocator& stack_allocator)
         : stack_allocator_{stack_allocator} {
         checkUnique(true);
     }
@@ -234,11 +232,11 @@ public:
     }
 
     void begin() {
-        stack_allocator_->begin();
+        stack_allocator_.begin();
     }
 
     void commit() {
-        stack_allocator_->commit();
+        stack_allocator_.commit();
     }
 
 private:
@@ -254,7 +252,7 @@ private:
         }
     }
 
-    StackAllocator::Ptr stack_allocator_;
+    StackAllocator& stack_allocator_;
 };
 
 class StackAllocator::Address {
@@ -264,19 +262,19 @@ public:
             const size_t requested_alignment = 1)
             : transaction_{&transaction}
             , stack_allocator_{transaction.stack_allocator_}
-            , allocation_{stack_allocator_->allocate(alloc_size, requested_alignment, true)} {
+            , allocation_{stack_allocator_.allocate(alloc_size, requested_alignment, true)} {
         transaction.begin();
     }
 
-    Address(StackAllocator::Ptr stack_allocator,
+    Address(StackAllocator& stack_allocator,
             const size_t alloc_size,
             const size_t requested_alignment = 1)
         : stack_allocator_{stack_allocator}
-        , allocation_{stack_allocator_->allocate(alloc_size, requested_alignment)} {
-        if (stack_allocator_->isTransaction()) {
+        , allocation_{stack_allocator_.allocate(alloc_size, requested_alignment)} {
+        if (stack_allocator_.isTransaction()) {
             IE_THROW() << "Cannot allocate Address out of transaction. Please, finish first transaction !!";
         }
-        stack_allocator_->commit();
+        stack_allocator_.commit();
     }
 
     Address(const Address& addr) = delete;
@@ -289,27 +287,27 @@ public:
             release(*transaction_);
         } else {
             release();
-            stack_allocator_->commit();
+            stack_allocator_.commit();
         }
     }
 
     void release(Transaction& transaction) {
-        if (allocation_ && stack_allocator_) {
+        if (allocation_) {
             transaction.begin();
             allocation_->is_used = false;
-            stack_allocator_->deallocate();
+            stack_allocator_.deallocate();
         }
         allocation_ = {};
     }
 
     void release() {
-        if (allocation_ && stack_allocator_) {
-            if (stack_allocator_->isTransaction()) {
+        if (allocation_) {
+            if (stack_allocator_.isTransaction()) {
                 IE_THROW() << "Cannot release Address out of transaction. Please, finish first transaction !!";
             }
             allocation_->is_used = false;
-            stack_allocator_->deallocate();
-            stack_allocator_->commit();
+            stack_allocator_.deallocate();
+            stack_allocator_.commit();
         }
         allocation_ = {};
     }
@@ -355,15 +353,15 @@ private:
     }
 
     bool isInitialized() const {
-        return stack_allocator_ && allocation_ && !allocation_->is_transaction;
+        return allocation_ && !allocation_->is_transaction;
     }
 
     x64::jit_generator& generator() const {
-        return stack_allocator_->code_generator;
+        return stack_allocator_.code_generator;
     }
 
     Transaction* transaction_{};
-    StackAllocator::Ptr stack_allocator_;
+    StackAllocator& stack_allocator_;
     Allocation::Ptr allocation_;
 };
 
@@ -376,7 +374,7 @@ public:
         : Address{transaction, TReg{}.getBit() / 8, getAlignment()} {
     }
 
-    Reg(StackAllocator::Ptr stack_allocator)
+    Reg(StackAllocator& stack_allocator)
         : Address{stack_allocator, TReg{}.getBit() / 8, getAlignment()} {
     }
 
