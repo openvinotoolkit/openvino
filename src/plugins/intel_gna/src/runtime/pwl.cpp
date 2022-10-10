@@ -284,12 +284,12 @@ void PwlDesign(const DnnActivation& activation_type,
                 else
                     ov::intel_gna::log::debug() << "=========================== Identity Segments ===========================\n";
                 if (x_lower_limit < INT32_MIN) {
-                    ov::intel_gna::log::error() << "Warning:  saturation in PwlDesign! " << x_lower_limit  << " < INT32_MIN"<< std::endl;
+                    ov::intel_gna::log::warning() << "Saturation in PwlDesign! " << x_lower_limit  << " < INT32_MIN"<< std::endl;
                     x_lower_limit = INT32_MIN;
                     y_lower_limit = static_cast<int16_t>((scale_out / scale_in)*static_cast<float>(INT32_MIN) - 0.5);
                 }
                 if (x_upper_limit > INT32_MAX) {
-                    ov::intel_gna::log::error() << "Warning:  saturation in PwlDesign! " << x_upper_limit  << " > INT32_MAX"<< std::endl;
+                    ov::intel_gna::log::warning() << "Saturation in PwlDesign! " << x_upper_limit  << " > INT32_MAX"<< std::endl;
                     x_upper_limit = INT32_MAX;
                     y_upper_limit = static_cast<int16_t>((scale_out / scale_in)*static_cast<float>(INT32_MAX) + 0.5);
                 }

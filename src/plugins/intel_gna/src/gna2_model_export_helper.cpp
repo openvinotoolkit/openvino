@@ -124,7 +124,7 @@ std::string WriteAllEndpoints(std::ostream& outStream,
         outStream.write(scaleFactorTlv.data(), scaleFactorTlv.size());
     }
     if (allEndpoints.size() != 1) {
-        ov::intel_gna::log::error() << "Number of endpoints: " << allEndpoints.size() << " for " << endPointType << "\n";
+        ov::intel_gna::log::warning() << "Number of endpoints: " << allEndpoints.size() << " for " << endPointType << "\n";
     }
 
     std::stringstream stream;

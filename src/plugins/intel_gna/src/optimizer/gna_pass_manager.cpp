@@ -803,7 +803,7 @@ void InsertIdentityLayerPass::run() {
                     true_layer = prev;
                     prev = CNNNetPrevLayer(prev);
                 } else {
-                    ov::intel_gna::log::error() << "Could not find Functional parent for " << original_prev_layer->name << ", using original layer";
+                    ov::intel_gna::log::warning() << "Could not find Functional parent for " << original_prev_layer->name << ", using original layer";
                     prev = original_prev_layer;
                     true_layer = l;
                     break;

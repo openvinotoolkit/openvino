@@ -157,7 +157,7 @@ uint32_t GNADeviceHelper::enqueueRequest(const uint32_t requestConfigID, Gna2Acc
     if ((gna2AccelerationMode == Gna2AccelerationModeHardware ||
          gna2AccelerationMode == Gna2AccelerationModeHardwareWithSoftwareFallback) &&
         detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation) {
-        ov::intel_gna::log::error() << "GNA Device not detected, consider using other mode of acceleration";
+        ov::intel_gna::log::warning() << "GNA Device not detected, consider using other mode of acceleration";
     }
 
     const auto status1 = Gna2RequestConfigSetAccelerationMode(requestConfigID, gna2AccelerationMode);
@@ -553,14 +553,14 @@ void GNADeviceHelper::close() {
         try {
             waitForRequest(requestId);
         } catch (...) {
-            ov::intel_gna::log::error() << "Request with Id " << requestId << " was not awaited successfully";
+            ov::intel_gna::log::warning() << "Request with Id " << requestId << " was not awaited successfully";
         }
     }
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     const auto status = Gna2DeviceClose(nGnaDeviceIndex);
     const auto message = checkGna2Status(status, "Gna2DeviceClose", true);
     if (!message.empty()) {
-        ov::intel_gna::log::error() << "GNA Device was not successfully closed: " << message << std::endl;
+        ov::intel_gna::log::warning() << "GNA Device was not successfully closed: " << message << std::endl;
     }
     deviceOpened = false;
 }

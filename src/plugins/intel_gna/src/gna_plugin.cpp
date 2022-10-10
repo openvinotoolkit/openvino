@@ -424,10 +424,10 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network
             auto scaleInput = frontend::CalculateScaleFactorFromStats(levels, inputRange.first[0], inputRange.second[0]);
 
             if (!config.inputScaleFactorsPerInput.empty() || !config.inputScaleFactors.empty()) {
-                ov::intel_gna::log::error() << "WARNING: Scale factor calculated during model quantization (" << scaleInput
+                ov::intel_gna::log::warning() << "Scale factor calculated during model quantization (" << scaleInput
                     << ") will be used instead of user input (" << (*inputs_ptr_)[input.first].scale_factor << ").\n";
                 if ((*inputs_ptr_)[input.first].scale_factor < scaleInput) {
-                    ov::intel_gna::log::error() << "WARNING: Scale factor calculated based on input values (" << (*inputs_ptr_)[input.first].scale_factor
+                    ov::intel_gna::log::warning() << "Scale factor calculated based on input values (" << (*inputs_ptr_)[input.first].scale_factor
                         << ") is smaller than scale factor used to quantize model (" << scaleInput << "). "
                         << "Input values will be clamped.\n";
                 }
@@ -947,7 +947,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     // keep inputs information and create input primitives
     inputs_data_map_ = newNet.getInputsInfo();
     if (inputs_data_map_.empty()) {
-        ov::intel_gna::log::error() << "No inputs for the topology\n";
+        ov::intel_gna::log::warning() << "No inputs for the topology\n";
     }
 
     // keep output dims
@@ -973,7 +973,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     }
 
     if (graphCompiler.dnnComponents.components.empty()) {
-        ov::intel_gna::log::error() << "No GNA primitives created based on topology. This might indicate trivial topology\n";
+        ov::intel_gna::log::warning() << "No GNA primitives created based on topology. This might indicate trivial topology\n";
         trivialTopology = true;
     }
 
