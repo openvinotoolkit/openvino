@@ -154,7 +154,6 @@ void gru_shape_infer(const OpType* op,
     // Set hidden_size dimension
     y_out_shape[3] = merged_hidden_size;
     ho_out_shape[2] = merged_hidden_size;
-
 }
 }  // namespace rnn_seq
 namespace v5 {
