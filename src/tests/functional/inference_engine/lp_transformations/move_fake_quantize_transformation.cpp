@@ -296,7 +296,7 @@ const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
             {},
         }
     },
-    // negative test
+    // concat by batch
     {
         LayerTransformation::createParamsU8I8(),
         false,
@@ -313,11 +313,11 @@ const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
         },
         {
             2,
-            {},
+            {{ 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
             {},
             {},
             "",
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+            {},
             {},
             {}
         }

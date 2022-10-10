@@ -4,7 +4,7 @@
 
 #include "lpt_ngraph_functions/concat_function.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include "ngraph_ops/type_relaxed.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
@@ -22,6 +22,46 @@ namespace builder {
 namespace subgraph {
 
 using namespace ngraph::pass;
+
+std::shared_ptr<ov::Model> ConcatFunction::get(
+    const ov::element::Type inputPrecision,
+    const ov::element::Type deqPrecision,
+    const std::vector<ov::PartialShape>& inputShapes,
+    const std::vector<DequantizationOperations>& dequantizationsBefore,
+    const std::int64_t concatAxis,
+    const ov::element::Type precisionAfter,
+    const DequantizationOperations& dequantizationAfter) {
+    auto modifyDeq = [](const DequantizationOperations& deq, const ov::element::Type deqOutPrc) {
+        auto dequantizationStructure = deq;
+        if (!dequantizationStructure.multiply.empty()) {
+            dequantizationStructure.multiply.outPrecision = deqOutPrc;
+        }
+        return dequantizationStructure;
+    };
+
+    ov::ParameterVector inputs;
+    ov::NodeVector concatInputs;
+    if (inputShapes.size() != dequantizationsBefore.size()) {
+        throw std::runtime_error("Concat builder: input and dequantization sizes aren't equal");
+    }
+
+    for (size_t i = 0; i < inputShapes.size(); ++i) {
+        const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShapes[i]);
+        const auto dequantization = makeDequantization(input, modifyDeq(dequantizationsBefore[i], deqPrecision));
+        inputs.push_back(input);
+        concatInputs.push_back(dequantization);
+    }
+
+    const auto concat = std::make_shared<ov::opset1::Concat>(concatInputs, concatAxis);
+    if (precisionAfter != ov::element::undefined && (concat->get_output_element_type(0).is_real() ^ precisionAfter.is_real())) {
+        throw std::runtime_error("Concat builder: requested precision after operation could't be set");
+    }
+
+    const auto deqAfter = makeDequantization(concat, modifyDeq(dequantizationAfter, deqPrecision));
+    deqAfter->set_friendly_name("Concat");
+    const auto result = std::make_shared<ov::opset1::Result>(deqAfter);
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, inputs, "ConcatTransformation");
+}
 
 std::shared_ptr<ngraph::Function> ConcatFunction::getOriginal(
     const ngraph::element::Type precision,
