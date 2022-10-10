@@ -39,6 +39,7 @@ OP_CONVERTER(translate_cumsum_op);
 OP_CONVERTER(translate_crop_and_resize_op);
 OP_CONVERTER(translate_depth_to_space_op);
 OP_CONVERTER(translate_depthwise_conv_2d_native_op);
+OP_CONVERTER(translate_dynamic_partition_op);
 OP_CONVERTER(translate_elu_op);
 OP_CONVERTER(translate_expand_dims_op);
 OP_CONVERTER(translate_extract_image_patches_op);
@@ -183,6 +184,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Cumsum", translate_cumsum_op},
         {"DepthToSpace", translate_depth_to_space_op},
         {"DepthwiseConv2dNative", translate_depthwise_conv_2d_native_op},
+        {"DynamicPartition", translate_dynamic_partition_op},
         {"Elu", translate_elu_op},
         {"ExpandDims", translate_expand_dims_op},
         {"ExtractImagePatches", translate_extract_image_patches_op},
