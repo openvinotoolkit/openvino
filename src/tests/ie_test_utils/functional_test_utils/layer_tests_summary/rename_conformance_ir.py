@@ -45,11 +45,11 @@ def create_hash(in_dir_path: Path):
         str_to_hash = str()
         model = core.read_model(model_path)
         for input in model.inputs:
-            str_to_hash += str(len(input.partial_shape)) + str(input.element_type) + str(input.node.type_info)
+            str_to_hash += str(len(input.partial_shape)) + str(input.element_type) + str(input.node.type_info) + str(input.partial_shape.is_dynamic)
         for node in model.get_ordered_ops():
             str_to_hash += str(node.type_info)
         for output in model.outputs:      
-            str_to_hash += str(len(output.partial_shape)) + str(output.element_type) + str(output.node.type_info)
+            str_to_hash += str(len(output.partial_shape)) + str(output.element_type) + str(output.node.type_info) + str(input.partial_shape.is_dynamic)
         
         ports_info = ET.parse(meta_path).getroot().find("ports_info")
         str_to_hash += ET.tostring(ports_info).decode('utf8');        
