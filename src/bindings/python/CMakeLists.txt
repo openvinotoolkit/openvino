@@ -17,11 +17,6 @@ endif()
 
 find_package(pybind11 QUIET)
 
-set(PYTHON_INCLUDE_DIR "${PYTHON_INCLUDE_DIR}" CACHE PATH "Python include directory")
-set(PYTHON_LIBRARY "${PYTHON_LIBRARY}" CACHE FILEPATH "Python library")
-set(PYTHON_LIBRARIES "${PYTHON_LIBRARIES}" CACHE INTERNAL "Python libraries")
-set(PYTHON_INCLUDE_DIRS "${PYTHON_INCLUDE_DIRS}" CACHE INTERNAL "Python includes directories")
-
 #
 # Check python requirements
 #
@@ -53,8 +48,8 @@ function(ov_check_python_build_conditions)
         # try to find python libraries
         _ov_find_python_libs_new()
         if(PYTHONLIBSNEW_FOUND)
-             find_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT ${find_package_mode})
-         endif()
+            find_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT ${find_package_mode})
+        endif()
         if(NOT PYTHONLIBS_FOUND)
             message(${message_mode} "Python development libraries are not found. OpenVINO Python API will be turned off (ENABLE_PYTHON is OFF)")
         endif()
