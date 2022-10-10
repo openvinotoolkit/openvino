@@ -50,7 +50,7 @@ void op::v5::GRUSequence::validate_and_infer_types() {
     OV_OP_SCOPE(v5_GRUSequence_validate_and_infer_types);
 
     // Validate input types and save result for output type
-    constexpr auto result_et = element::dynamic;
+    auto result_et = element::dynamic;
     NODE_VALIDATION_CHECK(this,
                           element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
                               element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
