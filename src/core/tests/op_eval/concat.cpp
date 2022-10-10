@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "dimension_tracker.hpp"
 #include "gmock/gmock.h"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/node.hpp"
@@ -40,16 +41,16 @@ protected:
 
         for (const auto& labeled_shape : labeled_shapes) {
             ov::PartialShape shape;
-            bool shape_has_labels;
-            std::tie(shape, shape_has_labels) = labeled_shape;
+            bool add_labels;
+            std::tie(shape, add_labels) = labeled_shape;
 
             auto param = params.make<Parameter>(ov::element::u64, shape);
 
             if (exp_evaluate_status) {
                 auto min_shape = shape.get_min_shape();
-                ov::TensorLabel labels(ov::shape_size(min_shape), 0);
+                ov::TensorLabel labels(ov::shape_size(min_shape), ov::no_label);
 
-                if (shape_has_labels) {
+                if (add_labels) {
                     std::iota(labels.begin(), labels.end(), 1);
                     param->get_default_output().get_tensor().set_value_label(labels);
                 }

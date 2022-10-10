@@ -7,6 +7,7 @@
 #include <memory>
 #include <ngraph/validation_util.hpp>
 
+#include "dimension_tracker.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
@@ -139,14 +140,12 @@ bool op::Concat::evaluate_upper(const HostTensorVector& output_values) const {
 
 bool op::Concat::evaluate_label(TensorLabelVector& output_labels) const {
     const auto& inputs = input_values();
-    bool has_labeled_input = std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& out) {
-        const auto& labels = out.get_tensor().get_value_label();
-        return !labels.empty() && std::any_of(labels.begin(), labels.end(), [](const size_t& l) {
-            return l > 0;
-        });
-    });
-    if (!has_labeled_input)
+    if (std::all_of(inputs.cbegin(), inputs.cend(), [](const Output<Node>& out) {
+            const auto& labels = out.get_tensor().get_value_label();
+            return has_no_labels(labels);
+        })) {
         return false;
+    }
 
     HostTensorVector idx_inputs;
     idx_inputs.reserve(inputs.size());
@@ -157,7 +156,7 @@ bool op::Concat::evaluate_label(TensorLabelVector& output_labels) const {
             // sanity check. at this point value propagation was successful
             NGRAPH_CHECK(shape.is_static());
             const auto& num_elements = shape_size(shape.to_shape());
-            input_label = TensorLabel(num_elements, 0);
+            input_label.resize(num_elements, no_label);
         }
         const auto& constant = Constant::create(element::u64, input.get_shape(), input_label);
         idx_inputs.push_back(std::make_shared<HostTensor>(constant));
@@ -165,7 +164,6 @@ bool op::Concat::evaluate_label(TensorLabelVector& output_labels) const {
 
     const auto& output_tensor = std::make_shared<HostTensor>(element::u64, get_output_shape(0));
     evaluate({output_tensor}, idx_inputs);
-    const auto& output_idxs = std::make_shared<Constant>(output_tensor)->cast_vector<size_t>();
-    output_labels[0] = output_idxs;
+    output_labels[0] = std::make_shared<Constant>(output_tensor)->cast_vector<size_t>();
     return true;
 }
