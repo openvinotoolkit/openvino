@@ -192,11 +192,12 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         for (auto&& deviceNameWithID : sameTypeDevices) {
             DeviceIDParser newParsed{deviceNameWithID};
             std::string defaultDeviceID = "";
+            std::string tempDeviceID = "";
             if (newParsed.getDeviceID().empty()) {
                 defaultDeviceID = getDefaultDeviceID(deviceNameWithID);
-                deviceNameWithID += "." + defaultDeviceID;
+                tempDeviceID = defaultDeviceID;
             } else {
-                defaultDeviceID = newParsed.getDeviceID();
+                tempDeviceID = newParsed.getDeviceID();
             }
 
             std::string fullDeviceName = "";
@@ -209,9 +210,9 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             }
 
             if (fullDeviceName.empty()) {
-                uniqueName = newParsed.getDeviceName() + "_" + defaultDeviceID;
+                uniqueName = newParsed.getDeviceName() + "_" + tempDeviceID;
             } else {
-                uniqueName = fullDeviceName + "_" + defaultDeviceID;
+                uniqueName = fullDeviceName + "_" + tempDeviceID;
             }
 
             LOG_DEBUG_TAG("deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
