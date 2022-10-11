@@ -15,6 +15,8 @@
 #include <utility>
 #include <future>
 
+#include <tbb/tbb.h>
+
 #include "graph.h"
 #include "graph_dumper.h"
 #include "graph_optimizer.h"
@@ -1078,28 +1080,49 @@ void Graph::Infer(InferRequestBase* request) {
         }
     };
 
-    std::shared_future<void> fShapeInfer;
-    std::future<void> fPrepareParams;
+    // std::shared_future<void> fShapeInfer;
+    // std::future<void> fPrepareParams;
 
-    WorkerThread worker0;
-    WorkerThread worker1;
+    // WorkerThread worker0;
+    // WorkerThread worker1;
 
     while (prepareCounter < executableGraphNodes.size()) {
-        for (; prepareCounter < executableGraphNodes.size(); ++prepareCounter) {
-            auto& node = executableGraphNodes[prepareCounter];
-            if (one_of(node->getType(), Type::Input, Type::Reference, Type::Broadcast)) {
-                if (fShapeInfer.valid()) fShapeInfer.wait();
-                if (fPrepareParams.valid()) fPrepareParams.wait();
-                runNodes(prepareCounter);
-            }
-            if (fShapeInfer.valid()) fShapeInfer.wait();
-            fShapeInfer = worker0.send(&Node::updateShape, node); //.share()
-            if (fPrepareParams.valid()) fPrepareParams.wait();
-            fPrepareParams = worker1.send([fShapeInfer, node]() {
-                fShapeInfer.wait();
-                node->prepareNode();
-            });
-        }
+        //for (; prepareCounter < executableGraphNodes.size(); ++prepareCounter) {
+            tbb::parallel_pipeline(parallel_get_max_threads(),
+                tbb::make_filter<void, Node*>(
+                    tbb::filter::serial_in_order,
+                    [&](tbb::flow_control& fc) -> Node* {
+                        if (prepareCounter < executableGraphNodes.size()) {
+                            auto& node = executableGraphNodes[prepareCounter];
+                            if (one_of(node->getType(), Type::Input, Type::Reference, Type::Broadcast) &&
+                                prepareCounter != 0 &&
+                                inferCounter != prepareCounter) {
+                                fc.stop();
+                                return nullptr;
+                            }
+                            node->updateShape();
+                            ++prepareCounter;
+                            return node.get();
+                        }
+                        fc.stop();
+                        return nullptr;
+                    }) &
+                tbb::make_filter<Node*, void>(
+                    tbb::filter::serial_in_order,
+                    [](Node* node) {
+                        node->prepareNode();
+                    }));
+        //if (prepareCounter < 30) // For Tests only
+            runNodes(prepareCounter);
+
+            // if (fShapeInfer.valid()) fShapeInfer.wait();
+            // fShapeInfer = worker0.send(&Node::updateShape, node); //.share()
+            // if (fPrepareParams.valid()) fPrepareParams.wait();
+            // fPrepareParams = worker1.send([fShapeInfer, node]() {
+            //     fShapeInfer.wait();
+            //     node->prepareNode();
+            // });
+        //}
     }
 
     //runNodes(executableGraphNodes.size());
