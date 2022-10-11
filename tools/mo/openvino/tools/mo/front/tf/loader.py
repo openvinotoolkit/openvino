@@ -257,7 +257,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 tf_v1.disable_eager_execution()
 
                 input_names = []
-                if hasattr(imported, 'inputs'):
+                if hasattr(imported, 'inputs') and imported.inputs is not None:
                     # Extract tensor names order from Keras model
                     input_names = [tensor.name for tensor in imported.inputs]
 
@@ -306,7 +306,9 @@ def convert_to_pb(argv: argparse.Namespace):
     argv.model_name = model_name
     tf_v1.io.write_graph(graph_def, argv.output_dir if argv.output_dir != '.' else os.getcwd(),
                          model_name + "_tmp.pb", as_text=False)
-    argv.input_model = model_name + "_tmp.pb"
+    path_to_pb = os.path.normpath(os.path.join(argv.output_dir, model_name + "_tmp.pb"))
+    argv.input_model = path_to_pb
+    return path_to_pb
 
 
 def protobuf_attrs(pb: tf_v1.NodeDef):

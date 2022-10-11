@@ -58,4 +58,8 @@ void trim_to_outputs::run(program& p) {
             to_rem.push_back(node);
     }
     p.remove_nodes(to_rem);
+
+    for (auto& node : p.get_processing_order()) {
+        node->unmark();
+    }
 }

@@ -242,6 +242,9 @@ TEST_P(reduce_scale_activation, basic) {
         activation("activation", "scale", activation_func::cos),
         reorder("output_reorder", "activation", p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support cos activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     tolerance = 1e-02f;
     execute(p);
@@ -257,6 +260,9 @@ TEST_P(reduce_scale_activation, per_channel) {
         activation("activation", "scale", activation_func::cos),
         reorder("output_reorder", "activation", p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support cos activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     tolerance = 1e-02f;
     execute(p);

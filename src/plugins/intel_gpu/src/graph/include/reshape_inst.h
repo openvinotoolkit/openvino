@@ -33,6 +33,8 @@ public:
             return false;
         return (!this->get_output_layout().data_padding && !input().get_output_layout(false).data_padding);
     }
+
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {1}; }
 };
 
 using reshape_node = typed_program_node<reshape>;

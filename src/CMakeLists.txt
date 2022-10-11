@@ -8,7 +8,7 @@ include(cmake/install_tbb.cmake)
 
 # CC library should be registered before other cc targets
 add_subdirectory(common)
-# TODO: Fix Wall for core, frontends, tests and  c binding
+# TODO: Fix Wall for core, frontends and tests
 add_subdirectory(core)
 add_subdirectory(frontends)
 # TODO: remove ngraph/ngraph.hpp usage

@@ -28,14 +28,19 @@ endfunction()
 
 macro(ov_parse_ci_build_number)
     set(OpenVINO_VERSION_BUILD 000)
-    set(IE_VERSION_BUILD ${OpenVINO_VERSION_BUILD})
 
     if(CI_BUILD_NUMBER MATCHES "^([0-9]+)\.([0-9]+)\.([0-9]+)\-([0-9]+)\-.*")
         set(OpenVINO_VERSION_MAJOR ${CMAKE_MATCH_1})
         set(OpenVINO_VERSION_MINOR ${CMAKE_MATCH_2})
         set(OpenVINO_VERSION_PATCH ${CMAKE_MATCH_3})
         set(OpenVINO_VERSION_BUILD ${CMAKE_MATCH_4})
-        set(ci_build_number_available_parsed ON)
+        set(the_whole_version_is_defined_by_ci ON)
+    elseif(CI_BUILD_NUMBER MATCHES "^[0-9]+$")
+        set(OpenVINO_VERSION_BUILD ${CI_BUILD_NUMBER})
+        # only build number is defined by CI
+        set(the_whole_version_is_defined_by_ci OFF)
+    elseif(CI_BUILD_NUMBER)
+        message(FATAL_ERROR "Failed to parse CI_BUILD_NUMBER which is ${CI_BUILD_NUMBER}")
     endif()
 
     if(NOT DEFINED repo_root)
@@ -95,17 +100,16 @@ macro(ov_parse_ci_build_number)
     endif()
 
     set(OpenVINO_SOVERSION "${OpenVINO_VERSION_MAJOR}${OpenVINO_VERSION_MINOR}${OpenVINO_VERSION_PATCH}")
+    string(REGEX REPLACE "^20" "" OpenVINO_SOVERSION "${OpenVINO_SOVERSION}")
     set(OpenVINO_VERSION "${OpenVINO_VERSION_MAJOR}.${OpenVINO_VERSION_MINOR}.${OpenVINO_VERSION_PATCH}")
-    # see https://www.opengis.ch/2011/11/23/creating-non-versioned-shared-libraries-for-android/
-    # Android does not support SOVERSION
-    if(WIN32 OR ANDROID)
-        set(OpenVINO_VERSION_SUFFIX "")
-    else()
+    if(ENABLE_LIBRARY_VERSIONING)
         set(OpenVINO_VERSION_SUFFIX ".${OpenVINO_VERSION}")
+    else()
+        set(OpenVINO_VERSION_SUFFIX "")
     endif()
     message(STATUS "OpenVINO version is ${OpenVINO_VERSION} (Build ${OpenVINO_VERSION_BUILD})")
 
-    if(NOT ci_build_number_available_parsed)
+    if(NOT the_whole_version_is_defined_by_ci)
         # create CI_BUILD_NUMBER
 
         branchName(GIT_BRANCH)
@@ -121,13 +125,13 @@ macro(ov_parse_ci_build_number)
         unset(GIT_BRANCH)
         unset(GIT_COMMIT_HASH)
     else()
-        unset(ci_build_number_available_parsed)
+        unset(the_whole_version_is_defined_by_ci)
     endif()
 endmacro()
 
 # provides OpenVINO version
 # 1. If CI_BUILD_NUMBER is defined, parses this information
-# 2. Otherwise, parses openvino/core/version.hpp, 
+# 2. Otherwise, parses openvino/core/version.hpp
 if (DEFINED ENV{CI_BUILD_NUMBER})
     set(CI_BUILD_NUMBER $ENV{CI_BUILD_NUMBER})
 endif()
@@ -158,7 +162,9 @@ function(ov_add_library_version library)
         message(FATAL_ERROR "Internal error: OpenVINO_SOVERSION is not defined")
     endif()
 
-    set_target_properties(${library} PROPERTIES
-        SOVERSION ${OpenVINO_SOVERSION}
-        VERSION ${OpenVINO_VERSION})
+    if(ENABLE_LIBRARY_VERSIONING)
+        set_target_properties(${library} PROPERTIES
+            SOVERSION ${OpenVINO_SOVERSION}
+            VERSION ${OpenVINO_VERSION})
+    endif()
 endfunction()

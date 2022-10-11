@@ -22,6 +22,12 @@ namespace cldnn {
 struct reshape : public primitive_base<reshape> {
     CLDNN_DECLARE_PRIMITIVE(reshape)
 
+    enum reshape_mode : uint32_t {
+        base,
+        squeeze,
+        unsqueeze
+    };
+
     /// @brief Constructs reshape primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -32,12 +38,13 @@ struct reshape : public primitive_base<reshape> {
     reshape(const primitive_id& id,
             const primitive_id& input,
             const tensor& output_shape,
-            const primitive_id& ext_prim_id = "",
+            reshape_mode mode = reshape_mode::base,
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding)
+        : primitive_base(id, {input}, output_padding)
         , output_shape(output_shape)
         , output_pattern({})
-        , output_partial_shape({}) {}
+        , output_partial_shape({})
+        , mode(mode) {}
 
     /// @brief reshape with dynamic pattern
     reshape(const primitive_id& id,
@@ -45,13 +52,14 @@ struct reshape : public primitive_base<reshape> {
             const primitive_id& pattern_id,
             bool special_zero,
             const ov::PartialShape& output_partial_shape,
-            const primitive_id& ext_prim_id = "",
+            reshape_mode mode = reshape_mode::base,
             const padding& output_padding = padding())
-        : primitive_base(id, {input, pattern_id}, ext_prim_id, output_padding)
+        : primitive_base(id, {input, pattern_id}, output_padding)
         , output_shape(tensor())
         , special_zero(special_zero)
         , output_pattern({})
-        , output_partial_shape(output_partial_shape) {}
+        , output_partial_shape(output_partial_shape)
+        , mode(mode) {}
 
     /// @brief reshape with static pattern
     reshape(const primitive_id& id,
@@ -59,13 +67,14 @@ struct reshape : public primitive_base<reshape> {
             bool special_zero,
             const std::vector<int64_t>& output_pattern,
             const ov::PartialShape& output_partial_shape,
-            const primitive_id& ext_prim_id = "",
+            reshape_mode mode = reshape_mode::base,
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding)
+        : primitive_base(id, {input}, output_padding)
         , output_shape(tensor())
         , special_zero(special_zero)
         , output_pattern(output_pattern)
-        , output_partial_shape(output_partial_shape) {}
+        , output_partial_shape(output_partial_shape)
+        , mode(mode) {}
 
     /// @brief Requested memory shape.
     tensor output_shape;
@@ -75,6 +84,8 @@ struct reshape : public primitive_base<reshape> {
     std::vector<int64_t> output_pattern;
 
     ov::PartialShape output_partial_shape;
+
+    reshape_mode mode;
 };
 
 /// @}

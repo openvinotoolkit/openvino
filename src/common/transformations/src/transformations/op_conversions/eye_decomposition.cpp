@@ -38,7 +38,7 @@ const auto batch_predicate = [](const Output<Node>& output) -> bool {
  *
  * If 'k' is outside the eye dimension then result matrix will be filled with zeros.
  *
- * \param reg    Node register used store created nodes.
+ * \param reg     Node registry used store created nodes.
  * \param height  Height of eye
  * \param width   Width of eye
  * \param k       Eye diagonal shift.
@@ -46,7 +46,7 @@ const auto batch_predicate = [](const Output<Node>& output) -> bool {
  *
  * \return Pointer to decomposed eye model.
  */
-std::shared_ptr<Node> make_eye_model(NodeRegister& reg,
+std::shared_ptr<Node> make_eye_model(NodeRegistry& reg,
                                      const Output<Node>& height,
                                      const Output<Node>& width,
                                      const Output<Node>& k,
@@ -84,13 +84,13 @@ std::shared_ptr<Node> make_eye_model(NodeRegister& reg,
 /**
  * \brief Make eye model as basic 2D eye replicated as specified in batch size.
  *
- * \param reg    Node register used store created nodes.
+ * \param reg    Node registry used store created nodes.
  * \param eye    Eye model.
  * \param batch  1-D tensor which defines leading batch dimensions of output eye shape.
  *
  * \return Pointer to decomposed eye model.
  */
-std::shared_ptr<Node> make_eye_batches(NodeRegister& reg, const Output<Node>& eye, const Output<Node>& batch) {
+std::shared_ptr<Node> make_eye_batches(NodeRegistry& reg, const Output<Node>& eye, const Output<Node>& batch) {
     const auto eye_tile = reg.make<opset9::Constant>(element::i64, Shape{2}, 1);
 
     // `batch_repeats` repeat eye matrix as tile only in higher dimensions than 1 by number(s) in batch parameter.
@@ -119,7 +119,7 @@ EyeDecomposition::EyeDecomposition() {
             return false;
         }
 
-        NodeRegister copy_reg;
+        NodeRegistry copy_reg;
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto dtype = m_eye->get_out_type();

@@ -4,8 +4,23 @@ trigger:
     - master
     - releases/*
   paths:
-    exclude:
-    - docs/*
+    exclude: 
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+    - README.md
+
+pr:
+  branches:
+    include:
+    - master
+    - releases/*
+  paths:
+    exclude: 
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+    - README.md
 
 jobs:
 - job: onnxruntime
@@ -91,6 +106,7 @@ jobs:
       cmakeArgs: >
         -GNinja
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DENABLE_PYTHON=ON
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
         -DENABLE_INTEL_MYRIAD_COMMON=OFF

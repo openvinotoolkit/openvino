@@ -53,10 +53,13 @@ if (NOT (OpenCL_FOUND AND OpenCL_HEADERS))
 endif()
 
 # try to find VA libraries
-if(NOT CMAKE_CROSSCOMPILING)
-    find_host_package(PkgConfig QUIET)
+if(NOT ANDROID)
+    find_package(PkgConfig QUIET)
     if(PkgConfig_FOUND)
         pkg_search_module(libva QUIET IMPORTED_TARGET libva)
+        if(libva_FOUND)
+            message(STATUS "${PKG_CONFIG_EXECUTABLE}: libva (${libva_VERSION}) is found at ${libva_PREFIX}")
+        endif()
     endif()
 endif()
 
@@ -74,7 +77,7 @@ list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide2.c
 # create a static library
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
-target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../template_extension/new/")
+target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/template_extension/new/")
 
 if(OpenCL_FOUND AND OpenCL_HEADERS)
     target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCL_LIB})

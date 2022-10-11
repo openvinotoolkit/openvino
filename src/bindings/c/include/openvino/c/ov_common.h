@@ -13,6 +13,22 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+
+#ifndef ENABLE_UNICODE_PATH_SUPPORT
+#    ifdef _WIN32
+#        if defined __INTEL_COMPILER || defined _MSC_VER
+#            define ENABLE_UNICODE_PATH_SUPPORT
+#        endif
+#    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
+#        define ENABLE_UNICODE_PATH_SUPPORT
+#    endif
+#endif
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#    define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#    include <wchar.h>
+#endif
+
 #ifdef __cplusplus
 #    define OPENVINO_C_API_EXTERN extern "C"
 #else
@@ -21,18 +37,22 @@
 
 #if defined(OPENVINO_STATIC_LIBRARY) || defined(__GNUC__) && (__GNUC__ < 4)
 #    define OPENVINO_C_API(...) OPENVINO_C_API_EXTERN __VA_ARGS__
+#    define OPENVINO_C_VAR(...) OPENVINO_C_API_EXTERN __VA_ARGS__
 #    define OV_NODISCARD
 #else
 #    if defined(_WIN32)
 #        define OPENVINO_C_API_CALLBACK __cdecl
 #        ifdef openvino_c_EXPORTS
 #            define OPENVINO_C_API(...) OPENVINO_C_API_EXTERN __declspec(dllexport) __VA_ARGS__ __cdecl
+#            define OPENVINO_C_VAR(...) OPENVINO_C_API_EXTERN __declspec(dllexport) __VA_ARGS__
 #        else
 #            define OPENVINO_C_API(...) OPENVINO_C_API_EXTERN __declspec(dllimport) __VA_ARGS__ __cdecl
+#            define OPENVINO_C_VAR(...) OPENVINO_C_API_EXTERN __declspec(dllimport) __VA_ARGS__
 #        endif
 #        define OV_NODISCARD
 #    else
 #        define OPENVINO_C_API(...) OPENVINO_C_API_EXTERN __attribute__((visibility("default"))) __VA_ARGS__
+#        define OPENVINO_C_VAR(...) OPENVINO_C_API_EXTERN __attribute__((visibility("default"))) __VA_ARGS__
 #        define OV_NODISCARD        __attribute__((warn_unused_result))
 #    endif
 #endif
@@ -71,6 +91,8 @@ typedef enum {
      */
     INVALID_C_PARAM = -14,
     UNKNOWN_C_ERROR = -15,
+    NOT_IMPLEMENT_C_METHOD = -16,
+    UNKNOW_EXCEPTION = -17,
 } ov_status_e;
 
 /**

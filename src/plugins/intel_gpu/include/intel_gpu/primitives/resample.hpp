@@ -35,9 +35,8 @@ struct resample : public primitive_base<resample> {
              tensor output_size,
              uint32_t num_filter,
              InterpolateOp::InterpolateMode operation_type = InterpolateOp::InterpolateMode::NEAREST,
-             const primitive_id& ext_prim_id = "",
              const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           output_size(output_size),
           num_filter(num_filter),
           output_pattern({}),
@@ -72,9 +71,8 @@ struct resample : public primitive_base<resample> {
              InterpolateOp::ShapeCalcMode shape_calc_mode = InterpolateOp::ShapeCalcMode::SIZES,
              InterpolateOp::CoordinateTransformMode ctm = InterpolateOp::CoordinateTransformMode::HALF_PIXEL,
              InterpolateOp::NearestMode nm = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR,
-             const primitive_id& ext_prim_id = "",
              const padding& output_padding = padding())
-        : primitive_base(id, {input, pattern_id}, ext_prim_id, output_padding),
+        : primitive_base(id, {input, pattern_id}, output_padding),
           output_size(tensor()),
           num_filter(0),
           output_pattern({}),
@@ -106,9 +104,8 @@ struct resample : public primitive_base<resample> {
              InterpolateOp::ShapeCalcMode shape_calc_mode = InterpolateOp::ShapeCalcMode::SIZES,
              InterpolateOp::CoordinateTransformMode ctm = InterpolateOp::CoordinateTransformMode::HALF_PIXEL,
              InterpolateOp::NearestMode nm = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR,
-             const primitive_id& ext_prim_id = "",
              const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           output_size(tensor()),
           num_filter(0),
           output_pattern(output_pattern),

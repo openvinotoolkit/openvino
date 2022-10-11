@@ -18,6 +18,13 @@ using namespace Xbyak::util;
 namespace ov {
 namespace intel_cpu {
 
+namespace {
+// heuristic threshold number by byte between mask load and emulation with several simple partial load
+constexpr int threshold_for_mask_emu_load = 14;
+// heuristic threshold number by byte between mask store and emulation with several simple partial store
+constexpr int threshold_for_mask_emu_store = 6;
+}   // namespace
+
 size_t load_emitter_params::hash() const {
     size_t seed = 0;
     seed = hash_combine(seed, std::string("jit_load_emitter"));
@@ -38,12 +45,11 @@ size_t store_emitter_params::hash() const {
     return seed;
 }
 
-static int get_aux_regs_for_avx512_mask(const size_t byte_size, const bool is_fill = false) {
-    if (mayiuse(cpu::x64::avx512_core)) {
-        if (!one_of(byte_size, 64, 32, 16) || is_fill) {
-            return 1;
-        }
-    }
+static int get_aux_regs_as_temp(const size_t byte_size, const bool is_fill = false) {
+    if (!one_of(byte_size, 64, 32, 16))
+        return 1;
+    if (mayiuse(cpu::x64::avx512_core) && is_fill)
+        return 1;
     return 0;
 }
 
@@ -62,7 +68,7 @@ size_t jit_load_emitter::get_inputs_num() const { return 1; }
 
 size_t jit_load_emitter::aux_gprs_count() const {
     // 0 for temp reg for mask load in avx512 if needed
-    int count = get_aux_regs_for_avx512_mask(load_num_ * dst_prc_.size(), is_fill_);
+    int count = get_aux_regs_as_temp(load_num_ * dst_prc_.size(), is_fill_);
 
     // 1 for table address
     if (is_fill_)
@@ -185,6 +191,9 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
     const auto addr = [&](int bytes_offset) {
         return ptr[reg + offset + bytes_offset * sizeof(int8_t)];
     };
+    const auto word_addr = [&](int bytes_offset) {
+        return word[reg + offset + bytes_offset * sizeof(int8_t)];
+    };
 
     auto load_byte_base = [&]() {
         int start_bytes = 0;
@@ -208,20 +217,26 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
 
         if (bytes_to_load >= 8 && bytes_to_load < 16)
             h->uni_vmovq(xmm, addr(start_bytes));
-            //  better CPI than h->pinsrq(xmm, addr(start_bytes), 0);
         else if (bytes_to_load == 16)
             h->uni_vmovdqu(xmm, addr(start_bytes));
 
         switch (bytes_to_load) {
             case 0: break;
-            case 1: h->uni_vpinsrb(xmm, xmm, addr(start_bytes), 0); break;
-            case 2: h->uni_vpinsrw(xmm, xmm, addr(start_bytes), 0); break;
+            case 1:
+                h->movzx(Reg32(aux_gpr_idxs[0]), addr(start_bytes));
+                h->uni_vmovq(xmm, Reg64(aux_gpr_idxs[0]));
+                break;
+            case 2:
+                h->movzx(Reg32(aux_gpr_idxs[0]), word_addr(start_bytes));
+                h->uni_vmovq(xmm, Reg64(aux_gpr_idxs[0]));
+                break;
             case 3:
-                h->uni_vpinsrw(xmm, xmm, addr(start_bytes), 0);
-                h->uni_vpinsrb(xmm, xmm, addr(start_bytes + 2), 2);
+                h->movzx(Reg32(aux_gpr_idxs[0]), addr(start_bytes + 2));
+                h->shl(Reg32(aux_gpr_idxs[0]), 16);
+                h->mov(Reg16(aux_gpr_idxs[0]), word_addr(start_bytes));
+                h->uni_vmovq(xmm, Reg64(aux_gpr_idxs[0]));
                 break;
             case 4: h->uni_vmovss(xmm, addr(start_bytes)); break;
-                    // in most case, better than h->uni_vpinsrd(xmm, xmm, addr(start_bytes), 0);
             case 5:
                 h->uni_vmovss(xmm, addr(start_bytes));
                 h->uni_vpinsrb(xmm, xmm, addr(start_bytes + 4), 4);
@@ -286,7 +301,7 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
             h->uni_vmovdqu(xmm, addr(0));
             break;
         default: {
-            if (mayiuse(cpu::x64::avx512_core)) {
+            if (mayiuse(cpu::x64::avx512_core) && load_size > threshold_for_mask_emu_load) {
                 uint64_t mask = 1;
                 mask = (mask << load_size) - mask;
                 h->mov(Reg64(aux_gpr_idxs[0]), mask);
@@ -372,7 +387,7 @@ void jit_load_emitter::load_bytes_to_dword_extension(const Vmm &vmm, const Xbyak
             break;
         }
         default: {
-            if (is_zmm) {
+            if (is_zmm && load_size > threshold_for_mask_emu_load) {
                 unsigned int mask = 1;
                 mask = (mask << load_size) - mask;
                 h->mov(Reg32(aux_gpr_idxs[0]), mask);
@@ -479,7 +494,7 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm &vmm, const Xbyak
             break;
         }
         default: {
-            if (is_zmm) {
+            if (is_zmm && load_size > threshold_for_mask_emu_load) {
                 unsigned int mask = 1;
                 mask = (mask << (load_size / 2)) - mask;
                 h->mov(Reg32(aux_gpr_idxs[0]), mask);
@@ -547,18 +562,34 @@ void jit_load_emitter::register_table_entries() {
 
 /// STORE ///
 jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                                     Precision src_prc, Precision dst_prc, int store_num, Precision exec_prc, emitter_in_out_map in_out_type)
-: jit_emitter(host, host_isa, exec_prc, in_out_type), store_num_(store_num), src_prc_(src_prc), dst_prc_(dst_prc), name_("unknown") {
+                                     Precision src_prc, Precision dst_prc, int store_num, arithmetic_mode mode, Precision exec_prc,
+                                     emitter_in_out_map in_out_type)
+    : jit_emitter(host, host_isa, exec_prc, in_out_type), store_num_(store_num), src_prc_(src_prc), dst_prc_(dst_prc), mode_(mode), name_("unknown") {
+    prepare_table();
     v_len_elt_ = get_vec_length() / exec_prc.size();
     store_size_ = store_num * dst_prc.size();
-    if (!mayiuse(cpu::x64::avx512_core_bf16) && mayiuse(cpu::x64::avx512_core)) {
-        emu_vcvtneps2bf16_.reset(new jit_emu_vcvtneps2bf16(host, host_isa));
-    }
+    uni_vcvtneps2bf16_.reset(new jit_uni_vcvtneps2bf16(host, host_isa));
 }
 
-// 0 for temp reg for mask store for avx512
+inline bool jit_store_emitter::is_saturation() const {
+    return mode_ == arithmetic_mode::saturation;
+}
+
+// case for SSE and AVX2 when we should use AND to truncate values
+inline bool jit_store_emitter::is_truncation_emulation() const {
+    return !mayiuse(cpu::x64::avx512_core) && !is_saturation() &&
+        src_prc_ != dst_prc_ && one_of(dst_prc_, Precision::U16, Precision::I16, Precision::U8, Precision::I8);
+}
+
 size_t jit_store_emitter::aux_gprs_count() const {
-    return get_aux_regs_for_avx512_mask(store_num_ * src_prc_.size());
+    // for temp reg for store(mask version or special number cases)
+    int count = get_aux_regs_as_temp(store_num_ * src_prc_.size());
+
+    // for table value in truncation arithmetic mode
+    if (is_truncation_emulation())
+        count++;
+
+    return count;
 }
 
 size_t jit_store_emitter::aux_vecs_count() const {
@@ -568,6 +599,10 @@ size_t jit_store_emitter::aux_vecs_count() const {
     if ((src_prc_.is_float() && !dst_prc_.is_float()) ||
         (!src_prc_.is_float() && dst_prc_.is_float()) ||
         (src_prc_ == Precision::FP32 && dst_prc_ == Precision::BF16))
+        count++;
+
+    // for data swapping to avoid using Xmm(0) as I/O xmm for jit_uni_vcvtneps2bf16
+    if ((host_isa_ == cpu::x64::sse41) && (src_prc_ == Precision::FP32 && dst_prc_ == Precision::BF16))
         count++;
 
     // zero value, zeroed and passed from caller from performance standpoint(zeroed one time and not need preserve and restore status)
@@ -580,8 +615,9 @@ size_t jit_store_emitter::aux_vecs_count() const {
 size_t jit_store_emitter::get_inputs_num() const { return 1; }
 
 void jit_store_emitter::emit_data() const {
-    if (emu_vcvtneps2bf16_)
-        emu_vcvtneps2bf16_->emit_data();
+    jit_emitter::emit_data();
+    if (uni_vcvtneps2bf16_)
+        uni_vcvtneps2bf16_->emit_data();
 }
 
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
@@ -618,7 +654,11 @@ void jit_store_emitter::emit_isa(const int in_vec_idx, const Xbyak::Reg64 &reg_d
         switch (src_prc_) {
             case Precision::FP32:
                 if ((dst_prc_ != Precision::FP32) && (dst_prc_ != Precision::BF16)) {
-                    h->uni_vcvtps2dq(Vmm(aux_vec_idxs.back()), Vmm(data_idx));
+                    if (is_saturation()) {
+                        h->uni_vcvtps2dq(Vmm(aux_vec_idxs.back()), Vmm(data_idx));
+                    } else {
+                        h->uni_vcvttps2dq(Vmm(aux_vec_idxs.back()), Vmm(data_idx));
+                    }
                     data_idx = aux_vec_idxs.back();
                 }
                 break;
@@ -722,22 +762,34 @@ void jit_store_emitter::store_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int
 
         if (bytes_to_store >= 8 && bytes_to_store < 16)
             h->uni_vmovq(addr(start_bytes), xmm);
-            // h->pextrq(addr(start_bytes), xmm, 0);
         else if (bytes_to_store == 16)
             h->uni_vmovdqu(addr(start_bytes), xmm);
 
         // 64/32/16/8 with one go
         // tail 7 bytes for lower or upper xmm
+        auto store_one_byte = [&](int bytes_offset, int gpr_idx) {
+            bool ext8bit = false;
+            if (one_of(gpr_idx, Operand::RSP, Operand::RBP, Operand::RSI, Operand::RDI))
+                ext8bit = true;
+            h->mov(addr(start_bytes + bytes_offset), Reg8(gpr_idx, ext8bit));
+        };
         switch (bytes_to_store) {
             case 0: break;
-            case 1: h->uni_vpextrb(addr(start_bytes), xmm, 0); break;
-            case 2: h->uni_vpextrw(addr(start_bytes), xmm, 0); break;
+            case 1:
+                h->uni_vmovq(Reg64(aux_gpr_idxs[0]), xmm);
+                store_one_byte(0, aux_gpr_idxs[0]);
+                break;
+            case 2:
+                h->uni_vmovq(Reg64(aux_gpr_idxs[0]), xmm);
+                h->mov(addr(start_bytes), Reg16(aux_gpr_idxs[0]));
+                break;
             case 3:
-                h->uni_vpextrw(addr(start_bytes), xmm, 0);
-                h->uni_vpextrb(addr(start_bytes + 2), xmm, 2);
+                h->uni_vmovq(Reg64(aux_gpr_idxs[0]), xmm);
+                h->mov(addr(start_bytes), Reg16(aux_gpr_idxs[0]));
+                h->shr(Reg64(aux_gpr_idxs[0]), 16);
+                store_one_byte(2, aux_gpr_idxs[0]);
                 break;
             case 4: h->uni_vmovss(addr(start_bytes), xmm); break;
-                    // h->uni_vpextrd(addr(start_bytes), xmm, 0); break;
             case 5:
                 h->uni_vmovss(addr(start_bytes), xmm);
                 h->uni_vpextrb(addr(start_bytes + 4), xmm, 4);
@@ -789,7 +841,7 @@ void jit_store_emitter::store_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int
             h->uni_vmovdqu(addr(0), xmm);
             break;
         default:
-            if (mayiuse(cpu::x64::avx512_core)) {
+            if (mayiuse(cpu::x64::avx512_core) && store_size > threshold_for_mask_emu_store) {
                 uint64_t mask = 1;
                 mask = (mask << store_size) - mask;
                 h->mov(Reg64(aux_gpr_idxs[0]), mask);
@@ -804,7 +856,7 @@ void jit_store_emitter::store_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int
 
 /**
 * store_dword_to_byte_extension is the utility function to
-* 1. convert store_num (0 <= store_num <= 16) dwords in the Xmm/Ymm/Zmm to store_num bytes with singed or unsinged saturation.
+* 1. convert store_num (0 <= store_num <= 16) dwords in the Xmm/Ymm/Zmm to store_num bytes with and without singed or unsinged saturation.
 * 2. store the packed byte into the memory referenced by ptr[reg + offset] address.
 */
 template <typename Vmm>
@@ -835,28 +887,52 @@ void jit_store_emitter::store_dword_to_byte_extension(const Vmm &vmm, const Xbya
     };
 
     auto store_dword_to_byte_base = [&]() {
-        // db only available on avx512, need dw+wb to emulate
-        if (is_signed)
-            h->uni_vpackssdw(vmm, vmm, vmm);
-        else
-            h->uni_vpackusdw(vmm, vmm, vmm);
-        // gather 2(cross lane) 64 bits into lower vmm to store
-        // [y_3 y_2 y_1 y_0] |--> [y_0 y_0 y_2 y_0]
-        if (is_ymm) {
-            h->vpermq(ymm, ymm, 0x08);  // 00001000
-        }
+        if (is_zmm) {
+            if (is_saturation()) {
+                if (is_signed) {
+                    h->vpmovsdb(xmm, vmm);
+                } else {
+                    Vmm zero(aux_vec_idxs[0]);
+                    h->uni_vpxor(zero, zero, zero);
+                    h->uni_vpmaxsd(vmm, vmm, zero);
+                    h->vpmovusdb(xmm, vmm);
+                }
+            } else {
+                h->vpmovdb(xmm, vmm);
+            }
+        } else {
+            if (is_saturation()) {
+                // db only available on avx512, need dw+wb to emulate
+                if (is_signed)
+                    h->uni_vpackssdw(vmm, vmm, vmm);
+                else
+                    h->uni_vpackusdw(vmm, vmm, vmm);
+                // gather 2(cross lane) 64 bits into lower vmm to store when store_num > 4.
+                // [y_3 y_2 y_1 y_0] |--> [y_0 y_0 y_2 y_0]
+                if (is_ymm && (store_num > 4)) {
+                    h->vpermq(ymm, ymm, 0x08);  // 00001000
+                }
 
-        if (is_signed)
-            h->uni_vpacksswb(vmm, vmm, vmm);
-        else
-            h->uni_vpackuswb(vmm, vmm, vmm);
+                if (is_signed)
+                    h->uni_vpacksswb(vmm, vmm, vmm);
+                else
+                    h->uni_vpackuswb(vmm, vmm, vmm);
+            } else {
+                h->vpand(vmm, vmm, table_val("mask_truncation_byte"));  // to avoid saturation
+                h->uni_vpackssdw(vmm, vmm, vmm);
+                if (is_ymm)
+                    h->vpermq(ymm, ymm, 0x08);
+                h->uni_vpackuswb(vmm, vmm, vmm);
+            }
+        }
 
         store_bytes(vmm, reg, offset, store_num);
     };
 
     switch (store_num) {
-        case 16:
-            // must support avx512F
+    case 16:
+        // must support avx512F
+        if (is_saturation()) {
             if (is_signed) {
                 h->vpmovsdb(addr(0), vmm);
             } else {
@@ -865,9 +941,13 @@ void jit_store_emitter::store_dword_to_byte_extension(const Vmm &vmm, const Xbya
                 h->uni_vpmaxsd(vmm, vmm, zero);
                 h->vpmovusdb(addr(0), vmm);
             }
-            break;
-        case 8:
-            if (mayiuse(cpu::x64::avx512_core)) {  // ymm block on avx512F + VL
+        } else {
+            h->vpmovdb(addr(0), vmm);
+        }
+        break;
+    case 8:
+        if (mayiuse(cpu::x64::avx512_core)) {
+            if (is_saturation()) {  // ymm block on avx512F + VL
                 if (is_signed) {
                     h->vpmovsdb(addr(0), ymm);
                 } else {
@@ -877,11 +957,15 @@ void jit_store_emitter::store_dword_to_byte_extension(const Vmm &vmm, const Xbya
                     h->vpmovusdb(addr(0), ymm);
                 }
             } else {
-                store_dword_to_byte_base();
+                h->vpmovdb(addr(0), ymm);
             }
-            break;
-        case 4:
-            if (mayiuse(cpu::x64::avx512_core)) {  // xmm block on avx512F + VL
+        } else {
+            store_dword_to_byte_base();
+        }
+        break;
+    case 4:
+        if (mayiuse(cpu::x64::avx512_core)) {
+            if (is_saturation()) {// xmm block on avx512F + VL
                 if (is_signed) {
                     h->vpmovsdb(addr(0), xmm);
                 } else {
@@ -891,15 +975,19 @@ void jit_store_emitter::store_dword_to_byte_extension(const Vmm &vmm, const Xbya
                     h->vpmovusdb(addr(0), xmm);
                 }
             } else {
-                store_dword_to_byte_base();
+                h->vpmovdb(addr(0), xmm);
             }
-            break;
-        default:
-            if (is_zmm) {  // avx512F
-                unsigned int mask = 1;
-                mask = (mask << store_num) - mask;
-                h->mov(Reg32(aux_gpr_idxs[0]), mask);
-                h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
+        } else {
+            store_dword_to_byte_base();
+        }
+        break;
+    default:
+        if (is_zmm && store_num > threshold_for_mask_emu_store) {  // avx512F
+            unsigned int mask = 1;
+            mask = (mask << store_num) - mask;
+            h->mov(Reg32(aux_gpr_idxs[0]), mask);
+            h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
+            if (is_saturation()) {
                 if (is_signed) {
                     h->vpmovsdb(addr(0), vmm | k_mask);
                 } else {
@@ -909,9 +997,12 @@ void jit_store_emitter::store_dword_to_byte_extension(const Vmm &vmm, const Xbya
                     h->vpmovusdb(addr(0), vmm | k_mask);
                 }
             } else {
-                store_dword_to_byte_base();
+                h->vpmovdb(addr(0), vmm | k_mask);
             }
-            break;
+        } else {
+            store_dword_to_byte_base();
+        }
+        break;
     }
 }
 
@@ -946,95 +1037,155 @@ void jit_store_emitter::store_dword_to_word_extension(const Vmm &vmm, const Xbya
     auto zmm = Xbyak::Zmm(vmm.getIdx());
 
     auto store_dword_to_word_base = [&]() {
-        // direct mov_dw available only on avx512, emulate with pack_dw + permute + pure store
-        if (is_signed)
-            h->uni_vpackssdw(vmm, vmm, vmm);
-        else
-            h->uni_vpackusdw(vmm, vmm, vmm);
-        // gather 2/4(cross lane) 64 bits into lower vmm to store
-        // [y_3 y_2 y_1 y_0] |--> [y_0 y_0 y_2 y_0]
-        // [  128  |  128  ] |--> [ 128   |  128  ]
-        if (is_ymm) {
-            h->vpermq(ymm, ymm, 0x08);  // 00001000
+        if (is_zmm) {
+            if (is_saturation()) {
+                if (is_signed) {
+                    h->vpmovsdw(ymm, vmm);  // singed int32 saturate to signed int16.
+                } else {
+                    Vmm zero(aux_vec_idxs[0]);
+                    h->uni_vpxor(zero, zero, zero);
+                    h->uni_vpmaxsd(vmm, vmm, zero);        // if singed bit is 1, set value as 0.
+                    h->vpmovusdw(ymm, vmm); // unsinged int32 saturate to unsigned int16.
+                }
+            } else {
+                // by literally copy low 16 bit
+                h->vpmovdw(ymm, vmm);
+            }
+        } else {
+            // direct mov_dw available only on avx512
+            if (is_saturation()) {  // emulate with pack_dw + permute + pure store for saturation mode
+                if (is_signed)
+                    h->uni_vpackssdw(vmm, vmm, vmm);
+                else
+                    h->uni_vpackusdw(vmm, vmm, vmm);
+                // gather 2/4(cross lane) 64 bits into lower vmm to store when store_num > 4
+                // [y_3 y_2 y_1 y_0] |--> [y_0 y_0 y_2 y_0]
+                // [  128  |  128  ] |--> [ 128   |  128  ]
+                if (is_ymm && (store_num > 4)) {
+                    h->vpermq(ymm, ymm, 0x08);  // 00001000
+                }
+            } else {  // emulate with AND + pure store for truncation mode
+                h->vpand(vmm, vmm, table_val("mask_truncation_word"));
+                h->uni_vpackusdw(vmm, vmm, vmm);
+            }
         }
 
         store_bytes(vmm, reg, offset, store_num * 2);
     };
 
     if (is_bf16) {
-        // to avoid src vmm pollution
-        if (src_prc_ == Precision::FP32) {
-            ymm = Ymm(aux_vec_idxs[0]);
-        }
-        if (mayiuse(cpu::x64::avx512_core_bf16)) {
-            h->vcvtneps2bf16(ymm, zmm);
+        if (mayiuse(cpu::x64::avx512_core)) {
+            // to avoid src vmm pollution
+            if (src_prc_ == Precision::FP32) {
+                ymm = Ymm(aux_vec_idxs[0]);
+            }
+            uni_vcvtneps2bf16_->emit_code({static_cast<size_t>(zmm.getIdx())}, {static_cast<size_t>(ymm.getIdx())});
+            if (store_num == 16) {
+                h->vmovdqu16(ptr[reg + offset], ymm);
+            } else {
+                store_bytes(ymm, reg, offset, store_num * 2);
+            }
         } else {
-            emu_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(ymm.getIdx())});
-        }
-        if (store_num == 16) {
-            h->vmovdqu16(ptr[reg + offset], ymm);
-        } else {
-            store_bytes(ymm, reg, offset, store_num * 2);
+            // to avoid src vmm pollution
+            if (src_prc_ == Precision::FP32) {
+                xmm = Xmm(aux_vec_idxs[0]);
+            }
+            // For sse41 mask register has to be Xmm(0) so we cannot use Xmm(0) as I/O vmm in uni_vcvtneps2bf16_
+            if (host_isa_ == cpu::x64::sse41 && src_prc_ == Precision::FP32) {
+                auto xmm_aux1 = Xmm(aux_vec_idxs[1]);
+                h->uni_vmovups(xmm_aux1, vmm);
+                uni_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(vmm.getIdx())},
+                                              {static_cast<size_t>(xmm.getIdx())});
+                h->uni_vmovups(xmm, vmm);
+                h->uni_vmovups(vmm, xmm_aux1);  // return original data to src vmm
+            } else {
+                uni_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(xmm.getIdx())});
+            }
+
+            store_bytes(xmm, reg, offset, store_num * 2);
         }
     } else {
         switch (store_num) {
-            case 16:
+        case 16:
+            if (is_saturation()) {
                 if (is_signed) {
                     h->vpmovsdw(ptr[reg + offset], vmm);  // singed int32 saturate to signed int16.
                 } else {
                     Vmm zero(aux_vec_idxs[0]);
                     h->uni_vpxor(zero, zero, zero);
-                    h->uni_vpmaxsd(vmm, zero, vmm);        // if singed bit is 1, set value as 0.
+                    h->uni_vpmaxsd(vmm, vmm, zero);        // if singed bit is 1, set value as 0.
                     h->vpmovusdw(ptr[reg + offset], vmm); // unsinged int32 saturate to unsigned int16.
                 }
-                break;
-            case 8:
-                if (mayiuse(cpu::x64::avx512_core)) {
+            } else {
+                h->vpmovdw(ptr[reg + offset], vmm);
+            }
+            break;
+        case 8:
+            if (mayiuse(cpu::x64::avx512_core)) {
+                if (is_saturation()) {
                     if (is_signed) {
                         h->vpmovsdw(ptr[reg + offset], ymm);
                     } else {
                         Vmm zero(aux_vec_idxs[0]);
                         h->uni_vpxor(zero, zero, zero);
-                        h->uni_vpmaxsd(ymm, zero, ymm);
+                        h->uni_vpmaxsd(ymm, ymm, zero);
                         h->vpmovusdw(ptr[reg + offset], ymm);
                     }
                 } else {
-                    store_dword_to_word_base();
+                    h->vpmovdw(ptr[reg + offset], ymm);
                 }
-                break;
-            case 4:
-                if (mayiuse(cpu::x64::avx512_core)) {
+            } else {
+                store_dword_to_word_base();
+            }
+            break;
+        case 4:
+            if (mayiuse(cpu::x64::avx512_core)) {
+                if (is_saturation()) {
                     if (is_signed) {
                         h->vpmovsdw(ptr[reg + offset], xmm);
                     } else {
                         Vmm zero(aux_vec_idxs[0]);
                         h->uni_vpxor(zero, zero, zero);
-                        h->uni_vpmaxsd(xmm, zero, xmm);
+                        h->uni_vpmaxsd(xmm, xmm, zero);
                         h->vpmovusdw(ptr[reg + offset], xmm);
                     }
                 } else {
-                   store_dword_to_word_base();
+                    h->vpmovdw(ptr[reg + offset], xmm);
                 }
-                break;
-            default:
-                if (is_zmm) {
-                    unsigned int mask = 1;
-                    mask = (mask << store_num) - mask;
-                    h->mov(Reg32(aux_gpr_idxs[0]), mask);
-                    h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
+            } else {
+               store_dword_to_word_base();
+            }
+            break;
+        default:
+            if (is_zmm && ((store_num * 2) > threshold_for_mask_emu_store)) {
+                unsigned int mask = 1;
+                mask = (mask << store_num) - mask;
+                h->mov(Reg32(aux_gpr_idxs[0]), mask);
+                h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
+                if (is_saturation()) {
                     if (is_signed) {
                         h->vpmovsdw(ptr[reg + offset], vmm | k_mask);
                     } else {
                         Vmm zero(aux_vec_idxs[0]);
                         h->uni_vpxor(zero, zero, zero);
-                        h->uni_vpmaxsd(vmm, zero, vmm);
+                        h->uni_vpmaxsd(vmm, vmm, zero);
                         h->vpmovusdw(ptr[reg + offset], vmm | k_mask);
                     }
                 } else {
-                    store_dword_to_word_base();
+                    h->vpmovdw(ptr[reg + offset], vmm | k_mask);
                 }
-                break;
+            } else {
+                store_dword_to_word_base();
+            }
+            break;
         }
+    }
+}
+
+void jit_store_emitter::register_table_entries() {
+    if (is_truncation_emulation()) {
+        push_arg_entry_of("mask_truncation_byte", 0x000000ff, true);
+        push_arg_entry_of("mask_truncation_word", 0x0000ffff, true);
     }
 }
 

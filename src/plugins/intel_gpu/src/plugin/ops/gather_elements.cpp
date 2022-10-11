@@ -14,7 +14,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateGatherElementsOp(Program& p, const std::shared_ptr<ngraph::op::v6::GatherElements>& op) {
-    p.ValidateInputs(op, {2});
+    validate_inputs_count(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -32,11 +32,9 @@ static void CreateGatherElementsOp(Program& p, const std::shared_ptr<ngraph::op:
                                             inputPrimitives[1],
                                             outLayout,
                                             tensor_from_dims(op->get_output_shape(0)),
-                                            axis,
-                                            op->get_friendly_name());
+                                            axis);
 
-    p.AddPrimitive(primitive);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, primitive);
 }
 
 REGISTER_FACTORY_IMPL(v6, GatherElements);

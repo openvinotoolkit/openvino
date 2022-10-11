@@ -21,6 +21,7 @@ set_source_files_properties(${PYX_SOURCES} PROPERTIES CYTHON_IS_CXX ON)
 
 cython_add_module(${TARGET_NAME} ${SOURCES})
 ov_python_disable_intel_warnings(${TARGET_NAME})
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 set(INSTALLED_TARGETS ${TARGET_NAME})
 list(REMOVE_ITEM PYX_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx")
@@ -34,6 +35,7 @@ foreach(PYX_FILE IN LISTS PYX_SOURCES)
     target_link_libraries(${PYX_NAME} PRIVATE openvino::runtime)
     list(APPEND INSTALLED_TARGETS ${PYX_NAME})
     ie_python_minimal_api(${PYX_NAME})
+    set_target_properties(${PYX_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 endforeach()
 
 if(COMMAND ie_add_vs_version_file)

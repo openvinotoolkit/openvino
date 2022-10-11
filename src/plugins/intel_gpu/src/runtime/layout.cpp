@@ -20,6 +20,10 @@ namespace {
 std::pair<bool, bool> are_layouts_identical(layout const& l1, layout const& l2) {
     const auto& l1_pad = l1.data_padding;
     const auto& l2_pad = l2.data_padding;
+
+    if (l1.is_dynamic() || l2.is_dynamic())
+        return {false, false};
+
     auto l1_size = l1.get_tensor();
     auto l2_size = l2.get_tensor();
     int64_t offset_last_element_l1 = l1.get_linear_offset(l1_size - tensor{1});
@@ -253,6 +257,25 @@ std::string layout::to_string() const {
     return s.str();
 }
 
+std::string layout::to_short_string() const {
+    std::stringstream s;
+    auto dump_shape = [](std::stringstream& stream, const ov::PartialShape& shape) {
+        for (size_t i = 0; i < shape.size(); i++) {
+            stream << shape[i];
+            if (i != shape.size() - 1)
+                stream << "x";
+        }
+    };
+
+    s << data_type_traits::name(data_type) << ":" << format.to_string() << ":";
+    dump_shape(s, size);
+    if (data_padding)
+        s << ":pad";
+    else
+        s << ":nopad";
+    return s.str();
+}
+
 size_t layout::count() const {
     if (is_dynamic())
         throw std::runtime_error("[GPU] Count is called for dynamic shape");
@@ -313,6 +336,10 @@ void layout::set_tensor(const tensor& size) {
                                                                                               format::is_grouped(format)));
     ov::Shape shape(sizes.begin(), sizes.end());
     this->size = ov::PartialShape(shape);
+}
+
+void layout::set_partial_shape(const ov::PartialShape& size) {
+    this->size = size;
 }
 
 tensor layout::get_buffer_size() const {

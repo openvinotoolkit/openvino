@@ -35,9 +35,8 @@ struct max_unpooling : public primitive_base<max_unpooling> {
                   const tensor& size,
                   const tensor& stride,
                   const tensor& pad = {0, 0, 0, 0},
-                  const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           argmax(argmax),
           pad(pad),
           stride(stride),
@@ -54,9 +53,8 @@ struct max_unpooling : public primitive_base<max_unpooling> {
                   const primitive_id& input,
                   const primitive_id& argmax,
                   tensor output_size,
-                  const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           argmax(argmax),
           with_output_size(true),
           output_size(output_size) {}

@@ -29,7 +29,6 @@ enum class KernelType {
     ACTIVATION,
     SOFT_MAX,
     ELTWISE,
-    SCALE,
     REORDER,
     RESHAPE,
     COUNT_NONZERO,
@@ -89,7 +88,9 @@ enum class KernelType {
     CONVERT_COLOR,
     RANDOM_UNIFORM,
     ADAPTIVE_POOLING,
-    REVERSE
+    REVERSE,
+    PRIOR_BOX,
+    EYE,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

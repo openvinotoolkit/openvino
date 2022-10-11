@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
-
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+
 from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, connect, \
     shaped_data, connect_front, regular_op
 
@@ -89,8 +89,8 @@ class TestFakeQuantize(CommonTFLayerTest):
 
     test_data = [
         # with8BitsNoScalingNoNudging
-        dict(il=0.0, ih=255.0, num_bits=8, narrow_range=False, nudged_il=0.0, nudged_ih=255.0,
-             expected_step=1.0),
+        pytest.param(dict(il=0.0, ih=255.0, num_bits=8, narrow_range=False, nudged_il=0.0, nudged_ih=255.0,
+                          expected_step=1.0), marks=pytest.mark.precommit_tf_fe),
         # with8BitsScalingAndNudgingDown
         dict(il=0.5, ih=128.0, num_bits=8, narrow_range=False, nudged_il=0.0, nudged_ih=127.5,
              expected_step=0.5),
@@ -140,9 +140,9 @@ class TestFakeQuantize(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_fake_quantize(self, params, ie_device, precision, ir_version, temp_dir,
-                           use_new_frontend, api_2):
+                           use_new_frontend, use_old_api):
         self._test(*self.create_fake_quantize_net(**params, ir_version=ir_version,
                                                   use_new_frontend=use_new_frontend), ie_device,
                    precision, ir_version,
                    kwargs_to_prepare_input=params, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)

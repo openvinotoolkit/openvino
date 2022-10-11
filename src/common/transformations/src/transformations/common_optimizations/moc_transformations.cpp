@@ -25,6 +25,7 @@
 #include <transformations/common_optimizations/fq_mul_fusion.hpp>
 #include <transformations/common_optimizations/fq_reshape_fusion.hpp>
 #include <transformations/common_optimizations/gelu_fusion.hpp>
+#include <transformations/common_optimizations/gru_cell_fusion.hpp>
 #include <transformations/common_optimizations/hsigmoid_fusion.hpp>
 #include <transformations/common_optimizations/hswish_fusion.hpp>
 #include <transformations/common_optimizations/leaky_relu_fusion.hpp>
@@ -118,10 +119,10 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     manager.register_pass<ngraph::pass::Validate>();
 
     if (!m_use_shapes) {  // Approved Smart Reshape
-        manager.register_pass<ngraph::pass::LSTMStatesBroadcast>();
-        manager.register_pass<ngraph::pass::Validate>();
-        manager.register_pass<ngraph::pass::ReshapeSinkingMatMul>();
-        manager.register_pass<ngraph::pass::Validate>();
+        manager.register_pass<ov::pass::LSTMStatesBroadcast>();
+        manager.register_pass<ov::pass::Validate>();
+        manager.register_pass<ov::pass::ReshapeSinkingMatMul>();
+        manager.register_pass<ov::pass::Validate>();
     }
 
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();

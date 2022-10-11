@@ -65,7 +65,7 @@ endif()
 file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp utils/*cpp pyopenvino.cpp)
 list(FILTER SOURCES EXCLUDE REGEX frontend/onnx|tensorflow|paddle/* )
 
-pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
+pybind11_add_module(${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
 
 if(TARGET offline_transformations)
     set(OFFLINE_TRANSFORMATIONS_LIB offline_transformations)
@@ -77,6 +77,7 @@ endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime::dev openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
+set_target_properties(${PROJECT_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 addVersionDefines(pyopenvino.cpp CI_BUILD_NUMBER)
 
@@ -95,7 +96,7 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
                            HIDDEN)
 
-    install(DIRECTORY ${PYTHON_SOURCE_DIR}/openvino
+    install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/src/openvino
             DESTINATION ${OV_CPACK_PYTHONDIR}/${pyversion}
             COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
             USE_SOURCE_PERMISSIONS

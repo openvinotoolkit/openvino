@@ -5,7 +5,7 @@ import re
 
 from openvino.tools.mo.front.extractor import raise_no_node, raise_node_name_collision
 from openvino.tools.mo.utils.error import Error
-from openvino.pyopenvino import Place
+from openvino.pyopenvino import Place, Type, PartialShape
 
 from openvino.frontend import InputModel  # pylint: disable=no-name-in-module,import-error
 
@@ -226,7 +226,9 @@ def fe_input_user_data_repack(
         _input_shapes.append({"node": model_inputs[0], "shape": input_user_shapes})
     else:
         assert input_user_shapes is None
-    # TODO: implement freeze_placeholder (issue 58560)
+    
+    if freeze_placeholder:
+        return _input_shapes, freeze_placeholder
     return _input_shapes, dict()
 
 

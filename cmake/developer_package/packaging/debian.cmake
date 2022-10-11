@@ -15,6 +15,7 @@ macro(ov_debian_cpack_set_dirs)
     set(OV_CPACK_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
     set(OV_CPACK_LIBRARYDIR ${CMAKE_INSTALL_LIBDIR})
     set(OV_CPACK_RUNTIMEDIR ${CMAKE_INSTALL_LIBDIR})
+    set(OV_WHEEL_RUNTIMEDIR ${OV_CPACK_RUNTIMEDIR})
     set(OV_CPACK_ARCHIVEDIR ${CMAKE_INSTALL_LIBDIR})
     set(OV_CPACK_PLUGINSDIR ${CMAKE_INSTALL_LIBDIR}/openvino-${OpenVINO_VERSION})
     set(OV_CPACK_IE_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/inferenceengine${OpenVINO_VERSION})
@@ -91,7 +92,6 @@ macro(ov_debian_specific_settings)
     # with current WA automatic deps detection via dpkg-shlibdeps for "our libraries"
     # is ignored; but dependencies between our components are here because of
     # CPACK_COMPONENT_<UCOMP>_DEPENDS variables
-    # More proper WA is try to enable INSTALL_RPATH
 
     if(DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
         set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
@@ -109,6 +109,18 @@ macro(ov_debian_specific_settings)
     # set(CPACK_DEBIAN_PACKAGE_RELEASE "1")
     # enable this if someday we change the version scheme
     # set(CPACK_DEBIAN_PACKAGE_EPOCH "2")
+
+    # temporary WA for debian package architecture for cross-compilation
+    # proper solution: to force cmake auto-detect this
+    if(CMAKE_CROSSCOMPILING)
+        if(AARCH64)
+            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE arm64)
+        elseif(ARM)
+            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE armhf)
+        elseif(x86)
+            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE i386)
+        endif()
+    endif()
 endmacro()
 
 ov_debian_specific_settings()
@@ -252,7 +264,7 @@ macro(ov_debian_add_latest_component comp)
 
     set(CPACK_COMPONENT_${upper_case}_DESCRIPTION "${CPACK_COMPONENT_${ucomp}_DESCRIPTION}")
     set(CPACK_COMPONENT_${upper_case}_ARCHITECTURE "${CPACK_COMPONENT_${ucomp}_ARCHITECTURE}")
-    set(CPACK_COMPONENT_${upper_case}_DEPENDS "${ucomp}")
+    set(CPACK_COMPONENT_${upper_case}_DEPENDS "${comp}")
 
     # take package name
     if(DEFINED CPACK_DEBIAN_${ucomp}_PACKAGE_NAME)

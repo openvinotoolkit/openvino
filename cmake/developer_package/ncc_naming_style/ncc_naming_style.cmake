@@ -19,12 +19,16 @@ endif()
 
 if(PYTHON_VERSION_MINOR EQUAL 6)
     set(clang_version 10)
+elseif(PYTHON_VERSION_MINOR EQUAL 7)
+    set(clang_version 11)
 elseif(PYTHON_VERSION_MINOR EQUAL 8)
     set(clang_version 12)
 elseif(PYTHON_VERSION_MINOR EQUAL 9)
     set(clang_version 12)
 elseif(PYTHON_VERSION_MINOR EQUAL 10)
     set(clang_version 14)
+else()
+    message(WARNING "Cannot suggest clang package for python ${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
 endif()
 
 
@@ -52,13 +56,23 @@ endif()
 # Since we were able to find_package(Clang) in a separate process
 # let's try to find in current process
 if(ENABLE_NCC_STYLE)
-    find_host_package(Clang QUIET)
+    if(APPLE)
+        find_host_library(libclang_location NAMES clang
+                          PATHS /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib
+                          DOC "Path to clang library")
+    else()
+        find_host_package(Clang QUIET)
+    endif()
+
     if(Clang_FOUND AND TARGET libclang)
         get_target_property(libclang_location libclang LOCATION)
-        message(STATUS "Found libclang: ${libclang_location}")
-    else()
+    endif()
+
+    if(NOT libclang_location)
         message(WARNING "clang-${clang_version} libclang-${clang_version}-dev are not found (required for ncc naming style check)")
         set(ENABLE_NCC_STYLE OFF)
+    else()
+        message(STATUS "Found libclang: ${libclang_location}")
     endif()
 endif()
 

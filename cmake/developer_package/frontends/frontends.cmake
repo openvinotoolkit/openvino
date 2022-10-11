@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(FRONTEND_INSTALL_INCLUDE "${OV_CPACK_INCLUDEDIR}/")
+set(FRONTEND_INSTALL_INCLUDE "${OV_CPACK_INCLUDEDIR}")
 set(FRONTEND_NAME_PREFIX "openvino_")
 set(FRONTEND_NAME_SUFFIX "_frontend")
 
@@ -90,7 +90,7 @@ unset(protobuf_installed CACHE)
 #                 [LINK_LIBRARIES <lib1 lib2 ...>])
 #
 macro(ov_add_frontend)
-    set(options LINKABLE_FRONTEND SHUTDOWN_PROTOBUF PROTOBUF_LITE SKIP_NCC_STYLE SKIP_INSTALL)
+    set(options LINKABLE_FRONTEND PROTOBUF_LITE SKIP_NCC_STYLE SKIP_INSTALL)
     set(oneValueArgs NAME FILEDESCRIPTION)
     set(multiValueArgs LINK_LIBRARIES PROTO_FILES)
     cmake_parse_arguments(OV_FRONTEND "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -106,22 +106,27 @@ macro(ov_add_frontend)
     list(APPEND FRONTEND_NAMES ${OV_FRONTEND_NAME})
     set(FRONTEND_NAMES "${FRONTEND_NAMES}" CACHE INTERNAL "" FORCE)
 
-    file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+    set(frontend_root_dir "${CMAKE_CURRENT_SOURCE_DIR}")
+    if(frontend_root_dir MATCHES ".*src$")
+        get_filename_component(frontend_root_dir "${frontend_root_dir}" DIRECTORY)
+    endif()
+
+    file(GLOB_RECURSE LIBRARY_SRC ${frontend_root_dir}/src/*.cpp)
     if (WIN32)
         # Remove linux specific files
-        file(GLOB_RECURSE LIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp
-                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
+        file(GLOB_RECURSE LIN_FILES ${frontend_root_dir}/src/os/lin/*.cpp
+                                    ${frontend_root_dir}/src/os/lin/*.hpp)
         list(REMOVE_ITEM LIBRARY_SRC "${LIN_FILES}")
     else()
         # Remove windows specific files
-        file(GLOB_RECURSE WIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.cpp
-                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp)
+        file(GLOB_RECURSE WIN_FILES ${frontend_root_dir}/src/os/win/*.cpp
+                                    ${frontend_root_dir}/src/os/win/*.hpp)
         list(REMOVE_ITEM LIBRARY_SRC "${WIN_FILES}")
     endif()
-    file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
-    file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
+    file(GLOB_RECURSE LIBRARY_HEADERS ${frontend_root_dir}/src/*.hpp)
+    file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${frontend_root_dir}/include/*.hpp)
 
-    set(${TARGET_NAME}_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    set(${TARGET_NAME}_INCLUDE_DIR ${frontend_root_dir}/include)
 
     # Create named folders for the sources within the .vcproj
     # Empty name lists them directly under the .vcproj
@@ -131,7 +136,7 @@ macro(ov_add_frontend)
     source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 
     # Generate protobuf file on build time for each '.proto' file in src/proto
-    file(GLOB proto_files ${CMAKE_CURRENT_SOURCE_DIR}/src/proto/*.proto)
+    file(GLOB proto_files ${frontend_root_dir}/src/proto/*.proto)
 
     foreach(INFILE IN LISTS proto_files)
         get_filename_component(FILE_DIR ${INFILE} DIRECTORY)
@@ -142,7 +147,7 @@ macro(ov_add_frontend)
         add_custom_command(
                 OUTPUT "${OUTPUT_PB_SRC}" "${OUTPUT_PB_HEADER}"
                 COMMAND ${PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
-                DEPENDS ${PROTOC_EXECUTABLE} ${GENERATED_PROTO}
+                DEPENDS ${PROTOC_DEPENDENCY} ${GENERATED_PROTO}
                 COMMENT "Running C++ protocol buffer compiler (${PROTOC_EXECUTABLE}) on ${GENERATED_PROTO}"
                 VERBATIM
                 COMMAND_EXPAND_LISTS)
@@ -162,7 +167,7 @@ macro(ov_add_frontend)
     endif()
 
     # Shutdown protobuf when unloading the front dynamic library
-    if(OV_FRONTEND_SHUTDOWN_PROTOBUF AND BUILD_SHARED_LIBS)
+    if(proto_files AND BUILD_SHARED_LIBS)
         target_link_libraries(${TARGET_NAME} PRIVATE ov_protobuf_shutdown)
     endif()
 
@@ -173,11 +178,15 @@ macro(ov_add_frontend)
             "-DGetAPIVersion=GetAPIVersion${OV_FRONTEND_NAME}")
     endif()
 
+    # enable LTO
+    set_target_properties(${TARGET_NAME} PROPERTIES
+        INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
     if(OV_FRONTEND_SKIP_NCC_STYLE)
         # frontend's CMakeLists.txt must define its own custom 'ov_ncc_naming_style' step
     else()
         ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                            SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                            SOURCE_DIRECTORY "${frontend_root_dir}/include"
                             ADDITIONAL_INCLUDE_DIRECTORIES
                                 $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()
@@ -186,7 +195,7 @@ macro(ov_add_frontend)
             PUBLIC
                 $<BUILD_INTERFACE:${${TARGET_NAME}_INCLUDE_DIR}>
             PRIVATE
-                ${CMAKE_CURRENT_SOURCE_DIR}/src
+                ${frontend_root_dir}/src
                 ${CMAKE_CURRENT_BINARY_DIR})
 
     ie_add_vs_version_file(NAME ${TARGET_NAME}
@@ -261,7 +270,7 @@ macro(ov_add_frontend)
         if(OV_FRONTEND_LINKABLE_FRONTEND)
             # install library development files
             install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/openvino
-                    DESTINATION ${FRONTEND_INSTALL_INCLUDE}/
+                    DESTINATION ${FRONTEND_INSTALL_INCLUDE}
                     COMPONENT ${dev_component}
                     FILES_MATCHING PATTERN "*.hpp")
 

@@ -546,9 +546,8 @@ TEST_P(deconv_scale_actv_quant_i8, basic) {
         quantize("quant", "actv", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("out", "quant", p.default_format, data_types::f32)
     );
-
-    //Activation won't be fused because onednn doesn't support softsign activation
-    if(engine.get_device_info().supports_immad)
+    // Activation won't be fused because onednn doesn't support softsign activation
+    if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
     tolerance = 1.f;

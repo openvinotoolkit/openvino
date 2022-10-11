@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transpose_sinking.hpp"
+#include "pass/transpose_sinking.hpp"
 
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -259,7 +259,7 @@ static void sink_binary(const shared_ptr<Node>& binary,
                     convert_binary_to_default_order(binary, binary->input(1), left, reorders, transposes_to_delete);
                 }
             }
-        } catch (const std::exception& ex) {
+        } catch (const std::exception&) {
             throw std::runtime_error("");
         }
     }
@@ -348,6 +348,23 @@ static void sink_concat(const shared_ptr<Concat>& n,
     write_transposemap(reorders, new_concat, new_transpose);
 }
 
+static void sink_prelu(const shared_ptr<PRelu>& prelu,
+                       TransposeMap& reorders,
+                       set<shared_ptr<Node>>& transposes_to_delete) {
+    FRONT_END_GENERAL_CHECK(prelu, "Null pointer is given to PRelu node.");
+    FRONT_END_GENERAL_CHECK(prelu->get_input_size() > 1, "The PRelu node must contain at least two inputs.");
+    auto slope_shape = prelu->input_value(1).get_partial_shape();
+    if (slope_shape.is_static() && shape_size(slope_shape.to_shape()) == 1) {
+        // handle a case covering LeakyRelu decomposition
+        auto arg_transpose = read_transposemap(reorders, prelu->input_value(0));
+        OPENVINO_DEBUG << "Propagating " << describe<Transpose>(arg_transpose) << " for " << prelu->get_name();
+        write_transposemap(reorders, prelu, arg_transpose);
+    } else {
+        // TODO: handle other cases with non-scalar slope
+        materialize_shapes(prelu, reorders, transposes_to_delete);
+    }
+}
+
 // The goal of TransposeSinking is to remove
 // round-trip transposes(i.e. nhwc->nchw(nchw-only-op)->nhwc)
 // around nchw-only-op (e.g.Convolution, Batchnorm, Avg/MaxPool)
@@ -383,6 +400,8 @@ bool ov::frontend::tensorflow::pass::TransposeSinking::run_on_model(const shared
                 sink_pad(pad, reorders, transposes_to_delete);
             } else if (auto concat = as_type_ptr<Concat>(n)) {
                 sink_concat(concat, reorders, transposes_to_delete);
+            } else if (auto prelu = as_type_ptr<PRelu>(n)) {
+                sink_prelu(prelu, reorders, transposes_to_delete);
             } else {
                 materialize_shapes(n, reorders, transposes_to_delete);
             }

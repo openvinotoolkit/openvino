@@ -29,10 +29,14 @@ if [ -f /etc/lsb-release ]; then
         x86_64_specific_packages=()
     fi
 
+    if ! command -v cmake &> /dev/null; then
+        cmake_packages=(cmake)
+    fi
+
     sudo -E apt update
     sudo -E apt-get install -y \
             build-essential \
-            cmake \
+            "${cmake_packages[@]}" \
             ccache \
             curl \
             wget \
@@ -46,10 +50,13 @@ if [ -f /etc/lsb-release ]; then
             shellcheck \
             patchelf \
             lintian \
+            file \
             gzip \
             `# openvino` \
             libtbb-dev \
             libpugixml-dev \
+            `# gpu plugin extensions` \
+            libva-dev \
             `# python` \
             python3-pip \
             python3-venv \
@@ -100,6 +107,7 @@ elif [ -f /etc/redhat-release ]; then
             tar \
             xz \
             p7zip \
+            rpm-build \
             unzip \
             yum-plugin-ovl \
             which \
@@ -132,9 +140,9 @@ elif [ -f /etc/redhat-release ]; then
             gstreamer1 \
             gstreamer1-plugins-base
 
-    # Python 3.6 for Model Optimizer
-    sudo -E yum install -y rh-python36
-    source scl_source enable rh-python36
+    # Python 3.7 for Model Optimizer
+    sudo -E yum install -y rh-python37
+    source scl_source enable rh-python37
 
     echo
     echo "FFmpeg is required for processing audio and video streams with OpenCV. Please select your preferred method for installing FFmpeg:"

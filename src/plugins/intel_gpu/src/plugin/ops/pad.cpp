@@ -14,7 +14,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& op) {
-    p.ValidateInputs(op, {3, 4});
+    validate_inputs_count(op, {3, 4});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
     size_t rank = std::max(op->get_input_shape(0).size(), static_cast<size_t>(4));
@@ -42,11 +42,9 @@ static void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& 
                                   pads_begin,
                                   pads_end,
                                   op->get_pad_mode(),
-                                  pad_value,
-                                  op->get_friendly_name());
+                                  pad_value);
 
-    p.AddPrimitive(tilePrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, tilePrim);
 }
 
 REGISTER_FACTORY_IMPL(v1, Pad);

@@ -19,7 +19,7 @@ using handler_callback = std::function<bool(const std::shared_ptr<Node>& node)>;
 namespace pass {
 /// \brief Register openvino node pointers into container.
 /// Can create and/or add existing node pointers into register
-class NodeRegister {
+class NodeRegistry {
 public:
     /// \brief Make new node and add it to register.
     ///
@@ -43,19 +43,6 @@ public:
     /// \return Shared pointer to new node added of type T.
     template <typename T>
     std::shared_ptr<T> add(const std::shared_ptr<T>& node) {
-        m_nodes.push_back(node);
-        return node;
-    }
-
-    /// \brief Add generic node to register.
-    ///
-    /// \note This is required to prevent LTO do optimization (remove) template methods from this class
-    /// on Ubuntu 20.
-    ///
-    /// \param node Node to add.
-    ///
-    /// \return Shared pointer to new generic node added.
-    std::shared_ptr<Node> add(const std::shared_ptr<Node>& node) {
         m_nodes.push_back(node);
         return node;
     }
@@ -143,9 +130,11 @@ public:
     const std::vector<std::shared_ptr<ov::Node>>& get_new_nodes() {
         return m_new_nodes.get();
     }
+
     void clear_new_nodes() {
         m_new_nodes.clear();
     }
+
     std::shared_ptr<pattern::Matcher> get_matcher() {
         return m_matcher;
     }
@@ -160,7 +149,7 @@ protected:
 private:
     handler_callback m_handler;
     std::shared_ptr<pattern::Matcher> m_matcher;
-    NodeRegister m_new_nodes;
+    NodeRegistry m_new_nodes;
 };
 
 /// \brief GraphRewrite is a container for MatcherPasses that allows to run them on Function

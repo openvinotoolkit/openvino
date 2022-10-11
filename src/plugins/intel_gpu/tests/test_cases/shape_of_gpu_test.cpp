@@ -116,3 +116,49 @@ TEST(shape_of_gpu, bfzyx) {
         EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i]));
     }
 }
+
+TEST(shape_of_gpu, dynamic) {
+    auto& engine = get_test_engine();
+
+    layout in_layout = {ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+    layout in_mem_layout0 = {ov::PartialShape{1, 2, 3, 4}, data_types::f32, format::bfyx};
+    layout in_mem_layout1 = {ov::PartialShape{4, 3, 2, 1}, data_types::f32, format::bfyx};
+    auto input_mem0 = engine.allocate_memory(in_mem_layout0);
+    auto input_mem1 = engine.allocate_memory(in_mem_layout1);
+
+    cldnn::topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(shape_of("shape_of", "input", 5, data_types::i32));
+
+    network network(engine, topology);
+
+    {
+        network.set_input_data("input", input_mem0);
+
+        auto outputs = network.execute();
+
+        auto output = outputs.at("shape_of").get_memory();
+        cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+
+        std::vector<int32_t> expected_results = {1, 2, 3, 4};
+
+        for (size_t i = 0; i < expected_results.size(); ++i) {
+            EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i]));
+        }
+    }
+
+    {
+        network.set_input_data("input", input_mem1);
+
+        auto outputs = network.execute();
+
+        auto output = outputs.at("shape_of").get_memory();
+        cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+
+        std::vector<int32_t> expected_results = {4, 3, 2, 1};
+
+        for (size_t i = 0; i < expected_results.size(); ++i) {
+            EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i]));
+        }
+    }
+}

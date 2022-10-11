@@ -15,7 +15,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4::Interpolate>& op) {
-    p.ValidateInputs(op, {3, 4});
+    validate_inputs_count(op, {3, 4});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -52,16 +52,20 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
 
     auto interpolateMode = attrs.mode;
     if (interpolateMode == ov::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX) {
-        if (inputRank != 2 && inputRank != 4)
-            IE_THROW() << "mode 'linear_onnx' supports only 2D or 4D tensors";
-        if (axes.size() != 2 && inputRank != axes.size())
-            IE_THROW() << "mode 'linear_onnx' supports only axes with size 2 or equal to input rank";
+        if (inputRank != 2 && inputRank != 4 && inputRank != 5)
+            IE_THROW() << "mode 'linear_onnx' supports only 2D or 4D, 5D tensors";
+        if (axes.size() != 2 && axes.size() != 3 && inputRank != axes.size())
+            IE_THROW() << "mode 'linear_onnx' supports only axes with size 2, 3 or equal to input rank";
         bool correctAxes =
-            (axes[0] == 0 && axes[1] == 1) ||
+            (((axes.size() == 2 || axes.size() == 4) && inputRank != 5) &&
+            ((axes[0] == 0 && axes[1] == 1) ||
             (axes[0] == 1 && axes[1] == 0) ||
             (axes[0] == 2 && axes[1] == 3) ||
-            (axes[0] == 3 && axes[1] == 2);
-        if (axes.size() == 4 && inputRank == 4) {
+            (axes[0] == 3 && axes[1] == 2))) ||
+            ((axes.size() == 3 || axes.size() == 5) && inputRank == 5 &&
+             ((axes[0] == 0 && axes[1] == 1 && axes[2] == 2) ||
+              (axes[0] == 2 && axes[1] == 3 && axes[2] == 4)));
+        if ((axes.size() == 4 && inputRank == 4) || (axes.size() == 5 && inputRank == 5)) {
             for (size_t i = 0; i < axes.size(); i++) {
                 if (std::find(axes.begin(), axes.end(), i) == axes.end()) {
                     correctAxes = false;
@@ -72,7 +76,7 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
         if (!correctAxes)
             IE_THROW() <<
                 "mode 'linear_onnx' supports only case when axes = {2, 3} or "
-                "axes = {0, 1} or axes = {0, 1, 2, 3}";
+                "axes = {0, 1} or axes = {0, 1, 2, 3} or axes = {2, 3, 4} for 5d";
     }
 
     auto resamplePrim = cldnn::resample(layerName,
@@ -87,11 +91,9 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
                                         interpolateMode,
                                         attrs.shape_calculation_mode,
                                         attrs.coordinate_transformation_mode,
-                                        attrs.nearest_mode,
-                                        op->get_friendly_name());
+                                        attrs.nearest_mode);
 
-    p.AddPrimitive(resamplePrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, resamplePrim);
 }
 
 REGISTER_FACTORY_IMPL(v4, Interpolate);

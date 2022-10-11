@@ -32,7 +32,7 @@ add_subdirectory(${OpenVINO_SOURCE_DIR}/src/bindings/python/thirdparty/pybind11
                  ${CMAKE_CURRENT_BINARY_DIR}/pybind11_build
                  EXCLUDE_FROM_ALL)
 
-pybind11_add_module(${PYBIND_FE_NAME} MODULE ${PYBIND_FE_SRC})
+pybind11_add_module(${PYBIND_FE_NAME} MODULE NO_EXTRAS ${PYBIND_FE_SRC})
 
 target_link_libraries(${PYBIND_FE_NAME} PRIVATE openvino::runtime)
 target_link_libraries(${PYBIND_FE_NAME} PRIVATE ${TARGET_FE_NAME})

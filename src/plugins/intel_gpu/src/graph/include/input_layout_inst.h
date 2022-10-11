@@ -33,7 +33,7 @@ public:
     }
     static std::string to_string(input_layout_node const& node);
 
-public:
+    void update_shape() override;
     typed_primitive_inst(network& network, input_layout_node const& node);
 
     void set_data(memory::ptr mem);

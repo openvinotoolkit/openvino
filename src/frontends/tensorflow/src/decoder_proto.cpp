@@ -7,6 +7,7 @@
 #include "attr_value.pb.h"
 #include "node_def.pb.h"
 #include "openvino/frontend/tensorflow/node_context.hpp"
+#include "openvino/frontend/tensorflow/special_types.hpp"
 #include "types.pb.h"
 
 namespace ov {
@@ -157,10 +158,8 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
                 name,
                 "' attribute is not supported.");
 
-        FRONT_END_GENERAL_CHECK(false,
-                                "Conversion from Tensorflow to OpenVINO data type failed: List type for '",
-                                name,
-                                "' attribute is not supported.");
+        // If we got to this point it must mean we have empty list attribute
+        return EmptyList();
     }
 
     case ::tensorflow::AttrValue::ValueCase::kTensor: {
@@ -262,7 +261,7 @@ void DecoderProto::get_input_node(size_t input_port_idx,
                                   std::string& producer_name,
                                   size_t& producer_output_port_index) const {
     // TODO: handle body graph nodes with a couple of columns
-    std::string producer_port_name = m_node_def->input(input_port_idx);
+    std::string producer_port_name = m_node_def->input(static_cast<int>(input_port_idx));
     auto delim_pos = producer_port_name.find(':');
     if (delim_pos != std::string::npos) {
         producer_name = producer_port_name.substr(0, delim_pos);
