@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/generate_proposals.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 
@@ -16,8 +17,10 @@ std::ostream& operator <<(
         const ov::op::v9::GenerateProposals::Attributes& attributes) {
     ss << "score_threshold=" << attributes.min_size << "_";
     ss << "nms_threshold=" << attributes.nms_threshold << "_";
-    ss << "max_delta_log_wh=" << attributes.post_nms_count << "_";
-    ss << "num_classes=" << attributes.pre_nms_count;
+    ss << "post_nms_count=" << attributes.post_nms_count << "_";
+    ss << "pre_nms_count=" << attributes.pre_nms_count;
+    ss << "normalized=" << attributes.normalized;
+    ss << "nms_eta=" << attributes.nms_eta;
     return ss;
 }
 } // namespace
@@ -36,6 +39,7 @@ std::string GenerateProposalsLayerTest::getTestCaseName(
         attributes.nms_threshold,
         attributes.post_nms_count,
         attributes.pre_nms_count,
+        attributes.normalized,
         inputTensors,
         netPrecision,
         roiNumPrecision,
@@ -70,6 +74,7 @@ void GenerateProposalsLayerTest::SetUp() {
         attributes.nms_threshold,
         attributes.post_nms_count,
         attributes.pre_nms_count,
+        attributes.normalized,
         inputTensors,
         netPrecision,
         roiNumPrecision,
@@ -77,6 +82,13 @@ void GenerateProposalsLayerTest::SetUp() {
 
     inType = outType = netPrecision;
     targetDevice = targetName;
+    if (targetDevice == CommonTestUtils::DEVICE_GPU) {
+        if (netPrecision == element::Type_t::f16) {
+            abs_threshold = 0.2;
+        } else {
+            abs_threshold = 0.00009;
+        }
+    }
 
     init_input_shapes(inputShapes);
 
@@ -97,7 +109,7 @@ void GenerateProposalsLayerTest::SetUp() {
 }
 
 void GenerateProposalsLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
-    auto inputTensors = std::get<5>(GetParam());
+    auto inputTensors = std::get<6>(GetParam());
 
     inputs.clear();
     const auto& funcInputs = function->inputs();
@@ -110,6 +122,63 @@ void GenerateProposalsLayerTest::generate_inputs(const std::vector<ngraph::Shape
     }
 }
 
+void GenerateProposalsLayerTest::compare(const std::vector<ov::Tensor>& expected,
+                                         const std::vector<ov::Tensor>& actual) {
+    if (targetDevice != CommonTestUtils::DEVICE_GPU) {
+        SubgraphBaseTest::compare(expected, actual);
+        return;
+    }
+
+    const auto outputsNum = expected.size();
+    ASSERT_EQ(outputsNum, 3);
+    ASSERT_EQ(outputsNum, actual.size());
+    ASSERT_EQ(outputsNum, function->get_results().size());
+
+    // actual outputs 0 (rois) and 1 (roi_scores) may be padded with zeros
+    for (size_t i = 0; i < 2; ++i) {
+        const auto expectedNumRois = expected[i].get_shape()[0];
+        const auto actualNumRois = actual[i].get_shape()[0];
+        ASSERT_LE(expectedNumRois, actualNumRois);
+
+        const auto actualBuffer = static_cast<uint8_t*>(actual[i].data());
+        const auto expectedBuffer = static_cast<uint8_t*>(expected[i].data());
+        const auto outputSize = i == 0 ? 4 : 1;
+
+        if (outType == element::Type_t::f32) {
+            LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const float*>(expectedBuffer),
+                                                       reinterpret_cast<const float*>(actualBuffer),
+                                                       expectedNumRois * outputSize,
+                                                       rel_threshold,
+                                                       abs_threshold);
+        } else {
+            LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const float16*>(expectedBuffer),
+                                                       reinterpret_cast<const float16*>(actualBuffer),
+                                                       expectedNumRois * outputSize,
+                                                       rel_threshold,
+                                                       abs_threshold);
+        }
+
+        if (expectedNumRois < actualNumRois) {
+            if (outType == element::Type_t::f32) {
+                const auto fBuffer = static_cast<const float*>(actual[i].data());
+                for (size_t j = expectedNumRois * outputSize; j < actualNumRois * outputSize; ++j) {
+                    ASSERT_TRUE(fBuffer[j] == 0.0f)
+                        << "Expected 0.0, actual: " << fBuffer[j] << " at index: " << j << ", output: " << i;
+                }
+            } else {
+                const float16 zero{0};
+                const auto fBuffer = static_cast<const float16*>(actual[i].data());
+                for (size_t j = expectedNumRois * outputSize; j < actualNumRois * outputSize; ++j) {
+                    ASSERT_TRUE(fBuffer[j] == zero)
+                        << "Expected 0.0, actual: " << fBuffer[j] << " at index: " << j << ", output: " << i;
+                }
+            }
+        }
+    }
+
+    // output 2 - rois_num
+    ov::test::utils::compare(expected[2], actual[2], abs_threshold, rel_threshold);
+}
 } // namespace subgraph
 } // namespace test
 } // namespace ov

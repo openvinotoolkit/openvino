@@ -119,6 +119,7 @@ REGISTER_OCL(gather);
 REGISTER_OCL(gather_nd);
 REGISTER_OCL(gather_elements);
 REGISTER_OCL(gemm);
+REGISTER_OCL(generate_proposals);
 REGISTER_OCL(lrn);
 REGISTER_OCL(lstm_gemm);
 REGISTER_OCL(lstm_elt);
