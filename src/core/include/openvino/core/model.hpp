@@ -320,9 +320,7 @@ public:
     template <class T, class... Args>
     const T& get_rt_info(Args... args) const {
         const ov::Any& arg = get_rt_arg<Args...>(m_rt_info, args...);
-        if (!std::is_same<T, ov::Any>::value)
-            return arg.as<T>();
-        return arg;
+        return arg.as<T>();
     }
 
     template <class... Args>

@@ -884,8 +884,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
             std::string attribute_name, attribute_version;
             auto attr_name = item.attribute("name");
             auto attr_version = item.attribute("version");
-            auto attr_value = item.attribute("value");
-            if (attr_name.empty() && attr_version.empty() && !attr_value.empty()) {
+            if (attr_name.empty() && attr_version.empty()) {
                 // For view:
                 // <old_api_map_order value="0,3,1,2"/>
                 attribute_name = item.name();
