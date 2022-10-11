@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <condition_variable>
 #include <string>
 #include <vector>
 
@@ -135,7 +136,6 @@ int main(int argc, char* argv[]) {
         std::vector<std::chrono::steady_clock::time_point> time_points(nireq);
         std::exception_ptr callback_exception;
         int nstarted = 0;
-        int infer_count = 0;
         auto start = std::chrono::steady_clock::now();
         for (uint32_t i = 0; i < nireq; ++i) {
             ov::InferRequest& ireq = ireqs[i];

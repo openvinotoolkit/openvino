@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <condition_variable>
 #include <string>
 #include <vector>
 
