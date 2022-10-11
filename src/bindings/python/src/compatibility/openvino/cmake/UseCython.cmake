@@ -90,7 +90,6 @@ find_package( Cython REQUIRED
               NO_DEFAULT_PATH )
 
 find_package(PythonInterp 3 REQUIRED)
-find_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT REQUIRED)
 
 set( CYTHON_CXX_EXTENSION "cxx" )
 set( CYTHON_C_EXTENSION "c" )
