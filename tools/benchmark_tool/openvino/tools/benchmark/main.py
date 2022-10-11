@@ -50,7 +50,7 @@ def main():
     statistics = None
     try:
         # ------------------------------ 1. Parsing and validating input arguments ------------------------------
-        args_string = f"{os.path.realpath(sys.argv[0])}"
+        args_string = f"{os.path.realpath(sys.argv[0])} "
         for i in range(1,len(sys.argv)):
             args_string += f"{sys.argv[i]} "
 
