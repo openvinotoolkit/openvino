@@ -121,12 +121,10 @@ inline uint32_t ToByteSize(const Gna2DataType type) {
 }
 
 using namespace std;
-using namespace ov::intel_gna;
 using namespace InferenceEngine;
+using namespace InferenceEngine::details;
 using namespace GNAPluginNS;
 using namespace GNAPluginNS::memory;
-using namespace InferenceEngine::details;
-
 
 namespace InferenceEngine {
     template<>
@@ -150,9 +148,9 @@ void GNAPlugin::copyInputData(T *dst,
             for (uint32_t j = 0; j < num_vector_elements; j++) {
                 if (!std::is_same<T, U>::value) {
                     if (!gnaFlags->input_low_precision) {
-                        dst[j * num_group + i] = GNAPluginNS::ConvertFloatToInt16(src[i * num_vector_elements + j] * scaleFactor);
+                        dst[j * num_group + i] = ConvertFloatToInt16(src[i * num_vector_elements + j] * scaleFactor);
                     } else {
-                        dst[j * num_group + i] = GNAPluginNS::ConvertFloatToInt8(src[i * num_vector_elements + j] * scaleFactor);
+                        dst[j * num_group + i] = ConvertFloatToInt8(src[i * num_vector_elements + j] * scaleFactor);
                     }
                 } else {
                     dst[j * num_group + i] = src[i * num_vector_elements + j];
@@ -177,15 +175,14 @@ void GNAPlugin::copyInputData(T *dst,
                 std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
                 if (!gnaFlags->input_low_precision) {
                     for (uint32_t j = 0; j < num_vector_elements; j++) {
-                        ptr_dst_vec[j] = GNAPluginNS::ConvertFloatToInt16(ptr_src_vec[j] * scaleFactor);
+                        ptr_dst_vec[j] = ConvertFloatToInt16(ptr_src_vec[j] * scaleFactor);
                     }
                 } else {
                     for (uint32_t j = 0; j < num_vector_elements; j++) {
-                        ptr_dst_vec[j] = GNAPluginNS::ConvertFloatToInt8(ptr_src_vec[j] * scaleFactor);
+                        ptr_dst_vec[j] = ConvertFloatToInt8(ptr_src_vec[j] * scaleFactor);
                     }
                 }
             }
-
         } else {
             for (uint32_t i = 0; i < num_frames; i++) {
                 void *ptr_dst_vec = reinterpret_cast<uint8_t *>(dst) + i * num_vector_stride * sizeof(T);

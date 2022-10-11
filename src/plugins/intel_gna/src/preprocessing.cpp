@@ -4,7 +4,7 @@
 
 #include "preprocessing.hpp"
 
-int16_t ConvertFloatToInt16(float src) {
+int16_t GNAPluginNS::ConvertFloatToInt16(float src) {
     float rounding_value = (src > 0) ? 0.5f : -0.5f;
     float value = src + rounding_value;
     if (value > 32767.0) {
@@ -15,7 +15,7 @@ int16_t ConvertFloatToInt16(float src) {
     return (int16_t)value;
 }
 
-int8_t ConvertFloatToInt8(float src) {
+int8_t GNAPluginNS::ConvertFloatToInt8(float src) {
     float rounding_value = (src > 0) ? 0.5f : -0.5f;
     float value = src + rounding_value;
     if (value > 127.0) {
@@ -26,7 +26,7 @@ int8_t ConvertFloatToInt8(float src) {
     return (int8_t)value;
 }
 
-void ConvertToInt16(int16_t *ptr_dst,
+void GNAPluginNS::ConvertToInt16(int16_t *ptr_dst,
                                  const float *ptr_src,
                                  const uint32_t num_rows,
                                  const uint32_t num_columns,
