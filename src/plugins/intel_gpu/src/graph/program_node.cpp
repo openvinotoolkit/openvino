@@ -1225,14 +1225,15 @@ void program_node::init_onednn_primitive_attributes() {
 
         add_onednn_fused_primitives(fused_ops);
 
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(!debug_config->disable_onednn_opt_post_ops) {
-            // Trying to combine multiplications and additions which are placed one after another.
-            // We do it in the cycle because some optimization cases can be simplified again from time to time
-            do {
-                optimized_post_ops = try_optimize_post_ops(optimized_post_ops, attrs, optimization_is_finished);
-            } while (!optimization_is_finished);
-        }
+        // Trying to combine multiplications and additions which are placed one after another.
+        // We do it in the cycle because some optimization cases can be simplified again from time to time
+        do {
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(debug_config->disable_onednn_opt_post_ops)
+                break;
+            optimized_post_ops = try_optimize_post_ops(optimized_post_ops, attrs, optimization_is_finished);
+        } while (!optimization_is_finished);
+
         attrs->set_post_ops(optimized_post_ops);
     } else {
         // Set post-ops without any optimizations
