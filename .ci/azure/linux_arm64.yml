@@ -244,9 +244,9 @@ jobs:
         -GNinja
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_PYTHON=ON
-        -DPYTHON_EXECUTABLE=/usr/local/bin/$(PYTHON_EXEC)
+        -DPYTHON_EXECUTABLE=$(INSTALL_PYTHON)/bin/$(PYTHON_EXEC)
         -DPYTHON_INCLUDE_DIR=$(INSTALL_PYTHON)/include/$(PYTHON_EXEC)
-        -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib
+        -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib/lib$(PYTHON_EXEC)m.so
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
         -DOpenVINO_DIR=$(BUILD_OPENVINO)
         -DInferenceEngine_DIR=$(BUILD_OPENVINO)
