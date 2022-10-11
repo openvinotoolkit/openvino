@@ -1101,6 +1101,7 @@ bool program::extract(program_node& node) {
     }
     input.users.remove(&node);
     node.dependencies.clear();
+    node.dependencies_new.clear();
 
     if (!node.is_endpoint())
         replace_all_usages(node, input, false);

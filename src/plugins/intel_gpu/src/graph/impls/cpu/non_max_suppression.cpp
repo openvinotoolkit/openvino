@@ -375,6 +375,15 @@ void run(non_max_suppression_inst& instance) {
         return;
     }
 
+    if (instance.outputs_memory_count() == 3)
+        store_third_output(stream, instance.output_memory_ptr(2), result);
+
+    if (instance.outputs_memory_count() >= 2) {
+        store_second_output(stream, instance.output_memory_ptr(1), result);
+        store_first_output(stream, instance.output_memory_ptr(), result);
+        return;
+    }
+
     store_result(stream, instance.output_memory_ptr(), result);
 }
 
