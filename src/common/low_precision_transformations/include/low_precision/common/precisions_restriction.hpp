@@ -23,7 +23,6 @@ namespace low_precision {
 * Common precision restriction can be also set for several ports. In this case, an operation will have
 * the same precision for mentioned
 *
-* @example
 * // One restriction for each port
 * PrecisionsRestriction::create<ngraph::opset1::Convolution>({
 *      {{0}, {ngraph::element::u8}},
