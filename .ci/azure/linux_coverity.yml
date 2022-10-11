@@ -126,6 +126,9 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Lin with Coverity'
 
+  - script: ccache --show-stats
+    displayName: 'Show ccache stats'
+
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'
 
