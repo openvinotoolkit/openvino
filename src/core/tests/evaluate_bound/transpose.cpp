@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gmock/gmock.h"
 #include "openvino/op/transpose.hpp"
+
+#include "gmock/gmock.h"
 #include "openvino/opsets/opset9.hpp"
 #include "sequnce_generator.hpp"
 
