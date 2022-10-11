@@ -120,12 +120,13 @@ inline uint32_t ToByteSize(const Gna2DataType type) {
     }
 }
 
-using namespace InferenceEngine;
 using namespace std;
+using namespace ov::intel_gna;
+using namespace InferenceEngine;
 using namespace GNAPluginNS;
 using namespace GNAPluginNS::memory;
 using namespace InferenceEngine::details;
-using namespace ov::intel_gna;
+
 
 namespace InferenceEngine {
     template<>
@@ -370,7 +371,6 @@ void GNAPlugin::Init() {
     graphCompiler.setInputsPtr(inputs_ptr_);
 
     requestWorkerPool_ = std::make_shared<request::WorkerPoolImpl>();
-    
 }
 
 void GNAPlugin::InitGNADevice() {

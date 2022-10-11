@@ -20,7 +20,6 @@ namespace intel_gna {
  *      GnaLog::trace() << "log message"; // this message shoudl not be printed 
  */
 class GnaLog {
-
  private :
     GnaLog() {}
 
@@ -29,24 +28,23 @@ class GnaLog {
         obj.message_level_ = log_level;
         obj << "[" << log_level << "]" << " ";
         return obj;
-    };
-    
+    }
+
     /** Configuration log level. It should be set in the plugin configuration */
     ov::log::Level log_level_ = ov::log::Level::NO;
-    
+
     /** Log level of particular log message */
     ov::log::Level message_level_ = ov::log::Level::NO;
 
  public :
     GnaLog(GnaLog const&) = delete;
     void operator = (const GnaLog&) = delete;
-    
+
     GnaLog(ov::log::Level log_level) {
         get_instance().log_level_ = log_level;
     }
 
-    static GnaLog& get_instance()
-    {
+    static GnaLog& get_instance() {
         static GnaLog log_obj;
         return log_obj;
     }
@@ -120,5 +118,5 @@ class GnaLog {
 using log = GnaLog;
 // typedef GnaLog log;
 
-}  // namespace ov
 }  // namespace intel_gna
+}  // namespace ov

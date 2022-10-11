@@ -25,7 +25,7 @@ intel_dnn_component_t & DnnComponents::addComponent(const std::string layerName,
     auto &currentComponent = components.back().dnnComponent;
 
     log::trace() << "IR layer : " << std::left << std::setw(20) << layerName << " " << layerMetaType << "_" << components.size() - 1 << std::endl;
-    
+
     currentComponent.original_layer_name = components.back().name.c_str();
     int execOrder = 0;
     if (!isDelayed) {
