@@ -20,7 +20,7 @@ function(frontend_module TARGET FRAMEWORK INSTALL_COMPONENT)
 
     pybind11_add_module(${TARGET_NAME} MODULE NO_EXTRAS ${SOURCES})
 
-    add_dependencies(${TARGET_NAME} pyopenvino)
+    add_dependencies(${TARGET_NAME} _pyopenvino)
     add_dependencies(py_ov_frontends ${TARGET_NAME})
 
     target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
