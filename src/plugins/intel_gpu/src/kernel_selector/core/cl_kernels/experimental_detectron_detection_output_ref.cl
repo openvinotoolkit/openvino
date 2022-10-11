@@ -131,7 +131,12 @@ KERNEL(eddo_ref_stage_0)
  __global INPUT_TYPE* refined_scores) {
     const size_t roi_count = get_global_size(0);
     size_t roi_idx = get_global_id(0);
+
+#ifdef CLASS_AGNOSTIC_BOX_REGRESSION
+    size_t class_idx = get_global_id(1) + 1;
+#else
     size_t class_idx = get_global_id(1);
+#endif
 
     INPUT_TYPE4 box = vload4(roi_idx, boxes);
 
@@ -160,7 +165,7 @@ KERNEL(eddo_ref_stage_0)
 
         // adjust new corner locations to be within the image region
         const INPUT_TYPE2 img_size = vload2(0, im_info).s10;
-        new_box = clamp(new_box, ZERO4, img_size.xyxy);
+        new_box = fmax(new_box, ZERO4);
 
         // recompute new width & height
         const INPUT_TYPE2 new_box_size = new_box.hi - new_box.lo + COORDINATE_OFFSET;
