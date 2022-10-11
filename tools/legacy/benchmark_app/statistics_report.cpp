@@ -53,7 +53,7 @@ void StatisticsReport::dump() {
     slog::info << "Statistics report is stored to " << dumper.getFilename() << slog::endl;
 }
 
-void StatisticsReport::dumpPerformanceCountersRequest(CsvDumper& dumper, const PerformanceCounters& perfCounts) {
+void StatisticsReport::dumpPerformanceCountersRequest(CsvDumper& dumper, const PerformaceCounters& perfCounts) {
     auto performanceMapSorted = perfCountersSorted(perfCounts);
 
     long long total = 0L;
@@ -96,7 +96,7 @@ void StatisticsReport::dumpPerformanceCountersRequest(CsvDumper& dumper, const P
     dumper.endLine();
 }
 
-void StatisticsReport::dumpPerformanceCounters(const std::vector<PerformanceCounters>& perfCounts) {
+void StatisticsReport::dumpPerformanceCounters(const std::vector<PerformaceCounters>& perfCounts) {
     if ((_config.report_type.empty()) || (_config.report_type == noCntReport)) {
         slog::info << "Statistics collecting for performance counters was not "
                       "requested. No reports are dumped."

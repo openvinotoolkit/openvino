@@ -82,6 +82,12 @@ if(ARM AND NOT CMAKE_CROSSCOMPILING)
     add_compile_options(-march=armv7-a)
 endif()
 
+if(NOT COMMAND find_host_package)
+    macro(find_host_package)
+        find_package(${ARGN})
+    endmacro()
+endif()
+
 set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
@@ -98,26 +104,18 @@ endif()
 ####################################
 
 if(NOT TARGET gflags)
-    set(GFLAGS_SHARED OFF)
-    set(GFLAGS_NOTHREADS ON)
-    find_package(gflags QUIET)
+    if(NOT APPLE AND NOT DEFINED ENV{CONDA_PREFIX})
+        # - conda-forge contains only dynamic libraries
+        # - on Apple only dynamic libraries are available
+        #   also, we can easily mix arm64 and x86_64 binaries when cross-compile for Intel CPU
+        find_package(gflags QUIET COMPONENTS nothreads_static)
+    endif()
 
     if(gflags_FOUND)
-        if(NOT TARGET ${GFLAGS_TARGET})
-            if(TARGET gflags_nothreads-static)
-                # arm cross-compilation
-                set(GFLAGS_TARGET gflags_nothreads-static)
-            else()
-                message(FATAL_ERROR "Failed to set GFLAGS_TARGET target")
-            endif()
-        endif()
         message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
     elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
         add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-        set(GFLAGS_TARGET gflags_nothreads_static)
     endif()
-else()
-    set(GFLAGS_TARGET gflags)
 endif()
 
 if(NOT ANDROID)
@@ -257,7 +255,7 @@ macro(ie_add_sample)
 
     target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${ov_link_libraries} Threads::Threads ${IE_SAMPLE_DEPENDENCIES})
     if(NOT c_sample)
-        target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${GFLAGS_TARGET})
+        target_link_libraries(${IE_SAMPLE_NAME} PRIVATE gflags)
     endif()
 
     install(TARGETS ${IE_SAMPLE_NAME}

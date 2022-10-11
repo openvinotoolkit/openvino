@@ -98,8 +98,8 @@ macro(ov_find_package_tbb)
                         else()
                             _ov_pkg_config_tbb_unset()
 
-                            if(CPACK_GENERATOR STREQUAL "^(DEB|RPM|CONDA-FORGE|BREW)$")
-                                # package managers require system TBB
+                            if(CPACK_GENERATOR STREQUAL "DEB")
+                                # debian cpack generator requires system TBB
                                 set(message_type FATAL_ERROR)
                             else()
                                 set(message_type WARNING)

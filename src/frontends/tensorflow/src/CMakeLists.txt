@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(NOT CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
+if(NOT CPACK_GENERATOR STREQUAL "DEB")
     set(linkable_frontend LINKABLE_FRONTEND)
 endif()
 

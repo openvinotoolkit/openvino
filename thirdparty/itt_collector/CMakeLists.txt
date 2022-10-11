@@ -14,6 +14,6 @@
 # limitations under the License.
 # ******************************************************************************
 
-if(SELECTIVE_BUILD STREQUAL "COLLECT")
+if(ENABLE_PROFILING_ITT AND SELECTIVE_BUILD STREQUAL "COLLECT")
     add_subdirectory(sea_itt_lib)
 endif()
