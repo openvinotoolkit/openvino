@@ -21,9 +21,9 @@ namespace cldnn {
 struct matrix_nms : public primitive_base<matrix_nms> {
     CLDNN_DECLARE_PRIMITIVE(matrix_nms)
 
-    enum DecayFunction { gaussian, linear };
+    enum decay_function { gaussian, linear };
 
-    enum SortResultType {
+    enum sort_result_type {
         class_id,  // sort selected boxes by class id (ascending) in each batch element
         score,     // sort selected boxes by score (descending) in each batch element
         none       // do not guarantee the order in each batch element
@@ -32,7 +32,7 @@ struct matrix_nms : public primitive_base<matrix_nms> {
     /// \brief Structure that specifies attributes of the operation
     struct attributes {
         // specifies order of output elements
-        SortResultType sort_result_type = SortResultType::none;
+        sort_result_type sort_type = sort_result_type::none;
         // specifies whenever it is necessary to sort selected boxes across batches or not
         bool sort_result_across_batch = false;
         // specifies minimum score to consider box for the processing
@@ -46,7 +46,7 @@ struct matrix_nms : public primitive_base<matrix_nms> {
         // specifies the background class id, -1 meaning to keep all classes
         int background_class = -1;
         // specifies decay function used to decay scores
-        DecayFunction decay_function = DecayFunction::linear;
+        decay_function decay = decay_function::linear;
         // specifies gaussian_sigma parameter for gaussian decay_function
         float gaussian_sigma = 2.0f;
         // specifies threshold to filter out boxes with low confidence score after
@@ -69,23 +69,23 @@ struct matrix_nms : public primitive_base<matrix_nms> {
                          attrs.post_threshold,
                          attrs.normalized) {}
 
-        attributes(SortResultType sort_result_type,
+        attributes(sort_result_type sort_type,
                    bool sort_result_across_batch,
                    float score_threshold,
                    int nms_top_k,
                    int keep_top_k,
                    int background_class,
-                   DecayFunction decay_function,
+                   decay_function decay,
                    float gaussian_sigma,
                    float post_threshold,
                    bool normalized)
-            : sort_result_type(sort_result_type),
+            : sort_type(sort_type),
               sort_result_across_batch(sort_result_across_batch),
               score_threshold(score_threshold),
               nms_top_k(nms_top_k),
               keep_top_k(keep_top_k),
               background_class(background_class),
-              decay_function(decay_function),
+              decay(decay),
               gaussian_sigma(gaussian_sigma),
               post_threshold(post_threshold),
               normalized(normalized) {}
@@ -104,9 +104,7 @@ struct matrix_nms : public primitive_base<matrix_nms> {
                const primitive_id& second_output,
                const primitive_id& third_output,
                const matrix_nms::attributes& attrs)
-        : primitive_base(id, {boxes, scores}),
-          second_output(second_output),
-          third_output(third_output),
+        : primitive_base(id, {boxes, scores, second_output, third_output}),
           attribs(attrs) {}
 
     /// @brief Constructs matrix_nms primitive.
@@ -122,44 +120,31 @@ struct matrix_nms : public primitive_base<matrix_nms> {
                const primitive_id& second_output,
                const primitive_id& third_output,
                const ngraph::op::v8::MatrixNms::Attributes& attrs)
-        : primitive_base(id, {boxes, scores}),
-          second_output(second_output),
-          third_output(third_output),
+        : primitive_base(id, {boxes, scores, second_output, third_output}),
           attribs(attrs) {}
-
-    primitive_id second_output;
-    primitive_id third_output;
 
     attributes attribs;
 
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
-        std::vector<std::reference_wrapper<const primitive_id>> ret;
-        ret.push_back(second_output);
-        ret.push_back(third_output);
-
-        return ret;
-    }
-
 private:
-    static cldnn::matrix_nms::DecayFunction from(ngraph::op::v8::MatrixNms::DecayFunction decay) {
+    static cldnn::matrix_nms::decay_function from(ngraph::op::v8::MatrixNms::DecayFunction decay) {
         switch (decay) {
         case ngraph::op::v8::MatrixNms::DecayFunction::GAUSSIAN:
-            return cldnn::matrix_nms::DecayFunction::gaussian;
+            return cldnn::matrix_nms::decay_function::gaussian;
         case ngraph::op::v8::MatrixNms::DecayFunction::LINEAR:
         default:
-            return cldnn::matrix_nms::DecayFunction::linear;
+            return cldnn::matrix_nms::decay_function::linear;
         }
     }
 
-    static cldnn::matrix_nms::SortResultType from(ngraph::op::v8::MatrixNms::SortResultType type) {
+    static cldnn::matrix_nms::sort_result_type from(ngraph::op::v8::MatrixNms::SortResultType type) {
         switch (type) {
         case ngraph::op::v8::MatrixNms::SortResultType::CLASSID:
-            return cldnn::matrix_nms::SortResultType::class_id;
+            return cldnn::matrix_nms::sort_result_type::class_id;
         case ngraph::op::v8::MatrixNms::SortResultType::SCORE:
-            return cldnn::matrix_nms::SortResultType::score;
+            return cldnn::matrix_nms::sort_result_type::score;
         case ngraph::op::v8::MatrixNms::SortResultType::NONE:
         default:
-            return cldnn::matrix_nms::SortResultType::none;
+            return cldnn::matrix_nms::sort_result_type::none;
         }
     }
 };

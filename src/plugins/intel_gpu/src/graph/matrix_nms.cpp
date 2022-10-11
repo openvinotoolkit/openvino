@@ -47,8 +47,8 @@ std::string matrix_nms_inst::to_string(const matrix_nms_node& node) {
     json_composite matrix_nms_info;
     matrix_nms_info.add("boxes id", node.input().id());
     matrix_nms_info.add("scores id", node.get_dependency(1).id());
-    matrix_nms_info.add("sort_result_type", ov::as_string(node.get_primitive()->attribs.sort_result_type));
-    matrix_nms_info.add("decay_function", ov::as_string(node.get_primitive()->attribs.decay_function));
+    matrix_nms_info.add("sort_result_type", ov::as_string(node.get_primitive()->attribs.sort_type));
+    matrix_nms_info.add("decay_function", ov::as_string(node.get_primitive()->attribs.decay));
     matrix_nms_info.add("sort_result_across_batch", node.get_primitive()->attribs.sort_result_across_batch);
     matrix_nms_info.add("score_threshold", node.get_primitive()->attribs.score_threshold);
     matrix_nms_info.add("nms_top_k", node.get_primitive()->attribs.nms_top_k);
@@ -69,19 +69,20 @@ std::string matrix_nms_inst::to_string(const matrix_nms_node& node) {
 
 namespace ov {
 template <>
-EnumNames<matrix_nms::DecayFunction>& EnumNames<matrix_nms::DecayFunction>::get() {
-    static auto enum_names = EnumNames<matrix_nms::DecayFunction>(
-        "DecayFunction",
-        {{"gaussian", matrix_nms::DecayFunction::gaussian}, {"linear", matrix_nms::DecayFunction::linear}});
+EnumNames<matrix_nms::decay_function>& EnumNames<matrix_nms::decay_function>::get() {
+    static auto enum_names = EnumNames<matrix_nms::decay_function>(
+        "decay_function",
+        {{"gaussian", matrix_nms::decay_function::gaussian}, {"linear", matrix_nms::decay_function::linear}});
     return enum_names;
 }
 
 template <>
-EnumNames<matrix_nms::SortResultType>& EnumNames<matrix_nms::SortResultType>::get() {
-    static auto enum_names = EnumNames<matrix_nms::SortResultType>("SortResultType",
-                                                                   {{"class_id", matrix_nms::SortResultType::class_id},
-                                                                    {"score", matrix_nms::SortResultType::score},
-                                                                    {"none", matrix_nms::SortResultType::none}});
+EnumNames<matrix_nms::sort_result_type>& EnumNames<matrix_nms::sort_result_type>::get() {
+    static auto enum_names =
+        EnumNames<matrix_nms::sort_result_type>("sort_result_type",
+                                                {{"class_id", matrix_nms::sort_result_type::class_id},
+                                                 {"score", matrix_nms::sort_result_type::score},
+                                                 {"none", matrix_nms::sort_result_type::none}});
     return enum_names;
 }
 }  // namespace ov

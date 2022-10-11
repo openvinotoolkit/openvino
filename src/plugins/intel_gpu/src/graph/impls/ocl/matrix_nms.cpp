@@ -14,24 +14,24 @@ namespace cldnn {
 namespace ocl {
 
 namespace {
-kernel_selector::decay_function from(matrix_nms::DecayFunction decay) {
+kernel_selector::decay_function from(matrix_nms::decay_function decay) {
     switch (decay) {
-    case matrix_nms::DecayFunction::gaussian:
+    case matrix_nms::decay_function::gaussian:
         return kernel_selector::decay_function::GAUSSIAN;
     default:
-    case matrix_nms::DecayFunction::linear:
+    case matrix_nms::decay_function::linear:
         return kernel_selector::decay_function::LINEAR;
     }
 }
 
-kernel_selector::sort_result_type from(matrix_nms::SortResultType type) {
+kernel_selector::sort_result_type from(matrix_nms::sort_result_type type) {
     switch (type) {
-    case matrix_nms::SortResultType::class_id:
+    case matrix_nms::sort_result_type::class_id:
         return kernel_selector::sort_result_type::CLASS_ID;
-    case matrix_nms::SortResultType::score:
+    case matrix_nms::sort_result_type::score:
         return kernel_selector::sort_result_type::SCORE;
     default:
-    case matrix_nms::SortResultType::none:
+    case matrix_nms::sort_result_type::none:
         return kernel_selector::sort_result_type::NONE;
     }
 }
@@ -72,13 +72,13 @@ public:
         params.inputs.push_back(convert_data_tensor(third_output_layout));
 
         const auto& primitive = node.get_primitive();
-        params.sort_type = from(primitive->attribs.sort_result_type);
+        params.sort_type = from(primitive->attribs.sort_type);
         params.sort_result_across_batch = primitive->attribs.sort_result_across_batch;
         params.score_threshold = primitive->attribs.score_threshold;
         params.nms_top_k = primitive->attribs.nms_top_k;
         params.keep_top_k = primitive->attribs.keep_top_k;
         params.background_class = primitive->attribs.background_class;
-        params.decay = from(primitive->attribs.decay_function);
+        params.decay = from(primitive->attribs.decay);
         params.gaussian_sigma = primitive->attribs.gaussian_sigma;
         params.post_threshold = primitive->attribs.post_threshold;
         params.normalized = primitive->attribs.normalized;
