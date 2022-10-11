@@ -1924,6 +1924,63 @@ void FakeQuantize::appendBinPostOps(dnnl::post_ops& ops, const VectorDims& postO
 
 void FakeQuantize::appendBinPostOpsOptimized(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem,
                                              bool isLastPostOp, dnnl::memory::data_type outDataType) {
+#if 1
+    convertToOptimizedFormula();
+
+    VectorDims broadcastBinaryShape(postOpDims.size(), 1);
+
+    auto appendBinary = [&](const dnnl::algorithm alg, const std::vector<float>& data) {
+        DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, data.size() == 1 ? Shape(broadcastBinaryShape) : Shape(postOpDims));
+        ops.append_binary(alg, memoryDesc.getDnnlDesc());
+        binaryPostOpsMem.emplace_back(new Memory(getEngine()));
+        binaryPostOpsMem.back()->Create(memoryDesc, data.data());
+    };
+
+    if (combinedScale.size() <= 1 && combinedShift.size() <= 1) {
+        ops.append_eltwise(1.0f,
+                           dnnl::algorithm::eltwise_linear,
+                           combinedScale.size() ? combinedScale[0] : 1.0f,
+                           combinedShift.size() ? combinedShift[0] : 0.0f);
+    } else {
+        if (combinedScale.size() <= 1) {
+            ops.append_eltwise(1.0f,
+                               dnnl::algorithm::eltwise_linear,
+                               combinedScale.size() ? combinedScale[0] : 1.0f,
+                               0.0f);
+        } else {
+            appendBinary(dnnl::algorithm::binary_mul, combinedScale);
+        }
+        if (combinedShift.size() <= 1) {
+            ops.append_eltwise(1.0f,
+                               dnnl::algorithm::eltwise_linear,
+                               1.0f,
+                               combinedShift.size() ? combinedShift[0] : 0.0f);
+        } else {
+            appendBinary(dnnl::algorithm::binary_add, combinedShift);
+        }
+    }
+
+    // clip can be done by oneDNN's default saturation to u8/s8 before rounding
+    bool need_explicit_clip = true;
+    if (isLastPostOp && (levels == 256) && clipLow.size() == 1 && clipHigh.size() == 1) {
+        if (outDataType == memory::data_type::u8 && abs(clipLow[0]) < relaxedZeroThr && abs(clipHigh[0] - 255.0f) < relaxedZeroThr) {
+            need_explicit_clip = false;
+        }
+        if (outDataType == memory::data_type::s8 && abs(clipLow[0] - (-128.0f)) < relaxedZeroThr && abs(clipHigh[0] - 127.0f) < relaxedZeroThr) {
+            need_explicit_clip = false;
+        }
+    }
+
+    if (need_explicit_clip) {
+        if (clipLow.size() == 1 && clipHigh.size() == 1) {
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, clipLow[0], clipHigh[0]);
+        } else {
+            appendBinary(dnnl::algorithm::binary_min, clipHigh);
+            appendBinary(dnnl::algorithm::binary_max, clipLow);
+        }
+    }
+
+#else
     static const size_t bufferAlignment = 1;
 
     initializePostOpData(postOpDims, bufferAlignment);
@@ -1977,6 +2034,7 @@ void FakeQuantize::appendBinPostOpsOptimized(dnnl::post_ops& ops, const VectorDi
     }
     appendBinary(dnnl::algorithm::binary_mul, outputScaleSize, outputScaleMemory, &outputScaleData.scales_[0]);
     appendBinary(dnnl::algorithm::binary_add, outputShiftSize, outputShiftMemory, &outputShiftData.shifts_[0]);
+#endif
 }
 
 static bool isPerTensor(const std::vector<float>& v, const float zero_thr = std::numeric_limits<float>::min()) {
@@ -1985,18 +2043,7 @@ static bool isPerTensor(const std::vector<float>& v, const float zero_thr = std:
         });
 }
 
-// All postOps in oneDNN are performed in FP32, thus rounding in FQ can always be dropped (w/o jeopardizing accuracy),
-// thus input/output linear can be combined into a single one.
-// in this combined linear, scale part will be implemented by output scale and it can be per-channel,
-// but shift-part is implemented by eltwise postOps so it must be per-tensor(or zero).
-// crop step must be postponed after the combined linear step, to be consistent with order of calculation in oneDNN.
-// it may also be implemented as implicit saturation performend by oneDNN by default when output data type is u8/s8.
-bool FakeQuantize::optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
-                                           dnnl::post_ops& ops,
-                                           bool isLastPostOp,
-                                           dnnl::memory::data_type outDataType,
-                                           bool allowOscale,
-                                           bool allowShift) {
+void FakeQuantize::convertToOptimizedFormula() {
     int OC = 1;
     auto checkSize = [&](int size) -> bool {
         if (size == 1 || size == OC)
@@ -2017,12 +2064,12 @@ bool FakeQuantize::optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
     checkSize(outputScale.size());
     checkSize(outputShift.size());
 
-    std::vector<float> combinedScale(OC, 1.0f);
-    std::vector<float> combinedShift(OC, 0.0f);
-    std::vector<float> clipLow(OC, 0.0f);
-    std::vector<float> clipHigh(OC, 0.0f);
+    combinedScale.resize(OC, 1.0f);
+    combinedShift.resize(OC, 0.0f);
+    clipLow.resize(OC, 0.0f);
+    clipHigh.resize(OC, 0.0f);
 
-    float zero_thr = std::numeric_limits<float>::max();
+    relaxedZeroThr = std::numeric_limits<float>::max();
     for (int i = 0; i < OC; i++) {
         auto clo = cropLow[cropLow.size() == 1 ? 0 : i];
         auto chi = cropHigh[cropHigh.size() == 1 ? 0 : i];
@@ -2043,46 +2090,76 @@ bool FakeQuantize::optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
         // thus quantization noise level can be as high as `0.5*(high-low)/(levels)`
         // so we setup the threshold according to this noise level.
         auto thr = 0.001f * abs(clipHigh[i] - clipLow[i])/(levels);
-        if (zero_thr > thr)
-            zero_thr = thr;
+        if (relaxedZeroThr > thr)
+            relaxedZeroThr = thr;
     }
+    if (isPerTensor(combinedShift, relaxedZeroThr)) {
+        if (abs(combinedShift[0]) < relaxedZeroThr) {
+            combinedShift.clear();
+        } else {
+            combinedShift.resize(1);
+        }
+    }
+    // combinedScale cannot use relaxed zero_thr
+    if (isPerTensor(combinedScale)) {
+        if (combinedScale[0] == 1.0f) {
+            combinedScale.clear();
+        } else {
+            combinedScale.resize(1);
+        }
+    }
+    if (isPerTensor(clipLow, relaxedZeroThr)) {
+        clipLow.resize(1);
+    }
+    if (isPerTensor(clipHigh, relaxedZeroThr)) {
+        clipHigh.resize(1);
+    }
+}
 
-    if (!isPerTensor(combinedShift, zero_thr))
+// All postOps in oneDNN are performed in FP32, thus can be inferenced using optimized formula
+bool FakeQuantize::optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
+                                           dnnl::post_ops& ops,
+                                           bool isLastPostOp,
+                                           dnnl::memory::data_type outDataType,
+                                           bool allowOscale,
+                                           bool allowShift) {
+    convertToOptimizedFormula();
+
+    if (combinedShift.size() > 1)
         return false;
-    if (!isPerTensor(clipLow, zero_thr))
+    if (clipLow.size() > 1)
         return false;
-    if (!isPerTensor(clipHigh, zero_thr))
+    if (clipHigh.size() > 1)
         return false;
 
-    // return before change anything if we're doomed to failed
-    if (!allowShift && abs(combinedShift[0]) > zero_thr)
+    if (!allowShift && combinedShift.size())
         return false;
 
     // combined scale implemented by output scale
-    if (isPerTensor(combinedScale)) {
-        if (allowOscale && abs(combinedShift[0]) < zero_thr) {
+    if (combinedScale.size() == 1) {
+        if (allowOscale && (combinedShift.size() == 0)) {
             attr.set_output_scales(0, combinedScale);
         } else {
             ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, combinedScale[0], combinedShift[0]);
         }
-    } else {
+    } else if (combinedScale.size() > 1) {
         // eltwise do not support per-OC linear
         if (!allowOscale)
             return false;
         attr.set_output_scales(1 << 1, combinedScale);
         // combined shift implemented by eltwise postOps
-        if (abs(combinedShift[0]) > zero_thr) {
+        if (combinedShift.size()) {
             ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, combinedShift[0]);
         }
     }
 
     // when FQ is last postOps and output data type is u8/s8
-    // crop can be further optimized as the saturation performed by oneDNN by default
+    // clip can be further optimized as the saturation performed by oneDNN by default
     if (isLastPostOp && (levels == 256)) {
-        if (outDataType == memory::data_type::u8 && abs(clipLow[0]) < zero_thr && abs(clipHigh[0] - 255.0f) < zero_thr) {
+        if (outDataType == memory::data_type::u8 && abs(clipLow[0]) < relaxedZeroThr && abs(clipHigh[0] - 255.0f) < relaxedZeroThr) {
             return true;
         }
-        if (outDataType == memory::data_type::s8 && abs(clipLow[0] - (-128.0f)) < zero_thr && abs(clipHigh[0] - 127.0f) < zero_thr) {
+        if (outDataType == memory::data_type::s8 && abs(clipLow[0] - (-128.0f)) < relaxedZeroThr && abs(clipHigh[0] - 127.0f) < relaxedZeroThr) {
             return true;
         }
     }

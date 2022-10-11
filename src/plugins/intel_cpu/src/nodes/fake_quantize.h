@@ -193,12 +193,33 @@ private:
     std::vector<float> binarizationThresholds;
     std::vector<uint32_t> binarizationOutputMask;
 
+    // inference formula strictly following definition:
+    //   x1 = crop(x, cropLow, cropHigh)
+    //   x2 = x1 * inputScale + inputShift
+    //   x3 = round(x2)
+    //    y = x3 * outputScale + outputShift
     std::vector<float> cropLow;
     std::vector<float> cropHigh;
     std::vector<float> inputScale;
     std::vector<float> inputShift;
     std::vector<float> outputScale;
     std::vector<float> outputShift;
+
+    // optimized inference formula:
+    //   - round is dropped (when output is FP32)
+    //   - input/output scales/shifts are combined
+    //   - to be consistent with oneDNN's order of calculation,
+    //     crop & scale_shift steps are swapped and renamed as clip
+    //
+    //   x1 = x * combinedScale + combinedShift
+    //    y = clip(x, clipLow, clipHigh)
+    std::vector<float> combinedScale;
+    std::vector<float> combinedShift;
+    std::vector<float> clipLow;
+    std::vector<float> clipHigh;
+    float relaxedZeroThr;
+
+    void convertToOptimizedFormula();
 
     std::vector<float> quantizationData;
     size_t quantizationDataSize = 0lu;
