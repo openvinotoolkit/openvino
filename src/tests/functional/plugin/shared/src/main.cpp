@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
         std::cout << "       Allow to try to save report in cycle using timeout (in seconds). " << std::endl;
         std::cout << "  --extract_body" << std::endl;
         std::cout << "       Allow to count extracted operation bodies to report. " << std::endl;
-            std::cout << "  --device_suffix" << std::endl;
+        std::cout << "  --device_suffix" << std::endl;
         std::cout << "       Optional. Device suffix" << std::endl;
         std::cout << std::endl;
     }
