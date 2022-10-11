@@ -3,34 +3,33 @@
 //
 
 #include <memory>
-
-#include "pruning.hpp"
-#include "mask_attribute.hpp"
-
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/coordinate_transform.hpp>
 #include <ngraph/log.hpp>
+#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
-ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet & dims,
-                                           const std::function<bool(const double & value)> & condition) {
+#include "mask_attribute.hpp"
+#include "pruning.hpp"
+
+ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet& dims,
+                                           const std::function<bool(const double& value)>& condition) {
     auto constant = pattern::wrap_type<opset6::Constant>(
-            pattern::type_matches_any({element::i8, element::u8, element::f16, element::f32, element::f64}));
+        pattern::type_matches_any({element::i8, element::u8, element::f16, element::f32, element::f64}));
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto const_node = std::dynamic_pointer_cast<opset6::Constant>(m.get_match_root());
-        if (!const_node) return false;
+        if (!const_node)
+            return false;
 
-        const auto & shape = const_node->get_shape();
-        const auto & values = const_node->cast_vector<double>();
+        const auto& shape = const_node->get_shape();
+        const auto& values = const_node->cast_vector<double>();
 
         auto mask = std::make_shared<Mask>(shape);
 
-        for (const auto & dim : dims) {
+        for (const auto& dim : dims) {
             if (dim >= shape.size()) {
-                NGRAPH_DEBUG << "[WARNING] Attemt to initialize masks on " << dim
-                             << " dimension which is out of shape " << shape
-                             << " for node (" << const_node->get_friendly_name() << ")";
+                NGRAPH_DEBUG << "[WARNING] Attemt to initialize masks on " << dim << " dimension which is out of shape "
+                             << shape << " for node (" << const_node->get_friendly_name() << ")";
                 continue;
             }
 
@@ -44,7 +43,7 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet & dims,
                 bool skip_dim_value = false;
                 NGRAPH_SUPPRESS_DEPRECATED_START
                 CoordinateTransform iter(shape, begin, end);
-                for (const Coordinate & coord : iter) {
+                for (const Coordinate& coord : iter) {
                     if (!condition(values.at(iter.index(coord)))) {
                         skip_dim_value = true;
                         break;
