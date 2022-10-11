@@ -449,8 +449,11 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
         // todo: get_lanes() assumes fp32. Could there be any int8 issues?
         const auto vector_size = m_generator->get_target_machine()->get_lanes();
 
-        auto& commonParams = m_body->get_parameters();
-        auto& commonResults = m_body->get_results();
+        ParameterVector commonParams = m_body->get_parameters();
+        // Note that topological sort parses node arguments in reversed order, but results are added  - in direct order
+        // So ve need to pass the reversed results to TileEnd to keep the original traversal order in topological sorter
+        const auto& orig_results = m_body->get_results();
+        ResultVector commonResults(orig_results.rbegin(), orig_results.rend());
         std::vector<PartialShape> ioShapes;
         ioShapes.reserve(commonParams.size() + commonResults.size());
         std::transform(commonParams.begin(), commonParams.end(), std::back_inserter(ioShapes),
@@ -459,9 +462,6 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
                        [](const std::shared_ptr<Node>& n) { return n->get_input_partial_shape(0); });
 
         if (inner_WA > 0) {
-//            const bool skip_counters = vector_work_amount == vector_size;
-//            const bool skip_ptr_increments = outer_dim == 1 && skip_counters;
-            // todo: pass skip_counters and skip_ptr_increments
             std::vector<bool> apply_increments;
             apply_increments.reserve(ioShapes.size());
             // Inner Tile applies increments if a dimension is not broadcasted
