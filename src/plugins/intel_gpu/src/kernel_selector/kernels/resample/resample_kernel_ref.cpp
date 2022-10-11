@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <core/common/kernel_selector_utils.h>
+#include <kernel_selector_utils.h>
 #include "resample_kernel_ref.h"
 
 #include <algorithm>
