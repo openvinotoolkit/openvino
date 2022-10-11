@@ -128,9 +128,9 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
     auto size_of_headers_header = sizeof(HeaderLatest::ModelHeader::gnam) + sizeof(HeaderLatest::ModelHeader::headerSize)
                                 + sizeof(HeaderLatest::ModelHeader::Version);
     if (stream_len > size_of_headers_header) {
-        readNBytes(&header, size_of_headers_header, is);
+        readNBytes(&header, static_cast<uint32_t>(size_of_headers_header), is);
     } else {
-        readNBytes(&header, stream_len, is);
+        readNBytes(&header, static_cast<uint32_t>(stream_len), is);
     }
     if (*reinterpret_cast<int*>(header.gnam) != gna_header_magic) {
         THROW_GNA_EXCEPTION << "Imported file unsupported: magic number should be GNAM(0x474e414d), but was 0x"
