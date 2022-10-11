@@ -50,12 +50,10 @@ public:
 namespace detail {
 
 attach_grn_impl::attach_grn_impl() {
-    auto types = {data_types::f16, data_types::f32};
-    auto formats = {
-        format::bfyx,
-    };
-
-    implementation_map<grn>::add(impl_types::ocl, grn_impl::create, types, formats);
+    implementation_map<grn>::add(impl_types::ocl, grn_impl::create, {
+        std::make_tuple(data_types::f32, format::bfyx),
+        std::make_tuple(data_types::f16, format::bfyx),
+    });
 }
 
 }  // namespace detail

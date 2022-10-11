@@ -115,13 +115,20 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
 namespace detail {
 
 attach_slice_impl::attach_slice_impl() {
-    auto types = {data_types::u8, data_types::i8, data_types::f16, data_types::f32, data_types::i32, data_types::i64};
-    auto formats = {
-        format::bfyx,
-        format::bfzyx,
-    };
-
-    implementation_map<slice>::add(impl_types::ocl, slice_impl::create, types, formats);
+    implementation_map<slice>::add(impl_types::ocl, slice_impl::create, {
+        std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::f32, format::bfyx),
+        std::make_tuple(data_types::u8, format::bfyx),
+        std::make_tuple(data_types::i8, format::bfyx),
+        std::make_tuple(data_types::i32, format::bfyx),
+        std::make_tuple(data_types::i64, format::bfyx),
+        std::make_tuple(data_types::f16, format::bfzyx),
+        std::make_tuple(data_types::f32, format::bfzyx),
+        std::make_tuple(data_types::u8, format::bfyx),
+        std::make_tuple(data_types::i8, format::bfyx),
+        std::make_tuple(data_types::i32, format::bfzyx),
+        std::make_tuple(data_types::i64, format::bfzyx),
+    });
 }
 
 }  // namespace detail

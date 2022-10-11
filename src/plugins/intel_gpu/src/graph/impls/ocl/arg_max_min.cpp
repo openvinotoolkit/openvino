@@ -106,14 +106,18 @@ public:
 
 namespace detail {
 attach_arg_max_min_impl::attach_arg_max_min_impl() {
-    auto types = {data_types::i8, data_types::f16, data_types::f32, data_types::i32};
-    auto formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::yxfb,
-    };
-
-    implementation_map<arg_max_min>::add(impl_types::ocl, arg_max_min_impl::create, types, formats);
+    implementation_map<arg_max_min>::add(impl_types::ocl, arg_max_min_impl::create,  {
+        std::make_tuple(data_types::f32, format::bfyx),
+        std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::i32, format::bfyx),
+        std::make_tuple(data_types::i8, format::bfyx),
+        std::make_tuple(data_types::f32, format::bfzyx),
+        std::make_tuple(data_types::f16, format::bfzyx),
+        std::make_tuple(data_types::i8, format::bfzyx),
+        std::make_tuple(data_types::f32, format::yxfb),
+        std::make_tuple(data_types::f16, format::yxfb),
+        std::make_tuple(data_types::i8, format::yxfb),
+    });
 }
 }  // namespace detail
 }  // namespace ocl

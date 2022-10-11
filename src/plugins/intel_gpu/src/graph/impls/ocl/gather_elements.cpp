@@ -83,14 +83,19 @@ public:
 namespace detail {
 
 attach_gather_elements_impl::attach_gather_elements_impl() {
-    auto types = {data_types::u8, data_types::i8, data_types::f16, data_types::f32, data_types::i32};
-    auto formats = {
-        format::bfwzyx,
-        format::bfyx,
-        format::bfzyx,
-    };
-
-    implementation_map<gather_elements>::add(impl_types::ocl, gather_elements_impl::create, types, formats);
+    implementation_map<gather_elements>::add(impl_types::ocl, gather_elements_impl::create, {
+        std::make_tuple(data_types::i8, format::bfyx),
+        std::make_tuple(data_types::u8, format::bfyx),
+        std::make_tuple(data_types::f32, format::bfyx),
+        std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::i32, format::bfyx),
+        std::make_tuple(data_types::f32, format::bfzyx),
+        std::make_tuple(data_types::f16, format::bfzyx),
+        std::make_tuple(data_types::i32, format::bfzyx),
+        std::make_tuple(data_types::f32, format::bfwzyx),
+        std::make_tuple(data_types::f16, format::bfwzyx),
+        std::make_tuple(data_types::i32, format::bfwzyx),
+    });
 }
 
 }  // namespace detail

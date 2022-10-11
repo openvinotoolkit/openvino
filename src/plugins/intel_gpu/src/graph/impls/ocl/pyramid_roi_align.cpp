@@ -64,14 +64,14 @@ struct pyramid_roi_align_impl : typed_primitive_impl_ocl<pyramid_roi_align> {
 namespace detail {
 
 attach_pyramid_roi_align_impl::attach_pyramid_roi_align_impl() {
-    auto types = {data_types::f16, data_types::f32};
-    auto formats = {
-        format::bfyx,
-        format::byxf,
-        format::yxfb,
-    };
-
-    implementation_map<pyramid_roi_align>::add(impl_types::ocl, pyramid_roi_align_impl::create, types, formats);
+    implementation_map<pyramid_roi_align>::add(impl_types::ocl, pyramid_roi_align_impl::create, {
+        std::make_tuple(data_types::f32, format::bfyx),
+        std::make_tuple(data_types::f32, format::yxfb),
+        std::make_tuple(data_types::f32, format::byxf),
+        std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::f16, format::yxfb),
+        std::make_tuple(data_types::f16, format::byxf),
+    });
 }
 
 }  // namespace detail

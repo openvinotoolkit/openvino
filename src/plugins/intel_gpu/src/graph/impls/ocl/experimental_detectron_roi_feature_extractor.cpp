@@ -75,13 +75,11 @@ public:
 
 namespace detail {
 attach_experimental_detectron_roi_feature_extractor_impl::attach_experimental_detectron_roi_feature_extractor_impl() {
-    auto types = {data_types::f16, data_types::f32};
-    auto formats = {
-        format::bfyx,
-    };
-
     implementation_map<experimental_detectron_roi_feature_extractor>::add(impl_types::ocl,
-        experimental_detectron_roi_feature_extractor_impl::create, types, formats);
+                                                                            experimental_detectron_roi_feature_extractor_impl::create, {
+                                                                                std::make_tuple(data_types::f16, format::bfyx),
+                                                                                std::make_tuple(data_types::f32, format::bfyx)
+                                                                                });
 }
 
 }  // namespace detail

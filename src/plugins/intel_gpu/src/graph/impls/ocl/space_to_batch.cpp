@@ -52,15 +52,24 @@ public:
 namespace detail {
 
 attach_space_to_batch_impl::attach_space_to_batch_impl() {
-    auto types = {data_types::u8, data_types::i8, data_types::f16, data_types::f32};
-    auto formats = {
-        format::bfwzyx,
-        format::bfyx,
-        format::bfzyx,
-        format::b_fs_zyx_fsv16,
-    };
-
-    implementation_map<space_to_batch>::add(impl_types::ocl, space_to_batch_impl::create, types, formats);
+    implementation_map<space_to_batch>::add(impl_types::ocl, space_to_batch_impl::create, {
+        std::make_tuple(data_types::f32, format::bfyx),
+        std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::u8, format::bfyx),
+        std::make_tuple(data_types::i8, format::bfyx),
+        std::make_tuple(data_types::f32, format::bfzyx),
+        std::make_tuple(data_types::f16, format::bfzyx),
+        std::make_tuple(data_types::u8, format::bfzyx),
+        std::make_tuple(data_types::i8, format::bfzyx),
+        std::make_tuple(data_types::f32, format::bfwzyx),
+        std::make_tuple(data_types::f16, format::bfwzyx),
+        std::make_tuple(data_types::u8, format::bfwzyx),
+        std::make_tuple(data_types::i8, format::bfwzyx),
+        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
+    });
 }
 
 }  // namespace detail

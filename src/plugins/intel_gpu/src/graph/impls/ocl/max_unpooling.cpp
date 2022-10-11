@@ -65,14 +65,17 @@ public:
 namespace detail {
 
 attach_max_unpooling_impl::attach_max_unpooling_impl() {
-    auto types = {data_types::i8, data_types::f16, data_types::f32};
-    auto formats = {
-        format::bfyx,
-        format::byxf,
-        format::yxfb,
-    };
-
-    implementation_map<max_unpooling>::add(impl_types::ocl, max_unpooling_impl::create, types, formats);
+    implementation_map<max_unpooling>::add(impl_types::ocl, max_unpooling_impl::create, {
+        std::make_tuple(data_types::f32, format::yxfb),
+        std::make_tuple(data_types::f16, format::yxfb),
+        std::make_tuple(data_types::f32, format::bfyx),
+        std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::i8, format::bfyx),
+        std::make_tuple(data_types::i8, format::yxfb),
+        std::make_tuple(data_types::f32, format::byxf),
+        std::make_tuple(data_types::f16, format::byxf),
+        std::make_tuple(data_types::i8, format::byxf),
+    });
 }
 
 }  // namespace detail

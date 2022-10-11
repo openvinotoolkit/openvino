@@ -56,24 +56,52 @@ public:
 namespace detail {
 
 attach_mvn_impl::attach_mvn_impl() {
-    auto types = {data_types::u8, data_types::i8, data_types::f16, data_types::f32};
-    auto formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::byxf,
-        format::yxfb,
-        format::b_fs_yx_fsv16,
-        format::b_fs_zyx_fsv16,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32,
-        format::bs_fs_zyx_bsv16_fsv16,
+    implementation_map<mvn>::add(impl_types::ocl, mvn_impl::create, {
+        std::make_tuple(data_types::f32, format::bfyx),
+        std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::u8, format::bfyx),
+        std::make_tuple(data_types::i8, format::bfyx),
+
+        std::make_tuple(data_types::f32, format::yxfb),
+        std::make_tuple(data_types::f16, format::yxfb),
+
+        std::make_tuple(data_types::f32, format::byxf),
+        std::make_tuple(data_types::f16, format::byxf),
+
+        std::make_tuple(data_types::f32, format::bfzyx),
+        std::make_tuple(data_types::f16, format::bfzyx),
+        std::make_tuple(data_types::u8, format::bfzyx),
+        std::make_tuple(data_types::i8, format::bfzyx),
+
+        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
+
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
+        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
 
         // TODO: uncomment this code when fsv32 optimizations for MVN will be implemented
-        // format::b_fs_yx_fsv32,
-        // format::b_fs_zyx_fsv32,
-    };
+        /*std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
 
-    implementation_map<mvn>::add(impl_types::ocl, mvn_impl::create, types, formats);
+        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv32),*/
+
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
+
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
+
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
+    });
 }
 
 }  // namespace detail

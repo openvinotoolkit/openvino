@@ -41,12 +41,11 @@ struct experimental_detectron_topk_rois_impl : typed_primitive_impl_ocl<experime
 namespace detail {
 
 attach_experimental_detectron_topk_rois_impl::attach_experimental_detectron_topk_rois_impl() {
-    auto types = {data_types::f16, data_types::f32};
-    auto formats = {
-        format::bfyx,
-    };
-
-    implementation_map<experimental_detectron_topk_rois>::add(impl_types::ocl, experimental_detectron_topk_rois_impl::create, types, formats);
+    implementation_map<experimental_detectron_topk_rois>::add(impl_types::ocl,
+                                                              experimental_detectron_topk_rois_impl::create, {
+                                                                      std::make_tuple(data_types::f16, format::bfyx),
+                                                                      std::make_tuple(data_types::f32, format::bfyx)
+                                                              });
 }
 
 }  // namespace detail

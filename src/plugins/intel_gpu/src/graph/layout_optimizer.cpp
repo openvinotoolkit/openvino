@@ -1594,25 +1594,6 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
     return preferred_impl;
 }
 
-format layout_optimizer::get_expected_format_for_datatype(format fmt, data_types dt) {
-    if (data_type_traits::is_i8_u8(dt)) {
-        switch (fmt) {
-            case format::b_fs_yx_fsv16: return format::b_fs_yx_fsv32;
-            case format::bs_fs_yx_bsv16_fsv16: return format::bs_fs_yx_bsv16_fsv32;
-            case format::bs_fs_yx_bsv32_fsv16: return format::bs_fs_yx_bsv32_fsv32;
-            default: return format::any;
-        }
-    } else if (data_type_traits::is_floating_point(dt)) {
-        switch (fmt) {
-            case format::b_fs_yx_fsv32: return format::b_fs_yx_fsv16;
-            case format::bs_fs_yx_bsv16_fsv32: return format::bs_fs_yx_bsv16_fsv16;
-            case format::bs_fs_yx_bsv32_fsv32: return format::bs_fs_yx_bsv32_fsv16;
-            default: return format::any;
-        }
-    }
-    return format::any;
-}
-
 format layout_optimizer::get_preferred_format(program_node& node) {
     format expected = format::any;
     auto output_layout = node.get_output_layout();

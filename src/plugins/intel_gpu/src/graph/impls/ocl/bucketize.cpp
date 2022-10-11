@@ -43,25 +43,32 @@ struct bucketize_impl : typed_primitive_impl_ocl<bucketize> {
 namespace detail {
 
 attach_bucketize_impl::attach_bucketize_impl() {
-    auto types = {data_types::u8, data_types::i8, data_types::f16, data_types::f32, data_types::i32, data_types::i64};
+    auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::u8, data_types::i32, data_types::i64};
     auto formats = {
-        format::bfwzyx,
         format::bfyx,
-        format::bfzyx,
         format::b_fs_yx_fsv16,
         format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
+        format::bs_fs_yx_bsv32_fsv16,
+
+        format::bfzyx,
         format::b_fs_zyx_fsv16,
         format::b_fs_zyx_fsv32,
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32,
-        format::bs_fs_zyx_bsv16_fsv16,
         format::bs_fs_zyx_bsv16_fsv32,
-        format::bs_fs_zyx_bsv32_fsv16,
+        format::bs_fs_zyx_bsv16_fsv16,
         format::bs_fs_zyx_bsv32_fsv32,
-    };
+        format::bs_fs_zyx_bsv32_fsv16,
 
-    implementation_map<bucketize>::add(impl_types::ocl, bucketize_impl::create, types, formats);
+        format::bfwzyx
+    };
+    std::set<std::tuple<data_types, format::type>> keys;
+    for (const auto& t : types) {
+        for (const auto& f : formats) {
+            keys.emplace(t, f);
+        }
+    }
+    implementation_map<bucketize>::add(impl_types::ocl, bucketize_impl::create, keys);
 }
 }  // namespace detail
 

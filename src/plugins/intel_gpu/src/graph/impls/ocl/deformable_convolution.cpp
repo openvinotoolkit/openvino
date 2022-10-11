@@ -177,21 +177,17 @@ public:
 namespace detail {
 
 attach_deformable_conv_impl::attach_deformable_conv_impl() {
-    auto types = {data_types::f16, data_types::f32};
-    auto formats = {
-        format::bfyx,
-    };
-
-    implementation_map<deformable_conv>::add(impl_types::ocl, deformable_conv_impl::create, types, formats);
+    implementation_map<deformable_conv>::add(impl_types::ocl, deformable_conv_impl::create, {
+        std::make_tuple(data_types::f32, format::bfyx),
+        std::make_tuple(data_types::f16, format::bfyx),
+    });
 }
 
 attach_deformable_interp_impl::attach_deformable_interp_impl() {
-    auto types = {data_types::f16, data_types::f32};
-    auto formats = {
-        format::bfyx,
-    };
-
-    implementation_map<deformable_interp>::add(impl_types::ocl, deformable_interp_impl::create, types, formats);
+    implementation_map<deformable_interp>::add(impl_types::ocl, deformable_interp_impl::create, {
+        std::make_tuple(data_types::f32, format::bfyx),
+        std::make_tuple(data_types::f16, format::bfyx),
+    });
 }
 
 }  // namespace detail

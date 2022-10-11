@@ -103,15 +103,14 @@ public:
 namespace detail {
 
 attach_roi_align_impl::attach_roi_align_impl() {
-    auto types = {data_types::u8, data_types::i8, data_types::f16, data_types::f32, data_types::i32};
-    auto formats = {
-        format::bfyx,
-        format::b_fs_yx_fsv16,
-        format::b_fs_yx_fsv32,
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32,
-    };
+    auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::u8, data_types::i32};
+
+    auto formats = {format::bfyx,
+                    format::b_fs_yx_fsv16,
+                    format::b_fs_yx_fsv32,
+                    format::bs_fs_yx_bsv16_fsv16,
+                    format::bs_fs_yx_bsv32_fsv16,
+                    format::bs_fs_yx_bsv32_fsv32};
 
     implementation_map<roi_align>::add(impl_types::ocl, roi_align_impl::create, types, formats);
 }

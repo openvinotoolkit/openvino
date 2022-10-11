@@ -76,14 +76,17 @@ public:
 namespace detail {
 
 attach_scatter_elements_update_impl::attach_scatter_elements_update_impl() {
-    auto types = {data_types::f16, data_types::f32, data_types::i32};
-    auto formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::bfwzyx,
-    };
-
-    implementation_map<scatter_elements_update>::add(impl_types::ocl, scatter_elements_update_impl::create, types, formats);
+    implementation_map<scatter_elements_update>::add(impl_types::ocl, scatter_elements_update_impl::create, {
+        std::make_tuple(data_types::f32, format::bfyx),
+        std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::i32, format::bfyx),
+        std::make_tuple(data_types::f32, format::bfzyx),
+        std::make_tuple(data_types::f16, format::bfzyx),
+        std::make_tuple(data_types::i32, format::bfzyx),
+        std::make_tuple(data_types::f32, format::bfwzyx),
+        std::make_tuple(data_types::f16, format::bfwzyx),
+        std::make_tuple(data_types::i32, format::bfwzyx),
+    });
 }
 
 }  // namespace detail

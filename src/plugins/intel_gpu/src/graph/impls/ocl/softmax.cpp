@@ -71,10 +71,10 @@ namespace detail {
 attach_softmax_impl::attach_softmax_impl() {
     auto types = {data_types::f16, data_types::f32};
     auto formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::byxf,
-        format::yxfb,
+            format::bfyx,
+            format::byxf,
+            format::yxfb,
+            format::bfzyx
     };
 
     implementation_map<softmax>::add(impl_types::ocl, softmax_impl::create, types, formats);
