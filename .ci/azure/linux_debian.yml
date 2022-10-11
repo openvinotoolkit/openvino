@@ -257,11 +257,11 @@ jobs:
       export OV_FRONTEND_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR)
       # For python imports to import pybind_mock_frontend
       export PYTHONPATH=$(INSTALL_TEST_DIR):$PYTHONPATH
-      python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino \
+      python3 -m pytest -s $(INSTALL_TEST_DIR)/_pyopenvino \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
-        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
-        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py \
-        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py -v
+        --ignore=$(INSTALL_TEST_DIR)/_pyopenvino/tests/test_utils/test_utils.py \
+        --ignore=$(INSTALL_TEST_DIR)/_pyopenvino/tests/test_onnx/test_zoo_models.py \
+        --ignore=$(INSTALL_TEST_DIR)/_pyopenvino/tests/test_onnx/test_backend.py -v
     displayName: 'Python API 2.0 Tests'
     continueOnError: false
 
