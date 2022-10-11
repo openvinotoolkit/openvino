@@ -98,7 +98,12 @@ endif()
 ####################################
 
 if(NOT TARGET gflags)
-    find_package(gflags QUIET)
+    if(APPLE OR DEFINED ENV{CONDA_PREFIX} OR DEFINED ENV{HOMEBREW_PREFIX})
+        # conda-forge and brew contains only shared version of gflags
+        find_package(gflags QUIET COMPONENTS nothreads_shared)
+    else()
+        find_package(gflags QUIET COMPONENTS nothreads_static)
+    endif()
 
     if(gflags_FOUND)
         if(NOT TARGET ${GFLAGS_TARGET})
