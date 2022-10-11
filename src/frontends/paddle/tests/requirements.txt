@@ -1,6 +1,0 @@
-# PaddlePaddle - generate test models
-paddlepaddle==2.1.0
-gast==0.3.3
-numpy~=1.19.2
-six~=1.15.0
-protobuf>=3.18.1,<4.0.0
