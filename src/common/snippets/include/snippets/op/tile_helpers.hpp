@@ -41,8 +41,8 @@ inline std::shared_ptr<TileBegin> insertTileBegin(const OutputVector& afterThese
 
 template<typename T, typename ...Args>
 std::shared_ptr<TileEnd> insertTileEnd(const T& beforeTheseNodes, Args ...args) {
-    static_assert(std::is_same<T, NodeVector>(),
-                  "Unsupported template parameter for insertTileEnd. Only NodeVector is allowed");
+    static_assert(std::is_same<T, ResultVector>() || std::is_same<T, NodeVector>(),
+                  "Unsupported template parameter for insertTileBegin. Only ParameterVector or NodeVector is allowed");
     std::vector<Input<Node>> originalInputs;
     for (const auto &n : beforeTheseNodes) {
         const auto& nodeInputs = n->inputs();
@@ -54,13 +54,6 @@ std::shared_ptr<TileEnd> insertTileEnd(const T& beforeTheseNodes, Args ...args) 
 template<typename ...Args>
 std::shared_ptr<TileEnd> insertTileEnd(const std::vector<Input<Node>>& beforeTheseNodes,  Args ...args) {
     return insertTileEndBeforeInputs(beforeTheseNodes, args...);
-}
-template<typename ...Args>
-std::shared_ptr<TileEnd> insertTileEnd(const ResultVector& beforeTheseNodes,  Args ...args) {
-    // Note that topological sort parses node arguments in reversed order, but results are added  - in direct order
-    // So ve need to pass the reversed results to TileEnd to keep the original traversal order in topological sorter
-    ov::NodeVector reversedResults(beforeTheseNodes.rbegin(), beforeTheseNodes.rend());
-    return insertTileEnd(reversedResults, args...);
 }
 
 } // namespace op
