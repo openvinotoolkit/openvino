@@ -1222,6 +1222,7 @@ void program_node::init_onednn_primitive_attributes() {
     if (fused_ops.size() > 1) {
         dnnl::post_ops optimized_post_ops = post_ops;
         bool optimization_is_finished = false;
+        int trial_count = 0;
 
         add_onednn_fused_primitives(fused_ops);
 
@@ -1232,6 +1233,9 @@ void program_node::init_onednn_primitive_attributes() {
             GPU_DEBUG_IF(debug_config->disable_onednn_opt_post_ops)
                 break;
             optimized_post_ops = try_optimize_post_ops(optimized_post_ops, attrs, optimization_is_finished);
+            trial_count++;
+            if (trial_count == 100)
+                throw std::runtime_error("Infinite repeat for optimization onednn post ops: " + id());
         } while (!optimization_is_finished);
 
         attrs->set_post_ops(optimized_post_ops);
