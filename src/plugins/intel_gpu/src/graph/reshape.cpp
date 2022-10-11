@@ -136,7 +136,8 @@ std::string reshape_inst::to_string(reshape_node const& node) {
     return primitive_description.str();
 }
 
-reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) : parent(network, node, false) {
+reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
+        parent(network, node, (!node.can_be_optimized() && node.get_output_layout().is_static()) ? true : false) {
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();
     CLDNN_ERROR_DATA_TYPES_MISMATCH(node.id(),

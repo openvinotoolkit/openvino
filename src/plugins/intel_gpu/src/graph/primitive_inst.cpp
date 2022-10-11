@@ -170,15 +170,6 @@ void primitive_inst::update_shape() {
     if (_node.is_type<shape_of>() && !input_shape_changed)
         return;
 
-    // Even though the predecessors' shapes are not changed, the output shape might be udpated by the mem_dep
-    auto memory_deps = _node.get_const_memory_deps();
-    for (auto& i : _node.get_shape_infer_dependencies()) {
-        if (memory_deps.count(i) > 0) {
-            continue;
-        }
-        input_shape_changed = true;
-    }
-
     // Strided slice loads data from {1,2,3} dependencies in impl::create method.
     // It means that this data must be put into impl_params map
     // Thus we treat it as "dynamic" case

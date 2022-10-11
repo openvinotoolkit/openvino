@@ -74,6 +74,8 @@ class typed_primitive_inst<gather_nonzero> : public typed_primitive_inst_base<ga
     using parent = typed_primitive_inst_base<gather_nonzero>;
 
 public:
+    template <typename ShapeType>
+    static std::vector<layout> calc_output_layouts(gather_nonzero_node const& /*node*/, kernel_impl_params const& impl_param);
     static layout calc_output_layout(gather_nonzero_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(gather_nonzero_node const& node);
 
