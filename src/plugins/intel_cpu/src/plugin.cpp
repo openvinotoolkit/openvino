@@ -526,37 +526,25 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
         auto supportedPrecisions = std::vector<PrecisionsRestriction>({
             PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
-                {1, {ngraph::element::i8}},
+                {{0}, {ngraph::element::u8, ngraph::element::i8}},
+                {{1}, {ngraph::element::i8}},
             }),
             PrecisionsRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
-                {1, {ngraph::element::i8}}
+                {{0}, {ngraph::element::u8, ngraph::element::i8}},
+                {{1}, {ngraph::element::i8}}
             }),
             PrecisionsRestriction::create<ngraph::opset1::GroupConvolution>({
-                {0, {ngraph::element::u8}},
-                {1, {ngraph::element::i8}}
+                {{0}, {ngraph::element::u8}},
+                {{1}, {ngraph::element::i8}}
             }),
             PrecisionsRestriction::create<ngraph::opset1::Multiply>({
-                {0, {ngraph::element::u8}},
-                {1, {ngraph::element::i8}},
+                {{0}, {ngraph::element::u8}},
+                {{1}, {ngraph::element::i8}},
             }),
             PrecisionsRestriction::create<ngraph::opset1::MatMul>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
-                {1, {ngraph::element::i8}}
+                {{0}, {ngraph::element::u8, ngraph::element::i8}},
+                {{1}, {ngraph::element::i8}}
             }),
-            // Common restriction for 2 inputs
-            /*
-            PrecisionsRestriction::create<ngraph::opset5::LSTMSequence>({
-                {{0, 1}, {ngraph::element::u8, ngraph::element::i8}},
-            }),
-            PrecisionsRestriction::create<ngraph::opset5::GRUSequence>({
-                {{0, 1}, {ngraph::element::u8, ngraph::element::i8}},
-            }),
-            PrecisionsRestriction::create<ngraph::opset5::RNNSequence>({
-                {{0, 1}, {ngraph::element::u8, ngraph::element::i8}},
-            }),
-            */
         });
 
         auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>({

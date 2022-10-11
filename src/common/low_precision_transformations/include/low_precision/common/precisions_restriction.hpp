@@ -18,16 +18,9 @@
 namespace ngraph {
 namespace pass {
 namespace low_precision {
-
-class Ports : public std::vector<size_t> {
-public:
-    Ports(const size_t port) : std::vector<size_t>{ port } {}
-    Ports(const std::initializer_list<size_t>& ports_list) : std::vector<size_t>(ports_list) {}
-};
-
 class PrecisionsRestriction {
 public:
-    using PrecisionsByPorts = std::vector<std::pair<Ports, std::vector<ngraph::element::Type>>>;
+    using PrecisionsByPorts = std::vector<std::pair<std::vector<size_t>, std::vector<ngraph::element::Type>>>;
 
     ngraph::Node::type_info_t operationType;
     bool specifyVersion;
