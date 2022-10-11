@@ -194,6 +194,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             std::string defaultDeviceID = "";
             if (newParsed.getDeviceID().empty()) {
                 defaultDeviceID = getDefaultDeviceID(deviceNameWithID);
+                deviceNameWithID += "." + defaultDeviceID;
             } else {
                 defaultDeviceID = newParsed.getDeviceID();
             }
