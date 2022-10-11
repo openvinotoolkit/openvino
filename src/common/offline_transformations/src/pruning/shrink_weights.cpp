@@ -3,31 +3,28 @@
 //
 
 #include <memory>
-
-#include "pruning.hpp"
-#include "mask_attribute.hpp"
-
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/log.hpp>
 #include <ngraph/ngraph.hpp>
+#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
-template<typename T>
+#include "mask_attribute.hpp"
+#include "pruning.hpp"
+
+template <typename T>
 static std::string vec_to_str(const std::vector<T> m) {
     std::ostringstream out;
     out << "[ ";
-    for (const auto & val : m)
+    for (const auto& val : m)
         out << val << ' ';
     out << "]";
     return out.str();
 }
 
-
 static bool not_empty_mask(ngraph::Mask::Ptr mask) {
     return mask && !mask->all_dims_are_empty();
 }
-
 
 static bool is_static_reshape_op(std::shared_ptr<ov::Node> node) {
     auto reshape_node = std::dynamic_pointer_cast<ngraph::opset6::Reshape>(node);
@@ -56,13 +53,12 @@ static bool maybe_adopt_reshape_node(std::shared_ptr<ov::Node> reshape, ngraph::
     const auto shape = reshape->input_value(1);
     const auto consumers = shape.get_node()->get_output_target_inputs(0);
     if (shape.get_node()->outputs().size() != 1 || consumers.size() != 1) {
-        NGRAPH_DEBUG << "Adoptation for node " << shape.get_node()->get_friendly_name()
-                    << " is not supported.";
+        NGRAPH_DEBUG << "Adoptation for node " << shape.get_node()->get_friendly_name() << " is not supported.";
         return false;
     }
 
     auto sub_const_vector = std::vector<int64_t>();
-    for (auto & dim : *mask.get())
+    for (auto& dim : *mask.get())
         sub_const_vector.push_back(dim.size());
 
     const auto sub_const = ngraph::opset6::Constant::create(shape.get_element_type(), {mask->size()}, sub_const_vector);
@@ -70,15 +66,14 @@ static bool maybe_adopt_reshape_node(std::shared_ptr<ov::Node> reshape, ngraph::
     consumers.begin()->replace_source_output(sub);
 
     NGRAPH_DEBUG << "Adopting values in (" << shape.get_node()->get_friendly_name() << ")"
-                << " by substracting " << vec_to_str(sub_const_vector);
+                 << " by substracting " << vec_to_str(sub_const_vector);
     return true;
 }
-
 
 bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     int64_t reduced_weights_count{0};
     int64_t total_weights_count{0};
-    for (const auto & node : f->get_ordered_ops()) {
+    for (const auto& node : f->get_ordered_ops()) {
         // calculate shape for every node in graph as the input shape may change
         // during Constant shrinking
         auto mask = getMask(node->output(0));
@@ -94,22 +89,26 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
 
         node->revalidate_and_infer_types();
 
-        if (!mask) continue;
+        if (!mask)
+            continue;
 
         // TODO: constant can be shared across functions so we need to avoid consumers from other function
         auto const_node = std::dynamic_pointer_cast<opset6::Constant>(node);
-        if (!const_node) continue;
+        if (!const_node)
+            continue;
 
-        const auto & const_shape = const_node->get_shape();
+        const auto& const_shape = const_node->get_shape();
         total_weights_count += shape_size(const_shape);
 
 #ifdef ENABLE_OPENVINO_DEBUG
         if (init_mask) {
             for (size_t dim = 0; dim < init_mask->size(); ++dim) {
                 auto& dim_init_set = (*init_mask)[dim];
-                auto&  dim_current_set = (*mask)[dim];
-                if (!dim_init_set.empty() && !std::includes(dim_current_set.begin(), dim_current_set.end(),
-                                                            dim_init_set.begin(), dim_init_set.end())) {
+                auto& dim_current_set = (*mask)[dim];
+                if (!dim_init_set.empty() && !std::includes(dim_current_set.begin(),
+                                                            dim_current_set.end(),
+                                                            dim_init_set.begin(),
+                                                            dim_init_set.end())) {
                     NGRAPH_DEBUG << "Mask was ruined for node:" << const_node->get_friendly_name()
                                  << "\nInit mask: " << *init_mask << "\nCurrent mask: " << *mask;
                     break;
@@ -124,17 +123,17 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
             auto value = const_node->cast_vector<int64_t>();
             for (size_t i = 0; i < mask->size(); i++) {
                 const int64_t res = value[i] - mask->at(i).size();
-                new_const_value.push_back((res > 0)? res : value[i]);
+                new_const_value.push_back((res > 0) ? res : value[i]);
             }
 
-            const auto new_const = opset6::Constant::create(const_node->get_element_type(),
-                                                            const_node->get_shape(), new_const_value);
+            const auto new_const =
+                opset6::Constant::create(const_node->get_element_type(), const_node->get_shape(), new_const_value);
             new_const->set_friendly_name(const_node->get_friendly_name());
             ngraph::copy_runtime_info(const_node, new_const);
             ngraph::replace_node(const_node, new_const);
 
-            NGRAPH_DEBUG << "Adjust value in (" << const_node->get_friendly_name() << "): "
-                         << vec_to_str(value) << " to " << vec_to_str(new_const_value);
+            NGRAPH_DEBUG << "Adjust value in (" << const_node->get_friendly_name() << "): " << vec_to_str(value)
+                         << " to " << vec_to_str(new_const_value);
             continue;
         }
         auto last_output = const_node->output(0);
@@ -144,22 +143,25 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
             // TODO: think about it
             auto res = const_node->get_shape_val();
             if (res.size() != mask->size()) {
-                throw ngraph_error("Mask size (" + std::to_string(mask->size()) + ") is not equal to (" + std::to_string(res.size()) + ")");
+                throw ngraph_error("Mask size (" + std::to_string(mask->size()) + ") is not equal to (" +
+                                   std::to_string(res.size()) + ")");
             }
             for (size_t dim = 0; dim < mask->size(); ++dim) {
                 res[dim] -= mask->at(dim).size();
             }
             auto new_const = opset6::Constant::create(const_node->get_element_type(), Shape{res.size()}, res);
             replace_node(const_node, new_const);
-            NGRAPH_DEBUG << "Transform shape like (" << last_output.get_node()->get_friendly_name() << "): "
-                         << const_node->get_shape_val() << " to " << new_const->get_shape_val() << std::endl;
+            NGRAPH_DEBUG << "Transform shape like (" << last_output.get_node()->get_friendly_name()
+                         << "): " << const_node->get_shape_val() << " to " << new_const->get_shape_val() << std::endl;
             new_const->set_friendly_name(const_node->get_friendly_name());
         } else {
             for (size_t dim = 0; dim < mask->size(); ++dim) {
-                const auto &dim_size = mask->at(dim).size();
-                if (dim_size == 0) continue;
+                const auto& dim_size = mask->at(dim).size();
+                if (dim_size == 0)
+                    continue;
                 // Broadcastable 1-size dimension shouldn't be shrank with mask
-                if (const_node->get_shape().at(dim) == 1 && dim_size > 1) continue;
+                if (const_node->get_shape().at(dim) == 1 && dim_size > 1)
+                    continue;
 
                 // Convert dims that we want remove to dims that we need to keep
                 std::vector<int64_t> dims_to_keep;
@@ -169,12 +171,14 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
                     }
                 }
 
-                const auto & prev_shape = last_output.get_partial_shape();
-                const auto & prev_name = last_output.get_node()->get_friendly_name();
-                last_output = std::make_shared<opset6::Gather>(last_output,
-                                                               opset6::Constant::create(element::i64, Shape{dims_to_keep.size()}, dims_to_keep),
-                                                               opset6::Constant::create(element::i64, Shape{}, {dim}));
-                NGRAPH_DEBUG << "Transform(" << prev_name << "): " << prev_shape << " to " << last_output.get_partial_shape();
+                const auto& prev_shape = last_output.get_partial_shape();
+                const auto& prev_name = last_output.get_node()->get_friendly_name();
+                last_output = std::make_shared<opset6::Gather>(
+                    last_output,
+                    opset6::Constant::create(element::i64, Shape{dims_to_keep.size()}, dims_to_keep),
+                    opset6::Constant::create(element::i64, Shape{}, {dim}));
+                NGRAPH_DEBUG << "Transform(" << prev_name << "): " << prev_shape << " to "
+                             << last_output.get_partial_shape();
 
                 if (prev_shape.is_static() && last_output.get_partial_shape().is_static()) {
                     reduced_weights_count += shape_size(prev_shape.get_shape()) - shape_size(last_output.get_shape());
