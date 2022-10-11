@@ -25,6 +25,7 @@ ov::op::util::BinaryElementwiseArithmetic::BinaryElementwiseArithmetic(const Out
 
 void ov::op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_arithmetic(
     const op::AutoBroadcastSpec& autob) {
+    // TODO: Remove autob arg?
     auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this, autob);
     element::Type& args_et = std::get<0>(args_et_pshape);
     PartialShape& args_pshape = std::get<1>(args_et_pshape);
