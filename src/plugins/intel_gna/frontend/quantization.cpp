@@ -233,7 +233,7 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
     auto output_low = 0.0f;
     auto output_high = 0.0f;
     size_t levels = 1;
-    float valueAcc = 0.0;
+    float valueAcc = 0.0f;
     for (uint32_t i = 0; i < num_rows; i++) {
         uint32_t channel_multiplier = 1;
         if (fq_num_stats > 0) {
