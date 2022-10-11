@@ -138,6 +138,6 @@ find_package(OpenVINO REQUIRED)
 
 add_executable(${TARGET_NAME_C} src/main.c)
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::c)
+target_link_libraries(${TARGET_NAME_C} PRIVATE openvino::runtime::c)
 
 # [cmake:integration_example_c]

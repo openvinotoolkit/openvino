@@ -47,7 +47,7 @@ ov_infer_request_t* infer_request = NULL;
 ov_compiled_model_create_infer_request(compiled_model, &infer_request);
 //! [part3]
 
-ov_shape_t input_shape;
+ov_shape_t input_shape = {0, NULL};
 void* img_data = NULL;
 ov_element_type_e input_type = U8;
 //! [part4]
@@ -79,7 +79,7 @@ ov_core_free(core);
 
 return 0;
 }
-
+/*
 //! [part7]
 // Create a structure for the project:
 project/
@@ -91,3 +91,4 @@ build/                  - build directory
    ...      
 
 //! [part7]
+*/
