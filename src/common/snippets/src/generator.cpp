@@ -115,36 +115,37 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
         const auto& tile_begin = ov::as_type_ptr<ngraph::snippets::op::TileBegin>(*op);
         // ignore outer tiles and possible manual scalar tiles
         if (tile_begin && tile_begin->get_increment() != 1) {
-            NodeVector vector_tile;
-            const auto& tile_end = tile_begin->get_tile_end();
-            while (*op != tile_end)
+            NodeVector vector_tile, scalar_tile;
+            std::shared_ptr<op::TileEnd> vector_tile_end, scalar_tile_end;
+            vector_tile_end = tile_begin->get_tile_end();
+            scalar_tile_end = nullptr;
+            while (*op != vector_tile_end)
                 vector_tile.push_back(*op++);
             vector_tile.push_back(*op);
-            const auto work_amount = tile_end->get_work_amount();
-            const auto increment = tile_end->get_increment();
+            const auto work_amount = vector_tile_end->get_work_amount();
+            const auto increment = vector_tile_end->get_increment();
             const auto need_scalar_tile = work_amount % increment != 0;
             const auto need_vector_tile = work_amount >= increment;
-            std::vector<int64_t> scalar_finalization_offsets = need_scalar_tile ? tile_end->get_finalization_offsets()
-                                                                         : std::vector<int64_t> {};
+            // Note, that finalization_offsets could be modified inside optimize_single_evaluation,
+            // so need to save them here to cover (evaluate_once vector with non-zero finalization_offsets + scalar)
+            std::vector<int64_t> scalar_finalization_offsets = need_scalar_tile ? vector_tile_end->get_finalization_offsets() :
+                                                        std::vector<int64_t> {};
             bool vector_evaluate_once = false;
+            bool scalar_evaluate_once = false;
             // vector tiles are required => Just copy the body, original tile is already a vector one
             if (need_vector_tile) {
                 // Note that finalization offsets should be applied after the last iteration.
                 // So if there is a scalar tile, then we should apply offsets after it, but not now.
-                if (need_scalar_tile) {
-                    tile_end->set_finalization_offsets(std::vector<int64_t>(scalar_finalization_offsets.size(), 0));
-                }
+                if (need_scalar_tile)
+                    vector_tile_end->set_finalization_offsets(std::vector<int64_t>(scalar_finalization_offsets.size(), 0));
                 // force ptr increments if there is at least one scalar tile
-                vector_evaluate_once = optimize_single_evaluation(tile_end, need_scalar_tile);
-                // can't let scalar tile to reuse reg_work_amount, since it's not set if vector_evaluate_once==true
-                tile_end->reuse_work_amount_reg = !vector_evaluate_once && need_scalar_tile;
-                lower_ops(vector_tile);
+                vector_evaluate_once = optimize_single_evaluation(vector_tile_end, need_scalar_tile);
             }
             OV_ITT_TASK_NEXT(GENERATE, "::ScalarTile")
             // scalar tiles are required => transform the body into a scalar representation
             if (need_scalar_tile) {
                 NodeMap vector_to_scalar_node_map;
-                NodeVector scalar_tile = ngraph::clone_nodes(vector_tile,  vector_to_scalar_node_map);
+                scalar_tile = ngraph::clone_nodes(vector_tile,  vector_to_scalar_node_map);
                 std::transform(scalar_tile.begin(), scalar_tile.end(), scalar_tile.begin(),
                                [](const std::shared_ptr<Node>& n){
                                    if (const auto load = ov::as_type_ptr<ngraph::snippets::op::Load>(n))
@@ -153,17 +154,25 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
                                        store->set_count(1);
                                    return n;
                                });
-                const auto& scalar_tile_end = ov::as_type_ptr<op::TileEnd>(*scalar_tile.rbegin());
+                scalar_tile_end = ov::as_type_ptr<op::TileEnd>(*scalar_tile.rbegin());
                 scalar_tile_end->set_finalization_offsets(scalar_finalization_offsets);
                 const auto scalar_work_amount = work_amount % increment;
                 scalar_tile_end->set_increment(1);
                 scalar_tile_end->set_work_amount(scalar_work_amount);
-                scalar_tile_end->has_outer_tile = tile_end->has_outer_tile;
+                scalar_tile_end->has_outer_tile = vector_tile_end->has_outer_tile;
                 // ptr increment is applied automatically if there is non-empty outer tile
-                optimize_single_evaluation(scalar_tile_end);
-                if (need_vector_tile && !vector_evaluate_once) {
-                    scalar_tile_end->get_tile_begin()->reuse_work_amount_reg = true;
-                }
+                scalar_evaluate_once = optimize_single_evaluation(scalar_tile_end);
+            }
+            // Cross-tile optimizations require that both tiles are fully initialized,
+            // so check need_*_tile again, update optimization flags and lower
+            if (need_vector_tile) {
+                // scalar tile can't reuse reg_work_amount if vector_evaluate_once==true (since it's not set in this case)
+                // likewise, it makes no sense to reuse work_amount_reg if scalar tile is evaluated only once
+                vector_tile_end->reuse_work_amount_reg = !vector_evaluate_once && need_scalar_tile && !scalar_evaluate_once;
+                lower_ops(vector_tile);
+            }
+            if (need_scalar_tile) {
+                scalar_tile_end->get_tile_begin()->reuse_work_amount_reg = need_vector_tile && vector_tile_end->reuse_work_amount_reg;
                 lower_ops(scalar_tile);
             }
         } else {
