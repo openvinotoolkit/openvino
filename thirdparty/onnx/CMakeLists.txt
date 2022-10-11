@@ -34,10 +34,6 @@ set(ONNX_CUSTOM_PROTOC_EXECUTABLE ${PROTOC_EXECUTABLE})
 function(ov_onnx_build_static)
     set(BUILD_SHARED_LIBS OFF)
     add_subdirectory(onnx EXCLUDE_FROM_ALL)
-
-    foreach(python_var PYTHON_LIBRARY PYTHON_INCLUDE_DIR)
-        # unset(${python_var} CACHE)
-    endforeach()
 endfunction()
 
 ov_onnx_build_static()
