@@ -5,7 +5,6 @@
 #include "openvino/op/is_inf.hpp"
 
 #include "itt.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 
 namespace ov {
 op::v10::IsInf::IsInf(const Output<Node>& data, const Attributes& attributes)
