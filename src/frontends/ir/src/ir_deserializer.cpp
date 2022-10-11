@@ -11,6 +11,7 @@
 #include "meta_data.hpp"
 #include "ngraph/op/util/framework_node.hpp"
 #include "ngraph/opsets/opset1.hpp"
+#include "openvino/core/except.hpp"
 #include "rt_info_deserializer.hpp"
 #include "transformations/rt_info/attributes.hpp"
 #include "utils.hpp"
@@ -543,13 +544,16 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
         }
     }
 
-    // Read meta data
-    // meta_data - MO meta
-    // framework_meta - Framework specific meta
-    // quantization_parameters - NNCF quantization section
-    std::unordered_set<std::string> meta_names = {"meta_data", "framework_meta", "quantization_parameters"};
-    for (const auto& it : meta_names)
-        read_meta_data(function, it, root.child(it.c_str()));
+    // Read meta data from legacy representation
+    if (root.child("rt_info").empty()) {
+        // Legacy representation
+        // meta_data - MO meta
+        // quantization_parameters - NNCF quantization section
+        std::unordered_set<std::string> meta_names = {"meta_data", "quantization_parameters"};
+        read_legacy_meta_data(function, meta_names, root);
+    } else {
+        read_meta_data(function, root.child("rt_info"));
+    }
 
     return function;
 }
@@ -561,56 +565,123 @@ public:
     }
 
     operator const ov::AnyMap&() const override {
-        parse();
-        return m_parsed_data;
+        if (!is_map())
+            throw ov::Exception("Cannot get map! Meta contains value.");
+        return m_parsed_map;
     }
 
     operator ov::AnyMap&() override {
+        if (!is_map())
+            throw ov::Exception("Cannot get map! Meta contains value.");
+        return m_parsed_map;
+    }
+
+    operator const std::string&() const override {
+        if (is_map())
+            throw ov::Exception("Cannot get value! Meta contains map.");
+        return m_parsed_value;
+    }
+
+    operator std::string&() override {
+        if (is_map())
+            throw ov::Exception("Cannot get value! Meta contains map.");
+        return m_parsed_value;
+    }
+
+    bool is_map() const override {
         parse();
-        return m_parsed_data;
+        return m_is_map;
     }
 
 private:
+    bool has_attr(const pugi::xml_node& node, const std::string& name = "value") const {
+        auto attr = node.attribute(name.c_str());
+        return !attr.empty();
+    }
+
+    bool has_value(const pugi::xml_node& node) const {
+        return has_attr(node) || (std::string(node.name()) == "unset" && has_attr(node, "unset_cli_parameters"));
+    }
+
+    ov::Any parse_value(const pugi::xml_node& node) const {
+        if (has_attr(node)) {
+            return XMLParseUtils::GetStrAttr(node, "value");
+        } else if (std::string(node.name()) == "unset" && has_attr(node, "unset_cli_parameters")) {
+            return XMLParseUtils::GetStrAttr(node, "unset_cli_parameters");
+        } else {
+            return parse_node(node);
+        }
+    }
+
     ov::AnyMap parse_node(const pugi::xml_node& node) const {
         ov::AnyMap result;
-        auto has_attr = [](const pugi::xml_node& node, const std::string& name = "value") {
-            auto attr = node.attribute(name.c_str());
-            return !attr.empty();
-        };
         for (const auto& data : node.children()) {
-            if (has_attr(data)) {
-                result[data.name()] = XMLParseUtils::GetStrAttr(data, "value");
-            } else if (std::string(data.name()) == "unset" && has_attr(data, "unset_cli_parameters")) {
-                result[data.name()] = XMLParseUtils::GetStrAttr(data, "unset_cli_parameters");
-            } else {
-                result[data.name()] = parse_node(data);
-            }
+            result[data.name()] = parse_value(data);
         }
         return result;
     }
 
     void parse() const {
         // Thread safety is implemented on ov::Model level
-        if (parsed)
+        if (m_parsed)
             return;
+        const pugi::xml_node& node = m_meta.child(m_name.c_str());
+        if (!has_value(node)) {
+            m_is_map = true;
+        }
+        if (m_is_map)
+            m_parsed_map = parse_node(node);
+        else
+            m_parsed_value = parse_value(node).as<std::string>();
 
-        m_parsed_data = parse_node(m_meta.child(m_name.c_str()));
-        parsed = true;
+        m_parsed = true;
     }
     pugi::xml_document m_meta;
     const std::string m_name;
-    mutable ov::AnyMap m_parsed_data;
-    mutable bool parsed{false};
+    mutable ov::AnyMap m_parsed_map;
+    mutable std::string m_parsed_value;
+    mutable bool m_parsed{false};
+    mutable bool m_is_map{false};
 };
 
-void XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model,
-                                     const std::string& name,
-                                     const pugi::xml_node& meta_section) {
+void XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section) {
     if (meta_section.empty())
         return;
     auto& rt_info = model->get_rt_info();
-    std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>(name, meta_section);
-    rt_info[name] = meta;
+    for (const auto& data : meta_section.children()) {
+        if (data.empty())
+            continue;
+        std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>(data.name(), data);
+        rt_info[data.name()] = meta;
+    }
+}
+
+void XmlDeserializer::read_legacy_meta_data(const std::shared_ptr<ov::Model>& model,
+                                            const std::unordered_set<std::string>& names,
+                                            const pugi::xml_node& root_section) {
+    const auto& read_meta = [](const std::shared_ptr<ov::Model>& model,
+                               const std::string& name,
+                               const pugi::xml_node& meta_section) {
+        auto& rt_info = model->get_rt_info();
+        if (name == "meta_data") {
+            for (const auto& data : meta_section.children()) {
+                const std::string& section_name = data.name();
+                if (section_name == "cli_parameters") {
+                    std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>("cli_parameters", data);
+                    rt_info["conversion_parameters"] = meta;
+                } else if (!data.attribute("value").empty()) {
+                    rt_info[data.name()] = XMLParseUtils::GetStrAttr(data, "value");
+                } else {
+                    throw ov::Exception(std::string("Unsupported legacy argument: ") + data.name());
+                }
+            }
+        } else if (name == "quantization_parameters") {
+            std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>("quantization_parameters", meta_section);
+            rt_info["optimization"] = meta;
+        }
+    };
+    for (const auto& it : names)
+        read_meta(model, it, root_section.child(it.c_str()));
 }
 
 GenericLayerParams XmlDeserializer::parseGenericParams(const pugi::xml_node& node) {
@@ -811,15 +882,27 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
             return;
         for (const auto& item : rt_attrs) {
             std::string attribute_name, attribute_version;
-            if (!getStrAttribute(item, "name", attribute_name)) {
-                std::stringstream ss;
-                item.print(ss);
-                IE_THROW() << "rt_info attribute has no \"name\" field: " << ss.str();
-            }
-            if (!getStrAttribute(item, "version", attribute_version)) {
-                std::stringstream ss;
-                item.print(ss);
-                IE_THROW() << "rt_info attribute: " << attribute_name << " has no \"version\" field: " << ss.str();
+            auto attr_name = item.attribute("name");
+            auto attr_version = item.attribute("version");
+            auto attr_value = item.attribute("value");
+            if (attr_name.empty() && attr_version.empty() && !attr_value.empty()) {
+                // For view:
+                // <old_api_map_order value="0,3,1,2"/>
+                attribute_name = item.name();
+                attribute_version = "0";
+            } else {
+                // For view:
+                // <attribute name="old_api_map_order" version="0" value="0,3,1,2"/>
+                if (!getStrAttribute(item, "name", attribute_name)) {
+                    std::stringstream ss;
+                    item.print(ss);
+                    IE_THROW() << "rt_info attribute has no \"name\" field: " << ss.str();
+                }
+                if (!getStrAttribute(item, "version", attribute_version)) {
+                    std::stringstream ss;
+                    item.print(ss);
+                    IE_THROW() << "rt_info attribute: " << attribute_name << " has no \"version\" field: " << ss.str();
+                }
             }
             const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), 0, attribute_version.c_str());
             auto attr = attrs_factory.create_by_type_info(type_info);

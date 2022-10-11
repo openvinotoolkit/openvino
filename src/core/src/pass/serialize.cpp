@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "meta_data.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/opsets/opset1.hpp"
@@ -765,17 +766,27 @@ void auto_pad_resolving(ov::Node* node) {
     }
 }
 
-void serialize_meta(pugi::xml_node& root, const ov::AnyMap& data) {
-    for (const auto& it : data) {
-        auto child = root.append_child(it.first.c_str());
-        if (it.second.is<ov::AnyMap>()) {
-            serialize_meta(child, it.second.as<ov::AnyMap>());
+void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::Any& data) {
+    auto child = root.append_child(name.c_str());
+    if (data.is<std::shared_ptr<ov::Meta>>()) {
+        std::shared_ptr<ov::Meta> meta = data.as<std::shared_ptr<ov::Meta>>();
+        if (meta->is_map()) {
+            ov::AnyMap& map = *meta;
+            for (const auto& it : map) {
+                serialize_rt_info(child, it.first, it.second);
+            }
         } else {
-            if (it.first == "unset")
-                child.append_attribute("unset_cli_parameters").set_value(it.second.as<std::string>().c_str());
-            else
-                child.append_attribute("value").set_value(it.second.as<std::string>().c_str());
+            const std::string& value = *meta;
+            child.append_attribute("value").set_value(value.c_str());
         }
+    } else if (data.is<ov::AnyMap>()) {
+        const ov::AnyMap& any_map = data.as<ov::AnyMap>();
+        for (const auto& it : any_map) {
+            serialize_rt_info(child, it.first, it.second);
+        }
+    } else {
+        std::string value = data.as<std::string>();
+        child.append_attribute("value").set_value(value.c_str());
     }
 }
 
@@ -970,14 +981,13 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         edge.append_attribute("to-port").set_value(e.to_port);
     }
 
-    // Meta data
-    std::unordered_set<std::string> meta_names = {"meta_data", "framework_meta"};
-    for (const auto& it : meta_names) {
-        if (f.get_rt_info().find(it) == f.get_rt_info().end())
+    // Serialize rt info
+    pugi::xml_node rt_info_node = netXml.append_child("rt_info");
+    for (const auto& it : f.get_rt_info()) {
+        // Skip IR version
+        if (it.first == "version")
             continue;
-        const ov::AnyMap& meta_data = f.get_rt_attr<ov::AnyMap>(it);
-        pugi::xml_node meta_node = netXml.append_child(it.c_str());
-        serialize_meta(meta_node, meta_data);
+        serialize_rt_info(rt_info_node, it.first, it.second);
     }
 }
 

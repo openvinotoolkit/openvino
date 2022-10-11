@@ -178,25 +178,18 @@ public:
     }
 
     void check_meta_info(const std::shared_ptr<ov::Model>& model) {
-        ov::AnyMap meta;
-        ASSERT_NO_THROW(meta = model->get_rt_attr<ov::AnyMap>("meta_data"));
-        ASSERT_TRUE(!meta.empty());
-        auto it = meta.find("MO_version");
-        ASSERT_NE(it, meta.end());
-        EXPECT_TRUE(it->second.is<std::string>());
-        EXPECT_EQ(it->second.as<std::string>(), "TestVersion");
+        auto& rt_info = model->get_rt_info();
+        ASSERT_TRUE(!rt_info.empty());
+        std::string version;
+        EXPECT_NO_THROW(version = model->get_rt_info<std::string>("MO_version"));
+        EXPECT_EQ(version, "TestVersion");
 
-        it = meta.find("Runtime_version");
-        ASSERT_NE(it, meta.end());
-        EXPECT_TRUE(it->second.is<std::string>());
-        EXPECT_EQ(it->second.as<std::string>(), "TestVersion");
+        EXPECT_NO_THROW(version = model->get_rt_info<std::string>("Runtime_version"));
+        EXPECT_EQ(version, "TestVersion");
 
-        auto it_cli = meta.find("cli_parameters");
-        ASSERT_NE(it_cli, meta.end());
-        EXPECT_TRUE(it_cli->second.is<ov::AnyMap>());
-
-        auto cli_map = it_cli->second.as<ov::AnyMap>();
-        it = cli_map.find("input_shape");
+        ov::AnyMap cli_map;
+        EXPECT_NO_THROW(cli_map = model->get_rt_info<ov::AnyMap>("conversion_parameters"));
+        auto it = cli_map.find("input_shape");
         ASSERT_NE(it, cli_map.end());
         EXPECT_TRUE(it->second.is<std::string>());
         EXPECT_EQ(it->second.as<std::string>(), "[1, 3, 22, 22]");
@@ -223,7 +216,7 @@ TEST_F(MetaDataSerialize, get_meta_serialized_without_init) {
 
     {
         auto& rt_info = model->get_rt_info();
-        ASSERT_NE(rt_info.find("meta_data"), rt_info.end());
+        ASSERT_FALSE(rt_info.empty());
     }
 
     // Serialize the model
@@ -232,7 +225,7 @@ TEST_F(MetaDataSerialize, get_meta_serialized_without_init) {
     auto s_model = ov::test::readModel(m_out_xml_path, m_out_bin_path);
     {
         auto& rt_info = s_model->get_rt_info();
-        ASSERT_NE(rt_info.find("meta_data"), rt_info.end());
+        ASSERT_FALSE(rt_info.empty());
         check_meta_info(s_model);
     }
 }
@@ -242,7 +235,7 @@ TEST_F(MetaDataSerialize, get_meta_serialized_with_init) {
 
     {
         auto& rt_info = model->get_rt_info();
-        ASSERT_NE(rt_info.find("meta_data"), rt_info.end());
+        ASSERT_FALSE(rt_info.empty());
         check_meta_info(model);
     }
 
@@ -252,7 +245,7 @@ TEST_F(MetaDataSerialize, get_meta_serialized_with_init) {
     auto s_model = ov::test::readModel(m_out_xml_path, m_out_bin_path);
     {
         auto& rt_info = s_model->get_rt_info();
-        ASSERT_NE(rt_info.find("meta_data"), rt_info.end());
+        ASSERT_FALSE(rt_info.empty());
         check_meta_info(s_model);
     }
 }
@@ -262,10 +255,10 @@ TEST_F(MetaDataSerialize, get_meta_serialized_changed_meta) {
 
     {
         auto& rt_info = model->get_rt_info();
-        ASSERT_NE(rt_info.find("meta_data"), rt_info.end());
+        ASSERT_FALSE(rt_info.empty());
         check_meta_info(model);
         // Add new property to meta information
-        model->set_rt_attr("my_value", "meta_data", "my_property");
+        model->set_rt_info("my_value", "meta_data", "my_property");
     }
 
     // Serialize the model
@@ -274,7 +267,7 @@ TEST_F(MetaDataSerialize, get_meta_serialized_changed_meta) {
     auto s_model = ov::test::readModel(m_out_xml_path, m_out_bin_path);
     {
         std::string prop;
-        EXPECT_NO_THROW(prop = model->get_rt_attr<std::string>("meta_data", "my_property"));
+        EXPECT_NO_THROW(prop = model->get_rt_info<std::string>("meta_data", "my_property"));
         EXPECT_EQ(prop, "my_value");
 
         auto& rt_info = s_model->get_rt_info();

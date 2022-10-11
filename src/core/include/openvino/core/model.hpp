@@ -318,13 +318,20 @@ public:
     }
 
     template <class T, class... Args>
-    const T& get_rt_attr(Args... args) const {
+    const T& get_rt_info(Args... args) const {
         const ov::Any& arg = get_rt_arg<Args...>(m_rt_info, args...);
-        return arg.as<T>();
+        if (!std::is_same<T, ov::Any>::value)
+            return arg.as<T>();
+        return arg;
+    }
+
+    template <class... Args>
+    bool has_rt_info(Args... args) const {
+        return has_rt_arg<Args...>(m_rt_info, args...);
     }
 
     template <class T, class... Args>
-    void set_rt_attr(const T& argument, Args... args) {
+    void set_rt_info(const T& argument, Args... args) {
         ov::Any& arg = get_rt_arg<Args...>(m_rt_info, args...);
         arg = argument;
     }
@@ -336,6 +343,28 @@ public:
 
 private:
     friend class ov::ModelAccessor;
+
+    template <class T,
+              typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||
+                                          std::is_same<T, char*>::value,
+                                      bool>::type = true>
+    bool has_rt_arg(const ov::AnyMap& rt_info, const T& name) const {
+        return rt_info.find(name) != rt_info.end();
+    }
+
+    template <class T,
+              class... Args,
+              typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||
+                                          std::is_same<T, char*>::value,
+                                      bool>::type = true>
+    bool has_rt_arg(const ov::AnyMap& rt_info, const T& name, Args... args) const {
+        bool has_attr = has_rt_arg(rt_info, name);
+        if (!has_attr)
+            return false;
+        const ov::Any& rt_attr = get_rt_arg<T>(rt_info, name);
+        const ov::AnyMap& new_map = get_map_from_attr(rt_attr, name);
+        return has_rt_arg<Args...>(new_map, args...);
+    }
 
     template <class T,
               typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||

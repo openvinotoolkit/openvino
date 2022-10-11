@@ -7,6 +7,7 @@
 #include <string>
 
 #include "file_utils.h"
+#include "openvino/core/any.hpp"
 #include "openvino/openvino.hpp"
 
 class MetaData : public ::testing::Test {
@@ -139,7 +140,7 @@ TEST_F(MetaData, get_meta_data_as_map_from_model_without_info) {
     auto it = rt_info.find("meta_data");
     EXPECT_EQ(it, rt_info.end());
     ov::AnyMap meta;
-    ASSERT_THROW(meta = model->get_rt_attr<ov::AnyMap>("meta_data"), ov::Exception);
+    ASSERT_THROW(meta = model->get_rt_info<ov::AnyMap>("meta_data"), ov::Exception);
     ASSERT_TRUE(meta.empty());
 }
 
@@ -147,30 +148,29 @@ TEST_F(MetaData, get_meta_data) {
     auto model = core.read_model(ir_with_meta, ov::Tensor());
 
     auto& rt_info = model->get_rt_info();
-    ASSERT_NE(rt_info.find("meta_data"), rt_info.end());
+    ASSERT_NE(rt_info.find("MO_version"), rt_info.end());
+    ASSERT_NE(rt_info.find("Runtime_version"), rt_info.end());
+    ASSERT_NE(rt_info.find("conversion_parameters"), rt_info.end());
 }
 
 TEST_F(MetaData, get_meta_data_as_map) {
     auto model = core.read_model(ir_with_meta, ov::Tensor());
 
-    ov::AnyMap meta;
-    ASSERT_NO_THROW(meta = model->get_rt_attr<ov::AnyMap>("meta_data"));
-    ASSERT_TRUE(!meta.empty());
-    auto it = meta.find("MO_version");
-    ASSERT_NE(it, meta.end());
+    auto& rt_info = model->get_rt_info();
+    ASSERT_TRUE(!rt_info.empty());
+    auto it = rt_info.find("MO_version");
+    ASSERT_NE(it, rt_info.end());
     EXPECT_TRUE(it->second.is<std::string>());
     EXPECT_EQ(it->second.as<std::string>(), "TestVersion");
 
-    it = meta.find("Runtime_version");
-    ASSERT_NE(it, meta.end());
+    it = rt_info.find("Runtime_version");
+    ASSERT_NE(it, rt_info.end());
     EXPECT_TRUE(it->second.is<std::string>());
     EXPECT_EQ(it->second.as<std::string>(), "TestVersion");
 
-    auto it_cli = meta.find("cli_parameters");
-    ASSERT_NE(it_cli, meta.end());
-    EXPECT_TRUE(it_cli->second.is<ov::AnyMap>());
+    ov::AnyMap cli_map;
+    EXPECT_NO_THROW(cli_map = model->get_rt_info<ov::AnyMap>("conversion_parameters"));
 
-    auto cli_map = it_cli->second.as<ov::AnyMap>();
     it = cli_map.find("input_shape");
     ASSERT_NE(it, cli_map.end());
     EXPECT_TRUE(it->second.is<std::string>());
@@ -200,24 +200,21 @@ TEST_F(MetaData, get_meta_data_from_removed_file) {
     // Remove file (meta section wasn't read)
     std::remove(file_path.c_str());
 
-    ov::AnyMap meta;
-    ASSERT_NO_THROW(meta = model->get_rt_attr<ov::AnyMap>("meta_data"));
-    ASSERT_TRUE(!meta.empty());
-    auto it = meta.find("MO_version");
-    ASSERT_NE(it, meta.end());
+    auto& rt_info = model->get_rt_info();
+    ASSERT_TRUE(!rt_info.empty());
+    auto it = rt_info.find("MO_version");
+    ASSERT_NE(it, rt_info.end());
     EXPECT_TRUE(it->second.is<std::string>());
     EXPECT_EQ(it->second.as<std::string>(), "TestVersion");
 
-    it = meta.find("Runtime_version");
-    ASSERT_NE(it, meta.end());
+    it = rt_info.find("Runtime_version");
+    ASSERT_NE(it, rt_info.end());
     EXPECT_TRUE(it->second.is<std::string>());
     EXPECT_EQ(it->second.as<std::string>(), "TestVersion");
 
-    auto it_cli = meta.find("cli_parameters");
-    ASSERT_NE(it_cli, meta.end());
-    EXPECT_TRUE(it_cli->second.is<ov::AnyMap>());
+    ov::AnyMap cli_map;
+    EXPECT_NO_THROW(cli_map = model->get_rt_info<ov::AnyMap>("conversion_parameters"));
 
-    auto cli_map = it_cli->second.as<ov::AnyMap>();
     it = cli_map.find("input_shape");
     ASSERT_NE(it, cli_map.end());
     EXPECT_TRUE(it->second.is<std::string>());
