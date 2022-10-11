@@ -411,7 +411,7 @@ void PwlApply32(intel_dnn_component_t *component,
         case kActSigmoid:
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                    ptr_out[i * num_columns + j] = static_cast<float>(0.5 * (1.0 + tanh(0.5 * ptr_in[i * num_columns + j])));
+                    ptr_out[i * num_columns + j] = 0.5f * (1.0f + tanh(0.5f * ptr_in[i * num_columns + j]));
                 }
             }
             break;
