@@ -13,6 +13,7 @@
 #include <ie_api.h>
 #include <legacy/ie_layers.h>
 #include "log/gna_plugin_log.hpp"
+#include "log/log.hpp"
 #include "gna_mem_requests.hpp"
 #include "gna_lib_ver_selector.hpp"
 #include "memory_solver.hpp"

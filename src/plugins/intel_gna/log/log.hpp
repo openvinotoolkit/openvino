@@ -114,9 +114,7 @@ class GnaLog {
 };
 
 // alias for GnaLog class to make it aligned with snake style code
-// template <class T>
 using log = GnaLog;
-// typedef GnaLog log;
 
 }  // namespace intel_gna
 }  // namespace ov

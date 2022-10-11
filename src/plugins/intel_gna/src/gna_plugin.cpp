@@ -353,7 +353,7 @@ GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) {
     Init();
     SetConfig(configMap);
     InitGNADevice();
-    GnaLog::GnaLog(gnaFlags->log_level);
+    ov::intel_gna::log(gnaFlags->log_level);
 }
 
 void GNAPlugin::Init() {
