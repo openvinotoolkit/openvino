@@ -19,6 +19,13 @@ typedef std::tuple<
 > AddParams;
 
 typedef std::tuple<
+        std::vector<ov::Shape>,      // Input 0, Input 1 Shape
+        size_t,                      // Expected num nodes
+        size_t,                      // Expected num subgraphs
+        std::string                  // Target Device
+> AddParamsPair;
+
+typedef std::tuple<
         ov::Shape,                   // Input 0 Shape
         size_t,                      // Expected num nodes
         size_t,                      // Expected num subgraphs
@@ -43,6 +50,15 @@ protected:
 };
 
 class AddSinh : public Add {
+protected:
+    void SetUp() override;
+};
+
+// repack AddSinh input shapes into shape vector to cover some cases easier
+class AddSinhPair : public testing::WithParamInterface<ov::test::snippets::AddParamsPair>,
+                    virtual public ov::test::SnippetsTestsCommon {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddParamsPair> obj);
 protected:
     void SetUp() override;
 };
