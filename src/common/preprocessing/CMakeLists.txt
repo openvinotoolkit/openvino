@@ -93,37 +93,34 @@ endif()
 
 # Create object library
 
-if(ENABLE_GAPI_PREPROCESSING)
-    add_library(${TARGET_NAME}_obj OBJECT
-                ${LIBRARY_SRC}
-                ${LIBRARY_HEADERS})
+add_library(${TARGET_NAME}_obj OBJECT
+            ${LIBRARY_SRC}
+            ${LIBRARY_HEADERS})
 
-    ie_faster_build(${TARGET_NAME}_obj UNITY)
+ie_faster_build(${TARGET_NAME}_obj
+    UNITY
+)
 
-    target_compile_definitions(${TARGET_NAME}_obj PRIVATE
-        IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-        $<TARGET_PROPERTY:openvino::runtime,INTERFACE_COMPILE_DEFINITIONS>
-        $<TARGET_PROPERTY:fluid,INTERFACE_COMPILE_DEFINITIONS>
-        ENABLE_GAPI_PREPROCESSING)
+target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+                                                      $<TARGET_PROPERTY:openvino::runtime,INTERFACE_COMPILE_DEFINITIONS>
+                                                      $<TARGET_PROPERTY:fluid,INTERFACE_COMPILE_DEFINITIONS>
+                                                      $<$<BOOL:${ENABLE_GAPI_PREPROCESSING}>:ENABLE_GAPI_PREPROCESSING>)
 
-    target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
-        $<TARGET_PROPERTY:ocv_hal,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:fluid,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:ocv_hal,INTERFACE_INCLUDE_DIRECTORIES>
+                                                             $<TARGET_PROPERTY:fluid,INTERFACE_INCLUDE_DIRECTORIES>
+                                                             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
-    target_include_directories(${TARGET_NAME}_obj PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-        $<TARGET_PROPERTY:openvino::util,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
+target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
+                                                      $<TARGET_PROPERTY:openvino::util,INTERFACE_INCLUDE_DIRECTORIES>
+                                                      $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
 
-    set_ie_threading_interface_for(${TARGET_NAME}_obj)
+set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
-    add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
-
-    set(library_sources $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
-endif()
+add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
 # Create module library file from object library
+
+set(library_sources $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 if(ENABLE_GAPI_PREPROCESSING)
     if(BUILD_SHARED_LIBS)
@@ -133,6 +130,7 @@ if(ENABLE_GAPI_PREPROCESSING)
     endif()
 else()
     set(library_type INTERFACE)
+    unset(library_sources)
 endif()
 
 add_library(${TARGET_NAME} ${library_type} ${library_sources})
@@ -179,31 +177,27 @@ target_include_directories(${TARGET_NAME} INTERFACE
 
 # Static library used for unit tests which are always built
 
-if(ENABLE_GAPI_PREPROCESSING)
-    add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
-                $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
+add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
+            $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
-    set_ie_threading_interface_for(${TARGET_NAME}_s)
+set_ie_threading_interface_for(${TARGET_NAME}_s)
 
-    target_include_directories(${TARGET_NAME}_s INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(${TARGET_NAME}_s INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
 
-    if(WIN32)
-        set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
-    endif()
-
-    target_link_libraries(${TARGET_NAME}_s PRIVATE fluid openvino::itt openvino::runtime)
-
-    target_compile_definitions(${TARGET_NAME}_s INTERFACE USE_STATIC_IE)
-
-    set_target_properties(${TARGET_NAME}_s PROPERTIES EXCLUDE_FROM_ALL ON)
+if(WIN32)
+    set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
+
+target_link_libraries(${TARGET_NAME}_s PRIVATE fluid openvino::itt openvino::runtime)
+
+target_compile_definitions(${TARGET_NAME}_s INTERFACE USE_STATIC_IE)
+
+set_target_properties(${TARGET_NAME}_s PROPERTIES EXCLUDE_FROM_ALL ON)
 
 # LTO
 
-if(TARGET ${TARGET_NAME}_obj)
-    set_target_properties(${TARGET_NAME}_obj ${TARGET_NAME}_s
-                        PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
-endif()
+set_target_properties(${TARGET_NAME}_obj ${TARGET_NAME}_s
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 if(NOT library_type STREQUAL "INTERFACE")
     set_target_properties(${TARGET_NAME}

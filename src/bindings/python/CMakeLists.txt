@@ -36,15 +36,9 @@ function(ov_check_python_build_conditions)
     find_host_package(PythonInterp 3 ${find_package_mode})
     if(PYTHONINTERP_FOUND)
         function(_ov_find_python_libs_new)
-            set(pybind11_tools_dir "${OpenVINOPython_SOURCE_DIR}/thirdparty/pybind11/tools")
-            if(EXISTS ${pybind11_tools_dir})
-                list(APPEND CMAKE_MODULE_PATH ${pybind11_tools_dir})
-            else()
-                find_package(pybind11 QUIET)
-                list(APPEND CMAKE_MODULE_PATH "${pybind11_DIR}")
-            endif()
-            # use libraries with the same version as python itself
             set(PYBIND11_PYTHON_VERSION ${PYTHON_VERSION_STRING})
+            list(APPEND CMAKE_MODULE_PATH "${OpenVINOPython_SOURCE_DIR}/thirdparty/pybind11/tools")
+            # use libraries with the same version as python itself
             find_package(PythonLibsNew ${PYBIND11_PYTHON_VERSION} EXACT ${find_package_mode})
             set(PYTHONLIBSNEW_FOUND ${PYTHONLIBS_FOUND} PARENT_SCOPE)
         endfunction()
@@ -153,12 +147,7 @@ ie_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_
 # Build the code
 #
 
-find_package(pybind11 QUIET)
-
-if(NOT pybind11_FOUND)
-    add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
-endif()
-
+add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
 add_subdirectory(src/compatibility/pyngraph)
 add_subdirectory(src/pyopenvino)
 

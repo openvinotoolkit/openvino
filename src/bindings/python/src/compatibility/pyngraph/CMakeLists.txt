@@ -77,11 +77,11 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_NGRAPH}_${pyversion} HIDDEN)
 
     install(TARGETS _${PROJECT_NAME}
-            DESTINATION ${OV_CPACK_PYTHONDIR}
+            DESTINATION ${OV_CPACK_PYTHONDIR}/${pyversion}
             COMPONENT ${OV_CPACK_COMP_PYTHON_NGRAPH}_${pyversion})
 
     install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../ngraph
-            DESTINATION ${OV_CPACK_PYTHONDIR}
+            DESTINATION ${OV_CPACK_PYTHONDIR}/${pyversion}
             COMPONENT ${OV_CPACK_COMP_PYTHON_NGRAPH}_${pyversion}
             USE_SOURCE_PERMISSIONS)
 
