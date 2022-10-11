@@ -14,7 +14,7 @@ DEFINE_bool(disable_tests_skipping, false, "");
 DEFINE_bool(extract_body, false, "");
 DEFINE_string(output_folder, ".", "");
 DEFINE_bool(report_unique_name, false, "");
-DEFINE_uint32(save_report_timeout, 0, "");
+DEFINE_int32(save_report_timeout, 0, "");
 
 int main(int argc, char *argv[]) {
     printf("Running main() from %s\n", __FILE__);
