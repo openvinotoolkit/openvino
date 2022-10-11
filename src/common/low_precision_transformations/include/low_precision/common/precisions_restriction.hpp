@@ -18,6 +18,24 @@
 namespace ngraph {
 namespace pass {
 namespace low_precision {
+/**
+* @brief PrecisionsRestriction defines a set of precision restrictions for each input port
+* Common precision restriction can be also set for several ports. In this case, an operation will have
+* the same precision for mentioned
+*
+* @example
+* // One restriction for each port
+* PrecisionsRestriction::create<ngraph::opset1::Convolution>({
+*      {{0}, {ngraph::element::u8}},
+*      {{1}, {ngraph::element::i8}},
+*  }),
+*
+* // Common precision restriction for several ports:
+* // both inputs will have the same precision
+* PrecisionsRestriction::create<ngraph::opset5::LSTMSequence>({
+*      {{0, 1}, {ngraph::element::u8, ngraph::element::i8}}
+*  }),
+*/
 class PrecisionsRestriction {
 public:
     using PrecisionsByPorts = std::vector<std::pair<std::vector<size_t>, std::vector<ngraph::element::Type>>>;

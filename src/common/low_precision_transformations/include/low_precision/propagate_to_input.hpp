@@ -47,11 +47,11 @@ public:
 
             {
                 OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "PropagateToInput");
+                // Collect input indexes in groups with the same AttributeType shared value for the corresponding inputs
                 std::vector<std::vector<size_t>> groups;
-                for (size_t fst_idx = 0ul; fst_idx < node->get_input_size(); ++fst_idx) {
+                for (size_t fst_idx = 0; fst_idx < node->get_input_size(); ++fst_idx) {
                     groups.push_back(std::vector<size_t>{fst_idx});
-                    const Input<Node>& fst_input = node->input(fst_idx);
-                    const auto attribute_1 = getAttribute<AttributeType>(fst_input);
+                    const auto attribute_1 = getAttribute<AttributeType>(node->input(fst_idx));
                     if (attribute_1.empty())
                         continue;
                     if ((attribute_1.template as<AttributeType>().attribute->sharedValue != nullptr) &&
@@ -60,6 +60,7 @@ public:
                     }
 
                     size_t count = 0;
+                    // Check if next inputs have the same shared value as attribute_1
                     for (size_t sec_idx = fst_idx + 1; sec_idx < node->get_input_size(); ++sec_idx) {
                         const Input<Node>& sec_input = node->input(sec_idx);
                         const auto attribute_2 = getAttribute<AttributeType>(sec_input);
@@ -85,6 +86,7 @@ public:
                     if (!input_attr.empty())
                         res_attr = input_attr;
 
+                    // merge all attributes from inputs and the following source outputs into one in current group
                     for (const auto idx : group) {
                         auto parentAttribute = getSourceOutputAttribute(node->input(idx), defaultPrecisions);
                         if (parentAttribute == nullptr)
