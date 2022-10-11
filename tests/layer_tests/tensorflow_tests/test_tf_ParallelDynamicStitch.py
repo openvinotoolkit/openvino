@@ -19,6 +19,11 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
             indices_shape = inputs_info[indices_in_name]
             num_elements = num_elements + np.prod(indices_shape, dtype=int)
 
+        indices_array = np.arange(np.random.randint(1, num_elements+1), dtype=np.intc)
+        np.random.shuffle(indices_array)
+        indices_array = np.resize(indices_array, num_elements)
+
+        idx = 0
         for i in range(1, data_input_cnt + 1):
             data_in_name = "data{}".format(i)
             indices_in_name = "indices{}".format(i)
@@ -26,7 +31,10 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
             data_shape = inputs_info[data_in_name]
             indices_shape = inputs_info[indices_in_name]
             inputs_data[data_in_name] = np.random.randint(-50, 50, data_shape)
-            inputs_data[indices_in_name] = np.random.randint(0, num_elements, indices_shape, dtype=np.intc)
+
+            num_elements_i = np.prod(indices_shape, dtype=int)
+            inputs_data[indices_in_name] = np.reshape(indices_array[idx:idx+num_elements_i], indices_shape)
+            idx = idx + num_elements_i
         return inputs_data
 
     def create_parallel_dynamic_stitch_net(self, data_input_cnt, shape_of_element, data_type):

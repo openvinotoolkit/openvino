@@ -20,16 +20,16 @@ OutputVector translate_parallel_dynamic_stitch_op(const NodeContext& node) {
     auto in_size = node.get_input_size();
     TENSORFLOW_OP_VALIDATION(node,
                              in_size % 2 == 0,
-                             "The total number of inputs to DynamicStitch operation "
+                             "The total number of inputs to DynamicStitch or ParallelDynamicStitch operation "
                              "must be divisible by 2.");
 
     int N = static_cast<int>(in_size / 2);
     OutputVector indices_to_concat;
     OutputVector data_to_concat;
     auto data_element_type = node.get_input(N).get_element_type();
-    auto const_minus_one = std::make_shared<Constant>(ov::element::i32, Shape{1}, -1);
-    auto const_zero = std::make_shared<Constant>(ov::element::i32, Shape{1}, 0);
-    auto const_one = std::make_shared<Constant>(ov::element::i32, Shape{1}, 1);
+    auto const_minus_one = make_shared<Constant>(ov::element::i32, Shape{1}, -1);
+    auto const_zero = make_shared<Constant>(ov::element::i32, Shape{1}, 0);
+    auto const_one = make_shared<Constant>(ov::element::i32, Shape{1}, 1);
     for (int i = 0; i < N; ++i) {
         auto indices = node.get_input(i);
         auto data = node.get_input(N + i);
@@ -40,39 +40,33 @@ OutputVector translate_parallel_dynamic_stitch_op(const NodeContext& node) {
                                  indices_pshape.rank().is_static(),
                                  "Only static rank for `indices` input is supported.");
         auto rank_val = rank.get_length();
-        auto norm_indices = std::make_shared<Reshape>(indices, const_minus_one, false);
+        auto norm_indices = make_shared<Reshape>(indices, const_minus_one, false);
         if (rank_val < 1) {
-            data = std::make_shared<Unsqueeze>(data, const_zero);
+            data = make_shared<Unsqueeze>(data, const_zero);
         } else if (rank_val > 1) {
-            auto data_shape = std::make_shared<ShapeOf>(data, ov::element::i32);
-            auto start = std::make_shared<Constant>(ov::element::i32, Shape{1}, rank_val);
-            auto stop = std::make_shared<Constant>(ov::element::i32, Shape{1}, std::numeric_limits<int>::max());
-            auto shape_of_single_element = std::make_shared<Slice>(data_shape, start, stop, const_one);
-            auto new_shape = std::make_shared<Concat>(OutputVector{const_minus_one, shape_of_single_element}, 0);
-            data = std::make_shared<Reshape>(data, new_shape, false);
+            auto data_shape = make_shared<ShapeOf>(data, ov::element::i32);
+            auto start = make_shared<Constant>(ov::element::i32, Shape{1}, rank_val);
+            auto stop = make_shared<Constant>(ov::element::i32, Shape{1}, numeric_limits<int>::max());
+            auto shape_of_single_element = make_shared<Slice>(data_shape, start, stop, const_one);
+            auto new_shape = make_shared<Concat>(OutputVector{const_minus_one, shape_of_single_element}, 0);
+            data = make_shared<Reshape>(data, new_shape, false);
         }
         data_to_concat.push_back(data);
         indices_to_concat.push_back(norm_indices);
     }
-    auto update = std::make_shared<Concat>(data_to_concat, 0);
-    auto indices = std::make_shared<Concat>(indices_to_concat, 0);
-    auto data_shape = std::make_shared<ShapeOf>(update, ov::element::i32);
+    auto update = make_shared<Concat>(data_to_concat, 0);
+    auto indices = make_shared<Concat>(indices_to_concat, 0);
+    auto data_shape = make_shared<ShapeOf>(update, ov::element::i32);
 
-    auto zero = std::make_shared<Constant>(data_element_type, Shape{1}, 0);
-    auto zeros = std::make_shared<Broadcast>(zero, data_shape);
+    auto zero = make_shared<Constant>(data_element_type, Shape{}, 0);
+    auto zeros = make_shared<Broadcast>(zero, data_shape);
+    auto max_idx = make_shared<ReduceMax>(indices, Constant::create(element::i32, {1}, {0}), true);
+    auto stop = make_shared<Add>(max_idx->output(0), const_one);
+    auto start = make_shared<Constant>(ov::element::i32, Shape{1}, 0);
+    auto axis = make_shared<Constant>(ov::element::i32, Shape{1}, 0);
+    auto sliced_zeros = make_shared<Slice>(zeros, start, stop, const_one, axis);
 
-    auto scatter = std::make_shared<ScatterUpdate>(zeros, indices, update, const_zero);
-
-    // we should cut zeros at the end of the result output to align it with tf framework
-    auto max_idx = std::make_shared<TopK>(indices,
-                                          Constant::create(element::i32, {}, {1}),
-                                          0,
-                                          TopK::Mode::MAX,
-                                          TopK::SortType::SORT_VALUES);
-    auto stop = std::make_shared<Add>(max_idx->output(0), const_one);
-    auto start = std::make_shared<Constant>(ov::element::i32, Shape{1}, 0);
-    auto axis = std::make_shared<Constant>(ov::element::i32, Shape{1}, 0);
-    auto result = std::make_shared<Slice>(scatter, start, stop, const_one, axis);
+    auto result = make_shared<ScatterUpdate>(sliced_zeros, indices, update, const_zero);
     set_node_name(node.get_name(), result);
     return result->outputs();
 }
