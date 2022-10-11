@@ -51,6 +51,8 @@ function(ov_check_python_build_conditions)
         # try to find python libraries
         _ov_find_python_libs_new()
         if(PYTHONLIBSNEW_FOUND)
+            # clear Python_ADDITIONAL_VERSIONS to find only python library matching PYTHON_EXECUTABLE
+            unset(Python_ADDITIONAL_VERSIONS CACHE)
             find_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT ${find_package_mode})
         endif()
         if(NOT PYTHONLIBS_FOUND)
