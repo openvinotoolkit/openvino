@@ -349,7 +349,7 @@ int main(int argc, char* argv[]) {
                             std::stringstream strm(it_device_nstreams->second);
                             std::map<std::string, std::string> devices_property;
                             ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
-                            for (auto it : devices_property) {
+                            for (auto& it : devices_property) {
                                 device_config.insert(
                                     ov::device::properties(it.first, ov::num_streams(std::stoi(it.second))));
                             }
