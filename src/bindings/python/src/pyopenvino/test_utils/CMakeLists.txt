@@ -15,7 +15,7 @@ file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/test_utils.cpp)
 
 pybind11_add_module(${TARGET_NAME} MODULE NO_EXTRAS ${SOURCES})
 
-add_dependencies(${TARGET_NAME} pyopenvino)
+add_dependencies(${TARGET_NAME} _pyopenvino)
 
 if(COMMAND ie_add_vs_version_file)
     ie_add_vs_version_file(NAME ${TARGET_NAME}
