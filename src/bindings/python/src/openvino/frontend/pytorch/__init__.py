@@ -22,10 +22,6 @@ try:
     import numpy as np
     import torch
 
-    # TODO: remove this crazy stuff, it saves all decoders ever created
-    # This is a WA for well known bug in pybind11 with too early deinitialization
-    decoders = []
-
     pt_to_ov_type_map = {
         'float': OVType.f32,
         'int': OVType.i32,
@@ -43,18 +39,9 @@ try:
     class TorchScriptPythonDecoder (Decoder):
         def __init__ (self, pt_module):
             Decoder.__init__(self)
+            self.m_decoders = []
             self.pt_module = pt_module
-            # TODO: remove this; leads to huge memory leaks while converting many models in one app
-            decoders.append(self)
-            #print(dir(pt_module))
-            # Print schema for nodes if any
-            #print(f'there is schema: {pt_module.schema()}' if hasattr(pt_module, 'schema') else 'no schema')
-            #print(pt_module)
-            #exit()
 
-        def free_decoders(self):
-            decoders.clear()
-        
         def inputs (self):
             return [x.unique() for x in self.pt_module.inputs()]
 
@@ -79,7 +66,6 @@ try:
             return self.get_type_for_value(output)
 
         def _get_known_type_for_value (self, type):
-            #return
             '''
                 Returns known/unknown types wrapped as OVAny
             '''
@@ -165,6 +151,7 @@ try:
                         #print('visit node/block')
                         #print(node, flush=True)
                         decoder = TorchScriptPythonDecoder(node)
+                        self.m_decoders.append(decoder)
                         node_visitor(decoder)
                 else:
                     for node in self.pt_module.nodes():
@@ -172,6 +159,7 @@ try:
                         #print('visit node/block')
                         #print(node, flush=True)
                         decoder = TorchScriptPythonDecoder(node)
+                        self.m_decoders.append(decoder)
                         node_visitor(decoder)
             else:
                 raise Exception(f'Index {index} of block is out of range, total number of blocks is {self.get_subgraph_size()}')
@@ -180,7 +168,9 @@ try:
             return list(self.pt_module.blocks())
 
         def get_subgraph_decoder (self, index):
-            return TorchScriptPythonDecoder(self.get_subgraphs()[index])
+            decoder = TorchScriptPythonDecoder(self.get_subgraphs()[index])
+            self.m_decoders.append(decoder)
+            return decoder
 
         def get_op_type (self):
             return self.pt_module.kind()
