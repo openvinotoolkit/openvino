@@ -5,9 +5,10 @@
 #pragma once
 
 #include <memory>
+#include <vector>
+
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -19,8 +20,8 @@ class ShrinkWeights;
 
 class Pruning;
 
-}  // namespace pass
-}  // namespace ngraph
+} // namespace pass
+} // namespace ngraph
 
 /**
  * @ingroup ie_transformation_common_api
@@ -41,11 +42,8 @@ public:
 class ngraph::pass::InitConstMask : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("InitConstMask", "0");
-    explicit InitConstMask(
-        const ngraph::AxisSet& dims,
-        const std::function<bool(const double& value)>& condition = [](const double& value) {
-            return value == 0;
-        });
+    explicit InitConstMask(const ngraph::AxisSet & dims,
+                           const std::function<bool(const double & value)> & condition = [](const double & value) { return value == 0; });
 };
 
 /**
