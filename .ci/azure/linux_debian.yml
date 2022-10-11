@@ -129,7 +129,7 @@ jobs:
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
       # For running Paddle frontend unit tests
-      python3 -m pip install -r $(REPO_DIR)/src/frontends/paddle/tests/requirements.txt
+      python3 -m pip install -r $(REPO_DIR)/src/core/tests/frontend/paddle/requirements_dev.txt
       # For running ONNX frontend unit tests
       python3 -m pip install -r $(REPO_DIR)/src/frontends/onnx/tests/requirements.txt
       # For MO unit tests
@@ -328,7 +328,7 @@ jobs:
 
   - script: |
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
-      $(INSTALL_TEST_DIR)/ov_paddle_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
+      $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
     continueOnError: false
 
