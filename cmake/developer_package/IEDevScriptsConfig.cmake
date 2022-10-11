@@ -183,8 +183,6 @@ endif()
 
 if(APPLE)
     set(CMAKE_MACOSX_RPATH ON)
-    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
-    set(CMAKE_INSTALL_RPATH "@executable_path:@executable_path/..")
     # WA for Xcode generator + object libraries issue:
     # https://gitlab.kitware.com/cmake/cmake/issues/20260
     # http://cmake.3232098.n2.nabble.com/XCODE-DEPEND-HELPER-make-Deletes-Targets-Before-and-While-They-re-Built-td7598277.html
@@ -201,7 +199,7 @@ set(CMAKE_POLICY_DEFAULT_CMP0025 NEW)
 
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "Don't warn about obsolete cmake versions in 3rdparty")
 set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION ON CACHE BOOL "Warn about absolute paths in destination")
-# set(CMAKE_SKIP_INSTALL_RPATH ON)
+set(CMAKE_SKIP_INSTALL_RPATH ON)
 
 include(packaging/packaging)
 
