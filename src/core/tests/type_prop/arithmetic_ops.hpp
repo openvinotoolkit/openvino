@@ -17,7 +17,7 @@
 #include <dimension_tracker.hpp>
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-
+#include "openvino/op/util/attr_types.hpp"
 
 using namespace ngraph;
 
@@ -240,7 +240,32 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_static_rank_with_labels_different
     ASSERT_EQ(ov::DimensionTracker::get_label(shape[3]), 0);
 }
 
+TYPED_TEST_P(ArithmeticOperator, default_constructor) {
+    auto A = std::make_shared<op::Parameter>(element::f32, PartialShape{-1, 4, 1, 6, Dimension(1, 6), Dimension(2, 6)});
+    auto B = std::make_shared<op::Parameter>(element::f32, PartialShape{-1, 1, 5, 6, Dimension(5, 8), Dimension(5, 8)});
+
+    const auto op = std::make_shared<TypeParam>();
+
+    op->set_argument(0, A);
+    op->set_argument(1, B);
+
+    auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::NONE);
+    op->set_autob(autob);
+    EXPECT_EQ(op->get_autob(), op::AutoBroadcastType::NONE);
+    ASSERT_THROW(op->validate_and_infer_types(), ngraph::NodeValidationFailure);
+
+    autob = op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY);
+    op->set_autob(autob);
+    EXPECT_EQ(op->get_autob(), op::AutoBroadcastType::NUMPY);
+
+    op->validate_and_infer_types();
+
+    ASSERT_EQ(op->get_element_type(), element::f32);
+    ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 4, 5, 6, Dimension(5, 8), Dimension(5, 6)}));
+}
+
 REGISTER_TYPED_TEST_SUITE_P(ArithmeticOperator,
+                            default_constructor,
                             shape_inference_2D,
                             shape_inference_4D,
                             default_autobroadcast,
