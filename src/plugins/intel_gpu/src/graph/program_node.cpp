@@ -626,8 +626,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         auto cur_idx = static_cast<int>(has_out_scales(attr) ? (cur_post_op_idx >= 1 ? cur_post_op_idx - 1 : 0) : cur_post_op_idx);
         auto prev_idx = static_cast<int>(has_out_scales(attr) ? (prev_post_op_idx >= 1 ? prev_post_op_idx - 1 : 0) : prev_post_op_idx);
 
-        // if 2 indices are same, add the last post-op to dnnl::post_ops
-        if (prev_idx == post_ops_size - 1 && prev_idx == cur_idx && !type_is_any_optimized(prev_type)) {
+        // If prev_idx and cur_idx are same, add the last post-op to dnnl::post_ops
+        if (prev_post_op_idx == post_ops_size - 1 && prev_idx == cur_idx && !type_is_any_optimized(prev_type)) {
             add_post_op(prev_type, p_ops, optimized_p_ops, prev_idx);
             break;
         }
@@ -1225,12 +1225,14 @@ void program_node::init_onednn_primitive_attributes() {
 
         add_onednn_fused_primitives(fused_ops);
 
-        // Trying to combine multiplications and additions which are placed one after another.
-        // We do it in the cycle because some optimization cases can be simplified again from time to time
-        do {
-            optimized_post_ops = try_optimize_post_ops(optimized_post_ops, attrs, optimization_is_finished);
-        } while (!optimization_is_finished);
-
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(!debug_config->disable_onednn_opt_post_ops) {
+            // Trying to combine multiplications and additions which are placed one after another.
+            // We do it in the cycle because some optimization cases can be simplified again from time to time
+            do {
+                optimized_post_ops = try_optimize_post_ops(optimized_post_ops, attrs, optimization_is_finished);
+            } while (!optimization_is_finished);
+        }
         attrs->set_post_ops(optimized_post_ops);
     } else {
         // Set post-ops without any optimizations
