@@ -259,6 +259,7 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::oiyx;
         case format::ioyx:
             return kernel_selector::weights_layout::ioyx;
+        case format::iyxo:
         case format::fyxb:
             return kernel_selector::weights_layout::iyxo;
         case format::byxf:

@@ -185,9 +185,9 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
         constTensor = getConstTensor(newDims);
     }
 
-    cldnn::layout constLayout = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(0)),
-                                              constFormat,
-                                              constTensor);
+    cldnn::data_types out_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
+    cldnn::layout constLayout = p.use_new_shape_infer() ? cldnn::layout(newDims, out_dtype, constFormat) :
+                                                          cldnn::layout(out_dtype, constFormat, constTensor);
 
     cldnn::primitive_id initialconstPrimID = layer_type_name_ID(op);
     cldnn::primitive_id constPrimID;
