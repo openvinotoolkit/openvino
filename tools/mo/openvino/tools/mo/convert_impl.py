@@ -9,6 +9,7 @@ import platform
 import sys
 from collections import OrderedDict
 from copy import deepcopy
+import numpy as np
 
 try:
     import openvino_telemetry as tm
@@ -30,7 +31,7 @@ from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
     get_mean_scale_dictionary, get_meta_info, get_mxnet_cli_options, get_onnx_cli_options, \
     get_placeholder_shapes, get_tf_cli_options, get_tuple_values, parse_transform, parse_tuple_pairs, \
-    get_all_cli_parser, mo_convert_params, get_model_name_from_args
+    get_all_cli_parser, mo_convert_params, get_model_name_from_args, split_shapes
 
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.find_ie_version import find_ie_version
@@ -46,7 +47,7 @@ from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension, JsonConfigExtension
-from openvino.runtime import PartialShape
+from openvino.runtime import PartialShape, Dimension
 
 
 def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool,
@@ -469,79 +470,157 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     return func
 
 
-def tuple_from_partial_shape(shape: PartialShape, dynamic_dims_error_message: str):
+def get_static_shape(shape: [PartialShape, list, tuple], dynamic_dims_error_message: str):
     shape_list = []
-    for dim in shape:
-        if not dim.is_static:
-            raise Error(dynamic_dims_error_message)
-        elif dim.get_min_length() > 0:
-            shape_list.append(dim.get_min_length())
+    for idx, dim in enumerate(shape):
+        if isinstance(dim, int):
+            if dim == -1 :
+                raise Error(dynamic_dims_error_message)
+            shape_list.append(dim)
+        if isinstance(dim, np.int64):
+            if dim == np.int64(-1):
+                raise Error(dynamic_dims_error_message)
+            shape_list.append(dim)
+        elif isinstance(dim, tuple):
+            # tuple where (min_length, max_length), the format which uses MO cli parser
+            assert len(dim) == 2, "Unknown dimension type {}".format(dim)
+            if dim[0] > 0:
+                shape_list.append(dim[0])
+            elif dim[1] < np.iinfo(np.int64).max:
+                shape_list.append(dim[1])
+            else:
+                raise Error(dynamic_dims_error_message)
+        elif isinstance(dim, Dimension):
+            if dim.is_static or dim.get_min_length() > 0:
+                shape_list.append(dim.get_min_length())
+            elif dim.get_max_length() != -1:
+                shape_list.append(dim.get_max_length())
+            else:
+                raise Error(dynamic_dims_error_message)
         else:
-            shape_list.append(dim.get_max_length())
+            raise Error("Unknown dimension type {}".format(dim))
+
     return tuple(shape_list)
 
 
-def check_model_framework(argv):
+def get_dynamic_dims(shape: [PartialShape, list, tuple]):
+    dynamic_dims = []
+    for idx, dim in enumerate(shape):
+        if isinstance(dim, int):
+            if dim == -1:
+                dynamic_dims.append(idx)
+        if isinstance(dim, np.int64):
+            if dim == np.int64(-1):
+                dynamic_dims.append(idx)
+        elif isinstance(dim, tuple):
+            dynamic_dims.append(idx)
+        elif isinstance(dim, Dimension):
+            if not dim.is_static:
+                dynamic_dims.append(idx)
+
+    return dynamic_dims
+
+
+def check_model_object(argv):
     model = argv['input_model']
     import io
-    model_name = 'model'
     if 'tensorflow' in sys.modules:
         import tensorflow as tf
+        from tensorflow.python.training.tracking.base import Trackable
+
         if isinstance(model, tf.compat.v1.GraphDef):
-            return "tf", model_name
+            return "tf"
         if isinstance(model, tf.compat.v1.Session):
-            return "tf", model_name
-        # if isinstance(model, tf.Module):
-        #
-        #     return "tf", model_name
+            argv['input_model'] = model.graph_def
+            return "tf"
         if isinstance(model, tf.types.experimental.ConcreteFunction):
-            return "tf", model_name
+            argv['input_model'] = model.graph.as_graph_def()
+            return "tf"
         if isinstance(model, tf.keras.Model):
-            if hasattr(model, 'name') and model.name is not None:
-                model_name = model.name
-            return "tf", model_name
+            return "tf"
         if isinstance(model, tf.train.Checkpoint):
             if isinstance(model.root, tf.keras.Model):
                 argv['input_model'] = model.root
-                return "tf", model_name
+                return "tf"
             else:
                 raise Error("Unknown checkpoint format.")
 
         if isinstance(model, tf.keras.layers.Layer) or isinstance(model, tf.Module):
-            assert 'input_shape' in argv and argv['input_shape'] is not None, "Converting of {} " \
-                                                                              "requires providing of input_shape with " \
-                                                                              "static dimensions.".format(type(model))
+            assert 'input_shape' in argv and argv['input_shape'] is not None, \
+                "Converting of {} requires providing of input_shape with static dimensions.".format(type(model))
             inputs = []
-            for shape_idx, shape in enumerate(argv['input_shape']):
-                if isinstance(shape, list):
-                    inputs.append(tf.keras.Input(shape=shape))
-                if isinstance(shape, PartialShape):
-                    inputs.append(tf.keras.Input(shape=tuple_from_partial_shape(shape,
-                                                                                "For converting {} "
-                                                                                "please provide input_shape with static "
-                                                                                "dimensions.".format(type(model)))))
-            #TODO: sample input?
+            for shape_idx, shape in enumerate(parse_input_shapes(argv)):
+                inputs.append(tf.keras.Input(shape=get_static_shape(shape,
+                                                                    "For converting {} please provide input_shape "
+                                                                    "with static dimensions.".format(type(model)))))
             outputs = model(*inputs)
             argv['input_model'] = tf.keras.Model(inputs, outputs)
             argv['input_shape'] = None
-            return "tf", model_name
-        # tf.saved_model.load() returns object of inner type tensorflow.python.training.base.Trackable,
-        # which cannot be explicitly checked.
-        # So here are checked attributes which should always present in loaded model.
-        if hasattr(model, "signatures") and hasattr(model, "__call__") \
-                and hasattr(model, "variables") and hasattr(model, "trainable_variables"):
-            return "tf", model_name
+            return "tf"
+        if isinstance(model, Trackable):
+            return "tf"
     if 'torch' in sys.modules:
         import torch
-        if isinstance(model, torch.nn.Module):
-            return "pytorch", model_name
-        if isinstance(model, torch.jit.ScriptFunction):
-            return "pytorch", model_name
+        if isinstance(model, torch.nn.Module) or isinstance(model, torch.jit.ScriptFunction):
+            return "pytorch"
     if isinstance(model, io.BytesIO):
-        if hasattr(model, 'producer_name') and model.producer_name is not None and model.producer_name != '':
-            model_name = model.producer_name
-        return 'onnx', model_name
+        return 'onnx'
     raise Error('Unknown model type: {}'.format(type(model)))
+
+
+def convert_pytorch_to_onnx(model, input_shape, opset_version, sample_input):
+    import torch
+    import io
+    from openvino.runtime import PartialShape
+
+    if sample_input is not None:
+        inputs = sample_input
+    elif input_shape is not None:
+        inputs = []
+        for shape_idx, shape in enumerate(input_shape):
+            static_shape = get_static_shape(shape,
+                                            "For converting PyTorch model with dynamic dimensions please provide "
+                                            "sample input using sample_input parameter or provide input shapes "
+                                            "with boundaries.")
+            inputs.append(torch.zeros(static_shape))
+    else:
+        raise Error("Please provide input_shapes or sample_input for converting PyTorch model.")
+
+    input_names = ["input_{}".format(idx) for idx in range(len(input_shape))]
+    dynamic_axes_params = {}
+    dynamic_dims_dict = {}
+    if input_shape is not None:
+        for shape_idx, shape in enumerate(input_shape):
+            dynamic_dims = get_dynamic_dims(shape)
+            if len(dynamic_dims) > 0:
+                dynamic_dims_dict[input_names[shape_idx]] = dynamic_dims
+    if len(dynamic_dims_dict) > 0:
+        dynamic_axes_params = {'dynamic_axes': dynamic_dims_dict, 'input_names': input_names}
+
+    model_onnx = io.BytesIO()
+    torch.onnx.export(model,
+                      tuple(inputs),
+                      model_onnx,
+                      opset_version=opset_version,
+                      **dynamic_axes_params)
+    return model_onnx
+
+
+def parse_input_shapes(argv):
+    input_shapes = None
+    if 'input_shape' in argv and argv['input_shape'] is not None:
+        shapes = argv['input_shape']
+        if isinstance(shapes, str):
+            shapes = ["[{}]".format(x) for x in split_shapes(shapes)]
+        if isinstance(shapes, list):
+            input_shapes = []
+            for shape in shapes:
+                if isinstance(shape, str):
+                    _, shape_tuple, _ = get_placeholder_shapes(argv_input=None, argv_input_shape=shape)
+                    input_shapes.append(shape_tuple)
+                else:
+                    input_shapes.append(shape)
+    return input_shapes
 
 
 def driver(argv: argparse.Namespace):
@@ -550,49 +629,33 @@ def driver(argv: argparse.Namespace):
     inp_model_is_object = input_model_is_object(argv)
     model_framework = None
     if inp_model_is_object:
-        model_framework, model_name = check_model_framework(argv)
+        model_framework = check_model_object(argv)
         if model_framework == "pytorch":
-            import torch
-            import io
-            from openvino.runtime import PartialShape
-            model_onnx = io.BytesIO()
-            # add multiple inputs, check dynamic shapes
-            assert argv['input_shape'] is not None, "Convert of PyTorch model requires input shapes."
 
-            inputs = []
-            dynamic_dims_dict = {}
-            input_names = argv['input'] if 'input' in argv else None
-            for shape_idx, shape in enumerate(argv['input_shape']):
-                # TODO: shape str
-                if isinstance(shape, list):
-                    inputs.append(torch.zeros(shape))
-                if isinstance(shape, PartialShape):
-                    shape_list = [dim.get_min_length() for dim in shape]
-                    inputs.append(torch.zeros(shape_list))
-                    dynamic_dims = [idx for idx, dim in enumerate(shape) if not dim.is_static]
-                    if len(dynamic_dims) > 0:
-                        assert input_names is not None, "To convert model with dynamic shapes, " \
-                                                          "please provide input names in --input parameter."
-                        dynamic_dims_dict[input_names[shape_idx]] = dynamic_dims
-            if len(dynamic_dims_dict) == 0:
-                torch.onnx.export(argv['input_model'], tuple(inputs), model_onnx)
-            else:
-                torch.onnx.export(argv['input_model'], tuple(inputs), model_onnx, dynamic_axes=dynamic_dims_dict)
+            # Currently supported opset by ONNX frontend
+            opset_version = 16
+            if 'onnx_opset_version' in argv and argv['onnx_opset_version'] is not None:
+                opset_version = argv['onnx_opset_version']
 
+            sample_input = None
+            if 'sample_input' in argv and argv['sample_input'] is not None:
+                sample_input = argv['sample_input']
 
-            argv['input_shape'] = None
-            argv['input'] = None
-            argv['input_model'] = model_onnx
-            argv['use_legacy_frontend'] = True
-
-            return _convert(input_model=model_onnx, use_legacy_frontend=True)
+            model_onnx = convert_pytorch_to_onnx(argv['input_model'],
+                                                 parse_input_shapes(argv),
+                                                 opset_version,
+                                                 sample_input)
+            return _convert(input_model=model_onnx,
+                            use_legacy_frontend=True)
 
     argv = params_to_string(**argv)
     argv = pack_params_to_args_namespace(**argv)
     argv.feManager = FrontEndManager()
     init_logger(argv.log_level.upper(), argv.silent)
 
-    if argv.model_name is None and not inp_model_is_object:
+    if inp_model_is_object:
+        argv.model_name = "model"
+    if argv.model_name is None:
         argv.model_name = get_model_name_from_args(argv)
 
     if model_framework is not None:
@@ -605,8 +668,6 @@ def driver(argv: argparse.Namespace):
                                 model_framework))
         else:
             argv.framework = model_framework
-    if argv.model_name is None:
-        argv.model_name = model_name
 
     graph, ngraph_function = prepare_ir(argv)
     if graph is not None:

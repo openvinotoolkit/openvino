@@ -205,53 +205,41 @@ def freeze_tf2_concrete_function(model, concrete_func, env_setup):
 
 
 def prepare_graph_def(model):
+    from tensorflow.python.training.tracking.base import Trackable
     if isinstance(model, tf_v1.GraphDef):
         nodes_to_clear_device = model.node
         for node in nodes_to_clear_device:
             node.device = ""
         return model, {}, "tf", None
-    if isinstance(model, tf_v1.Session):
-        model = model.graph_def
-        nodes_to_clear_device = model.node
-        for node in nodes_to_clear_device:
-            node.device = ""
-        return model, {}, "tf", None
-    if isinstance(model, tf.types.experimental.ConcreteFunction):
-        model = model.graph.as_graph_def()
-        nodes_to_clear_device = model.node
-        for node in nodes_to_clear_device:
-            node.device = ""
-        return model, {}, "tf", None
-    try:
-        if isinstance(model, tf.keras.Model):
-            env_setup = get_environment_setup("tf")
-            # enable eager execution temporarily while TensorFlow 2 model is being loaded
-            tf_v1.reset_default_graph()
-            tf_v1.enable_eager_execution()
+    if isinstance(model, tf.keras.Model):
+        env_setup = get_environment_setup("tf")
+        # enable eager execution temporarily while TensorFlow 2 model is being loaded
+        tf_v1.reset_default_graph()
+        tf_v1.enable_eager_execution()
 
-            # TODO: can we get concrete function if inputs are not set?
-            assert hasattr(model, "inputs") and model.inputs is not None, "Model inputs specification is required."
-            #TODO: Add checks of types
-            model_inputs = [x if isinstance(x, tf.Tensor) else x.type_spec for x in model.inputs]
+        assert hasattr(model, "inputs") and model.inputs is not None, "Model inputs specification is required."
 
-            @tf.function
-            def tf_function(x):
-                return model(x)
+        model_inputs = []
+        for inp in model.inputs:
+            if isinstance(inp, tf.Tensor):
+                model_inputs.append(inp)
+            elif tf.keras.backend.is_keras_tensor(inp):
+                model_inputs.append(inp.type_spec)
+            else:
+                raise Error("Unknown input tensor type {}".format(type(input)))
 
-            conc_func = tf_function.get_concrete_function(model_inputs)
-            return freeze_tf2_concrete_function(model, conc_func, env_setup)
-        # tf.saved_model.load() returns object of inner type tensorflow.python.training.base.Trackable,
-        # which cannot be explicitly checked.
-        # So here are checked attributes which should always present in loaded model.
-        if hasattr(model, "signatures") and hasattr(model, "__call__") \
-                and hasattr(model, "variables") and hasattr(model, "trainable_variables"):
-            env_setup = get_environment_setup("tf")
-            # enable eager execution temporarily while TensorFlow 2 model is being loaded
-            tf_v1.reset_default_graph()
-            tf_v1.enable_eager_execution()
-            return saved_model_load(model, env_setup)
-    except ImportError:
-        pass
+        @tf.function
+        def tf_function(x):
+            return model(x)
+
+        conc_func = tf_function.get_concrete_function(model_inputs)
+        return freeze_tf2_concrete_function(model, conc_func, env_setup)
+    if isinstance(model, Trackable):
+        env_setup = get_environment_setup("tf")
+        # enable eager execution temporarily while TensorFlow 2 model is being loaded
+        tf_v1.reset_default_graph()
+        tf_v1.enable_eager_execution()
+        return saved_model_load(model, env_setup)
     raise Exception("Unknown model type {}.".format(type(model)))
 
 

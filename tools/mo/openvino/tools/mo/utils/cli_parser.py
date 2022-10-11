@@ -694,6 +694,11 @@ mo_convert_params = {
         None),
     'help': ParamDescription(
         'Print available parameters.', '', '', None),
+    'sample_input': ParamDescription('Sample of model input in original framework. '
+                                     'For PyTorch it can be torch.Tensor.', '', '', None),
+    'onnx_opset_version': ParamDescription('Version of ONNX opset that is used for converting from PyTorch to ONNX.',
+                                           '', '', None)
+
 }
 
 
@@ -1727,6 +1732,18 @@ def parse_dimension(dim: str):
     return np.int64(dim)
 
 
+def split_shapes(argv_input_shape: str):
+    range_reg = r'([0-9]*\.\.[0-9]*)'
+    first_digit_reg = r'([0-9 ]+|-1|\?|{})'.format(range_reg)
+    next_digits_reg = r'(,{})*'.format(first_digit_reg)
+    tuple_reg = r'((\({}{}\))|(\[{}{}\]))'.format(first_digit_reg, next_digits_reg,
+                                                  first_digit_reg, next_digits_reg)
+
+    full_reg = r'^{}(\s*,\s*{})*$|^$'.format(tuple_reg, tuple_reg)
+    if not re.match(full_reg, argv_input_shape):
+        raise Error('Input shape "{}" cannot be parsed. ' + refer_to_faq_msg(57), argv_input_shape)
+    return re.findall(r'[(\[]([0-9,\.\? -]+)[)\]]', argv_input_shape)
+
 def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=None):
     """
     Parses input layers names and input shapes from the cli and returns the parsed object.
@@ -1798,16 +1815,9 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
     inputs_list = list()
     placeholder_shapes = None
 
-    range_reg = r'([0-9]*\.\.[0-9]*)'
-    first_digit_reg = r'([0-9 ]+|-1|\?|{})'.format(range_reg)
-    next_digits_reg = r'(,{})*'.format(first_digit_reg)
-    tuple_reg = r'((\({}{}\))|(\[{}{}\]))'.format(first_digit_reg, next_digits_reg,
-                                                  first_digit_reg, next_digits_reg)
+
     if argv_input_shape:
-        full_reg = r'^{}(\s*,\s*{})*$|^$'.format(tuple_reg, tuple_reg)
-        if not re.match(full_reg, argv_input_shape):
-            raise Error('Input shape "{}" cannot be parsed. ' + refer_to_faq_msg(57), argv_input_shape)
-        shapes = re.findall(r'[(\[]([0-9,\.\? -]+)[)\]]', argv_input_shape)
+        shapes = split_shapes(argv_input_shape)
 
     if argv_input:
         inputs = argv_input.split(',')
