@@ -28,22 +28,14 @@ std::tuple<bool, Any> is_list_of_tensors(const descriptor::Tensor& tensor) {
     if (custom_type.empty()) {
         return std::make_tuple(false, Any());
     }
-    //std::cerr << tensor.get_names() << "\n";
-    std::cerr << "Custom type: ";
-    std::cerr << custom_type.type_info().name();
-    std::cerr << " after\n";
-
-    // TODO: Sometimes there is uninitialized Any in custom_type, need to understand where it comes from
 
     if (!custom_type.is<Type::List>()) {
-        //std::cerr << "[ PASS INFO ] Skipping FW Node because it produces not a list\n";
         return std::make_tuple(false, custom_type);
     }
 
     Any element_type = custom_type.as<Type::List>().element_type;
 
     if (!element_type.is<Type::Tensor>()) {
-        //std::cerr << "[ PASS INFO ] Skipping FW Node because element of a List is not a Tensor\n";
         return std::make_tuple(false, custom_type);
     }
 
@@ -92,7 +84,7 @@ public:
             auto node = cast_fw_node(m.get_match_root(), "prim::ListConstruct");
             if (!node)
                 return false;
-            std::cerr << node << "\n";
+            //std::cerr << node << "\n";
             const descriptor::Tensor& list_output = node->output(0).get_tensor();
 
             auto custom_types = is_list_of_tensors(list_output);
@@ -144,7 +136,7 @@ public:
         for (size_t i = 0; i < parameters.size(); ++i) {
             auto parameter = parameters[i];
             //std::cerr << "[ PARAMETER ] " << i << "\n";
-            std::cerr << parameter << "\n";
+            //std::cerr << parameter << "\n";
 
             auto custom_types = is_list_of_tensors(parameter->get_output_tensor(0));
 
@@ -275,7 +267,7 @@ public:
             if (!list_pack_node)
                 return false;
 
-            std::cerr << append_node << "\n";
+            //std::cerr << append_node << "\n";
             auto custom_types = is_list_of_tensors(append_node->get_output_tensor(0));
 
             if (!std::get<0>(custom_types)) {
@@ -351,7 +343,6 @@ public:
 
         for (size_t i = 0; i < results.size(); ++i) {
             auto result = results[i];
-            std::cerr << result << "\n";
             auto custom_types = is_list_of_tensors(result->get_input_tensor(0));
 
             auto list_pack = cast_internal_node(result->get_input_node_shared_ptr(0), "PTFE::ListPack");
@@ -375,8 +366,9 @@ public:
 };
 
 void apply_pytorch_conversion_transforms(std::shared_ptr<ov::Model> model) {
-    //return;
-    std::cerr << "[ PASS INFO ] apply_pytorch_conversion_transforms\n";
+    // TODO: We have issues with List transformations, temporary disabled
+    return;
+
     pass::Manager manager;
     manager.register_pass<DecomposeListParameters>();
 
@@ -389,7 +381,6 @@ void apply_pytorch_conversion_transforms(std::shared_ptr<ov::Model> model) {
     manager.register_pass<DecomposeListResults>();
 
     manager.run_passes(model);
-    std::cerr << "[ PASS INFO ] Passes passed\n";
 }
 
 }  // namespace pytorch
