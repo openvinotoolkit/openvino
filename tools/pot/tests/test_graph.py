@@ -30,6 +30,7 @@ TEST_MODELS = [
     ('resnet_example', 'pytorch', 'CPU_SPR'),
     #('tensor_iterator_example', 'tf', 'ANY'),
     ('softsign_example', 'tf', 'GNA'),
+    ('split_concat_example', 'pytorch', 'ANY'),
 ]
 
 
