@@ -57,7 +57,7 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit
+    @pytest.mark.precommit_tf_fe
     def test_parallel_dynamic_stitch_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                use_new_frontend, use_old_api):
         if not use_new_frontend:
@@ -67,9 +67,9 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_different_types = [
-        dict(data_input_cnt=4, shape_of_element=[1], data_type=tf.float64),
-        dict(data_input_cnt=2, shape_of_element=[2, 2], data_type=tf.int64),
-        dict(data_input_cnt=3, shape_of_element=[2, 1, 2], data_type=tf.int32),
+        dict(data_input_cnt=4, shape_of_element=[3, 2], data_type=tf.float64),
+        dict(data_input_cnt=2, shape_of_element=[2, 2, 1], data_type=tf.int64),
+        dict(data_input_cnt=3, shape_of_element=[2, 1, 2, 4], data_type=tf.int32),
     ]
 
     @pytest.mark.parametrize("params", test_data_different_types)

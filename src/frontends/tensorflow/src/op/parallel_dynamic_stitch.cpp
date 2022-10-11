@@ -23,16 +23,16 @@ OutputVector translate_parallel_dynamic_stitch_op(const NodeContext& node) {
                              "The total number of inputs to DynamicStitch operation "
                              "must be divisible by 2.");
 
-    size_t N = in_size / 2;
+    int N = static_cast<int>(in_size / 2);
     OutputVector indices_to_concat;
     OutputVector data_to_concat;
     auto data_element_type = node.get_input(N).get_element_type();
     auto const_minus_one = std::make_shared<Constant>(ov::element::i32, Shape{1}, -1);
     auto const_zero = std::make_shared<Constant>(ov::element::i32, Shape{1}, 0);
     auto const_one = std::make_shared<Constant>(ov::element::i32, Shape{1}, 1);
-    for (size_t i = 0; i < N; ++i) {
-        auto indices = node.get_input(static_cast<int>(i));
-        auto data = node.get_input(static_cast<int>(N + i));
+    for (int i = 0; i < N; ++i) {
+        auto indices = node.get_input(i);
+        auto data = node.get_input(N + i);
 
         const auto& indices_pshape = indices.get_partial_shape();
         auto rank = indices_pshape.rank();
