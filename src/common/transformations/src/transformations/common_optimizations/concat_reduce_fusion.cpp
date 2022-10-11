@@ -5,7 +5,7 @@
 #include "transformations/common_optimizations/concat_reduce_fusion.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset8.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
@@ -30,7 +30,7 @@ ReduceType get_reduce_type(const std::shared_ptr<ov::Node>& reduce_node) {
 }
 }  // namespace
 
-ngraph::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
+ov::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
     MATCHER_SCOPE(PullSqueezeThroughEltwise);
     auto eltwise_pattern = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>();
 
@@ -76,7 +76,7 @@ ngraph::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
     this->register_matcher(m, callback);
 }
 
-ngraph::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
+ov::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
     MATCHER_SCOPE(ReplaceConcatReduceByMinOrMax);
 
     auto concat_pattern = ngraph::pattern::wrap_type<opset8::Concat>({pattern::any_input(), pattern::any_input()});
@@ -129,7 +129,7 @@ ngraph::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
     register_matcher(m, callback);
 }
 
-ngraph::pass::ConcatReduceFusion::ConcatReduceFusion() {
+ov::pass::ConcatReduceFusion::ConcatReduceFusion() {
     add_matcher<ReplaceConcatReduceByMinOrMax>();
     add_matcher<PullSqueezeThroughEltwise>();
     add_matcher<EliminateSqueeze>();
