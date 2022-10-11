@@ -13,13 +13,14 @@ std::tuple<ov::element::Type, ov::PartialShape> ov::op::util::validate_and_infer
     NGRAPH_CHECK(node != nullptr, "nGraph node is empty! Cannot validate eltwise arguments.");
 
     element::Type result_et;
-    NODE_VALIDATION_CHECK(node,
-                          element::Type::merge(result_et, node->get_input_element_type(0), node->get_input_element_type(1)),
-                          "Arguments do not have the same element type (arg0 element type: ",
-                          node->get_input_element_type(0),
-                          ", arg1 element type: ",
-                          node->get_input_element_type(1),
-                          ").");
+    NODE_VALIDATION_CHECK(
+        node,
+        element::Type::merge(result_et, node->get_input_element_type(0), node->get_input_element_type(1)),
+        "Arguments do not have the same element type (arg0 element type: ",
+        node->get_input_element_type(0),
+        ", arg1 element type: ",
+        node->get_input_element_type(1),
+        ").");
 
     const auto& A_shape = node->get_input_partial_shape(0);
     const auto& B_shape = node->get_input_partial_shape(1);
