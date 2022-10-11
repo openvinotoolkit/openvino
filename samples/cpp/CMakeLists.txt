@@ -98,6 +98,8 @@ endif()
 ####################################
 
 if(NOT TARGET gflags)
+    set(GFLAGS_SHARED OFF)
+    set(GFLAGS_NOTHREADS ON)
     find_package(gflags QUIET)
 
     if(gflags_FOUND)
