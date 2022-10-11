@@ -4,18 +4,19 @@
 
 #include "frontend_test.hpp"
 #include "openvino/op/util/framework_node.hpp"
+#include "openvino/opsets/opset1.hpp"
 
 class IRFrontendExtensionTests : public ::testing::Test, public IRFrontendTestsImpl {
 protected:
-    void SetUp() override{};
+    void SetUp() override {}
 
     void TearDown() override {
         RemoveTemporalFiles();
-    };
+    }
 };
 
 TEST_F(IRFrontendExtensionTests, custom_ops_test_with_framework_node_extension) {
-    static std::string customOpsNetwork = R"V0G0N(
+    static std::string customOpsModel = R"V0G0N(
 <net name="Network" version="11">
     <layers>
         <layer name="input" type="Parameter" id="0" version="opset1">
@@ -69,12 +70,12 @@ TEST_F(IRFrontendExtensionTests, custom_ops_test_with_framework_node_extension) 
 
     core.add_extension(extension);
 
-    ASSERT_NO_THROW(model = core.read_model(customOpsNetwork, ov::Tensor()));
+    ASSERT_NO_THROW(model = core.read_model(customOpsModel, ov::Tensor()));
     ASSERT_TRUE(!!model);
 }
 
 TEST_F(IRFrontendExtensionTests, custom_ops_test_without_extension) {
-    static std::string customOpsNetwork = R"V0G0N(
+    static std::string customOpsModel = R"V0G0N(
 <net name="Network" version="11">
     <layers>
         <layer name="input" type="Parameter" id="0" version="opset1">
@@ -125,6 +126,6 @@ TEST_F(IRFrontendExtensionTests, custom_ops_test_without_extension) {
 )V0G0N";
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_THROW(model = core.read_model(customOpsNetwork, ov::Tensor()), ov::Exception);
+    ASSERT_THROW(model = core.read_model(customOpsModel, ov::Tensor()), ov::Exception);
     ASSERT_TRUE(!model);
 }

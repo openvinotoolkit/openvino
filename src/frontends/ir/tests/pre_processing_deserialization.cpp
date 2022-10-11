@@ -6,11 +6,11 @@
 
 class IRFrontendTestsPreProcessing : public ::testing::Test, public IRFrontendTestsImpl {
 protected:
-    void SetUp() override{};
+    void SetUp() override {}
 
     void TearDown() override {
         RemoveTemporalFiles();
-    };
+    }
 };
 
 TEST_F(IRFrontendTestsPreProcessing, pre_processing) {

@@ -3,18 +3,20 @@
 //
 
 #include "frontend_test.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 class IRFrontendTestsTensorIterator : public ::testing::Test, public IRFrontendTestsImpl {
 protected:
-    void SetUp() override{};
+    void SetUp() override {}
 
     void TearDown() override {
         RemoveTemporalFiles();
-    };
+    }
 };
 
 TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_merged_input) {
-    std::string testNetwork = R"V0G0N(
+    std::string testModel = R"V0G0N(
 <net name="Network" version="11">
     <layers>
         <layer id="0" name="Parameter1" type="Parameter" version="opset1">
@@ -95,7 +97,7 @@ TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_merged_input) {
 
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(testNetwork, ov::Tensor()));
+    ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
     ASSERT_TRUE(!!model);
 
     std::shared_ptr<ov::Model> modelRef;
@@ -132,7 +134,7 @@ TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_merged_input) {
 }
 
 TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_slised_input) {
-    std::string testNetwork = R"V0G0N(
+    std::string testModel = R"V0G0N(
 <net name="Network" version="11">
     <layers>
         <layer id="0" name="Parameter1" type="Parameter" version="opset1">
@@ -213,7 +215,7 @@ TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_slised_input) {
 
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(testNetwork, ov::Tensor()));
+    ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
     ASSERT_TRUE(!!model);
 
     std::shared_ptr<ov::Model> modelRef;

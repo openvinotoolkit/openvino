@@ -131,6 +131,19 @@ TEST_F(RTInfoDeserialization, node_v10) {
     auto round = result->get_input_node_ptr(0);
     check_rt_info(round->get_rt_info());
 
+    // read IR v10 with old API
+    {
+        InferenceEngine::Core core;
+        auto f_10 = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
+        ASSERT_NE(nullptr, f_10.getFunction());
+
+        auto res = compare_functions(f, f_10.getFunction());
+        EXPECT_TRUE(res.first) << res.second;
+
+        EXPECT_EQ(InferenceEngine::Precision::FP32, f_10.getInputsInfo()["in1"]->getPrecision());
+        EXPECT_EQ(InferenceEngine::Precision::FP32, f_10.getOutputsInfo()["Round"]->getPrecision());
+    }
+
     // read IR v10 with new API and check that CNNNetwork precision conversions are applied
     {
         ov::Shape shape{1, 3, 22, 22};
