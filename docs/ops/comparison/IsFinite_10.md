@@ -1,0 +1,45 @@
+# IsFinite {#openvino_docs_ops_arithmetic_IsFinite_1}
+
+**Versioned name**: *IsFinite-1*
+
+**Category**: *Comparison*
+
+**Short description**: *IsFinite* performs element-wise test for finiteness (not Infinity and not NaN) on elements of a given input tensor. It returns the boolean mask of a given tensor which maps
+`NaN` and `Infinity` to `False` and all other values to `True`
+*IsFinite* operation has no attributes.
+
+**Detailed description**: *IsFinite* returns the bolean mask of the input tensor in which `False` corresponds to `NaN` and `Infinity` and `True` to all other values.
+* The output tensor has the same shape as input tensor.
+* The `i`'th element of the output tensor is `False` if `i`'th element of the input tensor is `NaN` or `Inf`. Otherwise it is `True`.
+* For example, for given input tensor `[NaN, 2.1, 3.7, Inf]` the output tensor is `[False, True, True, False]`.
+
+**Inputs**
+
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+
+**Outputs**
+
+* **1**: The result of element-wise *IsFinite* operation. A tensor of type *bool* and the same shape as input tensor.
+
+**Types**
+
+* *T*: bfloat16, half, float32, float64
+
+**Example**
+
+```xml
+<layer ... type="IsFinite">
+    <input>
+        <port id="0">
+            <dim>256</dim>
+            <dim>56</dim>
+        </port>
+    </input>
+    <output>
+        <port id="1">
+            <dim>256</dim>
+            <dim>56</dim>
+        </port>
+    </output>
+</layer>
+```
