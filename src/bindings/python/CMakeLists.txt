@@ -34,7 +34,7 @@ function(ov_check_python_build_conditions)
 
     macro(_ov_clean_python_vars)
         foreach(python_var PYTHON_LIBRARY PYTHON_INCLUDE_DIR)
-            unset(${python_var} CACHE)
+            # unset(${python_var} CACHE)
         endforeach()
     endmacro()
 

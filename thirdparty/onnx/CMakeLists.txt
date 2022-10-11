@@ -36,7 +36,7 @@ function(ov_onnx_build_static)
     add_subdirectory(onnx EXCLUDE_FROM_ALL)
 
     foreach(python_var PYTHON_LIBRARY PYTHON_INCLUDE_DIR)
-        unset(${python_var} CACHE)
+        # unset(${python_var} CACHE)
     endforeach()
 endfunction()
 
