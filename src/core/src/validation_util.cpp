@@ -10,6 +10,7 @@
 #include <ngraph/rt_info.hpp>
 #include <numeric>
 
+#include "compare.hpp"
 #include "ngraph/evaluator.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/convert.hpp"
@@ -23,6 +24,7 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
+#include "sequnce_generator.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
@@ -952,10 +954,10 @@ void ngraph::opset1::infer_conv_backprop_auto_padding(const Shape& input_data_sh
     pads_end = CoordinateDiff(num_spatial_dims);
 
     for (uint64_t i = 0; i < num_spatial_dims; ++i) {
-        int total_padding =
-            std::max<int>(strides[i] * (input_data_shape[i] - 1) + dilations[i] * (filters_shape[i] - 1) + 1 -
-                              output_shape[i] + output_padding[i],
-                          0);
+        int total_padding = std::max<int>(
+            static_cast<int>(strides[i] * (input_data_shape[i] - 1) + dilations[i] * (filters_shape[i] - 1) + 1 -
+                             output_shape[i] + output_padding[i]),
+            0);
         if (auto_pad_type != op::PadType::SAME_UPPER) {
             pads_begin[i] = total_padding / 2;
             pads_end[i] = total_padding - pads_begin[i];
@@ -1641,4 +1643,14 @@ bool ngraph::validate_host_tensor_vector(const HostTensorVector& tensor_vector, 
     return std::all_of(tensor_vector.begin(), tensor_vector.end(), [](const HostTensorPtr& t) {
         return t != nullptr;
     });
+}
+
+void ov::generate_transpose_default_order(std::vector<int64_t>& axes_order, const size_t length) {
+    axes_order.reserve(length);
+    std::generate_n(std::back_inserter(axes_order), length, ov::SeqGen<size_t, ov::Direction::BACKWARD>(length - 1));
+}
+
+bool ov::is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_t size) {
+    return (std::unordered_set<size_t>(axes_order.cbegin(), axes_order.cend()).size() == size) &&
+           std::all_of(axes_order.cbegin(), axes_order.cend(), ov::cmp::Between<int64_t, ov::cmp::LOWER>(0, size));
 }

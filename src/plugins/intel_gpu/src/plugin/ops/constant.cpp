@@ -158,7 +158,7 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
 
     // If constDims has a dimension = 0, then create tensor with single value
     // TODO: check if dim=0 is a valid case
-    if (std::accumulate(constDims.begin(), constDims.end(), 1, std::multiplies<size_t>()) == 0)
+    if (std::accumulate(constDims.begin(), constDims.end(), size_t(1), std::multiplies<size_t>()) == 0)
         constTensor = cldnn::tensor{1};
 
     // Swap O and I dimensions to match expected deconvolution weights format

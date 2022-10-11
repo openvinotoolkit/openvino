@@ -666,12 +666,6 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     postSnippetsManager.run_passes(nGraphFunc);
 }
 
-static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT, const bool _enableBF16, const bool _enableSnippets, const bool isLegacyApi) {
-    auto nGraphFunc = clonedNetwork.getFunction();
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, _enableLPT, _enableBF16, _enableSnippets, isLegacyApi);
-    ConvertToCPUSpecificOpset(nGraphFunc);
-}
-
 static bool streamsSet(const std::map<std::string, std::string>& config) {
     return config.count(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) ||
            config.count(ov::num_streams.name());
@@ -1035,107 +1029,43 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     QueryNetworkResult res;
 
     WeightsSharing::Ptr fake_w_cache;
-    auto function = network.getFunction();
-    if (function != nullptr) {
-        std::unordered_set<std::string> originalOps;
-        for (auto&& node : function->get_ops()) {
-            originalOps.emplace(node->get_friendly_name());
+
+    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
+    Config conf = engConfig;
+    conf.readProperties(config);
+
+    if (conf.enableDynamicBatch) {
+        conf.batchLimit = static_cast<int>(network.getBatchSize());
+    }
+
+    const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
+    const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
+                        || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
+    const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch || (conf.enforceBF16
+            && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)));
+
+    auto model = network.getFunction();
+    if (model == nullptr) {
+        IE_THROW() << "Only ngraph-based models are supported!";
+    }
+
+    auto supported = GetSupportedNodes(model,
+    [&](std::shared_ptr<ov::Model>& model) {
+            TransformationUpToCPUSpecificOpSet(model, enableLPT, conf.enforceBF16, enableSnippets, isLegacyAPI());
+            ConvertToCPUSpecificOpset(model);
+        },
+    [&](const std::shared_ptr<ngraph::Node>& op) {
+        std::unique_ptr<Node> ptr;
+        try {
+            ptr.reset(Node::factory().create(op, {dnnl::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
+        } catch (const InferenceEngine::Exception&) {
+            return false;
         }
+        return true;
+    });
 
-        // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
-        Config conf = engConfig;
-        conf.readProperties(config);
-
-        if (conf.enableDynamicBatch) {
-            conf.batchLimit = static_cast<int>(network.getBatchSize());
-        }
-
-        auto clonedNetwork = InferenceEngine::details::cloneNetwork(network);
-        auto clonnedFunction = clonedNetwork.getFunction();
-        const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
-        const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
-                               || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
-        const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch || (conf.enforceBF16
-                && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)));
-        Transformation(clonedNetwork, enableLPT, conf.enforceBF16, enableSnippets, isLegacyAPI());
-        auto ops = clonnedFunction->get_ordered_ops();
-
-        //Mark removed nodes as supported
-        std::unordered_set<std::string> supported = GetRemovedNodes(function, clonnedFunction);;
-        std::unordered_set<std::string> unsupported;
-
-        auto layerIsSupported = [&](const std::shared_ptr<ngraph::Node>& op) {
-            std::unique_ptr<Node> ptr;
-            try {
-                ptr.reset(Node::factory().create(op, {dnnl::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
-            } catch (const InferenceEngine::Exception&) {
-                return false;
-            }
-            return true;
-        };
-
-        for (auto&& op : ops) {
-            bool isSupported = false;
-            bool wasNodeAlreadyChecked = false;
-            if (InferenceEngine::details::contains(originalOps, op->get_friendly_name())) {
-                isSupported = layerIsSupported(op);
-                wasNodeAlreadyChecked = true;
-                if (isSupported) {
-                    supported.emplace(op->get_friendly_name());
-                } else {
-                    unsupported.emplace(op->get_friendly_name());
-                }
-            }
-
-            for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
-                if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
-                    if (!wasNodeAlreadyChecked) {
-                        isSupported = layerIsSupported(op);
-                        wasNodeAlreadyChecked = true;
-                    }
-                    if (isSupported) {
-                        supported.emplace(fusedLayerName);
-                    } else {
-                        unsupported.emplace(fusedLayerName);
-                    }
-                }
-            }
-        }
-        for (auto&& unsupportedNode : unsupported) {
-            supported.erase(unsupportedNode);
-        }
-        for (auto&& node : function->get_ops()) {
-            if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
-                for (auto&& inputNodeOutput : node->input_values()) {
-                    if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
-                        supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
-                    }
-                }
-                for (auto&& outputs : node->outputs()) {
-                    for (auto&& outputNodeInput : outputs.get_target_inputs()) {
-                        if (ngraph::op::is_output(outputNodeInput.get_node())) {
-                            supported.emplace(outputNodeInput.get_node()->get_friendly_name());
-                        }
-                    }
-                }
-            }
-
-            if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
-                if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
-                    supported.erase(node->get_friendly_name());
-                }
-            } else if (ngraph::op::is_output(node)) {
-                if (!InferenceEngine::details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name())) {
-                    supported.erase(node->get_friendly_name());
-                }
-            }
-        }
-
-        for (auto&& layerName : supported) {
-            res.supportedLayersMap.emplace(layerName, GetName());
-        }
-    } else {
-        IE_CPU_PLUGIN_THROW() << "Only ngraph-based models are supported!";
+    for (auto&& layerName : supported) {
+        res.supportedLayersMap.emplace(layerName, GetName());
     }
 
     return res;
