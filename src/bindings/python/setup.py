@@ -147,7 +147,7 @@ class BuildCMakeExt(build_ext):
     def run(self):
         """Run CMake build for modules."""
         for extension in self.extensions:
-            if extension.name == "pyopenvino":
+            if extension.name == "_pyopenvino":
                 self.build_cmake(extension)
             if extension.name == "_pyngraph":
                 self.build_cmake(extension)
@@ -160,7 +160,7 @@ class BuildCMakeExt(build_ext):
         build_dir = pathlib.Path(self.build_temp)
 
         extension_path = pathlib.Path(self.get_ext_fullpath(extension.name))
-        if extension.name == "pyopenvino":
+        if extension.name == "_pyopenvino":
             extension_path = pathlib.Path(os.path.join(extension_path.parent.absolute(), "openvino"))
 
         os.makedirs(build_dir, exist_ok=True)
@@ -238,7 +238,7 @@ setup(
     author="Intel Corporation",
     url="https://github.com/openvinotoolkit/openvino",
     license="License :: OSI Approved :: Apache Software License",
-    ext_modules=[CMakeExtension(name="_pyngraph"), CMakeExtension(name="pyopenvino")],
+    ext_modules=[CMakeExtension(name="_pyngraph"), CMakeExtension(name="_pyopenvino")],
     package_dir={"": "src/compatibility", "openvino": "src/openvino"},
     packages=packages,
     install_requires=requirements,

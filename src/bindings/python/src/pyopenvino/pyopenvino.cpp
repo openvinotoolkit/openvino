@@ -69,7 +69,7 @@ inline std::string get_version() {
     return version.buildNumber;
 }
 
-PYBIND11_MODULE(pyopenvino, m) {
+PYBIND11_MODULE(_pyopenvino, m) {
     m.doc() = "Package openvino.pyopenvino which wraps openvino C++ APIs";
     std::string pyopenvino_version = CI_BUILD_NUMBER;
     std::string runtime_version = get_version();

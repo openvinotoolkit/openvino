@@ -15,8 +15,8 @@ warnings.warn(message="The module is private and following namespace "
 from openvino.utils import add_openvino_libs_to_path, deprecated
 add_openvino_libs_to_path()
 
-from openvino.pyopenvino import get_version
-from openvino.pyopenvino import serialize as _base_serialize
+from openvino._pyopenvino import get_version
+from openvino._pyopenvino import serialize as _base_serialize
 import openvino.pyopenvino._offline_transformations as _base
 
 __version__ = get_version()

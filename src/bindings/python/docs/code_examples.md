@@ -313,7 +313,7 @@ Although *pybind11* is a powerful tool, it is sometimes required (or simply easi
 ##### Making pybind11-based module/class visible in OpenVINO:tm: package
 Let's move a new class from `openvino.pyopenvino.mymodule` to the actual package. Simply introduce a new import statement in the desired file. Let it be `openvino/src/bindings/python/src/openvino/runtime/__init__.py`: 
 ```python
-from openvino.pyopenvino.mymodule import MyTensor
+from openvino._pyopenvino.mymodule import MyTensor
 ```
 
 Now, while importing `openvino`, a new class is accessible from the `runtime` level:
@@ -330,7 +330,7 @@ As mentioned earlier, it may be helpful to utilize Python in-between to achieve 
 
 First, create a new file in the `openvino/src/bindings/python/src/openvino/runtime` directory and call it `mymodule_ext.py`. There are no strict rules for naming, just make sure the names are in good taste. Import the class here:
 ```python
-from openvino.pyopenvino.mymodule import MyTensor as MyTensorBase
+from openvino._pyopenvino.mymodule import MyTensor as MyTensorBase
 ```
 
 Notice how an alias is created for the `MyTensor` class. Do not worry, it will make sense as we progress. Let's follow it up with a more advanced class implementation:
