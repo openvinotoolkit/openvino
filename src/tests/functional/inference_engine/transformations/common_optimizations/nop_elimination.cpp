@@ -1193,3 +1193,56 @@ static const vector<SplitConcatEliminationParams> params = {
         SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::GRU}};
 
 INSTANTIATE_TEST_SUITE_P(SplitConcatElimination, SplitConcatElimination, testing::ValuesIn(params));
+
+TEST(SplitConcatElimination, split_inputs_not_in_order) {
+    int64_t axis = 1;
+    auto axis_const = make_shared<ov::opset9::Constant>(element::i64, Shape{}, axis);
+
+    auto param = make_shared<ov::opset9::Parameter>(element::f32, Shape{2, 10});
+    auto split = make_shared<ov::opset9::Split>(param->output(0), axis_const, 10);
+    OutputVector outputs_to_concat = split->outputs();
+
+    // change order of inputs to Concat, in this case the transformation won't be applied
+    std::reverse(outputs_to_concat.begin(), outputs_to_concat.end());
+    auto concat = make_shared<ov::opset9::Concat>(outputs_to_concat, axis);
+    auto sigmoid = make_shared<ov::opset9::Sigmoid>(concat);
+    auto res = make_shared<ov::opset9::Result>(sigmoid);
+    auto model = make_shared<ov::Model>(ResultVector{res}, ParameterVector{param});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::Validate>();
+    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.run_passes(model);
+    // the transformation shouldn't be applied
+    EXPECT_EQ(count_ops_of_type<ov::opset9::Concat>(model), 1) << "SplitConcatElimination transformation has failed. "
+                                                                  "The number of Concat ops is not 1";
+    EXPECT_EQ(count_ops_of_type<ov::opset9::Split>(model), 1) << "SplitConcatElimination transformation has failed. "
+                                                                 "The number of Split ops is not 1";
+}
+
+TEST(SplitConcatElimination, no_sequence_found) {
+    int64_t axis = 1;
+    auto axis_const = make_shared<ov::opset9::Constant>(element::i64, Shape{}, axis);
+
+    auto param = make_shared<ov::opset9::Parameter>(element::f32, Shape{2, 10});
+    auto param_2 = make_shared<ov::opset9::Parameter>(element::f32, Shape{2, 1});
+    auto split = make_shared<ov::opset9::Split>(param->output(0), axis_const, 10);
+    OutputVector outputs_to_concat = split->outputs();
+
+    outputs_to_concat[outputs_to_concat.size() - 1] = param_2;
+    auto concat = make_shared<ov::opset9::Concat>(outputs_to_concat, axis);
+    auto sigmoid = make_shared<ov::opset9::Sigmoid>(concat);
+    auto res = make_shared<ov::opset9::Result>(sigmoid);
+    auto model = make_shared<ov::Model>(ResultVector{res}, ParameterVector{param, param_2});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::Validate>();
+    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.run_passes(model);
+    // the transformation shouldn't be applied
+    EXPECT_EQ(count_ops_of_type<ov::opset9::Concat>(model), 1) << "SplitConcatElimination transformation has failed. "
+                                                                  "The number of Concat ops is not 1";
+    EXPECT_EQ(count_ops_of_type<ov::opset9::Split>(model), 1) << "SplitConcatElimination transformation has failed. "
+                                                                 "The number of Split ops is not 1";
+    // the transformation shouldn't be applied
+}

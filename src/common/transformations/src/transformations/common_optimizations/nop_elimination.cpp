@@ -525,7 +525,13 @@ std::shared_ptr<T> check_all_inputs(const std::shared_ptr<ov::opset9::Concat>& c
                 return {};
             }
             shared_ptr<Node> in_to_split = split->input_value(0).get_node_shared_ptr();
-            auto seq_out = in_to_split->input_value(0);
+            Output<Node> seq_out;
+            if (!in_to_split->inputs().empty()) {
+                seq_out = in_to_split->input_value(0);
+            } else {
+                return {};
+            }
+
             auto seq_node = seq_out.get_node_shared_ptr();
             if (seq_out.get_index() != 0 || !(dynamic_pointer_cast<ov::opset9::RNNSequence>(seq_node) ||
                                               dynamic_pointer_cast<ov::opset9::GRUSequence>(seq_node) ||
