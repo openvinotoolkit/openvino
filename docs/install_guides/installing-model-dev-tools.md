@@ -10,6 +10,8 @@ If you want to download, convert, optimize and tune pre-trained deep learning mo
 
 > **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. 
 
+<a name="python-developers"></a>
+
 ## For Python Developers
 <a name="python-developers"></a>
 If you are a Python developer, you can find the main steps below to install OpenVINO Development Tools. For more details, see <https://pypi.org/project/openvino-dev>.
