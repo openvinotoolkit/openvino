@@ -9,10 +9,11 @@ ov_add_test_target(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
             openvino_ir_frontend
-        LINK_LIBRARIES 
+        LINK_LIBRARIES
             gtest
             gtest_main
             openvino::runtime::dev
+            commonTestUtils
         INCLUDES
             "${CMAKE_CURRENT_SOURCE_DIR}/../include"
         ADD_CLANG_FORMAT
