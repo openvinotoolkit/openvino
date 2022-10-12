@@ -11,9 +11,17 @@ namespace {
 using NodePtr = std::shared_ptr<ov::Node>;
 using NodePair = std::pair<NodePtr, NodePtr>;
 
+/**
+ * @brief SwapNodes allows to perform swapping nodes even if there are more than one consumers but has less performance
+ *
+ * @param first_node first node pointer
+ * @param second_node first node pointer
+ * @return NodePair pair of nodes in new order that allows to register them in MatcherPass
+ */
 NodePair SwapNodes(NodePtr first_node, NodePtr second_node) {
     auto second_node_inputs = second_node->input_values();
     second_node_inputs[0] = first_node->input_value(0);
+
     auto new_first_node = second_node->clone_with_new_inputs(second_node_inputs);
 
     auto first_node_inputs = first_node->input_values();
@@ -26,6 +34,39 @@ NodePair SwapNodes(NodePtr first_node, NodePtr second_node) {
     ov::replace_node(second_node, new_second_node);
 
     return std::make_pair(new_first_node, new_second_node);
+}
+
+/**
+ * @brief SwapOutputs has much better performance than SwapNodes and covers the most of the real situations
+ *        but cannot work when the consumers count greater than one
+ * @param first_node first node pointer
+ * @param second_node second node pointer
+ * @return NodePair pair of nodes in new order that allows to register them in MatcherPass
+ */
+NodePair SwapOutputs(NodePtr first_node, NodePtr second_node) {
+    const auto first_node_output_names = first_node->output(0).get_names();
+    const auto second_node_output_names = second_node->output(0).get_names();
+
+    auto swap_names = [&]() {
+        const std::string first_name = first_node->get_friendly_name();
+        first_node->set_friendly_name(second_node->get_friendly_name());
+        second_node->set_friendly_name(first_name);
+
+        first_node->output(0).set_names(second_node_output_names);
+        second_node->output(0).set_names(first_node_output_names);
+    };
+
+    auto out_1 = first_node->input_value(0);
+    second_node->input(0).replace_source_output(out_1);
+
+    auto out_2 = second_node->output(0);
+    second_node->output(0).replace(first_node->output(0));
+
+    first_node->input(0).replace_source_output(out_2);
+
+    swap_names();
+
+    return std::make_pair(second_node, first_node);
 }
 
 }  // namespace
@@ -47,7 +88,13 @@ ov::pass::TransposeSinkingUnaryForward::TransposeSinkingUnaryForward() {
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
 
-        auto new_nodes = SwapNodes(transpose, unary);
+        NodePair new_nodes;
+
+        if (transpose->output(0).get_target_inputs().size() > 1 ||
+            unary->output(0).get_target_inputs().size() > 1)
+            new_nodes = SwapNodes(transpose, unary);
+        else
+            new_nodes = SwapOutputs(transpose, unary);
 
         register_new_node(new_nodes.first);
         register_new_node(new_nodes.second);
@@ -77,7 +124,13 @@ ov::pass::TransposeSinkingUnaryBackward::TransposeSinkingUnaryBackward() {
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
 
-        auto new_nodes = SwapNodes(unary, transpose);
+        NodePair new_nodes;
+
+        if (transpose->output(0).get_target_inputs().size() > 1 ||
+            unary->output(0).get_target_inputs().size() > 1)
+            new_nodes = SwapNodes(unary, transpose);
+        else
+            new_nodes = SwapOutputs(unary, transpose);
 
         register_new_node(new_nodes.first);
         register_new_node(new_nodes.second);
