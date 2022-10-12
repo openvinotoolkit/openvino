@@ -184,10 +184,7 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
                 node->getParentEdges().size() == 2 &&
                 node->getFusedWith().empty();
         else
-            return ((deconv && deconv->canBeExecutedInInt8()) &&
-               node->getChildEdges().size() == 1 &&
-               (node->getParentEdges().size() == 2 || node->getParentEdges().size() == 3) &&
-               node->getFusedWith().empty());
+            return deconv->canFuseBias();
     };
 
     auto isSuitableChildNode = [&](const NodePtr& parentNode, const NodePtr& childNode) {

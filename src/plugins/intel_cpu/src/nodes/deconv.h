@@ -53,6 +53,7 @@ public:
 
     void setDynamicBatchLim(int lim) override;
     bool canBeExecutedInInt8() const;
+    bool canFuseBias() const;
 
 protected:
     AttrPtr initPrimitiveAttr() override;
