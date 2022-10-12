@@ -374,6 +374,9 @@ void Deconvolution::getSupportedDescriptors() {
         return;
     isInt8 = canBeExecutedInInt8();
     withBiases = externOutShape ? getOriginalInputsNumber() == 4 : getOriginalInputsNumber() == 3;
+    //ONEDNN deconvolution_fwd_t primitive can support bias fusing.
+    //ONEDNN convolution_data_bwd_t can't support bias fusing.
+    //Current only int8 precision choose deconvolution_fwd_t.
     if (withBiases && !isInt8) {
         IE_THROW() << errorPrefix << "deconv withBiases is only support on INT8";
     }
@@ -728,7 +731,7 @@ void Deconvolution::createPrimitive() {
         dnnl::memory::desc dnnlBiasDesc;
         if (biasDesc != nullptr)
             // WA to align IR bias representation (3 to 5 rank tensors) to oneDNN representation (1 rank tensor)
-            dnnlBiasDesc = biasDesc->getDnnlDesc().reshape({static_cast<dnnl_dim_t>(biasesDims[0])});
+            dnnlBiasDesc = biasDesc->getDnnlDesc().reshape({static_cast<dnnl::memory::dim>(biasesDims[0])});
         auto desc = createInt8MkldnnDeconvDesc(inDesc->getDnnlDesc(), wgh_candidate, dnnlBiasDesc, outDesc->getDnnlDesc(), withBiases,
                                                stride, dilation, paddingL, paddingR);
         AttrPtr pAttr = makePrimitiveAttr(outDims);
@@ -1066,6 +1069,16 @@ std::vector<int32_t> Deconvolution::readOutputSpatialDims() const {
     std::vector<int32_t> outSpDims(outShapePtr, outShapePtr + shapeMemPtr->getStaticDims()[0]);
     return outSpDims;
 }
+bool Deconvolution:: canFuseBias() const {
+//ONEDNN deconvolution_fwd_t primitive can support bias fusing.
+//ONEDNN convolution_data_bwd_t can't support bias fusing.
+//Current only int8 precision choose deconvolution_fwd_t.
+    return (canBeExecutedInInt8() &&
+            getChildEdges().size() == 1 &&
+            externOutShape ? getParentEdges().size() == 3 : getParentEdges().size() == 2 &&
+            fusedWith.empty());
+}
+
 
 }   // namespace node
 }   // namespace intel_cpu
