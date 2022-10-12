@@ -18,7 +18,7 @@ TEST(type_prop, concat_deduce) {
     auto param1 = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
     auto param2 = make_shared<op::Parameter>(element::f32, Shape{2, 2, 4});
     auto c = make_shared<op::Concat>(NodeVector{param0, param1, param2}, 1);
-    ASSERT_EQ(c->get_element_type(), element::f32);
+    EXPECT_EQ(c->get_element_type(), element::f32);
     ASSERT_EQ(c->get_shape(), (Shape{2, 12, 4}));
 }
 
@@ -81,7 +81,7 @@ TEST(type_prop, concat_deduce_axis_barely_in_bounds) {
     auto param1 = make_shared<op::Parameter>(element::f32, Shape{2, 3, 8});
     auto param2 = make_shared<op::Parameter>(element::f32, Shape{2, 3, 12});
     auto c = make_shared<op::Concat>(NodeVector{param0, param1, param2}, 2);
-    ASSERT_EQ(c->get_element_type(), element::f32);
+    EXPECT_EQ(c->get_element_type(), element::f32);
     ASSERT_EQ(c->get_shape(), (Shape{2, 3, 24}));
 }
 
@@ -106,7 +106,7 @@ TEST(type_prop, concat_partial_et_consistent) {
     auto param2 = make_shared<op::Parameter>(element::f32, Shape{2, 2, 4});
     auto c = make_shared<op::Concat>(NodeVector{param0, param1, param2}, 1);
 
-    ASSERT_EQ(c->get_element_type(), element::f32);
+    EXPECT_EQ(c->get_element_type(), element::f32);
     ASSERT_EQ(c->get_shape(), (Shape{2, 12, 4}));
 }
 
@@ -233,7 +233,7 @@ TEST(type_prop, concat_partial_negative_axis_correct) {
 
     auto c = make_shared<op::Concat>(NodeVector{param0, param1, param2}, -3);
 
-    ASSERT_EQ(c->get_element_type(), element::f32);
+    EXPECT_EQ(c->get_element_type(), element::f32);
     ASSERT_EQ(c->get_shape(), (Shape{12, 2, 4}));
 }
 
@@ -253,6 +253,7 @@ TEST(type_prop, concat_partial_negative_axis_incorrect) {
     }
 }
 
+/** \brief Test uses evaluate lower/upper and label of concat op. */
 TEST(type_prop, concat_dynamic_value_and_label_propagation) {
     Dimension marked_0 = Dimension(3);
     ov::DimensionTracker::set_label(marked_0, 10);
@@ -273,13 +274,14 @@ TEST(type_prop, concat_dynamic_value_and_label_propagation) {
     auto target_shape = std::make_shared<op::Concat>(OutputVector{shape_0, five, shape_1}, 0);
 
     auto bc = make_shared<op::v1::Broadcast>(param, target_shape);
-    ASSERT_EQ(bc->get_shape(), (Shape{3, 4, 5, 4, 5, 9}));
+    EXPECT_EQ(bc->get_shape(), (Shape{3, 4, 5, 4, 5, 9}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
     const auto labels = get_shape_labels(output_shape);
     ASSERT_THAT(labels, ElementsAre(10, 0, 0, 0, 15, 0));
 }
 
+/** \brief Test uses evaluate lower/upper and label of concat op. */
 TEST(type_prop, concat_dynamic_value_and_label_propagation_1) {
     Dimension marked_0 = Dimension(3);
     ov::DimensionTracker::set_label(marked_0, 1000);
@@ -304,7 +306,7 @@ TEST(type_prop, concat_dynamic_value_and_label_propagation_1) {
     auto convert = make_shared<op::Convert>(target_shape, element::i64);
 
     auto bc = make_shared<op::v1::Broadcast>(param, target_shape);
-    ASSERT_EQ(bc->get_shape(), (Shape{3, 4, 5, 4, 5, 9}));
+    EXPECT_EQ(bc->get_shape(), (Shape{3, 4, 5, 4, 5, 9}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
     const auto labels = get_shape_labels(output_shape);
@@ -318,7 +320,7 @@ TEST(type_prop, concat_interval_dimensions) {
 
     auto c = make_shared<op::Concat>(NodeVector{param0, param1, param2}, -3);
 
-    ASSERT_EQ(c->get_element_type(), element::f32);
+    EXPECT_EQ(c->get_element_type(), element::f32);
     ASSERT_EQ(c->get_shape(), (Shape{12, 2, 4}));
 }
 
@@ -391,6 +393,9 @@ INSTANTIATE_TEST_SUITE_P(type_prop_mixed_ranks_and_dims,
 INSTANTIATE_TEST_SUITE_P(type_prop_1d_shapes,
                          ConcatTest,
                          Values(
+                             // concat all dynamic dims
+                             std::make_tuple(PartialShapeVector{{-1}, {-1}, {-1}},
+                                             std::make_tuple(0, PartialShape({-1}))),
                              // concat dynamic and not matching static dims
                              std::make_tuple(PartialShapeVector{{3}, PartialShape::dynamic(), {2}},
                                              std::make_tuple(0, PartialShape({Dimension(5, -1)}))),
