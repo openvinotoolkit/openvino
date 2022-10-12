@@ -123,3 +123,11 @@ TEST_F(TransformationTestsF, UniqueReplacerInt32) {
     }
     { function_ref = gen_model_ref(PartialShape{10}, element::i32); }
 }
+
+TEST_F(TransformationTestsF, UniqueReplacerInt64) {
+    {
+        function = gen_model(PartialShape{42}, element::i64);
+        manager.register_pass<UniqueReplacer>();
+    }
+    { function_ref = gen_model_ref(PartialShape{42}, element::i64); }
+}
