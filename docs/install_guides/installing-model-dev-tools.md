@@ -93,6 +93,8 @@ mo -h
 You will see the help message for Model Optimizer if installation finished successfully.
 
 
+<a name="cpp-developers"></a>
+
 ## For C++ Developers
 <a name="cpp-developers"></a>
 Note the following things:
