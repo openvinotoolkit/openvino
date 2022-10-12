@@ -437,9 +437,10 @@ ParamDescription = namedtuple("ParamData",
                               ["description", "possible_types_command_line", "possible_types_python_api", "to_string"])
 mo_convert_params = {
     'input_model': ParamDescription(
-        'Tensorflow*: a file with a pre-trained model ' +
+        '{} Tensorflow*: a file with a pre-trained model ' +
         ' (binary or text .pb file after freezing).\n' +
-        ' Caffe*: a model proto file with model weights', '', '',
+        ' Caffe*: a model proto file with model weights', '',
+        'Model object in original framework (PyTorch, Tensorflow) or path to model file.',
         path_to_str_or_object),
     'framework': ParamDescription(
         'Name of the framework used to train the input model.', '', '', None),

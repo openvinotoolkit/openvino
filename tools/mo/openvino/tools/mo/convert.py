@@ -14,6 +14,7 @@ def convert(input_model=None, **args):
 
     Args:
         input_model:
+            Model object in original framework (PyTorch, Tensorflow) or path to model file.
             Tensorflow*: a file with a pre-trained model (binary or text .pb file after freezing).
             Caffe*: a model proto file with model weights
 
