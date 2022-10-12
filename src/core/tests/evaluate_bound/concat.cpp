@@ -81,7 +81,7 @@ const auto contactable_shapes_axis_1 = Values(
                        std::make_tuple(shape2, true),
                        std::make_tuple(shape1, true)});
 
-INSTANTIATE_TEST_SUITE_P(op_eval_concat_axis_1,
+INSTANTIATE_TEST_SUITE_P(evaluate_bound_contactable_axis_1,
                          ConcatEvaluateLabelTest,
                          Combine(Values(1), contactable_shapes_axis_1),
                          PrintToStringParamName());
@@ -93,11 +93,12 @@ const auto contactable_shapes = Values(
     LabeledShapeVector{std::make_tuple(shape2, true), std::make_tuple(shape2, false), std::make_tuple(shape2, true)},
     LabeledShapeVector{std::make_tuple(shape1, true), std::make_tuple(shape1, true), std::make_tuple(shape1, true)});
 
-INSTANTIATE_TEST_SUITE_P(op_eval,
+INSTANTIATE_TEST_SUITE_P(evaluate_bound,
                          ConcatEvaluateLabelTest,
                          Combine(testing::Range<int64_t>(-3, 3), contactable_shapes),
                          PrintToStringParamName());
 
+/** \brief Test evaluate label for combination of different shapes and each shape may be labeled. */
 TEST_P(ConcatEvaluateLabelTest, evaluate_label) {
     const auto concat = std::make_shared<Concat>(params.get(), std::get<0>(GetParam()));
     out_labels.resize(concat->get_output_size());

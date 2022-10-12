@@ -50,6 +50,7 @@ set(SRC
     dimension.cpp
     element_type.cpp
     eval.cpp
+    evaluate_bound/concat.cpp
     evaluate_bound/transpose.cpp
     extension.cpp
     file_util.cpp
@@ -449,7 +450,6 @@ if (ENABLE_TEMPLATE)
         op_eval/binary_convolution.cpp
         op_eval/bucketize.cpp
         op_eval/clamp.cpp
-        op_eval/concat.cpp
         op_eval/einsum.cpp
         op_eval/floor_mod.cpp
         op_eval/gelu.cpp
