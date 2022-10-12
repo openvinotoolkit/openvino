@@ -201,7 +201,7 @@ static const char cache_dir_message[] = "Optional. Enables caching of loaded mod
 
 // @brief message for single load network
 static const char load_from_file_message[] = "Optional. Loads model from file directly without ReadModel."
-                                             " All CNNModel options (like re-shape) will be ignored";
+                                             " All CNNNetwork options (like re-shape) will be ignored";
 
 // @brief message for inference_precision
 static const char inference_precision_message[] = "Optional. Inference precision";
