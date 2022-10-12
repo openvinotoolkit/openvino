@@ -45,6 +45,7 @@
 #include "op/conv.hpp"
 #include "op/conv_integer.hpp"
 #include "op/conv_transpose.hpp"
+#include "op/COP/dcn_v2.hpp"
 #include "op/cos.hpp"
 #include "op/cosh.hpp"
 #include "op/crop.hpp"
@@ -277,6 +278,7 @@ void OperatorsBridge::overwrite_operator(const std::string& name, const std::str
 }
 
 static const char* const MICROSOFT_DOMAIN = "com.microsoft";
+static const char* const COP_DOMAIN = "COP";
 
 #define REGISTER_OPERATOR(name_, ver_, fn_) \
     m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1));
@@ -510,6 +512,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Trilu", 1, trilu);
+
+    REGISTER_OPERATOR_WITH_DOMAIN(COP_DOMAIN, "DCNv2", 1, dcn_v2);
 }
 
 #undef REGISTER_OPERATOR
