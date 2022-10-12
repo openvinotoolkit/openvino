@@ -190,6 +190,21 @@ std::vector<T> generate_random_1d(size_t a, int min, int max, int k = 8) {
     return v;
 }
 
+template<>
+inline std::vector<FLOAT16> generate_random_1d(size_t a, int min, int max, int k) {
+    static std::default_random_engine generator(random_seed);
+    // 1/k is the resolution of the floating point numbers
+    std::uniform_int_distribution<int> distribution(k * min, k * max);
+    std::vector<FLOAT16> v(a);
+
+    for (size_t i = 0; i < a; ++i) {
+        float val = (float)distribution(generator);
+        val /= k;
+        v[i] = FLOAT16(val);
+    }
+    return v;
+}
+
 template<typename Type>
 std::vector<Type> generate_random_norepetitions_1d(size_t size, int min, int max, float bound = 0.45) {
     // Rerurn repeatless vector with size = size in range(min, max)
