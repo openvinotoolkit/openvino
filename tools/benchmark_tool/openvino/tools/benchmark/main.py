@@ -162,10 +162,9 @@ def main():
             perf_counts = True if config[device]['PERF_COUNT'] == 'YES' else perf_counts
 
             ## high-level performance hints
-            if is_flag_set_in_command_line('hint') or args.perf_hint:
-                config[device]['PERFORMANCE_HINT'] = args.perf_hint.upper()
-                if is_flag_set_in_command_line('nireq'):
-                    config[device]['PERFORMANCE_HINT_NUM_REQUESTS'] = str(args.number_infer_requests)
+            config[device]['PERFORMANCE_HINT'] = args.perf_hint.upper()
+            if is_flag_set_in_command_line('nireq'):
+                config[device]['PERFORMANCE_HINT_NUM_REQUESTS'] = str(args.number_infer_requests)
 
             ## infer precision
             if device in device_infer_precision and 'INFERENCE_PRECISION_HINT' in supported_properties:
