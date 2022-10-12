@@ -1,6 +1,6 @@
 # Model Optimizer Frequently Asked Questions  {#openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ}
 
-If your question is not covered by the topics below, use the [OpenVINO&trade; Support page](https://software.intel.com/en-us/openvino-toolkit/documentation/get-started), where you can participate on a free forum.
+If your question is not covered by the topics below, use the [OpenVINO Support page](https://software.intel.com/en-us/openvino-toolkit/documentation/get-started), where you can participate on a free forum.
 
 #### 1. What does the message "[ ERROR ]: Current caffe.proto does not contain field" mean? <a name="question-1"></a>
 
@@ -198,7 +198,7 @@ You might have specified negative values with `--mean_file_offsets`. Only positi
 
 #### 19. What does the message "Both --scale and --scale_values are defined. Specify either scale factor or scale values per input channels" mean? <a name="question-19"></a>
 
-The `--scale` option sets a scaling factor for all channels, while `--scale_values` sets a scaling factor per each channel. Using both of them simultaneously produces ambiguity, so you must use only one of them. For more information, refer to the **Using Framework-Agnostic Conversion Parameters** section: for <a href="ConvertFromCaffe.html#using-framework-agnostic-conv-param">Converting a Caffe Model</a>, <a href="ConvertFromTensorFlow.html#using-framework-agnostic-conv-param">Converting a TensorFlow Model</a>, <a href="ConvertFromMXNet.html#using-framework-agnostic-conv-param">Converting an MXNet Model</a>.
+The `--scale` option sets a scaling factor for all channels, while `--scale_values` sets a scaling factor per each channel. Using both of them simultaneously produces ambiguity, so you must use only one of them. For more information, refer to the **Using Framework-Agnostic Conversion Parameters** section: for [Converting a Caffe Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe), [Converting a TensorFlow Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow), [Converting an MXNet Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet).
 
 #### 20. What does the message "Cannot find prototxt file: for Caffe please specify --input_proto - a protobuf file that stores topology and --input_model that stores pre-trained weights" mean? <a name="question-20"></a>
 
@@ -240,7 +240,8 @@ This error occurs when an incorrect input port is specified with the `--input` c
 
 This error occurs when an incorrect combination of the `--input` and `--input_shape` command line options is used. Using both `--input` and `--input_shape` is valid only if `--input` points to the `Placeholder` node, a node with one input port or `--input` has the form `PORT:NODE`, where `PORT` is an integer port index of input for node `NODE`. Otherwise, the combination of `--input` and `--input_shape` is incorrect.
 
-#### 30. What does the message "Input port > 0 in --input is not supported if --input_shape is not provided. Node: NAME_OF_THE_NODE. Omit port index and all input ports will be replaced by placeholders. Or provide --input_shape" mean? <a name="question-30"></a>
+@anchor FAQ30
+#### 30. What does the message "Input port > 0 in --input is not supported if --input_shape is not provided. Node: NAME_OF_THE_NODE. Omit port index and all input ports will be replaced by placeholders. Or provide --input_shape" mean?
 
 When using the `PORT:NODE` notation for the `--input` command line argument and `PORT` > 0, you should specify `--input_shape` for this input. This is a limitation of the current Model Optimizer implementation.
 
