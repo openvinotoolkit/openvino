@@ -141,6 +141,8 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
     return {output_layouts[desc->output_idx]};
 }
 
+template std::vector<layout> crop_inst::calc_output_layouts<ov::PartialShape>(crop_node const& node, const kernel_impl_params& impl_param);
+
 std::string crop_inst::to_string(crop_node const& node) {
     const auto& desc = node.get_primitive();
     auto ref_in_sizes = desc->reference_input;
