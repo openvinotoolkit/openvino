@@ -155,9 +155,6 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
             uni_vmovdqu(vmm_anchor_mask_addr, vmm_anchor_mask);
 
             mov(rax, 16);
-            if (is_valid_isa(avx512_core)) {
-                vpcmpd(k1, vmm_anchor_mask, ptr[rbx + rax * sizeof(float)], VCMPPS_LT);
-            }
 
             {
                 // float x0 = anchors[a_idx + 0 * a_idx_offset];
