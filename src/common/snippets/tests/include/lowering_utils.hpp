@@ -40,8 +40,10 @@ public:
 class LoweringTests : public TransformationTestsF {
 protected:
     static std::shared_ptr<ngraph::snippets::op::Subgraph> getSubgraph(const std::shared_ptr<Model>& f);
-    static std::shared_ptr<ngraph::snippets::op::Subgraph> getLoweredSubgraph(const std::shared_ptr<Model>& f);
+    static std::shared_ptr<ngraph::snippets::op::Subgraph> getLoweredSubgraph(const std::shared_ptr<Model>& f,
+                                                                              const ov::PartialShape& master_shape);
     static std::shared_ptr<ngraph::snippets::op::Subgraph> getTokenizedSubgraph(const std::shared_ptr<Model>& f);
+    ov::PartialShape master_shape{};
 };
 
 }  // namespace snippets

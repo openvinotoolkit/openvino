@@ -6,6 +6,7 @@
 #include "common_test_utils/data_utils.hpp"
 #include <snippets/snippets_isa.hpp>
 #include "ngraph_functions/builders.hpp"
+#include <snippets/op/tile_helpers.hpp>
 
 namespace ov {
 namespace test {
@@ -29,7 +30,24 @@ std::shared_ptr<ov::Model> AddFunctionLoweredBroadcast::initLowered() const {
     }
     auto add = std::make_shared<op::v1::Add>(add_input0, add_input1);
     auto store = std::make_shared<ngraph::snippets::op::Store>(add);
-    return std::make_shared<ov::Model>(NodeVector{store}, ParameterVector{data0, data1});
+    ParameterVector input_params {data0, data1};
+    auto model = std::make_shared<ov::Model>(NodeVector{store}, input_params);
+
+    // Create dummy scheduler to pass graph comparison tests
+    // Note that if there is more than one results, they should be reverted
+    ResultVector results({model->get_results()[0]});
+    const auto& innerTileBegin = ngraph::snippets::op::insertTileBegin(input_params);
+    std::vector<bool> apply_increments(input_params.size() + results.size(), true);
+    const auto& innerTileEnd = insertTileEnd(results, innerTileBegin, 1, 1, 1, apply_increments);
+    auto outer_WA = std::accumulate(input_shapes.begin(), input_shapes.end(), 0,
+                   [](int64_t max_val, const PartialShape& ps) {
+                        return std::max(ps[ps.size() - 2].get_length(), max_val);
+                    });
+    if (outer_WA > 1) {
+        const auto& outerTileBegin = ngraph::snippets::op::insertTileBegin(input_params);
+        insertTileEnd(results, outerTileBegin, 0, 1, 1, apply_increments);
+    }
+    return model;
 }
 std::shared_ptr<ov::Model> EltwiseThreeInputsLoweredFunction::initLowered() const {
     // todo: implement conversion between std::vector<size_t> and std::vector<Shape>
@@ -60,12 +78,6 @@ std::shared_ptr<ov::Model> EltwiseThreeInputsLoweredFunction::initLowered() cons
     const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(1, -10., 10.);
     auto sub_scalar = std::make_shared<ngraph::snippets::op::Scalar>(precision, Shape{1}, const_values[0]);
     std::shared_ptr<Node> sub_load;
-//  Todo: Uncomment when invalid read in vector tile will be fixed
-//    if (input_shapes[2].back() == 1)
-//        sub_load = std::make_shared<snippets::op::ScalarLoad>(input_params[2]);
-//    else
-//        sub_load = std::make_shared<snippets::op::Load>(input_params[2]);
-//  remove when the code above is enabled:
     sub_load = std::make_shared<ngraph::snippets::op::Load>(input_params[2]);
     auto sub = std::make_shared<op::v1::Subtract>(sub_load, sub_scalar);
     std::shared_ptr<Node> sub_out;
@@ -75,7 +87,23 @@ std::shared_ptr<ov::Model> EltwiseThreeInputsLoweredFunction::initLowered() cons
         sub_out = std::make_shared<ngraph::snippets::op::BroadcastMove>(sub, broadcast_shapes[2]);
     auto mul = std::make_shared<op::v1::Multiply>(add, sub_out);
     auto store = std::make_shared<ngraph::snippets::op::Store>(mul);
-    return std::make_shared<ov::Model>(NodeVector{store}, input_params);
+    auto model = std::make_shared<ov::Model>(NodeVector{store}, input_params);
+
+    // Create dummy scheduler to pass graph comparison tests
+    // Note that if there is more than one results, they should be reverted
+    ResultVector results({model->get_results()[0]});
+    const auto& innerTileBegin = ngraph::snippets::op::insertTileBegin(input_params);
+    std::vector<bool> apply_increments(input_params.size() + results.size(), true);
+    const auto& innerTileEnd = insertTileEnd(results, innerTileBegin, 1, 1, 1, apply_increments);
+    auto outer_WA = std::accumulate(input_shapes.begin(), input_shapes.end(), 0,
+                                    [](int64_t max_val, const PartialShape& ps) {
+                                        return std::max(ps[ps.size() - 2].get_length(), max_val);
+                                    });
+    if (outer_WA > 1) {
+        const auto& outerTileBegin = ngraph::snippets::op::insertTileBegin(input_params);
+        insertTileEnd(results, outerTileBegin, 0, 1, 1, apply_increments);
+    }
+    return model;
 }
 }  // namespace snippets
 }  // namespace test

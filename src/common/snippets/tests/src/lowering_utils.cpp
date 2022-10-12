@@ -30,8 +30,8 @@ DummyTargetMachine::DummyTargetMachine() {
     jitters[ngraph::snippets::op::Scalar::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::BroadcastMove::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::Kernel::get_type_info_static()] = dummy_functor;
-    jitters[ngraph::snippets::op::Tile::get_type_info_static()] = dummy_functor;
-    jitters[ngraph::snippets::op::TileScheduler::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::TileBegin::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::TileEnd::get_type_info_static()] = dummy_functor;
 }
 
 std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getSubgraph(const std::shared_ptr<Model>& f) {
@@ -52,9 +52,11 @@ std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getSubgraph(const
     return subgraph;
 }
 
-std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgraph(const std::shared_ptr<Model> &f) {
+std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgraph(const std::shared_ptr<Model> &f,
+                                                                                  const ov::PartialShape& master_shape) {
     auto subgraph = getTokenizedSubgraph(f);
     subgraph->set_generator(std::make_shared<DummyGenerator>());
+    subgraph->set_master_shape(master_shape);
     subgraph->generate();
     return subgraph;
 }

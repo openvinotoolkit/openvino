@@ -32,10 +32,13 @@ void InsertLoadStoreTests::SetUp() {
              broadcastShapes[0], broadcastShapes[1], broadcastShapes[2]) = this->GetParam();
     snippets_function = std::make_shared<EltwiseThreeInputsLoweredFunction>(
             std::vector<PartialShape> {inputShapes[0], inputShapes[1], inputShapes[2]}, broadcastShapes);
+    master_shape = inputShapes[0];
 }
 
 TEST_P(InsertLoadStoreTests, ThreeInputsEltwise) {
-    auto subgraph = getLoweredSubgraph(snippets_function->getOriginal());
+    PartialShape scheduler_shape({master_shape[master_shape.size() - 2],
+                                  master_shape[master_shape.size() - 1]});
+    auto subgraph = getLoweredSubgraph(snippets_function->getOriginal(), scheduler_shape);
     function = subgraph->get_body();
     function_ref = snippets_function->getLowered();
 }

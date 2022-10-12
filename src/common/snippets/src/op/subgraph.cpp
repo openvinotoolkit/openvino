@@ -506,6 +506,7 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
             const auto& outerTileBegin = insertTileBegin(commonParams);
             insertTileEnd(commonResults, outerTileBegin, outer_dim, outer_WA, 1, apply_increments);
         }
+        m_body->validate_nodes_and_infer_types();
     } else {
         throw ngraph_error("Dynamic case is not supported yet");
     }
@@ -522,7 +523,6 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
 //        }
 //        std::cerr << "\n";
 //    }
-    m_body->validate_nodes_and_infer_types();
 
 //    std::cerr << "Tile after is dumped";
 //    ov::pass::Serialize("tile_after.xml", "tile_after.bin").run_on_model(m_body);
