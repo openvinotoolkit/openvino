@@ -14,6 +14,11 @@ set(JSON_VALIDATOR_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(nlohmann_json_schema_validator EXCLUDE_FROM_ALL)
 
 set_target_properties(nlohmann_json_schema_validator PROPERTIES FOLDER thirdparty)
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+    target_compile_options(nlohmann_json_schema_validator PRIVATE -Wno-switch -Wno-deprecated-declarations)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    target_compile_options(nlohmann_json_schema_validator PRIVATE /wd4996)
+endif()
 
 # WA for CentOS with gcc < 4.9: override defitions to remove boost usage
 set_property(TARGET nlohmann_json_schema_validator PROPERTY COMPILE_DEFINITIONS "")

@@ -45,20 +45,17 @@ flowchart LR
 
 OpenVINO Frontends allow to convert model from framework to OpenVINO representation.
 
- * [ir](./frontends/ir)
- * [onnx](./frontends/onnx)
-    
+Go to the [Frontends page](./frontends/README.md) to get more information.
+
 ## OpenVINO Plugins
 
-Plugins provide a support of hardware device
- * [intel_cpu](./plugins/intel_cpu)
+OpenVINO Plugins provide support for hardware devices.
+
+To get more information about supported OpenVINO Plugins, go to the [Plugins page](./plugins/README.md).
 
 ## OpenVINO Bindings
 
-OpenVINO provides bindings for several languages:
-
- * [c](./bindings/c)
- * [python](./bindings/python)
+OpenVINO provides bindings for different languages. To get the full list of supported languages, go to the [bindings page](./bindings/README.md).
 
 ## Core developer topics
 

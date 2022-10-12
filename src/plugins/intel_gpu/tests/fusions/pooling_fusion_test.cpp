@@ -304,13 +304,10 @@ TEST_P(pooling_scale_activation_quantize, per_channel) {
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 16.0f)),
         pooling("pooling", "input", "", p.pool_mode, kernel, stride, pad),
         eltwise("scale", { "pooling", "scale_data" }, eltwise_mode::prod, p.default_type),
-        activation("activation", "scale", activation_func::atan),
+        activation("activation", "scale", activation_func::hyperbolic_tan),
         quantize("quantize", "activation", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::u8),
         reorder("output_reorder", "quantize", p.default_format, data_types::f32)
     );
-    // Activation won't be fused because onednn doesn't support atan activation
-    if (engine.get_device_info().supports_immad)
-        p.expected_fused_primitives++;
 
     tolerance = 1.0f;
     execute(p);

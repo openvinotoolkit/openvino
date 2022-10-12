@@ -5,7 +5,22 @@ trigger:
     - releases/*
   paths:
     exclude:
-    - docs/*
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+    - README.md
+
+pr:
+  branches:
+    include:
+    - master
+    - releases/*
+  paths:
+    exclude:
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+    - README.md
 
 resources:
   repositories:
@@ -47,6 +62,7 @@ jobs:
     LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
     SAMPLES_INSTALL_DIR: /usr/share/openvino/samples
     PYTHON_SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/share/openvino/samples/python
+    PYTHON_WHEEL_INSTALL_DIR: $HOME/.local/lib/python3.8/site-packages
     TMP_DIR: /mnt/tmp
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
@@ -141,6 +157,7 @@ jobs:
         -GNinja
         -DVERBOSE_BUILD=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DENABLE_PYTHON=ON
         -DENABLE_OPENCV=OFF
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
@@ -228,10 +245,16 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      # for libopenvino_template_extension.so
-      export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
-      export PYTHONPATH=$(INSTALL_TEST_DIR):$(INSTALL_DIR)/python/python3.8:$PYTHONPATH
-      export OV_FRONTEND_PATH=$(INSTALL_TEST_DIR)
+      # Required by python imports to load requires libraries
+      # - tests install dir for mock_py
+      # - OpenVINO wheel installation dir for others frontend required by mock_py (is not part of wheel pkg)
+      export LD_LIBRARY_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
+      # For frontend manager to load frontend libraries:
+      # - tests install dir for mock_py
+      # - OpenVINO wheel installation dir for others frontend (not required if this variable is not set)
+      export OV_FRONTEND_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR)
+      # For python imports to import pybind_mock_frontend
+      export PYTHONPATH=$(INSTALL_TEST_DIR):$PYTHONPATH
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
@@ -312,8 +335,8 @@ jobs:
   - script: |
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
       export OV_FRONTEND_PATH=$(INSTALL_TEST_DIR)
-      $(INSTALL_TEST_DIR)/tensorflow_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
-    displayName: 'Tensorflow Frontend UT'
+      $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
+    displayName: 'TensorFlow Frontend Unit Tests'
     continueOnError: false
 
     # python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --workers=16 --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
@@ -408,7 +431,7 @@ jobs:
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
-    displayName: 'Layer Tests'
+    displayName: 'TensorFlow 1 Layer Tests - Legacy FE'
     continueOnError: false
 
   - task: PublishTestResults@2

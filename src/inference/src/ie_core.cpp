@@ -243,6 +243,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             std::shared_ptr<ie::ICacheManager> _cacheManager;
         };
 
+        bool flag_allow_auto_batching = true;
+
         void setAndUpdate(ov::AnyMap& config) {
             auto it = config.find(CONFIG_KEY(CACHE_DIR));
             if (it != config.end()) {
@@ -258,6 +260,13 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             if (it != config.end()) {
                 auto flag = it->second.as<std::string>() == CONFIG_VALUE(YES) ? true : false;
                 executorManager()->setTbbFlag(flag);
+                config.erase(it);
+            }
+
+            it = config.find(ov::hint::allow_auto_batching.name());
+            if (it != config.end()) {
+                auto flag = it->second.as<bool>();
+                flag_allow_auto_batching = flag;
                 config.erase(it);
             }
         }
@@ -746,6 +755,8 @@ public:
                     config.erase(batch_mode);
                 if (disabled)
                     return;
+            } else if (!coreConfig.flag_allow_auto_batching) {
+                return;
             }
             // check whether if the Auto-Batching is applicable to the device
             auto device = ov::parseDeviceNameIntoConfig(deviceName);
@@ -987,6 +998,9 @@ public:
             return decltype(ov::force_tbb_terminate)::value_type(flag);
         } else if (name == ov::cache_dir.name()) {
             return ov::Any(coreConfig.get_cache_dir());
+        } else if (name == ov::hint::allow_auto_batching.name()) {
+            const auto flag = coreConfig.flag_allow_auto_batching;
+            return decltype(ov::hint::allow_auto_batching)::value_type(flag);
         }
 
         IE_THROW() << "Exception is thrown while trying to call get_property with unsupported property: '" << name

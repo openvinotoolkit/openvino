@@ -19,11 +19,18 @@ std::shared_ptr<ov::Node> makeLSTM(const std::vector<ov::Output<Node>>& in,
                                        float clip,
                                        bool make_sequence,
                                        ov::op::RecurrentSequenceDirection direction,
-                                       ngraph::helpers::SequenceTestsMode mode) {
+                                       ngraph::helpers::SequenceTestsMode mode,
+                                       float WRB_range) {
     std::vector<float> empty;
     auto W = ngraph::builder::makeConstant(in[0].get_element_type(), constants[0], empty, true);
     auto R = ngraph::builder::makeConstant(in[0].get_element_type(), constants[1], empty, true);
     auto B = ngraph::builder::makeConstant(in[0].get_element_type(), constants[2], empty, true);
+
+    if (WRB_range > 0) {
+        W = ngraph::builder::makeConstant(in[0].get_element_type(), constants[0], empty, true, -WRB_range, WRB_range);
+        R = ngraph::builder::makeConstant(in[0].get_element_type(), constants[1], empty, true, -WRB_range, WRB_range);
+        B = ngraph::builder::makeConstant(in[0].get_element_type(), constants[2], empty, true, -WRB_range, WRB_range);
+    }
     if (!make_sequence) {
         return std::make_shared<ov::op::v4::LSTMCell>(in[0], in[1], in[2], W, R, B, hidden_size, activations,
                                                           activations_alpha, activations_beta, clip);

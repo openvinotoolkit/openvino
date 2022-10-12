@@ -12,10 +12,8 @@ project(OpenVINOPython DESCRIPTION "OpenVINO Runtime Python bindings")
 
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage REQUIRED)
+    set(OpenVINO_BINARY_DIR "${InferenceEngineDeveloperPackage_DIR}")
 endif()
-
-set(PYTHON_SOURCE_DIR ${OpenVINOPython_SOURCE_DIR}/src)
-
 
 #
 # Check python requirements
@@ -38,15 +36,23 @@ function(ov_check_python_build_conditions)
     find_host_package(PythonInterp 3 ${find_package_mode})
     if(PYTHONINTERP_FOUND)
         function(_ov_find_python_libs_new)
-            set(PYBIND11_PYTHON_VERSION ${PYTHON_VERSION_STRING})
-            list(APPEND CMAKE_MODULE_PATH "${OpenVINOPython_SOURCE_DIR}/thirdparty/pybind11/tools")
+            set(pybind11_tools_dir "${OpenVINOPython_SOURCE_DIR}/thirdparty/pybind11/tools")
+            if(EXISTS ${pybind11_tools_dir})
+                list(APPEND CMAKE_MODULE_PATH ${pybind11_tools_dir})
+            else()
+                find_package(pybind11 QUIET)
+                list(APPEND CMAKE_MODULE_PATH "${pybind11_DIR}")
+            endif()
             # use libraries with the same version as python itself
+            set(PYBIND11_PYTHON_VERSION ${PYTHON_VERSION_STRING})
             find_package(PythonLibsNew ${PYBIND11_PYTHON_VERSION} EXACT ${find_package_mode})
             set(PYTHONLIBSNEW_FOUND ${PYTHONLIBS_FOUND} PARENT_SCOPE)
         endfunction()
         # try to find python libraries
         _ov_find_python_libs_new()
         if(PYTHONLIBSNEW_FOUND)
+            # clear Python_ADDITIONAL_VERSIONS to find only python library matching PYTHON_EXECUTABLE
+            unset(Python_ADDITIONAL_VERSIONS CACHE)
             find_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT ${find_package_mode})
         endif()
         if(NOT PYTHONLIBS_FOUND)
@@ -128,14 +134,8 @@ endif()
 
 set(wheel_reqs "${OpenVINOPython_SOURCE_DIR}/wheel/requirements-dev.txt")
 ov_check_pip_packages(REQUIREMENTS_FILE "${OpenVINOPython_SOURCE_DIR}/wheel/requirements-dev.txt"
-                      RESULT_VAR wheel_req_FOUND
+                      RESULT_VAR ENABLE_WHEEL_DEFAULT
                       MESSAGE_MODE WARNING)
-
-if(wheel_req_FOUND AND "${CMAKE_SOURCE_DIR}" STREQUAL "${OpenVINO_SOURCE_DIR}")
-    set(ENABLE_WHEEL_DEFAULT ON)
-else()
-    set(ENABLE_WHEEL_DEFAULT OFF)
-endif()
 
 if(LINUX)
     find_host_program(patchelf_program
@@ -154,7 +154,13 @@ ie_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_
 #
 # Build the code
 #
-add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
+
+find_package(pybind11 QUIET)
+
+if(NOT pybind11_FOUND)
+    add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
+endif()
+
 add_subdirectory(src/compatibility/pyngraph)
 add_subdirectory(src/pyopenvino)
 
