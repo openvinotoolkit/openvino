@@ -755,11 +755,6 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
                                     IStreamsExecutor::Config::StreamMode::LESSAGGRESSIVE)
                               : std::max(default_num_streams, num_streams_less_aggressive);
         }
-        std::cout << "[ p_e_core_info ] streams (threads): " << num_streams << " -- PCore: "
-                  << engConfig.streamExecutorConfig._big_core_streams << "("
-                  << engConfig.streamExecutorConfig._threads_per_stream_big << ")  ECore: "
-                  << engConfig.streamExecutorConfig._small_core_streams << "("
-                  << engConfig.streamExecutorConfig._threads_per_stream_small << ")" << std::endl;
         auto num_requests = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
         if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
             auto val = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);

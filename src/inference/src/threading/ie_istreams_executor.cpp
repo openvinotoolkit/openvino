@@ -58,13 +58,13 @@ int IStreamsExecutor::Config::GetHybridDefaultNumStreams(const Config& config) {
         config._big_core_streams = std::max(5, num_big_cores / 5);
     } else if (0 == num_big_cores % 3) {
         config._big_core_streams = std::max(3, num_big_cores / 3);
-    }else {  // if user disables some cores say in BIOS, so we got weird #cores which is not easy to divide
+    } else {  // if user disables some cores say in BIOS, so we got weird #cores which is not easy to divide
         config._big_core_streams = 1;
     }
 
     config._threads_per_stream_big = num_big_cores / config._big_core_streams;
     config._threads_per_stream_small = config._threads_per_stream_big * 2;
-    if(num_small_cores < config._threads_per_stream_small) {
+    if (num_small_cores < config._threads_per_stream_small) {
         config._small_core_streams = 1;
         config._threads_per_stream_small = num_small_cores;
         config._threads_per_stream_big = config._threads_per_stream_small / 2;
