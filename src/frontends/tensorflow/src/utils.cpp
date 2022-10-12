@@ -198,3 +198,12 @@ void ov::frontend::tensorflow::default_op_checks(const ov::frontend::tensorflow:
 bool ov::frontend::tensorflow::is_conditional_edge(const std::string& input_tensor_name) {
     return input_tensor_name.length() > 0 && input_tensor_name[0] == '^';
 }
+
+ov::Output<ov::Node> ov::frontend::tensorflow::get_elements_number_1d(const ov::Output<ov::Node>& output,
+                                                                      ov::element::Type output_type,
+                                                                      ov::pass::NodeRegistry& rg) {
+    auto shape = rg.make<ShapeOf>(output, output_type);
+    auto squeeze_axis = rg.make<Constant>(ov::element::i32, ov::Shape{}, 0);
+    auto num_elements = rg.make<Squeeze>(shape, squeeze_axis);
+    return num_elements;
+}
