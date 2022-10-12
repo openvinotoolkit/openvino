@@ -43,7 +43,7 @@ ie_cpack_add_component(${OV_CPACK_COMP_CORE_TOOLS}
                        HIDDEN
                        DEPENDS ${OV_CPACK_COMP_CORE})
 
-if(CPACK_GENERATOR MATCHES "DEB")
+if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
     install(TARGETS compile_tool
             RUNTIME DESTINATION ${OV_CPACK_TOOLSDIR}
             COMPONENT ${OV_CPACK_COMP_CORE_TOOLS})
