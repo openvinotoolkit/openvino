@@ -19,6 +19,14 @@ struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected, dnn
     using parent = typed_primitive_onednn_impl<fully_connected, dnnl::inner_product_forward::desc>;
     using parent::parent;
 
+private:
+    static std::vector<int64_t> reshape_to_2d(const ov::PartialShape& shape, int64_t feature) {
+        auto staticShape = shape.to_shape();
+        size_t total = std::accumulate(staticShape.begin(), staticShape.end(), 1, std::multiplies<size_t>());
+        std::vector<int64_t> reshapeSize = { static_cast<int64_t>(total) / feature, feature };
+        return reshapeSize;
+    }
+
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<fully_connected_onednn>(*this);
@@ -58,8 +66,19 @@ protected:
     }
 
     static kernel_selector::WeightsReorderParams get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
+        auto input_layout = impl_params.get_input_layout(0);
         auto weights_layout = impl_params.get_input_layout(1);
         auto cldnn_prim = impl_params.typed_desc<fully_connected>();
+
+        auto input_pshape = input_layout.get_partial_shape();
+        auto weights_pshape = weights_layout.get_partial_shape();
+        int64_t feature = input_pshape[std::min(cldnn_prim->input_size, static_cast<size_t>(4)) - 1].get_length();
+        if (cldnn_prim->input_size == 3) {
+            feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
+        }
+        if (weights_pshape.size() != 2) {
+            weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
+        }
 
         kernel_selector::WeightsReorderParams weights_reorder_params;
         auto& reorderKS = kernel_selector::ReorderWeightsKernelSelctor::Instance();
@@ -97,6 +116,26 @@ protected:
         auto input_layout = impl_params.get_input_layout(0);
         auto weights_layout = impl_params.get_input_layout(1);
         auto output_layout = impl_params.output_layout;
+
+        auto input_pshape = input_layout.get_partial_shape();
+        auto weights_pshape = weights_layout.get_partial_shape();
+
+        int64_t feature = input_pshape[std::min(prim->input_size, static_cast<size_t>(4)) - 1].get_length();
+        if (prim->input_size == 3) {
+            feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
+        }
+
+        if (prim->input_size > 3) {
+           input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
+        }
+        if (weights_pshape.size() != 2) {
+            weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
+        }
+        if (prim->input_size == 3) {
+            output_layout.set_partial_shape({ input_layout.batch(), input_layout.feature(), weights_layout.batch(), 1 });
+        } else {
+            output_layout.set_partial_shape({ input_layout.batch(), weights_layout.batch() });
+        }
 
         if (prim->input_size == 3) {
             combine_bf_with_first_spatial_dim(input_layout);

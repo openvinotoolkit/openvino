@@ -200,6 +200,7 @@
    TopK-1 <openvino_docs_ops_sort_TopK_1>
    TopK-3 <openvino_docs_ops_sort_TopK_3>
    Transpose-1 <openvino_docs_ops_movement_Transpose_1>
+   Unique-10 <openvino_docs_ops_movement_Unique_10>
    Unsqueeze-1 <openvino_docs_ops_shape_Unsqueeze_1>
    VariadicSplit-1 <openvino_docs_ops_movement_VariadicSplit_1>
 
