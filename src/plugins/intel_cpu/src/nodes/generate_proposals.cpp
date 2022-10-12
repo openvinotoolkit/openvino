@@ -294,16 +294,16 @@ GenerateProposals::GenerateProposals
     }
 
     if (op->output(0).get_element_type() == ov::element::f32) {
-//        if (mayiuse(x64::avx512_core)) {
-//            refine_anchors_kernel_.reset(new jit_refine_anchors_kernel_fp32<x64::avx512_core>{
-//                jit_refine_anchors_conf{}});
-//        } else if (mayiuse(x64::avx2)) {
-//            refine_anchors_kernel_.reset(new jit_refine_anchors_kernel_fp32<x64::avx2>{
-//                jit_refine_anchors_conf{}});
-//        } else if (mayiuse(x64::sse41)) {
+        if (mayiuse(x64::avx512_core)) {
+            refine_anchors_kernel_.reset(new jit_refine_anchors_kernel_fp32<x64::avx512_core>{
+                jit_refine_anchors_conf{}});
+        } else if (mayiuse(x64::avx2)) {
+            refine_anchors_kernel_.reset(new jit_refine_anchors_kernel_fp32<x64::avx2>{
+                jit_refine_anchors_conf{}});
+        } else if (mayiuse(x64::sse41)) {
             refine_anchors_kernel_.reset(new jit_refine_anchors_kernel_fp32<x64::sse41>{
                 jit_refine_anchors_conf{}});
-//        }
+        }
         if (refine_anchors_kernel_) {
             refine_anchors_kernel_->create_kernel();
         }
