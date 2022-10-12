@@ -760,6 +760,9 @@ def _convert(**args):
                                                  out_dir)
             args['input_model'] = model_onnx
             args['use_legacy_frontend'] = True
+            args['input_shape'] = None
+            args['sample_input'] = None
+            args['onnx_opset_version'] = None
             ov_model = _convert(**args)
 
             if os.environ.get('SAVE_TO_FILE_ONNX_MODEL'):

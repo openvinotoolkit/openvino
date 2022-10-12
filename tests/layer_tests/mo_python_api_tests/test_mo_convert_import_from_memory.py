@@ -42,7 +42,7 @@ def create_pytorch_nn_module_case1(temp_dir):
     function = Model([sigm], parameter_list, "test")
 
     return NeuralNetwork(), function, {'input_shape': [PartialShape([-1, 3, -1, -1]), PartialShape([-1, 3, -1, -1])],
-                                       'input': ["x", "y"], 'sample_input': sample_input}
+                                       'sample_input': sample_input}
 
 
 def create_pytorch_nn_module_case2(temp_dir):
@@ -77,7 +77,7 @@ def create_pytorch_nn_module_case2(temp_dir):
     function = Model([sigm], parameter_list, "test")
 
     return NeuralNetwork(), function, {'input_shape': ["[?,3,?,?]", PartialShape([-1, 3, -1, -1])],
-                                       'input': ["x", "y"], 'sample_input': sample_input}
+                                       'sample_input': sample_input, 'onnx_opset_version': 11}
 
 
 def create_pytorch_nn_module_case3(temp_dir):
