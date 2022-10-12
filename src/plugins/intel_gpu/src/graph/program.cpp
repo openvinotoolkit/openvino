@@ -38,9 +38,11 @@
 #include "data_inst.h"
 #include "deconvolution_inst.h"
 #include "detection_output_inst.h"
+#include "generate_proposals_inst.h"
 #include "input_layout_inst.h"
 #include "shuffle_channels_inst.h"
 #include "arg_max_min_inst.h"
+#include "dft_inst.h"
 #include "lstm_inst.h"
 #include "lstm_elt_inst.h"
 #include "lstm_gemm_inst.h"
@@ -1414,6 +1416,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                  prim.as<mvn>().input().get_output_layout().data_type != data_types::i8)
              || prim.as<mvn>().get_primitive()->across_channels) &&
             prim.type() != cldnn::arg_max_min::type_id() &&
+            prim.type() != cldnn::dft::type_id() &&
             prim.type() != cldnn::mutable_data::type_id() &&
             prim.type() != cldnn::reduce::type_id() &&
             prim.type() != cldnn::strided_slice::type_id() &&
@@ -1427,7 +1430,11 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::roi_align::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
             prim.type() != cldnn::bucketize::type_id() &&
-            prim.type() != cldnn::roll::type_id()) {
+            prim.type() != cldnn::roll::type_id() &&
+            prim.type() != cldnn::prior_box::type_id() &&
+            prim.type() != cldnn::resample::type_id() &&
+            prim.type() != cldnn::eye::type_id() &&
+            prim.type() != cldnn::generate_proposals::type_id()) {
             can_use_fsv16 = false;
         }
 
@@ -1449,6 +1456,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::reshape::type_id() &&
             prim.type() != cldnn::input_layout::type_id() &&
             prim.type() != cldnn::activation::type_id() &&
+            prim.type() != cldnn::dft::type_id() &&
             prim.type() != cldnn::softmax::type_id() &&
             prim.type() != cldnn::fully_connected::type_id() &&
             prim.type() != cldnn::generic_layer::type_id() &&
@@ -1459,7 +1467,11 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::roi_align::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
             prim.type() != cldnn::bucketize::type_id() &&
-            prim.type() != cldnn::roll::type_id()) {
+            prim.type() != cldnn::roll::type_id() &&
+            prim.type() != cldnn::resample::type_id() &&
+            prim.type() != cldnn::prior_box::type_id() &&
+            prim.type() != cldnn::eye::type_id() &&
+            prim.type() != cldnn::generate_proposals::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
     }

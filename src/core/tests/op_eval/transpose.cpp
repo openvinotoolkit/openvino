@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "engines_util/execute_tools.hpp"
-#include "gtest/gtest.h"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/transpose.hpp"
 #include "ngraph/util.hpp"
@@ -154,7 +153,7 @@ TEST(op_eval, eval_duplicated_axes_transpose) {
 
         FAIL() << "Duplicated axes values not detected";
     } catch (const ngraph_error& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("must be unique"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Permutation AxisVector{2, 1, 2} is not valid for input shape"));
     } catch (...) {
         FAIL() << "Failed for unexpected reason";
     }
@@ -179,7 +178,7 @@ TEST(op_eval, eval_out_of_shape_axes_transpose) {
 
         FAIL() << "Out of shape axes not detected";
     } catch (const ngraph_error& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("out of shape"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Permutation AxisVector{0, 1, 3} is not valid for input shape"));
     } catch (...) {
         FAIL() << "Failed for unexpected reason";
     }
@@ -208,7 +207,9 @@ TEST(op_eval, eval_negative_axes_transpose) {
         ASSERT_EQ(actual_results, expected_result);
         FAIL() << "Negative axes for Transpose were not supported before.";
     } catch (const ngraph_error& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("not supported"));
+        std::stringstream exp_msg;
+        exp_msg << "Permutation " << AxisVector(perm.begin(), perm.end()) << " is not valid for input shape";
+        EXPECT_HAS_SUBSTRING(error.what(), exp_msg.str());
     } catch (...) {
         FAIL() << "Failed for unexpected reason";
     }

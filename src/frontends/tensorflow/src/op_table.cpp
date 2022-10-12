@@ -47,6 +47,7 @@ OP_CONVERTER(translate_cumsum_op);
 OP_CONVERTER(translate_crop_and_resize_op);
 OP_CONVERTER(translate_depth_to_space_op);
 OP_CONVERTER(translate_depthwise_conv_2d_native_op);
+OP_CONVERTER(translate_dynamic_partition_op);
 OP_CONVERTER(translate_einsum_op);
 OP_CONVERTER(translate_elu_op);
 OP_CONVERTER(translate_expand_dims_op);
@@ -76,6 +77,7 @@ OP_CONVERTER(translate_max_pool_op);
 OP_CONVERTER(translate_non_max_suppression_op);
 OP_CONVERTER(translate_normalize_l2_op);
 OP_CONVERTER(translate_pad_op);
+OP_CONVERTER(translate_parallel_dynamic_stitch_op);
 OP_CONVERTER(translate_placeholder_op);
 OP_CONVERTER(translate_placeholder_with_default_op);
 OP_CONVERTER(translate_no_op);
@@ -95,6 +97,7 @@ OP_CONVERTER(translate_roll_op);
 OP_CONVERTER(translate_round_op);
 OP_CONVERTER(translate_rsqrt_op);
 OP_CONVERTER(translate_scatter_nd_op);
+OP_CONVERTER(translate_segment_sum_op);
 OP_CONVERTER(translate_sparse_to_dense_op);
 OP_CONVERTER(translate_select_op);
 OP_CONVERTER(translate_shape_op);
@@ -213,6 +216,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Cumsum", translate_cumsum_op},
         {"DepthToSpace", translate_depth_to_space_op},
         {"DepthwiseConv2dNative", translate_depthwise_conv_2d_native_op},
+        {"DynamicPartition", translate_dynamic_partition_op},
         {"Einsum", translate_einsum_op},
         {"Elu", translate_elu_op},
         {"ExpandDims", translate_expand_dims_op},
@@ -254,6 +258,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Pack", translate_pack_op},
         {"Pad", translate_pad_op},
         {"PadV2", translate_pad_op},
+        {"DynamicStitch", translate_parallel_dynamic_stitch_op},
+        {"ParallelDynamicStitch", translate_parallel_dynamic_stitch_op},
         {"Placeholder", translate_placeholder_op},
         {"PlaceholderWithDefault", translate_placeholder_with_default_op},
         {"PreventGradient", translate_identity_op},
@@ -274,6 +280,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Round", translate_round_op},
         {"Rsqrt", translate_rsqrt_op},
         {"ScatterNd", translate_scatter_nd_op},
+        {"SegmentSum", translate_segment_sum_op},
         {"SparseToDense", translate_sparse_to_dense_op},
         {"Select", translate_select_op},
         {"SelectV2", translate_select_op},
