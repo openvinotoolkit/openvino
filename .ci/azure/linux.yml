@@ -276,11 +276,11 @@ jobs:
       export PYTHONPATH=$(INSTALL_TEST_DIR):$(INSTALL_DIR)/python/python3.8:$PYTHONPATH
       # For frontend manager to load mock_py library
       export OV_FRONTEND_PATH=$(INSTALL_TEST_DIR)
-      python3 -m pytest -sv $(INSTALL_TEST_DIR)/_pyopenvino $(PYTHON_STATIC_ARGS) \
+      python3 -m pytest -sv $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
-        --ignore=$(INSTALL_TEST_DIR)/_pyopenvino/tests/test_utils/test_utils.py \
-        --ignore=$(INSTALL_TEST_DIR)/_pyopenvino/tests/test_onnx/test_zoo_models.py \
-        --ignore=$(INSTALL_TEST_DIR)/_pyopenvino/tests/test_onnx/test_backend.py
+        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
+        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py \
+        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py
     displayName: 'Python API 2.0 Tests'
     continueOnError: false
 
