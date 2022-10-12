@@ -7,15 +7,12 @@
 #include <gtest/gtest.h>
 
 #include <frontend/shared/include/utils.hpp>
-#include <openvino/frontend/manager.hpp>
 #include <openvino/opsets/opset9.hpp>
 #include <openvino/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
-#include "helper_ops/block_lstm.hpp"
 #include "helper_ops/unique.hpp"
-#include "helper_transforms/block_lstm_replacer.hpp"
 
 using namespace std;
 using namespace ov;
