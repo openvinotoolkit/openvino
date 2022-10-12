@@ -301,6 +301,10 @@ std::vector<CPUSpecificParams> filterCPUInfoForDeviceNearestExtFP32() {
     std::vector<CPUSpecificParams> resCPUParams{filterCPUInfoForDevice()};
     if (InferenceEngine::with_cpu_x86_avx512f()) {
         resCPUParams.push_back(CPUSpecificParams{{nchw, x, x, x}, {nchw}, {"jit_avx2"}, "jit_avx2"});
+    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+        return resCPUParams;
+    } else if (InferenceEngine::with_cpu_x86_sse42()) {
+        resCPUParams.push_back(CPUSpecificParams{{nchw, x, x, x}, {nchw}, {"jit_sse42"}, "jit_sse42"});
     }
     return resCPUParams;
 }
@@ -889,6 +893,10 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice5DNearestExtFP32() {
     std::vector<CPUSpecificParams> resCPUParams{filterCPUInfoForDevice5D()};
     if (InferenceEngine::with_cpu_x86_avx512f()) {
         resCPUParams.push_back(CPUSpecificParams{{ncdhw, x, x, x}, {ncdhw}, {"jit_avx2"}, "jit_avx2"});
+    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+        return resCPUParams;
+    } else if (InferenceEngine::with_cpu_x86_sse42()) {
+        resCPUParams.push_back(CPUSpecificParams{{ncdhw, x, x, x}, {ncdhw}, {"jit_sse42"}, "jit_sse42"});
     }
     return resCPUParams;
 }
