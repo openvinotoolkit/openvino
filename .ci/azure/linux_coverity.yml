@@ -26,6 +26,9 @@ jobs:
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     SETUPVARS: $(INSTALL_DIR)/setupvars.sh
+    TMP_DIR: /mnt/tmp
+    SHARE_DIR: /mount/cinfsshare/onnxtestdata
+    CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_coverity
 
   steps:
   - script: |
@@ -52,6 +55,11 @@ jobs:
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
       rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
+      sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
+      sudo mkdir -p $(SHARE_DIR)
+      sudo apt --assume-yes update && sudo apt --assume-yes install nfs-common
+      sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(SHARE_DIR) -o vers=4,minorversion=1,sec=sys
+      mkdir -p $(CCACHE_DIR)
     displayName: 'Make dir'
 
   - checkout: self
@@ -90,11 +98,16 @@ jobs:
         -DENABLE_REQUIREMENTS_INSTALL=OFF
         -DBUILD_nvidia_plugin=OFF
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
+        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        -DCMAKE_C_COMPILER_LAUNCHER=ccache
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
   - script: ls -alR $(REPO_DIR)/temp/
     displayName: 'List temp SDKs'
+
+  - script: ccache --zero-stats --max-size=50G --show-config
+    displayName: 'Clean ccache stats'
 
   - script: |
         set -e
@@ -104,9 +117,17 @@ jobs:
     workingDirectory: $(WORK_DIR)
     displayName: 'Install coverity tool'
 
-  - script: $(WORK_DIR)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int ninja
+  - script: | 
+        export CCACHE_DIR=$(CCACHE_DIR)
+        export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
+        export CCACHE_BASEDIR=$(Pipeline.Workspace)
+        export CCACHE_MAXSIZE=50G
+        $(WORK_DIR)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int ninja
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Lin with Coverity'
+
+  - script: ccache --show-stats
+    displayName: 'Show ccache stats'
 
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'

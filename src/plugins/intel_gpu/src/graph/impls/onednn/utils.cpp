@@ -162,15 +162,16 @@ std::string convert_data_format_string(cldnn::format fmt) {
 }
 
 void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
-    auto rank = cldnn::format::dimension(l.format);
-    auto last_spatial_dim_idx = rank - 2 - 1;
-    auto t = l.get_tensor();
-
-    t.batch[0] *= l.feature();
-    t.feature[0] = t.spatial[last_spatial_dim_idx];
-    t.spatial[last_spatial_dim_idx] = 1;
-
-    l.set_tensor(t);
+    auto pshape = l.get_shape();
+    ov::Shape new_shape{1, 1};
+    for (size_t i = 0; i < pshape.size(); ++i) {
+        if (i < 2) {
+            new_shape[0] *= pshape[i];
+        } else {
+            new_shape[1] *= pshape[i];
+        }
+    }
+    l.set_partial_shape(new_shape);
 }
 
 int64_t get_f_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
@@ -426,6 +427,7 @@ static cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_groupe
         case dnnl::memory::format_tag::ab: return cldnn::format::oiyx;
         case dnnl::memory::format_tag::abcd: return cldnn::format::oiyx;
         case dnnl::memory::format_tag::bacd: return cldnn::format::ioyx;
+        case dnnl::memory::format_tag::bcda: return cldnn::format::iyxo;
         case dnnl::memory::format_tag::BAcd16b16a: return cldnn::format::is_os_yx_isv16_osv16;
         case dnnl::memory::format_tag::ABcd16b16a: return cldnn::format::os_is_yx_isv16_osv16;
         case dnnl::memory::format_tag::abcde: return cldnn::format::oizyx;
@@ -590,6 +592,7 @@ dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
         case cldnn::activation_func::hyperbolic_tan: return dnnl::algorithm::eltwise_tanh;
         case cldnn::activation_func::pow: return dnnl::algorithm::eltwise_pow;
         case cldnn::activation_func::sqrt: return dnnl::algorithm::eltwise_sqrt;
+        case cldnn::activation_func::hard_sigmoid: return dnnl::algorithm::eltwise_hardsigmoid;
         default: throw std::runtime_error("Unsupported activation func for onednn primitive " + std::to_string(static_cast<int>(func)));
     }
 }
