@@ -2,7 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME gnaUnitTests)
+set(TARGET_NAME ov_gna_unit_tests)
+
+# RPATH is always enabled for unit tests
+set(CMAKE_SKIP_RPATH OFF)
+
+# because unit tests use plugins object files compiled with LTO
+if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+endif()
 
 # TODO: fix CVS-71010 and remove BUILD_SHARED_LIBS
 if(NOT BUILD_SHARED_LIBS)
