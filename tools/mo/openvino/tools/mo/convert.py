@@ -8,7 +8,7 @@ InputCutInfo = namedtuple("InputInfo", ["name", "shape", "type", "value"])
 LayoutMap = namedtuple("LayoutMap", ["source_layout", "target_layout"])
 
 
-def convert(input_model=None, **args):
+def convert_model(input_model=None, **args):
     """
     Converts the model from original framework to OpenVino Model.
 

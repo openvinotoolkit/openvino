@@ -4,7 +4,7 @@
 from pathlib import Path
 
 from openvino.runtime import serialize
-from openvino.tools.mo import convert
+from openvino.tools.mo import convert_model
 from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
 from openvino.frontend import FrontEnd, FrontEndManager
 from openvino.test_utils import compare_functions
@@ -18,7 +18,7 @@ class CommonMOConvertTest:
         output_dir = kwargs['output_dir']
         model_name = kwargs['model_name']
         del kwargs['output_dir']
-        model = convert(**kwargs)
+        model = convert_model(**kwargs)
         serialize(model, str(Path(output_dir, model_name + '.xml')))
 
     def _test(self, temp_dir, test_params, ref_params):

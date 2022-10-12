@@ -25,14 +25,14 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
         ({'layout': {'input': LayoutMap(source_layout='NCHW', target_layout='NHWC')}}),
     ])
     def test_import(self, params):
-        from openvino.tools.mo import convert
+        from openvino.tools.mo import convert_model
 
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
             model = create_onnx_model()
             model_path = save_to_onnx(model, tmpdir)
             out_xml = os.path.join(tmpdir, "model.xml")
 
-            ov_model = convert(input_model=model_path, **params)
+            ov_model = convert_model(input_model=model_path, **params)
             serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
             assert os.path.exists(out_xml)
 
@@ -93,14 +93,14 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
                                  ('sigmoid_data', 'result'),
                                  ])
 
-        from openvino.tools.mo import convert
+        from openvino.tools.mo import convert_model
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
 
             model = create_onnx_model()
             model_path = save_to_onnx(model, tmpdir)
             out_xml = os.path.join(tmpdir, "model.xml")
 
-            ov_model = convert(model_path)
+            ov_model = convert_model(model_path)
             serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
 
             ir = IREngine(out_xml, out_xml.replace('.xml', '.bin'))
