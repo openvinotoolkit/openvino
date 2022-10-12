@@ -8,6 +8,7 @@ trigger:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - README.md
 
 pr:
   branches:
@@ -19,6 +20,7 @@ pr:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - README.md
 
 resources:
   repositories:
@@ -233,6 +235,10 @@ jobs:
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-NGraphUT.xml
     displayName: 'OV Core UT'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-IRFrontend.xml
+    displayName: 'IR Frontend Tests'
     continueOnError: false
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ONNXFrontend.xml
