@@ -752,7 +752,7 @@ def _convert(**args):
     if model_framework is not None:
         if argv.framework is not None:
             if argv.framework != model_framework:
-                raise Error("Provided model is not corresponds to provided framework. The provided "
+                raise Error("Provided model does not correspond to provided framework. The provided "
                             "framework is {}, the model type is {} which is expected to be {} framework.".format(
                                 argv.framework,
                                 type(argv.input_model),

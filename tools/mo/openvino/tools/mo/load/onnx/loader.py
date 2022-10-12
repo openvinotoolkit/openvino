@@ -27,7 +27,6 @@ class ONNXLoader(Loader):
         import onnx
         import io
         argv = graph.graph['cmd_params']
-        print('run onnx loader')
         if isinstance(argv.input_model, str):
             model_proto = load_onnx_model(argv.input_model)
         elif isinstance(argv.input_model, io.BytesIO):
