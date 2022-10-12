@@ -14,8 +14,6 @@ endif()
 
 option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
 
-set(PYTHON_BRIDGE_CPACK_PATH "${OV_CPACK_PYTHONDIR}")
-
 if(UNIX)
     # cython generated files requires public visibility. Force visibility required.
     set(CMAKE_CXX_VISIBILITY_PRESET default)
@@ -68,5 +66,5 @@ endif()
 ie_cpack_add_component(${PYTHON_COMPONENT} HIDDEN)
 
 install(FILES requirements.txt
-        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${pyversion}
+        DESTINATION ${OV_CPACK_PYTHONDIR}
         COMPONENT ${PYTHON_COMPONENT})
