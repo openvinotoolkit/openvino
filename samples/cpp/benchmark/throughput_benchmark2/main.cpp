@@ -142,6 +142,10 @@ int main(int argc, char* argv[]) {
         }
         auto start = std::chrono::steady_clock::now();
         auto time_point_to_finish = start + seconds_to_run;
+        // Once there’s a finished ireq wake up main thread.
+        // Compute and save latency for that ireq and prepare for next inference by setting up callback.
+        // Callback pushes that ireq again to finished ireqs when infrence is completed.
+        // Start asynchronous infer with updated callback
         for (;;) {
             std::unique_lock<std::mutex> lock(mutex);
             while (!callback_exception && finished_ireqs.empty()) {
@@ -152,37 +156,34 @@ int main(int argc, char* argv[]) {
             }
             if (!finished_ireqs.empty()) {
                 auto time_point = std::chrono::steady_clock::now();
-                if (time_point < time_point_to_finish) {
-                    TimedIreq timedIreq = finished_ireqs.front();
-                    finished_ireqs.pop_front();
-                    lock.unlock();
-                    ov::InferRequest& ireq = timedIreq.ireq;
-                    if (timedIreq.has_start_time) {
-                        latencies.push_back(std::chrono::duration_cast<Ms>(time_point - timedIreq.start).count());
-                    }
-                    ireq.set_callback(
-                            [&ireq, time_point, &mutex, &finished_ireqs, &callback_exception, &cv] (std::exception_ptr ex) {
-                        std::unique_lock<std::mutex> lock(mutex);
-                        {
-                            try {
-                                if (ex) {
-                                    std::rethrow_exception(ex);
-                                }
-                                finished_ireqs.push_back({ireq, time_point, true});
-                            } catch (const std::exception&) {
-                                if (!callback_exception) {
-                                    callback_exception = std::current_exception();
-                                }
+                if (time_point > time_point_to_finish) {
+                    break;
+                }
+                TimedIreq timedIreq = finished_ireqs.front();
+                finished_ireqs.pop_front();
+                lock.unlock();
+                ov::InferRequest& ireq = timedIreq.ireq;
+                if (timedIreq.has_start_time) {
+                    latencies.push_back(std::chrono::duration_cast<Ms>(time_point - timedIreq.start).count());
+                }
+                ireq.set_callback(
+                        [&ireq, time_point, &mutex, &finished_ireqs, &callback_exception, &cv] (std::exception_ptr ex) {
+                    std::unique_lock<std::mutex> lock(mutex);
+                    {
+                        try {
+                            if (ex) {
+                                std::rethrow_exception(ex);
+                            }
+                            finished_ireqs.push_back({ireq, time_point, true});
+                        } catch (const std::exception&) {
+                            if (!callback_exception) {
+                                callback_exception = std::current_exception();
                             }
                         }
-                        cv.notify_one();
-                    });
-                    ireq.start_async();
-                } else {
-                    if (finished_ireqs.size() == ireqs.size()) {
-                        break;
                     }
-                }
+                    cv.notify_one();
+                });
+                ireq.start_async();
             }
         }
         auto end = std::chrono::steady_clock::now();

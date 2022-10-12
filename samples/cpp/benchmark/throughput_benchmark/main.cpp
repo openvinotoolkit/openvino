@@ -135,6 +135,9 @@ int main(int argc, char* argv[]) {
         int nstarted = 0;
         auto start = std::chrono::steady_clock::now();
         auto time_point_to_finish = start + seconds_to_run;
+        // For each ireq set up a callback which does the actual management of results and asynchronous infer.
+        // When inference finishes, the callback updates latencies vector and starts new inference.
+        // After the main loop wait for all ireqs completion
         for (uint32_t i = 0; i < nireq; ++i) {
             ov::InferRequest& ireq = ireqs[i];
             std::chrono::steady_clock::time_point& time_point = time_points[i];
@@ -154,9 +157,9 @@ int main(int argc, char* argv[]) {
                             return;
                         }
                         if (infer_end < time_point_to_finish) {
-                            ireq.start_async();
                             time_point = infer_end;
                             ++nstarted;
+                            ireq.start_async();
                         }
                     } catch (const std::exception&) {
                         if (!callback_exception) {
