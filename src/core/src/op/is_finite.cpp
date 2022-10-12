@@ -28,4 +28,4 @@ void ov::op::v10::IsFinite::validate_and_infer_types() {
 bool ov::op::v10::IsFinite::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v10_IsFinite_visit_attributes);
     return true;
-}   
+}

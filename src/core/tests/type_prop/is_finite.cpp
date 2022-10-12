@@ -11,7 +11,7 @@ using namespace ov::opset10;
 
 TEST(type_prop, isfinite_output_shape) {
     const auto data = make_shared<Parameter>(ov::element::f16, ov::Shape{4, 2});
-    const auto isfinite= make_shared<IsFinite>(data);
+    const auto isfinite = make_shared<IsFinite>(data);
 
     EXPECT_EQ(isfinite->get_output_partial_shape(0), ov::PartialShape({4, 2}))
         << "The output shape of IsFinite is incorrect";
@@ -30,5 +30,6 @@ TEST(type_prop, isfinite_output_type) {
     const auto data = make_shared<Parameter>(ov::element::f16, ov::Shape{4, 2});
     const auto isfinite = make_shared<IsFinite>(data);
 
-    EXPECT_EQ(isfinite->get_element_type(), ov::element::boolean) << "The output element type of IsFinite is not a boolean.";
+    EXPECT_EQ(isfinite->get_element_type(), ov::element::boolean)
+        << "The output element type of IsFinite is not a boolean.";
 }

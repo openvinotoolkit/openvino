@@ -19,4 +19,4 @@ OutputVector is_finite(const Node& node) {
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
-}  // ngraph
+}  // namespace ngraph
