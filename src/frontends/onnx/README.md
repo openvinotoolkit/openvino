@@ -20,9 +20,9 @@ In case of any questions, review and merge requests, please contact [openvino-on
 ONNX Frontend implements an interface common for all frontends defined in [Frontends API](./src/frontends/common/include/openvino/frontend).
 For backward compatibility reasons, the ONNX importer API (more lower-level abstraction approach) is still maintained. It can be found in [ONNX Importer](.src/frontends/onnx/frontend/include/onnx_import/onnx.hpp).
 
-The crucial place in ONNX Frontend is [the directory](.src/frontends/onnx/frontend/src/op) where the operators are implemented. Each operator handler has to be registered in [ops bridge](.src/frontends/onnx/frontend/src/ops_bridge.cpp). More details about it you can find in [How to add an new operation](./docs/how_to_add_op.md). Expect that ONNX frontend has capabilities to register a custom op by a user. It can be achieved via [ConversionExtension](.include/openvino/frontend/onnx/extension/conversion.hpp).
+The information about adding new operations to ONNX Frontend (both contribution and extension scenario) can be found in [How to add an new operation](./docs/how_to_add_op.md).
 
-API of ONNX Frontend can be called directly, but it is also used internally by [Model Optimizer](https://github.com/openvinotoolkit/openvino/tree/master/tools/mo) during ONNX to IR (Intermediate Representation) conversion. What's more capabilities of ONNX Frontend are used by [ONNX Runtime via OpenVINO Execution Provider](https://onnxruntime.ai/docs/build/eps.html#openvino).
+The API of ONNX Frontend can be called directly, but it is also used internally by [Model Optimizer](../../../tools/mo) during ONNX to IR (Intermediate Representation) conversion. What's more capabilities of ONNX Frontend are used by [ONNX Runtime via OpenVINO Execution Provider](https://onnxruntime.ai/docs/build/eps.html#openvino).
 
 ONNX Frontend is tested in many places (both `C++` and `Python` tests). More details about testing you can find in [ONNX FE tests](./docs/tests#places)
 
@@ -35,32 +35,23 @@ flowchart LR
     onnx[("ONNX (*.onnx)")]
     ov_model[("OV Model")]
 
-    subgraph InputModel
-        get_place["get_place_by_tensor_name"]
-        set_tensor_name["set_name_for_tensor"]
-        others["..."]
-        set_pt_shape["set_partial_shape"]
-        add_output["add_output"]
-        extract_sub["extract_subgraph"]
+    subgraph InputModel["ov::frontend::onnx::InputModel"]
     end
 
-    subgraph Frontend
-        fe_load["load_impl"]
-        fe_convert["convert"]
-        fe_others["..."]
-        fe_decode["decode"]
-        fe_add_extension["add_extension"]
+    subgraph Frontend["ov::frontend::onnx::FrontEnd"]
+        fe_load["load_impl()"]
+        fe_convert["convert()"]
     end
 
     style onnx fill:#6c9f7f
     style ov_model fill:#6c9f7f
 
-    onnx-->fe_load
+    onnx-->|protobuf|fe_load
     fe_load-->InputModel
     InputModel-->fe_convert
     fe_convert-->ov_model
 ```
-
+More details about architecture can be found in [ONNX Frontend architecture](./docs/architecture.md).
 
 ## Tutorials
 * [How to add an new operation](./docs/how_to_add_op.md)

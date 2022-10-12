@@ -1,9 +1,6 @@
-# How to add an new operation
+# ONNX Frontend architecture
 
-## How to implement an new operation
-
-## How to register an custom operation via Extension mechanism
-
+On the class diagram below is shown structure and relations between basic classes of ONNX Frontend:
 
 TBD - 93001
 

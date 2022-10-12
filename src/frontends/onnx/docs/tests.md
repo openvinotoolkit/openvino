@@ -1,7 +1,7 @@
 # ONNX Frontend tests
 
 ## <a name="places">Places where ONNX FE is tested
-- [C++ gtest-based tests](tests)
+- [C++ gtest-based tests](../tests)
 - [Python frontend tests](../../../../src/bindings/python/tests/test_frontend)
 - [Python operators tests](../../../../src/bindings/python/tests/test_onnx)
 - [Python compliance with ONNX standard tests](../../../../src/bindings/python/tests/test_onnx/test_backend.py)
@@ -9,4 +9,4 @@
 
 
 ## How to run tests
-TBD
+TBD - 93002
