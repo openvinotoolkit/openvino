@@ -116,7 +116,8 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
             // bare minimum of streams (that evenly divides available number of cores)
             _streams = GetDefaultNumStreams();
         } else if (streams.num >= 0) {
-            _streams = streams.num;
+            const auto sockets = static_cast<int32_t>(getAvailableNUMANodes().size());
+            _streams = (sockets > 1 && streams.num == 1) ? sockets : streams.num;
         } else {
             OPENVINO_UNREACHABLE("Wrong value for property key ",
                                  ov::num_streams.name(),
