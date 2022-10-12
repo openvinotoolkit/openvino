@@ -1061,6 +1061,60 @@ private:
     Node* m_node;
 };
 
+class PreparationProcess {
+public:
+    PreparationProcess(tbb::task_group& tg,
+                        const std::pair<size_t, size_t>& block,
+                        std::vector<std::pair<tbb::atomic<uint8_t>, std::atomic<uint8_t>>>& waveFrontCount,
+                        std::vector<NodePtr>& executableGraphNodes,
+                        size_t& prepareCounter,
+                        size_t& inferCounter) :
+        m_tg(tg),
+        m_block(block),
+        m_waveFrontCount(waveFrontCount),
+        m_executableGraphNodes(executableGraphNodes),
+        m_prepareCounter(prepareCounter),
+        m_inferCounter(inferCounter) {}
+
+    void operator()() const {
+        auto counter = m_block.first;
+        const auto& node = m_executableGraphNodes[counter];
+        if (m_block.second == 0) {
+            m_prepareCounter = counter;
+        }
+        if (one_of(node->getType(), Type::Input, Type::Reference, Type::Broadcast) &&
+            counter != 0 &&
+            m_inferCounter != counter) {
+            return;
+        }
+
+        if (m_block.second == 0) {
+            node->updateShape();
+            if (--m_waveFrontCount[counter].second == 0) {
+                m_tg.run(PreparationProcess(m_tg, {counter, 1}, m_waveFrontCount, m_executableGraphNodes, m_prepareCounter, m_inferCounter));
+            }
+            if (counter + 1 < m_executableGraphNodes.size() && --m_waveFrontCount[counter + 1].first == 0) {
+                //m_tg.run(PreparationProcess(m_tg, {counter + 1, 0}, m_waveFrontCount, m_executableGraphNodes, m_prepareCounter, m_inferCounter));
+                PreparationProcess task(m_tg, {counter + 1, 0}, m_waveFrontCount, m_executableGraphNodes, m_prepareCounter, m_inferCounter);
+                task();
+            }
+        } else if (m_block.second == 1) {
+            node->prepareNode();
+            if (counter + 1 < m_executableGraphNodes.size() && --m_waveFrontCount[counter + 1].second == 0) {
+                m_tg.run(PreparationProcess(m_tg, {counter + 1, 1}, m_waveFrontCount, m_executableGraphNodes, m_prepareCounter, m_inferCounter));
+            }
+        }
+    }
+
+private:
+    tbb::task_group& m_tg;
+    std::pair<size_t, size_t> m_block;
+    std::vector<std::pair<tbb::atomic<uint8_t>, std::atomic<uint8_t>>>& m_waveFrontCount;
+    std::vector<NodePtr>& m_executableGraphNodes;
+    size_t& m_prepareCounter;
+    size_t& m_inferCounter;
+};
+
 }// namespace
 
 void Graph::Infer(InferRequestBase* request) {
@@ -1086,7 +1140,7 @@ void Graph::Infer(InferRequestBase* request) {
     // WorkerThread worker0;
     // WorkerThread worker1;
 
-    std::vector<std::pair<std::atomic<uint8_t>, std::atomic<uint8_t>>> waveFrontCount(executableGraphNodes.size());
+    std::vector<std::pair<tbb::atomic<uint8_t>, std::atomic<uint8_t>>> waveFrontCount(executableGraphNodes.size());
     for (auto& item : waveFrontCount) {
         item.first = 1;
         item.second = 2;
@@ -1097,34 +1151,15 @@ void Graph::Infer(InferRequestBase* request) {
 
     while (prepareCounter + 1 < executableGraphNodes.size()) {
         std::pair<size_t, size_t> block{prepareCounter, 0};
-        tbb::parallel_do(&block, &block + 1,
-            [&](const std::pair<size_t, size_t>& block_, tbb::parallel_do_feeder<std::pair<size_t, size_t>>& feeder) {
-                auto counter = block_.first;
-                const auto& node = executableGraphNodes[counter];
-                if (block_.second == 0) {
-                    prepareCounter = counter;
-                }
-                if (one_of(node->getType(), Type::Input, Type::Reference, Type::Broadcast) &&
-                    counter != 0 &&
-                    inferCounter != counter) {
-                    return;
-                }
+        tbb::task_group tg;
 
-                if (block_.second == 0) {
-                    node->updateShape();
-                    if (--waveFrontCount[counter].second == 0) {
-                        feeder.add({counter, 1});
-                    }
-                    if (counter + 1 < executableGraphNodes.size() && --waveFrontCount[counter + 1].first == 0) {
-                        feeder.add({counter + 1, 0});
-                    }
-                } else if (block_.second == 1) {
-                    node->prepareNode();
-                    if (counter + 1 < executableGraphNodes.size() && --waveFrontCount[counter + 1].second == 0) {
-                        feeder.add({counter + 1, 1});
-                    }
-                }
-            });
+        tg.run(PreparationProcess(tg, block, waveFrontCount, executableGraphNodes, prepareCounter, inferCounter));
+        tg.wait();
+
+        // tbb::parallel_do(&block, &block + 1,
+        //     [&](const std::pair<size_t, size_t>& block_, tbb::parallel_do_feeder<std::pair<size_t, size_t>>& feeder) {
+
+            // });
         //if (prepareCounter < 30) // For Tests only
             runNodes(prepareCounter);
 
