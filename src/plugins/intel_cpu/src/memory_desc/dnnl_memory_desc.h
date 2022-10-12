@@ -49,6 +49,10 @@ public:
 
     MemoryDescPtr cloneWithNewPrecision(const InferenceEngine::Precision prec) const override;
 
+    size_t getOffsetPadding() const override {
+        return DnnlExtensionUtils::convertToDim(desc.data.offset0);
+    }
+
 protected:
     DnnlMemoryDesc() {}
     static constexpr size_t UNREACHABLE_DIM = std::numeric_limits<size_t>::max();

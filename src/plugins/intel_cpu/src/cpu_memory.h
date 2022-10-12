@@ -164,16 +164,22 @@ public:
     Memory(Memory&&) = delete;
     Memory& operator= (Memory&&) = delete;
 
-    dnnl::memory GetPrimitive() const {
-        if (isAllocated()) {
-            return *prim;
-        } else {
-            IE_THROW() << "Can not perform GetPrimitive call to the not allocated memory";
-        }
-    }
+    dnnl::memory GetPrimitive() const;
 
     bool isAllocated() const noexcept {
-        return prim != nullptr;
+        if (mgrHandle->getRawPtr()) {
+            return true;
+        }
+        if (!pMemDesc) {
+            return false;
+        }
+        if (!(pMemDesc->isDefined())) {
+            return true;
+        }
+        if (pMemDesc->getCurrentMemSize() == 0) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -258,14 +264,18 @@ private:
     friend DnnlMemoryMngr;
 
 private:
-    void Create(const dnnl::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true);
+    void createDnnlPrim(const dnnl::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true) const;
     void update();
+    void resetDnnlPrim();
+    bool testDnnlPrim() const;
 
 private:
     MemoryDescPtr pMemDesc;
-    std::shared_ptr<dnnl::memory> prim;
     dnnl::engine eng;
     DnnlMemMngrHandle mgrHandle;
+    bool padsZeroing = true;
+    mutable std::mutex primCachingLock;
+    mutable dnnl::memory prim;
 };
 
 using MemoryPtr = std::shared_ptr<Memory>;
