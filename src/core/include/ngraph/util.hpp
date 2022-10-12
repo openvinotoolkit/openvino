@@ -197,28 +197,6 @@ NGRAPH_API
 NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 size_t round_up(size_t size, size_t alignment);
 
-NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
-bool is_valid_permutation(ngraph::AxisVector permutation, ngraph::Rank rank = Rank::dynamic());
-template <typename T>
-NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
-T apply_permutation(T input, ngraph::AxisVector order);
-
-extern template NGRAPH_API NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
-    AxisVector apply_permutation<AxisVector>(AxisVector input, AxisVector order);
-
-extern template NGRAPH_API NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
-    Coordinate apply_permutation<Coordinate>(Coordinate input, AxisVector order);
-
-extern template NGRAPH_API NGRAPH_DEPRECATED("This method is deprecated and will be removed soon") Strides
-    apply_permutation<Strides>(Strides input, AxisVector order);
-
-extern template NGRAPH_API NGRAPH_DEPRECATED("This method is deprecated and will be removed soon") Shape
-    apply_permutation<Shape>(Shape input, AxisVector order);
-
-template <>
-NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
-NGRAPH_API PartialShape apply_permutation(PartialShape input, AxisVector order);
-
 NGRAPH_API
 AxisVector get_default_order(size_t rank);
 
