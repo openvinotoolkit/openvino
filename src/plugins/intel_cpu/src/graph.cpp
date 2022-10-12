@@ -1086,32 +1086,45 @@ void Graph::Infer(InferRequestBase* request) {
     // WorkerThread worker0;
     // WorkerThread worker1;
 
-    while (prepareCounter < executableGraphNodes.size()) {
-        //for (; prepareCounter < executableGraphNodes.size(); ++prepareCounter) {
-            tbb::parallel_pipeline(parallel_get_max_threads(),
-                tbb::make_filter<void, Node*>(
-                    tbb::filter::serial_in_order,
-                    [&](tbb::flow_control& fc) -> Node* {
-                        if (prepareCounter < executableGraphNodes.size()) {
-                            auto& node = executableGraphNodes[prepareCounter];
-                            if (one_of(node->getType(), Type::Input, Type::Reference, Type::Broadcast) &&
-                                prepareCounter != 0 &&
-                                inferCounter != prepareCounter) {
-                                fc.stop();
-                                return nullptr;
-                            }
-                            node->updateShape();
-                            ++prepareCounter;
-                            return node.get();
-                        }
-                        fc.stop();
-                        return nullptr;
-                    }) &
-                tbb::make_filter<Node*, void>(
-                    tbb::filter::serial_in_order,
-                    [](Node* node) {
-                        node->prepareNode();
-                    }));
+    std::vector<std::pair<std::atomic<uint8_t>, std::atomic<uint8_t>>> waveFrontCount(executableGraphNodes.size());
+    for (auto& item : waveFrontCount) {
+        item.first = 1;
+        item.second = 2;
+    }
+
+    waveFrontCount.front().first = 0;
+    waveFrontCount.front().second = 1;
+
+    while (prepareCounter + 1 < executableGraphNodes.size()) {
+        std::pair<size_t, size_t> block{prepareCounter, 0};
+        tbb::parallel_do(&block, &block + 1,
+            [&](const std::pair<size_t, size_t>& block_, tbb::parallel_do_feeder<std::pair<size_t, size_t>>& feeder) {
+                auto counter = block_.first;
+                const auto& node = executableGraphNodes[counter];
+                if (block_.second == 0) {
+                    prepareCounter = counter;
+                }
+                if (one_of(node->getType(), Type::Input, Type::Reference, Type::Broadcast) &&
+                    counter != 0 &&
+                    inferCounter != counter) {
+                    return;
+                }
+
+                if (block_.second == 0) {
+                    node->updateShape();
+                    if (--waveFrontCount[counter].second == 0) {
+                        feeder.add({counter, 1});
+                    }
+                    if (counter + 1 < executableGraphNodes.size() && --waveFrontCount[counter + 1].first == 0) {
+                        feeder.add({counter + 1, 0});
+                    }
+                } else if (block_.second == 1) {
+                    node->prepareNode();
+                    if (counter + 1 < executableGraphNodes.size() && --waveFrontCount[counter + 1].second == 0) {
+                        feeder.add({counter + 1, 1});
+                    }
+                }
+            });
         //if (prepareCounter < 30) // For Tests only
             runNodes(prepareCounter);
 
