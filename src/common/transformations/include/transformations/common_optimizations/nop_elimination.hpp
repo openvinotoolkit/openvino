@@ -111,14 +111,14 @@ public:
 
 namespace ngraph {
 namespace pass {
-using ov::pass::EliminatePad;
+using ov::pass::EliminateConcat;
 using ov::pass::EliminateConvert;
 using ov::pass::EliminateConvertNonZero;
-using ov::pass::EliminateConcat;
+using ov::pass::EliminateEltwise;
+using ov::pass::EliminatePad;
 using ov::pass::EliminateSplit;
 using ov::pass::EliminateSqueeze;
 using ov::pass::EliminateTranspose;
-using ov::pass::EliminateEltwise;
 using ov::pass::NopElimination;
 }  // namespace pass
 }  // namespace ngraph

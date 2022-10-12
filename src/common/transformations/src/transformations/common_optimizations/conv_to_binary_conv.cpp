@@ -5,10 +5,10 @@
 #include "transformations/common_optimizations/conv_to_binary_conv.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <openvino/opsets/opset5.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -28,18 +28,18 @@ static std::vector<uint8_t> binarize_weights(const std::vector<float>& weights) 
     return out;
 }
 
-ngraph::pass::ConvToBinaryConv::ConvToBinaryConv() {
+ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
     MATCHER_SCOPE(ConvToBinaryConv);
-    auto fq_pattern = ngraph::pattern::wrap_type<opset5::FakeQuantize>({ngraph::pattern::any_input(),
-                                                                        ngraph::pattern::any_input(),
-                                                                        ngraph::pattern::any_input(),
+    auto fq_pattern = ngraph::pattern::wrap_type<opset5::FakeQuantize>({pattern::any_input(),
+                                                                        pattern::any_input(),
+                                                                        pattern::any_input(),
                                                                         ngraph::pattern::wrap_type<opset5::Constant>(),
                                                                         ngraph::pattern::wrap_type<opset5::Constant>()},
                                                                        pattern::consumers_count(1));
     auto conv_pattern =
         ngraph::pattern::wrap_type<opset5::Convolution>({fq_pattern, ngraph::pattern::wrap_type<opset5::Constant>()});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto conv = std::dynamic_pointer_cast<opset5::Convolution>(m.get_match_root());
         if (!conv)
             return false;
@@ -105,16 +105,16 @@ ngraph::pass::ConvToBinaryConv::ConvToBinaryConv() {
                 weights_reduced_shape.push_back(1);
             }
             auto weights_reduced = std::make_shared<opset5::ReduceSum>(
-                op::Constant::create(element::f32, weights_constant->get_shape(), weights),
-                op::Constant::create(element::i64, Shape{axes.size()}, axes),
+                opset5::Constant::create(element::f32, weights_constant->get_shape(), weights),
+                opset5::Constant::create(element::i64, Shape{axes.size()}, axes),
                 false);
             std::shared_ptr<Node> weights_reduced_reshaped = std::make_shared<opset5::Reshape>(
                 weights_reduced,
-                op::Constant::create(element::i64, Shape{weights_reduced_shape.size()}, weights_reduced_shape),
+                opset5::Constant::create(element::i64, Shape{weights_reduced_shape.size()}, weights_reduced_shape),
                 false);
             weights_reduced_reshaped = ngraph::get_constant_from_source(weights_reduced_reshaped);
             auto add = std::make_shared<opset5::Add>(new_conv, weights_reduced_reshaped);
-            auto mul = std::make_shared<opset5::Multiply>(add, op::Constant::create(element::f32, Shape{}, {0.5}));
+            auto mul = std::make_shared<opset5::Multiply>(add, opset5::Constant::create(element::f32, Shape{}, {0.5}));
             copy_runtime_info(conv, {new_conv, add, mul});
             replace_node(conv, mul);
 

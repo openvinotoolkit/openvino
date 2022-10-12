@@ -38,3 +38,9 @@ public:
     OPENVINO_RTTI("GRUCellFusion", "0");
     GRUCellFusion();
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::GRUCellFusion;
+}  // namespace pass
+}  // namespace ngraph

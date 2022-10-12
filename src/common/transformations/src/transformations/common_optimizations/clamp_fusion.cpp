@@ -27,7 +27,7 @@ ov::pass::ClampFusion::ClampFusion() {
         ngraph::pattern::wrap_type<opset5::Maximum>({min_pattern2, min_const_pattern}, pattern::consumers_count(1));
     auto root = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{min_pattern1, max_pattern2});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map.at(data_pattern);
         auto min_const =

@@ -51,3 +51,9 @@ P2Btype find_batch(const std::shared_ptr<ov::Model>& m);
 bool detach_detection_output(const std::shared_ptr<ov::Model>& f);
 }  // namespace batch_util
 }  // namespace ov
+
+namespace ngraph {
+namespace pass {
+using ov::pass::FindBatch;
+}  // namespace pass
+}  // namespace ngraph

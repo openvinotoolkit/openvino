@@ -8,14 +8,13 @@
 
 #include <functional>
 #include <memory>
+#include <ngraph/op/util/op_annotations.hpp>
 #include <openvino/op/broadcast.hpp>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/gather.hpp>
 #include <openvino/op/reshape.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset3.hpp>
-#include <ngraph/op/util/op_annotations.hpp>
-#include <ngraph/opsets/opset1.hpp>
 
 namespace ov {
 namespace op {
@@ -66,8 +65,9 @@ std::shared_ptr<Node> normalize_constant(const std::shared_ptr<op::v0::Constant>
 }
 
 std::shared_ptr<Node> broadcastTo(const Output<Node>& input, const ngraph::Shape& shape) {
-    return std::make_shared<op::v1::Broadcast>(input,
-                                               op::v0::Constant::create(ngraph::element::i64, Shape{shape.size()}, shape));
+    return std::make_shared<op::v1::Broadcast>(
+        input,
+        op::v0::Constant::create(ngraph::element::i64, Shape{shape.size()}, shape));
 }
 
 std::shared_ptr<ngraph::Node> reshapeTo(const Output<Node>& input, const Shape& shape) {
@@ -196,8 +196,7 @@ void visit_shape_path(Node* node, std::unordered_set<ov::Node*>& visited, std::f
         auto curr_node = nodes.front();
         nodes.pop_front();
         // Do not check if already visited
-        if (ngraph::is_type<opset1::ShapeOf>(curr_node) ||
-            ngraph::is_type<opset3::ShapeOf>(curr_node)) {
+        if (ngraph::is_type<opset1::ShapeOf>(curr_node) || ngraph::is_type<opset3::ShapeOf>(curr_node)) {
             continue;
         }
 
@@ -340,4 +339,4 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
 }
 }  // namespace util
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

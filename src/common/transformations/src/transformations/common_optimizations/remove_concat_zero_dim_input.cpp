@@ -17,7 +17,7 @@
 ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
     MATCHER_SCOPE(RemoveConcatZeroDimInput);
     auto concat_pattern = pattern::wrap_type<opset8::Concat>();
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto concat = m.get_match_root();
         auto concat_inputs = concat->input_values();
         concat_inputs.erase(

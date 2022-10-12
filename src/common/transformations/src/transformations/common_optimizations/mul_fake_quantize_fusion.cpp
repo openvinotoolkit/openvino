@@ -5,16 +5,16 @@
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <openvino/opsets/opset5.hpp>
 #include <vector>
 
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
+ov::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
     MATCHER_SCOPE(MulFakeQuantizeFusion);
     auto input_pattern = ngraph::pattern::any_input();
     auto const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
@@ -25,7 +25,7 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
                                                                         ngraph::pattern::any_input(),
                                                                         ngraph::pattern::any_input(),
                                                                         ngraph::pattern::any_input()});
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
         const auto& input = pattern_value_map.at(input_pattern);
         const auto& type = input.get_element_type();
@@ -78,7 +78,7 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
                 const_shape.insert(const_shape.begin(), diff, 1);
                 new_const = std::make_shared<opset5::Reshape>(
                     new_const,
-                    op::Constant::create(element::u64, Shape{const_shape.size()}, const_shape),
+                    opset5::Constant::create(element::u64, Shape{const_shape.size()}, const_shape),
                     false);
             }
 

@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ReshapeSequenceFusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -21,8 +21,14 @@ class TRANSFORMATIONS_API ReshapeSequenceFusion;
  * sequence
  */
 
-class ngraph::pass::ReshapeSequenceFusion : public ngraph::pass::MatcherPass {
+class ov::pass::ReshapeSequenceFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ReshapeSequenceFusion", "0");
     ReshapeSequenceFusion(bool use_shape_for_elimination = true);
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::ReshapeSequenceFusion;
+}  // namespace pass
+}  // namespace ngraph

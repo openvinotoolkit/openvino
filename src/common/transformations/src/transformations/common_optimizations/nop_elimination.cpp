@@ -277,7 +277,7 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
         NAME() {                                                                           \
             MATCHER_SCOPE(NAME);                                                           \
             auto match_node = ngraph::pattern::wrap_type<OP>();                            \
-            ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {    \
+            ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {        \
                 return FUNC(m.get_match_root());                                           \
             };                                                                             \
             auto m = std::make_shared<ngraph::pattern::Matcher>(match_node, matcher_name); \

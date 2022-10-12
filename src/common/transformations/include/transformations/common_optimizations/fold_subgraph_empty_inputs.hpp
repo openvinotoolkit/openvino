@@ -29,3 +29,9 @@ public:
     OPENVINO_RTTI("FoldSubgraphEmptyInputs", "0");
     FoldSubgraphEmptyInputs();
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::FoldSubgraphEmptyInputs;
+}  // namespace pass
+}  // namespace ngraph

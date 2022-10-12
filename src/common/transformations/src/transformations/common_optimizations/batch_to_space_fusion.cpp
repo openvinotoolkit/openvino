@@ -39,7 +39,7 @@ ov::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
     auto reshape_or_transpose_after_pattern =
         std::make_shared<pattern::op::Or>(OutputVector{reshape_after_pattern, trans_after_pattern});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto get_reshape_or_transpose = [&pattern_map](

@@ -7,20 +7,20 @@
 #include <memory>
 #include <ngraph/log.hpp>
 #include <ngraph/op/util/binary_elementwise_arithmetic.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <openvino/core/validation_util.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <utility>
 #include <vector>
 
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace ric_attr {
 
@@ -178,7 +178,7 @@ Attribute get(const T& port) {
     if (res != attrs.end()) {
         return res->second.template as<Attribute>();
     }
-    throw ngraph_error("reverse_input_channel_index is missing in given port");
+    throw Exception("reverse_input_channel_index is missing in given port");
 }
 
 template <typename T, typename = is_port<T>>
@@ -190,7 +190,7 @@ void erase(T port) {
 }  // namespace ric_attr
 
 namespace init {
-class SplitConcat : public ngraph::pass::MatcherPass {
+class SplitConcat : public ov::pass::MatcherPass {
 public:
     SplitConcat() {
         MATCHER_SCOPE(SplitConcat);
@@ -243,7 +243,7 @@ public:
     }
 };
 
-class Gather : public ngraph::pass::MatcherPass {
+class Gather : public ov::pass::MatcherPass {
 public:
     Gather() {
         MATCHER_SCOPE(Gather);
@@ -302,7 +302,7 @@ public:
 
 namespace prop {
 
-class Binary : public ngraph::pass::MatcherPass {
+class Binary : public ov::pass::MatcherPass {
 public:
     Binary() {
         MATCHER_SCOPE(Binary);
@@ -387,7 +387,7 @@ public:
     }
 };
 
-class Convolution : public ngraph::pass::MatcherPass {
+class Convolution : public ov::pass::MatcherPass {
 public:
     Convolution() {
         MATCHER_SCOPE(Convolution);
@@ -409,7 +409,7 @@ public:
     }
 };
 
-class GroupConvolution : public ngraph::pass::MatcherPass {
+class GroupConvolution : public ov::pass::MatcherPass {
 public:
     GroupConvolution() {
         MATCHER_SCOPE(GroupConvolution);
@@ -465,7 +465,7 @@ public:
     }
 };
 
-class ShapeOf : public ngraph::pass::MatcherPass {
+class ShapeOf : public ov::pass::MatcherPass {
 public:
     ShapeOf() {
         MATCHER_SCOPE(ShapeOf);
@@ -481,7 +481,7 @@ public:
     }
 };
 
-class PassThrough : public ngraph::pass::MatcherPass {
+class PassThrough : public ov::pass::MatcherPass {
 public:
     PassThrough() {
         MATCHER_SCOPE(PassThrough);
@@ -501,7 +501,7 @@ public:
     }
 };
 
-class Transpose : public ngraph::pass::MatcherPass {
+class Transpose : public ov::pass::MatcherPass {
 public:
     Transpose() {
         MATCHER_SCOPE(Transpose);
@@ -530,7 +530,7 @@ public:
     }
 };
 
-class Unsupported : public ngraph::pass::MatcherPass {
+class Unsupported : public ov::pass::MatcherPass {
 public:
     Unsupported() {
         MATCHER_SCOPE(Unsupported);
@@ -565,7 +565,7 @@ bool need_to_erase_ric(const Output<Node>& output) {
 }
 }  // namespace
 
-class InsertReverseInputChannel : public ngraph::pass::MatcherPass {
+class InsertReverseInputChannel : public ov::pass::MatcherPass {
 public:
     InsertReverseInputChannel() {
         MATCHER_SCOPE(InsertReverseInputChannel);
@@ -588,7 +588,7 @@ public:
     }
 };
 
-class EraseSplitConcat : public ngraph::pass::MatcherPass {
+class EraseSplitConcat : public ov::pass::MatcherPass {
 public:
     EraseSplitConcat() {
         MATCHER_SCOPE(EraseSplitConcat);
@@ -609,7 +609,7 @@ public:
     }
 };
 
-class EraseGather : public ngraph::pass::MatcherPass {
+class EraseGather : public ov::pass::MatcherPass {
 public:
     EraseGather() {
         MATCHER_SCOPE(EraseGather);
@@ -631,7 +631,7 @@ public:
 }  // namespace fuse
 
 namespace back_prop {
-class Binary : public ngraph::pass::MatcherPass {
+class Binary : public ov::pass::MatcherPass {
 public:
     Binary() {
         MATCHER_SCOPE(Binary);
@@ -714,7 +714,7 @@ public:
     }
 };
 
-class ConvertPassThrough : public ngraph::pass::MatcherPass {
+class ConvertPassThrough : public ov::pass::MatcherPass {
 public:
     ConvertPassThrough() {
         MATCHER_SCOPE(ConvertPassThrough);
@@ -798,7 +798,7 @@ public:
 
 }  // namespace back_prop
 
-bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
+bool ov::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(ReverseInputChannelsFusion);
     Manager m;
     m.set_per_pass_validation(false);
@@ -832,4 +832,4 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_pt
     return false;
 }
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

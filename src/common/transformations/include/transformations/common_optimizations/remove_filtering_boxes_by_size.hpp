@@ -5,27 +5,34 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API FuseFilteringBoxesBySize;
 class TRANSFORMATIONS_API RemoveFilteringBoxesBySize;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::FuseFilteringBoxesBySize : public ngraph::pass::GraphRewrite {
+class ov::pass::FuseFilteringBoxesBySize : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("FuseFilteringBoxesBySize", "0");
     FuseFilteringBoxesBySize();
 };
 
-class ngraph::pass::RemoveFilteringBoxesBySize : public ngraph::pass::MatcherPass {
+class ov::pass::RemoveFilteringBoxesBySize : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RemoveFilteringBoxesBySize", "0");
     RemoveFilteringBoxesBySize();
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::FuseFilteringBoxesBySize;
+using ov::pass::RemoveFilteringBoxesBySize;
+}  // namespace pass
+}  // namespace ngraph

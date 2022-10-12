@@ -29,3 +29,9 @@ public:
     OPENVINO_RTTI("RemoveMultiSubGraphOpDanglingParams", "0");
     RemoveMultiSubGraphOpDanglingParams();
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::RemoveMultiSubGraphOpDanglingParams;
+}  // namespace pass
+}  // namespace ngraph

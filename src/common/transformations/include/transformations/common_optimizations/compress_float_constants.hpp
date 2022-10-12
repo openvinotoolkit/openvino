@@ -49,3 +49,11 @@ public:
         add_matcher<ov::pass::AddOldApiMapToParameters>();
     }
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::AddOldApiMapToParameters;
+using ov::pass::CompressFloatConstants;
+using ov::pass::CompressFloatConstantsImpl;
+}  // namespace pass
+}  // namespace ngraph

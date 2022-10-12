@@ -5,14 +5,14 @@
 #include "transformations/common_optimizations/divide_fusion.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-ngraph::pass::DivideFusion::DivideFusion() {
+ov::pass::DivideFusion::DivideFusion() {
     MATCHER_SCOPE(DivideFusion);
     auto p_pow_input = pattern::any_input();
     auto p_pow_const = pattern::wrap_type<opset8::Constant>();

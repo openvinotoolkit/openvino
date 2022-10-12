@@ -5,11 +5,11 @@
 #include "transformations/common_optimizations/concat_reduce_fusion.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset8.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -84,7 +84,7 @@ ov::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
     auto reduce_pattern =
         ngraph::pattern::wrap_type<opset8::ReduceMin, opset8::ReduceMax>({concat_pattern, reduce_axes_pattern});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto concat = as_type_ptr<opset8::Concat>(pattern_map.at(concat_pattern).get_node_shared_ptr());

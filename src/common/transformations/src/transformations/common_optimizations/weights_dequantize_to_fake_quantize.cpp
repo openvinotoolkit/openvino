@@ -2,30 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset6.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include <transformations/rt_info/disable_constant_folding.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
 
-ngraph::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
+ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
     MATCHER_SCOPE(WeightsDequantizeToFakeQuantize);
 
-    const auto weights = ngraph::pattern::wrap_type<ngraph::opset6::Constant>(pattern::type_matches(element::i8));
-    const auto convert = ngraph::pattern::wrap_type<ngraph::opset6::Convert>({weights});
-    const auto sub_c = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
-    const auto sub = ngraph::pattern::wrap_type<ngraph::opset6::Subtract>({convert, sub_c});
+    const auto weights = ngraph::pattern::wrap_type<opset6::Constant>(pattern::type_matches(element::i8));
+    const auto convert = ngraph::pattern::wrap_type<opset6::Convert>({weights});
+    const auto sub_c = ngraph::pattern::wrap_type<opset6::Constant>();
+    const auto sub = ngraph::pattern::wrap_type<opset6::Subtract>({convert, sub_c});
 
     const auto sub_or_convert = std::make_shared<pattern::op::Or>(OutputVector{convert, sub});
 
-    const auto mul_c = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
-    const auto mul = ngraph::pattern::wrap_type<ngraph::opset6::Multiply>({sub_or_convert, mul_c});
+    const auto mul_c = ngraph::pattern::wrap_type<opset6::Constant>();
+    const auto mul = ngraph::pattern::wrap_type<opset6::Multiply>({sub_or_convert, mul_c});
 
-    ngraph::matcher_pass_callback callback;
+    ov::matcher_pass_callback callback;
     callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
 
