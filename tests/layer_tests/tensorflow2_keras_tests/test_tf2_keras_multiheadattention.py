@@ -73,7 +73,7 @@ class TestKerasMultiHeadAttention(CommonTF2LayerTest):
                  num_heads=1, key_dim=3, value_dim=4, dropout=0.0, use_bias=True,
                  output_shape=None, attention_axes=None,
                  return_attention_scores=True, training=False),
-            marks=pytest.mark.xfail(reason="45432"))
+            marks=[pytest.mark.xfail(reason="45432"), pytest.mark.precommit_tf_fe])
     ]
 
     @pytest.mark.skip(reason='Einsum is unsupported in MO')

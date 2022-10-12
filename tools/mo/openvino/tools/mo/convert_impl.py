@@ -306,8 +306,12 @@ def check_fallback(argv: argparse.Namespace):
     if not any(deduce_legacy_frontend_by_namespace(argv)):
         return fallback_reasons
 
-    # There is no possibility for fallback if a user strictly wants to use new frontend
-    if argv.use_new_frontend:
+    # TODO: Remove this workaround once TensorFlow Frontend becomes default
+    # For testing purpose of TensorFlow Frontend and its fallback,
+    # preserve fallback capability despite of specified use_new_frontend option
+    # There is no possibility for fallback if a user strictly wants to use new frontend (except TF FE now)
+    is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
+    if argv.use_new_frontend and not is_tf:
         return fallback_reasons
 
     fallback_reasons['extensions'] = legacy_extensions_used
@@ -361,6 +365,14 @@ def get_moc_frontends(argv: argparse.Namespace):
 
 
 def prepare_ir(argv: argparse.Namespace):
+    # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
+    # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
+    is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
+    path_to_aux_pb = None
+    if argv.use_new_frontend and is_tf:
+        from openvino.tools.mo.front.tf.loader import convert_to_pb
+        path_to_aux_pb = convert_to_pb(argv)
+
     argv = arguments_post_parsing(argv)
     t = tm.Telemetry()
     graph = None
@@ -382,6 +394,12 @@ def prepare_ir(argv: argparse.Namespace):
                 for extension in argv.extensions:
                     moc_front_end.add_extension(extension)
             ngraph_function = moc_pipeline(argv, moc_front_end)
+
+            # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
+            # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
+            if argv.use_new_frontend and is_tf and path_to_aux_pb is not None:
+                if os.path.exists(path_to_aux_pb):
+                    os.remove(path_to_aux_pb)
 
             return graph, ngraph_function
         else:  # apply fallback
@@ -438,7 +456,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     func = read_model(orig_model_name + "_tmp.xml")
 
     return_code = "not executed"
-    if not(argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
+    if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         try:
             from openvino.tools.mo.back.offline_transformations import apply_offline_transformations
             func = apply_offline_transformations(func, argv)

@@ -32,6 +32,10 @@ public:
     void selectOptimalPrimitiveDescriptor() override;
     InferenceEngine::Precision getRuntimePrecision() const override;
 
+    // to avoid collisions in throughput mode with copy of TypeRelaxed nodes
+    // we should have common shared mutex between streams
+    void setSharedMutex(const std::shared_ptr<std::mutex>& mutex);
+
     // Here we convert to canonical for & jit everything
     void createPrimitive() override;
 
@@ -46,6 +50,11 @@ private:
 
     typedef void (*kernel)(const void *, const void *);
 
+    // Create a deep local copy of the input snippet to perform canonicalization & code generation
+    // TODO: Probably better to implement a proper copy constructor
+    // NOTE: Before call mutex should be initialized
+    void copy_snippet();
+
     void define_schedule();
 
     void generate();
@@ -54,6 +63,8 @@ private:
     void schedule_6d(const jit_snippets_call_args& const_args) const;
     void schedule_nt(const jit_snippets_call_args& const_args) const;
 
+    // Original subgraph node
+    std::shared_ptr<ngraph::snippets::op::Subgraph> original_snippet;
     // Local copy of subgraph node for canonization & code generation
     std::shared_ptr<ngraph::snippets::op::Subgraph> snippet;
 

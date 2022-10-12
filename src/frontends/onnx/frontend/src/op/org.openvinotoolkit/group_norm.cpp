@@ -55,7 +55,7 @@ OutputVector group_norm(const Node& node) {
     auto bias = inputs[2];
 
     size_t num_groups = static_cast<size_t>(node.get_attribute_value<int64_t>("num_groups"));
-    float eps = node.get_attribute_value<float>("eps", 1e-6);
+    float eps = node.get_attribute_value<float>("eps", 1e-6f);
 
     auto data_shape_node = std::make_shared<default_opset::ShapeOf>(data);
     auto data_reshaped =

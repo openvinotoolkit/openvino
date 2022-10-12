@@ -46,6 +46,8 @@ inline int FUNC(get_nearest_val)(float num, bool is_downsample)
 
 inline float FUNC(get_original_coordinate)(float num, float scale, int length_resized, int length_original)
 {
+    if (scale == 1.0f)
+        return num;
 #if defined(COORD_TRANS_MODE_HALF_PIXEL)
     return (num + 0.5f) * scale - 0.5f;
 #elif defined(COORD_TRANS_MODE_PYTORCH_HALF_PIXEL)
@@ -251,6 +253,8 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #endif // HAS_FUSED_OPS
     output[FUNC_CALL(get_output_index)(out_coords[0], out_coords[1], out_coords[2], out_coords[3], out_coords[4])] = res;
 #elif defined(SAMPLE_TYPE_LINEAR_ONNX) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
+
+#if OUTPUT_DIMS <= 4
     const int ox = get_global_id(0);
     const int oy = get_global_id(1);
     const int feature = 0;
@@ -286,21 +290,19 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     bool trOutOfBounds = in_y1 < 0 || in_y1 >= in_size[3] || in_x2 < 0 || in_x2 >= in_size[4];
     bool blOutOfBounds = in_y2 < 0 || in_y2 >= in_size[3] || in_x1 < 0 || in_x1 >= in_size[4];
     bool brOutOfBounds = in_y2 < 0 || in_y2 >= in_size[3] || in_x2 < 0 || in_x2 >= in_size[4];
-#endif
+
+    unroll_for(int in_f = 0; in_f < OUTPUT_FEATURE_NUM; in_f++) {
+        INPUT0_TYPE top_left = tlOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x1)];
+        INPUT0_TYPE top_right = trOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x2)];
+        INPUT0_TYPE bottom_left = blOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x1)];
+        INPUT0_TYPE bottom_right = brOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x2)];
+
+#else
     unroll_for(int in_f = 0; in_f < OUTPUT_FEATURE_NUM; in_f++) {
         INPUT0_TYPE top_left = input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x1)];
         INPUT0_TYPE top_right = input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x2)];
         INPUT0_TYPE bottom_left = input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x1)];
         INPUT0_TYPE bottom_right = input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x2)];
-#if PADDING_USED == 1
-        if (tlOutOfBounds)
-            top_left = INPUT0_VAL_ZERO;
-        if (trOutOfBounds)
-            top_right = INPUT0_VAL_ZERO;
-        if (blOutOfBounds)
-            bottom_left = INPUT0_VAL_ZERO;
-        if (brOutOfBounds)
-            bottom_right = INPUT0_VAL_ZERO;
 #endif
 
         ACCUMULATOR_TYPE interp_val = TO_ACCUMULATOR_TYPE(dx2 * dy2 * top_left) +
@@ -318,6 +320,96 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #endif
         output[OUTPUT_GET_INDEX(batch, in_f, oy, ox)] = res;
     }
+#endif // #if OUTPUT_DIMS <= 4
+
+#if OUTPUT_DIMS == 5
+    const int ox = get_global_id(0);
+    const int oy = (int)get_global_id(1) % OUTPUT_SIZE_Y;
+    const int oz = (int)get_global_id(1) / OUTPUT_SIZE_Y;
+
+    const int feature = (int)get_global_id(2) % OUTPUT_FEATURE_NUM;
+    const int batch = (int)get_global_id(2) / OUTPUT_FEATURE_NUM;
+
+    const int PADDED_Z = in_size[2] + PADS_BEGIN[2] + PADS_END[2];
+    const int PADDED_Y = in_size[3] + PADS_BEGIN[3] + PADS_END[3];
+    const int PADDED_X = in_size[4] + PADS_BEGIN[4] + PADS_END[4];
+    const float ix = FUNC_CALL(get_original_coordinate)(ox, SCALES[4], out_size[4], PADDED_X);
+    const float iy = FUNC_CALL(get_original_coordinate)(oy, SCALES[3], out_size[3], PADDED_Y);
+    const float iz = FUNC_CALL(get_original_coordinate)(oz, SCALES[2], out_size[2], PADDED_Z);
+
+    float in_z = fmax(0, fmin(iz, PADDED_Z - 1));
+    float in_y = fmax(0, fmin(iy, PADDED_Y - 1));
+    float in_x = fmax(0, fmin(ix, PADDED_X - 1));
+
+    int in_z1 = min((int)in_z, PADDED_Z - 1);
+    int in_z2 = min(in_z1 + 1, PADDED_Z - 1);
+    int in_y1 = min((int)in_y, PADDED_Y - 1);
+    int in_y2 = min(in_y1 + 1, PADDED_Y - 1);
+    int in_x1 = min((int)in_x, PADDED_X - 1);
+    int in_x2 = min(in_x1 + 1, PADDED_X - 1);
+
+    const ACCUMULATOR_TYPE dx1 = (in_x1 != in_x2) ? TO_ACCUMULATOR_TYPE(fabs(in_x - in_x1)) : 0.5f;
+    const ACCUMULATOR_TYPE dx2 = (in_x1 != in_x2) ? TO_ACCUMULATOR_TYPE(fabs(in_x - in_x2)) : 0.5f;
+    const ACCUMULATOR_TYPE dy1 = (in_y1 != in_y2) ? TO_ACCUMULATOR_TYPE(fabs(in_y - in_y1)) : 0.5f;
+    const ACCUMULATOR_TYPE dy2 = (in_y1 != in_y2) ? TO_ACCUMULATOR_TYPE(fabs(in_y - in_y2)) : 0.5f;
+    const ACCUMULATOR_TYPE dz1 = (in_z1 != in_z2) ? TO_ACCUMULATOR_TYPE(fabs(in_z - in_z1)) : 0.5f;
+    const ACCUMULATOR_TYPE dz2 = (in_z1 != in_z2) ? TO_ACCUMULATOR_TYPE(fabs(in_z - in_z2)) : 0.5f;
+
+#if PADDING_USED == 1
+    in_z1 -= PADS_BEGIN[2];
+    in_z2 -= PADS_BEGIN[2];
+    in_y1 -= PADS_BEGIN[3];
+    in_y2 -= PADS_BEGIN[3];
+    in_x1 -= PADS_BEGIN[4];
+    in_x2 -= PADS_BEGIN[4];
+
+    bool BackTopLOutOfBounds = in_z1 < 0 || in_z1 >= in_size[2] || in_y1 < 0 || in_y1 >= in_size[3] || in_x1 < 0|| in_x1 >= in_size[4];
+    bool BackTopROutOfBounds = in_z1 < 0 || in_z1 >= in_size[2] || in_y1 < 0 || in_y1 >= in_size[3] || in_x2 < 0 || in_x2 >= in_size[4];
+    bool BackBottomLOutOfBounds = in_z1 < 0 || in_z1 >= in_size[2] || in_y2 < 0 || in_y2 >= in_size[3] || in_x1 < 0 || in_x1 >= in_size[4];
+    bool BackBottomROutOfBounds = in_z1 < 0 || in_z1 >= in_size[2] || in_y2 < 0 || in_y2 >= in_size[3] || in_x2 < 0 || in_x2 >= in_size[4];
+
+    bool FrontTopLOutOfBounds = in_z2 < 0 || in_z2 >= in_size[2] || in_y1 < 0 || in_y1 >= in_size[3] || in_x1 < 0 || in_x1 >= in_size[4];
+    bool FrontTopROutOfBounds = in_z2 < 0 || in_z2 >= in_size[2] || in_y1 < 0 || in_y1 >= in_size[3] || in_x2 < 0 || in_x2 >= in_size[4];
+    bool FrontBottomLOutOfBounds = in_z2 < 0 || in_z2 >= in_size[2] || in_y2 < 0 || in_y2 >= in_size[3] || in_x1 < 0 || in_x1 >= in_size[4];
+    bool FrontBottomROutOfBounds = in_z2 < 0 || in_z2 >= in_size[2] || in_y2 < 0 || in_y2 >= in_size[3] || in_x2 < 0 || in_x2 >= in_size[4];
+
+    OUTPUT_TYPE x111 = BackTopLOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y1, in_x1)];
+    OUTPUT_TYPE x211 = BackTopROutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y1, in_x2)];
+    OUTPUT_TYPE x121 = BackBottomLOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y2, in_x1)];
+    OUTPUT_TYPE x221 = BackBottomROutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y2, in_x2)];
+    OUTPUT_TYPE x112 = FrontTopLOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y1, in_x1)];
+    OUTPUT_TYPE x212 = FrontTopROutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y1, in_x2)];
+    OUTPUT_TYPE x122 = FrontBottomLOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y2, in_x1)];
+    OUTPUT_TYPE x222 = FrontBottomROutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y2, in_x2)];
+#else
+    OUTPUT_TYPE x111 = input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y1, in_x1)];
+    OUTPUT_TYPE x211 = input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y1, in_x2)];
+    OUTPUT_TYPE x121 = input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y2, in_x1)];
+    OUTPUT_TYPE x221 = input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y2, in_x2)];
+    OUTPUT_TYPE x112 = input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y1, in_x1)];
+    OUTPUT_TYPE x212 = input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y1, in_x2)];
+    OUTPUT_TYPE x122 = input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y2, in_x1)];
+    OUTPUT_TYPE x222 = input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y2, in_x2)];
+#endif
+
+    ACCUMULATOR_TYPE interp_val = dx2 * dy2 * dz2 * x111 + dx1 * dy2 * dz2 * x211;
+    interp_val += dx2 * dy1 * dz2 * x121 + dx1 * dy1 * dz2 * x221;
+    interp_val += dx2 * dy2 * dz1 * x112 + dx1 * dy2 * dz1 * x212;
+    interp_val += dx2 * dy1 * dz1 * x122 + dx1 * dy1 * dz1 * x222;
+
+#if HAS_FUSED_OPS
+        #define OF_ID (feature)
+        FUSED_OPS;
+        OUTPUT_TYPE res = FUSED_OPS_RESULT;
+        #undef OF_ID
+#else
+        OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
+#endif
+
+    output[OUTPUT_GET_INDEX(batch, feature, oz, oy, ox)] = res;
+
+#endif // #if OUTPUT_DIMS == 5
+
 #elif defined(SAMPLE_TYPE_INTERP) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
     const int ox = get_global_id(0);
     const int oy = get_global_id(1);
