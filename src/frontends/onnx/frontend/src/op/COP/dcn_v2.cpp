@@ -33,10 +33,10 @@ OutputVector op::set_1::dcn_v2(const Node& node) {
     const auto auto_pad_type = ov::op::PadType::EXPLICIT;
     const auto bilinear_interpolation_pad = true;
 
-    return {std::make_shared<default_opset::DeformableConvolution>(inputs.at(0), // inputs
-                                                                   inputs.at(1), // offsets 
-                                                                   inputs.at(3), // kernels
-                                                                   inputs.at(2), // mask
+    return {std::make_shared<default_opset::DeformableConvolution>(inputs.at(0),  // inputs
+                                                                   inputs.at(1),  // offsets
+                                                                   inputs.at(3),  // kernels
+                                                                   inputs.at(2),  // mask
                                                                    strides,
                                                                    paddings.first,
                                                                    paddings.second,

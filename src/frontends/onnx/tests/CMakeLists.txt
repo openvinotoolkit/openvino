@@ -65,7 +65,6 @@ endif()
 set(MULTI_TEST_SRC
     onnx_import.in.cpp
     onnx_import_com_microsoft.in.cpp
-    onnx_import_dcn_v2.in.cpp
     onnx_import_controlflow.in.cpp
     onnx_import_const_folding.in.cpp
     onnx_import_convpool.in.cpp

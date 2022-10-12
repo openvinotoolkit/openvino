@@ -12,6 +12,7 @@
 
 #include "core/attribute.hpp"
 #include "ngraph/log.hpp"
+#include "op/COP/dcn_v2.hpp"
 #include "op/abs.hpp"
 #include "op/acos.hpp"
 #include "op/acosh.hpp"
@@ -45,7 +46,6 @@
 #include "op/conv.hpp"
 #include "op/conv_integer.hpp"
 #include "op/conv_transpose.hpp"
-#include "op/COP/dcn_v2.hpp"
 #include "op/cos.hpp"
 #include "op/cosh.hpp"
 #include "op/crop.hpp"
