@@ -291,11 +291,9 @@ int main(int argc, char* argv[]) {
 
             // high-level performance modes
             auto ov_perf_hint = get_performance_hint(device, core);
-            if (ov_perf_hint != ov::hint::PerformanceMode::UNDEFINED) {
-                device_config.emplace(ov::hint::performance_mode(ov_perf_hint));
-                if (FLAGS_nireq != 0)
-                    device_config.emplace(ov::hint::num_requests(FLAGS_nireq));
-            }
+            device_config.emplace(ov::hint::performance_mode(ov_perf_hint));
+            if (FLAGS_nireq != 0)
+                device_config.emplace(ov::hint::num_requests(FLAGS_nireq));
 
             // Set performance counter
             if (isFlagSetInCommandLine("pc")) {
@@ -348,7 +346,7 @@ int main(int argc, char* argv[]) {
                             std::stringstream strm(it_device_nstreams->second);
                             std::map<std::string, std::string> devices_property;
                             ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
-                            for (auto it : devices_property) {
+                            for (auto& it : devices_property) {
                                 device_config.insert(
                                     ov::device::properties(it.first, ov::num_streams(std::stoi(it.second))));
                             }

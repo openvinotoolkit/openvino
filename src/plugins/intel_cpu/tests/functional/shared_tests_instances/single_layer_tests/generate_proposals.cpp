@@ -226,6 +226,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(nms_threshold),
         ::testing::ValuesIn(post_nms_count),
         ::testing::ValuesIn(pre_nms_count),
+        ::testing::ValuesIn({true, false}),
         ::testing::ValuesIn(inputTensors),
         ::testing::Values(ov::element::Type_t::f32),
         ::testing::Values(ov::element::Type_t::i32),

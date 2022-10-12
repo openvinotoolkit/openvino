@@ -41,6 +41,7 @@ void register_implementations() {
     REGISTER_OCL(gather_elements);
     REGISTER_OCL(gather_nd);
     REGISTER_OCL(gemm);
+    REGISTER_OCL(generate_proposals);
     REGISTER_OCL(lrn);
     REGISTER_OCL(lstm_gemm);
     REGISTER_OCL(lstm_elt);
@@ -92,6 +93,7 @@ void register_implementations() {
     REGISTER_OCL(convert_color);
     REGISTER_OCL(count_nonzero);
     REGISTER_OCL(gather_nonzero);
+    REGISTER_OCL(eye);
 }
 
 }  // namespace ocl
