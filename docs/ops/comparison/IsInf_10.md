@@ -36,7 +36,7 @@
 
 **Outputs**
 
-* **1**: The result of element-wise mapping of infinite values applied to the input tensor. A tensor of type `T_BOOL` and shape equal to the input tensor.
+* **1**: The result of the element-wise mapping of infinite values applied to the input tensor. A tensor of the boolean type and shape equal to the input tensor.
 
 **Types**
 
