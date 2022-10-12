@@ -90,6 +90,8 @@ public:
 protected:
     bool isBias = false;
     InferenceEngine::SizeVector kernel, dilation;
+    bool isSmallInputChannel = false;
+    bool isBF16 = false;
 
     void checkBiasFusing(ov::CompiledModel &execNet) const {
         auto execGraph = execNet.get_runtime_model();
@@ -183,6 +185,7 @@ protected:
             PluginConfigParams::YES == configuration[PluginConfigParams::KEY_ENFORCE_BF16].as<std::string>()) {
             selectedType += "_BF16";
             rel_threshold = 1e-2f;
+            isBF16 = true;
         } else {
             selectedType = makeSelectedTypeStr(selectedType, netType);
         }
@@ -200,6 +203,9 @@ protected:
                 ngraph::builder::makeGroupConvolution(paramOuts[0], netType, kernel, stride, padBegin,
                                                       padEnd, dilation, padType, convOutChannels, numGroups));
         function = makeNgraphFunction(netType, params, groupConv, "groupConvolution");
+        if (inputShape.second[0][1] / numGroups <= 16) {
+            isSmallInputChannel = true;
+        }
     }
 };
 
@@ -215,6 +221,14 @@ TEST_P(GroupConvolutionLayerCPUTest, CompareWithRefs) {
         }
         if (is_1x1) {
             GTEST_SKIP() << "Disabled test due to the brgconv does not support 1x1 convolution kernel." << std::endl;
+        }
+        if (isSmallInputChannel) {
+            GTEST_SKIP() << "Disabled test due to the brgconv does not support small input channel GroupConvolution on amx." << std::endl;
+        }
+    }
+    if (priority[0] == "brgconv_avx512" && isBF16) {
+        if (!(with_cpu_x86_bfloat16() && with_cpu_x86_avx512_core_vnni())) {
+            GTEST_SKIP() << "Disabled test due to the test machine does not support brgemm convloution with precision bf16" << std::endl;
         }
     }
 
@@ -258,6 +272,8 @@ std::vector<groupConvLayerCPUTestParamsSet> filterParamsSetForDevice(std::vector
         if (selectedTypeStr.find("avx2") != std::string::npos && !with_cpu_x86_avx2())
             continue;
         if (selectedTypeStr.find("avx512") != std::string::npos && !with_cpu_x86_avx512f())
+            continue;
+        if (selectedTypeStr.find("amx") != std::string::npos && !with_cpu_x86_avx512_core_amx())
             continue;
 
         resParamsSet.push_back(param);
@@ -732,8 +748,7 @@ const std::vector<CPUSpecificParams> CPUParams_3D = {
         conv_avx512_3D,
         conv_avx2_3D_nspc,
         conv_avx512_3D_nspc,
-        conv_avx512_3D_nspc_brgconv,
-        conv_avx512_3D_nspc_brgconv_amx
+        conv_avx512_3D_nspc_brgconv
 };
 
 std::vector<InputShape> inputShapes3d = {
