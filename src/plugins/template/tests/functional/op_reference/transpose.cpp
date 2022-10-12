@@ -175,19 +175,19 @@ std::vector<TransposeParams> generateThrowingTransposeParams() {
                         reference_tests::Tensor(element::i64, {3}, std::vector<int64_t>{2, 1, 2}),
                         reference_tests::Tensor(IN_ET, {2, 3, 1}, std::vector<T>{1, 2, 3, 4, 5, 6}),
                         "duplicated_axes_values",
-                        {"must be unique", "Duplicated axes values not detected"}),
+                        {"not valid for input shape", "Duplicated axes values not detected"}),
         TransposeParams(PartialShape::dynamic(),
                         reference_tests::Tensor(IN_ET, {2, 3, 1}, std::vector<T>{1, 2, 3, 4, 5, 6}),
                         reference_tests::Tensor(element::i64, {3}, std::vector<int64_t>{0, 1, 3}),
                         reference_tests::Tensor(IN_ET, {2, 3, 1}, std::vector<T>{1, 2, 3, 4, 5, 6}),
                         "out_of_shape_axes_values",
-                        {"out of shape", "Out of shape axes not detected"}),
+                        {"not valid for input shape", "Out of shape axes not detected"}),
         TransposeParams(PartialShape::dynamic(),
                         reference_tests::Tensor(IN_ET, {2, 3, 1}, std::vector<T>{1, 2, 3, 4, 5, 6}),
                         reference_tests::Tensor(element::i64, {3}, std::vector<int64_t>{-1, -2, -3}),
                         reference_tests::Tensor(IN_ET, {2, 3, 1}, std::vector<T>{1, 4, 2, 5, 3, 6}),
                         "negative_axes_values",
-                        {"not supported", "Negative axes for Transpose were not supported before"}),
+                        {"not valid for input shape", "Negative axes for Transpose were not supported before"}),
     };
 }
 
