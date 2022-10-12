@@ -46,6 +46,53 @@ int IStreamsExecutor::Config::GetDefaultNumStreams() {
         return 1;
 }
 
+int IStreamsExecutor::Config::GetHybridDefaultNumStreams(const Config& config) {
+    const int num_phy_cores = getNumberOfCPUCores();
+    const int num_big_cores = getNumberOfCPUCores(true);
+    const int num_small_cores = num_phy_cores - num_big_cores;
+
+    // bare minimum of streams (that evenly divides available number of core)
+    if (0 == num_big_cores % 4) {
+        config._big_core_streams = std::max(4, num_big_cores / 4);
+    } else if (0 == num_big_cores % 5) {
+        config._big_core_streams = std::max(5, num_big_cores / 5);
+    } else if (0 == num_big_cores % 3) {
+        config._big_core_streams = std::max(3, num_big_cores / 3);
+    }else {  // if user disables some cores say in BIOS, so we got weird #cores which is not easy to divide
+        config._big_core_streams = 1;
+    }
+
+    config._threads_per_stream_big = num_big_cores / config._big_core_streams;
+    config._threads_per_stream_small = config._threads_per_stream_big * 2;
+    if(num_small_cores < config._threads_per_stream_small) {
+        config._small_core_streams = 1;
+        config._threads_per_stream_small = num_small_cores;
+        config._threads_per_stream_big = config._threads_per_stream_small / 2;
+        config._big_core_streams = std::floor(num_big_cores / config._threads_per_stream_big);
+    } else {
+        config._small_core_streams = num_small_cores / config._threads_per_stream_small;
+    }
+    config._smallCoreOffset = num_big_cores * 2;
+    return config._big_core_streams + config._small_core_streams;
+}
+
+int IStreamsExecutor::Config::GetHybridNonDefaultNumStreams(const Config& config, const int stream_mode) {
+    const int num_phy_cores = getNumberOfCPUCores();
+    const int num_big_cores = getNumberOfCPUCores(true);
+    const int num_small_cores = num_phy_cores - num_big_cores;
+
+    if (stream_mode == AGGRESSIVE) {
+        config._big_core_streams = num_big_cores;
+        config._small_core_streams = num_small_cores / 2;
+    } else {
+        config._big_core_streams = num_big_cores / 2;
+        config._small_core_streams = num_small_cores / 4;
+    }
+    config._threads_per_stream_big = num_big_cores / config._big_core_streams;
+    config._threads_per_stream_small = num_small_cores / config._small_core_streams;
+    return config._big_core_streams + config._small_core_streams;
+}
+
 void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::string& value) {
     if (key == CONFIG_KEY(CPU_BIND_THREAD)) {
         if (value == CONFIG_VALUE(YES) || value == CONFIG_VALUE(NUMA)) {
@@ -67,6 +114,7 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
     } else if (key == ov::affinity) {
         ov::Affinity affinity;
         std::stringstream{value} >> affinity;
+        const auto core_type_size = getAvailableCoresTypes().size();
         switch (affinity) {
         case ov::Affinity::NONE:
             _threadBindingType = ThreadBindingType::NONE;
@@ -86,6 +134,13 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
             break;
         default:
             OPENVINO_UNREACHABLE("Unsupported affinity type");
+        }
+        // correct unreasonable thread_binding_type entered by user
+        if (core_type_size > 1) {
+            _threadBindingType = ThreadBindingType::HYBRID_AWARE;
+        }
+        if (_threadBindingType == ThreadBindingType::HYBRID_AWARE && core_type_size == 1) {
+            _threadBindingType = ThreadBindingType::CORES;
         }
     } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
         if (value == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {

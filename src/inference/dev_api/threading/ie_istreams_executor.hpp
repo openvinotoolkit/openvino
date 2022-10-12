@@ -83,6 +83,8 @@ public:
          */
         static Config MakeDefaultMultiThreaded(const Config& initial, const bool fp_intesive = true);
         static int GetDefaultNumStreams();  // no network specifics considered (only CPU's caps);
+        static int GetHybridDefaultNumStreams(const Config& config);
+        static int GetHybridNonDefaultNumStreams(const Config& config, const int stream_mode);
 
         std::string _name;          //!< Used by `ITT` to name executor threads
         int _streams = 1;           //!< Number of streams.
@@ -95,6 +97,16 @@ public:
                                        //!< starting from offset
         int _threads = 0;              //!< Number of threads distributed between streams.
                                        //!< Reserved. Should not be used.
+        mutable int _big_core_streams = 0;
+        mutable int _small_core_streams = 0;
+        mutable int _threads_per_stream_big = 0;
+        mutable int _threads_per_stream_small = 0;
+        mutable int _smallCoreOffset = 0;
+        enum StreamMode {
+            DEFAULT,
+            AGGRESSIVE,
+            LESSAGGRESSIVE
+        };
         enum PreferredCoreType {
             ANY,
             LITTLE,
