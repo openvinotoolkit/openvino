@@ -90,8 +90,7 @@ ov::pass::TransposeSinkingUnaryForward::TransposeSinkingUnaryForward() {
 
         NodePair new_nodes;
 
-        if (transpose->output(0).get_target_inputs().size() > 1 ||
-            unary->output(0).get_target_inputs().size() > 1)
+        if (transpose->output(0).get_target_inputs().size() > 1 || unary->output(0).get_target_inputs().size() > 1)
             new_nodes = SwapNodes(transpose, unary);
         else
             new_nodes = SwapOutputs(transpose, unary);
@@ -126,8 +125,7 @@ ov::pass::TransposeSinkingUnaryBackward::TransposeSinkingUnaryBackward() {
 
         NodePair new_nodes;
 
-        if (transpose->output(0).get_target_inputs().size() > 1 ||
-            unary->output(0).get_target_inputs().size() > 1)
+        if (transpose->output(0).get_target_inputs().size() > 1 || unary->output(0).get_target_inputs().size() > 1)
             new_nodes = SwapNodes(unary, transpose);
         else
             new_nodes = SwapOutputs(unary, transpose);
