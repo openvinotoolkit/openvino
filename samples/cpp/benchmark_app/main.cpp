@@ -1116,8 +1116,7 @@ int main(int argc, char* argv[]) {
         }
 
         double totalDuration = inferRequestsQueue.get_duration_in_milliseconds();
-        double fps = (FLAGS_api == "sync") ? batchSize * 1000.0 / generalLatency.avg
-                                           : 1000.0 * processedFramesN / totalDuration;
+        double fps = 1000.0 * processedFramesN / totalDuration;
 
         if (statistics) {
             statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
