@@ -207,31 +207,28 @@ The Wall Street Journal DNN model used in this example was prepared using the Ka
 Kaldi's nnet-forward command. Since the `speech_sample` does not yet use pipes, it is necessary to use temporary files for speaker-transformed feature vectors and scores when running the Kaldi speech recognition pipeline. The following operations assume that feature extraction was already performed according to the `s5` recipe and that the working directory within the Kaldi source tree is `egs/wsj/s5`.
 
 1. Prepare a speaker-transformed feature set given the feature transform specified in `final.feature_transform` and the feature files specified in `feats.scp`:
-
-```sh
-nnet-forward --use-gpu=no final.feature_transform "ark,s,cs:copy-feats scp:feats.scp ark:- |" ark:feat.ark
-```
+   ```sh
+   nnet-forward --use-gpu=no final.feature_transform "ark,s,cs:copy-feats scp:feats.scp ark:- |" ark:feat.ark
+   ```
 
 2. Score the feature set using the `speech_sample`:
+   ```sh
+   ./speech_sample -d GNA_AUTO -bs 8 -i feat.ark -m wsj_dnn5b.xml -o scores.ark
+   ```
 
-```sh
-./speech_sample -d GNA_AUTO -bs 8 -i feat.ark -m wsj_dnn5b.xml -o scores.ark
-```
-OpenVINO™ toolkit Intermediate Representation `wsj_dnn5b.xml` file was generated in the previous [Model Preparation](#model-preparation) section.
+   OpenVINO™ toolkit Intermediate Representation `wsj_dnn5b.xml` file was generated in the previous [Model Preparation](#model-preparation) section.
 
 3. Run the Kaldi decoder to produce n-best text hypotheses and select most likely text given the WFST (`HCLG.fst`), vocabulary (`words.txt`), and TID/PID mapping (`final.mdl`):
-
-```sh
-latgen-faster-mapped --max-active=7000 --max-mem=50000000 --beam=13.0 --lattice-beam=6.0 --acoustic-scale=0.0833 --allow-partial=true --word-symbol-table=words.txt final.mdl HCLG.fst ark:scores.ark ark:-| lattice-scale --inv-acoustic-scale=13 ark:- ark:- | lattice-best-path --word-symbol-table=words.txt ark:- ark,t:-  > out.txt &
-```
+   ```sh
+   latgen-faster-mapped --max-active=7000 --max-mem=50000000 --beam=13.0 --lattice-beam=6.0 --acoustic-scale=0.0833 --allow-partial=true    --word-symbol-table=words.txt final.mdl HCLG.fst ark:scores.ark ark:-| lattice-scale --inv-acoustic-scale=13 ark:- ark:- | lattice-best-path    --word-symbol-table=words.txt ark:- ark,t:-  > out.txt &
+   ```
 
 4. Run the word error rate tool to check accuracy given the vocabulary (`words.txt`) and reference transcript (`test_filt.txt`):
+   ```sh
+   cat out.txt | utils/int2sym.pl -f 2- words.txt | sed s:\<UNK\>::g | compute-wer --text --mode=present ark:test_filt.txt ark,p:-
+   ```
 
-```sh
-cat out.txt | utils/int2sym.pl -f 2- words.txt | sed s:\<UNK\>::g | compute-wer --text --mode=present ark:test_filt.txt ark,p:-
-```
-
-All of mentioned files can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/wsj_dnn5b_smbr](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/wsj_dnn5b_smbr)
+   All of mentioned files can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/wsj_dnn5b_smbr](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/wsj_dnn5b_smbr)
 
 ## See Also
 
