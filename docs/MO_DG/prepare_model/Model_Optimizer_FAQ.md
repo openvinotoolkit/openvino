@@ -52,11 +52,11 @@ net.save('<PATH_TO_PROTOTXT>/my_net.caffemodel')
 To lessen the scope, compile the list of layers that are custom for Model Optimizer: present in the topology,
 absent in the [list of supported layers](@ref openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers) for the target framework. Then, refer to available options in the corresponding section in the  [Custom Layers in Model Optimizer](@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer) page.
 
-#### !4. What does the message "Input image of shape is larger than mean image from file" mean? <a name="question-4"></a>
+#### Q4. What does the message "Input image of shape is larger than mean image from file" mean? <a name="question-4"></a>
 
 **A** : Your model input shapes must be smaller than or equal to the shapes of the mean image file you provide. The idea behind the mean file is to subtract its values from the input image in an element-wise manner. When the mean file is smaller than the input image, there are not enough values to perform element-wise subtraction. Also, make sure you use the mean file that was used during the network training phase. Note that the mean file is dependent on dataset.
 
-#### !5. What does the message "Mean file is empty" mean? <a name="question-5"></a>
+#### Q5. What does the message "Mean file is empty" mean? <a name="question-5"></a>
 
 **A** : Most likely, the mean file specified with the `--mean_file` flag is empty while Model Optimizer is launched. Make sure that this is exactly the required mean file and try to regenerate it from the given dataset if possible.
 
@@ -188,7 +188,7 @@ However, if your model contains more than one input, Model Optimizer is able to 
 
 **A** : Input shape was not provided. That is mandatory for converting an MXNet model to the OpenVINO Intermediate Representation, because MXNet models do not contain information about input shapes. Use the `--input_shape` flag to specify it. For more information about using the `--input_shape`, refer to FAQ [#56](#question-56).
 
-#### !17. What does the message "Both --mean_file and mean_values are specified. Specify either mean file or mean values" mean? <a name="question-17"></a>
+#### Q17. What does the message "Both --mean_file and mean_values are specified. Specify either mean file or mean values" mean? <a name="question-17"></a>
 
 **A** : The `--mean_file` and `--mean_values` options are two ways of specifying preprocessing for the input. However, they cannot be used together, as it would mean double subtraction and lead to ambiguity. Choose one of these options and pass it with the corresponding CLI option.
 
