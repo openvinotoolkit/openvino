@@ -23,6 +23,7 @@ def create_pytorch_nn_module_case1(temp_dir):
         def forward(self, x, y):
             logits = self.linear_relu_stack(x + y)
             return logits
+
     sample_input1 = torch.zeros(1, 3, 10, 10)
     sample_input2 = torch.zeros(1, 3, 10, 10)
     sample_input = [sample_input1, sample_input2]
@@ -57,6 +58,7 @@ def create_pytorch_nn_module_case2(temp_dir):
         def forward(self, x, y):
             logits = self.linear_relu_stack(x + y)
             return logits
+
     sample_input1 = torch.zeros(1, 3, 10, 10)
     sample_input2 = torch.zeros(1, 3, 10, 10)
     sample_input = [sample_input1, sample_input2]
@@ -91,6 +93,7 @@ def create_pytorch_nn_module_case3(temp_dir):
         def forward(self, x, y):
             logits = self.linear_relu_stack(x + y)
             return logits
+
     sample_input1 = torch.zeros(1, 3, 10, 10)
     sample_input2 = torch.zeros(1, 3, 10, 10)
     sample_input = [sample_input1, sample_input2]
@@ -109,6 +112,7 @@ def create_pytorch_nn_module_case3(temp_dir):
     function = Model([sigm], parameter_list, "test")
 
     return NeuralNetwork(), function, {'input_shape': "[?,3,?,?],[?,3,?,?]", 'sample_input': sample_input}
+
 
 def create_pytorch_jit_script_module(tmp_dir):
     import torch
@@ -151,7 +155,7 @@ def create_pytorch_jit_script_function(tmp_dir):
     def scripted_fn(x: torch.Tensor, y: torch.Tensor):
         return torch.sigmoid(torch.relu(x + y))
 
-    inp_shape = PartialShape([Dimension(1,-1), Dimension(-1,5), 10])
+    inp_shape = PartialShape([Dimension(1, -1), Dimension(-1, 5), 10])
 
     shape = PartialShape([-1, -1, 10])
     param1 = ov.opset8.parameter(shape, name="input_0", dtype=np.float32)

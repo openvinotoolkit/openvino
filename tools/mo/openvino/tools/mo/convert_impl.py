@@ -9,6 +9,7 @@ import platform
 import sys
 from collections import OrderedDict
 from copy import deepcopy
+
 import numpy as np
 
 try:
@@ -18,7 +19,7 @@ except ImportError:
 
 from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
 from openvino.tools.mo.moc_frontend.check_config import legacy_transformations_config_used, \
-    new_extensions_used, new_transformations_config_used, input_freezig_used
+    new_extensions_used, new_transformations_config_used
 from openvino.tools.mo.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.mo.moc_frontend.serialize import moc_emit_ir
 from openvino.tools.mo.graph.graph import Graph
@@ -414,6 +415,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
 
     if 'feManager' in argv:
         del argv.feManager
+    init_logger(argv.log_level.upper(), argv.silent)
 
     mean_data = deepcopy(graph.graph['mf']) if 'mf' in graph.graph else None
     input_names = deepcopy(graph.graph['input_names']) if 'input_names' in graph.graph else []
@@ -471,10 +473,13 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
 
 
 def get_static_shape(shape: [PartialShape, list, tuple], dynamic_dims_error_message: str):
+    # Current function returns list with static dimensions with following logic.
+    # For dynamic dimensions return lower boundaries if they are set, otherwise
+    # return upper boundaries if they are set. If dimension is fully dynamic then raise error.
     shape_list = []
     for idx, dim in enumerate(shape):
         if isinstance(dim, int):
-            if dim == -1 :
+            if dim == -1:
                 raise Error(dynamic_dims_error_message)
             shape_list.append(dim)
         if isinstance(dim, np.int64):
@@ -523,7 +528,6 @@ def get_dynamic_dims(shape: [PartialShape, list, tuple]):
 
 def check_model_object(argv):
     model = argv['input_model']
-    import io
     if 'tensorflow' in sys.modules:
         import tensorflow as tf
         from tensorflow.python.training.tracking.base import Trackable
@@ -550,9 +554,10 @@ def check_model_object(argv):
                 "Converting of {} requires providing of input_shape with static dimensions.".format(type(model))
             inputs = []
             for shape_idx, shape in enumerate(parse_input_shapes(argv)):
-                inputs.append(tf.keras.Input(shape=get_static_shape(shape,
-                                                                    "For converting {} please provide input_shape "
-                                                                    "with static dimensions.".format(type(model)))))
+                static_shape = get_static_shape(shape,
+                                                "For converting {} please provide input_shape with static dimensions "
+                                                "or shapes with boundaries.".format(type(model)))
+                inputs.append(tf.keras.Input(shape=static_shape))
             outputs = model(*inputs)
             argv['input_model'] = tf.keras.Model(inputs, outputs)
             argv['input_shape'] = None
@@ -563,15 +568,17 @@ def check_model_object(argv):
         import torch
         if isinstance(model, torch.nn.Module) or isinstance(model, torch.jit.ScriptFunction):
             return "pytorch"
+
+    import io
     if isinstance(model, io.BytesIO):
         return 'onnx'
+
     raise Error('Unknown model type: {}'.format(type(model)))
 
 
 def convert_pytorch_to_onnx(model, input_shape, opset_version, sample_input):
-    import torch
     import io
-    from openvino.runtime import PartialShape
+    import torch
 
     if sample_input is not None:
         inputs = sample_input
@@ -624,50 +631,9 @@ def parse_input_shapes(argv):
 
 
 def driver(argv: argparse.Namespace):
-
-    start_time = datetime.datetime.now()
-    inp_model_is_object = input_model_is_object(argv)
-    model_framework = None
-    if inp_model_is_object:
-        model_framework = check_model_object(argv)
-        if model_framework == "pytorch":
-
-            # Currently supported opset by ONNX frontend
-            opset_version = 16
-            if 'onnx_opset_version' in argv and argv['onnx_opset_version'] is not None:
-                opset_version = argv['onnx_opset_version']
-
-            sample_input = None
-            if 'sample_input' in argv and argv['sample_input'] is not None:
-                sample_input = argv['sample_input']
-
-            model_onnx = convert_pytorch_to_onnx(argv['input_model'],
-                                                 parse_input_shapes(argv),
-                                                 opset_version,
-                                                 sample_input)
-            return _convert(input_model=model_onnx,
-                            use_legacy_frontend=True)
-
-    argv = params_to_string(**argv)
-    argv = pack_params_to_args_namespace(**argv)
-    argv.feManager = FrontEndManager()
     init_logger(argv.log_level.upper(), argv.silent)
 
-    if inp_model_is_object:
-        argv.model_name = "model"
-    if argv.model_name is None:
-        argv.model_name = get_model_name_from_args(argv)
-
-    if model_framework is not None:
-        if argv.framework is not None:
-            if argv.framework != model_framework:
-                raise Error("Provided model is not corresponds to provided framework. The provided "
-                            "framework is {}, the model type is {} which is expected to be {} framework.".format(
-                                argv.framework,
-                                type(argv.input_model),
-                                model_framework))
-        else:
-            argv.framework = model_framework
+    start_time = datetime.datetime.now()
 
     graph, ngraph_function = prepare_ir(argv)
     if graph is not None:
@@ -753,12 +719,54 @@ def _convert(**args):
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', get_simplified_mo_version())
 
+    model_framework = None
+    inp_model_is_object = input_model_is_object(args)
+    if inp_model_is_object:
+        model_framework = check_model_object(args)
+        if model_framework == "pytorch":
+
+            # Currently supported opset by ONNX frontend
+            opset_version = 16
+            if 'onnx_opset_version' in args and args['onnx_opset_version'] is not None:
+                opset_version = args['onnx_opset_version']
+
+            sample_input = None
+            if 'sample_input' in args and args['sample_input'] is not None:
+                sample_input = argv['sample_input']
+
+            model_onnx = convert_pytorch_to_onnx(args['input_model'],
+                                                 parse_input_shapes(argv),
+                                                 opset_version,
+                                                 sample_input)
+            return _convert(input_model=model_onnx,
+                            use_legacy_frontend=True)
+
+    args = params_to_string(**args)
+    argv = pack_params_to_args_namespace(**args)
+
+    if inp_model_is_object:
+        argv.model_name = "model"
+    if argv.model_name is None:
+        argv.model_name = get_model_name_from_args(argv)
+
+    if model_framework is not None:
+        if argv.framework is not None:
+            if argv.framework != model_framework:
+                raise Error("Provided model is not corresponds to provided framework. The provided "
+                            "framework is {}, the model type is {} which is expected to be {} framework.".format(
+                                argv.framework,
+                                type(argv.input_model),
+                                model_framework))
+        else:
+            argv.framework = model_framework
+
     try:
         # Initialize logger with 'ERROR' as default level to be able to form nice messages
         # before arg parser deliver log_level requested by user
         init_logger('ERROR', False)
 
-        ngraph_function = driver(args)
+        argv.feManager = FrontEndManager()
+        ngraph_function = driver(argv)
 
         telemetry.send_event('mo', 'conversion_result', 'success')
         telemetry.end_session('mo')

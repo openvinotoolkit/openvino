@@ -21,11 +21,6 @@ class CommonMOConvertTest:
         model = convert(**kwargs)
         serialize(model, str(Path(output_dir, model_name + '.xml')))
 
-    def load_ir(self, fe: FrontEnd, xml: Path):
-        input_model = fe.load(str(xml))
-        f = fe.convert(input_model)
-        return f
-
     def _test(self, temp_dir, test_params, ref_params):
         """
         Generates two IRs using MO Python API and using cmd tool.
@@ -37,12 +32,11 @@ class CommonMOConvertTest:
         test_params.update({"model_name": 'model_test', "output_dir": temp_dir})
         ref_params.update({"model_name": 'model_ref', "output_dir": temp_dir})
 
+        self.generate_ir_python_api(**test_params)
+
         exit_code, stderr = generate_ir(**ref_params)
         assert not exit_code, (
             "Reference IR generation failed with {} exit code: {}".format(exit_code, stderr))
-
-        fem = FrontEndManager()
-        ir_fe = fem.load_by_framework("ir")
 
         ir_test = core.read_model(Path(temp_dir, 'model_test.xml'))
         ir_ref = core.read_model(Path(temp_dir, 'model_ref.xml'))
