@@ -89,3 +89,53 @@ TEST(type_prop, is_inf_dynamic) {
     EXPECT_EQ(is_inf->get_output_partial_shape(0), PartialShape::dynamic())
         << "The output shape of IsInf is incorrect, it should be the same as shape of input data";
 }
+
+TEST(type_prop, is_inf_negative) {
+    const auto data = make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    IsInf::Attributes attributes{};
+    attributes.detect_positive = false;
+    const auto is_inf = make_shared<IsInf>(data, attributes);
+
+    EXPECT_EQ(is_inf->get_element_type(), element::boolean)
+        << "The output element type of IsInf should always be boolean";
+    EXPECT_EQ(is_inf->get_output_partial_shape(0), PartialShape::dynamic())
+        << "The output shape of IsInf is incorrect, it should be the same as shape of input data";
+}
+
+TEST(type_prop, is_inf_positive) {
+    const auto data = make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    IsInf::Attributes attributes{};
+    attributes.detect_negative = false;
+    const auto is_inf = make_shared<IsInf>(data, attributes);
+
+    EXPECT_EQ(is_inf->get_element_type(), element::boolean)
+        << "The output element type of IsInf should always be boolean";
+    EXPECT_EQ(is_inf->get_output_partial_shape(0), PartialShape::dynamic())
+        << "The output shape of IsInf is incorrect, it should be the same as shape of input data";
+}
+
+TEST(type_prop, is_inf_all) {
+    const auto data = make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    IsInf::Attributes attributes{};
+    attributes.detect_positive = true;
+    attributes.detect_negative = true;
+    const auto is_inf = make_shared<IsInf>(data, attributes);
+
+    EXPECT_EQ(is_inf->get_element_type(), element::boolean)
+        << "The output element type of IsInf should always be boolean";
+    EXPECT_EQ(is_inf->get_output_partial_shape(0), PartialShape::dynamic())
+        << "The output shape of IsInf is incorrect, it should be the same as shape of input data";
+}
+
+TEST(type_prop, is_inf_none) {
+    const auto data = make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    IsInf::Attributes attributes{};
+    attributes.detect_positive = false;
+    attributes.detect_negative = false;
+    const auto is_inf = make_shared<IsInf>(data, attributes);
+
+    EXPECT_EQ(is_inf->get_element_type(), element::boolean)
+        << "The output element type of IsInf should always be boolean";
+    EXPECT_EQ(is_inf->get_output_partial_shape(0), PartialShape::dynamic())
+        << "The output shape of IsInf is incorrect, it should be the same as shape of input data";
+}

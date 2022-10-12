@@ -41,7 +41,6 @@
 **Types**
 
 * **T**: `bfloat16`, `float16`, `float32`, `float64`
-* **T_BOOL**: `boolean`
 
 **Example**
 
