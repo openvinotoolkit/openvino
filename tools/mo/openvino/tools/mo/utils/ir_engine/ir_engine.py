@@ -499,7 +499,7 @@ class IREngine(object):
             if 'name' in attr.attrib.keys():
                 attr_name = attr.attrib['name']
             else:
-                attr_name = attr.name
+                attr_name = attr.tag
             if attr_name == 'old_api_map_order':
                 rt_info.info.update(self.__read_old_api_map_order(attr, layer.attrib['type']))
             elif attr_name == 'old_api_map_element_type':
@@ -538,7 +538,7 @@ class IREngine(object):
             attr_name = attr.attrib['name']
             version = int(attr.attrib['version'])
         else:
-            attr_name = attr.name
+            attr_name = attr.tag
             version = 0
         rt_info = OrderedDict()
         for key in attr.attrib:
