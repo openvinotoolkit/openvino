@@ -393,6 +393,8 @@ void FullyConnected::setPostOps(dnnl::primitive_attr &attr, const VectorDims &di
         return binaryShape;
     };
 
+    DEBUG_LOG(getName());
+
     const auto channelAxis = getFusingAxis();
     size_t OC = getOutputShapeAtPort(0).getDims()[channelAxis];
 

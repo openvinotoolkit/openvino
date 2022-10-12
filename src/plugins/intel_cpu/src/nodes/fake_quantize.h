@@ -205,21 +205,14 @@ private:
     std::vector<float> outputScale;
     std::vector<float> outputShift;
 
-    // optimized inference formula:
-    //   - round is dropped (when output is FP32)
-    //   - input/output scales/shifts are combined
-    //   - to be consistent with oneDNN's order of calculation,
-    //     crop & scale_shift steps are swapped and renamed as clip
-    //
-    //   x1 = x * combinedScale + combinedShift
-    //    y = clip(x, clipLow, clipHigh)
-    std::vector<float> combinedScale;
-    std::vector<float> combinedShift;
-    std::vector<float> clipLow;
-    std::vector<float> clipHigh;
-    float relaxedZeroThr;
+    // equivalently, we can push crop operation through
+    // input linear mapping and rounding stage, according to
+    // definition of FQ, this should turn the per-OC crop into
+    // a per-tensor crop2 (maybe not always)
+    std::vector<float> crop2Low;
+    std::vector<float> crop2High;
 
-    void convertToOptimizedFormula();
+    void initializeCrop2();
 
     std::vector<float> quantizationData;
     size_t quantizationDataSize = 0lu;
