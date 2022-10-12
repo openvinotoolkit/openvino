@@ -6,7 +6,9 @@
 
 #include <transformations/init_node_info.hpp>
 #include <openvino/frontend/manager.hpp>
+
 #include <openvino/opsets/opset9.hpp>
+
 #include <openvino/pass/manager.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -60,6 +62,7 @@ TEST(TransposeSinkingBinaryTest, TransposeSinkingConcatMultTransposesForward) {
 
     std::shared_ptr<ngraph::Function> function, reference_function, original_function;
     {
+
         auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
         auto const1 = ov::opset9::Constant::create(input_type, ngraph::Shape{1, 4, 1, 4}, {1});
