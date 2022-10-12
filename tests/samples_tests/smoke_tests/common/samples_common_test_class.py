@@ -422,7 +422,7 @@ class SamplesCommonTestClass():
                 retcode_perf, stdout_perf, stderr_perf = shell([self.executable_path, cmd_perf])
                 if (retcode_perf != 0):
                     log.error(stderr_perf)
-                assert retcode_perf == 0, "Execution sample for performace failed"
+                assert retcode_perf == 0, "Execution sample for performance failed"
                 fps_perf = self.find_fps(stdout_perf)
                 self.write_csv(sample_name=self.sample_name, sample_type=sample_type, cmd_perf=cmd_perf, fps_perf=fps_perf)
                 log.info('Perf results: {}'.format(fps_perf))

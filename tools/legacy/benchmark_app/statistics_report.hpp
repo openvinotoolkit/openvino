@@ -21,7 +21,7 @@ static constexpr char detailedCntReport[] = "detailed_counters";
 /// @brief Responsible for collecting of statistics and dumping to .csv file
 class StatisticsReport {
 public:
-    typedef std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> PerformaceCounters;
+    typedef std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> PerformanceCounters;
     typedef std::vector<std::pair<std::string, std::string>> Parameters;
 
     struct Config {
@@ -54,10 +54,10 @@ public:
 
     void dump();
 
-    void dumpPerformanceCounters(const std::vector<PerformaceCounters>& perfCounts);
+    void dumpPerformanceCounters(const std::vector<PerformanceCounters>& perfCounts);
 
 private:
-    void dumpPerformanceCountersRequest(CsvDumper& dumper, const PerformaceCounters& perfCounts);
+    void dumpPerformanceCountersRequest(CsvDumper& dumper, const PerformanceCounters& perfCounts);
 
     // configuration of current benchmark execution
     const Config _config;

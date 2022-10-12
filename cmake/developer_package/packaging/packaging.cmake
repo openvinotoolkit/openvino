@@ -5,6 +5,18 @@
 include(CPackComponent)
 
 #
+# ov_get_pyversion()
+#
+function(ov_get_pyversion pyversion)
+    find_package(PythonInterp 3 QUIET)
+    if(PYTHONINTERP_FOUND)
+        set(${pyversion} "python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}" PARENT_SCOPE)
+    else()
+        set(${pyversion} "NOT-FOUND" PARENT_SCOPE)
+    endif()
+endfunction()
+
+#
 # ov_cpack_set_dirs()
 #
 # Set directories for cpack
@@ -18,10 +30,14 @@ macro(ov_cpack_set_dirs)
     set(OV_CPACK_OPENVINO_CMAKEDIR runtime/cmake)
     set(OV_CPACK_DOCDIR docs)
     set(OV_CPACK_SAMPLESDIR samples)
-    set(OV_CPACK_PYTHONDIR python)
     set(OV_CPACK_WHEELSDIR tools)
     set(OV_CPACK_TOOLSDIR tools)
     set(OV_CPACK_DEVREQDIR tools)
+
+    ov_get_pyversion(pyversion)
+    if(pyversion)
+        set(OV_CPACK_PYTHONDIR python/${pyversion})
+    endif()
 
     if(WIN32)
         set(OV_CPACK_LIBRARYDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG>)
@@ -118,14 +134,12 @@ ov_define_component_names()
 #  - ov_add_latest_component()
 if(CPACK_GENERATOR STREQUAL "DEB")
     include(packaging/debian)
-endif()
-
-if(CPACK_GENERATOR STREQUAL "RPM")
+elseif(CPACK_GENERATOR STREQUAL "RPM")
     include(packaging/rpm)
-endif()
-
-if(CPACK_GENERATOR STREQUAL "NSIS")
+elseif(CPACK_GENERATOR STREQUAL "NSIS")
     include(packaging/nsis)
+elseif(CPACK_GENERATOR MATCHES "^(CONDA-FORGE|BREW)$")
+    include(packaging/common-libraries)
 endif()
 
 macro(ie_cpack)
@@ -180,19 +194,19 @@ macro(ie_cpack)
         set(CPACK_SYSTEM_NAME "${OS_FOLDER}")
     endif()
 
+    # include GENERATOR dedicated per-component configuration file
+    # NOTE: private modules need to define ov_cpack_settings macro
+    # for custom  packages configuration
+    if(COMMAND ov_cpack_settings)
+        ov_cpack_settings()
+    endif()
+
     # generator specific variables
     if(CPACK_GENERATOR MATCHES "^(7Z|TBZ2|TGZ|TXZ|TZ|ZIP)$")
         # New in version 3.18
         set(CPACK_ARCHIVE_THREADS 8)
         # multiple packages are generated
         set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
-    endif()
-    
-    # include GENERATOR dedicated per-component configuration file
-    # NOTE: private modules need to define ov_cpack_settings macro
-    # for custom  packages configuration
-    if(COMMAND ov_cpack_settings)
-        ov_cpack_settings()
     endif()
 
     include(CPack)

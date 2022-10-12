@@ -20,8 +20,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ie_ngraph_utils.hpp>
 
-#include <shared_mutex>
-
 #include <snippets/op/subgraph.hpp>
 #include "emitters/cpu_generator.hpp"
 #include "snippets_transformations/fuse_load_store_and_convert.hpp"

@@ -198,7 +198,7 @@ if(WIN32)
 endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph
-    frontend_common::static openvino_gapi_preproc_s inference_engine_transformations openvino::pugixml)
+    frontend_common::static inference_engine_transformations openvino::pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 

@@ -483,7 +483,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     if (configIter != fullConfig.end() && configIter->second == InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT) {
         configIter->second = InferenceEngine::PluginConfigParams::THROUGHPUT;
         _LogTag = "AUTO";
-        LOG_INFO_TAG("CUMULATIVE Call MULTI PERFORMACE_HINT set to THROUGHPUT");
+        LOG_INFO_TAG("CUMULATIVE Call MULTI PERFORMANCE_HINT set to THROUGHPUT");
     }
     if (priorities->second.empty()) {
         IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
