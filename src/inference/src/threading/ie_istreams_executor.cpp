@@ -106,7 +106,8 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
                 IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THROUGHPUT_STREAMS)
                            << ". Expected only positive numbers (#streams)";
             }
-            _streams = val_i;
+            const auto sockets = static_cast<int32_t>(getAvailableNUMANodes().size());
+            _streams = (sockets > 1 && val_i == 1) ? sockets : val_i;
         }
     } else if (key == ov::num_streams) {
         auto streams = ov::util::from_string(value, ov::streams::num);
