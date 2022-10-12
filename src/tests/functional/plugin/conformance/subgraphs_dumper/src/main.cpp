@@ -25,7 +25,7 @@ static std::vector<std::regex> getRegexByFrontend() {
 #endif
 #ifdef ENABLE_OV_PADDLE_FRONTEND
     result.push_back(std::regex(R"(.*\.pdmodel)"));
-    result.push_back(std::regex(R"(.*\__model__)"));
+    result.push_back(std::regex(R"(.*__model__)"));
 #endif
 #ifdef ENABLE_OV_TF_FRONTEND
     result.push_back(std::regex(R"(.*\.pb)"));
@@ -133,7 +133,14 @@ int main(int argc, char *argv[]) {
 
     std::vector<std::string> local_cache_dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_local_cache);
     std::vector<std::string> dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
-    auto models = findModelsInDirs(dirs);
+
+    std::vector<SubgraphsDumper::Model> models;
+    try {
+        models = findModelsInDirs(dirs);
+    } catch (std::runtime_error& e) {
+        std::cout << "Try 'subgraphdumper -h' for more information" << std::endl;
+        return 1;
+    }
 
     auto cache = SubgraphsDumper::OPCache::make_cache();
     if (!FLAGS_local_cache.empty()) {

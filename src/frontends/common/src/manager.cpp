@@ -209,7 +209,7 @@ private:
         };
         std::string env_path = ov::util::getenv_string("OV_FRONTEND_PATH");
         if (!env_path.empty()) {
-            auto start = 0u;
+            size_t start = 0;
             auto sep_pos = env_path.find(PathSeparator, start);
             while (sep_pos != std::string::npos) {
                 search_from_dir(env_path.substr(start, sep_pos - start));

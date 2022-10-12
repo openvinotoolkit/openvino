@@ -22,7 +22,9 @@ char const* error_infos[] = {"success",
                              "network is not ready",
                              "inference is canceled",
                              "invalid c input parameters",
-                             "unknown c error"};
+                             "unknown c error",
+                             "not implement in c method",
+                             "unknown exception"};
 
 const char* ov_get_error_info(ov_status_e status) {
     auto index = -status;
@@ -32,18 +34,7 @@ const char* ov_get_error_info(ov_status_e status) {
     return error_infos[index];
 }
 
-void ov_any_free(ov_any_t* value) {
-    if (value) {
-        if (value->ptr) {
-            char* temp = static_cast<char*>(value->ptr);
-            delete temp;
-        }
-        value->ptr = nullptr;
-        value->size = 0;
-    }
-}
-
 void ov_free(const char* content) {
     if (content)
-        delete content;
+        delete[] content;
 }

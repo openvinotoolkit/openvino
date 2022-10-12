@@ -70,8 +70,8 @@ void If::getSupportedDescriptors() {
 
     const std::shared_ptr<const ov::Model>& thenBody = ifOp->get_then_body();
     const std::shared_ptr<const ov::Model>& elseBody = ifOp->get_else_body();
-    subGraphThen.CreateGraph(thenBody, ext_mng, weightCache);
-    subGraphElse.CreateGraph(elseBody, ext_mng, weightCache);
+    subGraphThen.CreateGraph(thenBody, ext_mng, weightCache, sharedMutex);
+    subGraphElse.CreateGraph(elseBody, ext_mng, weightCache, sharedMutex);
 
     const auto &inMapThen = subGraphThen.GetInputNodesMap();
     for (const auto &param : ifOp->get_then_body()->get_parameters()) {

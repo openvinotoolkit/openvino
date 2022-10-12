@@ -144,7 +144,9 @@ void SubgraphBaseTest::query_model() {
     for (auto&& res : queryNetworkResult) {
         actual.insert(res.first);
     }
-    ASSERT_EQ(expected, actual);
+    if (expected != actual) {
+        IE_THROW() << "Expected and actual are different";
+    }
 }
 
 void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
@@ -200,9 +202,11 @@ void SubgraphBaseTest::compile_model() {
     }
 
     // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
-    if (targetDevice == CommonTestUtils::DEVICE_CPU && !configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16)) {
-        configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
-    }
+    #if !(defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM64))
+        if (targetDevice == CommonTestUtils::DEVICE_CPU && !configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16)) {
+                configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
+        }
+    #endif
 
     compiledModel = core->compile_model(function, targetDevice, configuration);
 }

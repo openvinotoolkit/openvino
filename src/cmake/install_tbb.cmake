@@ -7,7 +7,7 @@ include(cmake/ie_parallel.cmake)
 # pre-find TBB: need to provide TBB_IMPORTED_TARGETS used for installation
 ov_find_package_tbb()
 
-# check whether TBB has TBBBind 2.5 with hwloc 2.5 or higher which is required
+# check whether TBB has TBBBind 2.5+ with hwloc 2.5+ or higher which is required
 # to detect hybrid cores
 function(_ov_detect_dynamic_tbbbind_2_5 var)
     if(NOT TBB_FOUND)
@@ -24,8 +24,9 @@ function(_ov_detect_dynamic_tbbbind_2_5 var)
     find_library(_ov_tbbbind_2_5
                  NAMES tbbbind_2_5
                  HINTS "${_tbb_libs_dir}"
-                 "Path to TBBBind 2.5 library"
-                 NO_DEFAULT_PATH)
+                 "Path to TBBBind 2.5+ library"
+                 NO_DEFAULT_PATH
+                 NO_CMAKE_FIND_ROOT_PATH)
 
     if(_ov_tbbbind_2_5)
         set(${var} ON PARENT_SCOPE)
@@ -35,11 +36,12 @@ endfunction()
 _ov_detect_dynamic_tbbbind_2_5(_ov_dynamic_tbbbind_2_5_found)
 
 if(_ov_dynamic_tbbbind_2_5_found)
-    message(STATUS "Static tbbbind_2_5 package usage is disabled, since oneTBB (ver. ${TBB_VERSION}) provides dynamic TBBBind 2.5")
+    message(STATUS "Static tbbbind_2_5 package usage is disabled, since oneTBB (ver. ${TBB_VERSION}) provides dynamic TBBBind 2.5+")
     set(ENABLE_TBBBIND_2_5 OFF)
 elseif(ENABLE_TBBBIND_2_5)
-    if(TBB_VERSION VERSION_GREATER_EQUAL 2021)
-        message(STATUS "oneTBB (ver. ${TBB_VERSION}) is used, but dynamic TBBBind 2.5 is not found. Use custom static TBBBind 2.5")
+    # TMP: for Apple Silicon TBB does not provide TBBBind
+    if(TBB_VERSION VERSION_GREATER_EQUAL 2021 AND NOT (APPLE AND AARCH64))
+        message(STATUS "oneTBB (ver. ${TBB_VERSION}) is used, but dynamic TBBBind 2.5+ is not found. Use custom static TBBBind 2.5")
     endif()
 
     # download and find a prebuilt version of TBBBind_2_5
@@ -83,6 +85,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
           DEFINED ENV{TBB_DIR}) OR ENABLE_SYSTEM_TBB ) )
     ie_cpack_add_component(tbb HIDDEN)
     list(APPEND core_components tbb)
+
     if(TBBROOT MATCHES ${TEMP})
         set(tbb_downloaded ON)
     elseif(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR
@@ -90,8 +93,8 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         set(tbb_custom ON)
     endif()
 
-    if(CPACK_GENERATOR STREQUAL "DEB" AND NOT ENABLE_SYSTEM_TBB)
-        message(FATAL_ERROR "Debian packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")
+    if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$" AND NOT ENABLE_SYSTEM_TBB)
+        message(FATAL_ERROR "Debian | RPM | Conda-forge | Brew packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")
     endif()
 
     if(ENABLE_SYSTEM_TBB)

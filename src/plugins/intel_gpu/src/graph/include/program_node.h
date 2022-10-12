@@ -415,6 +415,12 @@ public:
         cur_id = 0;
     }
 
+    format::type get_required_input0() const { return required_input0; }
+    format::type get_required_output() const { return required_output; }
+    void set_required_input0(format::type type) { required_input0 = type; }
+    void set_required_output(format::type type) { required_output = type; }
+
+
 protected:
     size_t unique_id = 0;
     static thread_local size_t cur_id;
@@ -426,6 +432,9 @@ protected:
 
     bool valid_output_layout = false;
     layout output_layout = layout(data_types::f32, format::bfyx, tensor());
+
+    format::type required_input0;
+    format::type required_output;
 
     std::vector<program_node*> dependencies;
     std::list<program_node*> users;
