@@ -241,6 +241,8 @@ REGISTER_FACTORY(v9, SoftSign)
 REGISTER_FACTORY(v9, ROIAlign);
 REGISTER_FACTORY(v9, RDFT);
 REGISTER_FACTORY(v9, IRDFT);
+REGISTER_FACTORY(v9, Eye);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
+REGISTER_FACTORY(internal, GenerateProposalsIEInternal);
