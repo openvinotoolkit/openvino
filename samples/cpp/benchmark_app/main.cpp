@@ -776,7 +776,7 @@ int main(int argc, char* argv[]) {
                     throw ov::Exception("Every device used with the benchmark_app should support " +
                                         std::string(ov::optimal_number_of_infer_requests.name()) +
                                         " Failed to query the metric for the " + device_name +
-                                        " with error:" + ex.what());
+                                        " with error: " + ex.what());
                 }
             }
         }

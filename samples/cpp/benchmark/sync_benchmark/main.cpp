@@ -26,7 +26,7 @@ template <typename T, typename T2>
 void fill_random(ov::Tensor& tensor,
                  T rand_min = std::numeric_limits<uint8_t>::min(),
                  T rand_max = std::numeric_limits<uint8_t>::max()) {
-    std::mt19937 gen(0);  // TODO: why is gen always reset?
+    std::mt19937 gen(0);
     size_t tensor_size = tensor.get_size();
     if (0 == tensor_size) {
         throw std::runtime_error("Models with dynamic shapes aren't supported. Input tensors must have specific shapes before inference");
@@ -82,9 +82,6 @@ void fill_tensor_random(ov::Tensor tensor) {
 }
 }
 
-// TODO: update tests
-// TODO: add readme
-// TODO: add comments
 int main(int argc, char* argv[]) {
     try {
         slog::info << ov::get_openvino_version() << slog::endl;
@@ -92,13 +89,16 @@ int main(int argc, char* argv[]) {
             slog::info << "Usage : " << argv[0] << " <path_to_model>" << slog::endl;
             return EXIT_FAILURE;
         }
-        ov::Core core;
-        // Set nstreams to 1 to make synchronous inference. For CPU its default value is already 1,
-        // but other devises like MYRIAD may have a different default value
-        ov::AnyMap nstreams{{ov::streams::num.name(), 1}};
-        // Replace CPU with your device, for example AUTO
-        ov::CompiledModel compiled_model = core.compile_model(argv[1], "CPU", nstreams);
+        // Optimize for latency. Most of the devices are configured for latency by default,
+        // but there are exceptions like MYRIAD
+        ov::AnyMap latency{{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::LATENCY}};
+        // Create ov::Core and use it to compile a model
+        // Pick device by replacing CPU, for example AUTO:GPU,CPU.
+        // Using MULTI device is pointless in sync scenario
+        // because only one instance of ov::InferRequest is used
+        ov::CompiledModel compiled_model = ov::Core{}.compile_model(argv[1], "CPU", latency);
         ov::InferRequest ireq = compiled_model.create_infer_request();
+        // Fill input data for the ireq
         for (const ov::Output<const ov::Node>& input : compiled_model.inputs()) {
             fill_tensor_random(ireq.get_tensor(input));
         }
@@ -106,27 +106,28 @@ int main(int argc, char* argv[]) {
         // Warm up
         ireq.infer();
 
-        int niter = 100;
+        // Run benchmarking for seconds_to_run seconds
+        std::chrono::seconds seconds_to_run{3};
         std::vector<double> latencies;
-        latencies.reserve(niter);
         auto start = std::chrono::steady_clock::now();
         auto time_point = start;
-        for (int i = 0; i < niter; ++i) {
+        auto time_point_to_finish = start + seconds_to_run;
+        while (time_point < time_point_to_finish) {
             ireq.infer();
             auto iter_end = std::chrono::steady_clock::now();
             latencies.push_back(std::chrono::duration_cast<Ms>(iter_end - time_point).count());
             time_point = iter_end;
         }
         auto end = time_point;
-
-        auto duration = std::chrono::duration_cast<Ms>(end - start).count();
-        slog::info << "Count:      " << niter << " iterations" << slog::endl;
+        // Report results
+        double duration = std::chrono::duration_cast<Ms>(end - start).count();
+        slog::info << "Count:      " << latencies.size() << " iterations" << slog::endl;
         slog::info << "Duration:   " << duration << " ms" << slog::endl;
         slog::info << "Latency:" << slog::endl;
         size_t percent = 50;
         LatencyMetrics latency_metrics{latencies, "", percent};
         latency_metrics.write_to_slog();
-        slog::info << "Throughput: " << double_to_string(niter * 1000 / duration) << " FPS" << slog::endl;
+        slog::info << "Throughput: " << double_to_string(latencies.size() * 1000 / duration) << " FPS" << slog::endl;
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
         return 1;
