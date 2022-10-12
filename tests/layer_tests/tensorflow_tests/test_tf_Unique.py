@@ -7,13 +7,12 @@ import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 
 
-class TestDynamicPartition(CommonTFLayerTest):
+class TestUnique(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         assert 'x' in inputs_info, "Test error: inputs_info must contain `partitions`"
         x_shape = inputs_info['x']
         inputs_data = {}
         inputs_data['x'] = np.random.randint(-10, 10, x_shape)
-        print("inputs_data['x'] = ", inputs_data['x'])
         return inputs_data
 
     def create_unique_net(self, x_shape, data_type, out_idx):
