@@ -15,21 +15,24 @@
 
 namespace {
 
-auto is_in_out_op(const std::shared_ptr<ov::Node>& n) -> bool {
+inline auto is_in_op(const std::shared_ptr<ov::Node>& n) -> bool {
     return ov::is_type<ov::op::v0::Parameter>(n)
-        || ov::is_type<ov::op::v0::Constant>(n)
-        || ov::is_type<ov::op::v0::Result>(n);
+        || ov::is_type<ov::op::v0::Constant>(n);
+}
+
+inline auto is_in_out_op(const std::shared_ptr<ov::Node>& n) -> bool {
+    return is_in_op(n) || ov::is_type<ov::op::v0::Result>(n);
 }
 
 // At the moment Subgraph supports only Eltwise, Convert and FQ (which is decomposed into Eltwises and Convert)
 // And only Eltwises supports execution only in "exec_type". So we can check op type from the opposite
-auto op_supports_only_exec_type(const std::shared_ptr<ov::Node>& n) -> bool {
+inline auto op_supports_only_exec_type(const std::shared_ptr<ov::Node>& n) -> bool {
     return !ov::is_type<ov::op::v0::Convert>(n);
 }
 
 // Check if executable operation supports only execution element type f32
 // NOTE: Executable op is node that isn't Parameter/Constant/Result
-auto is_executable_op_only_on_exec_type(const std::shared_ptr<ov::Node>& n) -> bool {
+inline auto is_executable_op_only_on_exec_type(const std::shared_ptr<ov::Node>& n) -> bool {
     return op_supports_only_exec_type(n) && !is_in_out_op(n);
 }
 
@@ -50,11 +53,11 @@ bool ngraph::snippets::pass::AlignElementType::run_on_model(const std::shared_pt
     bool rewritten = false;
     auto ops = m->get_ordered_ops();
     for (auto& op : ops) {
-        if (is_in_out_op(op) || ov::is_type<ov::op::v0::Convert>(op)) {
+        if (is_in_op(op)) {
             continue;
         }
 
-        if (op_supports_only_exec_type(op)) {
+        if (is_executable_op_only_on_exec_type(op)) {
             for (auto i = 0; i < op->inputs().size(); i++) {
                 auto shared_input = op->get_input_node_shared_ptr(i);
                 auto existing_convert = ov::as_type_ptr<ov::op::v0::Convert>(shared_input);
@@ -63,7 +66,8 @@ bool ngraph::snippets::pass::AlignElementType::run_on_model(const std::shared_pt
                 //  - Input is Op which support any element type
                 // We couldn't unite these conditions and just check that element type isn't supported exec type
                 // because we don't call validate_and_infer_types() so we don't know new precisions
-                if ((existing_convert && existing_convert->get_destination_type() != exec_type) || (!is_executable_op_only_on_exec_type(shared_input))) {
+                if ((existing_convert && existing_convert->get_destination_type() != exec_type) ||
+                    (!is_executable_op_only_on_exec_type(shared_input))) {
                     insertConvert(op, i, exec_type);
                     rewritten |= true;
                 }
@@ -72,7 +76,7 @@ bool ngraph::snippets::pass::AlignElementType::run_on_model(const std::shared_pt
                 tr_node->set_overridden_output_type(exec_type, 0);
                 rewritten |= true;
             }
-        } else {  // branch for the Movement ops and MatMul ops in the future
+        } else {  // branch for Movement ops, MatMul ops in the future and for the Convert, Result
             for (auto i = 0; i < op->inputs().size(); i++) {
                 auto shared_input = op->get_input_node_shared_ptr(i);
                 // it's original element type because we don't use validate_and_infer_type() anywhere
