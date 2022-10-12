@@ -576,7 +576,12 @@ def check_model_object(argv):
     raise Error('Unknown model type: {}'.format(type(model)))
 
 
-def convert_pytorch_to_onnx(model, input_shape, opset_version, sample_input):
+def get_onnx_temp_filename(output_dir):
+    output_dir = output_dir if output_dir is not None else os.getcwd()
+    return os.path.normpath(os.path.join(output_dir, "model.onnx"))
+
+
+def convert_pytorch_to_onnx(model, input_shape, opset_version, sample_input, output_dir):
     import io
     import torch
 
@@ -604,7 +609,10 @@ def convert_pytorch_to_onnx(model, input_shape, opset_version, sample_input):
     if len(dynamic_dims_dict) > 0:
         dynamic_axes_params = {'dynamic_axes': dynamic_dims_dict, 'input_names': input_names}
 
-    model_onnx = io.BytesIO()
+    if os.environ.get('SAVE_TO_FILE_ONNX_MODEL'):
+        model_onnx = get_onnx_temp_filename(output_dir)
+    else:
+        model_onnx = io.BytesIO()
     torch.onnx.export(model,
                       tuple(inputs),
                       model_onnx,
@@ -743,13 +751,21 @@ def _convert(**args):
             if 'sample_input' in args and args['sample_input'] is not None:
                 sample_input = args['sample_input']
 
+            out_dir = args['output_dir'] if 'output_dir' in args else None
+
             model_onnx = convert_pytorch_to_onnx(args['input_model'],
                                                  parse_input_shapes(args),
                                                  opset_version,
-                                                 sample_input)
+                                                 sample_input,
+                                                 out_dir)
             args['input_model'] = model_onnx
             args['use_legacy_frontend'] = True
-            return _convert(**args)
+            ov_model = _convert(**args)
+
+            if os.environ.get('SAVE_TO_FILE_ONNX_MODEL'):
+                os.remove(get_onnx_temp_filename(out_dir))
+
+            return ov_model
 
     args = params_to_string(**args)
     argv = pack_params_to_args_namespace(**args)
