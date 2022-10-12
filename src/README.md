@@ -55,7 +55,7 @@ To get more information about supported OpenVINO Plugins, go to the [Plugins pag
 
 ## OpenVINO Bindings
 
-OpenVINO provides bindings for different languages. To get the full list of supported languages, go to the [page](./bindings/README.md).
+OpenVINO provides bindings for different languages. To get the full list of supported languages, go to the [bindings page](./bindings/README.md).
 
 ## Core developer topics
 
