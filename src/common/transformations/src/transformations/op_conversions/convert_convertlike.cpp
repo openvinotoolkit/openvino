@@ -5,18 +5,18 @@
 #include "transformations/op_conversions/convert_convertlike.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset8.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertConvertLike, "ConvertConvertLike", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertConvertLike, "ConvertConvertLike", 0);
 
-using namespace ngraph;
+using namespace ov;
 
-ngraph::pass::ConvertConvertLike::ConvertConvertLike() {
+ov::pass::ConvertConvertLike::ConvertConvertLike() {
     MATCHER_SCOPE(ConvertConvertLike);
 
     auto convertlike = pattern::wrap_type<opset8::ConvertLike>();

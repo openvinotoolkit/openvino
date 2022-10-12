@@ -4,21 +4,21 @@
 
 #include "transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset8.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 
 #include "itt.hpp"
 
-ngraph::pass::ConvertDeformableConv8To1::ConvertDeformableConv8To1() {
+ov::pass::ConvertDeformableConv8To1::ConvertDeformableConv8To1() {
     MATCHER_SCOPE(ConvertDeformableConv8To1);
 
-    auto deformable_conv_v8 = pattern::wrap_type<ngraph::opset8::DeformableConvolution>();
+    auto deformable_conv_v8 = pattern::wrap_type<ov::opset8::DeformableConvolution>();
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto deformable_conv_v8_node =
-            std::dynamic_pointer_cast<ngraph::opset8::DeformableConvolution>(m.get_match_root());
+            std::dynamic_pointer_cast<ov::opset8::DeformableConvolution>(m.get_match_root());
         if (!deformable_conv_v8_node)
             return false;
 
@@ -30,7 +30,7 @@ ngraph::pass::ConvertDeformableConv8To1::ConvertDeformableConv8To1() {
         auto filters = deformable_conv_v8_node->input_value(2);
 
         auto deformable_conv_v1 =
-            std::make_shared<ngraph::opset1::DeformableConvolution>(arg,
+            std::make_shared<ov::opset1::DeformableConvolution>(arg,
                                                                     offsets,
                                                                     filters,
                                                                     deformable_conv_v8_node->get_strides(),

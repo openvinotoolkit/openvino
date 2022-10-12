@@ -15,7 +15,7 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/variant.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 
 /// A base class for templated TypeRelaxed that maintains overridden input types and output types for an operation.
@@ -355,5 +355,13 @@ const ::ngraph::Node::type_info_t TypeRelaxed<BaseOp>::type_info = TypeRelaxed<B
 
 NGRAPH_SUPPRESS_DEPRECATED_END
 
+}  // namespace op
+}  // namespace ov
+
+namespace ngraph {
+namespace op {
+using ov::op::TypeRelaxedBase;
+using ov::op::TypeRelaxed;
+using ov::op::TemporaryReplaceOutputType;
 }  // namespace op
 }  // namespace ngraph

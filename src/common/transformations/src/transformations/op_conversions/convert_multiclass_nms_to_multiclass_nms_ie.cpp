@@ -5,8 +5,8 @@
 #include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset9.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <vector>
@@ -14,7 +14,7 @@
 #include "itt.hpp"
 #include "ngraph_ops/multiclass_nms_ie_internal.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNmsIE(bool force_i32_output_type) {
     MATCHER_SCOPE(ConvertMulticlassNmsToMulticlassNmsIE);

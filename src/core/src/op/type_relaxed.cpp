@@ -8,8 +8,8 @@
 #include <memory>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace op {
 TypeRelaxedBase::~TypeRelaxedBase() = default;
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

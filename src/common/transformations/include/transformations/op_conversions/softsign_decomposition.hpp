@@ -5,16 +5,16 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API SoftSignDecomposition;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -37,8 +37,14 @@ class TRANSFORMATIONS_API SoftSignDecomposition;
  *       Output
  */
 
-class ngraph::pass::SoftSignDecomposition : public ngraph::pass::MatcherPass {
+class ov::pass::SoftSignDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SoftSignDecomposition", "0");
     SoftSignDecomposition();
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::SoftSignDecomposition;
+}  // namespace pass
+}  // namespace ngraph

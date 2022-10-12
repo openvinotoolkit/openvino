@@ -5,12 +5,12 @@
 #include "ngraph_ops/nms_ie_internal.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset5.hpp>
+#include <openvino/opsets/opset5.hpp>
 
 #include "itt.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 BWDCMP_RTTI_DEFINITION(op::internal::NonMaxSuppressionIEInternal);
 
@@ -97,7 +97,7 @@ int64_t op::internal::NonMaxSuppressionIEInternal::max_boxes_output_from_input()
     }
 
     const auto max_output_boxes_input =
-        ov::as_type_ptr<const op::Constant>(input_value(max_output_boxes_per_class_port).get_node_shared_ptr());
+        ov::as_type_ptr<const opset5::Constant>(input_value(max_output_boxes_per_class_port).get_node_shared_ptr());
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -116,7 +116,7 @@ void op::internal::NonMaxSuppressionIEInternal::validate_and_infer_types() {
         const auto num_boxes_boxes = boxes_ps[1];
         const auto max_output_boxes_per_class_node = input_value(max_output_boxes_per_class_port).get_node_shared_ptr();
         if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
-            op::is_constant(max_output_boxes_per_class_node)) {
+            op::util::is_constant(max_output_boxes_per_class_node)) {
             const auto num_boxes = num_boxes_boxes.get_length();
             const auto num_classes = scores_ps[1].get_length();
             const auto max_output_boxes_per_class = max_boxes_output_from_input();

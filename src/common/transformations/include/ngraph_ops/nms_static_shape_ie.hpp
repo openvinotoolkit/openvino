@@ -10,7 +10,7 @@
 #include <transformations_visibility.hpp>
 #include <vector>
 
-#include "ngraph/op/op.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace op {
@@ -22,7 +22,7 @@ class MatrixNms;
 }  // namespace op
 }  // namespace ov
 
-namespace ngraph {
+namespace ov {
 namespace op {
 namespace internal {
 
@@ -107,12 +107,12 @@ void NmsStaticShapeIE<BaseNmsOp>::validate_and_infer_types() {
 }
 
 template <typename BaseNmsOp>
-const ::ngraph::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info() const {
+const ov::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info() const {
     return get_type_info_static();
 }
 
 template <typename BaseNmsOp>
-const ::ngraph::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info_static() {
+const ov::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info_static() {
     auto BaseNmsOpTypeInfoPtr = &BaseNmsOp::get_type_info_static();
 
     // TODO: it should be static const std::string name = std::string("NmsStaticShapeIE_") + BaseNmsOpTypeInfoPtr->name;
@@ -120,7 +120,7 @@ const ::ngraph::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info_st
     static const std::string name = BaseNmsOpTypeInfoPtr->name;
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    static const ::ngraph::Node::type_info_t type_info_static{name.c_str(),
+    static const ov::Node::type_info_t type_info_static{name.c_str(),
                                                               BaseNmsOpTypeInfoPtr->version,
                                                               "ie_internal_opset",
                                                               BaseNmsOpTypeInfoPtr};
@@ -130,7 +130,7 @@ const ::ngraph::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info_st
 
 #ifndef OPENVINO_STATIC_LIBRARY
 template <typename BaseNmsOp>
-const ::ngraph::Node::type_info_t NmsStaticShapeIE<BaseNmsOp>::type_info =
+const ov::Node::type_info_t NmsStaticShapeIE<BaseNmsOp>::type_info =
     NmsStaticShapeIE<BaseNmsOp>::get_type_info_static();
 #endif
 
@@ -138,6 +138,14 @@ const ::ngraph::Node::type_info_t NmsStaticShapeIE<BaseNmsOp>::type_info =
 extern template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>;
 #endif  // __clang__
 
+}  // namespace internal
+}  // namespace op
+}  // namespace ov
+
+namespace ngraph {
+namespace op {
+namespace internal {
+using ov::op::internal::NmsStaticShapeIE;
 }  // namespace internal
 }  // namespace op
 }  // namespace ngraph

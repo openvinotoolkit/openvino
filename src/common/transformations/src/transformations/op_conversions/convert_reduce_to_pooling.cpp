@@ -6,7 +6,7 @@
 
 #include "itt.hpp"
 
-ngraph::pass::ConvertReduceMeanToPooling::ConvertReduceMeanToPooling() {
+ov::pass::ConvertReduceMeanToPooling::ConvertReduceMeanToPooling() {
     MATCHER_SCOPE(ConvertReduceMeanToPooling);
     auto m = std::make_shared<ngraph::pattern::Matcher>(
         ngraph::pattern::wrap_type<opset1::ReduceMean>(
@@ -15,7 +15,7 @@ ngraph::pass::ConvertReduceMeanToPooling::ConvertReduceMeanToPooling() {
         matcher_name);
     register_matcher(m, convert_reduce_to_pooling<opset1::ReduceMean>());
 }
-ngraph::pass::ConvertReduceMaxToPooling::ConvertReduceMaxToPooling() {
+ov::pass::ConvertReduceMaxToPooling::ConvertReduceMaxToPooling() {
     MATCHER_SCOPE(ConvertReduceMaxToPooling);
     auto m = std::make_shared<ngraph::pattern::Matcher>(
         ngraph::pattern::wrap_type<opset1::ReduceMax>(
@@ -24,7 +24,7 @@ ngraph::pass::ConvertReduceMaxToPooling::ConvertReduceMaxToPooling() {
         matcher_name);
     register_matcher(m, convert_reduce_to_pooling<opset1::ReduceMax>());
 }
-ngraph::pass::ConvertReduceSumToPooling::ConvertReduceSumToPooling() {
+ov::pass::ConvertReduceSumToPooling::ConvertReduceSumToPooling() {
     MATCHER_SCOPE(ConvertReduceSumToPooling);
     auto m = std::make_shared<ngraph::pattern::Matcher>(
         ngraph::pattern::wrap_type<opset1::ReduceSum>(
