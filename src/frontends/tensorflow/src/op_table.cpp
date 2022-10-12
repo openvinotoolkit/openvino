@@ -77,6 +77,7 @@ OP_CONVERTER(translate_max_pool_op);
 OP_CONVERTER(translate_non_max_suppression_op);
 OP_CONVERTER(translate_normalize_l2_op);
 OP_CONVERTER(translate_pad_op);
+OP_CONVERTER(translate_parallel_dynamic_stitch_op);
 OP_CONVERTER(translate_placeholder_op);
 OP_CONVERTER(translate_placeholder_with_default_op);
 OP_CONVERTER(translate_no_op);
@@ -257,6 +258,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Pack", translate_pack_op},
         {"Pad", translate_pad_op},
         {"PadV2", translate_pad_op},
+        {"DynamicStitch", translate_parallel_dynamic_stitch_op},
+        {"ParallelDynamicStitch", translate_parallel_dynamic_stitch_op},
         {"Placeholder", translate_placeholder_op},
         {"PlaceholderWithDefault", translate_placeholder_with_default_op},
         {"PreventGradient", translate_identity_op},
