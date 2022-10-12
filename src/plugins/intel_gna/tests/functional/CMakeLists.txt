@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME gnaFuncTests)
+set(TARGET_NAME ov_gna_func_tests)
 
 addIeTargetTest(
         NAME ${TARGET_NAME}
