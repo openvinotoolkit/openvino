@@ -8,6 +8,7 @@ trigger:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - README.md
 
 pr:
   branches:
@@ -19,6 +20,7 @@ pr:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - README.md
 
 resources:
   repositories:
@@ -350,7 +352,7 @@ jobs:
     displayName: 'Intel CPU Unit Tests'
     continueOnError: false
 
-  - script: $(INSTALL_TEST_DIR)/gnaUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-gnaUnitTests.xml
+  - script: $(INSTALL_TEST_DIR)/ov_gna_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_gna_unit_tests.xml
     displayName: 'GNA UT'
     continueOnError: false
 

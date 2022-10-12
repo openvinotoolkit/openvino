@@ -79,12 +79,10 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     std::vector<std::string> devicesWithRequests = _pluginConfig.ParsePrioritiesDevices(priorities);
 
     auto setTputAsDefault = [&](const std::string& targetDevice,
-                               std::map<std::string, std::string>& deviceConfig,
-                               const std::map<std::string, std::string>& mergedConfig) {
-        // Default value of PERFORMACE_HINT is empty string.
-        auto iter = mergedConfig.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
-        if (GetName() == "AUTO" && iter->second.empty() &&
-            mergedConfig.find(targetDevice) == mergedConfig.end()) {
+                                std::map<std::string, std::string>& deviceConfig,
+                                const std::map<std::string, std::string>& mergedConfig) {
+        auto isSetPerHint = mergedConfig.find(PluginConfigParams::KEY_PERFORMANCE_HINT) != mergedConfig.end();
+        if (GetName() == "AUTO" && !isSetPerHint && mergedConfig.find(targetDevice) == mergedConfig.end()) {
             // setting tput as the default performance mode if no hints setting for AUTO plugin and no properties
             // specified for target device.
             deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::THROUGHPUT;
@@ -93,7 +91,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
 
         // set TPUT for MULTI if no above propertis were set by user
         if (GetName() == "MULTI") {
-            if (!iter->second.empty() || mergedConfig.find(targetDevice) != mergedConfig.end())
+            if (isSetPerHint || mergedConfig.find(targetDevice) != mergedConfig.end())
                 return;
             for (auto&& kvp : mergedConfig) {
                 if (kvp.first == ov::affinity || kvp.first == ov::num_streams ||
@@ -370,6 +368,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     // updateFromMap will check config valid
     loadConfig.UpdateFromMap(config, GetName());
     auto fullConfig = loadConfig._keyConfigMap;
+    // Remove the performance hint if no setting to this property from user.
+    if (!loadConfig.isSetPerHint)
+        fullConfig.erase(PluginConfigParams::KEY_PERFORMANCE_HINT);
     // collect the settings that are applicable to the devices we are loading the network to
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
     std::vector<DeviceInformation> metaDevices;
@@ -482,7 +483,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     if (configIter != fullConfig.end() && configIter->second == InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT) {
         configIter->second = InferenceEngine::PluginConfigParams::THROUGHPUT;
         _LogTag = "AUTO";
-        LOG_INFO_TAG("CUMULATIVE Call MULTI PERFORMACE_HINT set to THROUGHPUT");
+        LOG_INFO_TAG("CUMULATIVE Call MULTI PERFORMANCE_HINT set to THROUGHPUT");
     }
     if (priorities->second.empty()) {
         IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
@@ -534,7 +535,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
 
     // checking the perf counters config from the loaded network to respect both device's plugin and load-specific setting
     size_t num_plugins_supporting_perf_counters = 0;
-    for (auto n : executableNetworkPerDevice) {
+    for (auto& n : executableNetworkPerDevice) {
             try {
                 num_plugins_supporting_perf_counters +=
                         n.second->GetConfig(PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
