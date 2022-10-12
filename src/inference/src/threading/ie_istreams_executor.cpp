@@ -72,7 +72,7 @@ int IStreamsExecutor::Config::GetHybridDefaultNumStreams(const Config& config) {
     } else {
         config._small_core_streams = num_small_cores / config._threads_per_stream_small;
     }
-    config._smallCoreOffset = num_big_cores * 2;
+    config._small_core_offset = num_big_cores * 2;
     return config._big_core_streams + config._small_core_streams;
 }
 
@@ -84,9 +84,11 @@ int IStreamsExecutor::Config::GetHybridNonDefaultNumStreams(const Config& config
     if (stream_mode == AGGRESSIVE) {
         config._big_core_streams = num_big_cores;
         config._small_core_streams = num_small_cores / 2;
-    } else {
+    } else if (stream_mode == LESSAGGRESSIVE) {
         config._big_core_streams = num_big_cores / 2;
         config._small_core_streams = num_small_cores / 4;
+    } else {
+        IE_THROW() << "Wrong stream mode to get non default num of streams: " << stream_mode;
     }
     config._threads_per_stream_big = num_big_cores / config._big_core_streams;
     config._threads_per_stream_small = num_small_cores / config._small_core_streams;

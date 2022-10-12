@@ -101,7 +101,7 @@ public:
         mutable int _small_core_streams = 0;
         mutable int _threads_per_stream_big = 0;
         mutable int _threads_per_stream_small = 0;
-        mutable int _smallCoreOffset = 0;
+        mutable int _small_core_offset = 0;
         enum StreamMode { DEFAULT, AGGRESSIVE, LESSAGGRESSIVE };
         enum PreferredCoreType {
             ANY,

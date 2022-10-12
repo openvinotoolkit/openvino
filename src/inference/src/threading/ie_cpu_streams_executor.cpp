@@ -112,7 +112,7 @@ struct CPUStreamsExecutor::Impl {
                     const auto stream_id =
                         selected_core_type == 0 ? _streamId - _impl->_config._big_core_streams : _streamId;
                     const auto thread_binding_step = selected_core_type == 0 ? _impl->_config._threadBindingStep : 2;
-                    const auto cpu_idx_offset = selected_core_type == 0 ? _impl->_config._smallCoreOffset : 1;
+                    const auto cpu_idx_offset = selected_core_type == 0 ? _impl->_config._small_core_offset : 1;
 
                     _taskArena.reset(new custom::task_arena{max_concurrency});
                     CpuSet processMask;
