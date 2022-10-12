@@ -14,7 +14,7 @@ DEFINE_bool(disable_tests_skipping, false, "");
 DEFINE_bool(extract_body, false, "");
 DEFINE_string(output_folder, ".", "");
 DEFINE_bool(report_unique_name, false, "");
-DEFINE_int32(save_report_timeout, 0, "");
+DEFINE_string(save_report_timeout, "0", "");  // DEFINE_int32() cause build fail in CI(build-linux-debian_9_arm)
 
 int main(int argc, char *argv[]) {
     printf("Running main() from %s\n", __FILE__);
@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
     ov::test::utils::OpSummary::setExtractBody(FLAGS_extract_body);
     ov::test::utils::OpSummary::setOutputFolder(FLAGS_output_folder);
     ov::test::utils::OpSummary::setSaveReportWithUniqueName(FLAGS_report_unique_name);
-    ov::test::utils::OpSummary::setSaveReportTimeout(FLAGS_save_report_timeout);
+    ov::test::utils::OpSummary::setSaveReportTimeout(std::stoi(FLAGS_save_report_timeout));
 
     if (ov::test::utils::OpSummary::getSaveReportWithUniqueName() &&
             ov::test::utils::OpSummary::getExtendReport()) {
@@ -37,7 +37,6 @@ int main(int argc, char *argv[]) {
 
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::AddGlobalTestEnvironment(new ov::test::utils::TestEnvironment);
-    auto retcode = RUN_ALL_TESTS();
 
-    return retcode;
+    return RUN_ALL_TESTS();
 }
