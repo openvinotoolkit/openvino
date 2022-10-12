@@ -415,7 +415,6 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
 
     if 'feManager' in argv:
         del argv.feManager
-    init_logger(argv.log_level.upper(), argv.silent)
 
     mean_data = deepcopy(graph.graph['mf']) if 'mf' in graph.graph else None
     input_names = deepcopy(graph.graph['input_names']) if 'input_names' in graph.graph else []
@@ -740,7 +739,7 @@ def _convert(**args):
     inp_model_is_object = input_model_is_object(args)
     if inp_model_is_object:
         model_framework = check_model_object(args)
-        if model_framework == "pytorch":
+        if model_framework == "pytorch" and not os.environ.get('USE_PYTORCH_FRONTEND'):
 
             # Currently supported opset by ONNX frontend
             opset_version = 16
