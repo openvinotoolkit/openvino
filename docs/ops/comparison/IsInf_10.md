@@ -6,7 +6,7 @@
 
 **Short description**: *IsInf* performs element-wise mapping of infinite values to True.
 
-**Detailed description**: *IsInf* performs element-wise mapping of infinite values to true and other values to false. Attributes `detect_negative` and `detect_positive` can be used to control mapping of nagative and positive infinities.
+**Detailed description**: *IsInf* performs element-wise mapping of infinite values to true and other values to false. Attributes `detect_negative` and `detect_positive` can be used to control the mapping of negative and positive infinities.
 
 **Attributes**
 
