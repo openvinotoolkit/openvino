@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import sys
 import re
 import numpy as np
 from collections import defaultdict
@@ -125,16 +126,18 @@ def get_input_data(paths_to_input, app_input_info):
     return DataQueue(data, get_group_batch_sizes(app_input_info))
 
 
-def get_image_tensors(image_paths, info, batch_sizes):   
-    try:
-        import cv2
-    except ModuleNotFoundError as ex:
-        raise Exception("Loading images requires the opencv-python or opencv-python-headless package. " \
-            "Please install it before continuing or run benchmark without "\
-            "the -i flag to fill vectors with random data.") from ex
-    except ImportError as ex:
-        raise Exception("Failed to import opencv module. Please try to uninstall opencv-python " \
-        "and install opencv-python-headless instead.") from ex
+def get_image_tensors(image_paths, info, batch_sizes):  
+    if 'cv2' not in sys.modules:
+        try:
+            global cv2
+            import cv2
+        except ModuleNotFoundError as ex:
+            raise Exception("Loading images requires the opencv-python or opencv-python-headless package. " \
+                "Please install it before continuing or run benchmark without "\
+                "the -i flag to fill vectors with random data.") from ex
+        except ImportError as ex:
+            raise Exception("Failed to import opencv module. Please try to uninstall opencv-python " \
+            "and install opencv-python-headless instead.") from ex
 
     processed_frames = 0
     widthes = info.widthes if info.is_dynamic else [info.width]
