@@ -107,5 +107,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(smoke_Basic/SqueezeUnsqueezeLayerTest.CompareWithRefs/OpType=Unsqueeze_IS=\(1.1.1.1\)_Axes=\((0.1.2|0.2.3|1.2.3|0.1.2.3|)\)_.*)",
             // Issue: 90539
             R"(smoke_AutoBatch_BehaviorTests/OVInferRequestIOTensorTest.InferStaticNetworkSetInputTensor/targetDevice=BATCH.*)",
+            // Issue: 90183
+            R"(.*VirtualPlugin.*BehaviorTests.*OVHoldersTestWithConfig.*LoadedTensor.*target_device=MULTI.*)",
     };
 }
