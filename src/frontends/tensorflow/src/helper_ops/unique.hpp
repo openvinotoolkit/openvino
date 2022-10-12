@@ -38,6 +38,10 @@ public:
         set_output_type(1, out_idx, ov::PartialShape({ov::Dimension::dynamic()}));
     }
 
+    ov::element::Type get_out_idx() const {
+        return out_idx;
+    }
+
 private:
     ov::element::Type out_idx;
 };

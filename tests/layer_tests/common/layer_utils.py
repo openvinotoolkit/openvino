@@ -95,8 +95,8 @@ class InferAPI20(BaseInfer):
             # all input and output tensors have to be named
             assert out_obj.names, "Output tensor {} has no names".format(out_obj)
 
-            tensor_name = out_obj.get_any_name().split(':')[0]
-            result[tensor_name] = out_tensor
+            for tensor_name in out_obj.get_names():
+                result[tensor_name] = out_tensor
 
         if "exec_net" in locals():
             del exec_net

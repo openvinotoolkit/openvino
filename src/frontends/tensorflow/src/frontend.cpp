@@ -6,6 +6,7 @@
 
 #include "graph_iterator_proto.hpp"
 #include "helper_transforms/embedding_segments_feature_fusing.hpp"
+#include "helper_transforms/unique_replacer.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
@@ -417,9 +418,12 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
 
     // Runs middle transformations to convert sub-graphs with intermediate (frontend internal) operations
     // into sub-graphs with only OpenVINO operations
-    manager.register_pass<ov::frontend::tensorflow::pass::EmbeddingSegmentSingleFeatureFusion>();
+    manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
+    manager.register_pass<pass::BlockLSTMReplacer>();
+    manager.register_pass<pass::GRUBlockCellReplacer>();
+    manager.register_pass<pass::UniqueReplacer>();
 
-    manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
+    manager.register_pass<pass::TransposeSinking>();
     manager.run_passes(function);
 }
 
