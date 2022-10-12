@@ -482,7 +482,7 @@ def get_static_shape(shape: [PartialShape, list, tuple], dynamic_dims_error_mess
             if dim == -1:
                 raise Error(dynamic_dims_error_message)
             shape_list.append(dim)
-        if isinstance(dim, np.int64):
+        elif isinstance(dim, np.int64):
             if dim == np.int64(-1):
                 raise Error(dynamic_dims_error_message)
             shape_list.append(dim)
@@ -621,12 +621,21 @@ def parse_input_shapes(argv):
             shapes = ["[{}]".format(x) for x in split_shapes(shapes)]
         if isinstance(shapes, list):
             input_shapes = []
+            is_single_shape = False
             for shape in shapes:
                 if isinstance(shape, str):
                     _, shape_tuple, _ = get_placeholder_shapes(argv_input=None, argv_input_shape=shape)
                     input_shapes.append(shape_tuple)
+                    if is_single_shape:
+                        raise Error("Incorrect format of shape.")
+                elif isinstance(shape, int) or isinstance(shape, np.int64) or isinstance(shape, Dimension):
+                    is_single_shape = True
+                    input_shapes.append(shape)
                 else:
                     input_shapes.append(shape)
+            if is_single_shape:
+                return [input_shapes]
+
     return input_shapes
 
 
@@ -732,14 +741,15 @@ def _convert(**args):
 
             sample_input = None
             if 'sample_input' in args and args['sample_input'] is not None:
-                sample_input = argv['sample_input']
+                sample_input = args['sample_input']
 
             model_onnx = convert_pytorch_to_onnx(args['input_model'],
-                                                 parse_input_shapes(argv),
+                                                 parse_input_shapes(args),
                                                  opset_version,
                                                  sample_input)
-            return _convert(input_model=model_onnx,
-                            use_legacy_frontend=True)
+            args['input_model'] = model_onnx
+            args['use_legacy_frontend'] = True
+            return _convert(**args)
 
     args = params_to_string(**args)
     argv = pack_params_to_args_namespace(**args)
