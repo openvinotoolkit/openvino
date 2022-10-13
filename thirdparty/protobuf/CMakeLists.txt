@@ -76,7 +76,7 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
     set(HOST_PROTOC_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/host_protoc_install")
     set(HOST_PROTOC_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/host_protoc_root")
 
-    if(DEFINED ENV{OECORE_NATIVE_SYSROOT})
+    if(YOCTO_AARCH64)
         # need to unset several variables which can set env to cross-environment
         foreach(var SDKTARGETSYSROOT CONFIG_SITE OECORE_NATIVE_SYSROOT OECORE_TARGET_SYSROOT
                     OECORE_ACLOCAL_OPTS OECORE_BASELIB OECORE_TARGET_ARCH OECORE_TARGET_OS CC CXX

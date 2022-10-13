@@ -105,7 +105,7 @@ function(ov_download_tbb)
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
-    elseif((LINUX AND NOT ANDROID) AND AARCH64)
+    elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
                 TARGET_PATH "${TEMP}/tbb_yocto"
@@ -197,7 +197,7 @@ if(ENABLE_OPENCV)
     set(OPENCV_BUILD "076")
     set(OPENCV_BUILD_YOCTO "772")
 
-    if(AARCH64)
+    if(YOCTO_AARCH64)
         if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
             set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
         elseif(DEFINED THIRDPARTY_SERVER_PATH)
@@ -235,7 +235,7 @@ if(ENABLE_OPENCV)
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
                     SHA256 "3e162f96e86cba8836618134831d9cf76df0438778b3e27e261dedad9254c514")
         elseif(LINUX)
-            if(AARCH64)
+            if(YOCTO_AARCH64)
                 set(OPENCV_SUFFIX "yocto_kmb")
                 set(OPENCV_BUILD "${OPENCV_BUILD_YOCTO}")
             elseif(ARM)
