@@ -24,8 +24,7 @@ using namespace frontend::tensorflow::pass;
 namespace {
 Output<Node> get_elements_number_1d(const Output<Node>& output, element::Type output_type) {
     auto shape = make_shared<ShapeOf>(output, output_type);
-    auto squeeze_axis = make_shared<Constant>(element::i32, Shape{}, 0);
-    auto num_elements = make_shared<Squeeze>(shape, squeeze_axis);
+    auto num_elements = make_shared<Squeeze>(shape);
     return num_elements;
 }
 
