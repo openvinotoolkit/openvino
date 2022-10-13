@@ -240,9 +240,10 @@ try:
                 if str(pt_value.type()) in ['torch.bool', 'bool']:
                     #print('Scalar bool detected')
                     return op.Constant(OVType.boolean, Shape([]), [pt_value.toIValue()]).outputs()
-                print(f'Left value not converted to const, value = {pt_value}')
+                #print(f'Left value not converted to const, value = {pt_value}')
             else:
-                print(f'Not a known type, dtype = {pt_value.type().dtype()}')
+                pass
+                #print(f'Not a known type, dtype = {pt_value.type().dtype()}')
 
             return None
 
