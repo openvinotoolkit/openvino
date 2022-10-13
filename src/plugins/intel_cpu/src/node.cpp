@@ -1594,8 +1594,11 @@ void Node::addFusedNode(const NodePtr &fusingNode) {
 std::vector<NodePtr>::iterator Node::tryMapFusedOpsToOscales(std::vector<NodePtr>::iterator postop,
                                                              dnnl::primitive_attr& attr,
                                                              dnnl::post_ops& ops,
+                                                             std::vector<MemoryPtr>& args,
                                                              dnnl::memory::data_type outputDataType,
-                                                             int dimOC) {
+                                                             const VectorDims& outputDataDims,
+                                                             int dimOC,
+                                                             bool allowBinary) {
     if (postop == fusedWith.end())
         return postop;
 
@@ -1603,7 +1606,16 @@ std::vector<NodePtr>::iterator Node::tryMapFusedOpsToOscales(std::vector<NodePtr
     bool isLastPostOp = (nextop == fusedWith.end());
 
     if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(postop->get())) {
-        if (fakeQuantizeNode->optimizeAsOscaleEltwise(attr, ops, isLastPostOp, outputDataType, true)) {
+        if (fakeQuantizeNode->optimizeAsOscalePostOps(attr,
+                                                      ops,
+                                                      args,
+                                                      isLastPostOp,
+                                                      outputDataType,
+                                                      outputDataDims,
+                                                      dimOC,
+                                                      true,
+                                                      allowBinary,
+                                                      true)) {
             ++postop;  // mapped
         }
     } else if (auto* eltwiseNode1 = dynamic_cast<Eltwise*>(postop->get())) {
@@ -1626,7 +1638,16 @@ std::vector<NodePtr>::iterator Node::tryMapFusedOpsToOscales(std::vector<NodePtr
                 }
             } else if (auto* fakeQuantizeNode2 = dynamic_cast<FakeQuantize*>(nextop->get())) {
                 // here isLastPostOp is set to false since eltwise_relu will be mapped later
-                if (fakeQuantizeNode2->optimizeAsOscaleEltwise(attr, ops, false, outputDataType, true, false)) {
+                if (fakeQuantizeNode2->optimizeAsOscalePostOps(attr,
+                                                               ops,
+                                                               args,
+                                                               false,
+                                                               outputDataType,
+                                                               outputDataDims,
+                                                               dimOC,
+                                                               true,
+                                                               false,
+                                                               false)) {
                     // fakeQuantizeNode2 is mapped first using output scales and eltwise_clip (w/o shift)
                     auto& lastop = ops.get()->entry_.back();
                     float relu_alpha = eltwiseNode1->getAlpha();

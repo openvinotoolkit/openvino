@@ -135,12 +135,16 @@ public:
     // avoid costly binary postOps in this optimization)
     // if it happens to be the last postOp, the outDataType determines which type of suration will be performed
     // by oneDNN thus the final crop steps can be further optimized.
-    bool optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
+    bool optimizeAsOscalePostOps(dnnl::primitive_attr& attr,
                                  dnnl::post_ops& ops,
+                                 std::vector<MemoryPtr>& args,
                                  bool isLastPostOp,
-                                 dnnl::memory::data_type outDataType,
+                                 dnnl::memory::data_type outDataType,  // output data type
+                                 const VectorDims& outputDataDims,     // output data dimensions/shapes
+                                 int dimOC,  // outputDataDims[dimOC] is the number of output channels
                                  bool allowOscale,
-                                 bool allowShift = true);
+                                 bool allowBinary,
+                                 bool allowShift);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 

@@ -2095,14 +2095,19 @@ void FakeQuantize::initializeCrop2() {
     }
 }
 
-// try to optimize FQ mapped with output scales and eltwise using following
+
+// try to optimize FQ mapped with output scales and eltwise/binary using following
 // equation:
 //      y = clip2(round(x * inputScale + inputShift))*outputScale + outputShift
-bool FakeQuantize::optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
+bool FakeQuantize::optimizeAsOscalePostOps(dnnl::primitive_attr& attr,
                                            dnnl::post_ops& ops,
+                                           std::vector<MemoryPtr>& args,
                                            bool isLastPostOp,
-                                           dnnl::memory::data_type outDataType,
+                                           dnnl::memory::data_type outDataType, // output data type
+                                           const VectorDims& outputDataDims,    // output data dimensions/shapes
+                                           int dimOC,                           // outputDataDims[dimOC] is the number of output channels
                                            bool allowOscale,
+                                           bool allowBinary,
                                            bool allowShift) {
     initializeCrop2();
 
@@ -2112,32 +2117,68 @@ bool FakeQuantize::optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
         ish_ref = inputShift[0];
         ish_thr = std::numeric_limits<float>::min();
     }
-    if (!isPerTensor(inputShift, ish_ref, ish_thr))
+
+    bool isc_binary = !isPerTensor(inputScale, inputScale[0]);
+    bool ish_binary = !isPerTensor(inputShift, ish_ref, ish_thr);
+    if (ish_binary && !allowBinary)
         return false;
-    if (crop2Low.size() > 1)
+    if (crop2Low.size() > 1 && !allowBinary)
         return false;
-    if (crop2High.size() > 1)
+    if (crop2High.size() > 1 && !allowBinary)
         return false;
-    if (!isPerTensor(outputScale, outputScale[0]))
+    bool osc_binary = !isPerTensor(outputScale, outputScale[0]);
+    if (osc_binary && !allowBinary)
         return false;
-    if (!isPerTensor(outputShift, outputShift[0]))
+    bool osh_binary = !isPerTensor(outputShift, outputShift[0]);
+    if (osh_binary && !allowBinary)
         return false;
 
+    // if any of ish_binary/osc_binary/osh_binary is true, than Binary postOps are allowed
+    float isc = inputScale[0];
     float ish = ish_ref;
-    float c2lo = crop2Low[0];
-    float c2hi = crop2High[0];
-    float osc = outputScale[0];
     float osh = outputShift[0];
 
-    auto map_input_scale_per_tensor = [&]() {
+    if (!allowShift) {
+        // binary means shifts are not the same, thus they cannot be all zero
+        if (ish_binary || ish != 0.0f)
+            return false;
+        if (osh_binary || osh != 0.0f)
+            return false;
+    }
+
+    if (isc_binary && !allowOscale && !allowBinary) {
+        return false;
+    }
+
+    if (dimOC < 0)
+        dimOC += outputDataDims.size();
+
+    VectorDims dimsPerTensor(outputDataDims.size(), 1);
+    VectorDims dimsPerOC(outputDataDims.size(), 1);
+    dimsPerOC[dimOC] = outputDataDims[dimOC];
+
+    auto appendBinary = [&](const dnnl::algorithm alg, const std::vector<float>& data) {
+        VectorDims* pdims = &dimsPerTensor;
+        if (data.size() > 1) {
+            assert(data.size() == outputDataDims[dimOC]);
+            pdims = &dimsPerOC;
+        }
+        DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, Shape(*pdims));
+        ops.append_binary(alg, memoryDesc.getDnnlDesc());
+        args.emplace_back(new Memory(getEngine()));
+        args.back()->Create(memoryDesc, data.data());
+    };
+
+    auto map_input_scalePT_shifts = [&]() {
         // if not using output scale and ish is zero, per-tensor input scale can be
         // fused into previous post-ops, otherwise a eltwise post op is required.
-        float isc = inputScale[0];
-        if (ish == 0.0f && ops.len() > 0) {
-            auto & lastOp = ops.get()->entry_.back();
+        if (((!ish_binary && ish == 0.0f) || (ish_binary)) && ops.len() > 0) {
+            auto& lastOp = ops.get()->entry_.back();
             if (lastOp.is_eltwise()) {
                 // fuse into previous eltwise as the common scale
                 lastOp.eltwise.scale *= inputScale[0];
+                if (ish_binary)
+                    appendBinary(dnnl::algorithm::binary_add, inputShift);
                 return;
             }
             if (lastOp.is_sum() && ops.len() == 1) {
@@ -2150,34 +2191,50 @@ bool FakeQuantize::optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
                 }
                 attr.set_output_scales(mask, outScales);
                 ops.get()->entry_[0].sum.scale *= isc;
+                if (ish_binary)
+                    appendBinary(dnnl::algorithm::binary_add, inputShift);
                 return;
             }
         }
-        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, isc, ish);
+        if (ish_binary) {
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, isc, 0);
+            appendBinary(dnnl::algorithm::binary_add, inputShift);
+        } else {
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, isc, ish);
+        }
     };
 
     auto map_input_linear = [&]() {
-        if (!allowShift && (ish != 0.0f || osh != 0.0f))
-            return false;
+        if (isc_binary) {
+            // map perOC scale
+            assert(allowOscale || allowBinary);
+            if (allowOscale) {
+                attr.set_output_scales(1 << 1, inputScale);
+            } else if (allowBinary) {
+                appendBinary(dnnl::algorithm::binary_mul, inputScale);
+            }
 
-        if (isPerTensor(inputScale, inputScale[0])) {
-            if (allowOscale && ish == 0.0f) {
-                attr.set_output_scales(0, inputScale);
-            } else {
-                map_input_scale_per_tensor();
+            // map Shift
+            if (ish_binary) {
+                appendBinary(dnnl::algorithm::binary_add, inputShift);
+            } else if (ish != 0.0f) {
+                ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, ish);
             }
         } else {
-            if (!allowOscale)
-                return false;
-            attr.set_output_scales(1 << 1, inputScale);
-            if (ish != 0.0f) {
-                ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, ish);
+            // map perTensor scale + shifts
+            if (allowOscale && (!ish_binary) && (ish == 0.0f)) {
+                attr.set_output_scales(0, inputScale);
+            } else {
+                map_input_scalePT_shifts();
             }
         }
         return true;
     };
 
-    if (outputScale[0] == 1.0f && osh == std::trunc(osh)) {
+    if (!osc_binary && !osh_binary && crop2Low.size() == 1 && crop2High.size() == 1 && outputScale[0] == 1.0f &&
+        osh == std::trunc(osh)) {
+        float c2lo = crop2Low[0];
+        float c2hi = crop2High[0];
         // if outputScale == 1.0f and outputShift is interger, it can be further optimized
         //   x = clip2(round(x * inputScale + ish),c2lo,c2hi)*osc + osh
         //     = clip2(round(x * inputScale + ish),c2lo,c2hi) + osh
@@ -2187,8 +2244,8 @@ bool FakeQuantize::optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
         c2lo += osh;
         c2hi += osh;
         osh = 0.0f;
-        if (!map_input_linear())
-            return false;
+        map_input_linear();
+
         // when FQ is last postOps and output data type is u8/s8
         // round & clip2 can be further optimized since saturation will be performed by oneDNN by default
         if (isLastPostOp && (levels == 256)) {
@@ -2203,11 +2260,30 @@ bool FakeQuantize::optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
         ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, c2lo, c2hi);
     } else {
         //   x = clip2(round(x * inputScale + ish)) * osc + osh
-        if (!map_input_linear())
-            return false;
+        map_input_linear();
         ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_round_half_to_even, 0, 0);
-        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, c2lo, c2hi);
-        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, osc, osh);
+        if (crop2Low.size() == 1 && crop2High.size() == 1) {
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, crop2Low[0], crop2High[0]);
+        } else if (crop2Low.size() == 1) {
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, crop2Low[0], std::numeric_limits<float>::max());
+            appendBinary(dnnl::algorithm::binary_min, crop2High);
+        } else {
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, -std::numeric_limits<float>::max(), crop2High[0]);
+            appendBinary(dnnl::algorithm::binary_max, crop2Low);
+        }
+
+        if (osc_binary && osh_binary) {
+            appendBinary(dnnl::algorithm::binary_mul, outputScale);
+            appendBinary(dnnl::algorithm::binary_add, outputShift);
+        } else if (osc_binary) {
+            appendBinary(dnnl::algorithm::binary_mul, outputScale);
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, outputShift[0]);
+        } else if (osh_binary) {
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, outputScale[0], 0);
+            appendBinary(dnnl::algorithm::binary_add, outputShift);
+        } else {
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, outputScale[0], outputShift[0]);
+        }
     }
     return true;
 }

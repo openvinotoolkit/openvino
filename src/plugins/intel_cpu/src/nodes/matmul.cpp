@@ -180,11 +180,12 @@ void MatMul::setPostOps(dnnl::primitive_attr &attr, const VectorDims& dims, bool
     auto postop = fusedWith.begin();
 
     if (canBeExecutedInInt8(getOriginalInputPrecisionAtPort(0), getOriginalInputPrecisionAtPort(1)))
-        postop = tryMapFusedOpsToOscales(postop, attr, ops, outputDataType, -1);
+        postop = tryMapFusedOpsToOscales(postop, attr, ops, postOpsArgs, outputDataType, dims, -1, true);
 
     // all the rest must be mapped as postOps
     while (postop != fusedWith.end()) {
         auto& node = *postop++;
+        bool isLastPostOp = (node == fusedWith.back());
 
         if (auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get())) {
             if (eltwiseNode->getOneDnnAlgorithm() != dnnl::algorithm::undef) {
@@ -194,13 +195,12 @@ void MatMul::setPostOps(dnnl::primitive_attr &attr, const VectorDims& dims, bool
             }
             continue;
         } else if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
-            bool isLastPostOp = (node == fusedWith.back());
-            if (fakeQuantizeNode->optimizeAsOscaleEltwise(attr, ops, isLastPostOp, outputDataType, false, true)) {
+            if (fakeQuantizeNode->optimizeAsOscalePostOps(attr, ops, postOpsArgs, isLastPostOp, outputDataType, dims, -1, false, true, true)) {
                 continue;
             }
 
-            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
-            continue;
+            //fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
+            //continue;
         }
 
         IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";

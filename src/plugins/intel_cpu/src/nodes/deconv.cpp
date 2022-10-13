@@ -463,7 +463,7 @@ void Deconvolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dim
     auto postop = fusedWith.begin();
 
     if (isInt8)
-        postop = tryMapFusedOpsToOscales(postop, attr, ops, outputDataType, 1);
+        postop = tryMapFusedOpsToOscales(postop, attr, ops, postOpsArgs, outputDataType, dims, 1, true);
 
     while (postop != fusedWith.end()) {
         auto& node = *postop++;
@@ -476,12 +476,12 @@ void Deconvolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dim
             continue;
         }
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
-            if (fakeQuantizeNode->optimizeAsOscaleEltwise(attr, ops, isLastPostOp, outputDataType, false, true)) {
+            if (fakeQuantizeNode->optimizeAsOscalePostOps(attr, ops, postOpsArgs, isLastPostOp, outputDataType, dims, 1, false, true, true)) {
                 continue;
             }
 
-            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
-            continue;
+            //fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
+            //continue;
         }
         IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
     }

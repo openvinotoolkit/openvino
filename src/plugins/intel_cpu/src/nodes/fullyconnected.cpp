@@ -401,7 +401,7 @@ void FullyConnected::setPostOps(dnnl::primitive_attr &attr, const VectorDims &di
     auto postop = fusedWith.begin();
 
     if (isINT8Inference)
-        postop = tryMapFusedOpsToOscales(postop, attr, ops, outputDataType, -1);
+        postop = tryMapFusedOpsToOscales(postop, attr, ops, postOpsArgs, outputDataType, dims, -1, true);
 
     // all the rest must be mapped as postOps
     while (postop != fusedWith.end()) {
@@ -409,12 +409,12 @@ void FullyConnected::setPostOps(dnnl::primitive_attr &attr, const VectorDims &di
         bool isLastPostOp = node == fusedWith.back();
 
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get())) {
-            if (fakeQuantizeNode->optimizeAsOscaleEltwise(attr, ops, isLastPostOp, outputDataType, false, true)) {
+            if (fakeQuantizeNode->optimizeAsOscalePostOps(attr, ops, postOpsArgs, isLastPostOp, outputDataType, dims, -1, false, true, true)) {
                 continue;
             }
 
-            fakeQuantizeNode->appendBinPostOpsOptimized(ops, getBinPostOpShape(), postOpsArgs, isLastPostOp, outputDataType);
-            continue;
+            //fakeQuantizeNode->appendBinPostOpsOptimized(ops, getBinPostOpShape(), postOpsArgs, isLastPostOp, outputDataType);
+            //continue;
         }
 
         if (auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get())) {

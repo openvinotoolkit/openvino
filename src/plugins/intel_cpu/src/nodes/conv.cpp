@@ -585,6 +585,7 @@ void Convolution::getSupportedDescriptors() {
 
 void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool useLegacyPostOps, bool initWeights) {
     dnnl::post_ops ops;
+    auto & args = convPostOpsArgs[useLegacyPostOps];
 
     auto getBinPostOpShape = [&](){
         const auto outShapeRank = dims.size();
@@ -594,12 +595,14 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
         return binaryShape;
     };
 
+    bool allowBinary = !useLegacyPostOps;
+
     DEBUG_LOG(getName());
 
     auto postop = fusedWith.begin();
 
     if (canBeExecutedInInt8())
-        postop = tryMapFusedOpsToOscales(postop, attr, ops, outputDataType, 1);
+        postop = tryMapFusedOpsToOscales(postop, attr, ops, args, outputDataType, dims, 1, allowBinary);
 
     // all the rest must be mapped as postOps
     while (postop != fusedWith.end()) {
@@ -617,24 +620,24 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
                 ops.append_sum(1.0, DnnlExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
             } else {
                 if (useLegacyPostOps || eltwiseNode->getOneDnnAlgorithm() != dnnl::algorithm::undef) {
-                    eltwiseNode->appendPostOps(ops, dims, convPostOpsArgs[useLegacyPostOps]);
+                    eltwiseNode->appendPostOps(ops, dims, args);
                 } else {
-                    eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), convPostOpsArgs[useLegacyPostOps]);
+                    eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), args);
                 }
             }
             continue;
         }
 
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get())) {
-            if (fakeQuantizeNode->optimizeAsOscaleEltwise(attr, ops, isLastPostOp, outputDataType, false, true)) {
+            if (fakeQuantizeNode->optimizeAsOscalePostOps(attr, ops, args, isLastPostOp, outputDataType, dims, 1, false, allowBinary, true)) {
                 continue;
             }
 
             if (useLegacyPostOps) {
-                fakeQuantizeNode->appendPostOps(ops, dims, convPostOpsArgs[useLegacyPostOps]);
+                fakeQuantizeNode->appendPostOps(ops, dims, args);
             } else {
-                fakeQuantizeNode->appendBinPostOpsOptimized(ops, getBinPostOpShape(), convPostOpsArgs[useLegacyPostOps],
-                        isLastPostOp, outputDataType);
+                //fakeQuantizeNode->appendBinPostOpsOptimized(ops, getBinPostOpShape(), args,
+                //        isLastPostOp, outputDataType);
             }
 
             continue;
@@ -643,8 +646,8 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
         auto* convolutionNode = dynamic_cast<Convolution *>(node.get());
         if (convolutionNode) {
             if (initWeights) {
-                convPostOpsArgs[useLegacyPostOps].push_back(getParentEdgeAt(getOriginalInputsNumber() + 0)->getMemoryPtr());
-                convPostOpsArgs[useLegacyPostOps].push_back(getParentEdgeAt(getOriginalInputsNumber() + 1)->getMemoryPtr());
+                args.push_back(getParentEdgeAt(getOriginalInputsNumber() + 0)->getMemoryPtr());
+                args.push_back(getParentEdgeAt(getOriginalInputsNumber() + 1)->getMemoryPtr());
 
                 // todo: rewrite onto append_dw_k3s2p1
                 ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
