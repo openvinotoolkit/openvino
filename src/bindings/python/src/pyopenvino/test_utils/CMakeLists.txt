@@ -23,7 +23,7 @@ if(COMMAND ie_add_vs_version_file)
 endif()
 
 if(OpenVINODeveloperPackage_FOUND)
-    list(APPEND link_libraries IE::commonTestUtils)
+    list(APPEND link_libraries openvino::commonTestUtils)
 else()
     list(APPEND link_libraries commonTestUtils)
 endif()
