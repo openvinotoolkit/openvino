@@ -45,15 +45,15 @@ set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 set (CMAKE_PDB_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 
+if(TREAT_WARNING_AS_ERROR AND NOT DEFINED CMAKE_COMPILE_WARNING_AS_ERROR)
+    set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
+endif()
+
 if (WIN32)
     set_property (DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _CRT_SECURE_NO_WARNINGS)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_SCL_SECURE_NO_WARNINGS")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc") # no asynchronous structured exception handling
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LARGEADDRESSAWARE")
-
-    if (TREAT_WARNING_AS_ERROR)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX") # treating warnings as errors
-    endif ()
 
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qdiag-disable:177")
@@ -64,11 +64,6 @@ if (WIN32)
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267 /wd4819")
     endif()
 else()
-    # treating warnings as errors
-    if(TREAT_WARNING_AS_ERROR)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
-    endif()
-
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable:177")
     endif()
@@ -87,12 +82,6 @@ if(ARM AND NOT CMAKE_CROSSCOMPILING)
     add_compile_options(-march=armv7-a)
 endif()
 
-if(NOT COMMAND find_host_package)
-    macro(find_host_package)
-        find_package(${ARGN})
-    endmacro()
-endif()
-
 set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
@@ -109,17 +98,29 @@ endif()
 ####################################
 
 if(NOT TARGET gflags)
-    if(NOT APPLE)
-        # on Apple only dynamic libraries are available
-        # also, we can easily mix arm64 and x86_64 binaries when cross-compile for Intel CPU
+    if(APPLE OR DEFINED ENV{CONDA_PREFIX} OR DEFINED ENV{HOMEBREW_PREFIX})
+        # conda-forge and brew contains only shared version of gflags
+        find_package(gflags QUIET COMPONENTS nothreads_shared)
+    else()
         find_package(gflags QUIET COMPONENTS nothreads_static)
     endif()
 
     if(gflags_FOUND)
+        if(NOT TARGET ${GFLAGS_TARGET})
+            if(TARGET gflags_nothreads-static)
+                # arm cross-compilation
+                set(GFLAGS_TARGET gflags_nothreads-static)
+            else()
+                message(FATAL_ERROR "Failed to set GFLAGS_TARGET target")
+            endif()
+        endif()
         message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
     elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
         add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
+        set(GFLAGS_TARGET gflags_nothreads_static)
     endif()
+else()
+    set(GFLAGS_TARGET gflags)
 endif()
 
 if(NOT ANDROID)
@@ -259,7 +260,7 @@ macro(ie_add_sample)
 
     target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${ov_link_libraries} Threads::Threads ${IE_SAMPLE_DEPENDENCIES})
     if(NOT c_sample)
-        target_link_libraries(${IE_SAMPLE_NAME} PRIVATE gflags)
+        target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${GFLAGS_TARGET})
     endif()
 
     install(TARGETS ${IE_SAMPLE_NAME}

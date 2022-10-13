@@ -10,10 +10,15 @@ namespace kernel_selector {
 
 struct dft_params : public base_params {
     std::vector<int64_t> axes;
-    enum Kind {
+    std::vector<int64_t> signal_size;
+    enum class Direction {
         forward,
         inverse,
-    } kind = forward;
+    } direction = Direction::forward;
+    enum class Mode {
+        complex,
+        real,
+    } mode = Mode::complex;
     dft_params() : base_params{KernelType::DFT} {}
 };
 
@@ -23,7 +28,6 @@ struct dft_optional_params : optional_params {
 
 class DFTKernelRef : public KernelBaseOpenCL {
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
     bool Validate(const Params& p, const optional_params& o) const override;
     JitConstants GetJitConstants(const dft_params& params) const;
