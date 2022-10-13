@@ -7,7 +7,7 @@ The following C++ API is used in the application:
 | Feature | API | Description |
 | :--- | :--- | :--- |
 | OpenVINO Runtime Version | `ov::get_openvino_version` | Get Openvino API version |
-| Basic Infer Flow | `ov::Core::compile_model`, `ov::CompiledModel::create_infer_request`, `ov::InferRequest::get_tensor` | Common API to do inference: compile a model, create an infer request, configure input tensors |
+| Basic Infer Flow | `ov::Core`, `ov::Core::compile_model`, `ov::CompiledModel::create_infer_request`, `ov::InferRequest::get_tensor` | Common API to do inference: compile a model, create an infer request, configure input tensors |
 | Asynchronous Infer | `ov::InferRequest::start_async`, `ov::InferRequest::set_callback` | Do asynchronous inference with callback. |
 | Model Operations | `ov::CompiledModel::inputs` | Get inputs of a model |
 | Tensor Operations | `ov::Tensor::get_shape`, `ov::Tensor::data` | Get a tensor shape and its data. |
@@ -24,7 +24,7 @@ The following C++ API is used in the application:
 The sample compiles a model for a given device, randomly generates input data, performs asynchronous inference multiple times for a given number of seconds. Then processes and reports performance results.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
+each sample step at [Integration Steps](../../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 ## Building
 

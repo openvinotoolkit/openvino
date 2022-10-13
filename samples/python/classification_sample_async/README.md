@@ -7,7 +7,7 @@ The following Python API is used in the application:
 
 | Feature            | API                                                                                                                                                                                                                       | Description               |
 | :----------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------------------ |
-| Asynchronous Infer | `openvino.runtime.AsyncInferQueue`, `openvino.runtime.AsyncInferQueue.set_callback`, `openvino.runtime.AsyncInferQueue.start_async`, `openvino.runtime.AsyncInferQueue.wait_all`, `openvino.runtime.InferRequest.results` | Do asynchronous inference |
+| Asynchronous Infer | [openvino.runtime.AsyncInferQueue], [openvino.runtime.AsyncInferQueue.set_callback], [openvino.runtime.AsyncInferQueue.start_async], [openvino.runtime.AsyncInferQueue.wait_all], [openvino.runtime.InferRequest.results] | Do asynchronous inference |
 
 Basic OpenVINO™ Runtime API is covered by [Hello Classification Python* Sample](../hello_classification/README.md).
 

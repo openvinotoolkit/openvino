@@ -9,7 +9,7 @@ import sys
 from time import perf_counter
 
 import numpy as np
-from openvino.runtime import Core, get_version, AsyncInferQueue
+from openvino.runtime import Core, get_version
 from openvino.runtime.utils.types import get_dtype
 
 
@@ -35,41 +35,34 @@ def main():
     if len(sys.argv) != 2:
         log.info(f'Usage: {sys.argv[0]} <path_to_model>')
         return 1
-    # Optimize for throughput. Best throughput can be reached by
-    # running multiple ov::InferRequest instances asyncronously
-    tput = {'PERFORMANCE_HINT': 'THROUGHPUT'}
+    # Optimize for latency. Most of the devices are configured for latency by default,
+    # but there are exceptions like MYRIAD
+    latency = {'PERFORMANCE_HINT': 'LATENCY'}
     # Create Core and use it to compile a model
-    # Pick device by replacing CPU, for example MULTI:CPU(4),GPU(8)
+    # Pick device by replacing CPU, for example AUTO:GPU,CPU.
+    # Using MULTI device is pointless in sync scenario
+    # because only one instance of openvino.runtime.InferRequest is used
     core = Core()
-    compiled_model = core.compile_model(sys.argv[1], 'CPU', tput)
-    # AsyncInferQueue creates optimal number of InferRequest instances
-    ireqs = AsyncInferQueue(compiled_model)
-    # Fill input data for ireqs
-    for ireq in ireqs:
-        for model_input in compiled_model.inputs:
-            fill_tensor_random(ireq.get_tensor(model_input))
+    compiled_model = core.compile_model(sys.argv[1], 'CPU', latency)
+    ireq = compiled_model.create_infer_request()
+    # Fill input data for the ireq
+    for model_input in compiled_model.inputs:
+        fill_tensor_random(ireq.get_tensor(model_input))
     # Warm up
-    for _ in ireqs:
-        ireqs.start_async()
-    for ireq in ireqs:
-        ireq.wait()
+    ireq.infer()
     # Run benchmarking for seconds_to_run seconds
     seconds_to_run = 15
     latencies = []
-    in_fly = set()
     start = perf_counter()
+    time_point = start
     time_point_to_finish = start + seconds_to_run
-    while perf_counter() < time_point_to_finish:
-        idle_id = ireqs.get_idle_request_id()
-        if idle_id in in_fly:
-            latencies.append(ireqs[idle_id].latency)
-        else:
-            in_fly.add(idle_id)
-        ireqs.start_async()
-    ireqs.wait_all()
-    duration = perf_counter() - start
-    for infer_request_id in in_fly:
-        latencies.append(ireqs[infer_request_id].latency)
+    while time_point < time_point_to_finish:
+        ireq.infer()
+        iter_end = perf_counter()
+        latencies.append((iter_end - time_point) * 1e3)
+        time_point = iter_end
+    end = time_point
+    duration = end - start
     # Report results
     latencies.sort()
     percent = 50

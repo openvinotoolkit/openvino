@@ -25,6 +25,7 @@
    openvino_inference_engine_samples_speech_sample_README
    openvino_inference_engine_ie_bridges_python_sample_speech_sample_README
    openvino_inference_engine_samples_sync_benchmark_README
+   openvino_inference_engine_ie_bridges_python_sample_sync_benchmark_README
    openvino_inference_engine_samples_throughput_benchmark_README
    openvino_inference_engine_ie_bridges_python_sample_throughput_benchmark_README
    openvino_inference_engine_samples_benchmark_app_README
@@ -64,9 +65,10 @@ The applications include:
    - [OpenVINO Model Creation C++ Sample](../../samples/cpp/model_creation_sample/README.md)
    - [OpenVINO Model Creation Python Sample](../../samples/python/model_creation_sample/README.md)
 - **Benchmark Samples** - Simple estimation of a model inference performance
-   - [Sync Benchmark C++ Sample](../../samples/cpp/benchmakr/sync_benchmark/README.md)
-   - [Throughput Benchmark C++ Sample](../../samples/cpp/benchmakr/throughput_benchmark/README.md)
-   - [Throughput Benchmark Python* Sample](../../samples/python/benchmakr/throughput_benchmark/README.md)
+   - [Sync Benchmark C++ Sample](../../samples/cpp/benchmark/sync_benchmark/README.md)
+   - [Sync Benchmark Python* Sample](../../samples/python/benchmark/sync_benchmark/README.md)
+   - [Throughput Benchmark C++ Sample](../../samples/cpp/benchmark/throughput_benchmark/README.md)
+   - [Throughput Benchmark Python* Sample](../../samples/python/benchmark/throughput_benchmark/README.md)
 
 
 - **Benchmark Application** – Estimates deep learning inference performance on supported devices for synchronous and asynchronous modes.

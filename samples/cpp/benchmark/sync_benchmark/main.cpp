@@ -36,10 +36,8 @@ int main(int argc, char* argv[]) {
         for (const ov::Output<const ov::Node>& model_input : compiled_model.inputs()) {
             fill_tensor_random(ireq.get_tensor(model_input));
         }
-
         // Warm up
         ireq.infer();
-
         // Run benchmarking for seconds_to_run seconds
         std::chrono::seconds seconds_to_run{15};
         std::vector<double> latencies;
@@ -53,8 +51,8 @@ int main(int argc, char* argv[]) {
             time_point = iter_end;
         }
         auto end = time_point;
-        // Report results
         double duration = std::chrono::duration_cast<Ms>(end - start).count();
+        // Report results
         slog::info << "Count:      " << latencies.size() << " iterations" << slog::endl;
         slog::info << "Duration:   " << duration << " ms" << slog::endl;
         slog::info << "Latency:" << slog::endl;

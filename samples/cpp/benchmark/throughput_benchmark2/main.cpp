@@ -27,7 +27,6 @@ int main(int argc, char* argv[]) {
         // Optimize for throughput. Best throughput can be reached by
         // running multiple ov::InferRequest instances asyncronously
         ov::AnyMap tput{{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT}};
-
         // Create ov::Core and use it to compile a model
         // Pick device by replacing CPU, for example MULTI:CPU(4),GPU(8)
         ov::Core core;
@@ -51,7 +50,6 @@ int main(int argc, char* argv[]) {
                 fill_tensor_random(ireq.get_tensor(model_input));
             }
         }
-
         // Warm up
         for (ov::InferRequest& ireq : ireqs) {
             ireq.start_async();
@@ -59,7 +57,6 @@ int main(int argc, char* argv[]) {
         for (ov::InferRequest& ireq : ireqs) {
             ireq.wait();
         }
-
         // Run benchmarking for seconds_to_run seconds
         std::chrono::seconds seconds_to_run{15};
         std::vector<double> latencies;
@@ -122,8 +119,8 @@ int main(int argc, char* argv[]) {
             }
         }
         auto end = std::chrono::steady_clock::now();
-        // Report results
         double duration = std::chrono::duration_cast<Ms>(end - start).count();
+        // Report results
         slog::info << "Count:      " << latencies.size() << " iterations" << slog::endl;
         slog::info << "Duration:   " << duration << " ms" << slog::endl;
         slog::info << "Latency:" << slog::endl;
