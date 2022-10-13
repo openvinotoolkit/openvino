@@ -5,10 +5,10 @@
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset4.hpp>
-#include <openvino/opsets/opset5.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset4.hpp>
+#include <openvino/opsets/opset5.hpp>
 
 #include "itt.hpp"
 
@@ -34,33 +34,33 @@ ov::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceDecom
         auto B = std::make_shared<opset4::Split>(lstm_sequence->input_value(6), axis_0, 2);
         auto lstm_sequence_forward =
             std::make_shared<ov::opset5::LSTMSequence>(lstm_sequence->input_value(0),
-                                                           H->output(0),
-                                                           C->output(0),
-                                                           lstm_sequence->input_value(3),
-                                                           W->output(0),
-                                                           R->output(0),
-                                                           B->output(0),
-                                                           lstm_sequence->get_hidden_size(),
-                                                           ngraph::op::RecurrentSequenceDirection::FORWARD,
-                                                           lstm_sequence->get_activations_alpha(),
-                                                           lstm_sequence->get_activations_beta(),
-                                                           lstm_sequence->get_activations(),
-                                                           lstm_sequence->get_clip());
+                                                       H->output(0),
+                                                       C->output(0),
+                                                       lstm_sequence->input_value(3),
+                                                       W->output(0),
+                                                       R->output(0),
+                                                       B->output(0),
+                                                       lstm_sequence->get_hidden_size(),
+                                                       ngraph::op::RecurrentSequenceDirection::FORWARD,
+                                                       lstm_sequence->get_activations_alpha(),
+                                                       lstm_sequence->get_activations_beta(),
+                                                       lstm_sequence->get_activations(),
+                                                       lstm_sequence->get_clip());
 
         auto lstm_sequence_reverse =
             std::make_shared<ov::opset5::LSTMSequence>(lstm_sequence->input_value(0),
-                                                           H->output(1),
-                                                           C->output(1),
-                                                           lstm_sequence->input_value(3),
-                                                           W->output(1),
-                                                           R->output(1),
-                                                           B->output(1),
-                                                           lstm_sequence->get_hidden_size(),
-                                                           ngraph::op::RecurrentSequenceDirection::REVERSE,
-                                                           lstm_sequence->get_activations_alpha(),
-                                                           lstm_sequence->get_activations_beta(),
-                                                           lstm_sequence->get_activations(),
-                                                           lstm_sequence->get_clip());
+                                                       H->output(1),
+                                                       C->output(1),
+                                                       lstm_sequence->input_value(3),
+                                                       W->output(1),
+                                                       R->output(1),
+                                                       B->output(1),
+                                                       lstm_sequence->get_hidden_size(),
+                                                       ngraph::op::RecurrentSequenceDirection::REVERSE,
+                                                       lstm_sequence->get_activations_alpha(),
+                                                       lstm_sequence->get_activations_beta(),
+                                                       lstm_sequence->get_activations(),
+                                                       lstm_sequence->get_clip());
 
         auto concat_0 = std::make_shared<opset5::Concat>(
             OutputVector{lstm_sequence_forward->output(0), lstm_sequence_reverse->output(0)},
@@ -106,33 +106,33 @@ ov::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDecompo
         auto B = std::make_shared<opset4::Split>(gru_sequence->input_value(5), axis_0, 2);
         auto gru_sequence_forward =
             std::make_shared<ov::opset5::GRUSequence>(gru_sequence->input_value(0),
-                                                          H->output(0),
-                                                          gru_sequence->input_value(2),
-                                                          W->output(0),
-                                                          R->output(0),
-                                                          B->output(0),
-                                                          gru_sequence->get_hidden_size(),
-                                                          ngraph::op::RecurrentSequenceDirection::FORWARD,
-                                                          gru_sequence->get_activations(),
-                                                          gru_sequence->get_activations_alpha(),
-                                                          gru_sequence->get_activations_beta(),
-                                                          gru_sequence->get_clip(),
-                                                          gru_sequence->get_linear_before_reset());
+                                                      H->output(0),
+                                                      gru_sequence->input_value(2),
+                                                      W->output(0),
+                                                      R->output(0),
+                                                      B->output(0),
+                                                      gru_sequence->get_hidden_size(),
+                                                      ngraph::op::RecurrentSequenceDirection::FORWARD,
+                                                      gru_sequence->get_activations(),
+                                                      gru_sequence->get_activations_alpha(),
+                                                      gru_sequence->get_activations_beta(),
+                                                      gru_sequence->get_clip(),
+                                                      gru_sequence->get_linear_before_reset());
 
         auto gru_sequence_reverse =
             std::make_shared<ov::opset5::GRUSequence>(gru_sequence->input_value(0),
-                                                          H->output(1),
-                                                          gru_sequence->input_value(2),
-                                                          W->output(1),
-                                                          R->output(1),
-                                                          B->output(1),
-                                                          gru_sequence->get_hidden_size(),
-                                                          ngraph::op::RecurrentSequenceDirection::REVERSE,
-                                                          gru_sequence->get_activations(),
-                                                          gru_sequence->get_activations_alpha(),
-                                                          gru_sequence->get_activations_beta(),
-                                                          gru_sequence->get_clip(),
-                                                          gru_sequence->get_linear_before_reset());
+                                                      H->output(1),
+                                                      gru_sequence->input_value(2),
+                                                      W->output(1),
+                                                      R->output(1),
+                                                      B->output(1),
+                                                      gru_sequence->get_hidden_size(),
+                                                      ngraph::op::RecurrentSequenceDirection::REVERSE,
+                                                      gru_sequence->get_activations(),
+                                                      gru_sequence->get_activations_alpha(),
+                                                      gru_sequence->get_activations_beta(),
+                                                      gru_sequence->get_clip(),
+                                                      gru_sequence->get_linear_before_reset());
 
         auto concat_0 = std::make_shared<opset5::Concat>(
             OutputVector{gru_sequence_forward->output(0), gru_sequence_reverse->output(0)},
@@ -173,31 +173,31 @@ ov::pass::BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDecompo
         auto B = std::make_shared<opset4::Split>(rnn_sequence->input_value(5), axis_0, 2);
         auto rnn_sequence_forward =
             std::make_shared<ov::opset5::RNNSequence>(rnn_sequence->input_value(0),
-                                                          H->output(0),
-                                                          rnn_sequence->input_value(2),
-                                                          W->output(0),
-                                                          R->output(0),
-                                                          B->output(0),
-                                                          rnn_sequence->get_hidden_size(),
-                                                          ngraph::op::RecurrentSequenceDirection::FORWARD,
-                                                          rnn_sequence->get_activations(),
-                                                          rnn_sequence->get_activations_alpha(),
-                                                          rnn_sequence->get_activations_beta(),
-                                                          rnn_sequence->get_clip());
+                                                      H->output(0),
+                                                      rnn_sequence->input_value(2),
+                                                      W->output(0),
+                                                      R->output(0),
+                                                      B->output(0),
+                                                      rnn_sequence->get_hidden_size(),
+                                                      ngraph::op::RecurrentSequenceDirection::FORWARD,
+                                                      rnn_sequence->get_activations(),
+                                                      rnn_sequence->get_activations_alpha(),
+                                                      rnn_sequence->get_activations_beta(),
+                                                      rnn_sequence->get_clip());
 
         auto rnn_sequence_reverse =
             std::make_shared<ov::opset5::RNNSequence>(rnn_sequence->input_value(0),
-                                                          H->output(1),
-                                                          rnn_sequence->input_value(2),
-                                                          W->output(1),
-                                                          R->output(1),
-                                                          B->output(1),
-                                                          rnn_sequence->get_hidden_size(),
-                                                          ngraph::op::RecurrentSequenceDirection::REVERSE,
-                                                          rnn_sequence->get_activations(),
-                                                          rnn_sequence->get_activations_alpha(),
-                                                          rnn_sequence->get_activations_beta(),
-                                                          rnn_sequence->get_clip());
+                                                      H->output(1),
+                                                      rnn_sequence->input_value(2),
+                                                      W->output(1),
+                                                      R->output(1),
+                                                      B->output(1),
+                                                      rnn_sequence->get_hidden_size(),
+                                                      ngraph::op::RecurrentSequenceDirection::REVERSE,
+                                                      rnn_sequence->get_activations(),
+                                                      rnn_sequence->get_activations_alpha(),
+                                                      rnn_sequence->get_activations_beta(),
+                                                      rnn_sequence->get_clip());
 
         auto concat_0 = std::make_shared<opset5::Concat>(
             OutputVector{rnn_sequence_forward->output(0), rnn_sequence_reverse->output(0)},

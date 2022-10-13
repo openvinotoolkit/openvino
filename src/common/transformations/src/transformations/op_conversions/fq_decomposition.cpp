@@ -5,11 +5,11 @@
 #include "transformations/op_conversions/fq_decomposition.hpp"
 
 #include <ngraph/builder/autobroadcast.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset5.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset5.hpp>
 
 #include "itt.hpp"
 

@@ -6,12 +6,12 @@
 
 #include <list>
 #include <memory>
+#include <ngraph/rt_info.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset3.hpp>
 #include <openvino/opsets/opset4.hpp>
 #include <openvino/opsets/opset5.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -136,19 +136,17 @@ bool callback_func(pass::pattern::Matcher& m, pass::MatcherPass* impl) {
     size_t num_of_args = new_args.size();
 
     const auto& arg2 = num_of_args > 2 ? new_args.at(2) : ov::opset5::Constant::create(element::i64, Shape{}, {0});
-    const auto& arg3 =
-        num_of_args > 3 ? new_args.at(3) : ov::opset5::Constant::create(element::f32, Shape{}, {.0f});
-    const auto& arg4 =
-        num_of_args > 4 ? new_args.at(4) : ov::opset5::Constant::create(element::f32, Shape{}, {.0f});
+    const auto& arg3 = num_of_args > 3 ? new_args.at(3) : ov::opset5::Constant::create(element::f32, Shape{}, {.0f});
+    const auto& arg4 = num_of_args > 4 ? new_args.at(4) : ov::opset5::Constant::create(element::f32, Shape{}, {.0f});
 
     const auto nms_5 = impl->register_new_node<opset5::NonMaxSuppression>(new_args.at(0),
-                                                                                  new_args.at(1),
-                                                                                  arg2,
-                                                                                  arg3,
-                                                                                  arg4,
-                                                                                  attrs.box_encoding,
-                                                                                  attrs.sort_result_descending,
-                                                                                  attrs.output_type);
+                                                                          new_args.at(1),
+                                                                          arg2,
+                                                                          arg3,
+                                                                          arg4,
+                                                                          attrs.box_encoding,
+                                                                          attrs.sort_result_descending,
+                                                                          attrs.output_type);
 
     nms_5->set_friendly_name(root->get_friendly_name());
     ngraph::copy_runtime_info(root, nms_5);

@@ -5,10 +5,10 @@
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset4.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset4.hpp>
 #include <transformations/utils/utils.hpp>
 #include <vector>
 

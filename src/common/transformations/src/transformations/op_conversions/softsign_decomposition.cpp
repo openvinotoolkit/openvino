@@ -3,9 +3,9 @@
 //
 
 #include <memory>
-#include <openvino/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset9.hpp>
 #include <transformations/op_conversions/softsign_decomposition.hpp>
 
 #include "itt.hpp"

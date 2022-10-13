@@ -5,10 +5,10 @@
 #include "transformations/op_conversions/convert_shuffle_channels3.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset2.hpp>
-#include <openvino/opsets/opset3.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset2.hpp>
+#include <openvino/opsets/opset3.hpp>
 #include <vector>
 
 #include "itt.hpp"

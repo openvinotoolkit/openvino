@@ -4,11 +4,11 @@
 
 #include "transformations/op_conversions/convert_softmax_downgrade.hpp"
 
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 #include "itt.hpp"
 

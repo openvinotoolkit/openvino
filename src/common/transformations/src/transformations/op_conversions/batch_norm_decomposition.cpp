@@ -5,11 +5,11 @@
 #include "transformations/op_conversions/batch_norm_decomposition.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset5.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset5.hpp>
 #include <transformations/utils/utils.hpp>
 #include <vector>
 

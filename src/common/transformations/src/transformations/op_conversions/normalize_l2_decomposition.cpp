@@ -5,9 +5,9 @@
 #include "transformations/op_conversions/normalize_l2_decomposition.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 #include "itt.hpp"
 

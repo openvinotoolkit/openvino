@@ -5,10 +5,10 @@
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset4.hpp>
 #include <ngraph/pattern/op/pattern.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset4.hpp>
 #include <vector>
 
 #include "itt.hpp"

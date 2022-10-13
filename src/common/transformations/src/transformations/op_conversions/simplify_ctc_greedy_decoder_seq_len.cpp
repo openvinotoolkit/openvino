@@ -4,9 +4,9 @@
 
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
 
-#include <openvino/opsets/opset6.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset6.hpp>
 
 #include "itt.hpp"
 
@@ -22,8 +22,8 @@ ov::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
 
         if (decoder_seq_len->get_input_size() > 2) {
             const auto data_pshape = decoder_seq_len->get_input_partial_shape(0);
-            auto blank_index = std::dynamic_pointer_cast<ov::opset6::Constant>(
-                decoder_seq_len->input_value(2).get_node_shared_ptr());
+            auto blank_index =
+                std::dynamic_pointer_cast<ov::opset6::Constant>(decoder_seq_len->input_value(2).get_node_shared_ptr());
             if (!blank_index || data_pshape.rank().is_dynamic() || data_pshape[2].is_dynamic()) {
                 return false;
             }
@@ -38,9 +38,9 @@ ov::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
         element::Type data_type = decoder_seq_len->input_value(0).get_element_type();
         element::Type seq_len_type = decoder_seq_len->input_value(1).get_element_type();
         // Transposing input data channels from [N, T, C] to [T, N, C]. Need for compatible with CTCGreedyDecoder v1
-        auto transpose = std::make_shared<ov::opset6::Transpose>(
-            decoder_seq_len->input_value(0),
-            ov::opset6::Constant::create(element::i32, Shape({3}), {1, 0, 2}));
+        auto transpose =
+            std::make_shared<ov::opset6::Transpose>(decoder_seq_len->input_value(0),
+                                                    ov::opset6::Constant::create(element::i32, Shape({3}), {1, 0, 2}));
         // Receive time and batch dimensions and concatenate to [T, N] tensor shapes
         auto data_shape = std::make_shared<ov::opset6::ShapeOf>(decoder_seq_len->input_value(0));
         auto axisT = ov::opset6::Constant::create(seq_len_type, Shape{}, {0});
@@ -64,9 +64,9 @@ ov::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
         // Generate 2D tensor [T, N] for seq mask
         auto upper_bounds =
             std::make_shared<ov::opset6::Broadcast>(decoder_seq_len->input_value(1), mask_shape->output(0));
-        auto transpose_upper_bounds = std::make_shared<ov::opset6::Transpose>(
-            upper_bounds->output(0),
-            ov::opset6::Constant::create(seq_len_type, Shape({2}), {1, 0}));
+        auto transpose_upper_bounds =
+            std::make_shared<ov::opset6::Transpose>(upper_bounds->output(0),
+                                                    ov::opset6::Constant::create(seq_len_type, Shape({2}), {1, 0}));
         // Compute boolean sequence mask
         auto bool_seq_mask =
             std::make_shared<ov::opset6::GreaterEqual>(transpose_upper_bounds->output(0), range1T->output(0));
@@ -75,14 +75,14 @@ ov::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
         auto mask_val_true = ov::opset6::Constant::create(seq_len_type, Shape{}, {1});
         auto mask_val_false = ov::opset6::Constant::create(seq_len_type, Shape{}, {0});
         auto seq_mask = std::make_shared<ov::opset6::Select>(bool_seq_mask, mask_val_true, mask_val_false);
-        auto transpose_seq_mask = std::make_shared<ov::opset6::Transpose>(
-            seq_mask->output(0),
-            ov::opset6::Constant::create(seq_len_type, Shape({2}), {1, 0}));
+        auto transpose_seq_mask =
+            std::make_shared<ov::opset6::Transpose>(seq_mask->output(0),
+                                                    ov::opset6::Constant::create(seq_len_type, Shape({2}), {1, 0}));
         auto transpose_seq_mask_f = std::make_shared<ov::opset6::Convert>(transpose_seq_mask->output(0), data_type);
         // Create CTCGreedyDecoder with original merge_repeated attribute and connect data and resulted seq_mask
         auto decoder = std::make_shared<ov::opset6::CTCGreedyDecoder>(transpose,
-                                                                          transpose_seq_mask_f->output(0),
-                                                                          decoder_seq_len->get_merge_repeated());
+                                                                      transpose_seq_mask_f->output(0),
+                                                                      decoder_seq_len->get_merge_repeated());
         decoder->set_friendly_name(decoder_seq_len->get_friendly_name());
 
         // Normalize output from CTCGreedyDecoder = output_f and create second output with output_seq_len

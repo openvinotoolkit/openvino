@@ -5,9 +5,9 @@
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset4.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset4.hpp>
 
 #include "itt.hpp"
 
@@ -25,12 +25,11 @@ ov::pass::ReduceL2Decomposition::ReduceL2Decomposition() {
             return false;
         }
 
-        auto const_2 =
-            ov::opset4::Constant::create(reduce_l2_node->input_value(0).get_element_type(), Shape{}, {2.0f});
+        auto const_2 = ov::opset4::Constant::create(reduce_l2_node->input_value(0).get_element_type(), Shape{}, {2.0f});
         auto square = std::make_shared<ov::opset4::Power>(reduce_l2_node->input_value(0), const_2);
         auto reduce_sum = register_new_node<ov::opset4::ReduceSum>(square,
-                                                                       reduce_l2_node->input_value(1),
-                                                                       reduce_l2_node->get_keep_dims());
+                                                                   reduce_l2_node->input_value(1),
+                                                                   reduce_l2_node->get_keep_dims());
         auto sqrt = std::make_shared<ov::opset4::Sqrt>(reduce_sum);
         sqrt->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(reduce_l2_node, {sqrt, reduce_sum, square, const_2});

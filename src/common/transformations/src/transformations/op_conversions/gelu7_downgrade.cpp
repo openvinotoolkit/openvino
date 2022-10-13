@@ -5,10 +5,10 @@
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset2.hpp>
-#include <openvino/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset2.hpp>
+#include <openvino/opsets/opset7.hpp>
 
 #include "itt.hpp"
 
@@ -18,8 +18,7 @@ ov::pass::Gelu7Downgrade::Gelu7Downgrade() {
 
     matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto gelu_node =
-            std::dynamic_pointer_cast<ov::opset7::Gelu>(pattern_to_output.at(gelu).get_node_shared_ptr());
+        auto gelu_node = std::dynamic_pointer_cast<ov::opset7::Gelu>(pattern_to_output.at(gelu).get_node_shared_ptr());
 
         if (gelu_node == nullptr || transformation_callback(gelu_node)) {
             return false;

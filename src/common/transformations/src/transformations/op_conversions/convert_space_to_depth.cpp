@@ -5,17 +5,16 @@
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset1.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <vector>
 
 #include "itt.hpp"
 
 ov::pass::ConvertSpaceToDepth::ConvertSpaceToDepth() {
     MATCHER_SCOPE(ConvertSpaceToDepth);
-    auto dts =
-        ngraph::pattern::wrap_type<ov::opset1::SpaceToDepth>({pattern::any_input(pattern::has_static_shape())});
+    auto dts = ngraph::pattern::wrap_type<ov::opset1::SpaceToDepth>({pattern::any_input(pattern::has_static_shape())});
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto std_node = std::dynamic_pointer_cast<ov::opset1::SpaceToDepth>(m.get_match_root());

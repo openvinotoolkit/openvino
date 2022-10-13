@@ -5,9 +5,9 @@
 #include "transformations/op_conversions/convert_gather_0d.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset1.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -40,8 +40,8 @@ ov::pass::ConvertGather0D::ConvertGather0D() {
         indices =
             std::make_shared<ov::opset1::Unsqueeze>(indices, opset1::Constant::create(element::i64, Shape{1}, {0}));
         auto gather_new = std::make_shared<ov::opset1::Gather>(gather->input_value(0), indices, axes_constant);
-        auto sq = std::make_shared<ov::opset1::Squeeze>(gather_new,
-                                                            opset1::Constant::create(element::i64, Shape{1}, {axis}));
+        auto sq =
+            std::make_shared<ov::opset1::Squeeze>(gather_new, opset1::Constant::create(element::i64, Shape{1}, {axis}));
         sq->set_friendly_name(gather->get_friendly_name());
 
         ngraph::copy_runtime_info(gather, {indices.get_node_shared_ptr(), gather_new, sq});

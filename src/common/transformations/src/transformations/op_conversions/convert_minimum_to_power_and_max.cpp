@@ -5,9 +5,9 @@
 #include "transformations/op_conversions/convert_minimum_to_power_and_max.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset1.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -37,9 +37,9 @@ ov::pass::ConvertMinimum::ConvertMinimum() {
 
         auto max = std::make_shared<ov::opset1::Maximum>(neg_0, neg_1);
 
-        auto neg_2 = std::make_shared<ov::opset1::Multiply>(
-            max,
-            opset1::Constant::create(max->get_element_type(), Shape{}, {-1}));
+        auto neg_2 =
+            std::make_shared<ov::opset1::Multiply>(max,
+                                                   opset1::Constant::create(max->get_element_type(), Shape{}, {-1}));
 
         neg_2->set_friendly_name(minimum->get_friendly_name());
         ngraph::copy_runtime_info(minimum, {neg_0, neg_1, max, neg_2});

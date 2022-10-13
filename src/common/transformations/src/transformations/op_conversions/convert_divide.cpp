@@ -6,10 +6,10 @@
 
 #include <memory>
 #include <ngraph/log.hpp>
-#include <openvino/opsets/opset1.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <vector>
 
 #include "itt.hpp"

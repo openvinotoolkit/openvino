@@ -46,6 +46,9 @@ public:
 
 namespace ngraph {
 namespace pass {
-using ov::pass::ConvertNMS1ToNMS9; using ov::pass::ConvertNMS3ToNMS9; using ov::pass::ConvertNMS4ToNMS9; using ov::pass::ConvertNMS5ToNMS9;
+using ov::pass::ConvertNMS1ToNMS9;
+using ov::pass::ConvertNMS3ToNMS9;
+using ov::pass::ConvertNMS4ToNMS9;
+using ov::pass::ConvertNMS5ToNMS9;
 }  // namespace pass
 }  // namespace ngraph

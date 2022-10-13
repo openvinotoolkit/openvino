@@ -5,9 +5,9 @@
 #include "transformations/op_conversions/log_softmax_decomposition.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset5.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset5.hpp>
 
 #include "itt.hpp"
 
@@ -18,8 +18,8 @@ ov::pass::LogSoftmaxDecomposition::LogSoftmaxDecomposition() {
 
     matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto log_softmax_node = std::dynamic_pointer_cast<ov::opset5::LogSoftmax>(
-            pattern_to_output.at(log_softmax).get_node_shared_ptr());
+        auto log_softmax_node =
+            std::dynamic_pointer_cast<ov::opset5::LogSoftmax>(pattern_to_output.at(log_softmax).get_node_shared_ptr());
 
         if (log_softmax_node == nullptr || transformation_callback(log_softmax_node)) {
             return false;

@@ -360,8 +360,8 @@ NGRAPH_SUPPRESS_DEPRECATED_END
 
 namespace ngraph {
 namespace op {
-using ov::op::TypeRelaxedBase;
-using ov::op::TypeRelaxed;
 using ov::op::TemporaryReplaceOutputType;
+using ov::op::TypeRelaxed;
+using ov::op::TypeRelaxedBase;
 }  // namespace op
 }  // namespace ngraph

@@ -32,6 +32,7 @@ public:
 
 namespace ngraph {
 namespace pass {
-using ov::pass::ConvertDivide; using ov::pass::ConvertDivideWithConstant;
+using ov::pass::ConvertDivide;
+using ov::pass::ConvertDivideWithConstant;
 }  // namespace pass
 }  // namespace ngraph

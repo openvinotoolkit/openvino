@@ -4,10 +4,10 @@
 
 #include "transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp"
 
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset9.hpp>
 
 #include "itt.hpp"
 #include "ngraph_ops/generate_proposals_ie_internal.hpp"
@@ -29,13 +29,12 @@ ov::pass::ConvertGP9ToGPIEInternal::ConvertGP9ToGPIEInternal() {
 
         NodeVector new_ops;
 
-        auto new_node =
-            std::make_shared<op::internal::GenerateProposalsIEInternal>(old_node->input_value(0),
-                                                                                old_node->input_value(1),
-                                                                                old_node->input_value(2),
-                                                                                old_node->input_value(3),
-                                                                                old_node->get_attrs(),
-                                                                                old_node->get_roi_num_type());
+        auto new_node = std::make_shared<op::internal::GenerateProposalsIEInternal>(old_node->input_value(0),
+                                                                                    old_node->input_value(1),
+                                                                                    old_node->input_value(2),
+                                                                                    old_node->input_value(3),
+                                                                                    old_node->get_attrs(),
+                                                                                    old_node->get_roi_num_type());
 
         new_ops.push_back(new_node);
         Output<ngraph::Node> output_0 = new_node->output(0);

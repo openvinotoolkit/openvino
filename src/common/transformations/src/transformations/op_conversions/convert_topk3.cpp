@@ -5,11 +5,11 @@
 #include "transformations/op_conversions/convert_topk3.hpp"
 
 #include <memory>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset2.hpp>
 #include <openvino/opsets/opset3.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -28,11 +28,11 @@ ov::pass::ConvertTopK3::ConvertTopK3() {
         ngraph::NodeVector new_ops;
 
         auto new_topk = std::make_shared<ov::opset2::TopK>(topk->input_value(0),
-                                                               topk->input_value(1),
-                                                               topk->get_axis(),
-                                                               topk->get_mode(),
-                                                               topk->get_sort_type(),
-                                                               element::i32);
+                                                           topk->input_value(1),
+                                                           topk->get_axis(),
+                                                           topk->get_mode(),
+                                                           topk->get_sort_type(),
+                                                           element::i32);
         new_ops.push_back(new_topk);
         // if the output is the i32 or output #1 has no consumers
         // then it matches behavior of the v1::TopK otherwise need to insert Convert

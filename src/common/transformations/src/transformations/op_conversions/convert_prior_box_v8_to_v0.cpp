@@ -4,10 +4,10 @@
 
 #include "transformations/op_conversions/convert_prior_box_v8_to_v0.hpp"
 
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 #include "itt.hpp"
 
@@ -40,8 +40,8 @@ ov::pass::ConvertPriorBox8To0::ConvertPriorBox8To0() {
         attrs_v0.scale_all_sizes = attrs_v8.scale_all_sizes;
 
         auto prior_box_v0 = std::make_shared<ov::opset1::PriorBox>(prior_box_v8_node->input_value(0),
-                                                                       prior_box_v8_node->input_value(1),
-                                                                       attrs_v0);
+                                                                   prior_box_v8_node->input_value(1),
+                                                                   attrs_v0);
         prior_box_v0->set_friendly_name(prior_box_v8_node->get_friendly_name());
         ngraph::copy_runtime_info(prior_box_v8_node, prior_box_v0);
         ngraph::replace_node(prior_box_v8_node, prior_box_v0);

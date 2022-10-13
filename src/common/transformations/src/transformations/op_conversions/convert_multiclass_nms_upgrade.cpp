@@ -4,10 +4,10 @@
 
 #include "transformations/op_conversions/convert_multiclass_nms_upgrade.hpp"
 
-#include <openvino/opsets/opset8.hpp>
-#include <openvino/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset8.hpp>
+#include <openvino/opsets/opset9.hpp>
 
 #include "itt.hpp"
 

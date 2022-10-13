@@ -5,11 +5,11 @@
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
 
 #include <memory>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset5.hpp>
 #include <openvino/opsets/opset8.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -36,8 +36,8 @@ ov::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool forc
         auto attrs = nms->get_attrs();
         attrs.output_type = force_i32_output_type ? element::i32 : attrs.output_type;
         auto nms_new = std::make_shared<op::internal::NmsStaticShapeIE<ov::opset8::MatrixNms>>(new_args.at(0),
-                                                                                                   new_args.at(1),
-                                                                                                   attrs);
+                                                                                               new_args.at(1),
+                                                                                               attrs);
         new_ops.emplace_back(nms_new);
 
         Output<Node> output_0 = nms_new->output(0);

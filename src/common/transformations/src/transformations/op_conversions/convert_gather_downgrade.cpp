@@ -4,11 +4,11 @@
 
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
 
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset7.hpp>
 #include <openvino/opsets/opset8.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 
 #include "itt.hpp"
 

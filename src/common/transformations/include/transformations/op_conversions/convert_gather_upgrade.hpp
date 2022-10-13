@@ -39,6 +39,7 @@ public:
 
 namespace ngraph {
 namespace pass {
-using ov::pass::ConvertGather1ToGather7; using ov::pass::ConvertGather7ToGather8;
+using ov::pass::ConvertGather1ToGather7;
+using ov::pass::ConvertGather7ToGather8;
 }  // namespace pass
 }  // namespace ngraph

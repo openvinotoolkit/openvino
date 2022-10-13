@@ -7,11 +7,11 @@
 #include <algorithm>
 #include <memory>
 #include <ngraph/op/util/op_types.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
 
@@ -71,8 +71,7 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
 
         auto input = reduce->input_value(0);
 
-        auto axes_node =
-            std::dynamic_pointer_cast<ov::opset1::Constant>(reduce->input_value(1).get_node_shared_ptr());
+        auto axes_node = std::dynamic_pointer_cast<ov::opset1::Constant>(reduce->input_value(1).get_node_shared_ptr());
         if (!axes_node) {
             return false;
         }
@@ -101,9 +100,7 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
             const auto reshape_shape = reduce->output(0).get_shape();
             auto reshape = std::make_shared<ov::opset1::Reshape>(
                 input,
-                ov::opset1::Constant::create(ngraph::element::i64,
-                                                 ngraph::Shape{reshape_shape.size()},
-                                                 reshape_shape),
+                ov::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{reshape_shape.size()}, reshape_shape),
                 true);
 
             reshape->set_friendly_name(reduce->get_friendly_name());
@@ -205,22 +202,22 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
 
         if (std::is_same<T, ov::opset1::ReduceMean>()) {
             input = std::make_shared<ov::opset1::AvgPool>(input,
-                                                              strides,
-                                                              pads_begin,
-                                                              pads_end,
-                                                              kernel,
-                                                              true,
-                                                              ngraph::op::RoundingType::FLOOR);
+                                                          strides,
+                                                          pads_begin,
+                                                          pads_end,
+                                                          kernel,
+                                                          true,
+                                                          ngraph::op::RoundingType::FLOOR);
 
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/pool");
             new_ops.push_back(input.get_node_shared_ptr());
         } else if (std::is_same<T, ov::opset1::ReduceMax>()) {
             input = std::make_shared<ov::opset1::MaxPool>(input,
-                                                              strides,
-                                                              pads_begin,
-                                                              pads_end,
-                                                              kernel,
-                                                              ngraph::op::RoundingType::FLOOR);
+                                                          strides,
+                                                          pads_begin,
+                                                          pads_end,
+                                                          kernel,
+                                                          ngraph::op::RoundingType::FLOOR);
 
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/pool");
             new_ops.push_back(input.get_node_shared_ptr());
@@ -234,12 +231,12 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
             }
 
             input = std::make_shared<ov::opset1::AvgPool>(input,
-                                                              strides,
-                                                              pads_begin,
-                                                              pads_end,
-                                                              kernel,
-                                                              true,
-                                                              ngraph::op::RoundingType::FLOOR);
+                                                          strides,
+                                                          pads_begin,
+                                                          pads_end,
+                                                          kernel,
+                                                          true,
+                                                          ngraph::op::RoundingType::FLOOR);
 
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/pool");
             new_ops.push_back(input.get_node_shared_ptr());
@@ -274,6 +271,9 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
 
 namespace ngraph {
 namespace pass {
-using ov::pass::ConvertReduceToPooling; using ov::pass::ConvertReduceMeanToPooling; using ov::pass::ConvertReduceMaxToPooling; using ov::pass::ConvertReduceSumToPooling;
+using ov::pass::ConvertReduceMaxToPooling;
+using ov::pass::ConvertReduceMeanToPooling;
+using ov::pass::ConvertReduceSumToPooling;
+using ov::pass::ConvertReduceToPooling;
 }  // namespace pass
 }  // namespace ngraph

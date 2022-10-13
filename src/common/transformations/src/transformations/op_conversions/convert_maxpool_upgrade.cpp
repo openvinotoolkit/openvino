@@ -4,10 +4,10 @@
 
 #include "transformations/op_conversions/convert_maxpool_upgrade.hpp"
 
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
@@ -31,15 +31,15 @@ ov::pass::ConvertMaxPool1ToMaxPool8::ConvertMaxPool1ToMaxPool8() {
         ov::Strides dilations(spatial_dims, 1);
 
         auto maxpool_v8_node = std::make_shared<ov::opset8::MaxPool>(maxpool_v1_node->input_value(0),
-                                                                         maxpool_v1_node->get_strides(),
-                                                                         dilations,
-                                                                         maxpool_v1_node->get_pads_begin(),
-                                                                         maxpool_v1_node->get_pads_end(),
-                                                                         maxpool_v1_node->get_kernel(),
-                                                                         maxpool_v1_node->get_rounding_type(),
-                                                                         maxpool_v1_node->get_auto_pad(),
-                                                                         ov::element::i64,
-                                                                         0);
+                                                                     maxpool_v1_node->get_strides(),
+                                                                     dilations,
+                                                                     maxpool_v1_node->get_pads_begin(),
+                                                                     maxpool_v1_node->get_pads_end(),
+                                                                     maxpool_v1_node->get_kernel(),
+                                                                     maxpool_v1_node->get_rounding_type(),
+                                                                     maxpool_v1_node->get_auto_pad(),
+                                                                     ov::element::i64,
+                                                                     0);
 
         maxpool_v8_node->set_friendly_name(maxpool_v1_node->get_friendly_name());
         maxpool_v1_node->output(0).replace(maxpool_v8_node->output(0));

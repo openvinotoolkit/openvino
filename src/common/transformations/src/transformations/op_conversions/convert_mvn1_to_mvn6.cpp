@@ -4,11 +4,11 @@
 
 #include "transformations/op_conversions/convert_mvn1_to_mvn6.hpp"
 
-#include <openvino/opsets/opset2.hpp>
-#include <openvino/opsets/opset6.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
+#include <openvino/opsets/opset2.hpp>
+#include <openvino/opsets/opset6.hpp>
 
 #include "itt.hpp"
 
@@ -35,10 +35,10 @@ ov::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
         std::iota(axes_v.begin(), axes_v.end(), start_axis);
         auto axes = opset6::Constant::create(ngraph::element::i64, {axes_v.size()}, axes_v);
         auto mvn6_node = std::make_shared<ov::opset6::MVN>(input,
-                                                               axes,
-                                                               mvn_node->get_normalize_variance(),
-                                                               static_cast<float>(mvn_node->get_eps()),
-                                                               op::MVNEpsMode::OUTSIDE_SQRT);
+                                                           axes,
+                                                           mvn_node->get_normalize_variance(),
+                                                           static_cast<float>(mvn_node->get_eps()),
+                                                           op::MVNEpsMode::OUTSIDE_SQRT);
 
         mvn6_node->set_friendly_name(mvn_node->get_friendly_name());
         ngraph::copy_runtime_info(mvn_node, mvn6_node);

@@ -6,9 +6,9 @@
 
 #include <memory>
 #include <ngraph/op/util/activation_functions.hpp>
-#include <openvino/opsets/opset4.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset4.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"

@@ -5,9 +5,9 @@
 #include "transformations/op_conversions/reduce_l1_decomposition.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset4.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset4.hpp>
 
 #include "itt.hpp"
 
@@ -27,8 +27,8 @@ ov::pass::ReduceL1Decomposition::ReduceL1Decomposition() {
 
         auto abs = std::make_shared<ov::opset4::Abs>(reduce_l1_node->input_value(0));
         auto reduce_sum = register_new_node<ov::opset4::ReduceSum>(abs,
-                                                                       reduce_l1_node->input_value(1),
-                                                                       reduce_l1_node->get_keep_dims());
+                                                                   reduce_l1_node->input_value(1),
+                                                                   reduce_l1_node->get_keep_dims());
 
         reduce_sum->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(reduce_l1_node, {abs, reduce_sum});

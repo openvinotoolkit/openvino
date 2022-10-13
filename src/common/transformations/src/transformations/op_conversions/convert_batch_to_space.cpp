@@ -5,9 +5,9 @@
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset3.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset3.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -187,8 +187,8 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
 
             const auto axes_order_const =
                 ov::opset3::Constant::create(element::i64,
-                                                 Shape{axes_order.size()},
-                                                 std::vector<int64_t>(axes_order.begin(), axes_order.end()));
+                                             Shape{axes_order.size()},
+                                             std::vector<int64_t>(axes_order.begin(), axes_order.end()));
             flat_node = std::make_shared<ov::opset3::Transpose>(flat_node, axes_order_const);
             new_ops.push_back(flat_node);
 

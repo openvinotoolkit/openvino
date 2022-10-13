@@ -5,10 +5,10 @@
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
 
 #include <ngraph/op/util/detection_output_base.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 #include "itt.hpp"
 

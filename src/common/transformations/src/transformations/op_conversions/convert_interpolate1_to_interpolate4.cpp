@@ -5,12 +5,12 @@
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset4.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <openvino/core/core.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset3.hpp>
+#include <openvino/opsets/opset4.hpp>
 #include <transformations/utils/utils.hpp>
 #include <vector>
 
@@ -73,8 +73,7 @@ ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4()
         attrsV4.coordinate_transformation_mode = ov::opset4::Interpolate::CoordinateTransformMode::ASYMMETRIC;
         attrsV4.cube_coeff = -0.75f;
         if (attrsV0.align_corners) {
-            attrsV4.coordinate_transformation_mode =
-                ov::opset4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS;
+            attrsV4.coordinate_transformation_mode = ov::opset4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS;
         } else if ((attrsV4.mode == ov::opset4::Interpolate::InterpolateMode::LINEAR_ONNX ||
                     attrsV4.mode == ov::opset4::Interpolate::InterpolateMode::LINEAR) &&
                    std::all_of(attrsV4.pads_begin.begin(),
@@ -92,10 +91,10 @@ ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4()
         }
 
         auto interpolateV4 = std::make_shared<ov::opset4::Interpolate>(interpolationV0->input_value(0),
-                                                                           interpolationV0->input_value(1),
-                                                                           scales,
-                                                                           axisConstant,
-                                                                           attrsV4);
+                                                                       interpolationV0->input_value(1),
+                                                                       scales,
+                                                                       axisConstant,
+                                                                       attrsV4);
 
         interpolateV4->set_friendly_name(interpolationV0->get_friendly_name());
         ngraph::copy_runtime_info(interpolationV0, interpolateV4);

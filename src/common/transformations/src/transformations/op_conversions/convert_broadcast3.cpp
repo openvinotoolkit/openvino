@@ -5,10 +5,10 @@
 #include "transformations/op_conversions/convert_broadcast3.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset3.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset3.hpp>
 #include <vector>
 
 #include "itt.hpp"

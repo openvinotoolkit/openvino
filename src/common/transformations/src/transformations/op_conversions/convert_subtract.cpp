@@ -5,9 +5,9 @@
 #include "transformations/op_conversions/convert_subtract.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset1.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <vector>
 
 #include "itt.hpp"

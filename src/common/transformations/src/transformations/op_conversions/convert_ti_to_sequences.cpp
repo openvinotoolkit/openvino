@@ -7,11 +7,11 @@
 #include <memory>
 #include <ngraph/graph_util.hpp>
 #include <ngraph/node.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset5.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset5.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -38,8 +38,7 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ov::opset5::TensorIte
     for (const auto& input_desc : ti->get_input_descriptions()) {
         auto param = params[input_desc->m_body_parameter_index];
         if (param == data.get_node_shared_ptr()) {
-            auto slice_input =
-                std::dynamic_pointer_cast<ov::opset5::TensorIterator::SliceInputDescription>(input_desc);
+            auto slice_input = std::dynamic_pointer_cast<ov::opset5::TensorIterator::SliceInputDescription>(input_desc);
             if (!slice_input)
                 return false;
 
@@ -115,55 +114,54 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ov::opset5::TensorIte
     auto B = ngraph::op::util::make_try_fold<ov::opset5::Unsqueeze>(b_pattern, axis_0);
 
     std::shared_ptr<ngraph::Node> sequence;
-    if (ngraph::is_type<ov::opset5::LSTMCell>(found_cell) ||
-        ngraph::is_type<ov::opset1::LSTMCell>(found_cell)) {
+    if (ngraph::is_type<ov::opset5::LSTMCell>(found_cell) || ngraph::is_type<ov::opset1::LSTMCell>(found_cell)) {
         sequence =
             std::make_shared<ov::opset5::LSTMSequence>(X,
-                                                           initial_hidden_state,
-                                                           initial_cell_state,
-                                                           seq_lengths,
-                                                           W,
-                                                           R,
-                                                           B,
-                                                           found_cell->get_hidden_size(),
-                                                           stride > 0 ? ngraph::op::RecurrentSequenceDirection::FORWARD
-                                                                      : ngraph::op::RecurrentSequenceDirection::REVERSE,
-                                                           found_cell->get_activations_alpha(),
-                                                           found_cell->get_activations_beta(),
-                                                           found_cell->get_activations(),
-                                                           found_cell->get_clip());
+                                                       initial_hidden_state,
+                                                       initial_cell_state,
+                                                       seq_lengths,
+                                                       W,
+                                                       R,
+                                                       B,
+                                                       found_cell->get_hidden_size(),
+                                                       stride > 0 ? ngraph::op::RecurrentSequenceDirection::FORWARD
+                                                                  : ngraph::op::RecurrentSequenceDirection::REVERSE,
+                                                       found_cell->get_activations_alpha(),
+                                                       found_cell->get_activations_beta(),
+                                                       found_cell->get_activations(),
+                                                       found_cell->get_clip());
     } else if (ngraph::is_type<ov::opset5::RNNCell>(found_cell)) {
         sequence =
             std::make_shared<ov::opset5::RNNSequence>(X,
-                                                          initial_hidden_state,
-                                                          seq_lengths,
-                                                          W,
-                                                          R,
-                                                          B,
-                                                          found_cell->get_hidden_size(),
-                                                          stride > 0 ? ngraph::op::RecurrentSequenceDirection::FORWARD
-                                                                     : ngraph::op::RecurrentSequenceDirection::REVERSE,
-                                                          found_cell->get_activations(),
-                                                          found_cell->get_activations_alpha(),
-                                                          found_cell->get_activations_beta(),
-                                                          found_cell->get_clip());
+                                                      initial_hidden_state,
+                                                      seq_lengths,
+                                                      W,
+                                                      R,
+                                                      B,
+                                                      found_cell->get_hidden_size(),
+                                                      stride > 0 ? ngraph::op::RecurrentSequenceDirection::FORWARD
+                                                                 : ngraph::op::RecurrentSequenceDirection::REVERSE,
+                                                      found_cell->get_activations(),
+                                                      found_cell->get_activations_alpha(),
+                                                      found_cell->get_activations_beta(),
+                                                      found_cell->get_clip());
     } else if (ngraph::is_type<ov::opset5::GRUCell>(found_cell)) {
         const auto gru_cell = ngraph::as_type_ptr<ov::opset5::GRUCell>(found_cell);
         sequence =
             std::make_shared<ov::opset5::GRUSequence>(X,
-                                                          initial_hidden_state,
-                                                          seq_lengths,
-                                                          W,
-                                                          R,
-                                                          B,
-                                                          gru_cell->get_hidden_size(),
-                                                          stride > 0 ? ngraph::op::RecurrentSequenceDirection::FORWARD
-                                                                     : ngraph::op::RecurrentSequenceDirection::REVERSE,
-                                                          gru_cell->get_activations(),
-                                                          gru_cell->get_activations_alpha(),
-                                                          gru_cell->get_activations_beta(),
-                                                          gru_cell->get_clip(),
-                                                          gru_cell->get_linear_before_reset());
+                                                      initial_hidden_state,
+                                                      seq_lengths,
+                                                      W,
+                                                      R,
+                                                      B,
+                                                      gru_cell->get_hidden_size(),
+                                                      stride > 0 ? ngraph::op::RecurrentSequenceDirection::FORWARD
+                                                                 : ngraph::op::RecurrentSequenceDirection::REVERSE,
+                                                      gru_cell->get_activations(),
+                                                      gru_cell->get_activations_alpha(),
+                                                      gru_cell->get_activations_beta(),
+                                                      gru_cell->get_clip(),
+                                                      gru_cell->get_linear_before_reset());
     } else {
         throw ov::Exception("Unsupported sequence type");
     }

@@ -5,10 +5,10 @@
 #include "transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset9.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -68,8 +68,7 @@ ov::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
             center_point_box = 0;
             break;
         default:
-            throw Exception("NonMaxSuppression layer " + nms_9->get_friendly_name() +
-                               " has unsupported box encoding");
+            throw Exception("NonMaxSuppression layer " + nms_9->get_friendly_name() + " has unsupported box encoding");
         }
 
         std::shared_ptr<op::internal::NonMaxSuppressionIEInternal> nms_legacy{nullptr};

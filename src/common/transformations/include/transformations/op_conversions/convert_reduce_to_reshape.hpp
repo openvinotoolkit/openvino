@@ -7,11 +7,11 @@
 #include <algorithm>
 #include <memory>
 #include <ngraph/op/util/op_types.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
 
@@ -105,9 +105,7 @@ ov::matcher_pass_callback CvtReduceBase::convert_reduce_to_reshape() {
             const auto reshape_shape = reduce->output(0).get_shape();
             auto reshape = std::make_shared<ov::opset1::Reshape>(
                 input,
-                ov::opset1::Constant::create(ngraph::element::i64,
-                                                 ngraph::Shape{reshape_shape.size()},
-                                                 reshape_shape),
+                ov::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{reshape_shape.size()}, reshape_shape),
                 true);
 
             reshape->set_friendly_name(reduce->get_friendly_name());
@@ -122,6 +120,12 @@ ov::matcher_pass_callback CvtReduceBase::convert_reduce_to_reshape() {
 
 namespace ngraph {
 namespace pass {
-using ov::pass::ConvertReduceToReshape; using ov::pass::ConvertReduceMeanToReshape; using ov::pass::ConvertReduceSumToReshape; using ov::pass::ConvertReduceMaxToReshape; using ov::pass::ConvertReduceMinToReshape; using ov::pass::ConvertReduceLogicalAndToReshape; using ov::pass::ConvertReduceLogicalOrToReshape;
+using ov::pass::ConvertReduceLogicalAndToReshape;
+using ov::pass::ConvertReduceLogicalOrToReshape;
+using ov::pass::ConvertReduceMaxToReshape;
+using ov::pass::ConvertReduceMeanToReshape;
+using ov::pass::ConvertReduceMinToReshape;
+using ov::pass::ConvertReduceSumToReshape;
+using ov::pass::ConvertReduceToReshape;
 }  // namespace pass
 }  // namespace ngraph

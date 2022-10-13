@@ -5,10 +5,10 @@
 #include "transformations/op_conversions/gather_normalize_negative_indices.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <openvino/opsets/opset7.hpp>
 
 #include "itt.hpp"
 
@@ -25,8 +25,8 @@ ov::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNormali
         auto data = pattern_to_output.at(data_input);
         auto axis_constant =
             std::dynamic_pointer_cast<ov::opset7::Constant>(pattern_to_output.at(axis_input).get_node_shared_ptr());
-        auto indices_constant = std::dynamic_pointer_cast<ov::opset7::Constant>(
-            pattern_to_output.at(indices_input).get_node_shared_ptr());
+        auto indices_constant =
+            std::dynamic_pointer_cast<ov::opset7::Constant>(pattern_to_output.at(indices_input).get_node_shared_ptr());
 
         if (!gather || !axis_constant || !indices_constant) {
             return false;
@@ -60,10 +60,10 @@ ov::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNormali
 
         auto input_type = indices_constant->get_element_type();
         auto shape_of = std::make_shared<ov::opset7::ShapeOf>(data, input_type);
-        auto input_gather = std::make_shared<ov::opset7::Gather>(
-            shape_of,
-            ov::opset7::Constant::create(input_type, Shape{}, {axis_value}),
-            ov::opset7::Constant::create(input_type, Shape{}, {0}));
+        auto input_gather =
+            std::make_shared<ov::opset7::Gather>(shape_of,
+                                                 ov::opset7::Constant::create(input_type, Shape{}, {axis_value}),
+                                                 ov::opset7::Constant::create(input_type, Shape{}, {0}));
 
         std::shared_ptr<Node> add = std::make_shared<ov::opset7::Add>(input_gather, indices_constant);
         if (auto folded_const = ngraph::get_constant_from_source(add))

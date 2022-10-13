@@ -5,10 +5,10 @@
 #include "transformations/op_conversions/einsum_decomposition.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <openvino/opsets/opset7.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
@@ -226,8 +226,8 @@ ngraph::Output<ngraph::Node> unsqueeze_input(const ngraph::Output<ngraph::Node>&
         return input_node;
     }
     auto unsqueeze_axes_const = ov::opset7::Constant::create(ngraph::element::Type_t::i64,
-                                                                 ngraph::Shape{unsqueeze_axes.size()},
-                                                                 unsqueeze_axes);
+                                                             ngraph::Shape{unsqueeze_axes.size()},
+                                                             unsqueeze_axes);
     auto unsqueeze = std::make_shared<ov::opset7::Unsqueeze>(input_node, unsqueeze_axes_const);
     subgraph_nodes.insert(subgraph_nodes.end(), {unsqueeze_axes_const, unsqueeze});
     return unsqueeze->output(0);
@@ -412,9 +412,8 @@ void reduce_input(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
 
     // reduce by summed up elements along dimension for which label is met just once
     const auto& input_node = input_nodes[input_ind];
-    auto axes_const = ov::opset7::Constant::create(ngraph::element::Type_t::i64,
-                                                       ngraph::Shape{reduced_axes.size()},
-                                                       reduced_axes);
+    auto axes_const =
+        ov::opset7::Constant::create(ngraph::element::Type_t::i64, ngraph::Shape{reduced_axes.size()}, reduced_axes);
     auto reduce_sum = einsum_decompose_ptr->register_new_node<ov::opset7::ReduceSum>(input_node, axes_const, false);
 
     // update a vector of inputs and input subscripts
@@ -535,8 +534,8 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
 
         // multiply both operands with broadcasting
         auto mul = std::make_shared<ov::opset7::Multiply>(unsqueeze_output1,
-                                                              unsqueeze_output2,
-                                                              ngraph::op::AutoBroadcastType::NUMPY);
+                                                          unsqueeze_output2,
+                                                          ngraph::op::AutoBroadcastType::NUMPY);
 
         // update input operand and input subscript for Einsum operation
         update_operands(input_nodes, input_subscripts, input_ind1, input_ind2, mul->output(0), resultant_subscript);

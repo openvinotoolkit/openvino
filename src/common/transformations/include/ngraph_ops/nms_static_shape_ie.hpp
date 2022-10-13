@@ -121,9 +121,9 @@ const ov::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info_static()
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     static const ov::Node::type_info_t type_info_static{name.c_str(),
-                                                              BaseNmsOpTypeInfoPtr->version,
-                                                              "ie_internal_opset",
-                                                              BaseNmsOpTypeInfoPtr};
+                                                        BaseNmsOpTypeInfoPtr->version,
+                                                        "ie_internal_opset",
+                                                        BaseNmsOpTypeInfoPtr};
     OPENVINO_SUPPRESS_DEPRECATED_END
     return type_info_static;
 }

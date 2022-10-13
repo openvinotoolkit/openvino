@@ -4,10 +4,10 @@
 
 #include "transformations/op_conversions/convert_roi_align_v9_to_v3.hpp"
 
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset3.hpp>
+#include <openvino/opsets/opset9.hpp>
 
 #include "itt.hpp"
 
@@ -46,13 +46,13 @@ ov::pass::ConvertROIAlign9To3::ConvertROIAlign9To3() {
         }
 
         auto roi_align_v3 = std::make_shared<ov::opset3::ROIAlign>(roi_align_v9_node->input_value(0),
-                                                                       roi_align_v9_node->input_value(1),
-                                                                       roi_align_v9_node->input_value(2),
-                                                                       pooled_h,
-                                                                       pooled_w,
-                                                                       sampling_ratio,
-                                                                       spatial_scale,
-                                                                       m_mode_v3);
+                                                                   roi_align_v9_node->input_value(1),
+                                                                   roi_align_v9_node->input_value(2),
+                                                                   pooled_h,
+                                                                   pooled_w,
+                                                                   sampling_ratio,
+                                                                   spatial_scale,
+                                                                   m_mode_v3);
         roi_align_v3->set_friendly_name(roi_align_v9_node->get_friendly_name());
         ngraph::copy_runtime_info(roi_align_v9_node, roi_align_v3);
         ngraph::replace_node(roi_align_v9_node, roi_align_v3);

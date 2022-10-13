@@ -6,13 +6,13 @@
 
 #include <list>
 #include <memory>
+#include <ngraph/rt_info.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset3.hpp>
 #include <openvino/opsets/opset4.hpp>
 #include <openvino/opsets/opset5.hpp>
 #include <openvino/opsets/opset9.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -175,14 +175,14 @@ bool nms_to_nms9_callback_func(pass::pattern::Matcher& m, pass::MatcherPass* imp
         num_of_args > 5 ? nms_input.at(5) : ov::opset1::Constant::create(element::f32, Shape{}, {.0f});
 
     const auto nms_9 = impl->register_new_node<opset9::NonMaxSuppression>(nms_input.at(0),
-                                                                                  nms_input.at(1),
-                                                                                  max_selected_box,
-                                                                                  iou_threshold,
-                                                                                  score_threshold,
-                                                                                  soft_sigma,
-                                                                                  attrs.box_encoding,
-                                                                                  attrs.sort_result_descending,
-                                                                                  attrs.output_type);
+                                                                          nms_input.at(1),
+                                                                          max_selected_box,
+                                                                          iou_threshold,
+                                                                          score_threshold,
+                                                                          soft_sigma,
+                                                                          attrs.box_encoding,
+                                                                          attrs.sort_result_descending,
+                                                                          attrs.output_type);
 
     nms_9->set_friendly_name(root->get_friendly_name());
     ngraph::copy_runtime_info(root, nms_9);

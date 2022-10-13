@@ -5,9 +5,9 @@
 #include "transformations/op_conversions/convert_negative.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset1.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -22,9 +22,9 @@ ov::pass::ConvertNegative::ConvertNegative() {
             return false;
         }
 
-        auto mul = std::make_shared<ov::opset1::Multiply>(
-            neg->input(0).get_source_output(),
-            opset1::Constant::create(neg->get_element_type(), Shape{}, {-1}));
+        auto mul =
+            std::make_shared<ov::opset1::Multiply>(neg->input(0).get_source_output(),
+                                                   opset1::Constant::create(neg->get_element_type(), Shape{}, {-1}));
         mul->set_friendly_name(neg->get_friendly_name());
         ngraph::copy_runtime_info(neg, mul);
         ngraph::replace_node(neg, mul);

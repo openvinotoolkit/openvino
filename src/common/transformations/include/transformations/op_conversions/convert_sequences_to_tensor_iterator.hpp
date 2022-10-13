@@ -64,6 +64,9 @@ public:
 
 namespace ngraph {
 namespace pass {
-using ov::pass::ConvertRNNSequenceToTensorIterator; using ov::pass::ConvertGRUSequenceToTensorIterator; using ov::pass::ConvertLSTMSequenceToTensorIterator; using ov::pass::ConvertSequenceToTensorIterator;
+using ov::pass::ConvertGRUSequenceToTensorIterator;
+using ov::pass::ConvertLSTMSequenceToTensorIterator;
+using ov::pass::ConvertRNNSequenceToTensorIterator;
+using ov::pass::ConvertSequenceToTensorIterator;
 }  // namespace pass
 }  // namespace ngraph
