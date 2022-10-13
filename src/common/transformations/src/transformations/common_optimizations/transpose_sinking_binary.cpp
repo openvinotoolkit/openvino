@@ -83,7 +83,8 @@ class GraphBuildStrategy {
 using SelfPtr = std::unique_ptr<GraphBuildStrategy>;
 public:
     GraphBuildStrategy(SelfPtr prev_builder) :
-        _prev_builder(std::move(prev_builder)) {}
+        _prev_builder(std::move(prev_builder)),
+        _are_new_nodes_collected(false) {}
 
     virtual ~GraphBuildStrategy() = default;
 
@@ -104,13 +105,20 @@ public:
         return new_nodes;
     }
 
+    void SetNewNodesCollected() { _are_new_nodes_collected = true; }
+
 protected:
     virtual void buildLevel(Nodes & level_nodes) = 0;
-    void addNewNode(NodePtr node) { _new_nodes.push_back(node); }
+
+    void addNewNode(NodePtr node) {
+        if (_are_new_nodes_collected)
+            _new_nodes.push_back(node);
+    }
 
 private:
     SelfPtr _prev_builder;
     Nodes _new_nodes;
+    bool _are_new_nodes_collected;
 };
 
 using GraphBuildStrategyPtr = std::unique_ptr<GraphBuildStrategy>;
@@ -223,60 +231,9 @@ public:
 
 // --------------------------------------------------------------------------------------
 
-class RegisterNewNodesStrategy {
-public:
-    RegisterNewNodesStrategy(ov::pass::MatcherPass & matcher_pass) : _matcher_pass(matcher_pass) {}
-    virtual ~RegisterNewNodesStrategy() = default;
-
-    RegisterNewNodesStrategy(const RegisterNewNodesStrategy &) = delete;
-    RegisterNewNodesStrategy & operator=(const RegisterNewNodesStrategy&) = delete;
-
-    virtual void registerNodes(const Nodes &) = 0;
-protected:
-    ov::pass::MatcherPass & _matcher_pass;
-};
-
-using RegisterNewNodesStrategyPtr = std::unique_ptr<RegisterNewNodesStrategy>;
-
-class RegisterAllNewNodes : public RegisterNewNodesStrategy
-{
-public:
-    RegisterAllNewNodes(ov::pass::MatcherPass & matcher_pass) : RegisterNewNodesStrategy(matcher_pass) {}
-    
-    void registerNodes(const Nodes & nodes) override {
-        for (auto node : nodes) {
-            _matcher_pass.register_new_node(node);
-        }
-    }
-
-    static std::unique_ptr<RegisterAllNewNodes>
-        create(ov::pass::MatcherPass & matcher_pass) {
-            return openvino_make_unique<RegisterAllNewNodes>(matcher_pass);
-        }
-};
-
-class RegisterLastNewNode : public RegisterNewNodesStrategy
-{
-public:
-    RegisterLastNewNode(ov::pass::MatcherPass & matcher_pass) : RegisterNewNodesStrategy(matcher_pass) {}
-
-    void registerNodes(const Nodes & nodes) override {
-        if (!nodes.empty())
-            _matcher_pass.register_new_node(nodes.back());
-    }
-
-    static std::unique_ptr<RegisterLastNewNode>
-        create(ov::pass::MatcherPass & matcher_pass) {
-            return openvino_make_unique<RegisterLastNewNode>(matcher_pass);
-        }    
-};
-
-// --------------------------------------------------------------------------------------
-
-void DoTransformation(NodePtr last_node, // FIXME: reduce arguments number
+Nodes DoTransformation(NodePtr last_node,
                       const Nodes & input_nodes,
-                      GraphBuildStrategyPtr graph_builder,
-                      RegisterNewNodesStrategyPtr new_nodes_register)
+                      GraphBuildStrategyPtr graph_builder)
 {
     Nodes layer_nodes = input_nodes;
 
@@ -287,7 +244,7 @@ void DoTransformation(NodePtr last_node, // FIXME: reduce arguments number
     new_last_node->set_friendly_name(last_node->get_friendly_name());
     ov::replace_node(last_node, new_last_node);
 
-    new_nodes_register->registerNodes(graph_builder->getNewNodes());
+    return graph_builder->getNewNodes();
 }
 
 int GetNodeInputIndex(NodePtr node, NodePtr input_node)
@@ -372,14 +329,15 @@ ngraph::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
 
         auto add_output_transpose = AddTranspose(transpose_axis_order, transpose_element_type);
         auto append_output_transpose = AppendTransposes(add_output_transpose, AnyIndex(), std::move(clone_binary));
-        //
-
-        auto register_last_new_node = RegisterLastNewNode::create(*this);
+        append_output_transpose->SetNewNodesCollected();
 
         Nodes input_nodes = GetNodes(binary->input_values());
         input_nodes[tranpose_input_index] = transpose->input_value(0).get_node_shared_ptr();
 
-        DoTransformation(binary, input_nodes, std::move(append_output_transpose), std::move(register_last_new_node));
+        for (auto node: DoTransformation(binary, input_nodes, std::move(append_output_transpose))) {
+            register_new_node(node);
+        }
+
         return true;
     };
 
@@ -410,15 +368,16 @@ ngraph::pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
 
         // Graph build strategy
         auto add_input_transpose = AddTranspose(transpose_axis_order, transpose_element_type);
-        auto append_input_transposes = AppendTransposes(add_input_transpose, AnyIndex());
+        auto append_input_transposes = AppendTransposes(add_input_transpose, AnyIndex()); // FIXME: not readable diff between AddTranspose and AppendTransposes
+        append_input_transposes->SetNewNodesCollected();
 
         auto clone_binary = NodeClone::create(binary, std::move(append_input_transposes));
-        //
-        auto register_all_new_nodes = RegisterAllNewNodes::create(*this);
 
         const Nodes input_nodes = GetNodes(binary->input_values());
 
-        DoTransformation(transpose, input_nodes, std::move(clone_binary), std::move(register_all_new_nodes));
+        for (auto node: DoTransformation(transpose, input_nodes, std::move(clone_binary))) {
+            register_new_node(node);
+        }
 
         return true;
     };
@@ -499,14 +458,15 @@ ngraph::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
 
         auto add_output_transpose = AddTranspose(transpose_axis_order, transpose_element_type);
         auto append_output_transpose = AppendTransposes(add_output_transpose, AnyIndex(), std::move(append_concat));
+        append_output_transpose->SetNewNodesCollected();
         //
-
-        auto register_last_new_node = RegisterLastNewNode::create(*this);
 
         Nodes input_nodes = GetNodes(concat->input_values());
         input_nodes[tranpose_input_index] = transpose->input_value(0).get_node_shared_ptr();
 
-        DoTransformation(concat, input_nodes, std::move(append_output_transpose), std::move(register_last_new_node));
+        for (auto node: DoTransformation(concat, input_nodes, std::move(append_output_transpose))) {
+            register_new_node(node);
+        }
 
         return true;
     };
@@ -540,15 +500,16 @@ ngraph::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
         // Graph build strategy
         auto add_input_transpose = AddTranspose(transpose_axis_order, transpose_element_type);
         auto append_input_transposes = AppendTransposes(add_input_transpose, AnyIndex());
+        append_input_transposes->SetNewNodesCollected();
 
         auto append_concat = AppendConcat::create(transposed_concat_axis, std::move(append_input_transposes));
         //
 
-        auto register_all_new_nodes = RegisterAllNewNodes::create(*this);
-
         const Nodes input_nodes = GetNodes(concat->input_values());
 
-        DoTransformation(transpose, input_nodes, std::move(append_concat), std::move(register_all_new_nodes));
+        for (auto node: DoTransformation(transpose, input_nodes, std::move(append_concat))) {
+            register_new_node(node);
+        }
 
         return true;
     };
