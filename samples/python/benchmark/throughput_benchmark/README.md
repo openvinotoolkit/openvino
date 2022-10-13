@@ -1,28 +1,27 @@
-# Sync Benchmark C++ Sample {#openvino_inference_engine_samples_sync_benchmark_README}
+# Throughput Benchmark Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_throughput_benchmark_README}
 
-This sample demonstrates how to estimate performace of a model using Synchronous Inference Request API. it makes sence to use synchronous inference only in latency oriented scenarios. Models with static input shapes are supported. Unlike [demos](@ref omz_demos) this sample doesn't have other configurable command line arguments. Feel free to modify sample's source code to try out different options.
+This sample demonstrates how to estimate performace of a model using Asynchronous Inference Request API.  Unlike [demos](@ref omz_demos) this sample doesn't have other configurable command line arguments. Feel free to modify sample's source code to try out different options.
 
-The following C++ API is used in the application:
+The following Python\* API is used in the application:
 
 | Feature | API | Description |
 | :--- | :--- | :--- |
-| OpenVINO Runtime Version | `ov::get_openvino_version` | Get Openvino API version |
-| Basic Infer Flow | `ov::Core::compile_model`, `ov::CompiledModel::create_infer_request`, `ov::InferRequest::get_tensor` | Common API to do inference: compile a model, create an infer request, configure input tensors |
-| Synchronous Infer | `ov::InferRequest::infer` | Do synchronous inference |
-| Model Operations | `ov::CompiledModel::inputs` | Get inputs of a model |
-| Tensor Operations | `ov::Tensor::get_shape` | Get a tensor shape |
-| Tensor Operations | `ov::Tensor::get_shape`, `ov::Tensor::data` | Get a tensor shape and its data. |
+| OpenVINO Runtime Version | `openvino.runtime.get_version` | Get Openvino API version |
+| Basic Infer Flow | `openvino.runtime.Core.compile_model`, `openvino.runtime.InferRequest.get_tensor` | Common API to do inference: compile a model, configure input tensors |
+| Asynchronous Infer | `openvino.runtime.AsyncInferQueue`, `openvino.runtime.AsyncInferQueue.set_callback`, `openvino.runtime.AsyncInferQueue.start_async`, `openvino.runtime.AsyncInferQueue.wait_all`, `openvino.runtime.InferRequest.results` | Do asynchronous inference |
+| Model Operations | `openvino.runtime.CompiledModel.inputs` | Get inputs of a model |
+| Tensor Operations | `openvino.runtime.Tensor.get_shape`, `openvino.runtime.Tensor.data` | Get a tensor shape and its data. |
 
 | Options | Values |
 | :--- | :--- |
 | Validated Models | [alexnet](@ref omz_models_model_alexnet), [googlenet-v1](@ref omz_models_model_googlenet_v1) |
 | Model Format | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx) |
 | Supported devices | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
-| Other language realization | [Python](../../../python/benchmark/sync_benchmark/README.md) |
+| Other language realization | [C++](../../../cpp/benchmark/throughput_benchmark/README.md) |
 
 ## How It Works
 
-The sample compiles a model for a given device, randomly generates input data, performs synchronous inference multiple times for a given number of seconds. Then processes and reports performance results.
+The sample compiles a model for a given device, randomly generates input data, performs asynchronous inference multiple times for a given number of seconds. Then processes and reports performance results.
 
 You can see the explicit description of
 each sample step at [Integration Steps](../../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
@@ -34,7 +33,7 @@ To build the sample, please use instructions available at [Build the Sample Appl
 ## Running
 
 ```
-sync_benchmark <path_to_model>
+python throughput_benchmark.py <path_to_model>
 ```
 
 To run the sample, you need specify a model:
@@ -70,7 +69,7 @@ omz_converter --name googlenet-v1
 4. Perform benchmarking using the `googlenet-v1` model on a `CPU`:
 
 ```
-sync_benchmark googlenet-v1.xml
+python throughput_benchmark.py googlenet-v1.xml
 ```
 
 ## Sample Output
@@ -78,17 +77,16 @@ sync_benchmark googlenet-v1.xml
 The application outputs performance results.
 
 ```
-[ INFO ] OpenVINO Runtime version ......... <version>
-[ INFO ] Build ........... <build>
-[ INFO ]
-[ INFO ] Count:      992 iterations
-[ INFO ] Duration:   15009.8 ms
+[ INFO ] OpenVINO:
+         API version............. <version>
+[ INFO ] Count:          1637 iterations
+[ INFO ] Duration:       15037.63 ms
 [ INFO ] Latency:
-[ INFO ]        Median:     14.00 ms
-[ INFO ]        Average:    15.13 ms
-[ INFO ]        Min:        9.33 ms
-[ INFO ]        Max:        53.60 ms
-[ INFO ] Throughput: 66.09 FPS
+[ INFO ]     Median:     36.47 ms
+[ INFO ]     AVG:        36.62 ms
+[ INFO ]     MIN:        26.23 ms
+[ INFO ]     MAX:        60.18 ms
+[ INFO ] Throughput: 108.86 FPS
 ```
 
 ## See Also
