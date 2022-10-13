@@ -22,7 +22,7 @@ if(COMMAND ie_add_vs_version_file)
             FILEDESCRIPTION "Test Utils Python library")
 endif()
 
-if(InferenceEngineDeveloperPackage_FOUND)
+if(OpenVINODeveloperPackage_FOUND)
     list(APPEND link_libraries IE::commonTestUtils)
 else()
     list(APPEND link_libraries commonTestUtils)

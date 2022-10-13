@@ -197,7 +197,7 @@ jobs:
     inputs:
       cmakeArgs: >
         -GNinja
-        -DInferenceEngineDeveloperPackage_DIR=$(BUILD_OPENVINO)
+        -DOpenVINODeveloperPackage_DIR=$(BUILD_OPENVINO)
         -DENABLE_PYTHON=ON
         -DTHREADING=TBB
         -DPYTHON_EXECUTABLE=$(INSTALL_PYTHON)/bin/python3.8
