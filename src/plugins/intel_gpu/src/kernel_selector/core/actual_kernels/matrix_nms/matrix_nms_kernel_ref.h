@@ -9,16 +9,16 @@
 
 namespace kernel_selector {
 
-enum decay_function { GAUSSIAN, LINEAR };
-
-enum sort_result_type {
-    CLASS_ID,  // sort selected boxes by class id (ascending) in each batch element
-    SCORE,     // sort selected boxes by score (descending) in each batch element
-    NONE       // do not guarantee the order in each batch element
-};
-
 struct matrix_nms_params : public base_params {
     matrix_nms_params() : base_params(KernelType::MATRIX_NMS) {}
+
+    enum decay_function { GAUSSIAN, LINEAR };
+
+    enum sort_result_type {
+        CLASS_ID,  // sort selected boxes by class id (ascending) in each batch element
+        SCORE,     // sort selected boxes by score (descending) in each batch element
+        NONE       // do not guarantee the order in each batch element
+    };
 
     // specifies order of output elements
     sort_result_type sort_type = sort_result_type::NONE;

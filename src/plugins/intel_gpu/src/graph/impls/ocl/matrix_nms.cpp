@@ -14,25 +14,25 @@ namespace cldnn {
 namespace ocl {
 
 namespace {
-kernel_selector::decay_function from(matrix_nms::decay_function decay) {
+kernel_selector::matrix_nms_params::decay_function from(matrix_nms::decay_function decay) {
     switch (decay) {
     case matrix_nms::decay_function::gaussian:
-        return kernel_selector::decay_function::GAUSSIAN;
+        return kernel_selector::matrix_nms_params::decay_function::GAUSSIAN;
     default:
     case matrix_nms::decay_function::linear:
-        return kernel_selector::decay_function::LINEAR;
+        return kernel_selector::matrix_nms_params::decay_function::LINEAR;
     }
 }
 
-kernel_selector::sort_result_type from(matrix_nms::sort_result_type type) {
+kernel_selector::matrix_nms_params::sort_result_type from(matrix_nms::sort_result_type type) {
     switch (type) {
     case matrix_nms::sort_result_type::class_id:
-        return kernel_selector::sort_result_type::CLASS_ID;
+        return kernel_selector::matrix_nms_params::sort_result_type::CLASS_ID;
     case matrix_nms::sort_result_type::score:
-        return kernel_selector::sort_result_type::SCORE;
+        return kernel_selector::matrix_nms_params::sort_result_type::SCORE;
     default:
     case matrix_nms::sort_result_type::none:
-        return kernel_selector::sort_result_type::NONE;
+        return kernel_selector::matrix_nms_params::sort_result_type::NONE;
     }
 }
 }  // namespace
