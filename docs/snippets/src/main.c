@@ -47,8 +47,12 @@ ov_infer_request_t* infer_request = NULL;
 ov_compiled_model_create_infer_request(compiled_model, &infer_request);
 //! [part3]
 
-ov_shape_t input_shape = {0, NULL};
+ov_output_port_t* input_port = NULL;
+ov_model_input(model, &input_port);
+ov_shape_t input_shape;
+ov_port_get_shape(input_port, &input_shape);
 void* img_data = NULL;
+// read img to img_data 
 ov_element_type_e input_type = U8;
 //! [part4]
 ov_tensor_t* tensor = NULL;
