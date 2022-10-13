@@ -4,8 +4,8 @@
 
 #include "ir_deserializer.hpp"
 
-#include <atomic>
 #include <pugixml.hpp>
+#include <regex>
 
 #include "ie_ngraph_utils.hpp"
 #include "meta_data.hpp"
@@ -615,8 +615,22 @@ private:
 
     ov::AnyMap parse_node(const pugi::xml_node& node) const {
         ov::AnyMap result;
+        const std::string node_name = node.name();
         for (const auto& data : node.children()) {
-            result[data.name()] = parse_value(data);
+            const std::string data_name = data.name();
+            if (data_name == "config" && node_name == "quantization_parameters") {
+                // Read legacy pot config
+                std::stringstream stream;
+                data.print(stream);
+                std::string str_config = stream.str();
+                str_config = std::regex_replace(str_config, std::regex("<config>"), "");
+                str_config = std::regex_replace(str_config, std::regex("</config>"), "");
+                str_config = std::regex_replace(str_config, std::regex("\n"), "");
+                str_config = std::regex_replace(str_config, std::regex("( +)"), " ");
+                result[data_name] = str_config;
+            } else {
+                result[data_name] = parse_value(data);
+            }
         }
         return result;
     }

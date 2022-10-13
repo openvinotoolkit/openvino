@@ -165,6 +165,116 @@ public:
             <use_new_frontend value="False"/>
         </cli_parameters>
     </meta_data>
+    <framework_meta>
+        <batch value="1"/>
+        <chunk_size value="16"/>
+    </framework_meta>
+    <quantization_parameters>
+        <config>{
+        'compression': {
+            'algorithms': [
+                {
+                    'name': 'DefaultQuantization',
+                    'params': {
+                        'num_samples_for_tuning': 2000,
+                        'preset': 'performance',
+                        'stat_subset_size': 300,
+                        'use_layerwise_tuning': false
+                    }
+                }
+            ],
+            'dump_intermediate_model': true,
+            'target_device': 'ANY'
+        },
+        'engine': {
+            'models': [
+                {
+                    'name': 'bert-small-uncased-whole-word-masking-squad-0001',
+                    'launchers': [
+                        {
+                            'framework': 'openvino',
+                            'adapter': {
+                                'type': 'bert_question_answering',
+                                'start_token_logits_output': 'output_s',
+                                'end_token_logits_output': 'output_e'
+                            },
+                            'inputs': [
+                                {
+                                    'name': 'input_ids',
+                                    'type': 'INPUT',
+                                    'value': 'input_ids'
+                                },
+                                {
+                                    'name': 'attention_mask',
+                                    'type': 'INPUT',
+                                    'value': 'input_mask'
+                                },
+                                {
+                                    'name': 'token_type_ids',
+                                    'type': 'INPUT',
+                                    'value': 'segment_ids'
+                                }
+                            ],
+                            'device': 'cpu'
+                        }
+                    ],
+                    'datasets': [
+                        {
+                            'name': 'squad_v1_1_msl384_mql64_ds128_lowercase',
+                            'annotation_conversion': {
+                                'converter': 'squad',
+                                'testing_file': 'PATH',
+                                'max_seq_length': 384,
+                                'max_query_length': 64,
+                                'doc_stride': 128,
+                                'lower_case': true,
+                                'vocab_file': 'PATH'
+                            },
+                            'reader': {
+                                'type': 'annotation_features_extractor',
+                                'features': [
+                                    'input_ids',
+                                    'input_mask',
+                                    'segment_ids'
+                                ]
+                            },
+                            'postprocessing': [
+                                {
+                                    'type': 'extract_answers_tokens',
+                                    'max_answer': 30,
+                                    'n_best_size': 20
+                                }
+                            ],
+                            'metrics': [
+                                {
+                                    'name': 'F1',
+                                    'type': 'f1',
+                                    'reference': 0.9157
+                                },
+                                {
+                                    'name': 'EM',
+                                    'type': 'exact_match',
+                                    'reference': 0.8504
+                                }
+                            ],
+                            '_command_line_mapping': {
+                                'testing_file': 'PATH',
+                                'vocab_file': [
+                                    'PATH'
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ],
+            'stat_requests_number': null,
+            'eval_requests_number': null,
+            'type': 'accuracy_checker'
+        }
+    }</config>
+        <version value="invalid version"/>
+        <cli_params value="{'quantize': None, 'preset': None, 'model': None, 'weights': None, 'name': None, 'engine': None, 'ac_config': None, 'max_drop': None, 'evaluate': False, 'output_dir': 'PATH', 'direct_dump': True, 'log_level': 'INFO', 'pbar': False, 'stream_output': False, 'keep_uncompressed_weights': False, 'data_source': None}"/>
+    </quantization_parameters>
 </net>
 )V0G0N";
 
@@ -179,6 +289,23 @@ public:
 
     void check_meta_info(const std::shared_ptr<ov::Model>& model) {
         auto& rt_info = model->get_rt_info();
+        const std::string pot_conf_ref =
+            "{ 'compression': { 'algorithms': [ { 'name': 'DefaultQuantization', 'params': { 'num_samples_for_tuning': "
+            "2000, 'preset': 'performance', 'stat_subset_size': 300, 'use_layerwise_tuning': false } } ], "
+            "'dump_intermediate_model': true, 'target_device': 'ANY' }, 'engine': { 'models': [ { 'name': "
+            "'bert-small-uncased-whole-word-masking-squad-0001', 'launchers': [ { 'framework': 'openvino', 'adapter': "
+            "{ 'type': 'bert_question_answering', 'start_token_logits_output': 'output_s', 'end_token_logits_output': "
+            "'output_e' }, 'inputs': [ { 'name': 'input_ids', 'type': 'INPUT', 'value': 'input_ids' }, { 'name': "
+            "'attention_mask', 'type': 'INPUT', 'value': 'input_mask' }, { 'name': 'token_type_ids', 'type': 'INPUT', "
+            "'value': 'segment_ids' } ], 'device': 'cpu' } ], 'datasets': [ { 'name': "
+            "'squad_v1_1_msl384_mql64_ds128_lowercase', 'annotation_conversion': { 'converter': 'squad', "
+            "'testing_file': 'PATH', 'max_seq_length': 384, 'max_query_length': 64, 'doc_stride': 128, 'lower_case': "
+            "true, 'vocab_file': 'PATH' }, 'reader': { 'type': 'annotation_features_extractor', 'features': [ "
+            "'input_ids', 'input_mask', 'segment_ids' ] }, 'postprocessing': [ { 'type': 'extract_answers_tokens', "
+            "'max_answer': 30, 'n_best_size': 20 } ], 'metrics': [ { 'name': 'F1', 'type': 'f1', 'reference': 0.9157 "
+            "}, { 'name': 'EM', 'type': 'exact_match', 'reference': 0.8504 } ], '_command_line_mapping': { "
+            "'testing_file': 'PATH', 'vocab_file': [ 'PATH' ] } } ] } ], 'stat_requests_number': null, "
+            "'eval_requests_number': null, 'type': 'accuracy_checker' } }";
         ASSERT_TRUE(!rt_info.empty());
         std::string version;
         EXPECT_NO_THROW(version = model->get_rt_info<std::string>("MO_version"));
@@ -186,6 +313,10 @@ public:
 
         EXPECT_NO_THROW(version = model->get_rt_info<std::string>("Runtime_version"));
         EXPECT_EQ(version, "TestVersion");
+
+        std::string pot_config;
+        EXPECT_NO_THROW(pot_config = model->get_rt_info<std::string>("optimization", "config"));
+        EXPECT_EQ(pot_config, pot_conf_ref);
 
         ov::AnyMap cli_map;
         EXPECT_NO_THROW(cli_map = model->get_rt_info<ov::AnyMap>("conversion_parameters"));
