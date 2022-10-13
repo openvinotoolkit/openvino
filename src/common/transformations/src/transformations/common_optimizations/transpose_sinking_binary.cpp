@@ -16,16 +16,6 @@
 
 namespace {
 
-#if (__cplusplus < 201402L)
-template<typename T, typename... Args>
-std::unique_ptr<T> openvino_make_unique(Args&&... args)
-{
-    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-}
-#else
-#define openvino_make_unique std::make_unique
-#endif
-
 using NodePtr = std::shared_ptr<ov::Node>;
 using Nodes = std::vector<NodePtr>;
 
@@ -79,30 +69,43 @@ NodePtr GetFirstTransposeInput(const ov::Node * node)
 
 // --------------------------------------------------------------------------------------
 
+struct GraphBuildStrategyEmpty {
+    GraphBuildStrategyEmpty() = default;
+    GraphBuildStrategyEmpty(GraphBuildStrategyEmpty &&) = default;
+
+    GraphBuildStrategyEmpty(const GraphBuildStrategyEmpty&) = delete;
+    GraphBuildStrategyEmpty& operator=(const GraphBuildStrategyEmpty &) = delete;
+};
+
+template <typename ParentT>
 class GraphBuildStrategy {
-using SelfPtr = std::unique_ptr<GraphBuildStrategy>;
 public:
-    GraphBuildStrategy(SelfPtr prev_builder) :
-        _prev_builder(std::move(prev_builder)),
+    GraphBuildStrategy(ParentT prev_builder) :
+        _prev_builder(std::forward<ParentT>(prev_builder)),
         _are_new_nodes_collected(false) {}
 
+    GraphBuildStrategy(GraphBuildStrategy &&) = default;
     virtual ~GraphBuildStrategy() = default;
+    GraphBuildStrategy & operator=(GraphBuildStrategy &&) = default;
+
+    GraphBuildStrategy(const GraphBuildStrategy &) = delete;
+    GraphBuildStrategy & operator=(const GraphBuildStrategy &) = delete;
 
     void build(Nodes & level_nodes)
     {
-        if (_prev_builder) {
-            _prev_builder->build(level_nodes);
-        }
+        _prev_builder.build(level_nodes);
         buildLevel(level_nodes);
     }
 
     Nodes getNewNodes() const {
-        Nodes new_nodes;
-        if (_prev_builder) {
-            new_nodes = _prev_builder->getNewNodes();
-        }
-        new_nodes.insert(new_nodes.end(), _new_nodes.begin(), _new_nodes.end());
-        return new_nodes;
+        Nodes nodes = _prev_builder.getNewNodes();
+        nodes.insert(nodes.end(), _new_nodes.begin(), _new_nodes.end());
+        return nodes;
+    }
+
+    void addNewNode(NodePtr node) {
+        if (_are_new_nodes_collected)
+            _new_nodes.push_back(node);
     }
 
     void SetNewNodesCollected() { _are_new_nodes_collected = true; }
@@ -110,25 +113,38 @@ public:
 protected:
     virtual void buildLevel(Nodes & level_nodes) = 0;
 
-    void addNewNode(NodePtr node) {
-        if (_are_new_nodes_collected)
-            _new_nodes.push_back(node);
-    }
-
 private:
-    SelfPtr _prev_builder;
+    ParentT _prev_builder;
     Nodes _new_nodes;
     bool _are_new_nodes_collected;
 };
 
-using GraphBuildStrategyPtr = std::unique_ptr<GraphBuildStrategy>;
+template <>
+void GraphBuildStrategy<GraphBuildStrategyEmpty>::build(Nodes& level_nodes) {
+    buildLevel(level_nodes);
+}
 
-class NodeClone : public GraphBuildStrategy {
+template <>
+Nodes GraphBuildStrategy<GraphBuildStrategyEmpty>::getNewNodes() const {
+    return _new_nodes;
+}
+
+template <typename ParentT>
+class CloneNodeStrategy : public GraphBuildStrategy<ParentT> {
+    friend GraphBuildStrategy<ParentT>;
 public:
-    NodeClone(NodePtr node, GraphBuildStrategyPtr prev_builder) :
-        GraphBuildStrategy(std::move(prev_builder)),
+    CloneNodeStrategy(NodePtr node, ParentT prev_builder) :
+        GraphBuildStrategy<ParentT>(std::forward<ParentT>(prev_builder)),
         _node(node) {}
 
+    CloneNodeStrategy(CloneNodeStrategy &&) = default;
+    CloneNodeStrategy& operator=(CloneNodeStrategy &&) = default;
+    ~CloneNodeStrategy() = default;
+
+    CloneNodeStrategy(const CloneNodeStrategy&) = delete;
+    CloneNodeStrategy& operator=(const CloneNodeStrategy&) = delete;
+
+protected:
     void buildLevel(Nodes & level_nodes) override
     {
         NodePtr new_layer = _node->clone_with_new_inputs(GetOutputs(level_nodes));
@@ -137,28 +153,35 @@ public:
         level_nodes.resize(1);
         level_nodes[0] = new_layer;
 
-        addNewNode(new_layer);
-    }
-
-    static GraphBuildStrategyPtr create(NodePtr node, GraphBuildStrategyPtr prev_builder)
-    {
-        return openvino_make_unique<NodeClone>(node, std::move(prev_builder));
+        GraphBuildStrategy<ParentT>::addNewNode(new_layer);
     }
 
 private:
     NodePtr _node;
 };
 
-template <typename AppendPredicateF, typename NodeCreateF>
-class AppendIf : public GraphBuildStrategy
+template <typename ParentT>
+CloneNodeStrategy<ParentT> AppendClonedNode(NodePtr node, ParentT prev_builder)
+{
+    return CloneNodeStrategy<ParentT>(node, std::forward<ParentT>(prev_builder));
+}
+
+template <typename AppendPredicateF, typename NodeCreateF, typename ParentT>
+class InsertIf : public GraphBuildStrategy<ParentT>
 {
 public:
-    AppendIf(GraphBuildStrategyPtr prev_builder,
+    InsertIf(ParentT prev_builder,
              AppendPredicateF append_predicate_f,
              NodeCreateF node_create_f) :
-                GraphBuildStrategy(std::move(prev_builder)),
-                _append_predicate_f(append_predicate_f),
-                _node_create_f(node_create_f) {}
+                GraphBuildStrategy<ParentT>(std::forward<ParentT>(prev_builder)),
+                _append_predicate_f(std::forward<AppendPredicateF>(append_predicate_f)),
+                _node_create_f(std::forward<NodeCreateF>(node_create_f)) {}
+
+    InsertIf(InsertIf &&) = default;
+    ~InsertIf() = default;
+
+    InsertIf(const InsertIf&) = delete;
+    InsertIf& operator=(const InsertIf&) = delete;
 
     void buildLevel(Nodes & level_nodes) override
     {
@@ -166,53 +189,58 @@ public:
             if (!_append_predicate_f(idx))
                 continue;
             for (auto new_node : _node_create_f(level_nodes, idx))
-                addNewNode(new_node);
+                GraphBuildStrategy<ParentT>::addNewNode(new_node);
         }
     }
 
 private:
-    const AppendPredicateF _append_predicate_f;
-    const NodeCreateF _node_create_f;
+    AppendPredicateF _append_predicate_f;
+    NodeCreateF _node_create_f;
 };
 
-
-class AddTranspose {
+class InsertTranspose {
 public:
-    AddTranspose(const ov::AxisVector & transpose_axis_order,
+    InsertTranspose(const ov::AxisVector & transpose_axis_order,
                  ov::element::Type transpose_element_type) :
                  _transpose_axis_order(transpose_axis_order),
                  _transpose_element_type(transpose_element_type) {}
 
+    InsertTranspose(InsertTranspose &&) = default;
+    ~InsertTranspose() = default;
+
+    InsertTranspose(const InsertTranspose&) = delete;
+    InsertTranspose& operator=(const InsertTranspose&) = delete;
+
     Nodes operator()(Nodes & level_nodes, size_t parent_node_idx) const;
 private:
-    const ov::AxisVector _transpose_axis_order;
-    const ov::element::Type _transpose_element_type;
+    ov::AxisVector _transpose_axis_order;
+    ov::element::Type _transpose_element_type;
 };
 
-Nodes AddTranspose::operator()(Nodes & level_nodes, size_t parent_node_idx) const
+Nodes InsertTranspose::operator()(Nodes & level_nodes, size_t parent_node_idx) const
 {
     auto parent_node = level_nodes[parent_node_idx];
 
     auto transpose_const = std::make_shared<ov::opset9::Constant>(_transpose_element_type,
                                                                   ov::Shape{_transpose_axis_order.size()},
                                                                   _transpose_axis_order);
-    auto tranpose = std::make_shared<ov::opset9::Transpose>(parent_node, transpose_const);
+    auto transpose = std::make_shared<ov::opset9::Transpose>(parent_node, transpose_const);
 
-    ov::copy_runtime_info(parent_node, {tranpose, transpose_const});
+    ov::copy_runtime_info(parent_node, {transpose, transpose_const});
 
-    level_nodes[parent_node_idx] = tranpose;
+    level_nodes[parent_node_idx] = transpose;
 
-    return Nodes{tranpose, transpose_const};
+    return Nodes{transpose, transpose_const};
 }
 
-template <typename AppendPredicateF>
-GraphBuildStrategyPtr AppendTransposes(const AddTranspose & add_tranpose,
-                                       AppendPredicateF predicate,
-                                       GraphBuildStrategyPtr prev_builder = nullptr)
+template <typename AppendPredicateF, typename NodeCreateF, typename ParentT = GraphBuildStrategyEmpty>
+InsertIf<AppendPredicateF, NodeCreateF, ParentT> AppendTransposes(NodeCreateF create_node_f,
+                                                                  AppendPredicateF predicate,
+                                                                  ParentT prev_builder = GraphBuildStrategyEmpty())
 {
-    return openvino_make_unique<AppendIf<AppendPredicateF, AddTranspose>>(std::move(prev_builder),
-                                                                          predicate,
-                                                                          add_tranpose);
+    return InsertIf<AppendPredicateF, NodeCreateF, ParentT>(std::forward<ParentT>(prev_builder),
+                                                            std::forward<AppendPredicateF>(predicate),
+                                                            std::forward<NodeCreateF>(create_node_f));
 }
 
 class IfNotIndex {
@@ -231,20 +259,21 @@ public:
 
 // --------------------------------------------------------------------------------------
 
+template <typename GraphBuildStrategyT>
 Nodes DoTransformation(NodePtr last_node,
                       const Nodes & input_nodes,
-                      GraphBuildStrategyPtr graph_builder)
+                      GraphBuildStrategyT graph_builder)
 {
     Nodes layer_nodes = input_nodes;
 
-    graph_builder->build(layer_nodes);
+    graph_builder.build(layer_nodes);
 
     auto new_last_node = layer_nodes[0];
 
     new_last_node->set_friendly_name(last_node->get_friendly_name());
     ov::replace_node(last_node, new_last_node);
 
-    return graph_builder->getNewNodes();
+    return graph_builder.getNewNodes();
 }
 
 int GetNodeInputIndex(NodePtr node, NodePtr input_node)
@@ -290,7 +319,7 @@ ov::element::Type GetTransposeElementType(NodePtr node)
     auto const_node_const = std::dynamic_pointer_cast<ov::opset9::Constant>(const_node);
     if (!const_node_const)
         return {};
-    
+
     return const_node_const->get_element_type();
 }
 
@@ -322,28 +351,26 @@ ngraph::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
         const ov::element::Type transpose_element_type = GetTransposeElementType(transpose);
 
         // Graph build strategy
-        auto add_input_transpose = AddTranspose(reversed_traspose_axis_order, transpose_element_type);
-        auto append_input_transposes = AppendTransposes(add_input_transpose, IfNotIndex(tranpose_input_index));
+        auto insert_reversed_transpose = InsertTranspose(reversed_traspose_axis_order, transpose_element_type);
+        auto append_input_transposes = AppendTransposes(std::move(insert_reversed_transpose), IfNotIndex(tranpose_input_index));
 
-        auto clone_binary = NodeClone::create(binary, std::move(append_input_transposes));
+        auto clone_binary = AppendClonedNode(binary, std::move(append_input_transposes));
 
-        auto add_output_transpose = AddTranspose(transpose_axis_order, transpose_element_type);
-        auto append_output_transpose = AppendTransposes(add_output_transpose, AnyIndex(), std::move(clone_binary));
-        append_output_transpose->SetNewNodesCollected();
-
+        auto insert_transpose = InsertTranspose(transpose_axis_order, transpose_element_type);
+        auto append_output_transpose = AppendTransposes(std::move(insert_transpose), AnyIndex(), std::move(clone_binary));
+        append_output_transpose.SetNewNodesCollected();
+        //
         Nodes input_nodes = GetNodes(binary->input_values());
         input_nodes[tranpose_input_index] = transpose->input_value(0).get_node_shared_ptr();
 
-        for (auto node: DoTransformation(binary, input_nodes, std::move(append_output_transpose))) {
-            register_new_node(node);
+        for (auto new_node: DoTransformation(binary, input_nodes, std::move(append_output_transpose))) {
+            register_new_node(new_node);
         }
 
         return true;
     };
 
-    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(
-        binary_label,
-        "TransposeSinkingBinaryRigthForward" /* matcher_name */);
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(binary_label,matcher_name);
     register_matcher(matcher, matcher_pass_callback);
 }
 
@@ -367,24 +394,23 @@ ngraph::pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
         const ov::element::Type transpose_element_type = GetTransposeElementType(transpose);
 
         // Graph build strategy
-        auto add_input_transpose = AddTranspose(transpose_axis_order, transpose_element_type);
-        auto append_input_transposes = AppendTransposes(add_input_transpose, AnyIndex()); // FIXME: not readable diff between AddTranspose and AppendTransposes
-        append_input_transposes->SetNewNodesCollected();
+        auto insert_input_transpose = InsertTranspose(transpose_axis_order, transpose_element_type);
+        auto append_input_transposes = AppendTransposes(std::move(insert_input_transpose), AnyIndex());
+        append_input_transposes.SetNewNodesCollected();
 
-        auto clone_binary = NodeClone::create(binary, std::move(append_input_transposes));
+        auto clone_binary = AppendClonedNode(binary, std::move(append_input_transposes));
+        //
 
         const Nodes input_nodes = GetNodes(binary->input_values());
 
-        for (auto node: DoTransformation(transpose, input_nodes, std::move(clone_binary))) {
-            register_new_node(node);
+        for (auto new_node: DoTransformation(transpose, input_nodes, std::move(clone_binary))) {
+            register_new_node(new_node);
         }
 
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(
-        transpose_label,
-        "ngraph::pass::TransposeSinkingBinaryBackward" /* matcher_name */);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 
@@ -392,11 +418,19 @@ ngraph::pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
 
 namespace {
 
-class AppendConcat : public GraphBuildStrategy {
+template <typename ParentT>
+class AppendConcatStrategy : public GraphBuildStrategy<ParentT> {
 public:
-    AppendConcat(int64_t axis, GraphBuildStrategyPtr prev_builder) :
-        GraphBuildStrategy(std::move(prev_builder)),
+    AppendConcatStrategy(int64_t axis, ParentT prev_builder) :
+        GraphBuildStrategy<ParentT>(std::forward<ParentT>(prev_builder)),
         _axis(axis) {}
+
+    ~AppendConcatStrategy() = default;
+    AppendConcatStrategy(AppendConcatStrategy &&) = default;
+    AppendConcatStrategy& operator=(AppendConcatStrategy &&) = default;
+
+    AppendConcatStrategy& operator=(const AppendConcatStrategy&) = delete;
+    AppendConcatStrategy(const AppendConcatStrategy&) = delete;
 
     void buildLevel(Nodes & level_nodes) override
     {
@@ -405,23 +439,26 @@ public:
 
         level_nodes.resize(1);
         level_nodes[0] = new_layer;
-    }
 
-    static GraphBuildStrategyPtr create(int64_t axis, GraphBuildStrategyPtr prev_builder)
-    {
-        return openvino_make_unique<AppendConcat>(axis, std::move(prev_builder));
+        GraphBuildStrategy<ParentT>::addNewNode(new_layer);
     }
 
 private:
     const int64_t _axis;
 };
 
+template <typename ParentT>
+AppendConcatStrategy<ParentT> AppendConcat(int64_t axis, ParentT prev_builder)
+{
+    return AppendConcatStrategy<ParentT>(axis, std::forward<ParentT>(prev_builder));
+}
+
 int64_t GetConcatAxis(NodePtr concat_node)
 {
     auto concat = ov::as_type_ptr<ov::opset9::Concat>(concat_node);
     if (!concat)
         return -1;
-    
+
     return concat->get_axis();
 }
 
@@ -451,29 +488,27 @@ ngraph::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
         const int64_t transposed_concat_axis = TransposeConcatAxis(GetConcatAxis(concat), transpose_axis_order);
 
         // Graph build strategy
-        auto add_input_transpose = AddTranspose(reversed_traspose_axis_order, transpose_element_type);
-        auto append_input_transposes = AppendTransposes(add_input_transpose, IfNotIndex(tranpose_input_index));
+        auto insert_revered_transpose = InsertTranspose(reversed_traspose_axis_order, transpose_element_type);
+        auto append_input_transposes = AppendTransposes(std::move(insert_revered_transpose), IfNotIndex(tranpose_input_index));
 
-        auto append_concat = AppendConcat::create(transposed_concat_axis, std::move(append_input_transposes));
+        auto append_concat = AppendConcat(transposed_concat_axis, std::move(append_input_transposes));
 
-        auto add_output_transpose = AddTranspose(transpose_axis_order, transpose_element_type);
-        auto append_output_transpose = AppendTransposes(add_output_transpose, AnyIndex(), std::move(append_concat));
-        append_output_transpose->SetNewNodesCollected();
+        auto add_output_transpose = InsertTranspose(transpose_axis_order, transpose_element_type);
+        auto append_output_transpose = AppendTransposes(std::move(add_output_transpose), AnyIndex(), std::move(append_concat));
+        append_output_transpose.SetNewNodesCollected();
         //
 
         Nodes input_nodes = GetNodes(concat->input_values());
         input_nodes[tranpose_input_index] = transpose->input_value(0).get_node_shared_ptr();
 
-        for (auto node: DoTransformation(concat, input_nodes, std::move(append_output_transpose))) {
-            register_new_node(node);
+        for (auto new_node: DoTransformation(concat, input_nodes, std::move(append_output_transpose))) {
+            register_new_node(new_node);
         }
 
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(
-        concat_label,
-        "ngraph::pass::TransposeSinkingConcatForward" /* matcher_name */);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 
@@ -498,24 +533,22 @@ ngraph::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
         const int64_t transposed_concat_axis = TransposeConcatAxis(GetConcatAxis(concat), reversed_traspose_axis_order);
 
         // Graph build strategy
-        auto add_input_transpose = AddTranspose(transpose_axis_order, transpose_element_type);
-        auto append_input_transposes = AppendTransposes(add_input_transpose, AnyIndex());
-        append_input_transposes->SetNewNodesCollected();
+        auto insert_transpose = InsertTranspose(transpose_axis_order, transpose_element_type);
+        auto append_input_transposes = AppendTransposes(std::move(insert_transpose), AnyIndex());
+        append_input_transposes.SetNewNodesCollected();
 
-        auto append_concat = AppendConcat::create(transposed_concat_axis, std::move(append_input_transposes));
+        auto append_concat = AppendConcat(transposed_concat_axis, std::move(append_input_transposes));
         //
 
         const Nodes input_nodes = GetNodes(concat->input_values());
 
-        for (auto node: DoTransformation(transpose, input_nodes, std::move(append_concat))) {
-            register_new_node(node);
+        for (auto new_node: DoTransformation(transpose, input_nodes, std::move(append_concat))) {
+            register_new_node(new_node);
         }
 
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(
-        transpose_label,
-        "ngraph::pass::TransposeSinkingConcatBackward" /* matcher_name */);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
