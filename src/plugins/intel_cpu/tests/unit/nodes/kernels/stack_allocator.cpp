@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#if __GNUC__ >= 5
+// Disable -Wsuggest-override warnings in gtest
+#pragma GCC diagnostic ignored "-Wsuggest-override"
+#endif
 #include <gtest/gtest.h>
+
 #include <utility>
 #include <cpu/x64/jit_generator.hpp>
 #include <nodes/kernels/stack_allocator.hpp>
@@ -262,10 +267,14 @@ public:
 };
 
 template<x64::cpu_isa_t Isa>
-struct IsaParam { static constexpr x64::cpu_isa_t isa = Isa; };
+struct StackAllocatorTestIsaParam { static constexpr x64::cpu_isa_t isa = Isa; };
 
-using IsaParamTypes = ::testing::Types<IsaParam<x64::sse41>, IsaParam<x64::avx2>, IsaParam<x64::avx512_core>>;
-TYPED_TEST_SUITE(AlignedStackAllocatorTest, IsaParamTypes);
+using StackAllocatorTestIsaParamTypes = ::testing::Types<
+        StackAllocatorTestIsaParam<x64::sse41>,
+        StackAllocatorTestIsaParam<x64::avx2>,
+        StackAllocatorTestIsaParam<x64::avx512_core>>;
+
+TYPED_TEST_SUITE(AlignedStackAllocatorTest, StackAllocatorTestIsaParamTypes);
 
 TYPED_TEST(AlignedStackAllocatorTest, Address_CheckAlignment_Success) {
     this->kernel_ = [this]() {
