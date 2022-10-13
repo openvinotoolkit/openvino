@@ -1,6 +1,6 @@
 # ONNX Frontend tests
 
-## <a name="places">Places where ONNX FE is tested
+## <a name="places">ONNX Frontend testing places
 - [C++ gtest-based tests](../tests)
 - [Python frontend tests](../../../../src/bindings/python/tests/test_frontend)
 - [Python operators tests](../../../../src/bindings/python/tests/test_onnx)

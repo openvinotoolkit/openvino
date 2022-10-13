@@ -1,6 +1,6 @@
 # ONNX Frontend architecture
 
-On the class diagram below is shown structure and relations between basic classes of ONNX Frontend:
+The class diagram below shows the structure and relations between the basic classes of ONNX Frontend:
 
 TBD - 93001
 

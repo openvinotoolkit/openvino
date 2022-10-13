@@ -1,8 +1,8 @@
-# How to add an new operation
+# How to add a new operation
 
-## How to implement an new operation
+## How to implement a new operation
 
-## How to register an custom operation via Extension mechanism
+## How to register a custom operation via Extension mechanism
 
 
 TBD - 93001
