@@ -134,5 +134,5 @@ int main(int argc, char* argv[]) {
         slog::err << ex.what() << slog::endl;
         return EXIT_FAILURE;
     }
-    return 0;
+    return EXIT_SUCCESS;
 }
