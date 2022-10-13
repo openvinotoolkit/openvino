@@ -22,125 +22,125 @@
 namespace GNAPluginNS {
 
 /**
- * Quantize entire cnn - network
- * @tparam T - type trait for weights and biases
+ * Quantize entire network
  */
-template<class T>
 class ModelQuantizer {
  public:
-    InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork &model, float scaleFactor) const {
-        return quantize(model, [](const InferenceEngine::CNNNetwork &, bool runBeforeCopy, bool lowPrecision){}, scaleFactor);
+    // Below four functions are used only in unit tests
+    InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork& model, float scale_factor) const {
+        return quantize(model, [](const InferenceEngine::CNNNetwork&, bool run_before_copy, bool low_precision){}, scale_factor);
     }
 
     template <class PreQuantisationCb>
-    InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork &model, const PreQuantisationCb &cb, float scaleFactor) const {
-        return quantize(model, cb, std::vector<float>({scaleFactor}));
+    InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork& model, const PreQuantisationCb& cb, float scale_factor) const {
+        return quantize(model, cb, std::vector<float>({scale_factor}));
     }
 
-    InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork &model, std::vector<float> scaleFactors) const {
-        return quantize(model, [](InferenceEngine::CNNNetwork &, bool runBeforeCopy, bool lowPrecision){}, scaleFactors);
+    InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork& model, std::vector<float> scale_factors) const {
+        return quantize(model, [](InferenceEngine::CNNNetwork&, bool run_before_copy, bool low_precision){}, scale_factors);
     }
 
     template <class PreQuantisationCb>
-    InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork &model,  const PreQuantisationCb &cb, std::vector<float> scaleFactors) const {
+    InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork& model,  const PreQuantisationCb& cb, std::vector<float> scale_factors) const {
         GNAPluginNS::GnaInputs inputs;
         InferenceEngine::InputsDataMap inputs_map = model.getInputsInfo();
         int sf_id = 0;
         for (auto &&input_data : inputs_map) {
             auto input_layer = getCreatorLayer(input_data.second->getInputData()).lock();
-            if (scaleFactors.size() <= sf_id) {
+            if (scale_factors.size() <= sf_id) {
                 THROW_GNA_EXCEPTION << "Scale factors are not set for some of the inputs";
             }
-            inputs[input_layer->name].scale_factor = scaleFactors[sf_id++];
+            inputs[input_layer->name].scale_factor = scale_factors[sf_id++];
         }
 
-        return quantize(model, cb, inputs);
+        return quantize(model, cb, inputs, InferenceEngine::Precision::I16, false);
     }
 
+    // This function is acutally used by the plugin
     template <class PreQuantisationCb>
-    InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork &model,
-                                         const PreQuantisationCb &cb,
-                                         const GNAPluginNS::GnaInputs &inputs) const {
+    InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork& model,
+                                         const PreQuantisationCb& cb,
+                                         const GNAPluginNS::GnaInputs& inputs,
+                                         const InferenceEngine::Precision& gna_precision,
+                                         const bool& inputs_int8_precision) const {
         OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "ModelQuantizer::quantize");
         auto visitor = [&](InferenceEngine::CNNLayerPtr lp) {
-            auto newLayer = InferenceEngine::injectData<QuantizedLayerParams>(lp);
-            transformLayer(newLayer, WeightsConverter());
-            return newLayer;
+            auto new_layer = InferenceEngine::injectData<QuantizedLayerParams>(lp);
+            transformLayer(new_layer, WeightsConverter());
+            return new_layer;
         };
-        bool lowPrecision = (T::mandatory().getInputPrecision().size() == sizeof(uint8_t));
-        InferenceEngine::CNNNetwork copiedNet = InferenceEngine::CNNNetCopy(model);
-        cb(copiedNet, true, lowPrecision);
 
-        copiedNet = InferenceEngine::CNNNetCopy(copiedNet, visitor);
+        // User's hints for GNA weights precision
+        const bool weights_int8_precision = (gna_precision == InferenceEngine::Precision::I8) ? true : false;
 
-        // allow client code to access copied topology, to avoid copies if user would like to chain quantisation with
+        InferenceEngine::CNNNetwork copied_net = InferenceEngine::CNNNetCopy(model);
+        cb(copied_net, true, inputs_int8_precision);
+
+        copied_net = InferenceEngine::CNNNetCopy(copied_net, visitor);
+
+        // Allow client code to access copied topology, to avoid copies if user would like to chain quantisation with
         // another preprocessing
-        cb(copiedNet, false, lowPrecision);
+        cb(copied_net, false, inputs_int8_precision);
 
-        float lc_sf = GNAPluginNS::kScaleFactorDefault;
-        if (inputs.empty()) {
-            gnawarn() << "Inputs structure is empty, will be used default scale factor: " << lc_sf << std::endl;
-        } else {
-            lc_sf = inputs.Get().begin()->scale_factor;
-        }
-
-        LayersQuantizer<T> lc(lc_sf);
-        auto sortedNewNet = InferenceEngine::details::CNNNetSortTopologically(copiedNet);
+        LayersQuantizer lc(GNAPluginNS::kScaleFactorDefault);
+        auto sorted_new_net = InferenceEngine::details::CNNNetSortTopologically(copied_net);
         gnalog() << "Sorted layers: " << std::endl;
-        for (auto &&layer : sortedNewNet) {
-            auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-            quantData->lowPrecision = lowPrecision;
+        for (auto &&layer : sorted_new_net) {
+            auto quant_data = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+            quant_data->_inputs_int8_precision = inputs_int8_precision;
+            quant_data->_weights_int8_precision = weights_int8_precision;
             gnalog() << layer->name << std::endl;
         }
-        /// filling scale factors for input layers, memory layers will have scaleFactor of 1.0 by default
-        InferenceEngine::InputsDataMap dm = copiedNet.getInputsInfo();
+
+        // Filling scale factors for input layers, memory layers will have scale factor of 1.0 by default
+        InferenceEngine::InputsDataMap dm = copied_net.getInputsInfo();
         for (auto &&inputData : dm) {
-            auto inputLayer = getCreatorLayer(inputData.second->getInputData()).lock();
-            auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
-            IE_ASSERT(quantData != nullptr);
-            quantData->_src_quant.SetScale(inputs.at(inputLayer->name).scale_factor);
+            auto input_layer = getCreatorLayer(inputData.second->getInputData()).lock();
+            auto quant_data = InferenceEngine::getInjectedData<QuantizedLayerParams>(input_layer);
+            IE_ASSERT(quant_data != nullptr);
+            quant_data->_src_quant.SetScale(inputs.at(input_layer->name).scale_factor);
         }
 
-        propagateScaleFactor(sortedNewNet);
+        propagateScaleFactor(sorted_new_net);
 
-        // sorted order gives possibility for propagate quantisation along depended layers
-        for (auto &&layer : sortedNewNet) {
+        // Sorted order gives possibility for propagate quantisation along depended layers
+        for (auto &&layer : sorted_new_net) {
             transformLayer(layer, lc);
         }
 
-        return copiedNet;
+        return copied_net;
     }
 
  private :
-    void propagateScaleFactor(std::vector<InferenceEngine::CNNLayerPtr> & net) const {
-        ScaleFactorCalculator<T> sf(net);
+    void propagateScaleFactor(std::vector<InferenceEngine::CNNLayerPtr>& net) const {
+        ScaleFactorCalculator sf(net);
 
-        int infiniteLoopCount = 0;
-        std::vector<std::string> infiniteLoopPattern;
-        std::vector<std::string> infiniteLoopHistory;
-        while (!sf.allLayersProcessed() && infiniteLoopCount <= 2) {
+        uint32_t inf_loop_count = 0;
+        std::vector<std::string> inf_loop_pattern;
+        std::vector<std::string> inf_loop_history;
+        while (!sf.allLayersProcessed() && inf_loop_count <= 2) {
             auto layers = sf.getStartLayers();
-            infiniteLoopHistory.emplace_back(layers.front()->name);
+            inf_loop_history.emplace_back(layers.front()->name);
             for (auto &&layer : layers) {
                 transformLayer(layer, sf);
                 // transforming until we reached cases where output scale updated due to situation in downstream layer
                 if (sf.needToRestart()) {
-                    infiniteLoopHistory.back() += "#" + layer->name;
+                    inf_loop_history.back() += "#" + layer->name;
                     break;
                 }
             }
 
             // We are looking for infinite loop by using algorithm of compute prefix function, complexity O(N)
             // (a part of the Knuth–Morris–Pratt algorithm).
-            std::map<int, int> prefixFunction;
-            int k = infiniteLoopHistory.size();
-            for (int i = infiniteLoopHistory.size() - 2; i >= 0; i--) {
-                while (k < infiniteLoopHistory.size() && infiniteLoopHistory[k - 1] != infiniteLoopHistory[i]) {
-                    auto iter = prefixFunction.find(k);
-                    k = iter == prefixFunction.end() ? infiniteLoopHistory.size() : iter->second;
+            std::map<int, int> prefix_function;
+            int32_t k = inf_loop_history.size();
+            for (int32_t i = inf_loop_history.size() - 2; i >= 0; i--) {
+                while (k < inf_loop_history.size() && inf_loop_history[k - 1] != inf_loop_history[i]) {
+                    auto iter = prefix_function.find(k);
+                    k = iter == prefix_function.end() ? inf_loop_history.size() : iter->second;
                 }
 
-                if (infiniteLoopHistory[k - 1] == infiniteLoopHistory[i]) {
+                if (inf_loop_history[k - 1] == inf_loop_history[i]) {
                     k--;
                 }
 
@@ -154,56 +154,56 @@ class ModelQuantizer {
                 //
                 // In the case of pattern length is 1, an infinite loop can be found on 2 consecutive strings.
                 // To avoid this, we will expect the appearance of 4 equal strings for the case pattern length is 1.
-                if ((infiniteLoopHistory.size() - i) % 2 == 0 &&
-                    (infiniteLoopHistory.size() - i) / 2 == infiniteLoopHistory.size() - k &&
-                    ((infiniteLoopHistory.size() - i) / 2 > 1 ||
-                        std::distance(infiniteLoopHistory.rbegin(),
-                            std::find_if_not(infiniteLoopHistory.rbegin(), infiniteLoopHistory.rend(),
-                                [&infiniteLoopHistory](const std::string& str) { return str == infiniteLoopHistory.back(); })) > 3)) {
-                    gnalog() << "infiniteLoopPattern:\n";
-                    for (const auto& s : infiniteLoopPattern) {
+                if ((inf_loop_history.size() - i) % 2 == 0 &&
+                    (inf_loop_history.size() - i) / 2 == inf_loop_history.size() - k &&
+                    ((inf_loop_history.size() - i) / 2 > 1 ||
+                        std::distance(inf_loop_history.rbegin(),
+                            std::find_if_not(inf_loop_history.rbegin(), inf_loop_history.rend(),
+                                [&inf_loop_history](const std::string& str) { return str == inf_loop_history.back(); })) > 3)) {
+                    gnalog() << "inf_loop_pattern:\n";
+                    for (const auto& s : inf_loop_pattern) {
                         gnalog() << "\t " << s << '\n';
                     }
-                    infiniteLoopPattern.clear();
-                    int patternLength = (infiniteLoopHistory.size() - i) / 2;
-                    gnalog() << "patternLength: " << patternLength << '\n';
-                    for (int j = 0; j < patternLength; j++) {
-                        infiniteLoopPattern.emplace_back(infiniteLoopHistory[infiniteLoopHistory.size() - patternLength + j]);
+                    inf_loop_pattern.clear();
+                    int pattern_len = (inf_loop_history.size() - i) / 2;
+                    gnalog() << "pattern_len: " << pattern_len << '\n';
+                    for (int j = 0; j < pattern_len; j++) {
+                        inf_loop_pattern.emplace_back(inf_loop_history[inf_loop_history.size() - pattern_len + j]);
                     }
-                    gnalog() << "infiniteLoopHistory:\n";
-                    for (const auto& s : infiniteLoopHistory) {
+                    gnalog() << "inf_loop_history:\n";
+                    for (const auto& s : inf_loop_history) {
                         gnalog() << "\t " << s << '\n';
                     }
-                    infiniteLoopHistory.clear();
+                    inf_loop_history.clear();
                     gnalog() << "infinite loop detected\n";
                     break;
                 }
 
-                prefixFunction.emplace(i, k);
+                prefix_function.emplace(i, k);
             }
 
-            if (infiniteLoopHistory.empty()) {
-                infiniteLoopCount++;
+            if (inf_loop_history.empty()) {
+                inf_loop_count++;
             } else {
-                if (infiniteLoopCount > 0 &&
-                    (infiniteLoopHistory.size()%infiniteLoopPattern.size() == 0 || sf.allLayersProcessed()) &&
-                    !std::equal(infiniteLoopHistory.begin() + (infiniteLoopHistory.size() - infiniteLoopPattern.size()),
-                        infiniteLoopHistory.end(), infiniteLoopPattern.begin())) {
-                    infiniteLoopCount = 0;
-                    infiniteLoopPattern.clear();
+                if (inf_loop_count > 0 &&
+                    (inf_loop_history.size()%inf_loop_pattern.size() == 0 || sf.allLayersProcessed()) &&
+                    !std::equal(inf_loop_history.begin() + (inf_loop_history.size() - inf_loop_pattern.size()),
+                        inf_loop_history.end(), inf_loop_pattern.begin())) {
+                    inf_loop_count = 0;
+                    inf_loop_pattern.clear();
                     gnalog() << "infinite loop fixed\n";
                 }
             }
 
-            sf.SetInfiniteLoopCount(infiniteLoopCount);
+            sf.SetInfiniteLoopCount(inf_loop_count);
         }
 
-        if (infiniteLoopCount > 0) {
-            std::string additionalInformation;
-            for (const auto& p : infiniteLoopPattern) {
-                additionalInformation += '\n' + p;
+        if (inf_loop_count > 0) {
+            std::string additional_info;
+            for (const auto& p : inf_loop_pattern) {
+                additional_info += '\n' + p;
             }
-            THROW_GNA_EXCEPTION << "infinite loop: " + additionalInformation;
+            THROW_GNA_EXCEPTION << "infinite loop: " + additional_info;
         }
     }
 };

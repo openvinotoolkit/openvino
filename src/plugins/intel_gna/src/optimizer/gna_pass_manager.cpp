@@ -26,7 +26,7 @@
 
 #include "backend/dnn_types.h"
 #include "gna_plugin_log.hpp"
-#include "frontend/quantization.h"
+#include "frontend/quantization.hpp"
 #include "frontend/quantized_layer_params.hpp"
 #include <layers/gna_copy_layer.hpp>
 #include <layers/gna_fake_quantize_layer.hpp>
@@ -35,7 +35,6 @@
 #include "gna_pass_manager.hpp"
 #include "layers/gna_layer_info.hpp"
 #include "gna_upstream_iterator.hpp"
-#include "frontend/quantization.h"
 #include "gna_groups.hpp"
 #include "gna_graph_patterns.hpp"
 #include "gna_data_types.hpp"

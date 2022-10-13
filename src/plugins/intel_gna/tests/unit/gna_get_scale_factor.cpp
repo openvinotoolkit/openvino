@@ -24,10 +24,10 @@ class GnaGetScaleFactorTest : public ::testing::Test {
         quant->_dst_quant.SetScale(dst_scale);
         quant->_weights_quant.SetScale(weights_scale);
         quant->_bias_quant.SetScale(bias_scale);
-        ASSERT_EQ(GNAPluginNS::getScaleFactor(layer, GNAPluginNS::QuantizedDataType::input), src_scale);
-        ASSERT_EQ(GNAPluginNS::getScaleFactor(layer, GNAPluginNS::QuantizedDataType::output), dst_scale);
-        ASSERT_EQ(GNAPluginNS::getScaleFactor(layer, GNAPluginNS::QuantizedDataType::weights), weights_scale);
-        ASSERT_EQ(GNAPluginNS::getScaleFactor(layer, GNAPluginNS::QuantizedDataType::bias), bias_scale);
+        ASSERT_EQ(GNAPluginNS::GetScaleFactor(layer, GNAPluginNS::QuantizedDataType::input), src_scale);
+        ASSERT_EQ(GNAPluginNS::GetScaleFactor(layer, GNAPluginNS::QuantizedDataType::output), dst_scale);
+        ASSERT_EQ(GNAPluginNS::GetScaleFactor(layer, GNAPluginNS::QuantizedDataType::weights), weights_scale);
+        ASSERT_EQ(GNAPluginNS::GetScaleFactor(layer, GNAPluginNS::QuantizedDataType::bias), bias_scale);
     }
 };
 

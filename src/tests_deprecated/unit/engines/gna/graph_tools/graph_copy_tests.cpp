@@ -97,12 +97,9 @@ TEST_F(GraphCopyTests, canPreserveAttributes) {
 
 #ifdef ENABLE_INTEL_GNA
 using namespace GNAPluginNS;
-struct _FP32_2_FP32  : public GNAPluginNS::frontend::QuantDescTmpl<float, float, float, float, float> {
-};
-using FP32_2_FP32 = GNAPluginNS::frontend::QuantPair<_FP32_2_FP32 , _FP32_2_FP32 >;
 
 TEST_F(GraphCopyTests, canQuantizeTopology) {
-    auto clone = ModelQuantizer<FP32_2_FP32>().quantize(CNNNetwork(mockNet), std::vector<float >({1.0f, 1.0f}));
+    auto clone = ModelQuantizer().quantize(CNNNetwork(mockNet), std::vector<float >({1.0f, 1.0f}));
 
     CNNNetBFS(CommonTestUtils::getLayerByName(clone, "1"), [&](CNNLayerPtr layer) {
         auto params = getInjectedData<QuantizedLayerParams>(layer);

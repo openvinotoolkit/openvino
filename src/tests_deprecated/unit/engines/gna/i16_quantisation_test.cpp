@@ -18,7 +18,8 @@ using namespace GNATestIRs;
 
 class I16QuantisationTest : public GNATest<> {
  protected:
-    LayersQuantizer<QuantI16> lc = LayersQuantizer<QuantI16>(1.0f);
+    ModelQuantizer q;
+    LayersQuantizer lc = LayersQuantizer(1.0f);
 
     InferenceEngine::CNNLayerPtr  quantize (InferenceEngine::CNNLayerPtr lp) {
         auto newLayer = InferenceEngine::injectData<QuantizedLayerParams>(lp);
@@ -84,8 +85,6 @@ TEST_F(I16QuantisationTest, canQuantizeActivation){
 }
 
 TEST_F(I16QuantisationTest, outputAffinePrecisionIs32Bits){
-    ModelQuantizer<QuantI16> q;
-
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {440}, C });
     weights->allocate();
     fillWeights(weights);
@@ -102,8 +101,6 @@ TEST_F(I16QuantisationTest, outputAffinePrecisionIs32Bits){
 
 
 TEST_F(I16QuantisationTest, canQuantizeLstmLikeTopology) {
-    ModelQuantizer<QuantI16> q;
-
     auto weights = setWeights(make_shared_blob<uint8_t >({ Precision::U8, {440}, C }));
     //std::fill_n(weights->buffer().as<float*>(), weights->byteSize()/sizeof(float), 0);
 
@@ -114,7 +111,6 @@ TEST_F(I16QuantisationTest, canQuantizeLstmLikeTopology) {
 }
 
 TEST_F(I16QuantisationTest, DISABLED_outputScaleFactorForAffineIsCorrect){
-    ModelQuantizer<QuantI16> q;
     const float inputScaleFactorTest = 1000;
     const float weightValueTest = 100;
 
@@ -350,8 +346,6 @@ TEST_F(I16QuantisationTest, DISABLED_noPermutationOfWeightsBetweenConvAndAffineI
 }
 
 TEST_F(I16QuantisationTest, fp16tofp32_on_fullyConnected_model) {
-    ModelQuantizer<QuantI16> q;
-
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {220}, Layout::C });
     weights->allocate();
     fillWeights(weights);
@@ -405,8 +399,6 @@ TEST_F(I16QuantisationTest, ConcatWithConstInputPropagatedForward) {
 }
 
 TEST_F(I16QuantisationTest, LSTMCell_quantize) {
-    ModelQuantizer<QuantI16> q;
-
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {33664}, C });
     weights->allocate();
     fillWeights(weights);
@@ -418,8 +410,6 @@ TEST_F(I16QuantisationTest, LSTMCell_quantize) {
 }
 
 TEST_F(I16QuantisationTest, LSTMCell_unaligned_quantize) {
-    ModelQuantizer<QuantI16> q;
-
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {3480}, C });
     weights->allocate();
     fillWeights(weights);
@@ -457,8 +447,6 @@ TEST_F(I16QuantisationTest, ConcatWithDifferentInputScaleFactorsPropagateForward
 }
 
 TEST_F(I16QuantisationTest, TI_quantize) {
-    ModelQuantizer<QuantI16> q;
-
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {249748}, C });
     weights->allocate();
     fillWeights(weights);

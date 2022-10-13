@@ -6,7 +6,7 @@
 
 namespace GNAPluginNS {
 
-class Quantization {
+class QuantizationParams {
 public:
     void SetScale(float s) {
         scale = s;
@@ -59,7 +59,7 @@ public:
 
         return output_max_values;
     }
-    void CopyStats(Quantization &src) {
+    void CopyStats(QuantizationParams &src) {
         levels = src.GetLevels();
         SetMinValues(src.GetMinValues(true), true);
         SetMaxValues(src.GetMaxValues(true), true);
@@ -78,14 +78,15 @@ private:
 };
 
 struct QuantizedLayerParams {
-    Quantization _src_quant;
-    Quantization _dst_quant;
+    QuantizationParams _src_quant;
+    QuantizationParams _dst_quant;
 
     // deprecate this
-    Quantization _weights_quant;
-    Quantization _bias_quant;
+    QuantizationParams _weights_quant;
+    QuantizationParams _bias_quant;
 
-    bool lowPrecision = false;
+    bool _weights_int8_precision = false;
+    bool _inputs_int8_precision = false;
 };
 
 }  // namespace GNAPluginNS

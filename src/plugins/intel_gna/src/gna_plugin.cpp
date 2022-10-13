@@ -863,27 +863,9 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         // to run all passes need to have two calls to pass manager
         run_passes(newNet, true, gnaFlags->input_low_precision);
         run_passes(newNet, false, gnaFlags->input_low_precision);
-    } else if (fake_quantized) {
-        ModelQuantizer<FakeQuant> modelQuantizer;
-        newNet = modelQuantizer.quantize(network, run_passes, *inputs_ptr_);
     } else {
-        switch (config.gnaPrecision) {
-        case Precision::I16:
-            ModelQuantizer<QuantI16> q16;
-            newNet = q16.quantize(network, run_passes, *inputs_ptr_);
-            break;
-        case Precision::I8:
-            if (gnaFlags->input_low_precision == false) {
-                ModelQuantizer<QuantI8> q8;
-                newNet = q8.quantize(network, run_passes, *inputs_ptr_);
-            } else {
-                ModelQuantizer<QuantI8_I8> q8_8;
-                newNet = q8_8.quantize(network, run_passes, *inputs_ptr_);
-            }
-            break;
-        default:
-            THROW_GNA_EXCEPTION << "unsupported GNA precision for quantisation: " << config.gnaPrecision;
-        }
+        ModelQuantizer modelQuantizer;
+        newNet = modelQuantizer.quantize(network, run_passes, *inputs_ptr_, config.gnaPrecision, gnaFlags->input_low_precision);
     }
 
     auto inputLayers = CNNNetGetAllInputLayers(newNet);
