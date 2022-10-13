@@ -6,7 +6,7 @@ OpenVINO IR tests cover the next frontend functionality: parser IRs, read model 
 
 CMake target `ov_ir_frontend_tests` is responsible for building IR tests. IR Frontend tests use the `gtest` framework for tests execution.
 
-After the build `ov_ir_frontend_tests` (`ov_ir_frontend_tests.exe` for Windows) binary files can be used to run all tests for the IR frontend.
+After the build, `ov_ir_frontend_tests` (`ov_ir_frontend_tests.exe` for Windows) binary files can be used to run all tests for the IR frontend.
 
 If you would like to get a tests coverage report for IR frontend, please read the page about [how to measure coverage](../../../../docs/dev/test_coverage.md)
 
