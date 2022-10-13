@@ -28,6 +28,7 @@ OpenVINO IR Frontend contains the next components:
 
 * [include](./include) is a public frontend API.
 * [src](./src/) folder contains the sources of the component.
+* [tests](./tests/) folder contains tests for the component. To get more information, read [How to run tests](./docs/tests.md).
 
 ## Architecture
 
@@ -37,6 +38,7 @@ For detailed information about OpenVINO IR Frontend architecture, read the [arch
 ## Tutorials
 
  * [How to support a new opset](./docs/support_new_opset.md)
+ * [How to run tests](./docs/tests.md)
 
 
 ## See also
