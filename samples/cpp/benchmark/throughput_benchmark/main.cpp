@@ -133,7 +133,7 @@ int main(int argc, char* argv[]) {
         slog::info << "Throughput: " << double_to_string(latencies.size() * 1000 / duration) << " FPS" << slog::endl;
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
-        return 1;
+        return EXIT_FAILURE;
     }
     return 0;
 }

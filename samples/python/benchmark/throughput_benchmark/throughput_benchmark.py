@@ -25,11 +25,10 @@ def fill_tensor_random(tensor):
         rand_max += 1
     rs = np.random.RandomState(np.random.MT19937(np.random.SeedSequence(0)))
     if 0 == tensor.get_size():
-        raise RuntimeError("Models with dynamic shapes aren't supported. Input tensors must have specific shapes before inference");
+        raise RuntimeError("Models with dynamic shapes aren't supported. Input tensors must have specific shapes before inference")
     tensor.data[:] = rs.uniform(rand_min, rand_max, list(tensor.shape)).astype(dtype)
 
 
-# TODO: make file executable
 def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     log.info(f"OpenVINO:\n{'': <9}{'API version':.<24} {get_version()}")
@@ -39,16 +38,15 @@ def main():
         return 1
     core = Core()
 
-    tput = {"PERFORMANCE_HINT": "THROUGHPUT"}
-    # TODO: try MULTI:CPU,BATCH:GPU(4)
-    compiled_model = core.compile_model(sys.argv[1], "CPU", tput)
+    tput = {'PERFORMANCE_HINT': 'THROUGHPUT'}
+    compiled_model = core.compile_model(sys.argv[1], 'CPU', tput)
     ireqs = AsyncInferQueue(compiled_model)
     nireq = len(ireqs)
     for ireq in ireqs:
-        for input in compiled_model.inputs:
-            fill_tensor_random(ireq.get_tensor(input))
+        for model_input in compiled_model.inputs:
+            fill_tensor_random(ireq.get_tensor(model_input))
 
-    init_niter = 1000
+    init_niter = 100
     # Align number of iterations by request number
     niter = int((init_niter + nireq - 1) / nireq) * nireq
     if init_niter != niter:
@@ -78,18 +76,18 @@ def main():
     min_latency_ms = times[0]
     max_latency_ms = times[-1]
     fps = niter / duration
-    print(f'Count:          {niter} iterations')
-    print(f'Duration:       {duration * 1e3:.2f} ms')
-    print('Latency:')
+    log.info(f'Count:          {niter} iterations')
+    log.info(f'Duration:       {duration * 1e3:.2f} ms')
+    log.info('Latency:')
     if percent == 50:
-        print(f'    Median:     {percentile_latency_ms:.2f} ms')
+        log.info(f'    Median:     {percentile_latency_ms:.2f} ms')
     else:
-        print(f'({percent} percentile):     {percentile_latency_ms:.2f} ms')
-    print(f'    AVG:        {avg_latency_ms:.2f} ms')
-    print(f'    MIN:        {min_latency_ms:.2f} ms')
-    print(f'    MAX:        {max_latency_ms:.2f} ms')
-    print(f'Throughput: {fps:.2f} FPS')
+        log.info(f'({percent} percentile):     {percentile_latency_ms:.2f} ms')
+    log.info(f'    AVG:        {avg_latency_ms:.2f} ms')
+    log.info(f'    MIN:        {min_latency_ms:.2f} ms')
+    log.info(f'    MAX:        {max_latency_ms:.2f} ms')
+    log.info(f'Throughput: {fps:.2f} FPS')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
