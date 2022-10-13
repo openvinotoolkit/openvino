@@ -69,7 +69,6 @@ return 0;
 }
 /*
 //! [part7]
-// Create a structure for the project:
 project/
    ├── CMakeLists.txt  - CMake file to build
    ├── ...             - Additional folders like includes/

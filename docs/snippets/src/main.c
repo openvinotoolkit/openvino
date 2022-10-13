@@ -35,7 +35,7 @@ ov_core_compile_model_from_file(core, "model.pdmodel", device_name, 0, &compiled
 
 //! [part2_4]
 // Construct a model
-ov_model_t* model = NULL; // need to free by ov_model_free(model)
+ov_model_t* model = NULL;
 ov_core_read_model(core, "model.xml", NULL, &model);
 ov_compiled_model_t* compiled_model = NULL;
 ov_core_compile_model(core, model, device_name, 0, &compiled_model);
@@ -81,7 +81,6 @@ return 0;
 }
 /*
 //! [part7]
-// Create a structure for the project:
 project/
    ├── CMakeLists.txt  - CMake file to build
    ├── ...             - Additional folders like includes/

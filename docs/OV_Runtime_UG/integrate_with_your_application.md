@@ -305,7 +305,7 @@ To avoid memory leak, applications developed with C API need to release the allo
 
 This step may differ for different projects. In this example, a C++ & C application is used, together with CMake for project configuration.
 
-For details on additional CMake build options, refer to the [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1)).
+### Create Structure for project:
 
 @sphinxtabset
 
@@ -313,13 +313,29 @@ For details on additional CMake build options, refer to the [CMake page](https:/
 
 @snippet docs/snippets/src/main.cpp part7
 
-@snippet snippets/CMakeLists.txt cmake:integration_example_cpp
-
 @endsphinxtab
 
 @sphinxtab{C}
 
 @snippet docs/snippets/src/main.c part7
+
+@endsphinxtab
+
+@endsphinxtabset
+
+### Create Cmake Script
+
+For details on additional CMake build options, refer to the [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1)).
+
+@sphinxtabset
+
+@sphinxtab{C++}
+
+@snippet snippets/CMakeLists.txt cmake:integration_example_cpp
+
+@endsphinxtab
+
+@sphinxtab{C}
 
 @snippet snippets/CMakeLists.txt cmake:integration_example_c
 
@@ -327,6 +343,8 @@ For details on additional CMake build options, refer to the [CMake page](https:/
 
 @endsphinxtabset
 
+
+### Build Project
 
 To build your project using CMake with the default build tools currently available on your machine, execute the following commands:
 
