@@ -419,8 +419,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     // Runs middle transformations to convert sub-graphs with intermediate (frontend internal) operations
     // into sub-graphs with only OpenVINO operations
     manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
-    manager.register_pass<pass::BlockLSTMReplacer>();
-    manager.register_pass<pass::GRUBlockCellReplacer>();
     manager.register_pass<pass::UniqueReplacer>();
 
     manager.register_pass<pass::TransposeSinking>();
