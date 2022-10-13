@@ -1083,13 +1083,14 @@ std::vector<int32_t> Deconvolution::readOutputSpatialDims() const {
     std::vector<int32_t> outSpDims(outShapePtr, outShapePtr + shapeMemPtr->getStaticDims()[0]);
     return outSpDims;
 }
+
 bool Deconvolution:: canFuseBias() const {
-//ONEDNN deconvolution_fwd_t primitive can support bias fusing.
-//ONEDNN convolution_data_bwd_t can't support bias fusing.
-//Current only int8 precision choose deconvolution_fwd_t.
-    return (canBeExecutedInInt8() &&
+    //ONEDNN deconvolution_fwd_t primitive can support bias fusing.
+    //ONEDNN convolution_data_bwd_t can't support bias fusing.
+    //Current only int8 precision choose deconvolution_fwd_t.
+    return  (canBeExecutedInInt8() &&
             getChildEdges().size() == 1 &&
-            externOutShape ? getParentEdges().size() == 3 : getParentEdges().size() == 2 &&
+            (externOutShape ? getParentEdges().size() == 3 : getParentEdges().size() == 2) &&
             fusedWith.empty());
 }
 
