@@ -37,6 +37,7 @@ public:
     int print_multi_kernel_perf;            // Print execution time of each kernel in multi-kernel primitimive
     int disable_usm;                        // Disable usm usage
     int disable_onednn;                     // Disable onednn for discrete GPU (no effect for integrated GPU)
+    int disable_onednn_opt_post_ops;        // Disable onednn optimize post operators
     std::string dump_profiling_data;        // Enables dump of extended performance profiling to specified dir
     std::string dump_graphs;                // Dump optimized graph
     std::string dump_sources;               // Dump opencl sources
