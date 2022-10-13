@@ -495,7 +495,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     std::mutex load_mutex;
     std::vector<Task> loads;
     std::once_flag readNetworkFlag;
-    std::vector<DeviceInformation> priorityDevices;
     std::vector<DeviceInformation> cpuDevice;
 
     auto loadInferEngTask = [&](DeviceInformation& p) {
@@ -511,6 +510,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         const auto& deviceName = p.deviceName;
         const auto& deviceConfig = p.config;
         SoExecutableNetworkInternal exec_net;
+        LOG_DEBUG_TAG("load network to device:%s", deviceName.c_str());
         if (modelPath.empty()) {
             exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
         } else if (GetCore()->DeviceSupportsImportExport(deviceName)) {
@@ -533,12 +533,17 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         }
         // print CPU or GPU streams num and threads num
         if (!key_streamsNums.empty() && !key_threadsNums.empty()) {
-            std::string sStreamNums = exec_net->GetConfig(key_streamsNums).as<std::string>();
-            std::string sMaxThreadNums = exec_net->GetConfig(key_threadsNums).as<std::string>();
-            LOG_INFO_TAG("deviceName:%s after load network, streamNums:%s, maxThreadNums:%s",
-                         deviceName.c_str(),
-                         sStreamNums.c_str(),
-                         sMaxThreadNums.c_str());
+            try {
+                std::string sStreamNums = exec_net->GetConfig(key_streamsNums).as<std::string>();
+                std::string sMaxThreadNums = exec_net->GetConfig(key_threadsNums).as<std::string>();
+                LOG_INFO_TAG("deviceName:%s after load network, streamNums:%s, maxThreadNums:%s",
+                             deviceName.c_str(),
+                             sStreamNums.c_str(),
+                             sMaxThreadNums.c_str());
+            } catch (...) {
+                LOG_DEBUG_TAG("deviceName:%s cannot get streamNums and maxThreadNums from exec_net",
+                              deviceName.c_str());
+            }
         }
 
         std::unique_lock<std::mutex> lock{load_mutex};
@@ -552,11 +557,12 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     });
     if (iterCPU != metaDevices.end()) {
         cpuDevice.emplace_back(*iterCPU);
-        metaDevices.erase(iterCPU);
     }
-    // Load other devices first
+    // Load devices other than CPU first
     for (auto& p : metaDevices) {
-        priorityDevices.emplace_back(p);
+        if (cpuDevice.size() > 0 && p.deviceName == cpuDevice[0].deviceName) {
+            continue;
+        }
         loads.push_back([&]() {
             loadInferEngTask(p);
         });
@@ -579,7 +585,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             // If the other devices load successfully, then set NUMA to CPU
             GetCore()->set_property(cpuDevice[0].deviceName, ov::affinity(ov::Affinity::NUMA));
         }
-        priorityDevices.emplace_back(cpuDevice[0]);
         loads.push_back([&]() {
             loadInferEngTask(cpuDevice[0]);
         });
@@ -603,8 +608,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     }
     // MULTI can enable the perf counters only if all  devices support/enable that
     bool enablePerfCounters = num_plugins_supporting_perf_counters == executableNetworkPerDevice.size();
-    multiSContext->_devicePriorities = priorityDevices;
-    multiSContext->_devicePrioritiesInitial = priorityDevices;
+    multiSContext->_devicePriorities = metaDevices;
+    multiSContext->_devicePrioritiesInitial = metaDevices;
     multiSContext->_networksPerDevice = executableNetworkPerDevice;
     multiSContext->_config = multiNetworkConfig;
     multiSContext->_needPerfCounters = enablePerfCounters;
