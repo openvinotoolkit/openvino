@@ -211,6 +211,8 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_POLICY_DEFAULT_CMP0025 NEW)
 # CMake 3.0+: MACOSX_RPATH is enabled by default.
 set(CMAKE_POLICY_DEFAULT_CMP0026 NEW)
+# CMake 3.0+ (2.8.12): MacOS "@rpath" in target's install name
+set(CMAKE_POLICY_DEFAULT_CMP0042 NEW)
 # CMake 3.9+: `RPATH` settings on macOS do not affect `install_name`.
 set(CMAKE_POLICY_DEFAULT_CMP0068 NEW)
 # CMake 3.13+: option() honors normal variables.
