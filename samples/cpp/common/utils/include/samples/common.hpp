@@ -1068,7 +1068,8 @@ static inline void fill_random(ov::Tensor& tensor,
     std::mt19937 gen(0);
     size_t tensor_size = tensor.get_size();
     if (0 == tensor_size) {
-        throw std::runtime_error("Models with dynamic shapes aren't supported. Input tensors must have specific shapes before inference");
+        throw std::runtime_error(
+            "Models with dynamic shapes aren't supported. Input tensors must have specific shapes before inference");
     }
     T* data = tensor.data<T>();
     uniformDistribution<T2> distribution(rand_min, rand_max);
@@ -1079,43 +1080,41 @@ static inline void fill_random(ov::Tensor& tensor,
 
 static inline void fill_tensor_random(ov::Tensor tensor) {
     switch (tensor.get_element_type()) {
-        case ov::element::f32:
-            fill_random<float, float>(tensor);
-            break;
-        case ov::element::f64:
-            fill_random<double, double>(tensor);
-            break;
-        case ov::element::f16:
-            fill_random<short, short>(tensor);
-            break;
-        case ov::element::i32:
-            fill_random<int32_t, int32_t>(tensor);
-            break;
-        case ov::element::i64:
-            fill_random<int64_t, int64_t>(tensor);
-            break;
-        case ov::element::u8:
-            // uniform_int_distribution<uint8_t> is not allowed in the C++17
-            // standard and vs2017/19
-            fill_random<uint8_t, uint32_t>(tensor);
-            break;
-        case ov::element::i8:
-            // uniform_int_distribution<int8_t> is not allowed in the C++17 standard
-            // and vs2017/19
-            fill_random<int8_t, int32_t>(tensor,
-                                         std::numeric_limits<int8_t>::min(),
-                                         std::numeric_limits<int8_t>::max());
-            break;
-        case ov::element::u16:
-            fill_random<uint16_t, uint16_t>(tensor);
-            break;
-        case ov::element::i16:
-            fill_random<int16_t, int16_t>(tensor);
-            break;
-        case ov::element::boolean:
-            fill_random<uint8_t, uint32_t>(tensor, 0, 1);
-            break;
-        default:
-            throw ov::Exception("Input type is not supported for a tensor");
+    case ov::element::f32:
+        fill_random<float, float>(tensor);
+        break;
+    case ov::element::f64:
+        fill_random<double, double>(tensor);
+        break;
+    case ov::element::f16:
+        fill_random<short, short>(tensor);
+        break;
+    case ov::element::i32:
+        fill_random<int32_t, int32_t>(tensor);
+        break;
+    case ov::element::i64:
+        fill_random<int64_t, int64_t>(tensor);
+        break;
+    case ov::element::u8:
+        // uniform_int_distribution<uint8_t> is not allowed in the C++17
+        // standard and vs2017/19
+        fill_random<uint8_t, uint32_t>(tensor);
+        break;
+    case ov::element::i8:
+        // uniform_int_distribution<int8_t> is not allowed in the C++17 standard
+        // and vs2017/19
+        fill_random<int8_t, int32_t>(tensor, std::numeric_limits<int8_t>::min(), std::numeric_limits<int8_t>::max());
+        break;
+    case ov::element::u16:
+        fill_random<uint16_t, uint16_t>(tensor);
+        break;
+    case ov::element::i16:
+        fill_random<int16_t, int16_t>(tensor);
+        break;
+    case ov::element::boolean:
+        fill_random<uint8_t, uint32_t>(tensor, 0, 1);
+        break;
+    default:
+        throw ov::Exception("Input type is not supported for a tensor");
     }
 }

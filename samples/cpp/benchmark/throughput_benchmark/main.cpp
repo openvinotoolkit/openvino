@@ -75,41 +75,35 @@ int main(int argc, char* argv[]) {
             ov::InferRequest& ireq = ireqs[i];
             std::chrono::steady_clock::time_point& time_point = time_points[i];
             time_point = std::chrono::steady_clock::now();
-            ireq.set_callback([
-                &ireq,
-                &time_point,
-                &mutex,
-                &cv,
-                &latencies,
-                &callback_exception,
-                &nstarted,
-                time_point_to_finish] (std::exception_ptr ex) {
-                // Keep callbacks small: there's only one thread for processing callbacks in OpenVINO
-                {
-                    std::unique_lock<std::mutex> lock(mutex);
-                    try {
-                        if (ex) {
-                            std::rethrow_exception(ex);
-                        }
-                        auto infer_end = std::chrono::steady_clock::now();
-                        latencies.push_back(std::chrono::duration_cast<Ms>(infer_end - time_point).count());
-                        if (latencies.size() >= nstarted) {
-                            cv.notify_one();
-                            return;
-                        }
-                        if (infer_end < time_point_to_finish) {
-                            time_point = infer_end;
-                            ++nstarted;
-                            ireq.start_async();
-                        }
-                    } catch (const std::exception&) {
-                        if (!callback_exception) {
-                           callback_exception = std::current_exception();
-                           cv.notify_one();
+            ireq.set_callback(
+                [&ireq, &time_point, &mutex, &cv, &latencies, &callback_exception, &nstarted, time_point_to_finish](
+                    std::exception_ptr ex) {
+                    // Keep callbacks small: there's only one thread for processing callbacks in OpenVINO
+                    {
+                        std::unique_lock<std::mutex> lock(mutex);
+                        try {
+                            if (ex) {
+                                std::rethrow_exception(ex);
+                            }
+                            auto infer_end = std::chrono::steady_clock::now();
+                            latencies.push_back(std::chrono::duration_cast<Ms>(infer_end - time_point).count());
+                            if (latencies.size() >= nstarted) {
+                                cv.notify_one();
+                                return;
+                            }
+                            if (infer_end < time_point_to_finish) {
+                                time_point = infer_end;
+                                ++nstarted;
+                                ireq.start_async();
+                            }
+                        } catch (const std::exception&) {
+                            if (!callback_exception) {
+                                callback_exception = std::current_exception();
+                                cv.notify_one();
+                            }
                         }
                     }
-                }
-            });
+                });
             std::unique_lock<std::mutex> lock(mutex);
             ireq.start_async();
             ++nstarted;
