@@ -1,4 +1,4 @@
-# OpenVINO™ Padddle Frontend Architecture
+# OpenVINO™ Paddle Frontend Architecture
 
 The diagram below interprets the Paddle Frontend architecture and its interaction with OpenVINO Frontend API and Core APIs.![](./img/PaddleFrontendInternal.PNG)
 
