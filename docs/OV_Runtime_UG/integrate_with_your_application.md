@@ -18,38 +18,7 @@ Following these steps, you can implement a typical OpenVINO™ Runtime inference
 
 ![ie_api_use_cpp]
 
-## Step 1. Create Cmake Script
-
-This step may differ for different projects. In this example, a C++ & C application is used, together with CMake for project configuration.
-`
-Create a structure for the project:
-project/
-   ├── CMakeLists.txt  - CMake file to build
-   ├── ...             - Additional folders like includes/
-   └── src/            - source folder
-       └── main.c      - [Optional] For C sample
-       └── main.cpp    - [Optional] For C++ sample
-build/                  - build directory
-   ...
-`
-
-@sphinxtabset
-
-@sphinxtab{C++}
-
-@snippet snippets/CMakeLists.txt cmake:integration_example_cpp
-
-@endsphinxtab
-
-@sphinxtab{C}
-
-@snippet snippets/CMakeLists.txt cmake:integration_example_c
-
-@endsphinxtab
-
-@endsphinxtabset
-
-## Step 2. Create OpenVINO™ Runtime Core 
+## Step 1. Create OpenVINO™ Runtime Core 
 
 Include next files to work with OpenVINO™ Runtime:
 
@@ -99,7 +68,7 @@ Use the following code to create OpenVINO™ Core to manage available devices an
 
 @endsphinxtabset
 
-## Step 3. Compile the Model
+## Step 2. Compile the Model
 
 `ov::CompiledModel` class represents a device specific compiled model. `ov::CompiledModel` allows you to get information inputs or output ports by a tensor name or index. This approach is aligned with the majority of frameworks.
 
@@ -212,7 +181,7 @@ The code above creates a compiled model associated with a single hardware device
 It is possible to create as many compiled models as needed and use them simultaneously (up to the limitation of the hardware resources).
 To learn how to change the device configuration, read the [Query device properties](./supported_plugins/config_properties.md) article.
 
-## Step 4. Create an Inference Request
+## Step 3. Create an Inference Request
 
 `ov::InferRequest` class provides methods for model inference in OpenVINO™ Runtime. Create an infer request using the following code (see [InferRequest detailed documentation](./ov_infer_request.md) for more details):
 
@@ -238,7 +207,7 @@ To learn how to change the device configuration, read the [Query device properti
 
 @endsphinxtabset
 
-## Step 5. Set Inputs
+## Step 4. Set Inputs
 
 You can use external memory to create `ov::Tensor` and use the `ov::InferRequest::set_input_tensor` method to put this tensor on the device:
 
@@ -264,7 +233,7 @@ You can use external memory to create `ov::Tensor` and use the `ov::InferRequest
 
 @endsphinxtabset
 
-## Step 6. Start Inference
+## Step 5. Start Inference
 
 OpenVINO™ Runtime supports inference in either synchronous or asynchronous mode. Using the Async API can improve application's overall frame-rate: instead of waiting for inference to complete, the app can keep working on the host while the accelerator is busy. You can use `ov::InferRequest::start_async` to start model inference in the asynchronous mode and call `ov::InferRequest::wait` to wait for the inference results:
 
@@ -292,7 +261,7 @@ OpenVINO™ Runtime supports inference in either synchronous or asynchronous mod
 
 This section demonstrates a simple pipeline. To get more information about other ways to perform inference, read the dedicated ["Run inference" section](./ov_infer_request.md).
 
-## Step 7. Process the Inference Results 
+## Step 6. Process the Inference Results 
 
 Go over the output tensors and process the inference results.
 
@@ -318,7 +287,7 @@ Go over the output tensors and process the inference results.
 
 @endsphinxtabset
 
-## Step 8. Release the allocated objects (only for C)
+## Step 7. Release the allocated objects (only for C)
 
 To avoid memory leak, applications developed with C API need to release the allocated objects in order.
 
@@ -331,6 +300,33 @@ To avoid memory leak, applications developed with C API need to release the allo
 @endsphinxtab
 
 @endsphinxtabset
+
+## Step 8. Link and Build Your Application with OpenVINO™ Runtime (example)
+
+This step may differ for different projects. In this example, a C++ & C application is used, together with CMake for project configuration.
+
+For details on additional CMake build options, refer to the [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1)).
+
+@sphinxtabset
+
+@sphinxtab{C++}
+
+@snippet docs/snippets/src/main.cpp part7
+
+@snippet snippets/CMakeLists.txt cmake:integration_example_cpp
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@snippet docs/snippets/src/main.c part7
+
+@snippet snippets/CMakeLists.txt cmake:integration_example_c
+
+@endsphinxtab
+
+@endsphinxtabset
+
 
 To build your project using CMake with the default build tools currently available on your machine, execute the following commands:
 

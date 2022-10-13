@@ -35,7 +35,7 @@ ov_core_compile_model_from_file(core, "model.pdmodel", device_name, 0, &compiled
 
 //! [part2_4]
 // Construct a model
-ov_model_t* model = NULL;
+ov_model_t* model = NULL; // need to free by ov_model_free(model)
 ov_core_read_model(core, "model.xml", NULL, &model);
 ov_compiled_model_t* compiled_model = NULL;
 ov_core_compile_model(core, model, device_name, 0, &compiled_model);
@@ -47,12 +47,8 @@ ov_infer_request_t* infer_request = NULL;
 ov_compiled_model_create_infer_request(compiled_model, &infer_request);
 //! [part3]
 
-ov_output_port_t* input_port = NULL;
-ov_model_input(model, &input_port);
-ov_shape_t input_shape;
-ov_port_get_shape(input_port, &input_shape);
+ov_shape_t input_shape = {0, NULL};
 void* img_data = NULL;
-// read img ...
 ov_element_type_e input_type = U8;
 //! [part4]
 ov_tensor_t* tensor = NULL;
@@ -73,7 +69,6 @@ ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor);
 //! [part6]
 
 //! [part8]
-ov_output_port_free(input_port);
 ov_tensor_free(output_tensor);
 ov_tensor_free(tensor);
 ov_infer_request_free(infer_request);
@@ -84,3 +79,16 @@ ov_core_free(core);
 
 return 0;
 }
+/*
+//! [part7]
+// Create a structure for the project:
+project/
+   ├── CMakeLists.txt  - CMake file to build
+   ├── ...             - Additional folders like includes/
+   └── src/            - source folder
+       └── main.c
+build/                  - build directory
+   ...      
+
+//! [part7]
+*/
