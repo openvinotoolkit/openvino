@@ -173,7 +173,7 @@ See the [OpenVINO Wiki](https://github.com/openvinotoolkit/openvino/wiki#how-to-
 
 ## How to contribute
 
-See the [CONTRIBUTING](./CONTRIBUTING.md) article for details.
+See [CONTRIBUTING](./CONTRIBUTING.md) for details. Thank you!
 
 ## Get a support
 
