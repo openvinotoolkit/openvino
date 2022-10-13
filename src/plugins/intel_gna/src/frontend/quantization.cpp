@@ -3,8 +3,9 @@
 //
 
 #include <cstring>
-#include <log/gna_plugin_log.hpp>
 #include <limits>
+#include "log/gna_plugin_log.hpp"
+#include "log/log.hpp"
 #include "backend/gna_types.h"
 #include "quantization.hpp"
 #include <algorithm>
@@ -154,7 +155,7 @@ void QuantizeWeights<int8_t>(const QuantizationData& data, float* ptr_float_weig
     }
 
     if (num_saturate > 0) {
-        gnalog() << "Warning: " << num_saturate << " / " << (data.num_rows * data.num_columns)
+        log::warning() << num_saturate << " / " << (data.num_rows * data.num_columns)
                  << " saturations in int8 weights quantization." << std::endl;
     }
 }
@@ -215,7 +216,7 @@ void QuantizeWeights<int16_t>(const QuantizationData& data, float* ptr_float_wei
     }
 
     if (num_saturate > 0) {
-        gnalog() << "Warning: " << num_saturate << " / " << (data.num_rows * data.num_columns)
+        log::warning() << num_saturate << " / " << (data.num_rows * data.num_columns)
                  << " saturations in int16 weights quantization." << std::endl;
     }
 }
@@ -252,7 +253,7 @@ void QuantizeBiases<int32_t>(const QuantizationData& data, float* ptr_float_bias
     }
 
     if (num_saturate > 0) {
-        gnalog() << "Warning: " << num_saturate << " / " << data.num_rows
+        log::warning() << num_saturate << " / " << data.num_rows
                  << " saturations in int32 biases quantization." << std::endl;
     }
 }
@@ -277,7 +278,7 @@ void QuantizeBiases<gna_compound_bias_t>(const QuantizationData& data, float* pt
         }
     }
     if (num_saturate > 0) {
-        gnalog() << "Warning: " << num_saturate << " / " << data.num_rows
+        log::warning() << num_saturate << " / " << data.num_rows
                  << " saturations in compound biases quantization." << std::endl;
     }
 }
