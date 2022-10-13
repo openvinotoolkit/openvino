@@ -1177,3 +1177,548 @@ TEST_F(RTInfoDeserialization, v11_to_v10_without_rt_info) {
 
     check_version(f_10, 10);
 }
+
+TEST_F(RTInfoDeserialization, node_v11_new) {
+    std::string model = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset8">
+            <data element_type="f32" shape="1,22,22,3"/>
+            <rt_info>
+                <old_api_map_element_type value="f16"/>
+                <old_api_map_order value="0,2,3,1"/>
+                <fused_names value="in1"/>
+            </rt_info>
+            <output>
+                <port id="0" precision="FP32" names="input_tensor">
+                    <rt_info>
+                        <layout layout="[N,H,W,C]"/>
+                    </rt_info>
+                    <dim>1</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                    <dim>3</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="Round" id="1" type="Round" version="opset8">
+            <data mode="half_to_even"/>
+            <rt_info>
+                <fused_names value="    Round 1  ,  Round 2  "/>
+            </rt_info>
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                    <dim>3</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32" names="output_tensor">
+                    <rt_info>
+                        <layout layout="[N,H,W,C]"/>
+                    </rt_info>
+                    <dim>1</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                    <dim>3</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset8">
+            <rt_info>
+                <old_api_map_order value="0,3,1,2"/>
+            </rt_info>
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                    <dim>3</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    auto f = getWithIRFrontend(model);
+    ASSERT_NE(nullptr, f);
+
+    auto check_fused_names = [](const ov::RTMap& info, const std::string& names) {
+        ASSERT_TRUE(info.count(ngraph::FusedNames::get_type_info_static()));
+        auto fused_names_attr = info.at(ngraph::FusedNames::get_type_info_static()).as<ngraph::FusedNames>();
+        EXPECT_EQ(fused_names_attr.getNames(), names);
+    };
+    auto check_old_api_map_order = [](const ov::RTMap& info, const std::vector<uint64_t>& order) {
+        const std::string& old_api_map_key = ov::OldApiMapOrder::get_type_info_static();
+        ASSERT_TRUE(info.count(old_api_map_key));
+        auto old_api_map_attr_val = info.at(old_api_map_key).as<ov::OldApiMapOrder>().value;
+        EXPECT_EQ(old_api_map_attr_val, order);
+    };
+    auto check_old_api_map_type = [](const ov::RTMap& info, const ov::element::Type& type) {
+        const std::string& old_api_map_key = ov::OldApiMapElementType::get_type_info_static();
+        ASSERT_TRUE(info.count(old_api_map_key));
+        auto old_api_map_attr_val = info.at(old_api_map_key).as<ov::OldApiMapElementType>().value;
+        EXPECT_EQ(old_api_map_attr_val, type);
+    };
+
+    auto check_version = [](const std::shared_ptr<ov::Model>& f, int ref_version) {
+        auto& rt_info = f->get_rt_info();
+        ASSERT_TRUE(rt_info.count("version"));
+        ASSERT_TRUE(rt_info.at("version").is<int64_t>());
+        ASSERT_EQ(rt_info.at("version").as<int64_t>(), ref_version);
+    };
+    check_version(f, 11);
+
+    auto param = f->get_parameters()[0];
+    check_fused_names(param->get_rt_info(), "in1");
+    check_old_api_map_order(param->get_rt_info(), std::vector<uint64_t>({0, 2, 3, 1}));
+    check_old_api_map_type(param->get_rt_info(), ov::element::Type_t::f16);
+
+    auto result = f->get_result();
+    check_old_api_map_order(result->get_rt_info(), std::vector<uint64_t>({0, 3, 1, 2}));
+    auto round = result->get_input_node_ptr(0);
+    check_fused_names(round->get_rt_info(), "Round 1,Round 2");
+
+    // read IR v11 with new API
+    {
+        ov::Core core;
+        auto f_11 = core.read_model(model, ov::Tensor());
+        ASSERT_NE(nullptr, f_11);
+
+        check_old_api_map_order(f_11->get_parameters()[0]->get_rt_info(), std::vector<uint64_t>({0, 2, 3, 1}));
+        check_old_api_map_type(f_11->get_parameters()[0]->get_rt_info(), ov::element::Type_t::f16);
+
+        check_old_api_map_order(f_11->get_result()->get_rt_info(), std::vector<uint64_t>({0, 3, 1, 2}));
+
+        auto res = compare_functions(f, f_11);
+        EXPECT_TRUE(res.first) << res.second;
+
+        check_version(f_11, 11);
+    }
+
+    // read IR v11 with old API and check that old_api_map is applied
+    {
+        const ov::PartialShape shape{1, 3, 22, 22};
+        auto type = ov::element::f16;
+        auto param = std::make_shared<ov::opset8::Parameter>(type, shape);
+        param->set_friendly_name("in1");
+        param->get_output_tensor(0).set_names({"input_tensor"});
+
+        // TODO: No guarantee that Transpose will use exactly 'uint64_t' constant
+        auto constant_param =
+            std::make_shared<ov::opset8::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 2, 3, 1});
+        auto transpose_param = std::make_shared<ov::opset8::Transpose>(param, constant_param);
+
+        // TODO: No guarantee that only 'convert' will be added by implicit pre-processing
+        auto convert_param = std::make_shared<ov::opset8::Convert>(transpose_param, ov::element::f32);
+
+        auto round = std::make_shared<ov::opset8::Round>(convert_param, ov::opset8::Round::RoundMode::HALF_TO_EVEN);
+        // TODO: runtime information should migrate as well?
+        round->get_rt_info()[ngraph::FusedNames::get_type_info_static()] = ngraph::FusedNames("Round1,Round2");
+
+        // TODO: No guarantee that exactly 'convert, then transpose' will be added by implicit post-processing
+        auto constant_result =
+            std::make_shared<ov::opset8::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 3, 1, 2});
+        auto transpose_result = std::make_shared<ov::opset8::Transpose>(round, constant_result);
+
+        transpose_result->set_friendly_name("Round");
+        transpose_result->get_output_tensor(0).set_names({"output_tensor"});
+
+        auto result = std::make_shared<ov::opset8::Result>(transpose_result);
+        result->set_friendly_name("output");
+
+        auto f_10_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+        f_10_ref->set_friendly_name("Network");
+
+        InferenceEngine::Core core;
+        auto cnn_core = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
+        auto f_10_core = cnn_core.getFunction();
+        ASSERT_NE(nullptr, f_10_core);
+
+        check_version(f_10_core, 10);
+
+        ASSERT_GT(cnn_core.getInputsInfo().count("in1"), 0);
+        EXPECT_EQ(InferenceEngine::Precision::FP32, cnn_core.getInputsInfo()["in1"]->getPrecision());
+        ASSERT_GT(cnn_core.getOutputsInfo().count("Round"), 0);
+        EXPECT_EQ(InferenceEngine::Precision::FP32, cnn_core.getOutputsInfo()["Round"]->getPrecision());
+
+        const auto fc = FunctionsComparator::with_default()
+                            .enable(FunctionsComparator::ATTRIBUTES)
+                            .enable(FunctionsComparator::PRECISIONS)
+                            .enable(FunctionsComparator::RUNTIME_KEYS)
+                            .enable(FunctionsComparator::NAMES)
+                            .enable(FunctionsComparator::CONST_VALUES);
+        auto res = fc.compare(f_10_core, f_10_ref);
+        EXPECT_TRUE(res.valid) << res.message;
+
+        EXPECT_EQ(shape, f_10_ref->input().get_partial_shape());
+        EXPECT_EQ(shape, f_10_core->input().get_partial_shape());
+        EXPECT_EQ(shape, f_10_ref->get_output_partial_shape(0));
+        EXPECT_EQ(shape, f_10_core->get_output_partial_shape(0));
+
+        // check that old api map is removed once applied
+        auto check_old_api_rt_info = [](const ov::RTMap& info) {
+            const std::string& key_order = ov::OldApiMapOrder::get_type_info_static();
+            EXPECT_EQ(0, info.count(key_order));
+            const std::string& key_type = ov::OldApiMapElementType::get_type_info_static();
+            EXPECT_EQ(0, info.count(key_type));
+        };
+
+        check_old_api_rt_info(f_10_core->get_parameters()[0]->get_rt_info());
+        check_old_api_rt_info(f_10_core->get_result()->get_rt_info());
+
+        // check information about layout
+        EXPECT_EQ(f_10_core->get_parameters()[0]->get_layout(), ov::Layout("NCHW"))
+            << f_10_core->get_parameters()[0]->get_layout().to_string();
+        EXPECT_EQ(f_10_core->get_results()[0]->get_layout(), ov::Layout("NCHW"))
+            << f_10_core->get_results()[0]->get_layout().to_string();
+    }
+}
+
+TEST_F(RTInfoDeserialization, node_v11_new_uint8) {
+    std::string model = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset8">
+            <data element_type="u8" shape="1,22,22,3"/>
+            <rt_info>
+                <old_api_map_element_type value="f16"/>
+                <old_api_map_order value="0,2,3,1"/>
+                <fused_names value="in1"/>
+            </rt_info>
+            <output>
+                <port id="0" precision="FP32" names="input_tensor">
+                    <dim>1</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                    <dim>3</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="Round" id="1" type="Round" version="opset8">
+            <data mode="half_to_even"/>
+            <rt_info>
+                <fused_names value="Round1,Round2"/>
+            </rt_info>
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                    <dim>3</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32" names="output_tensor">
+                    <dim>1</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                    <dim>3</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset8">
+            <rt_info>
+                <old_api_map_order value="0,3,1,2"/>
+            </rt_info>
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                    <dim>3</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    auto f = getWithIRFrontend(model);
+    ASSERT_NE(nullptr, f);
+
+    // read IR v11 with old API and check that old_api_map is applied
+    const ov::PartialShape shape{1, 3, 22, 22};
+    auto type = ov::element::f16;
+    auto param = std::make_shared<ov::opset8::Parameter>(type, shape);
+    param->set_friendly_name("in1");
+    param->get_output_tensor(0).set_names({"input_tensor"});
+
+    auto constant_param =
+        std::make_shared<ov::opset8::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 2, 3, 1});
+    auto transpose_param = std::make_shared<ov::opset8::Transpose>(param, constant_param);
+
+    auto round = std::make_shared<ov::opset8::Round>(transpose_param, ov::opset8::Round::RoundMode::HALF_TO_EVEN);
+    round->get_rt_info()[ngraph::FusedNames::get_type_info_static()] = ngraph::FusedNames("Round1,Round2");
+    auto constant_result =
+        std::make_shared<ov::opset8::Constant>(ov::element::u64, ov::Shape{4}, std::vector<uint64_t>{0, 3, 1, 2});
+    auto transpose_result = std::make_shared<ov::opset8::Transpose>(round, constant_result);
+
+    transpose_result->set_friendly_name("Round");
+    transpose_result->get_output_tensor(0).set_names({"output_tensor"});
+
+    auto result = std::make_shared<ov::opset8::Result>(transpose_result);
+    result->set_friendly_name("output");
+
+    auto f_10_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+    f_10_ref->set_friendly_name("Network");
+
+    InferenceEngine::Core core;
+    auto cnn_core = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
+    auto f_10_core = cnn_core.getFunction();
+    ASSERT_NE(nullptr, f_10_core);
+
+    ASSERT_GT(cnn_core.getInputsInfo().count("in1"), 0);
+    EXPECT_EQ(InferenceEngine::Precision::FP32, cnn_core.getInputsInfo()["in1"]->getPrecision());
+    ASSERT_GT(cnn_core.getOutputsInfo().count("Round"), 0);
+    EXPECT_EQ(InferenceEngine::Precision::FP32, cnn_core.getOutputsInfo()["Round"]->getPrecision());
+
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::ATTRIBUTES)
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::NAMES)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    auto res = fc.compare(f_10_core, f_10_ref);
+    EXPECT_TRUE(res.valid) << res.message;
+
+    EXPECT_EQ(shape, f_10_ref->input().get_partial_shape());
+    EXPECT_EQ(shape, f_10_core->input().get_partial_shape());
+    EXPECT_EQ(shape, f_10_ref->get_output_partial_shape(0));
+    EXPECT_EQ(shape, f_10_core->get_output_partial_shape(0));
+
+    // check that old api map is removed once applied
+    auto check_old_api_rt_info = [](const ov::RTMap& info) {
+        const std::string& key_order = ov::OldApiMapOrder::get_type_info_static();
+        EXPECT_EQ(0, info.count(key_order));
+        const std::string& key_type = ov::OldApiMapElementType::get_type_info_static();
+        EXPECT_EQ(0, info.count(key_type));
+    };
+
+    check_old_api_rt_info(f_10_core->get_parameters()[0]->get_rt_info());
+    check_old_api_rt_info(f_10_core->get_result()->get_rt_info());
+
+    // check information about layout
+    EXPECT_TRUE(f_10_core->get_parameters()[0]->get_layout().empty())
+        << f_10_core->get_parameters()[0]->get_layout().to_string();
+    EXPECT_TRUE(f_10_core->get_results()[0]->get_layout().empty())
+        << f_10_core->get_results()[0]->get_layout().to_string();
+}
+
+TEST_F(RTInfoDeserialization, node_v11_new_multiple_rt_keys) {
+    std::string model = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset8">
+            <data element_type="f32" shape="1,22,22,3"/>
+            <rt_info>
+                <old_api_map_order value="0,2,3,1"/>
+                <old_api_map_order value="0,1,2,3"/>
+                <fused_names value="in1"/>
+            </rt_info>
+            <output>
+                <port id="0" precision="FP32" names="input_tensor">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="Round" id="1" type="Round" version="opset8">
+            <data mode="half_to_even"/>
+            <rt_info>
+                <fused_names value="Round1,Round2"/>
+            </rt_info>
+            <input>
+                <rt_info>
+                    <attribute name="fused_names" version="0" value="check"/>
+                    <attribute name="fused_names" version="0" value="multiple_keys"/>
+                </rt_info>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32" names="output_tensor">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset8">
+            <rt_info>
+                <old_api_map_order value="0,3,1,2"/>
+            </rt_info>
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    ASSERT_THROW(getWithIRFrontend(model), ov::Exception);
+}
+
+TEST_F(RTInfoDeserialization, input_and_output_v11_new) {
+    std::string model = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset8">
+            <data element_type="f32" shape="1,3,22,22"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <rt_info>
+                        <fused_names value="test1,test2"/>
+                        <layout layout="[N,C,H,W]" />
+                        <memory_type value="test_memory_type" />
+                    </rt_info>
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="sum" type="Add" version="opset1">
+            <input>
+                <port id="0">
+                    <rt_info>
+                        <fused_names value="test2,test3"/>
+                    </rt_info>
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+                <port id="1">
+                    <rt_info>
+                        <fused_names value="test3,test4"/>
+                    </rt_info>
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <rt_info>
+                        <fused_names value="test4,test5"/>
+                        <layout layout="[?,C,H,W]" />
+                    </rt_info>
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset8">
+            <input>
+                <port id="0" precision="FP32">
+                    <rt_info>
+                        <fused_names value="test5,test6"/>
+                    </rt_info>
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    auto f = getWithIRFrontend(model);
+    ASSERT_NE(nullptr, f);
+
+    auto check_version = [](const std::shared_ptr<ov::Model>& f, int ref_version) {
+        auto& rt_info = f->get_rt_info();
+        ASSERT_TRUE(rt_info.count("version"));
+        ASSERT_TRUE(rt_info.at("version").is<int64_t>());
+        ASSERT_EQ(rt_info.at("version").as<int64_t>(), ref_version);
+    };
+    check_version(f, 11);
+
+    auto check_fused_names = [](const ov::RTMap& info, const std::string& names) {
+        const std::string& key = ngraph::FusedNames::get_type_info_static();
+        ASSERT_TRUE(info.count(key));
+        auto fused_names_attr = info.at(key).as<ngraph::FusedNames>();
+        ASSERT_EQ(fused_names_attr.getNames(), names);
+    };
+
+    auto param = f->get_parameters()[0];
+    check_fused_names(param->output(0).get_rt_info(), "test1,test2");
+    EXPECT_EQ(param->get_layout(), "NCHW");
+    auto var0 = f->input(0)
+                    .get_rt_info()
+                    .at(ov::preprocess::TensorInfoMemoryType::get_type_info_static())
+                    .as<ov::preprocess::TensorInfoMemoryType>()
+                    .value;
+    EXPECT_EQ(var0, "test_memory_type");
+
+    auto result = f->get_result();
+    check_fused_names(result->input(0).get_rt_info(), "test5,test6");
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "?CHW");
+
+    auto add = result->get_input_node_ptr(0);
+    check_fused_names(add->input(0).get_rt_info(), "test2,test3");
+    check_fused_names(add->input(1).get_rt_info(), "test3,test4");
+    check_fused_names(add->output(0).get_rt_info(), "test4,test5");
+
+    // read IR v11 with old API - the function is the same since no old_api_map is applied
+    {
+        InferenceEngine::Core core;
+        auto cnn = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
+        auto f_10 = cnn.getFunction();
+        ASSERT_NE(nullptr, f_10);
+
+        EXPECT_EQ(InferenceEngine::Precision::FP32, cnn.getInputsInfo()["in1"]->getPrecision());
+        EXPECT_EQ(InferenceEngine::Precision::FP32, cnn.getOutputsInfo()["sum"]->getPrecision());
+
+        // check that old api map is removed once applied
+        auto check_old_api_rt_info = [](const ov::RTMap& info) {
+            const std::string& key_type = ov::OldApiMapElementType::get_type_info_static();
+            EXPECT_FALSE(info.count(key_type));
+            const std::string& key_order = ov::OldApiMapElementType::get_type_info_static();
+            EXPECT_FALSE(info.count(key_order));
+        };
+
+        check_old_api_rt_info(f_10->get_parameters()[0]->get_rt_info());
+        check_old_api_rt_info(f_10->get_result()->get_rt_info());
+
+        auto res = compare_functions(f, f_10);
+        EXPECT_TRUE(res.first) << res.second;
+
+        check_version(f_10, 10);
+    }
+}
