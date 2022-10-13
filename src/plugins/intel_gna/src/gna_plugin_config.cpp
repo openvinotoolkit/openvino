@@ -60,8 +60,6 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             }
         };
 
-        auto &log = ov::intel_gna::log::debug();
-
         auto check_compatibility = [&](const std::string& recommended_key) {
             if (config.count(recommended_key)) {
                 if (value != config.at(recommended_key)) {
