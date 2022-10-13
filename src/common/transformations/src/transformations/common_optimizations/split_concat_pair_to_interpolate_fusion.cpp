@@ -69,6 +69,11 @@ std::pair<std::shared_ptr<ngraph::opset8::Split>, uint64_t> get_split_before_con
 
     // If 'split' node has more than one consumer, then the transformation is not applicable.
     for (const auto& output : split->outputs()) {
+        // if there is 'split' output port with no consumers,
+        // SplitConcatPairToInterpolateFusion is not applicable
+        if (output.get_target_inputs().empty()) {
+            return {};
+        }
         for (const auto& consumer : output.get_target_inputs()) {
             if (consumer.get_node() != concat.get())
                 return {};

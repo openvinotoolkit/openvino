@@ -3,12 +3,15 @@
 //
 #pragma once
 #include <openvino/op/read_value.hpp>
+
 #include "utils.hpp"
 namespace ov {
 namespace op {
 
 template <class OpType, class ShapeType>
-void read_value_shape_infer(const OpType* op, const std::vector<ShapeType>& input_shapes, std::vector<ShapeType>& output_shapes) {
+void read_value_shape_infer(const OpType* op,
+                            const std::vector<ShapeType>& input_shapes,
+                            std::vector<ShapeType>& output_shapes) {
     copy_shape_infer(op, input_shapes, output_shapes);
 }
 

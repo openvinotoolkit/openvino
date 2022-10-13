@@ -5,7 +5,8 @@ if(NOT ENABLE_PYTHON)
     message(WARNING "Please enable IE & nGraph Python API (pyopenvino) targets to enable Model Optimizer target")
 else()
     add_custom_target(model_optimizer DEPENDS ie_api openvino_ir_frontend pyopenvino)
-    if(ENABLE_TESTS AND NOT DISABLE_PYBIND11)
+
+    if(ENABLE_TESTS)
         add_subdirectory(unit_tests/mock_mo_frontend/mock_mo_frontend)
         add_dependencies(model_optimizer openvino_mock_mo_frontend)
 

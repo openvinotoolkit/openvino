@@ -27,6 +27,7 @@
 #include "intel_gpu/primitives/experimental_detectron_prior_grid_generator.hpp"
 #include "intel_gpu/primitives/experimental_detectron_roi_feature_extractor.hpp"
 #include "intel_gpu/primitives/experimental_detectron_topk_rois.hpp"
+#include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/primitives/gather.hpp"
 #include "intel_gpu/primitives/gather_elements.hpp"
@@ -73,6 +74,7 @@
 #include "intel_gpu/primitives/strided_slice.hpp"
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/primitives/non_zero.hpp"
+#include "intel_gpu/primitives/eye.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -117,6 +119,7 @@ REGISTER_OCL(gather);
 REGISTER_OCL(gather_nd);
 REGISTER_OCL(gather_elements);
 REGISTER_OCL(gemm);
+REGISTER_OCL(generate_proposals);
 REGISTER_OCL(lrn);
 REGISTER_OCL(lstm_gemm);
 REGISTER_OCL(lstm_elt);
@@ -128,6 +131,7 @@ REGISTER_OCL(normalize);
 REGISTER_OCL(one_hot);
 REGISTER_OCL(permute);
 REGISTER_OCL(pooling);
+REGISTER_OCL(prior_box);
 REGISTER_OCL(pyramid_roi_align);
 REGISTER_OCL(quantize);
 REGISTER_OCL(random_uniform);
@@ -167,6 +171,7 @@ REGISTER_OCL(extract_image_patches);
 REGISTER_OCL(convert_color);
 REGISTER_OCL(count_nonzero);
 REGISTER_OCL(gather_nonzero);
+REGISTER_OCL(eye);
 
 #undef REGISTER_OCL
 
