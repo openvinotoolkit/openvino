@@ -12,7 +12,7 @@ using namespace ov::opset10;
 
 TEST(type_prop, is_inf_default) {
     const auto data = make_shared<Parameter>(element::f32, PartialShape{1, 64, 256, 256});
-    const auto is_inf = make_shared<IsInf>(data, IsInf::Attributes{});
+    const auto is_inf = make_shared<IsInf>(data);
 
     EXPECT_EQ(is_inf->get_element_type(), element::boolean)
         << "The output element type of IsInf should always be boolean";

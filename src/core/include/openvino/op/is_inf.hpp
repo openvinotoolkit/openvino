@@ -34,6 +34,10 @@ public:
     /// \brief Constructs a IsInf operation
     ///
     /// \param data   Input data tensor
+    IsInf(const Output<Node>& data);
+    /// \brief Constructs a IsInf operation
+    ///
+    /// \param data   Input data tensor
     /// \param attrs  IsInf attributes
     IsInf(const Output<Node>& data, const Attributes& attributes);
 
@@ -45,6 +49,10 @@ public:
 
     const Attributes& get_attributes() const {
         return m_attributes;
+    }
+
+    void set_attributes(const Attributes& attributes) {
+        m_attributes = attributes;
     }
 
 private:

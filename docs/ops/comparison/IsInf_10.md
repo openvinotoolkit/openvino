@@ -6,7 +6,7 @@
 
 **Short description**: *IsInf* performs element-wise mapping of infinite values to True.
 
-**Detailed description**: *IsInf* performs element-wise mapping of infinite values to true and other values to false. Attributes `detect_negative` and `detect_positive` can be used to control the mapping of negative and positive infinities.
+**Detailed description**: *IsInf* performs element-wise mapping of infinite values to true and other values to false. Attributes `detect_negative` and `detect_positive` can be used to control the mapping of negative and positive infinities. Setting both `detect_negative` and `detect_positive` to false will map all values to false.
 
 **Attributes**
 
@@ -32,15 +32,15 @@
 
 **Inputs**
 
-* **1**: `data` - Input tensor of type `T` with data and arbitrary shape. **Required.**
+* **1**: `data` - Input tensor of type `T_IN` with data and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of the element-wise mapping of infinite values applied to the input tensor. A tensor of the boolean type and shape equal to the input tensor.
+* **1**: The result of the element-wise mapping of infinite values applied to the input tensor. A tensor of the `boolean` type and shape equal to the input tensor.
 
 **Types**
 
-* **T**: `bfloat16`, `float16`, `float32`, `float64`
+* **T_IN**: any supported floating-point type.
 
 **Example**
 

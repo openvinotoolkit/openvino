@@ -85,15 +85,16 @@ def interpolate(
     return _get_node_factory_opset4().create("Interpolate", inputs, attrs)
 
 
+@nameable_op
 def is_inf(
     data: NodeInput,
-    attributes: dict,
+    attributes: Optional[dict] = None,
     name: Optional[str] = None,
 ) -> Node:
     """Return a node which perform IsInf operation.
 
     :param data: The input tensor.
-    :param attributes: A dictionary containing IsInf attributes.
+    :param attributes: Optional dictionary containing IsInf attributes.
     :param name: Optional name of the node.
 
     Available attributes:
@@ -109,4 +110,6 @@ def is_inf(
 
     :return: A new IsInf node.
     """
+    if not attributes:
+        attributes = {}
     return _get_node_factory_opset10().create("IsInf", as_nodes(data), attributes)
