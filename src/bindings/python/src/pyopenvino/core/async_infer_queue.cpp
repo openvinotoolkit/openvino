@@ -159,7 +159,7 @@ void regclass_AsyncInferQueue(py::module m) {
                 }
                 std::vector<InferRequestWrapper> requests;
                 std::queue<size_t> idle_handles;
-                std::vector<py::object> user_ids(jobs);
+                std::vector<py::object> user_ids(jobs, py::none());
 
                 for (size_t handle = 0; handle < jobs; handle++) {
                     auto request = InferRequestWrapper(model.create_infer_request());
