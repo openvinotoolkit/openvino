@@ -281,6 +281,7 @@ set(SRC
     visitors/op/bucketize.cpp
     visitors/op/ceiling.cpp
     visitors/op/clamp.cpp
+    visitors/op/concat.cpp
     visitors/op/constant.cpp
     visitors/op/convert.cpp
     visitors/op/convert_color_i420.cpp
@@ -372,6 +373,7 @@ set(SRC
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
     visitors/op/random_uniform.cpp
+    visitors/op/range.cpp
     visitors/op/rdft.cpp
     visitors/op/read_value.cpp
     visitors/op/reduce_l1.cpp
