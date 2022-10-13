@@ -24,3 +24,9 @@ public:
 
 }  // namespace pass
 }  // namespace ov
+
+namespace ngraph {
+namespace pass {
+using ov::pass::MatMulConstTransposesExtraction;
+}  // namespace pass
+}  // namespace ngraph
