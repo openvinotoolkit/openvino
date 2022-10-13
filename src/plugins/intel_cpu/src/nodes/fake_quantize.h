@@ -213,6 +213,7 @@ private:
     std::vector<float> crop2High;
 
     void initializeCrop2();
+    float originalPerTensorInputShift;
 
     std::vector<float> quantizationData;
     size_t quantizationDataSize = 0lu;

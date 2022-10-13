@@ -999,6 +999,13 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
         const auto outputHighNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(4));
         auto outputHighData = outputHighNode->cast_vector<float>();
 
+        const auto& rtInfo = fq->get_rt_info();
+        if (rtInfo.count("originalPerTensorInputShift")) {
+            originalPerTensorInputShift = rtInfo.at("originalPerTensorInputShift").as<float>();
+        } else {
+            originalPerTensorInputShift = NAN;
+        }
+
         binarization = levels == 2;
 
         if (binarization) {
@@ -2037,9 +2044,9 @@ void FakeQuantize::appendBinPostOpsOptimized(dnnl::post_ops& ops, const VectorDi
 #endif
 }
 
-static bool isPerTensor(const std::vector<float>& v, const float zero_thr = std::numeric_limits<float>::min()) {
+static bool isPerTensor(const std::vector<float>& v, float ref, const float zero_thr = std::numeric_limits<float>::min()) {
     return (v.size() == 1) || std::all_of(v.cbegin(), v.cend(), [&](float val) {
-            return abs(val - v[0]) < zero_thr;
+            return abs(val - ref) < zero_thr;
         });
 }
 
@@ -2080,10 +2087,10 @@ void FakeQuantize::initializeCrop2() {
         if (crop2Low[i] > crop2High[i])
             std::swap(crop2Low[i], crop2High[i]);
     }
-    if (isPerTensor(crop2Low)) {
+    if (isPerTensor(crop2Low, crop2Low[0])) {
         crop2Low.resize(1);
     }
-    if (isPerTensor(crop2High)) {
+    if (isPerTensor(crop2High, crop2High[0])) {
         crop2High.resize(1);
     }
 }
@@ -2099,18 +2106,24 @@ bool FakeQuantize::optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
                                            bool allowShift) {
     initializeCrop2();
 
-    if (!isPerTensor(inputShift))
+    float ish_ref = originalPerTensorInputShift;
+    float ish_thr = 0.0001f;
+    if (std::isnan(ish_ref)) {
+        ish_ref = inputShift[0];
+        ish_thr = std::numeric_limits<float>::min();
+    }
+    if (!isPerTensor(inputShift, ish_ref, ish_thr))
         return false;
     if (crop2Low.size() > 1)
         return false;
     if (crop2High.size() > 1)
         return false;
-    if (!isPerTensor(outputScale))
+    if (!isPerTensor(outputScale, outputScale[0]))
         return false;
-    if (!isPerTensor(outputShift))
+    if (!isPerTensor(outputShift, outputShift[0]))
         return false;
 
-    float ish = inputShift[0];
+    float ish = ish_ref;
     float c2lo = crop2Low[0];
     float c2hi = crop2High[0];
     float osc = outputScale[0];
@@ -2120,7 +2133,7 @@ bool FakeQuantize::optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
         if (!allowShift && (ish != 0.0f || osh != 0.0f))
             return false;
 
-        if (isPerTensor(inputScale)) {
+        if (isPerTensor(inputScale, inputScale[0])) {
             if (allowOscale && ish == 0.0f) {
                 attr.set_output_scales(0, inputScale);
             } else {
