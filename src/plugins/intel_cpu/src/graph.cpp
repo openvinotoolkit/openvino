@@ -67,6 +67,7 @@ dnnl::engine Graph::eng(dnnl::engine::kind::cpu, 0);
 
 Graph::~Graph() {
     CPU_DEBUG_CAP_ENABLE(summary_perf(*this));
+    std::cout << "Total time of the preparation stage ms: " << preparationCounter / 1000000 << std::endl;
 }
 
 template<typename NET>
@@ -1188,10 +1189,13 @@ void Graph::Infer(InferRequestBase* request) {
     waveFrontCount.front() = 1;
 
     while (prepareCounter + 1 < executableGraphNodes.size()) {
+        auto start = std::chrono::steady_clock::now();
         tbb::task_group tg;
 
         tg.run(UpdateShape(tg, prepareCounter, waveFrontCount, executableGraphNodes, prepareCounter, inferCounter));
         tg.wait();
+        auto end = std::chrono::steady_clock::now();
+        preparationCounter += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
 
         // tbb::parallel_do(&block, &block + 1,
         //     [&](const std::pair<size_t, size_t>& block_, tbb::parallel_do_feeder<std::pair<size_t, size_t>>& feeder) {

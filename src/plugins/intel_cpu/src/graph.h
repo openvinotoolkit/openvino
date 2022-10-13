@@ -264,6 +264,7 @@ private:
     MultiCachePtr rtParamsCache;
 
     void EnforceBF16();
+    size_t preparationCounter;
 };
 
 }   // namespace intel_cpu
