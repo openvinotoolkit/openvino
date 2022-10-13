@@ -682,3 +682,29 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial3D2Dynamic
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ interpolate }, ngraph::ParameterVector{ input });
     }
 }
+
+TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSplitWithEmptyPorts) {
+    // it covers a case with Split node of which some outputs ports are disconnected
+    // in this case the transformation is not applied
+    size_t num_splits = 3;
+    int64_t axis = 1;
+    {
+        auto input1 = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 96, 96});
+
+        auto split1_axis = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, {axis});
+        auto split1 = std::make_shared<ngraph::opset8::Split>(input1, split1_axis, num_splits);
+
+        auto concat_const1 = ngraph::opset8::Constant::create(ngraph::element::f32,
+                                                              ngraph::Shape{1, 1, 96, 96},
+                                                              std::vector<float>(96 * 96, 0));
+        auto concat_const2 = ngraph::opset8::Constant::create(ngraph::element::f32,
+                                                              ngraph::Shape{1, 1, 96, 96},
+                                                              std::vector<float>(96 * 96, 0));
+
+        ngraph::OutputVector concat_inputs_vec{split1->output(0), concat_const1, concat_const2};
+
+        auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{input1});
+        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
+    }
+}

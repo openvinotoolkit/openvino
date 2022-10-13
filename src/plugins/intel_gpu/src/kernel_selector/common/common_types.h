@@ -88,7 +88,10 @@ enum class KernelType {
     CONVERT_COLOR,
     RANDOM_UNIFORM,
     ADAPTIVE_POOLING,
-    REVERSE
+    REVERSE,
+    PRIOR_BOX,
+    EYE,
+    GENERATE_PROPOSALS
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

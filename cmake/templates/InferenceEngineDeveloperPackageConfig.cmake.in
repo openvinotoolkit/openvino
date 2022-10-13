@@ -31,6 +31,11 @@ message(" ")
 # for samples in 3rd party projects
 set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # Disable warning as error for private components
+    set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
+endif()
+
 #
 # Content
 #

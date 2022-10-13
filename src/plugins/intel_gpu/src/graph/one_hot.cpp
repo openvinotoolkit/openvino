@@ -79,6 +79,8 @@ std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& /*node
     return {{output_shapes[0], dt, format::get_default_format(output_shapes[0].size())}};
 }
 
+template std::vector<layout> one_hot_inst::calc_output_layouts<ov::PartialShape>(one_hot_node const& node, const kernel_impl_params& impl_param);
+
 std::string one_hot_inst::to_string(one_hot_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
