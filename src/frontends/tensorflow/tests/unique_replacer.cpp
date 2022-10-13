@@ -121,6 +121,7 @@ TEST_F(TransformationTestsF, UniqueReplacerInt32) {
         manager.register_pass<UniqueReplacer>();
     }
     { function_ref = gen_model_ref(PartialShape{10}, element::i32); }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, UniqueReplacerInt64) {
@@ -129,4 +130,5 @@ TEST_F(TransformationTestsF, UniqueReplacerInt64) {
         manager.register_pass<UniqueReplacer>();
     }
     { function_ref = gen_model_ref(PartialShape{42}, element::i64); }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
