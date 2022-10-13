@@ -106,8 +106,15 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ngraph::opset5::Tenso
         ti_inputs[ordered_in_descs[0]->m_input_index],
         {batch_dim});
 
-    auto seq_lengths_scalar = ngraph::opset5::Constant::create(ngraph::element::i32, {}, {ti->get_num_iterations()});
-    auto seq_lengths = ngraph::op::util::make_try_fold<ngraph::opset5::Broadcast>(seq_lengths_scalar, batch_dimension);
+    std::shared_ptr<ngraph::Node> seq_len_input;
+    if (ti->get_num_iterations() >= 0) {
+        seq_len_input = ngraph::opset5::Constant::create(ngraph::element::i32, {}, {ti->get_num_iterations()});
+    } else {
+        // negative value in num_iterations member of TensorIterator op means that we can't
+        // define the actual number iterations, most probably the shape of data input is dynamic
+        seq_len_input = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(X, {1});
+    }
+    auto seq_lengths = ngraph::op::util::make_try_fold<ngraph::opset5::Broadcast>(seq_len_input, batch_dimension);
 
     auto axis_0 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
     auto W = ngraph::op::util::make_try_fold<ngraph::opset5::Unsqueeze>(w_pattern, axis_0);
@@ -215,7 +222,7 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ngraph::opset5::Tenso
     if (!std::dynamic_pointer_cast<ngraph::opset5::Constant>(seq_lengths)) {
         new_nodes.emplace_back(batch_dimension);
         new_nodes.emplace_back(batch_dimension->get_input_node_shared_ptr(0));
-        new_nodes.emplace_back(seq_lengths_scalar);
+        new_nodes.emplace_back(seq_len_input);
         new_nodes.emplace_back(seq_lengths);
     }
     if (slice_axis == 0) {
@@ -252,7 +259,8 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
         auto cell = ngraph::pattern::wrap_type<ngraph::opset1::LSTMCell, ngraph::opset5::LSTMCell>(cell_inputs);
 
         auto pattern_2 = ngraph::pattern::wrap_type<ngraph::opset5::Constant>(ngraph::pattern::rank_equals(1));
-        auto unsqueeze = ngraph::pattern::wrap_type<ngraph::opset5::Reshape>({cell, pattern_2});
+        auto unsqueeze =
+            ngraph::pattern::wrap_type<ngraph::opset5::Reshape, ngraph::opset5::Unsqueeze>({cell, pattern_2});
         ngraph::pattern::Matcher matcher(unsqueeze);
 
         bool match = false;
@@ -311,7 +319,8 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
         auto cell = ngraph::pattern::wrap_type<ngraph::opset5::RNNCell>(cell_inputs);
 
         auto pattern_2 = ngraph::pattern::wrap_type<ngraph::opset5::Constant>(ngraph::pattern::rank_equals(1));
-        auto unsqueeze = ngraph::pattern::wrap_type<ngraph::opset5::Reshape>({cell, pattern_2});
+        auto unsqueeze =
+            ngraph::pattern::wrap_type<ngraph::opset5::Reshape, ngraph::opset5::Unsqueeze>({cell, pattern_2});
         ngraph::pattern::Matcher matcher(unsqueeze);
 
         bool match = false;
@@ -370,7 +379,8 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
         auto cell = ngraph::pattern::wrap_type<ngraph::opset5::GRUCell>(cell_inputs);
 
         auto pattern_2 = ngraph::pattern::wrap_type<ngraph::opset5::Constant>(ngraph::pattern::rank_equals(1));
-        auto unsqueeze = ngraph::pattern::wrap_type<ngraph::opset5::Reshape>({cell, pattern_2});
+        auto unsqueeze =
+            ngraph::pattern::wrap_type<ngraph::opset5::Reshape, ngraph::opset5::Unsqueeze>({cell, pattern_2});
         ngraph::pattern::Matcher matcher(unsqueeze);
 
         bool match = false;

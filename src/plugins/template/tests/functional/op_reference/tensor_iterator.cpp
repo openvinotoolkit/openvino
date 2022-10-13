@@ -2420,10 +2420,10 @@ std::vector<TensorIteratorStaticParams> generateParamsBF16() {
 
 std::vector<TensorIteratorStaticParams> generateCombinedParams() {
     const std::vector<std::vector<TensorIteratorStaticParams>> generatedParams {
-        generateParams<ov::element::Type_t::f64>(),
+        //generateParams<ov::element::Type_t::f64>(),
         generateParams<ov::element::Type_t::f32>(),
         generateParams<ov::element::Type_t::f16>(),
-        generateParamsBF16<ov::element::Type_t::bf16>(),
+        //generateParamsBF16<ov::element::Type_t::bf16>(),
     };
     std::vector<TensorIteratorStaticParams> combinedParams;
 

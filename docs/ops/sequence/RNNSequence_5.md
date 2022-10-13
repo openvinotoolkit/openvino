@@ -57,7 +57,7 @@ A single cell in the sequence is implemented in the same way as in <a href="#RNN
 
 * **2**: `H` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, input hidden state data. **Required.**
 
-* **3**: `sequence_lengths` - 1D tensor of type *T2* `[batch_size]`, specifies real sequence lengths for each batch element. **Required.**
+* **3**: `sequence_lengths` - 1D tensor of type *T2* `[batch_size]`, specifies real sequence lengths for each batch element. In case of negative values in this input, the operation behavior is undefined. **Required.**
 
 * **4**: `W` - 3D tensor of type *T1* `[num_directions, hidden_size, input_size]`, the weights for matrix multiplication. **Required.**
 
