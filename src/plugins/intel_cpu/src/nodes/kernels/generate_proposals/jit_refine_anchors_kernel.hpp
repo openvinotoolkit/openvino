@@ -104,15 +104,6 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
     Xbyak::Reg64 reg_img_h = r13;
     Xbyak::Reg64 reg_img_w = r14;
     Xbyak::Reg64 reg_num_proc_elem = r15;
-
-    Vmm vmm_x0 = Vmm(0);
-    Vmm vmm_y0 = Vmm(1);
-    Vmm vmm_x1 = Vmm(2);
-    Vmm vmm_y1 = Vmm(3);
-    Vmm vmm_dx = Vmm(4);
-    Vmm vmm_dy = Vmm(5);
-    Vmm vmm_d_log_w = Vmm(6);
-    Vmm vmm_d_log_h = Vmm(7);
 };
 
 } // namespace intel_cpu

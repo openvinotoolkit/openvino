@@ -86,7 +86,15 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
     mov(reg_img_h.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_h)]);
 
     const size_t& vmm_reg_size_in_bytes = this->SIMD_WIDTH * sizeof(float);
-    std::vector<Xbyak::Xmm> not_available_vmm;
+
+    RegistersPool::Reg<Vmm> vmm_x0 = RegistersPool::Reg<Vmm>{register_pool(), 0};
+    RegistersPool::Reg<Vmm> vmm_y0 = RegistersPool::Reg<Vmm>{register_pool(), 1};
+    RegistersPool::Reg<Vmm> vmm_x1 = RegistersPool::Reg<Vmm>{register_pool(), 2};
+    RegistersPool::Reg<Vmm> vmm_y1 = RegistersPool::Reg<Vmm>{register_pool(), 3};
+    RegistersPool::Reg<Vmm> vmm_dx = RegistersPool::Reg<Vmm>{register_pool(), 4};
+    RegistersPool::Reg<Vmm> vmm_dy = RegistersPool::Reg<Vmm>{register_pool(), 5};
+    RegistersPool::Reg<Vmm> vmm_d_log_w = RegistersPool::Reg<Vmm>{register_pool(), 6};
+    RegistersPool::Reg<Vmm> vmm_d_log_h = RegistersPool::Reg<Vmm>{register_pool(), 7};
 
     Xbyak::Label anchor_loop;
     Xbyak::Label loop_mask;
@@ -131,12 +139,11 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
                 float x1 = anchors[a_idx + 2 * a_idx_offset];
                 float y1 = anchors[a_idx + 3 * a_idx_offset];
              */
-            not_available_vmm = {vmm_x0, vmm_y0, vmm_x1, vmm_y1};
 
             // Prepare indexes
-            Vmm vmm_anchor_idx = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
-            Vmm vmm_anchor_anchor_offset = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
-            Vmm vmm_anchor_idx_offset = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
+            RegistersPool::Reg<Vmm> vmm_anchor_idx{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_anchor_anchor_offset{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_anchor_idx_offset{register_pool()};
             uni_vbroadcastss(vmm_anchor_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_start_idx)]);
             uni_vbroadcastss(vmm_anchor_anchor_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_anchor_offset)]);
             uni_vbroadcastss(vmm_anchor_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_idx_offset)]);
@@ -145,7 +152,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
             uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_anchor_offset);
 
             // Prepare mask
-            Vmm vmm_anchor_mask = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
+            RegistersPool::Reg<Vmm> vmm_anchor_mask{register_pool()};
             mov(rax.cvt32(), this->SIMD_WIDTH);
             sub(rax, reg_anchors_chunk);
             add(rax, 16);
@@ -172,6 +179,10 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
                 uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
                 emu_vgatherdps(vmm_y1, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), 0, vmm_anchor_mask);
             }
+            vmm_anchor_idx.release();
+            vmm_anchor_anchor_offset.release();
+            vmm_anchor_idx_offset.release();
+            vmm_anchor_mask.release();
 
             /** @code
                 const int d_idx = delta_idx(anchor, 0, h, w);
@@ -181,13 +192,11 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
                 const float d_log_w = deltas[d_idx + 2 * d_idx_offset];
                 const float d_log_h = deltas[d_idx + 3 * d_idx_offset];
              */
-            not_available_vmm = {vmm_x0, vmm_y0, vmm_x1, vmm_y1,
-                                 vmm_dx, vmm_dy, vmm_d_log_w, vmm_d_log_h};
 
             // Prepare indexes
-            Vmm vmm_delta_idx = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
-            Vmm vmm_delta_anchor_offset = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
-            Vmm vmm_delta_idx_offset = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
+            RegistersPool::Reg<Vmm> vmm_delta_idx{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_delta_anchor_offset{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_delta_idx_offset{register_pool()};
             uni_vbroadcastss(vmm_delta_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_start_idx)]);
             uni_vbroadcastss(vmm_delta_anchor_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_anchor_offset)]);
             uni_vbroadcastss(vmm_delta_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_idx_offset)]);
@@ -196,7 +205,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
             uni_vpaddd(vmm_delta_idx, vmm_delta_idx, vmm_delta_anchor_offset);
 
             // Prepare mask
-            Vmm vmm_delta_mask = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
+            RegistersPool::Reg<Vmm> vmm_delta_mask{register_pool()};
             uni_vmovdqu(vmm_delta_mask, vmm_anchor_mask_addr);
 
             {
@@ -215,10 +224,12 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
                 uni_vpaddd(vmm_delta_idx, vmm_delta_idx, vmm_delta_idx_offset);
                 emu_vgatherdps(vmm_d_log_h, reg_deltas_ptr, vmm_delta_idx, sizeof(float), 0, vmm_delta_mask);
             }
+            vmm_delta_idx.release();
+            vmm_delta_anchor_offset.release();
+            vmm_delta_idx_offset.release();
+            vmm_delta_mask.release();
 
-            not_available_vmm = {vmm_x0, vmm_y0, vmm_x1, vmm_y1,
-                                 vmm_dx, vmm_dy, vmm_d_log_w, vmm_d_log_h};
-            Vmm vmm_temp = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
+            RegistersPool::Reg<Vmm> vmm_temp{register_pool()};
 
             /** @code
                 // width & height of box
@@ -379,12 +390,11 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
                 proposals[p_idx + 3] = y1;
                 ...
              */
-            not_available_vmm = {vmm_x0, vmm_y0, vmm_x1, vmm_y1};
 
             // Prepare indexes
-            Vmm vmm_proposals_idx = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
-            Vmm vmm_proposals_anchor_offset = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
-            Vmm vmm_proposals_idx_offset = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
+            RegistersPool::Reg<Vmm> vmm_proposals_idx{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_proposals_anchor_offset{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_proposals_idx_offset{register_pool()};
             uni_vbroadcastss(vmm_proposals_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_start_idx)]);
             uni_vbroadcastss(vmm_proposals_anchor_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_anchor_offset)]);
             uni_vbroadcastss(vmm_proposals_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_idx_offset)]);
@@ -393,7 +403,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
             uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_anchor_offset);
 
             // Prepare mask
-            Vmm vmm_proposals_mask = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
+            RegistersPool::Reg<Vmm> vmm_proposals_mask{register_pool()};
             uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
 
             {
@@ -412,15 +422,16 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
                 uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_idx_offset);
                 emu_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), 0, vmm_y1, vmm_proposals_mask);
             }
+            vmm_proposals_anchor_offset.release();
 
             /** @code
                 const float score = scores[score_idx(anchor, 0, h, w)];
              */
-            Vmm vmm_score = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
+            RegistersPool::Reg<Vmm> vmm_score{register_pool()};
 
             // Prepare indexes
-            Vmm vmm_score_idx = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
-            Vmm vmm_score_anchor_offset = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
+            RegistersPool::Reg<Vmm> vmm_score_idx{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_score_anchor_offset{register_pool()};
             uni_vbroadcastss(vmm_score_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, score_start_idx)]);
             uni_vbroadcastss(vmm_score_anchor_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, score_anchor_offset)]);
             mov(rbx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, refine_anchor_indices)]);
@@ -428,13 +439,16 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
             uni_vpaddd(vmm_score_idx, vmm_score_idx, vmm_score_anchor_offset);
 
             // Prepare mask
-            Vmm vmm_score_mask = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
+            RegistersPool::Reg<Vmm> vmm_score_mask{register_pool()};
             uni_vmovdqu(vmm_score_mask, vmm_anchor_mask_addr);
 
             {
                 // const float score = scores[score_idx(anchor, 0, h, w)];
                 emu_vgatherdps(vmm_score, reg_scores_ptr, vmm_score_idx, sizeof(float), 0, vmm_score_mask);
             }
+            vmm_score_idx.release();
+            vmm_score_anchor_offset.release();
+            vmm_score_mask.release();
 
             /** @code
                 int p_idx = proposal_idx(h, w, anchor, 0);
@@ -448,16 +462,17 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
                 uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_idx_offset);
                 emu_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), 0, vmm_score, vmm_proposals_mask);
             }
+            vmm_score.release();
 
             /** @code
                 // recompute new width & height
                 const float box_w = x1 - x0 + coordinates_offset;
                 const float box_h = y1 - y0 + coordinates_offset;
              */
-            Vmm vmm_box_w = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
-            Vmm vmm_box_h = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
-            Vmm vmm_min_box_w = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
-            Vmm vmm_min_box_h = register_pool()->template getInplaceFree<Vmm>(not_available_vmm);
+            RegistersPool::Reg<Vmm> vmm_box_w{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_box_h{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_min_box_w{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_min_box_h{register_pool()};
 
             // const float box_w = x1 - x0 + coordinates_offset;
             uni_vsubps(vmm_box_w, vmm_x1, vmm_x0);
