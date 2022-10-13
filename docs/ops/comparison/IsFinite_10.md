@@ -1,6 +1,6 @@
-# IsFinite {#openvino_docs_ops_arithmetic_IsFinite_1}
+# IsFinite {#openvino_docs_ops_arithmetic_IsFinite_10}
 
-**Versioned name**: *IsFinite-1*
+**Versioned name**: *IsFinite-10*
 
 **Category**: *Comparison*
 
