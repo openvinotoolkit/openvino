@@ -65,9 +65,7 @@ endif()
 file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp utils/*cpp pyopenvino.cpp)
 list(FILTER SOURCES EXCLUDE REGEX frontend/onnx|tensorflow|paddle/* )
 
-set(CHANGED_PROJECT_NAME _${PROJECT_NAME})
-
-pybind11_add_module(${CHANGED_PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
+pybind11_add_module(${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
 
 if(TARGET offline_transformations)
     set(OFFLINE_TRANSFORMATIONS_LIB offline_transformations)
@@ -75,29 +73,23 @@ else()
     set(OFFLINE_TRANSFORMATIONS_LIB openvino::offline_transformations)
 endif()
 
-target_include_directories(${CHANGED_PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(${CHANGED_PROJECT_NAME} PRIVATE openvino::runtime::dev openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
-set_target_properties(${CHANGED_PROJECT_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime::dev openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
+set_target_properties(${PROJECT_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO} OUTPUT_NAME "_pyopenvino")
 
 addVersionDefines(pyopenvino.cpp CI_BUILD_NUMBER)
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)
-    add_custom_command(TARGET ${CHANGED_PROJECT_NAME}
+    add_custom_command(TARGET ${PROJECT_NAME}
             POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
             )
 endif()
 
-<<<<<<< HEAD
 if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
     ie_python_minimal_api(${PROJECT_NAME})
     add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
-=======
-if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
-    ie_python_minimal_api(${CHANGED_PROJECT_NAME})
-    add_clang_format_target(${CHANGED_PROJECT_NAME}_clang FOR_TARGETS ${CHANGED_PROJECT_NAME})
->>>>>>> c4e1b5a53f... keep folder w/o underscore
 
     ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
                            HIDDEN)
@@ -108,13 +100,8 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
             USE_SOURCE_PERMISSIONS
             PATTERN "test_utils" EXCLUDE)
 
-<<<<<<< HEAD
     install(TARGETS ${PROJECT_NAME}
             DESTINATION ${OV_CPACK_PYTHONDIR}/openvino
-=======
-    install(TARGETS ${CHANGED_PROJECT_NAME}
-            DESTINATION ${OV_CPACK_PYTHONDIR}/${pyversion}/openvino
->>>>>>> c4e1b5a53f... keep folder w/o underscore
             COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion})
 
     install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/tests
@@ -123,5 +110,5 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
 endif()
 
 if(TARGET ie_wheel)
-    add_dependencies(ie_wheel ${CHANGED_PROJECT_NAME})
+    add_dependencies(ie_wheel ${PROJECT_NAME})
 endif()
