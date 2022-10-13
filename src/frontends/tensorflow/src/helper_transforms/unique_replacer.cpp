@@ -33,7 +33,7 @@ ov::frontend::tensorflow::pass::UniqueReplacer::UniqueReplacer() {
         }
 
         auto x = unique_node->input_value(0);
-        auto out_idx = unique_node->get_out_idx();
+        auto output_indices_type = unique_node->get_output_indices_type();
         auto x_type = x.get_element_type();
         if (!x_type.is_real() && !x_type.is_integral_number()) {
             return false;
@@ -48,8 +48,8 @@ ov::frontend::tensorflow::pass::UniqueReplacer::UniqueReplacer() {
         auto one_const_scalar = rg.make<Constant>(element::i32, Shape{}, 1);
         auto minus_one_const = rg.make<Constant>(element::i32, Shape{1}, -1);
         auto true_const = rg.make<Constant>(element::boolean, Shape{1}, true);
-        auto one_const_out_idx = rg.make<Constant>(out_idx, Shape{1}, 1);
-        auto zero_const_out_idx = rg.make<Constant>(out_idx, Shape{1}, 0);
+        auto one_const_out_idx = rg.make<Constant>(output_indices_type, Shape{1}, 1);
+        auto zero_const_out_idx = rg.make<Constant>(output_indices_type, Shape{1}, 0);
 
         // compute unique elements but not in the original order
         // 1. sort elements in x in order to compute unique elements
@@ -110,7 +110,7 @@ ov::frontend::tensorflow::pass::UniqueReplacer::UniqueReplacer() {
             auto unique_vs_x_orig_01 = rg.make<Select>(unique_vs_x_orig, one_const_out_idx, zero_const_out_idx);
             // 2. compute positions where each element from x is located in unique elements vector
             // the position counts from 1
-            auto range_1mplus1 = rg.make<Range>(one_const_scalar, mplus1, one_const_scalar, out_idx);
+            auto range_1mplus1 = rg.make<Range>(one_const_scalar, mplus1, one_const_scalar, output_indices_type);
             auto unsqueeze_range_1mplus1 = rg.make<Unsqueeze>(range_1mplus1, one_const);
             auto unique_vs_x_ind_orig = rg.make<Multiply>(unique_vs_x_orig_01, unsqueeze_range_1mplus1);
             auto output_idx_plus1 = rg.make<ReduceMax>(unique_vs_x_ind_orig, zero_const);
