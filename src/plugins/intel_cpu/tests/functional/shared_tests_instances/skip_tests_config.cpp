@@ -183,6 +183,10 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*(BF|bf)16.*)");
         retVector.emplace_back(R"(.*bfloat16.*)");
     }
+    if (!InferenceEngine::with_cpu_x86_avx512_core_amx_int8())
+        //TODO: Issue 92895
+        // on platforms which do not support AMX, we are disabling I8 input tests
+        retVector.emplace_back(R"(smoke_LPT/FakeQuantizeWithNotOptimalTransformation.CompareWithRefImpl.*CPU.*I8.*)");
 
     return retVector;
 }
