@@ -202,8 +202,7 @@ void reshape_inst::update_output_memory() {
 
     build_deps();  // reshape need deps
     OPENVINO_ASSERT(input_memory_ptr() != nullptr, "[GPU] Failed to reuse input in ", id(), " primitive: input memory was not allocated");
-    _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->output_layout)};
-    _mem_allocated = false;
+    _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};
 }
 
 }  // namespace cldnn

@@ -389,6 +389,7 @@ TYPED_TEST(non_max_suppression_basic, multiple_outputs) {
 
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
+    bo.set_option(build_option::allow_new_shape_infer(true));
 
     cldnn::network net{engine, topo, bo};
 
@@ -443,7 +444,7 @@ TYPED_TEST(non_max_suppression_basic, multiple_outputs) {
     }
 
     topology second_output_topology;
-    second_output_topology.add(input_layout("selected_scores", this->selected_scores_layout));
+    second_output_topology.add(input_layout("selected_scores", selected_scores_mem->get_layout()));
     second_output_topology.add(input_layout("num_outputs", this->valid_outputs_layout));
     second_output_topology.add(reorder("plane_scores", "selected_scores", format::bfyx, this->data_type));
     second_output_topology.add(reorder("plane_num", "num_outputs", format::bfyx, cldnn::data_types::i32));

@@ -47,7 +47,7 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
         // Extend input layout for RDFT case to make input rank match output rank for easier calculations
         if (primitive->direction == dft_direction::forward && primitive->mode == dft_mode::real) {
             const auto input_layout = impl_param.get_input_layout();
-            const auto output_layout = impl_param.output_layout;
+            const auto output_layout = impl_param.get_output_layout();
             // No need to extend layout for input that has less than 4 dimensions
             if (input_layout.get_rank() != output_layout.get_rank()) {
                 auto new_dims = input_layout.get_dims();

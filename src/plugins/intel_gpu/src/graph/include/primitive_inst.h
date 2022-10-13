@@ -195,7 +195,7 @@ public:
 
     void allocate_internal_buffers();
     static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node,
-                                       const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal);
+                                       const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal, size_t idx = 0);
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
 
