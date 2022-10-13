@@ -76,7 +76,7 @@ int IStreamsExecutor::Config::GetHybridDefaultNumStreams(const Config& config) {
     return config._big_core_streams + config._small_core_streams;
 }
 
-int IStreamsExecutor::Config::GetHybridNonDefaultNumStreams(const Config& config, const int stream_mode) {
+int IStreamsExecutor::Config::GetHybridAggressiveNumStreams(const Config& config, const int stream_mode) {
     const int num_phy_cores = getNumberOfCPUCores();
     const int num_big_cores = getNumberOfCPUCores(true);
     const int num_small_cores = num_phy_cores - num_big_cores;
@@ -88,7 +88,7 @@ int IStreamsExecutor::Config::GetHybridNonDefaultNumStreams(const Config& config
         config._big_core_streams = num_big_cores / 2;
         config._small_core_streams = num_small_cores / 4;
     } else {
-        IE_THROW() << "Wrong stream mode to get non default num of streams: " << stream_mode;
+        IE_THROW() << "Wrong stream mode to get aggressive num of streams: " << stream_mode;
     }
     config._threads_per_stream_big = num_big_cores / config._big_core_streams;
     config._threads_per_stream_small = num_small_cores / config._small_core_streams;
@@ -125,24 +125,17 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
 #if (defined(__APPLE__) || defined(_WIN32))
             _threadBindingType = ThreadBindingType::NUMA;
 #else
-            _threadBindingType = ThreadBindingType::CORES;
+            _threadBindingType = core_type_size > 1 ? ThreadBindingType::HYBRID_AWARE : ThreadBindingType::CORES;
 #endif
         } break;
         case ov::Affinity::NUMA:
             _threadBindingType = ThreadBindingType::NUMA;
             break;
         case ov::Affinity::HYBRID_AWARE:
-            _threadBindingType = ThreadBindingType::HYBRID_AWARE;
+            _threadBindingType = core_type_size == 1 ? ThreadBindingType::CORES : ThreadBindingType::HYBRID_AWARE;
             break;
         default:
             OPENVINO_UNREACHABLE("Unsupported affinity type");
-        }
-        // correct unreasonable thread_binding_type entered by user
-        if (core_type_size > 1) {
-            _threadBindingType = ThreadBindingType::HYBRID_AWARE;
-        }
-        if (_threadBindingType == ThreadBindingType::HYBRID_AWARE && core_type_size == 1) {
-            _threadBindingType = ThreadBindingType::CORES;
         }
     } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
         if (value == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {

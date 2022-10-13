@@ -733,7 +733,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
                 // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
                 num_streams = engConfig.streamExecutorConfig._threadBindingType ==
                                       InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                                  ? IStreamsExecutor::Config::GetHybridNonDefaultNumStreams(
+                                  ? IStreamsExecutor::Config::GetHybridAggressiveNumStreams(
                                         engConfig.streamExecutorConfig,
                                         IStreamsExecutor::Config::StreamMode::AGGRESSIVE)
                                   : num_cores;
@@ -742,7 +742,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             // network is below the ISA-specific threshold
             num_streams = engConfig.streamExecutorConfig._threadBindingType ==
                                   InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                              ? IStreamsExecutor::Config::GetHybridNonDefaultNumStreams(
+                              ? IStreamsExecutor::Config::GetHybridAggressiveNumStreams(
                                     engConfig.streamExecutorConfig,
                                     IStreamsExecutor::Config::StreamMode::AGGRESSIVE)
                               : num_cores;
@@ -750,7 +750,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             // network is below general threshold
             num_streams = engConfig.streamExecutorConfig._threadBindingType ==
                                   InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                              ? IStreamsExecutor::Config::GetHybridNonDefaultNumStreams(
+                              ? IStreamsExecutor::Config::GetHybridAggressiveNumStreams(
                                     engConfig.streamExecutorConfig,
                                     IStreamsExecutor::Config::StreamMode::LESSAGGRESSIVE)
                               : std::max(default_num_streams, num_streams_less_aggressive);
