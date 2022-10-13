@@ -46,11 +46,8 @@ class ngraph::pass::LinOpSequenceFusion : public ngraph::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("LinOpSequenceFusion", "0");
     LinOpSequenceFusion() {
-        CC_TRANSFORMATIONS_MATCH_SCOPE(AddMultiplyFusion)
-        add_matcher<ngraph::pass::AddMultiplyFusion>();
-        CC_TRANSFORMATIONS_MATCH_SCOPE(AddAddFusion)
-        add_matcher<ngraph::pass::AddAddFusion>();
-        CC_TRANSFORMATIONS_MATCH_SCOPE(MultiplyMultiplyFusion)
-        add_matcher<ngraph::pass::MultiplyMultiplyFusion>();
+        ADD_MATCHER_SCOPE_WITHOUT_OBJ(ngraph::pass, AddMultiplyFusion)
+        ADD_MATCHER_SCOPE_WITHOUT_OBJ(ngraph::pass, AddAddFusion)
+        ADD_MATCHER_SCOPE_WITHOUT_OBJ(ngraph::pass, MultiplyMultiplyFusion)
     }
 };

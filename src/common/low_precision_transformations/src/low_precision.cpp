@@ -201,9 +201,8 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
     const std::vector<ngraph::element::Type> supportedTypes = {ngraph::element::i8, ngraph::element::u8};
     prerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
     prerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
-    ADD_MATCHER_SCOPE(LinOpSequenceFusion)
-    prerequisites->add_matcher<ngraph::pass::LinOpSequenceFusion>();
-    prerequisites->add_matcher<ngraph::pass::low_precision::MoveFakeQuantize>();
+    ADD_MATCHER_SCOPE_WITH_OBJ(prerequisites, ngraph::pass, LinOpSequenceFusion)
+    ADD_MATCHER_SCOPE_WITH_OBJ(prerequisites, ngraph::pass::low_precision, MoveFakeQuantize)
 
     manager.register_pass<TypeRelaxedReplacer>();
 
@@ -211,48 +210,53 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
     manager.register_pass<ngraph::pass::low_precision::MarkupOptimizations>(precisionRestrictions, quantizationRestrictions, attributeParams);
 
     std::shared_ptr<ngraph::pass::GraphRewrite> common = manager.register_pass<ngraph::pass::GraphRewrite>();
-    common->add_matcher<ngraph::pass::low_precision::AddTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::AssignAndReadValueTransformation>(f, params);
-    common->add_matcher<ngraph::pass::low_precision::AvgPoolTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ClampTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ConcatTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ConvolutionTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ConvolutionBackpropDataTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::DepthToSpaceTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::FakeQuantizeTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::InterpolateTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::GroupConvolutionTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::MatMulTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::MaxPoolTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::MultiplyTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::MVNTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::NormalizeL2Transformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::PadTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::PReluTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ReduceMaxTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ReduceMeanTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ReduceMinTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ReduceSumTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ReluTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ReshapeTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::SqueezeTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ShuffleChannelsTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::SplitTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::StridedSliceTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::TransposeTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::UnsqueezeTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::VariadicSplitTransformation>(params);
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, AddTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, AssignAndReadValueTransformation, f, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, AvgPoolTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, ClampTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, ConcatTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, ConvolutionTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, ConvolutionBackpropDataTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, DepthToSpaceTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, FakeQuantizeDecompositionTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, FakeQuantizeTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, InterpolateTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, GroupConvolutionTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, MatMulTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, MaxPoolTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, MultiplyTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, MVNTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, NormalizeL2Transformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, PadTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, PReluTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, ReduceMaxTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, ReduceMeanTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, ReduceMinTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, ReduceSumTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, ReluTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, ReshapeTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, SqueezeTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, ShuffleChannelsTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, SplitTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, StridedSliceTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, TransposeTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, UnsqueezeTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, VariadicSplitTransformation, params)
 
     std::shared_ptr<ngraph::pass::GraphRewrite> cleanup = manager.register_pass<ngraph::pass::GraphRewrite>();
-    cleanup->add_matcher<ngraph::pass::low_precision::FoldConvertTransformation>(params);
-    cleanup->add_matcher<ngraph::pass::low_precision::FuseConvertTransformation>(params);
-    cleanup->add_matcher<ngraph::pass::low_precision::FuseSubtractToFakeQuantizeTransformation>(params);
-    cleanup->add_matcher<ngraph::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation>(params);
+    ADD_MATCHER_SCOPE_WITH_OBJ(cleanup, ngraph::pass::low_precision, AssignAndReadValueTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(cleanup, ngraph::pass::low_precision, FuseConvertTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(cleanup, ngraph::pass::low_precision, FuseSubtractToFakeQuantizeTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(cleanup, ngraph::pass::low_precision, FuseMultiplyToFakeQuantizeTransformation, params)
+
     // WA: precision restrictions for groupConv must be propagated to MultiplyToGroupConvolution transformation
-    cleanup->add_matcher<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>(
+    ADD_MATCHER_SCOPE_WITH_OBJ(
+        cleanup,
+        ngraph::pass::low_precision,
+        MultiplyToGroupConvolutionTransformation,
         params,
-        PrecisionsRestriction::getPrecisionsByOperationType<opset1::GroupConvolution>(precisionRestrictions));
+        PrecisionsRestriction::getPrecisionsByOperationType<opset1::GroupConvolution>(precisionRestrictions))
+
     manager.register_pass<ngraph::pass::low_precision::FoldFakeQuantizeTransformation>(params);
     manager.register_pass<ngraph::pass::ConstantFolding>();
 

@@ -530,20 +530,20 @@ pass::EliminateEltwise::EliminateEltwise() {
 
 ngraph::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     // shape-agnostic transformations
-    add_matcher<EliminatePad>();
-    add_matcher<EliminateConvert>();
-    add_matcher<EliminateConvertNonZero>();
-    add_matcher<EliminateConcat>();
-    add_matcher<EliminateSplit>();
-    add_matcher<EliminateTranspose>();
-    add_matcher<EliminateEltwise>();
+    ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(EliminatePad)
+    ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(EliminateConvert)
+    ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(EliminateConvertNonZero)
+    ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(EliminateConcat)
+    ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(EliminateSplit)
+    ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(EliminateTranspose)
+    ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(EliminateEltwise)
 
     // shape-dependent transformations
     if (use_shape_for_elimination) {
-        add_matcher<EliminateReshape>();
-        add_matcher<EliminateSqueeze>();
-        add_matcher<EliminateUnsqueeze>();
-        add_matcher<EliminateBroadcast>();
-        add_matcher<EliminateGather>();
+        ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(EliminateReshape)
+        ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(EliminateSqueeze)
+        ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(EliminateUnsqueeze)
+        ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(EliminateBroadcast)
+        ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(EliminateGather)
     }
 }

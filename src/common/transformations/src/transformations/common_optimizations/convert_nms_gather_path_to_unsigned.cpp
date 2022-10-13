@@ -103,10 +103,7 @@ public:
 }  // namespace ngraph
 
 ngraph::pass::ConvertNmsGatherPathToUnsigned::ConvertNmsGatherPathToUnsigned() {
-    CC_TRANSFORMATIONS_MATCH_SCOPE(InitNMSPath)
-    add_matcher<InitNMSPath>();
-    CC_TRANSFORMATIONS_MATCH_SCOPE(PropagateNMSPath)
-    add_matcher<PropagateNMSPath>();
-    CC_TRANSFORMATIONS_MATCH_SCOPE(UpdateConvertGather)
-    add_matcher<UpdateConvertGather>();
+    ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(InitNMSPath)
+    ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(PropagateNMSPath)
+    ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(UpdateConvertGather)
 }
