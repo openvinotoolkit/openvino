@@ -74,7 +74,6 @@
 #include "itt.hpp"
 #include "transformations/common_optimizations/sequence_fusion.hpp"
 #include "transformations/op_conversions/convert_ti_to_sequences.hpp"
-#include "transformations/common_optimizations/augru_cell_fusion.hpp"
 
 bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(MOCTransformations);
