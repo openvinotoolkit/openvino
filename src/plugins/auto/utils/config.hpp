@@ -105,10 +105,7 @@ struct PluginConfig {
             } else if (kvp.first.find("AUTO_") == 0) {
                 _passThroughConfig.emplace(kvp.first, kvp.second);
             } else {
-                if (pluginName.find("AUTO") != std::string::npos)
-                    IE_THROW(NotFound) << "Unsupported property " << kvp.first;
-                else
-                    _passThroughConfig.emplace(kvp.first, kvp.second);
+                _passThroughConfig.emplace(kvp.first, kvp.second);
             }
         }
         if (!config.empty())

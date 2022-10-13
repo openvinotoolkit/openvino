@@ -289,7 +289,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             if (parsedConfig.count(CONFIG_KEY(CACHE_DIR))) {
                 CoreConfig::CacheConfig tempConfig;
                 CoreConfig::fillConfig(tempConfig, parsedConfig.at(CONFIG_KEY(CACHE_DIR)));
-                if (!deviceSupportsCacheDir) {
+                if (!deviceSupportsCacheDir && device_name.find("MULTI") == std::string::npos &&
++                    device_name.find("AUTO") == std::string::npos) {
                     parsedConfig.erase(CONFIG_KEY(CACHE_DIR));
                 }
                 return tempConfig;
