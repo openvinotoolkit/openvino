@@ -32,51 +32,48 @@ def fill_tensor_random(tensor):
 def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     log.info(f"OpenVINO:\n{'': <9}{'API version':.<24} {get_version()}")
-    # Parsing and validation of input arguments
     if len(sys.argv) != 2:
         log.info(f'Usage: {sys.argv[0]} <path_to_model>')
         return 1
-    core = Core()
 
+    # Optimize for throughput. Best throughput can be reached by
+    # running multiple ov::InferRequest instances asyncronously
     tput = {'PERFORMANCE_HINT': 'THROUGHPUT'}
+    # Create Core and use it to compile a model
+    # Pick device by replacing CPU, for example MULTI:CPU(4),GPU(8)
+    core = Core()
     compiled_model = core.compile_model(sys.argv[1], 'CPU', tput)
+    # AsyncInferQueue creates optimal number of InferRequest instances
     ireqs = AsyncInferQueue(compiled_model)
-    nireq = len(ireqs)
+    # Fill input data for ireqs
     for ireq in ireqs:
         for model_input in compiled_model.inputs:
             fill_tensor_random(ireq.get_tensor(model_input))
-
-    init_niter = 100
-    # Align number of iterations by request number
-    niter = int((init_niter + nireq - 1) / nireq) * nireq
-    if init_niter != niter:
-        log.warning('Number of iterations was aligned by request number '
-                    f'from {init_niter} to {niter} using number of requests {nireq}')
-
-    times = []
+    # Run benchmarking for seconds_to_run seconds
+    seconds_to_run = 15
+    latencies = []
     in_fly = set()
     start_time = perf_counter()
-    for _ in range(niter):
+    while perf_counter() - start_time < seconds_to_run:
         idle_id = ireqs.get_idle_request_id()
         if idle_id in in_fly:
-            times.append(ireqs[idle_id].latency)
+            latencies.append(ireqs[idle_id].latency)
         else:
             in_fly.add(idle_id)
         ireqs.start_async()
-
     ireqs.wait_all()
     duration = perf_counter() - start_time
     for infer_request_id in in_fly:
-        times.append(ireqs[infer_request_id].latency)
-
-    times.sort()
+        latencies.append(ireqs[infer_request_id].latency)
+    # Report results
+    latencies.sort()
     percent = 50
-    percentile_latency_ms = percentile(times, percent)
-    avg_latency_ms = sum(times) / len(times)
-    min_latency_ms = times[0]
-    max_latency_ms = times[-1]
-    fps = niter / duration
-    log.info(f'Count:          {niter} iterations')
+    percentile_latency_ms = percentile(latencies, percent)
+    avg_latency_ms = sum(latencies) / len(latencies)
+    min_latency_ms = latencies[0]
+    max_latency_ms = latencies[-1]
+    fps = len(latencies) / duration
+    log.info(f'Count:          {len(latencies)} iterations')
     log.info(f'Duration:       {duration * 1e3:.2f} ms')
     log.info('Latency:')
     if percent == 50:

@@ -33,15 +33,15 @@ int main(int argc, char* argv[]) {
         ov::CompiledModel compiled_model = ov::Core{}.compile_model(argv[1], "CPU", latency);
         ov::InferRequest ireq = compiled_model.create_infer_request();
         // Fill input data for the ireq
-        for (const ov::Output<const ov::Node>& input : compiled_model.inputs()) {
-            fill_tensor_random(ireq.get_tensor(input));
+        for (const ov::Output<const ov::Node>& model_input : compiled_model.inputs()) {
+            fill_tensor_random(ireq.get_tensor(model_input));
         }
 
         // Warm up
         ireq.infer();
 
         // Run benchmarking for seconds_to_run seconds
-        std::chrono::seconds seconds_to_run{3};
+        std::chrono::seconds seconds_to_run{15};
         std::vector<double> latencies;
         auto start = std::chrono::steady_clock::now();
         auto time_point = start;

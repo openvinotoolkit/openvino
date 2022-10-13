@@ -24,7 +24,7 @@ int main(int argc, char* argv[]) {
             slog::info << "Usage : " << argv[0] << " <path_to_model>" << slog::endl;
             return EXIT_FAILURE;
         }
-        // Optimize for throughput. Best performance can be reached by
+        // Optimize for throughput. Best throughput can be reached by
         // running multiple ov::InferRequest instances asyncronously
         ov::AnyMap tput{{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT}};
 
@@ -32,6 +32,7 @@ int main(int argc, char* argv[]) {
         // Pick device by replacing CPU, for example MULTI:CPU(4),GPU(8)
         ov::Core core;
         ov::CompiledModel compiled_model = core.compile_model(argv[1], "CPU", tput);
+        // Create optimal number of ov::InferRequest instances
         uint32_t nireq;
         try {
             nireq = compiled_model.get_property(ov::optimal_number_of_infer_requests);
@@ -46,8 +47,8 @@ int main(int argc, char* argv[]) {
         }
         // Fill input data for ireqs
         for (ov::InferRequest& ireq : ireqs) {
-            for (const ov::Output<const ov::Node>& input : compiled_model.inputs()) {
-                fill_tensor_random(ireq.get_tensor(input));
+            for (const ov::Output<const ov::Node>& model_input : compiled_model.inputs()) {
+                fill_tensor_random(ireq.get_tensor(model_input));
             }
         }
 
@@ -60,7 +61,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Run benchmarking for seconds_to_run seconds
-        std::chrono::seconds seconds_to_run{3};
+        std::chrono::seconds seconds_to_run{15};
         std::vector<double> latencies;
         std::mutex mutex;
         std::condition_variable cv;
