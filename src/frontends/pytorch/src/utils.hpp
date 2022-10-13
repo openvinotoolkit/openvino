@@ -65,6 +65,9 @@ OutputVector translate_1to1_match_2_inputs(NodeContext& context) {
 
 std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
 
+// TODO: Elimitate the need of this function by implementing more accurate custom data type handling
+Any simplified_type_interpret (Any type);
+
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov

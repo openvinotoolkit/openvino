@@ -187,8 +187,9 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
         auto inputs = pytorch_model->inputs();
         for (int i = 0; i < inputs.size(); ++i) {
             PartialShape ps = pytorch_model->get_input_shape(i);
+            auto type = simplified_type_interpret(pytorch_model->get_input_type(i));
             auto parameter =
-                std::make_shared<opset8::Parameter>(ov::element::custom, pytorch_model->get_input_type(i), ps);
+                std::make_shared<opset8::Parameter>(ov::element::custom, type, ps);
             parameter->get_output_tensor(0).add_names({std::to_string(pytorch_model->input(i))});
             parameters.push_back(parameter);
             auto order = pytorch_model->get_input_transpose_order(i);
@@ -227,7 +228,8 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
                     //   TODO: There is no real search for values in outer scope because we don't need to link the usage
                     //   and definition together at this point -- need to do that otherwise graph will fall apart
                     PartialShape ps = node->get_input_shape(i);
-                    auto parameter = std::make_shared<opset8::Parameter>(element::custom, node->get_input_type(i), ps);
+                    auto type = simplified_type_interpret(node->get_input_type(i));
+                    auto parameter = std::make_shared<opset8::Parameter>(element::custom, type, ps);
                     // TODO: Missing get_input_transpose_order handling for not trivial layouts
                     tensor_map[input] = parameter;
                     // set name of parameter to the index of node in the model
@@ -322,6 +324,19 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
         return nullptr;
     }
     return fw_node;
+}
+
+Any simplified_type_interpret (Any type) {
+    // Interpret Tensor[type] as just type
+    // After applying of this interpretation we cannot distinguish true scalars (not tensors) and tensors with elements of the same types
+    if(type.is<Type::Tensor>()) {
+        auto tensor = type.as<Type::Tensor>();
+        if(tensor.element_type.is<element::Type>()) {
+            return tensor.element_type;
+        }
+    }
+
+    return type;
 }
 
 }  // namespace pytorch

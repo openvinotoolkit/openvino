@@ -1,4 +1,5 @@
 #include <openvino/op/util/framework_node.hpp>
+#include "utils.hpp"
 
 #pragma once
 
@@ -36,7 +37,7 @@ public:
                 }
                 // FIXME: ROUGH
                 try {
-                    type = m_decoder->get_output_type(i);
+                    type = simplified_type_interpret(m_decoder->get_output_type(i));
                 } catch (std::runtime_error& e) {
                     // nothing, means the info cannot be queried and remains unknown
                     std::cerr << "[ ERROR ] Cannot retrieve type\n" << e.what() << std::endl;
@@ -123,7 +124,12 @@ public:
                 if (auto body_output_description =
                         ov::as_type_ptr<op::v0::TensorIterator::BodyOutputDescription>(output_description)) {
                     const ov::PartialShape& ps = body_value.get_partial_shape();
-                    set_output_type(index, body_value.get_element_type(), ps);
+                    auto et = body_value.get_element_type();
+                    if(et == element::custom) {
+                        std::cerr << "[ ERROR ] CUSTOM DATA TYPE LOST DETALIZATION\n";
+                        std::cerr << this << "\n";
+                    }
+                    set_output_type(index, et, ps);
                 }
             }
         }
