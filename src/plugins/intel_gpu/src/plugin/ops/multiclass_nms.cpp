@@ -13,18 +13,6 @@
 namespace ov {
 namespace intel_gpu {
 
-static cldnn::sort_result_type GetSortResultType(const ngraph::op::util::MulticlassNmsBase::SortResultType sort_result_type) {
-    switch (sort_result_type) {
-        case ngraph::op::util::MulticlassNmsBase::SortResultType::CLASSID:
-            return cldnn::sort_result_type::classid;
-        case ngraph::op::util::MulticlassNmsBase::SortResultType::SCORE:
-            return cldnn::sort_result_type::score;
-        case ngraph::op::util::MulticlassNmsBase::SortResultType::NONE:
-            return cldnn::sort_result_type::none;
-        default: IE_THROW() << "Unsupported SortResultType value: " << static_cast<int>(sort_result_type);
-    }
-    return cldnn::sort_result_type::none;
-}
 
 static void CreateMulticlassNmsIEInternalOp(Program& p, const std::shared_ptr<ngraph::op::internal::MulticlassNmsIEInternal>& op) {
     validate_inputs_count(op, {2, 3});
@@ -37,8 +25,6 @@ static void CreateMulticlassNmsIEInternalOp(Program& p, const std::shared_ptr<ng
     if (inputs.size() == 2) {
         inputs.push_back("");  // roisnum dummy id
     }
-
-    const auto& attrs = op->get_attrs();
 
     const auto op_friendly_name = op->get_friendly_name();
 
@@ -74,24 +60,13 @@ static void CreateMulticlassNmsIEInternalOp(Program& p, const std::shared_ptr<ng
         IE_THROW() << "multiclass_nms primitive requires 5 inputs";
     }
 
-    const auto sort_result_type = GetSortResultType(attrs.sort_result_type);
-
     const cldnn::multiclass_nms prim{layer_name,
                                      inputs[0],
                                      inputs[1],
                                      inputs[2],
                                      inputs[3],
                                      inputs[4],
-                                     sort_result_type,
-                                     attrs.sort_result_across_batch,
-                                     cldnn::element_type_to_data_type(attrs.output_type),
-                                     attrs.iou_threshold,
-                                     attrs.score_threshold,
-                                     attrs.nms_top_k,
-                                     attrs.keep_top_k,
-                                     attrs.background_class,
-                                     attrs.normalized,
-                                     attrs.nms_eta,
+                                     op->get_attrs(),
                                      op_friendly_name};
 
     p.add_primitive(*op, prim);

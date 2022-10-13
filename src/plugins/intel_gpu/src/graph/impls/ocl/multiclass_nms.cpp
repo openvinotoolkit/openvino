@@ -13,15 +13,15 @@
 namespace cldnn {
 namespace ocl {
 namespace {
-kernel_selector::SortResultType get_sort_result_type(const cldnn::sort_result_type sort_result_type) {
+kernel_selector::SortResultType get_sort_result_type(const cldnn::multiclass_nms::sort_result_type sort_result_type) {
     switch (sort_result_type) {
-        case cldnn::sort_result_type::classid:
+        case cldnn::multiclass_nms::sort_result_type::classid:
             return kernel_selector::SortResultType::CLASSID;
             break;
-        case cldnn::sort_result_type::score:
+        case cldnn::multiclass_nms::sort_result_type::score:
             return kernel_selector::SortResultType::SCORE;
             break;
-        case cldnn::sort_result_type::none:
+        case cldnn::multiclass_nms::sort_result_type::none:
             return kernel_selector::SortResultType::NONE;
             break;
         default:
@@ -69,18 +69,18 @@ public:
         auto optional_params =
             get_default_optional_params<kernel_selector::multiclass_nms_optional_params>(arg.get_program());
 
-        const auto& primitive = arg.get_primitive();
+        const auto& attrs = arg.get_primitive()->attrs;
 
-        params.sort_result_type = get_sort_result_type(primitive->sort_result);
-        params.sort_result_across_batch = primitive->sort_result_across_batch;
-        params.indices_output_type = get_indices_output_type(primitive->indices_output_type);
-        params.iou_threshold = primitive->iou_threshold;
-        params.score_threshold = primitive->score_threshold;
-        params.nms_top_k = primitive->nms_top_k;
-        params.keep_top_k = primitive->keep_top_k;
-        params.background_class = primitive->background_class;
-        params.normalized = primitive->normalized;
-        params.nms_eta = primitive->nms_eta;
+        params.sort_result_type = get_sort_result_type(attrs.sort_result);
+        params.sort_result_across_batch = attrs.sort_result_across_batch;
+        params.indices_output_type = get_indices_output_type(attrs.indices_output_type);
+        params.iou_threshold = attrs.iou_threshold;
+        params.score_threshold = attrs.score_threshold;
+        params.nms_top_k = attrs.nms_top_k;
+        params.keep_top_k = attrs.keep_top_k;
+        params.background_class = attrs.background_class;
+        params.normalized = attrs.normalized;
+        params.nms_eta = attrs.nms_eta;
         params.has_roisnum = arg.has_roisnum();
 
         params.inputs.push_back(convert_data_tensor(arg.scores().get_output_layout()));

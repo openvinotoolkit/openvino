@@ -35,7 +35,7 @@ template<typename T, typename T_IND>
 struct MulticlassNmsParams {
     std::string test_name;
 
-    cldnn::sort_result_type sort_result_type;
+    cldnn::multiclass_nms::sort_result_type sort_result_type;
     bool sort_result_across_batch;
     float iou_threshold;
     float score_threshold;
@@ -150,16 +150,18 @@ public:
                     param.has_roisnum ? "input_roisnum_reordered" : "",
                     "output_selected_indices",
                     "output_selected_num",
-                    param.sort_result_type,
-                    param.sort_result_across_batch,
-                    index_data_type,
-                    param.iou_threshold,
-                    param.score_threshold,
-                    param.nms_top_k,
-                    param.keep_top_k,
-                    param.background_class,
-                    param.normalized,
-                    param.nms_eta,
+                    cldnn::multiclass_nms::attributes{
+                        param.sort_result_type,
+                        param.sort_result_across_batch,
+                        index_data_type,
+                        param.iou_threshold,
+                        param.score_threshold,
+                        param.nms_top_k,
+                        param.keep_top_k,
+                        param.background_class,
+                        param.normalized,
+                        param.nms_eta,
+                    }
             };
 
             topology.add(primitive);
@@ -264,7 +266,7 @@ template<typename T, typename T_IND>
 std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
     std::vector<MulticlassNmsParams<T, T_IND>> params = {
         {"by_score",
-         cldnn::sort_result_type::score,
+         cldnn::multiclass_nms::sort_result_type::score,
          false,
          0.5f,
          0.0f,
@@ -290,7 +292,7 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          std::vector<T_IND>{4}},
 
         {"by_class_id",
-         cldnn::sort_result_type::classid,
+         cldnn::multiclass_nms::sort_result_type::classid,
           false, 0.5f, 0.0f, 3, -1, -1, true, 1.0f, false,
           1, 2, 6,
             getValues<T>({0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9,
@@ -304,7 +306,7 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
             std::vector<T_IND>{4}},
 
         {"three_inputs",
-         cldnn::sort_result_type::score,
+         cldnn::multiclass_nms::sort_result_type::score,
          false,
          0.5f,
          0.0f,
@@ -344,7 +346,7 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
         std::vector<T_IND>{2, 2}},
 
         {"across_batches_by_score",
-         cldnn::sort_result_type::score,
+         cldnn::multiclass_nms::sort_result_type::score,
          true,
          0.5f,
          0.0f,
@@ -382,7 +384,7 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
         std::vector<T_IND>{4, 4}},
 
         {"across_batches_by_class_id",
-         cldnn::sort_result_type::classid,
+         cldnn::multiclass_nms::sort_result_type::classid,
          true,
          0.5f,
          0.0f,
@@ -421,7 +423,7 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          std::vector<T_IND>{4, 4}},
 
         {"normalized",
-         cldnn::sort_result_type::score,
+         cldnn::multiclass_nms::sort_result_type::score,
          false,
          0.5f,
          0.0f,
@@ -447,7 +449,7 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          std::vector<T_IND>{3}},
 
         {"identical_boxes",
-         cldnn::sort_result_type::score,
+         cldnn::multiclass_nms::sort_result_type::score,
          false,
          0.5f,
          0.0f,
@@ -475,7 +477,7 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
         std::vector<T_IND>{1}},
 
         {"limit_output_size",
-         cldnn::sort_result_type::score,
+         cldnn::multiclass_nms::sort_result_type::score,
          false,
          0.5f,
          0.0f,
@@ -499,7 +501,7 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          std::vector<T_IND>{2}},
 
         {"single_box",
-         cldnn::sort_result_type::score,
+         cldnn::multiclass_nms::sort_result_type::score,
          false,
          0.5f,
          0.0f,
@@ -523,7 +525,7 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          std::vector<T_IND>{1}},
 
         {"iou_threshold",
-         cldnn::sort_result_type::score,
+         cldnn::multiclass_nms::sort_result_type::score,
          false,
          0.2f,
          0.0f,
@@ -549,7 +551,7 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
         std::vector<T_IND>{2}},
 
         {"iou_and_score_thresholds",
-         cldnn::sort_result_type::score,
+         cldnn::multiclass_nms::sort_result_type::score,
          false,
          0.5f,
          0.95f,
@@ -575,7 +577,7 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          std::vector<T_IND>{1}},
 
         {"no_output",
-         cldnn::sort_result_type::score,
+         cldnn::multiclass_nms::sort_result_type::score,
          false,
          0.5f,
          2.0f,
@@ -605,7 +607,7 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          std::vector<T_IND>{0}},
 
         {"background_class",
-         cldnn::sort_result_type::classid,
+         cldnn::multiclass_nms::sort_result_type::classid,
          false,
          0.5f,
          0.0f,
@@ -646,7 +648,7 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
         std::vector<T_IND>{2, 2}},
 
         {"keep_top_k",
-         cldnn::sort_result_type::classid,
+         cldnn::multiclass_nms::sort_result_type::classid,
          false,
          0.5f,
          0.0f,
@@ -679,7 +681,7 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
         std::vector<T_IND>{3, 3}},
 
         {"normalized_by_classid",
-         cldnn::sort_result_type::classid,
+         cldnn::multiclass_nms::sort_result_type::classid,
          false,
          1.0f,
          0.0f,
@@ -740,7 +742,7 @@ template<typename T, typename T_IND>
 std::vector<MulticlassNmsParams<T, T_IND>> getParamsForBlockedLayout() {
     MulticlassNmsParams<T, T_IND> param = {
         "blocked_format_three_inputs",
-        cldnn::sort_result_type::score,
+        cldnn::multiclass_nms::sort_result_type::score,
         false,
         0.5f,
         0.0f,

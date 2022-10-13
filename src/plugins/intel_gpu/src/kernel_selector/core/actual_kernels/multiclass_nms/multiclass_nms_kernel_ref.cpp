@@ -82,7 +82,7 @@ JitConstants MulticlassNmsKernelRef::GetJitConstants(const multiclass_nms_params
 
     auto real_num_classes = num_classes;
     if (params.background_class >= 0 && params.background_class < num_classes) {
-        real_num_classes = std::max(static_cast<int64_t>(1), num_classes - 1);
+        real_num_classes = std::max<int64_t>(1ll, num_classes - 1);
     }
 
     int64_t max_output_boxes_per_class = 0;
