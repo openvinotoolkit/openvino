@@ -395,9 +395,6 @@ void FullyConnected::setPostOps(dnnl::primitive_attr &attr, const VectorDims &di
 
     DEBUG_LOG(getName());
 
-    const auto channelAxis = getFusingAxis();
-    size_t OC = getOutputShapeAtPort(0).getDims()[channelAxis];
-
     bool isINT8Inference = getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::U8 ||
                            getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::I8;
 
@@ -409,33 +406,9 @@ void FullyConnected::setPostOps(dnnl::primitive_attr &attr, const VectorDims &di
     // all the rest must be mapped as postOps
     while (postop != fusedWith.end()) {
         auto& node = *postop++;
+        bool isLastPostOp = node == fusedWith.back();
 
-        if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
-            auto scale = fakeQuantizeNode->simplifyToScale(outputDataType, OC);
-            if (node == fusedWith[fusedWith.size() - 1] && !scale.empty()) {
-                if (ops.len() == 1 && ops.kind(0) == primitive::kind::sum &&
-                    outputDataType == memory::data_type::u8 &&
-                    std::all_of(scale.cbegin(), scale.cend(), [&](float val) { return val == scale[0]; })) {
-                    std::vector<float> outScales;
-                    int mask = 1 << 1;
-                    attr.get_output_scales(mask, outScales);
-                    for (int j = 0; j < outScales.size(); j++) {
-                        outScales[j] *= scale[0];
-                    }
-                    attr.set_output_scales(mask, outScales);
-                    ops.get()->entry_[0].sum.scale = scale[0];
-                    continue;
-                }
-
-                if (ops.len() != 0 && ops.kind(ops.len() - 1) == primitive::kind::eltwise &&
-                    std::all_of(scale.cbegin(), scale.cend(), [&](float val) { return val == scale[0]; })) {
-                    auto len = ops.len();
-                    ops.get()->entry_[len - 1].eltwise.scale = scale[0];
-                    continue;
-                }
-            }
-
-            bool isLastPostOp = node == fusedWith.back();
+        if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get())) {
             if (fakeQuantizeNode->optimizeAsOscaleEltwise(attr, ops, isLastPostOp, outputDataType, false, true)) {
                 continue;
             }

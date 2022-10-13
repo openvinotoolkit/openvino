@@ -101,6 +101,8 @@ private:
 
     AttrPtr pAttr;
 
+    dnnl::memory::data_type outputDataType;
+
     std::shared_ptr<dnnl::primitive_attr> attr;
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims);
 

@@ -2129,6 +2129,33 @@ bool FakeQuantize::optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
     float osc = outputScale[0];
     float osh = outputShift[0];
 
+    auto map_input_scale_per_tensor = [&]() {
+        // if not using output scale and ish is zero, per-tensor input scale can be
+        // fused into previous post-ops, otherwise a eltwise post op is required.
+        float isc = inputScale[0];
+        if (ish == 0.0f && ops.len() > 0) {
+            auto & lastOp = ops.get()->entry_.back();
+            if (lastOp.is_eltwise()) {
+                // fuse into previous eltwise as the common scale
+                lastOp.eltwise.scale *= inputScale[0];
+                return;
+            }
+            if (lastOp.is_sum() && ops.len() == 1) {
+                // sum is the first postOps, fuse this into output scale
+                int mask;
+                std::vector<float> outScales;
+                attr.get_output_scales(mask, outScales);
+                for (int j = 0; j < outScales.size(); j++) {
+                    outScales[j] *= isc;
+                }
+                attr.set_output_scales(mask, outScales);
+                ops.get()->entry_[0].sum.scale *= isc;
+                return;
+            }
+        }
+        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, isc, ish);
+    };
+
     auto map_input_linear = [&]() {
         if (!allowShift && (ish != 0.0f || osh != 0.0f))
             return false;
@@ -2137,7 +2164,7 @@ bool FakeQuantize::optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
             if (allowOscale && ish == 0.0f) {
                 attr.set_output_scales(0, inputScale);
             } else {
-                ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, inputScale[0], ish);
+                map_input_scale_per_tensor();
             }
         } else {
             if (!allowOscale)
@@ -2183,64 +2210,6 @@ bool FakeQuantize::optimizeAsOscaleEltwise(dnnl::primitive_attr& attr,
         ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, osc, osh);
     }
     return true;
-}
-
-std::vector<float> FakeQuantize::simplifyToScale(dnnl::memory::data_type outDataType, size_t OC) {
-    auto &cl = getCropLow();
-    auto &ch = getCropHigh();
-    auto &isc = getInputScale();
-    auto &ish = getInputShift();
-    auto &osc = getOutputScale();
-    auto &osh = getOutputShift();
-
-    std::vector<float> outScale;
-
-    if (outDataType == memory::data_type::u8 &&
-        getAlgorithm() == Algorithm::FQQuantization &&
-        std::all_of(cl.cbegin(), cl.cend(), [](float val) { return val == 0.0f; }) &&
-        std::all_of(ish.cbegin(), ish.cend(), [](float val) { return val == 0.0f; })) {
-        outScale = isc;
-        if (!outScale.empty()) {
-            size_t size = outScale.size();
-            if (size == 1 && Shape::UNDEFINED_DIM != OC) {
-                outScale.resize(OC);
-                for (size_t k = 0; k < OC; k++)
-                    outScale[k] = outScale[0];
-            }
-        }
-    }
-
-    if (outDataType == memory::data_type::s8 &&
-        std::all_of(ish.cbegin(), ish.cend(), [](float val) { return std::abs(val - 128.f) < 0.0001f; }) &&
-        std::all_of(osc.cbegin(), osc.cend(), [](float val) { return val == 1.f; }) &&
-        std::all_of(osh.cbegin(), osh.cend(), [](float val) { return std::abs(val + 128.f) < 0.0001f; })) {
-        bool isCropAligned = true;
-        for (int i = 0; i < std::max(cl.size(), isc.size()); i++) {
-            if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] + 128.f) > 0.0001f) {
-                isCropAligned = false;
-            }
-        }
-
-        for (int i = 0; i < std::max(ch.size(), isc.size()); i++) {
-            if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - 127.f) > 0.0001f) {
-                isCropAligned = false;
-            }
-        }
-
-        if (isCropAligned) {
-            outScale = isc;
-            if (!outScale.empty()) {
-                size_t size = outScale.size();
-                if (size == 1 && Shape::UNDEFINED_DIM != OC) {
-                    outScale.resize(OC);
-                    for (size_t k = 0; k < OC; k++)
-                        outScale[k] = outScale[0];
-                }
-            }
-        }
-    }
-
-    return outScale;
 }
 
 FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantize_params &_jqp) {

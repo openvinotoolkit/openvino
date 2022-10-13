@@ -379,7 +379,7 @@ void Deconvolution::getSupportedDescriptors() {
             outPrecision = InferenceEngine::Precision::FP32;
     }
     auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(inPrecision);
-    auto outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(outPrecision);
+    outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(outPrecision);
     if (inputDataType == memory::data_type::bf16 || outputDataType == memory::data_type::bf16)
        inputDataType = outputDataType = memory::data_type::bf16;
     if (!fusedWith.empty()) {
@@ -441,7 +441,17 @@ void Deconvolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dim
         return binaryShape;
     };
 
-    for (auto &node : fusedWith) {
+    DEBUG_LOG(getName());
+
+    auto postop = fusedWith.begin();
+
+    if (isInt8)
+        postop = tryMapFusedOpsToOscales(postop, attr, ops, outputDataType, 1);
+
+    while (postop != fusedWith.end()) {
+        auto& node = *postop++;
+        bool isLastPostOp = (node == fusedWith.back());
+
         if (auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get())) {
             // TODO [DS]: change to shape from memory
             // use legacy depthwise since backprop convolution does not support binary post ops
@@ -449,6 +459,10 @@ void Deconvolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dim
             continue;
         }
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
+            if (fakeQuantizeNode->optimizeAsOscaleEltwise(attr, ops, isLastPostOp, outputDataType, false, true)) {
+                continue;
+            }
+
             fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
             continue;
         }

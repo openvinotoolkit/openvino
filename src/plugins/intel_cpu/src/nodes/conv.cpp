@@ -606,6 +606,7 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
     // all the rest must be mapped as postOps
     while (postop != fusedWith.end()) {
         auto& node = *postop++;
+        bool isLastPostOp = (node == fusedWith.back());
 
         if (node->getType() == Type::Split || node->getType() == Type::Concatenation)
             continue;
@@ -627,69 +628,6 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
         }
 
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get())) {
-            const Dim OC = dims[1];
-            auto scale = fakeQuantizeNode->simplifyToScale(outputDataType, OC);
-#if 0
-            // Note: only int8 convolution support output_scales attr, but some fp32 convolution
-            // may still have FakeQuantize postOps fused which cannot be implemented as output scale
-            if (i == 0 && canBeExecutedInInt8()) {
-                bool hasSubsequentSum = false;
-                bool hasSubsequentFQ = false;
-                for (int j = i + 1; j < fusedWith.size(); j++) {
-                    auto &nextNode = fusedWith[j];
-
-                    auto *nextEltwiseNode = dynamic_cast<Eltwise *>(nextNode.get());
-                    if (nextEltwiseNode && nextEltwiseNode->isSpecialConvolutionAddFusing()) {
-                        hasSubsequentSum = true;
-                    }
-
-                    auto *nextQuantizeNode = dynamic_cast<FakeQuantize *>(nextNode.get());
-                    if (nextQuantizeNode) {
-                        hasSubsequentFQ = true;
-                    }
-                }
-
-                if (fakeQuantizeNode->getAlgorithm() == Algorithm::FQCommon &&
-                    hasSubsequentSum &&
-                    hasSubsequentFQ) {
-                    std::vector<float> fqScale = fakeQuantizeNode->getFQScales();
-                    if (!fqScale.empty()) {
-                        size_t size = fqScale.size();
-                        if (size == 1) {
-                            fqScale.resize(OC);
-                            for (size_t k = 0; k < OC; k++)
-                                fqScale[k] = fqScale[0];
-                        }
-
-                        attr.set_output_scales(1 << 1, fqScale);
-
-                        continue;
-                    }
-                }
-
-                if (node == fusedWith[fusedWith.size() - 1] && !scale.empty()) {
-                    attr.set_output_scales(1 << 1, scale);
-                    continue;
-                }
-            }
-#endif
-            bool isLastPostOp = (node == fusedWith.back());
-            if (isLastPostOp && !scale.empty()) {
-                if (ops.len() == 1 && ops.kind(0) == primitive::kind::sum &&
-                    outputDataType == memory::data_type::u8 &&
-                    std::all_of(scale.cbegin(), scale.cend(), [&](float val) { return val == scale[0]; })) {
-                    std::vector<float> outScales;
-                    int mask = 1 << 1;
-                    attr.get_output_scales(mask, outScales);
-                    for (int j = 0; j < outScales.size(); j++) {
-                        outScales[j] *= scale[0];
-                    }
-                    attr.set_output_scales(mask, outScales);
-                    ops.get()->entry_[0].sum.scale = scale[0];
-                    continue;
-                }
-            }
-
             if (fakeQuantizeNode->optimizeAsOscaleEltwise(attr, ops, isLastPostOp, outputDataType, false, true)) {
                 continue;
             }
