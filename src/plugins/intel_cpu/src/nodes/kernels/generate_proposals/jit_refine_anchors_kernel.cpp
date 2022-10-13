@@ -85,8 +85,6 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
     mov(reg_img_w.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_w)]);
     mov(reg_img_h.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_h)]);
 
-    const size_t& vmm_reg_size_in_bytes = this->SIMD_WIDTH * sizeof(float);
-
     RegistersPool::Reg<Vmm> vmm_x0 = RegistersPool::Reg<Vmm>{register_pool(), 0};
     RegistersPool::Reg<Vmm> vmm_y0 = RegistersPool::Reg<Vmm>{register_pool(), 1};
     RegistersPool::Reg<Vmm> vmm_x1 = RegistersPool::Reg<Vmm>{register_pool(), 2};
@@ -101,21 +99,21 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
     Xbyak::Label l_mask;
     {
         StackAllocator::Transaction transaction{stack_allocator()};
-        StackAllocator::Address vmm_anchor_mask_addr{transaction, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_ww_addr{transaction, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_hh_addr{transaction, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_coordinates_offset_addr{transaction, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_scale_0_5_addr{transaction, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_ctr_x_addr{transaction, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_ctr_y_addr{transaction, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_pred_ctr_x_addr{transaction, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_pred_ctr_y_addr{transaction, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_max_delta_log_wh_addr{transaction, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_pred_w_addr{transaction, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_pred_h_addr{transaction, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_img_w_addr{transaction, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_img_h_addr{transaction, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_0_0_addr{transaction, vmm_reg_size_in_bytes};
+        StackAllocator::Reg<Vmm> vmm_anchor_mask_addr{transaction};
+        StackAllocator::Reg<Vmm> vmm_ww_addr{transaction};
+        StackAllocator::Reg<Vmm> vmm_hh_addr{transaction};
+        StackAllocator::Reg<Vmm> vmm_coordinates_offset_addr{transaction};
+        StackAllocator::Reg<Vmm> vmm_scale_0_5_addr{transaction};
+        StackAllocator::Reg<Vmm> vmm_ctr_x_addr{transaction};
+        StackAllocator::Reg<Vmm> vmm_ctr_y_addr{transaction};
+        StackAllocator::Reg<Vmm> vmm_pred_ctr_x_addr{transaction};
+        StackAllocator::Reg<Vmm> vmm_pred_ctr_y_addr{transaction};
+        StackAllocator::Reg<Vmm> vmm_max_delta_log_wh_addr{transaction};
+        StackAllocator::Reg<Vmm> vmm_pred_w_addr{transaction};
+        StackAllocator::Reg<Vmm> vmm_pred_h_addr{transaction};
+        StackAllocator::Reg<Vmm> vmm_img_w_addr{transaction};
+        StackAllocator::Reg<Vmm> vmm_img_h_addr{transaction};
+        StackAllocator::Reg<Vmm> vmm_0_0_addr{transaction};
         StackAllocator::Address reg_max_delta_log_wh_addr{transaction, sizeof(float)};
         StackAllocator::Address reg_img_w_addr{transaction, sizeof(float)};
         StackAllocator::Address reg_scale_0_5_addr{transaction, sizeof(float)};
