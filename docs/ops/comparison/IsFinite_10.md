@@ -1,4 +1,4 @@
-# IsFinite {#openvino_docs_ops_arithmetic_IsFinite_10}
+# IsFinite {#openvino_docs_ops_comparison_IsFinite_10}
 
 **Versioned name**: *IsFinite-10*
 
