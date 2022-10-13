@@ -332,6 +332,14 @@ public:
         return *this;
     }
 
+    explicit operator bool() const {
+        return isInitialized();
+    }
+
+    bool isInitialized() const {
+        return allocation_ && !allocation_->is_transaction;
+    }
+
     friend void ::ov::intel_cpu::stack_mov(Address& addr, const Xbyak::Xmm& vmm);
     friend void ::ov::intel_cpu::stack_mov(Address& addr, const Xbyak::Reg& reg);
     friend void ::ov::intel_cpu::stack_mov(const Xbyak::Xmm& vmm, const Address& addr);
@@ -350,10 +358,6 @@ private:
         if (!isInitialized()) {
             IE_THROW() << "StackAllocator::Address is either not initialized or released !!";
         }
-    }
-
-    bool isInitialized() const {
-        return allocation_ && !allocation_->is_transaction;
     }
 
     x64::jit_generator& generator() const {
