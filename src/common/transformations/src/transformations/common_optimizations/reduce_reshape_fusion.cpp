@@ -5,13 +5,13 @@
 #include "transformations/common_optimizations/reduce_reshape_fusion.hpp"
 
 #include <memory>
-#include <openvino/op/util/reduction_base.hpp>
-#include <openvino/opsets/opset9.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/util/reduction_base.hpp"
+#include "openvino/opsets/opset9.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {

@@ -5,14 +5,14 @@
 #include "transformations/common_optimizations/pull_through_reduce.hpp"
 
 #include <memory>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/util/reduction_base.hpp>
-#include <openvino/opsets/opset9.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/util/reduction_base.hpp"
+#include "openvino/opsets/opset9.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
