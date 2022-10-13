@@ -690,7 +690,8 @@ void Node::initDescriptor(const NodeConfig& config) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             if (selected_count == selectedPrimitiveDescriptorIndex) {
                 if (impl_type != selectedPD->getImplementationType()) {
-                    IE_THROW() << "Cannot get the original layer configuration!";
+                    IE_THROW() << getName() << " expected selectedPD impl_type: " << impl_type_to_string(selectedPD->getImplementationType())
+                                << " but got: " << impl_type_to_string(impl_type);
                 }
                 rightConfig = cfg;
             }
