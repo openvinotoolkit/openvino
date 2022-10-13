@@ -63,6 +63,10 @@ The applications include:
 - **OpenVINO Model Creation Sample** – Construction of the LeNet model using the OpenVINO model creation sample.
    - [OpenVINO Model Creation C++ Sample](../../samples/cpp/model_creation_sample/README.md)
    - [OpenVINO Model Creation Python Sample](../../samples/python/model_creation_sample/README.md)
+- **Benchmark Samples** - Simple estimation of a model inference performance
+   - [Sync Benchmark C++ Sample](../../samples/cpp/benchmakr/sync_benchmark/README.md)
+   - [Throughput Benchmark C++ Sample](../../samples/cpp/benchmakr/throughput_benchmark/README.md)
+   - [Throughput Benchmark Python* Sample](../../samples/python/benchmakr/throughput_benchmark/README.md)
 
 
 - **Benchmark Application** – Estimates deep learning inference performance on supported devices for synchronous and asynchronous modes.
