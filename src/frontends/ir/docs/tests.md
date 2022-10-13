@@ -1,6 +1,6 @@
 # OpenVINO IR Frontend tests
 
-OpenVINO IR tests cover the next frontend functionality: parser IRs, read model from the memory and extensions support.
+OpenVINO IR tests cover the next frontend functionality: parser IRs, read model from the memory, and extensions support.
 
 ## How to build and run tests
 
