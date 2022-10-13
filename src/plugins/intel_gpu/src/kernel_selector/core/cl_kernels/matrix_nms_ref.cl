@@ -86,25 +86,27 @@ inline void FUNC(sortIterativeBoxesAcrossBatches)(__global BOX_INFO* boxes) {
         for (int j = 0; j < size - i; j++) {
             __global BOX_INFO* l = boxes + j;
             __global BOX_INFO* r = boxes + j + 1;
-            if (SORT_TYPE == 1) {
-                if ((l->score < r->score) || (l->score == r->score && l->batch_idx > r->batch_idx) ||
-                    (l->score == r->score && l->batch_idx == r->batch_idx && l->class_idx > r->class_idx) ||
-                    (l->score == r->score && l->batch_idx == r->batch_idx && l->class_idx == r->class_idx &&
-                     l->box_idx > r->box_idx)) {
-                    FUNC_CALL(swap_boxes)(l, r);
-                    swapped = true;
-                }
-            } else if (SORT_TYPE == 0) {
-                if (r->score != INPUT1_VAL_ZERO &&
-                    ((l->score == INPUT1_VAL_ZERO) ||  // case with empty buffer
-                     (l->class_idx > r->class_idx) || (l->class_idx == r->class_idx && l->batch_idx > r->batch_idx) ||
-                     (l->class_idx == r->class_idx && l->batch_idx == r->batch_idx && l->score < r->score) ||
-                     (l->class_idx == r->class_idx && l->batch_idx == r->batch_idx && l->score == r->score &&
-                      l->box_idx > r->box_idx))) {
-                    FUNC_CALL(swap_boxes)(l, r);
-                    swapped = true;
-                }
+// sort by score
+#if SORT_TYPE == 1
+            if ((l->score < r->score) || (l->score == r->score && l->batch_idx > r->batch_idx) ||
+                (l->score == r->score && l->batch_idx == r->batch_idx && l->class_idx > r->class_idx) ||
+                (l->score == r->score && l->batch_idx == r->batch_idx && l->class_idx == r->class_idx &&
+                 l->box_idx > r->box_idx)) {
+                FUNC_CALL(swap_boxes)(l, r);
+                swapped = true;
             }
+// sort by class id
+#elif SORT_TYPE == 0
+            if (r->score != INPUT1_VAL_ZERO &&
+                ((l->score == INPUT1_VAL_ZERO) ||  // case with empty buffer
+                 (l->class_idx > r->class_idx) || (l->class_idx == r->class_idx && l->batch_idx > r->batch_idx) ||
+                 (l->class_idx == r->class_idx && l->batch_idx == r->batch_idx && l->score < r->score) ||
+                 (l->class_idx == r->class_idx && l->batch_idx == r->batch_idx && l->score == r->score &&
+                  l->box_idx > r->box_idx))) {
+                FUNC_CALL(swap_boxes)(l, r);
+                swapped = true;
+            }
+#endif
         }
 
         if (!swapped)
@@ -280,8 +282,9 @@ KERNEL(matrix_nms_ref_stage_2)
 
     // TODO: consider faster sorting algorithm
     // and index sorting instead of data sorting
-    if (SORT_RESULT_ACROSS_BATCH)
-        FUNC_CALL(sortIterativeBoxesAcrossBatches)(box_info);
+#if SORT_RESULT_ACROSS_BATCH == 1 && SORT_TYPE != 2
+    FUNC_CALL(sortIterativeBoxesAcrossBatches)(box_info);
+#endif
 
     int output_idx = 0;
     int box_info_idx = 0;
@@ -289,8 +292,9 @@ KERNEL(matrix_nms_ref_stage_2)
         if (KEEP_TOP_K != -1 && KEEP_TOP_K < valid_outputs[INPUT3_GET_INDEX(i, 0, 0, 0)])
             valid_outputs[INPUT3_GET_INDEX(i, 0, 0, 0)] = KEEP_TOP_K;
 
-        if (!SORT_RESULT_ACROSS_BATCH)
-            box_info_idx = i * NUM_CLASSES * MAX_BOXES_PER_CLASS;
+#if SORT_RESULT_ACROSS_BATCH == 0
+        box_info_idx = i * NUM_CLASSES * MAX_BOXES_PER_CLASS;
+#endif
 
         unroll_for(int j = 0; j < valid_outputs[INPUT3_GET_INDEX(i, 0, 0, 0)]; ++j) {
             output[OUTPUT_GET_INDEX(output_idx, 0, 0, 0)] = box_info[box_info_idx].class_idx;
