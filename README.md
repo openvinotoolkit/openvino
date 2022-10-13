@@ -34,8 +34,8 @@ OpenVINO™ is an open-source toolkit for optimizing and deploying AI inference.
  - Reduce resource demands and efficiently deploy on a range of Intel® platforms from edge to cloud
 
 
-This open-source version includes several components: namely [Model Optimizer], [OpenVINO™ Runtime], [Post-Training Optimization Tool], as well as CPU, GPU, MYRIAD, multi device and heterogeneous plugins to accelerate deep learning inferencing on Intel® CPUs and Intel® Processor Graphics.
-It supports pre-trained models from the [Open Model Zoo], along with 100+ open
+This open-source version includes several components: namely [Model Optimizer], [OpenVINO™ Runtime], [Post-Training Optimization Tool], as well as CPU, GPU, MYRIAD, multi device and heterogeneous plugins to accelerate deep learning inference on Intel® CPUs and Intel® Processor Graphics.
+It supports pre-trained models from [Open Model Zoo], along with 100+ open
 source and public models in popular formats such as TensorFlow, ONNX, PaddlePaddle, MXNet, Caffe, Kaldi.
 
 ### Components
@@ -99,7 +99,7 @@ The OpenVINO™ Runtime can infer models on different hardware devices. This sec
     </tbody>
 </table>
 
-Also OpenVINO™ Toolkit contains several plugins which should simplify to load model on several hardware devices:
+OpenVINO™ Toolkit also contains several plugins which simplify loading models on several hardware devices:
 <table>
     <thead>
         <tr>
@@ -140,7 +140,7 @@ By contributing to the project, you agree to the license and copyright terms the
 
 ### User documentation
 
-The latest documentation for OpenVINO™ Toolkit is available [here](https://docs.openvino.ai/). This documentation contains detailed information about all OpenVINO components and provides all important information which could be needed if you create an application which is based on binary OpenVINO distribution or own OpenVINO version without source code modification.
+The latest documentation for OpenVINO™ Toolkit is available [here](https://docs.openvino.ai/). This documentation contains detailed information about all OpenVINO components and provides all the important information you may need to create an application based on binary OpenVINO distribution or own OpenVINO version without source code modification.
 
 ### Developer documentation
 
@@ -161,15 +161,15 @@ The list of OpenVINO tutorials:
 
 ## System requirements
 
-The full information about system requirements depends on platform and is available on dedicated pages:
-- [Linux](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_linux_header.html)
-- [Windows](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_windows_header.html)
-- [macOS](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_macos_header.html)
-- [Raspbian](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_raspbian.html)
+The system requirements vary depending on platform and are available on dedicated pages:
+- [Linux](https://docs.openvino.ai/nightly/openvino_docs_install_guides_installing_openvino_linux_header.html)
+- [Windows](https://docs.openvino.ai/nightly/openvino_docs_install_guides_installing_openvino_windows_header.html)
+- [macOS](https://docs.openvino.ai/nightly/openvino_docs_install_guides_installing_openvino_macos_header.html)
+- [Raspbian](https://docs.openvino.ai/nightly/openvino_docs_install_guides_installing_openvino_raspbian.html)
 
 ## How to build
 
-Please take a look to [OpenVINO Wiki](https://github.com/openvinotoolkit/openvino/wiki#how-to-build) to get more information about OpenVINO build process.
+See the [OpenVINO Wiki](https://github.com/openvinotoolkit/openvino/wiki#how-to-build) to get more information about the OpenVINO build process.
 
 ## How to contribute
 
@@ -177,13 +177,13 @@ See [CONTRIBUTING](./CONTRIBUTING.md) for details. Thank you!
 
 ## Get a support
 
-Please report questions, issues and suggestions using:
+Report questions, issues and suggestions, using:
 
 * [GitHub* Issues](https://github.com/openvinotoolkit/openvino/issues)
 * The [`openvino`](https://stackoverflow.com/questions/tagged/openvino) tag on StackOverflow\*
 * [Forum](https://software.intel.com/en-us/forums/computer-vision)
 
-## See also
+## Additional Resources
 
 * [OpenVINO Wiki](https://github.com/openvinotoolkit/openvino/wiki)
 * [OpenVINO Storage](https://storage.openvinotoolkit.org/)
@@ -194,15 +194,15 @@ Please report questions, issues and suggestions using:
 * [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) - a suite of advanced algorithms for model inference optimization including quantization, filter pruning, binarization and sparsity
 * [OpenVINO™ Training Extensions (OTE)](https://github.com/openvinotoolkit/training_extensions) - convenient environment to train Deep Learning models and convert them using OpenVINO for optimized inference.
 * [OpenVINO™ Model Server (OVMS)](https://github.com/openvinotoolkit/model_server) - a scalable, high-performance solution for serving deep learning models optimized for Intel architectures
-* [DL Workbench](https://docs.openvino.ai/nightly/workbench_docs_Workbench_DG_Introduction.html) - An alternative, web-based version of OpenVINO designed to make production of pretrained deep learning models significantly easier.
-* [Computer Vision Annotation Tool (CVAT)](https://github.com/openvinotoolkit/cvat) - an online, interactive video and image annotation tool for computer vision purposes.
+* [DL Workbench](https://docs.openvino.ai/nightly/workbench_docs_Workbench_DG_Introduction.html) - an alternative, web-based version of OpenVINO designed to facilitate optimization and compression of pre-trained deep learning models.
+* [Computer Vision Annotation Tool (CVAT)](https://github.com/opencv/cvat) - an online, interactive video and image annotation tool for computer vision purposes.
 * [Dataset Management Framework (Datumaro)](https://github.com/openvinotoolkit/datumaro) - a framework and CLI tool to build, transform, and analyze datasets.
 
 ---
 \* Other names and brands may be claimed as the property of others.
 
 [Open Model Zoo]:https://github.com/openvinotoolkit/open_model_zoo
-[OpenVINO™ Runtime]:https://docs.openvino.ai/latest/openvino_docs_OV_UG_OV_Runtime_User_Guide.html
-[Model Optimizer]:https://docs.openvino.ai/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html
-[Post-Training Optimization Tool]:https://docs.openvino.ai/latest/pot_introduction.html
+[OpenVINO™ Runtime]:https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html
+[Model Optimizer]:https://docs.openvino.ai/nightly/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html
+[Post-Training Optimization Tool]:https://docs.openvino.ai/nightly/pot_introduction.html
 [Samples]:https://github.com/openvinotoolkit/openvino/tree/master/samples
