@@ -56,6 +56,8 @@ public:
 
 namespace ngraph {
 namespace pass {
-using ov::pass::StridedSliceSqueeze; using ov::pass::SqueezeStridedSlice; using ov::pass::SharedSqueeze;
+using ov::pass::SharedSqueeze;
+using ov::pass::SqueezeStridedSlice;
+using ov::pass::StridedSliceSqueeze;
 }  // namespace pass
 }  // namespace ngraph

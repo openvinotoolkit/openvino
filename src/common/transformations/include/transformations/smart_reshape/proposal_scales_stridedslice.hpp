@@ -46,6 +46,7 @@ public:
 
 namespace ngraph {
 namespace pass {
-using ov::pass::Proposal1Scales; using ov::pass::Proposal4Scales;
+using ov::pass::Proposal1Scales;
+using ov::pass::Proposal4Scales;
 }  // namespace pass
 }  // namespace ngraph

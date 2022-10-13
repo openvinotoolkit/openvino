@@ -5,12 +5,12 @@
 #include "transformations/smart_reshape/matmul_sr.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset4.hpp>
 #include <ngraph/pattern/matcher.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
 #include <numeric>
+#include <openvino/opsets/opset4.hpp>
 
 #include "itt.hpp"
 
@@ -36,10 +36,10 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap&
     const auto& raw_idx =
         reshape_is_A_input ? (matmul->get_transpose_b() ? -1 : -2) : (matmul->get_transpose_a() ? -2 : -1);
     const auto& idx = ngraph::normalize_axes(matmul->description(), {raw_idx}, reshape_rank);
-    const auto& C = std::make_shared<ov::opset4::Gather>(
-        std::make_shared<ov::opset4::ShapeOf>(shape_source),
-        ov::opset4::Constant::create(ngraph::element::i64, {idx.size()}, idx),
-        ov::opset4::Constant::create(ngraph::element::i64, {}, {0}));
+    const auto& C =
+        std::make_shared<ov::opset4::Gather>(std::make_shared<ov::opset4::ShapeOf>(shape_source),
+                                             ov::opset4::Constant::create(ngraph::element::i64, {idx.size()}, idx),
+                                             ov::opset4::Constant::create(ngraph::element::i64, {}, {0}));
     const auto& N = ov::opset4::Constant::create(ngraph::element::i64, {1}, {-1});
     const auto& pattern_vector =
         reshape_is_A_input ? (matmul->get_transpose_a() ? ngraph::OutputVector({C, N}) : ngraph::OutputVector({N, C}))

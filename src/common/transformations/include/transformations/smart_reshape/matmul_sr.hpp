@@ -44,6 +44,8 @@ public:
 
 namespace ngraph {
 namespace pass {
-using ov::pass::ReshapeAMatMul; using ov::pass::ReshapeBMatMul; using ov::pass::TransposeMatMul;
+using ov::pass::ReshapeAMatMul;
+using ov::pass::ReshapeBMatMul;
+using ov::pass::TransposeMatMul;
 }  // namespace pass
 }  // namespace ngraph
