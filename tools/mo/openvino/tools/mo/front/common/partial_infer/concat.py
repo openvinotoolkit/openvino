@@ -31,7 +31,7 @@ def concat_infer(node):
     axis = get_canonical_axis_index(shape, node.axis)
     node.axis = axis
 
-    mask = np.zeros_like(shape, dtype=np.bool)
+    mask = np.zeros_like(shape, dtype=bool)
     mask[axis] = True  # pylint: disable=unsupported-assignment-operation
     not_mask = np.logical_not(mask)  # pylint: disable=assignment-from-no-return
     for s in shapes[1:]:
