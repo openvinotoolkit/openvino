@@ -14,7 +14,7 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-bool ngraph::pass::UnrollIf::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(UnrollIf);
     bool is_applicable = false;
     for (const auto& op : f->get_ordered_ops()) {
