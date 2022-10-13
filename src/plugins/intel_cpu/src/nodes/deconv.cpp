@@ -425,8 +425,7 @@ void Deconvolution::initPaddingR(const Shape &inShape, const Shape &outShape) {
         int dst = inShape.getStaticDims()[2 + i];
 
         krn = (krn - 1)*(dilation[i] + 1) + 1;
-        float calc_dst = static_cast<float>(src - krn + paddingL[i]) / stride[i] + 1.;
-        paddingR[i] = round((dst - calc_dst) * stride[i]);
+        paddingR[i] = (dst - 1) * stride[i] - (src - krn + paddingL[i]);
     }
 }
 
