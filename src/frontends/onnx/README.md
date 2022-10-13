@@ -17,14 +17,14 @@ In case of any questions, review and merge requests, contact the [openvino-onnx-
 
 ## Components
 
-ONNX Frontend implements an interface common to all frontends defined in the [Frontends API](./src/frontends/common/include/openvino/frontend).
-For backward compatibility reasons, the ONNX importer API (more lower-level abstraction approach) is still maintained. You can find it in the [ONNX Importer](.src/frontends/onnx/frontend/include/onnx_import/onnx.hpp).
+ONNX Frontend implements an interface common to all frontends defined in the [Frontends API](../common/include/openvino/frontend).
+For backward compatibility reasons, the ONNX importer API (more lower-level abstraction approach) is still maintained. You can find it in the [ONNX Importer](./frontend/include/onnx_import/onnx.hpp).
 
 Read [How to add a new operation](./docs/how_to_add_op.md) page for more information on adding new operations to the ONNX Frontend and extending the existing ones. 
 
 The API of ONNX Frontend can be called directly. It is also used internally by [Model Optimizer](../../../tools/mo) during the conversion from ONNX to Intermediate Representation (IR). The capabilities of ONNX Frontend are used by the [ONNX Runtime via OpenVINO Execution Provider](https://onnxruntime.ai/docs/build/eps.html#openvino).
 
-Both `C++` and `Python` tests are implemented for the ONNX Frontend. Read the [ONNX Frontend tests](./docs/tests#places) page for more details. 
+Both `C++` and `Python` tests are implemented for the ONNX Frontend. Read the [ONNX Frontend tests](./docs/tests.md#places) page for more details. 
 
 
 ## Architecture
