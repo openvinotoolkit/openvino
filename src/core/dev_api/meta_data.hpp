@@ -12,10 +12,6 @@ class OPENVINO_API Meta {
 public:
     virtual operator ov::AnyMap&() = 0;
     virtual operator const ov::AnyMap&() const = 0;
-    virtual operator std::string&() = 0;
-    virtual operator const std::string&() const = 0;
-
-    virtual bool is_map() const = 0;
 };
 
 }  // namespace ov

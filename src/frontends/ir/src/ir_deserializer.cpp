@@ -565,42 +565,19 @@ public:
     }
 
     operator const ov::AnyMap&() const override {
-        if (!is_map())
-            throw ov::Exception("Cannot get map! Meta contains value.");
+        parse();
         return m_parsed_map;
     }
 
     operator ov::AnyMap&() override {
-        if (!is_map())
-            throw ov::Exception("Cannot get map! Meta contains value.");
-        return m_parsed_map;
-    }
-
-    operator const std::string&() const override {
-        if (is_map())
-            throw ov::Exception("Cannot get value! Meta contains map.");
-        return m_parsed_value;
-    }
-
-    operator std::string&() override {
-        if (is_map())
-            throw ov::Exception("Cannot get value! Meta contains map.");
-        return m_parsed_value;
-    }
-
-    bool is_map() const override {
         parse();
-        return m_is_map;
+        return m_parsed_map;
     }
 
 private:
     bool has_attr(const pugi::xml_node& node, const std::string& name = "value") const {
         auto attr = node.attribute(name.c_str());
         return !attr.empty();
-    }
-
-    bool has_value(const pugi::xml_node& node) const {
-        return has_attr(node) || (std::string(node.name()) == "unset" && has_attr(node, "unset_cli_parameters"));
     }
 
     ov::Any parse_value(const pugi::xml_node& node) const {
@@ -640,22 +617,14 @@ private:
         if (m_parsed)
             return;
         const pugi::xml_node& node = m_meta.child(m_name.c_str());
-        if (!has_value(node)) {
-            m_is_map = true;
-        }
-        if (m_is_map)
-            m_parsed_map = parse_node(node);
-        else
-            m_parsed_value = parse_value(node).as<std::string>();
+        m_parsed_map = parse_node(node);
 
         m_parsed = true;
     }
     pugi::xml_document m_meta;
     const std::string m_name;
     mutable ov::AnyMap m_parsed_map;
-    mutable std::string m_parsed_value;
     mutable bool m_parsed{false};
-    mutable bool m_is_map{false};
 };
 
 void XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section) {
@@ -665,8 +634,12 @@ void XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model, co
     for (const auto& data : meta_section.children()) {
         if (data.empty())
             continue;
-        std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>(data.name(), data);
-        rt_info[data.name()] = meta;
+        if (!data.attribute("value").empty()) {
+            rt_info[data.name()] = XMLParseUtils::GetStrAttr(data, "value");
+        } else {
+            std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>(data.name(), data);
+            rt_info[data.name()] = meta;
+        }
     }
 }
 

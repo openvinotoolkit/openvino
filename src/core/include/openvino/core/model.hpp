@@ -430,7 +430,7 @@ private:
     ov::SinkVector m_sinks;
     ov::ParameterVector m_parameters;
     ov::op::util::VariableVector m_variables;
-    mutable RTMap m_rt_info;
+    RTMap m_rt_info;
 
     // Cache of topologically sorted nodes which is stored as a vector
     // of weak_ptr not to increase node ref counter to prevent the situation when

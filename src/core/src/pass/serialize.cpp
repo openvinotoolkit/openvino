@@ -770,14 +770,9 @@ void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::
     auto child = root.append_child(name.c_str());
     if (data.is<std::shared_ptr<ov::Meta>>()) {
         std::shared_ptr<ov::Meta> meta = data.as<std::shared_ptr<ov::Meta>>();
-        if (meta->is_map()) {
-            ov::AnyMap& map = *meta;
-            for (const auto& it : map) {
-                serialize_rt_info(child, it.first, it.second);
-            }
-        } else {
-            const std::string& value = *meta;
-            child.append_attribute("value").set_value(value.c_str());
+        ov::AnyMap& map = *meta;
+        for (const auto& it : map) {
+            serialize_rt_info(child, it.first, it.second);
         }
     } else if (data.is<ov::AnyMap>()) {
         const ov::AnyMap& any_map = data.as<ov::AnyMap>();

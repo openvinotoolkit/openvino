@@ -984,8 +984,7 @@ const ov::AnyMap& ov::Model::get_map_from_attr(const ov::Any& info, const std::s
         return info.as<ov::AnyMap>();
     } else if (info.is<std::shared_ptr<ov::Meta>>()) {
         std::shared_ptr<ov::Meta> meta = info.as<std::shared_ptr<ov::Meta>>();
-        if (meta->is_map())
-            return *info.as<std::shared_ptr<ov::Meta>>();
+        return *info.as<std::shared_ptr<ov::Meta>>();
     }
     throw ov::Exception("Cannot get rt attribute. Keys are incorrect.");
 }
@@ -1001,8 +1000,7 @@ ov::AnyMap& ov::Model::get_map_from_attr(ov::Any& info, const std::string& name)
         return info.as<ov::AnyMap>();
     } else if (info.is<std::shared_ptr<ov::Meta>>()) {
         std::shared_ptr<ov::Meta> meta = info.as<std::shared_ptr<ov::Meta>>();
-        if (meta->is_map())
-            return *info.as<std::shared_ptr<ov::Meta>>();
+        return *info.as<std::shared_ptr<ov::Meta>>();
     }
     throw ov::Exception("Cannot get rt attribute. Keys are incorrect.");
 }
@@ -1013,13 +1011,8 @@ const ov::Any& ov::Model::get_attr(const ov::Any& info) const {
     std::lock_guard<mutex> lock(m_model_mutex);
     if (info.is<std::shared_ptr<ov::Meta>>()) {
         std::shared_ptr<ov::Meta> meta = info.as<std::shared_ptr<ov::Meta>>();
-        if (meta->is_map()) {
-            ov::AnyMap& map = *info.as<std::shared_ptr<ov::Meta>>();
-            const_cast<ov::Any&>(info) = map;
-        } else {
-            std::string& str = *info.as<std::shared_ptr<ov::Meta>>();
-            const_cast<ov::Any&>(info) = str;
-        }
+        ov::AnyMap& map = *info.as<std::shared_ptr<ov::Meta>>();
+        const_cast<ov::Any&>(info) = map;
     }
     return info;
 }
@@ -1033,13 +1026,8 @@ ov::Any& ov::Model::get_attr(ov::Any& info) const {
     }
     if (info.is<std::shared_ptr<ov::Meta>>()) {
         std::shared_ptr<ov::Meta> meta = info.as<std::shared_ptr<ov::Meta>>();
-        if (meta->is_map()) {
-            ov::AnyMap& map = *info.as<std::shared_ptr<ov::Meta>>();
-            info = map;
-        } else {
-            std::string& str = *info.as<std::shared_ptr<ov::Meta>>();
-            info = str;
-        }
+        ov::AnyMap& map = *info.as<std::shared_ptr<ov::Meta>>();
+        info = map;
     }
     return info;
 }
