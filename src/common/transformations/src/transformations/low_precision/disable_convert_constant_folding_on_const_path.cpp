@@ -16,7 +16,7 @@
 
 using namespace ngraph;
 
-ngraph::pass::DisableConvertConstantFoldingOnConstPath::DisableConvertConstantFoldingOnConstPath(
+ov::pass::DisableConvertConstantFoldingOnConstPath::DisableConvertConstantFoldingOnConstPath(
     const element::TypeVector& inputPrecisions) {
     auto matcherData = ngraph::pattern::any_input();
     auto matcherConvert = ngraph::pattern::wrap_type<opset3::Convert>({matcherData}, pattern::consumers_count(1));
