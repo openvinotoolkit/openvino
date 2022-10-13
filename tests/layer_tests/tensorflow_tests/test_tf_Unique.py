@@ -9,7 +9,7 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestUnique(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info, "Test error: inputs_info must contain `partitions`"
+        assert 'x' in inputs_info, "Test error: inputs_info must contain `x`"
         x_shape = inputs_info['x']
         inputs_data = {}
         inputs_data['x'] = np.random.randint(-10, 10, x_shape)
