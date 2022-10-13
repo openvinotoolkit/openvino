@@ -88,6 +88,7 @@
 #include "nodes/priorbox.h"
 #include "nodes/priorbox_clustered.h"
 #include "nodes/eye.h"
+#include "nodes/interaction.h"
 #include "nodes/mha.h"
 
 namespace ov {
@@ -189,6 +190,7 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(PriorBox, Type::PriorBox);
     INTEL_CPU_NODE(PriorBoxClustered, Type::PriorBoxClustered);
     INTEL_CPU_NODE(Eye, Type::Eye);
+    INTEL_CPU_NODE(Interaction, Type::Interaction);
     INTEL_CPU_NODE(MHA, Type::MHA);
 }
 
