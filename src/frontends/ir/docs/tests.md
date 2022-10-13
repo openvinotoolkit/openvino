@@ -8,7 +8,7 @@ CMake target `ov_ir_frontend_tests` is responsible for building IR tests. IR Fro
 
 After the build, `ov_ir_frontend_tests` (`ov_ir_frontend_tests.exe` for Windows) binary files can be used to run all tests for the IR frontend.
 
-If you would like to get a tests coverage report for IR frontend, please read the page about [how to measure coverage](../../../../docs/dev/test_coverage.md)
+To get a tests coverage report for the IR frontend, read the page on [measuring coverage](../../../../docs/dev/test_coverage.md).
 
 ## See also
 
