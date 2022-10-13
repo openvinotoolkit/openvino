@@ -119,17 +119,18 @@ public:
             for (const auto& output_description : m_output_descriptions[i]) {
                 auto index = output_description->m_output_index;
 
-                auto body_value = m_bodies[i]->get_results().at(output_description->m_body_value_index)->input_value(0);
+                const auto& body_value = m_bodies[i]->get_results().at(output_description->m_body_value_index)->input_value(0).get_tensor();
 
                 if (auto body_output_description =
                         ov::as_type_ptr<op::v0::TensorIterator::BodyOutputDescription>(output_description)) {
                     const ov::PartialShape& ps = body_value.get_partial_shape();
                     auto et = body_value.get_element_type();
                     if(et == element::custom) {
-                        std::cerr << "[ ERROR ] CUSTOM DATA TYPE LOST DETALIZATION\n";
-                        std::cerr << this << "\n";
+                        output(index).get_tensor().set_custom_element_type(body_value.get_custom_element_type());
                     }
-                    set_output_type(index, et, ps);
+                    else {
+                        set_output_type(index, et, ps);
+                    }
                 }
             }
         }
