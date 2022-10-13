@@ -68,7 +68,7 @@ int IStreamsExecutor::Config::GetHybridDefaultNumStreams(const Config& config) {
         config._small_core_streams = 1;
         config._threads_per_stream_small = num_small_cores;
         config._threads_per_stream_big = config._threads_per_stream_small / 2;
-        config._big_core_streams = std::floor(num_big_cores / config._threads_per_stream_big);
+        config._big_core_streams = num_big_cores / config._threads_per_stream_big;
     } else {
         config._small_core_streams = num_small_cores / config._threads_per_stream_small;
     }
