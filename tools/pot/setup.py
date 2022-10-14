@@ -81,7 +81,9 @@ ALGO_EXTRAS = [
     #'hyperopt~=0.1.2',
 ]
 
-DEV_EXTRAS = ['pytest>=6.2.4', 'openpyxl==2.6.4', 'pytest-mock==3.1.1']
+DEV_EXTRAS = ['pytest~=5.0; python_version == "3.6"',
+              'pytest>=6.2.4; python_version >= "3.6"',
+              'openpyxl==2.6.4', 'pytest-mock==3.1.1']
 
 DEPENDENCY_LINKS = []
 
