@@ -10,7 +10,10 @@
 std::tuple<ov::element::Type, ov::PartialShape> ov::op::util::validate_and_infer_elementwise_args(Node* node) {
     OPENVINO_ASSERT(node != nullptr, "Node is empty! Cannot validate eltwise arguments.");
     constexpr size_t valid_inputs_count = 2;
-    NODE_VALIDATION_CHECK(node, node->get_input_size() == valid_inputs_count, "Incorrect number of inputs. Required: ", valid_inputs_count);
+    NODE_VALIDATION_CHECK(node,
+                          node->get_input_size() == valid_inputs_count,
+                          "Incorrect number of inputs. Required: ",
+                          valid_inputs_count);
 
     element::Type result_et;
     NODE_VALIDATION_CHECK(

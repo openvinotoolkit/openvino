@@ -25,11 +25,11 @@ TYPED_TEST_P(StaticShapeInferenceTest_BEA, shape_inference_autob_numpy_equal_ran
 
     auto node = std::make_shared<TypeParam>(A, B);
 
-    std::vector<StaticShape> static_input_shapes = {StaticShape{3, 6, 1, 5}, StaticShape{3, 1, 3, 1}},
+    std::vector<StaticShape> static_input_shapes = {StaticShape{3, 1, 1, 5}, StaticShape{3, 1, 6, 1}},
             static_output_shapes = {StaticShape{}};
     shape_inference(node.get(), static_input_shapes, static_output_shapes);
 
-    ASSERT_EQ(static_output_shapes[0], StaticShape({3, 6, 3, 5}));
+    ASSERT_EQ(static_output_shapes[0], StaticShape({3, 1, 6, 5}));
 }
 
 TYPED_TEST_P(StaticShapeInferenceTest_BEA, shape_inference_autob_numpy_a_rank_higher) {
@@ -38,11 +38,11 @@ TYPED_TEST_P(StaticShapeInferenceTest_BEA, shape_inference_autob_numpy_a_rank_hi
 
     auto node = std::make_shared<TypeParam>(A, B);
 
-    std::vector<StaticShape> static_input_shapes = {StaticShape{3, 6, 1, 5}, StaticShape{6, 3, 1}},
+    std::vector<StaticShape> static_input_shapes = {StaticShape{3, 4, 1, 5}, StaticShape{4, 6, 1}},
             static_output_shapes = {StaticShape{}};
     shape_inference(node.get(), static_input_shapes, static_output_shapes);
 
-    ASSERT_EQ(static_output_shapes[0], StaticShape({3, 6, 3, 5}));
+    ASSERT_EQ(static_output_shapes[0], StaticShape({3, 4, 6, 5}));
 }
 
 TYPED_TEST_P(StaticShapeInferenceTest_BEA, shape_inference_autob_numpy_b_rank_higher) {
@@ -51,31 +51,57 @@ TYPED_TEST_P(StaticShapeInferenceTest_BEA, shape_inference_autob_numpy_b_rank_hi
 
     auto node = std::make_shared<TypeParam>(A, B);
 
-    std::vector<StaticShape> static_input_shapes = {StaticShape{6, 3, 1}, StaticShape{3, 6, 1, 5}},
+    std::vector<StaticShape> static_input_shapes = {StaticShape{4, 6, 1}, StaticShape{3, 4, 1, 5}},
             static_output_shapes = {StaticShape{}};
     shape_inference(node.get(), static_input_shapes, static_output_shapes);
 
-    ASSERT_EQ(static_output_shapes[0], StaticShape({3, 6, 3, 5}));
+    ASSERT_EQ(static_output_shapes[0], StaticShape({3, 4, 6, 5}));
+}
+
+TYPED_TEST_P(StaticShapeInferenceTest_BEA, shape_inference_autob_numpy_incompatible_shapes) {
+    auto A = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto B = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+
+    auto node = std::make_shared<TypeParam>(A, B);
+
+    std::vector<StaticShape> static_input_shapes = {StaticShape{3, 4, 6, 5}, StaticShape{2, 4, 6, 5}},
+            static_output_shapes = {StaticShape{}};
+
+    ASSERT_THROW(shape_inference(node.get(), static_input_shapes, static_output_shapes), NodeValidationFailure);
 }
 
 TYPED_TEST_P(StaticShapeInferenceTest_BEA, shape_inference_aubtob_none) {
     auto A = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
     auto B = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
 
-    auto node = std::make_shared<TypeParam>(A, B);
+    auto node = std::make_shared<TypeParam>(A, B, op::AutoBroadcastType::NONE);
 
-    std::vector<StaticShape> static_input_shapes = {StaticShape{3, 6, 3, 5}, StaticShape{3, 6, 3, 5}},
+    std::vector<StaticShape> static_input_shapes = {StaticShape{3, 4, 6, 5}, StaticShape{3, 4, 6, 5}},
             static_output_shapes = {StaticShape{}};
     shape_inference(node.get(), static_input_shapes, static_output_shapes);
 
-    ASSERT_EQ(static_output_shapes[0], StaticShape({3, 6, 3, 5}));
+    ASSERT_EQ(static_output_shapes[0], StaticShape({3, 4, 6, 5}));
+}
+
+TYPED_TEST_P(StaticShapeInferenceTest_BEA, shape_inference_aubtob_none_incompatible_shapes) {
+    auto A = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto B = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+
+    auto node = std::make_shared<TypeParam>(A, B, op::AutoBroadcastType::NONE);
+
+    std::vector<StaticShape> static_input_shapes = {StaticShape{3, 4, 6, 5}, StaticShape{3, 1, 6, 1}},
+            static_output_shapes = {StaticShape{}};
+
+    ASSERT_THROW(shape_inference(node.get(), static_input_shapes, static_output_shapes), NodeValidationFailure);
 }
 
 REGISTER_TYPED_TEST_SUITE_P(StaticShapeInferenceTest_BEA,
                             shape_inference_autob_numpy_equal_rank,
                             shape_inference_autob_numpy_a_rank_higher,
                             shape_inference_autob_numpy_b_rank_higher,
-                            shape_inference_aubtob_none);
+                            shape_inference_autob_numpy_incompatible_shapes,
+                            shape_inference_aubtob_none,
+                            shape_inference_aubtob_none_incompatible_shapes);
 
 INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer_add, StaticShapeInferenceTest_BEA, ::testing::Types<op::v1::Add>);
 INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer_divide, StaticShapeInferenceTest_BEA, ::testing::Types<op::v1::Divide>);

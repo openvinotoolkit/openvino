@@ -252,7 +252,7 @@ TYPED_TEST_P(ArithmeticOperator, default_constructor) {
     auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::NONE);
     op->set_autob(autob);
     EXPECT_EQ(op->get_autob(), op::AutoBroadcastType::NONE);
-    ASSERT_THROW(op->validate_and_infer_types(), ngraph::NodeValidationFailure);
+    ASSERT_THROW(op->validate_and_infer_types(), NodeValidationFailure);
 
     autob = op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY);
     op->set_autob(autob);
@@ -260,8 +260,8 @@ TYPED_TEST_P(ArithmeticOperator, default_constructor) {
 
     op->validate_and_infer_types();
 
-    ASSERT_EQ(op->get_element_type(), element::f32);
-    ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 4, 5, 6, Dimension(5, 8), Dimension(5, 6)}));
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 4, 5, 6, Dimension(5, 8), Dimension(5, 6)}));
 }
 
 REGISTER_TYPED_TEST_SUITE_P(ArithmeticOperator,
