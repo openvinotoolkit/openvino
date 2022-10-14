@@ -280,6 +280,14 @@ class AsyncInferQueue(AsyncInferQueueBase):
     InferRequests and provides synchronization functions to control flow of
     a simple pipeline.
     """
+    def __iter__(self) -> map:
+        """Allows to iterate over AsyncInferQueue.
+
+        :return: a map object (which is an iterator) that yields InferRequests.
+        :rtype: a map object.
+        """
+        return map(lambda x: InferRequest(x), super().__iter__())
+
     def __getitem__(self, i: int) -> InferRequest:
         """Gets InferRequest from the pool with given i id.
 
