@@ -48,6 +48,7 @@ NamedOutputs elementwise_greater_equal(const NodeContext& node_context) {
 
 NamedOutputs elementwise_not_equal(const NodeContext& node_context) {
     return elementwise_ops<default_opset::NotEqual>(node_context);
+}
 
 NamedOutputs elementwise_mod(const NodeContext& node_context) {
     return elementwise_ops<default_opset::FloorMod>(node_context);
@@ -57,3 +58,4 @@ NamedOutputs elementwise_mod(const NodeContext& node_context) {
 }  // namespace paddle
 }  // namespace frontend
 }  // namespace ov
+
