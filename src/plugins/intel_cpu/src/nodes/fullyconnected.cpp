@@ -380,53 +380,32 @@ bool FullyConnected::canFuse(const NodePtr& node) const {
     return canFuseSimpleOperation(node);
 }
 
-void FullyConnected::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool initWeights) {
+void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, bool initWeights) {
     dnnl::post_ops ops;
-
-    auto getBinPostOpShape = [&](){
-        const size_t binaryShapeRank = getOutputShapeAtPort(0).getRank() == 3 ? 2 : getOutputShapeAtPort(0).getRank();
-        VectorDims binaryShape(binaryShapeRank, 1);
-        const auto channelAxis = getFusingAxis();
-        // always use 1 as channelAxis for binary Shape, since oneDNN primitive is actually always 2D
-        binaryShape[1] = dims[channelAxis];
-
-        return binaryShape;
-    };
 
     DEBUG_LOG(getName());
 
-    bool isINT8Inference = getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::U8 ||
-                           getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::I8;
+    bool isINT8 = getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::U8 ||
+                  getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::I8;
 
-    auto postop = fusedWith.begin();
+    DnnlPostOpsComposer dnnlpoc(this, attr, ops, postOpsArgs, dims, -1, isINT8);
 
-    if (isINT8Inference)
-        postop = tryMapFusedOpsToOscales(postop, attr, ops, postOpsArgs, outputDataType, dims, -1, true);
-
-    // all the rest must be mapped as postOps
-    while (postop != fusedWith.end()) {
-        auto& node = *postop++;
-        bool isLastPostOp = node == fusedWith.back();
+    for (int i = 0; i < fusedWith.size(); ++i) {
+        auto& node = fusedWith[i];
+        bool isLastPostOp = (i == (fusedWith.size() - 1));
 
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get())) {
-            if (fakeQuantizeNode->optimizeAsOscalePostOps(attr, ops, postOpsArgs, isLastPostOp, outputDataType, dims, -1, false, true, true)) {
-                continue;
-            }
-
-            //fakeQuantizeNode->appendBinPostOpsOptimized(ops, getBinPostOpShape(), postOpsArgs, isLastPostOp, outputDataType);
-            //continue;
-        }
-
-        if (auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get())) {
-            if (eltwiseNode->getOneDnnAlgorithm() != dnnl::algorithm::undef) {
-                eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
-            } else {
-                eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
-            }
+            fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
             continue;
         }
 
-        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+        if (auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get())) {
+            eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
+            continue;
+        }
+
+        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType())
+                   << " node is not implemented";
     }
 
     attr.set_post_ops(ops);

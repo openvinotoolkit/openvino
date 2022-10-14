@@ -126,25 +126,7 @@ public:
 
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis = 1) override;
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1) override;
-    void appendBinPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem) override;
-    void appendBinPostOpsOptimized(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem,
-            bool isLastPostOp, dnnl::memory::data_type outDataType);
-
-    // called only when it's first fused OP where it can be optimized as output scale and eltwise post_ops
-    // this optimization can be failed due to per-channel shifts not implementable by eltwise (and we explicitly
-    // avoid costly binary postOps in this optimization)
-    // if it happens to be the last postOp, the outDataType determines which type of suration will be performed
-    // by oneDNN thus the final crop steps can be further optimized.
-    bool optimizeAsOscalePostOps(dnnl::primitive_attr& attr,
-                                 dnnl::post_ops& ops,
-                                 std::vector<MemoryPtr>& args,
-                                 bool isLastPostOp,
-                                 dnnl::memory::data_type outDataType,  // output data type
-                                 const VectorDims& outputDataDims,     // output data dimensions/shapes
-                                 int dimOC,  // outputDataDims[dimOC] is the number of output channels
-                                 bool allowOscale,
-                                 bool allowBinary,
-                                 bool allowShift);
+    void appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -213,8 +195,12 @@ private:
     // input linear mapping and rounding stage, according to
     // definition of FQ, this should turn the per-OC crop into
     // a per-tensor crop2 (maybe not always)
-    std::vector<float> crop2Low;
-    std::vector<float> crop2High;
+    std::vector<float> inputScale2;
+    std::vector<float> inputShift2;
+    std::vector<float> outputScale2;
+    std::vector<float> outputShift2;
+    std::vector<float> cropLow2;
+    std::vector<float> cropHigh2;
 
     void initializeCrop2();
     float originalPerTensorInputShift;

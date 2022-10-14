@@ -447,43 +447,29 @@ void Deconvolution::initPaddingR(const Shape &inShape, const Shape &outShape) {
     }
 }
 
-void Deconvolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims) {
+void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims) {
     dnnl::post_ops ops;
-
-    auto getBinPostOpShape = [&](){
-        const auto outShapeRank = getOutputShapeAtPort(0).getRank();
-        const auto chIdx = getFusingAxis();
-        std::vector<size_t> binaryShape(outShapeRank, 1);
-        binaryShape[chIdx] = dims[chIdx];
-        return binaryShape;
-    };
 
     DEBUG_LOG(getName());
 
-    auto postop = fusedWith.begin();
+    DnnlPostOpsComposer dnnlpoc(this, attr, ops, postOpsArgs, dims, 1, isInt8);
 
-    if (isInt8)
-        postop = tryMapFusedOpsToOscales(postop, attr, ops, postOpsArgs, outputDataType, dims, 1, true);
+    for (int i = 0; i < fusedWith.size(); ++i) {
+        auto& node = fusedWith[i];
+        bool isLastPostOp = (i == (fusedWith.size() - 1));
 
-    while (postop != fusedWith.end()) {
-        auto& node = *postop++;
-        bool isLastPostOp = (node == fusedWith.back());
-
-        if (auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get())) {
-            // TODO [DS]: change to shape from memory
-            // use legacy depthwise since backprop convolution does not support binary post ops
-            eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
+        if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get())) {
+            fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
             continue;
         }
-        if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
-            if (fakeQuantizeNode->optimizeAsOscalePostOps(attr, ops, postOpsArgs, isLastPostOp, outputDataType, dims, 1, false, true, true)) {
-                continue;
-            }
 
-            //fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
-            //continue;
+        if (auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get())) {
+            eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
+            continue;
         }
-        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+
+        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType())
+                   << " node is not implemented";
     }
 
     attr.set_post_ops(ops);

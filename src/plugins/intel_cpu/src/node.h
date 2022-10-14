@@ -35,6 +35,8 @@
 #include <utils/shape_inference/shape_inference.hpp>
 #include "utils/debug_capabilities.h"
 
+#include "dnnl_postops_composer.h"
+
 namespace ov {
 namespace intel_cpu {
 

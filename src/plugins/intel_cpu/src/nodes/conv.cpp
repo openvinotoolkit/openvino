@@ -583,11 +583,17 @@ void Convolution::getSupportedDescriptors() {
     }
 }
 
-void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool useLegacyPostOps, bool initWeights) {
+void Convolution::setPostOps(dnnl::primitive_attr& attr,
+                             const VectorDims& dims,
+                             bool useLegacyPostOps,
+                             bool initWeights) {
     dnnl::post_ops ops;
-    auto & args = convPostOpsArgs[useLegacyPostOps];
+    auto& args = convPostOpsArgs[useLegacyPostOps];
+    bool isINT8 = canBeExecutedInInt8();
 
-    auto getBinPostOpShape = [&](){
+    DnnlPostOpsComposer dnnlpoc(this, attr, ops, args, dims, 1, isINT8);
+
+    auto getBinPostOpShape = [&]() {
         const auto outShapeRank = dims.size();
         const auto chIdx = getFusingAxis();
         std::vector<size_t> binaryShape(outShapeRank, 1);
@@ -595,74 +601,69 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
         return binaryShape;
     };
 
-    bool allowBinary = !useLegacyPostOps;
-
     DEBUG_LOG(getName());
 
-    auto postop = fusedWith.begin();
-
-    if (canBeExecutedInInt8())
-        postop = tryMapFusedOpsToOscales(postop, attr, ops, args, outputDataType, dims, 1, allowBinary);
-
-    // all the rest must be mapped as postOps
-    while (postop != fusedWith.end()) {
-        auto& node = *postop++;
-        bool isLastPostOp = (node == fusedWith.back());
+    for (int i = 0; i < fusedWith.size(); ++i) {
+        auto& node = fusedWith[i];
+        bool isLastPostOp = (i == (fusedWith.size() - 1));
 
         if (node->getType() == Type::Split || node->getType() == Type::Concatenation)
             continue;
 
-        if (auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get())) {
+        if (auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get())) {
             if (eltwiseNode->isSpecialConvolutionAddFusing()) {
                 if (withSumBroadcast) {
                     break;
                 }
                 ops.append_sum(1.0, DnnlExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
             } else {
-                if (useLegacyPostOps || eltwiseNode->getOneDnnAlgorithm() != dnnl::algorithm::undef) {
+                if (useLegacyPostOps) {
                     eltwiseNode->appendPostOps(ops, dims, args);
                 } else {
-                    eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), args);
+                    eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
                 }
             }
             continue;
         }
 
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get())) {
-            if (fakeQuantizeNode->optimizeAsOscalePostOps(attr, ops, args, isLastPostOp, outputDataType, dims, 1, false, allowBinary, true)) {
-                continue;
-            }
-
             if (useLegacyPostOps) {
                 fakeQuantizeNode->appendPostOps(ops, dims, args);
             } else {
-                //fakeQuantizeNode->appendBinPostOpsOptimized(ops, getBinPostOpShape(), args,
-                //        isLastPostOp, outputDataType);
+                fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
             }
-
             continue;
         }
 
-        auto* convolutionNode = dynamic_cast<Convolution *>(node.get());
+        auto* convolutionNode = dynamic_cast<Convolution*>(node.get());
         if (convolutionNode) {
             if (initWeights) {
                 args.push_back(getParentEdgeAt(getOriginalInputsNumber() + 0)->getMemoryPtr());
                 args.push_back(getParentEdgeAt(getOriginalInputsNumber() + 1)->getMemoryPtr());
 
                 // todo: rewrite onto append_dw_k3s2p1
-                ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
-                                   dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
+                ops.append_dw_conv(dw_conv_ih,
+                                   dw_conv_iw,
+                                   dw_conv_kernel[Y_AXIS],
+                                   dw_conv_kernel[X_AXIS],
+                                   dw_conv_strides[Y_AXIS],
+                                   dw_conv_strides[X_AXIS],
                                    dnnl::memory::convert_to_c(dw_conv_in_dt));
             } else {
                 // todo: rewrite onto append_dw_k3s2p1
-                ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
-                                   dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
+                ops.append_dw_conv(dw_conv_ih,
+                                   dw_conv_iw,
+                                   dw_conv_kernel[Y_AXIS],
+                                   dw_conv_kernel[X_AXIS],
+                                   dw_conv_strides[Y_AXIS],
+                                   dw_conv_strides[X_AXIS],
                                    dnnl::memory::convert_to_c(dw_conv_in_dt));
             }
             continue;
         }
 
-        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType())
+                   << " node is not implemented";
     }
 
     attr.set_post_ops(ops);
