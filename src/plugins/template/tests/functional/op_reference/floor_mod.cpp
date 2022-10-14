@@ -97,7 +97,7 @@ std::vector<FloorModParams> generateParamsForFloorModBroadcast() {
                        IN_ET,
                        std::vector<T>{1, 2, 3, 4},
                        std::vector<T>{2, 3},
-                       std::vector<T>{1.0f, 0.0f, 1.0f, 2.0f, 1.0f, 0.0f, 0.0f, 1.0f}),
+                       std::vector<T>{1, 0, 1, 2, 1, 0, 0, 1}),
     };
     return params;
 }
@@ -115,6 +115,17 @@ std::vector<FloorModParams> generateParamsForFloorModScalar() {
                        std::vector<T>{2}),
     };
     return params;
+}
+
+template <element::Type_t IN_ET>
+std::vector<FloorModParams> generateParamsForFloorModNonIntegerDivisor() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+    // clang-format off
+    return {FloorModParams(ov::PartialShape{8}, ov::PartialShape{8}, IN_ET,
+                std::vector<T>{-3.2, -3.1, -3.0,  5.0,  5.1,  5.2, -1.6, 1.6},
+                std::vector<T>{-3.1, -3.1, -3.1, -5.1, -5.1, -5.1,  1.7, 1.7},
+                std::vector<T>{-0.1, -0.0, -3.0, -0.1, -0.0, -5.0,  0.1, 1.6})};
+    // clang-format on
 }
 
 std::vector<FloorModParams> generateCombinedParamsForFloorMod() {
@@ -173,6 +184,10 @@ std::vector<FloorModParams> generateCombinedParamsForFloorModScalar() {
     return combinedParams;
 }
 
+std::vector<FloorModParams> generateCombinedParamsForFloorModNonIntegerDivisor() {
+    return generateParamsForFloorModNonIntegerDivisor<element::Type_t::f32>();
+}
+
 INSTANTIATE_TEST_SUITE_P(
     smoke_FloorMod_With_Hardcoded_Refs,
     ReferenceFloorModLayerTest,
@@ -186,9 +201,15 @@ INSTANTIATE_TEST_SUITE_P(
     ReferenceFloorModLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_FloorMode_Scalar_With_Hardcoded_Refs,
+    smoke_FloorMod_Scalar_With_Hardcoded_Refs,
     ReferenceFloorModLayerTest,
     ::testing::ValuesIn(generateCombinedParamsForFloorModScalar()),
+    ReferenceFloorModLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_FloorMod_NonInteger_Divisor,
+    ReferenceFloorModLayerTest,
+    ::testing::ValuesIn(generateCombinedParamsForFloorModNonIntegerDivisor()),
     ReferenceFloorModLayerTest::getTestCaseName);
 
 }  // namespace
