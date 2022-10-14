@@ -10,7 +10,7 @@
 std::tuple<ov::element::Type, ov::PartialShape> ov::op::util::validate_and_infer_elementwise_args(
     Node* node,
     const op::AutoBroadcastSpec& autob) {
-    NGRAPH_CHECK(node != nullptr, "nGraph node is empty! Cannot validate eltwise arguments.");
+    OPENVINO_ASSERT(node != nullptr, "Node is empty! Cannot validate eltwise arguments.");
 
     element::Type result_et;
     NODE_VALIDATION_CHECK(
