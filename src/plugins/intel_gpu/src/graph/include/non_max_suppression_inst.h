@@ -80,6 +80,7 @@ public:
         offset += has_second_output();
         return get_dependency(offset);
     }
+    bool use_multiple_outputs() const { return get_primitive()->output_size() == 3; }
 };
 
 using non_max_suppression_node = typed_program_node<non_max_suppression>;

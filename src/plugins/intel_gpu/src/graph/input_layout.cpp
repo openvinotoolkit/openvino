@@ -64,7 +64,7 @@ void input_layout_inst::update_shape() {
     if (_impl_params->get_output_layout() != mem_layout) {
         set_shape_change();
     }
-    _impl_params->get_output_layout() = mem_layout;
+    _impl_params->output_layouts[0] = mem_layout;
 }
 
 std::string input_layout_inst::to_string(input_layout_node const& node) {

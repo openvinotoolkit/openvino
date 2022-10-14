@@ -147,7 +147,7 @@ void primitive_inst::update_shape() {
     for (size_t i = 0; i < _deps.size(); i++) {
         auto new_shape = _deps[i]->_impl_params->get_output_layout();
         if (_impl_params->get_input_layout(i) != new_shape) {
-            _impl_params->get_input_layout(i) = new_shape;
+            _impl_params->input_layouts[i] = new_shape;
             input_shape_changed = true;
         }
     }

@@ -92,13 +92,13 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
     std::vector<std::pair<std::reference_wrapper<const primitive_id>, int>> get_dependencies_new() const override {
         std::vector<std::pair<std::reference_wrapper<const primitive_id>, int>> ret;
         if (!num_select_per_class.empty())
-            ret.push_back({std::ref(num_select_per_class), 0});
+            ret.push_back({num_select_per_class, 0});
         if (!iou_threshold.empty())
-            ret.push_back({std::ref(iou_threshold), 0});
+            ret.push_back({iou_threshold, 0});
         if (!score_threshold.empty())
-            ret.push_back({std::ref(score_threshold), 0});
+            ret.push_back({score_threshold, 0});
         if (!soft_nms_sigma.empty())
-            ret.push_back({std::ref(soft_nms_sigma), 0});
+            ret.push_back({soft_nms_sigma, 0});
 
         return ret;
     }

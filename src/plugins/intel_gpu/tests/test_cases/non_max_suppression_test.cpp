@@ -443,9 +443,10 @@ TYPED_TEST(non_max_suppression_basic, multiple_outputs) {
         EXPECT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
     }
 
+
     topology second_output_topology;
     second_output_topology.add(input_layout("selected_scores", selected_scores_mem->get_layout()));
-    second_output_topology.add(input_layout("num_outputs", this->valid_outputs_layout));
+    second_output_topology.add(input_layout("num_outputs", valid_outputs_mem->get_layout()));
     second_output_topology.add(reorder("plane_scores", "selected_scores", format::bfyx, this->data_type));
     second_output_topology.add(reorder("plane_num", "num_outputs", format::bfyx, cldnn::data_types::i32));
     network second_output_net{engine, second_output_topology};

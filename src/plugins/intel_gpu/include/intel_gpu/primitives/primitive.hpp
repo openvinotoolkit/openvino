@@ -96,9 +96,11 @@ public:
     std::vector<input_info> dependencies_new() const {
         std::vector<input_info> result;
         auto deps = get_dependencies_new();
-        result.reserve(input_new.size() + deps.size());
-        for (auto& i : input_new) result.push_back(i);
-        for (auto& dep : deps) result.push_back({dep.first.get(), dep.second});
+        if (!input_new.empty()) {
+            result.reserve(input_new.size() + deps.size());
+            for (auto& i : input_new) result.push_back(i);
+            for (auto& dep : deps) result.push_back({dep.first.get(), dep.second});
+        }
         return result;
     }
 

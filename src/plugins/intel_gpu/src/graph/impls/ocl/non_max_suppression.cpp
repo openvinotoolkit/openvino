@@ -47,7 +47,9 @@ protected:
             args.inputs.push_back(instance.soft_nms_sigma_mem());
         }
 
-        args.outputs = {instance.output_memory_ptr()};
+        for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
+            args.outputs.push_back(instance.output_memory_ptr(i));
+        }
         if (instance.has_second_output())
             args.inputs.push_back(instance.second_output_mem());
         if (instance.has_third_output())
@@ -129,6 +131,12 @@ public:
         if (arg.has_third_output()) {
             params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(true)]));
             params.has_third_output = true;
+        }
+
+        if (arg.use_multiple_outputs()) {
+            params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[1]));
+            params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[2]));
+            params.use_multiple_outputs = true;
         }
 
         params.sort_result_descending = primitive->sort_result_descending;

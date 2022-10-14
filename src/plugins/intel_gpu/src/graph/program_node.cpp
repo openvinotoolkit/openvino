@@ -58,16 +58,19 @@ void program_node::replace_dependency(size_t idx, program_node& new_dep, bool re
     if (it != dependencies[idx]->users.end()) {
         dependencies[idx]->users.erase(it);
     }
-    it = std::find(dependencies_new[idx].first->users.begin(), dependencies_new[idx].first->users.end(), this);
-    if (it != dependencies_new[idx].first->users.end()) {
-        dependencies_new[idx].first->users.erase(it);
+    if (!dependencies_new.empty()) {
+        it = std::find(dependencies_new[idx].first->users.begin(), dependencies_new[idx].first->users.end(), this);
+        if (it != dependencies_new[idx].first->users.end()) {
+            dependencies_new[idx].first->users.erase(it);
+        }
     }
 
     if (remove_if_dangling)
         myprog.remove_if_dangling(*dependencies[idx]);
 
     dependencies[idx] = &new_dep;
-    dependencies_new[idx].first = &new_dep;
+    if (!dependencies_new.empty())
+        dependencies_new[idx].first = &new_dep;
     new_dep.users.push_back(this);
 }
 

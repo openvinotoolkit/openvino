@@ -154,7 +154,7 @@ protected:
     std::vector<std::pair<std::reference_wrapper<const primitive_id>, int>> get_dependencies_new() const override {
         if (mean.empty())
             return {};
-        return {{std::ref(mean), 0}};
+        return {{mean, 0}};
     }
 };
 
