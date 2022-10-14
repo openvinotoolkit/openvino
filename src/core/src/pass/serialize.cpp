@@ -848,9 +848,11 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
             bool has_attrs = false;
             for (auto& item : attributes) {
                 if (item.second.is<ov::RuntimeAttribute>()) {
+                    auto attribute_node = rt_node.append_child("attribute");
                     auto& rt_attribute = item.second.as<ov::RuntimeAttribute>();
                     const auto& type_info = rt_attribute.get_type_info();
-                    auto attribute_node = rt_node.append_child(type_info.name);
+                    attribute_node.append_attribute("name").set_value(type_info.name);
+                    attribute_node.append_attribute("version").set_value(type_info.get_version().c_str());
                     rt_info::RTInfoSerializer serializer(attribute_node);
                     if (!rt_attribute.visit_attributes(serializer)) {
                         rt_node.remove_child(attribute_node);

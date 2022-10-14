@@ -496,10 +496,7 @@ class IREngine(object):
         xml_rt_info = list(layer.iterfind('rt_info'))[0]
 
         for attr in xml_rt_info:
-            if 'name' in attr.attrib.keys():
-                attr_name = attr.attrib['name']
-            else:
-                attr_name = attr.tag
+            attr_name = attr.attrib['name']
             if attr_name == 'old_api_map_order':
                 rt_info.info.update(self.__read_old_api_map_order(attr, layer.attrib['type']))
             elif attr_name == 'old_api_map_element_type':
@@ -512,7 +509,7 @@ class IREngine(object):
 
     @staticmethod
     def __read_old_api_map_order(attr, layer_type):
-        version = 0
+        version = int(attr.attrib['version'])
         order = list(map(int, attr.attrib['value'].split(',')))
         old_api_map = OldAPIMapOrder(version=version)
         if layer_type == 'Parameter':
@@ -526,7 +523,7 @@ class IREngine(object):
 
     @staticmethod
     def __read_old_api_map_element_type(attr, layer_type):
-        version = 0
+        version = int(attr.attrib['version'])
         element_type = destination_type_to_np_data_type(attr.attrib['value'])
         old_api_map = OldAPIMapElementType(version=version)
         old_api_map.set_legacy_type(element_type)
@@ -534,12 +531,8 @@ class IREngine(object):
 
     @staticmethod
     def __read_rt_info_common(attr):
-        if 'name' in attr.attrib.keys():
-            attr_name = attr.attrib['name']
-            version = int(attr.attrib['version'])
-        else:
-            attr_name = attr.tag
-            version = 0
+        attr_name = attr.attrib['name']
+        version = int(attr.attrib['version'])
         rt_info = OrderedDict()
         for key in attr.attrib:
             if key not in ('name', 'version'):

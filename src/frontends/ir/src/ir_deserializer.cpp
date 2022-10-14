@@ -869,26 +869,17 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
             return;
         for (const auto& item : rt_attrs) {
             std::string attribute_name, attribute_version;
-            auto attr_name = item.attribute("name");
-            auto attr_version = item.attribute("version");
-            if (attr_name.empty() && attr_version.empty()) {
-                // For view:
-                // <old_api_map_order value="0,3,1,2"/>
-                attribute_name = item.name();
-                attribute_version = "0";
-            } else {
-                // For view:
-                // <attribute name="old_api_map_order" version="0" value="0,3,1,2"/>
-                if (!getStrAttribute(item, "name", attribute_name)) {
-                    std::stringstream ss;
-                    item.print(ss);
-                    IE_THROW() << "rt_info attribute has no \"name\" field: " << ss.str();
-                }
-                if (!getStrAttribute(item, "version", attribute_version)) {
-                    std::stringstream ss;
-                    item.print(ss);
-                    IE_THROW() << "rt_info attribute: " << attribute_name << " has no \"version\" field: " << ss.str();
-                }
+            // For view:
+            // <attribute name="old_api_map_order" version="0" value="0,3,1,2"/>
+            if (!getStrAttribute(item, "name", attribute_name)) {
+                std::stringstream ss;
+                item.print(ss);
+                IE_THROW() << "rt_info attribute has no \"name\" field: " << ss.str();
+            }
+            if (!getStrAttribute(item, "version", attribute_version)) {
+                std::stringstream ss;
+                item.print(ss);
+                IE_THROW() << "rt_info attribute: " << attribute_name << " has no \"version\" field: " << ss.str();
             }
             const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), 0, attribute_version.c_str());
             auto attr = attrs_factory.create_by_type_info(type_info);
