@@ -5,67 +5,201 @@
 
 #include "common.h"
 
-ov_status_e ov_model_outputs(const ov_model_t* model, ov_output_node_list_t* output_nodes) {
-    if (!model || !output_nodes) {
+ov_status_e ov_model_const_input(const ov_model_t* model, ov_output_const_port_t** input_port) {
+    if (!model || !input_port) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
-        auto results = std::const_pointer_cast<const ov::Model>(model->object)->outputs();
-        output_nodes->size = results.size();
-        std::unique_ptr<ov_output_const_node_t[]> tmp_output_nodes(new ov_output_const_node_t[output_nodes->size]);
-
-        for (size_t i = 0; i < output_nodes->size; i++) {
-            tmp_output_nodes[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(results[i]));
-        }
-        output_nodes->output_nodes = tmp_output_nodes.release();
+        auto result = std::const_pointer_cast<const ov::Model>(model->object)->input();
+        std::unique_ptr<ov_output_const_port_t> _input_port(new ov_output_const_port_t);
+        _input_port->object = std::make_shared<ov::Output<const ov::Node>>(std::move(result));
+        *input_port = _input_port.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
 
-ov_status_e ov_model_inputs(const ov_model_t* model, ov_output_node_list_t* input_nodes) {
-    if (!model || !input_nodes) {
-        return ov_status_e::INVALID_C_PARAM;
-    }
-    try {
-        auto results = std::const_pointer_cast<const ov::Model>(model->object)->inputs();
-        input_nodes->size = results.size();
-        std::unique_ptr<ov_output_const_node_t[]> tmp_output_nodes(new ov_output_const_node_t[input_nodes->size]);
-
-        for (size_t i = 0; i < input_nodes->size; i++) {
-            tmp_output_nodes[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(results[i]));
-        }
-        input_nodes->output_nodes = tmp_output_nodes.release();
-    }
-    CATCH_OV_EXCEPTIONS
-    return ov_status_e::OK;
-}
-
-ov_status_e ov_model_input_by_name(const ov_model_t* model,
-                                   const char* tensor_name,
-                                   ov_output_const_node_t** input_node) {
-    if (!model || !tensor_name || !input_node) {
+ov_status_e ov_model_const_input_by_name(const ov_model_t* model,
+                                         const char* tensor_name,
+                                         ov_output_const_port_t** input_port) {
+    if (!model || !tensor_name || !input_port) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
         auto result = std::const_pointer_cast<const ov::Model>(model->object)->input(tensor_name);
-        std::unique_ptr<ov_output_const_node_t> _input_node(new ov_output_const_node_t);
-        _input_node->object = std::make_shared<ov::Output<const ov::Node>>(std::move(result));
-        *input_node = _input_node.release();
+        std::unique_ptr<ov_output_const_port_t> _input_port(new ov_output_const_port_t);
+        _input_port->object = std::make_shared<ov::Output<const ov::Node>>(std::move(result));
+        *input_port = _input_port.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
 
-ov_status_e ov_model_input_by_index(const ov_model_t* model, const size_t index, ov_output_const_node_t** input_node) {
-    if (!model || !input_node) {
+ov_status_e ov_model_const_input_by_index(const ov_model_t* model,
+                                          const size_t index,
+                                          ov_output_const_port_t** input_port) {
+    if (!model || !input_port) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
         auto result = std::const_pointer_cast<const ov::Model>(model->object)->input(index);
-        std::unique_ptr<ov_output_const_node_t> _input_node(new ov_output_const_node_t);
-        _input_node->object = std::make_shared<ov::Output<const ov::Node>>(std::move(result));
-        *input_node = _input_node.release();
+        std::unique_ptr<ov_output_const_port_t> _input_port(new ov_output_const_port_t);
+        _input_port->object = std::make_shared<ov::Output<const ov::Node>>(std::move(result));
+        *input_port = _input_port.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_model_input(const ov_model_t* model, ov_output_port_t** input_port) {
+    if (!model || !input_port) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        auto result = model->object->input();
+        std::unique_ptr<ov_output_port_t> _input_port(new ov_output_port_t);
+        _input_port->object = std::make_shared<ov::Output<ov::Node>>(std::move(result));
+        *input_port = _input_port.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_model_input_by_name(const ov_model_t* model, const char* tensor_name, ov_output_port_t** input_port) {
+    if (!model || !tensor_name || !input_port) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        auto result = model->object->input(tensor_name);
+        std::unique_ptr<ov_output_port_t> _input_port(new ov_output_port_t);
+        _input_port->object = std::make_shared<ov::Output<ov::Node>>(std::move(result));
+        *input_port = _input_port.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_model_input_by_index(const ov_model_t* model, const size_t index, ov_output_port_t** input_port) {
+    if (!model || !input_port) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        auto result = model->object->input(index);
+        std::unique_ptr<ov_output_port_t> _input_port(new ov_output_port_t);
+        _input_port->object = std::make_shared<ov::Output<ov::Node>>(std::move(result));
+        *input_port = _input_port.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_model_const_output(const ov_model_t* model, ov_output_const_port_t** output_port) {
+    if (!model || !output_port) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        auto result = std::const_pointer_cast<const ov::Model>(model->object)->output();
+        std::unique_ptr<ov_output_const_port_t> _output_port(new ov_output_const_port_t);
+        _output_port->object = std::make_shared<ov::Output<const ov::Node>>(std::move(result));
+        *output_port = _output_port.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_model_const_output_by_index(const ov_model_t* model,
+                                           const size_t index,
+                                           ov_output_const_port_t** output_port) {
+    if (!model || !output_port) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        auto result = std::const_pointer_cast<const ov::Model>(model->object)->output(index);
+        std::unique_ptr<ov_output_const_port_t> _output_port(new ov_output_const_port_t);
+        _output_port->object = std::make_shared<ov::Output<const ov::Node>>(std::move(result));
+        *output_port = _output_port.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_model_const_output_by_name(const ov_model_t* model,
+                                          const char* tensor_name,
+                                          ov_output_const_port_t** output_port) {
+    if (!model || !tensor_name || !output_port) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        auto result = std::const_pointer_cast<const ov::Model>(model->object)->output(tensor_name);
+        std::unique_ptr<ov_output_const_port_t> _output_port(new ov_output_const_port_t);
+        _output_port->object = std::make_shared<ov::Output<const ov::Node>>(std::move(result));
+        *output_port = _output_port.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_model_output(const ov_model_t* model, ov_output_port_t** output_port) {
+    if (!model || !output_port) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        auto result = model->object->output();
+        std::unique_ptr<ov_output_port_t> _output_port(new ov_output_port_t);
+        _output_port->object = std::make_shared<ov::Output<ov::Node>>(std::move(result));
+        *output_port = _output_port.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_model_output_by_index(const ov_model_t* model, const size_t index, ov_output_port_t** output_port) {
+    if (!model || !output_port) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        auto result = model->object->output(index);
+        std::unique_ptr<ov_output_port_t> _output_port(new ov_output_port_t);
+        _output_port->object = std::make_shared<ov::Output<ov::Node>>(std::move(result));
+        *output_port = _output_port.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_model_output_by_name(const ov_model_t* model, const char* tensor_name, ov_output_port_t** output_port) {
+    if (!model || !tensor_name || !output_port) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        auto result = model->object->output(tensor_name);
+        std::unique_ptr<ov_output_port_t> _output_port(new ov_output_port_t);
+        _output_port->object = std::make_shared<ov::Output<ov::Node>>(std::move(result));
+        *output_port = _output_port.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_model_inputs_size(const ov_model_t* model, size_t* input_size) {
+    if (!model || !input_size) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        auto input_ports = model->object->inputs();
+        *input_size = input_ports.size();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_model_outputs_size(const ov_model_t* model, size_t* output_size) {
+    if (!model || !output_size) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        auto output_ports = model->object->outputs();
+        *output_size = output_ports.size();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -186,10 +320,10 @@ ov_status_e ov_model_reshape_single_input(const ov_model_t* model, const ov_part
 }
 
 ov_status_e ov_model_reshape_by_ports(const ov_model_t* model,
-                                      const ov_output_node_t** output_nodes,
+                                      const ov_output_port_t** output_ports,
                                       const ov_partial_shape_t* partial_shapes,
                                       size_t size) {
-    if (!model || !output_nodes || !partial_shapes || size < 1) {
+    if (!model || !output_ports || !partial_shapes || size < 1) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
@@ -197,7 +331,7 @@ ov_status_e ov_model_reshape_by_ports(const ov_model_t* model,
         std::vector<ov::Dimension> dims;
         ov_status_e ret = ov_status_e::OK;
         for (size_t i = 0; i < size; i++) {
-            auto node = *output_nodes[i]->object;
+            auto node = *output_ports[i]->object;
             auto pshape = &partial_shapes[i];
             dims.clear();
             ret = partial_shape_convert_to_cpp_object(pshape, dims);

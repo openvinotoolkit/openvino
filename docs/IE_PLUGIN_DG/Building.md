@@ -91,12 +91,12 @@ endif()
 
 - `src/CMakeLists.txt` to build a plugin shared library from sources:
 
-@snippet template_plugin/src/CMakeLists.txt cmake:plugin
+@snippet template/src/CMakeLists.txt cmake:plugin
 
 > **NOTE**: `IE::inference_engine` target is imported from the Inference Engine Developer Package.
 
 - `tests/functional/CMakeLists.txt` to build a set of functional plugin tests:
 
-@snippet template_plugin/tests/functional/CMakeLists.txt cmake:functional_tests
+@snippet template/tests/functional/CMakeLists.txt cmake:functional_tests
 
 > **NOTE**: The `IE::funcSharedTests` static library with common functional Inference Engine Plugin tests is imported via the Inference Engine Developer Package.

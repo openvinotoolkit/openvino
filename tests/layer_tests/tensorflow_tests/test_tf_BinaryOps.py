@@ -39,9 +39,9 @@ class TestBinaryOps(CommonTFLayerTest):
     def create_add_placeholder_const_net(self, x_shape, y_shape, ir_version, op_type,
                                          use_new_frontend):
         """
-            Tensorflow net                  IR net
+            Tensorflow net                       IR net
 
-            Placeholder->BinaryOp       =>       Placeholder->Eltwise or Power or ScaleShift
+            Placeholder->BinaryOp       =>       Placeholder->BinaryOp
                          /                                     /
             Const-------/                         Const-------/
 
@@ -49,9 +49,6 @@ class TestBinaryOps(CommonTFLayerTest):
 
         self.current_op_type = op_type
 
-        #
-        #   Create Tensorflow model
-        #
         import tensorflow as tf
 
         op_type_to_tf = {
@@ -112,7 +109,8 @@ class TestBinaryOps(CommonTFLayerTest):
         return tf_net, ref_net
 
     test_data_precommits = [dict(x_shape=[2, 3, 4], y_shape=[2, 3, 4]),
-                            dict(x_shape=[2, 3, 4, 5], y_shape=[2, 3, 4, 5])]
+                            pytest.param(dict(x_shape=[2, 3, 4, 5], y_shape=[2, 3, 4, 5]),
+                                         marks=pytest.mark.precommit_tf_fe)]
 
     @pytest.mark.parametrize("params", test_data_precommits)
     @pytest.mark.parametrize("op_type",
@@ -124,7 +122,7 @@ class TestBinaryOps(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_binary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
-                       use_new_frontend, api_2):
+                       use_new_frontend, use_old_api):
         if ie_device == 'GPU' and precision == "FP16":
             pytest.skip("BinaryOps tests temporary skipped on GPU with FP16 precision."
                         "Several tests don't pass accuracy checks.")
@@ -132,4 +130,4 @@ class TestBinaryOps(CommonTFLayerTest):
             *self.create_add_placeholder_const_net(**params, ir_version=ir_version, op_type=op_type,
                                                    use_new_frontend=use_new_frontend), ie_device,
             precision,
-            ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
+            ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend, use_old_api=use_old_api)

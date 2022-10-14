@@ -25,19 +25,19 @@ op::v6::ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(const Outpu
 }
 
 bool op::v6::ExperimentalDetectronTopKROIs::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v6_ExperimentalDetectronTopKROIs_visit_attributes);
+    OV_OP_SCOPE(v6_ExperimentalDetectronTopKROIs_visit_attributes);
     visitor.on_attribute("max_rois", m_max_rois);
     return true;
 }
 
 shared_ptr<Node> op::v6::ExperimentalDetectronTopKROIs::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v6_ExperimentalDetectronTopKROIs_clone_with_new_inputs);
+    OV_OP_SCOPE(v6_ExperimentalDetectronTopKROIs_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v6::ExperimentalDetectronTopKROIs>(new_args.at(0), new_args.at(1), m_max_rois);
 }
 
 void op::v6::ExperimentalDetectronTopKROIs::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v6_ExperimentalDetectronTopKROIs_validate_and_infer_types);
+    OV_OP_SCOPE(v6_ExperimentalDetectronTopKROIs_validate_and_infer_types);
     const auto input_rois_shape = get_input_partial_shape(0);
     const auto rois_probs_shape = get_input_partial_shape(1);
 

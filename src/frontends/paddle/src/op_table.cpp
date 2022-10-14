@@ -15,6 +15,7 @@ OP_CONVERTER(batch_norm);
 OP_CONVERTER(bicubic_interp_v2);
 OP_CONVERTER(bilinear_interp_v2);
 OP_CONVERTER(cast);
+OP_CONVERTER(ceil);
 OP_CONVERTER(clip);
 OP_CONVERTER(concat);
 OP_CONVERTER(conv2d);
@@ -29,6 +30,7 @@ OP_CONVERTER(elementwise_floordiv);
 OP_CONVERTER(elementwise_greater_equal);
 OP_CONVERTER(elementwise_max);
 OP_CONVERTER(elementwise_min);
+OP_CONVERTER(elementwise_mod);
 OP_CONVERTER(elementwise_mul);
 OP_CONVERTER(elementwise_pow);
 OP_CONVERTER(elementwise_sub);
@@ -89,6 +91,7 @@ OP_CONVERTER(sqrt);
 OP_CONVERTER(squeeze);
 OP_CONVERTER(stack);
 OP_CONVERTER(strided_slice);
+OP_CONVERTER(sum);
 OP_CONVERTER(swish);
 OP_CONVERTER(tanh);
 OP_CONVERTER(tile);
@@ -97,6 +100,7 @@ OP_CONVERTER(transpose2);
 OP_CONVERTER(trilinear_interp_v2);
 OP_CONVERTER(unsqueeze);
 OP_CONVERTER(where);
+OP_CONVERTER(where_index);
 OP_CONVERTER(yolo_box);
 OP_CONVERTER(generate_proposals_v2);
 }  // namespace op
@@ -110,6 +114,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"bilinear_interp", op::bilinear_interp_v2},
             {"bmm", op::matmul},
             {"cast", op::cast},
+            {"ceil", op::ceil},
             {"clip", op::clip},
             {"concat", op::concat},
             {"conv2d", op::conv2d},
@@ -125,6 +130,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"elementwise_floordiv", op::elementwise_floordiv},
             {"elementwise_max", op::elementwise_max},
             {"elementwise_min", op::elementwise_min},
+            {"elementwise_mod", op::elementwise_mod},
             {"elementwise_mul", op::elementwise_mul},
             {"elementwise_pow", op::elementwise_pow},
             {"elementwise_sub", op::elementwise_sub},
@@ -189,6 +195,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"squeeze2", op::squeeze},
             {"stack", op::stack},
             {"strided_slice", op::strided_slice},
+            {"sum", op::sum},
             {"swish", op::swish},
             {"sync_batch_norm", op::batch_norm},
             {"tanh", op::tanh},
@@ -198,6 +205,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"trilinear_interp_v2", op::trilinear_interp_v2},
             {"unsqueeze2", op::unsqueeze},
             {"where", op::where},
+            {"where_index", op::where_index},
             {"yolo_box", op::yolo_box},
             {"generate_proposals_v2", op::generate_proposals_v2}};
 };

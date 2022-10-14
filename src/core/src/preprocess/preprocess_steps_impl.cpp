@@ -321,7 +321,7 @@ std::tuple<PartialShape, Layout> PreStepsList::calculate_param_shape(const Parti
     Layout res_layout = model_layout;
     std::vector<Dimension> old_dims(model_shape.rank().get_length());
     std::vector<Dimension> dims(model_shape.rank().get_length());
-    for (size_t i = 0; i < model_shape.rank().get_length(); i++) {
+    for (size_t i = 0; i < static_cast<size_t>(model_shape.rank().get_length()); i++) {
         dims[i] = model_shape[i];
     }
     for (const auto& convert : m_layout_converts) {

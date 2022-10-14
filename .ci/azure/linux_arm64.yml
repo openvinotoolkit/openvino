@@ -4,8 +4,23 @@ trigger:
     - master
     - releases/*
   paths:
-    exclude:
-    - docs/*
+    exclude: 
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+    - README.md
+
+pr:
+  branches:
+    include:
+    - master
+    - releases/*
+  paths:
+    exclude: 
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+    - README.md
 
 resources:
   repositories:
@@ -35,13 +50,17 @@ jobs:
     OPENVINO_REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(OPENVINO_REPO_DIR)/../openvino_contrib
     OPENCV_REPO_DIR: $(OPENVINO_REPO_DIR)/../opencv
+    ONETBB_REPO_DIR: $(OPENVINO_CONTRIB_REPO_DIR)/../oneTBB
     BUILD_PYTHON: $(WORK_DIR)/build_python
     BUILD_OPENCV: $(WORK_DIR)/build_opencv
+    BUILD_ONETBB: $(WORK_DIR)/build_onetbb
     BUILD_OPENVINO: $(WORK_DIR)/build
     BUILD_OPENVINO_PYTHON: $(WORK_DIR)/build_python
     BUILD_OPEN_MODEL_ZOO: $(WORK_DIR)/build_open_model_zoo
     INSTALL_OPENVINO: $(WORK_DIR)/install_openvino
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
+    INSTALL_ONETBB: $(WORK_DIR)/build/extras/oneTBB
+    INSTALL_ONETBB_PACKAGE: $(INSTALL_OPENVINO)/extras/oneTBB
     INSTALL_OPENCV: $(INSTALL_OPENVINO)/extras/opencv
     INSTALL_OPEN_MODEL_ZOO: $(INSTALL_OPENVINO)/extras/open_model_zoo
     WORK_DIR: $(Pipeline.Workspace)/_w
@@ -49,6 +68,7 @@ jobs:
     TMP_DIR: /mnt/tmp
     OPENVINO_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64
     OPENCV_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64_opencv
+    ONETBB_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64_onetbb
 
   steps:
   - script: |
@@ -75,14 +95,15 @@ jobs:
 
   - script: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
-      mkdir -p $(BUILD_OPENCV) $(BUILD_OPENVINO) $(BUILD_OPENVINO_PYTHON) $(BUILD_PYTHON) $(BUILD_OPEN_MODEL_ZOO)
-      mkdir -p $(INSTALL_OPENVINO) $(INSTALL_PYTHON) $(INSTALL_OPENCV) $(INSTALL_OPEN_MODEL_ZOO)
+      mkdir -p $(BUILD_ONETBB) $(BUILD_OPENCV) $(BUILD_OPENVINO) $(BUILD_OPENVINO_PYTHON) $(BUILD_PYTHON) $(BUILD_OPEN_MODEL_ZOO)
+      mkdir -p $(INSTALL_ONETBB) $(INSTALL_ONETBB_PACKAGE) $(INSTALL_OPENVINO) $(INSTALL_PYTHON) $(INSTALL_OPENCV) $(INSTALL_OPEN_MODEL_ZOO)
       sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
       sudo mkdir -p $(SHARE_DIR)
       sudo apt --assume-yes update && sudo apt --assume-yes install nfs-common
       sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(SHARE_DIR) -o vers=4,minorversion=1,sec=sys
       mkdir -p $(OPENVINO_CCACHE_DIR)
       mkdir -p $(OPENCV_CCACHE_DIR)
+      mkdir -p $(ONETBB_CCACHE_DIR)
     displayName: 'Make directories'
 
   - checkout: self
@@ -100,11 +121,12 @@ jobs:
   - script: |
       set -e
       $(OPENVINO_REPO_DIR)/install_build_dependencies.sh
-      export CCACHE_DIR=$(OPENCV_CCACHE_DIR)
       export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
       export CCACHE_BASEDIR=$(Pipeline.Workspace)
       export CCACHE_MAXSIZE=50G
       export USE_CCACHE=1
+      export OPENCV_CCACHE_DIR=$(OPENCV_CCACHE_DIR)
+      export ONETBB_CCACHE_DIR=$(ONETBB_CCACHE_DIR)
       export PYTHON_ARM_VERSION=$(PYTHON_ARM_VERSION)
       export NUM_PROC=$(NUM_PROC)
       export BUILD_PYTHON=$(BUILD_PYTHON)
@@ -112,8 +134,11 @@ jobs:
       export INSTALL_PYTHON=$(INSTALL_PYTHON)
       export BUILD_TYPE=$(BUILD_TYPE)
       export OPENVINO_REPO_DIR=$(OPENVINO_REPO_DIR)
+      export BUILD_ONETBB=$(BUILD_ONETBB)
+      export INSTALL_ONETBB=$(INSTALL_ONETBB)
       export INSTALL_OPENCV=$(INSTALL_OPENCV)
       export PYTHON_EXEC=$(PYTHON_EXEC)
+      export ONETBB_REPO_DIR=$(ONETBB_REPO_DIR)
       export OPENCV_REPO_DIR=$(OPENCV_REPO_DIR)
       export BUILD_OPENCV=$(BUILD_OPENCV)
       export INSTALL_OPENVINO=$(INSTALL_OPENVINO)
@@ -121,11 +146,13 @@ jobs:
     workingDirectory: $(BUILD_OPENVINO)
     displayName: 'Install dependencies'
 
+
   - task: CMake@1
     inputs:
       cmakeArgs: >
         -GNinja
         -DVERBOSE_BUILD=ON
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
         -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8
         -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib/libpython3.8.so
@@ -137,10 +164,11 @@ jobs:
         -DENABLE_LTO=ON
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
-        -DBUILD_java_api=OFF
-        -DBUILD_nvidia_plugin=OFF
         -DENABLE_INTEL_MYRIAD=OFF
-        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
+        -DTHREADING=TBB
+        -DTBB_DIR=$(INSTALL_ONETBB)/lib/cmake/TBB
+        -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON
+        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache
@@ -171,6 +199,7 @@ jobs:
         -GNinja
         -DInferenceEngineDeveloperPackage_DIR=$(BUILD_OPENVINO)
         -DENABLE_PYTHON=ON
+        -DTHREADING=TBB
         -DPYTHON_EXECUTABLE=$(INSTALL_PYTHON)/bin/python3.8
         -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8
         -DPYTHON_LIBRARIES=$(INSTALL_PYTHON)/lib
@@ -236,6 +265,7 @@ jobs:
 
   - script: |
       cp -r $(BUILD_OPEN_MODEL_ZOO)/$(OPENVINO_ARCH)/$(BUILD_TYPE)/* $(INSTALL_OPEN_MODEL_ZOO)/
+      cp -r $(INSTALL_ONETBB)/* $(INSTALL_ONETBB_PACKAGE)/
       zip -9 -r $(Build.ArtifactStagingDirectory)/openvino_$(OPENVINO_ARCH)_linux.zip ./*
     workingDirectory: $(INSTALL_OPENVINO)
     displayName: 'Create OpenVINO ARM64 linux package'

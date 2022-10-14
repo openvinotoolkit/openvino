@@ -21,7 +21,7 @@ ov::op::util::BinaryElementwiseLogical::BinaryElementwiseLogical(const Output<No
       m_autob(autob) {}
 
 void ov::op::util::BinaryElementwiseLogical::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseLogical_validate_and_infer_types);
+    OV_OP_SCOPE(v0_util_BinaryElementwiseLogical_validate_and_infer_types);
 
     auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this, m_autob);
     element::Type& args_et = std::get<0>(args_et_pshape);
@@ -37,7 +37,7 @@ void ov::op::util::BinaryElementwiseLogical::validate_and_infer_types() {
 }
 
 bool ov::op::util::BinaryElementwiseLogical::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseLogical_visit_attributes);
+    OV_OP_SCOPE(v0_util_BinaryElementwiseLogical_visit_attributes);
     visitor.on_attribute("auto_broadcast", m_autob);
     return true;
 }

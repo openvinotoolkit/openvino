@@ -102,7 +102,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_external_data_exception) {
         FAIL() << "Incorrect path to external data not detected";
     } catch (const ngraph_error& error) {
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
-                            std::string("not_existed_file.data, offset: 4096, data_length: 16, sha1_digest: 0)"),
+                            std::string("not_existed_file.data, offset: 4096, data_length: 16)"),
                             error.what());
     } catch (...) {
         FAIL() << "Importing onnx model failed for unexpected reason";
@@ -119,7 +119,24 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_up_dir_path) {
     } catch (const ngraph_error& error) {
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
                             std::string("tensor.data, offset: 4096, "
-                                        "data_length: 16, sha1_digest: 0)"),
+                                        "data_length: 16)"),
+                            error.what());
+    } catch (...) {
+        FAIL() << "Importing onnx model failed for unexpected reason";
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_data_length) {
+    try {
+        auto function = onnx_import::import_onnx_model(
+            file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                 SERIALIZED_ZOO,
+                                 "onnx/external_data/external_data_invalid_data_length.onnx"));
+        FAIL() << "Incorrect path to external data not detected";
+    } catch (const ngraph_error& error) {
+        EXPECT_PRED_FORMAT2(testing::IsSubstring,
+                            std::string("tensor.data, offset: 0, "
+                                        "data_length: 30000000000)"),
                             error.what());
     } catch (...) {
         FAIL() << "Importing onnx model failed for unexpected reason";
@@ -135,6 +152,19 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_sanitize_path) {
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
     test_case.add_expected_output<float>(Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_in_constant_node) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/external_data/external_data_in_constant_node.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>({3.f, 5.f, 8.f, 13.f});
+    test_case.add_expected_output<float>(Shape{2, 2}, {4.f, 7.f, 11.f, 17.f});
 
     test_case.run();
 }
