@@ -359,7 +359,7 @@ void regclass_AsyncInferQueue(py::module m) {
             return self._user_ids;
         },
         R"(
-        :return: List of all passed userdata. None if the data wasn't passed yet.
+        :return: List of all passed userdata. List[None] if the data wasn't passed yet.
         :rtype: List[Any]
     )");
 
