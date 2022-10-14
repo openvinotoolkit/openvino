@@ -58,4 +58,3 @@ NamedOutputs elementwise_mod(const NodeContext& node_context) {
 }  // namespace paddle
 }  // namespace frontend
 }  // namespace ov
-
