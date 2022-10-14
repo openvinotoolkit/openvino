@@ -325,25 +325,18 @@ bool ngraph::pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<n
     RUN_ON_FUNCTION_SCOPE(SimplifyShapeOfSubGraph);
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
-    CC_TRANSFORMATIONS_MATCH_SCOPE(EliminateGatherUnsqueeze)
-    manager.register_pass<ngraph::pass::EliminateGatherUnsqueeze>();
-    CC_TRANSFORMATIONS_FUNCTION_SCOPE(SharedShapeOf)
-    manager.register_pass<ngraph::pass::SharedShapeOf>();
-    CC_TRANSFORMATIONS_MATCH_SCOPE(GroupedGatherElimination)
-    manager.register_pass<ngraph::pass::GroupedGatherElimination>();
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, EliminateGatherUnsqueeze)
+    REGISTER_PASS_FUNCTION_SCOPE(manager, ngraph::pass, SharedShapeOf)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, GroupedGatherElimination)
     // GatherNopElimination depends on shape, so it requires shape propagation
     // if previous transformations has resolved some dynamic shapes.
-    CC_TRANSFORMATIONS_MODEL_SCOPE(Validate)
-    manager.register_pass<ngraph::pass::Validate>();
-    CC_TRANSFORMATIONS_MATCH_SCOPE(GatherNopElimination)
-    manager.register_pass<ngraph::pass::GatherNopElimination>();
-    CC_TRANSFORMATIONS_MATCH_SCOPE(SimplifyGatherShapeOf)
-    manager.register_pass<ngraph::pass::SimplifyGatherShapeOf>();
-    CC_TRANSFORMATIONS_MATCH_SCOPE(SimplifySecondInputOfReshape)
-    manager.register_pass<ngraph::pass::SimplifySecondInputOfReshape>();
+    REGISTER_PASS_MODEL_SCOPE(manager, ngraph::pass, Validate)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, GatherNopElimination)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, SimplifyGatherShapeOf)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, SimplifySecondInputOfReshape)
+    
     // TODO: potentially this Validate is not needed but it requires additional validation
-    CC_TRANSFORMATIONS_MODEL_SCOPE(Validate)
-    manager.register_pass<ngraph::pass::Validate>();
+    REGISTER_PASS_MODEL_SCOPE(manager, ngraph::pass, Validate)
     manager.run_passes(f);
     return false;
 }
