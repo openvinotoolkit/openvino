@@ -89,6 +89,7 @@ const std::vector<ov::AnyMap> multiConfigs = {
 };
 
 const std::vector<ov::AnyMap> configsWithSecondaryProperties = {
+    {ov::device::properties("CPU", ov::num_streams(4))},
     {ov::device::properties("CPU",
                             ov::enable_profiling(true),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
