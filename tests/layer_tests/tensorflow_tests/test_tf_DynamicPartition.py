@@ -50,6 +50,7 @@ class TestDynamicPartition(CommonTFLayerTest):
         self._test(*self.create_dynamic_partition_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+
     test_data_other_types = [
         dict(data_shape=[10], partitions_shape=[10], num_partitions=10, data_type=tf.int32),
         dict(data_shape=[7, 3], partitions_shape=[7], num_partitions=8, data_type=tf.int64),
