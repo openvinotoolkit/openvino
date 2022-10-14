@@ -37,7 +37,7 @@ public:
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const layout& out_layout) const override {
         auto params = parent::get_kernel_impl_params(in_layouts, out_layout);
         params->input_offsets.reserve(1);
-        params->input_offsets[0] = get_primitive()->offsets;
+        params->input_offsets.push_back(get_primitive()->offsets);
         return params;
     }
 };
