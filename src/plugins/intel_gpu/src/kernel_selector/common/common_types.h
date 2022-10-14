@@ -74,6 +74,7 @@ enum class KernelType {
     SPACE_TO_BATCH,
     GRN,
     CTC_GREEDY_DECODER,
+    CTC_LOSS,
     CUM_SUM,
     EMBEDDING_BAG,
     EXTRACT_IMAGE_PATCHES,
@@ -90,6 +91,8 @@ enum class KernelType {
     ADAPTIVE_POOLING,
     REVERSE,
     PRIOR_BOX,
+    EYE,
+    GENERATE_PROPOSALS
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
