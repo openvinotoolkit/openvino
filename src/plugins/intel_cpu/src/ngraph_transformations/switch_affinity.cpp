@@ -48,10 +48,10 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
     // create parameters to extract graph component from original ov::Model
     for (const auto& start : starts) {
         // weights will be shared between clones and mustn't be splitted
-        const bool is_weights = start.get_index() == 1 && (ov ::is_type<ngraph::opset1::Convolution>(start.get_node()) ||
-                                                           ov ::is_type<ngraph::opset1::GroupConvolution>(start.get_node()) ||
-                                                           ov ::is_type<ngraph::opset1::ConvolutionBackpropData>(start.get_node()) ||
-                                                           ov ::is_type<ov::intel_cpu::FullyConnectedNode>(start.get_node()));
+        const bool is_weights = start.get_index() == 1 && (ov::is_type<ngraph::opset1::Convolution>(start.get_node()) ||
+                                                           ov::is_type<ngraph::opset1::GroupConvolution>(start.get_node()) ||
+                                                           ov::is_type<ngraph::opset1::ConvolutionBackpropData>(start.get_node()) ||
+                                                           ov::is_type<ov::intel_cpu::FullyConnectedNode>(start.get_node()));
         const size_t cur_batch_size = start.get_partial_shape()[0].get_length();
         if (is_weights || cur_batch_size == 1) {
             start_splits.push_back(start.get_source_output().get_node_shared_ptr());
@@ -106,9 +106,16 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
         concatenate_map[original_out] = OutputVector(num_splits);
     }
 
+    auto change_names = [&](const std::shared_ptr<ov::Model>& m, const size_t batch_idx) {
+        for (const auto& n : m->get_ordered_ops()) {
+            n->set_friendly_name(n->get_friendly_name() + "_" + std::to_string(batch_idx));
+        }
+    };
+
     for (size_t batch_idx = 0; batch_idx < num_splits; ++batch_idx) {
         auto cloned_nodes = constants;
         const auto subgraph_with_opt_batch = ngraph::clone_function(*subgraph, cloned_nodes);
+        change_names(subgraph_with_opt_batch, batch_idx);
         setBatch(subgraph_with_opt_batch, optimal_bs);
 
         // starts processing
