@@ -87,7 +87,7 @@ INSTANTIATE_TEST_SUITE_P(
 const std::vector<ov::AnyMap> multiConfigs = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
 };
-
+const std::vector<ov::AnyMap> configsDeviceProperties = {{ov::device::properties("CPU", ov::num_streams(3))}};
 const std::vector<ov::AnyMap> configsWithSecondaryProperties = {
     {ov::device::properties("CPU", ov::num_streams(4))},
     {ov::device::properties("CPU",
@@ -270,6 +270,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_AUTO_OVClassLoadNetworkWithSecondaryPropertiesTes
                          OVClassLoadNetworkWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values("AUTO"),
                                             ::testing::ValuesIn(autoConfigsWithSecondaryProperties)));
+
+// IE Class load and check network with ov::device::properties
+INSTANTIATE_TEST_SUITE_P(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesTest,
+                         OVClassLoadNetworkAndCheckSecondaryPropertiesTest,
+                         ::testing::Combine(::testing::Values("CPU", "AUTO:CPU", "MULTI:CPU"),
+                                            ::testing::ValuesIn(configsDeviceProperties)));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest,
