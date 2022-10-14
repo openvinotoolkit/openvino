@@ -123,6 +123,7 @@ attach_deconvolution_onednn::attach_deconvolution_onednn() {
     };
     std::vector<format::type> fmt = {
         format::bfyx,
+        format::byxf,
         format::b_fs_yx_fsv16,
         format::b_fs_yx_fsv32,
         format::b_fs_zyx_fsv32,

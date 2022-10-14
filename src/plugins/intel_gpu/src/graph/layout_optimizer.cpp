@@ -809,14 +809,12 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
         return false;
 
     // Onednn deconv does not support cross-precision
-    bool onednn_valid_dt = (data_type_traits::is_i8_u8(input_layout.data_type) && data_type_traits::is_i8_u8(output_layout.data_type)) ||
-                            (input_layout.data_type == data_types::f16 && output_layout.data_type == data_types::f16);
+    bool onednn_valid_dt = layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node);
 
     bool onednn_valid_params = onednn_valid_dt &&
                                input_layout.feature() >= 16 &&
                                prim->groups == 1 &&
-                               get_post_ops_count(node) <= 32 &&
-                               input_layout.data_type == output_layout.data_type;
+                               get_post_ops_count(node) <= 32;
 
     auto spatial_dims_num = input_layout.get_spatial_rank();
 
@@ -1122,6 +1120,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     auto expected_data_type = current_layout.data_type;
     auto expected_format = current_layout.format;
     bool use_onednn_impls = _optimization_attributes.use_onednn_impls;
+    const auto& device_info = node.get_program().get_engine().get_device_info();
 
     if (use_onednn_impls && is_node_for_onednn(node)) {
         // XXX: need to take the situation into consideration where it is called from prepare_primitive_fusing
@@ -1133,7 +1132,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
             expected_format = cldnn::format::bs_fs_zyx_bsv16_fsv16;
         else
             expected_format = cldnn::format::b_fs_zyx_fsv16;
-    } else if (_optimization_attributes.b_fs_yx_fsv16_network &&
+    } else if ((_optimization_attributes.b_fs_yx_fsv16_network || device_info.supports_immad) &&
                deconvolution_b_fs_yx_fsv16_opt(current_layout, output_or_weights_layout, prim)) {
         auto input_tensor = node.get_dependency(0).get_output_layout().get_tensor();
         int input_features = input_tensor.feature[0];
