@@ -151,7 +151,7 @@ jobs:
     inputs:
       cmakeArgs: >
         -GNinja
-        -DVERBOSE_BUILD=ON
+        -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
         -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8
