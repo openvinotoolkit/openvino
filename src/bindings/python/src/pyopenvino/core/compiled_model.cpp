@@ -31,6 +31,9 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "create_infer_request",
         [](ov::CompiledModel& self) {
+            // Create temporary ov::InferRequest and move it to actual wrapper class exposed to Python
+            // auto infer_request = self.create_infer_request();
+            // return std::make_shared<InferRequestWrapper>(std::move(infer_request), self.inputs(), self.outputs());
             return std::make_shared<InferRequestWrapper>(self.create_infer_request(), self.inputs(), self.outputs());
         },
         py::call_guard<py::gil_scoped_release>(),
