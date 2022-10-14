@@ -18,26 +18,24 @@ ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {
     MATCHER_SCOPE(ReduceReshapeFusion);
 
     const auto reduce_axes = pattern::wrap_type<opset9::Constant>();
-    const auto arithmetic_reduce =
-        pattern::wrap_type<op::util::ArithmeticReductionKeepDims>({pattern::any_input(), reduce_axes},
-                                                                  pattern::has_static_shape());
-    const auto logical_reduce =
-        pattern::wrap_type<op::util::LogicalReductionKeepDims>({pattern::any_input(), reduce_axes},
-                                                               pattern::has_static_shape());
-    const auto reduce = std::make_shared<pattern::op::Or>(OutputVector{arithmetic_reduce, logical_reduce});
+    const auto reduce = pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
+        {pattern::any_input(), reduce_axes},
+        pattern::has_static_shape());
     const auto reshape =
         pattern::wrap_type<opset9::Reshape>({reduce, pattern::any_input()}, pattern::has_static_shape());
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
-        const auto reduce_node = pattern_map.find(arithmetic_reduce) != std::end(pattern_map)
-                                     ? pattern_map.at(arithmetic_reduce).get_node_shared_ptr()
-                                     : pattern_map.at(logical_reduce).get_node_shared_ptr();
+        const auto reduce_node = pattern_map.at(reduce).get_node_shared_ptr();
         const bool keep_dims =
             std::dynamic_pointer_cast<op::util::ArithmeticReductionKeepDims>(reduce_node)
                 ? std::dynamic_pointer_cast<op::util::ArithmeticReductionKeepDims>(reduce_node)->get_keep_dims()
                 : std::dynamic_pointer_cast<op::util::LogicalReductionKeepDims>(reduce_node)->get_keep_dims();
+
+        if (!reduce_node) {
+            return false;
+        }
 
         if (keep_dims) {
             return false;

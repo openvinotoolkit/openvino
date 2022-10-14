@@ -46,6 +46,13 @@ const std::vector<int64_t> adjust_axes(const std::vector<int64_t>& axes_to_align
 }
 
 // Try to represent given Reshape node via Unsqueeze and calculate axes of such Unsqueeze
+// The function works only for cases where the "1" dimensions are inserted on the left or right sides, like:
+// - Reshape(input_shape={5,10,15}, target_shape={5,10,15,1}), 3 axis returned
+// - Reshape(input_shape={5,10,15}, target_shape={1,5,10,15}), 0 axis returned
+// - Reshape(input_shape={5,10,15}, target_shape={1,5,10,15,1}), 0 and 3 axes returned
+// Cases where the axes are inserted in the middle, like:
+// - Reshape(input_shape={5,10,15}, target_shape={5,10,1,15})
+// are not supported now (ticket 94373)
 // For example if we have Reshape(input_shape={5,10,15}, target_shape={1,5,10,15,1}),
 // it can be represented via Unsqueeze with axes=[0,3]
 std::vector<int64_t> try_get_unsqueeze_axes_from_reshape(const ov::Shape& reshape_shape,
@@ -101,21 +108,22 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
     const auto unsqueeze_axes = pattern::wrap_type<opset9::Constant>();
     const auto unsqueeze = pattern::wrap_type<opset9::Unsqueeze>({input, unsqueeze_axes}, pattern::has_static_rank());
     const auto reduce_axes = pattern::wrap_type<opset9::Constant>();
-    const auto arithmetic_reduce = pattern::wrap_type<op::util::ArithmeticReductionKeepDims>({unsqueeze, reduce_axes});
-    const auto logical_reduce = pattern::wrap_type<op::util::LogicalReductionKeepDims>({unsqueeze, reduce_axes});
-    const auto reduce = std::make_shared<pattern::op::Or>(OutputVector{arithmetic_reduce, logical_reduce});
+    const auto reduce = pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
+        {unsqueeze, reduce_axes});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         const auto input_node = pattern_map.at(input);
-        const auto reduce_node = pattern_map.find(arithmetic_reduce) != std::end(pattern_map)
-                                     ? pattern_map.at(arithmetic_reduce).get_node_shared_ptr()
-                                     : pattern_map.at(logical_reduce).get_node_shared_ptr();
+        const auto reduce_node = pattern_map.at(reduce).get_node_shared_ptr();
         const auto unsqueeze_node = pattern_map.at(unsqueeze).get_node_shared_ptr();
         auto unsqueeze_axes_input =
             std::dynamic_pointer_cast<opset9::Constant>(pattern_map.at(unsqueeze_axes).get_node_shared_ptr());
         auto reduce_axes_input =
             std::dynamic_pointer_cast<opset9::Constant>(pattern_map.at(reduce_axes).get_node_shared_ptr());
+
+        if (!unsqueeze_axes_input || !reduce_axes_input || !reduce_node) {
+            return false;
+        }
 
         auto unsqueeze_axes_val = unsqueeze_axes_input->cast_vector<int64_t>();
         normalize_axes(unsqueeze_node.get(),
@@ -177,16 +185,13 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
     const auto reshape =
         pattern::wrap_type<opset9::Reshape>({input, reshape_target_shape}, pattern::has_static_shape());
     const auto reduce_axes = pattern::wrap_type<opset9::Constant>();
-    const auto arithmetic_reduce = pattern::wrap_type<op::util::ArithmeticReductionKeepDims>({reshape, reduce_axes});
-    const auto logical_reduce = pattern::wrap_type<op::util::LogicalReductionKeepDims>({reshape, reduce_axes});
-    const auto reduce = std::make_shared<pattern::op::Or>(OutputVector{arithmetic_reduce, logical_reduce});
+    const auto reduce = pattern::wrap_type<op::util::ArithmeticReductionKeepDims, p::util::LogicalReductionKeepDims>(
+        {reshape, reduce_axes});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         const auto input_node = pattern_map.at(input).get_node_shared_ptr();
-        const auto reduce_node = pattern_map.find(arithmetic_reduce) != std::end(pattern_map)
-                                     ? pattern_map.at(arithmetic_reduce).get_node_shared_ptr()
-                                     : pattern_map.at(logical_reduce).get_node_shared_ptr();
+        const auto reduce_node = pattern_map.at(reduce).get_node_shared_ptr();
         const auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
         const auto unsqueeze_axes =
             try_get_unsqueeze_axes_from_reshape(reshape_node->get_shape(), input_node->get_shape());
