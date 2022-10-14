@@ -227,3 +227,14 @@ TEST_P(UnsqueezeTest, dimension_propagation_static_rank_dynamic_dim_axis_shape) 
     EXPECT_EQ(unsqueeze->get_element_type(), element::f32);
     EXPECT_EQ(unsqueeze->get_output_partial_shape(0), PartialShape::dynamic());
 }
+
+TEST_P(UnsqueezeTest, use_default_ctor) {
+    const auto axes_node = std::make_shared<op::Constant>(element::i32, Shape{axes.size()}, axes);
+
+    const auto unsqueeze = make_shared<op::Unsqueeze>();
+    unsqueeze->set_arguments(NodeVector{param, axes_node});
+    unsqueeze->validate_and_infer_types();
+
+    EXPECT_EQ(unsqueeze->get_output_element_type(0), element::f32);
+    EXPECT_EQ(unsqueeze->get_output_partial_shape(0), exp_shape);
+}
