@@ -175,6 +175,7 @@
 #include "ngraph/op/tile.hpp"
 #include "ngraph/op/topk.hpp"
 #include "ngraph/op/transpose.hpp"
+#include "ngraph/op/unique.hpp"
 #include "ngraph/op/unsqueeze.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/op_types.hpp"
