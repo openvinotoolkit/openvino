@@ -16,7 +16,7 @@ using namespace ngraph;
 
 BWDCMP_RTTI_DEFINITION(op::v4::SoftPlus);
 
-op::v4::SoftPlus::SoftPlus(const Output<Node>& arg) : Op({arg}) {
+op::v4::SoftPlus::SoftPlus(const Output<Node>& arg) : util::UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 

@@ -6,15 +6,13 @@
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/op/constant.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 BWDCMP_RTTI_DEFINITION(op::v0::Elu);
 
-op::Elu::Elu(const Output<Node>& data, const double alpha) : Op({data}), m_alpha{alpha} {
+op::Elu::Elu(const Output<Node>& data, const double alpha) : util::UnaryElementwiseArithmetic(data), m_alpha{alpha} {
     constructor_validate_and_infer_types();
 }
 

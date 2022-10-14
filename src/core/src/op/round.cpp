@@ -65,7 +65,7 @@ bool evaluate_round(const HostTensorPtr& arg0,
 
 BWDCMP_RTTI_DEFINITION(op::v5::Round);
 
-op::v5::Round::Round(const Output<Node>& arg, RoundMode mode) : Op({arg}), m_mode(mode) {
+op::v5::Round::Round(const Output<Node>& arg, RoundMode mode) : util::UnaryElementwiseArithmetic(arg), m_mode(mode) {
     constructor_validate_and_infer_types();
 }
 
