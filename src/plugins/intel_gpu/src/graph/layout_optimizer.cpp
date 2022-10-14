@@ -417,6 +417,9 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
         return true;
 
     if (prev.is_type<permute>()) {
+        if (fmt_prev == format::b_fs_yx_fsv32 && fmt_next == format::byxf)
+            return true;
+
         auto& permute_order = prev.as<permute>().get_primitive()->permute_order;
         if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
          fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
