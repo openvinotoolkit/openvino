@@ -604,8 +604,34 @@ std::vector<MatMulParams> generateParamsForMatMulWithGeneratedInput() {
                      true),
     };
 
-
     return params;
+}
+
+template <element::Type_t ET>
+std::vector<MatMulParams> generateParamsForMatMulWithSameBatchSize() {
+    using T = typename element_type_traits<ET>::value_type;
+
+    const auto input0_shapes = Shape{3, 2, 2, 2};
+    const auto input1_shapes = Shape{3, 2, 2, 1};
+    std::vector<T> input0_data(shape_size(input0_shapes));
+    std::vector<T> input1_data(shape_size(input1_shapes));
+    std::iota(input0_data.begin(), input0_data.end(), 1);
+    std::iota(input1_data.begin(), input1_data.end(), 0);
+
+    return std::vector<MatMulParams>{
+        MatMulParams(input0_shapes,
+                     input1_shapes,
+                     Shape{3, 2, 2, 1},
+                     ET,
+                     ET,
+                     ET,
+                     input0_data,
+                     input1_data,
+                     std::vector<T>{2, 4, 28, 38, 86, 104, 176, 202, 298, 332, 452, 494},
+                     false,
+                     false,
+                     false),
+    };
 }
 
 std::vector<MatMulParams> generateCombinedParamsForMatMul() {
@@ -619,6 +645,8 @@ std::vector<MatMulParams> generateCombinedParamsForMatMul() {
         generateParamsForMatMulWithGeneratedInput<element::Type_t::f32>(),
         generateParamsForMatMulWithGeneratedInput<element::Type_t::i64>(),
         generateParamsForMatMulWithGeneratedInput<element::Type_t::i32>(),
+        generateParamsForMatMulWithSameBatchSize<element::Type_t::f32>(),
+        generateParamsForMatMulWithSameBatchSize<element::Type_t::i64>(),
     };
 
     std::vector<MatMulParams> combinedParams;
