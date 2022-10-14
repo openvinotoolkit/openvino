@@ -32,7 +32,8 @@ bool ngraph::snippets::pass::AssignRegistersNew::run_on_model(const std::shared_
                 std::dynamic_pointer_cast<op::TileBegin>(op) ||
                 std::dynamic_pointer_cast<op::TileEnd>(op))
             return gpr2gpr;
-        else if (std::dynamic_pointer_cast<snippets::op::Load>(op))
+        else if (std::dynamic_pointer_cast<snippets::op::Load>(op) ||
+                 std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(op))
             return gpr2vec;
         else if (std::dynamic_pointer_cast<snippets::op::Store>(op))
             return vec2gpr;
@@ -104,6 +105,8 @@ bool ngraph::snippets::pass::AssignRegistersNew::run_on_model(const std::shared_
     auto tensor2reg = [] (const std::vector<tensor>& tensors, const std::map<tensor, Reg>& reg_map) {
         std::set<Reg> result;
         for (const auto& t : tensors) {
+            if (reg_map.count(t) == 0)
+                ngraph::ngraph_error("Assign registers: attempt to access not enumerated tensor");
             Reg reg_id = reg_map.at(t);
             if (reg_id != IS_MANUALLY_ALLOCATED_REG)
                 result.insert(reg_id);
