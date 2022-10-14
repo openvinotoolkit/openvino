@@ -91,36 +91,36 @@ const std::vector<ov::AnyMap> multiConfigs = {
 const std::vector<ov::AnyMap> configsWithSecondaryProperties = {
     {ov::device::properties("CPU", ov::num_streams(4))},
     {ov::device::properties("CPU",
-                            ov::enable_profiling(true),
+                            ov::num_streams(4),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
     {ov::device::properties("CPU",
-                            ov::enable_profiling(true),
+                            ov::num_streams(4),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
      ov::device::properties("GPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
 
 const std::vector<ov::AnyMap> multiConfigsWithSecondaryProperties = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
      ov::device::properties("CPU",
-                            ov::enable_profiling(true),
+                            ov::num_streams(4),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
      ov::device::properties("CPU",
-                            ov::enable_profiling(true),
+                            ov::num_streams(4),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
      ov::device::properties("GPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
 
 const std::vector<ov::AnyMap> autoConfigsWithSecondaryProperties = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
      ov::device::properties("AUTO",
-                            ov::enable_profiling(true),
+                            ov::enable_profiling(false),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
      ov::device::properties("CPU",
-                            ov::enable_profiling(true),
+                            ov::num_streams(4),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
      ov::device::properties("CPU",
-                            ov::enable_profiling(true),
+                            ov::num_streams(4),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
      ov::device::properties("GPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))},
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
@@ -128,7 +128,7 @@ const std::vector<ov::AnyMap> autoConfigsWithSecondaryProperties = {
                             ov::enable_profiling(false),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)),
      ov::device::properties("CPU",
-                            ov::enable_profiling(true),
+                            ov::num_streams(4),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
      ov::device::properties("AUTO",
@@ -136,7 +136,7 @@ const std::vector<ov::AnyMap> autoConfigsWithSecondaryProperties = {
                             ov::device::priorities(CommonTestUtils::DEVICE_GPU),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)),
      ov::device::properties("CPU",
-                            ov::enable_profiling(true),
+                            ov::num_streams(4),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
      ov::device::properties("GPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
 

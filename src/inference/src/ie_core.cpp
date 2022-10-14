@@ -203,7 +203,7 @@ ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& p
             // 2. keep the secondary property for the other virtual devices
             item++;
         } else {
-            // 3. remove the secondary property setting for other hard ware device
+            // 3. remove the secondary property setting for other hardware device
             item = result.erase(item);
         }
     }
