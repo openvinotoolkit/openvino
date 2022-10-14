@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <string>
+
 #include "common_test_utils/test_constants.hpp"
 
 namespace ov {
