@@ -64,8 +64,8 @@ ov_infer_request_set_input_tensor(infer_request, tensor);
 //! [part4]
 
 //! [part5]
-ie_infer_request_infer_async(infer_request);
-ie_infer_request_wait(infer_request, -1);
+ov_infer_request_start_async(infer_request);
+ov_infer_request_wait(infer_request);
 //! [part5]
 
 //! [part6]
@@ -81,6 +81,7 @@ ov_output_const_port_free(input_port);
 ov_tensor_free(tensor);
 ov_infer_request_free(infer_request);
 ov_compiled_model_free(compiled_model);
+ov_model_free(model);
 ov_core_free(core);
 //! [part8]
 return 0;
