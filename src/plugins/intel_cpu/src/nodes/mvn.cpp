@@ -785,12 +785,13 @@ private:
                 add(reg_src_aux, (jcp_.C - elt_num) * jcp_.src_data_size);
                 prefetcht0(ptr[reg_src_aux]);
 
-                for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
-                    uni_vsubps(Vmm(ur_base + ur_size), Vmm(ur_base + ur_size), Vmm(ur_base + 4 + ur_size));
-                }
                 if (jcp_.normalize_variance) {
                     for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
-                        uni_vmulps(Vmm(ur_base + ur_size), Vmm(ur_base + ur_size), Vmm(ur_base + 8 + ur_size));
+                        uni_vfmadd132ps(Vmm(ur_base + ur_size), Vmm(ur_base + 4 + ur_size), Vmm(ur_base + 8 + ur_size));
+                    }
+                } else {
+                    for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+                        uni_vsubps(Vmm(ur_base + ur_size), Vmm(ur_base + ur_size), Vmm(ur_base + 4 + ur_size));
                     }
                 }
 
@@ -879,9 +880,11 @@ private:
         load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
             {}, {load_pool_gpr_idxs});
 
-        uni_vsubps(vmm_val, vmm_val, vmm_mean);
-        if (jcp_.normalize_variance)
-            uni_vmulps(vmm_val, vmm_val, vmm_variance_inv);
+        if (jcp_.normalize_variance) {
+            uni_vfmadd132ps(vmm_val, vmm_mean, vmm_variance_inv);
+        } else {
+            uni_vsubps(vmm_val, vmm_val, vmm_mean);
+        }
 
         apply_post_ops(jcp_.dst_prc, vmm_val.getIdx(), jcp_.layout == MVNLayoutType::mvn_planar);
 
@@ -1373,6 +1376,10 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
                     variance /= sqrtf(variance_temp * C3inv + mvnAttrs.epsValue_);
                 else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
                     variance /= sqrtf(variance_temp * C3inv) + mvnAttrs.epsValue_;
+
+                mean *= variance;
+                mean *= -1.0f;
+
                 // mvn for one instance in batch
                 parallel_for(C, [&](int c) {
                     size_t cc = cb + c * C2;
@@ -1435,6 +1442,9 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
                         variance = 1.f / sqrtf(variance * C2inv + mvnAttrs.epsValue_);
                     else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
                         variance = 1.f / (sqrtf(variance * C2inv) + mvnAttrs.epsValue_);
+
+                    mean *= variance;
+                    mean *= -1.0f;
 
                     // mvn for this channel
                     (*mvn_kernel)(&arg);
@@ -1604,6 +1614,9 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, c
                 else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
                     variance_buffer[0] = 1.f / (sqrtf(variance_buffer[0] * size_inv) + mvnAttrs.epsValue_);
 
+                mean_buffer[0] *= variance_buffer[0];
+                mean_buffer[0] *= -1.0f;
+
                 parallel_nt(0, [&](const int ithr, const int nthr) {
                     size_t start = 0, end = 0;
                     splitter(D * H * W, nthr, ithr, start, end);
@@ -1679,6 +1692,11 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, c
                         variance_buffer[c] = 1.f / sqrtf(variance_buffer[c] * size_inv + mvnAttrs.epsValue_);
                     else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
                         variance_buffer[c] = 1.f / (sqrtf(variance_buffer[c] * size_inv) + mvnAttrs.epsValue_);
+                }
+                // (x-m)/v = vx + (-vm)
+                for (size_t c = 0; c < C; c++) {
+                    mean_buffer[c] *= variance_buffer[c];
+                    mean_buffer[c] *= -1.0f;
                 }
 
                 parallel_nt(0, [&](const int ithr, const int nthr) {
@@ -1814,6 +1832,10 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                     variance /= sqrtf(variance_temp * C5inv + mvnAttrs.epsValue_);
                 else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
                     variance /= sqrtf(variance_temp * C5inv) + mvnAttrs.epsValue_;
+
+                mean *= variance;
+                mean *= -1.0f;
+
                 // mvn for one instance in batch
                 parallel_for3d(CB, D, H, [&](size_t cb, size_t d, size_t h) {
                     size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
@@ -1909,6 +1931,11 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                         variance_buffer[c] = 1.f / sqrtf(variance_buffer[c] * size_inv + mvnAttrs.epsValue_);
                     else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
                         variance_buffer[c] = 1.f / (sqrtf(variance_buffer[c] * size_inv) + mvnAttrs.epsValue_);
+                }
+
+                for (size_t c = 0; c < C; c++) {
+                    mean_buffer[c] *= variance_buffer[c];
+                    mean_buffer[c] *= -1.0f;
                 }
 
                 parallel_for2d(D, H, [&](size_t d, size_t h) {
