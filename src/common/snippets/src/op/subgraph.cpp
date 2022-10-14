@@ -291,8 +291,7 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
 
     // We should insert Converts after Parameters and Constant and before Results
     // to align precision inside Subgraph body that is supported by Plugin
-    // todo: commented for debug purposes! uncomment before merge
-//    align_element_types(outputShapes, inputShapes);
+    align_element_types(outputShapes, inputShapes);
 
     master_shape = outPShape;
     return master_shape;
