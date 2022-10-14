@@ -17,7 +17,7 @@ namespace tensorflow {
 namespace pass {
 
 // This transformation handles GRUBlockCell with just one output - hidden state
-class TENSORFLOW_API GRUBlockCellReplacer : public ov::pass::MatcherPass {
+class GRUBlockCellReplacer : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ov::frontend::tensorflow::pass::GRUBlockCellReplacer");
     GRUBlockCellReplacer();

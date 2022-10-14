@@ -18,7 +18,7 @@ namespace pass {
 
 // This transformation replaces BlockLSTM with such outputs as concatenated hidden states
 // and cell state from the last time step.
-class TENSORFLOW_API BlockLSTMReplacer : public ov::pass::MatcherPass {
+class BlockLSTMReplacer : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ov::frontend::tensorflow::pass::BlockLSTMReplacer");
     BlockLSTMReplacer();

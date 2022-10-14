@@ -24,7 +24,10 @@ endif()
 add_library(openvino_tensorflow_frontend_static_tests STATIC EXCLUDE_FROM_ALL
     helper_transforms/block_lstm_replacer.cpp
     helper_transforms/embedding_segments_feature_fusing.cpp
+    helper_transforms/gru_block_cell_replacer.cpp
+    helper_transforms/unique_replacer.cpp
     pass/transpose_sinking.cpp
+    exception.cpp
     openvino_conversions.cpp
     utils.cpp)
 
