@@ -48,8 +48,8 @@ ov_compiled_model_create_infer_request(compiled_model, &infer_request);
 void * memory_ptr = NULL;
 //! [part4]
 // Get input port for model with one input
-ov_output_const_port_t* input_port = NULL;
-ov_compiled_model_input(compiled_model, &input_port);
+ov_output_port_t* input_port = NULL;
+ov_model_input(model, &input_port);
 // Get the input shape from input port
 ov_shape_t input_shape;
 ov_port_get_shape(input_port, &input_shape);
@@ -77,7 +77,7 @@ ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor);
 //! [part8]
 ov_shape_free(&input_shape);
 ov_tensor_free(output_tensor);
-ov_output_const_port_free(input_port);
+ov_output_port_free(input_port);
 ov_tensor_free(tensor);
 ov_infer_request_free(infer_request);
 ov_compiled_model_free(compiled_model);
