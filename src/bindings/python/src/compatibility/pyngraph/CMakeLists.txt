@@ -7,7 +7,8 @@ cmake_minimum_required (VERSION 3.13)
 project (pyngraph)
 
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
-    find_package(InferenceEngineDeveloperPackage QUIET)
+    find_package(OpenVINODeveloperPackage QUIET
+                 PATHS "${InferenceEngineDeveloperPackage_DIR}")
     find_package(OpenVINO REQUIRED)
 endif()
 
@@ -70,7 +71,7 @@ endif()
 
 # Install
 
-if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
+if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
     ie_python_minimal_api(_${PROJECT_NAME})
     add_clang_format_target(_${PROJECT_NAME}_clang FOR_TARGETS _${PROJECT_NAME})
 

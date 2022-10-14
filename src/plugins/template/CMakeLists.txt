@@ -30,7 +30,7 @@ endif()
 
 # install
 
-if(InferenceEngineDeveloperPackage_FOUND)
+if(OpenVINODeveloperPackage_FOUND)
     ie_cpack(template)
 endif()
 # [cmake:main]
