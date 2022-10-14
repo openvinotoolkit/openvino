@@ -13,6 +13,7 @@
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "sequnce_generator.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -74,9 +75,12 @@ std::vector<int64_t> try_get_unsqueeze_axes_from_reshape(const ov::Shape& reshap
     };
     if (std::all_of(std::begin(reshape_shape), std::begin(reshape_shape) + begin_pos, equal_one) &&
         std::all_of(begin(reshape_shape) + end_pos, std::end(reshape_shape), equal_one)) {
-        std::vector<int64_t> result(reshape_shape.size() - reduce_shape.size());
-        std::iota(std::begin(result), std::begin(result) + begin_pos, 0);
-        std::iota(std::begin(result) + begin_pos, std::end(result), end_pos);
+        const auto result_size = reshape_shape.size() - reduce_shape.size();
+        std::vector<int64_t> result(result_size);
+        std::generate_n(std::back_inserter(result), begin_pos, ov::SeqGen<int64_t, ov::Direction::FORWARD>(0));
+        std::generate_n(std::back_inserter(result),
+                        result_size - begin_pos,
+                        ov::SeqGen<int64_t, ov::Direction::FORWARD>(end_pos));
         return result;
     }
     return {};
