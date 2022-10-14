@@ -209,7 +209,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
                         fullDeviceName = GetCore()->GetMetric(deviceNameWithID, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
                     }
                 } catch (...) {
-                    LOG_DEBUG_TAG("device %s is not valid", deviceNameWithID);
+                    LOG_DEBUG_TAG("device %s is not valid", deviceNameWithID.c_str());
                     continue;
                 }
             }
