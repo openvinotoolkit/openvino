@@ -198,3 +198,16 @@ void ov::frontend::tensorflow::default_op_checks(const ov::frontend::tensorflow:
 bool ov::frontend::tensorflow::is_conditional_edge(const std::string& input_tensor_name) {
     return input_tensor_name.length() > 0 && input_tensor_name[0] == '^';
 }
+
+ov::Output<ov::Node> ov::frontend::tensorflow::get_elements_number_1d(const ov::Output<ov::Node>& output,
+                                                                      ov::element::Type output_type,
+                                                                      ov::pass::NodeRegistry& rg) {
+    auto output_rank = output.get_partial_shape().rank();
+    if (output_rank.is_static() && output_rank.get_length() != 1) {
+        FRONT_END_OP_CONVERSION_CHECK(false,
+                                      "Internal error: get_elements_number_1d method supports only 1D input tensor.");
+    }
+    auto shape = rg.make<ShapeOf>(output, output_type);
+    auto num_elements = rg.make<Squeeze>(shape);
+    return num_elements;
+}
