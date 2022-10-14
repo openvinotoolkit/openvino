@@ -61,8 +61,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlobMultiInitializedWithoutGPU, MultiDevice
 const std::vector<DevicesNames> multi_device_names_and_support_for_remote_blobs {
 #ifdef ENABLE_INTEL_CPU
         {CPU, "GPU.0"},
-#endif
         {CPU, "GPU.0", "GPU.1"},  // another GPU (the test will test its presence), different OCL contexts
+#endif
+        {"GPU.0", "GPU.1"}
 };
 INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlobMultiInitializedWithoutGPU, MultiDeviceMultipleGPU_Test,
                         ::testing::ValuesIn(multi_device_names_and_support_for_remote_blobs), MultiDeviceMultipleGPU_Test::getTestCaseName);

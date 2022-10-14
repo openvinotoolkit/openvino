@@ -72,7 +72,7 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
                                 _multiSContext->_devicePrioritiesInitial.cend(),
                             [&name](const MultiDevicePlugin::DeviceInformation & d) {
                                 return (d.defaultDeviceID.empty() ? d.deviceName : (d.deviceName + "." +
-                                    d.defaultDeviceID)) == name;
+                                        d.defaultDeviceID)) == name;
                             });
                             if (_multiSContext->_devicePrioritiesInitial.cend() == res) {
                                 IE_THROW() <<
