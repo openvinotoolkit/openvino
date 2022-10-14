@@ -185,7 +185,7 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
     const auto reshape =
         pattern::wrap_type<opset9::Reshape>({input, reshape_target_shape}, pattern::has_static_shape());
     const auto reduce_axes = pattern::wrap_type<opset9::Constant>();
-    const auto reduce = pattern::wrap_type<op::util::ArithmeticReductionKeepDims, p::util::LogicalReductionKeepDims>(
+    const auto reduce = pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
         {reshape, reduce_axes});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
