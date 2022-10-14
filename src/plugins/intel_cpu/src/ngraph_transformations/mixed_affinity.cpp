@@ -74,10 +74,10 @@ std::unordered_map<size_t, ov::intel_cpu::Subgraph> formSubgraphs(const std::sha
 
 bool ov::intel_cpu::MixedAffinity::run_on_model(const std::shared_ptr<ov::Model>& m) {
     ov::pass::Manager markup_manager(get_pass_config());
-    //markup_manager.register_pass<ngraph::pass::Serialize>("C://models//test.xml", "C://models//test.bin");
+    // markup_manager.register_pass<ngraph::pass::Serialize>("/home/openvino-ci-29/golubevv/models/test.xml", "/home/openvino-ci-29/golubevv/models/test.bin");
     markup_manager.register_pass<ov::intel_cpu::MarkupOptimalBS>();
     markup_manager.register_pass<ov::intel_cpu::PropagateOptimalBS>();
-    //markup_manager.register_pass<ngraph::pass::VisualizeTree>("C://models//model//test.before");
+    // markup_manager.register_pass<ngraph::pass::VisualizeTree>("/home/openvino-ci-29/golubevv/models/model//test.before.svg");
     markup_manager.run_passes(m);
 
     // get graph components separated by batch size
@@ -86,9 +86,9 @@ bool ov::intel_cpu::MixedAffinity::run_on_model(const std::shared_ptr<ov::Model>
     ov::pass::Manager switch_affinity_manager(get_pass_config());
     // TODO: remove 'share_constants' parameter
     switch_affinity_manager.register_pass<ov::intel_cpu::SwitchAffinity>(subgraphs, true);
-    //markup_manager.register_pass<ngraph::pass::VisualizeTree>("C://models//model//test.after");
-    //switch_affinity_manager.register_pass<ngraph::pass::Serialize>("C://models//affinity.xml",
-    //                                                               "C://models//affinity.bin");
+    // markup_manager.register_pass<ngraph::pass::VisualizeTree>("/home/openvino-ci-29/golubevv/models/model//test.before.svg");
+    // switch_affinity_manager.register_pass<ngraph::pass::Serialize>("/home/openvino-ci-29/golubevv/models/affinity.xml",
+    //                                                                "/home/openvino-ci-29/golubevv/models/affinity.bin");
     switch_affinity_manager.run_passes(m);
 
     return false;

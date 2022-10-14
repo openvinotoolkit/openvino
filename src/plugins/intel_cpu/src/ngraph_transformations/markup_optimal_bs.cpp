@@ -43,33 +43,37 @@ ov::intel_cpu::MarkupConvolutionOptimalBS::MarkupConvolutionOptimalBS() {
         auto node = m.get_match_root();
 
         auto output_shape = m.get_match_value().get_shape();
-        const size_t original_batch = output_shape[0];
-        output_shape[0] = 1;
-
         const auto weights_shape = node->get_input_shape(1);
-        const auto div = static_cast<double>(ngraph::shape_size(weights_shape)) /
-                         static_cast<double>(ngraph::shape_size(output_shape));
-
+        auto metric = static_cast<double>(ov::shape_size(output_shape)) / ov::shape_size(weights_shape);
+        const double min_value = 1.;
+        const double max_value = 10.;
+        const auto original_batch = output_shape[0];
+        // std::cout << node->get_friendly_name() << std::endl << "Original bs: " << original_batch << " metric: " << metric << std::endl;
         auto get_opt_batch = [&]() -> size_t {
             if (conv_with_fused_add(node))
                 return original_batch;
 
-            if (node->get_input_element_type(0).is_real()) {
-                return div < 0.32 ? 16 : 1;
-            } else {
-                if (div < 0.65)
-                    return 16;
-                else if (div < 1.45)
-                    return 2;
-                else
-                    return 1;
+            auto bs = output_shape[0];
+            while ((metric < min_value || metric > max_value) && bs % 2 == 0) {
+                if (metric < min_value) {
+                    bs *= 2;
+                    metric *= 2;
+                } else {
+                    bs /= 2;
+                    metric /= 2;
+                }
             }
+            return bs;
         };
 
-        const size_t new_batch = get_opt_batch();
-        const size_t optimal_bs = original_batch % new_batch == 0 ? new_batch : original_batch;
+        const auto new_batch = get_opt_batch();
+        // std::cout << "New bs: " << new_batch << " metric: " << metric << std::endl;
+        // TODO: do we really need this check?
+        const auto optimal_bs = original_batch % new_batch == 0 ? new_batch : original_batch;
         if (original_batch >= optimal_bs)
             ov::intel_cpu::set_optimal_bs(node, optimal_bs);
+        else
+            ov::intel_cpu::set_optimal_bs(node, original_batch);
 
         return false;
     };
@@ -85,22 +89,37 @@ ov::intel_cpu::MarkupGroupConvolutionOptimalBS::MarkupGroupConvolutionOptimalBS(
         auto node = m.get_match_root();
 
         auto output_shape = m.get_match_value().get_shape();
-        const size_t original_batch = output_shape[0];
+        const auto weights_shape = node->get_input_shape(1);
+        auto metric = static_cast<double>(ov::shape_size(output_shape)) / ov::shape_size(weights_shape);
+        const double min_value = 1.;
+        const double max_value = 10.;
+        const auto original_batch = output_shape[0];
+        // std::cout << node->get_friendly_name() << std::endl << "Original bs: " << original_batch << " metric: " << metric << std::endl;
+        auto get_opt_batch = [&]() -> size_t {
+            if (conv_with_fused_add(node))
+                return original_batch;
 
-        size_t new_batch = original_batch;
-        if (node->get_input_element_type(0).is_real()) {
-            new_batch = original_batch;
-        } else {
-            output_shape[0] = 1;
-            const auto weights_shape = node->get_input_shape(1);
-            const auto div = static_cast<double>(ngraph::shape_size(weights_shape)) /
-                             static_cast<double>(ngraph::shape_size(output_shape));
-            new_batch = div < 0.34 ? 16 : 1;
-        }
+            auto bs = output_shape[0];
+            while ((metric < min_value || metric > max_value) && bs % 2 == 0) {
+                if (metric < min_value) {
+                    bs *= 2;
+                    metric *= 2;
+                } else {
+                    bs /= 2;
+                    metric /= 2;
+                }
+            }
+            return bs;
+        };
 
-        const size_t optimal_bs = original_batch % new_batch == 0 ? new_batch : original_batch;
+        const auto new_batch = get_opt_batch();
+        // std::cout << "New bs: " << new_batch << " metric: " << metric << std::endl;
+        // TODO: do we really need this check?
+        const auto optimal_bs = original_batch % new_batch == 0 ? new_batch : original_batch;
         if (original_batch >= optimal_bs)
             ov::intel_cpu::set_optimal_bs(node, optimal_bs);
+        else
+            ov::intel_cpu::set_optimal_bs(node, original_batch);
 
         return false;
     };
