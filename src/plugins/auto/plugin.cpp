@@ -496,7 +496,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     std::mutex load_mutex;
     std::vector<Task> loads;
     std::once_flag readNetworkFlag;
-    std::vector<DeviceInformation> cpuDevice;
 
     auto loadInferEngTask = [&](DeviceInformation& p) {
         auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
@@ -556,12 +555,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     auto iterCPU = std::find_if(metaDevices.begin(), metaDevices.end(), [&](DeviceInformation& d) {
         return d.deviceName.find("CPU") != std::string::npos;
     });
-    if (iterCPU != metaDevices.end()) {
-        cpuDevice.emplace_back(*iterCPU);
-    }
     // Load devices other than CPU first
     for (auto& p : metaDevices) {
-        if (cpuDevice.size() > 0 && p.deviceName == cpuDevice[0].deviceName) {
+        if (iterCPU != metaDevices.end() && p.deviceName == iterCPU->deviceName) {
             continue;
         }
         loads.push_back([&]() {
@@ -581,13 +577,14 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     }
 
     // Finally load the CPU
-    if (cpuDevice.size() > 0) {
+    if (iterCPU != metaDevices.end()) {
         if (!executableNetworkPerDevice.empty()) {
+            LOG_DEBUG_TAG("set affinity to NUMA for CPU");
             // If the other devices load successfully, then set NUMA to CPU
-            GetCore()->set_property(cpuDevice[0].deviceName, ov::affinity(ov::Affinity::NUMA));
+            GetCore()->set_property(iterCPU->deviceName, ov::affinity(ov::Affinity::NUMA));
         }
         loads.push_back([&]() {
-            loadInferEngTask(cpuDevice[0]);
+            loadInferEngTask(*iterCPU);
         });
         // Wait for CPU to load the network
         executor->runAndWait(loads);
