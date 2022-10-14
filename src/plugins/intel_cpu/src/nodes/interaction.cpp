@@ -74,7 +74,7 @@ private:
             cmp(reg_work_amount, vec_size);
             jl(move_scale_end_label, T_NEAR);
 
-            convert_reorder(vec_size);
+            load_scale_store(vec_size);
 
             sub(reg_work_amount, vec_size);
 
@@ -82,7 +82,7 @@ private:
         }
         L(move_scale_end_label);
         if (tail_size) {
-            convert_reorder(tail_size);
+            load_scale_store(tail_size);
         }
 
         this->postamble();
@@ -93,7 +93,7 @@ private:
         }
     }
 
-    void convert_reorder(size_t step) {
+    void load_scale_store(size_t step) {
         bool is_tail = step < vec_size;
 
         load(vmm_in, reg_in_aux, jcp_.src_prc, step, is_tail);
