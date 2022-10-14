@@ -493,12 +493,20 @@ bool check_squeeze(const shared_ptr<Node>& node) {
     return false;
 }
 
+// Checks that Reshape actually equals to Squeeze op
+// 0, -1 values in the shape pattern are not allowed.
 bool check_reshape(const shared_ptr<Node>& node) {
     auto reshape = dynamic_pointer_cast<ov::opset9::Reshape>(node);
     if (reshape) {
         auto shape_pattern = dynamic_pointer_cast<ov::opset9::Constant>(reshape->input_value(1).get_node_shared_ptr());
         if (shape_pattern) {
             auto pattern_val = shape_pattern->cast_vector<int64_t>();
+            bool is_valid_pattern = find(pattern_val.begin(), pattern_val.end(), 0) == pattern_val.end();
+            is_valid_pattern =
+                is_valid_pattern || find(pattern_val.begin(), pattern_val.end(), -1) == pattern_val.end();
+            if (!is_valid_pattern) {
+                return false;
+            }
             pattern_val.insert(pattern_val.begin() + 1, 1);
             auto in_shape = reshape->input_value(0).get_partial_shape();
             if (in_shape.compatible(pattern_val)) {
@@ -507,6 +515,35 @@ bool check_reshape(const shared_ptr<Node>& node) {
         }
     }
     return false;
+}
+
+template <class T>
+bool check_axis(const shared_ptr<ov::opset9::Concat>& concat,
+                const shared_ptr<T>& split,
+                bool is_special_case = false) {
+    auto axis = dynamic_pointer_cast<ov::opset9::Constant>(split->input_value(1).get_node_shared_ptr());
+    if (!axis) {
+        return false;
+    }
+    const auto& axis_val = axis->template cast_vector<int64_t>();
+    if (axis_val.size() != 1 || axis_val[0] != concat->get_axis()) {
+        return false;
+    }
+
+    // in case of LSTM/GRU/RNN Sequence case described below and VariadicSplit op,
+    // we have to check that the last slice length equals 1,
+    // it corresponds output(1) of Seq op
+    if (is_special_case) {
+        auto variadic_split = dynamic_pointer_cast<ov::opset9::VariadicSplit>(split);
+        if (variadic_split) {
+            auto last_out_shape = variadic_split->output(variadic_split->get_output_size() - 1).get_partial_shape();
+            if (!last_out_shape.rank().is_static() || !last_out_shape[axis_val[0]].is_static() ||
+                last_out_shape[axis_val[0]].get_min_length() != 1) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 template <class T>
@@ -526,8 +563,8 @@ shared_ptr<T> check_all_inputs(const shared_ptr<ov::opset9::Concat>& concat) {
         // where n is a number of iterations
         //
         // If we found Sequence->output(0) is split into separate H1...Hn but only H1...Hn-1 are used
-        // for Concat and the last input to Concat is output(1) of Sequence op, which is actually Hn.
-        // This is also a valid case for this Elimination.
+        // for Concat and the last input to Concat is output(1) of Sequence op, which is actually Hn,
+        // this is also a valid case for this Elimination.
         if (!cast_to_split) {
             if (idx != (concat_in_values.size() - 1) || !split) {
                 return {};
@@ -561,8 +598,8 @@ shared_ptr<T> check_all_inputs(const shared_ptr<ov::opset9::Concat>& concat) {
                 return {};
             }
 
-            // check that Sequence->output(1) is connected to this input
-            if (!seq_node || in_to_concat != seq_node->output(1)) {
+            // check that Sequence->output(1) is connected to this input or concat/split axis is not the same.
+            if (!seq_node || in_to_concat != seq_node->output(1) || !check_axis<T>(concat, split, true)) {
                 return {};
             }
             return split;
@@ -583,8 +620,8 @@ shared_ptr<T> check_all_inputs(const shared_ptr<ov::opset9::Concat>& concat) {
         ++idx;
     }
 
-    // not all split outputs are used.
-    if (idx != split->outputs().size()) {
+    // not all split outputs are used or concat/split axis is not the same.
+    if (idx != split->outputs().size() || !check_axis<T>(concat, split)) {
         return {};
     }
 
@@ -608,15 +645,6 @@ ov::pass::EliminateSplitConcat::EliminateSplitConcat() {
         }
 
         if (!split) {
-            return false;
-        }
-
-        auto axis = dynamic_pointer_cast<ov::opset9::Constant>(split->input_value(1).get_node_shared_ptr());
-        if (!axis) {
-            return false;
-        }
-        const auto& axis_val = axis->cast_vector<int64_t>();
-        if (axis_val.size() != 1 || axis_val[0] != concat->get_axis()) {
             return false;
         }
 

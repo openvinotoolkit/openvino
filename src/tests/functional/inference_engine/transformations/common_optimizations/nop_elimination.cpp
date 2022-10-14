@@ -1107,6 +1107,8 @@ enum class RNNType : size_t {
 struct SplitConcatEliminationParams {
     SplitType split_type;
     RNNType rnn_type;
+    size_t seq_len; // must be divisible by split_len
+    size_t split_len;
 };
 
 class SplitConcatElimination
@@ -1120,8 +1122,10 @@ TEST_P(SplitConcatElimination, eliminate_split_concat_subgraph) {
     size_t batch = 2;
     size_t input_size = 4;
     size_t hidden_size = 2;
-    size_t seq_len = 10;
+    size_t seq_len = p.seq_len;
     size_t num_dir = 1;
+
+    EXPECT_TRUE(seq_len % p.split_len == 0) << "Seq_len must be divisible by split_len.";
 
     ParameterVector params;
     auto param = make_shared<ov::opset9::Parameter>(element::f32, Shape{batch, seq_len, input_size});
@@ -1156,7 +1160,7 @@ TEST_P(SplitConcatElimination, eliminate_split_concat_subgraph) {
     if (p.split_type == SplitType::Split) {
         split = make_shared<ov::opset9::Split>(data->output(0), axis_const, 10);
     } else if (p.split_type == SplitType::VariadicSplit) {
-        auto split_lengths = make_shared<ov::opset9::Constant>(element::i64, Shape{seq_len}, std::vector<int64_t>(seq_len, 1));
+        auto split_lengths = make_shared<ov::opset9::Constant>(element::i64, Shape{seq_len/p.split_len}, std::vector<size_t>(seq_len/p.split_len, p.split_len));
         split = make_shared<ov::opset9::VariadicSplit>(data->output(0), axis_const, split_lengths);
     }
 
@@ -1174,23 +1178,26 @@ TEST_P(SplitConcatElimination, eliminate_split_concat_subgraph) {
     pass_manager.register_pass<pass::NopElimination>();
     pass_manager.run_passes(model);
 
-    EXPECT_EQ(count_ops_of_type<ov::opset9::Concat>(model), 0) << "SplitConcatElimination transformation has failed. "
-                                                              "The number of Concat ops is not 0";
-    EXPECT_EQ(count_ops_of_type<ov::opset9::Split>(model), 0) << "SplitConcatElimination transformation has failed. "
-                                                             "The number of Split ops is not 0";
-    EXPECT_EQ(count_ops_of_type<ov::opset9::VariadicSplit>(model), 0) << "SplitConcatElimination transformation has failed. "
-                                                             "The number of VariadicSplit ops is not 0";
+    // the transformation won't be applied if split_len is not equal to 1
+    size_t expect_concat = p.split_len == 1 ? 0 : 1;
+    size_t expect_split = p.split_len == 1 ? 0 : 1;
+    EXPECT_EQ(count_ops_of_type<ov::opset9::Concat>(model), expect_concat) << "SplitConcatElimination transformation has failed. "
+                                                              "The number of Concat ops is not " + to_string(expect_concat);
+    EXPECT_EQ(count_ops_of_type<ov::opset9::Split>(model) + count_ops_of_type<ov::opset9::VariadicSplit>(model), expect_split)
+        << "SplitConcatElimination transformation has failed. "
+           "The number of Split/VariadicSplit ops is not " + to_string(expect_split);
 }
 
 static const vector<SplitConcatEliminationParams> params = {
-        SplitConcatEliminationParams{SplitType::Split, RNNType::NONE},
-        SplitConcatEliminationParams{SplitType::Split, RNNType::RNN},
-        SplitConcatEliminationParams{SplitType::Split, RNNType::LSTM},
-        SplitConcatEliminationParams{SplitType::Split, RNNType::GRU},
-        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::NONE},
-        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::RNN},
-        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::LSTM},
-        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::GRU}};
+        SplitConcatEliminationParams{SplitType::Split, RNNType::NONE, 10, 1},
+        SplitConcatEliminationParams{SplitType::Split, RNNType::RNN, 10, 1},
+        SplitConcatEliminationParams{SplitType::Split, RNNType::LSTM, 10, 1},
+        SplitConcatEliminationParams{SplitType::Split, RNNType::GRU, 10, 1},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::NONE, 10, 1},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::RNN, 10, 1},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::LSTM, 10, 1},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::GRU, 10, 1},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::GRU, 10, 2}};
 
 INSTANTIATE_TEST_SUITE_P(SplitConcatElimination, SplitConcatElimination, testing::ValuesIn(params));
 
@@ -1244,5 +1251,4 @@ TEST(SplitConcatElimination, no_sequence_found) {
                                                                   "The number of Concat ops is not 1";
     EXPECT_EQ(count_ops_of_type<ov::opset9::Split>(model), 1) << "SplitConcatElimination transformation has failed. "
                                                                  "The number of Split ops is not 1";
-    // the transformation shouldn't be applied
 }
