@@ -163,17 +163,18 @@ OPCache::SerializationStatus
 OPCache::serialize_function(const std::pair<std::shared_ptr<ov::Node>, LayerTestsUtils::OPInfo> &op,
                             const std::string &serialization_dir) {
     try {
-        if (op.first->get_friendly_name() == "Relu_8793_cached") {
-            std::cout << std::endl;
-        }
         std::cout << "Serializing function wrapping op " << op.first << std::endl;
         std::cout << "Taken from model: " << op.second.source_model << std::endl;
 
         ov::ParameterVector params;
+        bool is_dynamic = false;
         for (size_t i = 0; i < op.first->get_input_size(); ++i) {
             if (ov::op::util::is_parameter(op.first->get_input_node_ptr(i))) {
                 auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(
                         op.first->get_input_node_shared_ptr(i));
+                if (param->get_partial_shape().is_dynamic()) {
+                    is_dynamic = true;
+                }
                 params.push_back(param);
             }
         }
@@ -186,12 +187,13 @@ OPCache::serialize_function(const std::pair<std::shared_ptr<ov::Node>, LayerTest
         // TODO: How to define element type for multi-output ops
         auto op_el_type = op.first->get_output_element_type(0).get_type_name();
         auto current_op_folder = serialization_dir + CommonTestUtils::FileSeparator +
+                                 (is_dynamic ? "dynamic" : "static") + CommonTestUtils::FileSeparator +
                                  op.first->get_type_info().name + CommonTestUtils::FileSeparator + op_el_type;
-        std::cout << current_op_folder << std::endl;
+        auto op_name = op.first->get_name();
+        std::cout << op_name << " will be serialized to " << current_op_folder << std::endl;
         if (!CommonTestUtils::directoryExists(current_op_folder)) {
             CommonTestUtils::createDirectoryRecursive(current_op_folder);
         }
-        auto op_name = op.first->get_name();
         std::replace(op_name.begin(), op_name.end(), '/', '_');
         std::replace(op_name.begin(), op_name.end(), '\\', '_');
         // TODO: Possible names collision
