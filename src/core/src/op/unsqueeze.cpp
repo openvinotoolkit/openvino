@@ -28,11 +28,11 @@ op::v0::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes)
 void op::v0::Unsqueeze::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Unsqueeze_validate_and_infer_types);
     const auto data = input_value(0);
-    auto data_partial_shape = data.get_partial_shape();
+    const auto& data_partial_shape = data.get_partial_shape();
     const auto data_rank = data_partial_shape.rank();
 
-    const auto axes_constant = get_constant_from_source(input_value(1));
-    auto axes_pshape = get_input_partial_shape(1);
+    const auto& axes_constant = get_constant_from_source(input_value(1));
+    const auto& axes_pshape = get_input_partial_shape(1);
 
     NODE_VALIDATION_CHECK(this,
                           axes_pshape.rank().compatible(0) || axes_pshape.rank().compatible(1),
@@ -44,21 +44,35 @@ void op::v0::Unsqueeze::validate_and_infer_types() {
         return;
     }
 
-    const auto axes_values = axes_constant->cast_vector<int64_t>();
-    uint64_t data_rank_value = data_partial_shape.rank().get_length();
-    const int64_t expanded_rank = data_rank_value + axes_values.size();
-
+    auto axes_values = axes_constant->cast_vector<int64_t>();
     NODE_VALIDATION_CHECK(this, !axes_values.empty(), "'axes' input is mandatory");
 
-    auto normalized_axes = normalize_axes(this->description(), axes_values, expanded_rank);
-    set<int64_t> axes(begin(normalized_axes), end(normalized_axes));
-    vector<Dimension> output_shape{data_partial_shape};
-    for (auto axis : axes) {
-        NODE_VALIDATION_CHECK(this, axis <= expanded_rank, "provided 'axes' value ", axis, " is not valid.");
+    // Remove repeated axes on input
+    unordered_set<int64_t> tmp(make_move_iterator(axes_values.begin()), make_move_iterator(axes_values.end()));
+    vector<int64_t> unique_axes(make_move_iterator(tmp.begin()), make_move_iterator(tmp.end()));
 
-        output_shape.insert(next(begin(output_shape), axis), 1);
+    const auto expanded_rank = data_rank.get_length() + unique_axes.size();
+
+    // Normalize then remove repeated axes.
+    auto normalized_axes = normalize_axes(this->description(), unique_axes, expanded_rank);
+    const set<int64_t> axes(make_move_iterator(normalized_axes.begin()), make_move_iterator(normalized_axes.end()));
+
+    auto output_shape = PartialShape{data_partial_shape};
+    for (const auto& axis : axes) {
+        NODE_VALIDATION_CHECK(this, axis <= output_shape.size() + 1, "provided 'axes' value ", axis, " is not valid.");
+        // As shape not throw exception on repeated axis it has to be check if insert or append dimension.
+        // This will be not required if this op has same behaviour as numpy expand_dims.
+        if (axis <= output_shape.size()) {
+            output_shape.insert(next(begin(output_shape), axis), Dimension(1));
+        } else {
+            // Append dimension at end when there is difference in size of input axes and after normalization
+            // e.g. input shape {2,3,4} axes_value(4,-1) then output rank is determined as 5,
+            // but after final normalization and removing duplicates it points sam location in shape.
+            // The numpy throws exception "repeated axis" in that case.
+            output_shape.push_back(Dimension(1));
+        }
     }
-    set_output_type(0, get_input_element_type(0), ov::PartialShape{output_shape});
+    set_output_type(0, get_input_element_type(0), output_shape);
 }
 
 bool op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor) {
