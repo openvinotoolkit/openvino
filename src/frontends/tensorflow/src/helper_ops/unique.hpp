@@ -21,7 +21,7 @@ public:
            ov::element::Type output_indices_type,
            const std::shared_ptr<DecoderBase>& decoder = nullptr)
         : ov::frontend::tensorflow::InternalOperation(decoder, OutputVector{input_values}, 2),
-          out_idx(output_indices_type) {
+          m_output_indices_type(output_indices_type) {
         validate_and_infer_types();
     }
 
@@ -33,11 +33,15 @@ public:
         // 0) 1D tensor of unique elements
         // 1) 1D tensor of indices of the unique elements in the input
         set_output_type(0, get_input_element_type(0), ov::PartialShape({ov::Dimension::dynamic()}));
-        set_output_type(1, out_idx, ov::PartialShape({ov::Dimension::dynamic()}));
+        set_output_type(1, m_output_indices_type, ov::PartialShape({ov::Dimension::dynamic()}));
+    }
+
+    ov::element::Type get_output_indices_type() const {
+        return m_output_indices_type;
     }
 
 private:
-    ov::element::Type out_idx;
+    ov::element::Type m_output_indices_type;
 };
 }  // namespace tensorflow
 }  // namespace frontend
