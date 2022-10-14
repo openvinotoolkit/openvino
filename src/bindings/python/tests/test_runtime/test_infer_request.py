@@ -502,6 +502,15 @@ def test_infer_queue_userdata_is_empty(device):
     assert infer_queue.userdata == [None]
 
 
+def test_infer_queue_userdata_is_empty_more_jobs(device):
+    core = Core()
+    param = ops.parameter([10])
+    model = Model(ops.relu(param), [param])
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, 5)
+    assert infer_queue.userdata == [None, None, None, None, None]
+
+
 def test_infer_queue_fail_on_cpp_model(device):
     jobs = 6
     num_request = 4
