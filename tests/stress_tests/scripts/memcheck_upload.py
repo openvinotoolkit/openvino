@@ -21,6 +21,7 @@ import xml.etree.ElementTree as ET
 from glob import glob
 from inspect import getsourcefile
 from types import SimpleNamespace
+import requests
 
 import yaml
 from pymongo import MongoClient
@@ -160,6 +161,26 @@ def upload_memcheck_records(records, db_url, db_collection):
         collection.replace_one({'_id': record['_id']}, record, upsert=True)
 
 
+def push_to_db_facade(records, db_api_handler):
+    headers = {"Content-Type": "application/json", "accept": "application/json"}
+    uploaded = False
+    errors = []
+    for record in records:
+        try:
+            response = requests.post(db_api_handler, json=record, headers=headers)
+            if response.ok:
+                uploaded = True
+        except Exception as e:
+            errors.append(e)
+
+    if uploaded and not errors:
+        logging.info("Uploaded records by API url {}".format(db_api_handler))
+    elif errors:
+        logging.info("Failed to upload records by API url {} due to errors {}".format(db_api_handler, errors))
+    else:
+        logging.info("Failed to upload records by API url {}".format(db_api_handler))
+
+
 def _transpose_dicts(items, template=None):
     """ Build dictionary of arrays from array of dictionaries
     Example:
@@ -270,6 +291,10 @@ def main():
     parser.add_argument('--db_collection', required=not is_dryrun,
                         help=f'Collection name in {DATABASE} database to upload.',
                         choices=DB_COLLECTIONS)
+    parser.add_argument('--db_api_handler',
+                        help='API handler url for push data to database',
+                        default='',
+                        )
     parser.add_argument('--artifact_root', required=True,
                         help=f'A root directory to strip from log path before upload.')
     parser.add_argument('--append', help='JSON to append to each item.')
@@ -294,6 +319,8 @@ def main():
     if not args.dryrun:
         upload_memcheck_records(records, args.db_url, args.db_collection)
         logging.info('Uploaded to %s', args.db_url)
+        if args.db_api_handler:
+            push_to_db_facade(records, args.db_api_handler)
     else:
         print(json.dumps(records, sort_keys=True, indent=4))
 
