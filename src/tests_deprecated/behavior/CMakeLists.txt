@@ -2,10 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if (ENABLE_FUNCTIONAL_TESTS)
-    add_subdirectory(shared_tests)
+add_subdirectory(shared_tests)
 
-    if (ENABLE_HDDL OR ENABLE_INTEL_MYRIAD)
-        add_subdirectory(vpu)
-    endif()
+if (ENABLE_HDDL OR ENABLE_INTEL_MYRIAD)
+    add_subdirectory(vpu)
 endif()
