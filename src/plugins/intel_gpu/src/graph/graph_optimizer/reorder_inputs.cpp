@@ -789,4 +789,31 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             n->set_preferred_impl_type(preferred_impl);
         }
     }
+
+    // WA for OneDNN PRelu activation fusions: convert activation's slope buffer to expected f32 data type
+    for (auto& node : p.get_processing_order()) {
+        if (node->get_preferred_impl_type() == impl_types::onednn) {
+            auto fused_prims = node->get_fused_primitives();
+            for (auto& fused_desc : fused_prims) {
+                if (!fused_desc.is_type<activation>())
+                    continue;
+
+                auto activation_desc = fused_desc.typed_desc<activation>();
+                if (activation_desc->activation_function == cldnn::activation_func::relu_negative_slope &&
+                    !activation_desc->additional_params_input.empty()) {
+                    const auto expected_dt = data_types::f32;
+                    const auto dep_idx = fused_desc.dep_start_idx;
+                    const auto orig_layout = node->get_dependency(dep_idx).get_output_layout();
+                    if (orig_layout.data_type == expected_dt)
+                        continue;
+
+                    auto new_layout = orig_layout;
+                    new_layout.data_type = expected_dt;
+                    auto new_input = rf.get_reorder(node->get_dependency(dep_idx).id(), orig_layout, new_layout);
+                    if (new_input.first)
+                        p.add_intermediate(new_input.first, *node, dep_idx);
+                }
+            }
+        }
+    }
 }
