@@ -159,7 +159,7 @@ void regclass_AsyncInferQueue(py::module m) {
                 }
                 std::vector<InferRequestWrapper> requests;
                 std::queue<size_t> idle_handles;
-                std::vector<py::object> user_ids(jobs);
+                std::vector<py::object> user_ids(jobs, py::none());
 
                 for (size_t handle = 0; handle < jobs; handle++) {
                     auto request = InferRequestWrapper(model.create_infer_request());
@@ -359,7 +359,7 @@ void regclass_AsyncInferQueue(py::module m) {
             return self._user_ids;
         },
         R"(
-        :return: List of all passed userdata. None if the data wasn't passed yet.
+        :return: List of all passed userdata. List is filled with `None` if the data wasn't passed yet.
         :rtype: List[Any]
     )");
 
