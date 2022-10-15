@@ -19,6 +19,7 @@
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/crop.hpp"
 #include "intel_gpu/primitives/ctc_greedy_decoder.hpp"
+#include "intel_gpu/primitives/ctc_loss.hpp"
 #include "intel_gpu/primitives/custom_gpu_primitive.hpp"
 #include "intel_gpu/primitives/deconvolution.hpp"
 #include "intel_gpu/primitives/depth_to_space.hpp"
@@ -165,6 +166,7 @@ REGISTER_OCL(gather_tree);
 REGISTER_OCL(resample);
 REGISTER_OCL(grn);
 REGISTER_OCL(ctc_greedy_decoder);
+REGISTER_OCL(ctc_loss);
 REGISTER_OCL(cum_sum);
 REGISTER_OCL(embedding_bag);
 REGISTER_OCL(extract_image_patches);
