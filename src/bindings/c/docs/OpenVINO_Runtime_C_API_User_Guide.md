@@ -52,6 +52,10 @@ Supported Python* versions:
 | shape | `ov_shape_create()`, `ov_shape_free` | Operations of shape, details in `ov_shape.h`
 | tensor | `ov_tensor_create_from_host_ptr()`, `ov_tensor_create()`, `ov_tensor_set_shape()`, `ov_tensor_get_shape()`, `ov_tensor_get_element_type()`, `ov_tensor_get_size()`, `ov_tensor_get_byte_size()`, `ov_tensor_data()`, `ov_tensor_free()` | Operations of tensor, details in `ov_tensor.h`
 
+## The mapping relationship between C++ api 2.0 and C api
+[The Mapping between C++ API 2.0 and C API.xlsx](https://github.com/zhaixuejun1993/openvino/files/9792264/The.Mapping.between.C%2B%2B.API.2.0.and.C.API.xlsx)
+
+
 ## Tutorials
 Two C samples provided for customer reference, and the main steps about how to create C sample with C API in [here](./How_to_Create_C_Sample_with_OpenVINO_C_API.md)
 - [Hello Classification C Sample](../../../../samples/c/hello_classification/README.md)
