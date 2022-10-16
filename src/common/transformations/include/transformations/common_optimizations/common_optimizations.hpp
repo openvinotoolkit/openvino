@@ -9,16 +9,22 @@
 #include <transformations_visibility.hpp>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API CommonOptimizations;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::CommonOptimizations : public ngraph::pass::FunctionPass {
+class ov::pass::CommonOptimizations : public ngraph::pass::FunctionPass {
 public:
     OPENVINO_RTTI("CommonOptimizations", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override;
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::CommonOptimizations;
+}  // namespace pass
+}  // namespace ngraph

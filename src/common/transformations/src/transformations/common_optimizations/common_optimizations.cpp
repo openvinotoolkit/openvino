@@ -106,7 +106,7 @@
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
 
-bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
     ngraph::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
