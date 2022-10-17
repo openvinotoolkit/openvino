@@ -7,7 +7,7 @@ The layer tests are used to validate support of TensorFlow operation by the fron
 The unit-tests cover TensorFlow format reading functionality, conversion pipeline, and internal transformations
 for Transpose Sinking and conversion of sub-graphs with TF FE internal operations into the OpenVINO opset.
 
-## How to build and run the unit-tests
+## How to build and run unit-tests
 
 For building the TF FE unit-tests, use CMake target `ov_tensorflow_frontend_tests`. CMake automatically runs
 [generation scripts](../tests/test_models/gen_scripts) to create TensorFlow models used in the testing.
