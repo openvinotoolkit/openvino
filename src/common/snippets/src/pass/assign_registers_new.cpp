@@ -72,7 +72,7 @@ bool ngraph::snippets::pass::AssignRegistersNew::run_on_model(const std::shared_
                     static_cast<Reg>(f->get_result_index(result) + num_parameters);
         }
     }
-    auto enumerate_out_tensors = [&manually_assigned_regs] (const std::shared_ptr<ov::Node>& op,
+    auto enumerate_out_tensors = [IS_MANUALLY_ALLOCATED_REG, &manually_assigned_regs] (const std::shared_ptr<ov::Node>& op,
                                      decltype(regs_vec)& reg_map,
                                      size_t& counter) {
         for (const auto& output : op->outputs()) {
@@ -102,7 +102,7 @@ bool ngraph::snippets::pass::AssignRegistersNew::run_on_model(const std::shared_
     std::vector<std::set<Reg>> used_vec(ops.size(), std::set<Reg>()); // used = used as an input
     std::vector<std::set<Reg>> defined_vec(ops.size(), std::set<Reg>()); // defined = used as output
 
-    auto tensor2reg = [] (const std::vector<tensor>& tensors, const std::map<tensor, Reg>& reg_map) {
+    auto tensor2reg = [IS_MANUALLY_ALLOCATED_REG] (const std::vector<tensor>& tensors, const std::map<tensor, Reg>& reg_map) {
         std::set<Reg> result;
         for (const auto& t : tensors) {
             if (reg_map.count(t) == 0)
@@ -284,7 +284,7 @@ bool ngraph::snippets::pass::AssignRegistersNew::run_on_model(const std::shared_
 //        std::cerr << p.first << " => " << p.second << "\n";
 
     std::map<tensor, Reg> assigned_regs(std::move(manually_assigned_regs));
-    auto register_assigned_regs = [&assigned_regs](const std::map<tensor, Reg>& unique_regs,
+    auto register_assigned_regs = [IS_MANUALLY_ALLOCATED_REG, &assigned_regs](const std::map<tensor, Reg>& unique_regs,
                                                    const std::map<Reg, Reg>& unique2reused) {
         for (const auto& reg : unique_regs) {
             if (reg.second == IS_MANUALLY_ALLOCATED_REG)
