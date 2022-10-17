@@ -380,16 +380,15 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     auto insertPropToConfig = [&](std::string property,
                                   std::string& deviceName,
                                   std::map<std::string, std::string>& deviceConfig) {
-        auto tmpiter =
-            std::find_if(fullConfig.begin(), fullConfig.end(), [&](const std::pair<std::string, std::string>& config) {
-                return (config.first == property);
-            });
-        if (tmpiter != fullConfig.end()) {
-            deviceConfig.insert({tmpiter->first, tmpiter->second});
-            LOG_INFO_TAG("device:%s, config:%s=%s",
-                         deviceName.c_str(),
-                         tmpiter->first.c_str(),
-                         tmpiter->second.c_str());
+        if (deviceConfig.find(property) == deviceConfig.end()) {
+            auto tmpiter = fullConfig.find(property);
+            if (tmpiter != fullConfig.end()) {
+                deviceConfig.insert({tmpiter->first, tmpiter->second});
+                LOG_INFO_TAG("device:%s, config:%s=%s",
+                                deviceName.c_str(),
+                                tmpiter->first.c_str(),
+                                tmpiter->second.c_str());
+            }
         }
     };
 

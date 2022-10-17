@@ -2011,6 +2011,34 @@ TEST_P(CachingTest, LoadAUTOWithConfig) {
     }
     std::cout << "Caching LoadAuto Test completed. Tried " << index << " times" << std::endl;
 }
+
+//BATCH-DEVICE test
+//load network with config
+TEST_P(CachingTest, LoadBATCHWithConfig) {
+    const auto TEST_COUNT = 2;
+    EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return; // skip the remote Context test for Auto plugin
+    }
+    int index = 0;
+    m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
+        EXPECT_CALL(net, Export(_)).Times(1);
+    });
+    std::string cacheDir = m_cacheDir;
+    MkDirGuard guard(cacheDir);
+    for (index; index < TEST_COUNT; index++) {
+        deviceToLoad = CommonTestUtils::DEVICE_BATCH;
+        deviceToLoad += ":mock.0";
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(TEST_COUNT - index - 1);
+        EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(index);
+        ASSERT_NO_THROW(testLoad([&](Core &ie) {
+            m_testFunctionWithCfg(ie, {{CONFIG_KEY(CACHE_DIR), cacheDir}});
+        }));
+    }
+    std::cout << "Caching LoadAuto Test completed. Tried " << index << " times" << std::endl;
+}
 //Single device not support import/export
 TEST_P(CachingTest, LoadAUTO_OneDeviceNoImportExport) {
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
