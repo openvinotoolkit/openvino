@@ -517,15 +517,14 @@ bool check_reshape(const shared_ptr<Node>& node) {
     return false;
 }
 
-template <class T>
 bool check_axis(const shared_ptr<ov::opset9::Concat>& concat,
-                const shared_ptr<T>& split,
+                const shared_ptr<Node>& split,
                 bool is_special_case = false) {
     auto axis = dynamic_pointer_cast<ov::opset9::Constant>(split->input_value(1).get_node_shared_ptr());
     if (!axis) {
         return false;
     }
-    const auto& axis_val = axis->template cast_vector<int64_t>();
+    const auto& axis_val = axis->cast_vector<int64_t>();
     if (axis_val.size() != 1 || axis_val[0] != concat->get_axis()) {
         return false;
     }
@@ -599,7 +598,7 @@ shared_ptr<T> check_all_inputs(const shared_ptr<ov::opset9::Concat>& concat) {
             }
 
             // check that Sequence->output(1) is connected to this input or concat/split axis is not the same.
-            if (!seq_node || in_to_concat != seq_node->output(1) || !check_axis<T>(concat, split, true)) {
+            if (!seq_node || in_to_concat != seq_node->output(1) || !check_axis(concat, split, true)) {
                 return {};
             }
             return split;
@@ -621,7 +620,7 @@ shared_ptr<T> check_all_inputs(const shared_ptr<ov::opset9::Concat>& concat) {
     }
 
     // not all split outputs are used or concat/split axis is not the same.
-    if (idx != split->outputs().size() || !check_axis<T>(concat, split)) {
+    if (idx != split->outputs().size() || !check_axis(concat, split)) {
         return {};
     }
 
