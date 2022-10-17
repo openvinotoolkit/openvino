@@ -7,6 +7,10 @@
 #include "itt.hpp"
 
 namespace ov {
+op::v10::IsInf::IsInf(const Output<Node>& data) : op::Op{{data}} {
+    constructor_validate_and_infer_types();
+}
+
 op::v10::IsInf::IsInf(const Output<Node>& data, const Attributes& attributes)
     : op::Op{{data}},
       m_attributes{attributes} {
