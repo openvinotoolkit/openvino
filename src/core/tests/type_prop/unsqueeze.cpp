@@ -3,8 +3,9 @@
 //
 
 #include "dimension_tracker.hpp"
-#include "gtest/gtest.h"
+#include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
+#include "sequnce_generator.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
@@ -79,44 +80,26 @@ TEST(type_prop, unsqueeze_empty_axes) {
     }
 }
 
-TEST(type_prop, unsqueeze_dynamic_value_and_label_propagation) {
-    Dimension marked_0 = Dimension(3);
-    ov::DimensionTracker::set_label(marked_0, 10);
-    PartialShape target_0 = PartialShape{marked_0, 4};
-
-    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
-    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
-    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
-
-    const auto& et = element::i64;
-    std::vector<int64_t> zero{0};
-    const auto indices = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
-    const auto axis = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
-    const auto gather = std::make_shared<op::v7::Gather>(shape_0, indices, axis);
-
-    const auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(gather, axis);
-
-    auto bc = std::make_shared<op::v1::Broadcast>(param, unsqueeze);
-    EXPECT_EQ(bc->get_shape(), (Shape{3}));
-
-    const auto& output_shape = bc->get_output_partial_shape(0);
-    EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
-}
-
-using TestParam = std::tuple<PartialShape, std::vector<int64_t>, PartialShape>;
-
-class UnsqueezeTest : public TestWithParam<TestParam> {
+class UnsqueezeTestCommon : public Test {
 protected:
     void SetUp() override {
-        std::tie(p_shape, axes, exp_shape) = GetParam();
-
         param = std::make_shared<op::Parameter>(element::f32, p_shape);
     }
 
     PartialShape p_shape, exp_shape;
-    std::vector<int64_t> axes;
-
     std::shared_ptr<op::Parameter> param;
+};
+
+using TypePropTestParam = std::tuple<PartialShape, std::vector<int64_t>, PartialShape>;
+
+class UnsqueezeTest : public WithParamInterface<TypePropTestParam>, public UnsqueezeTestCommon {
+protected:
+    void SetUp() override {
+        std::tie(p_shape, axes, exp_shape) = GetParam();
+        UnsqueezeTestCommon::SetUp();
+    }
+
+    std::vector<int64_t> axes;
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -134,7 +117,13 @@ INSTANTIATE_TEST_SUITE_P(
                                         Dimension::dynamic(),
                                         Dimension::dynamic(),
                                         Dimension::dynamic(),
-                                        Dimension::dynamic()})),
+                                        Dimension::dynamic()}),
+           std::make_tuple(PartialShape{Dimension(3, 5), Dimension(-1, 2)},
+                           std::vector<int64_t>{0},
+                           PartialShape{1, Dimension(3, 5), Dimension(-1, 2)}),
+           std::make_tuple(PartialShape{2, Dimension::dynamic(), 4, Dimension(2, 7), 6},
+                           std::vector<int64_t>{3, 1, 5},
+                           PartialShape{2, 1, Dimension::dynamic(), 1, 4, 1, Dimension(2, 7), 6})),
     PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(
@@ -148,15 +137,8 @@ INSTANTIATE_TEST_SUITE_P(
            std::make_tuple(PartialShape{5}, std::vector<int64_t>{1}, PartialShape{5, 1}),
            std::make_tuple(PartialShape{5}, std::vector<int64_t>{-1}, PartialShape{5, 1}),
            std::make_tuple(PartialShape{2, 3}, std::vector<int64_t>{0}, PartialShape{1, 2, 3}),
-           std::make_tuple(PartialShape{Dimension(3, 5), Dimension(-1, 2)},
-                           std::vector<int64_t>{0},
-                           PartialShape{1, Dimension(3, 5), Dimension(-1, 2)}),
            std::make_tuple(PartialShape{2, 3, 6}, std::vector<int64_t>{0, -1}, PartialShape{1, 2, 3, 6, 1}),
-           std::make_tuple(PartialShape{2, 3, 6}, std::vector<int64_t>{-1, -5}, PartialShape{1, 2, 3, 6, 1}),
-           std::make_tuple(PartialShape::dynamic(), std::vector<int64_t>{-1, -5}, PartialShape::dynamic()),
-           std::make_tuple(PartialShape::dynamic(3),
-                           std::vector<int64_t>{-1, -5},
-                           PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 1})),
+           std::make_tuple(PartialShape{2, 3, 6}, std::vector<int64_t>{-1, -5}, PartialShape{1, 2, 3, 6, 1})),
     PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(
@@ -168,9 +150,6 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(PartialShape{8, 2}, std::vector<int64_t>{-2}, PartialShape{8, 1, 2}),
         std::make_tuple(PartialShape{3, 4}, std::vector<int64_t>{1, -2}, PartialShape{3, 1, 1, 4}),
         std::make_tuple(PartialShape{2, 3, 4}, std::vector<int64_t>{1, 3}, PartialShape{2, 1, 3, 1, 4}),
-        std::make_tuple(PartialShape{2, Dimension::dynamic(), 4, Dimension(2, 7), 6},
-                        std::vector<int64_t>{3, 1, 5},
-                        PartialShape{2, 1, Dimension::dynamic(), 1, 4, 1, Dimension(2, 7), 6}),
         std::make_tuple(PartialShape{3, 6, 7, 3}, std::vector<int64_t>{-2, 3, 1}, PartialShape{3, 1, 6, 1, 7, 1, 3})),
     PrintToStringParamName());
 
@@ -237,4 +216,57 @@ TEST_P(UnsqueezeTest, use_default_ctor) {
 
     EXPECT_EQ(unsqueeze->get_output_element_type(0), element::f32);
     EXPECT_EQ(unsqueeze->get_output_partial_shape(0), exp_shape);
+}
+
+using BoundTestParam = std::tuple<PartialShape, PartialShape>;
+
+class UnsqueezeBoundTest : public WithParamInterface<BoundTestParam>, public UnsqueezeTestCommon {
+protected:
+    void SetUp() override {
+        std::tie(p_shape, exp_shape) = GetParam();
+        UnsqueezeTestCommon::SetUp();
+    }
+
+    std::vector<size_t> exp_labels;
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    type_prop_bounds_propagate,
+    UnsqueezeBoundTest,
+    Values(std::make_tuple(PartialShape::dynamic(2), PartialShape::dynamic(1)),
+           std::make_tuple(PartialShape{Dimension(-1)}, PartialShape{Dimension(-1)}),
+           std::make_tuple(PartialShape{Dimension::dynamic(), 8}, PartialShape{Dimension::dynamic()}),
+           std::make_tuple(PartialShape{Dimension(2, 5), Dimension::dynamic()}, PartialShape{Dimension(2, 5)}),
+           std::make_tuple(PartialShape{Dimension(2, -1), Dimension::dynamic()}, PartialShape::dynamic(1)),
+           std::make_tuple(PartialShape{Dimension(-1, 3), Dimension::dynamic()}, PartialShape{Dimension(-1, 3)}),
+           std::make_tuple(PartialShape{5}, PartialShape{5}),
+           std::make_tuple(PartialShape{2, 6}, PartialShape{2})),
+    PrintToStringParamName());
+
+/**
+ * \brief Check label and dynamic value propagation.
+ *
+ * Test use evaluate label, lower/upper.
+ */
+TEST_P(UnsqueezeBoundTest, propagate_label_and_dynamic_value) {
+    PartialShape labeled_shape = PartialShape{p_shape};
+
+    std::generate_n(std::back_inserter(exp_labels), labeled_shape.size(), ov::SeqGen<size_t>(1));
+    set_shape_labels(labeled_shape, exp_labels);
+
+    constexpr auto et = element::i64;
+    const auto labeled_param = std::make_shared<op::Parameter>(et, labeled_shape);
+    const auto labeled_shape_of = std::make_shared<op::ShapeOf>(labeled_param);
+
+    const auto zero = std::vector<int64_t>{0};
+    const auto axis = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
+    const auto indices = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
+    const auto gather = std::make_shared<op::v7::Gather>(labeled_shape_of, indices, axis);
+    const auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(gather, axis);
+
+    const auto bc = std::make_shared<op::v1::Broadcast>(param, unsqueeze);
+
+    EXPECT_EQ(bc->get_output_partial_shape(0), exp_shape);
+    const auto labels = get_shape_labels(bc->get_output_partial_shape(0));
+    EXPECT_THAT(labels, ElementsAre(exp_labels.front()));
 }
