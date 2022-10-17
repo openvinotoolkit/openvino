@@ -684,7 +684,7 @@ class IPassFactory {
 public:
     IPassFactory() = default;
     virtual ~IPassFactory() = default;
-    virtual void registerPass(ov::pass::Manager & pass_manager) const = 0;
+    virtual void registerPass(ov::pass::Manager& pass_manager) const = 0;
 };
 
 using PassFactoryPtr = std::shared_ptr<IPassFactory>;
@@ -692,7 +692,7 @@ using PassFactoryPtr = std::shared_ptr<IPassFactory>;
 template <typename PassT>
 class PassFactory : public IPassFactory {
 public:
-    void registerPass(ov::pass::Manager & pass_manager) const override {
+    void registerPass(ov::pass::Manager& pass_manager) const override {
         pass_manager.register_pass<PassT>();
     }
 };
@@ -701,6 +701,8 @@ template <typename PassT>
 PassFactoryPtr CreatePassFactory() {
     return std::make_shared<PassFactory<PassT>>();
 }
+
+}  // namespace
 
 using CreateGraphBinaryF = std::function< std::shared_ptr<ov::Model> (BinaryFactoryPtr unary_factory,
                                                                 size_t num_binary_ops,
