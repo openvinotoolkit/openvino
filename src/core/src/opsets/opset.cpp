@@ -12,11 +12,6 @@ ngraph::OpSet::OpSet(const ov::OpSet& opset) : ov::OpSet(opset) {}
 
 ov::OpSet::OpSet(const std::string& name) : m_name(name) {}
 
-std::mutex& ov::OpSet::get_mutex() {
-    static std::mutex opset_mutex;
-    return opset_mutex;
-}
-
 ov::Node* ov::OpSet::create(const std::string& name) const {
     auto type_info_it = m_name_type_info_map.find(name);
     if (type_info_it == m_name_type_info_map.end()) {
