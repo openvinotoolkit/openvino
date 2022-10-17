@@ -19,12 +19,11 @@ namespace {
 using NodePtr = std::shared_ptr<ov::Node>;
 using Nodes = std::vector<NodePtr>;
 
-ov::OutputVector GetOutputs(const Nodes & nodes)
-{
+ov::OutputVector GetOutputs(const Nodes & nodes) {
     ov::OutputVector outputs;
 
-    for (auto node : nodes)
-        for (auto output : node->outputs())
+    for (auto & node : nodes)
+        for (auto & output : node->outputs())
             outputs.push_back(output);
 
     return outputs;
@@ -33,8 +32,7 @@ ov::OutputVector GetOutputs(const Nodes & nodes)
 // --------------------------------------------------------------------------------------
 
 template <typename Predicate>
-int FindFirstInputIf(const ov::Node * node, Predicate predicate)
-{
+int FindFirstInputIf(const ov::Node * node, Predicate predicate) {
     for (int input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
         const ov::Node * input_node = node->get_input_node_ptr(input_idx);
         if (predicate(input_node))
@@ -47,19 +45,16 @@ int FindFirstInputIf(const ov::Node * node, Predicate predicate)
 class IfTranpose {
 public:
     IfTranpose() = default;
-    bool operator()(const ov::Node * node) const
-    {
+    bool operator()(const ov::Node * node) const {
         return dynamic_cast<const ov::opset9::Transpose*>(node) != nullptr;
     }
 };
 
-bool IfConcatHasTransposeInputs(const ov::Output<ov::Node>& output)
-{
+bool IfConcatHasTransposeInputs(const ov::Output<ov::Node>& output) {
     return FindFirstInputIf(output.get_node(), IfTranpose()) >= 0;
 }
 
-NodePtr GetFirstTransposeInput(const ov::Node * node)
-{
+NodePtr GetFirstTransposeInput(const ov::Node * node) {
     const int index = FindFirstInputIf(node, IfTranpose());
     if (index < 0)
         return {};
@@ -131,7 +126,6 @@ Nodes GraphBuildStrategy<GraphBuildStrategyEmpty>::getNewNodes() const {
 
 template <typename ParentT>
 class CloneNodeStrategy : public GraphBuildStrategy<ParentT> {
-    friend GraphBuildStrategy<ParentT>;
 public:
     CloneNodeStrategy(NodePtr node, ParentT prev_builder) :
         GraphBuildStrategy<ParentT>(std::forward<ParentT>(prev_builder)),
@@ -219,7 +213,7 @@ private:
 
 Nodes InsertTranspose::operator()(Nodes & level_nodes, size_t parent_node_idx) const
 {
-    auto parent_node = level_nodes[parent_node_idx];
+    auto & parent_node = level_nodes[parent_node_idx];
 
     auto transpose_const = std::make_shared<ov::opset9::Constant>(_transpose_element_type,
                                                                   ov::Shape{_transpose_axis_order.size()},
@@ -245,16 +239,21 @@ InsertIf<AppendPredicateF, NodeCreateF, ParentT> AppendTransposes(NodeCreateF cr
 
 class IfNotIndex {
 public:
-    IfNotIndex(int idx) : _idx(idx) {}
-    bool operator()(int idx) const { return idx != _idx; }
+    IfNotIndex(size_t idx) : _idx(idx) {}
+    bool operator()(size_t idx) const {
+        return idx != _idx;
+    }
+
 private:
-    const int _idx;
+    const size_t _idx;
 };
 
 class AnyIndex {
 public:
     AnyIndex() = default;
-    bool operator()(int) const { return true; }
+    bool operator()(size_t) const {
+        return true;
+    }
 };
 
 // --------------------------------------------------------------------------------------
@@ -268,7 +267,7 @@ Nodes DoTransformation(NodePtr last_node,
 
     graph_builder.build(layer_nodes);
 
-    auto new_last_node = layer_nodes[0];
+    auto & new_last_node = layer_nodes[0];
 
     new_last_node->set_friendly_name(last_node->get_friendly_name());
     ov::replace_node(last_node, new_last_node);
@@ -276,15 +275,18 @@ Nodes DoTransformation(NodePtr last_node,
     return graph_builder.getNewNodes();
 }
 
-int GetNodeInputIndex(NodePtr node, NodePtr input_node)
+size_t GetNodeInputIndex(NodePtr node, NodePtr input_node)
 {
-    for (auto output : input_node->outputs()) {
-        for (auto input : output.get_target_inputs()) {
+    for (auto & output : input_node->outputs()) {
+        for (auto & input : output.get_target_inputs()) {
             if (input.get_node()->get_instance_id() == node->get_instance_id())
                 return input.get_index();
         }   
     }
-    return -1;
+
+    throw std::runtime_error("input node index not found");
+
+    return 0;
 }
 
 ov::AxisVector GetTransposeOrder(NodePtr transpose)
@@ -347,7 +349,7 @@ ngraph::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
 
         const ov::AxisVector transpose_axis_order = GetTransposeOrder(transpose);
         const ov::AxisVector reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
-        const int tranpose_input_index = GetNodeInputIndex(binary, transpose);
+        const size_t tranpose_input_index = GetNodeInputIndex(binary, transpose);
         const ov::element::Type transpose_element_type = GetTransposeElementType(transpose);
 
         // Graph build strategy
@@ -363,7 +365,7 @@ ngraph::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
         Nodes input_nodes = GetNodes(binary->input_values());
         input_nodes[tranpose_input_index] = transpose->input_value(0).get_node_shared_ptr();
 
-        for (auto new_node: DoTransformation(binary, input_nodes, std::move(append_output_transpose))) {
+        for (auto & new_node: DoTransformation(binary, input_nodes, std::move(append_output_transpose))) {
             register_new_node(new_node);
         }
 
@@ -403,7 +405,7 @@ ngraph::pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
 
         const Nodes input_nodes = GetNodes(binary->input_values());
 
-        for (auto new_node: DoTransformation(transpose, input_nodes, std::move(clone_binary))) {
+        for (auto & new_node: DoTransformation(transpose, input_nodes, std::move(clone_binary))) {
             register_new_node(new_node);
         }
 
@@ -483,7 +485,7 @@ ngraph::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
 
         const ov::AxisVector transpose_axis_order = GetTransposeOrder(transpose);
         const ov::AxisVector reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
-        const int tranpose_input_index = GetNodeInputIndex(concat, transpose);
+        const size_t tranpose_input_index = GetNodeInputIndex(concat, transpose);
         const ov::element::Type transpose_element_type = GetTransposeElementType(transpose);
         const int64_t transposed_concat_axis = TransposeConcatAxis(GetConcatAxis(concat), transpose_axis_order);
 
@@ -501,7 +503,7 @@ ngraph::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
         Nodes input_nodes = GetNodes(concat->input_values());
         input_nodes[tranpose_input_index] = transpose->input_value(0).get_node_shared_ptr();
 
-        for (auto new_node: DoTransformation(concat, input_nodes, std::move(append_output_transpose))) {
+        for (auto & new_node: DoTransformation(concat, input_nodes, std::move(append_output_transpose))) {
             register_new_node(new_node);
         }
 
@@ -542,7 +544,7 @@ ngraph::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
 
         const Nodes input_nodes = GetNodes(concat->input_values());
 
-        for (auto new_node: DoTransformation(transpose, input_nodes, std::move(append_concat))) {
+        for (auto & new_node: DoTransformation(transpose, input_nodes, std::move(append_concat))) {
             register_new_node(new_node);
         }
 
