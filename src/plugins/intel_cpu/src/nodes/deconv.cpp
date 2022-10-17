@@ -464,7 +464,14 @@ void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dim
         }
 
         if (auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get())) {
-            eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
+            // TODO [DS]: change to shape from memory
+            if (isInt8) {
+                // deconvolution support output scales and binary postOps
+                eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
+            } else {
+                // use legacy depthwise since backprop convolution does not support binary post ops
+                eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
+            }
             continue;
         }
 
