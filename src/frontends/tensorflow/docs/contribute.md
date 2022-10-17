@@ -46,11 +46,11 @@ The support of a new TensorFlow operation requires implementing a new `Loader` i
 
 The main rules for loaders implementation:
 1. Support dynamic shapes and ranks, undefined types, including for the future support of new types, such as strings and complex numbers.
-2. Try to save the same algorithmic complexity of the decomposition
-3. Use information about operation type, for example, input data with undefined rank to `Conv2D` must be of rank equal to 4
-4. Use the latest OpenVINO opset version for the transformation
-5. Preserve output tensor names
-6. Use helpers routines for operation check and construction of a graph from `util.hpp`
+2. Try to save the same algorithmic complexity of the decomposition.
+3. Use information about operation types. For example, input data with undefined rank to `Conv2D` must be of rank equal to 4.
+4. Use the latest OpenVINO opset version for the transformation.
+5. Preserve output tensor names.
+6. Use helpers routines for operation check and construction of a graph from `util.hpp`.
 
 ## Two transformation pass using Loader and Internal Transformation
 
