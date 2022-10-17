@@ -30,13 +30,13 @@
 ```xml
 <layer ... type="IsFinite">
     <input>
-        <port id="0">
+        <port id="0" precision="FP32">
             <dim>256</dim>
             <dim>56</dim>
         </port>
     </input>
     <output>
-        <port id="1">
+        <port id="1" precision="BOOL">
             <dim>256</dim>
             <dim>56</dim>
         </port>
