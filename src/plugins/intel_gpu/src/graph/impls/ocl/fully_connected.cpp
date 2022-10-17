@@ -97,7 +97,7 @@ public:
         updated_impl_param.input_layouts[1] = input_layouts[1];
         updated_impl_param.weights_layout = input_layouts[1];
 
-        updated_impl_param.output_layout = get_fc_output_layout(input_layouts, impl_param.output_layout);
+        updated_impl_param.output_layouts[0] = get_fc_output_layout(input_layouts, impl_param.get_output_layout());
 
         const auto& progam = impl_param.get_program();
         auto params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param);
