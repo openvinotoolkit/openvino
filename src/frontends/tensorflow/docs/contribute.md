@@ -8,7 +8,7 @@ and the conversion depends on the succeeding operations in the graph.
 ## One transformation pass using Loader
 
 Most TensorFlow operations can be converted by one transformation pass using `Loader`.
-The dictionary of `Loaders` is placed in [op_table.cpp](../src/op_table.cpp) file and loaders in [op](../src/op) directory:
+The dictionary of `Loaders` is placed in the [op_table.cpp](../src/op_table.cpp) file and loaders in the [op](../src/op) directory:
 
 ```
 const std::map<std::string, CreatorFunction> get_supported_ops() {
