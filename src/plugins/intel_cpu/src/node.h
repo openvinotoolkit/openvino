@@ -753,14 +753,6 @@ protected:
 
     std::shared_ptr<IShapeInfer> shapeInference;
 
-    std::vector<NodePtr>::iterator tryMapFusedOpsToOscales(std::vector<NodePtr>::iterator postop,
-                                                           dnnl::primitive_attr& attr,
-                                                           dnnl::post_ops& ops,
-                                                           std::vector<MemoryPtr>& args,
-                                                           dnnl::memory::data_type outputDataType,
-                                                           const VectorDims& outputDataDims,
-                                                           int dimOC,
-                                                           bool allowBinary);
     std::shared_ptr<std::mutex> sharedMutex = nullptr;
 
 private:
