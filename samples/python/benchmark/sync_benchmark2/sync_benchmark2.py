@@ -3,7 +3,7 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import datetime
+from datetime import timedelta
 import logging as log
 from math import ceil
 import sys
@@ -38,8 +38,8 @@ def print_perf_counters(perf_counts_list):
     max_layer_name = 30
     for ni in range(len(perf_counts_list)):
         perf_counts = perf_counts_list[ni]
-        total_time = datetime.timedelta()
-        total_time_cpu = datetime.timedelta()
+        total_time = timedelta()
+        total_time_cpu = timedelta()
         log.info(f"Performance counts for {ni}-th infer request")
         for pi in perf_counts:
             print(f"{pi.node_name[:max_layer_name - 4] + '...' if (len(pi.node_name) >= max_layer_name) else pi.node_name:<30}"
