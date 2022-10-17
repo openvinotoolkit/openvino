@@ -216,6 +216,30 @@ TYPED_TEST_P(ArithmeticOperator, shape_inference_5D_x_5D_incompatible) {
     ASSERT_THROW(const auto unused = std::make_shared<TypeParam>(A, B), ngraph::NodeValidationFailure);
 }
 
+TYPED_TEST_P(ArithmeticOperator, fully_dynamic_shape_broadcast_numpy) {
+    auto param = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY);
+    const auto op = std::make_shared<TypeParam>(param, param, autob);
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TYPED_TEST_P(ArithmeticOperator, fully_dynamic_shape_broadcast_none) {
+    auto param = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::NONE);
+    const auto op = std::make_shared<TypeParam>(param, param, autob);
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TYPED_TEST_P(ArithmeticOperator, fully_dynamic_shape_broadcast_pdpd) {
+    auto param = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD);
+    const auto op = std::make_shared<TypeParam>(param, param, autob);
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
 TYPED_TEST_P(ArithmeticOperator, dynamic_shape_3D) {
     Dimension dynamic = Dimension::dynamic();
     auto A = std::make_shared<op::Parameter>(element::f32, PartialShape{dynamic, dynamic, 6});
