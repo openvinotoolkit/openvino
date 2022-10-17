@@ -1109,6 +1109,8 @@ struct SplitConcatEliminationParams {
     RNNType rnn_type;
     size_t seq_len; // must be divisible by split_len
     size_t split_len;
+    int64_t split_axis;
+    int64_t concat_axis;
 };
 
 class SplitConcatElimination
@@ -1118,7 +1120,6 @@ class SplitConcatElimination
 
 TEST_P(SplitConcatElimination, eliminate_split_concat_subgraph) {
     const auto& p = GetParam();
-    int64_t axis = 1;
     size_t batch = 2;
     size_t input_size = 4;
     size_t hidden_size = 2;
@@ -1133,7 +1134,7 @@ TEST_P(SplitConcatElimination, eliminate_split_concat_subgraph) {
     shared_ptr<Node> data = param;
     shared_ptr<Node> sequence;
     auto gate = static_cast<size_t>(p.rnn_type);
-    auto axis_const = make_shared<ov::opset9::Constant>(element::i64, Shape{}, axis);
+    auto axis_const = make_shared<ov::opset9::Constant>(element::i64, Shape{}, p.split_axis);
     auto H = make_shared<ov::opset9::Parameter>(element::f32, Shape{batch, num_dir, hidden_size});
     auto C = make_shared<ov::opset9::Parameter>(element::f32, Shape{batch, num_dir, hidden_size});
     auto seq_lengths = make_shared<ov::opset9::Parameter>(element::i64, Shape{batch});
@@ -1158,7 +1159,7 @@ TEST_P(SplitConcatElimination, eliminate_split_concat_subgraph) {
 
     shared_ptr<ov::Node> split;
     if (p.split_type == SplitType::Split) {
-        split = make_shared<ov::opset9::Split>(data->output(0), axis_const, 10);
+        split = make_shared<ov::opset9::Split>(data->output(0), axis_const, p.seq_len/p.split_len);
     } else if (p.split_type == SplitType::VariadicSplit) {
         auto split_lengths = make_shared<ov::opset9::Constant>(element::i64, Shape{seq_len/p.split_len}, std::vector<size_t>(seq_len/p.split_len, p.split_len));
         split = make_shared<ov::opset9::VariadicSplit>(data->output(0), axis_const, split_lengths);
@@ -1168,7 +1169,7 @@ TEST_P(SplitConcatElimination, eliminate_split_concat_subgraph) {
     if (sequence) {
         outputs_to_concat[outputs_to_concat.size() - 1] = sequence->output(1);
     }
-    auto concat = make_shared<ov::opset9::Concat>(outputs_to_concat, axis);
+    auto concat = make_shared<ov::opset9::Concat>(outputs_to_concat, p.concat_axis);
     auto sigmoid = make_shared<ov::opset9::Sigmoid>(concat);
     auto res = make_shared<ov::opset9::Result>(sigmoid);
     auto model = make_shared<ov::Model>(ResultVector{res}, ParameterVector{params});
@@ -1189,15 +1190,18 @@ TEST_P(SplitConcatElimination, eliminate_split_concat_subgraph) {
 }
 
 static const vector<SplitConcatEliminationParams> params = {
-        SplitConcatEliminationParams{SplitType::Split, RNNType::NONE, 10, 1},
-        SplitConcatEliminationParams{SplitType::Split, RNNType::RNN, 10, 1},
-        SplitConcatEliminationParams{SplitType::Split, RNNType::LSTM, 10, 1},
-        SplitConcatEliminationParams{SplitType::Split, RNNType::GRU, 10, 1},
-        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::NONE, 10, 1},
-        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::RNN, 10, 1},
-        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::LSTM, 10, 1},
-        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::GRU, 10, 1},
-        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::GRU, 10, 2}};
+        SplitConcatEliminationParams{SplitType::Split, RNNType::NONE, 10, 1, 1, 1},
+        SplitConcatEliminationParams{SplitType::Split, RNNType::RNN, 10, 1, 1, 1},
+        SplitConcatEliminationParams{SplitType::Split, RNNType::LSTM, 10, 1, 1, 1},
+        SplitConcatEliminationParams{SplitType::Split, RNNType::GRU, 10, 1, 1, 1},
+        SplitConcatEliminationParams{SplitType::Split, RNNType::GRU, 10, 2, 1, 1},
+        SplitConcatEliminationParams{SplitType::Split, RNNType::NONE, 10, 1, -2, 1},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::NONE, 10, 1, 1, 1},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::RNN, 10, 1, 1, 1},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::LSTM, 10, 1, 1, 1},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::GRU, 10, 1, 1, 1},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::GRU, 10, 2, 1, 1},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::NONE, 10, 1, 1, -2}};
 
 INSTANTIATE_TEST_SUITE_P(SplitConcatElimination, SplitConcatElimination, testing::ValuesIn(params));
 

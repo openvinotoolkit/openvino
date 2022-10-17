@@ -479,13 +479,21 @@ pass::EliminateSqueeze::EliminateSqueeze() {
 }
 
 namespace {
+int64_t make_positive(int64_t value, const Output<Node>& node) {
+    const auto& rank = node.get_partial_shape().rank();
+    if (value < 0 && rank.is_static()) {
+        value = rank.get_length() + value;
+    }
+    return value;
+};
+
 bool check_squeeze(const shared_ptr<Node>& node) {
     auto squeeze = dynamic_pointer_cast<ov::opset9::Squeeze>(node);
     if (squeeze) {
         auto axis = dynamic_pointer_cast<ov::opset9::Constant>(squeeze->input_value(1).get_node_shared_ptr());
         if (axis) {
             auto axis_val = axis->cast_vector<int64_t>();
-            if (axis_val.size() == 1 && axis_val[0] == 1) {
+            if (axis_val.size() == 1 && make_positive(axis_val[0], squeeze->input_value(0)) == 1) {
                 return true;
             }
         }
@@ -509,7 +517,10 @@ bool check_reshape(const shared_ptr<Node>& node) {
             }
             pattern_val.insert(pattern_val.begin() + 1, 1);
             auto in_shape = reshape->input_value(0).get_partial_shape();
-            if (in_shape.compatible(pattern_val)) {
+            // Current Reshape is a product of eliminate_reshape_v1 transformation.
+            // Initial Unsqueeze operation had static input shape and thus was replaced.
+            // This makes us eligible to assume input shape of Reshape that we are searching for is static
+            if (in_shape.is_static() && in_shape == pattern_val) {
                 return true;
             }
         }
@@ -525,21 +536,19 @@ bool check_axis(const shared_ptr<ov::opset9::Concat>& concat,
         return false;
     }
     const auto& axis_val = axis->cast_vector<int64_t>();
-    if (axis_val.size() != 1 || axis_val[0] != concat->get_axis()) {
+    if (axis_val.size() != 1 || (axis_val[0] != concat->get_axis() && make_positive(axis_val[0], split->output(0)) !=
+                                                                          make_positive(concat->get_axis(), concat))) {
         return false;
     }
 
-    // in case of LSTM/GRU/RNN Sequence case described below and VariadicSplit op,
+    // in case of LSTM/GRU/RNN Sequence case described below and Split/VariadicSplit op,
     // we have to check that the last slice length equals 1,
     // it corresponds output(1) of Seq op
     if (is_special_case) {
-        auto variadic_split = dynamic_pointer_cast<ov::opset9::VariadicSplit>(split);
-        if (variadic_split) {
-            auto last_out_shape = variadic_split->output(variadic_split->get_output_size() - 1).get_partial_shape();
-            if (!last_out_shape.rank().is_static() || !last_out_shape[axis_val[0]].is_static() ||
-                last_out_shape[axis_val[0]].get_min_length() != 1) {
-                return false;
-            }
+        auto last_out_shape = split->output(split->get_output_size() - 1).get_partial_shape();
+        if (!last_out_shape.rank().is_static() || !last_out_shape[axis_val[0]].is_static() ||
+            last_out_shape[axis_val[0]].get_length() != 1) {
+            return false;
         }
     }
     return true;
