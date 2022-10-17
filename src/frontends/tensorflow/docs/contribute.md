@@ -44,7 +44,7 @@ The loader uses [OpenVINO Core API](../../../core/README.md) for building the Op
 
 The support of a new TensorFlow operation requires implementing a new `Loader` in a separate file in the [op](../src/op) directory and registering it into the dictionary of `Loaders`.
 
-The main rules to remember for loaders implementation:
+The main rules for loaders implementation:
 1. Support dynamic shapes and ranks, undefined types including for the future support of new types such as strings and complex numbers
 2. Try to save the same algorithmic complexity of the decomposition
 3. Use information about operation type, for example, input data with undefined rank to `Conv2D` must be of rank equal to 4
