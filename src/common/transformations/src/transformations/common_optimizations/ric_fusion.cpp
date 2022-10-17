@@ -84,7 +84,7 @@ public:
         }
         auto gather = std::make_shared<opset8::Gather>(output, create_1d_const(order), create_1d_const({get_axis()}));
         input.replace_source_output(gather);
-        ngraph::copy_runtime_info(nodes, gather);
+        ov::copy_runtime_info(nodes, gather);
     }
 
     bool can_be_fused() const {
