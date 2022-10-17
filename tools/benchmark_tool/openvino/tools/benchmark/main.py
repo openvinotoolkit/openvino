@@ -263,7 +263,7 @@ def main():
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ('load model time (ms)', duration_ms)
+                                              ('compile model time (ms)', duration_ms)
                                           ])
             app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, compiled_model.inputs)
             batch_size = get_network_batch_size(app_inputs_info)
