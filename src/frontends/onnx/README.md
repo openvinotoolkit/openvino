@@ -6,8 +6,7 @@ Other capabilities of the ONNX Frontend:
 * changing topology of the models (like cutting subgraphs, inserting additional inputs and outputs)
 * searching the models in a user-friendly way via tensors and operators names
 
-The component is written in `C++`. `Python` bindings are also available.
-If you want to contribute to the ONNX Frontend, follow [the common coding style rules](../../../docs/dev/coding_style.md).
+The component is written in `C++`. If you want to contribute to the ONNX Frontend, follow [the common coding style rules](../../../docs/dev/coding_style.md).
 
 
 ## Key contacts
@@ -20,11 +19,9 @@ In case of any questions, review and merge requests, contact the [openvino-onnx-
 ONNX Frontend implements an interface common to all frontends defined in the [Frontends API](../common/include/openvino/frontend).
 For backward compatibility reasons, the ONNX importer API (more lower-level abstraction approach) is still maintained. You can find it in the [ONNX Importer](./frontend/include/onnx_import/onnx.hpp).
 
-Read [How to add a new operation](./docs/how_to_add_op.md) page for more information on adding new operations to the ONNX Frontend and extending the existing ones. 
-
 The API of ONNX Frontend can be called directly. It is also used internally by [Model Optimizer](../../../tools/mo) during the conversion from ONNX to Intermediate Representation (IR). The capabilities of ONNX Frontend are used by the [ONNX Runtime via OpenVINO Execution Provider](https://onnxruntime.ai/docs/build/eps.html#openvino).
 
-Both `C++` and `Python` tests are implemented for the ONNX Frontend. Read the [ONNX Frontend tests](./docs/tests.md#places) page for more details. 
+Both `C++` and `Python` tests are implemented for the ONNX Frontend. Read the [ONNX Frontend tests](./docs/tests.md#onnx-frontend-testing-places) page for more details. 
 
 
 ## Architecture
