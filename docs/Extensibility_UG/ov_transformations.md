@@ -70,7 +70,7 @@ To eliminate operation, OpenVINO™ has special method that considers all limita
 
 `ov::replace_output_update_name()` in case of successful replacement it automatically preserves friendly name and runtime info.
 
-## Transformations types <a name="transformations_types"></a>
+## Transformations types <a name="transformations-types"></a>
 
 OpenVINO™ Runtime has three main transformation types:
 
@@ -91,7 +91,7 @@ Transformation library has two internal macros to support conditional compilatio
 
 When developing a transformation, you need to follow these transformation rules:
 
-###1. Friendly Names
+### 1. Friendly Names
 
 Each `ov::Node` has an unique name and a friendly name. In transformations we care only about friendly name because it represents the name from the model.
 To avoid losing friendly name when replacing node with other node or subgraph, set the original friendly name to the latest node in replacing subgraph. See the example below.
@@ -100,7 +100,7 @@ To avoid losing friendly name when replacing node with other node or subgraph, s
 
 In more advanced cases, when replaced operation has several outputs and we add additional consumers to its outputs, we make a decision how to set friendly name by arrangement.
 
-###2. Runtime Info
+### 2. Runtime Info
 
 Runtime info is a map `std::map<std::string, ov::Any>` located inside `ov::Node` class. It represents additional attributes in `ov::Node`.
 These attributes can be set by users or by plugins and when executing transformation that changes `ov::Model` we need to preserve these attributes as they will not be automatically propagated.
@@ -111,9 +111,9 @@ Currently, there is no mechanism that automatically detects transformation types
 
 When transformation has multiple fusions or decompositions, `ov::copy_runtime_info` must be called multiple times for each case.
 
-**Note**: copy_runtime_info removes rt_info from destination nodes. If you want to keep it, you need to specify them in source nodes like this: copy_runtime_info({a, b, c}, {a, b})
+> **NOTE**: `copy_runtime_info` removes `rt_info` from destination nodes. If you want to keep it, you need to specify them in source nodes like this: `copy_runtime_info({a, b, c}, {a, b})`
 
-###3. Constant Folding
+### 3. Constant Folding
 
 If your transformation inserts constant sub-graphs that need to be folded, do not forget to use `ov::pass::ConstantFolding()` after your transformation or call constant folding directly for operation.
 The example below shows how constant subgraph can be constructed.
@@ -140,8 +140,8 @@ In transformation development process:
 ## Using pass manager <a name="using_pass_manager"></a>
 
 `ov::pass::Manager` is a container class that can store the list of transformations and execute them. The main idea of this class is to have high-level representation for grouped list of transformations.
-It can register and apply any [transformation pass](#transformations_types) on model.
-In addition, `ov::pass::Manager` has extended debug capabilities (find more information in the [how to debug transformations](#how_to_debug_transformations) section).
+It can register and apply any [transformation pass](#transformations-types) on model.
+In addition, `ov::pass::Manager` has extended debug capabilities (find more information in the [how to debug transformations](#how-to-debug-transformations) section).
 
 The example below shows basic usage of `ov::pass::Manager`
 
@@ -151,7 +151,7 @@ Another example shows how multiple matcher passes can be united into single Grap
 
 @snippet src/transformations/template_pattern_transformation.cpp matcher_pass:manager2
 
-## How to debug transformations <a name="how_to_debug_transformations"></a>
+## How to debug transformations <a name="how-to-debug-transformations"></a>
 
 If you are using `ngraph::pass::Manager` to run sequence of transformations, you can get additional debug capabilities by using the following environment variables:
 
@@ -160,7 +160,7 @@ OV_PROFILE_PASS_ENABLE=1 - enables performance measurement for each transformati
 OV_ENABLE_VISUALIZE_TRACING=1 -  enables visualization after each transformation. By default, it saves dot and svg files.
 ```
 
-> **Note**: Make sure that you have dot installed on your machine; otherwise, it will silently save only dot file without svg file.
+> **NOTE**: Make sure that you have dot installed on your machine; otherwise, it will silently save only dot file without svg file.
 
 ## See Also
 
