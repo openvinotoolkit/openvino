@@ -124,7 +124,7 @@ public:
  * @ingroup ie_transformation_comm on_api
  * @brief EliminateSplit eliminates split+concat pairs which do nothing
  */
-class ov::pass::EliminateSplitConcat : public ngraph::pass::MatcherPass {
+class ov::pass::EliminateSplitConcat : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("EliminateSplitConcat", "0");
     EliminateSplitConcat();
