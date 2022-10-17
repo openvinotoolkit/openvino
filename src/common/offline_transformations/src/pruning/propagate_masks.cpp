@@ -36,6 +36,8 @@ class StopPropagation;
 class SkipPropagation;
 class FakeQuantize;
 class Concat;
+class VariadicSplit;
+class Split;
 
 }  // namespace mask_propagation
 }  // namespace pass
@@ -1420,6 +1422,217 @@ public:
     }
 };
 
+static void copy_and_slice_mask_on_axis(const ngraph::Mask* const input,
+                                        const ngraph::Mask::Ptr& output,
+                                        int64_t axis,
+                                        uint64_t split_start,
+                                        uint64_t split_end) {
+    if (output->size() < input->size())
+        output->resize(input->size());
+    for (size_t i = 0; i < output->size(); i++) {
+        if (i == axis) {
+            std::set<uint64_t> dst_set;
+            const auto& src_set = (*input)[i];
+            auto it = src_set.lower_bound(split_start);
+            while (it != src_set.end() && *it < split_end)
+                dst_set.insert(*it++ - split_start);
+            (*output)[i] = dst_set;
+        } else if (!(*input)[i].empty()) {
+            (*output)[i] = (*input)[i];
+        }
+    }
+}
+
+class ngraph::pass::mask_propagation::VariadicSplit : public MatcherPass {
+public:
+    VariadicSplit() {
+        auto input_pattern = pattern::any_input(pattern::has_static_rank());
+        auto axis_pattern = pattern::wrap_type<opset6::Constant>();
+        auto split_lengths_pattern = pattern::wrap_type<opset6::Constant>();
+        auto split_pattern =
+            pattern::wrap_type<opset6::VariadicSplit>({input_pattern, axis_pattern, split_lengths_pattern});
+
+        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+            const auto& pattern_map = m.get_pattern_value_map();
+            auto axis_node = ngraph::as_type<opset6::Constant>(pattern_map.at(axis_pattern).get_node());
+            if (!axis_node)
+                return false;
+
+            const auto& input = pattern_map.at(input_pattern);
+            const auto input_mask = getMask(input);
+            if (!input_mask)
+                return false;
+
+            auto axis = axis_node->cast_vector<int64_t>()[0];
+            if (axis < 0)
+                axis += input_mask->size();
+
+            auto split = pattern_map.at(split_pattern).get_node();
+
+            auto split_lengths_const =
+                ngraph::as_type<opset6::Constant>(pattern_map.at(split_lengths_pattern).get_node());
+            if (!split_lengths_const)
+                return false;
+            auto split_lengths = split_lengths_const->cast_vector<int64_t>();
+
+            // adjust split_lengths if needed
+            // split_lengths can contain -1 value
+            int minus_one_length_idx = -1;
+            int64_t total_lengths = 0;
+            for (int i = 0; i < split_lengths.size(); i++) {
+                if (split_lengths[i] == -1) {
+                    minus_one_length_idx = i;
+                    continue;
+                }
+                total_lengths += split_lengths[i];
+            }
+            if (minus_one_length_idx >= 0 && (*input_mask)[axis].size() > 0) {
+                const auto& input_shape = input.get_partial_shape();
+                if (input_shape[axis].is_dynamic())
+                    return false;
+                auto split_dim = static_cast<uint64_t>(input_shape[axis].get_length());
+                split_lengths[minus_one_length_idx] = split_dim - total_lengths;
+            }
+
+            uint64_t split_start = 0;
+            uint64_t split_end = split_lengths[0];
+            std::vector<Mask::Ptr> output_masks;
+            std::vector<Mask*> output_masks_raw;
+            Mask* input_mask_raw = input_mask.get();
+            for (size_t i = 0; i < split->get_output_size(); i++) {
+                auto output_mask = std::make_shared<Mask>();
+                copy_and_slice_mask_on_axis(input_mask.get(), output_mask, axis, split_start, split_end);
+                output_masks.push_back(output_mask);
+                output_masks_raw.push_back(output_mask.get());
+                output_mask->add_callback(
+                    [input_mask_raw, axis, split_start, split_end](Mask::Ptr cur_mask) -> bool {
+                        copy_and_slice_mask_on_axis(input_mask_raw, cur_mask, axis, split_start, split_end);
+                        return true;
+                    },
+                    input_mask);
+                split_start = split_end;
+                if (i + 1 < split_lengths.size())
+                    split_end += split_lengths[i + 1];
+                setMask(split->output(i), output_masks[i]);
+            }
+
+            auto input_mask_callback = [output_masks_raw, axis, split_lengths](Mask::Ptr cur_mask) -> bool {
+                cur_mask->clean_dim_values();
+                uint64_t split_start = 0;
+                uint64_t split_end = split_lengths[0];
+                for (size_t i = 0; i < output_masks_raw.size(); i++) {
+                    auto mask = output_masks_raw[i];
+                    for (size_t j = 0; j < mask->size(); j++) {
+                        const auto& set = (*mask)[j];
+                        if (j == axis) {
+                            for (auto d : set)
+                                (*cur_mask)[j].insert(d + split_start);
+                        } else if (!set.empty()) {
+                            (*cur_mask)[j] = set;
+                        }
+                    }
+                    split_start = split_end;
+                    if (i + 1 < split_lengths.size())
+                        split_end += split_lengths[i + 1];
+                }
+                cur_mask->initialize_dependencies();
+                return true;
+            };
+
+            for (size_t i = 0; i < split->get_output_size(); i++) {
+                input_mask->add_callback(input_mask_callback, output_masks[i]);
+            }
+            return true;
+        };
+        auto m = std::make_shared<ngraph::pattern::Matcher>(split_pattern, "VariadicSplitMaskPropagation");
+        register_matcher(m, callback);
+    }
+};
+
+class ngraph::pass::mask_propagation::Split : public MatcherPass {
+public:
+    Split() {
+        auto input_pattern = pattern::any_input(pattern::has_static_rank());
+        auto axis_pattern = pattern::wrap_type<opset6::Constant>();
+        auto split_pattern = pattern::wrap_type<opset6::Split>({input_pattern, axis_pattern});
+
+        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+            const auto& pattern_map = m.get_pattern_value_map();
+            auto axis_node = ngraph::as_type<opset6::Constant>(pattern_map.at(axis_pattern).get_node());
+            if (!axis_node)
+                return false;
+
+            const auto& input = pattern_map.at(input_pattern);
+            const auto input_mask = getMask(input);
+            if (!input_mask)
+                return false;
+
+            auto axis = axis_node->cast_vector<int64_t>()[0];
+            if (axis < 0)
+                axis += input_mask->size();
+
+            const auto& input_shape = input.get_partial_shape();
+            if (input_shape[axis].is_dynamic())
+                return false;
+            const auto& split = pattern_map.at(split_pattern).get_node();
+            auto num_splits = split->get_output_size();
+            auto split_dim = static_cast<uint64_t>(input_shape[axis].get_length());
+
+            uint64_t split_start = 0;
+            auto split_step = split_dim / num_splits;
+            uint64_t split_end = split_step;
+            std::vector<Mask::Ptr> output_masks;
+            std::vector<Mask*> output_masks_raw;
+            Mask* input_mask_raw = input_mask.get();
+            for (size_t i = 0; i < num_splits; i++) {
+                auto output_mask = std::make_shared<Mask>();
+                copy_and_slice_mask_on_axis(input_mask.get(), output_mask, axis, split_start, split_end);
+                output_masks.push_back(output_mask);
+                output_masks_raw.push_back(output_mask.get());
+                output_mask->add_callback(
+                    [input_mask_raw, axis, split_start, split_end](Mask::Ptr cur_mask) -> bool {
+                        copy_and_slice_mask_on_axis(input_mask_raw, cur_mask, axis, split_start, split_end);
+                        return true;
+                    },
+                    input_mask);
+                split_start = split_end;
+                split_end += split_step;
+                setMask(split->output(i), output_masks[i]);
+            }
+
+            auto input_mask_callback =
+                [output_masks_raw, axis, split_dim, split_step, num_splits](Mask::Ptr cur_mask) -> bool {
+                cur_mask->clean_dim_values();
+                uint64_t split_start = 0;
+                uint64_t split_end = split_step;
+                for (size_t i = 0; i < output_masks_raw.size(); i++) {
+                    auto mask = output_masks_raw[i];
+                    for (size_t j = 0; j < mask->size(); j++) {
+                        const auto& set = (*mask)[j];
+                        if (j == axis) {
+                            for (auto d : set)
+                                (*cur_mask)[j].insert(d + split_start);
+                        } else if (!set.empty()) {
+                            (*cur_mask)[j] = set;
+                        }
+                    }
+                    split_start = split_end;
+                    split_end += split_step;
+                }
+                cur_mask->initialize_dependencies();
+                return true;
+            };
+
+            for (size_t i = 0; i < split->get_output_size(); i++) {
+                input_mask->add_callback(input_mask_callback, output_masks[i]);
+            }
+            return true;
+        };
+        auto m = std::make_shared<ngraph::pattern::Matcher>(split_pattern, "SplitMaskPropagation");
+        register_matcher(m, callback);
+    }
+};
+
 class ngraph::pass::mask_propagation::StopPropagation : public MatcherPass {
 public:
     StopPropagation() {
@@ -1501,6 +1714,8 @@ ngraph::pass::PropagateMasks::PropagateMasks() {
     add_matcher<mask_propagation::Transpose>();
     add_matcher<mask_propagation::FakeQuantize>();
     add_matcher<mask_propagation::Concat>();
+    add_matcher<mask_propagation::VariadicSplit>();
+    add_matcher<mask_propagation::Split>();
     add_matcher<mask_propagation::SkipPropagation>();
     add_matcher<mask_propagation::StopPropagation>();
 }

@@ -4685,3 +4685,560 @@ INSTANTIATE_TEST_CASE_P(
         TransformationTestsBoolParam,
         TransformationTestsBoolParamF,
         ::testing::Values(false, true));
+
+
+TEST_F(TransformationTestsF, PruningWithVariadicSplitOnSecondAxis) {
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 3, 8, 8});
+        auto weights1 = create_constant_with_zeros({16, 3, 1, 1}, {{1, 2, 4, 8, 10, 11}, {}, {}, {}});
+        auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto split = std::make_shared<opset5::VariadicSplit>(conv1, opset5::Constant::create(element::i32, {}, {1}),
+                                                             opset5::Constant::create(element::i32, Shape{3}, {2, -1, 8}));
+        auto weights2 = create_constant_with_zeros({8, 2, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv2 = std::make_shared<opset5::Convolution>(split->output(0), weights2, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights3 = create_constant_with_zeros({8, 6, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv3 = std::make_shared<opset5::Convolution>(split->output(1), weights3, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights4 = create_constant_with_zeros({8, 8, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv4 = std::make_shared<opset5::Convolution>(split->output(2), weights4, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        function = std::make_shared<ngraph::Function>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
+    }
+
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 3, 8, 8});
+
+        auto weights1 = opset5::Constant::create(element::f32, {10, 3, 1, 1}, {1});
+        auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto split_lengths = std::make_shared<opset5::Subtract>(opset5::Constant::create(element::i32, Shape{3}, {2, -1, 8}),
+                                                           opset5::Constant::create(element::i32, Shape{3}, {1, -5, 3}));
+        auto split = std::make_shared<opset5::VariadicSplit>(conv1, opset5::Constant::create(element::i32, {}, {1}),
+                                                             split_lengths);
+        auto weights2 = create_constant_with_zeros({8, 1, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv2 = std::make_shared<opset5::Convolution>(split->output(0), weights2, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights3 = create_constant_with_zeros({8, 4, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv3 = std::make_shared<opset5::Convolution>(split->output(1), weights3, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights4 = create_constant_with_zeros({8, 5, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv4 = std::make_shared<opset5::Convolution>(split->output(2), weights4, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        function_ref = std::make_shared<ngraph::Function>(NodeVector{conv2, conv3, conv4}, ParameterVector{input});
+    }
+
+    manager.register_pass<pass::Pruning>();
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+
+TEST_F(TransformationTestsF, PruningWithVariadicSplitOnFirstAxis) {
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape{10, 3, 8, 8});
+        auto weights1 = create_constant_with_zeros({16, 3, 1, 1}, {{1, 2, 4, 8, 10, 11}, {}, {}, {}});
+        auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto split = std::make_shared<opset5::VariadicSplit>(conv1, opset5::Constant::create(element::i32, {}, {-4}),
+                                                             opset5::Constant::create(element::i32, Shape{3}, {-1, 5, 3}));
+        auto weights2 = create_constant_with_zeros({8, 16, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv2 = std::make_shared<opset5::Convolution>(split->output(0), weights2, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights3 = create_constant_with_zeros({8, 16, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv3 = std::make_shared<opset5::Convolution>(split->output(1), weights3, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights4 = create_constant_with_zeros({8, 16, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv4 = std::make_shared<opset5::Convolution>(split->output(2), weights4, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        function = std::make_shared<ngraph::Function>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
+    }
+
+    {
+        // create reference function
+        auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape{10, 3, 8, 8});
+        auto weights1 = opset5::Constant::create(element::f32, {10, 3, 1, 1}, {1});
+        auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto split = std::make_shared<opset5::VariadicSplit>(conv1, opset5::Constant::create(element::i32, {}, {-4}),
+                                                             opset5::Constant::create(element::i32, Shape{3}, {-1, 5, 3}));
+        auto weights2 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv2 = std::make_shared<opset5::Convolution>(split->output(0), weights2, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights3 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv3 = std::make_shared<opset5::Convolution>(split->output(1), weights3, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights4 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv4 = std::make_shared<opset5::Convolution>(split->output(2), weights4, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        function_ref = std::make_shared<ngraph::Function>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
+    }
+
+    manager.register_pass<pass::Pruning>();
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+
+TEST(TransformationTests, VariadicSplitMaskPropagationSplitOnSecondAxis) {
+    auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 3, 8, 8});
+    auto weights1 = create_constant_with_zeros({16, 3, 1, 1}, {{1, 2, 4, 8, 10, 11}, {}, {}, {}});
+    auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides{1, 1},
+                                                       CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto split = std::make_shared<opset5::VariadicSplit>(conv1, opset5::Constant::create(element::i32, {}, {1}),
+                                                         opset5::Constant::create(element::i32, Shape{3}, {-1, 6, 8}));
+    auto weights2 = create_constant_with_zeros({8, 2, 1, 1}, {{1, 2}, {}, {}, {}});
+    auto conv2 = std::make_shared<opset5::Convolution>(split->output(0), weights2, Strides{1, 1},
+                                                       CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto weights3 = create_constant_with_zeros({8, 6, 1, 1}, {{1, 2}, {}, {}, {}});
+    auto conv3 = std::make_shared<opset5::Convolution>(split->output(1), weights3, Strides{1, 1},
+                                                       CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto weights4 = create_constant_with_zeros({8, 8, 1, 1}, {{1, 2}, {}, {}, {}});
+    auto conv4 = std::make_shared<opset5::Convolution>(split->output(2), weights4, Strides{1, 1},
+                                                       CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto function = std::make_shared<ngraph::Function>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
+
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+
+    compare_masks(*getMask(weights1), Mask{{1, 2, 4, 8, 10, 11}, {}, {}, {}});
+    compare_masks(*getMask(conv1), Mask{{}, {1, 2, 4, 8, 10, 11}, {}, {}});
+    compare_masks(*getMask(split->output(0)), Mask{{}, {1}, {}, {}});
+    compare_masks(*getMask(split->output(1)), Mask{{}, {0, 2}, {}, {}});
+    compare_masks(*getMask(split->output(2)), Mask{{}, {0, 2, 3}, {}, {}});
+    compare_masks(*getMask(weights2), Mask{{}, {1}, {}, {}});
+    compare_masks(*getMask(conv2), Mask{{}, {}, {}, {}});
+    compare_masks(*getMask(weights3), Mask{{}, {0, 2}, {}, {}});
+    compare_masks(*getMask(conv3), Mask{{}, {}, {}, {}});
+    compare_masks(*getMask(weights4), Mask{{}, {0, 2, 3}, {}, {}});
+    compare_masks(*getMask(conv4), Mask{{}, {}, {}, {}});
+
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+
+        // create reference function
+        auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 3, 8, 8});
+
+        auto weights1 = opset5::Constant::create(element::f32, {10, 3, 1, 1}, {1});
+        auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto split_lengths = std::make_shared<opset5::Subtract>(opset5::Constant::create(element::i32, Shape{3}, {-1, 6, 8}),
+                                                           opset5::Constant::create(element::i32, Shape{3}, {-2, 2, 3}));
+        auto split = std::make_shared<opset5::VariadicSplit>(conv1, opset5::Constant::create(element::i32, {}, {1}),
+                                                             split_lengths);
+        auto weights2 = create_constant_with_zeros({8, 1, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv2 = std::make_shared<opset5::Convolution>(split->output(0), weights2, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights3 = create_constant_with_zeros({8, 4, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv3 = std::make_shared<opset5::Convolution>(split->output(1), weights3, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights4 = create_constant_with_zeros({8, 5, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv4 = std::make_shared<opset5::Convolution>(split->output(2), weights4, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto function_ref = std::make_shared<ngraph::Function>(NodeVector{conv2, conv3, conv4}, ParameterVector{input});
+
+        auto res = compare_functions(function, function_ref);
+        ASSERT_TRUE(res.first) << res.second;
+    }
+}
+
+
+TEST(TransformationTests, VariadicSplitMaskPropagationSplitOnFirstAxis) {
+    auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape{10, 3, 8, 8});
+    auto weights1 = create_constant_with_zeros({16, 3, 1, 1}, {{1, 2, 4, 8, 10, 11}, {}, {}, {}});
+    auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides{1, 1},
+                                                       CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto split = std::make_shared<opset5::VariadicSplit>(conv1, opset5::Constant::create(element::i32, {}, {0}),
+                                                         opset5::Constant::create(element::i32, Shape{3}, {2, 5, 3}));
+    auto weights2 = create_constant_with_zeros({8, 16, 1, 1}, {{1, 2}, {}, {}, {}});
+    auto conv2 = std::make_shared<opset5::Convolution>(split->output(0), weights2, Strides{1, 1},
+                                                       CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto weights3 = create_constant_with_zeros({8, 16, 1, 1}, {{1, 2}, {}, {}, {}});
+    auto conv3 = std::make_shared<opset5::Convolution>(split->output(1), weights3, Strides{1, 1},
+                                                       CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto weights4 = create_constant_with_zeros({8, 16, 1, 1}, {{1, 2}, {}, {}, {}});
+    auto conv4 = std::make_shared<opset5::Convolution>(split->output(2), weights4, Strides{1, 1},
+                                                       CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto function = std::make_shared<ngraph::Function>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
+
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+
+    compare_masks(*getMask(weights1), Mask{{1, 2, 4, 8, 10, 11}, {}, {}, {}});
+    compare_masks(*getMask(conv1), Mask{{}, {1, 2, 4, 8, 10, 11}, {}, {}});
+    compare_masks(*getMask(split->output(0)), Mask{{}, {1, 2, 4, 8, 10, 11}, {}, {}});
+    compare_masks(*getMask(split->output(1)), Mask{{}, {1, 2, 4, 8, 10, 11}, {}, {}});
+    compare_masks(*getMask(split->output(2)), Mask{{}, {1, 2, 4, 8, 10, 11}, {}, {}});
+    compare_masks(*getMask(weights2), Mask{{}, {1, 2, 4, 8, 10, 11}, {}, {}});
+    compare_masks(*getMask(conv2), Mask{{}, {}, {}, {}});
+    compare_masks(*getMask(weights3), Mask{{}, {1, 2, 4, 8, 10, 11}, {}, {}});
+    compare_masks(*getMask(conv3), Mask{{}, {}, {}, {}});
+    compare_masks(*getMask(weights4), Mask{{}, {1, 2, 4, 8, 10, 11}, {}, {}});
+    compare_masks(*getMask(conv4), Mask{{}, {}, {}, {}});
+
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+
+        // create reference function
+        auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape{10, 3, 8, 8});
+        auto weights1 = opset5::Constant::create(element::f32, {10, 3, 1, 1}, {1});
+        auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto split = std::make_shared<opset5::VariadicSplit>(conv1, opset5::Constant::create(element::i32, {}, {0}),
+                                                             opset5::Constant::create(element::i32, Shape{3}, {2, 5, 3}));
+        auto weights2 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv2 = std::make_shared<opset5::Convolution>(split->output(0), weights2, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights3 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv3 = std::make_shared<opset5::Convolution>(split->output(1), weights3, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights4 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv4 = std::make_shared<opset5::Convolution>(split->output(2), weights4, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto function_ref = std::make_shared<ngraph::Function>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
+
+        auto res = compare_functions(function, function_ref);
+        ASSERT_TRUE(res.first) << res.second;
+    }
+}
+
+
+TEST(TransformationTests, VariadicSplitMaskPropagationInvalidateMaskOnFirstAndThirdOutput) {
+    auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 3, 8, 8});
+    auto weights1 = create_constant_with_zeros({16, 3, 1, 1}, {{1, 2, 4, 8, 10, 11}, {}, {}, {}});
+    auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides{1, 1},
+                                                       CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto split = std::make_shared<opset5::VariadicSplit>(conv1, opset5::Constant::create(element::i32, {}, {1}),
+                                                         opset5::Constant::create(element::i32, Shape{3}, {2, 6, 8}));
+    auto weights2 = create_constant_with_zeros({8, 6, 1, 1}, {{1, 2}, {}, {}, {}});
+    auto conv2 = std::make_shared<opset5::Convolution>(split->output(1), weights2, Strides{1, 1},
+                                                       CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto function = std::make_shared<ngraph::Function>(OutputVector{split->output(0), conv2, split->output(2)}, ParameterVector{input});
+
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+
+    compare_masks(*getMask(weights1), Mask{{2, 4}, {}, {}, {}});
+    compare_masks(*getMask(conv1), Mask{{}, {2, 4}, {}, {}});
+    compare_masks(*getMask(split->output(0)), Mask{{}, {}, {}, {}});
+    compare_masks(*getMask(split->output(1)), Mask{{}, {0, 2}, {}, {}});
+    compare_masks(*getMask(split->output(2)), Mask{{}, {}, {}, {}});
+    compare_masks(*getMask(weights2), Mask{{}, {0, 2}, {}, {}});
+    compare_masks(*getMask(conv2), Mask{{}, {}, {}, {}});
+
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+
+        // create reference function
+        auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 3, 8, 8});
+
+        auto weights1 = opset5::Constant::create(element::f32, {14, 3, 1, 1}, {1});
+        auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto split_lengths = std::make_shared<opset5::Subtract>(opset5::Constant::create(element::i32, Shape{3}, {2, 6, 8}),
+                                                           opset5::Constant::create(element::i32, Shape{3}, {0, 2, 0}));
+        auto split = std::make_shared<opset5::VariadicSplit>(conv1, opset5::Constant::create(element::i32, {}, {1}),
+                                                             split_lengths);
+        auto weights2 = create_constant_with_zeros({8, 4, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv2 = std::make_shared<opset5::Convolution>(split->output(1), weights2, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto function_ref = std::make_shared<ngraph::Function>(OutputVector{split->output(0), conv2, split->output(2)}, ParameterVector{input});
+
+        auto res = compare_functions(function, function_ref);
+        ASSERT_TRUE(res.first) << res.second;
+    }
+}
+
+
+TEST_F(TransformationTestsF, PruningWithSplitOnSecondAxis) {
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 3, 8, 8});
+        auto weights1 = create_constant_with_zeros({15, 3, 1, 1}, {{1, 2, 4, 8, 10}, {}, {}, {}});
+        auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto split = std::make_shared<opset5::Split>(conv1, opset5::Constant::create(element::i32, {}, {1}), 3);
+        auto weights2 = create_constant_with_zeros({8, 5, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv2 = std::make_shared<opset5::Convolution>(split->output(0), weights2, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights3 = create_constant_with_zeros({8, 5, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv3 = std::make_shared<opset5::Convolution>(split->output(1), weights3, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights4 = create_constant_with_zeros({8, 5, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv4 = std::make_shared<opset5::Convolution>(split->output(2), weights4, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        function = std::make_shared<ngraph::Function>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
+    }
+
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 3, 8, 8});
+
+        auto weights1 = opset5::Constant::create(element::f32, {10, 3, 1, 1}, {1});
+        auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto split_lengths = opset5::Constant::create(element::i64, Shape{3}, {2, 4, 4});
+        auto split = std::make_shared<opset5::VariadicSplit>(conv1, opset5::Constant::create(element::i32, {}, {1}),
+                                                             split_lengths);
+        auto weights2 = create_constant_with_zeros({8, 2, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv2 = std::make_shared<opset5::Convolution>(split->output(0), weights2, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights3 = create_constant_with_zeros({8, 4, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv3 = std::make_shared<opset5::Convolution>(split->output(1), weights3, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights4 = create_constant_with_zeros({8, 4, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv4 = std::make_shared<opset5::Convolution>(split->output(2), weights4, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        function_ref = std::make_shared<ngraph::Function>(NodeVector{conv2, conv3, conv4}, ParameterVector{input});
+    }
+
+    manager.register_pass<pass::Pruning>();
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+
+TEST_F(TransformationTestsF, PruningWithSplitOnFirstAxis) {
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape{6, 3, 8, 8});
+        auto weights1 = create_constant_with_zeros({15, 3, 1, 1}, {{1, 2, 4, 8, 10}, {}, {}, {}});
+        auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto split = std::make_shared<opset5::Split>(conv1, opset5::Constant::create(element::i32, {}, {0}), 3);
+        auto weights2 = create_constant_with_zeros({8, 15, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv2 = std::make_shared<opset5::Convolution>(split->output(0), weights2, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights3 = create_constant_with_zeros({8, 15, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv3 = std::make_shared<opset5::Convolution>(split->output(1), weights3, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights4 = create_constant_with_zeros({8, 15, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv4 = std::make_shared<opset5::Convolution>(split->output(2), weights4, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        function = std::make_shared<ngraph::Function>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
+    }
+
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape{6, 3, 8, 8});
+
+        auto weights1 = opset5::Constant::create(element::f32, {10, 3, 1, 1}, {1});
+        auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto split = std::make_shared<opset5::Split>(conv1, opset5::Constant::create(element::i32, {}, {0}), 3);
+        auto weights2 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv2 = std::make_shared<opset5::Convolution>(split->output(0), weights2, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights3 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv3 = std::make_shared<opset5::Convolution>(split->output(1), weights3, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights4 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv4 = std::make_shared<opset5::Convolution>(split->output(2), weights4, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        function_ref = std::make_shared<ngraph::Function>(NodeVector{conv2, conv3, conv4}, ParameterVector{input});
+    }
+
+    manager.register_pass<pass::Pruning>();
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+
+TEST(TransformationTests, SplitMaskPropagationSplitOnSecondAxis) {
+    auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 3, 8, 8});
+    auto weights1 = create_constant_with_zeros({15, 3, 1, 1}, {{1, 2, 4, 8, 10}, {}, {}, {}});
+    auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides{1, 1},
+                                                       CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto split = std::make_shared<opset5::Split>(conv1, opset5::Constant::create(element::i32, {}, {1}), 3);
+    auto weights2 = create_constant_with_zeros({8, 5, 1, 1}, {{1, 2}, {}, {}, {}});
+    auto conv2 = std::make_shared<opset5::Convolution>(split->output(0), weights2, Strides{1, 1},
+                                                       CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto weights3 = create_constant_with_zeros({8, 5, 1, 1}, {{1, 2}, {}, {}, {}});
+    auto conv3 = std::make_shared<opset5::Convolution>(split->output(1), weights3, Strides{1, 1},
+                                                       CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto weights4 = create_constant_with_zeros({8, 5, 1, 1}, {{1, 2}, {}, {}, {}});
+    auto conv4 = std::make_shared<opset5::Convolution>(split->output(2), weights4, Strides{1, 1},
+                                                       CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto function = std::make_shared<ngraph::Function>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
+
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+
+    compare_masks(*getMask(weights1), Mask{{1, 2, 4, 8, 10}, {}, {}, {}});
+    compare_masks(*getMask(conv1), Mask{{}, {1, 2, 4, 8, 10}, {}, {}});
+    compare_masks(*getMask(split->output(0)), Mask{{}, {1, 2, 4}, {}, {}});
+    compare_masks(*getMask(split->output(1)), Mask{{}, {3}, {}, {}});
+    compare_masks(*getMask(split->output(2)), Mask{{}, {0}, {}, {}});
+    compare_masks(*getMask(weights2), Mask{{}, {1, 2, 4}, {}, {}});
+    compare_masks(*getMask(conv2), Mask{{}, {}, {}, {}});
+    compare_masks(*getMask(weights3), Mask{{}, {3}, {}, {}});
+    compare_masks(*getMask(conv3), Mask{{}, {}, {}, {}});
+    compare_masks(*getMask(weights4), Mask{{}, {0}, {}, {}});
+    compare_masks(*getMask(conv4), Mask{{}, {}, {}, {}});
+
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+
+        auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 3, 8, 8});
+
+        auto weights1 = opset5::Constant::create(element::f32, {10, 3, 1, 1}, {1});
+        auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto split_lengths = opset5::Constant::create(element::i64, Shape{3}, {2, 4, 4});
+        auto split = std::make_shared<opset5::VariadicSplit>(conv1, opset5::Constant::create(element::i32, {}, {1}),
+                                                             split_lengths);
+        auto weights2 = create_constant_with_zeros({8, 2, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv2 = std::make_shared<opset5::Convolution>(split->output(0), weights2, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights3 = create_constant_with_zeros({8, 4, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv3 = std::make_shared<opset5::Convolution>(split->output(1), weights3, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights4 = create_constant_with_zeros({8, 4, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv4 = std::make_shared<opset5::Convolution>(split->output(2), weights4, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto function_ref = std::make_shared<ngraph::Function>(NodeVector{conv2, conv3, conv4}, ParameterVector{input});
+
+        auto res = compare_functions(function, function_ref);
+        ASSERT_TRUE(res.first) << res.second;
+    }
+}
+
+
+TEST(TransformationTests, SplitMaskPropagationSplitOnFirstAxis) {
+    auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape{6, 3, 8, 8});
+    auto weights1 = create_constant_with_zeros({15, 3, 1, 1}, {{1, 2, 4, 8, 10}, {}, {}, {}});
+    auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides{1, 1},
+                                                       CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto split = std::make_shared<opset5::Split>(conv1, opset5::Constant::create(element::i32, {}, {0}), 3);
+    auto weights2 = create_constant_with_zeros({8, 15, 1, 1}, {{1, 2}, {}, {}, {}});
+    auto conv2 = std::make_shared<opset5::Convolution>(split->output(0), weights2, Strides{1, 1},
+                                                       CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto weights3 = create_constant_with_zeros({8, 15, 1, 1}, {{1, 2}, {}, {}, {}});
+    auto conv3 = std::make_shared<opset5::Convolution>(split->output(1), weights3, Strides{1, 1},
+                                                       CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto weights4 = create_constant_with_zeros({8, 15, 1, 1}, {{1, 2}, {}, {}, {}});
+    auto conv4 = std::make_shared<opset5::Convolution>(split->output(2), weights4, Strides{1, 1},
+                                                       CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto function = std::make_shared<ngraph::Function>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
+
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+
+    compare_masks(*getMask(weights1), Mask{{1, 2, 4, 8, 10}, {}, {}, {}});
+    compare_masks(*getMask(conv1), Mask{{}, {1, 2, 4, 8, 10}, {}, {}});
+    compare_masks(*getMask(split->output(0)), Mask{{}, {1, 2, 4, 8, 10}, {}, {}});
+    compare_masks(*getMask(split->output(1)), Mask{{}, {1, 2, 4, 8, 10}, {}, {}});
+    compare_masks(*getMask(split->output(2)), Mask{{}, {1, 2, 4, 8, 10}, {}, {}});
+    compare_masks(*getMask(weights2), Mask{{}, {1, 2, 4, 8, 10}, {}, {}});
+    compare_masks(*getMask(conv2), Mask{{}, {}, {}, {}});
+    compare_masks(*getMask(weights3), Mask{{}, {1, 2, 4, 8, 10}, {}, {}});
+    compare_masks(*getMask(conv3), Mask{{}, {}, {}, {}});
+    compare_masks(*getMask(weights4), Mask{{}, {1, 2, 4, 8, 10}, {}, {}});
+    compare_masks(*getMask(conv4), Mask{{}, {}, {}, {}});
+
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+
+        auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape{6, 3, 8, 8});
+
+        auto weights1 = opset5::Constant::create(element::f32, {10, 3, 1, 1}, {1});
+        auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto split = std::make_shared<opset5::Split>(conv1, opset5::Constant::create(element::i32, {}, {0}), 3);
+        auto weights2 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv2 = std::make_shared<opset5::Convolution>(split->output(0), weights2, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights3 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv3 = std::make_shared<opset5::Convolution>(split->output(1), weights3, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights4 = create_constant_with_zeros({8, 10, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv4 = std::make_shared<opset5::Convolution>(split->output(2), weights4, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto function_ref = std::make_shared<ngraph::Function>(NodeVector{conv2, conv3, conv4}, ParameterVector{input});
+
+        auto res = compare_functions(function, function_ref);
+        ASSERT_TRUE(res.first) << res.second;
+    }
+}
+
+
+TEST(TransformationTests, SplitMaskPropagationInvalidateMaskOnFirstAndThirdOutput) {
+    auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 3, 8, 8});
+    auto weights1 = create_constant_with_zeros({15, 3, 1, 1}, {{1, 2, 4, 6, 8, 10, 11}, {}, {}, {}});
+    auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides{1, 1},
+                                                       CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto split = std::make_shared<opset5::Split>(conv1, opset5::Constant::create(element::i32, {}, {1}), 3);
+    auto weights2 = create_constant_with_zeros({8, 5, 1, 1}, {{1, 2}, {}, {}, {}});
+    auto conv2 = std::make_shared<opset5::Convolution>(split->output(1), weights2, Strides{1, 1},
+                                                       CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    auto function = std::make_shared<ngraph::Function>(OutputVector{split->output(0), conv2, split->output(2)}, ParameterVector{input});
+
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+
+    compare_masks(*getMask(weights1), Mask{{6, 8}, {}, {}, {}});
+    compare_masks(*getMask(conv1), Mask{{}, {6, 8}, {}, {}});
+    compare_masks(*getMask(split->output(0)), Mask{{}, {}, {}, {}});
+    compare_masks(*getMask(split->output(1)), Mask{{}, {1, 3}, {}, {}});
+    compare_masks(*getMask(split->output(2)), Mask{{}, {}, {}, {}});
+    compare_masks(*getMask(weights2), Mask{{}, {1, 3}, {}, {}});
+    compare_masks(*getMask(conv2), Mask{{}, {}, {}, {}});
+
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+
+        // create reference function
+        auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 3, 8, 8});
+
+        auto weights1 = opset5::Constant::create(element::f32, {13, 3, 1, 1}, {1});
+        auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto split_lengths = opset5::Constant::create(element::i64, Shape{3}, {5, 3, 5});
+        auto split = std::make_shared<opset5::VariadicSplit>(conv1, opset5::Constant::create(element::i32, {}, {1}),
+                                                             split_lengths);
+        auto weights2 = create_constant_with_zeros({8, 3, 1, 1}, {{1, 2}, {}, {}, {}});
+        auto conv2 = std::make_shared<opset5::Convolution>(split->output(1), weights2, Strides{1, 1},
+                                                           CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto function_ref = std::make_shared<ngraph::Function>(OutputVector{split->output(0), conv2, split->output(2)}, ParameterVector{input});
+
+        auto res = compare_functions(function, function_ref);
+        ASSERT_TRUE(res.first) << res.second;
+    }
+}
