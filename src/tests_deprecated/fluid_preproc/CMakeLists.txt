@@ -4,7 +4,7 @@
 
 set(TARGET fluid_preproc_tests)
 
-find_package(OpenCV COMPONENTS gapi core imgproc QUIET)
+find_package(OpenCV QUIET COMPONENTS gapi core imgproc)
 if(NOT OpenCV_FOUND)
     message(WARNING "No suitable OpenCV version detected, ${TARGET} skipped")
     return()

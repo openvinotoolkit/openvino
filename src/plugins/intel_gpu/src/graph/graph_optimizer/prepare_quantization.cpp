@@ -9,7 +9,6 @@
 #include "reshape_inst.h"
 #include "reorder_inst.h"
 #include "binary_convolution_inst.h"
-#include "scale_inst.h"
 #include "eltwise_inst.h"
 #include "data_inst.h"
 #include "pass_manager.h"
@@ -703,7 +702,6 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
                 old_conv_prim->dilation,
                 output_size,
                 old_conv_prim->grouped_weights_shape,
-                "",
                 old_conv_prim->output_padding);
 
     auto& new_conv_node = p.get_or_create(new_conv_prim);

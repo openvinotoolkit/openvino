@@ -21,7 +21,6 @@ AsyncInferRequest::AsyncInferRequest(const InferRequest::Ptr &inferRequest,
                     [this] {
                         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "AsyncInferRequest::PreprocessingAndStartPipeline");
                         _inferRequest->setup_stream_graph();
-                        _inferRequest->preprocess();
                         _inferRequest->enqueue();
                         _inferRequest->wait();
         } });
@@ -34,19 +33,9 @@ AsyncInferRequest::AsyncInferRequest(const InferRequest::Ptr &inferRequest,
     }
 }
 
-void AsyncInferRequest::Infer_ThreadUnsafe() {
-    if (_inferRequest->use_external_queue()) {
-        _inferRequest->setup_stream_graph();
-        _inferRequest->preprocess_notify();
-        _inferRequest->enqueue_notify();
-    }
-    Parent::Infer_ThreadUnsafe();
-}
-
 void AsyncInferRequest::StartAsync_ThreadUnsafe() {
     if (_inferRequest->use_external_queue()) {
         _inferRequest->setup_stream_graph();
-        _inferRequest->preprocess_notify();
         _inferRequest->enqueue_notify();
     }
     Parent::StartAsync_ThreadUnsafe();

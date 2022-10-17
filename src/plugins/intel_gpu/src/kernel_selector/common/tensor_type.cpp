@@ -36,6 +36,10 @@ DataTensor::DataChannelArray DataTensor::dataChannelArray {{
     { DataLayout::bs_fs_yx_bsv4_fsv4,    {  0,  1, -1, -1,  2,  3 } },
     { DataLayout::bs_fs_yx_bsv8_fsv4,    {  0,  1, -1, -1,  2,  3 } },
     { DataLayout::bs_fs_zyx_bsv8_fsv4,   {  0,  1,  2, -1,  3,  4 } },
+    { DataLayout::bs_fs_yx_bsv16_fsv4,   {  0,  1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_zyx_bsv16_fsv4,  {  0,  1,  2, -1,  3,  4 } },
+    { DataLayout::bs_fs_yx_bsv16_fsv2,   {  0,  1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_zyx_bsv16_fsv2,  {  0,  1,  2, -1,  3,  4 } },
     { DataLayout::bs_fs_yx_bsv8_fsv2,    {  0,  1, -1, -1,  2,  3 } },
     { DataLayout::bs_fs_zyx_bsv8_fsv2,   {  0,  1,  2, -1,  3,  4 } },
     { DataLayout::bs_fs_yx_bsv4_fsv2,    {  0,  1, -1, -1,  2,  3 } },
@@ -47,6 +51,7 @@ DataTensor::DataChannelArray DataTensor::dataChannelArray {{
     { DataLayout::bs_f_bsv16__af8,       { -1, -1, -1, -1,  0,  1 } },
     { DataLayout::winograd_2x3_s1_data,  {  2,  1, -1, -1,  0,  3 } },
     { DataLayout::bfzyx,                 {  0,  1,  2, -1,  3,  4 } },
+    { DataLayout::bzyxf,                 {  1,  2,  3, -1,  0,  4 } },
     { DataLayout::fs_b_yx_fsv32,         {  0,  1, -1, -1,  3,  2 } },
     { DataLayout::b_fs_yx_32fp,          {  0,  1, -1, -1,  2,  3 } },
     { DataLayout::bfwzyx,                {  0,  1,  2,  3,  4,  5 } },
@@ -139,10 +144,20 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::os_is_yx_isv8_osv16_isv2,                    {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_zyx_isa8_osv8_isv2,                    {  0,  1,  2,   3,   4, -1 } },
     { WeightsLayout::is_os_zyx_isa8_osv8_isv2,                    {  0,  1,  2,   4,   3, -1 } },
+    { WeightsLayout::is_os_zyx_isa8_osv8_isv4,                    {  0,  1,  2,   4,   3, -1 } },
     { WeightsLayout::os_is_yx_isa8_osv8_isv2,                     {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::is_os_yx_isa8_osv8_isv2,                     {  0,  1, -1,   3,   2, -1 } },
+    { WeightsLayout::is_os_yx_isa8_osv8_isv4,                     {  0,  1, -1,   3,   2, -1 } },
     { WeightsLayout::os_zyxi_osv16,                               {  1,  2,  3,   0,   4, -1 } },
     { WeightsLayout::os_i_yxs_osv4_yxsv4,                         {  0,  1, -1,   2,   3, -1 } },
+    { WeightsLayout::os_y_is_x_osv8_isv2,                         {  0,  2, -1,   1,   3, -1 } },
+    { WeightsLayout::os_y_is_x_osv8_isv4,                         {  0,  2, -1,   1,   3, -1 } },
+    { WeightsLayout::os_yx_is_osv8_isv2,                          {  1,  2, -1,   0,   3, -1 } },
+    { WeightsLayout::os_yx_is_osv8_isv4,                          {  1,  2, -1,   0,   3, -1 } },
+    { WeightsLayout::os_zyx_is_osv8_isv2,                         {  1,  2,  3,   0,   4, -1 } },
+    { WeightsLayout::os_zyx_is_osv8_isv4,                         {  1,  2,  3,   0,   4, -1 } },
+    { WeightsLayout::os_zy_is_x_osv8_isv2,                        {  0,  2,  3,   1,   4, -1 } },
+    { WeightsLayout::os_zy_is_x_osv8_isv4,                        {  0,  2,  3,   1,   4, -1 } },
     { WeightsLayout::goiyx,                                       {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::gioyx,                                       {  0,  1, -1,   3,   2,  4 } },
     { WeightsLayout::goizyx,                                      {  0,  1,  2,   3,   4,  5 } },
@@ -158,6 +173,7 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::g_is_os_zyx_isv16_osv16,                     {  0,  1,  2,   4,   3,  5 } },
     { WeightsLayout::g_is_os_yx_isv16_osv16,                      {  0,  1, -1,   3,   2,  4 } },
     { WeightsLayout::g_os_is_yx_isa8_osv8_isv2,                   {  0,  1, -1,   2,   3,  4 } },
+    { WeightsLayout::g_os_is_yx_isa8_osv8_isv4,                   {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::g_os_is_zyx_isv8_osv16_isv2,                 {  0,  1,  2,   3,   4,  5 } },
     { WeightsLayout::g_os_is_yx_isv8_osv16_isv2,                  {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::g_os_is_zyx_isv16_osv16,                     {  0,  1,  2,   3,   4,  5 } },
@@ -176,6 +192,10 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::g_os_zyx_is_osv32_isv4,                      {  1,  2,  3,   0,   4,  5 } },
     { WeightsLayout::g_os_zyx_is_osv32_isv16,                     {  1,  2,  3,   0,   4,  5 } },
     { WeightsLayout::g_os_zyx_is_osv32_isv32,                     {  1,  2,  3,   0,   4,  5 } },
+    { WeightsLayout::g_os_yx_is_osv8_isv2,                        {  1,  2, -1,   0,   3,  4 } },
+    { WeightsLayout::g_os_yx_is_osv8_isv4,                        {  1,  2, -1,   0,   3,  4 } },
+    { WeightsLayout::g_os_y_is_x_osv8_isv2,                       {  0,  2, -1,   1,   3,  4 } },
+    { WeightsLayout::g_os_y_is_x_osv8_isv4,                       {  0,  2, -1,   1,   3,  4 } },
 }};
 
 NDims DataTensor::GetSimpleDims(const std::vector<size_t>& d, DataLayout l) {
@@ -246,6 +266,26 @@ NDims DataTensor::GetSimpleDims(const std::vector<size_t>& d, DataLayout l) {
             assert(newDims.size() == 5);
             newDims[3] = RoundUp(newDims[3], 4);
             newDims[4] = RoundUp(newDims[4], 8);
+            break;
+        case bs_fs_yx_bsv16_fsv4:
+            assert(newDims.size() == 4);
+            newDims[2] = RoundUp(newDims[2], 4);
+            newDims[3] = RoundUp(newDims[3], 16);
+            break;
+        case bs_fs_zyx_bsv16_fsv4:
+            assert(newDims.size() == 5);
+            newDims[3] = RoundUp(newDims[3], 4);
+            newDims[4] = RoundUp(newDims[4], 16);
+            break;
+        case bs_fs_yx_bsv16_fsv2:
+            assert(newDims.size() == 4);
+            newDims[2] = RoundUp(newDims[2], 2);
+            newDims[3] = RoundUp(newDims[3], 16);
+            break;
+        case bs_fs_zyx_bsv16_fsv2:
+            assert(newDims.size() == 5);
+            newDims[3] = RoundUp(newDims[3], 2);
+            newDims[4] = RoundUp(newDims[4], 16);
             break;
         case bs_fs_yx_bsv8_fsv2:
             assert(newDims.size() == 4);
@@ -460,6 +500,14 @@ DataTensor DataTensor::FlattenFeatureAndSpatials() const {
             if ((x.pitch == f.pitch && y.pitch == x.v * x.pitch) ||                               // YX - no Features (val/pitch)
                 (y.v == 1 && x.v == 1 && x.pitch == f.pitch && y.pitch == f.pitch) ||             // Feature only
                 (f.v * f.pitch == x.pitch && f.v * f.pitch == y.pitch && y.v == 1 && x.v == 1)) {  // Feature only
+                l = targetLayout;
+                break;
+            }
+            throw std::runtime_error("Unsupported - cannot flatten yxf to f if f/yx != 1");
+        case Tensor::bzyxf:
+            if ((x.pitch == f.pitch && y.pitch == x.v * x.pitch && z.pitch == y.v * y.pitch) ||   // YX - no Features (val/pitch)
+                (z.v == 1 && y.v == 1 && x.v == 1 && x.pitch == f.pitch && y.pitch == f.pitch && z.pitch == f.pitch) ||  // Feature only
+                (f.v * f.pitch == x.pitch && f.v * f.pitch == y.pitch && f.v * f.pitch == z.pitch && z.v == 1 && y.v == 1 && x.v == 1)) {  // Feature only
                 l = targetLayout;
                 break;
             }

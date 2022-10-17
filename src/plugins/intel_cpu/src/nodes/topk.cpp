@@ -82,9 +82,6 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
     }
 
     void generate() override {
-        load_emitter.reset(new jit_load_emitter(this, isa));
-        store_emitter.reset(new jit_store_emitter(this, isa));
-
         this->preamble();
 
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
@@ -123,8 +120,7 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
 
         this->postamble();
 
-        load_emitter->emit_data();
-        store_emitter->emit_data();
+        emit_emitters_data();
 
         if (!shape_agnostic_alg)
             prepare_idx_table();
@@ -207,9 +203,8 @@ private:
     Vmm vmm_zero = Vmm(0); // vmm_zero represents Vmm(0) when isa is avx512_core, otherwise vmm_mask represents Vmm(0)
 
     const Xbyak::Opmask k_mask = Xbyak::Opmask(1);
-    const int step = vlen / sizeof(float);
-    const int tail = jcp_.work_amount % step;
-    const int topk_tail = jcp_.top_k % step;
+    const int vector_step = vlen / sizeof(float);
+    const int tail_step = jcp_.work_amount % vector_step;
 
     int blk_stride = 0;    // stride of channel blocks at the same space coordinate, only used in blocked layout with topk on channel
     unsigned char cmp_flg;
@@ -217,12 +212,66 @@ private:
 
     Xbyak::Label l_table;
 
-    std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
-    std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
+    std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
 
     std::vector<size_t> store_pool_gpr_idxs;
     std::vector<size_t> load_pool_gpr_idxs;
     std::vector<size_t> store_pool_vec_idxs;
+
+    void emit_emitters_data() {
+        for (const auto& emitter : emitters) {
+            emitter.second->emit_data();
+        }
+    }
+
+    inline void load(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
+        emit_load(reg_src, vmm_src, jcp_.precision, Precision::FP32, elt_num, offset);
+    }
+
+    inline void load_i32_f32(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
+        emit_load(reg_src, vmm_src, Precision::I32, Precision::FP32, elt_num, offset);
+    }
+
+    inline void load_i32(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
+        emit_load(reg_src, vmm_src, Precision::I32, Precision::I32, elt_num, offset);
+    }
+
+    inline void store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, const int elt_num, const int offset = 0) {
+        emit_store(vmm_dst, reg_dst, Precision::FP32, jcp_.precision, elt_num, offset);
+    }
+
+    inline void store_f32_i32(Vmm vmm_dst, Xbyak::Reg64 reg_dst, const int elt_num, const int offset = 0) {
+        emit_store(vmm_dst, reg_dst, Precision::FP32, Precision::I32, elt_num, offset);
+    }
+
+    inline void store_i32(Vmm vmm_dst, Xbyak::Reg64 reg_dst, const int elt_num, const int offset = 0) {
+        emit_store(vmm_dst, reg_dst, Precision::I32, Precision::I32, elt_num, offset);
+    }
+
+    inline void emit_load(Xbyak::Reg64 reg_src, Vmm vmm_src, Precision src_prc, Precision dst_prc, const int elt_num, const int offset = 0) {
+        const auto seed = load_emitter_params(src_prc, dst_prc, elt_num).hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num));
+        }
+
+        emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), static_cast<size_t>(offset)},
+                                  {static_cast<size_t>(vmm_src.getIdx())}, {}, {load_pool_gpr_idxs});
+    }
+
+    inline void emit_store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, Precision src_prc, Precision dst_prc, const int elt_num, const int offset = 0) {
+        const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
+        }
+
+        // for cases when Store emitter need 2 aux vmm we can use vmm_dst as second aux vmm
+        std::vector<size_t> local_store_pool_vec_idxs = { static_cast<size_t>(vmm_dst.getIdx()) };
+        local_store_pool_vec_idxs.insert(local_store_pool_vec_idxs.begin(), store_pool_vec_idxs.begin(), store_pool_vec_idxs.end());
+
+        emitters[seed]->emit_code({static_cast<size_t>(vmm_dst.getIdx()), static_cast<size_t>(offset)},
+                          {static_cast<size_t>(reg_dst.getIdx())},
+                                  {local_store_pool_vec_idxs}, {store_pool_gpr_idxs});
+    }
 
     inline void topk_loop() {
         if (jcp_.algorithm == TopKAlgorithm::topk_bubble_sort) {
@@ -253,27 +302,27 @@ private:
         Xbyak::Label topk_main_loop_end_label;
         L(topk_main_loop_label);
         {
-            cmp(reg_work_amount, step);
+            cmp(reg_work_amount, vector_step);
             jl(topk_main_loop_end_label, T_NEAR);
 
-            topk_bitonic(step);
+            topk_bitonic(vector_step);
 
-            add(reg_src, step * jcp_.data_size);
-            add(reg_dst, step * jcp_.data_size);
-            add(reg_dst_idx, step * sizeof(int));
-            sub(reg_work_amount, step);
+            add(reg_src, vector_step * jcp_.data_size);
+            add(reg_dst, vector_step * jcp_.data_size);
+            add(reg_dst_idx, vector_step * sizeof(int));
+            sub(reg_work_amount, vector_step);
 
             jmp(topk_main_loop_label, T_NEAR);
         }
         L(topk_main_loop_end_label);
 
         // tail
-        if (tail) {
+        if (tail_step) {
             Xbyak::Label topk_tail_loop_end_label;
-            cmp(reg_work_amount, tail);
+            cmp(reg_work_amount, tail_step);
             jl(topk_tail_loop_end_label, T_NEAR);
 
-            topk_bitonic(tail);
+            topk_bitonic(tail_step);
 
             L(topk_tail_loop_end_label);
         }
@@ -282,19 +331,11 @@ private:
     inline void topk_bitonic(int elt_num) {
         // src => prc
         for (int i = 0; i < jcp_.axis_dim; i++) {
-            load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_tmp.getIdx())},
-                          std::make_shared<load_emitter_context>(jcp_.precision, Precision::FP32, elt_num, i * jcp_.sort_stride * jcp_.data_size),
-                          {}, {load_pool_gpr_idxs});
-            store_emitter->emit_code({static_cast<size_t>(vmm_tmp.getIdx())}, {static_cast<size_t>(reg_prc.getIdx())},
-                           std::make_shared<store_emitter_context>(Precision::FP32, jcp_.precision, elt_num, i * jcp_.sort_stride * jcp_.data_size),
-                           {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            load(reg_src, vmm_tmp, elt_num, i * jcp_.sort_stride * jcp_.data_size);
+            store(vmm_tmp, reg_prc, elt_num, i * jcp_.sort_stride * jcp_.data_size);
 
-            load_emitter->emit_code({static_cast<size_t>(reg_table.getIdx())}, {static_cast<size_t>(vmm_tmp.getIdx())},
-                          std::make_shared<load_emitter_context>(Precision::I32, Precision::I32, elt_num, i * vlen),
-                          {}, {load_pool_gpr_idxs});
-            store_emitter->emit_code({static_cast<size_t>(vmm_tmp.getIdx())}, {static_cast<size_t>(reg_prc_idx.getIdx())},
-                           std::make_shared<store_emitter_context>(Precision::I32, Precision::I32, elt_num, i * jcp_.sort_stride * sizeof(int)),
-                           {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            load_i32(reg_table, vmm_tmp, elt_num, i * vlen);
+            store_i32(vmm_tmp, reg_prc_idx, elt_num, i * jcp_.sort_stride * sizeof(int));
         }
 
         // sort
@@ -305,19 +346,11 @@ private:
 
         // prc => dst
         for (int i = 0; i < jcp_.top_k; i++) {
-            load_emitter->emit_code({static_cast<size_t>(reg_prc.getIdx())}, {static_cast<size_t>(vmm_tmp.getIdx())},
-                          std::make_shared<load_emitter_context>(jcp_.precision, Precision::FP32, elt_num, i * jcp_.sort_stride * jcp_.data_size),
-                          {}, {load_pool_gpr_idxs});
-            store_emitter->emit_code({static_cast<size_t>(vmm_tmp.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
-                           std::make_shared<store_emitter_context>(Precision::FP32, jcp_.precision, elt_num, i * jcp_.sort_stride * jcp_.data_size),
-                           {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            load(reg_prc, vmm_tmp, elt_num, i * jcp_.sort_stride * jcp_.data_size);
+            store(vmm_tmp, reg_dst, elt_num, i * jcp_.sort_stride * jcp_.data_size);
 
-            load_emitter->emit_code({static_cast<size_t>(reg_prc_idx.getIdx())}, {static_cast<size_t>(vmm_tmp.getIdx())},
-                          std::make_shared<load_emitter_context>(Precision::I32, Precision::I32, elt_num, i * jcp_.sort_stride * sizeof(int)),
-                          {}, {load_pool_gpr_idxs});
-            store_emitter->emit_code({static_cast<size_t>(vmm_tmp.getIdx())}, {static_cast<size_t>(reg_dst_idx.getIdx())},
-                           std::make_shared<store_emitter_context>(Precision::I32, Precision::I32, elt_num, i * jcp_.sort_stride * sizeof(int)),
-                           {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            load_i32(reg_prc_idx, vmm_tmp, elt_num, i * jcp_.sort_stride * sizeof(int));
+            store_i32(vmm_tmp, reg_dst_idx, elt_num, i * jcp_.sort_stride * sizeof(int));
         }
     }
 
@@ -330,46 +363,46 @@ private:
         Xbyak::Label topk_main_loop_end_label;
         L(topk_main_loop_label);
         {
-            cmp(reg_work_amount, step);
+            cmp(reg_work_amount, vector_step);
             jl(topk_main_loop_end_label, T_NEAR);
 
             // src => prc
-            bitonic_BLK_on_channel_load(step);
+            bitonic_BLK_on_channel_load(vector_step);
 
             // sort
-            bitonic_sort_vector(step);
+            bitonic_sort_vector(vector_step);
             if (jcp_.sort_index) {
-                bitonic_sort_vector(step, false);
+                bitonic_sort_vector(vector_step, false);
             }
 
             // prc => dst
-            bitonic_BLK_on_channel_store(step);
+            bitonic_BLK_on_channel_store(vector_step);
 
-            add(reg_src, step * jcp_.blk_size * jcp_.data_size);
-            add(reg_dst, step * jcp_.blk_size * jcp_.data_size);
-            add(reg_dst_idx, step * jcp_.blk_size * sizeof(int));
-            sub(reg_work_amount, step);
+            add(reg_src, vector_step * jcp_.blk_size * jcp_.data_size);
+            add(reg_dst, vector_step * jcp_.blk_size * jcp_.data_size);
+            add(reg_dst_idx, vector_step * jcp_.blk_size * sizeof(int));
+            sub(reg_work_amount, vector_step);
 
             jmp(topk_main_loop_label, T_NEAR);
         }
         L(topk_main_loop_end_label);
 
         // tail exists because working buffer has planar layout, though source buffer has blocked layout)
-        if (tail) {
+        if (tail_step) {
             Xbyak::Label topk_tail_loop_end_label;
-            cmp(reg_work_amount, tail);
+            cmp(reg_work_amount, tail_step);
             jl(topk_tail_loop_end_label, T_NEAR);
 
             // src => prc
-            bitonic_BLK_on_channel_load(tail);
+            bitonic_BLK_on_channel_load(tail_step);
 
-            bitonic_sort_vector(tail);
+            bitonic_sort_vector(tail_step);
             if (jcp_.sort_index) {
-                bitonic_sort_vector(tail, false);
+                bitonic_sort_vector(tail_step, false);
             }
 
             // prc => dst
-            bitonic_BLK_on_channel_store(tail);
+            bitonic_BLK_on_channel_store(tail_step);
 
             L(topk_tail_loop_end_label);
         }
@@ -437,40 +470,30 @@ private:
 
     inline void bitonic_swap_vector(int elt_num, bool cmp_val = true) {
         bitonic_get_addr(reg_prc, jcp_.data_size, 0);
-        load_emitter->emit_code({static_cast<size_t>(reg_aux_idx.getIdx())}, {static_cast<size_t>(vmm_val_l.getIdx())},
-                      std::make_shared<load_emitter_context>(jcp_.precision, Precision::FP32, elt_num),
-                      {}, {load_pool_gpr_idxs});
+        load(reg_aux_idx, vmm_val_l, elt_num);
+
         bitonic_get_addr(reg_prc, jcp_.data_size, sizeof(int));
-        load_emitter->emit_code({static_cast<size_t>(reg_aux_idx.getIdx())}, {static_cast<size_t>(vmm_val_r.getIdx())},
-                      std::make_shared<load_emitter_context>(jcp_.precision, Precision::FP32, elt_num),
-                      {}, {load_pool_gpr_idxs});
+        load(reg_aux_idx, vmm_val_r, elt_num);
+
         bitonic_get_addr(reg_prc_idx, sizeof(int), 0);
-        load_emitter->emit_code({static_cast<size_t>(reg_aux_idx.getIdx())}, {static_cast<size_t>(vmm_idx_l.getIdx())},
-                      std::make_shared<load_emitter_context>(Precision::I32, Precision::FP32, elt_num),
-                      {}, {load_pool_gpr_idxs});
+        load_i32_f32(reg_aux_idx, vmm_idx_l, elt_num);
+
         bitonic_get_addr(reg_prc_idx, sizeof(int), sizeof(int));
-        load_emitter->emit_code({static_cast<size_t>(reg_aux_idx.getIdx())}, {static_cast<size_t>(vmm_idx_r.getIdx())},
-                      std::make_shared<load_emitter_context>(Precision::I32, Precision::FP32, elt_num),
-                      {}, {load_pool_gpr_idxs});
+        load_i32_f32(reg_aux_idx, vmm_idx_r, elt_num);
 
         swap_vector(vmm_val_l, vmm_idx_l, vmm_val_r, vmm_idx_r, cmp_val);
 
         bitonic_get_addr(reg_prc, jcp_.data_size, 0);
-        store_emitter->emit_code({static_cast<size_t>(vmm_val_l.getIdx())}, {static_cast<size_t>(reg_aux_idx.getIdx())},
-                       std::make_shared<store_emitter_context>(Precision::FP32, jcp_.precision, elt_num),
-                       {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+        store(vmm_val_l, reg_aux_idx, elt_num);
+
         bitonic_get_addr(reg_prc, jcp_.data_size, sizeof(int));
-        store_emitter->emit_code({static_cast<size_t>(vmm_val_r.getIdx())}, {static_cast<size_t>(reg_aux_idx.getIdx())},
-                       std::make_shared<store_emitter_context>(Precision::FP32, jcp_.precision, elt_num),
-                       {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+        store(vmm_val_r, reg_aux_idx, elt_num);
+
         bitonic_get_addr(reg_prc_idx, sizeof(int), 0);
-        store_emitter->emit_code({static_cast<size_t>(vmm_idx_l.getIdx())}, {static_cast<size_t>(reg_aux_idx.getIdx())},
-                       std::make_shared<store_emitter_context>(Precision::FP32, Precision::I32, elt_num),
-                       {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+        store_f32_i32(vmm_idx_l, reg_aux_idx, elt_num);
+
         bitonic_get_addr(reg_prc_idx, sizeof(int), sizeof(int));
-        store_emitter->emit_code({static_cast<size_t>(vmm_idx_r.getIdx())}, {static_cast<size_t>(reg_aux_idx.getIdx())},
-                       std::make_shared<store_emitter_context>(Precision::FP32, Precision::I32, elt_num),
-                       {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+        store_f32_i32(vmm_idx_r, reg_aux_idx, elt_num);
     }
 
     inline void topk_heap_sorting() {
@@ -480,9 +503,9 @@ private:
 
         // init dst
         mov(reg_i, 0);
-        sub(reg_heap_top_k, step);
-        topk_heap_load(reg_heap_k_sub_step, step);
-        add(reg_heap_top_k, step);
+        sub(reg_heap_top_k, vector_step);
+        topk_heap_load(reg_heap_k_sub_step, vector_step);
+        add(reg_heap_top_k, vector_step);
         topk_heap_load(reg_heap_top_k, 1);
         mov(reg_zero, 0);
 
@@ -579,7 +602,7 @@ private:
         Xbyak::Label topk_init_loop_end_label;
         L(topk_init_loop_label);
         {
-            if (s == step) {
+            if (s == vector_step) {
                 cmp(reg_i, reg_end);
                 jg(topk_init_loop_end_label, T_NEAR);
             } else {
@@ -588,25 +611,18 @@ private:
             }
 
             get_addr_by_reg_idx(reg_heap_outer_aux, reg_src, reg_i, jcp_.data_size);
-            load_emitter->emit_code({static_cast<size_t>(reg_heap_outer_aux.getIdx())}, {static_cast<size_t>(vmm_tmp.getIdx())},
-                                std::make_shared<load_emitter_context>(jcp_.precision, Precision::FP32, s),
-                                {}, {load_pool_gpr_idxs});
+            load(reg_heap_outer_aux, vmm_tmp, s);
+
             get_addr_by_reg_idx(reg_heap_outer_aux, reg_dst, reg_i, jcp_.data_size);
-            store_emitter->emit_code({static_cast<size_t>(vmm_tmp.getIdx())}, {static_cast<size_t>(reg_heap_outer_aux.getIdx())},
-                           std::make_shared<store_emitter_context>(Precision::FP32, jcp_.precision, s),
-                           {store_pool_vec_idxs}, {store_pool_gpr_idxs});
-            if (s == step) {
+            store(vmm_tmp, reg_heap_outer_aux, s);
+            if (s == vector_step) {
                 table_to_vmm(vmm_tmp, reg_heap_seq_idx, reg_i, 0, sizeof(int));
             } else {
                 get_addr_by_reg_idx(reg_heap_outer_aux, reg_heap_seq_idx, reg_i, sizeof(int));
-                load_emitter->emit_code({static_cast<size_t>(reg_heap_outer_aux.getIdx())}, {static_cast<size_t>(vmm_tmp.getIdx())},
-                              std::make_shared<load_emitter_context>(Precision::I32, Precision::I32, 1),
-                              {}, {load_pool_gpr_idxs});
+                load_i32(reg_heap_outer_aux, vmm_tmp, 1);
             }
             get_addr_by_reg_idx(reg_heap_outer_aux, reg_dst_idx, reg_i, sizeof(int));
-            store_emitter->emit_code({static_cast<size_t>(vmm_tmp.getIdx())}, {static_cast<size_t>(reg_heap_outer_aux.getIdx())},
-                           std::make_shared<store_emitter_context>(Precision::I32, Precision::I32, s),
-                           {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            store_i32(vmm_tmp, reg_heap_outer_aux, s);
 
             add(reg_i, s);
             jmp(topk_init_loop_label, T_NEAR);
@@ -822,19 +838,19 @@ private:
         Xbyak::Label topk_main_loop_end_label;
         L(topk_main_loop_label);
         {
-            cmp(reg_work_amount, step);
+            cmp(reg_work_amount, vector_step);
             jl(topk_main_loop_end_label, T_NEAR);
 
             if (jcp_.bubble_inplace) {
-                topk_bubble_inplace(step);
+                topk_bubble_inplace(vector_step);
             } else {
-                topk_bubble(step);
+                topk_bubble(vector_step);
             }
 
-            add(reg_src, step * jcp_.data_size);
-            add(reg_dst, step * jcp_.data_size);
-            add(reg_dst_idx, step * sizeof(int));
-            sub(reg_work_amount, step);
+            add(reg_src, vector_step * jcp_.data_size);
+            add(reg_dst, vector_step * jcp_.data_size);
+            add(reg_dst_idx, vector_step * sizeof(int));
+            sub(reg_work_amount, vector_step);
 
             jmp(topk_main_loop_label, T_NEAR);
         }
@@ -842,12 +858,12 @@ private:
 
         // tail
         if (jcp_.bubble_inplace) {
-            if (tail) {
+            if (tail_step) {
                 Xbyak::Label topk_tail_loop_end_label;
-                cmp(reg_work_amount, tail);
+                cmp(reg_work_amount, tail_step);
                 jl(topk_tail_loop_end_label, T_NEAR);
 
-                topk_bubble_inplace(tail);
+                topk_bubble_inplace(tail_step);
 
                 L(topk_tail_loop_end_label);
             }
@@ -1025,19 +1041,13 @@ private:
             je(topk_init_loop_end_label, T_NEAR);
 
             get_addr_by_reg_idx(reg_tmp, reg_src, reg_block_sort_stride_byte, reg_i);
-            load_emitter->emit_code({static_cast<size_t>(reg_tmp.getIdx())}, {static_cast<size_t>(vmm_tmp.getIdx())},
-                          std::make_shared<load_emitter_context>(jcp_.precision, Precision::FP32, elt_num),
-                          {}, {load_pool_gpr_idxs});
+            load(reg_tmp, vmm_tmp, elt_num);
             get_addr_by_reg_idx(reg_tmp, reg_dst, reg_block_sort_stride_byte, reg_i);
-            store_emitter->emit_code({static_cast<size_t>(vmm_tmp.getIdx())}, {static_cast<size_t>(reg_tmp.getIdx())},
-                       std::make_shared<store_emitter_context>(Precision::FP32, jcp_.precision, elt_num),
-                       {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            store(vmm_tmp, reg_tmp, elt_num);
 
             table_to_vmm(vmm_tmp, reg_bubble_block_idx, reg_i, 0, vlen);
             get_addr_by_reg_idx(reg_tmp, reg_dst_idx, reg_block_sort_stride_byte, sizeof(int) / jcp_.data_size, reg_i);
-            store_emitter->emit_code({static_cast<size_t>(vmm_tmp.getIdx())}, {static_cast<size_t>(reg_tmp.getIdx())},
-                       std::make_shared<store_emitter_context>(Precision::I32, Precision::I32, elt_num),
-                       {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            store_i32(vmm_tmp, reg_tmp, elt_num);
 
             add(reg_i, 1);
             jmp(topk_init_loop_label, T_NEAR);
@@ -1057,9 +1067,7 @@ private:
             je(topk_update_loop_end_label, T_NEAR);
 
             get_addr_by_reg_idx(reg_tmp, reg_src, reg_block_sort_stride_byte, reg_i);
-            load_emitter->emit_code({static_cast<size_t>(reg_tmp.getIdx())}, {static_cast<size_t>(vmm_val_r.getIdx())},
-                          std::make_shared<load_emitter_context>(jcp_.precision, Precision::FP32, elt_num),
-                          {}, {load_pool_gpr_idxs});
+            load(reg_tmp, vmm_val_r, elt_num);
 
             table_to_vmm(vmm_idx_r, reg_bubble_block_idx, reg_i, 0, vlen);
             uni_vcvtdq2ps(vmm_idx_r, vmm_idx_r);
@@ -1152,9 +1160,7 @@ private:
     inline void topk_bubble_inplace(int elt_num) {
         // load
         for (int i = 0; i < jcp_.top_k; i++) {
-            load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val(i).getIdx())},
-                          std::make_shared<load_emitter_context>(jcp_.precision, Precision::FP32, elt_num, i * jcp_.sort_stride * jcp_.data_size),
-                          {}, {load_pool_gpr_idxs});
+            load(reg_src, vmm_val(i), elt_num, i * jcp_.sort_stride * jcp_.data_size);
             uni_vmovdqu(vmm_idx(i), table_val(i));
             uni_vcvtdq2ps(vmm_idx(i), vmm_idx(i));
         }
@@ -1165,9 +1171,7 @@ private:
             }
         }
         for (int i = jcp_.top_k; i < jcp_.axis_dim; i++) {
-            load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val(jcp_.top_k).getIdx())},
-                          std::make_shared<load_emitter_context>(jcp_.precision, Precision::FP32, elt_num, i * jcp_.sort_stride * jcp_.data_size),
-                          {}, {load_pool_gpr_idxs});
+            load(reg_src, vmm_val(jcp_.top_k), elt_num, i * jcp_.sort_stride * jcp_.data_size);
             uni_vmovdqu(vmm_idx(jcp_.top_k), table_val(i));
             uni_vcvtdq2ps(vmm_idx(jcp_.top_k), vmm_idx(jcp_.top_k));
             for (int j = jcp_.top_k; j > 0; j--) {
@@ -1183,12 +1187,8 @@ private:
         }
         // store
         for (int i = 0; i < jcp_.top_k; i++) {
-            store_emitter->emit_code({static_cast<size_t>(vmm_val(i).getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
-                       std::make_shared<store_emitter_context>(Precision::FP32, jcp_.precision, elt_num, i * jcp_.sort_stride * jcp_.data_size),
-                       {store_pool_vec_idxs}, {store_pool_gpr_idxs});
-            store_emitter->emit_code({static_cast<size_t>(vmm_idx(i).getIdx())}, {static_cast<size_t>(reg_dst_idx.getIdx())},
-                       std::make_shared<store_emitter_context>(Precision::FP32, Precision::I32, elt_num, i * jcp_.sort_stride * sizeof(int)),
-                       {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            store(vmm_val(i), reg_dst, elt_num, i * jcp_.sort_stride * jcp_.data_size);
+            store_f32_i32(vmm_idx(i), reg_dst_idx, elt_num, i * jcp_.sort_stride * sizeof(int));
         }
     }
 
@@ -1211,15 +1211,11 @@ private:
 
         L(topk_load_sort_label);
         {
-            load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val(0).getIdx())},
-                          std::make_shared<load_emitter_context>(jcp_.precision, Precision::FP32, step, 0),
-                          {}, {load_pool_gpr_idxs});
+            load(reg_src, vmm_val(0), vector_step, 0);
             uni_vmovdqu(vmm_idx(0), table_bubble_seq_idx(0));
             uni_vcvtdq2ps(vmm_idx(0), vmm_idx(0));
             if (isa == cpu::x64::sse41) {
-                load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val(1).getIdx())},
-                              std::make_shared<load_emitter_context>(jcp_.precision, Precision::FP32, step, 4 * jcp_.data_size),
-                              {}, {load_pool_gpr_idxs});
+                load(reg_src, vmm_val(1), vector_step, 4 * jcp_.data_size);
                 uni_vmovdqu(vmm_idx(1), table_bubble_seq_idx(4));
                 uni_vcvtdq2ps(vmm_idx(1), vmm_idx(1));
                 swap_vector(vmm_val(0), vmm_idx(0), vmm_val(1), vmm_idx(1));
@@ -1235,17 +1231,13 @@ private:
                 jg(topk_iter_end_label, T_NEAR);
 
                 get_addr_by_reg_idx(reg_aux, reg_src, reg_i, jcp_.data_size, reg_seq_sort_stride);
-                load_emitter->emit_code({static_cast<size_t>(reg_aux.getIdx())}, {static_cast<size_t>(vmm_val(1).getIdx())},
-                              std::make_shared<load_emitter_context>(jcp_.precision, Precision::FP32, step),
-                              {}, {load_pool_gpr_idxs});
+                load(reg_aux, vmm_val(1), vector_step);
                 table_to_vmm(vmm_idx(1), reg_bubble_seq_idx, reg_i, 0, sizeof(int));
                 uni_vcvtdq2ps(vmm_idx(1), vmm_idx(1));
                 swap_vector(vmm_val(0), vmm_idx(0), vmm_val(1), vmm_idx(1));
                 if (isa == cpu::x64::sse41) {
                     add(reg_aux, 4 * jcp_.data_size);
-                    load_emitter->emit_code({static_cast<size_t>(reg_aux.getIdx())}, {static_cast<size_t>(vmm_val(1).getIdx())},
-                                  std::make_shared<load_emitter_context>(jcp_.precision, Precision::FP32, step),
-                                  {}, {load_pool_gpr_idxs});
+                    load(reg_aux, vmm_val(1), vector_step);
                     table_to_vmm(vmm_idx(1), reg_bubble_seq_idx, reg_i, 4, sizeof(int));
                     uni_vcvtdq2ps(vmm_idx(1), vmm_idx(1));
                     swap_vector(vmm_val(0), vmm_idx(0), vmm_val(1), vmm_idx(1));
@@ -1538,16 +1530,13 @@ private:
         // load l
         mov(reg_tmp, reg_tmp_64);
         add(reg_tmp, reg_dst);
-        load_emitter->emit_code({static_cast<size_t>(reg_tmp.getIdx())}, {static_cast<size_t>(vmm_val_l.getIdx())},
-                      std::make_shared<load_emitter_context>(jcp_.precision, Precision::FP32, elt_num),
-                      {}, {load_pool_gpr_idxs});
+        load(reg_tmp, vmm_val_l, elt_num);
+
         reg_shl(reg_tmp_64, sizeof(int) / jcp_.data_size);
         mov(reg_tmp, reg_tmp_64);
         add(reg_tmp, reg_dst_idx);
         reg_shr(reg_tmp_64, sizeof(int) / jcp_.data_size);
-        load_emitter->emit_code({static_cast<size_t>(reg_tmp.getIdx())}, {static_cast<size_t>(vmm_idx_l.getIdx())},
-                      std::make_shared<load_emitter_context>(Precision::I32, Precision::FP32, elt_num),
-                      {}, {load_pool_gpr_idxs});
+        load_i32_f32(reg_tmp, vmm_idx_l, elt_num);
 
         // load r
         Xbyak::Label topk_load_jmp_label;
@@ -1557,16 +1546,14 @@ private:
             add(reg_tmp_64, reg_block_sort_stride_byte);
             mov(reg_tmp, reg_tmp_64);
             add(reg_tmp, reg_dst);
-            load_emitter->emit_code({static_cast<size_t>(reg_tmp.getIdx())}, {static_cast<size_t>(vmm_val_r.getIdx())},
-                          std::make_shared<load_emitter_context>(jcp_.precision, Precision::FP32, elt_num),
-                          {}, {load_pool_gpr_idxs});
+            load(reg_tmp, vmm_val_r, elt_num);
+
             reg_shl(reg_tmp_64, sizeof(int) / jcp_.data_size);
             mov(reg_tmp, reg_tmp_64);
             add(reg_tmp, reg_dst_idx);
             reg_shr(reg_tmp_64, sizeof(int) / jcp_.data_size);
-            load_emitter->emit_code({static_cast<size_t>(reg_tmp.getIdx())}, {static_cast<size_t>(vmm_idx_r.getIdx())},
-                          std::make_shared<load_emitter_context>(Precision::I32, Precision::FP32, elt_num),
-                          {}, {load_pool_gpr_idxs});
+            load_i32_f32(reg_tmp, vmm_idx_r, elt_num);
+
             sub(reg_tmp_64, reg_block_sort_stride_byte);
         }
         L(topk_load_jmp_label);
@@ -1576,16 +1563,13 @@ private:
         // store l
         mov(reg_tmp, reg_tmp_64);
         add(reg_tmp, reg_dst);
-        store_emitter->emit_code({static_cast<size_t>(vmm_val_l.getIdx())}, {static_cast<size_t>(reg_tmp.getIdx())},
-                       std::make_shared<store_emitter_context>(Precision::FP32, jcp_.precision, elt_num),
-                       {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+        store(vmm_val_l, reg_tmp, elt_num);
+
         reg_shl(reg_tmp_64, sizeof(int) / jcp_.data_size);
         mov(reg_tmp, reg_tmp_64);
         add(reg_tmp, reg_dst_idx);
         reg_shr(reg_tmp_64, sizeof(int) / jcp_.data_size);
-        store_emitter->emit_code({static_cast<size_t>(vmm_idx_l.getIdx())}, {static_cast<size_t>(reg_tmp.getIdx())},
-                       std::make_shared<store_emitter_context>(Precision::FP32, Precision::I32, elt_num),
-                       {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+        store_f32_i32(vmm_idx_l, reg_tmp, elt_num);
 
         // store r
         Xbyak::Label topk_store_jmp_label;
@@ -1595,16 +1579,13 @@ private:
             add(reg_tmp_64, reg_block_sort_stride_byte);
             mov(reg_tmp, reg_tmp_64);
             add(reg_tmp, reg_dst);
-            store_emitter->emit_code({static_cast<size_t>(vmm_val_r.getIdx())}, {static_cast<size_t>(reg_tmp.getIdx())},
-                           std::make_shared<store_emitter_context>(Precision::FP32, jcp_.precision, elt_num),
-                           {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            store(vmm_val_r, reg_tmp, elt_num);
+
             reg_shl(reg_tmp_64, sizeof(int) / jcp_.data_size);
             mov(reg_tmp, reg_tmp_64);
             add(reg_tmp, reg_dst_idx);
             reg_shr(reg_tmp_64, sizeof(int) / jcp_.data_size);
-            store_emitter->emit_code({static_cast<size_t>(vmm_idx_r.getIdx())}, {static_cast<size_t>(reg_tmp.getIdx())},
-                           std::make_shared<store_emitter_context>(Precision::FP32, Precision::I32, elt_num),
-                           {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            store_f32_i32(vmm_idx_r, reg_tmp, elt_num);
         }
         L(topk_store_jmp_label);
     }

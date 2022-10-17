@@ -82,10 +82,14 @@
 #include <transformations/op_conversions/fq_decomposition.hpp>
 #include <transformations/utils/utils.hpp>
 #include <snippets/pass/collapse_subgraph.hpp>
+#include <snippets/pass/common_optimizations.hpp>
+#include <snippets/pass/convert_constants.hpp>
 #include "ngraph_transformations/snippets_mark_skipped.hpp"
 #include <transformations/op_conversions/convert_roi_align_v9_to_v3.hpp>
 #include <transformations/op_conversions/convert_roi_align_v3_to_v9.hpp>
 #include <transformations/op_conversions/softsign_decomposition.hpp>
+#include "transformations/op_conversions/eye_decomposition.hpp"
+#include "ngraph_transformations/mha_fusion.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
@@ -117,7 +121,9 @@
 #include "nodes/mvn.h"
 #include "nodes/fake_quantize.h"
 #include "nodes/normalize.h"
+#include "nodes/mha.h"
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
+#include "ngraph_transformations/convert_to_interaction.hpp"
 #include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 #include "ngraph_transformations/swap_convert_transpose.hpp"
@@ -248,7 +254,7 @@ Engine::~Engine() {
     executorManager()->clear("CPUCallbackExecutor");
 }
 
-static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT,
+static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT, const bool _enableBF16,
                                                const bool _enableSnippets, const bool isLegacyApi) {
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
@@ -320,6 +326,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
     manager.register_pass<ngraph::pass::EliminateConvert>();
     manager.register_pass<SwapConvertTranspose>();
+    manager.register_pass<ConvertToInteraction>();
 
     auto pass_config = manager.get_pass_config();
 
@@ -460,6 +467,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     // Allow FP16 Converts to be folded and FP16 constants to be upgraded to FP32 data type
     pass_config->disable<ov::pass::DisableDecompressionConvertConstantFolding>();
     pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
+    pass_config->disable<ov::pass::EyeDecomposition>();
 
     pass_config->disable<ngraph::pass::ConvertGELU>();
     pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();
@@ -516,10 +524,16 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     if (useLpt) {
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
-
+        //Only enable conv/group conv signed input on AMX platform.
+        std::vector<ngraph::element::Type> input0LowPrecisionList;
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+            input0LowPrecisionList = {ngraph::element::u8, ngraph::element::i8};
+        } else {
+            input0LowPrecisionList = {ngraph::element::u8};
+        }
         auto supportedPrecisions = std::vector<PrecisionsRestriction>({
             PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
+                {0, input0LowPrecisionList},
                 {1, {ngraph::element::i8}},
             }),
             PrecisionsRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
@@ -527,7 +541,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 {1, {ngraph::element::i8}}
             }),
             PrecisionsRestriction::create<ngraph::opset1::GroupConvolution>({
-                {0, {ngraph::element::u8}},
+                {0, input0LowPrecisionList},
                 {1, {ngraph::element::i8}}
             }),
             PrecisionsRestriction::create<ngraph::opset1::Multiply>({
@@ -575,20 +589,12 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     }
 
     ngraph::pass::Manager postLPTPassManager;
-    postLPTPassManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
     postLPTPassManager.register_pass<ngraph::pass::UnrollTensorIterator>();
     postLPTPassManager.register_pass<ReshapePRelu>();
-
-    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
-        std::string errMsg;
-        return node::FakeQuantize::isSupportedOperation(node, errMsg);
-    });
     postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
         // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
         return node->get_rt_info().count("UNROLL_TI") == 0;
     });
-
-
     postLPTPassManager.register_pass<MoveEltwiseUpThroughDataMov>();
     postLPTPassManager.get_pass_config()->set_callback<MoveEltwiseUpThroughDataMov>([](const std::shared_ptr<const ngraph::Node>& node) -> bool {
         if (node->get_input_size() >= 2) {
@@ -598,15 +604,42 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     });
 
     postLPTPassManager.register_pass<ngraph::pass::ConstantFolding>();
+
+    // Snippets may brake MHA patterns so the fusion has to performed before
+    postLPTPassManager.register_pass<MHAFusion>();
+    postLPTPassManager.get_pass_config()->set_callback<MHAFloatFusion, MHAFloatFusion2,
+                                                       MHAQuantFusion, MHAQuantFusion2>([_enableBF16](const std::shared_ptr<const ov::Node>& n) -> bool {
+        std::string errorMessage;
+
+        if (!node::MHA::isSupportedOperation(n, errorMessage))
+            return true;
+
+        // Implementation calls AMX BF16 brgemm only for tensors with K and N aligned on 2, otherwise fallbacks on vector impl
+        // Vector madd BF16 instruction on SPR has reduced performance on HW level, which results in overall perf degradation
+        size_t bf16Factor = 2;
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16_amx_bf16) &&
+                (n->get_input_element_type(0) == element::bf16 || (n->get_input_element_type(0) == element::f32 && _enableBF16)) &&
+                (n->get_input_shape(0)[3] % bf16Factor != 0 || n->get_input_shape(1)[1] % bf16Factor != 0 || n->get_input_shape(3)[3] % bf16Factor != 0)) {
+            return true;
+        }
+
+        return false;
+    });
     postLPTPassManager.run_passes(nGraphFunc);
 
-    if (!useLpt && _enableSnippets && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
-        ngraph::pass::Manager tokenization_manager;
-        tokenization_manager.register_pass<SnippetsMarkSkipped>();
-        tokenization_manager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
-        tokenization_manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
-        tokenization_manager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(
+    if (_enableSnippets && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+        ngraph::pass::Manager snippetsManager;
+        snippetsManager.register_pass<SnippetsMarkSkipped>();
+        snippetsManager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
+        snippetsManager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
+        snippetsManager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(
                 [](const std::shared_ptr<const ov::Node>& n) -> bool {
+                    // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant
+                    if (ov::is_type<const ov::op::v4::Swish>(n)) {
+                        if (n->inputs().size() > 1 && !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)))
+                            return true;
+                    }
+
                     const auto& inputs = n->inputs();
                     // todo: clarify whether we can evaluate snippets on const paths
                     const bool has_only_const_inputs = std::all_of(inputs.begin(), inputs.end(),
@@ -625,14 +658,18 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                                                              [&](const ov::Output<const ov::Node>& out) {return  rank_is_too_large(out.get_tensor());});
                     return has_only_const_inputs || bad_input_rank || bad_output_rank;
                 });
-        tokenization_manager.run_passes(nGraphFunc);
+        snippetsManager.register_pass<ngraph::snippets::pass::CommonOptimizations>();
+        snippetsManager.run_passes(nGraphFunc);
     }
-}
 
-static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT, const bool _enableSnippets, const bool isLegacyApi) {
-    auto nGraphFunc = clonedNetwork.getFunction();
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, _enableLPT, _enableSnippets, isLegacyApi);
-    ConvertToCPUSpecificOpset(nGraphFunc);
+    ngraph::pass::Manager postSnippetsManager;
+    postSnippetsManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
+    postSnippetsManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr& node) -> bool {
+            std::string errMsg;
+            return node::FakeQuantize::isSupportedOperation(node, errMsg);
+        });
+    postSnippetsManager.register_pass<ngraph::pass::ConstantFolding>();
+    postSnippetsManager.run_passes(nGraphFunc);
 }
 
 static bool streamsSet(const std::map<std::string, std::string>& config) {
@@ -772,7 +809,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
             || engConfig.enableDynamicBatch;
     const bool enableSnippets = !(enableModelCache || enableDynamicBatch || enableBF16);
     auto nGraphFunc = clonedNetwork.getFunction();
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableSnippets, isLegacyAPI());
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableBF16, enableSnippets, isLegacyAPI());
 
     // need to check that all outputs have static shapes
     // checking that all inputs have static shapes is performed in the common part
@@ -998,107 +1035,43 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     QueryNetworkResult res;
 
     WeightsSharing::Ptr fake_w_cache;
-    auto function = network.getFunction();
-    if (function != nullptr) {
-        std::unordered_set<std::string> originalOps;
-        for (auto&& node : function->get_ops()) {
-            originalOps.emplace(node->get_friendly_name());
+
+    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
+    Config conf = engConfig;
+    conf.readProperties(config);
+
+    if (conf.enableDynamicBatch) {
+        conf.batchLimit = static_cast<int>(network.getBatchSize());
+    }
+
+    const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
+    const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
+                        || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
+    const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch || (conf.enforceBF16
+            && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)));
+
+    auto model = network.getFunction();
+    if (model == nullptr) {
+        IE_THROW() << "Only ngraph-based models are supported!";
+    }
+
+    auto supported = GetSupportedNodes(model,
+    [&](std::shared_ptr<ov::Model>& model) {
+            TransformationUpToCPUSpecificOpSet(model, enableLPT, conf.enforceBF16, enableSnippets, isLegacyAPI());
+            ConvertToCPUSpecificOpset(model);
+        },
+    [&](const std::shared_ptr<ngraph::Node>& op) {
+        std::unique_ptr<Node> ptr;
+        try {
+            ptr.reset(Node::factory().create(op, {dnnl::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
+        } catch (const InferenceEngine::Exception&) {
+            return false;
         }
+        return true;
+    });
 
-        // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
-        Config conf = engConfig;
-        conf.readProperties(config);
-
-        if (conf.enableDynamicBatch) {
-            conf.batchLimit = static_cast<int>(network.getBatchSize());
-        }
-
-        auto clonedNetwork = InferenceEngine::details::cloneNetwork(network);
-        auto clonnedFunction = clonedNetwork.getFunction();
-        const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
-        const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
-                               || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
-        const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch || (conf.enforceBF16
-                && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)));
-        Transformation(clonedNetwork, enableLPT, enableSnippets, isLegacyAPI());
-        auto ops = clonnedFunction->get_ordered_ops();
-
-        //Mark removed nodes as supported
-        std::unordered_set<std::string> supported = GetRemovedNodes(function, clonnedFunction);;
-        std::unordered_set<std::string> unsupported;
-
-        auto layerIsSupported = [&](const std::shared_ptr<ngraph::Node>& op) {
-            std::unique_ptr<Node> ptr;
-            try {
-                ptr.reset(Node::factory().create(op, {dnnl::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
-            } catch (const InferenceEngine::Exception&) {
-                return false;
-            }
-            return true;
-        };
-
-        for (auto&& op : ops) {
-            bool isSupported = false;
-            bool wasNodeAlreadyChecked = false;
-            if (InferenceEngine::details::contains(originalOps, op->get_friendly_name())) {
-                isSupported = layerIsSupported(op);
-                wasNodeAlreadyChecked = true;
-                if (isSupported) {
-                    supported.emplace(op->get_friendly_name());
-                } else {
-                    unsupported.emplace(op->get_friendly_name());
-                }
-            }
-
-            for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
-                if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
-                    if (!wasNodeAlreadyChecked) {
-                        isSupported = layerIsSupported(op);
-                        wasNodeAlreadyChecked = true;
-                    }
-                    if (isSupported) {
-                        supported.emplace(fusedLayerName);
-                    } else {
-                        unsupported.emplace(fusedLayerName);
-                    }
-                }
-            }
-        }
-        for (auto&& unsupportedNode : unsupported) {
-            supported.erase(unsupportedNode);
-        }
-        for (auto&& node : function->get_ops()) {
-            if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
-                for (auto&& inputNodeOutput : node->input_values()) {
-                    if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
-                        supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
-                    }
-                }
-                for (auto&& outputs : node->outputs()) {
-                    for (auto&& outputNodeInput : outputs.get_target_inputs()) {
-                        if (ngraph::op::is_output(outputNodeInput.get_node())) {
-                            supported.emplace(outputNodeInput.get_node()->get_friendly_name());
-                        }
-                    }
-                }
-            }
-
-            if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
-                if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
-                    supported.erase(node->get_friendly_name());
-                }
-            } else if (ngraph::op::is_output(node)) {
-                if (!InferenceEngine::details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name())) {
-                    supported.erase(node->get_friendly_name());
-                }
-            }
-        }
-
-        for (auto&& layerName : supported) {
-            res.supportedLayersMap.emplace(layerName, GetName());
-        }
-    } else {
-        IE_CPU_PLUGIN_THROW() << "Only ngraph-based models are supported!";
+    for (auto&& layerName : supported) {
+        res.supportedLayersMap.emplace(layerName, GetName());
     }
 
     return res;

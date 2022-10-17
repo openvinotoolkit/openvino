@@ -2,9 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_LTO)
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
-endif()
+# enable LTO globally for all libraries below
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 add_definitions(-DIN_OV_CORE_LIBRARY)
 
@@ -73,7 +72,7 @@ ie_faster_build(ngraph_obj
 addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
 
 target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util
-                                         pugixml::static ov_shape_inference openvino::core::dev)
+                                         openvino::pugixml ov_shape_inference openvino::core::dev)
 
 ie_mark_target_as_cc(ngraph_obj)
 

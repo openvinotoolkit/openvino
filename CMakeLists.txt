@@ -8,7 +8,13 @@ if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
     # incorrect OpenVINOConfig.cmake in this case
     cmake_minimum_required(VERSION 3.17)
 else()
-    cmake_minimum_required(VERSION 3.13)
+    if(CPACK_GENERATOR STREQUAL "DEB")
+        # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
+        cmake_minimum_required(VERSION 3.20)
+    else()
+        # default choice
+        cmake_minimum_required(VERSION 3.13)
+    endif()
 endif()
 
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
@@ -93,15 +99,17 @@ function(openvino_developer_export_targets)
 endfunction()
 
 # add target with processed tests model zoo
-include(cmake/test_model_zoo.cmake)
+if (ENABLE_TESTS)
+    include(cmake/test_model_zoo.cmake)
+endif()
 
 add_subdirectory(thirdparty)
 add_subdirectory(src)
 add_subdirectory(samples)
 
-# Enable interpreter backend
+# Enable interpreter backend for tests
 if (ENABLE_TESTS OR ENABLE_TEMPLATE)
-    add_subdirectory(docs/template_plugin/backend)
+    add_subdirectory(src/plugins/template/backend)
 endif()
 include(cmake/extra_modules.cmake)
 add_subdirectory(docs)

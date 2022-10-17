@@ -27,10 +27,20 @@ struct shape_of : public primitive_base<shape_of> {
              const primitive_id& input,
              size_t output_rank,
              const data_types output_data_type,
-             const primitive_id& ext_prim_id = "",
              const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding, optional_data_type{output_data_type})
+        : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type})
         , output_rank(output_rank) {}
+
+    /// @brief Constructs shape_of primitive.
+    /// @param id This primitive id.
+    /// @param input Input primitive id.
+    /// @param output_data_type type of output values. can be i32 and i64.
+    shape_of(const primitive_id& id,
+             const primitive_id& input,
+             const data_types output_data_type,
+             const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type})
+        , output_rank(0) {}
 
     size_t output_rank;
 };

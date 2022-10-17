@@ -9,6 +9,7 @@
 #include "program_helpers.h"
 #include "strided_slice_inst.h"
 #include "reshape_inst.h"
+#include "reduce_inst.h"
 #include "data_inst.h"
 #include "eltwise_inst.h"
 #include "mutable_data_inst.h"
@@ -41,6 +42,10 @@ void prepare_primitive_fusing_through::run(program& p) {
 
             if (node->is_type<reorder>() &&
                 node->get_output_layout().data_type != node->get_dependency(0).get_output_layout().data_type)
+                return false;
+
+            // Not to fuse reshape after Reduce changing the order of un-reduced axes. It is expected to be optimized out.
+            if (node->is_type<reshape>() && node->get_dependencies().front()->is_type<reduce>())
                 return false;
 
             return true;

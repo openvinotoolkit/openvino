@@ -63,12 +63,16 @@ std::shared_ptr<GroupConvolution> create_group_conv_with_gather(Output<Node> inp
                                               ov::Strides{1, 1});
 }
 
-std::shared_ptr<Convolution> create_conv_with_gather(Output<Node> input, const Shape & weigts_shape, const std::vector<int64_t> & order) {
-    auto gather = std::make_shared<Gather>(create_weights(weigts_shape), Constant::create(element::i64, Shape{order.size()}, order),
+std::shared_ptr<Convolution> create_conv_with_gather(Output<Node> input, Output<Node> weigts, const std::vector<int64_t> & order) {
+    auto gather = std::make_shared<Gather>(weigts, Constant::create(element::i64, Shape{order.size()}, order),
                                                    Constant::create(element::i64, Shape{1}, {1}));
     return std::make_shared<Convolution>(input, gather, ov::Strides{1, 1},
                                                          ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0},
                                                          ov::Strides{1, 1});
+}
+
+std::shared_ptr<Convolution> create_conv_with_gather(Output<Node> input, const Shape & weigts_shape, const std::vector<int64_t> & order) {
+    return create_conv_with_gather(input, create_weights(weigts_shape), order);
 }
 
 std::shared_ptr<Parameter> create_param(const PartialShape & shape) {
@@ -779,5 +783,396 @@ TEST_F(TransformationTestsF, FuseScaleValues) {
     }
 
     disable_rt_info_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, RICFusionConvertMultiply) {
+    // Input graph:
+    //
+    //     Parameter
+    //      |F32
+    //      |
+    //     FakeQuantize
+    //      |F32
+    //      |
+    //     Convert             Constant
+    //      |U8                   |I8
+    //      |                     |
+    //     Convert  Constant   Convert(DCF) Constant
+    //       \FP32    /FP32       \FP32    /F32
+    //        \      /             \      /
+    //         Multiply            Multiply
+    //             \FP32            /FP32
+    //              \              /
+    //                 Convolution
+    //
+    {
+        auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
+        std::shared_ptr<Node> activations = std::make_shared<opset8::FakeQuantize>(parameter,
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {0}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {20}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {0}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {254}), 255);
+        {
+            auto first_convert = std::make_shared<opset8::Convert>(activations, element::u8);
+            auto second_convert = std::make_shared<opset8::Convert>(first_convert, element::f32);
+            auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
+            auto multiply = std::make_shared<opset8::Multiply>(second_convert, scale);
+            activations = multiply;
+        }
+
+        std::shared_ptr<Node> weights = opset8::Constant::create(element::i8, Shape{4, 3, 1, 1}, {-2});
+        {
+            auto convert = std::make_shared<opset8::Convert>(weights, element::f32);
+            auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
+            auto multiply = std::make_shared<opset8::Multiply>(convert, scale);
+            weights = multiply;
+        }
+
+        auto conv = std::make_shared<opset8::Convolution>(activations, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        function = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter});
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+    }
+    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+    disable_rt_info_check();
+    {
+        auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
+        std::shared_ptr<Node> activations = std::make_shared<opset8::FakeQuantize>(parameter,
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {0}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {20}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {0}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {254}), 255);
+        {
+            auto first_convert = std::make_shared<opset8::Convert>(activations, element::u8);
+            auto second_convert = std::make_shared<opset8::Convert>(first_convert, element::f32);
+            auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
+            auto multiply = std::make_shared<opset8::Multiply>(second_convert, scale);
+            activations = multiply;
+        }
+
+        std::shared_ptr<Node> weights = opset8::Constant::create(element::i8, Shape{4, 3, 1, 1}, {-2});
+        {
+            auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
+            auto gather = create_gather(weights, {2, 1, 0}, 1);
+            auto convert = std::make_shared<opset8::Convert>(gather, element::f32);
+            auto multiply = std::make_shared<opset8::Multiply>(convert, scale);
+            weights = multiply;
+        }
+        auto conv = std::make_shared<opset8::Convolution>(activations, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        function_ref = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, RICFusionConvertMultiplyGroupConv) {
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<opset8::Parameter>(element::f32, data_shape);
+        std::shared_ptr<Node> weights = opset8::Constant::create(element::f32, Shape{3, 3, 1, 4, 4}, {-2});
+        auto convert = std::make_shared<opset8::Convert>(weights, element::f32);
+        auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
+        auto multiply = std::make_shared<opset8::Multiply>(convert, scale);
+
+        auto group_conv = std::make_shared<opset8::GroupConvolution>(data, multiply, Strides{1, 1},
+                                                               CoordinateDiff{1, 1}, CoordinateDiff{3, 3}, Shape{1, 1},
+                                                               op::PadType::EXPLICIT);
+        auto relu = std::make_shared<Relu>(group_conv);
+        auto conv = create_conv(relu, {6, 9, 3, 3});
+        function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+    }
+    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+    disable_rt_info_check();
+    {
+        auto data = std::make_shared<opset8::Parameter>(element::f32, data_shape);
+        std::shared_ptr<Node> weights = opset8::Constant::create(element::f32, Shape{3, 3, 1, 4, 4}, {-2});
+        auto gather = create_gather(weights, {2, 1, 0}, 1);
+        auto convert = std::make_shared<opset8::Convert>(gather, element::f32);
+        auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
+        auto multiply = std::make_shared<opset8::Multiply>(convert, scale);
+
+        auto group_conv = std::make_shared<opset8::GroupConvolution>(data, multiply, Strides{1, 1},
+                                                               CoordinateDiff{1, 1}, CoordinateDiff{3, 3}, Shape{1, 1},
+                                                               op::PadType::EXPLICIT);
+        auto relu = std::make_shared<Relu>(group_conv);
+        std::shared_ptr<Node> weights2 = opset8::Constant::create(element::f32, Shape{6, 9, 3, 3}, {-2});
+        auto gather2 = create_gather(weights2, {6, 7, 8, 3, 4, 5, 0, 1, 2}, 1);
+        auto conv = std::make_shared<opset8::Convolution>(relu, gather2, ov::Strides{1, 1},
+                                                          ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0},
+                                                          ov::Strides{1, 1});
+        function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, RICFusionConvertMultiplyNegative1) {
+    {
+        auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
+        std::shared_ptr<Node> activations = std::make_shared<opset8::FakeQuantize>(parameter,
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {0}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {20}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {0}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {254}), 255);
+        {
+            auto first_convert = std::make_shared<opset8::Convert>(activations, element::u8);
+            auto second_convert = std::make_shared<opset8::Convert>(first_convert, element::f32);
+            auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
+            auto multiply = std::make_shared<opset8::Multiply>(second_convert, scale);
+            activations = multiply;
+        }
+
+        std::shared_ptr<Node> weights = opset8::Constant::create(element::i8, Shape{4, 3, 1, 1}, {-2});
+        {
+            auto convert = std::make_shared<opset8::Convert>(weights, element::f32);
+            auto scale = opset8::Constant::create(element::f32, Shape{1, 1, 1, 1}, {0.2});
+            auto multiply = std::make_shared<opset8::Multiply>(convert, scale);
+            weights = multiply;
+        }
+
+        auto conv = std::make_shared<opset8::Convolution>(activations, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        function = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter});
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+    }
+    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+    disable_rt_info_check();
+    {
+        auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
+        std::shared_ptr<Node> activations = std::make_shared<opset8::FakeQuantize>(parameter,
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {0}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {20}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {0}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {254}), 255);
+        {
+            auto first_convert = std::make_shared<opset8::Convert>(activations, element::u8);
+            auto second_convert = std::make_shared<opset8::Convert>(first_convert, element::f32);
+            auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
+            auto multiply = std::make_shared<opset8::Multiply>(second_convert, scale);
+            activations = multiply;
+        }
+
+        std::shared_ptr<Node> weights = opset8::Constant::create(element::i8, Shape{4, 3, 1, 1}, {-2});
+        {
+            auto gather = create_gather(weights, {2, 1, 0}, 1);
+            auto convert = std::make_shared<opset8::Convert>(gather, element::f32);
+            auto scale = opset8::Constant::create(element::f32, Shape{1, 1, 1, 1}, {0.2});
+            auto multiply = std::make_shared<opset8::Multiply>(convert, scale);
+            weights = multiply;
+        }
+
+        auto conv = std::make_shared<opset8::Convolution>(activations, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        function_ref = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, RICFusionConvertMultiplyNegativeBroadcast) {
+    {
+        auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
+        std::shared_ptr<Node> activations = std::make_shared<opset8::FakeQuantize>(parameter,
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {0}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {20}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {0}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {254}), 255);
+        {
+            auto first_convert = std::make_shared<opset8::Convert>(activations, element::u8);
+            auto second_convert = std::make_shared<opset8::Convert>(first_convert, element::f32);
+            auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
+            auto multiply = std::make_shared<opset8::Multiply>(second_convert, scale);
+            activations = multiply;
+        }
+
+        std::shared_ptr<Node> weights = opset8::Constant::create(element::i8, Shape{3, 1, 1}, {-2});
+        {
+            auto convert = std::make_shared<opset8::Convert>(weights, element::f32);
+            auto scale = opset8::Constant::create(element::f32, Shape{4, 3, 1, 1}, {0.2});
+            auto multiply = std::make_shared<opset8::Multiply>(convert, scale);
+            weights = multiply;
+        }
+
+        auto conv = std::make_shared<opset8::Convolution>(activations, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        function = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter});
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+    }
+    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+    disable_rt_info_check();
+    {
+        auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
+        std::shared_ptr<Node> activations = std::make_shared<opset8::FakeQuantize>(parameter,
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {0}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {20}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {0}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {254}), 255);
+        {
+            auto first_convert = std::make_shared<opset8::Convert>(activations, element::u8);
+            auto second_convert = std::make_shared<opset8::Convert>(first_convert, element::f32);
+            auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
+            auto multiply = std::make_shared<opset8::Multiply>(second_convert, scale);
+            activations = multiply;
+        }
+
+        std::shared_ptr<Node> weights = opset8::Constant::create(element::i8, Shape{3, 1, 1}, {-2});
+        {
+            auto gather = create_gather(weights, {2, 1, 0}, 0);
+            auto convert = std::make_shared<opset8::Convert>(gather, element::f32);
+            auto scale = opset8::Constant::create(element::f32, Shape{4, 3, 1, 1}, {0.2});
+            auto gather2 = create_gather(scale, {2, 1, 0}, 1);
+            auto multiply = std::make_shared<opset8::Multiply>(convert, gather2);
+            weights = multiply;
+        }
+
+        auto conv = std::make_shared<opset8::Convolution>(activations, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        function_ref = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, RICFusionNegativeUnsupported) {
+    {
+        auto input = create_param({1, 3, 64, 64});
+        auto relu = std::make_shared<Relu>(input);
+        std::shared_ptr<Node> weights = opset8::Constant::create(element::i8, Shape{6, 3, 3, 3}, {-2});
+        {
+            auto convert = std::make_shared<opset8::Convert>(weights, element::f32);
+            auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
+            auto multiply = std::make_shared<opset8::Multiply>(convert, scale);
+            auto relu2 = std::make_shared<Relu>(multiply);
+            weights = relu2;
+        }
+        auto conv = std::make_shared<opset8::Convolution>(relu, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+
+        function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+}
+
+TEST_F(TransformationTestsF, RICFusionConvertMultiplyNonScalarFQInput) {
+    {
+        auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
+        std::shared_ptr<Node> activations = std::make_shared<opset8::FakeQuantize>(parameter,
+                                                                                   std::make_shared<opset8::Constant>(element::f32, Shape{1, 3, 14, 14}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {20}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {0}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {254}), 255);
+        {
+            auto first_convert = std::make_shared<opset8::Convert>(activations, element::u8);
+            auto second_convert = std::make_shared<opset8::Convert>(first_convert, element::f32);
+            auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
+            auto multiply = std::make_shared<opset8::Multiply>(second_convert, scale);
+            activations = multiply;
+        }
+
+        std::shared_ptr<Node> weights = opset8::Constant::create(element::i8, Shape{4, 3, 1, 1}, {-2});
+        {
+            auto convert = std::make_shared<opset8::Convert>(weights, element::f32);
+            auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
+            auto multiply = std::make_shared<opset8::Multiply>(convert, scale);
+            weights = multiply;
+        }
+
+        auto conv = std::make_shared<opset8::Convolution>(activations, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        function = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter});
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+    }
+    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+    disable_rt_info_check();
+    {
+        auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
+        auto gather = create_gather(std::make_shared<opset8::Constant>(element::f32, Shape{1, 3, 14, 14}), {2, 1, 0}, 1);
+        std::shared_ptr<Node> activations = std::make_shared<opset8::FakeQuantize>(parameter,
+                                                                                   gather,
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {20}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {0}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {254}), 255);
+        {
+            auto first_convert = std::make_shared<opset8::Convert>(activations, element::u8);
+            auto second_convert = std::make_shared<opset8::Convert>(first_convert, element::f32);
+            auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
+            auto multiply = std::make_shared<opset8::Multiply>(second_convert, scale);
+            activations = multiply;
+        }
+
+        std::shared_ptr<Node> weights = opset8::Constant::create(element::i8, Shape{4, 3, 1, 1}, {-2});
+        {
+            auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
+            gather = create_gather(weights, {2, 1, 0}, 1);
+            auto convert = std::make_shared<opset8::Convert>(gather, element::f32);
+            auto multiply = std::make_shared<opset8::Multiply>(convert, scale);
+            weights = multiply;
+        }
+        auto conv = std::make_shared<opset8::Convolution>(activations, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        function_ref = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, RICFusionConvertMultiplySkipIfFQLowNonConst) {
+    {
+        auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
+        auto input_low = std::make_shared<opset8::Parameter>(element::f32, Shape{});
+        std::shared_ptr<Node> activations = std::make_shared<opset8::FakeQuantize>(parameter,
+                                                                                   input_low,
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {20}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {0}),
+                                                                                   opset8::Constant::create(element::f32, Shape{}, {254}), 255);
+        {
+            auto first_convert = std::make_shared<opset8::Convert>(activations, element::u8);
+            auto second_convert = std::make_shared<opset8::Convert>(first_convert, element::f32);
+            auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
+            auto multiply = std::make_shared<opset8::Multiply>(second_convert, scale);
+            activations = multiply;
+        }
+
+        std::shared_ptr<Node> weights = opset8::Constant::create(element::i8, Shape{4, 3, 1, 1}, {-2});
+        {
+            auto convert = std::make_shared<opset8::Convert>(weights, element::f32);
+            auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
+            auto multiply = std::make_shared<opset8::Multiply>(convert, scale);
+            weights = multiply;
+        }
+
+        auto conv = std::make_shared<opset8::Convolution>(activations, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        function = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter, input_low});
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+    }
+    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+}
+
+TEST_F(TransformationTestsF, RICFusionTwoConvolutions) {
+    auto input = create_param({1, 3, 16, 16});
+    {
+        auto conv1 = create_conv(input, create_weights({3, 3, 1, 1}));
+        auto conv2 = create_conv(conv1, create_weights({3, 3, 1, 1}));
+        function = std::make_shared<Function>(NodeVector{ conv2 }, ParameterVector{input});
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        disable_rt_info_check();
+    }
+    {
+        auto conv1_with_gather = create_conv_with_gather(input, create_weights({3, 3, 1, 1}), {2, 1, 0});
+        auto conv2 = create_conv(conv1_with_gather, create_weights({3, 3, 1, 1}));
+        function_ref = std::make_shared<Function>(NodeVector{ conv2 }, ParameterVector{ input });
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, RICFusionTwoConvolutionsTheSameWeights) {
+    auto input = create_param({1, 3, 16, 16});
+    auto weights = create_weights({3, 3, 1, 1});
+    {
+        auto conv1 = create_conv(input, weights);
+        auto conv2 = create_conv(conv1, weights);
+        function = std::make_shared<Function>(NodeVector{ conv2 }, ParameterVector{input});
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        disable_rt_info_check();
+    }
+    {
+        auto conv1_with_gather = create_conv_with_gather(input, weights, {2, 1, 0});
+        auto conv2 = create_conv(conv1_with_gather, weights);
+        function_ref = std::make_shared<Function>(NodeVector{ conv2 }, ParameterVector{ input });
+    }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }

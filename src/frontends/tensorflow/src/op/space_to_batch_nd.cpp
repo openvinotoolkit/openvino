@@ -69,12 +69,15 @@ OutputVector translate_batch_nd_and_space_nd_op(const NodeContext& node) {
     auto crops_begin = make_shared<Squeeze>(crops_split->outputs()[0], axes);
     auto crops_end = make_shared<Squeeze>(crops_split->outputs()[1], axes);
 
+    // types of block_shape and crops inputs must be the same according to the specification
+    auto converted_padded_block_shape = make_shared<Convert>(padded_block_shape, crops_begin->get_element_type());
+
     if (node.get_op_type() == "BatchToSpaceND") {
-        auto res = make_shared<BatchToSpace>(input, padded_block_shape, crops_begin, crops_end);
+        auto res = make_shared<BatchToSpace>(input, converted_padded_block_shape, crops_begin, crops_end);
         set_node_name(node.get_name(), res);
         return res->outputs();
     } else if (node.get_op_type() == "SpaceToBatchND") {
-        auto res = make_shared<SpaceToBatch>(input, padded_block_shape, crops_begin, crops_end);
+        auto res = make_shared<SpaceToBatch>(input, converted_padded_block_shape, crops_begin, crops_end);
         set_node_name(node.get_name(), res);
         return res->outputs();
     }

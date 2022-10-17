@@ -16,7 +16,7 @@
 
 namespace py = pybind11;
 
-std::string to_string(py::handle handle) {
+inline std::string to_string(py::handle handle) {
     auto encodedString = PyUnicode_AsUTF8String(handle.ptr());
     return PyBytes_AsString(encodedString);
 }
@@ -104,6 +104,21 @@ void regclass_Core(py::module m) {
 
             :param device_name: A name of a device to get a properties value.
             :type device_name: str
+            :param property: Property or name of Property.
+            :type property: str
+            :return: Extracted information from property.
+            :rtype: object
+        )");
+
+    cls.def(
+        "get_property",
+        [](ov::Core& self, const std::string& property) -> py::object {
+            return Common::utils::from_ov_any(self.get_property(property));
+        },
+        py::arg("property"),
+        R"(
+            Gets properties dedicated to Core behaviour.
+
             :param property: Property or name of Property.
             :type property: str
             :return: Extracted information from property.

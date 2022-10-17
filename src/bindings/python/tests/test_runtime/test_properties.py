@@ -28,6 +28,15 @@ def test_property_ro():
     assert "available_devices(): incompatible function arguments." in str(e.value)
 
 
+def test_allow_auto_batching_property():
+    core = Core()
+    core.set_property({"ALLOW_AUTO_BATCHING": False})
+    assert core.get_property(properties.hint.allow_auto_batching()) is False
+
+    core.set_property({"ALLOW_AUTO_BATCHING": True})
+    assert core.get_property(properties.hint.allow_auto_batching()) is True
+
+
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_single_property_setting():
@@ -78,6 +87,10 @@ def test_single_property_setting():
 def test_properties_core(properties_to_set):
     core = Core()
     core.set_property(properties_to_set)
+
+    # RW properties without device name
+    assert core.get_property(properties.cache_dir()) == "./"
+    assert core.get_property(properties.force_tbb_terminate()) is False
 
     # RW properties
     assert core.get_property("CPU", properties.enable_profiling()) is True

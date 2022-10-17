@@ -22,10 +22,10 @@ OutputVector translate_space_to_depth_op(const NodeContext& node) {
     TENSORFLOW_OP_VALIDATION(node, data_format == "NHWC" || data_format == "NCHW", "Unsupported data format.");
 
     bool is_nhwc = (data_format == "NHWC");
-    convert_nhwc_to_nchw(node.get_name(), is_nhwc, input);
+    convert_nhwc_to_nchw(is_nhwc, input);
     auto ng_mode = SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
     auto res = make_shared<SpaceToDepth>(input, ng_mode, block_size)->output(0);
-    convert_nchw_to_nhwc(node.get_name(), is_nhwc, res);
+    convert_nchw_to_nhwc(is_nhwc, res);
     set_node_name(node.get_name(), res.get_node_shared_ptr());
     return {res};
 }

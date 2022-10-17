@@ -32,6 +32,9 @@ public:
     int64_t get_axis() const {
         return m_axis;
     }
+    void set_axis(int64_t axis) {
+        m_axis = axis;
+    }
 
 private:
     int64_t m_axis{0};

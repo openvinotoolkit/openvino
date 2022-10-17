@@ -42,9 +42,8 @@ struct roi_align : public primitive_base<roi_align> {
               float spatial_scale,
               PoolingMode pooling_mode,
               AlignedMode aligned_mode,
-              const primitive_id& ext_prim_id = "",
               const padding& output_padding = padding())
-        : primitive_base(id, inputs, ext_prim_id, output_padding),
+        : primitive_base(id, inputs, output_padding),
           pooled_h{pooled_h},
           pooled_w{pooled_w},
           sampling_ratio{sampling_ratio},

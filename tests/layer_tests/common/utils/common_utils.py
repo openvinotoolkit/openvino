@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-from openvino.tools.mo import mo
 import numpy as np
+from openvino.tools.mo import mo
 
 logger = logging.getLogger(__name__)
 
@@ -85,3 +86,14 @@ def allclose(cur_array, ref_array, atol, rtol):
         abs_diff = np.absolute(cur_array - ref_array)
     max_val = np.maximum(np.absolute(cur_array), np.absolute(ref_array))
     return ((abs_diff < atol) | (abs_diff < rtol * max_val)).all()
+
+
+def copy_files_by_pattern(directory: Path, pattern_to_find: str, pattern_to_copy: str):
+    for file in directory.glob("{}*".format(pattern_to_find)):
+        file_extension = ''.join(file.suffixes)
+        copied_file = file.parent / (pattern_to_copy + file_extension)
+        if not copied_file.exists() and file.exists():
+            logging.info('Copying file from {} to {}'.format(file, copied_file))
+            shutil.copy(str(file), str(copied_file))
+        else:
+            logging.info('File {} already exist or file {} does not exist'.format(copied_file, file))

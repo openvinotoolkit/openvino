@@ -203,6 +203,8 @@ The `ov::hint::performance_mode` property enables you to specify a performance o
 #### THROUGHPUT
 This option prioritizes high throughput, balancing between latency and power. It is best suited for tasks involving multiple jobs, such as inference of video feeds or large numbers of images.
 
+> **NOTE**: If no performance hint is set explicitly, AUTO will set THROUGHPUT for devices that have not set `ov::device::properties`. For example, if you have both a CPU and a GPU in the system, this command `core.compile_model("AUTO", ov::device::properties("CPU", ov::enable_profiling(true)))` will set THROUGHPUT for the GPU only. No hint will be set for the CPU although it's the selected device.
+
 #### LATENCY
 This option prioritizes low latency, providing short response time for each inference job. It performs best for tasks where inference is required for a single input image, e.g. a medical analysis of an ultrasound scan image. It also fits the tasks of real-time or nearly real-time applications, such as an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles.
 
@@ -218,7 +220,7 @@ While `LATENCY` and `THROUGHPUT` can select one target device with your preferre
 CUMULATIVE_THROUGHPUT has similar behavior as [the Multi-Device execution mode (MULTI)](./multi_device.md). The only difference is that CUMULATIVE_THROUGHPUT uses the devices specified by AUTO, which means that it's not mandatory to add devices manually, while with MULTI, you need to specify the devices before inference. 
 
 With the CUMULATIVE_THROUGHPUT option:
-- If `AUTO` without any device names is specified, and the system has more than one GPU devices, AUTO will remove CPU from the device candidate list to keep GPU running at full capacity.
+- If `AUTO` without any device names is specified, and the system has more than two GPU devices, AUTO will remove CPU from the device candidate list to keep GPU running at full capacity.
 - If device priority is specified, AUTO will run inference requests on devices based on the priority. In the following example, AUTO will always try to use GPU first, and then use CPU if GPU is busy:
    ```sh
    ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU,CPU", ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
@@ -242,6 +244,10 @@ To enable performance hints for your application, use the following code:
        :fragment: [part3]
 
 @endsphinxdirective
+
+#### Disabling Auto-Batching for THROUGHPUT and CUMULATIVE_THROUGHPUT
+
+The `ov::hint::PerformanceMode::THROUGHPUT` mode and the `ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT` mode will trigger Auto-Batching (for example, for the GPU device) by default. You can disable it by setting `ov::hint::allow_auto_batching(false)`, or change the default timeout value to a large number, e.g. `ov::auto_batch_timeout(1000)`. See [Automatic Batching](./automatic_batching.md) for more details.
 
 ### Configuring Model Priority
 

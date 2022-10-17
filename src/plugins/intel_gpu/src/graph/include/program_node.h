@@ -124,19 +124,38 @@ public:
     virtual const primitive_id& id() const { return desc->id; }
     virtual primitive_type_id type() const { return desc->type; }
     virtual std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const { return nullptr; }
+    virtual bool generates_dynamic_output() const { return false; }
+
+    virtual std::vector<size_t> get_shape_infer_dependencies() const {
+        // Default impl will request all deps for shape infer
+        // It means that update_shape impl will wait for all memory deps
+        // TODO: Return empty vector once all impls have proper overloaded function
+        std::vector<size_t> res(get_dependencies().size());
+        std::iota(std::begin(res), std::end(res), 0);
+        return res;
+    }
+
+    std::map<size_t, memory::ptr> get_const_memory_deps() const;
 
     virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params() const {
         return get_kernel_impl_params(get_input_layouts(), output_layout);
     }
 
-    virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts,
-                                                      const layout& out_layout) const {
-        return std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(), in_layouts, out_layout,
-                                  get_fused_primitives(),
-                                  get_fused_activations_funcs(), get_fused_activations_params()));
-    }
+    virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const layout& out_layout) const {
+        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(), in_layouts, out_layout,
+                                                                                 get_fused_primitives(),
+                                                                                 get_fused_activations_funcs(), get_fused_activations_params()));
+        params->memory_deps = get_const_memory_deps();
 
-    const primitive_id& get_ext_prim_id() const { return desc->ext_prim_id; }
+        auto deps = get_dependencies();
+        for (size_t i = 0; i < deps.size(); i++) {
+            if (!deps[i]->is_constant()) {
+                params->primary_input_idx = i;
+                break;
+            }
+        }
+        return params;
+    }
 
     template <class PType>
     bool is_type() const {
@@ -214,6 +233,7 @@ public:
 
     // only calculated output layout (for external usage), does not modify/use cached output layout nor invalidate users
     layout calc_output_layout() const;
+    std::vector<layout> calc_output_layouts() const;
 
     // uses cached output layout if valid, if not calls 'calc_output_layout' and stores its result + invalidate all
     // users if layout has changed and @p invalidate_users_if_changed is set to true
@@ -230,6 +250,9 @@ public:
     // forces recalculation of cached output layout, invalidates users if new layout is different than previous one and
     // @p invalidate_users_if_changed is set to true returns whether output layout has changed
     bool recalc_output_layout(bool invalidate_users_if_changed = true);
+
+    bool is_dynamic() const;
+    bool is_dynamic();
 
     bool is_padded() { return static_cast<bool>(get_output_layout().data_padding); }
     bool is_padded() const { return static_cast<bool>(get_output_layout().data_padding); }
@@ -251,8 +274,6 @@ public:
     }
     void unmark() { user_mark = 0; }
     bool is_marked() const { return user_mark != 0; }
-    bool is_marked(uint8_t val) const { return user_mark == val; }
-    uint8_t get_user_mark() const { return user_mark; }
 
     void add_fused_activation(activation_func activation_func,
                               activation_additional_params additional_params) {
@@ -394,6 +415,12 @@ public:
         cur_id = 0;
     }
 
+    format::type get_required_input0() const { return required_input0; }
+    format::type get_required_output() const { return required_output; }
+    void set_required_input0(format::type type) { required_input0 = type; }
+    void set_required_output(format::type type) { required_output = type; }
+
+
 protected:
     size_t unique_id = 0;
     static thread_local size_t cur_id;
@@ -405,6 +432,9 @@ protected:
 
     bool valid_output_layout = false;
     layout output_layout = layout(data_types::f32, format::bfyx, tensor());
+
+    format::type required_input0;
+    format::type required_output;
 
     std::vector<program_node*> dependencies;
     std::list<program_node*> users;

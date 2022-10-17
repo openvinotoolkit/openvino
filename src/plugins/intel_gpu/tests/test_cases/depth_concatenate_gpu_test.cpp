@@ -250,7 +250,7 @@ TEST(concatenate_f32_gpu, test_concatenation_of_pool_and_unpool) {
                          {1, 2}, /*kernel*/
                          {1, 1}  /*stride*/
                          ));
-    topology.add(resample("unpool1", "input1", tensor(1, 1, 2, 2), 0, resample_type::nearest));
+    topology.add(resample("unpool1", "input1", tensor(1, 1, 2, 2), 0, resample::InterpolateOp::InterpolateMode::NEAREST));
     topology.add(concatenation("concat1", {"pool1", "unpool1"}, 3));
     topology.add(data("weights", weights));
     topology.add(convolution("conv", "concat1", {"weights"}));

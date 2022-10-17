@@ -13,7 +13,7 @@ namespace reference {
 template <typename T>
 void ceiling(const T* arg, T* out, size_t count) {
     for (size_t i = 0; i < count; i++) {
-        out[i] = std::ceil(arg[i]);
+        out[i] = static_cast<T>(std::ceil(arg[i]));
     }
 }
 }  // namespace reference
