@@ -30,7 +30,7 @@ and [TensorFlow 2 Keras](../../../../tests/tensorflow2_keras_tests) operation se
 
 To set up environment for running the layer tests, follow these [instructions](../../../../tests/layer_tests/README.md).
 
-To test the whole suite of TensorFlow 1 operation set support, run as follows:
+To test the whole suite of the TensorFlow 1 operation set support, run the following command:
 ```bash
 py.test tensorflow_tests --use_new_frontend
 ```
