@@ -23,21 +23,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
 
 Here is an example of `Loader` for TensorFlow `Einsum` operation:
 
-```
-OutputVector translate_einsum_op(const NodeContext& node) {
-    default_op_checks(node, 1, {"Einsum"});
-    auto equation = node.get_attribute<std::string>("equation");
-
-    OutputVector inputs;
-    for (size_t input_ind = 0; input_ind < node.get_input_size(); ++input_ind) {
-        inputs.push_back(node.get_input(input_ind));
-    }
-
-    auto einsum = make_shared<Einsum>(inputs, equation);
-    set_node_name(node.get_name(), einsum);
-    return {einsum};
-}
-```
+https://github.com/rkazants/openvino/blob/rkazants/tf_fe_docs_82500/src/frontends/tensorflow/src/op/einsum.cpp#L15-L28
 
 In this example, the loader checks the consistency of the operation by using `default_op_checks` and retrieves an attribute of the equation by using the `NodeContext::get_attribute()` method.
 The loader uses [OpenVINO Core API](../../../core/README.md) for building the OpenVINO sub-graph to replace the TensorFlow operation.
@@ -60,35 +46,7 @@ The internal operation implementation must also contain the `validate_and_infer_
 
 Here is an example of an implementation for the internal operation `SparseFillEmptyRows` used to convert Wide and Deep models.
 
-```
-class SparseFillEmptyRows : public ov::frontend::tensorflow::InternalOperation {
-public:
-    OPENVINO_OP("SparseFillEmptyRows", "ov::frontend::tensorflow::util", ov::frontend::tensorflow::InternalOperation);
-
-    SparseFillEmptyRows(const Output<Node>& indices,
-                        const Output<Node>& values,
-                        const Output<Node>& dense_shape,
-                        const Output<Node>& default_value,
-                        const std::shared_ptr<DecoderBase>& decoder = nullptr)
-        : ov::frontend::tensorflow::InternalOperation(decoder,
-                                                      OutputVector{indices, values, dense_shape, default_value},
-                                                      4) {
-        validate_and_infer_types();
-    }
-
-    void validate_and_infer_types() override {
-        ov::PartialShape output_indices_shape({ov::Dimension::dynamic(), 2});
-        ov::PartialShape output_values_shape({ov::Dimension::dynamic()});
-        ov::PartialShape empty_row_indicator_shape({ov::Dimension::dynamic()});
-        ov::PartialShape reverse_index_map_shape({ov::Dimension::dynamic()});
-
-        set_output_type(0, get_input_element_type(0), output_indices_shape);
-        set_output_type(1, get_input_element_type(1), output_values_shape);
-        set_output_type(2, ov::element::boolean, empty_row_indicator_shape);
-        set_output_type(3, get_input_element_type(0), reverse_index_map_shape);
-    }
-};
-```
+https://github.com/rkazants/openvino/blob/rkazants/tf_fe_docs_82500/src/frontends/tensorflow/src/helper_ops/sparse_fill_empty_rows.hpp#L17-L55
 
 In the second step, `Internal Transformation` based on `ov::pass::MatcherPass` must convert sub-graphs with internal operations into sub-graphs consisting only of the OpenVINO opset.
 The internal transformation must be called in the `ov::frontend::tensorflow::FrontEnd::normalize()` method.

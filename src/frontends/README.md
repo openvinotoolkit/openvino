@@ -7,7 +7,7 @@ Below is the full list of supported frontends:
  * [ir](./ir/README.md)
  * [onnx](./onnx)
  * [paddle](./paddle)
- * [tensorflow](./tensorflow)
+ * [tensorflow](./tensorflow/README.md)
 
 ## See also
  * [OpenVINO™ README](../../README.md)
