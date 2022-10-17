@@ -42,7 +42,7 @@ OutputVector translate_einsum_op(const NodeContext& node) {
 In this example, the loader checks the consistency of the operation by using `default_op_checks` and retrieves an attribute of the equation by using the `NodeContext::get_attribute()` method.
 The loader uses [OpenVINO Core API](../../../core/README.md) for building the OpenVINO sub-graph to replace the TensorFlow operation.
 
-For support of the new TensorFlow operation it requires implementing a new `Loader` in a separate file in [op](../src/op) directory and registering into the dictionary of `Loaders`.
+The support of a new TensorFlow operation requires implementing a new `Loader` in a separate file in the [op](../src/op) directory and registering it into the dictionary of `Loaders`.
 
 The main rules to remember for loaders implementation:
 1. Support dynamic shapes and ranks, undefined types including for the future support of new types such as strings and complex numbers
