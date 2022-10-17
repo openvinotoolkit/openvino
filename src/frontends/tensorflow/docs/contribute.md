@@ -91,7 +91,7 @@ public:
 ```
 
 In the second step, `Internal Transformation` based on `ov::pass::MatcherPass` must convert sub-graphs with internal operations into sub-graphs that consist of only OpenVINO opset.
-The internal transformation must be called in `ov::frontend::tensorflow::FrontEnd::normalize()` method.
+The internal transformation must be called in the `ov::frontend::tensorflow::FrontEnd::normalize()` method.
 It is important to check the order of applying internal transformations to avoid situations when some internal operation
 breaks a graph pattern with an internal operation for another internal transformation.
 
