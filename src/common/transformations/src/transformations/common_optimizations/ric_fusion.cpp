@@ -196,8 +196,8 @@ namespace {
 void add_node_with_inputs_to_vector(const std::shared_ptr<ov::Node>& node, NodeVector& vector) {
     vector.push_back(node);
     const auto& inputs = node->inputs();
-    for (auto it = inputs.begin(); it != inputs.end(); ++it) {
-        vector.push_back(it->get_source_output().get_node_shared_ptr());
+    for (const auto& input : inputs) {
+        vector.push_back(input.get_source_output().get_node_shared_ptr());
     }
 }
 
