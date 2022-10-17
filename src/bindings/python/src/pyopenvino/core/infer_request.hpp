@@ -34,17 +34,15 @@ public:
         const std::vector<ov::Output<const ov::Node>>& inputs,
         const std::vector<ov::Output<const ov::Node>>& outputs,
         bool set_default_callback = true,
-        bool user_callback_defined = false,
         py::object userdata = py::none()
     ) : m_request{std::move(request)}, m_inputs{inputs}, m_outputs{outputs},
-        m_user_callback_defined{user_callback_defined}, m_userdata{userdata} {
+        m_userdata{userdata} {
 
         m_start_time = std::make_shared<Time::time_point>(Time::time_point{});
         m_end_time = std::make_shared<Time::time_point>(Time::time_point{});
 
-        // Initialize InferRequest with default callback only if there is no user-defined one
-        // TODO: throw error/warning if callback is already set?
-        if (set_default_callback && !m_user_callback_defined) {
+        // Initialize InferRequest with default callback
+        if (set_default_callback) {
             // Bump reference counter
             auto end_time = m_end_time;
             // Set standard callback which saves "end-time" for inference call
@@ -82,7 +80,7 @@ public:
     std::vector<ov::Output<const ov::Node>> m_inputs;
     std::vector<ov::Output<const ov::Node>> m_outputs;
     // A flag which is set when a user defines a custom callback on InferRequest
-    bool m_user_callback_defined;
+    bool m_user_callback_defined = false;
     // Data that is passed by user from Python->C++
     py::object m_userdata;
     // Times of inference's start and finish
