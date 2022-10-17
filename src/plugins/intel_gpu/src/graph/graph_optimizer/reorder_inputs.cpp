@@ -581,16 +581,18 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
     }
 
     const auto reorder_input_detection_output = [&p, &rf](typed_program_node<detection_output>& detection_output_node) {
-        auto detection_output_prim = detection_output_node.get_primitive();
+        if (detection_output_node.get_preferred_impl_type() == impl_types::cpu) {
+            auto detection_output_prim = detection_output_node.get_primitive();
 
-        for (size_t i = 0; i < detection_output_node.get_dependencies().size(); i++) {
-            auto& input = detection_output_node.get_dependency(i);
-            auto new_input = rf.get_reorder(input.id(),
-                                            input.get_output_layout(),
-                                            layout{ data_types::f32, format::bfyx, input.get_output_layout().get_tensor() });
+            for (size_t i = 0; i < detection_output_node.get_dependencies().size(); i++) {
+                auto& input = detection_output_node.get_dependency(i);
+                auto new_input = rf.get_reorder(input.id(),
+                                                input.get_output_layout(),
+                                                layout{ data_types::f32, format::bfyx, input.get_output_layout().get_tensor() });
 
-            if (new_input.first) {
-                p.add_intermediate(new_input.first, detection_output_node, i, !new_input.second);
+                if (new_input.first) {
+                    p.add_intermediate(new_input.first, detection_output_node, i, !new_input.second);
+                }
             }
         }
     };
@@ -743,17 +745,6 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             }
         }
 
-        // Change input data of fully-connected node from bx to bf
-        if (input_layout.is_static() && format::is_simple_data_format(input_layout.format) && weights.is_constant() && input_layout.format.dimension() == 4 &&
-            input_layout.feature() == 1 && input_layout.spatial(0) != 1 && input_layout.spatial(1) == 1) {
-            auto new_tensor = input_layout.get_tensor();
-            new_tensor.feature[0] = input_layout.spatial(0);
-            new_tensor.spatial[0] = 1;
-            auto new_reshape = std::make_shared<reshape>("reorder:Reshape_bf_" + fc_node.id() + "_for_input", input.id(), new_tensor);
-            auto& new_reorder_node = p.get_or_create(new_reshape);
-            p.add_intermediate(new_reorder_node, fc_node, 0);
-        }
-
         // Change weights type i32 to f32
         auto weights_layout = weights.get_output_layout();
         if (weights_layout.data_type == data_types::i32) {
@@ -796,6 +787,33 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             n->get_output_layout(); // There might be some invalid output layout
             auto preferred_impl = lo.get_preferred_impl_type(*n, fmt_map.at(n));
             n->set_preferred_impl_type(preferred_impl);
+        }
+    }
+
+    // WA for OneDNN PRelu activation fusions: convert activation's slope buffer to expected f32 data type
+    for (auto& node : p.get_processing_order()) {
+        if (node->get_preferred_impl_type() == impl_types::onednn) {
+            auto fused_prims = node->get_fused_primitives();
+            for (auto& fused_desc : fused_prims) {
+                if (!fused_desc.is_type<activation>())
+                    continue;
+
+                auto activation_desc = fused_desc.typed_desc<activation>();
+                if (activation_desc->activation_function == cldnn::activation_func::relu_negative_slope &&
+                    !activation_desc->additional_params_input.empty()) {
+                    const auto expected_dt = data_types::f32;
+                    const auto dep_idx = fused_desc.dep_start_idx;
+                    const auto orig_layout = node->get_dependency(dep_idx).get_output_layout();
+                    if (orig_layout.data_type == expected_dt)
+                        continue;
+
+                    auto new_layout = orig_layout;
+                    new_layout.data_type = expected_dt;
+                    auto new_input = rf.get_reorder(node->get_dependency(dep_idx).id(), orig_layout, new_layout);
+                    if (new_input.first)
+                        p.add_intermediate(new_input.first, *node, dep_idx);
+                }
+            }
         }
     }
 }

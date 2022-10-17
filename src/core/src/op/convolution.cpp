@@ -37,7 +37,7 @@ op::v1::Convolution::Convolution(const Output<Node>& data_batch,
 }
 
 bool op::v1::Convolution::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_Convolution_visit_attributes);
+    OV_OP_SCOPE(v1_Convolution_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("dilations", m_dilations);
     visitor.on_attribute("pads_begin", m_pads_begin);
@@ -47,7 +47,7 @@ bool op::v1::Convolution::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void op::v1::Convolution::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_Convolution_validate_and_infer_types);
+    OV_OP_SCOPE(v1_Convolution_validate_and_infer_types);
     element::Type data_batch_et = get_input_element_type(0);
     element::Type filters_et = get_input_element_type(1);
 
@@ -68,7 +68,7 @@ void op::v1::Convolution::validate_and_infer_types() {
     auto& filter_shape = get_input_partial_shape(1);
 
     m_num_spatial = calculate_num_spatial(this, data_shape, filter_shape, 2, 2);
-    update_and_validate_attributes(this);
+    update_and_validate_attributes(this, m_num_spatial);
 
     std::vector<ov::PartialShape> input_shapes = {data_shape, filter_shape};
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
@@ -82,7 +82,7 @@ void op::v1::Convolution::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v1::Convolution::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_Convolution_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_Convolution_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Convolution>(new_args.at(0),
                                         new_args.at(1),
@@ -123,7 +123,7 @@ op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& dat
 }
 
 bool op::v1::ConvolutionBackpropData::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_ConvolutionBackpropData_visit_attributes);
+    OV_OP_SCOPE(v1_ConvolutionBackpropData_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("dilations", m_dilations);
     visitor.on_attribute("pads_begin", m_pads_begin);
@@ -209,7 +209,7 @@ void op::v1::ConvolutionBackpropData::infer_conv_backprop_output_spatial_shape(
 }
 
 void op::v1::ConvolutionBackpropData::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_ConvolutionBackpropData_validate_and_infer_types);
+    OV_OP_SCOPE(v1_ConvolutionBackpropData_validate_and_infer_types);
     element::Type delta_et = get_input_element_type(0);
     element::Type filters_et = get_input_element_type(1);
 
@@ -245,7 +245,7 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types() {
 
     auto& output_shapes_shape = output_shape_input_present ? get_input_partial_shape(2) : PartialShape::dynamic();
     m_num_spatial = calculate_num_spatial(this, data_shape, filter_shape, output_shapes_shape, 2, 2);
-    update_and_validate_attributes_back_prop(this);
+    update_and_validate_attributes_back_prop(this, m_num_spatial);
 
     std::vector<ov::PartialShape> input_shapes = {data_shape, filter_shape};
     if (output_shape_input_present)
@@ -264,7 +264,7 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v1::ConvolutionBackpropData::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_ConvolutionBackpropData_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_ConvolutionBackpropData_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 3) {
         return make_shared<v1::ConvolutionBackpropData>(new_args.at(0),

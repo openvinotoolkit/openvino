@@ -31,8 +31,10 @@ thread_local size_t program_node::cur_id = 0;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
     : desc(prim), myprog(prog), required_input0(format::any), required_output(format::any), org_id(prim ? (prim->id) : 0) {
-    if (prim)
+    if (prim) {
         output_layout.data_padding = prim->output_padding;
+        num_outputs = prim->num_outputs;
+    }
 }
 
 void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
@@ -118,7 +120,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
         json_composite info;
         info.add("data type", dt_to_str(fused_desc.output_layout.data_type));
         info.add("format", fmt_to_str(output_layout.format));
-        info.add("size", output_layout.get_tensor().to_string());
+        info.add("size", output_layout.to_short_string());
         fused_node_info.add("output layout", info);
         fused_nodes_info.add("fused primitive idx " + std::to_string(index++), fused_node_info);
     }
@@ -626,8 +628,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         auto cur_idx = static_cast<int>(has_out_scales(attr) ? (cur_post_op_idx >= 1 ? cur_post_op_idx - 1 : 0) : cur_post_op_idx);
         auto prev_idx = static_cast<int>(has_out_scales(attr) ? (prev_post_op_idx >= 1 ? prev_post_op_idx - 1 : 0) : prev_post_op_idx);
 
-        // if 2 indices are same, add the last post-op to dnnl::post_ops
-        if (prev_idx == post_ops_size - 1 && prev_idx == cur_idx && !type_is_any_optimized(prev_type)) {
+        // If prev_idx and cur_idx are same, add the last post-op to dnnl::post_ops
+        if (prev_post_op_idx == post_ops_size - 1 && prev_idx == cur_idx && !type_is_any_optimized(prev_type)) {
             add_post_op(prev_type, p_ops, optimized_p_ops, prev_idx);
             break;
         }
@@ -986,8 +988,6 @@ void program_node::init_onednn_primitive_attributes() {
                     update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx);
                 }
             } else {
-                if (in.spatial(0) > 1 || in.spatial(1) > 1 || in.batch() > 1)
-                    throw std::runtime_error("Unsupported eltwise mode for fused onednn op");
                 // convolution using post-op output scales can only be int8/uint8
                 if (idx == 0 && !has_out_scales(attrs) && !is_type<pooling>() && !is_type<reduce>() &&
                     !(is_type<convolution>() && data_type_traits::is_floating_point(output_layout.data_type))) {
@@ -1230,6 +1230,9 @@ void program_node::init_onednn_primitive_attributes() {
         // Trying to combine multiplications and additions which are placed one after another.
         // We do it in the cycle because some optimization cases can be simplified again from time to time
         do {
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(debug_config->disable_onednn_opt_post_ops)
+                break;
             optimized_post_ops = try_optimize_post_ops(optimized_post_ops, attrs, optimization_is_finished);
         } while (!optimization_is_finished);
 

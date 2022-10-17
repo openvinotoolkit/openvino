@@ -493,6 +493,24 @@ def test_infer_queue_is_ready(device):
     infer_queue.wait_all()
 
 
+def test_infer_queue_userdata_is_empty(device):
+    core = Core()
+    param = ops.parameter([10])
+    model = Model(ops.relu(param), [param])
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, 1)
+    assert infer_queue.userdata == [None]
+
+
+def test_infer_queue_userdata_is_empty_more_jobs(device):
+    core = Core()
+    param = ops.parameter([10])
+    model = Model(ops.relu(param), [param])
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, 5)
+    assert infer_queue.userdata == [None, None, None, None, None]
+
+
 def test_infer_queue_fail_on_cpp_model(device):
     jobs = 6
     num_request = 4
@@ -535,6 +553,35 @@ def test_infer_queue_fail_on_py_model(device):
         infer_queue.wait_all()
 
     assert "unsupported operand type(s) for +" in str(e.value)
+
+
+@pytest.mark.parametrize("with_callback", [False, True])
+def test_infer_queue_fail_in_inference(device, with_callback):
+    jobs = 6
+    num_request = 4
+    core = Core()
+    data = ops.parameter([5, 2], dtype=np.float32, name="data")
+    indexes = ops.parameter(Shape([3, 2]), dtype=np.int32, name="indexes")
+    emb = ops.embedding_bag_packed_sum(data, indexes)
+    model = Model(emb, [data, indexes])
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, num_request)
+
+    def callback(request, _):
+        pytest.fail("Callback should not be called")
+
+    if with_callback:
+        infer_queue.set_callback(callback)
+
+    data_tensor = Tensor(np.arange(10).reshape((5, 2)).astype(np.float32))
+    indexes_tensor = Tensor(np.array([[100, 101], [102, 103], [104, 105]], dtype=np.int32))
+
+    with pytest.raises(RuntimeError) as e:
+        for _ in range(jobs):
+            infer_queue.start_async({"data": data_tensor, "indexes": indexes_tensor})
+        infer_queue.wait_all()
+
+    assert "has invalid embedding bag index:" in str(e.value)
 
 
 def test_infer_queue_get_idle_handle(device):
