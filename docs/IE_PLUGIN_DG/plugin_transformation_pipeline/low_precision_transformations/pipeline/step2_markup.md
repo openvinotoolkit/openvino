@@ -22,7 +22,7 @@ The table of transformations and used attributes:
 | AlignQuantizationIntervals      | IntervalsAlignment            | PrecisionPreserved                        |
 | AlignQuantizationParameters     | QuantizationAlignment         | PrecisionPreserved, PerTensorQuantization |
 
-> **Note:** the same type of attribute instances can be created in different transformations. This approach is the result of the transformation single-responsibility principle. For example, `Precision` attribute instances are created in `MarkupCanBeQuantized` and `MarkupPrecisions` transformations, but the reasons for their creation are different
+> **NOTE**: The same type of attribute instances can be created in different transformations. This approach is the result of the transformation single-responsibility principle. For example, `Precision` attribute instances are created in `MarkupCanBeQuantized` and `MarkupPrecisions` transformations, but the reasons for their creation are different
 
 Common markup transformations can be decomposed into simpler utility markup transformations. The order of Markup utility transformations is not important:
 * [CreateAttribute](@ref openvino_docs_OV_UG_lpt_CreateAttribute)

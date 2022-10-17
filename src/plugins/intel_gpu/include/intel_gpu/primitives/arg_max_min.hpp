@@ -41,8 +41,10 @@ struct arg_max_min : public primitive_base<arg_max_min> {
                 ov::op::TopKSortType sort = ov::op::TopKSortType::SORT_VALUES,
                 bool values_first = false,
                 const padding& output_padding = padding(),
-                data_types output_data_type = data_types::f32)
-        : primitive_base(id, {input}, output_padding, optional_data_type {output_data_type}),
+                data_types output_data_type = data_types::f32,
+                const std::vector<input_info>& inputs = {},
+                const int num_outputs = 1)
+        : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type}, inputs, num_outputs),
           mode(mode),
           top_k(top_k),
           axis(axis),

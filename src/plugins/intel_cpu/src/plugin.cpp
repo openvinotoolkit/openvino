@@ -123,6 +123,7 @@
 #include "nodes/normalize.h"
 #include "nodes/mha.h"
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
+#include "ngraph_transformations/convert_to_interaction.hpp"
 #include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 #include "ngraph_transformations/swap_convert_transpose.hpp"
@@ -325,6 +326,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
     manager.register_pass<ngraph::pass::EliminateConvert>();
     manager.register_pass<SwapConvertTranspose>();
+    manager.register_pass<ConvertToInteraction>();
 
     auto pass_config = manager.get_pass_config();
 
@@ -522,10 +524,16 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     if (useLpt) {
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
-
+        //Only enable conv/group conv signed input on AMX platform.
+        std::vector<ngraph::element::Type> input0LowPrecisionList;
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+            input0LowPrecisionList = {ngraph::element::u8, ngraph::element::i8};
+        } else {
+            input0LowPrecisionList = {ngraph::element::u8};
+        }
         auto supportedPrecisions = std::vector<PrecisionsRestriction>({
             PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
+                {0, input0LowPrecisionList},
                 {1, {ngraph::element::i8}},
             }),
             PrecisionsRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
@@ -533,7 +541,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 {1, {ngraph::element::i8}}
             }),
             PrecisionsRestriction::create<ngraph::opset1::GroupConvolution>({
-                {0, {ngraph::element::u8}},
+                {0, input0LowPrecisionList},
                 {1, {ngraph::element::i8}}
             }),
             PrecisionsRestriction::create<ngraph::opset1::Multiply>({

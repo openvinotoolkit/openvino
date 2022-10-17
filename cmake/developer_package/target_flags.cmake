@@ -69,6 +69,10 @@ if(UNIX AND NOT APPLE)
     set(LINUX ON)
 endif()
 
+if(ENV{OECORE_NATIVE_SYSROOT} AND AARCH64)
+    set(YOCTO_AARCH64 ON)
+endif()
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
     set(OV_COMPILER_IS_CLANG ON)
 endif()
