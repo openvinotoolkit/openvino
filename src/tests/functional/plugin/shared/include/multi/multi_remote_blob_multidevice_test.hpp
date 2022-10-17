@@ -18,7 +18,13 @@ TEST_P(MultiDeviceMultipleGPU_Test, canCreateRemoteTensorThenInferWithAffinity) 
     p.input().preprocess().convert_element_type(ov::element::f32);
 
     auto function = p.build();
-    auto exec_net = ie.compile_model(function, device_names, ov::hint::allow_auto_batching(false));
+    ov::CompiledModel exec_net;
+    try {
+        exec_net = ie.compile_model(function, device_names, ov::hint::allow_auto_batching(false));
+    } catch (...) {
+        // device is unavailable (e.g. for the "second GPU" test) or other (e.g. env) issues not related to the test
+        return;
+    }
     std::vector<ov::InferRequest> inf_req_shared = {};
     auto input = function->get_parameters().at(0);
     auto output = function->get_results().at(0);
