@@ -55,7 +55,7 @@ The main rules for loaders implementation:
 ## Two transformation passes using Loader and Internal Transformation
 
 In rare cases, TensorFlow operation conversion requires two transformations (`Loader` and `Internal Transformation`).
-In the first step, `Loader` must convert TF operation into [Internal Operation](../src/helper_ops) that is used temporarily by the conversion pipeline.
+In the first step, `Loader` must convert a TF operation into [Internal Operation](../src/helper_ops) that is used temporarily by the conversion pipeline.
 The internal operation implementation must also contain the `validate_and_infer_types()` method as similar to [OpenVINO Core] operations.
 
 Here is an example of implementation for the internal operation `SparseFillEmptyRows` used for the conversion of Wide and Deep models.
