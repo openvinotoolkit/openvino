@@ -12,8 +12,8 @@ for Transpose Sinking and conversion of sub-graphs with TF FE internal operation
 For building the TF FE unit-tests, use the CMake target `ov_tensorflow_frontend_tests`. CMake automatically runs
 [generation scripts](../tests/test_models/gen_scripts) to create TensorFlow models used in the testing.
 
-Once the build is complete, launch `ov_tensorflow_frontend_tests` (`ov_tensorflow_frontend_tests.exe` for Windows)
-executable file to run all tests for the TensorFlow Frontend. The unit-tests use GoogleTest framework for execution.
+Once the build is complete, launch the `ov_tensorflow_frontend_tests` (`ov_tensorflow_frontend_tests.exe` for Windows)
+executable file to run all tests for the TensorFlow Frontend. The unit-tests use the GoogleTest framework for execution.
 
 To get a tests coverage report for the TensorFlow Frontend, read the page
 on [measuring coverage](../../../../docs/dev/test_coverage.md).
