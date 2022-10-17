@@ -15,7 +15,7 @@ For building the TF FE unit-tests, use the CMake target `ov_tensorflow_frontend_
 Once the build is complete, launch `ov_tensorflow_frontend_tests` (`ov_tensorflow_frontend_tests.exe` for Windows)
 executable file to run all tests for the TensorFlow Frontend. The unit-tests use GoogleTest framework for execution.
 
-To get a tests coverage report for the TensorFlow frontend, read the page
+To get a tests coverage report for the TensorFlow Frontend, read the page
 on [measuring coverage](../../../../docs/dev/test_coverage.md).
 
 ## How to run TensorFlow Frontend layer tests
