@@ -105,7 +105,7 @@
 #include "transformations/op_conversions/reduce_l1_decomposition.hpp"
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
-// #include "transformations/itt.hpp"
+
 bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
     ngraph::pass::Manager manager(get_pass_config());
@@ -134,11 +134,8 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     }
 
     manager.register_pass<ngraph::pass::ConcatReduceFusion>();
-    // REGISTER_PASS_SCOPE(manager, ngraph::pass, 
-    manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
-
-    // REGISTER_PASS_SCOPE(ConvertInterpolate1ToInterpolate4)
-    manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
+    REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertPadToGroupConvolution)
+    REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertInterpolate1ToInterpolate4)
 
     REGISTER_PASS_MODEL_SCOPE_IF(GraphRewrite) {
         auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
@@ -176,7 +173,6 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     REGISTER_PASS_MODEL_SCOPE(manager, ngraph::pass, ConstantFolding)
 
     // LinOpSequenceFusion must be executed after all decompositions
-    // Todo (xuejun): no matcher scope, add matcher
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
     REGISTER_PASS_FUNCTION_SCOPE(manager, ngraph::pass, UnrollIf)
 
@@ -198,23 +194,17 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertGather8ToGather7)  // not plugins implemented gather8
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertGather7ToGather1)  // not plugins implemented gather7
 
-    // REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertGather1ToGather7)
-    manager.register_pass<ngraph::pass::ConvertGather1ToGather7, false>();
-    // REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertGather7ToGather8)
-    manager.register_pass<ngraph::pass::ConvertGather7ToGather8, false>();
+    REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertGather1ToGather7)
+    REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertGather7ToGather8)
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertDeformableConv8To1)
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertSoftMax8ToSoftMax1)
-    // REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertSoftMax1ToSoftMax8)
-    manager.register_pass<ngraph::pass::ConvertSoftMax1ToSoftMax8, false>();
+    REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertSoftMax1ToSoftMax8)
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertMaxPool8ToMaxPool1)
-    // REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertMaxPool1ToMaxPool8)
-    manager.register_pass<ngraph::pass::ConvertMaxPool1ToMaxPool8, false>();
+    REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertMaxPool1ToMaxPool8)
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertPriorBox8To0)
-    // REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertDetectionOutput1ToDetectionOutput8)
-    manager.register_pass<ngraph::pass::ConvertDetectionOutput1ToDetectionOutput8, false>();
+    REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertDetectionOutput1ToDetectionOutput8)
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertDetectionOutput8ToDetectionOutput1)
-    // REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertROIAlign3To9)
-    manager.register_pass<ngraph::pass::ConvertROIAlign3To9, false>();
+    REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertROIAlign3To9)
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertROIAlign9To3)
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertMulticlassNms8ToMulticlassNms9)
 
@@ -232,7 +222,6 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     // StridesOptimization should be at the very end
     // because we cannot insert any MaxPools since they may prevent
     // other optimizations
-    // Todo (xuejun): no matcher scope, add matcher
     manager.register_pass<ngraph::pass::StridesOptimization>();
     REGISTER_PASS_MODEL_SCOPE(manager, ngraph::pass, Validate)
     manager.run_passes(f);

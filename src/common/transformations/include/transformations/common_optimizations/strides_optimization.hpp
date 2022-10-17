@@ -9,6 +9,7 @@
 #include <ngraph/pass/pass.hpp>
 #include <ngraph/util.hpp>
 #include <transformations_visibility.hpp>
+
 #include "itt.hpp"
 namespace ngraph {
 namespace pass {

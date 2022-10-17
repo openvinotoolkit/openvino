@@ -104,7 +104,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParams should be called together.
     REGISTER_PASS_SCOPE(manager, ov::pass, RemoveConcatZeroDimInput)
     REGISTER_PASS_SCOPE(manager, ov::pass, Validate)
-    REGISTER_PASS_SCOPE(manager, ov::pass, RemoveMultiSubGraphOpDanglingParams)    
+    REGISTER_PASS_SCOPE(manager, ov::pass, RemoveMultiSubGraphOpDanglingParams)
     REGISTER_PASS_SCOPE(manager, ov::pass, FoldSubgraphEmptyInputs)
 
     manager.register_pass<ngraph::pass::DisableRandomUniformConstantFolding>();
@@ -126,7 +126,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     }
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertQuantizeDequantize)
     REGISTER_PASS_FUNCTION_SCOPE(manager, ngraph::pass, SimplifyShapeOfSubGraph)
-    
+
     if (!m_use_shapes) {
         manager.register_pass<ngraph::pass::DisableShapeOfConstantFolding>();
     }
@@ -134,7 +134,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     manager.register_pass<ngraph::pass::ConvertNmsGatherPathToUnsigned>();
     REGISTER_PASS_FUNCTION_SCOPE(manager, ngraph::pass, StridedSliceOptimization, m_use_shapes)
     REGISTER_PASS_SCOPE(manager, ngraph::pass, BroadcastElementwiseFusion)
-    REGISTER_PASS_MODEL_SCOPE_IF(GraphRewrite) {        
+    REGISTER_PASS_MODEL_SCOPE_IF(GraphRewrite) {
         auto transpose_sinking = manager.register_pass<ngraph::pass::GraphRewrite>();
         ADD_MATCHER_SCOPE_WITH_OBJ(transpose_sinking, ngraph::pass, TransposeSinking)
 

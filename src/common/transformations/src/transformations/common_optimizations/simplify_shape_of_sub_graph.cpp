@@ -334,7 +334,7 @@ bool ngraph::pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<n
     REGISTER_PASS_SCOPE(manager, ngraph::pass, GatherNopElimination)
     REGISTER_PASS_SCOPE(manager, ngraph::pass, SimplifyGatherShapeOf)
     REGISTER_PASS_SCOPE(manager, ngraph::pass, SimplifySecondInputOfReshape)
-    
+
     // TODO: potentially this Validate is not needed but it requires additional validation
     REGISTER_PASS_MODEL_SCOPE(manager, ngraph::pass, Validate)
     manager.run_passes(f);

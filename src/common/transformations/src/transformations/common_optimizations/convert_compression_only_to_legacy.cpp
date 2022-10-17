@@ -37,7 +37,7 @@ bool ov::pass::ConvertCompressedOnlyToLegacy::run_on_model(const std::shared_ptr
         manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);
         REGISTER_PASS_SCOPE(manager, ov::pass, EnableDecompressionConvertConstantFolding)
         REGISTER_PASS_MODEL_SCOPE(manager, ov::pass, ConstantFolding)
-        
+
         manager.run_passes(f);
     }
     return false;
