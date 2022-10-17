@@ -18,7 +18,7 @@ executable file to run all tests for the TensorFlow Frontend. The unit-tests use
 To get a tests coverage report for the TensorFlow frontend, read the page
 on [measuring coverage](../../../../docs/dev/test_coverage.md).
 
-## How to run the TensorFlow Frontend layer test
+## How to run TensorFlow Frontend layer tests
 
 The layer tests are Python-based and check that a TensorFlow operation is supported by TF FE.
 The testing pipeline of the layer tests consists of three steps: create the single layer model with tested operation using TensorFlow,
