@@ -76,7 +76,8 @@ std::vector<int64_t> try_get_unsqueeze_axes_from_reshape(const ov::Shape& reshap
     if (std::all_of(std::begin(reshape_shape), std::begin(reshape_shape) + begin_pos, equal_one) &&
         std::all_of(begin(reshape_shape) + end_pos, std::end(reshape_shape), equal_one)) {
         const auto result_size = reshape_shape.size() - reduce_shape.size();
-        std::vector<int64_t> result(result_size);
+        std::vector<int64_t> result;
+        result.reserve(result_size);
         std::generate_n(std::back_inserter(result), begin_pos, ov::SeqGen<int64_t, ov::Direction::FORWARD>(0));
         std::generate_n(std::back_inserter(result),
                         result_size - begin_pos,
