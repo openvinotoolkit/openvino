@@ -753,7 +753,7 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constan
     if (!supported_integer_precisions.count(src_type) || (src_type.size() * 8) % src_type.bitwidth() ||
         (to.size() * 8) % to.bitwidth() || to.is_real() || to.bitwidth() < src_type.bitwidth())
         throw Exception("Convert low precision for " + constant->get_element_type().get_type_name() + " to " +
-                           to.get_type_name() + " is not implemented!");
+                        to.get_type_name() + " is not implemented!");
 
     // Create a new constant operation and get destination data
     auto new_constant = std::make_shared<opset4::Constant>(to, constant->get_shape());
@@ -876,7 +876,7 @@ bool fuse_type_to_constant(const std::shared_ptr<ngraph::Node>& node,
             new_const = convert_low_precisions_int(constant, to);
         } else {
             throw Exception("Precision conversion from " + from.get_type_name() + " to " + to.get_type_name() +
-                               " is not supported");
+                            " is not supported");
         }
         for (auto& output : consumers) {
             output.replace_source_output(new_const);
