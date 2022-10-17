@@ -405,6 +405,16 @@ void program::add_node_dependencies(program_node* node) {
                                      " that is input to: " + node->get_primitive()->id);
         }
     }
+    auto deps_new = node->get_primitive()->dependencies_new();
+    for (auto& dep : deps_new) {
+        try {
+            auto dep_node = nodes_map.at(dep.pid);
+            node->dependencies_new.push_back({dep_node.get(), dep.idx});
+        } catch (...) {
+            throw std::runtime_error("Program doesn't contain primitive: " + dep.pid +
+                                     " that is input to: " + node->get_primitive()->id);
+        }
+    }
 }
 
 /* helper method for program constructor from list of nodes which
@@ -1426,6 +1436,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::gather::type_id() &&
             prim.type() != cldnn::scatter_nd_update::type_id() &&
             prim.type() != cldnn::broadcast::type_id() &&
+            prim.type() != cldnn::ctc_loss::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
             prim.type() != cldnn::roi_align::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
@@ -1463,6 +1474,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::scatter_nd_update::type_id() &&
             prim.type() != cldnn::broadcast::type_id() &&
             prim.type() != cldnn::quantize::type_id() &&
+            prim.type() != cldnn::ctc_loss::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
             prim.type() != cldnn::roi_align::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
