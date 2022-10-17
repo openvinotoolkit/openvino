@@ -28,7 +28,7 @@ namespace AutoBatchPlugin {
 using namespace InferenceEngine;
 
 std::vector<std::string> supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG),
-                                                CONFIG_KEY(AUTO_BATCH_TIMEOUT), CONFIG_KEY(CACHE_DIR)};
+                                                 CONFIG_KEY(AUTO_BATCH_TIMEOUT), CONFIG_KEY(CACHE_DIR)};
 
 template <Precision::ePrecision precision>
 Blob::Ptr create_shared_blob_on_top_of_batched_blob(Blob::Ptr batched_blob,
@@ -698,12 +698,12 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& d
         }
         // passthrough the cache dir to core->loadnetwork when underlying device does not support cache dir
         auto deviceConfig = GetCore()->GetSupportedConfig(deviceName, tconfig);
-        if (tconfig.find(CONFIG_KEY(CACHE_DIR)) != tconfig.end()
-            && deviceConfig.find(CONFIG_KEY(CACHE_DIR)) == deviceConfig.end()) {
-                auto tmpiter = tconfig.find(CONFIG_KEY(CACHE_DIR));
-                if (tmpiter != tconfig.end())
-                    deviceConfig.insert({tmpiter->first, tmpiter->second});
-            }
+        if (tconfig.find(CONFIG_KEY(CACHE_DIR)) != tconfig.end() &&
+            deviceConfig.find(CONFIG_KEY(CACHE_DIR)) == deviceConfig.end()) {
+            auto tmpiter = tconfig.find(CONFIG_KEY(CACHE_DIR));
+            if (tmpiter != tconfig.end())
+                deviceConfig.insert({tmpiter->first, tmpiter->second});
+        }
         return deviceConfig;
     };
 

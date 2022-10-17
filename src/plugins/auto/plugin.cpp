@@ -370,8 +370,10 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     loadConfig.UpdateFromMap(config, GetName());
     auto fullConfig = loadConfig._keyConfigMap;
     // Remove the performance hint if no setting to this property from user.
-    if (!loadConfig.isSetPerHint)
+    if (!loadConfig._isSetPerHint)
         fullConfig.erase(PluginConfigParams::KEY_PERFORMANCE_HINT);
+    if (!loadConfig._isSetCacheDir)
+        fullConfig.erase(CONFIG_KEY(CACHE_DIR));
     // collect the settings that are applicable to the devices we are loading the network to
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
     std::vector<DeviceInformation> metaDevices;
