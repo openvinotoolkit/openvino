@@ -49,7 +49,7 @@ public:
 
 /**
 * @brief In cases that network output layer is connected to only one layer which is activation additional identity is inserted
-* so the operation is not fused with the activation allowing to get te results from said layer
+* so the operation is not fused with the activation allowing to get the results from said layer
 */
 class BreakFusingOfOutputLayers : public ov::pass::MatcherPass {
 public:
