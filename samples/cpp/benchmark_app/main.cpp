@@ -485,7 +485,7 @@ int main(int argc, char* argv[]) {
             auto startTime = Time::now();
             compiledModel = core.compile_model(FLAGS_m, device_name);
             auto duration_ms = get_duration_ms_till_now(startTime);
-            slog::info << "Load model took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
             slog::info << "Original model I/O parameters:" << slog::endl;
             printInputAndOutputsInfoShort(compiledModel);
 
