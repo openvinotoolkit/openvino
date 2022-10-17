@@ -26,11 +26,17 @@ int main(int argc, char* argv[]) {
         // Optimize for latency. Most of the devices are configured for latency by default,
         // but there are exceptions like MYRIAD
         ov::AnyMap latency{{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::LATENCY}};
+
+        // Uncomment the following line to enable detailed performace counters
+        // latency[ov::enable_profiling.name()] = true;
+
         // Create ov::Core and use it to compile a model
         // Pick device by replacing CPU, for example AUTO:GPU,CPU.
         // Using MULTI device is pointless in sync scenario
         // because only one instance of ov::InferRequest is used
-        ov::CompiledModel compiled_model = ov::Core{}.compile_model(argv[1], "CPU", latency);
+        ov::Core core;
+        std::string device = "CPU";
+        ov::CompiledModel compiled_model = core.compile_model(argv[1], device, latency);
         ov::InferRequest ireq = compiled_model.create_infer_request();
         // Fill input data for the ireq
         for (const ov::Output<const ov::Node>& model_input : compiled_model.inputs()) {
@@ -38,13 +44,15 @@ int main(int argc, char* argv[]) {
         }
         // Warm up
         ireq.infer();
-        // Run benchmarking for seconds_to_run seconds
-        std::chrono::seconds seconds_to_run{15};
+        // Benchmark for seconds_to_run seconds and at least niter iterations
+        std::chrono::seconds seconds_to_run{1};
+        int niter = 12;
         std::vector<double> latencies;
+        latencies.reserve(niter);
         auto start = std::chrono::steady_clock::now();
         auto time_point = start;
         auto time_point_to_finish = start + seconds_to_run;
-        while (time_point < time_point_to_finish) {
+        while (time_point < time_point_to_finish || latencies.size() < niter) {
             ireq.infer();
             auto iter_end = std::chrono::steady_clock::now();
             latencies.push_back(std::chrono::duration_cast<Ms>(iter_end - time_point).count());
@@ -53,6 +61,11 @@ int main(int argc, char* argv[]) {
         auto end = time_point;
         double duration = std::chrono::duration_cast<Ms>(end - start).count();
         // Report results
+
+        // Uncomment the following lines if performace counters are enabled on top
+        // slog::info << "Performance counts:" << slog::endl;
+        // printPerformanceCounts(ireq.get_profiling_info(), std::cout, getFullDeviceName(core, device), false);
+
         slog::info << "Count:      " << latencies.size() << " iterations" << slog::endl;
         slog::info << "Duration:   " << duration << " ms" << slog::endl;
         slog::info << "Latency:" << slog::endl;

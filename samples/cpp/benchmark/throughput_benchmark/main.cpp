@@ -27,10 +27,15 @@ int main(int argc, char* argv[]) {
         // Optimize for throughput. Best throughput can be reached by
         // running multiple ov::InferRequest instances asyncronously
         ov::AnyMap tput{{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT}};
+
+        // Uncomment the following line to enable detailed performace counters
+        // tput[ov::enable_profiling.name()] = true;
+
         // Create ov::Core and use it to compile a model
         // Pick device by replacing CPU, for example MULTI:CPU(4),GPU(8)
         ov::Core core;
-        ov::CompiledModel compiled_model = core.compile_model(argv[1], "CPU", tput);
+        std::string device = "CPU";
+        ov::CompiledModel compiled_model = core.compile_model(argv[1], device, tput);
         // Create optimal number of ov::InferRequest instances
         uint32_t nireq;
         try {
@@ -57,8 +62,14 @@ int main(int argc, char* argv[]) {
         for (ov::InferRequest& ireq : ireqs) {
             ireq.wait();
         }
-        // Run benchmarking for seconds_to_run seconds
+        // Benchmark for seconds_to_run seconds and at least niter iterations
         std::chrono::seconds seconds_to_run{15};
+        int init_niter = 12;
+        int niter = ((init_niter + nireq - 1) / nireq) * nireq;
+        if (init_niter != niter) {
+            slog::warn << "Number of iterations was aligned by request number from " << init_niter << " to "
+                        << niter << " using number of requests " << nireq << slog::endl;
+        }
         std::vector<double> latencies;
         std::mutex mutex;
         std::condition_variable cv;
@@ -75,7 +86,7 @@ int main(int argc, char* argv[]) {
             std::chrono::steady_clock::time_point& time_point = time_points[i];
             time_point = std::chrono::steady_clock::now();
             ireq.set_callback(
-                [&ireq, &time_point, &mutex, &cv, &latencies, &callback_exception, &nstarted, time_point_to_finish](
+                [&ireq, &time_point, &mutex, &cv, &latencies, &callback_exception, &nstarted, time_point_to_finish, niter](
                     std::exception_ptr ex) {
                     {
                         std::unique_lock<std::mutex> lock(mutex);
@@ -89,7 +100,7 @@ int main(int argc, char* argv[]) {
                                 cv.notify_one();
                                 return;
                             }
-                            if (infer_end < time_point_to_finish) {
+                            if (infer_end < time_point_to_finish || nstarted < niter) {
                                 time_point = infer_end;
                                 ++nstarted;
                                 ireq.start_async();
@@ -116,6 +127,13 @@ int main(int argc, char* argv[]) {
         auto end = std::chrono::steady_clock::now();
         double duration = std::chrono::duration_cast<Ms>(end - start).count();
         // Report results
+
+        // Uncomment the following lines if performace counters are enabled on top
+        // for (size_t ireq = 0; ireq < nireq; ireq++) {
+        //     slog::info << "Performance counts for " << ireq << "-th infer request:" << slog::endl;
+        //     printPerformanceCounts(ireqs[ireq].get_profiling_info(), std::cout, getFullDeviceName(core, device), false);
+        // }
+
         slog::info << "Count:      " << latencies.size() << " iterations" << slog::endl;
         slog::info << "Duration:   " << duration << " ms" << slog::endl;
         slog::info << "Latency:" << slog::endl;
