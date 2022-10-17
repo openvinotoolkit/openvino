@@ -58,7 +58,7 @@ In rare cases, TensorFlow operation conversion requires two transformations (`Lo
 In the first step, `Loader` must convert a TF operation into [Internal Operation](../src/helper_ops) that is used temporarily by the conversion pipeline.
 The internal operation implementation must also contain the `validate_and_infer_types()` method as similar to [OpenVINO Core] operations.
 
-Here is an example of implementation for the internal operation `SparseFillEmptyRows` used for the conversion of Wide and Deep models.
+Here is an example of an implementation for the internal operation `SparseFillEmptyRows` used to convert Wide and Deep models.
 
 ```
 class SparseFillEmptyRows : public ov::frontend::tensorflow::InternalOperation {
