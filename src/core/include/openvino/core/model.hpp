@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "openvino/core/any.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/rtti.hpp"
@@ -28,6 +29,11 @@ class Model;
 
 OPENVINO_API
 std::shared_ptr<Model> clone_model(const Model& func, std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
+
+const ov::Any& get_rt_info(const ov::Model& model,
+                           const ov::AnyMap& info,
+                           const std::vector<std::string>::const_iterator& begin,
+                           const std::vector<std::string>::const_iterator& end);
 
 namespace frontend {
 class FrontEnd;
@@ -341,6 +347,10 @@ public:
 
 private:
     friend class ov::ModelAccessor;
+    friend const ov::Any& get_rt_info(const ov::Model& model,
+                                      const ov::AnyMap& info,
+                                      const std::vector<std::string>::const_iterator& begin,
+                                      const std::vector<std::string>::const_iterator& end);
 
     template <class T,
               typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||

@@ -1946,4 +1946,5 @@ TEST(model, set_meta_information) {
     std::string key = "data";
     EXPECT_THROW(f->get_rt_info<std::string>(key, "test"), ov::Exception);
     f->set_rt_info("test", key, "test");
+    EXPECT_NO_THROW(f->get_rt_info<std::string>(key, "test"));
 }

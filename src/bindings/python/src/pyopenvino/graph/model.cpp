@@ -7,6 +7,9 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <utility>
+#include <vector>
+
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"  // ov::Model
 #include "openvino/core/partial_shape.hpp"
@@ -17,8 +20,22 @@
 #include "pyopenvino/graph/ops/result.hpp"
 #include "pyopenvino/graph/ops/util/variable.hpp"
 #include "pyopenvino/graph/rt_map.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
+
+namespace ov {
+const ov::Any& get_rt_info(const ov::Model& model,
+                           const ov::AnyMap& info,
+                           const std::vector<std::string>::const_iterator& begin,
+                           const std::vector<std::string>::const_iterator& end) {
+    if (begin == end - 1) {
+        return model.get_rt_arg(info, *begin);
+    } else {
+        return get_rt_info(model, model.get_map_from_attr(info, *begin), begin + 1, end);
+    }
+}
+}  // namespace ov
 
 using PyRTMap = ov::RTMap;
 
@@ -701,9 +718,40 @@ void regclass_graph_Model(py::module m) {
         return "<" + class_name + ": '" + self.get_friendly_name() + "'\ninputs[\n" + inputs_str + "\n]\noutputs[\n" +
                outputs_str + "\n]>";
     });
+    model.def("get_rt_info",
+              (PyRTMap & (ov::Model::*)()) & ov::Model::get_rt_info,
+              py::return_value_policy::reference_internal,
+              R"(
+                Returns PyRTMap which is a dictionary of user defined runtime info.
+
+                :return: A dictionary of user defined data.
+                :rtype: openvino.runtime.RTMap
+             )");
+    model.def(
+        "get_rt_info",
+        [](const ov::Model& self, const py::list& args) -> py::object {
+            const size_t args_len = py::len(args);
+            std::vector<std::string> cpp_args(args_len);
+            for (size_t i = 0; i < args_len; i++) {
+                cpp_args.emplace_back(args[i].cast<std::string>());
+            }
+            return Common::utils::from_ov_any(
+                ov::get_rt_info(self, self.get_rt_info(), cpp_args.cbegin(), cpp_args.cend()));
+        },
+        py::arg("args") = py::list(),
+        py::return_value_policy::reference_internal,
+        R"(
+                Returns PyRTMap which is a dictionary of user defined runtime info.
+
+                :return: A dictionary of user defined data.
+                :rtype: openvino.runtime.RTMap
+             )");
 
     model.def_property_readonly("inputs", (std::vector<ov::Output<ov::Node>>(ov::Model::*)()) & ov::Model::inputs);
     model.def_property_readonly("outputs", (std::vector<ov::Output<ov::Node>>(ov::Model::*)()) & ov::Model::outputs);
     model.def_property_readonly("name", &ov::Model::get_name);
+    model.def_property_readonly("rt_info",
+                                (PyRTMap & (ov::Model::*)()) & ov::Model::get_rt_info,
+                                py::return_value_policy::reference_internal);
     model.def_property("friendly_name", &ov::Model::get_friendly_name, &ov::Model::set_friendly_name);
 }
