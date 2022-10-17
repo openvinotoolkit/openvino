@@ -184,7 +184,7 @@ Begin this step on the Intel® Core™ or Xeon® processor machine that meets th
 9.  Install the software tool [`tpm2-abmrd`](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz).<br>
     Installation information is at https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md
 10. Install the [`tpm2-tools`](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz).<br>
-    Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md
+    Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md
 11. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/).	
     **NOTE**: Regardless of whether you used the `install_host_deps.sh` script, complete step 12 to finish setting up the packages on the Host Machine.
 12. If you are running behind a proxy, [set up a proxy for Docker](https://docs.docker.com/config/daemon/systemd/). 
@@ -314,7 +314,7 @@ Begin these steps on the Host Machine.
 
 As an option, you can use `virsh` and the virtual machine manager to create and bring up a Guest VM. See the `libvirtd` documentation for instructions if you'd like to do this.
 
-1. Download the [Ubuntu 18.04 server ISO image](https://releases.ubuntu.com/18.04/ubuntu-18.04.5-live-server-amd64.iso)
+1. Download the **Server install ISO image for 64-bit PC (AMD64) computers** of [Ubuntu 18.04](https://releases.ubuntu.com/18.04/)
 
 2. Create an empty virtual disk image to serve as the Guest VM for your role as Model Developer and Independent Software Vendor:
    ```sh
@@ -353,7 +353,7 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
       2. Install the software tool [`tpm2-abmrd`](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz). 
       Installation information is at https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md
       3. Install the [`tpm2-tools`](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz). 
-      Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md
+      Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md
       4. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/)
       5. Shut down the Guest VM.<br>
 9. On the host, create a directory to support the virtual TPM device and provision its certificates. Only `root` should have read/write permission to this directory:
@@ -466,7 +466,7 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
       2. Install the software tool [`tpm2-abmrd`](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz) <br>
       Installation information is at https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md <br><br>
       3. Install the [`tpm2-tools`](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz) <br>
-      Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md <br><br>
+      Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md <br><br>
       4. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/) 
       5. Shut down the Guest VM.<br><br>            
 
@@ -523,12 +523,14 @@ Follow the below steps to build and Install OpenVINO™ Security Add-on on host 
 Building OpenVINO™ Security Add-on depends on OpenVINO™ Model Server docker containers. Download and build OpenVINO™ Model Server first on the host.
 
 1. Download the [OpenVINO™ Model Server software](https://github.com/openvinotoolkit/model_server)
+
 2. Build the [OpenVINO™ Model Server Docker images](https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md)
    ```sh
    git clone https://github.com/openvinotoolkit/model_server.git
    cd model_server
    make docker_build
    ```
+
 ### Step 2: Build the software required for all roles
 
 This step is for the combined role of Model Developer and Independent Software Vendor, and the User

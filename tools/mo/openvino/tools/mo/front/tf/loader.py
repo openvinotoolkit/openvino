@@ -306,7 +306,9 @@ def convert_to_pb(argv: argparse.Namespace):
     argv.model_name = model_name
     tf_v1.io.write_graph(graph_def, argv.output_dir if argv.output_dir != '.' else os.getcwd(),
                          model_name + "_tmp.pb", as_text=False)
-    argv.input_model = model_name + "_tmp.pb"
+    path_to_pb = os.path.normpath(os.path.join(argv.output_dir, model_name + "_tmp.pb"))
+    argv.input_model = path_to_pb
+    return path_to_pb
 
 
 def protobuf_attrs(pb: tf_v1.NodeDef):

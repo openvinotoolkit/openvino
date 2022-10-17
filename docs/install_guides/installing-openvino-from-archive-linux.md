@@ -41,8 +41,8 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
 
   * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
   * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
-  * `Python 3.6 - 3.9, 64-bit <https://www.python.org/downloads/windows/>`_
-     * Note that OpenVINO is gradually stopping the support for Python 3.6. Python 3.7 - 3.9 are recommended. 
+  * `Python 3.6 - 3.10, 64-bit <https://www.python.org/downloads/windows/>`_
+     * Note that OpenVINO is gradually stopping the support for Python 3.6. Python 3.7 - 3.10 are recommended. 
 
 @endsphinxdirective
 
@@ -149,7 +149,7 @@ Start with some Python tutorials:
    * [Convert TensorFlow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
    * [Convert a PyTorch model and remove the image background](https://docs.openvino.ai/latest/notebooks/205-vision-background-removal-with-output.html)
 
-To start with C++ samples, see [Build Sample Applications on Linux](../OV_Runtime_UG/Samples_Overview.md#build_samples_linux) first, and then you can try the following samples:
+To start with C++ samples, see <a href="openvino_docs_OV_UG_Samples_Overview.html#build-samples-linux">Build Sample Applications on Linux</a> first, and then you can try the following samples:
    * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
    * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
    * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)

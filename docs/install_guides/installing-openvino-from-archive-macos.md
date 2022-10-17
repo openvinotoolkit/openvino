@@ -30,8 +30,8 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
 .. tab:: Software Requirements
 
   * `CMake 3.13 or higher <https://cmake.org/download/>`_ (choose "macOS 10.13 or later"). Add `/Applications/CMake.app/Contents/bin` to path (for default install). 
-  * `Python 3.6 - 3.9 <https://www.python.org/downloads/mac-osx/>`_ (choose 3.6 - 3.9). Install and add to path.
-     * Note that OpenVINO is gradually stopping the support for Python 3.6. Python 3.7 - 3.9 are recommended.
+  * `Python 3.6 - 3.9 <https://www.python.org/downloads/mac-osx/>`_ (choose 3.6 - 3.10). Install and add to path.
+     * Note that OpenVINO is gradually stopping the support for Python 3.6. Python 3.7 - 3.10 are recommended.
   * Apple Xcode Command Line Tools. In the terminal, run `xcode-select --install` from any directory
   * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
@@ -104,7 +104,7 @@ Start with some Python tutorials:
    * [Convert TensorFlow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
    * [Convert a PyTorch model and remove the image background](https://docs.openvino.ai/latest/notebooks/205-vision-background-removal-with-output.html)
 
-To start with C++ samples, see [Build Sample Applications on macOS](../OV_Runtime_UG/Samples_Overview.md#build_samples_macos) first, and then you can try the following samples:
+To start with C++ samples, see <a href="openvino_docs_OV_UG_Samples_Overview.html#build-samples-macos">Build Sample Applications on macOS</a> first, and then you can try the following samples:
    * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
    * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
    * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)

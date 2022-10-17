@@ -10,13 +10,13 @@
 #pragma once
 
 #include <assert.h>
+
 #include <functional>
 #include <memory>
-#include <string>
-#include <set>
-
-#include <ngraph/node.hpp>
 #include <ngraph/log.hpp>
+#include <ngraph/node.hpp>
+#include <set>
+#include <string>
 
 namespace ngraph {
 
@@ -25,8 +25,7 @@ namespace ngraph {
  * @brief each element in vector represents dimension and each element
  * in set is an id of dimensions which contains zeros.
  */
-class Mask : public std::vector<std::set<uint64_t>>,
-             public std::enable_shared_from_this<Mask> {
+class Mask : public std::vector<std::set<uint64_t>>, public std::enable_shared_from_this<Mask> {
 public:
     static const ::ov::DiscreteTypeInfo& get_type_info_static() {
         static const ::ov::DiscreteTypeInfo type_info_static{"Mask", 0, "0"};
@@ -37,35 +36,26 @@ public:
 
     Mask() = default;
 
-    explicit Mask(const ngraph::PartialShape & shape)
-            : std::vector<value_type>(shape.rank().get_length()) {
-    }
+    explicit Mask(const ngraph::PartialShape& shape) : std::vector<value_type>(shape.rank().get_length()) {}
 
-    explicit Mask(const size_t & size)
-            : std::vector<value_type>(size) {
-    }
+    explicit Mask(const size_t& size) : std::vector<value_type>(size) {}
 
-    explicit Mask(const size_t & size, const bool adjust_value)
-            : std::vector<value_type>(size),
-              m_adjust_value(adjust_value) {
-    }
+    explicit Mask(const size_t& size, const bool adjust_value)
+        : std::vector<value_type>(size),
+          m_adjust_value(adjust_value) {}
 
-    explicit Mask(const std::vector<value_type> val)
-            : std::vector<value_type>(val) {
-    }
+    explicit Mask(const std::vector<value_type> val) : std::vector<value_type>(val) {}
 
-    Mask(std::initializer_list<std::initializer_list<uint64_t>> list)
-            : std::vector<value_type>() {
-        for (const auto & dim_values : list) {
+    Mask(std::initializer_list<std::initializer_list<uint64_t>> list) : std::vector<value_type>() {
+        for (const auto& dim_values : list) {
             push_back(dim_values);
         }
     }
 
     bool all_dims_are_empty() const {
-        return std::all_of(begin(), end(),
-                           [](const value_type & value) {
-                               return value.empty();
-                           });
+        return std::all_of(begin(), end(), [](const value_type& value) {
+            return value.empty();
+        });
     }
 
     std::vector<size_t> get_not_empty_dims() {
@@ -77,11 +67,15 @@ public:
         return not_empty_dims;
     }
 
-    bool is_shape_like() const { return m_is_shape_like; }
+    bool is_shape_like() const {
+        return m_is_shape_like;
+    }
 
-    void set_shape_like(bool flag) { m_is_shape_like = flag; }
+    void set_shape_like(bool flag) {
+        m_is_shape_like = flag;
+    }
 
-    void copy_value_from_mask(Mask *const mask) {
+    void copy_value_from_mask(Mask* const mask) {
         auto cur_mask_iter = begin();
         auto mask_iter = mask->begin();
         while (cur_mask_iter != end() && mask_iter != mask->end()) {
@@ -95,7 +89,7 @@ public:
     /* Copy values from given mask in reversed order.
         param: mask - given mask.
     */
-    void copy_value_from_mask_reversed(Mask *const mask) {
+    void copy_value_from_mask_reversed(Mask* const mask) {
         auto cur_mask_iter = rbegin();
         auto mask_iter = mask->rbegin();
         while (cur_mask_iter != rend() && mask_iter != mask->rend()) {
@@ -114,7 +108,9 @@ public:
         param: idx_mask - current mask dimensions indexes which will be skipped during copying.
         param invert_mask - do mask need to be inverted. Default value == false.
     */
-    void copy_value_from_mask_reversed_masked(Mask *const mask, const std::set<int64_t> &idx_mask, const bool invert_mask = false) {
+    void copy_value_from_mask_reversed_masked(Mask* const mask,
+                                              const std::set<int64_t>& idx_mask,
+                                              const bool invert_mask = false) {
         auto cur_mask_iter = rbegin();
         auto mask_iter = mask->rbegin();
         while (cur_mask_iter != rend() && mask_iter != mask->rend()) {
@@ -132,18 +128,16 @@ public:
         param: mask - given mask.
         returns: intersected masks alligned from the end.
     */
-    Mask::Ptr intersect_masks_reversed(Mask *const mask) const {
+    Mask::Ptr intersect_masks_reversed(Mask* const mask) const {
         auto result_mask = std::make_shared<Mask>(std::max(size(), mask->size()));
         auto result_iter = result_mask->rbegin();
         auto mask_1_iter = rbegin();
         auto mask_2_iter = mask->rbegin();
 
-        while (mask_1_iter != rend() &&
-               mask_2_iter != mask->rend() &&
-               result_iter != result_mask->rend()) {
+        while (mask_1_iter != rend() && mask_2_iter != mask->rend() && result_iter != result_mask->rend()) {
             // Merge mask dimension values for both masks
             // Example: (MaskValue[1,2,3,4], MaskValue[2,3]) -> MaskValue[2,3]
-            for (const auto & value : *mask_1_iter) {
+            for (const auto& value : *mask_1_iter) {
                 if (mask_2_iter->count(value)) {
                     result_iter->insert(value);
                 }
@@ -161,21 +155,19 @@ public:
         param: mask - given mask.
         returns: united masks alligned from the end.
     */
-    Mask::Ptr union_masks_reversed(Mask *const mask) const {
+    Mask::Ptr union_masks_reversed(Mask* const mask) const {
         auto result_mask = std::make_shared<Mask>(std::max(size(), mask->size()));
         auto result_iter = result_mask->rbegin();
         auto mask_1_iter = rbegin();
         auto mask_2_iter = mask->rbegin();
 
-        while (mask_1_iter != rend() &&
-               mask_2_iter != mask->rend() &&
-               result_iter != result_mask->rend()) {
+        while (mask_1_iter != rend() && mask_2_iter != mask->rend() && result_iter != result_mask->rend()) {
             // Union mask dimension values for both masks
             // Example: (MaskValue[1,2,3,4], MaskValue[2, 5]) -> MaskValue[1, 2, 3, 4, 5]
-            for (const auto & value : *mask_1_iter) {
+            for (const auto& value : *mask_1_iter) {
                 result_iter->insert(value);
             }
-            for (const auto & value : *mask_2_iter) {
+            for (const auto& value : *mask_2_iter) {
                 if (!result_iter->count(value)) {
                     result_iter->insert(value);
                 }
@@ -188,7 +180,7 @@ public:
         return result_mask;
     }
 
-    bool add_callback(const std::function<bool(Mask::Ptr)> & receive_callback, Mask::Ptr mask) {
+    bool add_callback(const std::function<bool(Mask::Ptr)>& receive_callback, Mask::Ptr mask) {
         if (m_callbacks.find(mask.get()) != m_callbacks.end())
             NGRAPH_DEBUG << "Attempt to rewrite callback, could lead to unexpected behaviour";
 
@@ -202,7 +194,7 @@ public:
     modify all dependent masks by their corresponding callbacks*/
     bool apply_callback(Mask::Ptr mask) {
         // TODO: in case if callback returns false we need to propagate original value
-        const auto & ref_state = Mask(*this);
+        const auto& ref_state = Mask(*this);
         // Modify this mask by recived mask
         if (!m_callbacks.at(mask.get())(shared_from_this())) {
             return false;
@@ -215,7 +207,7 @@ public:
         // Mark mask as visited
         m_need_initialization = false;
         // recursively apply callbacks for each dependent mask
-        for (const auto & m_dependency : m_dependencies) {
+        for (const auto& m_dependency : m_dependencies) {
             if (m_dependency == mask.get())
                 continue;
             if (!m_dependency->apply_callback(shared_from_this())) {
@@ -228,7 +220,7 @@ public:
 
     void invalidate() {
         clean_dim_values();
-        for (const auto & d : m_dependencies) {
+        for (const auto& d : m_dependencies) {
             if (d->apply_callback(shared_from_this())) {
                 // TODO: throw an exception if zero dims can't be propagated
             }
@@ -236,7 +228,7 @@ public:
     }
 
     void clean_dim_values() {
-        for (auto & item : *this) {
+        for (auto& item : *this) {
             item.clear();
         }
     }
@@ -264,29 +256,29 @@ private:
 
     // Masks dependent on this mask vs methods, specifying how
     // this mask will be modifed by correspondent dependent mask
-    std::map<Mask *, std::function<bool(Mask::Ptr)>> m_callbacks;
+    std::map<Mask*, std::function<bool(Mask::Ptr)>> m_callbacks;
     // Vector of all dependent masks
-    std::vector<Mask *> m_dependencies;
+    std::vector<Mask*> m_dependencies;
     // Param used like visiting label (visited or not) during mask applying call
     bool m_need_initialization{true};
 };
 
-std::ostream & operator<< (std::ostream & out, const Mask & mask);
+std::ostream& operator<<(std::ostream& out, const Mask& mask);
 
-Mask::Ptr getMask(const Output<const Node> & output);
+Mask::Ptr getMask(const Output<const Node>& output);
 
-Mask::Ptr getMask(const Output<Node> & output);
+Mask::Ptr getMask(const Output<Node>& output);
 
-void setMask(Output<Node> output, const Mask::Ptr & mask);
+void setMask(Output<Node> output, const Mask::Ptr& mask);
 
-void setMask(Input<Node> node, const Mask::Ptr & mask);
+void setMask(Input<Node> node, const Mask::Ptr& mask);
 
 #ifdef ENABLE_OPENVINO_DEBUG
 /* Get mask which was defined on InitMasks matcher pass*/
-Mask::Ptr getInitMask(const Output<Node> & output);
+Mask::Ptr getInitMask(const Output<Node>& output);
 
 /* Set mask which was defined on InitMasks matcher pass*/
-void setInitMask(Output<Node> output, const Mask::Ptr & mask);
+void setInitMask(Output<Node> output, const Mask::Ptr& mask);
 #endif
 
 }  // namespace ngraph
