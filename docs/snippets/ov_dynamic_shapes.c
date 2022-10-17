@@ -72,6 +72,7 @@ ov_partial_shape_t partial_shape;
 ov_port_get_partial_shape(output_port, &partial_shape);
 char * str_partial_shape = ov_partial_shape_to_string(partial_shape);
 printf("The output partial shape: %s", str_partial_shape);
+ov_free(str_partial_shape);
 ov_partial_shape_free(&partial_shape);
 ov_output_port_free(output_port);
 }
@@ -83,6 +84,7 @@ ov_partial_shape_t partial_shape;
 ov_port_get_partial_shape(input_port, &partial_shape);
 char * str_partial_shape = ov_partial_shape_to_string(partial_shape);
 printf("The input partial shape: %s", str_partial_shape);
+ov_free(str_partial_shape);
 ov_partial_shape_free(&partial_shape);
 ov_output_port_free(input_port);
 }
