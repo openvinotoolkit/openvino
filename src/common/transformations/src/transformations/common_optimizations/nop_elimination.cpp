@@ -271,7 +271,7 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
 #define ECHO(NAME) #NAME
 #define STR(NAME)  ECHO(NAME)
 #define SIMPLE_MATCHER_PASS_DEFINITION(NAME, OP, FUNC)                                  \
-    class NAME : public ov::pass::MatcherPass {                                     \
+    class NAME : public ov::pass::MatcherPass {                                         \
     public:                                                                             \
         OPENVINO_RTTI(STR(NAME), "0");                                                  \
         NAME() {                                                                        \
