@@ -15,7 +15,7 @@ class OPENVINO_API IsNaN : public Op {
 public:
     OPENVINO_OP("IsNaN", "opset10");
     IsNaN() = default;
-    /// \brief Constructs a isNaN operation.
+    /// \brief Constructs a IsNaN operation.
     ///
     /// \param data   Input data tensor
     IsNaN(const Output<Node>& data);

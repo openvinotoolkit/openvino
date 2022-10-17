@@ -9,7 +9,12 @@
 **Detailed description**: *IsNaN* returns the bolean mask of the input tensor in which `True` corresponds to `NaN` and `False` to other values.
 * The output tensor has the same shape as input tensor.
 * The `i`'th element of the output tensor is `True` if  `i`'th element of the input tensor is `NaN`. Otherwise it is `False`.
-* For example, for given input tensor `[NaN, 2.1, 3.7, NaN]` the output tensor is `[True, False, False, True]`.
+* For example, for given input tensor `[NaN, 2.1, 3.7, NaN, Inf]` the output tensor is `[True, False, False, True, False]`.
+* 
+
+**Attributes**
+
+    *IsNaN* operation has no attributes.
 
 **Inputs**:
 
