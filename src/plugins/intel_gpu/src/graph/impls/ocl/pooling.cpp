@@ -123,8 +123,8 @@ public:
 
         // check if last pooling window goes outside of input size + padding. If so the avg pooling size will be
         // adjusted to that, to work properly this calculation must take pad_end into account.
-        auto dynamic_mode = false;
-        for (size_t i = 0; i < spatial_rank; i++) {
+        auto dynamic_mode = primitive->pad_end.size() > pad.size();
+        for (size_t i = 0; i < spatial_rank && !dynamic_mode; i++) {
             dynamic_mode |= (((output_layout.spatial(i) - 1) * stride[spatial_rank - i - 1]) + primitive->size[spatial_rank - i - 1]) >
                                  (primitive->pad_end[spatial_rank - i - 1] + pad[spatial_rank - i - 1]) + input_layout.spatial(i);
         }
