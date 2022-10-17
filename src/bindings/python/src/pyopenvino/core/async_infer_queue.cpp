@@ -29,7 +29,7 @@ public:
         for (size_t handle = 0; handle < jobs; handle++) {
             // Create new "empty" InferRequestWrapper without pre-defined callback,
             // inputs and outputs.
-            auto request = InferRequestWrapper(InferRequestWrapper(model.create_infer_request()));
+            auto request = InferRequestWrapper(model.create_infer_request());
             // Copy Inputs and Outputs from ov::CompiledModel
             request.m_inputs = model.inputs();
             request.m_outputs = model.outputs();
