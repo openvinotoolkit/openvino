@@ -903,6 +903,14 @@ std::vector<std::shared_ptr<primitive_inst>> network::get_primitives(const std::
     return result;
 }
 
+std::vector<std::pair<std::shared_ptr<primitive_inst>, int>> network::get_primitives(const std::vector<std::pair<program_node*, int>>& nodes) {
+    std::vector<std::pair<std::shared_ptr<primitive_inst>, int>> result(nodes.size());
+    std::transform(std::begin(nodes), std::end(nodes), std::begin(result), [&](const std::pair<program_node*, int>& node) {
+        return std::make_pair(get_primitive(node.first->id()), node.second);
+    });
+    return result;
+}
+
 void network::execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
                                 const std::vector<event::ptr>& events) {
     event::ptr ev = primitive->execute(events);

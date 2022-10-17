@@ -93,11 +93,15 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
-
-    if (orgParams.outputs_num == 2) {
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+    if (!orgParams.use_multiple_outputs) {
+        FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
+    } else {
+        FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
+                         "", false, false, 1, GetFusedPrimitiveInputsCount(params), 2);
     }
+
+    if (orgParams.has_second_output && !orgParams.use_multiple_outputs)
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
 
     return {kd};
 }
@@ -115,8 +119,11 @@ JitConstants ArgMaxMinKernelAxis::GetJitConstants(const arg_max_min_params& para
     else
         jit.AddConstant(MakeJitConstant("SORT_BY_INDEX", 1));
 
-    if (params.outputs_num == 2) {
+    if (params.has_second_output) {
         jit.AddConstant(MakeJitConstant("SECOND_OUTPUT_EXIST", 1));
+        if (params.use_multiple_outputs) {
+            jit.AddConstant(MakeJitConstant("MULTIPLE_OUTPUTS", 1));
+        }
     }
 
     if (params.values_first)

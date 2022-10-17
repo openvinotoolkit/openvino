@@ -564,7 +564,7 @@ public:
     void preprocess_output_memory();
     void preprocess_backedge_memory();
     void update_mapped_memory();
-    void set_output_memory(memory::ptr mem, bool check = true) override;
+    void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     const backedge_memory_mapping& get_current_iteration_backedge_mapping() const {
         if (!node.is_current_iteration_used()) {
             CLDNN_ERROR_MESSAGE(node.id(), "no backedge mapping for current_iteration");

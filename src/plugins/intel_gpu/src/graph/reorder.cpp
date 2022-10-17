@@ -243,15 +243,15 @@ void reorder_inst::on_execute() {
 }
 
 void reorder_inst::reuse_input() {
-    if (static_cast<bool>(_output) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 
     build_deps();
 
     if (node.requires_reinterpret()) {
-        _output = _network.get_engine().reinterpret_buffer(input_memory(), node.get_output_layout());
+        _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), node.get_output_layout());
     } else {
-        _output = input_memory_ptr();
+        _outputs[0] = input_memory_ptr();
     }
 }
 
