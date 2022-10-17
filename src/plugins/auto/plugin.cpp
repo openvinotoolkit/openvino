@@ -299,7 +299,8 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
                                                     RW_property(ov::auto_batch_timeout.name()),
                                                     RW_property(ov::hint::performance_mode.name()),
                                                     RW_property(ov::hint::num_requests.name()),
-                                                    RW_property(ov::intel_auto::device_bind_buffer.name())
+                                                    RW_property(ov::intel_auto::device_bind_buffer.name()),
+                                                    RW_property(ov::cache_dir.name())
         };
         std::vector<ov::PropertyName> supportedProperties;
         supportedProperties.reserve(roProperties.size() + rwProperties.size());
@@ -454,6 +455,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
              }
              insertPropToConfig(CONFIG_KEY(ALLOW_AUTO_BATCHING), iter->deviceName, deviceConfig);
              insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), iter->deviceName, deviceConfig);
+             insertPropToConfig(CONFIG_KEY(CACHE_DIR), iter->deviceName, deviceConfig);
              iter->config = deviceConfig;
              strDevices += iter->deviceName;
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
@@ -504,6 +506,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                 p.config.insert({tmpiter->first, tmpiter->second});
             }
             insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), p.deviceName, p.config);
+            insertPropToConfig(CONFIG_KEY(CACHE_DIR), p.deviceName, p.config);
             const auto& deviceName = p.deviceName;
             const auto& deviceConfig = p.config;
             SoExecutableNetworkInternal exec_net;

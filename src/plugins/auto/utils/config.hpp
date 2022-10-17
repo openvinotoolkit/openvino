@@ -102,6 +102,8 @@ struct PluginConfig {
                 _passThroughConfig.emplace(kvp.first, kvp.second);
             } else if (kvp.first.find("AUTO_") == 0) {
                 _passThroughConfig.emplace(kvp.first, kvp.second);
+            } else if (kvp.first == ov::cache_dir.name()) {
+                _cacheDir = kvp.second;
             } else {
                 if (pluginName.find("AUTO") != std::string::npos)
                     IE_THROW(NotFound) << "Unsupported property " << kvp.first;
@@ -186,12 +188,15 @@ struct PluginConfig {
         _keyConfigMap[ov::auto_batch_timeout.name()] = _batchTimeout;
 
         _keyConfigMap[ov::log::level.name()] = _logLevel;
-
+        if (!_cacheDir.empty()) {
+            _keyConfigMap[ov::cache_dir.name()] = _cacheDir;
+        }
         // for 2nd properties or independent configs from multi
         for (auto && kvp : _passThroughConfig) {
             _keyConfigMap[kvp.first] = kvp.second;
         }
     }
+    std::string _cacheDir{};
     bool _useProfiling;
     bool _exclusiveAsyncRequests;
     bool _disableAutoBatching;
