@@ -20,7 +20,7 @@ on [measuring coverage](../../../../docs/dev/test_coverage.md).
 
 ## How to run the TensorFlow Frontend layer test
 
-The layer tests are Python-based and responsible to check that TensorFlow operation is supported by TF FE.
+The layer tests are Python-based and check that a TensorFlow operation is supported by TF FE.
 The testing pipeline of the layer tests consists of three steps: create the single layer model with tested operation using TensorFlow,
 convert this model into IR by TF FE, infer the original model using TensorFlow, infer IR model using OpenVINO,
 and compare the inference results from both frameworks.
