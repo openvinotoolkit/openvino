@@ -5,20 +5,20 @@
 #include "transformations/convert_precision.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/opsets/opset6.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/opsets/opset9.hpp>
 #include <ngraph/runtime/reference/convert.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset3.hpp>
+#include <openvino/opsets/opset4.hpp>
+#include <openvino/opsets/opset5.hpp>
+#include <openvino/opsets/opset6.hpp>
+#include <openvino/opsets/opset8.hpp>
+#include <openvino/opsets/opset9.hpp>
 #include <vector>
 
 #include "itt.hpp"
 #include "ngraph_ops/type_relaxed.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 bool fuse_type_to_constant(const std::shared_ptr<ngraph::Node>& node,
                            ngraph::element::Type to,
@@ -51,7 +51,7 @@ bool extend_reverse_type(const std::shared_ptr<ngraph::Node>& node, ngraph::elem
 
 template <typename T>
 bool fuse_type_to_binary_comparision(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
-    if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
+    if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node)) {
         type_relaxed->set_overridden_output_type(to);
         return true;
     } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
@@ -66,7 +66,7 @@ bool fuse_type_to_binary_comparision(const std::shared_ptr<ngraph::Node>& node, 
 
 template <typename T>
 bool fuse_type_to_logical(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
-    if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
+    if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node)) {
         type_relaxed->set_overridden_output_type(to);
         type_relaxed->set_origin_input_type(ov::element::boolean, 0);
         type_relaxed->set_origin_input_type(ov::element::boolean, 1);
@@ -84,7 +84,7 @@ bool fuse_type_to_logical(const std::shared_ptr<ngraph::Node>& node, ngraph::ele
 
 template <class T>
 bool fuse_type_to_reduce_logical(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
-    if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
+    if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node)) {
         type_relaxed->set_overridden_output_type(to);
         type_relaxed->set_origin_input_type(ov::element::boolean, 0);
         return true;
@@ -105,7 +105,7 @@ void validate_nodes_and_infer_types(const std::vector<std::shared_ptr<Node>>& op
     }
 }
 
-bool convert_precision(pass::PassBase& pass,
+bool convert_precision(ov::pass::PassBase& pass,
                        const std::shared_ptr<ngraph::Function>& f,
                        const type_to_fuse_map& type_to_fuse,
                        const type_to_fuse_map& type_to_extend,
@@ -161,8 +161,8 @@ bool convert_precision(pass::PassBase& pass,
         return false;
     };
 
-    std::function<bool(const std::shared_ptr<Function>&, bool)> convert_function_precision =
-        [&](const std::shared_ptr<Function>& f, bool is_subgraph) {
+    std::function<bool(const std::shared_ptr<Model>&, bool)> convert_function_precision =
+        [&](const std::shared_ptr<Model>& f, bool is_subgraph) {
             bool is_changed = false;
 
             auto ops = f->get_ordered_ops();
@@ -367,7 +367,7 @@ bool fuse_type_to_nms3(const std::shared_ptr<ngraph::Node>& node, ngraph::elemen
         if (to == ov::element::i32 || to == ov::element::i64) {
             nms->set_output_type(to);
         } else {
-            throw ngraph_error("Type: " + to.get_type_name() + " is not supported for NMS3");
+            throw Exception("Type: " + to.get_type_name() + " is not supported for NMS3");
         }
         return true;
     }
@@ -379,7 +379,7 @@ bool fuse_type_to_nms4(const std::shared_ptr<ngraph::Node>& node, ngraph::elemen
         if (to == ov::element::i32 || to == ov::element::i64) {
             nms->set_output_type(to);
         } else {
-            throw ngraph_error("Type: " + to.get_type_name() + " is not supported for NMS4");
+            throw Exception("Type: " + to.get_type_name() + " is not supported for NMS4");
         }
         return true;
     }
@@ -397,7 +397,7 @@ bool fuse_type_to_nms5(const std::shared_ptr<ngraph::Node>& node, ngraph::elemen
         return true;
     }
 
-    if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
+    if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node)) {
         type_relaxed->set_overridden_output_type(to, idx);
         return true;
     }
@@ -425,7 +425,7 @@ bool fuse_type_to_nms9(const std::shared_ptr<ngraph::Node>& node, ngraph::elemen
         return true;
     }
 
-    if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
+    if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node)) {
         type_relaxed->set_overridden_output_type(to, idx);
         return true;
     }
@@ -546,7 +546,7 @@ bool fuse_type_to_bucketize(const std::shared_ptr<ngraph::Node>& node, ngraph::e
 }
 
 bool fuse_type_to_shapeof_v0(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
-    if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
+    if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node)) {
         type_relaxed->set_overridden_output_type(to);
         return true;
     } else if (auto casted = std::dynamic_pointer_cast<opset1::ShapeOf>(node)) {
@@ -560,7 +560,7 @@ bool fuse_type_to_shapeof_v0(const std::shared_ptr<ngraph::Node>& node, ngraph::
 }
 
 bool extend_select_type(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
-    if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
+    if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node)) {
         type_relaxed->set_origin_input_type(ov::element::boolean, 0);
         return true;
     } else if (auto casted = std::dynamic_pointer_cast<opset4::Select>(node)) {
@@ -626,11 +626,11 @@ std::shared_ptr<ngraph::Node> change_constant_precision(std::shared_ptr<opset4::
     const auto* src_data = constant->get_data_ptr<src_type>();
     const auto size = shape_size(constant->get_shape());
 
-    auto new_constant = std::make_shared<ngraph::opset4::Constant>(PREC_TO, constant->get_shape());
+    auto new_constant = std::make_shared<opset4::Constant>(PREC_TO, constant->get_shape());
     new_constant->output(0).set_names(constant->output(0).get_names());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
     if (dst_data == nullptr)
-        throw ngraph_error("Can't get destination data pointer");
+        throw Exception("Can't get destination data pointer");
 
     for (size_t i = 0; i < size; ++i) {
         dst_data[i] = convert_value<src_type, dst_type>(src_data[i]);
@@ -647,11 +647,11 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f16, ov::el
     const auto* src_data = constant->get_data_ptr<src_type>();
     const auto size = shape_size(constant->get_shape());
 
-    auto new_constant = std::make_shared<ngraph::opset4::Constant>(ov::element::Type_t::f32, constant->get_shape());
+    auto new_constant = std::make_shared<opset4::Constant>(ov::element::Type_t::f32, constant->get_shape());
     new_constant->output(0).set_names(constant->output(0).get_names());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
     if (dst_data == nullptr)
-        throw ngraph_error("Can't get destination data pointer");
+        throw Exception("Can't get destination data pointer");
 
     ngraph::runtime::reference::convert<src_type, dst_type>(src_data, dst_data, size);
 
@@ -752,15 +752,15 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constan
     // source and destination data type should be real
     if (!supported_integer_precisions.count(src_type) || (src_type.size() * 8) % src_type.bitwidth() ||
         (to.size() * 8) % to.bitwidth() || to.is_real() || to.bitwidth() < src_type.bitwidth())
-        throw ngraph_error("Convert low precision for " + constant->get_element_type().get_type_name() + " to " +
+        throw Exception("Convert low precision for " + constant->get_element_type().get_type_name() + " to " +
                            to.get_type_name() + " is not implemented!");
 
     // Create a new constant operation and get destination data
-    auto new_constant = std::make_shared<ngraph::opset4::Constant>(to, constant->get_shape());
+    auto new_constant = std::make_shared<opset4::Constant>(to, constant->get_shape());
     auto* dst_data = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(new_constant->get_data_ptr()));
     // Check pointers
     if (src_data == nullptr || dst_data == nullptr)
-        throw ngraph_error("Can't get data pointer");
+        throw Exception("Can't get data pointer");
 
     // Convert values
     const auto size = shape_size(constant->get_shape());
@@ -814,7 +814,7 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constan
                                                 src_type.is_signed());
             break;
         default:
-            throw ngraph_error("Unsupported element size!");
+            throw Exception("Unsupported element size!");
         }
         // Calculate offsets and indexes
         if (src_type.bitwidth() < 8) {
@@ -875,7 +875,7 @@ bool fuse_type_to_constant(const std::shared_ptr<ngraph::Node>& node,
         } else if (from == ov::element::i4 || from == ov::element::u4 || from == ov::element::u1) {
             new_const = convert_low_precisions_int(constant, to);
         } else {
-            throw ngraph_error("Precision conversion from " + from.get_type_name() + " to " + to.get_type_name() +
+            throw Exception("Precision conversion from " + from.get_type_name() + " to " + to.get_type_name() +
                                " is not supported");
         }
         for (auto& output : consumers) {
