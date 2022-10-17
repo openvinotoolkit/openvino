@@ -1188,19 +1188,45 @@ void Graph::Infer(InferRequestBase* request) {
 
     waveFrontCount.front() = 1;
 
+    //tbb::task_arena nested{8};
+
     while (prepareCounter + 1 < executableGraphNodes.size()) {
+//Sequental implementation!!!
+        // auto start = std::chrono::steady_clock::now();
+        // for (; prepareCounter < executableGraphNodes.size(); ++prepareCounter) {
+        //     const auto& node = executableGraphNodes[prepareCounter];
+        //     if (one_of(node->getType(), Type::Input, Type::Reference, Type::Broadcast) &&
+        //         prepareCounter != 0 &&
+        //         inferCounter != prepareCounter) {
+        //         break;
+        //     }
+        //     node->updateShape();
+        //     node->prepareNode();
+        // }
+        // auto end = std::chrono::steady_clock::now();
+        // preparationCounter += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+//End of sequental operation!!!
+
+// PARALLEL VERSION!!!
         auto start = std::chrono::steady_clock::now();
         tbb::task_group tg;
 
+        // nested.execute([&](){
+        //     tg.run(UpdateShape(tg, prepareCounter, waveFrontCount, executableGraphNodes, prepareCounter, inferCounter));
+        // });
         tg.run(UpdateShape(tg, prepareCounter, waveFrontCount, executableGraphNodes, prepareCounter, inferCounter));
+
+        //nested.execute([&](){tg.wait();});
         tg.wait();
+
         auto end = std::chrono::steady_clock::now();
         preparationCounter += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-
+// END PARALLEL VERSION!!!
         // tbb::parallel_do(&block, &block + 1,
         //     [&](const std::pair<size_t, size_t>& block_, tbb::parallel_do_feeder<std::pair<size_t, size_t>>& feeder) {
 
             // });
+
         //if (prepareCounter < 30) // For Tests only
             runNodes(prepareCounter);
 
