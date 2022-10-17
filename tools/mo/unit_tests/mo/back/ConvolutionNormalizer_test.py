@@ -7,6 +7,7 @@ import numpy as np
 
 from openvino.tools.mo.back.ConvolutionNormalizer import PullReshapeThroughFQ, V7ConvolutionWithGroupsResolver, \
     V10ConvolutionWithGroupsResolver
+from openvino.tools.mo.back.ShapeOfConstFolding import ShapeOfConstFolding
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.ops.const import Const
@@ -185,14 +186,21 @@ class TestV7ConvolutionWithGroupsResolver(unittest.TestCase):
 
 
 class TestV10ConvolutionWithGroupsResolver(unittest.TestCase):
+
+    @staticmethod
+    def apply_transformation(graph):
+        V10ConvolutionWithGroupsResolver().find_and_replace_pattern(graph)
+        graph.clean_up()
+        ShapeOfConstFolding().find_and_replace_pattern(graph)
+        graph.clean_up()
+
     def test_v10_group_convolution_resolver(self):
         nodes = {
             **regular_op_with_shaped_data('input', [1, 3, 224, 224], {'type': 'Parameter'}),
 
             **valued_const_with_data('weights', np.ones([3, 8, 7, 7])),
 
-            **valued_const_with_data('dim', int64_array([3, 8, 1, 7, 7])),
-            **regular_op_with_empty_data('reshape', {'type': 'Reshape'}),
+            **valued_const_with_data('new_weights', np.ones([3, 8, 1, 7, 7])),
 
             **regular_op_with_shaped_data('convolution', None, {'type': 'Convolution', 'group': 3, 'output': 24}),
 
@@ -204,16 +212,14 @@ class TestV10ConvolutionWithGroupsResolver(unittest.TestCase):
             *connect('convolution', 'output'),
         ], nodes_with_edges_only=True)
 
-        V10ConvolutionWithGroupsResolver().find_and_replace_pattern(graph)
+        TestV10ConvolutionWithGroupsResolver.apply_transformation(graph)
 
         nodes['convolution']['type'] = 'GroupConvolution'
         del nodes['convolution']['group']
 
         graph_ref = build_graph(nodes, [
             *connect('input', '0:convolution'),
-            *connect('weights', '0:reshape'),
-            *connect('dim', '1:reshape'),
-            *connect('reshape', '1:convolution'),
+            *connect('new_weights', '1:convolution'),
             *connect('convolution', 'output'),
         ], nodes_with_edges_only=True)
 
@@ -226,8 +232,7 @@ class TestV10ConvolutionWithGroupsResolver(unittest.TestCase):
 
             **valued_const_with_data('weights', np.ones([1, 8, 7, 7])),
 
-            **valued_const_with_data('dim', int64_array([1, 8, 1, 7, 7])),
-            **regular_op_with_empty_data('reshape', {'type': 'Reshape'}),
+            **valued_const_with_data('new_weights', np.ones([1, 8, 1, 7, 7])),
 
             **regular_op_with_shaped_data('convolution', None, {'type': 'Convolution', 'group': 1, 'output': 8,
                                                                 'op': 'DepthwiseConv2dNative'}),
@@ -240,52 +245,30 @@ class TestV10ConvolutionWithGroupsResolver(unittest.TestCase):
             *connect('convolution', 'output'),
         ], nodes_with_edges_only=True)
 
-        V10ConvolutionWithGroupsResolver().find_and_replace_pattern(graph)
+        TestV10ConvolutionWithGroupsResolver.apply_transformation(graph)
 
         nodes['convolution']['type'] = 'GroupConvolution'
         del nodes['convolution']['group']
 
         graph_ref = build_graph(nodes, [
             *connect('input', '0:convolution'),
-            *connect('weights', '0:reshape'),
-            *connect('dim', '1:reshape'),
-            *connect('reshape', '1:convolution'),
+            *connect('new_weights', '1:convolution'),
             *connect('convolution', 'output'),
         ], nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, last_node='output', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
-
-class TestConvolutionWithGroupsResolverForDynamicWeightsChannels(unittest.TestCase):
-    def test_v10_group_convolution_resolver_for_dynamic_weights(self):
-        num_groups = 2
-        C_OUT = 8
-
+    def test_v10_group_convolution_resolver_depthwise_conv2d_dynamic(self):
         nodes = {
-            **regular_op_with_shaped_data('input', shape_array([1, dynamic_dimension_value, 224, 224]), {'type': 'Parameter'}),
+            **regular_op_with_shaped_data('input', [-1, -1, -1, -1], {'type': 'Parameter'}),
 
-            **valued_const_with_data('weights', np.ones([num_groups, C_OUT, 7, 7])),
+            **valued_const_with_data('weights', np.ones([1, 8, 7, 7])),
 
-            **regular_op_with_empty_data('reshape', {'type': 'Reshape'}),
+            **valued_const_with_data('new_weights', np.ones([1, 8, 1, 7, 7])),
 
-            **regular_op_with_empty_data('ss', {'type': 'StridedSlice',
-                                                'begin_mask': [1], 'end_mask': [0],
-                                                'new_axis_mask': [0], 'shrink_axis_mask': [0], 'ellipsis_mask': [0]}),
-
-            **regular_op_with_empty_data('weights_shape', {'type': 'ShapeOf'}),
-            **regular_op_with_empty_data('input_shape', {'type': 'ShapeOf'}),
-            **regular_op_with_empty_data('gather', {'type': 'Gather'}),
-            **regular_op_with_empty_data('concat', {'type': 'Concat'}),
-            **regular_op_with_empty_data('div', {'type': 'Divide'}),
-            **valued_const_with_data('channels_const', int64_array([num_groups, C_OUT / num_groups])),
-            **valued_const_with_data('num_groups', int64_array(num_groups)),
-            **valued_const_with_data('begin', int64_array([2])),
-            **valued_const_with_data('end', int64_array([-1])),
-            **valued_const_with_data('channel_index', int64_array([1])),
-            **valued_const_with_data('axis', int64_array(0)),
-
-            **regular_op_with_shaped_data('convolution', None, {'type': 'Convolution', 'group': num_groups, 'output': C_OUT}),
+            **regular_op_with_shaped_data('convolution', None, {'type': 'Convolution', 'group': 1, 'output': 8,
+                                                                'op': 'DepthwiseConv2dNative'}),
 
             **result(),
         }
@@ -295,38 +278,18 @@ class TestConvolutionWithGroupsResolverForDynamicWeightsChannels(unittest.TestCa
             *connect('convolution', 'output'),
         ], nodes_with_edges_only=True)
 
-        V10ConvolutionWithGroupsResolver().find_and_replace_pattern(graph)
+        TestV10ConvolutionWithGroupsResolver.apply_transformation(graph)
 
         nodes['convolution']['type'] = 'GroupConvolution'
         del nodes['convolution']['group']
 
         graph_ref = build_graph(nodes, [
             *connect('input', '0:convolution'),
-            *connect('weights', '0:reshape'),
-
-            ('input_d', 'input_shape', {'in': 0, 'out': 0}),
-            ('weights_d', 'weights_shape', {'in': 0, 'out': 0}),
-
-            *connect('input_shape', '0:gather'),
-            *connect('channel_index', '1:gather'),
-            *connect('axis', '2:gather'),
-
-            *connect('weights_shape', '0:ss'),
-            *connect('begin', '1:ss'),
-            *connect('end', '2:ss'),
-            *connect('gather', '0:div'),
-            *connect('num_groups', '1:div'),
-            *connect('channels_const', '0:concat'),
-            *connect('div', '1:concat'),
-            *connect('ss', '2:concat'),
-            *connect('concat', '1:reshape'),
-
-            *connect('reshape', '1:convolution'),
+            *connect('new_weights', '1:convolution'),
             *connect('convolution', 'output'),
         ], nodes_with_edges_only=True)
 
-        Const.infer(Node(graph, 'convolution/GroupsAndOutputChannelsSize'))
-        Const.infer(Node(graph, 'convolution/Div_input_port_1/value'))
-
-        (flag, resp) = compare_graphs(graph, graph_ref, last_node='output')
+        (flag, resp) = compare_graphs(graph, graph_ref, last_node='output', check_op_attrs=True)
         self.assertTrue(flag, resp)
+
+

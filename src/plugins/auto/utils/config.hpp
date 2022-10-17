@@ -97,6 +97,8 @@ struct PluginConfig {
                 _devicePriority = kvp.second;
             } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end()) {
                 _perfHintsConfig.SetConfig(kvp.first, kvp.second);
+                if (kvp.first == ov::hint::performance_mode.name())
+                    isSetPerHint = true;
             } else if (_availableDevices.end() !=
                    std::find(_availableDevices.begin(), _availableDevices.end(), kvp.first)) {
                 _passThroughConfig.emplace(kvp.first, kvp.second);
@@ -206,6 +208,8 @@ struct PluginConfig {
     bool _deviceBindBuffer;
     std::string _logLevel;
     PerfHintsConfig  _perfHintsConfig;
+    // Add this flag to check if user app sets hint with none value that is equal to the default value of hint.
+    bool isSetPerHint = false;
     std::map<std::string, std::string> _passThroughConfig;
     std::map<std::string, std::string> _keyConfigMap;
     const std::set<std::string> _availableDevices = {"AUTO",
