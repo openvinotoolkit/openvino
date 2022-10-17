@@ -18,7 +18,8 @@ ov_partial_shape_t partial_shape;
 int64_t rank = 2;
 ov_dimension_t dims[2] = {{1, 1}, {-1, -1}};
 ov_partial_shape_create(rank, dims, &partial_shape);
-ov_model_reshape(model, "tensor_name", &partial_shape, 1); // {1,?}
+ov_model_reshape_single_input(model, partial_shape); // {1,?}
+ov_partial_shape_free(&partial_shape);
 }
 
 // Or set both dimensions as dynamic if both are going to be changed dynamically
@@ -27,7 +28,8 @@ ov_partial_shape_t partial_shape;
 int64_t rank = 2;
 ov_dimension_t dims[2] = {{-1, -1}, {-1, -1}};
 ov_partial_shape_create(rank, dims, &partial_shape);
-ov_model_reshape(model, "tensor_name", &partial_shape, 1); // {?,?}
+ov_model_reshape_single_input(model, partial_shape); // {?,?}
+ov_partial_shape_free(&partial_shape);
 }
 //! [ov_dynamic_shapes:reshape_undefined]
 
@@ -38,7 +40,8 @@ ov_partial_shape_t partial_shape;
 int64_t rank = 2;
 ov_dimension_t dims[2] = {{1, 10}, {8, 512}};
 ov_partial_shape_create(rank, dims, &partial_shape);
-ov_model_reshape(model, "tensor_name", &partial_shape, 1); // {1..10,8..512}
+ov_model_reshape_single_input(model, partial_shape); // {1..10,8..512}
+ov_partial_shape_free(&partial_shape);
 }
 
 // Both dimensions are dynamic, first doesn't have bounds, the second is in the range of 8..512
@@ -47,9 +50,12 @@ ov_partial_shape_t partial_shape;
 int64_t rank = 2;
 ov_dimension_t dims[2] = {{-1, -1}, {8, 512}};
 ov_partial_shape_create(rank, dims, &partial_shape);
-ov_model_reshape(model, "tensor_name", &partial_shape, 1); // {?,8..512}
+ov_model_reshape_single_input(model, partial_shape); // {?,8..512}
+ov_partial_shape_free(&partial_shape);
 }
 //! [ov_dynamic_shapes:reshape_bounds]
+ov_model_free(model);
+ov_core_free(core);
 }
 
 {
@@ -59,21 +65,30 @@ ov_model_t* model = NULL;
 ov_core_read_model(core, "model.xml", NULL, &model);
 //! [ov_dynamic_shapes:print_dynamic]
 // Print output partial shape
+{
 ov_output_port_t* output_port = NULL;
 ov_model_output(model, &output_port);
 ov_partial_shape_t partial_shape;
 ov_port_get_partial_shape(output_port, &partial_shape);
 char * str_partial_shape = ov_partial_shape_to_string(partial_shape);
 printf("The output partial shape: %s", str_partial_shape);
-
+ov_partial_shape_free(&partial_shape);
+ov_output_port_free(output_port);
+}
 // Print input partial shape
+{
 ov_output_port_t* input_port = NULL;
 ov_model_input(model, &input_port);
 ov_partial_shape_t partial_shape;
 ov_port_get_partial_shape(input_port, &partial_shape);
 char * str_partial_shape = ov_partial_shape_to_string(partial_shape);
 printf("The input partial shape: %s", str_partial_shape);
+ov_partial_shape_free(&partial_shape);
+ov_output_port_free(input_port);
+}
 //! [ov_dynamic_shapes:print_dynamic]
+ov_model_free(model);
+ov_core_free(core);
 }
 
 {
@@ -84,6 +99,7 @@ ov_core_create(&core);
 ov_model_t* model = NULL;
 ov_core_read_model(core, "model.xml", NULL, &model);
 
+{
 ov_output_port_t* input_port = NULL;
 ov_model_input_by_index(model, 0, &input_port);
 ov_partial_shape_t partial_shape;
@@ -91,7 +107,11 @@ ov_port_get_partial_shape(input_port, &partial_shape);
 if (ov_partial_shape_is_dynamic(partial_shape)) {
     // input is dynamic
 }
+ov_partial_shape_free(&partial_shape);
+ov_output_port_free(input_port);
+}
 
+{
 ov_output_port_t* output_port = NULL;
 ov_model_output_by_index(model, 0, &output_port);
 ov_partial_shape_t partial_shape;
@@ -99,7 +119,12 @@ ov_port_get_partial_shape(output_port, &partial_shape);
 if (ov_partial_shape_is_dynamic(partial_shape)) {
     // output is dynamic
 }
+ov_partial_shape_free(&partial_shape);
+ov_output_port_free(output_port);
+}
 //! [ov_dynamic_shapes:detect_dynamic]
+ov_model_free(model);
+ov_core_free(core);
 }
 
 }
@@ -126,14 +151,15 @@ ov_output_port_t* port = NULL;
 ov_model_input(model, &port);
 ov_element_type_e* type = NULL;
 ov_port_get_element_type(port, type);
+ov_output_port_free(port);
 
-ov_shape_t input_shape;
+ov_shape_t input_shape_1;
 int64_t rank = 2;
 int64_t dims[2] = {1, 128};
-ov_shape_create(rank, dims, &input_shape);
+ov_shape_create(rank, dims, &input_shape_1);
 
 ov_tensor_t* input_tensor_1 = NULL;
-ov_tensor_create(type, input_shape, &input_tensor_1);
+ov_tensor_create(type, input_shape_1, &input_tensor_1);
 // ... write values to input_tensor_1
 
 // Set the tensor as an input for the infer request
@@ -143,32 +169,38 @@ ov_infer_request_set_input_tensor(infer_request, input_tensor_1);
 ov_infer_request_infer(infer_request);
 
 // Retrieve a tensor representing the output data
-ov_tensor_t* output_tensor = NULL;
-ov_infer_request_get_output_tensor(infer_request, &output_tensor);
+ov_tensor_t* output_tensor_1 = NULL;
+ov_infer_request_get_output_tensor(infer_request, &output_tensor_1);
 
 // For dynamic models output shape usually depends on input shape,
 // that means shape of output tensor is initialized after the first inference only
 // and has to be queried after every infer request
 ov_shape_t output_shape_1;
-ov_tensor_get_shape(output_tensor, &output_shape_1);
+ov_tensor_get_shape(output_tensor_1, &output_shape_1);
 
 // Take a pointer of an appropriate type to tensor data and read elements according to the shape
 // Assuming model output is f32 data type
 void* data_1 = NULL;
-ov_tensor_data(output_tensor, &data_1);
+ov_tensor_data(output_tensor_1, &data_1);
 // ... read values
+
+// free resource
+ov_shape_free(&input_shape_1);
+ov_tensor_free(input_tensor_1);
+ov_shape_free(&output_shape_1);
+ov_tensor_free(output_tensor_1);
 
 // The second inference call, repeat steps:
 
 // Create another tensor (if the previous one cannot be utilized)
 // Notice, the shape is different from input_tensor_1
-ov_shape_t input_shape;
+ov_shape_t input_shape_2;
 int64_t rank = 2;
 int64_t dims[2] = {1, 200};
-ov_shape_create(rank, dims, &input_shape);
+ov_shape_create(rank, dims, &input_shape_2);
 
 ov_tensor_t* input_tensor_2 = NULL;
-ov_tensor_create(type, input_shape, &input_tensor_2);
+ov_tensor_create(type, input_shape_2, &input_tensor_2);
 // ... write values to input_tensor_2
 
 ov_infer_request_set_input_tensor(infer_request, input_tensor_2);
@@ -178,16 +210,28 @@ ov_infer_request_infer(infer_request);
 // No need to call infer_request.get_output_tensor() again
 // output_tensor queried after the first inference call above is valid here.
 // But it may not be true for the memory underneath as shape changed, so re-take a pointer:
-ov_infer_request_get_output_tensor(infer_request, &output_tensor);
+ov_tensor_t* output_tensor_2 = NULL;
+ov_infer_request_get_output_tensor(infer_request, &output_tensor_2);
 void* data_2 = NULL;
-ov_tensor_data(output_tensor, &data_2);
+ov_tensor_data(output_tensor_2, &data_2);
 
 // and new shape as well
 ov_shape_t output_shape_2;
-ov_tensor_get_shape(output_tensor, &output_shape_2);
+ov_tensor_get_shape(output_tensor_2, &output_shape_2);
 
 // ... read values in data_2 according to the shape output_shape_2
+
+// free resource
+ov_shape_free(&input_shape_2);
+ov_tensor_free(input_tensor_2);
+ov_shape_free(&output_shape_2);
+ov_tensor_free(output_tensor_2);
+
 //! [ov_dynamic_shapes:set_input_tensor]
+ov_infer_request_free(infer_request);
+ov_compiled_model_free(compiled_model);
+ov_model_free(model);
+ov_core_free(core);
 }
 
 void get_tensor() {
@@ -211,39 +255,53 @@ ov_tensor_t* input_tensor = NULL;
 ov_infer_request_get_input_tensor(infer_request, &input_tensor);
 
 // Set shape is required
-ov_shape_t input_shape;
-int64_t rank = 2;
-int64_t dims[2] = {1, 128};
-ov_shape_create(rank, dims, &input_shape);
-ov_tensor_set_shape(input_tensor, input_shape);
+ov_shape_t input_shape_1;
+int64_t rank_1 = 2;
+int64_t dims_1[2] = {1, 128};
+ov_shape_create(rank_1, dims_1, &input_shape_1);
+ov_tensor_set_shape(input_tensor, input_shape_1);
 // ... write values to input_tensor
 
 ov_infer_request_infer(infer_request);
-ov_tensor_t* output_tensor = NULL;
-ov_infer_request_get_output_tensor(infer_request, &output_tensor);
+ov_tensor_t* output_tensor_1 = NULL;
+ov_infer_request_get_output_tensor(infer_request, &output_tensor_1);
 ov_shape_t output_shape_1;
-ov_tensor_get_shape(output_tensor, &output_shape_1);
+ov_tensor_get_shape(output_tensor_1, &output_shape_1);
 void* data_1 = NULL;
-ov_tensor_data(output_tensor, &data_1);
+ov_tensor_data(output_tensor_1, &data_1);
 // ... read values
 
+ov_shape_free(&input_shape_1);
+ov_shape_free(&output_shape_1);
+ov_tensor_free(output_tensor_1);
 // The second inference call, repeat steps:
 
 // Set a new shape, may reallocate tensor memory
-int64_t rank = 2;
-int64_t dims[2] = {1, 200};
-ov_shape_create(rank, dims, &input_shape);
-ov_tensor_set_shape(input_tensor, input_shape);
+ov_shape_t input_shape_2;
+int64_t rank_2 = 2;
+int64_t dims_2[2] = {1, 200};
+ov_shape_create(rank_2, dims_2, &input_shape_2);
+ov_tensor_set_shape(input_tensor, input_shape_2);
 // ... write values to input_tensor memory
 
 ov_infer_request_infer(infer_request);
-ov_infer_request_get_output_tensor(infer_request, &output_tensor);
+ov_tensor_t* output_tensor_2 = NULL;
+ov_infer_request_get_output_tensor(infer_request, &output_tensor_2);
 ov_shape_t output_shape_2;
-ov_tensor_get_shape(output_tensor, &output_shape_2);
+ov_tensor_get_shape(output_tensor_2, &output_shape_2);
 void* data_2 = NULL;
-ov_tensor_data(output_tensor, &data_2);
+ov_tensor_data(output_tensor_2, &data_2);
 // ... read values in data_2 according to the shape output_shape_2
+
+ov_shape_free(&input_shape_2);
+ov_shape_free(&output_shape_2);
+ov_tensor_free(output_tensor_2);
 //! [ov_dynamic_shapes:get_input_tensor]
+ov_tensor_free(input_tensor);
+ov_infer_request_free(infer_request);
+ov_compiled_model_free(compiled_model);
+ov_model_free(model);
+ov_core_free(core);
 }
 
 int main() {
