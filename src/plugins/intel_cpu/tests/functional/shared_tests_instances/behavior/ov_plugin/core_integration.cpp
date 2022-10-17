@@ -196,10 +196,10 @@ TEST(OVClassBasicTest, smoke_SetConfigStreamsNum) {
 TEST(OVClassBasicTest, smoke_SetConfigAffinity) {
     ov::Core ie;
     ov::Affinity value = ov::Affinity::NONE;
-
-#if (defined(__APPLE__) || defined(_WIN32))
     auto numaNodes = InferenceEngine::getAvailableNUMANodes();
     auto coreTypes = InferenceEngine::getAvailableCoresTypes();
+
+#if (defined(__APPLE__) || defined(_WIN32))
     auto defaultBindThreadParameter = ov::Affinity::NONE;
     if (coreTypes.size() > 1) {
         defaultBindThreadParameter = ov::Affinity::HYBRID_AWARE;
@@ -208,6 +208,9 @@ TEST(OVClassBasicTest, smoke_SetConfigAffinity) {
     }
 #else
     auto defaultBindThreadParameter = ov::Affinity::CORE;
+    if (coreTypes.size() > 1) {
+        defaultBindThreadParameter = ov::Affinity::HYBRID_AWARE;
+    }
 #endif
     OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
     ASSERT_EQ(defaultBindThreadParameter, value);
@@ -215,7 +218,13 @@ TEST(OVClassBasicTest, smoke_SetConfigAffinity) {
     const ov::Affinity affinity = defaultBindThreadParameter == ov::Affinity::HYBRID_AWARE ? ov::Affinity::NUMA : ov::Affinity::HYBRID_AWARE;
     OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
     OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
-    ASSERT_EQ(affinity, value);
+    ov::Affinity affinityUpdate = affinity;
+    if (affinity == ov::Affinity::CORE && coreTypes.size() > 1) {
+        affinityUpdate = ov::Affinity::HYBRID_AWARE;
+    } else if (affinity == ov::Affinity::HYBRID_AWARE && coreTypes.size() == 1) {
+        affinityUpdate = ov::Affinity::CORE;
+    }
+    ASSERT_EQ(affinityUpdate, value);
 }
 
 TEST(OVClassBasicTest, smoke_SetConfigHintInferencePrecision) {
