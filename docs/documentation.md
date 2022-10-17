@@ -91,7 +91,7 @@
 
    Intel® Deep Learning Streamer <openvino_docs_dlstreamer>
    openvino_docs_gapi_gapi_intro
-   OpenCV* Developer Guide <https://docs.opencv.org/master/>
+   OpenCV Developer Guide <https://docs.opencv.org/master/>
    OpenCL™ Developer Guide <https://software.intel.com/en-us/openclsdk-devguide>  
    OneVPL Developer Guide <https://www.intel.com/content/www/us/en/developer/articles/release-notes/oneapi-video-processing-library-release-notes.html>
 

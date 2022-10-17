@@ -493,15 +493,33 @@ def test_infer_queue_is_ready(device):
     infer_queue.wait_all()
 
 
+<<<<<<< HEAD
 def test_infer_queue_iteration(device):
+=======
+def test_infer_queue_userdata_is_empty(device):
+>>>>>>> upstream/master
     core = Core()
     param = ops.parameter([10])
     model = Model(ops.relu(param), [param])
     compiled_model = core.compile_model(model, device)
+<<<<<<< HEAD
     infer_queue = AsyncInferQueue(compiled_model)
     for infer_req in infer_queue:
         infer_req.start_async()
         assert isinstance(infer_req, InferRequest)
+=======
+    infer_queue = AsyncInferQueue(compiled_model, 1)
+    assert infer_queue.userdata == [None]
+
+
+def test_infer_queue_userdata_is_empty_more_jobs(device):
+    core = Core()
+    param = ops.parameter([10])
+    model = Model(ops.relu(param), [param])
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, 5)
+    assert infer_queue.userdata == [None, None, None, None, None]
+>>>>>>> upstream/master
 
 
 def test_infer_queue_fail_on_cpp_model(device):

@@ -31,8 +31,10 @@ thread_local size_t program_node::cur_id = 0;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
     : desc(prim), myprog(prog), required_input0(format::any), required_output(format::any), org_id(prim ? (prim->id) : 0) {
-    if (prim)
+    if (prim) {
         output_layout.data_padding = prim->output_padding;
+        num_outputs = prim->num_outputs;
+    }
 }
 
 void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
