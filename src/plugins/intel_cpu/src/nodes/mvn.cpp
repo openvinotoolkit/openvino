@@ -547,7 +547,22 @@ template <cpu_isa_t isa>
 struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_mvn_kernel_f32)
 
-    explicit jit_uni_mvn_kernel_f32(jit_mvn_config_params jcp, const dnnl_primitive_attr &attr) : jit_uni_mvn_kernel(jcp, attr), jit_generator(jit_name()) {}
+    explicit jit_uni_mvn_kernel_f32(jit_mvn_config_params jcp, const dnnl_primitive_attr &attr) : jit_uni_mvn_kernel(jcp, attr), jit_generator(jit_name()) {
+        const auto &p = attr_.post_ops_;
+        bool opt_scaleshift_applicable = jcp_.layout == MVNLayoutType::mvn_by_channel && isa == cpu::x64::avx512_core && !jcp_.across_channels;
+        if (opt_scaleshift_applicable) {
+            for (int i = 0; i < p.len(); i++) {
+                auto &post_op = p.entry_[i];
+                if (post_op.is_depthwise()) {
+                    if (0 == i && post_op.depthwise.alg == alg_kind::depthwise_scale_shift) {
+                        optimized_scaleshift_num = 1;
+                    } else if (1 == i && optimized_scaleshift_num == 1 && post_op.depthwise.alg == alg_kind::depthwise_scale_shift) {
+                        optimized_scaleshift_num = 2;
+                    }
+                }
+            }
+        }
+    }
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -757,6 +772,23 @@ private:
                     uni_vmovups(Vmm(ur_base + 8 + ur_size), ptr[reg_variance_inv + ur_offset + ur_size * vector_step * sizeof(float)]);
                 }
             }
+            // optimized scaleshift
+            size_t post_ops_data_offset = 0;
+            for (int i = 0; i < optimized_scaleshift_num; i++) {
+                mov(reg_d_weights, ptr[reg_post_ops_data + post_ops_data_offset]);
+                add(reg_d_weights, ur_offset);
+                for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+                    uni_vmovups(Vmm(16 + i * 4 + ur_size), ptr[reg_d_weights]);
+                    add(reg_d_weights, vector_step * sizeof(float));
+                }
+                mov(reg_d_bias, ptr[reg_post_ops_data + post_ops_data_offset]);
+                add(reg_d_bias, ur_offset + jcp_.C * sizeof(float));
+                for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+                    uni_vmovups(Vmm(24 + i * 4 + ur_size), ptr[reg_d_bias]);
+                    add(reg_d_bias, vector_step * sizeof(float));
+                }
+                post_ops_data_offset += sizeof(float*);
+            }
 
             mov(reg_src_aux, reg_src);
             mov(reg_dst_aux, reg_dst);
@@ -785,13 +817,18 @@ private:
                 add(reg_src_aux, (jcp_.C - elt_num) * jcp_.src_data_size);
                 prefetcht0(ptr[reg_src_aux]);
 
+                for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
+                    uni_vsubps(Vmm(ur_base + ur_size), Vmm(ur_base + ur_size), Vmm(ur_base + 4 + ur_size));
+                }
                 if (jcp_.normalize_variance) {
                     for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
-                        uni_vfmadd132ps(Vmm(ur_base + ur_size), Vmm(ur_base + 4 + ur_size), Vmm(ur_base + 8 + ur_size));
+                        uni_vmulps(Vmm(ur_base + ur_size), Vmm(ur_base + ur_size), Vmm(ur_base + 8 + ur_size));
                     }
-                } else {
+                }
+
+                for (int i = 0; i < optimized_scaleshift_num; i++) {
                     for (int ur_size = 0; ur_size < unroll_size_rt; ur_size++) {
-                        uni_vsubps(Vmm(ur_base + ur_size), Vmm(ur_base + ur_size), Vmm(ur_base + 4 + ur_size));
+                        uni_vfmadd132ps(Vmm(ur_base + ur_size), Vmm(24 + i * 4 + ur_size), Vmm(16 + i * 4 + ur_size));
                     }
                 }
 
@@ -880,11 +917,9 @@ private:
         load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
             {}, {load_pool_gpr_idxs});
 
-        if (jcp_.normalize_variance) {
-            uni_vfmadd132ps(vmm_val, vmm_mean, vmm_variance_inv);
-        } else {
-            uni_vsubps(vmm_val, vmm_val, vmm_mean);
-        }
+        uni_vsubps(vmm_val, vmm_val, vmm_mean);
+        if (jcp_.normalize_variance)
+            uni_vmulps(vmm_val, vmm_val, vmm_variance_inv);
 
         apply_post_ops(jcp_.dst_prc, vmm_val.getIdx(), jcp_.layout == MVNLayoutType::mvn_planar);
 
@@ -924,6 +959,11 @@ private:
                 eltwise_injectors[eltwise_inj_idx]->compute_vector_range(vmm_idx, vmm_idx + 1);
                 eltwise_inj_idx++;
             } else if (post_op.is_depthwise()) {
+                if (post_op.depthwise.alg == alg_kind::depthwise_scale_shift && i < optimized_scaleshift_num) {
+                    post_ops_data_offset += depthwise_injectors[depthwise_inj_idx]->memoryStep();
+                    depthwise_inj_idx++;
+                    continue;
+                }
                 mov(reg_d_weights, ptr[reg_post_ops_data + post_ops_data_offset]);
                 add(reg_d_weights, reg_oc_off);
 
@@ -1377,9 +1417,6 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
                 else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
                     variance /= sqrtf(variance_temp * C3inv) + mvnAttrs.epsValue_;
 
-                mean *= variance;
-                mean *= -1.0f;
-
                 // mvn for one instance in batch
                 parallel_for(C, [&](int c) {
                     size_t cc = cb + c * C2;
@@ -1442,9 +1479,6 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
                         variance = 1.f / sqrtf(variance * C2inv + mvnAttrs.epsValue_);
                     else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
                         variance = 1.f / (sqrtf(variance * C2inv) + mvnAttrs.epsValue_);
-
-                    mean *= variance;
-                    mean *= -1.0f;
 
                     // mvn for this channel
                     (*mvn_kernel)(&arg);
@@ -1571,10 +1605,9 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, c
 
     size_t threads_num = parallel_get_num_threads();
     size_t aux_buffer_size = mvnAttrs.execAcrossChannels_ ? 1 : rnd_up(C, blk_size);
-    std::vector<float> mean_buffer(aux_buffer_size * threads_num);
-    std::vector<float> variance_buffer(aux_buffer_size * threads_num);
-
-    for (size_t b = 0lu; b < N; b++) {
+    parallel_for(N, [&](size_t b) {
+        std::vector<float> mean_buffer(aux_buffer_size * threads_num);
+        std::vector<float> variance_buffer(aux_buffer_size * threads_num);
         size_t b_offset = b * C * D * H * W;
         if (mvnAttrs.execAcrossChannels_) {
             float size_inv = 1.f / static_cast<float>(C * D * H * W);
@@ -1592,7 +1625,6 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, c
                 mean_buffer[0] += mean_buffer[i];
             }
             mean_buffer[0] *= size_inv;
-
             if (mvnAttrs.normalizeVariance_) {
                 parallel_nt(0, [&](const int ithr, const int nthr) {
                     size_t start = 0, end = 0;
@@ -1613,9 +1645,6 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, c
                     variance_buffer[0] = 1.f / sqrtf(variance_buffer[0] * size_inv + mvnAttrs.epsValue_);
                 else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
                     variance_buffer[0] = 1.f / (sqrtf(variance_buffer[0] * size_inv) + mvnAttrs.epsValue_);
-
-                mean_buffer[0] *= variance_buffer[0];
-                mean_buffer[0] *= -1.0f;
 
                 parallel_nt(0, [&](const int ithr, const int nthr) {
                     size_t start = 0, end = 0;
@@ -1693,11 +1722,6 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, c
                     else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
                         variance_buffer[c] = 1.f / (sqrtf(variance_buffer[c] * size_inv) + mvnAttrs.epsValue_);
                 }
-                // (x-m)/v = vx + (-vm)
-                for (size_t c = 0; c < C; c++) {
-                    mean_buffer[c] *= variance_buffer[c];
-                    mean_buffer[c] *= -1.0f;
-                }
 
                 parallel_nt(0, [&](const int ithr, const int nthr) {
                     size_t start = 0, end = 0;
@@ -1729,7 +1753,7 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, c
                 });
             }
         }
-    }
+    });
 }
 
 void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_) {
@@ -1833,9 +1857,6 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                 else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
                     variance /= sqrtf(variance_temp * C5inv) + mvnAttrs.epsValue_;
 
-                mean *= variance;
-                mean *= -1.0f;
-
                 // mvn for one instance in batch
                 parallel_for3d(CB, D, H, [&](size_t cb, size_t d, size_t h) {
                     size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
@@ -1931,11 +1952,6 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                         variance_buffer[c] = 1.f / sqrtf(variance_buffer[c] * size_inv + mvnAttrs.epsValue_);
                     else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
                         variance_buffer[c] = 1.f / (sqrtf(variance_buffer[c] * size_inv) + mvnAttrs.epsValue_);
-                }
-
-                for (size_t c = 0; c < C; c++) {
-                    mean_buffer[c] *= variance_buffer[c];
-                    mean_buffer[c] *= -1.0f;
                 }
 
                 parallel_for2d(D, H, [&](size_t d, size_t h) {

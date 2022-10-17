@@ -75,6 +75,7 @@ struct jit_uni_mvn_kernel {
 
     jit_mvn_config_params jcp_;
     const dnnl_primitive_attr &attr_;
+    int optimized_scaleshift_num = 0;
 };
 
 class MVN : public Node {
