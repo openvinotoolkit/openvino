@@ -23,11 +23,13 @@ class AsyncInferQueue {
 public:
     AsyncInferQueue(ov::CompiledModel& model, size_t jobs) {
         if (jobs == 0) {
-            auto jobs = (size_t)Common::get_optimal_number_of_requests(model);
+            jobs = (size_t)Common::get_optimal_number_of_requests(model);
         }
 
         for (size_t handle = 0; handle < jobs; handle++) {
-            auto request = InferRequestWrapper(model.create_infer_request());
+            // Create new "empty" InferRequestWrapper without pre-defined callback,
+            // inputs and outputs.
+            auto request = InferRequestWrapper(InferRequestWrapper(model.create_infer_request()));
             // Copy Inputs and Outputs from ov::CompiledModel
             request.m_inputs = model.inputs();
             request.m_outputs = model.outputs();
@@ -145,13 +147,14 @@ public:
                         std::rethrow_exception(exception_ptr);
                     }
                 } catch (const std::exception& e) {
-                    // Notify locks in getIdleRequestId()
                     throw ov::Exception(e.what());
                 }
             });
         }
     }
 
+    // AsyncInferQueue is the owner of all requests. When AsyncInferQueue is destroyed,
+    // all of requests are destroyed as well.
     std::vector<InferRequestWrapper> m_requests;
     std::queue<size_t> m_idle_handles;
     std::vector<py::object> m_user_ids;  // user ID can be any Python object
