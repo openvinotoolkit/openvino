@@ -9,7 +9,7 @@
 namespace ov {
 namespace intel_gna {
 namespace op {
-/// \brief GNA specific copy layer operation
+/// \brief GNA specific Identity layer operation.
 ///
 class Identity : public ngraph::op::Op {
 public:
