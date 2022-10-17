@@ -857,6 +857,7 @@ void RNN::prepareParams() {
 
     auto pd = (*prim).get_primitive_desc();
     scratchpad_md = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
+    scratchpadMem = getRuntimeScratchPad()->getScratchPadMem(scratchpad_md);
 
     if (!wasMemoryPrepared || wFormatWasChanged) {
         auto pd = (*prim).get_primitive_desc();
@@ -902,9 +903,8 @@ void RNN::execute(dnnl::stream strm) {
         {DNNL_ARG_WEIGHTS_ITER,  wgh_stat_mem->GetPrimitive()},
         {DNNL_ARG_BIAS,          wgh_bias_mem->GetPrimitive()},
         {DNNL_ARG_DST_LAYER,     dst_data_mem->GetPrimitive()},
+        {DNNL_ARG_SCRATCHPAD,    scratchpadMem->GetPrimitive()}
     };
-
-    getRuntimeScratchPad()->setScratchPad(args, scratchpad_md);
 
     int state_i_tags[] {DNNL_ARG_SRC_ITER, DNNL_ARG_SRC_ITER_C};
     int state_o_tags[] {DNNL_ARG_DST_ITER, DNNL_ARG_DST_ITER_C};

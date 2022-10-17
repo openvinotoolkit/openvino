@@ -14,16 +14,18 @@ namespace ov {
 namespace intel_cpu {
 
 class DnnlScratchPad {
-    Memory curScratchpadMem;
+    DnnlMemoryMngrPtr mgrPtr;
+    dnnl::engine eng;
 
 public:
-    DnnlScratchPad(dnnl::engine eng) : curScratchpadMem(eng) {}
+    DnnlScratchPad(dnnl::engine eng) : eng(eng) {
+        mgrPtr = std::make_shared<DnnlMemoryMngr>(std::unique_ptr<MemoryMngrWithReuse>(new MemoryMngrWithReuse()));
+    }
 
-    void setScratchPad(std::unordered_map<int, dnnl::memory>& args, const DnnlMemoryDescPtr& md) {
-        // Memory re-allocation is free from multi-threading safety issue
-        // as long as it's called from stream's scheduling thread
-        curScratchpadMem.redefineDesc(md);
-        args[DNNL_ARG_SCRATCHPAD] = curScratchpadMem.GetPrimitive();
+    MemoryPtr getScratchPadMem(const DnnlMemoryDescPtr& md) {
+        auto mem = std::make_shared<Memory>(eng);
+        mem->Create(md, mgrPtr);
+        return mem;
     }
 };
 

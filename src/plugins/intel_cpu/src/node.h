@@ -639,6 +639,7 @@ protected:
     std::vector<MemoryPtr> internalBlobMemory;
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     std::unordered_map<int, dnnl::memory> primArgs;
+    MemoryPtr scratchpadMem;
     std::vector<MemoryPtr> postOpsArgs;
     Primitive prim;
     std::vector<DnnlDesriptor> descs;

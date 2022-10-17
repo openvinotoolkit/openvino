@@ -201,10 +201,11 @@ void Lrn::prepareParams() {
 
     auto pd = (*prim).get_primitive_desc();
     scratchpad_md = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
+    scratchpadMem = getRuntimeScratchPad()->getScratchPadMem(scratchpad_md);
 
     auto src = srcMemPtr->GetPrimitive();
     auto dst = dstMemPtr->GetPrimitive();
-    primArgs = { {DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst} };
+    primArgs = { {DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}, {DNNL_ARG_SCRATCHPAD, scratchpadMem->GetPrimitive()} };
 }
 
 bool Lrn::created() const {
@@ -232,7 +233,6 @@ void Lrn::executeDynamicImpl(dnnl::stream strm) {
 
 void Lrn::execute(dnnl::stream strm) {
     if (prim) {
-        getRuntimeScratchPad()->setScratchPad(primArgs, scratchpad_md);
         (*prim).execute(strm, primArgs);
     }
 }
