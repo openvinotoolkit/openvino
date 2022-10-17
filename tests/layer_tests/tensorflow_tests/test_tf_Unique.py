@@ -30,7 +30,6 @@ class TestUnique(CommonTFLayerTest):
         return tf_net, None
 
     test_data_basic = [
-        dict(x_shape=[1], data_type=tf.float32, out_idx=tf.int32),
         dict(x_shape=[50], data_type=tf.float32, out_idx=tf.int32),
         dict(x_shape=[100], data_type=tf.float32, out_idx=tf.int64),
     ]

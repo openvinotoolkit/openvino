@@ -17,7 +17,7 @@ namespace tensorflow {
 namespace pass {
 
 // This transformation expresses Unique with a sub-graph of OpenVINO operations
-class UniqueReplacer : public ov::pass::MatcherPass {
+class TENSORFLOW_API UniqueReplacer : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ov::frontend::tensorflow::pass::UniqueReplacer");
     UniqueReplacer();
