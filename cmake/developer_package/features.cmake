@@ -7,7 +7,7 @@ include(target_flags)
 
 # FIXME: there are compiler failures with LTO and Cross-Compile toolchains. Disabling for now, but
 #        this must be addressed in a proper way
-ie_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF "LINUX;NOT CMAKE_CROSSCOMPILING;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
+ie_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF "LINUX OR (APPLE AND AARCH64);NOT CMAKE_CROSSCOMPILING;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
 
 ie_option (OS_FOLDER "create OS dedicated folder in output" OFF)
 
@@ -47,8 +47,6 @@ ie_dependent_option (ENABLE_AVX2 "Enable AVX2 optimizations" ON "X86_64 OR X86" 
 
 ie_dependent_option (ENABLE_AVX512F "Enable AVX512 optimizations" ON "X86_64 OR X86" OFF)
 
-# Type of build, we add this as an explicit option to default it to ON
-# FIXME: Ah this moment setting this to OFF will only build ngraph a static library
 ie_option (BUILD_SHARED_LIBS "Build as a shared library" ON)
 
 # Android does not support SOVERSION

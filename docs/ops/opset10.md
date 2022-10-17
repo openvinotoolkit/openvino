@@ -181,5 +181,6 @@ declared in `namespace opset10`.
 * [Tile](movement/Tile_1.md)
 * [TopK](sort/TopK_3.md)
 * [Transpose](movement/Transpose_1.md)
+* [Unique](movement/Unique_10.md)
 * [Unsqueeze](shape/Unsqueeze_1.md)
 * [VariadicSplit](movement/VariadicSplit_1.md)

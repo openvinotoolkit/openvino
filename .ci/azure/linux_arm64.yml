@@ -8,6 +8,7 @@ trigger:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - README.md
 
 pr:
   branches:
@@ -19,6 +20,7 @@ pr:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - README.md
 
 resources:
   repositories:
@@ -149,7 +151,7 @@ jobs:
     inputs:
       cmakeArgs: >
         -GNinja
-        -DVERBOSE_BUILD=ON
+        -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
         -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8
@@ -195,7 +197,7 @@ jobs:
     inputs:
       cmakeArgs: >
         -GNinja
-        -DInferenceEngineDeveloperPackage_DIR=$(BUILD_OPENVINO)
+        -DOpenVINODeveloperPackage_DIR=$(BUILD_OPENVINO)
         -DENABLE_PYTHON=ON
         -DTHREADING=TBB
         -DPYTHON_EXECUTABLE=$(INSTALL_PYTHON)/bin/python3.8
