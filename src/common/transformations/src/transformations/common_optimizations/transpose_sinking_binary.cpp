@@ -64,12 +64,12 @@ NodePtr GetFirstTransposeInput(const ov::Node * node) {
 
 // --------------------------------------------------------------------------------------
 
-struct GraphBuildStrategyEmpty {
-    GraphBuildStrategyEmpty() = default;
-    GraphBuildStrategyEmpty(GraphBuildStrategyEmpty &&) = default;
+struct GraphBuildNoParentStrategy {
+    GraphBuildNoParentStrategy() = default;
+    GraphBuildNoParentStrategy(GraphBuildNoParentStrategy &&) = default;
 
-    GraphBuildStrategyEmpty(const GraphBuildStrategyEmpty&) = delete;
-    GraphBuildStrategyEmpty& operator=(const GraphBuildStrategyEmpty &) = delete;
+    GraphBuildNoParentStrategy(const GraphBuildNoParentStrategy&) = delete;
+    GraphBuildNoParentStrategy& operator=(const GraphBuildNoParentStrategy &) = delete;
 };
 
 template <typename ParentT>
@@ -115,12 +115,12 @@ private:
 };
 
 template <>
-void GraphBuildStrategy<GraphBuildStrategyEmpty>::build(Nodes& level_nodes) {
+void GraphBuildStrategy<GraphBuildNoParentStrategy>::build(Nodes& level_nodes) {
     buildLevel(level_nodes);
 }
 
 template <>
-Nodes GraphBuildStrategy<GraphBuildStrategyEmpty>::getNewNodes() const {
+Nodes GraphBuildStrategy<GraphBuildNoParentStrategy>::getNewNodes() const {
     return _new_nodes;
 }
 
@@ -227,10 +227,10 @@ Nodes InsertTranspose::operator()(Nodes & level_nodes, size_t parent_node_idx) c
     return Nodes{transpose, transpose_const};
 }
 
-template <typename AppendPredicateF, typename NodeCreateF, typename ParentT = GraphBuildStrategyEmpty>
+template <typename AppendPredicateF, typename NodeCreateF, typename ParentT = GraphBuildNoParentStrategy>
 InsertIf<AppendPredicateF, NodeCreateF, ParentT> AppendTransposes(NodeCreateF create_node_f,
                                                                   AppendPredicateF predicate,
-                                                                  ParentT prev_builder = GraphBuildStrategyEmpty())
+                                                                  ParentT prev_builder = GraphBuildNoParentStrategy())
 {
     return InsertIf<AppendPredicateF, NodeCreateF, ParentT>(std::forward<ParentT>(prev_builder),
                                                             std::forward<AppendPredicateF>(predicate),
@@ -333,14 +333,12 @@ ngraph::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
     MATCHER_SCOPE(TransposeSinkingBinaryForward);
 
     auto transpose_label =
-        ov::pass::pattern::wrap_type<ov::opset9::Transpose>({ov::pass::pattern::any_input(),
-                                                             ov::pass::pattern::wrap_type<ov::opset9::Constant>()},
-                                                             ov::pass::pattern::consumers_count(1)); // FIXME: constraints (unit tests on constraints ?)
+        ov::pass::pattern::wrap_type<ov::opset9::Transpose>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
     auto binary_label_left = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({transpose_label,
-                                                                                                      ov::pass::pattern::any_input()}); // FIXME: constraints (unit tests on constraints ?)
+                                                                                                      ov::pass::pattern::any_input()});
 
     auto binary_label_right = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({ov::pass::pattern::any_input(),
-                                                                                                 transpose_label}); // FIXME: constraints (unit tests on constraints ?)
+                                                                                                 transpose_label});
     auto binary_label = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{binary_label_left, binary_label_right});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
@@ -380,12 +378,10 @@ ngraph::pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
     MATCHER_SCOPE(TransposeSinkingBinaryBackward);
 
     auto binary_label = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({ov::pass::pattern::any_input(),
-                                                                                                 ov::pass::pattern::any_input()}); // FIXME: constraints (unit tests on constraints ?)
+                                                                                                 ov::pass::pattern::any_input()});
 
     auto transpose_label =
-        ov::pass::pattern::wrap_type<ov::opset9::Transpose>({binary_label,
-                                                             ov::pass::pattern::wrap_type<ov::opset9::Constant>()},
-                                                             ov::pass::pattern::consumers_count(1)); // FIXME: constraints (unit tests on constraints ?)
+        ov::pass::pattern::wrap_type<ov::opset9::Transpose>({binary_label, ov::pass::pattern::any_input()});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -478,8 +474,8 @@ ngraph::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
     auto concat_label = ov::pass::pattern::wrap_type<ov::opset9::Concat>(IfConcatHasTransposeInputs);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
-        const auto& pattern_to_output = m.get_pattern_value_map();
-        auto concat_output = pattern_to_output.at(concat_label);
+        const auto & pattern_to_output = m.get_pattern_value_map();
+        auto & concat_output = pattern_to_output.at(concat_label);
         auto concat = concat_output.get_node_shared_ptr();
         auto transpose = GetFirstTransposeInput(concat.get());
 
@@ -520,9 +516,7 @@ ngraph::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
     auto concat_label = ov::pass::pattern::wrap_type<ov::opset9::Concat>();
 
     auto transpose_label =
-        ov::pass::pattern::wrap_type<ov::opset9::Transpose>({concat_label,
-                                                             ov::pass::pattern::wrap_type<ov::opset9::Constant>()},
-                                                             ov::pass::pattern::consumers_count(1)); // FIXME: constraints (unit tests on constraints ?)
+        ov::pass::pattern::wrap_type<ov::opset9::Transpose>({concat_label, ov::pass::pattern::any_input()});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
