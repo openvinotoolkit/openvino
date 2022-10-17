@@ -107,7 +107,7 @@ std::string RectLimitByChannels::GetErrorOrEmpty(const uint32_t h, const uint32_
 }
 
 RectLimitByChannels RectLimitByChannelsAndPrecision::GetByPrecision(const OvGnaType precision) const {
-    return precision == OvGnaTypeInt8 ? lowPrecision : defaultPrecision;
+    return precision == OvGnaTypeInt8 ? limit_for_int8 : limit_for_int16;
 }
 
 bool RectLimitByChannelsAndPrecision::isValid(const uint32_t h, const uint32_t w, const OvGnaType precision, const uint32_t channels) const {
