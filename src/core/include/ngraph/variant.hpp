@@ -47,10 +47,6 @@ template <typename VT>
 class OPENVINO_DEPRECATED("Please use ov::Any to store VT directly") VariantWrapper {};
 
 OPENVINO_SUPPRESS_DEPRECATED_START
-extern template class OPENVINO_API VariantImpl<std::string>;
-extern template class OPENVINO_API VariantImpl<int64_t>;
-extern template class OPENVINO_API VariantImpl<bool>;
-
 template <>
 class OPENVINO_API VariantWrapper<std::string> : public VariantImpl<std::string> {
 public:
