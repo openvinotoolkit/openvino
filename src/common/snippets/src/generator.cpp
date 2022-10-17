@@ -26,21 +26,15 @@ auto getRegisters(const std::shared_ptr<ngraph::Node> &n) -> RegInfo {
     for (const auto& output : n->outputs()) {
         const auto& rt = output.get_tensor_ptr()->get_rt_info();
         auto it_rt = rt.find("reginfo");
-        if (it_rt != rt.end()) {
-            for (auto reg : it_rt->second.as<std::vector<size_t>>()) {
-                rout.push_back(reg);
-            }
-        }
+        if (it_rt != rt.end())
+            rout.push_back(it_rt->second.as<size_t>());
     }
 
     for (const auto& input : n->inputs()) {
         auto rt = input.get_source_output().get_tensor_ptr()->get_rt_info();
         auto it_rt = rt.find("reginfo");
-        if (it_rt != rt.end()) {
-            for (auto& reg : it_rt->second.as<std::vector<size_t>>()) {
-                rin.push_back(reg);
-            }
-        }
+        if (it_rt != rt.end())
+            rin.push_back(it_rt->second.as<size_t>());
     }
     return std::make_pair(rin, rout);
 }

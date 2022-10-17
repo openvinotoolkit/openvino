@@ -445,25 +445,19 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
         for (const auto& output : op->outputs()) {
             const auto& rt = output.get_tensor_ptr()->get_rt_info();
             auto it_rt = rt.find("reginfo");
-            std::vector<size_t> old_regs = it_rt != rt.end() ?
-                                           it_rt->second.as<std::vector<size_t>>() :
-                                           std::vector<size_t> {};
+            size_t old_reg = it_rt != rt.end() ?
+                             it_rt->second.as<size_t>() :
+                             SIZE_MAX;
             it_rt = rt.find("reginfo_new");
-            std::vector<size_t> new_regs = it_rt != rt.end() ?
-                                           it_rt->second.as<std::vector<size_t>>() :
-                                           std::vector<size_t> {};
-            if (old_regs.size() != new_regs.size() || !std::equal(old_regs.begin(), old_regs.end(), new_regs.begin())) {
+            size_t new_reg = it_rt != rt.end() ?
+                              it_rt->second.as<size_t>() :
+                              SIZE_MAX;
+            if (old_reg != new_reg) {
                 std::stringstream ss;
                 ss << "OLD and NEW registers does NOT match for Subgraph " << get_friendly_name() << "\n";
                 ss << "OP: " << op->get_friendly_name() << " OUT: " << output.get_index() << "\n";
-                ss << "OLD: ";
-                for (auto r : old_regs)
-                    ss << r << ",";
-                ss << "\n";
-                ss << "NEW: ";
-                for (auto r : new_regs)
-                    ss << r << ",";
-                ss << "\n";
+                ss << "OLD: " << old_reg << "\n";
+                ss << "NEW: " << new_reg << "\n";
 //                std::cerr << "Tile after is dumped";
 //                ov::pass::Serialize("tile_after.xml", "tile_after.bin").run_on_model(m_body);
                 ngraph_error(ss.str());

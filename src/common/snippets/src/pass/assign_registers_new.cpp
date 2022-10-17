@@ -301,7 +301,7 @@ bool ngraph::snippets::pass::AssignRegistersNew::run_on_model(const std::shared_
         for (const auto& out : t_op.second->outputs()) {
             const auto& t = out.get_tensor_ptr();
             auto& rt = t->get_rt_info();
-            rt["reginfo_new"] = std::vector<size_t>{assigned_regs[t]};
+            rt["reginfo_new"] = static_cast<size_t>(assigned_regs[t]);
         }
     }
     return false;
