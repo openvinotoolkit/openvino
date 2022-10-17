@@ -19,7 +19,7 @@
 
 **Outputs**
 
-* **1**: The result of element-wise *IsFinite* operation. A tensor of type *bool* and the same shape as input tensor.
+* **1**: The result of element-wise *IsFinite* operation. A tensor of type `boolean` and the same shape as input tensor.
 
 **Types**
 
