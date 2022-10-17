@@ -5,7 +5,7 @@ There are two types of tests for the TensorFlow Frontend (TF FE): layer tests an
 The layer tests are used to validate support of TensorFlow operation by the frontend.
 
 The unit-tests cover TensorFlow format reading functionality, conversion pipeline, and internal transformations
-for Transpose Sinking and conversion of sub-graphs with TF FE internal operations into OpenVINO opset.
+for Transpose Sinking and conversion of sub-graphs with TF FE internal operations into the OpenVINO opset.
 
 ## How to build and run the unit-tests
 
