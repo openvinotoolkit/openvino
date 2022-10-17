@@ -26,7 +26,7 @@ The structure of OpenVINO TensorFlow Frontend sources includes the following dir
 
 OpenVINO TensorFlow Frontend uses [TensorFlow Protobuf files](./src/proto) for reading and parsing TensorFlow model formats.
 
-The conversion of the TensorFlow operation requires either one pass using [Loaders](./src/op) or two transformation pass
+The conversion of the TensorFlow operation requires either one pass using [Loaders](./src/op) or two transformation passes
 using [Loaders](./src/op) and [Internal Transformation](./src/helper_transforms).
 It is often sufficient to use only [Loaders](./src/op). Two transformation pass is used when some TensorFlow operation cannot be mapped into a sub-graph of OpenVINO opset
 and its conversion depends on the succeeding operations in the graph.
