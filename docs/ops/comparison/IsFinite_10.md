@@ -23,7 +23,7 @@
 
 **Types**
 
-* *T*: bfloat16, half, float32, float64
+* **T_IN**: any supported floating-point type.
 
 **Example**
 
