@@ -649,7 +649,7 @@ TYPED_TEST_P(ArithmeticOperator, static_shape_labels_numpy) {
 
         set_shape_labels(pshape_A, {10, 11, 12, 13});
         set_shape_labels(pshape_B, {20, 21, 22, 23});
-        set_shape_labels(expected_shape, {20, 0, 12, 23});
+        set_shape_labels(expected_shape, {20, 21, 12, 23});
 
         auto param_A = std::make_shared<op::Parameter>(element::f32, pshape_A);
         auto param_B = std::make_shared<op::Parameter>(element::f32, pshape_B);
