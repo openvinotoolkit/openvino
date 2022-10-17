@@ -5912,7 +5912,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_trilu_dynamic_shapes) {
     // clang-format on
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_is_inf) {
+NGRAPH_TEST(${BACKEND_NAME}, onnx_is_inf_default) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/is_inf.onnx"));
 
@@ -5931,6 +5931,81 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_is_inf) {
         std::vector<bool>{true, false,
                           false, false,
                           true, false,
+                          false, false});
+    test_case.run();
+
+    // clang-format on
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_is_inf_negative_only) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/is_inf_negative.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    // clang-format off
+
+    test_case.add_input<float>(
+        Shape{2, 2, 2},
+        std::vector<float>{ std::numeric_limits<float>::infinity(), 0.0000f,
+                            std::numeric_limits<float>::max(), -0.5000f,
+                            -std::numeric_limits<float>::infinity(), 1.0000f,
+                            std::numeric_limits<float>::min(), std::nanf("")});
+    test_case.add_expected_output<bool>(
+        Shape{2, 2, 2},
+        std::vector<bool>{false, false,
+                          false, false,
+                          true, false,
+                          false, false});
+    test_case.run();
+
+    // clang-format on
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_is_inf_positive_only) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/is_inf_positive.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    // clang-format off
+
+    test_case.add_input<float>(
+        Shape{2, 2, 2},
+        std::vector<float>{ std::numeric_limits<float>::infinity(), 0.0000f,
+                            std::numeric_limits<float>::max(), -0.5000f,
+                            -std::numeric_limits<float>::infinity(), 1.0000f,
+                            std::numeric_limits<float>::min(), std::nanf("")});
+    test_case.add_expected_output<bool>(
+        Shape{2, 2, 2},
+        std::vector<bool>{true, false,
+                          false, false,
+                          false, false,
+                          false, false});
+    test_case.run();
+
+    // clang-format on
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_is_inf_detect_none) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/is_inf_none.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    // clang-format off
+
+    test_case.add_input<float>(
+        Shape{2, 2, 2},
+        std::vector<float>{ std::numeric_limits<float>::infinity(), 0.0000f,
+                            std::numeric_limits<float>::max(), -0.5000f,
+                            -std::numeric_limits<float>::infinity(), 1.0000f,
+                            std::numeric_limits<float>::min(), std::nanf("")});
+    test_case.add_expected_output<bool>(
+        Shape{2, 2, 2},
+        std::vector<bool>{false, false,
+                          false, false,
+                          false, false,
                           false, false});
     test_case.run();
 

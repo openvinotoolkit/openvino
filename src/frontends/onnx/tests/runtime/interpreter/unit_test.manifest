@@ -83,4 +83,7 @@ onnx_clip_no_min_no_max_int64
 INTERPRETER.onnx_expand_context_dependent_function
 INTERPRETER.onnx_softmax_crossentropy_loss_mean
 
-onnx_is_inf
+onnx_is_inf_default
+onnx_is_inf_positive
+onnx_is_inf_negative
+onnx_is_inf_none

@@ -48,13 +48,13 @@
 <layer ... type="IsInf" ...>
     <data detect_negative="true" detect_positive="true"/>
     <input>
-        <port id="0">
+        <port id="0" precision="FP32">
             <dim>256</dim>
             <dim>128</dim>
         </port>
     </input>
     <output>
-        <port id="0">
+        <port id="0" precision="BOOL">
             <dim>256</dim>
             <dim>128</dim>
         </port>
