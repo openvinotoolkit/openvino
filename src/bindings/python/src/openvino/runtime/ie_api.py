@@ -101,6 +101,8 @@ def normalize_inputs(request: InferRequestBase, inputs: dict) -> dict:
             new_inputs[key] = value
         # If value object has __array__ attribute, load it to Tensor using np.array.
         elif hasattr(value, "__array__"):
+            if hasattr(value, "detach"):
+                value = value.detach().cpu()
             update_tensor(np.array(value, copy=True), request, key)
         # Throw error otherwise.
         else:
