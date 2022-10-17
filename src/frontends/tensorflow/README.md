@@ -39,6 +39,6 @@ For a detailed explanation of the component architecture and its workflow, read 
  * [OpenVINO TensorFlow Frontend tests](./docs/tests.md)
 
 ## See also
- * [OpenVINO™ README](../../../README.md)
+ * [OpenVINO README](../../../README.md)
  * [OpenVINO Core Components](../../README.md)
  * [Developer documentation](../../../docs/dev/index.md)
