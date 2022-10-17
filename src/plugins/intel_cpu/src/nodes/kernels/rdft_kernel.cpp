@@ -161,7 +161,7 @@ void jit_dft_kernel_f32<isa>::generate() {
 
             if (kernel_type_ == complex_to_complex) {
                 mov(rdx, 1ULL << 31);
-                vmovq(xmm_neg_mask, rdx);
+                uni_vmovq(xmm_neg_mask, rdx);
                 uni_vbroadcastsd(vmm_neg_mask, xmm_neg_mask);
             }
 
