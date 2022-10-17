@@ -427,6 +427,6 @@ IE_CPU.onnx_softmax_crossentropy_loss_mean
 IE_CPU.onnx_bool_init_and
 
 onnx_is_inf_default
-onnx_is_inf_positive
-onnx_is_inf_negative
-onnx_is_inf_none
+onnx_is_inf_positive_only
+onnx_is_inf_negative_only
+onnx_is_inf_detect_none
