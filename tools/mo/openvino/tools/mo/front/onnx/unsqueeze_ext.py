@@ -17,10 +17,5 @@ class UnsqueezeFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         axis = int64_array(onnx_attr(node, 'axes', 'ints', default=[]))
-        # check if axes attribute was provided, which is required for onnx opset < 13.
-        # Otherwise it means that onnx opset >= 13 and there are no attributes
-        if axis.any():
-            ExpandDims.update_node_stat(node, {'expand_axis': axis})
-        else:
-            ExpandDims.update_node_stat(node)
+        ExpandDims.update_node_stat(node, {'expand_axis': axis})
         return cls.enabled

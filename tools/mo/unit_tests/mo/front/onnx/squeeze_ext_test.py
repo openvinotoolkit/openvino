@@ -38,7 +38,7 @@ class TestSqueezeONNXExt(unittest.TestCase):
     def setUpClass(cls):
         Op.registered_ops['Squeeze'] = Squeeze
 
-    @generate(*[[0, 1, 2, 3], [1], None])
+    @generate(*[[0, 1, 2, 3], [1], []])
     def test_squeeze_ext(self, axes):
         node = self._create_squeeze_node(axes)
         SqueezeFrontExtractor.extract(node)
