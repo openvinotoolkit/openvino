@@ -31,7 +31,7 @@ using [Loaders](./src/op) and [Internal Transformation](./src/helper_transforms)
 It is often sufficient to use only [Loaders](./src/op). Two transformation pass is used when some TensorFlow operation cannot be mapped into a sub-graph of OpenVINO opset
 and its conversion depends on the succeeding operations in the graph.
 
-For a detailed explanation of the component architecture and its workflow, read [TensorFlow Frontend Architecture and Workflow](./docs/architecture.md).
+Read [TensorFlow Frontend Architecture and Workflow](./docs/architecture.md) for a detailed explanation of the component.
 
 ## Tutorials
 
