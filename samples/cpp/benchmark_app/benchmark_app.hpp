@@ -200,7 +200,7 @@ static const char cache_dir_message[] = "Optional. Enables caching of loaded mod
                                         "List of devices which support caching is shown at the end of this message.";
 
 // @brief message for single load network
-static const char load_from_file_message[] = "Optional. Loads model from file directly without ReadModel."
+static const char load_from_file_message[] = "Optional. Loads model from file directly without read_model."
                                              " All CNNNetwork options (like re-shape) will be ignored";
 
 // @brief message for inference_precision
