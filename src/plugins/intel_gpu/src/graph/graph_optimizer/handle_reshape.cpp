@@ -145,16 +145,13 @@ void handle_reshape::run(program& p) {
             }
 
             auto reshape_layout = node->get_output_layout();
-
-            cldnn::format target_format = cldnn::format::bfyx;
-            if (reshape_layout.get_rank() == 5) target_format = cldnn::format::bfzyx;
-            if (reshape_layout.get_rank() == 6) target_format = cldnn::format::bfwzyx;
+            auto target_format = format::get_default_format(reshape_layout.get_rank());
 
             if (!(node->is_output()) && (reshape_layout.format != target_format)) {
-                auto bfyx_layout = layout({reshape_layout.get_partial_shape(), reshape_layout.data_type, target_format});
+                auto target_layout = layout({reshape_layout.get_partial_shape(), reshape_layout.data_type, target_format});
                 // when some primitive does an implicit reorder to some other format then we lose the info about pitches
                 // in reshape stage we assume user provides the input vector in bfyx
-                if (!reshape_layout.compatible(bfyx_layout)) {
+                if (!reshape_layout.compatible(target_layout)) {
                     auto reshape_input = std::make_shared<reorder>("reorder:_reshape_input_" + node->id(),
                                                                    input_node.id(),
                                                                    target_format,
