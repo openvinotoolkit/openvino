@@ -25,6 +25,7 @@
 #include "mvn_inst.h"
 #include "depth_to_space_inst.h"
 #include "region_yolo_inst.h"
+#include "prior_box_inst.h"
 #include <vector>
 #include <memory>
 #include <utility>
@@ -416,6 +417,9 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
         return true;
 
     if (prev.is_type<permute>()) {
+        if (fmt_prev == format::b_fs_yx_fsv32 && fmt_next == format::byxf)
+            return true;
+
         auto& permute_order = prev.as<permute>().get_primitive()->permute_order;
         if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
          fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
@@ -1284,7 +1288,13 @@ impl_types layout_optimizer::get_forced_impl_type_by_config(program_node& node) 
                 return impl_types::ocl;
             else if (forced_impl_type == "reduce:onednn")
                 return impl_types::onednn;
-        }
+        } else if (node.is_type<concatenation>()) {
+            if (forced_impl_type == "concat:ocl")
+                return impl_types::ocl;
+            else if (forced_impl_type == "concat:onednn")
+                return impl_types::onednn;
+         }
+
 
         // Forcing one layer
         size_t found_type = forced_impl_type.rfind(":");
@@ -1580,6 +1590,10 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         }
 
         preferred_impl = impl_candidate;
+    } else if (node.is_type<prior_box>()) {
+        if (node.as<prior_box>().get_primitive()->support_opset8) {
+            preferred_impl = impl_types::ocl;
+        }
     }
 
     return preferred_impl;

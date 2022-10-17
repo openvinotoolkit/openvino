@@ -13,7 +13,7 @@ namespace pass {
 
 /**
  * @interface InsertMoveBroadcast
- * @brief Inserts explicit MoveBroadcast instruction if broadcasting by most warying dimension is needed.
+ * @brief Inserts explicit MoveBroadcast instruction if broadcasting by most varying dimension is needed.
  * The pass is used to convert model to a canonical form for code generation
  * @ingroup snippets
  */

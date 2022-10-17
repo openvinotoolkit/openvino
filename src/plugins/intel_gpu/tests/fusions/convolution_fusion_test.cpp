@@ -265,6 +265,10 @@ public:
     layout get_per_channel_layout(convolution_test_params& p) {
         return layout{ p.default_type, p.default_format, tensor{1, p.out_shape.feature[0], 1, 1} };
     }
+
+    layout get_prelu_slope_layout(convolution_test_params& p) {
+        return layout{ p.default_type, p.default_format, tensor{1, p.out_shape.feature[0], 1, 1} };
+    }
 };
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
@@ -1118,6 +1122,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_multi_eltwise_quantization, ::te
 class conv_fp32_multi_eltwise_concat : public ConvFusingTest {};
 TEST_P(conv_fp32_multi_eltwise_concat, basic) {
     auto p = GetParam();
+    data_types output_type = data_types::i8;
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("eltwise_data1", get_mem(get_output_layout(p))),
@@ -1129,15 +1134,15 @@ TEST_P(conv_fp32_multi_eltwise_concat, basic) {
         eltwise("eltwise2", "conv_prim", "eltwise_data2", eltwise_mode::sum),
         concatenation("concat",
             { "eltwise1", "eltwise2" },
-            1,
-            data_types::i8,
+            2,
+            output_type,
             padding{ { 0, 0, 0, 0 }, 0 }),
         reorder("reorder_bfyx", "concat", p.default_format, data_types::f32)
     );
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
     bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = default_tolerance(output_type);
     execute(p);
 }
 
@@ -2913,6 +2918,30 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_data_
 }));
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+class conv_fp16_prelu_onednn : public WeightsPrimitiveFusingTestOneDNN {};
+TEST_P(conv_fp16_prelu_onednn, basic_activation_eltwise) {
+    auto p = GetParam();
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("slope_data", get_mem(get_prelu_slope_layout(p))),
+        data("eltwise_data", get_mem(get_output_layout(p))),
+        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", "activation", "eltwise_data", eltwise_mode::sum),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp16_prelu_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP16_1, 2, 4 },
+}));
+
 class conv_int8_eltwise_onednn : public WeightsPrimitiveFusingTestOneDNN {};
 TEST_P(conv_int8_eltwise_onednn, u8_eltwise_sum_out) {
     auto p = GetParam();

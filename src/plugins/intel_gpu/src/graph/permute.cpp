@@ -81,6 +81,8 @@ std::vector<layout> permute_inst::calc_output_layouts(permute_node const& /*node
     return { layout{output_shape, output_type, input_layout.format, desc->output_padding} };
 }
 
+template std::vector<layout> permute_inst::calc_output_layouts<ov::PartialShape>(permute_node const& node, const kernel_impl_params& impl_param);
+
 std::string permute_inst::to_string(permute_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
