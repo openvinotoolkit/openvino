@@ -13,10 +13,20 @@ During the loading the `FrontEnd::load()` method creates `InputModel` that encap
 `GraphIterator` is a reader that iterates through the graph nodes in the topological order.
 `GraphIterator::get_decoder()` provides a decoder for the current graph node to read its attributes.
 Each TensorFlow model format has its implementation of `GraphIterator`. Currently, the frontend supports only binary frozen format `.pb`,
-and `GraphIteratorProto` is used for reading and parsing this format. The workflow of this step and the architecture of employed components
-are shown in the picture below:
+and `GraphIteratorProto` is used for reading and parsing this format. The architecture of the loading step is shown in the picture below:
 
-![Architecture and Workflow of TensorFlow Frontend Load](img/tf_fe_load.png)
+```mermaid
+classDiagram
+    direction BT
+    class TensorFrontend {
+        +load()
+    }
+    TensorFrontend --|> InputModel
+    GraphIterator "1" --o "1" InputModel
+    Place --o "1..*" InputModel
+    DecoderBase "1" --o "1" Place
+    GraphIteratorProto ..|> GraphIterator
+```
 
 After the loading step `InputModel` includes a container of topologically sorted operation `Place` objects.
 During conversion, each `Place` provides a `DecoderBase` object to retrieve attributes of the current operation to be transformed into the OpenVINO opset.
@@ -30,9 +40,17 @@ where the first pass transforms a TF operation into a sub-graph with [Internal O
 and the second pass avoids internal operations.
 
 In the majority of cases, it is sufficient to use just one pass for TensorFlow operation conversion
-The workflow of the conversion step and the architecture are presented in the diagram below:
+The workflow of the conversion step is presented in the diagram below:
 
-![Architecture and Workflow of TensorFlow Frontend Conversion](img/tf_fe_convert.png)
+```mermaid
+flowchart LR
+    subgraph tf_fe["Frontend::convert()"]
+    first_pass["1st transform pass (Loaders)"]
+    NodeContext --> first_pass
+    end
+    ov::InputModel --> tf_fe
+    tf_fe --> ov::Model
+```
 
 ## Extensions
 

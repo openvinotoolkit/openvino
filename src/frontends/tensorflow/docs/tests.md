@@ -47,4 +47,3 @@ py.test tensorflow_tests/test_tf_Unique.py --use_new_frontend
  * [OpenVINO TensorFlow Frontend README](../README.md)
  * [OpenVINO™ README](../../../../README.md)
  * [Developer documentation](../../../../docs/dev/index.md)
-
