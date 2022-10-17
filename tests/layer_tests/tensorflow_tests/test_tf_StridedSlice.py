@@ -12,9 +12,7 @@ class TestStridedSlice(CommonTFLayerTest):
     def create_strided_slice_net(input_shape, begin, end, strides, begin_mask, end_mask,
                                  ellipsis_mask,
                                  new_axis_mask, shrink_axis_mask, ir_version, use_new_frontend):
-        #
-        # Create Tensorflow model
-        #
+
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
@@ -44,9 +42,9 @@ class TestStridedSlice(CommonTFLayerTest):
              end_mask=0, ellipsis_mask=0, new_axis_mask=0, shrink_axis_mask=2),
         dict(input_shape=[1, 5, 1], begin=[0, 0, 0], end=[1, 5, 1], strides=[1, 1, 1], begin_mask=0,
              end_mask=0, ellipsis_mask=0, new_axis_mask=0, shrink_axis_mask=4),
-        dict(input_shape=[1, 5, 5, 3], begin=[0, 0, 0, 0], end=[1, 5, 5, 3], strides=[1, 1, 1, 1],
-             begin_mask=0,
-             end_mask=0, ellipsis_mask=0, new_axis_mask=0, shrink_axis_mask=1),
+        pytest.param(dict(input_shape=[1, 5, 5, 3], begin=[0, 0, 0, 0], end=[1, 5, 5, 3], strides=[1, 1, 1, 1],
+                          begin_mask=0, end_mask=0, ellipsis_mask=0, new_axis_mask=0, shrink_axis_mask=1),
+                     marks=pytest.mark.precommit_tf_fe),
         dict(input_shape=[1, 1, 5, 3], begin=[0, 0, 0, 0], end=[1, 1, 5, 3], strides=[1, 1, 1, 1],
              begin_mask=0,
              end_mask=0, ellipsis_mask=0, new_axis_mask=0, shrink_axis_mask=2),

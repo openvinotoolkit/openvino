@@ -10,6 +10,11 @@ from jinja2 import Environment, FileSystemLoader
 
 from utils import utils
 
+NOT_RUN = "NOT RUN"
+NA = "N/A"
+
+STATUS_CSV_ORDER = ["implemented", "passed", "failed", "skipped", "crashed", "hanged", "passrate"]
+
 logger = utils.get_logger('Summarize')
 
 
@@ -28,6 +33,7 @@ def parse_arguments():
     output_filename_help = "Output report filename"
     conformance_mode_help = "Allow to align test number"
     csv_help = "Allow to serialize report as csv file"
+    expected_devices_help = "List of expected devices"
 
     parser.add_argument("--xml", help=xml_help, nargs="*", required=True)
     parser.add_argument("--out", help=out_help, default="")
@@ -36,6 +42,7 @@ def parse_arguments():
     parser.add_argument("--report_version", help=report_version, default="")
     parser.add_argument("--conformance_mode", help=conformance_mode_help, default=False)
     parser.add_argument("--csv", help=csv_help, default=False)
+    parser.add_argument("--expected_devices", help=expected_devices_help, nargs="*", required=False)
 
     return parser.parse_args()
 
@@ -142,7 +149,7 @@ def collect_statistic(root: ET.Element, is_conformance_mode: bool):
         pass_rate_avg[device.tag] = round(float(pass_rate_avg[device.tag]), 1)
         general_pass_rate[device.tag] = 0 if general_test_count[device.tag] == 0 else (general_passed_tests[device.tag] * 100 / general_test_count[device.tag])
         general_pass_rate[device.tag] = round(float(general_pass_rate[device.tag]), 1)
-        trusted_ops[device.tag] = round(float(trusted_ops[device.tag] * 100 / covered_ops[device.tag]), 1) if device.tag in covered_ops and covered_ops[device.tag] != 0 else 0
+        trusted_ops[device.tag] = round(float(trusted_ops[device.tag] * 100) / covered_ops[device.tag], 1) if device.tag in covered_ops and covered_ops[device.tag] != 0 else 0
 
     logger.info("Test number comparison between devices is started")
     for op in op_res:
@@ -181,29 +188,65 @@ def serialize_to_csv(report_filename: str, output_dir: os.path, op_list: list, d
     csv_filename = os.path.join(output_dir, report_filename + '.csv')
     with open(csv_filename, "w", newline='') as output_csv_file:
         csv_writer = csv.writer(output_csv_file, dialect='excel')
-        csv_writer.writerow(['Operation'] + device_list)
+        # csv_writer.writerow(['Operation'] + device_list)
+        devices_csv = ['Operation']
+        device_res_csv = ['Operation']
+        
+        for device in device_list:          
+            for status in STATUS_CSV_ORDER:
+                devices_csv.append(device)
+                device_res_csv.append(status)
+            
+        csv_writer.writerow(devices_csv)
+        csv_writer.writerow(device_res_csv)
+
         for op in op_list:
             list_to_csv = list()
             for device in device_list:
-                list_to_csv.append(format_string(str(results[device][op])) if op in results[device] else "N/A")
+                if op in results[device]:
+                    if results[device][op] == NA or results[device][op] == NOT_RUN:
+                        for status in STATUS_CSV_ORDER:
+                            list_to_csv.append(results[device][op])
+                        continue
+                    for status in STATUS_CSV_ORDER:
+                        list_to_csv.append(str(results[device][op][status]))
+                else:
+                    for status in STATUS_CSV_ORDER:
+                        list_to_csv.append(NA)
             csv_writer.writerow([op] + list_to_csv)
 
     logger.info(f'Final CSV report is saved to {csv_filename}')
 
 
-def create_summary(summary_root: ET.Element, output_folder: os.path, report_tag: str, report_version: str,
+def create_summary(summary_root: ET.Element, output_folder: os.path, expected_devices:list, report_tag: str, report_version: str,
                    is_conformance_mode: bool,  is_serialize_to_csv: bool, output_filename='report'):
     if is_conformance_mode:
         utils.update_conformance_test_counters(summary_root, logger)
+        utils.update_passrates(summary_root.find("results"))
     device_list, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops, covered_ops = \
         collect_statistic(summary_root, is_conformance_mode)
-
-    timestamp = summary_root.attrib["timestamp"]
 
     op_list = list()
     for op in summary_root.find("ops_list"):
         op_list.append(op.tag)
     op_list = sorted(op_list)
+    
+    if len(expected_devices) > 0 and sorted(expected_devices) != device_list:
+        for expected_device in expected_devices:
+            if expected_device in device_list:
+                continue
+            tmp_res = dict()
+            no_run_val = "NOT RUN"
+            tmp_res = {op: no_run_val for op in op_list}
+            results[expected_device] = tmp_res
+            general_pass_rate[expected_device] = no_run_val
+            pass_rate_avg[expected_device] = no_run_val
+            general_test_count[expected_device] = no_run_val
+            trusted_ops[expected_device] = no_run_val
+            covered_ops[expected_device] = no_run_val
+        device_list = results.keys()
+
+    timestamp = summary_root.attrib["timestamp"]
 
     device_list = sorted(device_list)
 
@@ -227,4 +270,4 @@ def create_summary(summary_root: ET.Element, output_folder: os.path, report_tag:
 if __name__ == "__main__":
     args = parse_arguments()
     summary_root = merge_xmls(args.xml)
-    create_summary(summary_root, args.out, args.report_tag, args.report_version, args.conformance_mode, args.csv, args.output_filename)
+    create_summary(summary_root, args.out,  [] if args.expected_devices is None else args.expected_devices, args.report_tag, args.report_version, args.conformance_mode, args.csv, args.output_filename)

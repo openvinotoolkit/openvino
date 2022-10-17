@@ -41,7 +41,7 @@ void runtime::reference::tile(const char* arg,
     in_shape_expanded.insert(in_shape_expanded.begin(), out_shape.size() - in_shape.size(), 1);
     size_t block_size = 0;
     int64_t num_repeats = 0;
-    const int input_rank = in_shape_expanded.size();
+    const int input_rank = static_cast<int>(in_shape_expanded.size());
     const int64_t last_dim = in_shape_expanded[input_rank - 1];
     const std::vector<int64_t> pitches = create_pitches(out_shape);
     const char* copy = nullptr;

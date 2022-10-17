@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(NOT CPACK_GENERATOR STREQUAL "DEB")
+if(NOT CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
     set(linkable_frontend LINKABLE_FRONTEND)
 endif()
 
@@ -24,7 +24,10 @@ endif()
 add_library(openvino_tensorflow_frontend_static_tests STATIC EXCLUDE_FROM_ALL
     helper_transforms/block_lstm_replacer.cpp
     helper_transforms/embedding_segments_feature_fusing.cpp
+    helper_transforms/gru_block_cell_replacer.cpp
+    helper_transforms/unique_replacer.cpp
     pass/transpose_sinking.cpp
+    exception.cpp
     openvino_conversions.cpp
     utils.cpp)
 
