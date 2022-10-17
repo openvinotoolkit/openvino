@@ -1,6 +1,6 @@
 # OpenVINO TensorFlow Frontend Architecture and Workflow
 
-OpenVINO TensorFlow Frontend uses [TensorFlow Protobuf files](../src/proto) to read and to parse different TensorFlow model formats.
+OpenVINO TensorFlow Frontend uses [TensorFlow Protobuf files](../src/proto) to read and parse different TensorFlow model formats.
 The whole workflow can be split into two steps: model loading and conversion.
 
 ```
