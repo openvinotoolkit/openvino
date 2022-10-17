@@ -244,7 +244,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
     ADD_MATCHER_SCOPE_WITH_OBJ(common, ngraph::pass::low_precision, VariadicSplitTransformation, params)
 
     std::shared_ptr<ngraph::pass::GraphRewrite> cleanup = manager.register_pass<ngraph::pass::GraphRewrite>();
-    ADD_MATCHER_SCOPE_WITH_OBJ(cleanup, ngraph::pass::low_precision, AssignAndReadValueTransformation, params)
+    ADD_MATCHER_SCOPE_WITH_OBJ(cleanup, ngraph::pass::low_precision, FoldConvertTransformation, params)
     ADD_MATCHER_SCOPE_WITH_OBJ(cleanup, ngraph::pass::low_precision, FuseConvertTransformation, params)
     ADD_MATCHER_SCOPE_WITH_OBJ(cleanup, ngraph::pass::low_precision, FuseSubtractToFakeQuantizeTransformation, params)
     ADD_MATCHER_SCOPE_WITH_OBJ(cleanup, ngraph::pass::low_precision, FuseMultiplyToFakeQuantizeTransformation, params)

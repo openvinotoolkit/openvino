@@ -158,7 +158,7 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
         ADD_MATCHER_SCOPE_WITH_OBJ(decomp, ngraph::pass, ConvertConvertLike)
         ADD_MATCHER_SCOPE_WITH_OBJ(decomp, ngraph::pass, BatchNormDecomposition)
         ADD_MATCHER_SCOPE_WITH_OBJ(decomp, ngraph::pass, MVN6Decomposition)
-        ADD_MATCHER_SCOPE_WITH_OBJ(decomp, ngraph::pass, NormalizeL2Decomposition)
+        decomp->add_matcher<ngraph::pass::NormalizeL2Decomposition, false>();
         ADD_MATCHER_SCOPE_WITH_OBJ(decomp, ngraph::pass, SimplifyCTCGreedyDecoderSeqLen)
         ADD_MATCHER_SCOPE_WITH_OBJ(decomp, ngraph::pass, EinsumDecomposition)
         decomp->add_matcher<ngraph::pass::SoftmaxDecomposition, false>();
@@ -166,7 +166,7 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
         ADD_MATCHER_SCOPE_WITH_OBJ(decomp, ngraph::pass, GatherNegativeConstIndicesNormalize)
         ADD_MATCHER_SCOPE_WITH_OBJ(decomp, ngraph::pass, DropoutWithRandomUniformReplacer)
         ADD_MATCHER_SCOPE_WITH_OBJ(decomp, ngraph::pass, TransposeReshapeEliminationForMatmul)
-        ADD_MATCHER_SCOPE_WITH_OBJ(decomp, ngraph::pass, EyeDecomposition)
+        ADD_MATCHER_SCOPE_WITH_OBJ(decomp, ov::pass, EyeDecomposition)
         decomp->set_name("ngraph::pass::CommonDecompositions");
     }
     // CF is required after all decompositions

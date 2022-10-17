@@ -120,9 +120,9 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
 
     if (!m_use_shapes) {  // Approved Smart Reshape
         REGISTER_PASS_FUNCTION_SCOPE(manager, ov::pass, LSTMStatesBroadcast)
-        REGISTER_PASS_MODEL_SCOPE(manager, ngraph::pass, Validate)
+        REGISTER_PASS_MODEL_SCOPE(manager, ov::pass, Validate)
         REGISTER_PASS_SCOPE(manager, ov::pass, ReshapeSinkingMatMul)
-        REGISTER_PASS_MODEL_SCOPE(manager, ngraph::pass, Validate)
+        REGISTER_PASS_MODEL_SCOPE(manager, ov::pass, Validate)
     }
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertQuantizeDequantize)
     REGISTER_PASS_FUNCTION_SCOPE(manager, ngraph::pass, SimplifyShapeOfSubGraph)
@@ -207,8 +207,10 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
         ADD_MATCHER_SCOPE_WITH_OBJ(multiply_fusions, ngraph::pass, MultiplyGroupConvolutionBackpropDataFusion)
         ADD_MATCHER_SCOPE_WITH_OBJ(multiply_fusions, ngraph::pass, MatMulMultiplyFusion)
         multiply_fusions->set_name("ngraph::pass::MultiplyFusions");
-        ADD_MATCHER_SCOPE_WITH_OBJ(multiply_fusions, ngraph::pass, ConstantFolding)
     }
+
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConstantFolding)
+
     REGISTER_PASS_MODEL_SCOPE_IF(GraphRewrite) {
         auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
         ADD_MATCHER_SCOPE_WITH_OBJ(fq_fusions, ngraph::pass, FakeQuantizeMulFusion)
