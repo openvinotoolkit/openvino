@@ -52,7 +52,7 @@ The main rules for loaders implementation:
 5. Preserve output tensor names.
 6. Use helpers routines for operation check and construction of a graph from `util.hpp`.
 
-## Two transformation pass using Loader and Internal Transformation
+## Two transformation passes using Loader and Internal Transformation
 
 In rare cases, TensorFlow operation conversion requires two transformations (`Loader` and `Internal Transformation`).
 In the first step, `Loader` must convert TF operation into [Internal Operation](../src/helper_ops) that is used temporarily by the conversion pipeline.
