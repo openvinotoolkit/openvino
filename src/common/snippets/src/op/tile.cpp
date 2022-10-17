@@ -66,14 +66,9 @@ std::shared_ptr<Node> TileBegin::clone_with_new_inputs(const OutputVector& input
 void TileBegin::validate_and_infer_types_except_TileEnd() {
     const size_t num_inputs = get_input_size();
     set_output_size(num_inputs + 1);
-    const auto& ins = inputs();
-    for (int i = 0; i < num_inputs; i++) {
-        set_output_type(i, ins[i].get_element_type(), ins[i].get_partial_shape());
-        // copy rt_info from inputs to outputs to pass reg_info for example
-        const auto& rt_info_old = ins[i].get_source_output().get_tensor().get_rt_info();
-        auto& rt_info_new = get_output_tensor(i).get_rt_info();
-        rt_info_new = rt_info_old;
-    }
+    // All outputs are by-passed from inputs, except for the last one - it connects TileBegin and TileEnd
+    for (int i = 0; i < num_inputs; i++)
+        get_output_descriptor(i).set_tensor_ptr(get_input_descriptor(i).get_output().get_tensor_ptr());
     set_output_type(num_inputs, element::f32, ov::PartialShape{ov::Shape{}});
 }
 
@@ -172,13 +167,9 @@ void TileEnd::validate_and_infer_types() {
         finalization_offsets.resize(tile_io_size, 0);
     set_output_size(num_inputs - 1);
     const auto& ins = inputs();
-    for (int i = 0; i < num_inputs - 1; i++) {
-        set_output_type(i, ins[i].get_element_type(), ins[i].get_partial_shape());
-        // copy rt_info from inputs to outputs to pass reg_info for example
-        const auto& rt_info_old = ins[i].get_source_output().get_tensor().get_rt_info();
-        auto& rt_info_new = get_output_tensor(i).get_rt_info();
-        rt_info_new = rt_info_old;
-    }
+    // All outputs are by-passed from inputs, except for the last one - it connects TileBegin and TileEnd
+    for (int i = 0; i < num_inputs - 1; i++)
+        get_output_descriptor(i).set_tensor_ptr(get_input_descriptor(i).get_output().get_tensor_ptr());
 }
 
 } // namespace op
