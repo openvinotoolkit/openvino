@@ -1,7 +1,7 @@
 # How to implement support of a new TensorFlow operation
 
-The conversion of a TensorFlow operation requires either one pass using [Loaders](./src/op) or two transformation passes
-using [Loaders](./src/op) and [Internal Transformation](./src/helper_transforms). It is often sufficient to use only [Loaders](./src/op) for the conversion.
+The conversion of a TensorFlow operation requires either one pass using [Loaders](../src/op) or two transformation passes
+using [Loaders](../src/op) and [Internal Transformation](../src/helper_transforms). It is often sufficient to use only [Loaders](../src/op) for the conversion.
 Two transformation passes are used when a TensorFlow operation cannot be mapped into a sub-graph of the OpenVINO opset,
 and the conversion depends on the succeeding operations in the graph.
 
@@ -98,13 +98,13 @@ breaks a graph pattern with an internal operation for another internal transform
 ## How to test support of TensorFlow operation
 
 For operation conversion that requires just `Loader`, implement layers tests:
-* For support of TensorFlow 1 operation, [TensorFlow 1 Layer Tests](../../../../tests/tensorflow_tests)
-* For support of TensorFlow 2 Keras operation, [TensorFlow 2 Keras Layer Tests](../../../../tests/tensorflow2_keras_tests)
+* For support of TensorFlow 1 operation, [TensorFlow 1 Layer Tests](../../../../tests/layer_tests/tensorflow_tests)
+* For support of TensorFlow 2 Keras operation, [TensorFlow 2 Keras Layer Tests](../../../../tests/layer_tests/tensorflow2_keras_tests)
 
 In case of two transformation passes using `Loader` and `Internal Transformation`, implement them in addition to the layer tests:
 * [Unit tests](../tests) to cover the helper transformation
 
-For more information about tests for TensorFlow Frontend, read [OpenVINO TensorFlow Frontend tests](./docs/tests.md) documentation.
+For more information about tests for TensorFlow Frontend, read [OpenVINO TensorFlow Frontend tests](./tests.md) documentation.
 
 ## See also
 
