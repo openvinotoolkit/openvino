@@ -19,7 +19,7 @@ are shown in the picture below:
 ![Architecture and Workflow of TensorFlow Frontend Load](img/tf_fe_load.png)
 
 After the loading step `InputModel` includes a container of topologically sorted operation `Places`.
-During conversion each Place provides `DecoderBase` object to retrieve attributes of the current operation to be transformed into OpenVINO opset.
+During conversion, each `Place` provides a `DecoderBase` object to retrieve attributes of the current operation to be transformed into the OpenVINO opset.
 `Frontend` converts operations in topological order and requires `NodeContext` for the current operation node,
 which includes `Decoder` and `OutputVector` inputs from already converted nodes.
 
