@@ -15,14 +15,15 @@
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
 
+namespace ngraph {
+class OpSet;
+}
 namespace ov {
 /**
  * @brief Run-time opset information
  * @ingroup ov_opset_cpp_api
  */
 class OPENVINO_API OpSet {
-    mutable std::mutex opset_mutex;
-
 public:
     OpSet() = default;
     OpSet(const std::string& name);
@@ -106,21 +107,6 @@ public:
     }
 
 protected:
-    static std::string to_upper_name(const std::string& name) {
-        std::string upper_name = name;
-        std::locale loc;
-        std::transform(upper_name.begin(), upper_name.end(), upper_name.begin(), [&loc](char c) {
-            return std::toupper(c, loc);
-        });
-        return upper_name;
-    }
-
-    ngraph::FactoryRegistry<ov::Node> m_factory_registry;
-    std::string m_name;
-    std::set<NodeTypeInfo> m_op_types;
-    std::map<std::string, NodeTypeInfo> m_name_type_info_map;
-    std::map<std::string, NodeTypeInfo> m_case_insensitive_type_info_map;
-
     /// \brief Insert an op into the opset with a particular name and factory
     void insert(const std::string& name,
                 const NodeTypeInfo& type_info,
@@ -131,6 +117,25 @@ protected:
         m_case_insensitive_type_info_map[to_upper_name(name)] = type_info;
         m_factory_registry.register_factory(type_info, std::move(factory));
     }
+    ngraph::FactoryRegistry<ov::Node> m_factory_registry;
+
+private:
+    static std::string to_upper_name(const std::string& name) {
+        std::string upper_name = name;
+        std::locale loc;
+        std::transform(upper_name.begin(), upper_name.end(), upper_name.begin(), [&loc](char c) {
+            return std::toupper(c, loc);
+        });
+        return upper_name;
+    }
+
+    std::string m_name;
+    std::set<NodeTypeInfo> m_op_types;
+    std::map<std::string, NodeTypeInfo> m_name_type_info_map;
+    std::map<std::string, NodeTypeInfo> m_case_insensitive_type_info_map;
+    mutable std::mutex opset_mutex;
+
+    friend ngraph::OpSet;
 };
 
 /**

@@ -8,7 +8,21 @@
 #include "ngraph/log.hpp"
 #include "ngraph/ops.hpp"
 
-ngraph::OpSet::OpSet(const ov::OpSet& opset) : ov::OpSet(opset) {}
+ngraph::OpSet::OpSet(const ov::OpSet& opset) {
+    m_factory_registry = opset.m_factory_registry;
+    m_name = opset.m_name;
+    m_op_types = opset.m_op_types;
+    m_name_type_info_map = opset.m_name_type_info_map;
+    m_case_insensitive_type_info_map = opset.m_case_insensitive_type_info_map;
+}
+
+ngraph::OpSet::OpSet(const ngraph::OpSet& opset) {
+    m_factory_registry = opset.m_factory_registry;
+    m_name = opset.m_name;
+    m_op_types = opset.m_op_types;
+    m_name_type_info_map = opset.m_name_type_info_map;
+    m_case_insensitive_type_info_map = opset.m_case_insensitive_type_info_map;
+}
 
 ov::OpSet::OpSet(const std::string& name) : m_name(name) {}
 
