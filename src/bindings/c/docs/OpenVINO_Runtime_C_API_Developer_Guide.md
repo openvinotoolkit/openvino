@@ -1,6 +1,6 @@
-# User Guide of OpenVINO C API
+# Developer Guide of OpenVINO C API
 
-> **NOTE**: This guide provides a simplified instroduction about OpenVINO C API.
+> **NOTE**: This guide provides a instroduction about OpenVINO C API.
 C API provides simplified interface for OpenVINO functionality that allows to:
 
 - handle the input network models & input/output tensors.
@@ -53,8 +53,26 @@ Supported Python* versions:
 | tensor | `ov_tensor_create_from_host_ptr()`, `ov_tensor_create()`, `ov_tensor_set_shape()`, `ov_tensor_get_shape()`, `ov_tensor_get_element_type()`, `ov_tensor_get_size()`, `ov_tensor_get_byte_size()`, `ov_tensor_data()`, `ov_tensor_free()` | Operations of tensor, details in `ov_tensor.h`
 
 ## The mapping relationship between C++ api 2.0 and C api
-[The Mapping between C++ API 2.0 and C API.xlsx](https://github.com/zhaixuejun1993/openvino/files/9792264/The.Mapping.between.C%2B%2B.API.2.0.and.C.API.xlsx)
+| C++ API  | C API  |
+|:---     |:--- |
+| `Core(const std::string& xml_config_file = {})`| `ov_core_create(ov_core_t** core)` or `ov_core_create_with_config(const char* xml_config_file, ov_core_t** core)`|
+|`~Core()`| `ov_core_free(ov_core_t* core)`|
+|`get_versions(const std::string& device_name)`|`ov_core_get_versions_by_device_name(const ov_core_t* core, const char* device_name, ov_core_version_list_t* versions)`|
+|` read_model(const std::string& model_path, const std::string& bin_path = {})`|`ov_core_read_model(const ov_core_t* core, const char* model_path, const char* bin_path, ov_model_t** model)`|
+|`compile_model(const std::shared_ptr<const ov::Model>& model, const std::string& device_name, const AnyMap& properties = {})`|`ov_core_compile_model(const ov_core_t* core, const ov_model_t* model, const char* device_name, const ov_properties_t* property, ov_compiled_model_t** compiled_model)`|
 
+## Roles in development
+* Most of APIs should return "ov_status_e" and the actual output will be put in input/output parameters. 
+* Some specified APIs will return void or boolean per API's funtionality.
+* structure name plus  "_create" suffix, and input/output parameter is "**" format. Such as C++ `ov::Core()` to C `ov_core_create(ov_core_t** core)`.
+* Don't support the vector of hidden structure.
+* As much as possible to apply pass by value  for input parameter of C APIs.
+* Pass by pointer will be used in output parameters
+* Snake_case style, strict unfold of C++ class plus this class method (can add additional action word to make its readable),  the first paramter should be the C structure pointer of the coresponding C++ class. Such as `OPENVINO_C_API(ov_status_e)  <class_name>_<method_name>_<additional_info>(<sturcture_object_pointer>, <input/output parameter>,... );`
+* Don't support class's  template methods.
+* With same name but different parameters, choose the popular one name first, and others will be add edadditional info to distinguish them.
+* Function parameter order:  input parameters first and then output parameters.
+* All unchanged input arguments shoud add "const" specificator.
 
 ## Tutorials
 Two C samples provided for customer reference, and the main steps about how to create C sample with C API in [here](./How_to_Create_C_Sample_with_OpenVINO_C_API.md)
