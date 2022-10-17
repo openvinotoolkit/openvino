@@ -35,7 +35,7 @@ To test the whole suite of TensorFlow 1 operation set support, run as follows:
 py.test tensorflow_tests --use_new_frontend
 ```
 
-The command line for one operation is the following:
+The command line for one operation:
 ```bash
 py.test tensorflow_tests/test_tf_Unique.py --use_new_frontend
 ```
