@@ -101,7 +101,7 @@ For operation conversion that requires just `Loader`, implement layers tests:
 * For support of TensorFlow 1 operation, [TensorFlow 1 Layer Tests](../../../../tests/tensorflow_tests)
 * For support of TensorFlow 2 Keras operation, [TensorFlow 2 Keras Layer Tests](../../../../tests/tensorflow2_keras_tests)
 
-In case two transformation pass using `Loader` and `Internal Transformation`, implement them in addition to the layer tests:
+In case of two transformation passes using `Loader` and `Internal Transformation`, implement them in addition to the layer tests:
 * [Unit tests](../tests) to cover the helper transformation
 
 For more information about tests for TensorFlow Frontend, read [OpenVINO TensorFlow Frontend tests](./docs/tests.md) documentation.
