@@ -15,9 +15,6 @@
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/node.hpp"
 
-namespace ngraph {
-class OpSet;
-}
 namespace ov {
 /**
  * @brief Run-time opset information
@@ -27,7 +24,9 @@ class OPENVINO_API OpSet {
 public:
     OpSet() = default;
     OpSet(const std::string& name);
+    OpSet(const OpSet& opset);
     virtual ~OpSet() = default;
+    OpSet& operator=(const OpSet& opset);
     std::set<NodeTypeInfo>::size_type size() const {
         std::lock_guard<std::mutex> guard(opset_mutex);
         return m_op_types.size();
@@ -134,8 +133,6 @@ private:
     std::map<std::string, NodeTypeInfo> m_name_type_info_map;
     std::map<std::string, NodeTypeInfo> m_case_insensitive_type_info_map;
     mutable std::mutex opset_mutex;
-
-    friend ngraph::OpSet;
 };
 
 /**

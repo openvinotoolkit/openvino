@@ -7,24 +7,26 @@
 #include "itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/ops.hpp"
+#include "openvino/opsets/opset.hpp"
 
-ngraph::OpSet::OpSet(const ov::OpSet& opset) {
-    m_factory_registry = opset.m_factory_registry;
-    m_name = opset.m_name;
-    m_op_types = opset.m_op_types;
-    m_name_type_info_map = opset.m_name_type_info_map;
-    m_case_insensitive_type_info_map = opset.m_case_insensitive_type_info_map;
-}
+ngraph::OpSet::OpSet(const ov::OpSet& opset) : ov::OpSet(opset) {}
 
-ngraph::OpSet::OpSet(const ngraph::OpSet& opset) {
-    m_factory_registry = opset.m_factory_registry;
-    m_name = opset.m_name;
-    m_op_types = opset.m_op_types;
-    m_name_type_info_map = opset.m_name_type_info_map;
-    m_case_insensitive_type_info_map = opset.m_case_insensitive_type_info_map;
-}
+ngraph::OpSet::OpSet(const ngraph::OpSet& opset) : ov::OpSet(opset) {}
 
 ov::OpSet::OpSet(const std::string& name) : m_name(name) {}
+
+ov::OpSet::OpSet(const ov::OpSet& opset) {
+    *this = opset;
+}
+
+ov::OpSet& ov::OpSet::operator=(const ov::OpSet& opset) {
+    m_factory_registry = opset.m_factory_registry;
+    m_name = opset.m_name;
+    m_op_types = opset.m_op_types;
+    m_name_type_info_map = opset.m_name_type_info_map;
+    m_case_insensitive_type_info_map = opset.m_case_insensitive_type_info_map;
+    return *this;
+}
 
 ov::Node* ov::OpSet::create(const std::string& name) const {
     auto type_info_it = m_name_type_info_map.find(name);
