@@ -12,7 +12,7 @@ auto ov_model = FE.convert(inputModel);
 During the loading the `FrontEnd::load()` method creates `InputModel` that encapsulates the `GraphIterator` object.
 `GraphIterator` is a reader that iterates through the graph nodes in the topological order.
 `GraphIterator::get_decoder()` provides a decoder for the current graph node to read its attributes.
-Each TensorFlow model format has its implementation of `GraphIterator`. Currently, the frontend supports only binary frozen format `.pb`
+Each TensorFlow model format has its implementation of `GraphIterator`. Currently, the frontend supports only binary frozen format `.pb`,
 and `GraphIteratorProto` is used for reading and parsing this format. The workflow of this step and the architecture of employed components
 are shown in the picture below:
 
