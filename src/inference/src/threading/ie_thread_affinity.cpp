@@ -104,7 +104,7 @@ std::tuple<CpuSet, int> GetProcessMask() {
 }
 void ReleaseProcessMask(cpu_set_t*) {}
 
-bool PinThreadToVacantCore(int thrIdx, int hyperthreads, int ncores, const CpuSet& procMask) {
+bool PinThreadToVacantCore(int thrIdx, int hyperthreads, int ncores, const CpuSet& procMask, int cpuIdxOffset) {
     return false;
 }
 bool PinCurrentThreadByMask(int ncores, const CpuSet& procMask) {
