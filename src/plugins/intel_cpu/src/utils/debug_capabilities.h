@@ -10,6 +10,7 @@
 
 #include <string>
 #include <iostream>
+#include <sstream>
 
 #include <onednn/dnnl.h>
 #include <dnnl_debug.h>
@@ -61,6 +62,14 @@ public:
     const std::string tag;
 };
 
+template<typename T>
+class PrintableVector {
+public:
+    PrintableVector(const std::vector<T>& values, int maxsize = 80) : values(values), maxsize(maxsize) {}
+    const std::vector<T>& values;
+    int maxsize;
+};
+
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::desc& desc);
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Node& node);
@@ -68,6 +77,22 @@ std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Edge& edge);
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::data_type& dtype);
 std::ostream & operator<<(std::ostream & os, const PrintableModel& model);
+
+template<typename T>
+std::ostream & operator<<(std::ostream & os, const PrintableVector<T>& vec) {
+    std::stringstream ss;
+    for (int i = 0; i < vec.values.size(); i++) {
+        if (i > 0)
+            ss << ",";
+        if (ss.tellp() > vec.maxsize) {
+            ss << "...";
+            break;
+        }
+        ss << vec.values[i];
+    }
+    os << ss.str();
+    return os;
+}
 
 }   // namespace intel_cpu
 }   // namespace ov

@@ -1950,7 +1950,8 @@ void FakeQuantize::initializeCrop2() {
     }
 
     if (isPerTensor(inputScale, inputScale[0])) {
-        inputScale2.resize(1, inputScale[0]);
+        inputScale2.resize(1);
+        inputScale2[0] = inputScale[0];
     } else {
         inputScale2 = inputScale;
     }
@@ -1959,6 +1960,10 @@ void FakeQuantize::initializeCrop2() {
     if (!std::isnan(originalPerTensorInputShift) && isPerTensor(inputShift, originalPerTensorInputShift, 0.0001f)) {
         inputShift2.resize(1);
         inputShift2[0] = originalPerTensorInputShift;
+    } else if (isPerTensor(inputShift, 128.0f, 0.0001f)) {
+        // due to FQ's definition, symmetric input range tends to generate 128 input shift
+        inputShift2.resize(1);
+        inputShift2[0] = 128.0f;
     } else if (isPerTensor(inputShift, inputShift[0])) {
         inputShift2.resize(1);
         inputShift2[0] = inputShift[0];
@@ -2008,6 +2013,14 @@ void FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
                                      bool isLastPostOp,
                                      dnnl::memory::data_type outDataType) {
     initializeCrop2();
+
+    DEBUG_LOG(getName());
+    DEBUG_LOG("\tinputScale2 =[", PrintableVector<float>(inputScale2), "]");
+    DEBUG_LOG("\tinputShift2 =[", PrintableVector<float>(inputShift2), "]");
+    DEBUG_LOG("\t   cropLow2 =[", PrintableVector<float>(cropLow2), "]");
+    DEBUG_LOG("\t  cropHigh2 =[", PrintableVector<float>(cropHigh2), "]");
+    DEBUG_LOG("\toutputScale2=[", PrintableVector<float>(outputScale2), "]");
+    DEBUG_LOG("\toutputShift2=[", PrintableVector<float>(outputShift2), "]");
 
     if (outputScale2.empty() && outputShift2.empty()) {
         dnnlpoc.appendLinear(inputScale2, inputShift2);

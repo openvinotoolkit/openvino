@@ -385,15 +385,19 @@ std::ostream & operator<<(std::ostream & os, const PrintableModel& model) {
         }
 
         if (auto constop = std::dynamic_pointer_cast<op::v0::Constant>(op)) {
-            auto sz = shape_size(constop->get_shape());
-            if (sz < 9) {
-                sep = "";
-                for (auto v : constop->get_value_strings()) {
-                    os << sep << v;
-                    sep = ",";
-                }
+            if (constop->get_element_type() == element::Type_t::f32) {
+                os << PrintableVector<float>(constop->get_vector<float>());
             } else {
-                os << "...";
+                auto sz = shape_size(constop->get_shape());
+                if (sz < 9) {
+                    sep = "";
+                    for (auto v : constop->get_value_strings()) {
+                        os << sep << v;
+                        sep = ",";
+                    }
+                } else {
+                    os << "...";
+                }
             }
         }
 
