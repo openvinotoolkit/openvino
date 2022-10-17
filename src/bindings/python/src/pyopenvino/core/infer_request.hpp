@@ -31,8 +31,8 @@ public:
 
     InferRequestWrapper(
         ov::InferRequest&& request,
-        const std::vector<ov::Output<const ov::Node>>& inputs,   // TODO: This should be copied in case of CompiledModel destruction?
-        const std::vector<ov::Output<const ov::Node>>& outputs,  // ^^^
+        const std::vector<ov::Output<const ov::Node>>& inputs,
+        const std::vector<ov::Output<const ov::Node>>& outputs,
         bool set_default_callback = true,
         bool user_callback_defined = false,
         py::object userdata = py::none()
