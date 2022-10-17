@@ -18,28 +18,28 @@
 
 **Inputs**:
 
-*   **1**: A tensor of type *T* and arbitrary shape. **Required.**
+*   **1**: A tensor of type *T_IN* and arbitrary shape. **Required.**
 
 **Outputs**:
 
-*   **1**: A boolean tensor of the same shape as the input tensor.
+*   **1**: A `boolean` tensor of the same shape as the input tensor.
 
 **Types**
 
-* *T*: `bfloat16`, `double`, `float`, `float16`.
+* *T_IN*: any supported floating-point type.
 
 **Example**
 
 ```xml
 <layer ... type="IsNaN">
     <input>
-        <port id="0">
+        <port id="0" precision="FP32">
             <dim>256</dim>
             <dim>56</dim>
         </port>
      </input>
     <output>
-        <port id="1">
+        <port id="1" precision="BOOL">
             <dim>256</dim>
             <dim>56</dim>
         </port>
