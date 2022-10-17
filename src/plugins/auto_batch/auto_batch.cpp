@@ -28,7 +28,8 @@ namespace AutoBatchPlugin {
 using namespace InferenceEngine;
 
 std::vector<std::string> supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG),
-                                                 CONFIG_KEY(AUTO_BATCH_TIMEOUT), CONFIG_KEY(CACHE_DIR)};
+                                                 CONFIG_KEY(AUTO_BATCH_TIMEOUT),
+                                                 CONFIG_KEY(CACHE_DIR)};
 
 template <Precision::ePrecision precision>
 Blob::Ptr create_shared_blob_on_top_of_batched_blob(Blob::Ptr batched_blob,
