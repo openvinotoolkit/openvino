@@ -565,6 +565,8 @@ T div_up(const T a, const U b) {
     return (a + b - 1) / b;
 }
 
+double default_tolerance(data_types dt);
+
 // inline void print_bin_blob(cldnn::memory& mem, std::string name)
 // {
 //     auto&& size = mem.get_layout().get_tensor();

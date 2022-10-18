@@ -42,6 +42,8 @@ elif machine == "aarch64" or machine == "arm64":
 # The following variables can be defined in environment or .env file
 SCRIPT_DIR = Path(__file__).resolve().parents[0]
 CMAKE_BUILD_DIR = os.getenv("CMAKE_BUILD_DIR", ".")
+OPENVINO_BUILD_DIR = os.getenv("OPENVINO_BUILD_DIR", CMAKE_BUILD_DIR)
+OPENVINO_PYTHON_BUILD_DIR = os.getenv("OPENVINO_PYTHON_BUILD_DIR", CMAKE_BUILD_DIR)
 OV_RUNTIME_LIBS_DIR = os.getenv("OV_RUNTIME_LIBS_DIR", f"runtime/{LIBS_DIR}/{ARCH}/{CONFIG}")
 TBB_LIBS_DIR = os.getenv("TBB_LIBS_DIR", f"runtime/3rdparty/tbb/{LIBS_DIR}")
 PUGIXML_LIBS_DIR = os.getenv("PUGIXML_LIBS_DIR", f"runtime/3rdparty/pugixml/{LIBS_DIR}")
@@ -54,70 +56,74 @@ LIB_INSTALL_CFG = {
         "prefix": "libs.core",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
     },
     "hetero_plugin": {
         "name": "hetero",
         "prefix": "libs.core",
         "install_dir": OV_RUNTIME_LIBS_DIR,
-        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
     },
     "gpu_plugin": {
         "name": "gpu",
         "prefix": "libs.core",
         "install_dir": OV_RUNTIME_LIBS_DIR,
-        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
     },
     "cpu_plugin": {
         "name": "cpu",
         "prefix": "libs.core",
         "install_dir": OV_RUNTIME_LIBS_DIR,
-        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
     },
     "multi_plugin": {
         "name": "multi",
         "prefix": "libs.core",
         "install_dir": OV_RUNTIME_LIBS_DIR,
-        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
     },
     "batch_plugin": {
         "name": "batch",
         "prefix": "libs.core",
         "install_dir": OV_RUNTIME_LIBS_DIR,
-        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
     },
     "tbb_libs": {
         "name": "tbb",
         "prefix": "libs.tbb",
         "install_dir": TBB_LIBS_DIR,
+        "binary_dir": OPENVINO_BUILD_DIR,
     },
     "pugixml_libs": {
         "name": "pugixml",
         "prefix": "libs.pugixml",
         "install_dir": PUGIXML_LIBS_DIR,
+        "binary_dir": OPENVINO_BUILD_DIR,
     },
     "ir_libs": {
         "name": "ir",
         "prefix": "libs.core",
         "install_dir": OV_RUNTIME_LIBS_DIR,
-        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
     },
     "paddle_libs": {
         "name": "paddle",
         "prefix": "libs.core",
         "install_dir": OV_RUNTIME_LIBS_DIR,
-        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
     },
     "onnx_libs": {
         "name": "onnx",
         "prefix": "libs.core",
         "install_dir": OV_RUNTIME_LIBS_DIR,
-        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
     },
     # uncomment once TF FE will be used in MO
     # "tensorflow_libs": {                      # noqa: E800
     #     "name": "tensorflow",                 # noqa: E800
     #     "prefix": "libs.core",                # noqa: E800
     #     "install_dir": OV_RUNTIME_LIBS_DIR,   # noqa: E800
+    #     "binary_dir": OPENVINO_BUILD_DIR,     # noqa: E800
     # },                                        # noqa: E800
 }
 
@@ -126,16 +132,19 @@ PY_INSTALL_CFG = {
         "name": f"pyie_{PYTHON_VERSION}",
         "prefix": "site-packages",
         "install_dir": PY_PACKAGES_DIR,
+        "binary_dir": OPENVINO_PYTHON_BUILD_DIR,
     },
     "ngraph_py": {
         "name": f"pyngraph_{PYTHON_VERSION}",
         "prefix": "site-packages",
         "install_dir": PY_PACKAGES_DIR,
+        "binary_dir": OPENVINO_PYTHON_BUILD_DIR,
     },
     "pyopenvino": {
         "name": f"pyopenvino_{PYTHON_VERSION}",
         "prefix": "site-packages",
         "install_dir": PY_PACKAGES_DIR,
+        "binary_dir": OPENVINO_PYTHON_BUILD_DIR,
     },
 }
 
@@ -193,24 +202,26 @@ class CustomBuild(build):
         self.jobs = multiprocessing.cpu_count() if self.jobs is None else int(self.jobs)
 
     def run(self):
-        global CMAKE_BUILD_DIR
+        global OPENVINO_BUILD_DIR
         self.jobs = multiprocessing.cpu_count()
         plat_specifier = ".{0}-{1}.{2}".format(self.plat_name, *sys.version_info[:2])
         self.build_temp = os.path.join(self.build_base, "temp" + plat_specifier, self.config)
 
         # if setup.py is directly called use CMake to build product
-        if CMAKE_BUILD_DIR == ".":
+        if OPENVINO_BUILD_DIR == ".":
             # set path to the root of OpenVINO CMakeList file
             openvino_root_dir = Path(__file__).resolve().parents[4]
             self.announce(f"Configuring cmake project: {openvino_root_dir}", level=3)
-            self.spawn(["cmake", "-H" + str(openvino_root_dir), "-B" + self.build_temp,
-                        "-DCMAKE_BUILD_TYPE={type}".format(type=self.config),
-                        "-DENABLE_PYTHON=ON"])
+            self.spawn(["cmake", "-S" + str(openvino_root_dir),
+                                 "-B" + self.build_temp,
+                                 "-DCMAKE_BUILD_TYPE={type}".format(type=self.config),
+                                 "-DENABLE_PYTHON=ON"])
 
             self.announce("Building binaries", level=3)
             self.spawn(["cmake", "--build", self.build_temp,
-                        "--config", self.config, "-j", str(self.jobs)])
-            CMAKE_BUILD_DIR = self.build_temp
+                                 "--config", self.config,
+                                 "-j", str(self.jobs)])
+            OPENVINO_BUILD_DIR = self.build_temp
         self.run_command("build_clib")
 
         build.run(self)
@@ -239,10 +250,15 @@ class PrepareLibs(build_clib):
         for comp, comp_data in install_cfg.items():
             install_prefix = comp_data.get("prefix")
             install_dir = comp_data.get("install_dir")
+            binary_dir = comp_data.get("binary_dir")
             if install_dir and not os.path.isabs(install_dir):
                 install_dir = os.path.join(install_prefix, install_dir)
                 self.announce(f"Installing {comp}", level=3)
-                self.spawn(["cmake", "--install", CMAKE_BUILD_DIR, "--prefix", install_prefix, "--component", comp_data.get("name")])
+                self.spawn(["cmake", "--install", binary_dir,
+                                     "--prefix", install_prefix,
+                                     "--config", "Release",
+                                     "--strip",
+                                     "--component", comp_data.get("name")])
             # set rpath if applicable
             if sys.platform != "win32" and comp_data.get("rpath"):
                 for path in filter(
@@ -358,7 +374,7 @@ def remove_rpath(file_path):
 
 def set_rpath(rpath, executable):
     """Setting rpath for linux and macOS libraries."""
-    print(f"Setting rpath {rpath} for {executable}")  # noqa: T001
+    print(f"Setting rpath {rpath} for {executable}")  # noqa: T001, T201
     cmd = []
     rpath_tool = ""
 

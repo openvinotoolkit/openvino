@@ -23,12 +23,12 @@ op::v0::Tile::Tile(const Output<Node>& data, const Output<Node>& repeats) : Op({
 }
 
 bool ngraph::op::v0::Tile::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Tile_visit_attributes);
+    OV_OP_SCOPE(v0_Tile_visit_attributes);
     return true;
 }
 
 void op::v0::Tile::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_Tile_validate_and_infer_types);
+    OV_OP_SCOPE(v0_Tile_validate_and_infer_types);
     auto arg_et = get_input_element_type(0);
 
     // Repeats should have integer data type. For now we only allow i64
@@ -48,7 +48,7 @@ void op::v0::Tile::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v0::Tile::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Tile_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Tile_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Tile>(new_args.at(0), new_args.at(1));
 }
@@ -79,11 +79,11 @@ bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTens
 }
 
 bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Tile_evaluate);
+    OV_OP_SCOPE(v0_Tile_evaluate);
     return evaluate_tile(outputs, inputs);
 }
 
 bool op::v0::Tile::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Tile_has_evaluate);
+    OV_OP_SCOPE(v0_Tile_has_evaluate);
     return true;
 }

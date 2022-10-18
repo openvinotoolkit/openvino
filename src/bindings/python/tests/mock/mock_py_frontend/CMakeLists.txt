@@ -20,13 +20,13 @@ add_library(openvino::frontend::mock_py ALIAS ${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-target_compile_definitions(${TARGET_NAME} PRIVATE
-    IMPLEMENT_OPENVINO_API
+target_compile_definitions(${TARGET_NAME} PUBLIC
     $<$<BOOL:${ENABLE_OV_ONNX_FRONTEND}>:ENABLE_OV_ONNX_FRONTEND>
     $<$<BOOL:${ENABLE_OV_TF_FRONTEND}>:ENABLE_OV_TF_FRONTEND>
     $<$<BOOL:${ENABLE_OV_PADDLE_FRONTEND}>:ENABLE_OV_PADDLE_FRONTEND>)
 
 target_link_libraries(${TARGET_NAME} PUBLIC
+    openvino::runtime
     $<$<BOOL:${ENABLE_OV_ONNX_FRONTEND}>:openvino::frontend::onnx>
     $<$<BOOL:${ENABLE_OV_TF_FRONTEND}>:openvino::frontend::tensorflow>
     $<$<BOOL:${ENABLE_OV_PADDLE_FRONTEND}>:openvino::frontend::paddle>)
