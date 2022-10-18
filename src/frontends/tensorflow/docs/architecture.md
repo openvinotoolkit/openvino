@@ -22,7 +22,7 @@ classDiagram
     GraphIteratorProto ..|> GraphIterator
 ```
 
-After the loading step `InputModel` includes a container of topologically sorted operation `Place` objects.
+After the loading step, `InputModel` includes a container of topologically sorted operation `Place` objects.
 During conversion, each `Place` provides a `DecoderBase` object to retrieve attributes of the current operation to be transformed into the OpenVINO opset.
 `Frontend` converts operations in topological order and requires `NodeContext` for the current operation node,
 which includes `Decoder` and `OutputVector` inputs from already converted nodes.
