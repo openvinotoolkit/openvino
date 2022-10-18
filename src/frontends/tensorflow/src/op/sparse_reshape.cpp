@@ -115,18 +115,6 @@ OutputVector translate_sparse_segment_sum_op(const NodeContext& node) {
     return sparse_segment_sum->outputs();
 }
 
-OutputVector translate_unique_op(const NodeContext& node) {
-    default_op_checks(node, 1, {"Unique"});
-    auto input_values = node.get_input(0);
-
-    // retrieve attribute
-    auto output_indices_type = node.get_attribute<ov::element::Type>("out_idx", ov::element::i32);
-
-    auto unique = make_shared<ov::frontend::tensorflow::Unique>(input_values, output_indices_type, node.get_decoder());
-    set_node_name(node.get_name(), unique);
-    return unique->outputs();
-}
-
 }  // namespace op
 }  // namespace tensorflow
 }  // namespace frontend
