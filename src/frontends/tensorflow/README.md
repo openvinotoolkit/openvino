@@ -38,12 +38,52 @@ The structure of OpenVINO TensorFlow Frontend sources includes the following dir
 
 ## Architecture
 
-OpenVINO TensorFlow Frontend uses [TensorFlow Protobuf files](./src/proto) for reading and parsing TensorFlow model formats.
+OpenVINO TensorFlow Frontend uses [TensorFlow Protobuf files](./src/proto) to read and parse different TensorFlow model formats.
+The whole workflow can be split into two steps: model loading and conversion.
 
-The conversion of the TensorFlow operation requires either one pass using [Loaders](./src/op) or two transformation passes
-using [Loaders](./src/op) and [Internal Transformation](./src/helper_transforms).
+During loading, the `FrontEnd::load()` method creates `InputModel` that encapsulates the `GraphIterator` object.
+`GraphIterator` is a reader that iterates through the graph nodes in the topological order.
+`GraphIterator::get_decoder()` provides a decoder for the current graph node to read its attributes.
+Each TensorFlow model format has its implementation of `GraphIterator`. Currently, the frontend supports only binary frozen format `.pb`,
+and `GraphIteratorProto` is used for reading and parsing this format. The architecture of the loading step is shown in the picture below:
 
-Read [TensorFlow Frontend Architecture and Workflow](./docs/architecture.md) for a detailed explanation of the component.
+```mermaid
+classDiagram
+    direction BT
+    class TensorFrontend {
+        +load()
+    }
+    TensorFrontend --|> InputModel
+    GraphIterator "1" --o "1" InputModel
+    Place --o "1..*" InputModel
+    DecoderBase "1" --o "1" Place
+    GraphIteratorProto ..|> GraphIterator
+```
+
+After the loading step, `InputModel` includes a container of topologically sorted operation `Place` objects.
+During conversion, each `Place` provides a `DecoderBase` object to retrieve attributes of the current operation to be transformed into the OpenVINO opset.
+`Frontend` converts operations in topological order and requires `NodeContext` for the current operation node,
+which includes `Decoder` and `OutputVector` inputs from already converted nodes.
+
+The workflow of the conversion step is presented in the diagram below:
+
+```mermaid
+flowchart LR
+    subgraph tf_fe["Frontend::convert()"]
+    first_pass["1st transform pass (Loaders)"]
+    NodeContext --> first_pass
+    end
+    ov::InputModel --> tf_fe
+    tf_fe --> ov::Model
+```
+
+OpenVINO TensorFlow Frontend supports extensions. To add an extension, use `ov::frontend::tensorflow::Frontend::add_extension()` API.
+The next extension types are supported:
+
+* `ov::frontend::tensorflow::ConversionExtension` or `ov::frontend::ConversionExtension` - add new Loader into the conversion pipeline
+* `ov::TelemetryExtension` - enable telemetry for the frontend
+* `ov::BaseOpExtension` - enable support of a custom operation
+* `ov::detail::SOExtension` - allow to support `ov::BaseOpExtension` extensions loaded from the external library.
 
 ## Tutorials
 
