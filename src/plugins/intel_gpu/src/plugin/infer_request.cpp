@@ -594,7 +594,10 @@ void InferRequest::setup_stream_graph() {
 
 Blob::Ptr InferRequest::create_host_blob(const TensorDesc& desc) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::create_host_blob");
-    auto alloc = m_graph->GetEngine()->use_unified_shared_memory() ? std::make_shared<USMHostAllocator>(m_graph->GetContext().get()) : CreateDefaultAllocator();
+    // Disable USM usage as USMHostAllocator may fail for attempt to allocate 0 bytes
+    // If we add WA for such case to avoid driver call, then deallocate method will return false and Blob::setShape call will throw an exception
+    bool use_usm = m_graph->GetEngine()->use_unified_shared_memory() && !m_graph->GetNetwork()->is_dynamic();
+    auto alloc = use_usm ? std::make_shared<USMHostAllocator>(m_graph->GetContext().get()) : CreateDefaultAllocator();
     auto blob = make_blob_with_precision(desc, alloc);
     blob->allocate();
     return blob;
