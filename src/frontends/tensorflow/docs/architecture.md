@@ -3,7 +3,7 @@
 OpenVINO TensorFlow Frontend uses [TensorFlow Protobuf files](../src/proto) to read and parse different TensorFlow model formats.
 The whole workflow can be split into two steps: model loading and conversion.
 
-During the loading the `FrontEnd::load()` method creates `InputModel` that encapsulates the `GraphIterator` object.
+During loading, the `FrontEnd::load()` method creates `InputModel` that encapsulates the `GraphIterator` object.
 `GraphIterator` is a reader that iterates through the graph nodes in the topological order.
 `GraphIterator::get_decoder()` provides a decoder for the current graph node to read its attributes.
 Each TensorFlow model format has its implementation of `GraphIterator`. Currently, the frontend supports only binary frozen format `.pb`,
