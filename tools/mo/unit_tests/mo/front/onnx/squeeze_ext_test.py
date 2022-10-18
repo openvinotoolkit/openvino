@@ -45,8 +45,11 @@ class TestSqueezeONNXExt(unittest.TestCase):
 
         exp_res = {
             'type': 'Squeeze',
-            'squeeze_dims': np.array(axes),
+            'squeeze_dims': axes,
         }
 
-        assert node['type'] == exp_res['type']
-        assert np.array_equal(node['squeeze_dims'], exp_res['squeeze_dims'])
+        for key in exp_res.keys():
+            if type(node[key]) in [list, np.ndarray]:
+                self.assertTrue(np.array_equal(np.array(node[key]), np.array(exp_res[key])))
+            else:
+                self.assertEqual(node[key], exp_res[key])
