@@ -26,6 +26,9 @@ try:
     # This is a WA for well known bug in pybind11 with too early deinitialization
     decoders = []
 
+    def make_constant(*args, **kwargs):
+        return op.Constant(*args, **kwargs)
+
     pt_to_ov_type_map = {
         'float': OVType.f32,
         'int': OVType.i32,
@@ -46,6 +49,7 @@ try:
             self.pt_module = pt_module
             # TODO: remove this; leads to huge memory leaks while converting many models in one app
             decoders.append(self)
+
             #print(dir(pt_module))
             # Print schema for nodes if any
             #print(f'there is schema: {pt_module.schema()}' if hasattr(pt_module, 'schema') else 'no schema')
@@ -233,13 +237,13 @@ try:
                 #print(f'Trying to recognize value {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
                 if str(pt_value.type()) in ['torch.int32', 'int']:
                     #print(f'Found int value=  {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
-                    return op.Constant(OVType.i32, Shape([]), [pt_value.toIValue()]).outputs()
+                    return make_constant(OVType.i32, Shape([]), [pt_value.toIValue()]).outputs()
                 if str(pt_value.type()) in ['torch.float', 'torch.FloatType', 'float']:
                     #print(f'Found float value=  {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
-                    return op.Constant(OVType.f32, Shape([]), [pt_value.toIValue()]).outputs()
+                    return make_constant(OVType.f32, Shape([]), [pt_value.toIValue()]).outputs()
                 if str(pt_value.type()) in ['torch.bool', 'bool']:
                     #print('Scalar bool detected')
-                    return op.Constant(OVType.boolean, Shape([]), [pt_value.toIValue()]).outputs()
+                    return make_constant(OVType.boolean, Shape([]), [pt_value.toIValue()]).outputs()
                 #print(f'Left value not converted to const, value = {pt_value}')
             else:
                 pass
@@ -262,8 +266,9 @@ try:
             # So only tensor-type constants are supported
             ovshape = PartialShape(pt_value.type().sizes())
             ovtype = pt_to_ov_type_map[str(pt_value.type().dtype())]
-            np_value = pt_value.toIValue().cpu().detach().numpy().flatten().tolist()  # TODO: find a better/shorter way
-            ov_const = op.Constant(ovtype, ovshape.get_shape(), np_value)
+            #TODO Check strides and pass them somehow
+            raw_pointer = pt_value.toIValue().detach().cpu().data_ptr()
+            ov_const = make_constant(ovtype, ovshape.get_shape(), raw_pointer)
             return ov_const.outputs()
 
         def as_constant_list (self, pt_value):
@@ -284,7 +289,7 @@ try:
                 ovtype = pt_to_ov_type_map[pt_element_type]
                 #print(f'ovtype = {ovtype}, pt_element_type = {pt_element_type}, OVType.i32 = {OVType.i32}, {OVType.f32}')
                 ovshape = PartialShape([len(ivalue)])
-                ov_const = op.Constant(ovtype, ovshape.get_shape(), ivalue)
+                ov_const = make_constant(ovtype, ovshape.get_shape(), ivalue)
                 return ov_const.outputs()
 
         def input_is_none (self, index):
