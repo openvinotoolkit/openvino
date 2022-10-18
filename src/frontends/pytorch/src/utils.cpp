@@ -268,7 +268,7 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
         };
 
         OV_FRONTEND_REQUIRE(pytorch_model->get_subgraph_size() == 1);
-        pytorch_model->visit_subgraph(0, node_visitor);
+        pytorch_model->visit_subgraph(node_visitor);
 
         ResultVector results;
         for (size_t i = 0; i < pytorch_model->num_of_outputs(); ++i) {
