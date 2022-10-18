@@ -12,7 +12,7 @@ namespace ov {
 namespace intel_gna {
 namespace rt_info {
 
-void add_precision_change_flag(ov::Input<Node>& node, const ngraph::element::Type& in, const ngraph::element::Type& out);
+void add_precision_change_flag(ov::Input<Node>& node, const ov::element::Type& in, const ov::element::Type& out);
 
 void remove_precision_change_flag(ov::Input<Node>& node);
 
@@ -27,7 +27,7 @@ class GNAPrecisionChangeFlag : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("gna_precision_change_flag", "0");
 
-    GNAPrecisionChangeFlag(const ngraph::element::Type& in, const ngraph::element::Type& out) : in(in), out(out) {}
+    GNAPrecisionChangeFlag(const ov::element::Type& in, const ov::element::Type& out) : in(in), out(out) {}
 
     bool is_copyable() const override {
         return false;
@@ -37,8 +37,8 @@ public:
         return in != out;
     }
 private:
-    ngraph::element::Type in;
-    ngraph::element::Type out;
+    ov::element::Type in;
+    ov::element::Type out;
 };
 } // namespace rt_info
 } // namespace intel_gna
