@@ -132,4 +132,4 @@ The `benchmark_app`, that exists in both  [C++](../../samples/cpp/benchmark_app/
  
 
 ### See Also
-[Supported Devices](./supported_plugins/Supported_Devices.md)
+* [Supported Devices](./supported_plugins/Supported_Devices.md)
