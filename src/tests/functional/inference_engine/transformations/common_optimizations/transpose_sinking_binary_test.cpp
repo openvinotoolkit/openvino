@@ -10,8 +10,6 @@
 #include <openvino/pass/manager.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
 
-#include "ngraph/pass/visualize_tree.hpp" // DEBUG 
-
 #include <functional>
 
 #include "gtest/gtest.h"
@@ -1025,67 +1023,135 @@ std::vector<size_t> concat_transpose_input_indexes = {0, 2};
 namespace concat {
 namespace single_consumer {
 namespace forward {
+namespace one_input_tranpose {
 
 std::shared_ptr<ov::Model> CreateFunction(size_t num_concat_ops,
                                           ov::element::Type input_type,
                                           size_t concat_transpose_input_idx,
                                           size_t num_concat_inputs) {
+    const ov::Shape input_shape{1, 96, 55, 55};
+    const ov::Shape const_shape{1, 55, 55, 96};
 
-        const ov::Shape input_shape{1, 96, 55, 55};
-        const ov::Shape const_shape{1, 55, 55, 96};
+    auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
-        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+    auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+    auto transpose0 = std::make_shared<ov::opset9::Transpose>(X, ng_order0);
 
-        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
-        auto transpose0 = std::make_shared<ov::opset9::Transpose>(X, ng_order0);
-
-        NodePtr in_op = transpose0;
-        for (size_t i = 0; i < num_concat_ops; ++i) {
-            ov::OutputVector concat_inputs;
-            for (size_t j = 0; j < num_concat_inputs; ++j) {
-                if (j == concat_transpose_input_idx)
-                    concat_inputs.push_back(in_op);
-                else
-                    concat_inputs.push_back(std::make_shared<ov::opset9::Constant>(input_type, const_shape, ov::Shape{1}));
-            }
-            in_op = std::make_shared<ov::opset9::Concat>(concat_inputs, 1);
+    NodePtr in_op = transpose0;
+    for (size_t i = 0; i < num_concat_ops; ++i) {
+        ov::OutputVector concat_inputs;
+        for (size_t j = 0; j < num_concat_inputs; ++j) {
+            if (j == concat_transpose_input_idx)
+                concat_inputs.push_back(in_op);
+            else
+                concat_inputs.push_back(std::make_shared<ov::opset9::Constant>(input_type, const_shape, ov::Shape{1}));
         }
+        in_op = std::make_shared<ov::opset9::Concat>(concat_inputs, 1);
+    }
 
-        return std::make_shared<ov::Model>(ov::OutputVector{in_op}, ov::ParameterVector{X});
+    return std::make_shared<ov::Model>(ov::OutputVector{in_op}, ov::ParameterVector{X});
 }
 
 std::shared_ptr<ov::Model> CreateReferenceFunction(size_t num_concat_ops,
                                                    ov::element::Type input_type,
                                                    size_t concat_transpose_input_idx,
                                                    size_t num_concat_inputs) {
+    const ov::Shape input_shape{1, 96, 55, 55};
+    const ov::Shape const_shape{1, 55, 55, 96};
 
-        const ov::Shape input_shape{1, 96, 55, 55};
-        const ov::Shape const_shape{1, 55, 55, 96};
+    auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
-        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+    NodePtr in_op = X;
+    for (size_t i = 0; i < num_concat_ops; ++i) {
+        ov::OutputVector concat_inputs;
+        for (size_t j = 0; j < num_concat_inputs; ++j) {
+            if (j == concat_transpose_input_idx) {
+                concat_inputs.push_back(in_op);
+            } else {
+                auto in_constant = std::make_shared<ov::opset9::Constant>(input_type, const_shape, ov::Shape{1});
 
-        NodePtr in_op = X;
-        for (size_t i = 0; i < num_concat_ops; ++i) {
-            ov::OutputVector concat_inputs;
-            for (size_t j = 0; j < num_concat_inputs; ++j) {
-                if (j == concat_transpose_input_idx) {
-                    concat_inputs.push_back(in_op);
-                } else {
-                    auto in_constant = std::make_shared<ov::opset9::Constant>(input_type, const_shape, ov::Shape{1});
+                auto transpose_reversed_const =
+                    std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+                auto transpose_reversed =
+                    std::make_shared<ov::opset9::Transpose>(in_constant, transpose_reversed_const);
 
-                    auto transpose_reversed_const = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
-                    auto transpose_reversed = std::make_shared<ov::opset9::Transpose>(in_constant, transpose_reversed_const);
-
-                    concat_inputs.push_back(transpose_reversed);
-                }
+                concat_inputs.push_back(transpose_reversed);
             }
-            in_op = std::make_shared<ov::opset9::Concat>(concat_inputs, 2);
         }
+        in_op = std::make_shared<ov::opset9::Concat>(concat_inputs, 2);
+    }
 
-        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
-        auto transpose0 = std::make_shared<ov::opset9::Transpose>(in_op, ng_order0);
+    auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+    auto transpose0 = std::make_shared<ov::opset9::Transpose>(in_op, ng_order0);
 
-        return std::make_shared<ov::Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
+    return std::make_shared<ov::Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
+}
+
+}  // namespace one_input_tranpose 
+
+namespace double_transpose {
+
+std::shared_ptr<ov::Model> CreateFunction(size_t num_concat_ops,
+                                          ov::element::Type input_type,
+                                          size_t num_concat_inputs) {
+    const ov::Shape input_shape{1, 96, 55, 55};
+
+    auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+
+    auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+    auto transpose0 = std::make_shared<ov::opset9::Transpose>(X, ng_order0);
+
+    NodePtr in_op = transpose0;
+    for (size_t i = 0; i < num_concat_ops; ++i) {
+        ov::OutputVector concat_inputs;
+        concat_inputs.push_back(in_op);
+        for (size_t j = 1; j < num_concat_inputs; ++j) {
+            auto in_constant = std::make_shared<ov::opset9::Constant>(input_type, input_shape, ov::Shape{1});
+            auto ng_order1 =
+                std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+            auto transpose1 = std::make_shared<ov::opset9::Transpose>(in_constant, ng_order1);
+            concat_inputs.push_back(transpose1);
+        }
+        in_op = std::make_shared<ov::opset9::Concat>(concat_inputs, 1);
+    }
+
+    return std::make_shared<ov::Model>(ov::OutputVector{in_op}, ov::ParameterVector{X});
+}
+
+std::shared_ptr<ov::Model> CreateReferenceFunction(size_t num_concat_ops,
+                                                   ov::element::Type input_type,
+                                                   size_t num_concat_inputs) {
+    const ov::Shape input_shape{1, 96, 55, 55};
+
+    auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+
+    NodePtr in_op = X;
+    for (size_t i = 0; i < num_concat_ops; ++i) {
+        ov::OutputVector concat_inputs;
+
+        concat_inputs.push_back(in_op);
+
+        for (size_t j = 1; j < num_concat_inputs; ++j) {
+                auto in_constant = std::make_shared<ov::opset9::Constant>(input_type, input_shape, ov::Shape{1});
+
+                auto ng_order1 =
+                    std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+                auto transpose1 = std::make_shared<ov::opset9::Transpose>(in_constant, ng_order1);
+
+                auto transpose_reversed_const =
+                    std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+                auto transpose_reversed = std::make_shared<ov::opset9::Transpose>(transpose1, transpose_reversed_const);
+
+                concat_inputs.push_back(transpose_reversed);
+        }
+        in_op = std::make_shared<ov::opset9::Concat>(concat_inputs, 2);
+    }
+
+    auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+    auto transpose0 = std::make_shared<ov::opset9::Transpose>(in_op, ng_order0);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
+}
 }
 
 } // namespace forward
@@ -1181,8 +1247,8 @@ TEST_P(TransposeSinkingConcatTestFixture, CompareFunctions) {
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatForwardTestSuite, TransposeSinkingConcatTestFixture,
                          ::testing::Combine(::testing::Values(CreatePassFactory<ngraph::pass::TransposeSinkingConcatForward>()),
                                             ::testing::ValuesIn(concat_operations_numbers),
-                                            ::testing::Values(concat::single_consumer::forward::CreateFunction),
-                                            ::testing::Values(concat::single_consumer::forward::CreateReferenceFunction),
+                       ::testing::Values(concat::single_consumer::forward::one_input_tranpose::CreateFunction),
+                       ::testing::Values(concat::single_consumer::forward::one_input_tranpose::CreateReferenceFunction),
                                             ::testing::Values(ov::element::f32),
                                             ::testing::ValuesIn(concat_transpose_input_indexes),
                                             ::testing::Values(5)));
@@ -1195,3 +1261,49 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatBackwardTestSuite, TransposeSinki
                                             ::testing::Values(ov::element::f32),
                                             ::testing::ValuesIn(concat_transpose_input_indexes),
                                             ::testing::Values(5)));
+
+// --------------------------------------------------------------------------------------
+
+using CreateGraphConcatAllTransposesInputF = std::function<std::shared_ptr<ov::Model>(size_t num_concat_ops,
+                                                                    ov::element::Type input_type,
+                                                                    size_t num_concat_inputs)>;
+
+using TestConcatAllTransposesInputParams = std::tuple<PassFactoryPtr,
+                                    size_t,             /* num_concat_ops */
+                                    CreateGraphConcatAllTransposesInputF, /* model_factory */
+                                    CreateGraphConcatAllTransposesInputF, /* reference_model_factory */
+                                    ov::element::Type,  /* input type */
+                                    size_t>;            /* num_concat_inputs */
+
+class TransposeSinkingConcatAllTransposesInputTestFixture
+    : public ::testing::WithParamInterface<TestConcatAllTransposesInputParams>,
+                                          public TransformationTestsF {};
+
+TEST_P(TransposeSinkingConcatAllTransposesInputTestFixture, CompareFunctions) {
+    PassFactoryPtr pass_factory;
+    size_t num_concat_ops;
+    CreateGraphConcatAllTransposesInputF model_factory;
+    CreateGraphConcatAllTransposesInputF reference_model_factory;
+    ov::element::Type input_type;
+    size_t num_concat_inputs;
+    std::tie(pass_factory,
+             num_concat_ops,
+             model_factory,
+             reference_model_factory,
+             input_type,
+             num_concat_inputs) = this->GetParam();
+
+    model = model_factory(num_concat_ops, input_type, num_concat_inputs);
+    model_ref = reference_model_factory(num_concat_ops, input_type, num_concat_inputs);
+    pass_factory->registerPass(manager);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    TransposeSinkingConcatForwardAllTransposesTestSuite,
+    TransposeSinkingConcatAllTransposesInputTestFixture,
+    ::testing::Combine(::testing::Values(CreatePassFactory<ngraph::pass::TransposeSinkingConcatForward>()),
+                       ::testing::ValuesIn(concat_operations_numbers),
+                       ::testing::Values(concat::single_consumer::forward::double_transpose::CreateFunction),
+                       ::testing::Values(concat::single_consumer::forward::double_transpose::CreateReferenceFunction),
+                       ::testing::Values(ov::element::f32),
+                       ::testing::Values(5)));
