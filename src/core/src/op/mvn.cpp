@@ -190,7 +190,7 @@ bool op::v6::MVN::evaluate(ov::TensorVector& outputs, const ov::TensorVector& in
 bool op::v6::MVN::has_evaluate() const {
     OV_OP_SCOPE(v6_MVN_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::f32:
+    case ov::element::f32:
         return true;
     default:
         break;
