@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
-#include "openvino/frontend/paddle/visibility.hpp"
-#include "openvino/opsets/opset6.hpp"
 
 namespace ov {
 namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs expand_v2(const NodeContext& node) {
+    using namespace default_opset;
     auto x = node.get_input("X");
     Output<Node> shape_expected_node;
     if (node.has_input("Shape")) {
@@ -19,10 +19,10 @@ NamedOutputs expand_v2(const NodeContext& node) {
         auto inputs = node.get_ng_inputs("expand_shapes_tensor");
         ov::NodeVector node_vec;
         for (auto& input : inputs) {
-            auto cast = std::make_shared<ov::opset6::Convert>(input, element::i32);
+            auto cast = std::make_shared<Convert>(input, element::i32);
             node_vec.push_back(cast);
         }
-        shape_expected_node = std::make_shared<ov::opset6::Concat>(node_vec, 0);
+        shape_expected_node = std::make_shared<Concat>(node_vec, 0);
     } else {
         std::vector<int32_t> shape_expected;
         if (node.has_attribute("shape")) {
@@ -30,18 +30,25 @@ NamedOutputs expand_v2(const NodeContext& node) {
         } else {
             throw std::runtime_error("expand: has no shape attribute");
         }
-        shape_expected_node = ov::opset6::Constant::create(ov::element::i32, {shape_expected.size()}, shape_expected);
+        shape_expected_node = Constant::create(element::i32, {shape_expected.size()}, shape_expected);
     }
-    // if -1 in shape we will copy the orginal value from input
-    auto zero_node = ov::opset6::Constant::create(ov::element::i32, {1}, {0});
-    auto mask_node = std::make_shared<ov::opset6::Greater>(shape_expected_node, zero_node);
-    auto input_shape_node = std::make_shared<ov::opset6::ShapeOf>(x, element::i32);
-    auto fixed_shape_node = std::make_shared<ov::opset6::Select>(mask_node, shape_expected_node, input_shape_node);
-    auto repeated_node = std::make_shared<ov::opset6::Divide>(fixed_shape_node, input_shape_node, false);
+    // expected shape rank
+    const auto shape_expected_node_rank = std::make_shared<ShapeOf>(shape_expected_node, element::i32);
+    // input shape rank
+    const auto input_shape_node_shape = std::make_shared<ShapeOf>(x, element::i32);
+    const auto input_shape_node_rank = std::make_shared<ShapeOf>(input_shape_node_shape, element::i32);
+    // rank difference
+    const auto rank_diff = std::make_shared<Subtract>(shape_expected_node_rank, input_shape_node_rank);
+    // axis index needed to add
+    const auto rank_idx = std::make_shared<Broadcast>(Constant::create(element::i32, {1}, {1}), rank_diff);
+    // add axis
+    const auto fixed_input_shape_node = std::make_shared<Concat>(NodeVector{rank_idx, input_shape_node_shape}, 0);
 
-    return node.default_single_output_mapping(
-        {std::make_shared<ov::opset6::Tile>(x, std::make_shared<ov::opset6::Convert>(repeated_node, element::i64))},
-        {"Out"});
+    // if -1 in shape we will copy the orginal value from input
+    auto zero_node = Constant::create(ov::element::i32, {1}, {0});
+    auto mask_node = std::make_shared<Greater>(shape_expected_node, zero_node);
+    auto fixed_shape_node = std::make_shared<Select>(mask_node, shape_expected_node, fixed_input_shape_node);
+    return node.default_single_output_mapping({std::make_shared<Broadcast>(x, fixed_shape_node)}, {"Out"});
 }
 
 }  // namespace op

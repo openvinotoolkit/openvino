@@ -30,6 +30,6 @@ class ConvertNMSToNMSIEMatcher;
 
 class ngraph::pass::ConvertNMSToNMSIEMatcher : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertNMSToNMSIEMatcher", "0");
     ConvertNMSToNMSIEMatcher();
 };

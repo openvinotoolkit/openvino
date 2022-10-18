@@ -50,6 +50,7 @@ public:
     }
 };
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 TEST(rtti, op_with_type) {
     auto op = OpType();
     auto type_info = op.get_type_info();

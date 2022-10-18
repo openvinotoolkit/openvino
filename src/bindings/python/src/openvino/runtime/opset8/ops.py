@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -62,7 +63,7 @@ def deformable_convolution(
     :param bilinear_interpolation_pad: The flag that determines the mode of bilinear interpolation
                                                execution.
     :param name: The optional new name for output node.
-    returns New node performing deformable convolution operation.
+    :return: New node performing deformable convolution operation.
     """
     if mask is None:
         inputs = as_nodes(data, offsets, filters)
@@ -80,7 +81,7 @@ def deformable_convolution(
             "auto_pad": auto_pad,
             "group": group,
             "deformable_group": deformable_group,
-            "bilinear_interpolation_pad": bilinear_interpolation_pad
+            "bilinear_interpolation_pad": bilinear_interpolation_pad,
         },
     )
 
@@ -88,13 +89,13 @@ def deformable_convolution(
 @nameable_op
 def adaptive_avg_pool(
         data: NodeInput,
-        output_shape: NodeInput
+        output_shape: NodeInput,
 ) -> Node:
     """Return a node which performs AdaptiveAvgPool operation.
 
     :param data: The list of input nodes
     :param output_shape: the shape of spatial dimentions after operation
-    @return: The new node performing AdaptiveAvgPool operation on the data
+    :return: The new node performing AdaptiveAvgPool operation on the data
     """
     inputs = as_nodes(data, output_shape)
     return _get_node_factory_opset8().create("AdaptiveAvgPool", inputs)
@@ -104,14 +105,14 @@ def adaptive_avg_pool(
 def adaptive_max_pool(
         data: NodeInput,
         output_shape: NodeInput,
-        index_element_type: str = "i64"
+        index_element_type: str = "i64",
 ) -> Node:
     """Return a node which performs AdaptiveMaxPool operation.
 
     :param data: The list of input nodes
     :param output_shape: the shape of spatial dimentions after operation
     :param index_element_type: Type of indices output.
-    @return: The new node performing AdaptiveMaxPool operation on the data
+    :return: The new node performing AdaptiveMaxPool operation on the data
     """
     inputs = as_nodes(data, output_shape)
 
@@ -135,7 +136,7 @@ def multiclass_nms(
         keep_top_k: int = -1,
         background_class: int = -1,
         nms_eta: float = 1.0,
-        normalized: bool = True
+        normalized: bool = True,
 ) -> Node:
     """Return a node which performs MulticlassNms.
 
@@ -158,7 +159,7 @@ def multiclass_nms(
     :param background_class: Specifies the background class id, -1 meaning to keep all classes
     :param nms_eta: Specifies eta parameter for adpative NMS, in close range [0, 1.0]
     :param normalized: Specifies whether boxes are normalized or not
-    @return: The new node which performs MuticlassNms
+    :return: The new node which performs MuticlassNms
     """
     inputs = as_nodes(boxes, scores)
 
@@ -172,7 +173,7 @@ def multiclass_nms(
         "keep_top_k": keep_top_k,
         "background_class": background_class,
         "nms_eta": nms_eta,
-        "normalized": normalized
+        "normalized": normalized,
     }
 
     return _get_node_factory_opset8().create("MulticlassNms", inputs, attributes)
@@ -192,7 +193,7 @@ def matrix_nms(
         decay_function: str = "linear",
         gaussian_sigma: float = 2.0,
         post_threshold: float = 0.0,
-        normalized: bool = True
+        normalized: bool = True,
 ) -> Node:
     """Return a node which performs MatrixNms.
 
@@ -218,7 +219,7 @@ def matrix_nms(
     :param post_threshold: Specifies threshold to filter out boxes with low confidence score
                            after decaying
     :param normalized: Specifies whether boxes are normalized or not
-    @return: The new node which performs MatrixNms
+    :return: The new node which performs MatrixNms
     """
     inputs = as_nodes(boxes, scores)
 
@@ -233,7 +234,7 @@ def matrix_nms(
         "decay_function": decay_function,
         "gaussian_sigma": gaussian_sigma,
         "post_threshold": post_threshold,
-        "normalized": normalized
+        "normalized": normalized,
     }
 
     return _get_node_factory_opset8().create("MatrixNms", inputs, attributes)
@@ -250,14 +251,14 @@ def gather(
 
     :param data:         N-D tensor with data for gathering
     :param indices:      N-D tensor with indices by which data is gathered. Negative indices
-    indicate reverse indexing from the end
+                         indicate reverse indexing from the end
     :param axis:         axis along which elements are gathered
     :param batch_dims:   number of batch dimensions
-    @return:             The new node which performs Gather
+    :return:             The new node which performs Gather
     """
     inputs = as_nodes(data, indices, axis)
     attributes = {
-        "batch_dims": batch_dims
+        "batch_dims": batch_dims,
     }
     return _get_node_factory_opset8().create("Gather", inputs, attributes)
 
@@ -296,7 +297,7 @@ def max_pool(
                                  starting at the provided axis. Defaults to 0.
     :param  name:                The optional name for the created output node.
 
-    returns   The new node performing max pooling operation.
+    :return:   The new node performing max pooling operation.
     """
     if auto_pad is None:
         auto_pad = "explicit"
@@ -324,7 +325,7 @@ def random_uniform(
         max_val: NodeInput,
         output_type: str,
         global_seed: int = 0,
-        op_seed: int = 0
+        op_seed: int = 0,
 ) -> Node:
     """Return a node which generates sequence of random values from uniform distribution.
 
@@ -332,18 +333,19 @@ def random_uniform(
     :param min_val: Tensor with the lower bound on the range of random values to generate.
     :param max_val: Tensor with the upper bound on the range of random values to generate.
     :param output_type: Specifies the output tensor type, possible values:
-    'i64', 'i32', 'f64', 'f32', 'f16', 'bf16'.
+                                'i64', 'i32', 'f64', 'f32', 'f16', 'bf16'.
     :param global_seed: Specifies global seed value. Required to be a positive integer or 0.
     :param op_seed: Specifies operational seed value. Required to be a positive integer or 0.
-    returns The new node which performs generation of random values from uniform distribution.
+
+    :return: The new node which performs generation of random values from uniform distribution.
     """
     inputs = as_nodes(output_shape, min_val, max_val)
 
     if global_seed < 0:
-        raise RuntimeError("global_seed should be positive or 0. Got: {}".format(global_seed))
+        raise RuntimeError(f"global_seed should be positive or 0. Got: {global_seed}")
 
     if op_seed < 0:
-        raise RuntimeError("op_seed should be positive or 0. Got: {}".format(op_seed))
+        raise RuntimeError(f"op_seed should be positive or 0. Got: {op_seed}")
 
     attributes = {
         "output_type": output_type,
@@ -370,7 +372,7 @@ def slice(
     :param  step: The node providing step values.
     :param  axes: The optional node providing axes to slice, default [0, 1, ..., len(start)-1].
     :param  name: The optional name for the created output node.
-    returns The new node performing Slice operation.
+    :return: The new node performing Slice operation.
     """
     if axes is None:
         inputs = as_nodes(data, start, stop, step)
@@ -392,12 +394,12 @@ def gather_nd(
     :param data:       N-D tensor with data for gathering
     :param indices:    K-D tensor of tuples with indices by which data is gathered
     :param batch_dims: Scalar value of batch dimensions
-    @return: The new node which performs GatherND
+    :return: The new node which performs GatherND
     """
     inputs = as_nodes(data, indices)
 
     attributes = {
-        "batch_dims": batch_dims
+        "batch_dims": batch_dims,
     }
 
     return _get_node_factory_opset8().create("GatherND", inputs, attributes)
@@ -405,7 +407,7 @@ def gather_nd(
 
 @nameable_op
 def prior_box(
-        layer_shape: Node, image_shape: NodeInput, attrs: dict, name: Optional[str] = None
+        layer_shape: Node, image_shape: NodeInput, attrs: dict, name: Optional[str] = None,
 ) -> Node:
     """Generate prior boxes of specified sizes and aspect ratios across all dimensions.
 
@@ -413,12 +415,14 @@ def prior_box(
     :param  image_shape:  Shape of image to which prior boxes are scaled.
     :param  attrs:        The dictionary containing key, value pairs for attributes.
     :param  name:         Optional name for the output node.
-    returns Node representing prior box operation.
+    :return: Node representing prior box operation.
+
     Available attributes are:
     * min_size                      The minimum box size (in pixels).
                                     Range of values: positive floating point numbers
                                     Default value: []
                                     Required: no
+
     * max_size                      The maximum box size (in pixels).
                                     Range of values: positive floating point numbers
                                     Default value: []
@@ -452,6 +456,7 @@ def prior_box(
     * scale_all_sizes               The flag that denotes type of inference.
                                     Range of values: False - max_size is ignored
                                                      True  - max_size is used
+
                                     Default value: True
                                     Required: no
     * fixed_ratio                   This is an aspect ratio of a box.
@@ -469,10 +474,13 @@ def prior_box(
     * min_max_aspect_ratios_order   The flag that denotes the order of output prior box.
                                     Range of values: False - the output prior box is in order of
                                                              [min, aspect_ratios, max]
+
                                                      True  - the output prior box is in order of
                                                              [min, max, aspect_ratios]
+
                                     Default value: True
                                     Required: no
+
     Example of attribute dictionary:
 
     .. code-block:: python
@@ -524,7 +532,7 @@ def i420_to_bgr(
     :param  arg_u: The node providing U plane data. Required for separate planes.
     :param  arg_v: The node providing V plane data. Required for separate planes.
     :param  name: The optional name for the created output node.
-    returns The new node performing I420toBGR operation.
+    :return: The new node performing I420toBGR operation.
     """
     if arg_u is None and arg_v is None:
         inputs = as_nodes(arg)
@@ -532,7 +540,7 @@ def i420_to_bgr(
         inputs = as_nodes(arg, arg_u, arg_v)
     else:
         raise UserInputError(
-            "Operation I420toBGR must have one (single plane) or three (separate planes) inputs provided."
+            "Operation I420toBGR must have one (single plane) or three (separate planes) inputs provided.",
         )
 
     return _get_node_factory_opset8().create("I420toBGR", inputs)
@@ -551,7 +559,7 @@ def i420_to_rgb(
     :param  arg_u: The node providing U plane data. Required for separate planes.
     :param  arg_v: The node providing V plane data. Required for separate planes.
     :param  name: The optional name for the created output node.
-    returns The new node performing I420toRGB operation.
+    :return: The new node performing I420toRGB operation.
     """
     if arg_u is None and arg_v is None:
         inputs = as_nodes(arg)
@@ -559,7 +567,7 @@ def i420_to_rgb(
         inputs = as_nodes(arg, arg_u, arg_v)
     else:
         raise UserInputError(
-            "Operation I420toRGB must have one (single plane) or three (separate planes) inputs provided."
+            "Operation I420toRGB must have one (single plane) or three (separate planes) inputs provided.",
         )
 
     return _get_node_factory_opset8().create("I420toRGB", inputs)
@@ -576,7 +584,7 @@ def nv12_to_bgr(
     :param  arg: The node providing single or Y plane data.
     :param  arg_uv: The node providing UV plane data. Required for separate planes.
     :param  name: The optional name for the created output node.
-    returns The new node performing NV12toBGR operation.
+    :return: The new node performing NV12toBGR operation.
     """
     if arg_uv is None:
         inputs = as_nodes(arg)
@@ -597,7 +605,7 @@ def nv12_to_rgb(
     :param  arg: The node providing single or Y plane data.
     :param  arg_uv: The node providing UV plane data. Required for separate planes.
     :param  name: The optional name for the created output node.
-    returns The new node performing NV12toRGB operation.
+    :return: The new node performing NV12toRGB operation.
     """
     if arg_uv is None:
         inputs = as_nodes(arg)
@@ -626,8 +634,9 @@ def detection_output(
     :param  aux_class_preds:    The 2D input tensor with additional class predictions information.
     :param  aux_box_preds:      The 2D input tensor with additional box predictions information.
     :param  name:               Optional name for the output node.
-    returns Node representing DetectionOutput operation.
+    :return: Node representing DetectionOutput operation.
      Available attributes are:
+
     * background_label_id   The background label id.
                             Range of values: integer value
                             Default value: 0
@@ -647,6 +656,7 @@ def detection_output(
     * code_type             The type of coding method for bounding boxes.
                             Range of values: {'caffe.PriorBoxParameter.CENTER_SIZE',
                                              'caffe.PriorBoxParameter.CORNER'}
+
                             Default value: 'caffe.PriorBoxParameter.CORNER'
                             Required: no
     * share_location        The flag that denotes if bounding boxes are shared among different
@@ -676,6 +686,7 @@ def detection_output(
     * decrease_label_id     The flag that denotes how to perform NMS.
                             Range of values: False - perform NMS like in Caffe*.
                                              True  - perform NMS like in MxNet*.
+
                             Default value: False
                             Required: no
     * normalized            The flag that denotes whether input tensors with boxes are normalized.
@@ -694,6 +705,7 @@ def detection_output(
                             Range of values: non-negative float number
                             Default value: 0
                             Required: no
+
     Example of attribute dictionary:
 
     .. code-block:: python
@@ -751,6 +763,6 @@ def softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
     :param data: The tensor providing input data.
     :param axis: An axis along which Softmax should be calculated. Can be positive or negative.
     :param name: Optional name for the node.
-    returns The new node with softmax operation applied on each element.
+    :return: The new node with softmax operation applied on each element.
     """
     return _get_node_factory_opset8().create("Softmax", [as_node(data)], {"axis": axis})

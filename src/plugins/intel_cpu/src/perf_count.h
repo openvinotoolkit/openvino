@@ -7,7 +7,8 @@
 #include <chrono>
 #include <ratio>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class PerfCount {
     uint64_t total_duration;
@@ -24,6 +25,7 @@ public:
     }
 
     uint64_t avg() const { return (num == 0) ? 0 : total_duration / num; }
+    uint32_t count() const { return num; }
 
 private:
     void start_itr() {
@@ -48,7 +50,8 @@ public:
     ~PerfHelper() { counter.finish_itr(); }
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
 
 #define GET_PERF(_node) std::unique_ptr<PerfHelper>(new PerfHelper(_node->PerfCounter()))
 #define PERF(_node, _need) auto pc = _need ? GET_PERF(_node) : nullptr;

@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
 
-    class TRANSFORMATIONS_API GatherNegativeConstIndicesNormalize;
+class TRANSFORMATIONS_API GatherNegativeConstIndicesNormalize;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -24,6 +24,6 @@ namespace pass {
  */
 class ngraph::pass::GatherNegativeConstIndicesNormalize : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("GatherNegativeConstIndicesNormalize", "0");
     GatherNegativeConstIndicesNormalize();
 };

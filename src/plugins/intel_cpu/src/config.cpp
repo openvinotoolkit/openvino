@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include "ie_plugin_config.hpp"
+#include "cpu/cpu_config.hpp"
 #include "ie_common.h"
 #include "ie_parallel.hpp"
 #include "ie_system_conf.h"
@@ -16,8 +17,10 @@
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/properties.hpp"
+#include <cpu/x64/cpu_isa_traits.hpp>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 using namespace InferenceEngine;
 
@@ -42,7 +45,7 @@ Config::Config() {
         }
     #endif
 
-    if (!with_cpu_x86_bfloat16())
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
         enforceBF16 = false;
 
     CPU_DEBUG_CAP_ENABLE(readDebugCapsProperties());
@@ -105,7 +108,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE;
         } else if (key == PluginConfigParams::KEY_ENFORCE_BF16) {
             if (val == PluginConfigParams::YES) {
-                if (with_cpu_x86_avx512_core()) {
+                if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
                     enforceBF16 = true;
                     manualEnforceBF16 = true;
                 } else {
@@ -120,7 +123,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             }
         } else if (key == ov::hint::inference_precision.name()) {
             if (val == "bf16") {
-                if (with_cpu_x86_avx512_core()) {
+                if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
                     enforceBF16 = true;
                     manualEnforceBF16 = true;
                 } else {
@@ -146,6 +149,16 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             // any negative value will be treated
             // as zero that means disabling the cache
             rtCacheCapacity = std::max(val_i, 0);
+        } else if (CPUConfigParams::KEY_CPU_DENORMALS_OPTIMIZATION == key) {
+            if (val == PluginConfigParams::YES) {
+                denormalsOptMode = DenormalsOptMode::DO_On;
+            } else if (val == PluginConfigParams::NO) {
+                denormalsOptMode = DenormalsOptMode::DO_Off;
+            } else {
+                denormalsOptMode = DenormalsOptMode::DO_Keep;
+                IE_THROW() << "Wrong value for property key " << CPUConfigParams::KEY_CPU_DENORMALS_OPTIMIZATION
+                << ". Expected only YES/NO";
+            }
         } else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
         }
@@ -253,10 +266,17 @@ void Config::readDebugCapsProperties() {
     if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_NAME"))
         blobDumpFilters[BY_NAME] = envVarValue;
 
+    if (envVarValue = readEnv("OV_CPU_SUMMARY_PERF")) {
+        collectPerfCounters = true;
+        summaryPerf = envVarValue;
+    }
+
     // always enable perf counters for verbose mode
     if (!verbose.empty())
         collectPerfCounters = true;
 }
 #endif // CPU_DEBUG_CAPS
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov
+

@@ -20,8 +20,6 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvFusion, "ConvFusion", 0);
-
 template <class A, class B>
 std::pair<std::shared_ptr<A>, std::shared_ptr<B>> parse_eltwise_inputs(std::shared_ptr<ngraph::Node> node) {
     auto eltwise = std::dynamic_pointer_cast<A>(node->input(0).get_source_output().get_node_shared_ptr());
@@ -158,8 +156,6 @@ bool conv_callback(ngraph::pattern::Matcher &m) {
     return true;
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvAddFusion, "ConvAddFusion", 0);
-
 ngraph::pass::ConvAddFusion::ConvAddFusion() {
     auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::consumers_count(1));
     auto add = ngraph::pattern::wrap_type<opset1::Add>({conv, pattern::any_input()});
@@ -172,8 +168,6 @@ ngraph::pass::ConvAddFusion::ConvAddFusion() {
     register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvMultiplyFusion, "ConvMultiplyFusion", 0);
-
 ngraph::pass::ConvMultiplyFusion::ConvMultiplyFusion() {
     auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::consumers_count(1));
     auto add = ngraph::pattern::wrap_type<opset1::Multiply>({conv, pattern::any_input()});
@@ -185,8 +179,6 @@ ngraph::pass::ConvMultiplyFusion::ConvMultiplyFusion() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(add, "ConvMultiplyFusion");
     register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::DeconvAddFusion, "DeconvAddFusion", 0);
 
 ngraph::pass::DeconvAddFusion::DeconvAddFusion() {
     auto conv = ngraph::pattern::wrap_type<op::DeconvolutionIE>(pattern::consumers_count(1));

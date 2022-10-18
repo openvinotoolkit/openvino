@@ -28,13 +28,13 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const average_unpooling_node& arg) {
-        auto average_unpooling_params = get_default_params<kernel_selector::average_unpooling_params>(arg);
+    static primitive_impl* create(const average_unpooling_node& arg, const kernel_impl_params& impl_param) {
+        auto primitive = arg.get_primitive();
+        auto average_unpooling_params = get_default_params<kernel_selector::average_unpooling_params>(impl_param);
         auto average_unpooling_optional_params =
             get_default_optional_params<kernel_selector::average_unpooling_optional_params>(arg.get_program());
         auto& params = average_unpooling_params;
 
-        auto primitive = arg.get_primitive();
         auto stride = primitive->stride;
 
         params.unpoolSize = {

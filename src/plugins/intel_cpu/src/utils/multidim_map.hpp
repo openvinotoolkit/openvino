@@ -7,7 +7,8 @@
 #include <type_traits>
 #include <functional>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 namespace internal {
 
@@ -61,4 +62,5 @@ private:
     std::unordered_map<key_type, mapped_type, hash_type> _map;
 };
 
-}   // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

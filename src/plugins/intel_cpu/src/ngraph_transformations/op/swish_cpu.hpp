@@ -6,7 +6,8 @@
 
 #include <ngraph/op/op.hpp>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class SwishNode : public ngraph::op::Op {
 public:
@@ -26,4 +27,5 @@ protected:
     float m_alpha;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

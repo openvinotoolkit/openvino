@@ -16,6 +16,7 @@ std::shared_ptr<ngraph::Function> FuseConvertFunction::get(
     const ngraph::PartialShape& inputShape,
     const ngraph::element::Type inputPrecision,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+    const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantize,
     const bool constInput) {
     std::shared_ptr<Node> parent;
     std::shared_ptr<op::Parameter> input;
@@ -28,14 +29,19 @@ std::shared_ptr<ngraph::Function> FuseConvertFunction::get(
         parent = input;
     }
 
-    const std::shared_ptr<Node> dequantizationOp = makeDequantization(parent, dequantization);
-    dequantizationOp->set_friendly_name("output");
+    parent = makeDequantization(parent, dequantization);
+
+    if (!fakeQuantize.empty()) {
+        parent = makeFakeQuantize(parent, fakeQuantize.outputPrecision, fakeQuantize);
+    }
+
+    parent->set_friendly_name("output");
 
     auto parameters = constInput ?
         ngraph::ParameterVector{}:
         ngraph::ParameterVector{ input };
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(dequantizationOp) };
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(parent)};
     return std::make_shared<ngraph::Function>(results, parameters, "FuseConvertFunction");
 }
 

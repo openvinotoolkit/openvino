@@ -13,8 +13,6 @@
 #include <transformations/utils/utils.hpp>
 #include <ngraph/rt_info.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPowerToPowerIEMatcher, "ConvertPowerToPowerIEMatcher", 0);
-
 ngraph::pass::ConvertPowerToPowerIEMatcher::ConvertPowerToPowerIEMatcher() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});

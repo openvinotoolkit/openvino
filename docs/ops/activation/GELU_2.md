@@ -1,4 +1,4 @@
-# GELU- Gaussian Error Linear Unit {#openvino_docs_ops_activation_GELU_2}
+# GELU {#openvino_docs_ops_activation_GELU_2}
 
 **Versioned name**: *Gelu-2*
 

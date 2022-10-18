@@ -6,28 +6,35 @@
 
 #include <ie_common.h>
 
-#include <mkldnn.hpp>
+#include <onednn/dnnl.h>
 #include <cpu/x64/jit_generator.hpp>
 #include "emitters/jit_snippets_emitters.hpp"
 
-#include "mkldnn_node.h"
+#include <node.h>
 #include "snippets/op/subgraph.hpp"
 
 #include <array>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
-/// MKLDNNSnippetNode represents subgraph node in MKLDNN plugin
+/// Snippet represents subgraph node in CPU plugin
 /// potentially, snippet can be placed as a postop to any support operation while it doesn't support postops itself
 /// precision: fp32
-class MKLDNNSnippetNode : public MKLDNNNode {
+class Snippet : public Node {
 public:
-    MKLDNNSnippetNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNSnippetNode() override = default;
+    Snippet(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    ~Snippet() override = default;
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
+    InferenceEngine::Precision getRuntimePrecision() const override;
+
+    // to avoid collisions in throughput mode with copy of TypeRelaxed nodes
+    // we should have common shared mutex between streams
+    void setSharedMutex(const std::shared_ptr<std::mutex>& mutex);
 
     // Here we convert to canonical for & jit everything
     void createPrimitive() override;
@@ -36,12 +43,17 @@ public:
     bool created() const override;
 
     // if generator is set, it would execute generated code otherwise it would fallback to nGraph reference
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
 
 private:
     static const size_t rank6D {6};
 
     typedef void (*kernel)(const void *, const void *);
+
+    // Create a deep local copy of the input snippet to perform canonicalization & code generation
+    // TODO: Probably better to implement a proper copy constructor
+    // NOTE: Before call mutex should be initialized
+    void copy_snippet();
 
     void define_schedule();
 
@@ -51,6 +63,8 @@ private:
     void schedule_6d(const jit_snippets_call_args& const_args) const;
     void schedule_nt(const jit_snippets_call_args& const_args) const;
 
+    // Original subgraph node
+    std::shared_ptr<ngraph::snippets::op::Subgraph> original_snippet;
     // Local copy of subgraph node for canonization & code generation
     std::shared_ptr<ngraph::snippets::op::Subgraph> snippet;
 
@@ -72,8 +86,8 @@ private:
     size_t schedulerWorkAmount = 0;
     const size_t maxTileRank = 2;
 
-    std::vector<MKLDNNMemoryPtr> srcMemPtrs = {};
-    std::vector<MKLDNNMemoryPtr> dstMemPtrs = {};
+    std::vector<MemoryPtr> srcMemPtrs = {};
+    std::vector<MemoryPtr> dstMemPtrs = {};
 
     std::vector<std::vector<size_t>> dims_in = {};
     std::vector<std::vector<size_t>> offsets_in = {};
@@ -89,4 +103,6 @@ private:
     bool canUseOptimizedImpl = true;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

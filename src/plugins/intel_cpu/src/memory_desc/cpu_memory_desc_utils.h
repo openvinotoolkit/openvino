@@ -4,20 +4,21 @@
 
 #pragma once
 
-#include "mkldnn/ie_mkldnn.h"
+#include <onednn/dnnl.h>
 #include "cpu_types.h"
 
 #include <ie_layouts.h>
 #include <ie_blob.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class MemoryDesc;
 class DnnlMemoryDesc;
 class BlockedMemoryDesc;
 class DnnlBlockedMemoryDesc;
 class CpuBlockedMemoryDesc;
-class MKLDNNMemory;
+class Memory;
 
 class MemoryDescUtils {
 public:
@@ -59,11 +60,18 @@ public:
     static std::shared_ptr<BlockedMemoryDesc> convertToBlockedMemoryDesc(const std::shared_ptr<MemoryDesc> &desc);
 
     /**
-     * @brief Creates InferenceEngine::Blob from MKLDNNMemory with the memory reuse
-     * @param desc MKLDNNMemory from which will be created InferenceEngine::Blob
+     * @brief Creates InferenceEngine::Blob from Memory with the memory reuse
+     * @param desc Memory from which will be created InferenceEngine::Blob
      * @return pointer to InferenceEngine::Blob
      */
-    static InferenceEngine::Blob::Ptr interpretAsBlob(const MKLDNNMemory& mem);
+    static InferenceEngine::Blob::Ptr interpretAsBlob(const Memory& mem);
+
+    /**
+     * @brief Creates InferenceEngine::TensorDesc from Memory with the memory reuse
+     * @param desc Memory from which will be created InferenceEngine::Blob
+     * @return InferenceEngine::TensorDesc
+     */
+    static InferenceEngine::TensorDesc interpretAsBlobDesc(const Memory& mem);
 
     /**
      * @brief Converts MemoryDesc to InferenceEngine::TensorDesc
@@ -105,4 +113,5 @@ public:
     static std::string dims2str(const VectorDims& dims);
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

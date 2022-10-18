@@ -13,7 +13,7 @@ file (GLOB HELPERS_INCLUDES
        ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
       )
 
-## Enable Models multiple search pathes
+## Enable Models multiple search paths
 message("configuring file: ${CMAKE_CURRENT_BINARY_DIR}/test_model_repo.h")
 
 function(add_helpers target_name)
@@ -22,7 +22,6 @@ function(add_helpers target_name)
     target_include_directories(${target_name}
         PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
                 $<TARGET_PROPERTY:ie_samples_utils,INTERFACE_INCLUDE_DIRECTORIES>
-                $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
                 $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                 $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
         PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")

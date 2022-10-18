@@ -4,12 +4,8 @@
 
 #pragma once
 
-#include <vector>
-#include <utility>
-#include <memory>
-
-#include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -19,8 +15,8 @@ class TRANSFORMATIONS_API ConvertMulticlassNmsToMulticlassNmsIE;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("public", "0");
     ConvertMulticlassNmsToMulticlassNmsIE(bool force_i32_output_type = true);
 };

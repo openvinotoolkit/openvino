@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -44,12 +45,12 @@ def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -
     :param new_value:    Node producing a value to be assigned to a variable.
     :param variable_id:  Id of a variable to be updated.
     :param name:         Optional name for output node.
-    returns Assign node
+    :return: Assign node
     """
     return _get_node_factory_opset3().create(
         "Assign",
         [as_node(new_value)],
-        {"variable_id": variable_id}
+        {"variable_id": variable_id},
     )
 
 
@@ -70,13 +71,13 @@ def broadcast(
     :param broadcast_spec: The type of broadcasting that specifies mapping of input tensor axes
                            to output shape axes. Range of values: NUMPY, EXPLICIT, BIDIRECTIONAL.
     :param name: Optional new name for output node.
-    returns New node with broadcast shape.
+    :return: New node with broadcast shape.
     """
     inputs = as_nodes(data, target_shape)
     if broadcast_spec.upper() == "EXPLICIT":
         inputs.append(as_node(axes_mapping))
     return _get_node_factory_opset3().create(
-        "Broadcast", inputs, {"mode": broadcast_spec.upper()}
+        "Broadcast", inputs, {"mode": broadcast_spec.upper()},
     )
 
 
@@ -96,7 +97,7 @@ def bucketize(
     :param with_right_bound:  indicates whether bucket includes the right or left
                               edge of interval. default true = includes right edge
     :param name:              Optional name for output node.
-    returns Bucketize node
+    :return: Bucketize node
     """
     return _get_node_factory_opset3().create(
         "Bucketize",
@@ -119,10 +120,10 @@ def cum_sum(
     :param axis: zero dimension tensor specifying axis position along which sum will be performed.
     :param exclusive: if set to true, the top element is not included
     :param reverse: if set to true, will perform the sums in reverse direction
-    returns New node performing the operation
+    :return: New node performing the operation
     """
     return _get_node_factory_opset3().create(
-        "CumSum", as_nodes(arg, axis), {"exclusive": exclusive, "reverse": reverse}
+        "CumSum", as_nodes(arg, axis), {"exclusive": exclusive, "reverse": reverse},
     )
 
 
@@ -143,7 +144,7 @@ def embedding_bag_offsets_sum(
     :param per_sample_weights: Tensor with weights for each sample.
     :param default_index: Scalar containing default index in embedding table to fill empty bags.
     :param name: Optional name for output node.
-    returns The new node which performs EmbeddingBagOffsetsSum
+    :return: The new node which performs EmbeddingBagOffsetsSum
     """
     inputs = [emb_table, as_node(indices), as_node(offsets)]
     if per_sample_weights is not None:
@@ -171,7 +172,7 @@ def embedding_bag_packed_sum(
     :param indices: Tensor with indices.
     :param per_sample_weights: Weights to be multiplied with embedding table.
     :param name: Optional name for output node.
-    returns EmbeddingBagPackedSum node
+    :return: EmbeddingBagPackedSum node
     """
     inputs = [as_node(emb_table), as_node(indices)]
     if per_sample_weights is not None:
@@ -202,7 +203,7 @@ def embedding_segments_sum(
     :param default_index: Scalar containing default index in embedding table to fill empty bags.
     :param per_sample_weights: Weights to be multiplied with embedding table.
     :param name: Optional name for output node.
-    returns EmbeddingSegmentsSum node
+    :return: EmbeddingSegmentsSum node
     """
     inputs = [as_node(emb_table), as_node(indices), as_node(segment_ids)]
     if per_sample_weights is not None:
@@ -235,7 +236,7 @@ def extract_image_patches(
     :param rates:     Element seleciton rate for creating a patch.
     :param auto_pad:  Padding type.
     :param name:      Optional name for output node.
-    returns ExtractImagePatches node
+    :return: ExtractImagePatches node
     """
     return _get_node_factory_opset3().create(
         "ExtractImagePatches",
@@ -288,7 +289,7 @@ def gru_cell(
     :param linear_before_reset:     Flag denotes if the layer behaves according to the modification
                                     of GRUCell described in the formula in the ONNX documentation.
     :param name:                    Optional output node name.
-    returns   The new node performing a GRUCell operation on tensor from input node.
+    :return:   The new node performing a GRUCell operation on tensor from input node.
     """
     if activations is None:
         activations = ["sigmoid", "tanh"]
@@ -333,7 +334,7 @@ def non_max_suppression(
     :param sort_result_descending: Flag that specifies whenever it is necessary to sort selected
                                    boxes across batches or not.
     :param output_type: Output element type.
-    returns The new node which performs NonMaxSuppression
+    :return: The new node which performs NonMaxSuppression
     """
     if max_output_boxes_per_class is None:
         max_output_boxes_per_class = make_constant_node(0, np.int64)
@@ -353,18 +354,18 @@ def non_max_suppression(
 
 
 @nameable_op
-def non_zero(data: NodeInput, output_type: str = "i64", name: Optional[str] = None,) -> Node:
+def non_zero(data: NodeInput, output_type: str = "i64", name: Optional[str] = None) -> Node:
     """Return the indices of the elements that are non-zero.
 
     :param data: Input data.
     :param output_type: Output tensor type.
 
-    returns The new node which performs NonZero
+    :return: The new node which performs NonZero
     """
     return _get_node_factory_opset3().create(
         "NonZero",
         [as_node(data)],
-        {"output_type": output_type}
+        {"output_type": output_type},
     )
 
 
@@ -375,12 +376,12 @@ def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = No
     :param init_value:   Node producing a value to be returned instead of an unassigned variable.
     :param variable_id:  Id of a variable to be read.
     :param name:         Optional name for output node.
-    returns ReadValue node
+    :return: ReadValue node
     """
     return _get_node_factory_opset3().create(
         "ReadValue",
         [as_node(init_value)],
-        {"variable_id": variable_id}
+        {"variable_id": variable_id},
     )
 
 
@@ -422,7 +423,7 @@ def rnn_cell(
     :param clip:                    The value defining clipping range [-clip, clip] on input of
                                     activation functions.
     :param name:                    Optional output node name.
-    returns   The new node performing a RNNCell operation on tensor from input node.
+    :return:   The new node performing a RNNCell operation on tensor from input node.
     """
     if activations is None:
         activations = ["tanh"]
@@ -467,7 +468,7 @@ def roi_align(
     :param spatial_scale: Multiplicative spatial scale factor to translate ROI coordinates.
     :param mode: Method to perform pooling to produce output feature map elements.
 
-    returns The new node which performs ROIAlign
+    :return: The new node which performs ROIAlign
     """
     inputs = as_nodes(data, rois, batch_indices)
     attributes = {
@@ -494,7 +495,7 @@ def scatter_elements_update(
     :param indices: The tensor with indexes which will be updated.
     :param updates: The tensor with update values.
     :param axis:    The axis for scatter.
-    returns ScatterElementsUpdate node
+    :return: ScatterElementsUpdate node
 
     ScatterElementsUpdate creates a copy of the first input tensor with updated elements
     specified with second and third input tensors.
@@ -507,13 +508,13 @@ def scatter_elements_update(
 
     """
     return _get_node_factory_opset3().create(
-        "ScatterElementsUpdate", as_nodes(data, indices, updates, axis)
+        "ScatterElementsUpdate", as_nodes(data, indices, updates, axis),
     )
 
 
 @nameable_op
 def scatter_update(
-    data: Node, indices: NodeInput, updates: NodeInput, axis: NodeInput, name: Optional[str] = None
+    data: Node, indices: NodeInput, updates: NodeInput, axis: NodeInput, name: Optional[str] = None,
 ) -> Node:
     """Return a node which produces a ScatterUpdate operation.
 
@@ -523,11 +524,11 @@ def scatter_update(
     :param indices: The tensor with indexes which will be updated.
     :param updates: The tensor with update values.
     :param axis:    The axis at which elements will be updated.
-    returns ScatterUpdate node
+    :return: ScatterUpdate node
     """
     return _get_node_factory_opset3().create(
         "ScatterUpdate",
-        as_nodes(data, indices, updates, axis)
+        as_nodes(data, indices, updates, axis),
     )
 
 
@@ -537,12 +538,12 @@ def shape_of(data: NodeInput, output_type: str = "i64", name: Optional[str] = No
 
     :param data: The tensor containing the input data.
     :param output_type: Output element type.
-    returns ShapeOf node
+    :return: ShapeOf node
     """
     return _get_node_factory_opset3().create(
         "ShapeOf",
         [as_node(data)],
-        {"output_type": output_type}
+        {"output_type": output_type},
     )
 
 
@@ -557,7 +558,7 @@ def shuffle_channels(data: Node, axis: int, group: int, name: Optional[str] = No
     :param group: The channel dimension specified by the axis parameter
                  should be split into this number of groups.
     :param name: Optional output node name.
-    returns The new node performing a permutation on data in the channel dimension
+    :return: The new node performing a permutation on data in the channel dimension
              of the input tensor.
 
     The operation is the equivalent with the following transformation of the input tensor
@@ -571,7 +572,7 @@ def shuffle_channels(data: Node, axis: int, group: int, name: Optional[str] = No
 
     For example:
 
-    .. code-block:: ipython
+    .. code-block:: python
 
         Inputs: tensor of shape [1, 6, 2, 2]
 
@@ -595,7 +596,7 @@ def shuffle_channels(data: Node, axis: int, group: int, name: Optional[str] = No
                            [[20., 21.], [22., 23.]]]]
     """
     return _get_node_factory_opset3().create(
-        "ShuffleChannels", [as_node(data)], {"axis": axis, "group": group}
+        "ShuffleChannels", [as_node(data)], {"axis": axis, "group": group},
     )
 
 
@@ -617,7 +618,7 @@ def topk(
     :param mode: Compute TopK largest ('max') or smallest ('min')
     :param sort: Order of output elements (sort by: 'none', 'index' or 'value')
     :param index_element_type: Type of output tensor with indices.
-    returns The new node which performs TopK (both indices and values)
+    :return: The new node which performs TopK (both indices and values)
     """
     return _get_node_factory_opset3().create(
         "TopK",

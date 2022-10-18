@@ -25,7 +25,7 @@ Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](..
 At startup, the sample application reads command line parameters, loads the specified model and an
 image in the NV12 color format to an OpenVINO™ Runtime plugin. Then, the sample creates an synchronous inference request object. When inference is done, the application outputs data to the standard output stream. You can place labels in .labels file near the model to get pretty output.
 
-You can see the explicit description of each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the OpenVINO™ Runtime with Your Application" guide.
+You can see the explicit description of each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 ## Building
 
@@ -61,7 +61,7 @@ ffmpeg -i cat.jpg -pix_fmt nv12 car.yuv
 >   model to work with RGB order, you need to reconvert your model using the Model Optimizer tool
 >   with `--reverse_input_channels` argument specified. For more information about the argument,
 >   refer to **When to Reverse Input Channels** section of
->   [Converting a Model](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+>   [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 > - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
@@ -69,27 +69,24 @@ ffmpeg -i cat.jpg -pix_fmt nv12 car.yuv
 ### Example
 
 1. Install openvino-dev python package if you don't have it to use Open Model Zoo Tools:
-
-```
-python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
-```
+   ```
+   python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
+   ```
 
 2. Download a pre-trained model:
-```
-omz_downloader --name alexnet
-```
+   ```
+   omz_downloader --name alexnet
+   ```
 
 3. If a model is not in the IR or ONNX format, it must be converted. You can do this using the model converter:
-
-```
-omz_converter --name alexnet
-```
+   ```
+   omz_converter --name alexnet
+   ```
 
 4. Perform inference of NV12 image using `alexnet` model on a `CPU`, for example:
-
-```
-hello_nv12_input_classification alexnet.xml car.yuv 300x300 CPU
-```
+   ```
+   hello_nv12_input_classification alexnet.xml car.yuv 300x300 CPU
+   ```
 
 ## Sample Output
 
@@ -130,7 +127,7 @@ classid probability
 
 ## See Also
 
-- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
+- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
 - [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)

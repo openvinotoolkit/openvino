@@ -28,8 +28,6 @@ xfail_issue_69444 = xfail_test(reason="ONNX Resize - AssertionError: Mismatched 
 xfail_issue_67415 = xfail_test(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "MaxUnpool")
-xfail_issue_33538 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
-                                      "Scan")
 skip_issue_38084 = pytest.mark.skip(reason="Aborted (core dumped) Assertion "
                                            "`(layer->get_output_partial_shape(i).is_static())' failed.")
 xfail_issue_33589 = xfail_test(reason="nGraph does not support the following ONNX operations: "
@@ -129,13 +127,20 @@ xfail_issue_63033 = xfail_test(reason="BatchNormalization: Training mode is not 
 xfail_issue_63036 = xfail_test(reason="Changes in ConvTranspose padding")
 xfail_issue_63039 = xfail_test(reason="Result mismatches with UINT8 operations")
 xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R, B inputs.")
-xfail_issue_63044 = xfail_test(reason="ONNX opset 14 operation: Trilu")
 
 skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")
-xfail_issue_63136 = xfail_test(reason="Unsupported operation: CastLike")
 xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElement, OptionalGetElement")
 xfail_issue_63138 = xfail_test(reason="Missing ONNX Shape-15 support")
 
-xfail_issue_77668 = xfail_test(reason="Accuracy issue related to Gather-8.")
 xfail_issue_78843 = xfail_test(reason="Missing reference output files for ssd mobilenet models")
-xfail_issue_78741 = xfail_test(reason="Cannot get dims for non static shape")
+xfail_issue_78741 = xfail_test(reason="Cannot get dims for non-static shapes. "
+                                      "Requires dynamism support enabled.")
+
+xfail_issue_81976 = xfail_test(reason="RuntimeError: z node not found in graph cache")
+xfail_issue_82038 = xfail_test(reason="ScatterElements, ScatterND, AssertionError: Result mismatch")
+xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeError: [ NOT_IMPLEMENTED ] "
+                                      "CPU plugin: Input image format UNSPECIFIED is not supported yet...")
+skip_issue_86384 = pytest.mark.skip(reason="If op compatibility tests failing only when triggering whole test suite")
+xfail_issue_91490 = xfail_test(reason="y has zero dimension which is not allowed")
+
+skip_dynamic_model = pytest.mark.skip(reason="CPU plug-in can't load a model with dynamic output shapes via legacy API")

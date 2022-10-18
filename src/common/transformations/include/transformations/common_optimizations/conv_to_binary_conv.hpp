@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvToBinaryConv;
 
-} // namespace pass
-} // namespace ngraph
+}  // namespace pass
+}  // namespace ngraph
 
 /**
  * @ingroup ie_transformation_common_api
@@ -72,6 +72,6 @@ class TRANSFORMATIONS_API ConvToBinaryConv;
  */
 class ngraph::pass::ConvToBinaryConv : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvToBinaryConv", "0");
     ConvToBinaryConv();
 };

@@ -57,12 +57,22 @@ bool Any::Base::visit_attributes(AttributeVisitor& visitor) const {
     return const_cast<Any::Base*>(this)->visit_attributes(visitor);
 }
 
+void Any::Base::read_to(Base& other) const {
+    std::stringstream strm;
+    print(strm);
+    if (other.is<std::string>()) {
+        *static_cast<std::string*>(other.addressof()) = strm.str();
+    } else {
+        other.read(strm);
+    }
+}
+
 Any::~Any() {
-    _temp_impl = {};
+    _temp = {};
     _impl = {};
 }
 
-Any::Any(const Any& other, const std::shared_ptr<void>& so) : _impl{other._impl}, _so{so} {}
+Any::Any(const Any& other, const std::vector<std::shared_ptr<void>>& so) : _impl{other._impl}, _so{so} {}
 
 Any::Any(const char* str) : Any(std::string{str}) {}
 
@@ -121,6 +131,13 @@ const Any::Base* Any::operator->() const {
     return _impl.get();
 }
 
+void* Any::addressof() {
+    return _impl != nullptr ? _impl->addressof() : nullptr;
+}
+
+const void* Any::addressof() const {
+    return _impl != nullptr ? _impl->addressof() : nullptr;
+}
 namespace util {
 
 void Read<bool>::operator()(std::istream& is, bool& value) const {
@@ -138,7 +155,7 @@ void Read<bool>::operator()(std::istream& is, bool& value) const {
 template <typename F>
 static auto stream_to(std::istream& is, F&& f) -> decltype(f(std::declval<const std::string&>())) {
     std::string str;
-    Read<std::string>{}(is, str);
+    is >> str;
     try {
         return f(str);
     } catch (std::exception& e) {

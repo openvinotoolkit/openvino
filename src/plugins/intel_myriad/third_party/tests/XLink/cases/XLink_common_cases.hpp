@@ -31,7 +31,8 @@ class XLinkNullPtrTests: public XLinkTests {};
 //      class XLinkFindAllSuitableDevicesTests
 //------------------------------------------------------------------------------
 
-class XLinkFindAllSuitableDevicesTests : public XLinkTests {};
+class XLinkFindAllSuitableDevicesTests : public XLinkTests,
+                                         public XLinkDeviceTestsCommonParam {};
 
 
 //------------------------------------------------------------------------------

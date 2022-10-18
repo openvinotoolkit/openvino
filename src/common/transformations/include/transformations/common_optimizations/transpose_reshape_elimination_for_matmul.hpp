@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
-#include "transformations_visibility.hpp"
+#include <vector>
 
 #include "ngraph/pass/graph_rewrite.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -25,8 +24,8 @@ class TRANSFORMATIONS_API TransposeReshapeEliminationForMatmul;
  * align input and output dimension ranks before second MatMul input and after MatMul output
  * (for example, after Einsum Decomposition inside TensorFlow 1 and nGraph EinsumDecomposition transformation)
  */
-class ngraph::pass::TransposeReshapeEliminationForMatmul: public ngraph::pass::MatcherPass {
+class ngraph::pass::TransposeReshapeEliminationForMatmul : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TransposeReshapeEliminationForMatmul", "0");
     TransposeReshapeEliminationForMatmul();
 };

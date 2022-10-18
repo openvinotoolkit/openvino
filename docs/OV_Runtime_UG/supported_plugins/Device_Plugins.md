@@ -1,4 +1,4 @@
-# Device Plugin Support {#openvino_docs_IE_DG_Device_Plugins}
+# Inference Device Support {#openvino_docs_OV_UG_Working_with_devices}
 
 @sphinxdirective
 
@@ -6,30 +6,93 @@
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_IE_DG_InferenceEngine_QueryAPI
-   openvino_docs_IE_DG_supported_plugins_CPU
-   openvino_docs_IE_DG_supported_plugins_GPU
-   openvino_docs_IE_DG_supported_plugins_VPU
-   openvino_docs_IE_DG_supported_plugins_GNA
-   openvino_docs_IE_DG_supported_plugins_AUTO
-   openvino_docs_IE_DG_supported_plugins_HETERO
-   openvino_docs_IE_DG_supported_plugins_MULTI
-         
+   openvino_docs_OV_UG_query_api
+   openvino_docs_OV_UG_supported_plugins_CPU
+   openvino_docs_OV_UG_supported_plugins_GPU
+   openvino_docs_OV_UG_supported_plugins_VPU
+   openvino_docs_OV_UG_supported_plugins_GNA
+   openvino_docs_OV_UG_supported_plugins_ARM_CPU
+
 @endsphinxdirective
 
-Inference Engine uses a plugin architecture. Inference Engine plugin is a software component that contains complete implementation for inference on a certain Intel® hardware device: CPU, GPU, VPU, GNA, etc. Each plugin implements the unified API and provides additional hardware-specific APIs.
+OpenVINO™ Runtime can infer deep learning models using the following device types:
 
-The Inference Engine provides capabilities to infer deep learning models on the following device types with corresponding plugins:
+* [CPU](CPU.md)    
+* [GPU](GPU.md)    
+* [VPUs](VPU.md)   
+* [GNA](GNA.md)   
+* [Arm® CPU](ARM_CPU.md)     
 
-| Plugin                                   | Device types                                                                                                                                                |
-|------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|[GPU plugin](GPU.md)            |Intel&reg; Processor Graphics, including Intel&reg; HD Graphics and Intel&reg; Iris&reg; Graphics                                                            |
-|[CPU plugin](CPU.md)              |Intel&reg; Xeon&reg; with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel&reg; Core&trade; Processors with Intel&reg; AVX2, Intel&reg; Atom&reg; Processors with Intel® Streaming SIMD Extensions (Intel® SSE) |
-|[VPU plugins](VPU.md) (available in the Intel® Distribution of OpenVINO™ toolkit)            |Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X, Intel® Vision Accelerator Design with Intel® Movidius™ VPUs                                                                                           |
-|[GNA plugin](GNA.md) (available in the Intel® Distribution of OpenVINO™ toolkit)              |Intel&reg; Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel&reg; Pentium&reg; Silver J5005 Processor, Intel&reg; Pentium&reg; Silver N5000 Processor, Intel&reg; Celeron&reg; J4005 Processor, Intel&reg; Celeron&reg; J4105 Processor, Intel&reg; Celeron&reg; Processor N4100, Intel&reg; Celeron&reg; Processor N4000, Intel&reg; Core&trade; i3-8121U Processor, Intel&reg; Core&trade; i7-1065G7 Processor, Intel&reg; Core&trade; i7-1060G7 Processor, Intel&reg; Core&trade; i5-1035G4 Processor, Intel&reg; Core&trade; i5-1035G7 Processor, Intel&reg; Core&trade; i5-1035G1 Processor, Intel&reg; Core&trade; i5-1030G7 Processor, Intel&reg; Core&trade; i5-1030G4 Processor, Intel&reg; Core&trade; i3-1005G1 Processor, Intel&reg; Core&trade; i3-1000G1 Processor, Intel&reg; Core&trade; i3-1000G4 Processor|
-|[Multi-Device plugin](MULTI.md) |Multi-Device plugin enables simultaneous inference of the same network on several Intel&reg; devices in parallel    |   
-|[Auto-Device plugin](AUTO.md) |Auto-Device plugin enables selecting Intel&reg; device for inference automatically |   
-|[Heterogeneous plugin](HETERO.md) |Heterogeneous plugin enables automatic inference splitting between several Intel&reg; devices (for example if a device doesn't [support certain layers](#supported-layers)).                                                           |
+For a more detailed list of hardware, see [Supported Devices](./Supported_Devices.md)
 
-Devices similar to the ones we have used for benchmarking can be accessed using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/), a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. [Learn more](https://devcloud.intel.com/edge/get_started/devcloud/) or [Register here](https://inteliot.force.com/DevcloudForEdge/s/).
+Devices similar to the ones used for benchmarking can be accessed, using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/), a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. [Learn more](https://devcloud.intel.com/edge/get_started/devcloud/) or [Register here](https://inteliot.force.com/DevcloudForEdge/s/).
+
+
+@anchor features_support_matrix
+## Feature Support Matrix
+The table below demonstrates support of key features by OpenVINO device plugins.
+
+| Capability | [CPU](CPU.md) | [GPU](GPU.md) | [GNA](GNA.md) |[Arm® CPU](ARM_CPU.md) |
+| ---------- | --- | --- | --- | --- |
+| [Heterogeneous execution](../hetero_execution.md)| Yes | Yes | No | Yes |
+| [Multi-device execution](../multi_device.md) | Yes | Yes | Partial | Yes |
+| [Automatic batching](../automatic_batching.md) | No | Yes | No | No |
+| [Multi-stream execution](../../optimization_guide/dldt_deployment_optimization_tput.md) | Yes | Yes | No | Yes |
+| [Models caching](../Model_caching_overview.md) | Yes | Partial | Yes | No |
+| [Dynamic shapes](../ov_dynamic_shapes.md) | Yes | Partial | No | No |
+| [Import/Export](../../../tools/compile_tool/README.md) | Yes | No | Yes | No |
+| [Preprocessing acceleration](../preprocessing_overview.md) | Yes | Yes | No | Partial |
+| [Stateful models](../network_state_intro.md) | Yes | No | Yes | No |
+| [Extensibility](@ref openvino_docs_Extensibility_UG_Intro) | Yes | Yes | No | No |
+
+For more details on plugin-specific feature limitations, see the corresponding plugin pages.
+
+## Enumerating Available Devices
+The OpenVINO Runtime API features dedicated methods of enumerating devices and their capabilities. See the [Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md). This is an example output from the sample (truncated to device names only):
+
+```sh
+  ./hello_query_device
+  Available devices:
+      Device: CPU
+  ...
+      Device: GPU.0
+  ...
+      Device: GPU.1
+  ...
+      Device: HDDL
+```
+
+A simple programmatic way to enumerate the devices and use with the multi-device is as follows:
+
+@sphinxdirective
+
+.. tab:: C++
+
+    .. doxygensnippet:: docs/snippets/MULTI2.cpp
+       :language: cpp
+       :fragment: [part2]
+
+@endsphinxdirective
+
+Beyond the typical "CPU", "GPU", "HDDL", and so on, when multiple instances of a device are available, the names are more qualified. For example, this is how two Intel® Movidius™ Myriad™ X sticks are listed with the hello_query_sample:
+```
+...
+    Device: MYRIAD.1.2-ma2480
+...
+    Device: MYRIAD.1.4-ma2480
+```
+
+So, the explicit configuration to use both would be "MULTI:MYRIAD.1.2-ma2480,MYRIAD.1.4-ma2480". Accordingly, the code that loops over all available devices of the "MYRIAD" type only is as follows:
+
+@sphinxdirective
+
+.. tab:: C++
+
+    .. doxygensnippet:: docs/snippets/MULTI3.cpp
+       :language: cpp
+       :fragment: [part3]
+
+@endsphinxdirective
+
+
 

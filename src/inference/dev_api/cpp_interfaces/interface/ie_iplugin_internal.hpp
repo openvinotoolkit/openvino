@@ -24,10 +24,10 @@
 
 namespace ov {
 class Function;
+class ICore;
 }  // namespace ov
 namespace InferenceEngine {
 
-class ICore;
 class ExecutorManager;
 class IExecutableNetworkInternal;
 class RemoteContext;
@@ -95,6 +95,31 @@ INFERENCE_ENGINE_API_CPP(void)
 SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                   const std::shared_ptr<const ov::Model>& function,
                   bool new_api);
+
+/**
+ * @brief Returns set of nodes which were removed after transformation.
+ * If originalFunction contains node1 and transformedFunction does not
+ * contains node1 in ops list, node1 will be returned.
+ * @param originalFunction Original network
+ * @param transformedFunction Transformed network
+ * @return Set of strings which contains removed node names
+ */
+INFERENCE_ENGINE_API_CPP(std::unordered_set<std::string>)
+GetRemovedNodes(const std::shared_ptr<const ov::Model>& originalFunction,
+                const std::shared_ptr<const ov::Model>& transformedFunction);
+
+/**
+ * @brief Returns set of nodes from original model which are
+ * determined as supported after applied transformation pipeline.
+ * @param model Original model
+ * @param transform Transformation pipeline function
+ * @param is_node_supported Function returning whether node is supported or not
+ * @return Set of strings which contains supported node names
+ */
+INFERENCE_ENGINE_API_CPP(std::unordered_set<std::string>)
+GetSupportedNodes(const std::shared_ptr<const ov::Model>& model,
+                  std::function<void(std::shared_ptr<ov::Model>&)> transform,
+                  std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported);
 
 /**
  * @interface IInferencePlugin
@@ -190,6 +215,12 @@ public:
     virtual void SetConfig(const std::map<std::string, std::string>& config);
 
     /**
+     * @brief Sets configuration for plugin, acceptable keys can be found in openvino/runtime/properties.hpp
+     * @param config  ov::AnyMap of config parameters
+     */
+    virtual void SetProperties(const ov::AnyMap& config);
+
+    /**
      * @brief Gets configuration dedicated to plugin behaviour
      * @param name  - value of config corresponding to config key
      * @param options - configuration details for config
@@ -256,13 +287,19 @@ public:
      * @brief Sets pointer to ICore interface
      * @param core Pointer to Core interface
      */
-    virtual void SetCore(std::weak_ptr<ICore> core);
+    virtual void SetCore(std::weak_ptr<ov::ICore> core);
 
     /**
      * @brief Gets reference to ICore interface
      * @return Reference to ICore interface
      */
-    virtual std::shared_ptr<ICore> GetCore() const noexcept;
+    virtual std::shared_ptr<ov::ICore> GetCore() const noexcept;
+
+    /**
+     * @brief Provides an information about used API
+     * @return true if new API is used
+     */
+    bool IsNewAPI() const noexcept;
 
     /**
      * @brief Gets reference to tasks execution manager
@@ -337,8 +374,9 @@ protected:
 
     std::string _pluginName;                            //!< A device name that plugins enables
     std::map<std::string, std::string> _config;         //!< A map config keys -> values
-    std::weak_ptr<ICore> _core;                         //!< A pointer to ICore interface
+    std::weak_ptr<ov::ICore> _core;                     //!< A pointer to ICore interface
     std::shared_ptr<ExecutorManager> _executorManager;  //!< A tasks execution manager
+    bool _isNewAPI;                                     //!< A flag which shows used API
 };
 
 /**

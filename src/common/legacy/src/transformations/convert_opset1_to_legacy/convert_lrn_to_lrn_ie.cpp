@@ -14,8 +14,6 @@
 
 #include <legacy/ngraph_ops/lrn_ie.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertLRNToLegacyMatcher, "ConvertLRNToLegacyMatcher", 0);
-
 ngraph::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
     auto lrn = pattern::wrap_type<opset1::LRN>({pattern::any_input(),
                                                 pattern::wrap_type<opset1::Constant>()},

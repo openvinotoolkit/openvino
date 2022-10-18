@@ -6,7 +6,7 @@
 #pragma once
 #include "intel_gpu/primitives/activation.hpp"
 #include "primitive_inst.h"
-#include "kernel_selector/core/actual_kernels/activation/activation_kernel_base.h"
+#include "kernel_selector/kernels/activation/activation_kernel_base.h"
 
 #include <memory>
 #include <string>
@@ -44,7 +44,7 @@ class typed_primitive_inst<activation> : public typed_primitive_inst_base<activa
     using parent = typed_primitive_inst_base<activation>;
 
 public:
-    static layout calc_output_layout(activation_node const& node);
+    static layout calc_output_layout(activation_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(activation_node const& node);
 
 public:

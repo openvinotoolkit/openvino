@@ -31,11 +31,6 @@ public:
     explicit base_pass(const std::string& pass_name) : name(pass_name) {}
     virtual void run(program& p) = 0;
     std::string get_name() { return name; }
-    void clean_marks(program& p) {
-        for (auto& node : p.get_processing_order()) {
-            node->unmark();
-        }
-    }
 
 private:
     const std::string name;
@@ -132,14 +127,6 @@ private:
     void run(program& p) override;
 };
 
-class handle_permute : public base_pass {
-public:
-    handle_permute() : base_pass("handle_permute") {}
-
-private:
-    void run(program& p) override;
-};
-
 class mark_nodes : public base_pass {
 public:
     mark_nodes() : base_pass("analyzed_graph") {}
@@ -191,6 +178,12 @@ public:
 private:
     void run(program& p) override;
     void conv_eltwise_read_write_opt(program& p, program_node* node);
+};
+
+class prepare_primitive_fusing_through : public base_pass {
+public:
+    prepare_primitive_fusing_through() : base_pass("prepare_primitive_fusing_through") {}
+    void run(program& p) override;
 };
 
 class prepare_primitive_fusing : public base_pass {
@@ -315,6 +308,14 @@ private:
     virtual void run(program& p, layout_optimizer& lo, reorder_factory& rf);
     layout_optimizer& _lo;
     reorder_factory& _rf;
+};
+
+class set_required_layouts : public base_pass {
+public:
+    set_required_layouts() : base_pass("set_required_layouts") {}
+
+private:
+    void run(program& p) override;
 };
 
 class trim_to_outputs : public base_pass {

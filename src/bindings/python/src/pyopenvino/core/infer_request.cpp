@@ -18,6 +18,16 @@ PYBIND11_MAKE_OPAQUE(Containers::TensorNameMap);
 
 namespace py = pybind11;
 
+inline py::dict run_sync_infer(InferRequestWrapper& self) {
+    {
+        py::gil_scoped_release release;
+        self._start_time = Time::now();
+        self._request.infer();
+        self._end_time = Time::now();
+    }
+    return Common::outputs_to_dict(self._outputs, self._request);
+}
+
 void regclass_InferRequest(py::module m) {
     py::class_<InferRequestWrapper, std::shared_ptr<InferRequestWrapper>> cls(m, "InferRequest");
     cls.doc() = "openvino.runtime.InferRequest represents infer request which can be run in asynchronous or "
@@ -51,8 +61,8 @@ void regclass_InferRequest(py::module m) {
         py::arg("tensors"),
         R"(
             Sets batch of tensors for input data to infer by tensor name.
-            Model input shall have batch dimension and number of tensors shall
-            match with batch size. Current version supports set tensors to model inputs only.
+            Model input needs to have batch dimension and the number of tensors needs to be
+            matched with batch size. Current version supports set tensors to model inputs only.
             In case if `tensor_name` is associated with output (or any other non-input node),
             an exception will be thrown.
 
@@ -60,7 +70,7 @@ void regclass_InferRequest(py::module m) {
             :type tensor_name: str
             :param tensors: Input tensors for batched infer request. The type of each tensor
                             must match the model input element type and shape (except batch dimension).
-                            Total size of tensors shall match with input's size.
+                            Total size of tensors needs to match with input's size.
             :type tensors: List[openvino.runtime.Tensor]
         )");
 
@@ -73,8 +83,8 @@ void regclass_InferRequest(py::module m) {
         py::arg("tensors"),
         R"(
             Sets batch of tensors for input data to infer by tensor name.
-            Model input shall have batch dimension and number of tensors shall
-            match with batch size. Current version supports set tensors to model inputs only.
+            Model input needs to have batch dimension and the number of tensors needs to be
+            matched with batch size. Current version supports set tensors to model inputs only.
             In case if `port` is associated with output (or any other non-input node),
             an exception will be thrown.
 
@@ -83,7 +93,7 @@ void regclass_InferRequest(py::module m) {
             :type port: openvino.runtime.ConstOutput
             :param tensors: Input tensors for batched infer request. The type of each tensor
                             must match the model input element type and shape (except batch dimension).
-                            Total size of tensors shall match with input's size.
+                            Total size of tensors needs to match with input's size.
             :type tensors: List[openvino.runtime.Tensor]
             :rtype: None
         )");
@@ -130,12 +140,12 @@ void regclass_InferRequest(py::module m) {
         py::arg("tensors"),
         R"(
             Sets batch of tensors for single input data.
-            Model input shall have batch dimension and number of `tensors`
-            shall match with batch size.
+            Model input needs to have batch dimension and the number of `tensors`
+            needs to match with batch size.
 
             :param tensors:  Input tensors for batched infer request. The type of each tensor
                              must match the model input element type and shape (except batch dimension).
-                             Total size of tensors shall match with input's size.
+                             Total size of tensors needs to match with input's size.
             :type tensors: List[openvino.runtime.Tensor]
         )");
 
@@ -148,26 +158,22 @@ void regclass_InferRequest(py::module m) {
         py::arg("tensors"),
         R"(
             Sets batch of tensors for single input data to infer by index.
-            Model input shall have batch dimension and number of `tensors`
-            shall match with batch size.
+            Model input needs to have batch dimension and the number of `tensors`
+            needs to match with batch size.
 
             :param idx: Index of input tensor.
             :type idx: int
             :param tensors: Input tensors for batched infer request. The type of each tensor
                             must match the model input element type and shape (except batch dimension).
-                            Total size of tensors shall match with input's size.
+                            Total size of tensors needs to match with input's size.
         )");
 
+    // Overload for single input, it will throw error if a model has more than one input.
     cls.def(
         "infer",
-        [](InferRequestWrapper& self, const py::dict& inputs) {
-            // Update inputs if there are any
-            Common::set_request_tensors(self._request, inputs);
-            // Call Infer function
-            self._start_time = Time::now();
-            self._request.infer();
-            self._end_time = Time::now();
-            return Common::outputs_to_dict(self._outputs, self._request);
+        [](InferRequestWrapper& self, const ov::Tensor& inputs) {
+            self._request.set_input_tensor(inputs);
+            return run_sync_infer(self);
         },
         py::arg("inputs"),
         R"(
@@ -175,12 +181,82 @@ void regclass_InferRequest(py::module m) {
             Blocks all methods of InferRequest while request is running.
             Calling any method will lead to throwing exceptions.
 
+            GIL is released while running the inference.
+
+            :param inputs: Data to set on single input tensor.
+            :type inputs: openvino.runtime.Tensor
+            :return: Dictionary of results from output tensors with ports as keys.
+            :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
+        )");
+
+    // Overload for general case, it accepts dict of inputs that are pairs of (key, value).
+    // Where keys types are:
+    // * ov::Output<const ov::Node>
+    // * py::str (std::string)
+    // * py::int_ (size_t)
+    // and values are always of type: ov::Tensor.
+    cls.def(
+        "infer",
+        [](InferRequestWrapper& self, const py::dict& inputs) {
+            // Update inputs if there are any
+            Common::set_request_tensors(self._request, inputs);
+            // Call Infer function
+            return run_sync_infer(self);
+        },
+        py::arg("inputs"),
+        R"(
+            Infers specified input(s) in synchronous mode.
+            Blocks all methods of InferRequest while request is running.
+            Calling any method will lead to throwing exceptions.
+
+            GIL is released while running the inference.
+
             :param inputs: Data to set on input tensors.
             :type inputs: Dict[Union[int, str, openvino.runtime.ConstOutput], openvino.runtime.Tensor]
             :return: Dictionary of results from output tensors with ports as keys.
             :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         )");
 
+    // Overload for single input, it will throw error if a model has more than one input.
+    cls.def(
+        "start_async",
+        [](InferRequestWrapper& self, const ov::Tensor& inputs, py::object& userdata) {
+            // Update inputs if there are any
+            self._request.set_input_tensor(inputs);
+            if (!userdata.is(py::none())) {
+                if (self.user_callback_defined) {
+                    self.userdata = userdata;
+                } else {
+                    PyErr_WarnEx(PyExc_RuntimeWarning, "There is no callback function!", 1);
+                }
+            }
+            py::gil_scoped_release release;
+            self._start_time = Time::now();
+            self._request.start_async();
+        },
+        py::arg("inputs"),
+        py::arg("userdata"),
+        R"(
+            Starts inference of specified input(s) in asynchronous mode.
+            Returns immediately. Inference starts also immediately.
+
+            GIL is released while running the inference.
+
+            Calling any method on this InferRequest while the request is
+            running will lead to throwing exceptions.
+
+            :param inputs: Data to set on single input tensors.
+            :type inputs: openvino.runtime.Tensor
+            :param userdata: Any data that will be passed inside callback call.
+            :type userdata: Any
+        )");
+
+    // Overload for general case, it accepts dict of inputs that are pairs of (key, value).
+    // Where keys types are:
+    // * ov::Output<const ov::Node>
+    // * py::str (std::string)
+    // * py::int_ (size_t)
+    // and values are always of type: ov::Tensor.
     cls.def(
         "start_async",
         [](InferRequestWrapper& self, const py::dict& inputs, py::object& userdata) {
@@ -203,8 +279,7 @@ void regclass_InferRequest(py::module m) {
             Starts inference of specified input(s) in asynchronous mode.
             Returns immediately. Inference starts also immediately.
 
-            This function releases the GIL, so another Python thread can
-            work while this function runs in the background.
+            GIL is released while running the inference.
 
             Calling any method on this InferRequest while the request is
             running will lead to throwing exceptions.
@@ -234,7 +309,7 @@ void regclass_InferRequest(py::module m) {
             Waits for the result to become available. 
             Blocks until the result becomes available.
 
-            Function releases GIL, other threads can work while this function waits.
+            GIL is released while running this function.
         )");
 
     cls.def(
@@ -249,7 +324,7 @@ void regclass_InferRequest(py::module m) {
             Blocks until specified timeout has elapsed or
             the result becomes available, whichever comes first.
 
-            Function releases GIL, other threads can work while this function waits.
+            GIL is released while running this function.
 
             :param timeout: Maximum duration in milliseconds (ms) of blocking call.
             :type timeout: int
@@ -512,10 +587,13 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self._request.get_profiling_info();
         },
+        py::call_guard<py::gil_scoped_release>(),
         R"(
-            Queries performance measures per layer to get feedback of what
-            is the most time consuming operation, not all plugins provide
+            Queries performance is measured per layer to get feedback on what
+            is the most time-consuming operation, not all plugins provide
             meaningful data.
+
+            GIL is released while running this function.
 
             :return: List of profiling information for operations in model.
             :rtype: List[openvino.runtime.ProfilingInfo]
@@ -526,8 +604,11 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self._request.query_state();
         },
+        py::call_guard<py::gil_scoped_release>(),
         R"(
             Gets state control interface for given infer request.
+
+            GIL is released while running this function.
 
             :return: List of VariableState objects.
             :rtype: List[openvino.runtime.VariableState]
@@ -615,9 +696,12 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self._request.get_profiling_info();
         },
+        py::call_guard<py::gil_scoped_release>(),
         R"(
-            Performance measures per layer to get feedback of what is the most time consuming operation.
+            Performance is measured per layer to get feedback on the most time-consuming operation.
             Not all plugins provide meaningful data!
+
+            GIL is released while running this function.
             
             :return: Inference time.
             :rtype: List[openvino.runtime.ProfilingInfo]

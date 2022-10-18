@@ -15,6 +15,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/opsets/opset8.hpp>
+#include <ngraph/opsets/opset9.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -41,22 +42,16 @@ std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<
         case TYPE: \
             weightsNode = std::make_shared<ngraph::opset1::Constant>( \
                     type, shape, \
-                    random ? NGraphFunctions::Utils::generateVector<TYPE>(ngraph::shape_size(shape), upTo, startFrom, seed) : \
-                             NGraphFunctions::Utils::castVector<T, ngraph::helpers::nGraphTypesTrait<TYPE>::value_type >(data)); \
+                    random ? NGraphFunctions::Utils::generateVector<TYPE>( \
+                                ngraph::shape_size(shape), \
+                                ngraph::helpers::nGraphTypesTrait<TYPE>::value_type(upTo), \
+                                ngraph::helpers::nGraphTypesTrait<TYPE>::value_type(startFrom), \
+                                seed) \
+                           : NGraphFunctions::Utils::castVector<T, ngraph::helpers::nGraphTypesTrait<TYPE>::value_type >(data)); \
             break;
     switch (type) {
-        case ngraph::element::Type_t::bf16:
-            weightsNode = std::make_shared<ngraph::opset1::Constant>(
-                    type, shape,
-                    random ? NGraphFunctions::Utils::generateBF16Vector(ngraph::shape_size(shape), upTo, startFrom) :
-                    NGraphFunctions::Utils::castVector<T, ngraph::bfloat16>(data));
-            break;
-        case ngraph::element::Type_t::f16:
-            weightsNode = std::make_shared<ngraph::opset1::Constant>(
-                    type, shape,
-                    random ? NGraphFunctions::Utils::generateF16Vector(ngraph::shape_size(shape), upTo, startFrom) :
-                    NGraphFunctions::Utils::castVector<T, ngraph::float16>(data));
-            break;
+        makeNode(ngraph::element::Type_t::bf16);
+        makeNode(ngraph::element::Type_t::f16);
         makeNode(ngraph::element::Type_t::f32);
         makeNode(ngraph::element::Type_t::f64);
         makeNode(ngraph::element::Type_t::i8);
@@ -513,7 +508,8 @@ std::shared_ptr<ngraph::Node> makeLSTM(const OutputVector& in,
                                            float clip = 0.f,
                                            bool make_sequence = false,
                                            ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD,
-                                           ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ);
+                                           ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ,
+                                           float WRB_range = 0.f);
 
 std::shared_ptr<ngraph::Node> makeGRU(const OutputVector& in,
                                       const std::vector<ngraph::Shape>& constants,
@@ -565,17 +561,24 @@ std::shared_ptr<ngraph::Node> makeNormalizeL2(const ngraph::Output<Node>& data,
                                               float eps,
                                               ngraph::op::EpsMode epsMode);
 
-std::shared_ptr<ngraph::Node> makeNms(const ngraph::Output<Node> &boxes,
-                                      const ngraph::Output<Node> &scores,
+
+enum class NmsVersion {
+    NmsVersion5,
+    NmsVersion9
+};
+
+std::shared_ptr<ngraph::Node> makeNms(const ngraph::Output<Node>& boxes,
+                                      const ngraph::Output<Node>& scores,
                                       const element::Type& maxBoxesPrec,
                                       const element::Type& thrPrec,
-                                      const int32_t &maxOutBoxesPerClass,
-                                      const float &iouThr,
-                                      const float &scoreThr,
-                                      const float &softNmsSigma,
-                                      const ngraph::op::v5::NonMaxSuppression::BoxEncodingType &boxEncoding,
-                                      const bool &sortResDescend,
-                                      const ngraph::element::Type& outType);
+                                      const int32_t& maxOutBoxesPerClass,
+                                      const float& iouThr,
+                                      const float& scoreThr,
+                                      const float& softNmsSigma,
+                                      const bool isCenter,
+                                      const bool& sortResDescend,
+                                      const ngraph::element::Type& outType,
+                                      const NmsVersion nmsVersion = NmsVersion::NmsVersion5);
 
 std::shared_ptr<ngraph::Node> makeOneHot(const ngraph::Output<Node>& indices,
                                          const element::Type& depth_type,
@@ -593,5 +596,13 @@ std::shared_ptr<ngraph::Node> makeDFT(const ngraph::Output<Node> &dataNode,
                                       const std::vector<int64_t> &axes,
                                       const std::vector<int64_t> &signalSize,
                                       const ngraph::helpers::DFTOpType opType);
+
+std::shared_ptr<ngraph::Node> makeRDFT(const ngraph::Output<Node> &dataNode,
+                                      const std::vector<int64_t> &axes,
+                                      const std::vector<int64_t> &signalSize,
+                                      const ngraph::helpers::DFTOpType opType);
+
+std::shared_ptr<ngraph::Node> makeEinsum(const OutputVector& inputs,
+                                         const std::string& equation);
 }  // namespace builder
 }  // namespace ngraph

@@ -1406,7 +1406,7 @@ static void* debugConsoleThreadReader(void* ctx) {
     struct _devicePrivate_t *d = (struct _devicePrivate_t *) ctx;
     streamId_t streamId = d->printf_over_xlink_stream_id;
     int connfd = d->printf_over_xlink_conn_fd;
-    streamPacketDesc_t * packet;
+    streamPacketDesc_t * packet = NULL;
     XLinkError_t xerr;
 
     fprintfsock(connfd, "XLinkConsole receiving loop begins\n");

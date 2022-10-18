@@ -18,6 +18,7 @@
 #include "plugin/mock_auto_device_plugin.hpp"
 #include "cpp/ie_plugin.hpp"
 #include "mock_common.hpp"
+#include <thread>
 
 using ::testing::MatcherCast;
 using ::testing::AllOf;
@@ -130,7 +131,7 @@ TEST_P(AutoReleaseHelperTest, releaseResource) {
     std::tie(cpuSuccess, accSuccess) = this->GetParam();
     size_t decreaseCount = 0;
     // test auto plugin
-    config.insert({CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO), InferenceEngine::PluginConfigParams::YES});
+    plugin->SetName("AUTO");
     const std::string strDevices = CommonTestUtils::DEVICE_GPU + std::string(",") +
         CommonTestUtils::DEVICE_CPU;
 

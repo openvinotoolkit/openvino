@@ -19,6 +19,7 @@
 #include <transformations/common_optimizations/divide_fusion.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "ngraph_functions/subgraph_builders.hpp"
 
 using namespace testing;
 
@@ -224,7 +225,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_NegativeTracking) {
 
     ov::pass::Manager m;
     m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<ov::pass::FindBatchDontTrack>();
+    m.register_pass<ov::pass::FindBatch>(false, false);
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
 
@@ -236,6 +237,29 @@ TEST(TransformationTests, AutoBatch_FindBatch_NegativeTracking) {
 
     const auto& out_shape = f->get_results()[0]->get_output_partial_shape(0);
     ASSERT_TRUE(!ov::DimensionTracker::get_label(out_shape[0])) << out_shape;
+}
+
+TEST(TransformationTests, AutoBatch_FindBatch_AutoBatch_LabelPropagation_DO_detachment) {
+    auto f = ngraph::builder::subgraph::makeDetectionOutput();
+    auto & data =  f->get_parameters()[0];
+
+    ov::pass::Manager m;
+    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::FindBatch>(true);
+    m.run_passes(f);
+    ASSERT_NO_THROW(check_rt_info(f));
+
+    const auto& shape = data->get_partial_shape();
+    ASSERT_TRUE(ov::DimensionTracker::get_label(shape[0])) << shape;
+    ASSERT_TRUE(!ov::DimensionTracker::get_label(shape[1])) << shape;
+    ASSERT_TRUE(!ov::DimensionTracker::get_label(shape[2])) << shape;
+    ASSERT_TRUE(!ov::DimensionTracker::get_label(shape[3])) << shape;
+    ASSERT_EQ(f->get_results().size(), 3);
+    for (const auto& result : f->get_results()) {
+        const auto& out_shape = result->get_output_partial_shape(0);
+        ASSERT_TRUE(ov::DimensionTracker::get_label(out_shape[0])) << out_shape;
+        ASSERT_TRUE(!ov::DimensionTracker::get_label(out_shape[1])) << out_shape;
+    }
 }
 
 TEST(partial_shape, cout_with_label) {

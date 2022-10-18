@@ -4,12 +4,10 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -32,9 +30,9 @@ class TRANSFORMATIONS_API ConvertSpaceToBatch;
  *
  */
 
-class ngraph::pass::ConvertSpaceToBatch: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertSpaceToBatch : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertSpaceToBatch", "0");
     explicit ConvertSpaceToBatch(bool convert_by_elements = true) : MatcherPass() {
         if (convert_by_elements)
             convert_space_to_batch_by_elements();

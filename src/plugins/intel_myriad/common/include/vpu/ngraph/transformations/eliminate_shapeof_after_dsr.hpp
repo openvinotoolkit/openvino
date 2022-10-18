@@ -10,7 +10,7 @@ namespace vpu {
 
 class EliminateShapeOfAfterDSR : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("EliminateShapeOfAfterDSR", "0");
     EliminateShapeOfAfterDSR();
 };
 

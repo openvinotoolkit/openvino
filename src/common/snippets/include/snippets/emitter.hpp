@@ -48,7 +48,10 @@ public:
      */
     virtual void emit_data() const {
     }
+    virtual ~Emitter() = default;
 };
+
+using AllocatedEmitter = std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo>;
 
 } // namespace snippets
 } // namespace ngraph

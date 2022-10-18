@@ -11,7 +11,8 @@
 #include <vector>
 
 #include "common_test_utils/test_common.hpp"
-#include "file_utils.h"
+#include "common_test_utils/file_utils.hpp"
+#include "openvino/util/file_util.hpp"
 #include "ie_iextension.h"
 #include "ngraph/op/op.hpp"
 #include "openvino/core/op_extension.hpp"
@@ -174,14 +175,15 @@ public:
 namespace {
 
 std::string getOVExtensionPath() {
-    return FileUtils::makePluginLibraryName<char>({}, std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
+    return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+        std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
 }
 
 }  // namespace
 
 class CustomOldIdentity : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"Identity", 0};
+    static constexpr ngraph::NodeTypeInfo type_info{"Identity", static_cast<uint64_t>(0)};
     const ngraph::NodeTypeInfo& get_type_info() const override {
         return type_info;
     }

@@ -26,31 +26,31 @@ class ConvertGroupDeconvolution;
 
 class ngraph::pass::ConvertConvolution: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertConvolution", "0");
     ConvertConvolution();
 };
 
 class ngraph::pass::ConvertGroupConvolution: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertGroupConvolution", "0");
     ConvertGroupConvolution();
 };
 
 class ngraph::pass::ConvertDeconvolution: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertDeconvolution", "0");
     ConvertDeconvolution();
 };
 
 class ngraph::pass::ConvertGroupDeconvolution: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertGroupDeconvolution", "0");
     ConvertGroupDeconvolution();
 };
 
 class ngraph::pass::ConvertConvolutions: public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertConvolutions", "0");
     ConvertConvolutions() {
         add_matcher<ngraph::pass::ConvertConvolution>();
         add_matcher<ngraph::pass::ConvertGroupConvolution>();

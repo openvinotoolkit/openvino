@@ -45,6 +45,6 @@ class ReshapeFullyConnected;
 
 class ngraph::pass::ReshapeFullyConnected: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ReshapeFullyConnected", "0");
     ReshapeFullyConnected();
 };

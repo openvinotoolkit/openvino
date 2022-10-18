@@ -10,18 +10,24 @@
  */
 #pragma once
 
+#include <array>
+#include <iomanip>
 #include <istream>
 #include <map>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include "ie_precision.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
 
 namespace ov {
+
+/**
+ * @defgroup ov_runtime_cpp_prop_api Device properties
+ * @ingroup ov_runtime_cpp_api
+ */
 
 /**
  * @brief Enum to define property value mutability
@@ -138,7 +144,7 @@ class Property : public util::BaseProperty<T, mutability_> {
     template <typename V>
     struct Forward {
         template <typename U,
-                  typename std::enable_if<std::is_same<U, const std::string&>::value &&
+                  typename std::enable_if<std::is_same<typename std::decay<U>::type, std::string>::value &&
                                               std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
@@ -146,15 +152,15 @@ class Property : public util::BaseProperty<T, mutability_> {
         }
 
         template <typename U,
-                  typename std::enable_if<std::is_same<U, const std::string&>::value &&
+                  typename std::enable_if<std::is_same<typename std::decay<U>::type, std::string>::value &&
                                               !std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
-            return Any{value}.as<std::string>();
+            return Any{value}.as<U>();
         }
 
         template <typename U,
-                  typename std::enable_if<!std::is_same<U, const std::string&>::value &&
+                  typename std::enable_if<!std::is_same<typename std::decay<U>::type, std::string>::value &&
                                               std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
@@ -162,7 +168,7 @@ class Property : public util::BaseProperty<T, mutability_> {
         }
 
         template <typename U,
-                  typename std::enable_if<!std::is_same<U, const std::string&>::value &&
+                  typename std::enable_if<!std::is_same<typename std::decay<U>::type, std::string>::value &&
                                               !std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
@@ -197,44 +203,51 @@ struct Property<T, PropertyMutability::RO> : public util::BaseProperty<T, Proper
 
 /**
  * @brief Read-only property to get a std::vector<PropertyName> of supported read-only properties.
- *
  * This can be used as a compiled model property as well.
- *
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> supported_properties{
     "SUPPORTED_PROPERTIES"};
 
 /**
  * @brief Read-only property to get a std::vector<std::string> of available device IDs
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> available_devices{"AVAILABLE_DEVICES"};
 
 /**
  * @brief Read-only property to get a name of name of a model
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::string, PropertyMutability::RO> model_name{"NETWORK_NAME"};
 
 /**
  * @brief Read-only property to get an unsigned integer value of optimal number of compiled model infer requests.
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<uint32_t, PropertyMutability::RO> optimal_number_of_infer_requests{
     "OPTIMAL_NUMBER_OF_INFER_REQUESTS"};
 
+/**
+ * @brief Namespace with hint properties
+ */
 namespace hint {
 
 /**
  * @brief Hint for device to use specified precision for inference
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<element::Type, PropertyMutability::RW> inference_precision{"INFERENCE_PRECISION_HINT"};
 
 /**
  * @brief Enum to define possible priorities hints
+ * @ingroup ov_runtime_cpp_prop_api
  */
 enum class Priority {
-    LOW = 0,
-    MEDIUM = 1,
-    HIGH = 2,
-    DEFAULT = MEDIUM,
+    LOW = 0,           //!<  Low priority
+    MEDIUM = 1,        //!<  Medium priority
+    HIGH = 2,          //!<  High priority
+    DEFAULT = MEDIUM,  //!<  Default priority is MEDIUM
 };
 
 /** @cond INTERNAL */
@@ -270,16 +283,19 @@ inline std::istream& operator>>(std::istream& is, Priority& priority) {
 /**
  * @brief High-level OpenVINO model priority hint
  * Defines what model should be provided with more performant bounded resource first
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<Priority> model_priority{"MODEL_PRIORITY"};
 
 /**
  * @brief Enum to define possible performance mode hints
+ * @ingroup ov_runtime_cpp_prop_api
  */
 enum class PerformanceMode {
-    UNDEFINED = -1,
-    LATENCY = 1,
-    THROUGHPUT = 2,
+    UNDEFINED = -1,             //!<  Undefined value, performance setting may vary from device to device
+    LATENCY = 1,                //!<  Optimize for latency
+    THROUGHPUT = 2,             //!<  Optimize for throughput
+    CUMULATIVE_THROUGHPUT = 3,  //!< Optimize for cumulative throughput
 };
 
 /** @cond INTERNAL */
@@ -291,6 +307,8 @@ inline std::ostream& operator<<(std::ostream& os, const PerformanceMode& perform
         return os << "LATENCY";
     case PerformanceMode::THROUGHPUT:
         return os << "THROUGHPUT";
+    case PerformanceMode::CUMULATIVE_THROUGHPUT:
+        return os << "CUMULATIVE_THROUGHPUT";
     default:
         throw ov::Exception{"Unsupported performance mode hint"};
     }
@@ -303,6 +321,8 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
         performance_mode = PerformanceMode::LATENCY;
     } else if (str == "THROUGHPUT") {
         performance_mode = PerformanceMode::THROUGHPUT;
+    } else if (str == "CUMULATIVE_THROUGHPUT") {
+        performance_mode = PerformanceMode::CUMULATIVE_THROUGHPUT;
     } else if (str == "") {
         performance_mode = PerformanceMode::UNDEFINED;
     } else {
@@ -316,6 +336,7 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
  * @brief High-level OpenVINO Performance Hints
  * unlike low-level properties that are individual (per-device), the hints are something that every device accepts
  * and turns into device-specific settings
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
 
@@ -323,32 +344,38 @@ static constexpr Property<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
  * @brief (Optional) property that backs the (above) Performance Hints
  * by giving additional information on how many inference requests the application will be keeping in flight
  * usually this value comes from the actual use-case (e.g. number of video-cameras, or other sources of inputs)
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<uint32_t> num_requests{"PERFORMANCE_HINT_NUM_REQUESTS"};
 
 /**
  * @brief This key identifies shared pointer to the ov::Model, required for some properties (ov::max_batch_size and
  * ov::optimal_batch_size)
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::shared_ptr<ov::Model>> model{"MODEL_PTR"};
 
 /**
  * @brief Special key for auto batching feature configuration. Enabled by default
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<bool, PropertyMutability::RW> allow_auto_batching{"ALLOW_AUTO_BATCHING"};
 }  // namespace hint
 
 /**
  * @brief The name for setting performance counters option.
- *
- * It is passed to Core::set_property()
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<bool> enable_profiling{"PERF_COUNT"};
 
+/**
+ * @brief Namespace with log level property and its possible values
+ */
 namespace log {
 
 /**
  * @brief Enum to define possible log levels
+ * @ingroup ov_runtime_cpp_prop_api
  */
 enum class Level {
     NO = -1,      //!< disable any logging
@@ -403,12 +430,14 @@ inline std::istream& operator>>(std::istream& is, Level& level) {
 
 /**
  * @brief the property for setting desirable log level.
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<Level> level{"LOG_LEVEL"};
 }  // namespace log
 
 /**
  * @brief This property defines the directory which will be used to store any data cached by plugins.
+ * @ingroup ov_runtime_cpp_prop_api
  *
  * The underlying cache structure is not defined and might differ between OpenVINO releases
  * Cached data might be platform / device specific and might be invalid after OpenVINO version change
@@ -429,6 +458,7 @@ static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
 
 /**
  * @brief Read-only property to provide information about a range for streams on platforms where streams are supported.
+ * @ingroup ov_runtime_cpp_prop_api
  *
  * Property returns a value of std::tuple<unsigned int, unsigned int> type, where:
  *  - First value is bottom bound.
@@ -439,6 +469,7 @@ static constexpr Property<std::tuple<unsigned int, unsigned int>, PropertyMutabi
 
 /**
  * @brief Read-only property to query information optimal batch size for the given device and the network
+ * @ingroup ov_runtime_cpp_prop_api
  *
  * Property returns a value of unsigned int type,
  * Returns optimal batch size for a given network on the given device. The returned value is aligned to power of 2.
@@ -453,12 +484,21 @@ static constexpr Property<unsigned int, PropertyMutability::RO> optimal_batch_si
 /**
  * @brief Read-only property to get maximum batch size which does not cause performance degradation due to memory swap
  * impact.
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<uint32_t, PropertyMutability::RO> max_batch_size{"MAX_BATCH_SIZE"};
 
 /**
+ * @brief Read-write property to set the timeout used to collect the inputs for the auto-batching
+ * impact.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<uint32_t, PropertyMutability::RW> auto_batch_timeout{"AUTO_BATCH_TIMEOUT"};
+
+/**
  * @brief Read-only property to provide a hint for a range for number of async infer requests. If device supports
  * streams, the metric provides range for number of IRs per stream.
+ * @ingroup ov_runtime_cpp_prop_api
  *
  * Property returns a value of std::tuple<unsigned int, unsigned int, unsigned int> type, where:
  *  - First value is bottom bound.
@@ -468,16 +508,30 @@ static constexpr Property<uint32_t, PropertyMutability::RO> max_batch_size{"MAX_
 static constexpr Property<std::tuple<unsigned int, unsigned int, unsigned int>, PropertyMutability::RO>
     range_for_async_infer_requests{"RANGE_FOR_ASYNC_INFER_REQUESTS"};
 
+/**
+ * @brief Read-write property to set whether force terminate tbb when ov core destruction
+ * value type: boolean
+ *   - True explicitly terminate tbb when ov core destruction
+ *   - False will not involve additional tbb operations when core destruction
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool, PropertyMutability::RW> force_tbb_terminate{"FORCE_TBB_TERMINATE"};
+
+/**
+ * @brief Namespace with device properties
+ */
 namespace device {
 
 /**
  * @brief the property for setting of required device to execute on
  * values: device id starts from "0" - first device, "1" - second device, etc
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::string> id{"DEVICE_ID"};
 
 /**
  * @brief Type for device Priorities config option, with comma-separated devices listed in the desired priority
+ * @ingroup ov_runtime_cpp_prop_api
  */
 struct Priorities : public Property<std::string> {
 private:
@@ -508,11 +562,13 @@ public:
 
 /**
  * @brief Device Priorities config option, with comma-separated devices listed in the desired priority
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Priorities priorities{"MULTI_DEVICE_PRIORITIES"};
 
 /**
  * @brief Type for property to pass set of properties to specified device
+ * @ingroup ov_runtime_cpp_prop_api
  */
 struct Properties {
     /**
@@ -542,6 +598,7 @@ struct Properties {
 
 /**
  * @brief Property to pass set of property values to specified device
+ * @ingroup ov_runtime_cpp_prop_api
  * Usage Example:
  * @code
  * core.compile_model("HETERO"
@@ -554,16 +611,58 @@ static constexpr Properties properties;
 
 /**
  * @brief Read-only property to get a std::string value representing a full device name.
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::string, PropertyMutability::RO> full_name{"FULL_DEVICE_NAME"};
 
 /**
  * @brief Read-only property which defines the device architecture.
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::string, PropertyMutability::RO> architecture{"DEVICE_ARCHITECTURE"};
 
 /**
+ * @brief Structure which defines format of UUID.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+struct UUID {
+    static const uint64_t MAX_UUID_SIZE = 16;  //!< Max size of uuid array (128 bits)
+    std::array<uint8_t, MAX_UUID_SIZE> uuid;   //!< Array with uuid for a device
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const UUID& device_uuid) {
+    std::stringstream s;
+    for (auto& c : device_uuid.uuid) {
+        s << std::hex << std::setw(2) << std::setfill('0') << +c;
+    }
+    return os << s.str();
+}
+
+inline std::istream& operator>>(std::istream& is, UUID& device_uuid) {
+    std::string s;
+    auto flags = is.flags();
+    for (size_t i = 0; i < UUID::MAX_UUID_SIZE; i++) {
+        is >> std::setw(2) >> s;
+        std::istringstream ss2(s);
+        int val;
+        ss2 >> std::hex >> val;
+        device_uuid.uuid[i] = static_cast<uint8_t>(val);
+    }
+    is.flags(flags);
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Read-only property which defines the UUID of the device.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<UUID, PropertyMutability::RO> uuid{"DEVICE_UUID"};
+
+/**
  * @brief Enum to define possible device types
+ * @ingroup ov_runtime_cpp_prop_api
  */
 enum class Type {
     INTEGRATED = 0,  //!<  Device is integrated into host system
@@ -598,25 +697,37 @@ inline std::istream& operator>>(std::istream& is, Type& device_type) {
 
 /**
  * @brief Read-only property to get a type of device. See Type enum definition for possible return values
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<Type, PropertyMutability::RO> type{"DEVICE_TYPE"};
 
 /**
  * @brief Read-only property which defines Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions supported
  * by specified device
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::map<element::Type, float>, PropertyMutability::RO> gops{"DEVICE_GOPS"};
 
 /**
- * @brief  Read-only property to get a float of device thermal
+ * @brief Read-only property to get a float of device thermal
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<float, PropertyMutability::RO> thermal{"DEVICE_THERMAL"};
 
 /**
  * @brief Read-only property to get a std::vector<std::string> of capabilities options per device.
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> capabilities{"OPTIMIZATION_CAPABILITIES"};
+
+/**
+ * @brief Namespace with possible values for ov::device::capabilities property
+ */
 namespace capability {
+/**
+ * @addtogroup ov_runtime_cpp_prop_api
+ * @{
+ */
 constexpr static const auto FP32 = "FP32";                    //!< Device supports fp32 inference
 constexpr static const auto BF16 = "BF16";                    //!< Device supports bf16 inference
 constexpr static const auto FP16 = "FP16";                    //!< Device supports fp16 inference
@@ -625,60 +736,73 @@ constexpr static const auto INT16 = "INT16";                  //!< Device suppor
 constexpr static const auto BIN = "BIN";                      //!< Device supports binary inference
 constexpr static const auto WINOGRAD = "WINOGRAD";            //!< Device supports winograd optimization
 constexpr static const auto EXPORT_IMPORT = "EXPORT_IMPORT";  //!< Device supports compiled model export and import
+/** @}*/
 }  // namespace capability
+
 }  // namespace device
 
 /**
- * @brief Class to represent number of streams in streams executor
+ * @brief Namespace for streams in streams executor
  */
-struct NumStreams {
+namespace streams {
+/**
+ * @brief Class to represent number of streams in streams executor
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+struct Num {
     using Base = std::tuple<int32_t>;  //!< NumStreams is representable as int32_t
 
-    /**
-     * @brief Special value for ov::execution::num_streams property.
-     */
-    enum Special {
-        AUTO = -1,  //!< Creates bare minimum of streams to improve the performance
-        NUMA = -2,  //!< Creates as many streams as needed to accommodate NUMA and avoid associated penalties
-    };
+    constexpr Num() : num{-1} {};
 
-    NumStreams() : num{AUTO} {};
+    constexpr Num(const int32_t num_) : num{num_} {}
 
-    NumStreams(const int32_t num_) : num{num_} {}
-
-    operator int32_t() {
-        return num;
-    }
-
-    operator int32_t() const {
+    constexpr operator int32_t() const {
         return num;
     }
 
     int32_t num = 0;
 };
 
+/**
+ * @brief The number of executor logical partitions
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<Num, PropertyMutability::RW> num{"NUM_STREAMS"};
+
+/**
+ * @brief Creates bare minimum of streams to improve the performance
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Num AUTO{-1};
+
+/**
+ * @brief Creates as many streams as needed to accommodate NUMA and avoid associated penalties
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Num NUMA{-2};
+
 /** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const NumStreams& num_streams) {
-    switch (num_streams.num) {
-    case NumStreams::AUTO:
+inline std::ostream& operator<<(std::ostream& os, const Num& num_val) {
+    switch (num_val) {
+    case AUTO:
         return os << "AUTO";
-    case NumStreams::NUMA:
+    case NUMA:
         return os << "NUMA";
     default:
-        return os << num_streams.num;
+        return os << num_val.num;
     }
 }
 
-inline std::istream& operator>>(std::istream& is, NumStreams& num_streams) {
+inline std::istream& operator>>(std::istream& is, Num& num_val) {
     std::string str;
     is >> str;
     if (str == "AUTO") {
-        num_streams = {NumStreams::AUTO};
+        num_val = AUTO;
     } else if (str == "NUMA") {
-        num_streams = {NumStreams::NUMA};
+        num_val = NUMA;
     } else {
         try {
-            num_streams = {std::stoi(str)};
+            num_val = {std::stoi(str)};
         } catch (const std::exception& e) {
             throw ov::Exception{std::string{"Could not read number of streams from str: "} + str + "; " + e.what()};
         }
@@ -686,24 +810,29 @@ inline std::istream& operator>>(std::istream& is, NumStreams& num_streams) {
     return is;
 }
 /** @endcond */
+}  // namespace streams
 
 /**
  * @brief The number of executor logical partitions
+ * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<NumStreams, PropertyMutability::RW> num_streams{"NUM_STREAMS"};
+static constexpr Property<streams::Num, PropertyMutability::RW> num_streams{"NUM_STREAMS"};
 
 /**
  * @brief Maximum number of threads that can be used for inference tasks
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<int32_t, PropertyMutability::RW> inference_num_threads{"INFERENCE_NUM_THREADS"};
 
 /**
  * @brief Maximum number of threads that can be used for compilation tasks
+ * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<int32_t, PropertyMutability::RW> compilation_num_threads{"COMPILATION_NUM_THREADS"};
 
 /**
  * @brief Enum to define possible affinity patterns
+ * @ingroup ov_runtime_cpp_prop_api
  */
 enum class Affinity {
     NONE = -1,  //!<  Disable threads affinity pinning
@@ -750,6 +879,7 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
 
 /**
  * @brief The name for setting CPU affinity per thread option.
+ * @ingroup ov_runtime_cpp_prop_api
  * @note The setting is ignored, if the OpenVINO compiled with OpenMP and any affinity-related OpenMP's
  * environment variable is set (as affinity is configured explicitly)
  */

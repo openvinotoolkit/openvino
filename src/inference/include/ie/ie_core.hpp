@@ -34,13 +34,17 @@ class INFERENCE_ENGINE_API_CLASS(Core) {
     std::shared_ptr<Impl> _impl;
 
 public:
-    /** @brief Constructs Inference Engine Core instance using XML configuration file with
-     * plugins description.
+    /** @brief Constructs an OpenVINO Core instance with devices
+     * and their plugins description.
      *
-     * See RegisterPlugins for more details.
+     * There are two ways how to configure device plugins:
+     * 1. (default) Use XML configuration file in case of dynamic libraries build;
+     * 2. Use strictly defined configuration in case of static libraries build.
      *
-     * @param xmlConfigFile A path to .xml file with plugins to load from. If XML configuration file is not specified,
-     * then default Inference Engine plugins are loaded from the default plugin.xml file.
+     * @param xml_config_file Path to the .xml file with plugins to load from. If the XML configuration file is not
+     * specified, default OpenVINO Runtime plugins are loaded from:
+     * 1. (dynamic build) default `plugins.xml` file located in the same folder as OpenVINO runtime shared library;
+     * 2. (static build) statically defined configuration. In this case path to the .xml file is ignored.
      */
     explicit Core(const std::string& xmlConfigFile = {});
 
@@ -352,4 +356,15 @@ public:
      */
     RemoteContext::Ptr GetDefaultContext(const std::string& deviceName);
 };
+
+/**
+ * @brief Shut down the OpenVINO by deleting all static-duration objects allocated by the library and releasing
+ * dependent resources
+ *
+ * @note This function should be used by advanced user to control unload the resources.
+ *
+ * You might want to use this function if you are developing a dynamically-loaded library which should clean up all
+ * resources after itself when the library is unloaded.
+ */
+INFERENCE_ENGINE_API_CPP(void) shutdown();
 }  // namespace InferenceEngine

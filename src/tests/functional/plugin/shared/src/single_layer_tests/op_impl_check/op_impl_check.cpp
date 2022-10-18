@@ -7,32 +7,11 @@
 #endif
 
 #include "single_layer_tests/op_impl_check/op_impl_check.hpp"
+#include "common_test_utils/crash_handler.hpp"
 
 namespace ov {
 namespace test {
 namespace subgraph {
-
-void OpImplCheckTest::run() {
-    if (function == nullptr) {
-        GTEST_FAIL() << "Target function is empty!";
-    }
-    auto crashHandler = [](int errCode) {
-        auto& s = LayerTestsUtils::Summary::getInstance();
-        s.saveReport();
-        std::cerr << "Unexpected application crash with code: " << errCode << std::endl;
-        std::abort();
-    };
-    signal(SIGSEGV, crashHandler);
-
-    summary.setDeviceName(targetDevice);
-    try {
-        auto executableNetwork = core->compile_model(function, targetDevice, configuration);
-        summary.updateOPsImplStatus(function, true);
-    } catch (...) {
-        summary.updateOPsImplStatus(function, false);
-        GTEST_FAIL() << "Error in the LoadNetwork!";
-    }
-}
 
 void OpImplCheckTest::SetUp() {
     std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>> funcInfo;
@@ -58,10 +37,6 @@ std::string OpImplCheckTest::getTestCaseName(const testing::TestParamInfo<OpImpl
     }
     result << ")";
     return result.str();
-}
-
-TEST_P(OpImplCheckTest, checkPluginImplementation) {
-    run();
 }
 
 }   // namespace subgraph

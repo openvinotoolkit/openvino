@@ -1113,7 +1113,7 @@ cdef class ExecutableNetwork:
         """
         A tuple of :class:`InferRequest` instances
         """
-        cdef size_t c_infer_requests_size = deref(self.impl).infer_requests.size()
+        cdef int c_infer_requests_size = deref(self.impl).infer_requests.size()
         if len(self._infer_requests) == 0:
             for i in range(c_infer_requests_size):
                 infer_request = InferRequest()
@@ -1740,7 +1740,11 @@ cdef class IENetwork:
             if input not in net_inputs:
                 raise AttributeError(f"Specified '{input}' layer not in network inputs '{net_inputs}'! ")
             for v in shape:
-                c_shape.push_back(v)
+                try:
+                    c_shape.push_back(v)
+                except OverflowError:
+                    raise ValueError(f"Detected dynamic dimension in the shape {shape} of the `{input}` input. Dynamic shapes are supported since OpenVINO Runtime API 2022.1.")
+
             c_input_shapes[input.encode()] = c_shape
         self.impl.reshape(c_input_shapes)
 

@@ -1,16 +1,10 @@
 # ThreadSanitizer suppression file for Inference Engine
 
 # global const variables from CPU plugin
-race:^MKLDNNPlugin::MKLDNNActivationNode::initializers[abi:cxx11]$
-race:^MKLDNNPlugin::type_to_name_tbl[abi:cxx11]$
-race:^MKLDNNPlugin::MKLDNNPermuteNode::OptimizedCases$
+race:^ov::intel_cpu::type_to_name_tbl[abi:cxx11]$
 
 # global variable from CPU plugin which is initialized during plugin loading
-race:^MKLDNNPlugin::MKLDNNNode::GetNodesHolder()::localHolder$
-race:^InferenceEngine::Extensions::Cpu::MKLDNNExtensions<(mkldnn::impl::cpu::cpu_isa_t)3>::GetExtensionsHolder()::localHolder$
-race:^InferenceEngine::Extensions::Cpu::MKLDNNExtensions<(mkldnn::impl::cpu::cpu_isa_t)2>::GetExtensionsHolder()::localHolder$
-race:^InferenceEngine::Extensions::Cpu::MKLDNNExtensions<(mkldnn::impl::cpu::cpu_isa_t)1>::GetExtensionsHolder()::localHolder$
-race:^InferenceEngine::Extensions::Cpu::MKLDNNExtensions<(mkldnn::impl::cpu::cpu_isa_t)0>::GetExtensionsHolder()::localHolder$
+race:^ov::intel_cpu::Node::GetNodesHolder()::localHolder$
 
 # global const variable from pugixml
 race:^pugi::impl::(anonymous namespace)::dummy_node_set$

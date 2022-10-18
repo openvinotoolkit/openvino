@@ -24,7 +24,7 @@ The following Python API is used in the application:
 At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to the OpenVINO™ Runtime plugin, performs synchronous inference, and processes output data, logging each step in a standard output stream.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the OpenVINO™ Runtime with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 ## Running
 
@@ -38,7 +38,7 @@ To run the sample, you need specify a model and image:
 
 > **NOTES**:
 >
-> - By default, OpenVINO™ Toolkit Samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+> - By default, OpenVINO™ Toolkit Samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
 > - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
@@ -47,27 +47,24 @@ To run the sample, you need specify a model and image:
 ### Example
 
 1. Install the `openvino-dev` Python package to use Open Model Zoo Tools:
-
-```
-python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
-```
+   ```
+   python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
+   ```
 
 2. Download a pre-trained model:
-```
-omz_downloader --name alexnet
-```
+   ```
+   omz_downloader --name alexnet
+   ```
 
 3. If a model is not in the IR or ONNX format, it must be converted. You can do this using the model converter:
-
-```
-omz_converter --name alexnet
-```
+   ```
+   omz_converter --name alexnet
+   ```
 
 4. Perform inference of `banana.jpg` using the `alexnet` model on a `GPU`, for example:
-
-```
-python hello_classification.py alexnet.xml banana.jpg GPU
-```
+   ```
+   python hello_classification.py alexnet.xml banana.jpg GPU
+   ```
 
 ## Sample Output
 
@@ -98,7 +95,7 @@ The sample application logs each step in a standard output stream and outputs to
 
 ## See Also
 
-- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
+- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
 - [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)

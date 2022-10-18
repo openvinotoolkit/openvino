@@ -96,9 +96,9 @@ public:
 
     std::string csv_name;
     std::string json_name;
-    int i_val;
-    double d_val;
-    unsigned long long ull_val;
+    int i_val = 0;
+    double d_val = 0;
+    unsigned long long ull_val = 0;
     std::string s_val;
     LatencyMetrics metrics_val;
     Type type;

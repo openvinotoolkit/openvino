@@ -22,6 +22,6 @@ class ConvertHardSigmoidToLegacyMatcher;
 
 class ngraph::pass::ConvertHardSigmoidToLegacyMatcher : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertHardSigmoidToLegacyMatcher", "0");
     ConvertHardSigmoidToLegacyMatcher();
 };

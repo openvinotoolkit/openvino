@@ -10,7 +10,7 @@ namespace vpu {
 
 class MergeSubsequentDSROperations : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MergeSubsequentDSROperations", "0");
     MergeSubsequentDSROperations();
 };
 

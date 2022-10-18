@@ -13,6 +13,7 @@ namespace op {
 namespace v0 {
 /// \brief Elementwise logical-xor operation.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Xor : public util::BinaryElementwiseLogical {
 public:
     OPENVINO_OP("Xor", "opset1", util::BinaryElementwiseLogical);

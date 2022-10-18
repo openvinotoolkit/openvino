@@ -37,8 +37,6 @@ bool crop_scales_for_proposal(const ngraph::pattern::PatternValueMap& pattern_to
 
 }  // namespace
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::Proposal1Scales, "Proposal1Scales", 0);
-
 ngraph::pass::Proposal1Scales::Proposal1Scales() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(Proposal1Scales);
@@ -48,8 +46,8 @@ ngraph::pass::Proposal1Scales::Proposal1Scales() {
                (shape[1].get_length() == 3 || shape[1].get_length() == 4);
     });
     auto convert_label = ngraph::pattern::wrap_type<opset5::Convert>({parameter_label});
-    auto param_or_convert = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{parameter_label,
-                                                                                           convert_label});
+    auto param_or_convert =
+        std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{parameter_label, convert_label});
     auto reshape_label = ngraph::pattern::wrap_type<opset5::Reshape>(
         {param_or_convert, ngraph::pattern::wrap_type<opset5::Constant>()},
         [](const Output<Node>& output) {
@@ -65,8 +63,6 @@ ngraph::pass::Proposal1Scales::Proposal1Scales() {
     register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::Proposal4Scales, "Proposal4Scales", 0);
-
 ngraph::pass::Proposal4Scales::Proposal4Scales() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(Proposal4Scales);
@@ -76,8 +72,8 @@ ngraph::pass::Proposal4Scales::Proposal4Scales() {
                (shape[1].get_length() == 3 || shape[1].get_length() == 4);
     });
     auto convert_label = ngraph::pattern::wrap_type<opset5::Convert>({parameter_label});
-    auto param_or_convert = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{parameter_label,
-                                                                                           convert_label});
+    auto param_or_convert =
+        std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{parameter_label, convert_label});
     auto reshape_label = ngraph::pattern::wrap_type<opset5::Reshape>(
         {param_or_convert, ngraph::pattern::wrap_type<opset5::Constant>()},
         [](const Output<Node>& output) {

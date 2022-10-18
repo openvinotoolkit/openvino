@@ -21,7 +21,6 @@ with open('requirements.txt') as requirements_txt:
         in pkg_resources.parse_requirements(requirements_txt)
     ]
 
-
 setup(
     name='benchmark_tool',
     version='0.0.0',

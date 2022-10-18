@@ -143,8 +143,12 @@ class IEEngine(Engine):
 
     @staticmethod
     def postprocess_output(outputs, _metadata):
-        """ Processes raw model output using the image metadata obtained during data loading """
-        return outputs
+        """ Processes model output data using the image metadata obtained during data loading
+        :param outputs: dictionary of output data per output name
+        :param _metadata: metadata obtained during data loading
+        :return: list of the output data in an order expected by the accuracy metric if any is used
+        """
+        return list(outputs.values())
 
     def _reset(self):
         """ Resets collected statistics """
@@ -182,14 +186,12 @@ class IEEngine(Engine):
                                      annotations=batch_annotations)
 
         # Postprocess network output
-        outputs = process_raw_output(predictions)
-        output = outputs[self._output_layers[0]]
-        outputs[self._output_layers[0]] = self.postprocess_output(output, batch_meta)
+        processed_outputs = process_raw_output(predictions)
+        outputs = {name: processed_outputs[name] for name in self._output_layers}
+        logits = self.postprocess_output(outputs, batch_meta)
 
         # Update metrics
         if batch_annotations:
-            # TODO: Create some kind of an order for the correct metric calculation
-            logits = [outputs[name] for name in self._output_layers]  # output_layers are in a random order
             self._update_metrics(output=logits, annotations=batch_annotations,
                                  need_metrics_per_sample=need_metrics_per_sample)
 
@@ -200,7 +202,7 @@ class IEEngine(Engine):
         :param annotations: list of annotations [(img_id, annotation)]
         """
         dataset_index = annotations[0][0] if annotations is not None and annotations[0][0] else 0
-        append_stats(self._accumulated_layer_stats, stats_layout, outputs, dataset_index, self.inference_for_shape)
+        append_stats(self._accumulated_layer_stats, stats_layout, outputs, dataset_index)
 
     def _update_metrics(self, output, annotations, need_metrics_per_sample=False):
         """ Updates metrics.
@@ -227,6 +229,43 @@ class IEEngine(Engine):
         :param image_batch: list of ndarray images or list with a dictionary of inputs mapping
         """
         input_info = model.inputs
+        batch_dim = self.config.get('batch_dim', 0)
+
+        def is_dynamic_input(input_blob):
+            return input_blob.partial_shape.is_dynamic
+
+        def input_dim(input_blob):
+            return len(input_blob.partial_shape)
+
+        def process_input(input_blob, input_data):
+            is_sampler_batchfied = len(input_data) != 1
+            is_loader_batchfied = input_dim(input_blob) == input_data[0].ndim
+
+            if is_loader_batchfied:
+                if input_data[0].shape[batch_dim] == 1:
+                    input_data = [np.squeeze(d, batch_dim) for d in input_data]
+                    is_loader_batchfied = False
+            if not is_sampler_batchfied and not is_loader_batchfied:
+                is_sampler_batchfied = True
+
+            assert not (is_sampler_batchfied and is_loader_batchfied), (
+                "Data have to be batchfied by either 'stat_batch_size' parameter "
+                "in quantization algorithm "
+                "or a '__getitem__' method of 'DataLoader' not both."
+            )
+
+            input_data_batched = np.concatenate(
+                [np.expand_dims(i, batch_dim) for i in input_data], axis=batch_dim
+            )
+            input_data_batched = input_data_batched.squeeze()
+            if is_sampler_batchfied:
+                if input_data_batched.shape[batch_dim] != len(input_data):
+                    input_data_batched = np.expand_dims(input_data_batched, batch_dim)
+
+            if is_dynamic_input(input_blob):
+                return input_data_batched
+            else:
+                return np.reshape(input_data_batched, input_blob.shape)
 
         if isinstance(image_batch[0], dict):
             feed_dict = {}
@@ -234,14 +273,32 @@ class IEEngine(Engine):
             for input_name in image_batch[0].keys():
                 input_blob = input_blobs[input_name]
                 input_blob_name = self._get_input_any_name(input_blob)
-                feed_dict[input_blob_name] = np.reshape(image_batch[0][input_name], input_blob.shape)
+                feed_dict[input_blob_name] = process_input(
+                    input_blob, [data[input_name] for data in image_batch]
+                )
+                if input_dim(input_blob) != feed_dict[input_blob_name].ndim:
+                    raise ValueError(
+                        "Incompatible input dimension. "
+                        f"Cannot infer dimension {feed_dict[input_blob_name].ndim} "
+                        f"{Shape(feed_dict[input_blob_name].shape)} "
+                        f"into {input_dim(input_blob)}. "
+                        "Please make sure batch of input is properly configured."
+                    )
             return feed_dict
 
         if len(input_info) == 1:
             input_blob = next(iter(input_info))
             input_blob_name = self._get_input_any_name(input_blob)
-            image_batch = {input_blob_name: np.reshape(image_batch, input_blob.shape)}
-            if Shape(image_batch[input_blob_name].shape) != input_info[0].shape:
+            image_batch = {input_blob_name: process_input(input_blob, image_batch)}
+            if input_dim(input_blob) != image_batch[input_blob_name].ndim:
+                raise ValueError(
+                    "Incompatible input dimension. "
+                    f"Cannot infer dimension {image_batch[input_blob_name].ndim} "
+                    f"{Shape(image_batch[input_blob_name].shape)} "
+                    f"into {input_dim(input_blob)}. "
+                    "Please make sure batch of input is properly configured."
+                )
+            if not is_dynamic_input(input_blob) and Shape(image_batch[input_blob_name].shape) != input_info[0].shape:
                 raise ValueError(f"Incompatible input shapes. "
                                  f"Cannot infer {Shape(image_batch[input_blob_name].shape)} into {input_info[0].shape}."
                                  f"Try to specify the layout of the model.")
@@ -260,8 +317,9 @@ class IEEngine(Engine):
                 lambda x: x.get_any_name() != image_info_name, input_info)))
             image_tensor_name = image_tensor_node.get_any_name()
 
-            image_tensor = (image_tensor_name, np.reshape(image_batch, input_blob.shape))
-            if Shape(image_tensor[1].shape) != image_tensor_node.shape:
+            image_tensor = (image_tensor_name, process_input(image_tensor_node, image_batch))
+            if not is_dynamic_input(image_tensor_node) and \
+                    Shape(image_tensor[1].shape) != image_tensor_node.shape:
                 raise ValueError(f"Incompatible input shapes. "
                                  f"Cannot infer {Shape(image_tensor[1].shape)} into {image_tensor_node.shape}."
                                  f"Try to specify the layout of the model.")
@@ -319,18 +377,11 @@ class IEEngine(Engine):
                 start_time = time()
 
         progress_log_fn = logger.info if print_progress else logger.debug
-        try:
-            self._ie.set_property(self._device,
-                                  {'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'})
-        except AttributeError:
-            self._ie.set_config({'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'},
-                                self._device)
+        self._ie.set_property(self._device,
+                              {'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'})
         # Load model to the plugin
         compiled_model = self._ie.compile_model(model=self._model, device_name=self._device)
-        try:
-            optimal_requests_num = compiled_model.get_property('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
-        except AttributeError:
-            optimal_requests_num = compiled_model.get_metric('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
+        optimal_requests_num = compiled_model.get_property('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
         requests_num = optimal_requests_num if requests_num == 0 else requests_num
         logger.debug('Async mode requests number: %d', requests_num)
         infer_queue = AsyncInferQueue(compiled_model, requests_num)
@@ -401,11 +452,15 @@ class IEEngine(Engine):
             raise RuntimeError('Inconsistent data in the batch. '
                                'Some items contain annotation, and some do not.')
 
+        if not all([isinstance(item[0], tuple) for item in batch]):
+            images, image_annotation = [data[0] for data in batch], [(idx, data[1]) for idx, data in enumerate(batch)]
+        else:
+            images, image_annotation = [data[1] for data in batch], [data[0] for data in batch]
+
         if all([len(item) == 2 for item in batch]):
-            image_annotation, images = map(list, zip(*batch))
             meta_data = [{}]*len(images)
         elif all([len(item) == 3 for item in batch]):
-            image_annotation, images, meta_data = map(list, zip(*batch))
+            meta_data = [data[2] for data in batch]
         else:
             raise RuntimeError('Inconsistent data in the batch. '
                                'Some items contain meta data, and some do not.')

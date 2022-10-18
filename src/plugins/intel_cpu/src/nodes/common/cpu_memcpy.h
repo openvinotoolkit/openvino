@@ -7,6 +7,9 @@
 #include <cstring>
 #include "ie_api.h"
 
+namespace ov {
+namespace intel_cpu {
+
 /**
  * @brief Copies bytes between buffers with security enhancements
  * Copies count bytes from src to dest. If the source and destination
@@ -47,3 +50,6 @@ inline int cpu_memcpy_s(void* dst, size_t dst_size, const void* src, size_t coun
 #endif
     return 0;
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

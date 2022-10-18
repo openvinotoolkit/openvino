@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/file_utils.hpp"
-
 #include "read_ir_test/read_ir_query_model.hpp"
 #include "conformance.hpp"
 
@@ -15,10 +13,10 @@ namespace op {
 using namespace ov::test::subgraph;
 
 namespace {
-INSTANTIATE_TEST_SUITE_P(conformance,
+INSTANTIATE_TEST_SUITE_P(conformance_query_model,
                         ReadIRTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn(CommonTestUtils::getFileListByPatternRecursive(IRFolderPaths,  std::regex(R"(.*\.xml)"))),
+                                ::testing::ValuesIn(getModelPaths(IRFolderPaths)),
                                 ::testing::Values(targetDevice),
                                 ::testing::Values(pluginConfig)),
                         ReadIRTest::getTestCaseName);

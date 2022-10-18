@@ -14,6 +14,7 @@ namespace op {
 namespace v0 {
 /// \brief Operator performing Mean Variance Normalization
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API MVN : public Op {
 public:
     OPENVINO_OP("MVN", "opset2");
@@ -52,11 +53,20 @@ public:
     double get_eps() const {
         return m_eps;
     }
+    void set_eps(const double& eps) {
+        m_eps = eps;
+    }
     bool get_across_channels() const {
         return m_across_channels;
     }
+    void set_across_channels(bool across_channels) {
+        m_across_channels = across_channels;
+    }
     bool get_normalize_variance() const {
         return m_normalize_variance;
+    }
+    void set_normalize_variance(bool normalize_variance) {
+        m_normalize_variance = normalize_variance;
     }
     AxisSet get_reduction_axes() const {
         return m_reduction_axes;
@@ -87,6 +97,7 @@ std::ostream& operator<<(std::ostream& s, const MVNEpsMode& type);
 namespace v6 {
 /// \brief Operator performing Mean Variance Normalization
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API MVN : public Op {
 public:
     OPENVINO_OP("MVN", "opset6", op::Op, 6);
@@ -117,11 +128,20 @@ public:
     float get_eps() const {
         return m_eps;
     }
+    void set_eps(const float& eps) {
+        m_eps = eps;
+    }
     bool get_normalize_variance() const {
         return m_normalize_variance;
     }
+    void set_normalize_variance(bool normalize_variance) {
+        m_normalize_variance = normalize_variance;
+    }
     MVNEpsMode get_eps_mode() const {
         return m_eps_mode;
+    }
+    void set_eps_mode(const MVNEpsMode& eps_mode) {
+        m_eps_mode = eps_mode;
     }
 
 private:

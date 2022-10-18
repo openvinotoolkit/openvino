@@ -33,7 +33,7 @@ class PropagateThroughPrecisionPreserved;
  * through precision preserved operations.
  *
  * For more details about the transformation, refer to
- * [PropagateThroughPrecisionPreserved](@ref openvino_docs_IE_DG_lpt_PropagateThroughPrecisionPreserved) page
+ * [PropagateThroughPrecisionPreserved](@ref openvino_docs_OV_UG_lpt_PropagateThroughPrecisionPreserved) page
  * in the Inference Engine Developer Guide.
  */
 template <typename AttributeType>

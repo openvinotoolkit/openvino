@@ -24,6 +24,9 @@ std::vector<std::string> disabledTestPatterns() {
         ".*InferDynamicNetworkWithSetTensor2times.*",
         ".*InferRequestDynamicTests.GetSameTensor2times.*",
         ".*InferRequestDynamicTests.InferDynamicNetworkWithSetTensor.*",
+        ".*InferRequestDynamicTests.InferDynamicNetworkSetOutputShapeBeforeInfer.*",
+        ".*InferRequestDynamicTests.InferDynamicNetworkSetUnexpectedOutputTensorBeforeInfer.*",
+        ".*InferRequestDynamicTests.InferDynamicNetworkSetOutputTensorPreAllocatedMemoryBeforeInfer.*",
         // TODO: Issue: 26268
         ".*ConcatLayerTest.*axis=0.*",
         // TODO: Issue 31197
@@ -69,5 +72,26 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*EltwiseLayerTest.*OpType=SqDiff.*PARAMETER.*SCALAR.*)",
         R"(.*EltwiseLayerTest.*TS=\(\(16\.16\.96\)_\(96\)_\).*OpType=SqDiff.*)",
         R"(.*EltwiseLayerTest.*TS=\(\(52\.1\.52\.3\.2\)_\(2\)_\).*OpType=SqDiff.*)",
+
+        // Tests with unsupported precision
+        ".*InferRequestCheckTensorPrecision.*type=boolean.*",
+        ".*InferRequestCheckTensorPrecision.*type=bf16.*",
+        ".*InferRequestCheckTensorPrecision.*type=f64.*",
+        ".*InferRequestCheckTensorPrecision.*type=i4.*",
+        ".*InferRequestCheckTensorPrecision.*type=i16.*",
+        ".*InferRequestCheckTensorPrecision.*type=i64.*",
+        ".*InferRequestCheckTensorPrecision.*type=u1.*",
+        ".*InferRequestCheckTensorPrecision.*type=u4.*",
+        ".*InferRequestCheckTensorPrecision.*type=u8.*",
+        ".*InferRequestCheckTensorPrecision.*type=u16.*",
+        ".*InferRequestCheckTensorPrecision.*type=u64.*",
+
+        // TODO: Issue 76209
+        R"(.*MultithreadingTests.*canRun.*RequestsConsistentlyFromThreads.*MYRIAD.*)",
+        // TODO: CVS-82012
+        R"(.*StridedSliceLayerTest\.CompareWithRefs/inShape=\(1\.12\.100\).*)",
+
+        // Issue: 81016
+        R"(.*ParameterResultSubgraphTest\.CompareWithRefs.*)",
     };
 }

@@ -39,15 +39,13 @@ def app(argv):
     if args.engine:
         config.engine['type'] = args.engine if args.engine else 'accuracy_checker'
     if 'data_source' not in config.engine:
-        if args.data_source is None and config.engine.type == 'data_free':
-            args.data_source = 'pot_dataset'
         config.engine['data_source'] = args.data_source
 
     config.configure_params(args.ac_config)
     config.update_from_args(args)
 
     if config.engine.type != 'accuracy_checker' and args.evaluate:
-        raise Exception('Can not make evaluation in simplified or data_free mode')
+        raise Exception('Can not make evaluation in simplified mode')
 
     log_dir = _create_log_path(config)
     init_logger(level=args.log_level,
@@ -78,7 +76,7 @@ def _create_log_path(config):
 
 
 def _update_config_path(args):
-    config_template_folder = os.path.join(Path(__file__).parents[4], 'configs')
+    config_template_folder = os.path.join(Path(__file__).parents[1], 'configs', 'templates')
 
     if args.quantize is not None:
         if args.quantize == 'default':

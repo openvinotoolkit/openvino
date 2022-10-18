@@ -20,9 +20,8 @@ using namespace cldnn;
 
 void compile_graph::run(program& p) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::CompileGraph");
-    size_t order_idx = 0;
     for (auto& node : p.get_processing_order()) {
-        node->set_unique_id(std::to_string(order_idx++));
+        node->set_unique_id();
         if (!node->is_type<data>()) {
             node->get_output_layout();
         }
@@ -32,9 +31,9 @@ void compile_graph::run(program& p) {
     auto& proc_order = p.get_processing_order();
     std::vector<InferenceEngine::Task> tasks;
     std::exception_ptr exception;
-    for (int idx = 0; idx < proc_order.size(); idx++) {
+    for (size_t idx = 0; idx < proc_order.size(); idx++) {
         auto& node = *(std::next(proc_order.begin(), idx));
-        if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
+        if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty()) && !node->is_dynamic()) {
             tasks.push_back([node, &exception] {
                 try {
                     node->selected_impl = node->type()->choose_impl(*node);

@@ -4,14 +4,23 @@
 
 #pragma once
 
-#include <memory>
-#include <vector>
 #include <algorithm>
+#include <memory>
 #include <string>
-
 #include <transformations_visibility.hpp>
+#include <vector>
 
 #include "ngraph/op/op.hpp"
+
+namespace ov {
+namespace op {
+namespace v8 {
+
+class MatrixNms;
+
+}  // namespace v8
+}  // namespace op
+}  // namespace ov
 
 namespace ngraph {
 namespace op {
@@ -31,9 +40,8 @@ public:
     /// \param boxes Node producing the box coordinates
     /// \param scores Node producing the box scores
     /// \param attrs Attributes of the operation
-    NmsStaticShapeIE(const Output<Node>& boxes,
-                     const Output<Node>& scores,
-                     const Attributes& attrs) : BaseNmsOp(boxes, scores, attrs) {
+    NmsStaticShapeIE(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs)
+        : BaseNmsOp(boxes, scores, attrs) {
         this->constructor_validate_and_infer_types();
     }
     void validate_and_infer_types() override;
@@ -42,7 +50,8 @@ public:
     }
 
 private:
-    typedef struct {} init_rt_result;
+    typedef struct {
+    } init_rt_result;
 
     init_rt_result init_rt_info() {
         BaseNmsOp::get_rt_info()["opset"] = "ie_internal_opset";
@@ -74,7 +83,7 @@ void NmsStaticShapeIE<BaseNmsOp>::validate_and_infer_types() {
                 max_output_boxes_per_class = num_boxes;
 
             auto max_output_boxes_per_batch = max_output_boxes_per_class * num_classes;
-            if (this->m_keep_top_k >= 0)
+            if (this->m_attrs.keep_top_k >= 0)
                 max_output_boxes_per_batch =
                     std::min(max_output_boxes_per_batch, static_cast<int64_t>(this->m_attrs.keep_top_k));
 
@@ -98,7 +107,9 @@ void NmsStaticShapeIE<BaseNmsOp>::validate_and_infer_types() {
 }
 
 template <typename BaseNmsOp>
-const ::ngraph::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info() const { return get_type_info_static(); }
+const ::ngraph::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info() const {
+    return get_type_info_static();
+}
 
 template <typename BaseNmsOp>
 const ::ngraph::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info_static() {
@@ -108,18 +119,22 @@ const ::ngraph::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info_st
     //       but currently it will not pass conversion ot Legacy Opset correctly
     static const std::string name = BaseNmsOpTypeInfoPtr->name;
 
-    static const ::ngraph::Node::type_info_t type_info_static{
-        name.c_str(), BaseNmsOpTypeInfoPtr->version, BaseNmsOpTypeInfoPtr};
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    static const ::ngraph::Node::type_info_t type_info_static{name.c_str(),
+                                                              BaseNmsOpTypeInfoPtr->version,
+                                                              "ie_internal_opset",
+                                                              BaseNmsOpTypeInfoPtr};
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return type_info_static;
 }
 
 #ifndef OPENVINO_STATIC_LIBRARY
 template <typename BaseNmsOp>
-const ::ngraph::Node::type_info_t NmsStaticShapeIE<BaseNmsOp>::type_info = NmsStaticShapeIE<BaseNmsOp>::get_type_info_static();
+const ::ngraph::Node::type_info_t NmsStaticShapeIE<BaseNmsOp>::type_info =
+    NmsStaticShapeIE<BaseNmsOp>::get_type_info_static();
 #endif
 
 #ifdef __clang__
-extern template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<ov::op::v8::MulticlassNms>;
 extern template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>;
 #endif  // __clang__
 

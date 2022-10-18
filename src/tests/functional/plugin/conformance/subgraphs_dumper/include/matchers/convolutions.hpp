@@ -9,11 +9,11 @@ class ConvolutionsMatcher : public SingleOpMatcher {
 public:
     ConvolutionsMatcher();
 
-    bool match_inputs(const std::shared_ptr<ngraph::Node> &node,
-                      const std::shared_ptr<ngraph::Node> &ref,
+    bool match_inputs(const std::shared_ptr<ov::Node> &node,
+                      const std::shared_ptr<ov::Node> &ref,
                       const LayerTestsUtils::OPInfo &op_info) const override;
-    bool match(const std::shared_ptr<ngraph::Node> &node,
-               const std::shared_ptr<ngraph::Node> &ref,
+    bool match(const std::shared_ptr<ov::Node> &node,
+               const std::shared_ptr<ov::Node> &ref,
                const LayerTestsUtils::OPInfo &op_info) const override;
 
 protected:

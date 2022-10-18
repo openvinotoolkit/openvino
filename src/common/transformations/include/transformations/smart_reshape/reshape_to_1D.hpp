@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -24,6 +23,6 @@ class NGRAPH_API ReshapeTo1D;
 
 class ngraph::pass::ReshapeTo1D : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ReshapeTo1D", "0");
     ReshapeTo1D();
 };

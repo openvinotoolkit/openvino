@@ -56,7 +56,7 @@ TEST(removing_output_node, multiple_outputs) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "shuffle_channels", "input2", "input3", "input4", {}, {}, { 1 }, {}, {6, 1, 1, 1}));
+    topology.add(strided_slice("strided_slice", "shuffle_channels", "input2", "input3", "input4", {}, {}, { 1 }, {}, {}, {6, 1, 1, 1}));
 
     std::vector<float> input_vec = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f };
     std::vector<float> out_vec = { 0.0f, 3.0f, 1.0f, 4.0f, 2.0f, 5.0f };
@@ -72,7 +72,7 @@ TEST(removing_output_node, multiple_outputs) {
     auto output = outputs.at("reshape").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    ASSERT_TRUE(output->get_layout().size == after_reshape);
+    ASSERT_TRUE(output->get_layout().get_tensor() == after_reshape);
 
     for (size_t i = 0; i < out_vec.size(); i++)
         EXPECT_EQ(output_ptr[i], out_vec[i]);
@@ -82,7 +82,7 @@ TEST(removing_output_node, multiple_outputs) {
     auto output2 = outputs.at("strided_slice").get_memory();
     cldnn::mem_lock<float> output_ptr2(output, get_test_stream());
 
-    ASSERT_TRUE(output2->get_layout().size == after_strided_slice);
+    ASSERT_TRUE(output2->get_layout().get_tensor() == after_strided_slice);
 
     for (size_t i = 0; i < out_vec.size(); i++)
         EXPECT_EQ(output_ptr2[i], out_vec[i]);
@@ -122,7 +122,7 @@ TEST(removing_output_node, output_node_optimization) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
-    topology.add(convolution("conv", "input", { "weights" }, { 1,1,1,2 }));
+    topology.add(convolution("conv", "input", { "weights" }, { 2, 1 }));
     topology.add(activation("relu", "conv", activation_func::relu));
 
     network network(engine, topology);
@@ -137,10 +137,10 @@ TEST(removing_output_node, output_node_optimization) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 2);
     EXPECT_EQ(x_size, 3);

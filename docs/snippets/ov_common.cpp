@@ -1,6 +1,8 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <ie_extension.h>
+
 #include <openvino/core/core.hpp>
 #include <openvino/runtime/runtime.hpp>
 
@@ -62,16 +64,11 @@ int main() {
     //! [ov_api_2_0:create_core]
 
     //! [ov_api_2_0:read_model]
-    std::shared_ptr<ov::Model> network = core.read_model("model.xml");
+    std::shared_ptr<ov::Model> model = core.read_model("model.xml");
     //! [ov_api_2_0:read_model]
 
-    //! [ov_api_2_0:get_inputs_outputs]
-    std::vector<ov::Output<ov::Node>> inputs = network->inputs();
-    std::vector<ov::Output<ov::Node>> outputs = network->outputs();
-    //! [ov_api_2_0:get_inputs_outputs]
-
     //! [ov_api_2_0:compile_model]
-    ov::CompiledModel compiled_model = core.compile_model(network, "CPU");
+    ov::CompiledModel compiled_model = core.compile_model(model, "CPU");
     //! [ov_api_2_0:compile_model]
 
     //! [ov_api_2_0:create_infer_request]
@@ -79,11 +76,47 @@ int main() {
     //! [ov_api_2_0:create_infer_request]
 
     inputs_aligned(infer_request);
+
     //! [ov_api_2_0:inference]
     infer_request.infer();
     //! [ov_api_2_0:inference]
 
+    //! [ov_api_2_0:start_async_and_wait]
+    // NOTE: For demonstration purposes we are trying to set callback
+    // which restarts inference inside one more time, so two inferences happen here
+
+    auto restart_once = true;
+    infer_request.set_callback([&, restart_once](std::exception_ptr exception_ptr) mutable {
+        if (exception_ptr) {
+            // procces exception or rethrow it.
+            std::rethrow_exception(exception_ptr);
+        } else {
+            // Extract inference result
+            ov::Tensor output_tensor = infer_request.get_output_tensor();
+            // Restart inference if needed
+            if (restart_once) {
+                infer_request.start_async();
+                restart_once = false;
+            }
+        }
+    });
+    // Start inference without blocking current thread
+    infer_request.start_async();
+    // Get inference status immediately
+    bool status = infer_request.wait_for(std::chrono::milliseconds{0});
+    // Wait for one milisecond
+    status = infer_request.wait_for(std::chrono::milliseconds{1});
+    // Wait for inference completion
+    infer_request.wait();
+    //! [ov_api_2_0:start_async_and_wait]
+
     outputs_aligned(infer_request);
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    //! [ov_api_2_0:load_old_extension]
+    core.add_extension(std::make_shared<InferenceEngine::Extension>("path_to_extension_library.so"));
+    //! [ov_api_2_0:load_old_extension]
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return 0;
 }

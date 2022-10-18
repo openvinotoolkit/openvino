@@ -7,8 +7,6 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::AlignEltwiseInputRanks, "AlignEltwiseInputRanks", 0);
-
 ngraph::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
     auto eltwise_pattern = pattern::wrap_type<opset8::SquaredDifference,
                                               op::util::BinaryElementwiseComparison,
@@ -34,8 +32,9 @@ ngraph::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
         // So we skip extending Multiply's constant input rank here.
         if (ov::is_type<opset8::Multiply>(node)) {
             auto inputs = node->input_values();
-            if (std::any_of(inputs.begin(), inputs.end(),
-                [] (const Output<Node>& input) -> bool { return ov::is_type<opset8::NormalizeL2>(input.get_node()); }))
+            if (std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& input) -> bool {
+                    return ov::is_type<opset8::NormalizeL2>(input.get_node());
+                }))
                 return false;
         }
 

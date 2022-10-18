@@ -22,6 +22,6 @@ class ConvertOpSet1ToLegacy;
 
 class ngraph::pass::ConvertOpSet1ToLegacy: public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertOpSet1ToLegacy", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };

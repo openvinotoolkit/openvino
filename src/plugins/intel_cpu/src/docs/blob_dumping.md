@@ -23,7 +23,7 @@ or for shell session (bash example):
 ```sh
     OV_CPU_BLOB_DUMP_DIR=<directory-name> binary ...
 ```
-Default is *mkldnn_dump*
+Default is *cpu_dump*
 ## Specify dump format
 ```sh
     OV_CPU_BLOB_DUMP_FORMAT=<format> binary ...
@@ -66,7 +66,7 @@ Example:
     OV_CPU_BLOB_DUMP_NODE_TYPE='Convolution Reorder' binary ...
 ```
 
-> **NOTE**: see **enum Type** in [mkldnn_node.h](../mkldnn_node.h) for list of the types
+> **NOTE**: see **enum Type** in [node.h](../node.h) for list of the types
 
 ## Filter by name
 To dump blobs only for nodes with name matching specified regex:

@@ -33,8 +33,8 @@ class VOCSegmentationLoader(DataLoader):
     # Required methods:
     def __init__(self, config):
         super().__init__(config)
-        self._image_size = config.image_size
-        self._img_ids = self._read_img_ids(config)
+        self._image_size = self.config.image_size
+        self._img_ids = self._read_img_ids(self.config)
 
     def __getitem__(self, index):
         """
@@ -49,8 +49,7 @@ class VOCSegmentationLoader(DataLoader):
         mask_path = os.path.join(self.config.mask_dir, self._img_ids[index] + '.png')
         image_path = os.path.join(self.config.data_source, self._img_ids[index] + '.jpg')
 
-        annotation = (index, self._read_and_preprocess_mask(mask_path))
-        return annotation, self._read_and_preprocess_image(image_path)
+        return self._read_and_preprocess_image(image_path), self._read_and_preprocess_mask(mask_path)
 
     def __len__(self):
         """ Returns size of the dataset """
@@ -92,13 +91,6 @@ class MeanIOU(Metric):
         self._name = 'mean_iou'
         self._current_cm = []
         self._total_cm = np.zeros((self._classes_num, self._classes_num))
-
-    @property
-    def value(self):
-        """ Returns metric value for the last model output.
-         Possible format: {metric_name: [metric_values_per_image]}
-         """
-        return {self._name: [self._evaluate(cm) for cm in self._current_cm]}
 
     @property
     def avg_value(self):

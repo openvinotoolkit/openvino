@@ -15,8 +15,8 @@ primitive_type_id cum_sum::type_id() {
     return &instance;
 }
 
-layout cum_sum_inst::calc_output_layout(cum_sum_node const& node) {
-    return node.input(0).get_output_layout();
+layout cum_sum_inst::calc_output_layout(cum_sum_node const& node, kernel_impl_params const& impl_param) {
+    return impl_param.get_input_layout();
 }
 
 std::string cum_sum_inst::to_string(cum_sum_node const& node) {

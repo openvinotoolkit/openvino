@@ -15,7 +15,7 @@ This is OpenVINO Inference Engine testing framework. OpenVINO Inference Engine t
     files.
     
     > **Example**: We have `ie_reshaper.cpp` within the `src/shape_infer` subfolder of the tested module. In this case
-    new `shape_infer` subfolder should be created within the the root of the Unit Test folder for this module. And new
+    new `shape_infer` subfolder should be created within the root of the Unit Test folder for this module. And new
     `ie_reshaper_test.cpp` file should be created within this newly created subfolder. This test file should cover all
     the classes and methods from the original file.
   
@@ -52,7 +52,7 @@ This is OpenVINO Inference Engine testing framework. OpenVINO Inference Engine t
     developers just add required test instantiations based on the linked test definitions to own test binary. It should
     be done to make all the **shared** test cases always visible and available to instantiate by other plugins. 
     > **NOTE**: Any new plugin test case should be added to the common test definitions library
-    (`funcSharedTests`) within the DLDT repository first. And then this test case can be instantiated with the
+    (`funcSharedTests`) within the OpenVINO repository first. And then this test case can be instantiated with the
     required parameters inside own plugin's test binary which links this shared tests library.
 
     > **NOTE**: `funcSharedTests` library is added to the developer package and available for closed source

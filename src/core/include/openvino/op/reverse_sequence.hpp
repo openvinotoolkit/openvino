@@ -9,6 +9,9 @@
 namespace ov {
 namespace op {
 namespace v0 {
+/// \brief ReverseSequence operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReverseSequence : public Op {
 public:
     OPENVINO_OP("ReverseSequence", "opset1");

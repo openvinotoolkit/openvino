@@ -22,7 +22,7 @@ class ConvertSqrtToPowerIEMatcher;
 
 class ngraph::pass::ConvertSqrtToPowerIEMatcher: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertSqrtToPowerIEMatcher", "0");
     ConvertSqrtToPowerIEMatcher();
 };
 

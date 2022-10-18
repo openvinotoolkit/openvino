@@ -8,6 +8,7 @@
 #include <array>
 #include <exception>
 #include <map>
+#include <unordered_set>
 #include <vector>
 
 namespace {
@@ -70,7 +71,7 @@ bool is_correct_onnx_field(const PbKey& decoded_key) {
  * Each consecutive varint byte needs to be left-shifted "7 x its position in the vector"
  * and bitwise added to the accumulator afterward.
  */
-uint32_t varint_bytes_to_number(const std::vector<char>& bytes) {
+uint32_t varint_bytes_to_number(const std::vector<uint8_t>& bytes) {
     uint32_t accumulator = 0u;
 
     for (size_t i = 0; i < bytes.size(); ++i) {
@@ -83,7 +84,7 @@ uint32_t varint_bytes_to_number(const std::vector<char>& bytes) {
 }
 
 uint32_t decode_varint(std::istream& model) {
-    std::vector<char> bytes;
+    std::vector<uint8_t> bytes;
     // max 4 bytes for a single value because this function returns a 32-bit long decoded varint
     const size_t MAX_VARINT_BYTES = 4u;
     // optimization to avoid allocations during push_back calls
@@ -95,7 +96,7 @@ uint32_t decode_varint(std::istream& model) {
     // keep reading all bytes which have the MSB on from the stream
     while (key_component & 0x80 && bytes.size() < MAX_VARINT_BYTES) {
         // drop the most significant bit
-        const char component = key_component & ~0x80;
+        const uint8_t component = key_component & ~0x80;
         bytes.push_back(component);
         model.get(key_component);
     }
@@ -128,7 +129,7 @@ ONNXField decode_next_field(std::istream& model) {
     switch (decoded_key.second) {
     case VARINT: {
         // the decoded varint is the payload in this case but its value does not matter
-        // in the fast check process so you can discard it
+        // in the fast check process so it can be discarded
         decode_varint(model);
         return {onnx_field, 0};
     }
@@ -198,21 +199,23 @@ namespace ngraph {
 namespace onnx_common {
 bool is_valid_model(std::istream& model) {
     // the model usually starts with a 0x08 byte indicating the ir_version value
-    // so this checker expects at least 2 valid ONNX keys to be found in the validated model
-    const unsigned int EXPECTED_FIELDS_FOUND = 2u;
-    unsigned int valid_fields_found = 0u;
+    // so this checker expects at least 3 valid ONNX keys to be found in the validated model
+    const size_t EXPECTED_FIELDS_FOUND = 3u;
+    std::unordered_set<onnx::Field, std::hash<int>> onnx_fields_found = {};
     try {
-        while (!model.eof() && valid_fields_found < EXPECTED_FIELDS_FOUND) {
+        while (!model.eof() && onnx_fields_found.size() < EXPECTED_FIELDS_FOUND) {
             const auto field = ::onnx::decode_next_field(model);
 
-            ++valid_fields_found;
-
-            if (field.second > 0) {
-                ::onnx::skip_payload(model, field.second);
+            if (onnx_fields_found.count(field.first) > 0) {
+                // if the same field is found twice, this is not a valid ONNX model
+                return false;
+            } else {
+                onnx_fields_found.insert(field.first);
+                onnx::skip_payload(model, field.second);
             }
         }
 
-        return valid_fields_found == EXPECTED_FIELDS_FOUND;
+        return onnx_fields_found.size() == EXPECTED_FIELDS_FOUND;
     } catch (...) {
         return false;
     }

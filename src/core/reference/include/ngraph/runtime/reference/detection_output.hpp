@@ -47,7 +47,7 @@ private:
             for (size_t p = 0; p < numPriors; ++p) {
                 size_t startIdx = p * numLocClasses * 4;
                 for (size_t c = 0; c < numLocClasses; ++c) {
-                    int label = attrs.share_location ? -1 : c;
+                    int label = attrs.share_location ? -1 : static_cast<int>(c);
                     if (labelBbox.find(label) == labelBbox.end()) {
                         labelBbox[label].resize(numPriors);
                     }
@@ -66,7 +66,7 @@ private:
         for (size_t i = 0; i < numImages; ++i) {
             std::map<int, std::vector<dataType>>& labelScores = confPreds[i];
             for (size_t p = 0; p < numPriors; ++p) {
-                int startIdx = p * numClasses;
+                size_t startIdx = p * numClasses;
                 for (int c = 0; c < numClasses; ++c) {
                     labelScores[c].push_back(confData[startIdx + c]);
                 }
@@ -82,7 +82,7 @@ private:
         for (size_t i = 0; i < numImages; ++i) {
             std::map<int, std::vector<dataType>>& labelScores = confPreds[i];
             for (size_t p = 0; p < numPriors; ++p) {
-                int startIdx = p * numClasses;
+                size_t startIdx = p * numClasses;
                 if (armConfData[p * 2 + 1] < attrs.objectness_score) {
                     for (int c = 0; c < numClasses; ++c) {
                         c == attrs.background_label_id ? labelScores[c].push_back(1) : labelScores[c].push_back(0);
@@ -113,12 +113,13 @@ private:
                         std::vector<std::vector<std::vector<dataType>>>& priorVariances) {
         priorBboxes.resize(priorsBatchSize);
         priorVariances.resize(priorsBatchSize);
-        int off = attrs.variance_encoded_in_target ? (numPriors * priorSize) : (2 * numPriors * priorSize);
+        int off =
+            static_cast<int>(attrs.variance_encoded_in_target ? (numPriors * priorSize) : (2 * numPriors * priorSize));
         for (size_t n = 0; n < priorsBatchSize; n++) {
             std::vector<NormalizedBBox>& currPrBbox = priorBboxes[n];
             std::vector<std::vector<dataType>>& currPrVar = priorVariances[n];
             for (size_t i = 0; i < numPriors; ++i) {
-                int start_idx = i * priorSize;
+                size_t start_idx = i * priorSize;
                 NormalizedBBox bbox;
                 bbox.xmin = priorData[start_idx + 0 + offset];
                 bbox.ymin = priorData[start_idx + 1 + offset];
@@ -129,7 +130,7 @@ private:
             if (!attrs.variance_encoded_in_target) {
                 const dataType* priorVar = priorData + numPriors * priorSize;
                 for (size_t i = 0; i < numPriors; ++i) {
-                    int start_idx = i * 4;
+                    size_t start_idx = i * 4;
                     std::vector<dataType> var(4);
                     for (int j = 0; j < 4; ++j) {
                         var[j] = (priorVar[start_idx + j]);
@@ -151,10 +152,10 @@ private:
         dataType priorYmax = priorBboxes.ymax;
 
         if (!attrs.normalized) {
-            priorXmin /= attrs.input_width;
-            priorYmin /= attrs.input_height;
-            priorXmax /= attrs.input_width;
-            priorYmax /= attrs.input_height;
+            priorXmin /= static_cast<dataType>(attrs.input_width);
+            priorYmin /= static_cast<dataType>(attrs.input_height);
+            priorXmax /= static_cast<dataType>(attrs.input_width);
+            priorYmax /= static_cast<dataType>(attrs.input_height);
         }
 
         if (attrs.code_type == "caffe.PriorBoxParameter.CORNER") {
@@ -171,8 +172,8 @@ private:
             dataType decodeBboxWidth, decodeBboxHeight;
             decodeBboxCenterX = priorVariances[0] * bbox.xmin * priorWidth + priorCenterX;
             decodeBboxCenterY = priorVariances[1] * bbox.ymin * priorHeight + priorCenterY;
-            decodeBboxWidth = std::exp(priorVariances[2] * bbox.xmax) * priorWidth;
-            decodeBboxHeight = std::exp(priorVariances[3] * bbox.ymax) * priorHeight;
+            decodeBboxWidth = static_cast<dataType>(std::exp(priorVariances[2] * bbox.xmax)) * priorWidth;
+            decodeBboxHeight = static_cast<dataType>(std::exp(priorVariances[3] * bbox.ymax)) * priorHeight;
             decodeBbox.xmin = decodeBboxCenterX - decodeBboxWidth / 2;
             decodeBbox.ymin = decodeBboxCenterY - decodeBboxHeight / 2;
             decodeBbox.xmax = decodeBboxCenterX + decodeBboxWidth / 2;
@@ -187,10 +188,10 @@ private:
         dataType priorYmax = priorBboxes.ymax;
 
         if (!attrs.normalized) {
-            priorXmin /= attrs.input_width;
-            priorYmin /= attrs.input_height;
-            priorXmax /= attrs.input_width;
-            priorYmax /= attrs.input_height;
+            priorXmin /= static_cast<dataType>(attrs.input_width);
+            priorYmin /= static_cast<dataType>(attrs.input_height);
+            priorXmax /= static_cast<dataType>(attrs.input_width);
+            priorYmax /= static_cast<dataType>(attrs.input_height);
         }
 
         if (attrs.code_type == "caffe.PriorBoxParameter.CORNER") {
@@ -207,8 +208,8 @@ private:
             dataType decodeBboxWidth, decodeBboxHeight;
             decodeBboxCenterX = bbox.xmin * priorWidth + priorCenterX;
             decodeBboxCenterY = bbox.ymin * priorHeight + priorCenterY;
-            decodeBboxWidth = std::exp(bbox.xmax) * priorWidth;
-            decodeBboxHeight = std::exp(bbox.ymax) * priorHeight;
+            decodeBboxWidth = static_cast<dataType>(std::exp(bbox.xmax)) * priorWidth;
+            decodeBboxHeight = static_cast<dataType>(std::exp(bbox.ymax)) * priorHeight;
             decodeBbox.xmin = decodeBboxCenterX - decodeBboxWidth / 2;
             decodeBbox.ymin = decodeBboxCenterY - decodeBboxHeight / 2;
             decodeBbox.xmax = decodeBboxCenterX + decodeBboxWidth / 2;
@@ -220,8 +221,8 @@ private:
                       const std::vector<std::vector<dataType>>& priorVariances,
                       const std::vector<NormalizedBBox>& labelLocPreds,
                       std::vector<NormalizedBBox>& decodeBboxes) {
-        int numBboxes = priorBboxes.size();
-        for (int i = 0; i < numBboxes; ++i) {
+        size_t numBboxes = priorBboxes.size();
+        for (size_t i = 0; i < numBboxes; ++i) {
             NormalizedBBox decodeBbox;
 
             if (attrs.variance_encoded_in_target) {
@@ -246,14 +247,14 @@ private:
         decodeBboxes.resize(numImages);
         for (size_t i = 0; i < numImages; ++i) {
             LabelBBox& decodeBboxesImage = decodeBboxes[i];
-            int pboxIdx = i;
+            int pboxIdx = static_cast<int>(i);
             if (priorBboxes.size() == 1) {
                 pboxIdx = 0;
             }
             const std::vector<NormalizedBBox>& currPrBbox = priorBboxes[pboxIdx];
             const std::vector<std::vector<dataType>>& currPrVar = priorVariances[pboxIdx];
             for (size_t c = 0; c < numLocClasses; ++c) {
-                int label = attrs.share_location ? -1 : c;
+                int label = attrs.share_location ? -1 : static_cast<int>(c);
                 if (attrs.background_label_id > -1 && label == attrs.background_label_id) {
                     continue;
                 }
@@ -274,7 +275,7 @@ private:
             const std::vector<NormalizedBBox>& currPrBbox = priorBboxes[i];
             const std::vector<std::vector<dataType>>& currPrVar = priorVariances[i];
             for (size_t c = 0; c < numLocClasses; ++c) {
-                int label = attrs.share_location ? -1 : c;
+                int label = attrs.share_location ? -1 : static_cast<int>(c);
                 if (attrs.background_label_id > -1 && label == attrs.background_label_id) {
                     continue;
                 }
@@ -298,7 +299,7 @@ private:
                           std::vector<std::pair<dataType, int>>& scoreIndexVec) {
         for (size_t i = 0; i < scores.size(); ++i) {
             if (scores[i] > threshold) {
-                scoreIndexVec.push_back(std::make_pair(scores[i], i));
+                scoreIndexVec.push_back(std::make_pair(scores[i], static_cast<int>(i)));
             }
         }
 
@@ -336,7 +337,7 @@ private:
             dataType bbox2_size = BBoxSize(bbox2);
             return intersect_size / (bbox1_size + bbox2_size - intersect_size);
         } else {
-            return 0.0f;
+            return static_cast<dataType>(0);
         }
     }
 
@@ -344,7 +345,7 @@ private:
                   const std::vector<dataType>& scores,
                   std::vector<int>& indices) {
         std::vector<std::pair<dataType, int>> scoreIndexVec;
-        GetMaxScoreIndex(scores, attrs.confidence_threshold, attrs.top_k, scoreIndexVec);
+        GetMaxScoreIndex(scores, static_cast<dataType>(attrs.confidence_threshold), attrs.top_k, scoreIndexVec);
         while (scoreIndexVec.size() != 0) {
             const int idx = scoreIndexVec.front().second;
             bool keep = true;
@@ -381,7 +382,7 @@ private:
                 }
             }
             if (id > 0 && conf >= attrs.confidence_threshold) {
-                scoreIndexPairs.push_back(std::make_pair(conf, std::make_pair(id, p)));
+                scoreIndexPairs.push_back(std::make_pair(conf, std::make_pair(id, static_cast<int>(p))));
             }
         }
         std::sort(
@@ -502,13 +503,13 @@ public:
                         continue;
                     const std::vector<NormalizedBBox>& bboxes = decodeBboxesImage.find(label)->second;
                     caffeNMS(bboxes, scores, indices[c]);
-                    numDet += indices[c].size();
+                    numDet += static_cast<int>(indices[c].size());
                 }
             } else {
                 // MXNet style
                 mxNetNms(decodeBboxesImage, confScores, indices);
                 for (auto it = indices.begin(); it != indices.end(); it++)
-                    numDet += it->second.size();
+                    numDet += static_cast<int>(it->second.size());
             }
             if (attrs.keep_top_k[0] > -1 && numDet > attrs.keep_top_k[0]) {
                 std::vector<std::pair<dataType, std::pair<int, int>>> scoreIndexPairs;
@@ -559,8 +560,8 @@ public:
                 std::vector<int>& indices = it->second;
                 for (size_t j = 0; j < indices.size(); ++j) {
                     int idx = indices[j];
-                    result[count * 7 + 0] = i;
-                    result[count * 7 + 1] = attrs.decrease_label_id ? (label - 1) : label;
+                    result[count * 7 + 0] = static_cast<dataType>(i);
+                    result[count * 7 + 1] = static_cast<dataType>(attrs.decrease_label_id ? (label - 1) : label);
                     result[count * 7 + 2] = scores[idx];
                     const NormalizedBBox& bbox = bboxes[idx];
 

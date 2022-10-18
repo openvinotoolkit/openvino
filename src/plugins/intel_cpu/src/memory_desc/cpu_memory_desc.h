@@ -20,7 +20,11 @@
  *
  */
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+class Split;
+}   // namespace node
 
 class MemoryDesc;
 
@@ -30,9 +34,9 @@ using MemoryDescCPtr = std::shared_ptr<const MemoryDesc>;
 enum MemoryDescType {
     Undef = 0,
     Blocked = 1,
-    Mkldnn = 1 << 1,
+    Dnnl = 1 << 1,
 
-    DnnlBlocked = Blocked | Mkldnn
+    DnnlBlocked = Blocked | Dnnl
 };
 
 enum class LayoutType : unsigned {
@@ -172,7 +176,8 @@ protected:
 
     friend class BlobDumper;
     // WA: optimizedNspc2Ncsp used getElementOffset inside implementation
-    friend class MKLDNNSplitNode;
+    friend class node::Split;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

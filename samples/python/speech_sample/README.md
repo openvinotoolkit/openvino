@@ -29,7 +29,7 @@ Basic OpenVINO™ Runtime API is covered by [Hello Classification Python* Sample
 At startup, the sample application reads command-line parameters, loads a specified model and input data to the OpenVINO™ Runtime plugin, performs synchronous inference on all speech utterances stored in the input file, logging each step in a standard output stream.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md) section of "Integrate the OpenVINO™ Runtime with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 ## GNA-specific details
 
@@ -87,11 +87,11 @@ python speech_sample.py -h
 Usage message:
 
 ```
-usage: speech_sample.py [-h] (-m MODEL | -rg IMPORT_GNA_MODEL) -i INPUT [-o OUTPUT] [-r REFERENCE] [-d DEVICE] [-bs [1-8]]   
-                        [-qb [8, 16]] [-sf SCALE_FACTOR] [-wg EXPORT_GNA_MODEL] [-we EXPORT_EMBEDDED_GNA_MODEL]
-                        [-we_gen [GNA1, GNA3]] [--exec_target [GNA_TARGET_2_0, GNA_TARGET_3_0]] [-pc] [-a [CORE, ATOM]]      
-                        [-iname INPUT_LAYERS] [-oname OUTPUT_LAYERS] [-cw_l CONTEXT_WINDOW_LEFT] [-cw_r CONTEXT_WINDOW_RIGHT]
-                        [-pwl_me PWL_ME]
+usage: speech_sample.py [-h] (-m MODEL | -rg IMPORT_GNA_MODEL) -i INPUT [-o OUTPUT] [-r REFERENCE] [-d DEVICE] [-bs [1-8]]
+                        [-layout LAYOUT] [-qb [8, 16]] [-sf SCALE_FACTOR] [-wg EXPORT_GNA_MODEL]
+                        [-we EXPORT_EMBEDDED_GNA_MODEL] [-we_gen [GNA1, GNA3]]
+                        [--exec_target [GNA_TARGET_2_0, GNA_TARGET_3_0]] [-pc] [-a [CORE, ATOM]] [-iname INPUT_LAYERS]    
+                        [-oname OUTPUT_LAYERS] [-cw_l CONTEXT_WINDOW_LEFT] [-cw_r CONTEXT_WINDOW_RIGHT] [-pwl_me PWL_ME]  
 
 optional arguments:
   -m MODEL, --model MODEL
@@ -108,44 +108,46 @@ Options:
   -r REFERENCE, --reference REFERENCE
                         Optional. Read reference score file and compare scores.
   -d DEVICE, --device DEVICE
-                        Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, GNA_SW_FP32,
-                        GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU as a secondary (e.g.       
-                        HETERO:GNA,CPU) are supported. The sample will look for a suitable plugin for device specified. Default  
-                        value is CPU.
+                        Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, GNA_SW_FP32,   
+                        GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU as a secondary (e.g.   
+                        HETERO:GNA,CPU) are supported. The sample will look for a suitable plugin for device specified.      
+                        Default value is CPU.
   -bs [1-8], --batch_size [1-8]
-                        Optional. Batch size 1-8 (default 1).
+                        Optional. Batch size 1-8.
+  -layout LAYOUT        Optional. Custom layout in format: "input0[value0],input1[value1]" or "[value]" (applied to all      
+                        inputs)
   -qb [8, 16], --quantization_bits [8, 16]
                         Optional. Weight bits for quantization: 8 or 16 (default 16).
   -sf SCALE_FACTOR, --scale_factor SCALE_FACTOR
-                        Optional. The user-specified input scale factor for quantization. If the model contains multiple       
+                        Optional. The user-specified input scale factor for quantization. If the model contains multiple     
                         inputs, provide scale factors by separating them with commas.
   -wg EXPORT_GNA_MODEL, --export_gna_model EXPORT_GNA_MODEL
                         Optional. Write GNA model to file using path/filename provided.
   -we EXPORT_EMBEDDED_GNA_MODEL, --export_embedded_gna_model EXPORT_EMBEDDED_GNA_MODEL
                         Optional. Write GNA embedded model to file using path/filename provided.
   -we_gen [GNA1, GNA3], --embedded_gna_configuration [GNA1, GNA3]
-                        Optional. GNA generation configuration string for embedded export. Can be GNA1 (default) or GNA3.        
+                        Optional. GNA generation configuration string for embedded export. Can be GNA1 (default) or GNA3.    
   --exec_target [GNA_TARGET_2_0, GNA_TARGET_3_0]
-                        Optional. Specify GNA execution target generation. By default, generation corresponds to the GNA HW      
-                        available in the system or the latest fully supported generation by the software. See the GNA Plugin's   
-                        GNA_EXEC_TARGET config option description.
+                        Optional. Specify GNA execution target generation. By default, generation corresponds to the GNA HW  
+                        available in the system or the latest fully supported generation by the software. See the GNA        
+                        Plugin's GNA_EXEC_TARGET config option description.
   -pc, --performance_counter
                         Optional. Enables performance report (specify -a to ensure arch accurate results).
   -a [CORE, ATOM], --arch [CORE, ATOM]
                         Optional. Specify architecture. CORE, ATOM with the combination of -pc.
   -iname INPUT_LAYERS, --input_layers INPUT_LAYERS
-                        Optional. Layer names for input blobs. The names are separated with ",". Allows to change the order of   
-                        input layers for -i flag. Example: Input1,Input2
+                        Optional. Layer names for input blobs. The names are separated with ",". Allows to change the order  
+                        of input layers for -i flag. Example: Input1,Input2
   -oname OUTPUT_LAYERS, --output_layers OUTPUT_LAYERS
-                        Optional. Layer names for output blobs. The names are separated with ",". Allows to change the order of  
-                        output layers for -o flag. Example: Output1:port,Output2:port.
+                        Optional. Layer names for output blobs. The names are separated with ",". Allows to change the       
+                        order of output layers for -o flag. Example: Output1:port,Output2:port.
   -cw_l CONTEXT_WINDOW_LEFT, --context_window_left CONTEXT_WINDOW_LEFT
-                        Optional. Number of frames for left context windows (default is 0). Works only with context window       
+                        Optional. Number of frames for left context windows (default is 0). Works only with context window   
                         models. If you use the cw_l or cw_r flag, then batch size argument is ignored.
   -cw_r CONTEXT_WINDOW_RIGHT, --context_window_right CONTEXT_WINDOW_RIGHT
-                        Optional. Number of frames for right context windows (default is 0). Works only with context window      
+                        Optional. Number of frames for right context windows (default is 0). Works only with context window  
                         models. If you use the cw_l or cw_r flag, then batch size argument is ignored.
-  -pwl_me PWL_ME        Optional. The maximum percent of error for PWL function. The value must be in <0, 100> range. The        
+  -pwl_me PWL_ME        Optional. The maximum percent of error for PWL function. The value must be in <0, 100> range. The    
                         default value is 1.0.
 ```
 
@@ -328,7 +330,7 @@ The sample application logs each step in a standard output stream.
 
 ## See Also
 
-- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/Integrate_with_customer_application_new_API.md)
+- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
 - [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)

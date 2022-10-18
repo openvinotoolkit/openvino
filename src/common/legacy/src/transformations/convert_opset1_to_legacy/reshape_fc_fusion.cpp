@@ -13,8 +13,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeFullyConnectedFusion, "ReshapeFullyConnectedFusion", 0);
-
 ngraph::pass::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
     auto m_reshape = pattern::wrap_type<opset1::Reshape>(pattern::has_static_shape());
     auto m_fc = pattern::wrap_type<op::FullyConnected>({m_reshape,

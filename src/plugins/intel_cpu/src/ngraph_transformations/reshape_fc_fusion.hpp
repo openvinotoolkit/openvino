@@ -6,12 +6,14 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 class ReshapeFullyConnectedFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ReshapeFullyConnectedFusion", "0");
     ReshapeFullyConnectedFusion();
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

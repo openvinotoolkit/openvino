@@ -37,9 +37,8 @@ struct gather_nd : public primitive_base<gather_nd> {
               const uint8_t indices_rank,
               const uint8_t batch_dims = 0,
               const bool batch_merged_output = true,
-              const primitive_id& ext_prim_id = "",
               const padding& output_padding = padding())
-        : primitive_base(id, {data, indices}, ext_prim_id, output_padding),
+        : primitive_base(id, {data, indices}, output_padding),
                          input_rank(input_rank),
                          indices_rank(indices_rank),
                          batch_dims(batch_dims),

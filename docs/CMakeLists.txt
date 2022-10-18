@@ -7,8 +7,6 @@ if(NOT ENABLE_DOCKER)
         ie_add_compiler_flags(-Wall)
     endif()
 
-    add_subdirectory(snippets)
-
     # Detect OpenVINO
     find_package(OpenVINO QUIET
                  PATHS "${CMAKE_BINARY_DIR}"
@@ -17,10 +15,7 @@ if(NOT ENABLE_DOCKER)
         set(OpenVINO_DIR ${CMAKE_BINARY_DIR})
     endif()
 
-    if(ENABLE_OV_ONNX_FRONTEND)
-        add_subdirectory(onnx_custom_op)
-    endif()
-    add_subdirectory(template_extension)
+    add_subdirectory(snippets)
 
     set(all_docs_targets
         ie_docs_snippets ov_template_func_tests
@@ -39,9 +34,7 @@ if(NOT ENABLE_DOCKER)
     foreach(target openvino_template_plugin template_extension openvino_template_extension)
         if(TARGET ${target})
             install(TARGETS ${target}
-                    LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH}
-                    COMPONENT tests
-                    EXCLUDE_FROM_ALL)
+                    LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
         endif()
     endforeach()
 endif()
@@ -49,6 +42,7 @@ endif()
 set(LINKCHECKER_PY "" CACHE FILEPATH "Path to linkchecker.py for documentation check dir.")
 set(ENABLE_OPENVINO_NOTEBOOKS OFF CACHE BOOL "Build with openvino notebooks")
 set(OMZ_DOCS_DIR "" CACHE PATH "Path to open_model_zoo documentation dir.")
+set(OTE_DOCS_DIR "" CACHE PATH "Path to training_extensions documentation dir.")
 set(WORKBENCH_DOCS_DIR "" CACHE PATH "Path to workbench documentation dir.")
 set(OVMS_DOCS_DIR "" CACHE PATH "Path to model server documentation dir.")
 set(GRAPH_CSV_DIR "" CACHE PATH "Path to the folder containing csv data for rendering graphs.")
@@ -133,6 +127,16 @@ function(build_docs)
     )
     endif()
 
+    list(APPEND commands
+        COMMAND ${CMAKE_COMMAND} -E copy ${API_DOCS_IN}/api_reference.rst ${API_DOCS_OUT}/api_reference.rst
+    )
+
+    if(ENABLE_PYTHON)
+    list(APPEND commands
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${API_DOCS_IN}/ie_python_api ${API_DOCS_OUT}/ie_python_api
+        )
+    endif()
+
     # omz doc files
     if(EXISTS "${OMZ_DOCS_DIR}")
         get_filename_component(OMZ_DOCS_DIR "${OMZ_DOCS_DIR}" ABSOLUTE)
@@ -150,6 +154,15 @@ function(build_docs)
         list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
             --input_dir=${WORKBENCH_DOCS_DIR}
             --output_dir=${DOCS_BUILD_DIR}/workbench)
+    endif()
+
+    # ote doc files
+    if(EXISTS "${OTE_DOCS_DIR}")
+        get_filename_component(WORKBENCH_DOCS_DIR "${OTE_DOCS_DIR}" ABSOLUTE)
+
+        list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
+            --input_dir=${OTE_DOCS_DIR}
+            --output_dir=${DOCS_BUILD_DIR}/ote)
     endif()
 
     # ovms doc files
@@ -190,7 +203,6 @@ function(build_docs)
                        COMMAND ${PYTHON_EXECUTABLE} ${COPY_IMAGES_SCRIPT} ${XML_OUTPUT} ${RST_OUTPUT}
                        COMMAND ${PYTHON_EXECUTABLE} ${DOXYGEN_MAPPING_SCRIPT} ${XML_OUTPUT} ${DOCS_BUILD_DIR} ${OpenVINO_SOURCE_DIR}/../
                        COMMAND ${CMAKE_COMMAND} -E copy ${SPHINX_INDEX_IN} ${SPHINX_INDEX_OUT}
-                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${API_DOCS_IN} ${API_DOCS_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_TEMPLATES_IN} ${SPHINX_TEMPLATES_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_IN} ${DOXYREST_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_SPHINX_IN} ${DOXYREST_SPHINX_OUT}

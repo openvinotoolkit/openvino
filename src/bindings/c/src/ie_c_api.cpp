@@ -2,23 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iterator>
-#include <string>
-#include <utility>
-#include <cassert>
-#include <map>
-#include <vector>
-#include <set>
-#include <algorithm>
-#include <chrono>
-#include <tuple>
-#include <memory>
-#include <streambuf>
-#include <istream>
-#include <ie_extension.h>
-#include "inference_engine.hpp"
-#include "ie_compound_blob.h"
 #include "c_api/ie_c_api.h"
+
+#include <ie_extension.h>
+
+#include <algorithm>
+#include <cassert>
+#include <chrono>
+#include <istream>
+#include <iterator>
+#include <map>
+#include <memory>
+#include <set>
+#include <streambuf>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+#include "ie_compound_blob.h"
+#include "inference_engine.hpp"
 
 namespace IE = InferenceEngine;
 
@@ -67,24 +70,26 @@ struct ie_network {
  * @brief This struct puts memory buffer to stringbuf.
  */
 struct mem_stringbuf : std::streambuf {
-    mem_stringbuf(const char *buffer, size_t sz) {
-        char * bptr(const_cast<char *>(buffer));
+    mem_stringbuf(const char* buffer, size_t sz) {
+        char* bptr(const_cast<char*>(buffer));
         setg(bptr, bptr, bptr + sz);
     }
 
-    pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which = std::ios_base::in) override {
+    pos_type seekoff(off_type off,
+                     std::ios_base::seekdir dir,
+                     std::ios_base::openmode which = std::ios_base::in) override {
         switch (dir) {
-            case std::ios_base::beg:
-                setg(eback(), eback() + off, egptr());
-                break;
-            case std::ios_base::end:
-                setg(eback(), egptr() + off, egptr());
-                break;
-            case std::ios_base::cur:
-                setg(eback(), gptr() + off, egptr());
-                break;
-            default:
-                return pos_type(off_type(-1));
+        case std::ios_base::beg:
+            setg(eback(), eback() + off, egptr());
+            break;
+        case std::ios_base::end:
+            setg(eback(), egptr() + off, egptr());
+            break;
+        case std::ios_base::cur:
+            setg(eback(), gptr() + off, egptr());
+            break;
+        default:
+            return pos_type(off_type(-1));
         }
         return (gptr() < eback() || gptr() > egptr()) ? pos_type(off_type(-1)) : pos_type(gptr() - eback());
     }
@@ -98,61 +103,64 @@ struct mem_stringbuf : std::streambuf {
  * @struct mem_istream
  * @brief This struct puts stringbuf buffer to istream.
  */
-struct mem_istream: virtual mem_stringbuf, std::istream {
-    mem_istream(const char * buffer, size_t sz) : mem_stringbuf(buffer, sz), std::istream(static_cast<std::streambuf *>(this)) {
-    }
+struct mem_istream : virtual mem_stringbuf, std::istream {
+    mem_istream(const char* buffer, size_t sz)
+        : mem_stringbuf(buffer, sz),
+          std::istream(static_cast<std::streambuf*>(this)) {}
 };
 
-std::map<IE::StatusCode, IEStatusCode> status_map = {{IE::StatusCode::GENERAL_ERROR, IEStatusCode::GENERAL_ERROR},
-                                                        {IE::StatusCode::INFER_NOT_STARTED, IEStatusCode::INFER_NOT_STARTED},
-                                                        {IE::StatusCode::NETWORK_NOT_LOADED,  IEStatusCode::NETWORK_NOT_LOADED},
-                                                        {IE::StatusCode::NETWORK_NOT_READ,  IEStatusCode::NETWORK_NOT_READ},
-                                                        {IE::StatusCode::NOT_ALLOCATED,  IEStatusCode::NOT_ALLOCATED},
-                                                        {IE::StatusCode::NOT_FOUND,   IEStatusCode::NOT_FOUND},
-                                                        {IE::StatusCode::NOT_IMPLEMENTED,  IEStatusCode::NOT_IMPLEMENTED},
-                                                        {IE::StatusCode::OK,   IEStatusCode::OK},
-                                                        {IE::StatusCode::OUT_OF_BOUNDS, IEStatusCode::OUT_OF_BOUNDS},
-                                                        {IE::StatusCode::PARAMETER_MISMATCH, IEStatusCode::PARAMETER_MISMATCH},
-                                                        {IE::StatusCode::REQUEST_BUSY, IEStatusCode::REQUEST_BUSY},
-                                                        {IE::StatusCode::RESULT_NOT_READY, IEStatusCode::RESULT_NOT_READY},
-                                                        {IE::StatusCode::UNEXPECTED, IEStatusCode::UNEXPECTED}};
+std::map<IE::StatusCode, IEStatusCode> status_map = {
+    {IE::StatusCode::GENERAL_ERROR, IEStatusCode::GENERAL_ERROR},
+    {IE::StatusCode::INFER_NOT_STARTED, IEStatusCode::INFER_NOT_STARTED},
+    {IE::StatusCode::NETWORK_NOT_LOADED, IEStatusCode::NETWORK_NOT_LOADED},
+    {IE::StatusCode::NETWORK_NOT_READ, IEStatusCode::NETWORK_NOT_READ},
+    {IE::StatusCode::NOT_ALLOCATED, IEStatusCode::NOT_ALLOCATED},
+    {IE::StatusCode::NOT_FOUND, IEStatusCode::NOT_FOUND},
+    {IE::StatusCode::NOT_IMPLEMENTED, IEStatusCode::NOT_IMPLEMENTED},
+    {IE::StatusCode::OK, IEStatusCode::OK},
+    {IE::StatusCode::OUT_OF_BOUNDS, IEStatusCode::OUT_OF_BOUNDS},
+    {IE::StatusCode::PARAMETER_MISMATCH, IEStatusCode::PARAMETER_MISMATCH},
+    {IE::StatusCode::REQUEST_BUSY, IEStatusCode::REQUEST_BUSY},
+    {IE::StatusCode::RESULT_NOT_READY, IEStatusCode::RESULT_NOT_READY},
+    {IE::StatusCode::UNEXPECTED, IEStatusCode::UNEXPECTED}};
 
 std::map<IE::Precision, precision_e> precision_map = {{IE::Precision::UNSPECIFIED, precision_e::UNSPECIFIED},
-                                                        {IE::Precision::MIXED, precision_e::MIXED},
-                                                        {IE::Precision::FP32, precision_e::FP32},
-                                                        {IE::Precision::FP16, precision_e::FP16},
-                                                        {IE::Precision::FP64, precision_e::FP64},
-                                                        {IE::Precision::Q78, precision_e::Q78},
-                                                        {IE::Precision::I16, precision_e::I16},
-                                                        {IE::Precision::U4, precision_e::U4},
-                                                        {IE::Precision::U8, precision_e::U8},
-                                                        {IE::Precision::I4, precision_e::I4},
-                                                        {IE::Precision::I8, precision_e::I8},
-                                                        {IE::Precision::U16, precision_e::U16},
-                                                        {IE::Precision::I32, precision_e::I32},
-                                                        {IE::Precision::U32, precision_e::U32},
-                                                        {IE::Precision::I64, precision_e::I64},
-                                                        {IE::Precision::U64, precision_e::U64},
-                                                        {IE::Precision::BIN, precision_e::BIN},
-                                                        {IE::Precision::CUSTOM, precision_e::CUSTOM}};
+                                                      {IE::Precision::MIXED, precision_e::MIXED},
+                                                      {IE::Precision::FP32, precision_e::FP32},
+                                                      {IE::Precision::FP16, precision_e::FP16},
+                                                      {IE::Precision::FP64, precision_e::FP64},
+                                                      {IE::Precision::Q78, precision_e::Q78},
+                                                      {IE::Precision::I16, precision_e::I16},
+                                                      {IE::Precision::U4, precision_e::U4},
+                                                      {IE::Precision::U8, precision_e::U8},
+                                                      {IE::Precision::I4, precision_e::I4},
+                                                      {IE::Precision::I8, precision_e::I8},
+                                                      {IE::Precision::U16, precision_e::U16},
+                                                      {IE::Precision::I32, precision_e::I32},
+                                                      {IE::Precision::U32, precision_e::U32},
+                                                      {IE::Precision::I64, precision_e::I64},
+                                                      {IE::Precision::U64, precision_e::U64},
+                                                      {IE::Precision::BIN, precision_e::BIN},
+                                                      {IE::Precision::CUSTOM, precision_e::CUSTOM}};
 
 std::map<IE::Layout, layout_e> layout_map = {{IE::Layout::ANY, layout_e::ANY},
-                                                {IE::Layout::NCHW, layout_e::NCHW},
-                                                {IE::Layout::NHWC, layout_e::NHWC},
-                                                {IE::Layout::NCDHW, layout_e::NCDHW},
-                                                {IE::Layout::NDHWC, layout_e::NDHWC},
-                                                {IE::Layout::OIHW, layout_e::OIHW},
-                                                {IE::Layout::SCALAR, layout_e::SCALAR},
-                                                {IE::Layout::C, layout_e::C},
-                                                {IE::Layout::CHW, layout_e::CHW},
-                                                {IE::Layout::HW, layout_e::HW},
-                                                {IE::Layout::NC, layout_e::NC},
-                                                {IE::Layout::CN, layout_e::CN},
-                                                {IE::Layout::BLOCKED, layout_e::BLOCKED}};
+                                             {IE::Layout::NCHW, layout_e::NCHW},
+                                             {IE::Layout::NHWC, layout_e::NHWC},
+                                             {IE::Layout::NCDHW, layout_e::NCDHW},
+                                             {IE::Layout::NDHWC, layout_e::NDHWC},
+                                             {IE::Layout::OIHW, layout_e::OIHW},
+                                             {IE::Layout::SCALAR, layout_e::SCALAR},
+                                             {IE::Layout::C, layout_e::C},
+                                             {IE::Layout::CHW, layout_e::CHW},
+                                             {IE::Layout::HW, layout_e::HW},
+                                             {IE::Layout::NC, layout_e::NC},
+                                             {IE::Layout::CN, layout_e::CN},
+                                             {IE::Layout::BLOCKED, layout_e::BLOCKED}};
 
-std::map<IE::ResizeAlgorithm, resize_alg_e> resize_alg_map = {{IE::ResizeAlgorithm::NO_RESIZE, resize_alg_e::NO_RESIZE},
-                                                                {IE::ResizeAlgorithm::RESIZE_AREA, resize_alg_e::RESIZE_AREA},
-                                                                {IE::ResizeAlgorithm::RESIZE_BILINEAR, resize_alg_e::RESIZE_BILINEAR}};
+std::map<IE::ResizeAlgorithm, resize_alg_e> resize_alg_map = {
+    {IE::ResizeAlgorithm::NO_RESIZE, resize_alg_e::NO_RESIZE},
+    {IE::ResizeAlgorithm::RESIZE_AREA, resize_alg_e::RESIZE_AREA},
+    {IE::ResizeAlgorithm::RESIZE_BILINEAR, resize_alg_e::RESIZE_BILINEAR}};
 
 std::map<IE::ColorFormat, colorformat_e> colorformat_map = {{IE::ColorFormat::RAW, colorformat_e::RAW},
                                                             {IE::ColorFormat::RGB, colorformat_e::RGB},
@@ -162,30 +170,35 @@ std::map<IE::ColorFormat, colorformat_e> colorformat_map = {{IE::ColorFormat::RA
                                                             {IE::ColorFormat::NV12, colorformat_e::NV12},
                                                             {IE::ColorFormat::I420, colorformat_e::I420}};
 
-#define CATCH_IE_EXCEPTION(StatusCode, ExceptionType) catch (const IE::ExceptionType&) {return IEStatusCode::StatusCode;}
+#define CATCH_IE_EXCEPTION(StatusCode, ExceptionType) \
+    catch (const IE::ExceptionType&) {                \
+        return IEStatusCode::StatusCode;              \
+    }
 
-#define CATCH_IE_EXCEPTIONS                                         \
-        CATCH_IE_EXCEPTION(GENERAL_ERROR, GeneralError)             \
-        CATCH_IE_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)         \
-        CATCH_IE_EXCEPTION(NETWORK_NOT_LOADED, NetworkNotLoaded)    \
-        CATCH_IE_EXCEPTION(PARAMETER_MISMATCH, ParameterMismatch)   \
-        CATCH_IE_EXCEPTION(NOT_FOUND, NotFound)                     \
-        CATCH_IE_EXCEPTION(OUT_OF_BOUNDS, OutOfBounds)              \
-        CATCH_IE_EXCEPTION(UNEXPECTED, Unexpected)                  \
-        CATCH_IE_EXCEPTION(REQUEST_BUSY, RequestBusy)               \
-        CATCH_IE_EXCEPTION(RESULT_NOT_READY, ResultNotReady)        \
-        CATCH_IE_EXCEPTION(NOT_ALLOCATED, NotAllocated)             \
-        CATCH_IE_EXCEPTION(INFER_NOT_STARTED, InferNotStarted)      \
-        CATCH_IE_EXCEPTION(NETWORK_NOT_READ, NetworkNotRead)        \
-        CATCH_IE_EXCEPTION(INFER_CANCELLED, InferCancelled)         \
-        catch (...) {return IEStatusCode::UNEXPECTED;}
+#define CATCH_IE_EXCEPTIONS                                   \
+    CATCH_IE_EXCEPTION(GENERAL_ERROR, GeneralError)           \
+    CATCH_IE_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)       \
+    CATCH_IE_EXCEPTION(NETWORK_NOT_LOADED, NetworkNotLoaded)  \
+    CATCH_IE_EXCEPTION(PARAMETER_MISMATCH, ParameterMismatch) \
+    CATCH_IE_EXCEPTION(NOT_FOUND, NotFound)                   \
+    CATCH_IE_EXCEPTION(OUT_OF_BOUNDS, OutOfBounds)            \
+    CATCH_IE_EXCEPTION(UNEXPECTED, Unexpected)                \
+    CATCH_IE_EXCEPTION(REQUEST_BUSY, RequestBusy)             \
+    CATCH_IE_EXCEPTION(RESULT_NOT_READY, ResultNotReady)      \
+    CATCH_IE_EXCEPTION(NOT_ALLOCATED, NotAllocated)           \
+    CATCH_IE_EXCEPTION(INFER_NOT_STARTED, InferNotStarted)    \
+    CATCH_IE_EXCEPTION(NETWORK_NOT_READ, NetworkNotRead)      \
+    CATCH_IE_EXCEPTION(INFER_CANCELLED, InferCancelled)       \
+    catch (...) {                                             \
+        return IEStatusCode::UNEXPECTED;                      \
+    }
 
 /**
  *@brief convert the config type data to map type data.
  */
-std::map<std::string, std::string> config2Map(const ie_config_t *config) {
+inline std::map<std::string, std::string> config2Map(const ie_config_t* config) {
     std::map<std::string, std::string> m;
-    const ie_config_t *tmp = config;
+    const ie_config_t* tmp = config;
     while (tmp && tmp->name && tmp->value) {
         m[tmp->name] = tmp->value;
         tmp = tmp->next;
@@ -193,9 +206,9 @@ std::map<std::string, std::string> config2Map(const ie_config_t *config) {
     return m;
 }
 
-std::map<std::string, IE::Parameter> config2ParamMap(const ie_config_t *config) {
+inline std::map<std::string, IE::Parameter> config2ParamMap(const ie_config_t* config) {
     std::map<std::string, IE::Parameter> param_map;
-    const ie_config_t *tmp = config;
+    const ie_config_t* tmp = config;
 
     while (tmp) {
         IE::Parameter param = IE::Parameter(std::string(tmp->value));
@@ -208,7 +221,7 @@ std::map<std::string, IE::Parameter> config2ParamMap(const ie_config_t *config) 
 /**
  *@brief convert the parameter.
  */
-void parameter2IEparam(const IE::Parameter param, ie_param_t *ie_param) {
+inline void parameter2IEparam(const IE::Parameter param, ie_param_t* ie_param) {
     if (param.is<std::string>()) {
         std::unique_ptr<char> params_temp(new char[param.as<std::string>().length() + 1]);
         ie_param->params = params_temp.release();
@@ -229,12 +242,12 @@ void parameter2IEparam(const IE::Parameter param, ie_param_t *ie_param) {
             ie_param->params = params_temp.release();
             memcpy(ie_param->params, "", sizeof(char));
         }
-    } else if (param.is<std::tuple<unsigned int, unsigned int >>()) {
-        auto val = param.as<std::tuple<unsigned int, unsigned int >>();
+    } else if (param.is<std::tuple<unsigned int, unsigned int>>()) {
+        auto val = param.as<std::tuple<unsigned int, unsigned int>>();
         ie_param->range_for_streams[0] = std::get<0>(val);
         ie_param->range_for_streams[1] = std::get<1>(val);
-    } else if (param.is<std::tuple<unsigned int, unsigned int, unsigned int >>()) {
-        auto val = param.as<std::tuple<unsigned int, unsigned int, unsigned int >>();
+    } else if (param.is<std::tuple<unsigned int, unsigned int, unsigned int>>()) {
+        auto val = param.as<std::tuple<unsigned int, unsigned int, unsigned int>>();
         ie_param->range_for_async_infer_request[0] = std::get<0>(val);
         ie_param->range_for_async_infer_request[1] = std::get<1>(val);
         ie_param->range_for_async_infer_request[2] = std::get<2>(val);
@@ -256,21 +269,21 @@ ie_version_t ie_c_api_version(void) {
     return version_res;
 }
 
-void ie_version_free(ie_version_t *version) {
+void ie_version_free(ie_version_t* version) {
     if (version) {
         delete[] version->api_version;
         version->api_version = NULL;
     }
 }
 
-void ie_param_free(ie_param_t *param) {
+void ie_param_free(ie_param_t* param) {
     if (param && param->params) {
         delete[] param->params;
         param->params = NULL;
     }
 }
 
-IEStatusCode ie_core_create(const char *xml_config_file, ie_core_t **core) {
+IEStatusCode ie_core_create(const char* xml_config_file, ie_core_t** core) {
     if (xml_config_file == nullptr || core == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -278,20 +291,21 @@ IEStatusCode ie_core_create(const char *xml_config_file, ie_core_t **core) {
     IEStatusCode status = IEStatusCode::OK;
     try {
         auto object = IE::Core(xml_config_file);
-        *core = new ie_core_t { std::move(object) };
-    } CATCH_IE_EXCEPTIONS
+        *core = new ie_core_t{std::move(object)};
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-void ie_core_free(ie_core_t **core) {
+void ie_core_free(ie_core_t** core) {
     if (core) {
         delete *core;
         *core = NULL;
     }
 }
 
-IEStatusCode ie_core_get_versions(const ie_core_t *core, const char *device_name, ie_core_versions_t *versions) {
+IEStatusCode ie_core_get_versions(const ie_core_t* core, const char* device_name, ie_core_versions_t* versions) {
     if (core == nullptr || device_name == nullptr || versions == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -312,7 +326,7 @@ IEStatusCode ie_core_get_versions(const ie_core_t *core, const char *device_name
         std::map<std::string, IE::Version>::iterator iter = IEversions.begin();
         for (size_t i = 0; i < num; ++i, ++iter) {
             std::unique_ptr<char[]> deviceName(new char[iter->first.length() + 1]);
-            char *_deviceName = deviceName.release();
+            char* _deviceName = deviceName.release();
             memcpy(_deviceName, iter->first.c_str(), iter->first.length() + 1);
             vers_ptrs[i].device_name = _deviceName;
             IE_SUPPRESS_DEPRECATED_START
@@ -323,15 +337,16 @@ IEStatusCode ie_core_get_versions(const ie_core_t *core, const char *device_name
             vers_ptrs[i].description = iter->second.description;
         }
         versions->versions = vers_ptrs.release();
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-void ie_core_versions_free(ie_core_versions_t *vers) {
+void ie_core_versions_free(ie_core_versions_t* vers) {
     if (vers) {
         for (size_t i = 0; i < vers->num_vers; ++i) {
-            delete[] const_cast<char *>(vers->versions[i].device_name);
+            delete[] const_cast<char*>(vers->versions[i].device_name);
             vers->versions[i].device_name = NULL;
         }
         delete[] vers->versions;
@@ -339,7 +354,7 @@ void ie_core_versions_free(ie_core_versions_t *vers) {
     }
 }
 
-IEStatusCode ie_core_read_network(ie_core_t *core, const char *xml, const char *weights_file, ie_network_t **network) {
+IEStatusCode ie_core_read_network(ie_core_t* core, const char* xml, const char* weights_file, ie_network_t** network) {
     if (core == nullptr || xml == nullptr || network == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -354,13 +369,17 @@ IEStatusCode ie_core_read_network(ie_core_t *core, const char *xml, const char *
         }
         network_result->object = core->object.ReadNetwork(xml, bin);
         *network = network_result.release();
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_core_read_network_from_memory(ie_core_t *core, const uint8_t *xml_content, size_t xml_content_size, \
-        const ie_blob_t *weight_blob, ie_network_t **network) {
+IEStatusCode ie_core_read_network_from_memory(ie_core_t* core,
+                                              const uint8_t* xml_content,
+                                              size_t xml_content_size,
+                                              const ie_blob_t* weight_blob,
+                                              ie_network_t** network) {
     if (core == nullptr || xml_content == nullptr || network == nullptr || weight_blob == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -369,16 +388,22 @@ IEStatusCode ie_core_read_network_from_memory(ie_core_t *core, const uint8_t *xm
 
     try {
         std::unique_ptr<ie_network_t> network_result(new ie_network_t);
-        network_result->object = core->object.ReadNetwork(std::string(reinterpret_cast<const char *>(xml_content),
-            reinterpret_cast<const char *>(xml_content + xml_content_size)), weight_blob->object);
+        network_result->object =
+            core->object.ReadNetwork(std::string(reinterpret_cast<const char*>(xml_content),
+                                                 reinterpret_cast<const char*>(xml_content + xml_content_size)),
+                                     weight_blob->object);
         *network = network_result.release();
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_core_import_network(ie_core_t *core, const char *file_name, const char *device_name,
-        const ie_config_t *config, ie_executable_network_t **exe_network) {
+IEStatusCode ie_core_import_network(ie_core_t* core,
+                                    const char* file_name,
+                                    const char* device_name,
+                                    const ie_config_t* config,
+                                    ie_executable_network_t** exe_network) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || file_name == nullptr || device_name == nullptr || exe_network == nullptr) {
@@ -392,13 +417,18 @@ IEStatusCode ie_core_import_network(ie_core_t *core, const char *file_name, cons
 
         exe_net->object = core->object.ImportNetwork(file_name, device_name, conf_map);
         *exe_network = exe_net.release();
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_core_import_network_from_memory(ie_core_t *core, const uint8_t *content, size_t content_size, const char *device_name,
-       const ie_config_t *config, ie_executable_network_t **exe_network) {
+IEStatusCode ie_core_import_network_from_memory(ie_core_t* core,
+                                                const uint8_t* content,
+                                                size_t content_size,
+                                                const char* device_name,
+                                                const ie_config_t* config,
+                                                ie_executable_network_t** exe_network) {
     if (core == nullptr || content == nullptr || device_name == nullptr || exe_network == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -412,12 +442,13 @@ IEStatusCode ie_core_import_network_from_memory(ie_core_t *core, const uint8_t *
 
         exe_net->object = core->object.ImportNetwork(model_stream, device_name, conf_map);
         *exe_network = exe_net.release();
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_core_export_network(ie_executable_network_t *exe_network, const char *file_name) {
+IEStatusCode ie_core_export_network(ie_executable_network_t* exe_network, const char* file_name) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (file_name == nullptr || exe_network == nullptr) {
@@ -426,13 +457,17 @@ IEStatusCode ie_core_export_network(ie_executable_network_t *exe_network, const 
     }
     try {
         exe_network->object.Export(file_name);
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_core_load_network(ie_core_t *core, const ie_network_t *network, const char *device_name, \
-        const ie_config_t *config, ie_executable_network_t **exe_network) {
+IEStatusCode ie_core_load_network(ie_core_t* core,
+                                  const ie_network_t* network,
+                                  const char* device_name,
+                                  const ie_config_t* config,
+                                  ie_executable_network_t** exe_network) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || network == nullptr || device_name == nullptr || exe_network == nullptr) {
@@ -447,13 +482,17 @@ IEStatusCode ie_core_load_network(ie_core_t *core, const ie_network_t *network, 
         // create plugin in the registery and then create ExecutableNetwork.
         exe_net->object = core->object.LoadNetwork(network->object, device_name, conf_map);
         *exe_network = exe_net.release();
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_core_load_network_from_file(ie_core_t *core, const char *xml, const char *device_name, \
-        const ie_config_t *config, ie_executable_network_t **exe_network) {
+IEStatusCode ie_core_load_network_from_file(ie_core_t* core,
+                                            const char* xml,
+                                            const char* device_name,
+                                            const ie_config_t* config,
+                                            ie_executable_network_t** exe_network) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || xml == nullptr || device_name == nullptr || exe_network == nullptr) {
@@ -467,12 +506,13 @@ IEStatusCode ie_core_load_network_from_file(ie_core_t *core, const char *xml, co
 
         exe_net->object = core->object.LoadNetwork(xml, device_name, conf_map);
         *exe_network = exe_net.release();
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_core_set_config(ie_core_t *core, const ie_config_t *ie_core_config, const char *device_name) {
+IEStatusCode ie_core_set_config(ie_core_t* core, const ie_config_t* ie_core_config, const char* device_name) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || ie_core_config == nullptr) {
@@ -488,12 +528,13 @@ IEStatusCode ie_core_set_config(ie_core_t *core, const ie_config_t *ie_core_conf
 
     try {
         core->object.SetConfig(conf_map, deviceName);
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_core_register_plugin(ie_core_t *core, const char *plugin_name, const char *device_name ) {
+IEStatusCode ie_core_register_plugin(ie_core_t* core, const char* plugin_name, const char* device_name) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || plugin_name == nullptr || device_name == nullptr) {
@@ -503,12 +544,13 @@ IEStatusCode ie_core_register_plugin(ie_core_t *core, const char *plugin_name, c
 
     try {
         core->object.RegisterPlugin(plugin_name, device_name);
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_core_register_plugins(ie_core_t *core, const char *xml_config_file) {
+IEStatusCode ie_core_register_plugins(ie_core_t* core, const char* xml_config_file) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || xml_config_file == nullptr) {
@@ -518,12 +560,13 @@ IEStatusCode ie_core_register_plugins(ie_core_t *core, const char *xml_config_fi
 
     try {
         core->object.RegisterPlugins(xml_config_file);
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_core_unregister_plugin(ie_core_t *core, const char *device_name) {
+IEStatusCode ie_core_unregister_plugin(ie_core_t* core, const char* device_name) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || device_name == nullptr) {
@@ -533,12 +576,13 @@ IEStatusCode ie_core_unregister_plugin(ie_core_t *core, const char *device_name)
 
     try {
         core->object.UnregisterPlugin(device_name);
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_core_add_extension(ie_core_t *core, const char *extension_path, const char *device_name) {
+IEStatusCode ie_core_add_extension(ie_core_t* core, const char* extension_path, const char* device_name) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || extension_path == nullptr || device_name == nullptr) {
@@ -550,12 +594,16 @@ IEStatusCode ie_core_add_extension(ie_core_t *core, const char *extension_path, 
         auto extension_ptr = std::make_shared<InferenceEngine::Extension>(std::string{extension_path});
         auto extension = std::dynamic_pointer_cast<InferenceEngine::IExtension>(extension_ptr);
         core->object.AddExtension(extension, device_name);
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_core_get_metric(const ie_core_t *core, const char *device_name, const char *metric_name, ie_param_t *param_result) {
+IEStatusCode ie_core_get_metric(const ie_core_t* core,
+                                const char* device_name,
+                                const char* metric_name,
+                                ie_param_t* param_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || device_name == nullptr || metric_name == nullptr || param_result == nullptr) {
@@ -566,12 +614,16 @@ IEStatusCode ie_core_get_metric(const ie_core_t *core, const char *device_name, 
     try {
         IE::Parameter param = core->object.GetMetric(device_name, metric_name);
         parameter2IEparam(param, param_result);
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_core_get_config(const ie_core_t *core, const char *device_name, const char *config_name, ie_param_t *param_result) {
+IEStatusCode ie_core_get_config(const ie_core_t* core,
+                                const char* device_name,
+                                const char* config_name,
+                                ie_param_t* param_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || device_name == nullptr || config_name == nullptr || param_result == nullptr) {
@@ -584,12 +636,13 @@ IEStatusCode ie_core_get_config(const ie_core_t *core, const char *device_name, 
 
         // convert the parameter to ie_param_t
         parameter2IEparam(param, param_result);
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_core_get_available_devices(const ie_core_t *core, ie_available_devices_t *avai_devices) {
+IEStatusCode ie_core_get_available_devices(const ie_core_t* core, ie_available_devices_t* avai_devices) {
     if (core == nullptr || avai_devices == nullptr)
         return IEStatusCode::GENERAL_ERROR;
 
@@ -606,12 +659,13 @@ IEStatusCode ie_core_get_available_devices(const ie_core_t *core, ie_available_d
             memcpy(dev_ptrs[i], _devices[i].c_str(), _devices[i].length() + 1);
         }
         avai_devices->devices = dev_ptrs.release();
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return IEStatusCode::OK;
 }
 
-void ie_core_available_devices_free(ie_available_devices_t *avai_devices) {
+void ie_core_available_devices_free(ie_available_devices_t* avai_devices) {
     if (avai_devices->devices) {
         for (size_t i = 0; i < avai_devices->num_devices; ++i) {
             if (avai_devices->devices[i]) {
@@ -625,14 +679,15 @@ void ie_core_available_devices_free(ie_available_devices_t *avai_devices) {
     }
 }
 
-void ie_exec_network_free(ie_executable_network_t **ie_exec_network) {
+void ie_exec_network_free(ie_executable_network_t** ie_exec_network) {
     if (ie_exec_network) {
         delete *ie_exec_network;
         *ie_exec_network = NULL;
     }
 }
 
-IEStatusCode ie_exec_network_create_infer_request(ie_executable_network_t *ie_exec_network, ie_infer_request_t **request) {
+IEStatusCode ie_exec_network_create_infer_request(ie_executable_network_t* ie_exec_network,
+                                                  ie_infer_request_t** request) {
     IEStatusCode status = IEStatusCode::OK;
     if (ie_exec_network == nullptr || request == nullptr) {
         status = IEStatusCode::GENERAL_ERROR;
@@ -643,12 +698,15 @@ IEStatusCode ie_exec_network_create_infer_request(ie_executable_network_t *ie_ex
         std::unique_ptr<ie_infer_request_t> req(new ie_infer_request_t);
         req->object = ie_exec_network->object.CreateInferRequest();
         *request = req.release();
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_exec_network_get_metric(const ie_executable_network_t *ie_exec_network, const char *metric_name, ie_param_t *param_result) {
+IEStatusCode ie_exec_network_get_metric(const ie_executable_network_t* ie_exec_network,
+                                        const char* metric_name,
+                                        ie_param_t* param_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (ie_exec_network == nullptr || metric_name == nullptr || param_result == nullptr) {
@@ -659,12 +717,13 @@ IEStatusCode ie_exec_network_get_metric(const ie_executable_network_t *ie_exec_n
     try {
         InferenceEngine::Parameter parameter = ie_exec_network->object.GetMetric(metric_name);
         parameter2IEparam(parameter, param_result);
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_exec_network_set_config(ie_executable_network_t *ie_exec_network, const ie_config_t *param_config) {
+IEStatusCode ie_exec_network_set_config(ie_executable_network_t* ie_exec_network, const ie_config_t* param_config) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (ie_exec_network == nullptr || param_config == nullptr) {
@@ -675,12 +734,15 @@ IEStatusCode ie_exec_network_set_config(ie_executable_network_t *ie_exec_network
     try {
         const std::map<std::string, IE::Parameter> conf_map = config2ParamMap(param_config);
         ie_exec_network->object.SetConfig(conf_map);
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_exec_network_get_config(const ie_executable_network_t *ie_exec_network, const char *metric_config, ie_param_t *param_result) {
+IEStatusCode ie_exec_network_get_config(const ie_executable_network_t* ie_exec_network,
+                                        const char* metric_config,
+                                        ie_param_t* param_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (ie_exec_network == nullptr || metric_config == nullptr || param_result == nullptr) {
@@ -691,19 +753,20 @@ IEStatusCode ie_exec_network_get_config(const ie_executable_network_t *ie_exec_n
     try {
         InferenceEngine::Parameter parameter = ie_exec_network->object.GetConfig(metric_config);
         parameter2IEparam(parameter, param_result);
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-void ie_network_free(ie_network_t **network) {
+void ie_network_free(ie_network_t** network) {
     if (network) {
         delete *network;
         *network = NULL;
     }
 }
 
-IEStatusCode ie_network_get_name(const ie_network_t *network, char **name) {
+IEStatusCode ie_network_get_name(const ie_network_t* network, char** name) {
     if (network == nullptr || name == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -713,12 +776,13 @@ IEStatusCode ie_network_get_name(const ie_network_t *network, char **name) {
         std::unique_ptr<char[]> netName(new char[_name.length() + 1]);
         *name = netName.release();
         memcpy(*name, _name.c_str(), _name.length() + 1);
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return IEStatusCode::OK;
 }
 
-IEStatusCode ie_network_get_inputs_number(const ie_network_t *network, size_t *size_result) {
+IEStatusCode ie_network_get_inputs_number(const ie_network_t* network, size_t* size_result) {
     IEStatusCode status = IEStatusCode::OK;
     if (network == nullptr || size_result == nullptr) {
         status = IEStatusCode::GENERAL_ERROR;
@@ -728,12 +792,13 @@ IEStatusCode ie_network_get_inputs_number(const ie_network_t *network, size_t *s
     try {
         IE::InputsDataMap inputs = network->object.getInputsInfo();
         *size_result = inputs.size();
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_network_get_input_name(const ie_network_t *network, size_t number, char **name) {
+IEStatusCode ie_network_get_input_name(const ie_network_t* network, size_t number, char** name) {
     if (network == nullptr || name == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -755,12 +820,15 @@ IEStatusCode ie_network_get_input_name(const ie_network_t *network, size_t numbe
             *name = inputName.release();
             memcpy(*name, iter->first.c_str(), iter->first.length() + 1);
         }
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_network_get_input_precision(const ie_network_t *network, const char *input_name, precision_e *prec_result) {
+IEStatusCode ie_network_get_input_precision(const ie_network_t* network,
+                                            const char* input_name,
+                                            precision_e* prec_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || input_name == nullptr || prec_result == nullptr) {
@@ -776,12 +844,13 @@ IEStatusCode ie_network_get_input_precision(const ie_network_t *network, const c
             IE::Precision p = inputs[input_name]->getPrecision();
             *prec_result = precision_map[p];
         }
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_network_set_input_precision(ie_network_t *network, const char *input_name, const precision_e p) {
+IEStatusCode ie_network_set_input_precision(ie_network_t* network, const char* input_name, const precision_e p) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || input_name == nullptr) {
@@ -803,12 +872,13 @@ IEStatusCode ie_network_set_input_precision(ie_network_t *network, const char *i
             }
             inputs[input_name]->setPrecision(precision);
         }
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_network_get_input_layout(const ie_network_t *network, const char *input_name, layout_e *layout_result) {
+IEStatusCode ie_network_get_input_layout(const ie_network_t* network, const char* input_name, layout_e* layout_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || input_name == nullptr || layout_result == nullptr) {
@@ -824,12 +894,13 @@ IEStatusCode ie_network_get_input_layout(const ie_network_t *network, const char
             IE::Layout l = inputs[input_name]->getLayout();
             *layout_result = layout_map[l];
         }
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_network_set_input_layout(ie_network_t *network, const char *input_name, const layout_e l) {
+IEStatusCode ie_network_set_input_layout(ie_network_t* network, const char* input_name, const layout_e l) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || input_name == nullptr) {
@@ -851,12 +922,13 @@ IEStatusCode ie_network_set_input_layout(ie_network_t *network, const char *inpu
             }
             inputs[input_name]->setLayout(layout);
         }
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_network_get_input_dims(const ie_network_t *network, const char *input_name, dimensions_t *dims_result) {
+IEStatusCode ie_network_get_input_dims(const ie_network_t* network, const char* input_name, dimensions_t* dims_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || input_name == nullptr || dims_result == nullptr) {
@@ -871,16 +943,19 @@ IEStatusCode ie_network_get_input_dims(const ie_network_t *network, const char *
         } else {
             IE::SizeVector dims = inputs[input_name]->getTensorDesc().getDims();
             dims_result->ranks = dims.size();
-            for (size_t i = 0; i< dims_result->ranks; ++i) {
+            for (size_t i = 0; i < dims_result->ranks; ++i) {
                 dims_result->dims[i] = dims[i];
             }
         }
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_network_get_input_resize_algorithm(const ie_network_t *network, const char *input_name, resize_alg_e *resize_alg_result) {
+IEStatusCode ie_network_get_input_resize_algorithm(const ie_network_t* network,
+                                                   const char* input_name,
+                                                   resize_alg_e* resize_alg_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || input_name == nullptr || resize_alg_result == nullptr) {
@@ -896,12 +971,15 @@ IEStatusCode ie_network_get_input_resize_algorithm(const ie_network_t *network, 
             IE::ResizeAlgorithm resize = inputs[input_name]->getPreProcess().getResizeAlgorithm();
             *resize_alg_result = resize_alg_map[resize];
         }
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_network_set_input_resize_algorithm(ie_network_t *network, const char *input_name, const resize_alg_e resize_algo) {
+IEStatusCode ie_network_set_input_resize_algorithm(ie_network_t* network,
+                                                   const char* input_name,
+                                                   const resize_alg_e resize_algo) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || input_name == nullptr) {
@@ -923,13 +1001,16 @@ IEStatusCode ie_network_set_input_resize_algorithm(ie_network_t *network, const 
             }
             inputs[input_name]->getPreProcess().setResizeAlgorithm(resize);
         }
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_network_get_color_format(const ie_network_t *network, const char *input_name, colorformat_e *colformat_result) {
-     IEStatusCode status = IEStatusCode::OK;
+IEStatusCode ie_network_get_color_format(const ie_network_t* network,
+                                         const char* input_name,
+                                         colorformat_e* colformat_result) {
+    IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || input_name == nullptr || colformat_result == nullptr) {
         status = IEStatusCode::GENERAL_ERROR;
@@ -937,19 +1018,22 @@ IEStatusCode ie_network_get_color_format(const ie_network_t *network, const char
     }
 
     try {
-            IE::InputsDataMap inputs = network->object.getInputsInfo();
+        IE::InputsDataMap inputs = network->object.getInputsInfo();
         if (inputs.find(input_name) == inputs.end()) {
             status = IEStatusCode::NOT_FOUND;
         } else {
             IE::ColorFormat color = inputs[input_name]->getPreProcess().getColorFormat();
             *colformat_result = colorformat_map[color];
         }
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_network_set_color_format(ie_network_t *network, const char *input_name, const colorformat_e color_format) {
+IEStatusCode ie_network_set_color_format(ie_network_t* network,
+                                         const char* input_name,
+                                         const colorformat_e color_format) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || input_name == nullptr) {
@@ -971,19 +1055,20 @@ IEStatusCode ie_network_set_color_format(ie_network_t *network, const char *inpu
             }
             inputs[input_name]->getPreProcess().setColorFormat(color);
         }
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_network_get_input_shapes(ie_network *network, input_shapes_t *shapes) {
+IEStatusCode ie_network_get_input_shapes(ie_network* network, input_shapes_t* shapes) {
     if (network == nullptr || shapes == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
 
     IEStatusCode status = IEStatusCode::OK;
     try {
-        IE::ICNNNetwork::InputShapes net_shapes =  network->object.getInputShapes();
+        IE::ICNNNetwork::InputShapes net_shapes = network->object.getInputShapes();
         size_t num = net_shapes.size();
 
         std::unique_ptr<input_shape[]> shape_ptrs(new input_shape[num]);
@@ -1007,12 +1092,13 @@ IEStatusCode ie_network_get_input_shapes(ie_network *network, input_shapes_t *sh
         }
         shapes->shapes = shape_ptrs.release();
         status = IEStatusCode::OK;
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_network_reshape(ie_network_t *network, const input_shapes_t shapes) {
+IEStatusCode ie_network_reshape(ie_network_t* network, const input_shapes_t shapes) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr) {
@@ -1032,12 +1118,13 @@ IEStatusCode ie_network_reshape(ie_network_t *network, const input_shapes_t shap
         }
 
         network->object.reshape(net_shapes);
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_network_get_outputs_number(const ie_network_t *network, size_t *size_result) {
+IEStatusCode ie_network_get_outputs_number(const ie_network_t* network, size_t* size_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || size_result == nullptr) {
@@ -1048,12 +1135,13 @@ IEStatusCode ie_network_get_outputs_number(const ie_network_t *network, size_t *
     try {
         IE::OutputsDataMap outputs = network->object.getOutputsInfo();
         *size_result = outputs.size();
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_network_get_output_name(const ie_network_t *network, const size_t number, char **name) {
+IEStatusCode ie_network_get_output_name(const ie_network_t* network, const size_t number, char** name) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || name == nullptr) {
@@ -1075,13 +1163,16 @@ IEStatusCode ie_network_get_output_name(const ie_network_t *network, const size_
             *name = outputName.release();
             memcpy(*name, iter->first.c_str(), iter->first.length() + 1);
         }
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_network_get_output_precision(const ie_network_t *network, const char *output_name, precision_e *prec_result) {
-     IEStatusCode status = IEStatusCode::OK;
+IEStatusCode ie_network_get_output_precision(const ie_network_t* network,
+                                             const char* output_name,
+                                             precision_e* prec_result) {
+    IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || output_name == nullptr || prec_result == nullptr) {
         status = IEStatusCode::GENERAL_ERROR;
@@ -1096,12 +1187,13 @@ IEStatusCode ie_network_get_output_precision(const ie_network_t *network, const 
             IE::Precision p = outputs[output_name]->getPrecision();
             *prec_result = precision_map[p];
         }
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_network_set_output_precision(ie_network_t *network, const char *output_name, const precision_e p) {
+IEStatusCode ie_network_set_output_precision(ie_network_t* network, const char* output_name, const precision_e p) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || output_name == nullptr) {
@@ -1123,13 +1215,16 @@ IEStatusCode ie_network_set_output_precision(ie_network_t *network, const char *
             }
             outputs[output_name]->setPrecision(precision);
         }
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_network_get_output_layout(const ie_network_t *network, const char *output_name, layout_e *layout_result) {
-     IEStatusCode status = IEStatusCode::OK;
+IEStatusCode ie_network_get_output_layout(const ie_network_t* network,
+                                          const char* output_name,
+                                          layout_e* layout_result) {
+    IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || output_name == nullptr || layout_result == nullptr) {
         status = IEStatusCode::GENERAL_ERROR;
@@ -1144,12 +1239,13 @@ IEStatusCode ie_network_get_output_layout(const ie_network_t *network, const cha
             IE::Layout l = outputs[output_name]->getLayout();
             *layout_result = layout_map[l];
         }
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_network_set_output_layout(ie_network_t *network, const char *output_name, const layout_e l) {
+IEStatusCode ie_network_set_output_layout(ie_network_t* network, const char* output_name, const layout_e l) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || output_name == nullptr) {
@@ -1171,12 +1267,15 @@ IEStatusCode ie_network_set_output_layout(ie_network_t *network, const char *out
             }
             outputs[output_name]->setLayout(layout);
         }
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_network_get_output_dims(const ie_network_t *network, const char *output_name, dimensions_t *dims_result) {
+IEStatusCode ie_network_get_output_dims(const ie_network_t* network,
+                                        const char* output_name,
+                                        dimensions_t* dims_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || output_name == nullptr || dims_result == nullptr) {
@@ -1191,16 +1290,17 @@ IEStatusCode ie_network_get_output_dims(const ie_network_t *network, const char 
         } else {
             IE::SizeVector dims = outputs[output_name]->getTensorDesc().getDims();
             dims_result->ranks = dims.size();
-            for (size_t i = 0; i< dims_result->ranks; ++i) {
+            for (size_t i = 0; i < dims_result->ranks; ++i) {
                 dims_result->dims[i] = dims[i];
             }
         }
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-void ie_network_input_shapes_free(input_shapes_t *inputShapes) {
+void ie_network_input_shapes_free(input_shapes_t* inputShapes) {
     if (inputShapes) {
         for (size_t i = 0; i < inputShapes->shape_num; ++i) {
             delete[] inputShapes->shapes[i].name;
@@ -1211,21 +1311,21 @@ void ie_network_input_shapes_free(input_shapes_t *inputShapes) {
     }
 }
 
-void ie_network_name_free(char **name) {
+void ie_network_name_free(char** name) {
     if (*name) {
-        delete[] *name;
+        delete[] * name;
         *name = NULL;
     }
 }
 
-void ie_infer_request_free(ie_infer_request_t **infer_request) {
+void ie_infer_request_free(ie_infer_request_t** infer_request) {
     if (infer_request) {
         delete *infer_request;
         *infer_request = NULL;
     }
 }
 
-IEStatusCode ie_infer_request_get_blob(ie_infer_request_t *infer_request, const char *name, ie_blob_t **blob) {
+IEStatusCode ie_infer_request_get_blob(ie_infer_request_t* infer_request, const char* name, ie_blob_t** blob) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (infer_request == nullptr || name == nullptr || blob == nullptr) {
@@ -1238,27 +1338,29 @@ IEStatusCode ie_infer_request_get_blob(ie_infer_request_t *infer_request, const 
         std::unique_ptr<ie_blob_t> blob_result(new ie_blob_t);
         blob_result->object = blob_ptr;
         *blob = blob_result.release();
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_infer_request_set_blob(ie_infer_request_t *infer_request, const char *name, const ie_blob_t *blob) {
+IEStatusCode ie_infer_request_set_blob(ie_infer_request_t* infer_request, const char* name, const ie_blob_t* blob) {
     IEStatusCode status = IEStatusCode::OK;
 
-    if (infer_request == nullptr || name ==nullptr || blob == nullptr) {
+    if (infer_request == nullptr || name == nullptr || blob == nullptr) {
         status = IEStatusCode::GENERAL_ERROR;
         return status;
     }
 
     try {
         infer_request->object.SetBlob(name, blob->object);
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_infer_request_infer(ie_infer_request_t *infer_request) {
+IEStatusCode ie_infer_request_infer(ie_infer_request_t* infer_request) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (infer_request == nullptr) {
@@ -1268,12 +1370,13 @@ IEStatusCode ie_infer_request_infer(ie_infer_request_t *infer_request) {
 
     try {
         infer_request->object.Infer();
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_infer_request_infer_async(ie_infer_request_t *infer_request) {
+IEStatusCode ie_infer_request_infer_async(ie_infer_request_t* infer_request) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (infer_request == nullptr) {
@@ -1283,12 +1386,13 @@ IEStatusCode ie_infer_request_infer_async(ie_infer_request_t *infer_request) {
 
     try {
         infer_request->object.StartAsync();
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_infer_set_completion_callback(ie_infer_request_t *infer_request, ie_complete_call_back_t *callback) {
+IEStatusCode ie_infer_set_completion_callback(ie_infer_request_t* infer_request, ie_complete_call_back_t* callback) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (infer_request == nullptr || callback == nullptr) {
@@ -1301,12 +1405,13 @@ IEStatusCode ie_infer_set_completion_callback(ie_infer_request_t *infer_request,
             callback->completeCallBackFunc(callback->args);
         };
         infer_request->object.SetCompletionCallback(fun);
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_infer_request_wait(ie_infer_request_t *infer_request, const int64_t timeout) {
+IEStatusCode ie_infer_request_wait(ie_infer_request_t* infer_request, const int64_t timeout) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (infer_request == nullptr) {
@@ -1317,12 +1422,13 @@ IEStatusCode ie_infer_request_wait(ie_infer_request_t *infer_request, const int6
     try {
         IE::StatusCode status_code = infer_request->object.Wait(timeout);
         status = status_map[status_code];
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_infer_request_set_batch(ie_infer_request_t *infer_request, const size_t size) {
+IEStatusCode ie_infer_request_set_batch(ie_infer_request_t* infer_request, const size_t size) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (infer_request == nullptr) {
@@ -1331,13 +1437,14 @@ IEStatusCode ie_infer_request_set_batch(ie_infer_request_t *infer_request, const
     }
 
     try {
-        infer_request->object.SetBatch(size);
-    } CATCH_IE_EXCEPTIONS
+        infer_request->object.SetBatch(static_cast<int>(size));
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_blob_make_memory(const tensor_desc_t *tensorDesc, ie_blob_t **blob) {
+IEStatusCode ie_blob_make_memory(const tensor_desc_t* tensorDesc, ie_blob_t** blob) {
     if (tensorDesc == nullptr || blob == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -1372,7 +1479,8 @@ IEStatusCode ie_blob_make_memory(const tensor_desc_t *tensorDesc, ie_blob_t **bl
             _blob->object = IE::make_shared_blob<uint8_t>(tensor);
         } else if (prec == IE::Precision::U16) {
             _blob->object = IE::make_shared_blob<uint16_t>(tensor);
-        } else if (prec == IE::Precision::I8 || prec == IE::Precision::BIN || prec == IE::Precision::I4 || prec == IE::Precision::U4) {
+        } else if (prec == IE::Precision::I8 || prec == IE::Precision::BIN || prec == IE::Precision::I4 ||
+                   prec == IE::Precision::U4) {
             _blob->object = IE::make_shared_blob<int8_t>(tensor);
         } else if (prec == IE::Precision::I16 || prec == IE::Precision::FP16 || prec == IE::Precision::Q78) {
             _blob->object = IE::make_shared_blob<int16_t>(tensor);
@@ -1384,9 +1492,9 @@ IEStatusCode ie_blob_make_memory(const tensor_desc_t *tensorDesc, ie_blob_t **bl
             _blob->object = IE::make_shared_blob<int64_t>(tensor);
         } else if (prec == IE::Precision::U64) {
             _blob->object = IE::make_shared_blob<uint64_t>(tensor);
-        } else if  (prec == IE::Precision::FP32) {
+        } else if (prec == IE::Precision::FP32) {
             _blob->object = IE::make_shared_blob<float>(tensor);
-        }  else if  (prec == IE::Precision::FP64) {
+        } else if (prec == IE::Precision::FP64) {
             _blob->object = IE::make_shared_blob<double>(tensor);
         } else {
             _blob->object = IE::make_shared_blob<uint8_t>(tensor);
@@ -1394,12 +1502,16 @@ IEStatusCode ie_blob_make_memory(const tensor_desc_t *tensorDesc, ie_blob_t **bl
 
         _blob->object->allocate();
         *blob = _blob.release();
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_blob_make_memory_from_preallocated(const tensor_desc_t *tensorDesc, void *ptr, size_t size, ie_blob_t **blob) {
+IEStatusCode ie_blob_make_memory_from_preallocated(const tensor_desc_t* tensorDesc,
+                                                   void* ptr,
+                                                   size_t size,
+                                                   ie_blob_t** blob) {
     if (tensorDesc == nullptr || ptr == nullptr || blob == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -1430,46 +1542,48 @@ IEStatusCode ie_blob_make_memory_from_preallocated(const tensor_desc_t *tensorDe
         IE::TensorDesc tensor(prec, dims_vector, l);
         std::unique_ptr<ie_blob_t> _blob(new ie_blob_t);
         if (prec == IE::Precision::U8) {
-            uint8_t *p = reinterpret_cast<uint8_t *>(ptr);
+            uint8_t* p = reinterpret_cast<uint8_t*>(ptr);
             _blob->object = IE::make_shared_blob(tensor, p, size);
         } else if (prec == IE::Precision::U16) {
-            uint16_t *p = reinterpret_cast<uint16_t *>(ptr);
+            uint16_t* p = reinterpret_cast<uint16_t*>(ptr);
             _blob->object = IE::make_shared_blob(tensor, p, size);
-        } else if (prec == IE::Precision::I8 || prec == IE::Precision::BIN || prec == IE::Precision::I4 || prec == IE::Precision::U4) {
-            int8_t *p = reinterpret_cast<int8_t *>(ptr);
+        } else if (prec == IE::Precision::I8 || prec == IE::Precision::BIN || prec == IE::Precision::I4 ||
+                   prec == IE::Precision::U4) {
+            int8_t* p = reinterpret_cast<int8_t*>(ptr);
             _blob->object = IE::make_shared_blob(tensor, p, size);
         } else if (prec == IE::Precision::I16 || prec == IE::Precision::FP16 || prec == IE::Precision::Q78) {
-            int16_t *p = reinterpret_cast<int16_t *>(ptr);
+            int16_t* p = reinterpret_cast<int16_t*>(ptr);
             _blob->object = IE::make_shared_blob(tensor, p, size);
         } else if (prec == IE::Precision::I32) {
-            int32_t *p = reinterpret_cast<int32_t *>(ptr);
+            int32_t* p = reinterpret_cast<int32_t*>(ptr);
             _blob->object = IE::make_shared_blob(tensor, p, size);
         } else if (prec == IE::Precision::U32) {
-            uint32_t *p = reinterpret_cast<uint32_t *>(ptr);
+            uint32_t* p = reinterpret_cast<uint32_t*>(ptr);
             _blob->object = IE::make_shared_blob(tensor, p, size);
         } else if (prec == IE::Precision::I64) {
-            int64_t *p = reinterpret_cast<int64_t *>(ptr);
+            int64_t* p = reinterpret_cast<int64_t*>(ptr);
             _blob->object = IE::make_shared_blob(tensor, p, size);
         } else if (prec == IE::Precision::U64) {
-            uint64_t *p = reinterpret_cast<uint64_t *>(ptr);
+            uint64_t* p = reinterpret_cast<uint64_t*>(ptr);
             _blob->object = IE::make_shared_blob(tensor, p, size);
-        } else if  (prec == IE::Precision::FP32) {
-            float *p = reinterpret_cast<float *>(ptr);
+        } else if (prec == IE::Precision::FP32) {
+            float* p = reinterpret_cast<float*>(ptr);
             _blob->object = IE::make_shared_blob(tensor, p, size);
-        } else if  (prec == IE::Precision::FP64) {
-            double *p = reinterpret_cast<double *>(ptr);
+        } else if (prec == IE::Precision::FP64) {
+            double* p = reinterpret_cast<double*>(ptr);
             _blob->object = IE::make_shared_blob(tensor, p, size);
         } else {
-            uint8_t *p = reinterpret_cast<uint8_t *>(ptr);
+            uint8_t* p = reinterpret_cast<uint8_t*>(ptr);
             _blob->object = IE::make_shared_blob(tensor, p, size);
         }
         *blob = _blob.release();
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_blob_make_memory_with_roi(const ie_blob_t *inputBlob, const roi_t *roi, ie_blob_t **blob) {
+IEStatusCode ie_blob_make_memory_with_roi(const ie_blob_t* inputBlob, const roi_t* roi, ie_blob_t** blob) {
     if (inputBlob == nullptr || roi == nullptr || blob == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -1480,12 +1594,13 @@ IEStatusCode ie_blob_make_memory_with_roi(const ie_blob_t *inputBlob, const roi_
         IE::ROI roi_d = {roi->id, roi->posX, roi->posY, roi->sizeX, roi->sizeY};
         _blob->object = IE::make_shared_blob(inputBlob->object, roi_d);
         *blob = _blob.release();
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_blob_make_memory_nv12(const ie_blob_t *y, const ie_blob_t *uv, ie_blob_t **nv12Blob) {
+IEStatusCode ie_blob_make_memory_nv12(const ie_blob_t* y, const ie_blob_t* uv, ie_blob_t** nv12Blob) {
     if (y == nullptr || uv == nullptr || nv12Blob == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -1494,12 +1609,16 @@ IEStatusCode ie_blob_make_memory_nv12(const ie_blob_t *y, const ie_blob_t *uv, i
         std::unique_ptr<ie_blob_t> _blob(new ie_blob_t);
         _blob->object = IE::make_shared_blob<IE::NV12Blob>(y->object, uv->object);
         *nv12Blob = _blob.release();
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return IEStatusCode::OK;
 }
 
-IEStatusCode ie_blob_make_memory_i420(const ie_blob_t *y, const ie_blob_t *u, const ie_blob_t *v, ie_blob_t **i420Blob) {
+IEStatusCode ie_blob_make_memory_i420(const ie_blob_t* y,
+                                      const ie_blob_t* u,
+                                      const ie_blob_t* v,
+                                      ie_blob_t** i420Blob) {
     if (y == nullptr || u == nullptr || v == nullptr || i420Blob == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -1508,12 +1627,13 @@ IEStatusCode ie_blob_make_memory_i420(const ie_blob_t *y, const ie_blob_t *u, co
         std::unique_ptr<ie_blob_t> _blob(new ie_blob_t);
         _blob->object = IE::make_shared_blob<IE::I420Blob>(y->object, u->object, v->object);
         *i420Blob = _blob.release();
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return IEStatusCode::OK;
 }
 
-IEStatusCode ie_blob_size(ie_blob_t *blob, int *size_result) {
+IEStatusCode ie_blob_size(ie_blob_t* blob, int* size_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (blob == nullptr || size_result == nullptr) {
@@ -1521,12 +1641,12 @@ IEStatusCode ie_blob_size(ie_blob_t *blob, int *size_result) {
         return status;
     }
 
-    *size_result = blob->object->size();
+    *size_result = static_cast<int>(blob->object->size());
 
     return status;
 }
 
-IEStatusCode ie_blob_byte_size(ie_blob_t *blob, int *bsize_result) {
+IEStatusCode ie_blob_byte_size(ie_blob_t* blob, int* bsize_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (blob == nullptr || bsize_result == nullptr) {
@@ -1534,12 +1654,12 @@ IEStatusCode ie_blob_byte_size(ie_blob_t *blob, int *bsize_result) {
         return status;
     }
 
-    *bsize_result = blob->object->byteSize();
+    *bsize_result = static_cast<int>(blob->object->byteSize());
 
     return status;
 }
 
-void ie_blob_deallocate(ie_blob_t **blob) {
+void ie_blob_deallocate(ie_blob_t** blob) {
     if (*blob) {
         (*blob)->object->deallocate();
         delete *blob;
@@ -1547,27 +1667,27 @@ void ie_blob_deallocate(ie_blob_t **blob) {
     }
 }
 
-IEStatusCode ie_blob_get_buffer(const ie_blob_t *blob, ie_blob_buffer_t *blob_buffer) {
+IEStatusCode ie_blob_get_buffer(const ie_blob_t* blob, ie_blob_buffer_t* blob_buffer) {
     if (blob == nullptr || blob_buffer == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
 
-    blob_buffer->buffer =  blob->object->buffer();
+    blob_buffer->buffer = blob->object->buffer();
 
     return IEStatusCode::OK;
 }
 
-IEStatusCode ie_blob_get_cbuffer(const ie_blob_t *blob, ie_blob_buffer_t *blob_cbuffer) {
+IEStatusCode ie_blob_get_cbuffer(const ie_blob_t* blob, ie_blob_buffer_t* blob_cbuffer) {
     if (blob == nullptr || blob_cbuffer == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
 
-    blob_cbuffer->cbuffer =  blob->object->cbuffer();
+    blob_cbuffer->cbuffer = blob->object->cbuffer();
 
     return IEStatusCode::OK;
 }
 
-IEStatusCode ie_blob_get_dims(const ie_blob_t *blob, dimensions_t *dims_result) {
+IEStatusCode ie_blob_get_dims(const ie_blob_t* blob, dimensions_t* dims_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (blob == nullptr || dims_result == nullptr) {
@@ -1578,15 +1698,16 @@ IEStatusCode ie_blob_get_dims(const ie_blob_t *blob, dimensions_t *dims_result) 
     try {
         IE::SizeVector size_vector = blob->object->getTensorDesc().getDims();
         dims_result->ranks = size_vector.size();
-        for (size_t i = 0; i< dims_result->ranks; ++i) {
+        for (size_t i = 0; i < dims_result->ranks; ++i) {
             dims_result->dims[i] = size_vector[i];
         }
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_blob_get_layout(const ie_blob_t *blob, layout_e *layout_result) {
+IEStatusCode ie_blob_get_layout(const ie_blob_t* blob, layout_e* layout_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (blob == nullptr || layout_result == nullptr) {
@@ -1597,12 +1718,13 @@ IEStatusCode ie_blob_get_layout(const ie_blob_t *blob, layout_e *layout_result) 
     try {
         IE::Layout l = blob->object->getTensorDesc().getLayout();
         *layout_result = layout_map[l];
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-IEStatusCode ie_blob_get_precision(const ie_blob_t *blob, precision_e *prec_result) {
+IEStatusCode ie_blob_get_precision(const ie_blob_t* blob, precision_e* prec_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (blob == nullptr || prec_result == nullptr) {
@@ -1613,14 +1735,19 @@ IEStatusCode ie_blob_get_precision(const ie_blob_t *blob, precision_e *prec_resu
     try {
         IE::Precision p = blob->object->getTensorDesc().getPrecision();
         *prec_result = precision_map[p];
-    } CATCH_IE_EXCEPTIONS
+    }
+    CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-void ie_blob_free(ie_blob_t **blob) {
+void ie_blob_free(ie_blob_t** blob) {
     if (blob) {
         delete *blob;
         *blob = NULL;
     }
+}
+
+void ie_shutdown() {
+    InferenceEngine::shutdown();
 }

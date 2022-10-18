@@ -14,6 +14,11 @@
 
 #include "gflags/gflags.h"
 
+// gflags supports uint32 starting from v2.2 only
+#ifndef DEFINE_uint32
+#    define DEFINE_uint32(name, val, txt) DEFINE_VARIABLE(GFLAGS_NAMESPACE::uint32, U, name, val, txt)
+#endif
+
 /// @brief message for help argument
 static const char help_message[] = "Print a usage message";
 
@@ -24,7 +29,10 @@ static const char input_message[] =
     " of files for each input (except cases with single file for any input):"
     "\"input1:1.jpg input2:1.bin\", \"input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin \"."
     " Also you can pass specific keys for inputs: \"random\" - for fillling input with random data,"
-    " \"image_info\" - for filling input with image size.";
+    " \"image_info\" - for filling input with image size.\n"
+    "                              You should specify either one files set to be used for all inputs (without "
+    "providing "
+    "input names) or separate files sets for every input of model (providing inputs names).";
 
 /// @brief message for model argument
 static const char model_message[] =
@@ -35,6 +43,8 @@ static const char model_message[] =
 static const char hint_message[] =
     "Optional. Performance hint allows the OpenVINO device to select the right network-specific settings.\n"
     "                               'throughput' or 'tput': device performance mode will be set to THROUGHPUT.\n"
+    "                               'cumulative_throughput' or 'ctput': device performance mode will be set to "
+    "CUMULATIVE_THROUGHPUT.\n"
     "                               'latency': device performance mode will be set to LATENCY.\n"
     "                               'none': no device performance mode will be set.\n"
     "                              Using explicit 'nstreams' or other device-specific options, please set hint to "
@@ -93,8 +103,8 @@ static const char enforce_bf16_message[] =
     "                                  'false' - disable bfloat16 regardless of platform support";
 
 /// @brief message for user library argument
-static const char custom_cpu_library_message[] =
-    "Required for CPU custom layers. Absolute path to a shared library with the kernels "
+static const char custom_extensions_library_message[] =
+    "Required for custom layers (extensions). Absolute path to a shared library with the kernels "
     "implementations.";
 
 /// @brief message for clDNN custom kernels desc
@@ -194,7 +204,7 @@ static const char load_from_file_message[] = "Optional. Loads model from file di
                                              " All CNNNetwork options (like re-shape) will be ignored";
 
 // @brief message for inference_precision
-static const char inference_precision_message[] = "Optional. Inference precission";
+static const char inference_precision_message[] = "Optional. Inference precision";
 
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of the network.";
 
@@ -248,9 +258,9 @@ DEFINE_string(api, "async", api_message);
 /// @brief device the target device to infer on <br>
 DEFINE_string(d, "CPU", target_device_message);
 
-/// @brief Absolute path to CPU library with user layers <br>
+/// @brief Absolute path to extensions library with user layers <br>
 /// It is a required parameter
-DEFINE_string(l, "", custom_cpu_library_message);
+DEFINE_string(extensions, "", custom_extensions_library_message);
 
 /// @brief Define parameter for clDNN custom kernels path <br>
 /// Default is ./lib
@@ -329,7 +339,7 @@ DEFINE_string(data_shape, "", data_shape_message);
 DEFINE_string(layout, "", layout_message);
 
 /// @brief Define flag for inference precision
-DEFINE_string(infer_precision, "f32", inference_precision_message);
+DEFINE_string(infer_precision, "", inference_precision_message);
 
 /// @brief Specify precision for all input layers of the network
 DEFINE_string(ip, "", inputs_precision_message);
@@ -370,10 +380,10 @@ static void show_usage() {
     std::cout << "    -m \"<path>\"               " << model_message << std::endl;
     std::cout << "    -i \"<path>\"               " << input_message << std::endl;
     std::cout << "    -d \"<device>\"             " << target_device_message << std::endl;
-    std::cout << "    -l \"<absolute_path>\"      " << custom_cpu_library_message << std::endl;
-    std::cout << "          Or" << std::endl;
+    std::cout << "    -extensions \"<absolute_path>\" " << custom_extensions_library_message << std::endl;
     std::cout << "    -c \"<absolute_path>\"      " << custom_cldnn_message << std::endl;
-    std::cout << "    -hint \"performance hint (latency or throughput or none)\"   " << hint_message << std::endl;
+    std::cout << "    -hint \"performance hint (latency or throughput or cumulative_throughput or none)\"   "
+              << hint_message << std::endl;
     std::cout << "    -api \"<sync/async>\"       " << api_message << std::endl;
     std::cout << "    -niter \"<integer>\"        " << iterations_count_message << std::endl;
     std::cout << "    -nireq \"<integer>\"        " << infer_requests_count_message << std::endl;
@@ -396,19 +406,19 @@ static void show_usage() {
     std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;
 #endif
     std::cout << std::endl << "  Statistics dumping options:" << std::endl;
-    std::cout << "    -report_type \"<type>\"     " << report_type_message << std::endl;
+    std::cout << "    -report_type \"<type>\"   " << report_type_message << std::endl;
     std::cout << "    -report_folder            " << report_folder_message << std::endl;
-    std::cout << "    -json_stats               " << json_stats_message;
+    std::cout << "    -json_stats               " << json_stats_message << std::endl;
     std::cout << "    -exec_graph_path          " << exec_graph_path_message << std::endl;
     std::cout << "    -pc                       " << pc_message << std::endl;
     std::cout << "    -pcseq                    " << pcseq_message << std::endl;
     std::cout << "    -dump_config              " << dump_config_message << std::endl;
     std::cout << "    -load_config              " << load_config_message << std::endl;
     std::cout << "    -infer_precision \"<element type>\"" << inference_precision_message << std::endl;
-    std::cout << "    -ip                          <value>     " << inputs_precision_message << std::endl;
-    std::cout << "    -op                          <value>     " << outputs_precision_message << std::endl;
-    std::cout << "    -iop                        \"<value>\"    " << iop_message << std::endl;
-    std::cout << "    -iscale                    " << input_image_scale_message << std::endl;
-    std::cout << "    -imean                     " << input_image_mean_message << std::endl;
-    std::cout << "    -inference_only              " << inference_only_message << std::endl;
+    std::cout << "    -ip                       <value>     " << inputs_precision_message << std::endl;
+    std::cout << "    -op                       <value>     " << outputs_precision_message << std::endl;
+    std::cout << "    -iop                      \"<value>\"    " << iop_message << std::endl;
+    std::cout << "    -iscale                   " << input_image_scale_message << std::endl;
+    std::cout << "    -imean                    " << input_image_mean_message << std::endl;
+    std::cout << "    -inference_only           " << inference_only_message << std::endl;
 }

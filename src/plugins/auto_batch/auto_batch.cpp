@@ -30,19 +30,19 @@ using namespace InferenceEngine;
 std::vector<std::string> supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CONFIG_KEY(AUTO_BATCH_TIMEOUT)};
 
 template <Precision::ePrecision precision>
-Blob::Ptr create_shared_blob_on_top_of_batched_blob(Blob::Ptr batched_blob, size_t batch_id, size_t batch_num) {
+Blob::Ptr create_shared_blob_on_top_of_batched_blob(Blob::Ptr batched_blob,
+                                                    std::string name,
+                                                    const std::set<std::string>& batched_names,
+                                                    size_t batch_id,
+                                                    size_t batch_num) {
     typedef typename PrecisionTrait<precision>::value_type TYPE;
     typedef typename std::add_pointer<TYPE>::type TYPEPTR;
     auto ptr = batched_blob->buffer().as<TYPEPTR>();
     auto sizePerBatch = batched_blob->size() / batch_num;
-    auto layout = batched_blob->getTensorDesc().getLayout();
     SizeVector dims = batched_blob->getTensorDesc().getDims();
     // for performance reason (copy avoidance) current impl of the auto-batching supports only batching by 0th dim
-    if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW ||
-        layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
-        layout == InferenceEngine::Layout::NDHWC) {
+    if (batched_names.count(name)) {
         dims[0] = 1;
-        assert(batched_blob->getTensorDesc().getPrecision() == precision);
         return make_shared_blob<TYPE>({precision, dims, batched_blob->getTensorDesc().getLayout()},
                                       ptr + sizePerBatch * batch_id,
                                       sizePerBatch);
@@ -58,13 +58,13 @@ AutoBatchInferRequest::AutoBatchInferRequest(const std::vector<std::shared_ptr<c
                                              AutoBatchExecutableNetwork::WorkerInferRequest& workerRequest,
                                              int batch_id,
                                              int num_batch,
-                                             bool needPerfCounters)
+                                             const std::set<std::string>& batchedInputs,
+                                             const std::set<std::string>& batchedOutputs)
     : IInferRequestInternal(inputs, outputs),
       _myBatchedRequestWrapper(workerRequest),
-      _needPerfCounters(needPerfCounters),
       _batchId(batch_id),
       _batchSize(num_batch) {
-    ShareBlobsWithBatchRequest();
+    ShareBlobsWithBatchRequest(batchedInputs, batchedOutputs);
 }
 
 AutoBatchInferRequest::AutoBatchInferRequest(const InputsDataMap& networkInputs,
@@ -72,16 +72,17 @@ AutoBatchInferRequest::AutoBatchInferRequest(const InputsDataMap& networkInputs,
                                              AutoBatchExecutableNetwork::WorkerInferRequest& workerRequest,
                                              int batch_id,
                                              int num_batch,
-                                             bool needPerfCounters)
+                                             const std::set<std::string>& batchedInputs,
+                                             const std::set<std::string>& batchedOutputs)
     : IInferRequestInternal(networkInputs, networkOutputs),
       _myBatchedRequestWrapper(workerRequest),
-      _needPerfCounters(needPerfCounters),
       _batchId(batch_id),
       _batchSize(num_batch) {
-    ShareBlobsWithBatchRequest();
+    ShareBlobsWithBatchRequest(batchedInputs, batchedOutputs);
 }
 
-void AutoBatchInferRequest::ShareBlobsWithBatchRequest() {
+void AutoBatchInferRequest::ShareBlobsWithBatchRequest(const std::set<std::string>& batchedInputs,
+                                                       const std::set<std::string>& batchedOutputs) {
     // Allocate all input blobs
     for (const auto& it : _networkInputs) {
         auto blob = _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first);
@@ -90,78 +91,104 @@ void AutoBatchInferRequest::ShareBlobsWithBatchRequest() {
         case InferenceEngine::Precision::FP32:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::FP32>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedInputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::I32:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::I32>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedInputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::I8:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::I8>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedInputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::I16:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::I16>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedInputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::U16:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::U16>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedInputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::U32:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::U32>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedInputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::FP64:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::FP64>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedInputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::FP16:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::FP16>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedInputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::BF16:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::BF16>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedInputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::U64:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::U64>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedInputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::I64:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::I64>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedInputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::U8:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::U8>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedInputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::BOOL:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::BOOL>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedInputs,
                 _batchId,
                 _batchSize);
             break;
@@ -178,78 +205,104 @@ void AutoBatchInferRequest::ShareBlobsWithBatchRequest() {
         case InferenceEngine::Precision::FP32:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::FP32>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedOutputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::I32:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::I32>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedOutputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::I8:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::I8>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedOutputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::I16:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::I16>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedOutputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::U16:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::U16>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedOutputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::U32:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::U32>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedOutputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::FP64:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::FP64>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedOutputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::FP16:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::FP16>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedOutputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::BF16:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::BF16>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedOutputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::U64:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::U64>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedOutputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::I64:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::I64>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedOutputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::U8:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::U8>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedOutputs,
                 _batchId,
                 _batchSize);
             break;
         case InferenceEngine::Precision::BOOL:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::BOOL>(
                 _myBatchedRequestWrapper._inferRequestBatched->GetBlob(it.first),
+                it.first,
+                batchedOutputs,
                 _batchId,
                 _batchSize);
             break;
@@ -316,13 +369,8 @@ void AutoBatchInferRequest::CopyOutputsIfNeeded() {
     }
 }
 
-std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AutoBatchInferRequest::GetPerformanceCounts() const {
-    return _perfMap;
-}
-
 AutoBatchAsyncInferRequest::AutoBatchAsyncInferRequest(
     const AutoBatchInferRequest::Ptr& inferRequest,
-    const bool needPerfCounters,
     InferenceEngine::SoIInferRequestInternal& inferRequestWithoutBatch,
     const ITaskExecutor::Ptr& callbackExecutor)
     : AsyncInferRequestThreadSafeDefault(inferRequest, nullptr, callbackExecutor),
@@ -338,34 +386,33 @@ AutoBatchAsyncInferRequest::AutoBatchAsyncInferRequest(
             t.second = std::move(task);
             workerInferRequest._tasks.push(t);
             // it is ok to call size() here as the queue only grows (and the bulk removal happens under the mutex)
-            const int sz = workerInferRequest._tasks.size();
+            const int sz = static_cast<int>(workerInferRequest._tasks.size());
             if (sz == workerInferRequest._batchSize) {
                 workerInferRequest._cond.notify_one();
             }
         };
         AutoBatchAsyncInferRequest* _this = nullptr;
     };
-    _pipeline = {
-        {/*TaskExecutor*/ std::make_shared<ThisRequestExecutor>(this), /*task*/ [this, needPerfCounters] {
-             if (this->_inferRequest->_exceptionPtr)  // if the exception happened in the batch1 fallback
-                 std::rethrow_exception(this->_inferRequest->_exceptionPtr);
-             auto& batchReq = this->_inferRequest->_myBatchedRequestWrapper;
-             if (batchReq._exceptionPtr)  // when the batchN execution failed
-                 std::rethrow_exception(batchReq._exceptionPtr);
-             // in the case of non-batched execution the blobs were set explicitly
-             if (AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED == this->_inferRequest->_wasBatchedRequestUsed)
-                 this->_inferRequest->CopyOutputsIfNeeded();
-             if (needPerfCounters) {
-                 try {
-                     if (AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED ==
-                         this->_inferRequest->_wasBatchedRequestUsed)
-                         this->_inferRequest->_perfMap = batchReq._inferRequestBatched->GetPerformanceCounts();
-                     else
-                         this->_inferRequest->_perfMap = this->_inferRequestWithoutBatch->GetPerformanceCounts();
-                 } catch (...) {
-                 }
-             }
-         }}};
+    _pipeline = {{/*TaskExecutor*/ std::make_shared<ThisRequestExecutor>(this), /*task*/ [this] {
+                      if (this->_inferRequest->_exceptionPtr)  // if the exception happened in the batch1 fallback
+                          std::rethrow_exception(this->_inferRequest->_exceptionPtr);
+                      auto& batchReq = this->_inferRequest->_myBatchedRequestWrapper;
+                      if (batchReq._exceptionPtr)  // when the batchN execution failed
+                          std::rethrow_exception(batchReq._exceptionPtr);
+                      // in the case of non-batched execution the blobs were set explicitly
+                      if (AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED ==
+                          this->_inferRequest->_wasBatchedRequestUsed)
+                          this->_inferRequest->CopyOutputsIfNeeded();
+                  }}};
+}
+
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AutoBatchAsyncInferRequest::GetPerformanceCounts()
+    const {
+    CheckState();
+    if (AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED == _inferRequest->_wasBatchedRequestUsed)
+        return _inferRequest->_myBatchedRequestWrapper._inferRequestBatched->GetPerformanceCounts();
+    else
+        return _inferRequestWithoutBatch->GetPerformanceCounts();
 }
 
 void AutoBatchAsyncInferRequest::Infer_ThreadUnsafe() {
@@ -382,13 +429,15 @@ AutoBatchExecutableNetwork::AutoBatchExecutableNetwork(
     const InferenceEngine::SoExecutableNetworkInternal& networkWithoutBatch,
     const DeviceInformation& networkDevice,
     const std::unordered_map<std::string, InferenceEngine::Parameter>& config,
-    const bool needPerfCounters)
+    const std::set<std::string>& batchedInputs,
+    const std::set<std::string>& batchedOutputs)
     : InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr,
                                                           std::make_shared<InferenceEngine::ImmediateExecutor>()),
       _network{networkWithBatch},
       _networkWithoutBatch{networkWithoutBatch},
       _config{config},
-      _needPerfCounters{needPerfCounters} {
+      _batchedInputs(batchedInputs),
+      _batchedOutputs(batchedOutputs) {
     // WA for gcc 4.8 ( fails compilation with member init-list)
     _device = networkDevice;
     auto time_out = config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT));
@@ -424,16 +473,14 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
                                                    workerRequestPtrAndId.first,
                                                    workerRequestPtrAndId.second,
                                                    _device.batchForDevice,
-                                                   _needPerfCounters);
+                                                   _batchedInputs,
+                                                   _batchedOutputs);
 }
 
 InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateInferRequestImpl(
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    if (!this->_plugin)
-        return nullptr;
-    const auto& core = _plugin->GetCore();
-    if (!core || !core->isNewAPI())
+    if (!this->_plugin || !_plugin->IsNewAPI())
         return nullptr;
     auto workerRequestPtrAndId = GetWorkerInferRequest();
     return std::make_shared<AutoBatchInferRequest>(inputs,
@@ -441,7 +488,8 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
                                                    workerRequestPtrAndId.first,
                                                    workerRequestPtrAndId.second,
                                                    _device.batchForDevice,
-                                                   _needPerfCounters);
+                                                   _batchedInputs,
+                                                   _batchedOutputs);
 }
 
 std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecutableNetwork::GetWorkerInferRequest() {
@@ -479,7 +527,7 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
                 } else {
                     // as we pop the tasks from the queue only here
                     // it is ok to call size() (as the _tasks can only grow in parallel)
-                    const int sz = workerRequestPtr->_tasks.size();
+                    const int sz = static_cast<int>(workerRequestPtr->_tasks.size());
                     if (sz == workerRequestPtr->_batchSize) {
                         std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
                         for (int n = 0; n < sz; n++) {
@@ -519,13 +567,15 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
             }
         });
     }
-    return {*_workerRequests.back(), batch_id};
+    return {*_workerRequests.back(), static_cast<int>(batch_id)};
 }
 
 InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateInferRequest() {
     if (!_network) {
         auto res = _networkWithoutBatch->CreateInferRequest();
         res->setPointerToExecutableNetworkInternal(shared_from_this());
+        res->setPointerToSo(_networkWithoutBatch._so);
+        _so = _networkWithoutBatch._so;
         return res;
     }
     // trying to create the new API request first
@@ -537,7 +587,6 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
                                                                          _networkWithoutBatch._so};
     return std::make_shared<AutoBatchAsyncInferRequest>(
         std::static_pointer_cast<AutoBatchInferRequest>(syncRequestImpl),
-        _needPerfCounters,
         inferRequestWithoutBatch,
         _callbackExecutor);
 }
@@ -583,7 +632,7 @@ InferenceEngine::Parameter AutoBatchExecutableNetwork::GetMetric(const std::stri
                 // (multiplied by the devices capabilities to run multiple <batched> requests for further perf)
                 reqs = _device.batchForDevice *
                        _networkWithoutBatch->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
-        } catch (const InferenceEngine::Exception& iie) {
+        } catch (const InferenceEngine::Exception&) {
         }
         reqs = std::max(reqs, _device.batchForDevice);  // round up to the possible  user's value
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, reqs);
@@ -708,7 +757,7 @@ void AutoBatchInferencePlugin::CheckConfig(const std::map<std::string, std::stri
                 auto t = std::stoi(val);
                 if (t < 0)
                     IE_THROW(ParameterMismatch);
-            } catch (const std::exception& e) {
+            } catch (const std::exception&) {
                 IE_THROW(ParameterMismatch)
                     << " Expecting unsigned int value for " << CONFIG_KEY(AUTO_BATCH_TIMEOUT) << " got " << val;
             }
@@ -776,6 +825,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     deviceConfigNoAutoBatch[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = CONFIG_VALUE(NO);
 
     std::set<std::string> batched_inputs;
+    std::set<std::string> batched_outputs;
     // check that the auto-batching is applicable in general
     try {
         // if applicable, the Auto-Batching is implicitly enabled via the performance hints
@@ -783,20 +833,17 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         const bool bTputInPlg = core->GetConfig(deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == tput;
         const auto& mode = deviceConfig.find(CONFIG_KEY(PERFORMANCE_HINT));
         const bool bTputInLoadCfg = (mode != deviceConfig.end() && mode->second == tput);
-        // if the auto-batching is enabled implicitly, we shall check the dims carefully, to avoid outstanding failures
+        // if the auto-batching is enabled implicitly, check the dims carefully, to avoid outstanding failures
         const bool check_dims = (bTputInPlg || bTputInLoadCfg);
         CNNNetwork clonedNetwork(InferenceEngine::details::cloneNetwork(network));
         auto function = clonedNetwork.getFunction();
         // find the batch dim
         ov::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        if (check_dims)
-            m.register_pass<ov::pass::FindBatch>();
-        else
-            m.register_pass<ov::pass::FindBatchDontTrack>();
+        m.register_pass<ov::pass::FindBatch>(false, check_dims);
         m.run_passes(function);
         // do not reshape/re-batch originally batched networks and when there are no inputs with the N* layouts
-        // input(s) should have the batch dim as the first dim or none (current limitation of the auto-batching impl)
+        // input(s) should have the batch dim as the first dim (current limitation of the auto-batching impl)
         const auto& params = function->get_parameters();
         for (size_t input_id = 0; input_id < params.size(); input_id++) {
             const auto& input = params[input_id];
@@ -819,15 +866,36 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
                             << "Auto-batching operates only networks with inputs/outputs batched by 0th dimension";
             }
         }
-        if (!batched_inputs.size())
-            IE_THROW(NotImplemented) << "Auto-batching supports only networks with inputs featuring batched dim!";
+        const auto& results = function->get_results();
+        for (size_t output_id = 0; output_id < results.size(); output_id++) {
+            const auto& output = results[output_id];
+            const auto& shape = output->get_output_partial_shape(0);
+            if (shape.is_dynamic())
+                IE_THROW(NotImplemented) << "Auto-batching does not support dynamic networks!";
+            // check the batch dim: either 0th (and the original batch size of 1) or none
+            if (shape.size() && ov::DimensionTracker::get_label(shape[0])) {
+                if (shape[0] != 1)
+                    IE_THROW(NotImplemented) << "Auto-batching does not reshape/re-batch originally batched networks!";
+                const auto& node = output->input_value(0);
+                batched_outputs.insert(ngraph::op::util::get_ie_output_name(
+                    ov::Output<const ov::Node>(node.get_node(), node.get_index())));
+            } else {
+                // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
+                for (size_t s = 1; s < shape.size(); s++)
+                    if (ov::DimensionTracker::get_label(shape[s]))
+                        IE_THROW(NotImplemented)
+                            << "Auto-batching operates only networks with outputs batched by 0th dimension";
+            }
+        }
+        if (!batched_inputs.size() || !batched_outputs.size())
+            IE_THROW(NotImplemented)
+                << "Auto-batching supports only networks with inputs/outputs featuring batched dim!";
     } catch (...) {
         metaDevice.batchForDevice = 1;
     }
 
     if (!metaDevice.batchForDevice) {
         unsigned int requests = 0;
-        unsigned int optimalBatchSize = 0;
         // batch size is not set explicitly via device name e.g. BATCH:GPU(4)
         // let's query the optimal batch size
         std::map<std::string, InferenceEngine::Parameter> options;
@@ -839,18 +907,13 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         if (reqs != config.end())
             requests = static_cast<unsigned int>(PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second));
         if (requests)
-            optBatchSize = std::max(1u, std::min(requests, optimalBatchSize));
+            optBatchSize = std::max(1u, std::min(requests, optBatchSize));
         if (optBatchSize > 2)  // batching is usually in-efficient for batch<4 (as batch1 kernels are heavily optimized)
             metaDevice.batchForDevice = optBatchSize;
         else
             metaDevice.batchForDevice = 1;
     }
 
-    const auto perfConfig = fullConfig.find(PluginConfigParams::KEY_PERF_COUNT);
-    const auto perfConfigInTargetPlugin =
-        core->GetConfig(deviceName, PluginConfigParams::KEY_PERF_COUNT).as<std::string>() == PluginConfigParams::YES;
-    const bool enablePerfCounters = perfConfigInTargetPlugin || ((fullConfig.end() != perfConfig) &&
-                                                                 (perfConfig->second == PluginConfigParams::YES));
     auto report_footprint = [](std::shared_ptr<ICore> pCore, std::string device) -> size_t {
         size_t footprint = 0;
         // TODO: use the per-network metric (22.2) rather than plugin-level
@@ -871,8 +934,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         if (batch1_footprint) {
             const auto total_mem =
                 GetCore()->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)).as<uint64_t>();
-            const int estimated_batch = (total_mem - batch1_footprint) / batch1_footprint;
-            int closest = pow(2, floor(log(estimated_batch) / log(2)));
+            const int estimated_batch = static_cast<int>((total_mem - batch1_footprint) / batch1_footprint);
+            int closest = static_cast<int>(pow(2, floor(log(estimated_batch) / log(2))));
             closest = std::max(1, closest);
             metaDevice.batchForDevice = std::min(metaDevice.batchForDevice, closest);
         }
@@ -903,7 +966,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
                                                         executableNetworkWithoutBatch,
                                                         metaDevice,
                                                         networkConfig,
-                                                        enablePerfCounters);
+                                                        batched_inputs,
+                                                        batched_outputs);
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(

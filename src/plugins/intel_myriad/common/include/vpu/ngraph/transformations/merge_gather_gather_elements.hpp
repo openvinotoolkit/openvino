@@ -10,7 +10,7 @@ namespace vpu {
 
 class MergeGatherGatherElements : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MergeGatherGatherElements", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };
 

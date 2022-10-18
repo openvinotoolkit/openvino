@@ -135,14 +135,15 @@ public:
     }
 
     void set_spatial_dynamic_shape() {
-        OPENVINO_ASSERT(!m_shape_set, "'set_spatial_dynamic_shape' and 'set_shape' shall not be used together");
+        OPENVINO_ASSERT(!m_shape_set,
+                        "'set_spatial_dynamic_shape' and 'set_shape/set_from' shall not be used together");
         m_spatial_shape_set = true;
         m_spatial_width = -1;
         m_spatial_height = -1;
     }
 
     void set_spatial_static_shape(size_t height, size_t width) & {
-        OPENVINO_ASSERT(!m_shape_set, "'set_spatial_static_shape' and 'set_shape' shall not be used together");
+        OPENVINO_ASSERT(!m_shape_set, "'set_spatial_static_shape' and 'set_shape/set_from' shall not be used together");
         m_spatial_shape_set = true;
         m_spatial_height = static_cast<int>(height);
         m_spatial_width = static_cast<int>(width);
@@ -193,9 +194,14 @@ public:
     void set_shape(const PartialShape& shape) {
         OPENVINO_ASSERT(
             !m_spatial_shape_set,
-            "'set_spatial_static_shape', 'set_spatial_dynamic_shape', 'set_shape' shall not be used together");
+            "'set_spatial_static_shape', 'set_spatial_dynamic_shape', 'set_shape/set_from' shall not be used together");
         m_shape = shape;
         m_shape_set = true;
+    }
+
+    void set_from(const ov::runtime::Tensor& runtime_tensor) {
+        set_shape(runtime_tensor.get_shape());
+        set_element_type(runtime_tensor.get_element_type());
     }
 
     bool is_shape_set() const {

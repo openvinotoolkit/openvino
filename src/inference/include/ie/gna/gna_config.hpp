@@ -38,7 +38,7 @@ namespace GNAConfigParams {
  * @brief Scale factor that is calculated by user, in order to use static quantisation feature
  * This option should be used with floating point value serialized to string with decimal separator equals to . (dot)
  * @details For multiple input case, individual scale factors can be passed, using
- * KEY_GNA_SCALE_FACTOR[_input_layer_name] where input_layer can be obtained from from CNNNetwork::GetInputsInfo
+ * KEY_GNA_SCALE_FACTOR[_input_layer_name] where input_layer can be obtained from CNNNetwork::GetInputsInfo
  */
 DECLARE_GNA_CONFIG_KEY(SCALE_FACTOR);
 

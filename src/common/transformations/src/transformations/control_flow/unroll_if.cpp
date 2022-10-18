@@ -14,8 +14,6 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::UnrollIf, "UnrollIf", 0);
-
 bool ngraph::pass::UnrollIf::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(UnrollIf);
     bool is_applicable = false;
@@ -39,7 +37,7 @@ bool ngraph::pass::UnrollIf::run_on_model(const std::shared_ptr<ngraph::Function
         for (const auto& input_descr : input_descriptions) {
             auto in_data = if_node->input_value(input_descr->m_input_index);
             auto& param = body->get_parameters()[input_descr->m_body_parameter_index];
-            ngraph::replace_node(param, in_data.get_node_shared_ptr());
+            ngraph::replace_node(param, {in_data});
         }
         for (const auto& output_desc : output_descriptions) {
             std::shared_ptr<opset8::Result> result = body->get_results()[output_desc->m_body_value_index];
@@ -47,11 +45,12 @@ bool ngraph::pass::UnrollIf::run_on_model(const std::shared_ptr<ngraph::Function
 
             // set output name to Tensor to store it for ngraph to cnn conversion
             NGRAPH_SUPPRESS_DEPRECATED_START
-                in_value.get_tensor().set_name(op::util::create_ie_output_name(if_node->output(output_desc->m_output_index)));
+            in_value.get_tensor().set_name(
+                op::util::create_ie_output_name(if_node->output(output_desc->m_output_index)));
             NGRAPH_SUPPRESS_DEPRECATED_END
-                for (const auto& input : if_node->output(output_desc->m_output_index).get_target_inputs()) {
-                    input.replace_source_output(result->get_input_source_output(0));
-                }
+            for (const auto& input : if_node->output(output_desc->m_output_index).get_target_inputs()) {
+                input.replace_source_output(result->get_input_source_output(0));
+            }
         }
         is_applicable = true;
         f->add_sinks(body->get_sinks());

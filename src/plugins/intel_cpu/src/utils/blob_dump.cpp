@@ -4,8 +4,8 @@
 
 #include "blob_dump.h"
 #include "blob_factory.hpp"
-#include "mkldnn_memory.h"
-#include "mkldnn_extension_utils.h"
+#include <cpu_memory.h>
+#include <dnnl_extension_utils.h>
 #include <nodes/common/cpu_memcpy.h>
 
 #include "common/memory_desc_wrapper.hpp"
@@ -15,7 +15,8 @@
 
 using namespace InferenceEngine;
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 // IEB file format routine
 static const unsigned char IEB_MAGIC[4] = {'I', 'E', 'B', '0'};
@@ -84,7 +85,7 @@ static DnnlBlockedMemoryDesc parse_header(IEB_HEADER &header) {
     return DnnlBlockedMemoryDesc{prc, Shape(dims)};
 }
 
-void BlobDumper::prepare_plain_data(const MKLDNNMemoryPtr &memory, std::vector<uint8_t> &data) const {
+void BlobDumper::prepare_plain_data(const MemoryPtr &memory, std::vector<uint8_t> &data) const {
     const auto &desc = memory->getDesc();
     size_t data_size = desc.getShape().getElementsCount();
     const auto size = data_size * desc.getPrecision().size();
@@ -229,7 +230,7 @@ BlobDumper BlobDumper::read(const std::string &file_path) {
 
 void BlobDumper::dump(const std::string &dump_path) const {
     std::ofstream dump_file;
-    dump_file.open(dump_path);
+    dump_file.open(dump_path, std::ios::binary);
     if (!dump_file.is_open())
         IE_THROW() << "Dumper cannot create dump file " << dump_path;
 
@@ -247,4 +248,5 @@ void BlobDumper::dumpAsTxt(const std::string& dump_path) const {
     dump_file.close();
 }
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

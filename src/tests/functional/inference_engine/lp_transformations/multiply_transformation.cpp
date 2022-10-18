@@ -697,7 +697,7 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
         }
     },
 
-    // Constant as input
+    // Constant as input with empty shape
     {
         LayerTransformation::createParamsU8I8(),
         {
@@ -727,6 +727,76 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
                 {{ 0.7f }, ngraph::element::f32},
                 ngraph::element::f32,
                 {}
+            },
+            true
+        }
+    },
+
+    // Constant as input with 1 dimension shape
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            {
+                {},
+                {{ 7.f, 8.f, 9.f }, ngraph::element::i8, ngraph::Shape{3}}, // Constant as input
+                ngraph::element::i8,
+                {ngraph::element::f32, { }, { {0.1f, 0.2f, 0.3f}, element::f32, ngraph::Shape{3} }},
+            },
+            {
+                { 1, 2, 3 },
+                {},
+                ngraph::element::f32,
+                {{}, {}, {{0.2f, 0.3f, 0.4f}, element::f32, ngraph::Shape{3}}},
+            },
+            false
+        },
+        {
+            {
+                { 1, 2, 3 },
+                {},
+                ngraph::element::f32,
+                {},
+            },
+            {
+                {},
+                { {0.14f, 0.48f, 1.08f}, ngraph::element::f32, ngraph::Shape{3}}, // Constant as input
+                {},
+                {},
+            },
+            true
+        }
+    },
+
+    // Parameter as input with, Constant with 1 dimension shape
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            {
+                { 1, 2, 3 },
+                {},
+                ngraph::element::f32,
+                {{}, {}, {{0.2f, 0.3f, 0.4f}, element::f32, ngraph::Shape{3}}},
+            },
+            {
+                {},
+                {{ 7.f, 8.f, 9.f }, ngraph::element::i8, ngraph::Shape{3}}, // Constant as input
+                ngraph::element::i8,
+                {ngraph::element::f32, { }, { {0.1f, 0.2f, 0.3f}, element::f32, ngraph::Shape{3} }},
+            },
+            false
+        },
+        {
+            {
+                { 1, 2, 3 },
+                {},
+                ngraph::element::f32,
+                {},
+            },
+            {
+                {},
+                { {0.14f, 0.48f, 1.08f}, ngraph::element::f32, ngraph::Shape{3}}, // Constant as input
+                {},
+                {},
             },
             true
         }

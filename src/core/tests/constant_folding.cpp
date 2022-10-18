@@ -6,7 +6,8 @@
 
 #include <transformations/utils/utils.hpp>
 
-#include "gtest/gtest.h"
+#include "common_test_utils/ngraph_test_utils.hpp"
+#include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset5.hpp"
@@ -283,6 +284,11 @@ TEST(constant_folding, constant_unary_binary) {
     auto j = make_shared<op::Constant>(element::i8, Shape{2}, values_j);
     auto k = make_shared<op::Constant>(element::u8, Shape{2}, values_k);
     auto doubles = make_shared<op::Constant>(element::f64, Shape{2}, std::vector<double>{4.0, 9.0});
+    auto doubles2 = make_shared<op::Constant>(element::f64, Shape{2}, std::vector<double>{4.0, 1.0});
+    auto shorts = make_shared<op::Constant>(element::i16, Shape{3}, std::vector<int16_t>{14, -3, -3});
+    auto shorts2 = make_shared<op::Constant>(element::i16, Shape{1}, std::vector<int16_t>{-3});
+    auto unsigned_shorts = make_shared<op::Constant>(element::u16, Shape{3}, std::vector<uint16_t>{14, 300, 14});
+    auto unsigned_shorts2 = make_shared<op::Constant>(element::u16, Shape{1}, std::vector<uint16_t>{300});
 
     auto add = make_shared<op::v1::Add>(a, b);
     auto sub = make_shared<op::v1::Subtract>(a, b);
@@ -312,6 +318,10 @@ TEST(constant_folding, constant_unary_binary) {
     auto doubles_sqrt = make_shared<op::Sqrt>(doubles);
     auto sub_int8 = make_shared<op::v1::Subtract>(j, j);
     auto sub_uint8 = make_shared<op::v1::Subtract>(k, k);
+    auto equal_doubles = make_shared<op::v1::Equal>(doubles, doubles2, op::AutoBroadcastType::NUMPY);
+    auto equal_shorts = make_shared<op::v1::Equal>(shorts, shorts2, op::AutoBroadcastType::NUMPY);
+    auto equal_unsigned_shorts =
+        make_shared<op::v1::Equal>(unsigned_shorts, unsigned_shorts2, op::AutoBroadcastType::NUMPY);
 
     auto neg_sqrt = make_shared<op::Sqrt>(c);
 
@@ -342,7 +352,10 @@ TEST(constant_folding, constant_unary_binary) {
                                                  logical_xor_autob_numpy,
                                                  doubles_sqrt,
                                                  sub_int8,
-                                                 sub_uint8},
+                                                 sub_uint8,
+                                                 equal_doubles,
+                                                 equal_shorts,
+                                                 equal_unsigned_shorts},
                                       ParameterVector{});
     auto func_error = make_shared<Function>(NodeVector{neg_sqrt}, ParameterVector{});
 
@@ -378,6 +391,9 @@ TEST(constant_folding, constant_unary_binary) {
     vector<double> doubles_sqrt_expected{2.0, 3.0};
     vector<int8_t> sub_int8_expected{0, 0};
     vector<uint8_t> sub_uint8_expected{0, 0};
+    vector<char> equal_doubles_expected{1, 0};
+    vector<char> equal_shorts_expected{0, 1, 1};
+    vector<char> equal_unsigned_shorts_expected{0, 1, 0};
 
     ASSERT_EQ(get_result_constant<int>(func, 0), add_expected);
     ASSERT_EQ(get_result_constant<int>(func, 1), sub_expected);
@@ -407,6 +423,9 @@ TEST(constant_folding, constant_unary_binary) {
     ASSERT_EQ(get_result_constant<double>(func, 25), doubles_sqrt_expected);
     ASSERT_EQ(get_result_constant<int8_t>(func, 26), sub_int8_expected);
     ASSERT_EQ(get_result_constant<uint8_t>(func, 27), sub_uint8_expected);
+    ASSERT_EQ(get_result_constant<char>(func, 28), equal_doubles_expected);
+    ASSERT_EQ(get_result_constant<char>(func, 29), equal_shorts_expected);
+    ASSERT_EQ(get_result_constant<char>(func, 30), equal_unsigned_shorts_expected);
     ASSERT_NO_THROW(pass_manager.run_passes(func_error));
 }
 
@@ -2779,6 +2798,35 @@ TEST(constant_folding, constant_tile_1d_0_repeats) {
     ASSERT_EQ(values_expected, values_out);
 }
 
+TEST(constant_folding, constant_tile_2d_0_repeats) {
+    Shape shape_in{2, 2};
+    Shape shape_repeats{2};
+    Shape shape_out{};
+
+    vector<int> values_in{0, 1, 2, 3};
+    auto data = make_shared<op::Constant>(element::i32, shape_in, values_in);
+    vector<int> values_repeats{0, 0};
+    auto repeats = make_shared<op::Constant>(element::i64, shape_repeats, values_repeats);
+    auto tile = make_shared<op::v0::Tile>(data, repeats);
+    tile->set_friendly_name("test");
+    auto f = make_shared<Function>(tile, ParameterVector{});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::ConstantFolding>();
+    pass_manager.run_passes(f);
+
+    ASSERT_EQ(count_ops_of_type<op::v0::Tile>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+
+    auto new_const = ov::as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
+    ASSERT_TRUE(new_const);
+    ASSERT_EQ(new_const->get_friendly_name(), "test");
+    auto values_out = new_const->get_vector<int>();
+
+    vector<int> values_expected{};
+    ASSERT_EQ(values_expected, values_out);
+}
+
 TEST(constant_folding, constant_tile_0_rank_data) {
     Shape shape_in{};
     Shape shape_repeats{1};
@@ -3352,4 +3400,125 @@ TEST(constant_folding, constant_loop) {
     std::vector<float> expected_1{1, 3, 5, 4, 6, 8};
     range_test_check(result_node_0->cast_vector<float>(), expected_0);
     range_test_check(result_node_1->cast_vector<float>(), expected_1);
+}
+
+TEST(constant_folding, disable_constant_folding_for_shapeof) {
+    auto data = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 22, 22});
+    auto shapeof = std::make_shared<opset5::ShapeOf>(data);
+    auto reshape = std::make_shared<opset5::Reshape>(data, shapeof, true);
+    auto model = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{data});
+
+    ov::disable_constant_folding(shapeof);
+
+    pass::Manager mgr;
+    mgr.register_pass<pass::ConstantFolding>();
+    mgr.run_passes(model);
+
+    ASSERT_EQ(reshape->input_value(1), shapeof->output(0));
+}
+
+TEST(constant_folding, disable_constant_folding_for_squeeze_unsqueeze) {
+    auto const_data = op::Constant::create(element::f32, Shape{1, 64}, {1});
+    auto const_axes = op::Constant::create(element::i64, Shape{1}, {0});
+    auto squeeze = std::make_shared<op::v0::Squeeze>(const_data, const_axes);
+    auto unsqueeze = make_shared<op::v0::Unsqueeze>(const_data, const_axes);
+    auto consumer1 = std::make_shared<op::Relu>(squeeze);
+    auto consumer2 = std::make_shared<op::Relu>(unsqueeze);
+
+    auto model = std::make_shared<ov::Model>(NodeVector{consumer1, consumer2}, ParameterVector{});
+
+    ov::disable_constant_folding(squeeze);
+    ov::disable_constant_folding(unsqueeze);
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::ConstantFolding>();
+    pass_manager.run_passes(model);
+
+    ASSERT_EQ(count_ops_of_type<op::Squeeze>(model), 1);
+    ASSERT_EQ(count_ops_of_type<op::Unsqueeze>(model), 1);
+}
+
+TEST(constant_folding, disable_constant_folding_for_convert_like) {
+    auto data = op::Constant::create(element::f32, Shape{1, 64}, {1});
+    auto like = op::Constant::create(element::i64, Shape{1, 64}, {1});
+    auto convert_like = std::make_shared<op::v1::ConvertLike>(data, like);
+    auto consumer1 = std::make_shared<op::Relu>(convert_like);
+
+    auto model = std::make_shared<ov::Model>(NodeVector{consumer1}, ParameterVector{});
+
+    ov::disable_constant_folding(convert_like);
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::ConstantFolding>();
+    pass_manager.run_passes(model);
+
+    ASSERT_EQ(count_ops_of_type<op::v1::ConvertLike>(model), 1);
+}
+
+TEST(constant_folding, fold_convert_like_node) {
+    auto data = op::Constant::create(element::f32, Shape{1, 64}, {1});
+    auto like = op::Constant::create(element::i64, Shape{1, 64}, {1});
+    auto convert_like = std::make_shared<op::v1::ConvertLike>(data, like);
+    auto consumer1 = std::make_shared<op::Relu>(convert_like);
+
+    auto model = std::make_shared<ov::Model>(NodeVector{consumer1}, ParameterVector{});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::ConstantFolding>();
+    pass_manager.run_passes(model);
+
+    ASSERT_EQ(count_ops_of_type<op::v1::ConvertLike>(model), 0);
+}
+
+TEST(constant_folding, fold_convert_like_but_node_is_not_foldable) {
+    auto data = std::make_shared<op::Parameter>(element::f32, Shape{1, 64});
+    auto like = op::Constant::create(element::i64, Shape{1, 64}, {1});
+    auto convert_like = std::make_shared<op::v1::ConvertLike>(data, like);
+    auto consumer1 = std::make_shared<op::Relu>(convert_like);
+
+    auto model = std::make_shared<ov::Model>(NodeVector{consumer1}, ParameterVector{data});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::ConstantFolding>();
+    pass_manager.run_passes(model);
+
+    ASSERT_EQ(count_ops_of_type<op::v1::ConvertLike>(model), 1);
+}
+
+class MockAddOp : public ov::op::v1::Add {
+public:
+    MockAddOp(
+        const Output<Node>& arg0,
+        const Output<Node>& arg1,
+        const ov::op::AutoBroadcastSpec& auto_broadcast = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY))
+        : ov::op::v1::Add(arg0, arg1, auto_broadcast) {
+        ON_CALL(*this, evaluate).WillByDefault([this](ov::TensorVector& outputs, const ov::TensorVector& inputs) {
+            return ov::Node::evaluate(outputs, inputs);
+        });
+    }
+    MOCK_METHOD(bool,
+                evaluate,
+                (ov::TensorVector & output_values, const ov::TensorVector& input_values),
+                (const, override));
+};
+
+TEST(constant_folding, evaluate_on_tensor_vector) {
+    vector<int> values_a{1, 2, 3, 4};
+    vector<int> values_b{1, 2, 3, 4};
+    auto data_shape = Shape{2, 2};
+    auto a = make_shared<op::Constant>(element::i32, data_shape, values_a);
+    auto b = make_shared<op::Constant>(element::i32, data_shape, values_b);
+
+    auto mock = std::make_shared<::testing::StrictMock<MockAddOp>>(a, b);
+    EXPECT_CALL(*mock, evaluate).Times(1);
+
+    auto model = std::make_shared<ov::Model>(NodeVector{mock}, ParameterVector{});
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::ConstantFolding>();
+    pass_manager.run_passes(model);
+    vector<int> add_expected{2, 4, 6, 8};
+    auto result_node = ov::as_type_ptr<op::Constant>(model->get_results().at(0)->input_value(0).get_node_shared_ptr());
+    ASSERT_TRUE(result_node);
+    ASSERT_EQ(data_shape, result_node->get_output_shape(0));
+    ASSERT_EQ(add_expected, result_node->cast_vector<int>());
 }

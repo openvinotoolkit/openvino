@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -22,6 +21,6 @@ class TRANSFORMATIONS_API ConvertMVN1ToMVN6;
  */
 class ngraph::pass::ConvertMVN1ToMVN6 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertMVN1ToMVN6", "0");
     ConvertMVN1ToMVN6();
 };

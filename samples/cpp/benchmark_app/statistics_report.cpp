@@ -243,8 +243,10 @@ const nlohmann::json StatisticsReportJSON::perf_counters_to_json(
 }
 
 void LatencyMetrics::write_to_stream(std::ostream& stream) const {
+    std::ios::fmtflags fmt(std::cout.flags());
     stream << data_shape << ";" << std::fixed << std::setprecision(2) << median_or_percentile << ";" << avg << ";"
            << min << ";" << max;
+    std::cout.flags(fmt);
 }
 
 void LatencyMetrics::write_to_slog() const {

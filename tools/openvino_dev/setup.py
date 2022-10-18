@@ -206,16 +206,35 @@ with (SCRIPT_DIR / 'requirements.txt').open() as requirements:
     ]
 
 
+def concat_files(output_file, input_files):
+    with open(output_file, 'w', encoding='utf-8') as outfile:
+        for filename in input_files:
+            with open(filename, 'r', encoding='utf-8') as infile:
+                content = infile.read()
+                outfile.write(content)
+    return output_file
+
+
+description_md = SCRIPT_DIR.parents[1] / 'docs' / 'install_guides' / 'pypi-openvino-dev.md'
+md_files = [description_md, SCRIPT_DIR.parents[1] / 'docs' / 'install_guides' / 'pre-release-note.md']
+docs_url = 'https://docs.openvino.ai/latest/index.html'
+
+if(os.getenv('CI_BUILD_DEV_TAG')):
+    output = Path.cwd() / 'build' / 'pypi-openvino-dev.md'
+    output.parent.mkdir(exist_ok=True)
+    description_md = concat_files(output, md_files)
+    docs_url = 'https://docs.openvino.ai/nightly/index.html'
+
 setup(
     name='openvino-dev',
     version=os.getenv('OPENVINO_VERSION', '0.0.0'),
-    author='Intel® Corporation',
-    license='OSI Approved :: Apache Software License',
-    author_email='openvino_pushbot@intel.com',
-    url='https://docs.openvino.ai/latest/index.html',
-    download_url='https://github.com/openvinotoolkit/openvino/tags',
-    description='OpenVINO(TM) Development Tools',
-    long_description=get_description(SCRIPT_DIR.parents[1] / 'docs/install_guides/pypi-openvino-dev.md'),
+    author=os.getenv('WHEEL_AUTHOR', 'Intel® Corporation'),
+    license=os.getenv('WHEEL_LICENCE_TYPE', 'OSI Approved :: Apache Software License'),
+    author_email=os.getenv('WHEEL_AUTHOR_EMAIL', 'openvino_pushbot@intel.com'),
+    url=os.getenv('WHEEL_URL', docs_url),
+    download_url=os.getenv('WHEEL_DOWNLOAD_URL', 'https://github.com/openvinotoolkit/openvino/tags'),
+    description=os.getenv('WHEEL_DESC', 'OpenVINO(TM) Development Tools'),
+    long_description=get_description(os.getenv('WHEEL_OVERVIEW', description_md)),
     long_description_content_type='text/markdown',
     classifiers=[
         'Programming Language :: Python :: 3',

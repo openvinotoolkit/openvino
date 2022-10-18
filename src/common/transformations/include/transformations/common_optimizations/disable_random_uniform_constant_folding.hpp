@@ -5,10 +5,8 @@
 #pragma once
 
 #include <memory>
-
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -25,6 +23,6 @@ class TRANSFORMATIONS_API DisableRandomUniformConstantFolding;
  */
 class ngraph::pass::DisableRandomUniformConstantFolding : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("DisableRandomUniformConstantFolding", "0");
     DisableRandomUniformConstantFolding();
 };

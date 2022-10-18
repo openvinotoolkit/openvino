@@ -11,7 +11,7 @@ namespace vpu {
 
 class ConvertGatherND8ToGatherND5 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertGatherND8ToGatherND5", "0");
     ConvertGatherND8ToGatherND5();
 };
 }

@@ -22,6 +22,6 @@ class ConvertPowerToPowerIEMatcher;
 
 class ngraph::pass::ConvertPowerToPowerIEMatcher: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertPowerToPowerIEMatcher", "0");
     ConvertPowerToPowerIEMatcher();
 };

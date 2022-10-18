@@ -9,8 +9,10 @@ Low level wrappers for the FrontEnd C++ API.
 # flake8: noqa
 
 from openvino.utils import add_openvino_libs_to_path
-
 add_openvino_libs_to_path()
+
+from openvino.pyopenvino import get_version
+__version__ = get_version()
 
 # main classes
 from openvino.pyopenvino import FrontEndManager

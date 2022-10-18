@@ -92,17 +92,17 @@ public:
             testValues.ssBeforeConcat,
             testValues.ssAfterConcat);
 
-        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-           ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
+           ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Convolution>({
                {0, testValues.params.precisionsOnActivations},
                {1, testValues.params.precisionsOnWeights},
            })
        });
 
         auto quantizationRestrictions = testValues.multiChannels ?
-            std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>() :
-            std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>({
-                ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>()
+            std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>() :
+            std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
+                ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>()
             });
 
         SimpleLowPrecisionTransformer transform(supportedPrecisions, quantizationRestrictions);

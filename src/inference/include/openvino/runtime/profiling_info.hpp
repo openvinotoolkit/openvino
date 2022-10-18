@@ -18,6 +18,7 @@ namespace ov {
 /**
  * @struct ProfilingInfo
  * @brief Represents basic inference profiling information per operation.
+ * @ingroup ov_runtime_cpp_api
  *
  * If the operation is executed using tiling, the sum time per each tile is indicated as the total execution time.
  * Due to parallel execution, the total execution time for all nodes might be greater than the total inference time.
@@ -41,6 +42,7 @@ struct ProfilingInfo {
      * @brief The absolute time, in microseconds, that the node ran (in total).
      */
     std::chrono::microseconds real_time;
+
     /**
      * @brief The net host CPU time that the node ran.
      */

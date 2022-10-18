@@ -15,7 +15,8 @@
  * @attention This cache implementation IS NOT THREAD SAFE!
  */
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 template<typename Key, typename Value>
 class LruCache {
@@ -103,4 +104,5 @@ private:
     size_t _capacity;
 };
 
-} // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

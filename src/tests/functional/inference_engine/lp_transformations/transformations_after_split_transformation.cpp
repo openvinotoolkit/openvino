@@ -35,7 +35,6 @@
 
 // cleanup transformations
 #include "low_precision/fuse_convert.hpp"
-#include "low_precision/fuse_fake_quantize.hpp"
 #include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"

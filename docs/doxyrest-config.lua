@@ -79,7 +79,7 @@ EXTRA_PAGE_LIST = {}
 --! is not set (otherwise, the title of intro file will be used).
 --!
 
-INDEX_TITLE = "Inference Engine C++ API Reference"
+INDEX_TITLE = "OpenVINO Runtime C++ API Reference"
 
 --!
 --! File with project introduction (reStructuredText). When non-nil, this file
@@ -161,7 +161,7 @@ VERBATIM_TO_CODE_BLOCK = "cpp"
 --! reStructuredText (asterisks are used to mark **bold** or *italic* blocks).
 --!
 
-ESCAPE_ASTERISKS = true
+ESCAPE_ASTERISKS = false
 
 --!
 --! If the original doxy comments contain pipe characters ``|``, they have to be

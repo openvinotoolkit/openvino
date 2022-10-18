@@ -18,7 +18,16 @@ public:
     void TearDown() override {
         MockLog::Release();
     }
+
+    void traceCallStacksTest(){
+        TraceCallStacks("test");
+    }
 };
+
+TEST_F(LogUtilsFormatTest, callStacksTest) {
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    ASSERT_NO_THROW(traceCallStacksTest());
+}
 
 TEST_F(LogUtilsFormatTest, format_s) {
     std::string printResult = "";
@@ -100,6 +109,18 @@ TEST_F(LogUtilsFormatTest, format_s_d_ld_u_lu2) {
             });
     EXPECT_CALL(*(HLogger), print(_)).Times(1);
     LOG_DEBUG("%s%d%ld%u%luabc", "DEBUG", -1, -3, 1, 3);
+    EXPECT_TRUE(std::regex_search(printResult, regex));
+}
+
+TEST_F(LogUtilsFormatTest, format_lf) {
+    std::string printResult = "";
+    std::string pattern{"abc"};
+    std::regex regex(pattern);
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+            printResult = stream.str();
+            });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("%lfabc", 1.33);
     EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 

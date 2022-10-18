@@ -16,10 +16,12 @@
 #include <string>
 #include <unordered_set>
 
+#include "any_copy.hpp"
 #include "blob_factory.hpp"
 #include "cnn_network_ngraph_impl.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "exec_graph_info.hpp"
+#include "ie_algorithm.hpp"
 #include "ie_api.h"
 #include "ie_icore.hpp"
 #include "ie_iextension.h"
@@ -76,7 +78,7 @@ OutputsDataMap copyInfo(const OutputsDataMap& networkOutputs) {
     return _networkOutputs;
 }
 
-IInferencePlugin::IInferencePlugin() : _executorManager(InferenceEngine::executorManager()) {}
+IInferencePlugin::IInferencePlugin() : _executorManager(InferenceEngine::executorManager()), _isNewAPI(true) {}
 
 void IInferencePlugin::VersionStore::copyFrom(const Version& v) {
     _dsc = v.description;
@@ -146,8 +148,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
                                                orig_function->get_friendly_name());
         function->get_rt_info() = orig_function->get_rt_info();
     }
-    const auto& core = GetCore();
-    if (function && core && !core->isNewAPI()) {
+    if (function && !IsNewAPI()) {
         auto& rt_info = function->get_rt_info();
         if (rt_info.find("version") == rt_info.end()) {
             rt_info["version"] = int64_t(10);
@@ -160,9 +161,8 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
                 std::dynamic_pointer_cast<const details::CNNNetworkNGraphImpl>(orig_icnn.shared_from_this());
             OPENVINO_ASSERT(orig_impl != nullptr,
                             "Internal: orig_impl must be castable to details::CNNNetworkNGraphImpl");
-            auto new_impl = std::make_shared<details::CNNNetworkNGraphImpl>(function,
-                                                                            orig_impl->getExtensions(),
-                                                                            GetCore()->isNewAPI());
+            auto new_impl =
+                std::make_shared<details::CNNNetworkNGraphImpl>(function, orig_impl->getExtensions(), IsNewAPI());
             network = CNNNetwork(new_impl);
             for (const auto& inputInfo : orig_network.getInputsInfo()) {
                 auto toInfo = network.getInputsInfo().at(inputInfo.first);
@@ -206,6 +206,10 @@ void IInferencePlugin::AddExtension(const std::shared_ptr<IExtension>&) {
 
 void IInferencePlugin::SetConfig(const std::map<std::string, std::string>&) {
     IE_THROW(NotImplemented);
+}
+
+void IInferencePlugin::SetProperties(const ov::AnyMap& config) {
+    SetConfig(any_copy(config));
 }
 
 Parameter IInferencePlugin::GetConfig(const std::string&, const std::map<std::string, Parameter>&) const {
@@ -252,10 +256,17 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
 void IInferencePlugin::SetCore(std::weak_ptr<ICore> core) {
     IE_ASSERT(!core.expired());
     _core = core;
+    auto locked_core = _core.lock();
+    if (locked_core)
+        _isNewAPI = locked_core->isNewAPI();
 }
 
 std::shared_ptr<ICore> IInferencePlugin::GetCore() const noexcept {
     return _core.lock();
+}
+
+bool IInferencePlugin::IsNewAPI() const noexcept {
+    return _isNewAPI;
 }
 
 const std::shared_ptr<ExecutorManager>& IInferencePlugin::executorManager() const {
@@ -294,10 +305,110 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
 
 void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                                          const std::shared_ptr<const ov::Model>& function) {
-    const auto& core = GetCore();
-    bool newAPI = core && core->isNewAPI();
+    bool newAPI = IsNewAPI();
     InferenceEngine::SetExeNetworkInfo(exeNetwork, function, newAPI);
     exeNetwork->SetPointerToPlugin(shared_from_this());
+}
+
+std::unordered_set<std::string> GetRemovedNodes(const std::shared_ptr<const ov::Model>& originalFunction,
+                                                const std::shared_ptr<const ov::Model>& transformedFunction) {
+    std::unordered_set<std::string> result = {};
+    std::unordered_set<std::string> transformedNodeNames = {};
+
+    for (auto&& node : transformedFunction->get_ops()) {
+        transformedNodeNames.emplace(node->get_friendly_name());
+        for (auto&& fusedLayerName : ngraph::getFusedNamesVector(node))
+            transformedNodeNames.emplace(fusedLayerName);
+    }
+
+    for (auto&& originalNode : originalFunction->get_ops()) {
+        if (!InferenceEngine::details::contains(transformedNodeNames, originalNode->get_friendly_name()))
+            result.emplace(originalNode->get_friendly_name());
+    }
+
+    return result;
+}
+
+std::unordered_set<std::string> GetSupportedNodes(
+    const std::shared_ptr<const ov::Model>& model,
+    std::function<void(std::shared_ptr<ov::Model>&)> transform,
+    std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported) {
+    // Collect original operation names
+    std::unordered_set<std::string> original_ops;
+    for (auto&& node : model->get_ops()) {
+        original_ops.emplace(node->get_friendly_name());
+    }
+
+    auto transformed_model = model->clone();
+    transform(transformed_model);
+    auto ops = transformed_model->get_ordered_ops();
+
+    // Mark removed nodes as supported
+    std::unordered_set<std::string> supported = GetRemovedNodes(model, transformed_model);
+    std::unordered_set<std::string> unsupported;
+
+    for (auto&& op : ops) {
+        bool is_supported = false;
+        bool is_checked = false;
+        if (InferenceEngine::details::contains(original_ops, op->get_friendly_name())) {
+            is_supported = is_node_supported(op);
+            is_checked = true;
+            if (is_supported) {
+                supported.emplace(op->get_friendly_name());
+            } else {
+                unsupported.emplace(op->get_friendly_name());
+            }
+        }
+
+        for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
+            if (InferenceEngine::details::contains(original_ops, fusedLayerName)) {
+                if (!is_checked) {
+                    is_supported = is_node_supported(op);
+                    is_checked = true;
+                }
+                if (is_supported) {
+                    supported.emplace(fusedLayerName);
+                } else {
+                    unsupported.emplace(fusedLayerName);
+                }
+            }
+        }
+    }
+    for (auto&& unsupportedNode : unsupported) {
+        supported.erase(unsupportedNode);
+    }
+    for (auto&& node : model->get_ops()) {
+        if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
+            for (auto&& inputNodeOutput : node->input_values()) {
+                if (ngraph::op::is_constant(inputNodeOutput.get_node()) ||
+                    ngraph::op::is_parameter(inputNodeOutput.get_node())) {
+                    supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
+                }
+            }
+            for (auto&& outputs : node->outputs()) {
+                for (auto&& outputNodeInput : outputs.get_target_inputs()) {
+                    if (ngraph::op::is_output(outputNodeInput.get_node())) {
+                        supported.emplace(outputNodeInput.get_node()->get_friendly_name());
+                    }
+                }
+            }
+        }
+
+        if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
+            if (node->output(0).get_target_inputs().size() &&
+                !InferenceEngine::details::contains(
+                    supported,
+                    node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
+                supported.erase(node->get_friendly_name());
+            }
+        } else if (ngraph::op::is_output(node)) {
+            if (!InferenceEngine::details::contains(supported,
+                                                    node->input_values().begin()->get_node()->get_friendly_name())) {
+                supported.erase(node->get_friendly_name());
+            }
+        }
+    }
+    return supported;
 }
 
 void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,

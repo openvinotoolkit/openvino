@@ -9,6 +9,7 @@
 #include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/place.hpp"
+#include "plugin_loader.hpp"
 #include "so_extension.hpp"
 #include "utils.hpp"
 
@@ -34,7 +35,7 @@ FrontEnd::~FrontEnd() = default;
 
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (m_actual) {
-        return m_actual->supported_impl(variants);
+        FRONTEND_RETURN_STATEMENT("Check supported", m_actual->supported_impl(variants))
     }
     return false;
 }
@@ -43,38 +44,42 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     FRONT_END_CHECK_IMPLEMENTED(m_actual, load_impl);
     auto model = std::make_shared<InputModel>();
     model->m_shared_object = m_shared_object;
-    model->m_actual = m_actual->load_impl(variants);
+    FRONTEND_CALL_STATEMENT("Loading input model", model->m_actual = m_actual->load_impl(variants))
     return model;
 }
 
 std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     FRONT_END_CHECK_IMPLEMENTED(m_actual, convert);
-    return FrontEnd::create_copy(m_actual->convert(model->m_actual), m_shared_object);
+    FRONTEND_RETURN_STATEMENT("Converting input model",
+                              FrontEnd::create_copy(m_actual->convert(model->m_actual), m_shared_object))
 }
 
 void FrontEnd::convert(const std::shared_ptr<Model>& model) const {
     FRONT_END_CHECK_IMPLEMENTED(m_actual, convert);
-    m_actual->convert(model);
+    FRONTEND_CALL_STATEMENT("Converting partially converted model", m_actual->convert(model))
 }
 
 std::shared_ptr<Model> FrontEnd::convert_partially(const InputModel::Ptr& model) const {
     FRONT_END_CHECK_IMPLEMENTED(m_actual, convert_partially);
-    return FrontEnd::create_copy(m_actual->convert_partially(model->m_actual), m_shared_object);
+    FRONTEND_RETURN_STATEMENT("Partially convert model",
+                              FrontEnd::create_copy(m_actual->convert_partially(model->m_actual), m_shared_object))
 }
 
 std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
     FRONT_END_CHECK_IMPLEMENTED(m_actual, decode);
-    return FrontEnd::create_copy(m_actual->decode(model->m_actual), m_shared_object);
+    FRONTEND_RETURN_STATEMENT("Decoding model",
+                              FrontEnd::create_copy(m_actual->decode(model->m_actual), m_shared_object))
 }
 
 void FrontEnd::normalize(const std::shared_ptr<Model>& model) const {
     FRONT_END_CHECK_IMPLEMENTED(m_actual, normalize);
-    m_actual->normalize(model);
+    FRONTEND_CALL_STATEMENT("Normalizing model", m_actual->normalize(model);)
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (m_actual) {
-        m_actual->add_extension(extension);
+        add_extension_to_shared_data(m_shared_object, extension);
+        FRONTEND_CALL_STATEMENT("Adding extension", m_actual->add_extension(extension))
         return;
     }
     // Left unimplemented intentionally.
@@ -82,28 +87,17 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
 }
 
 void FrontEnd::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions) {
-    if (m_actual) {
-        m_actual->add_extension(extensions);
-        return;
-    }
-    for (const auto& ext : extensions)
+    for (const auto& ext : extensions) {
         add_extension(ext);
+    }
 }
 
 void FrontEnd::add_extension(const std::string& library_path) {
-    if (m_actual) {
-        m_actual->add_extension(library_path);
-        return;
-    }
     add_extension(ov::detail::load_extensions(library_path));
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 void FrontEnd::add_extension(const std::wstring& library_path) {
-    if (m_actual) {
-        m_actual->add_extension(library_path);
-        return;
-    }
     add_extension(ov::detail::load_extensions(library_path));
 }
 #endif
@@ -112,5 +106,5 @@ std::string FrontEnd::get_name() const {
     if (!m_actual) {
         return {};
     }
-    return m_actual->get_name();
+    FRONTEND_RETURN_STATEMENT("Getting frontend name", m_actual->get_name();)
 }

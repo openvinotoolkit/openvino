@@ -14,6 +14,7 @@ namespace ov {
 namespace op {
 namespace v7 {
 /// \brief An operation IDFT that computes the inverse discrete Fourier transformation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API IDFT : public util::FFTBase {
 public:
     OPENVINO_OP("IDFT", "opset7", util::FFTBase, 7);

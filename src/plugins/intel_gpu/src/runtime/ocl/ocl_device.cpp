@@ -196,7 +196,7 @@ bool is_local_block_io_supported(const cl::Device& device) {
 }
 
 device_info init_device_info(const cl::Device& device) {
-    device_info info;
+    device_info info = {};
     info.vendor_id = static_cast<uint32_t>(device.getInfo<CL_DEVICE_VENDOR_ID>());
     info.dev_name = device.getInfo<CL_DEVICE_NAME>();
     info.driver_version = device.getInfo<CL_DRIVER_VERSION>();
@@ -246,8 +246,15 @@ device_info init_device_info(const cl::Device& device) {
         info.supported_simd_sizes = {8, 16, 32};
     }
 
-    bool device_attr_supported = extensions.find("cl_intel_device_attribute_query") != std::string::npos;
+    bool device_uuid_supported = extensions.find("cl_khr_device_uuid") != std::string::npos;
+    if (device_uuid_supported) {
+        static_assert(CL_UUID_SIZE_KHR == device_uuid::max_uuid_size, "");
+        info.uuid.val = device.getInfo<CL_DEVICE_UUID_KHR>();
+    } else {
+        std::fill_n(std::begin(info.uuid.val), device_uuid::max_uuid_size, 0);
+    }
 
+    bool device_attr_supported = extensions.find("cl_intel_device_attribute_query") != std::string::npos;
     if (device_attr_supported) {
         info.gfx_ver = parse_version(device.getInfo<CL_DEVICE_IP_VERSION_INTEL>());
         info.device_id = device.getInfo<CL_DEVICE_ID_INTEL>();

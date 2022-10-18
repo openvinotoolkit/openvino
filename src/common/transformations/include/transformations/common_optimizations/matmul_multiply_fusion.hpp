@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -57,8 +56,8 @@ class TRANSFORMATIONS_API MatMulMultiplyFusion;
  *                      | MatMul |
  *                      +--------+
  */
-class ngraph::pass::MatMulMultiplyFusion: public ngraph::pass::MatcherPass {
+class ngraph::pass::MatMulMultiplyFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MatMulMultiplyFusion", "0");
     MatMulMultiplyFusion();
 };

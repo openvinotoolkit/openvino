@@ -102,6 +102,50 @@ TEST_F(TransformationTestsF, test_convert_to_unsigned_nms_gather_2) {
     }
 }
 
+TEST_F(TransformationTestsF, test_convert_to_unsigned_nms_gather_with_onnx_slice) {
+    // if Convert already exists and Slice is present instead of StridedSlice
+    {
+        auto boxes = make_shared<opset8::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto scores = make_shared<opset8::Parameter>(element::f32, Shape{1, 1, 1000});
+        auto nms = make_shared<opset8::NonMaxSuppression>(boxes, scores);
+
+        auto start = opset8::Constant::create(element::i32, Shape{1}, {3});
+        auto stop = opset8::Constant::create(element::i32, Shape{1}, {4});
+        auto step = opset8::Constant::create(element::i32, Shape{1}, {1});
+        auto slice_node = make_shared<opset8::Slice>(nms->output(0), start, stop, step);
+
+        // squeeze can be represented as reshape
+        auto squeeze_node = make_shared<opset8::Reshape>(slice_node, opset8::Constant::create(element::i32, Shape{1}, {-1}), true);
+        auto convert = make_shared<opset8::Convert>(squeeze_node, element::Type_t::i32);
+        // usually input to gather data goes after reshape NMS scores
+        auto reshape_node = make_shared<opset8::Reshape>(scores, opset8::Constant::create(element::i32, Shape{1}, {-1}), true);
+        auto gather = make_shared<opset8::Gather>(reshape_node, convert, opset8::Constant::create(element::i32, Shape{1}, {0}));
+
+        function = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
+
+        manager.register_pass<pass::ConvertNmsGatherPathToUnsigned>();
+    }
+
+    {
+        auto boxes = make_shared<opset8::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto scores = make_shared<opset8::Parameter>(element::f32, Shape{1, 1, 1000});
+        auto nms = make_shared<opset8::NonMaxSuppression>(boxes, scores);
+
+        auto start = opset8::Constant::create(element::i32, Shape{1}, {3});
+        auto stop = opset8::Constant::create(element::i32, Shape{1}, {4});
+        auto step = opset8::Constant::create(element::i32, Shape{1}, {1});
+        auto slice_node = make_shared<opset8::Slice>(nms->output(0), start, stop, step);
+
+        // squeeze can be represented as reshape
+        auto squeeze_node = make_shared<opset8::Reshape>(slice_node, opset8::Constant::create(element::i32, Shape{1}, {-1}), true);
+        auto convert = make_shared<opset8::Convert>(squeeze_node, element::Type_t::u32);
+        auto reshape_node = make_shared<opset8::Reshape>(scores, opset8::Constant::create(element::i32, Shape{1}, {-1}), true);
+        auto gather = make_shared<opset8::Gather>(reshape_node, convert, opset8::Constant::create(element::i32, Shape{1}, {0}));
+
+        function_ref = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
+    }
+}
+
 TEST(TransformationTests, test_convert_to_unsigned_nms_gather_3) {
     // if NMS output goes not into Gather indices no converts should be inserted
     auto boxes = make_shared<opset8::Parameter>(element::f32, Shape{1, 1000, 4});

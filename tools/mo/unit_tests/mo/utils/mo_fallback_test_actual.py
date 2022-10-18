@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch, Mock
 
 import openvino
-from openvino.tools.mo.main import prepare_ir
+from openvino.tools.mo.convert_impl import prepare_ir
 from openvino.tools.mo.utils.error import Error
 from openvino.frontend import FrontEndManager, FrontEnd # pylint: disable=no-name-in-module,import-error
 from onnx.helper import make_graph, make_model, make_tensor_value_info
@@ -34,7 +34,6 @@ def base_args_config(use_legacy_fe:bool=None, use_new_fe:bool=None):
     args.input_model = None
     args.silent = True
     args.transform=[]
-    args.legacy_ir_generation = False
     args.scale = None
     args.output=None
     args.input=None
@@ -47,7 +46,6 @@ def base_args_config(use_legacy_fe:bool=None, use_new_fe:bool=None):
     args.transformations_config = None
     args.disable_fusing = None
     args.finegrain_fusing = None
-    args.disable_gfusing = None
     args.disable_resnet_optimization = None
     args.enable_concat_optimization = None
     args.static_shape = None
@@ -201,15 +199,15 @@ class TestMoFallback(unittest.TestCase):
         shutil.rmtree(self.paddle_dir)
 
 
-    @generate(*[('dir_to_extension', None, None, 'mo_legacy', 'extensions'), # fallback
-                ('dir_to_extension', None, True, None, None), # exception
-                ('dir_to_extension', True, None, 'mo_legacy', None),
-                ('', True, None, 'mo_legacy', None),
-                ('', None, True, 'onnx_frontend', None),
+    @generate(*[(['dir_to_extension'], None, None, 'mo_legacy', 'extensions'), # fallback
+                (['dir_to_extension'], None, True, None, None), # exception
+                (['dir_to_extension'], True, None, 'mo_legacy', None),
+                ([''], True, None, 'mo_legacy', None),
+                ([''], None, True, 'onnx_frontend', None),
                 (None, None, None, 'onnx_frontend', None),
     ])
     def test_fallback_if_extension_specified(self, extension, use_legacy, use_new_fe, conversion_method, fallback_reason):
-        with patch('openvino.tools.mo.main.get_default_frontends') as default_fe:
+        with patch('openvino.tools.mo.convert_impl.get_default_frontends') as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_legacy, use_new_fe)
             args.extensions = extension
@@ -233,10 +231,10 @@ class TestMoFallback(unittest.TestCase):
                 (None, True, 'onnx_frontend'),
     ])
     def test_fallback_if_new_extension_specified(self, use_legacy, use_new_fe, conversion_method):
-        with patch('openvino.tools.mo.main.get_default_frontends') as default_fe:
+        with patch('openvino.tools.mo.convert_impl.get_default_frontends') as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_legacy, use_new_fe)
-            args.extensions = 'onnx_fe_ext.so'
+            args.extensions = ['onnx_fe_ext.so']
             args.input_model = "test_model.onnx"
 
             if conversion_method:
@@ -252,10 +250,10 @@ class TestMoFallback(unittest.TestCase):
                 (None, True, 'onnx_frontend'),
     ])
     def test_fallback_if_two_new_extension_specified(self, use_legacy, use_new_fe, conversion_method):
-        with patch('openvino.tools.mo.main.get_default_frontends') as default_fe:
+        with patch('openvino.tools.mo.convert_impl.get_default_frontends') as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_legacy, use_new_fe)
-            args.extensions = 'onnx_fe_ext.so,onnx_fe_ext_2.so'
+            args.extensions = ['onnx_fe_ext.so', 'onnx_fe_ext_2.so']
             args.input_model = "test_model.onnx"
 
             if conversion_method:
@@ -272,7 +270,7 @@ class TestMoFallback(unittest.TestCase):
                 (None, None, None, 'onnx_frontend', None),
     ])
     def test_fallback_if_tranformations_config_specified(self, trans_config, use_legacy, use_new_fe, expected_path, fallback_reason):
-        with patch('openvino.tools.mo.main.get_default_frontends') as default_fe:
+        with patch('openvino.tools.mo.convert_impl.get_default_frontends') as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_legacy, use_new_fe)
             args.input_model = "test_model.onnx"
@@ -293,7 +291,7 @@ class TestMoFallback(unittest.TestCase):
                 ('test_config_3.json', None, None, 'mo_legacy', 'transformations_config'), # 'library' attribute in no transformations
     ])
     def test_fallback_if_new_tranformations_config_specified(self, trans_config, use_legacy, use_new_fe, conversion_method, fallback_reason):
-        with patch('openvino.tools.mo.main.get_default_frontends') as default_fe:
+        with patch('openvino.tools.mo.convert_impl.get_default_frontends') as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_legacy, use_new_fe)
             args.input_model = "test_model.onnx"
@@ -315,7 +313,7 @@ class TestMoFallback(unittest.TestCase):
 
 
     def test_exception_if_new_trans_config_on_legacy_path(self):
-        with patch('openvino.tools.mo.main.get_default_frontends') as default_fe:
+        with patch('openvino.tools.mo.convert_impl.get_default_frontends') as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_legacy_fe=True)
             args.input_model = "test_model.onnx"
@@ -327,7 +325,7 @@ class TestMoFallback(unittest.TestCase):
 
 
     def test_exeption_if_mixed_types_of_trans_configs(self):
-        with patch('openvino.tools.mo.main.get_default_frontends') as default_fe:
+        with patch('openvino.tools.mo.convert_impl.get_default_frontends') as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config()
             args.input_model = "test_model.onnx"
@@ -337,13 +335,13 @@ class TestMoFallback(unittest.TestCase):
                 prepare_ir(args)
 
 
-    @generate(*[('dir_to_extension', 'fake_config.json', None, 'mo_legacy', 'extensions, transformations_config'), # fallback
+    @generate(*[(['dir_to_extension'], 'fake_config.json', None, 'mo_legacy', 'extensions, transformations_config'), # fallback
                 (None, 'fake_config.json', None, 'mo_legacy', 'transformations_config'), # fallback
-                ('dir_to_extension', None, None, 'mo_legacy', 'extensions'), # fallback
+                (['dir_to_extension'], None, None, 'mo_legacy', 'extensions'), # fallback
                 (None, None, True, 'onnx_frontend', None),
     ])
     def test_fallback_if_both_extension_and_trans_config_specified(self, extension, trans_config, use_new_fe, expected_path, fallback_reason):
-        with patch('openvino.tools.mo.main.get_default_frontends') as default_fe:
+        with patch('openvino.tools.mo.convert_impl.get_default_frontends') as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_new_fe=use_new_fe)
             args.extensions = extension
@@ -365,7 +363,7 @@ class TestMoFallback(unittest.TestCase):
                 (None, None, True, 'onnx_frontend'),
     ])
     def test_fallback_if_legacy_set_as_default(self, trans_config, use_legacy, use_new_fe, expected_path):
-        with patch('openvino.tools.mo.main.get_default_frontends') as default_fe:
+        with patch('openvino.tools.mo.convert_impl.get_default_frontends') as default_fe:
             default_fe.return_value = {'onnx': 'legacy', 'tf': 'legacy'}
             args = base_args_config(use_legacy, use_new_fe)
             args.input_model = "test_model.onnx"
@@ -378,7 +376,7 @@ class TestMoFallback(unittest.TestCase):
                 tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason')
 
 
-    @generate(*[(None, None, 'test_config_1.json', 'paddle_frontend'),
+    @generate(*[(None, None, ['test_config_1.json'], 'paddle_frontend'),
                 (True, None, None, 'paddle_frontend'),
                 (None, None, None, 'paddle_frontend'),
     ])
@@ -398,51 +396,9 @@ class TestMoFallback(unittest.TestCase):
     def test_exception_if_old_extensions_used_for_pdpd(self):
         args = base_args_config()
         args.framework = 'paddle'
-        args.extensions = 'dir_to_extension'
+        args.extensions = ['dir_to_extension']
         args.input_model = 'paddle_dir/relu/relu.pdmodel'
 
         with pytest.raises(Error) as ex: # not called
             prepare_ir(args)
             assert str(ex) == 'Legacy transformations configuration is not supported for the new frontend'
-
-    @generate(*[('in1->[5.0 5.0 7.0 8.0],in2->[1.0 2.0 3.0 4.0]', None, None, 'mo_legacy', 'input_freezing'), #fallback
-                ('in1,in2->[1.0 2.0 3.0 4.0]', None, None, 'mo_legacy', 'input_freezing'), #fallback
-                ('in1->[1.0 2.0 3.0 4.0],in2', True, None, 'onnx_frontend', None),
-                ('in1->[1.0 2.0 3.0 4.0],in2', None, True, 'mo_legacy', None),
-    ])
-    def test_fallback_if_input_freezing_used(self, input, use_new_fe, use_legacy, conversion_method, fallback_reason):
-        with patch('openvino.tools.mo.main.get_default_frontends') as default_fe:
-            default_fe.return_value = get_test_default_frontends()
-            args = base_args_config(use_legacy, use_new_fe)
-            args.input_model = "test_model.onnx"
-            args.input = input
-
-            prepare_ir(args)
-
-            tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', conversion_method)
-            if fallback_reason:
-                tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
-            else:
-                with pytest.raises(AssertionError): # not called
-                    tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
-
-
-    @generate(*[('in2->[1.0 2.0 3.0 4.0]', None, None, 'mo_legacy', 'input_freezing'), #fallback
-                ('in2->[1.0 2.0 3.0 4.0]', True, None, 'onnx_frontend', None),
-                ('in2->[1.0 2.0 3.0 4.0]', None, True, 'mo_legacy', None),
-    ])
-    def test_fallback_if_input_freezing_used_in_deprecated_way(self, input_freezing_value, use_new_fe, use_legacy, conversion_method, fallback_reason):
-        with patch('openvino.tools.mo.main.get_default_frontends') as default_fe:
-            default_fe.return_value = get_test_default_frontends()
-            args = base_args_config(use_legacy, use_new_fe)
-            args.input_model = "test_model.onnx"
-            args.freeze_placeholder_with_value = input_freezing_value
-
-            prepare_ir(args)
-
-            tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', conversion_method)
-            if fallback_reason:
-                tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
-            else:
-                with pytest.raises(AssertionError): # not called
-                    tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)

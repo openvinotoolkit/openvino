@@ -12,6 +12,7 @@ namespace op {
 namespace v8 {
 /// \brief Adaptive max pooling operation.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API AdaptiveMaxPool : public Op {
 public:
     OPENVINO_OP("AdaptiveMaxPool", "opset8");

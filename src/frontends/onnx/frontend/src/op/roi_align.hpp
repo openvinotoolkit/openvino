@@ -15,6 +15,11 @@ OutputVector roi_align(const Node& node);
 
 }  // namespace set_1
 
+namespace set_16 {
+OutputVector roi_align(const Node& node);
+
+}  // namespace set_16
+
 }  // namespace op
 
 }  // namespace onnx_import

@@ -1,18 +1,26 @@
-#include <ie_core.hpp>
+#include <openvino/openvino.hpp>
 
 int main() {
-using namespace InferenceEngine;
 //! [part0]
-    Core ie; 
-    auto network = ie.ReadNetwork("sample.xml");
-    //NEW IE-CENTRIC API, the "MULTI" plugin is (globally) pre-configured with the explicit option:
-    ie.SetConfig({{"MULTI_DEVICE_PRIORITIES", "HDDL,GPU"}}, "MULTI");
-    ExecutableNetwork exec0 = ie.LoadNetwork(network, "MULTI", {});
+ov::Core core;
 
-    //NEW IE-CENTRIC API, configuration of the "MULTI" is part of the network configuration (and hence specific to the network):
-    ExecutableNetwork exec1 = ie.LoadNetwork(network, "MULTI", {{"MULTI_DEVICE_PRIORITIES", "HDDL,GPU"}});
-    //NEW IE-CENTRIC API, same as previous, but configuration of the "MULTI" is part of the name (so config is empty), also network-specific:
-    ExecutableNetwork exec2 = ie.LoadNetwork(network, "MULTI:HDDL,GPU", {});
+// Read a model in IR, PaddlePaddle, or ONNX format:
+std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
+
+// Option 1
+// Pre-configure MULTI globally with explicitly defined devices,
+// and compile the model on MULTI using the newly specified default device list.
+core.set_property("MULTI", ov::device::priorities("HDDL,GPU"));
+ov::CompiledModel compileModel0 = core.compile_model(model, "MULTI");
+
+// Option 2
+// Specify the devices to be used by MULTI explicitly at compilation.
+// The following lines are equivalent:
+ov::CompiledModel compileModel1 = core.compile_model(model, "MULTI:HDDL,GPU");
+ov::CompiledModel compileModel2 = core.compile_model(model, "MULTI", ov::device::priorities("HDDL,GPU"));
+
+
+
 //! [part0]
 return 0;
 }

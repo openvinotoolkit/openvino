@@ -5,6 +5,9 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
+
+#include "openvino/core/strides.hpp"
+#include "openvino/core/coordinate_diff.hpp"
 #include <vector>
 
 namespace cldnn {
@@ -34,11 +37,10 @@ struct deconvolution : public primitive_base<deconvolution> {
                   const primitive_id& input,
                   const std::vector<primitive_id>& weights,
                   const std::vector<primitive_id>& bias,
-                  tensor stride = {1, 1, 1, 1},
-                  tensor pad = {0, 0, 0, 0},
-                  const primitive_id& ext_prim_id = "",
+                  ov::Strides stride = {1, 1},
+                  ov::CoordinateDiff pad = {0, 0},
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           pad(pad),
           stride(stride),
           with_output_size(false),
@@ -61,11 +63,10 @@ struct deconvolution : public primitive_base<deconvolution> {
                   const std::vector<primitive_id>& weights,
                   const std::vector<primitive_id>& bias,
                   uint32_t groups,
-                  tensor stride = {1, 1, 1, 1},
-                  tensor pad = {0, 0, 0, 0},
-                  const primitive_id& ext_prim_id = "",
+                  ov::Strides stride = {1, 1},
+                  ov::CoordinateDiff pad = {0, 0},
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           pad(pad),
           stride(stride),
           with_output_size(false),
@@ -85,11 +86,10 @@ struct deconvolution : public primitive_base<deconvolution> {
     deconvolution(const primitive_id& id,
                   const primitive_id& input,
                   const std::vector<primitive_id>& weights,
-                  tensor stride = {1, 1, 1, 1},
-                  tensor pad = {0, 0, 0, 0},
-                  const primitive_id& ext_prim_id = "",
+                  ov::Strides stride = {1, 1},
+                  ov::CoordinateDiff pad = {0, 0},
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           pad(pad),
           stride(stride),
           with_output_size(false),
@@ -111,11 +111,10 @@ struct deconvolution : public primitive_base<deconvolution> {
                   const primitive_id& input,
                   const std::vector<primitive_id> &weights,
                   uint32_t groups,
-                  tensor stride = {1, 1, 1, 1},
-                  tensor pad = {0, 0, 0, 0},
-                  const primitive_id& ext_prim_id = "",
+                  ov::Strides stride = {1, 1},
+                  ov::CoordinateDiff pad = {0, 0},
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           pad(pad),
           stride(stride),
           with_output_size(false),
@@ -138,12 +137,11 @@ struct deconvolution : public primitive_base<deconvolution> {
                   const primitive_id& input,
                   const std::vector<primitive_id>& weights,
                   const std::vector<primitive_id>& bias,
-                  tensor stride,
-                  tensor pad,
+                  ov::Strides stride,
+                  ov::CoordinateDiff pad,
                   tensor output_size,
-                  const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           pad(pad),
           stride(stride),
           with_output_size(true),
@@ -169,13 +167,12 @@ struct deconvolution : public primitive_base<deconvolution> {
                   const std::vector<primitive_id>& weights,
                   const std::vector<primitive_id>& bias,
                   uint32_t groups,
-                  tensor stride,
-                  tensor pad,
+                  ov::Strides stride,
+                  ov::CoordinateDiff pad,
                   tensor output_size,
                   bool grouped_weights_shape,
-                  const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           pad(pad),
           stride(stride),
           with_output_size(true),
@@ -197,12 +194,11 @@ struct deconvolution : public primitive_base<deconvolution> {
     deconvolution(const primitive_id& id,
                   const primitive_id& input,
                   const std::vector<primitive_id>& weights,
-                  tensor stride,
-                  tensor pad,
+                  ov::Strides stride,
+                  ov::CoordinateDiff pad,
                   tensor output_size,
-                  const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           pad(pad),
           stride(stride),
           with_output_size(true),
@@ -228,9 +224,8 @@ struct deconvolution : public primitive_base<deconvolution> {
                                                  const std::vector<primitive_id>& weights,
                                                  const std::vector<primitive_id>& bias,
                                                  tensor output_size,
-                                                 tensor stride = {1, 1, 1, 1},
-                                                 tensor pad = {0, 0, 0, 0},
-                                                 const primitive_id& ext_prim_id = "",
+                                                 ov::Strides stride = {1, 1},
+                                                 ov::CoordinateDiff pad = {0, 0},
                                                  const padding& output_padding = padding()) {
         return deconvolution(id,
                              input,
@@ -239,7 +234,6 @@ struct deconvolution : public primitive_base<deconvolution> {
                              stride,
                              pad,
                              output_size,
-                             ext_prim_id,
                              output_padding);
     }
 
@@ -257,9 +251,8 @@ struct deconvolution : public primitive_base<deconvolution> {
                                                  const primitive_id& input,
                                                  const std::vector<primitive_id>& weights,
                                                  tensor output_size,
-                                                 tensor stride = {1, 1, 1, 1},
-                                                 tensor pad = {0, 0, 0, 0},
-                                                 const primitive_id& ext_prim_id = "",
+                                                 ov::Strides stride = {1, 1},
+                                                 ov::CoordinateDiff pad = {0, 0},
                                                  const padding& output_padding = padding())     {
         return deconvolution(id,
                              input,
@@ -267,14 +260,13 @@ struct deconvolution : public primitive_base<deconvolution> {
                              stride,
                              pad,
                              output_size,
-                             ext_prim_id,
                              output_padding);
     }
 
     /// @brief Defines logical pad value added to input tensor.
-    tensor pad;
+    ov::CoordinateDiff pad;
     /// @brief Defines shift in input buffer between adjacent calculations of output values.
-    tensor stride;
+    ov::Strides stride;
     /// @brief Indicates that the primitive has user-defined output size (non-zero value).
     bool with_output_size;
     /// @brief User-defined output data size of the primitive (w/o padding).

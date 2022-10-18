@@ -1092,10 +1092,12 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
                         op_name = smart_node.soft_get('name')
                         if graph.has_tensor_name(op_name):
                             continue
-                        fw_info = []
-                        if 'fw_tensor_debug_info' in smart_node.out_edge(0):
-                            fw_info += smart_node.out_edge(0)['fw_tensor_debug_info']
-                        smart_node.out_edge(0)['fw_tensor_debug_info'] = fw_info + [(op_name, op_name)]
+                        out_edges = list(graph.out_edges(op_name, data=True))
+                        for _, _, attrs in out_edges:
+                            fw_info = []
+                            if 'fw_tensor_debug_info' in attrs:
+                                fw_info += attrs['fw_tensor_debug_info']
+                            attrs['fw_tensor_debug_info'] = fw_info + [(op_name, op_name)]
 
                     continue
 

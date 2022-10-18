@@ -23,9 +23,10 @@
 #pragma once
 
 #include "cpu/x64/jit_generator.hpp"
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 
-namespace MKLDNNPlugin {
+namespace ov {
+namespace intel_cpu {
 
 struct jGatherConfParams {
     uint64_t dataTypeSize = 1lu;
@@ -140,7 +141,7 @@ protected:
     const Xbyak::Reg64& rSpecIdxAndAfterAxIterB = regIdxIter;
     const Xbyak::Reg64& rSpecIdxAndAfterAxSizeB = regSpecIdxSizeB;
 
-    const Xbyak::Reg64& regParams = dnnl::impl::cpu::x64::abi_param1;
+    const Xbyak::Reg64 regParams = Xbyak::Reg64(dnnl::impl::cpu::x64::abi_param_regs[0]);
 
     // 32b registers.
     Xbyak::Reg32 reg32IdxIter = Xbyak::Reg32(regIdxIter.getIdx());
@@ -206,4 +207,5 @@ protected:
     const unsigned* permMask16bitUni;
 };
 
-}  // namespace MKLDNNPlugin
+}   // namespace intel_cpu
+}   // namespace ov

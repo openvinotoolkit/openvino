@@ -54,7 +54,7 @@ Decrements a number of created inference requests:
 
 #### 1. `inferPreprocess`
 
-Below is the code of the the `inferPreprocess` method to demonstrate Inference Engine common preprocessing step handling:
+Below is the code of the `inferPreprocess` method to demonstrate Inference Engine common preprocessing step handling:
 
 @snippet src/template_infer_request.cpp infer_request:infer_preprocess
 

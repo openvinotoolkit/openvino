@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -53,7 +54,7 @@ def ctc_greedy_decoder_seq_len(
     :param sequence_length: Input 1D tensor with sequence length. Shape: [batch_size]
     :param blank_index:     Scalar or 1D tensor with specifies the class index to use for the blank class.
                             Optional parameter. Default value is num_classes-1.
-    @return:                The new node which performs CTCGreedyDecoderSeqLen.
+    :return:                The new node which performs CTCGreedyDecoderSeqLen.
     """
     if blank_index is not None:
         inputs = as_nodes(data, sequence_length, blank_index)
@@ -63,7 +64,7 @@ def ctc_greedy_decoder_seq_len(
     attributes = {
         "merge_repeated": merge_repeated,
         "classes_index_type": classes_index_type,
-        "sequence_length_type": sequence_length_type
+        "sequence_length_type": sequence_length_type,
     }
 
     return _get_node_factory_opset6().create("CTCGreedyDecoderSeqLen", inputs, attributes)
@@ -81,12 +82,12 @@ def gather_elements(
     :param data:       N-D tensor with data for gathering
     :param indices:    N-D tensor with indices by which data is gathered
     :param axis:       axis along which elements are gathered
-    @return:           The new node which performs GatherElements
+    :return:           The new node which performs GatherElements
     """
     inputs = as_nodes(data, indices)
 
     attributes = {
-        "axis": axis
+        "axis": axis,
     }
 
     return _get_node_factory_opset6().create("GatherElements", inputs, attributes)
@@ -110,14 +111,14 @@ def mvn(
                when normalizing the value. Scalar value.
     :param eps_mode: how eps is applied (`inside_sqrt` or `outside_sqrt`)
     :param name: Optional output node name.
-    returns The new node performing a MVN operation on input tensor.
+    :return: The new node performing a MVN operation on input tensor.
     """
     inputs = as_nodes(data, axes)
 
     attributes = {
         "normalize_variance": normalize_variance,
         "eps": eps,
-        "eps_mode": eps_mode
+        "eps_mode": eps_mode,
     }
 
     return _get_node_factory_opset6().create("MVN", inputs, attributes)
@@ -130,12 +131,12 @@ def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -
     :param new_value:    Node producing a value to be assigned to a variable.
     :param variable_id:  Id of a variable to be updated.
     :param name:         Optional name for output node.
-    returns Assign node
+    :return: Assign node
     """
     return _get_node_factory_opset6().create(
         "Assign",
         [as_node(new_value)],
-        {"variable_id": variable_id}
+        {"variable_id": variable_id},
     )
 
 
@@ -146,10 +147,10 @@ def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = No
     :param init_value:   Node producing a value to be returned instead of an unassigned variable.
     :param variable_id:  Id of a variable to be read.
     :param name:         Optional name for output node.
-    returns ReadValue node
+    :return: ReadValue node
     """
     return _get_node_factory_opset6().create(
         "ReadValue",
         [as_node(init_value)],
-        {"variable_id": variable_id}
+        {"variable_id": variable_id},
     )

@@ -4,17 +4,15 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations_visibility.hpp>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
 
-    class TRANSFORMATIONS_API DepthToSpaceFusion;
+class TRANSFORMATIONS_API DepthToSpaceFusion;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -41,8 +39,8 @@ namespace pass {
  *
  */
 
-class ngraph::pass::DepthToSpaceFusion: public ngraph::pass::MatcherPass {
+class ngraph::pass::DepthToSpaceFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("DepthToSpaceFusion", "0");
     DepthToSpaceFusion();
 };
