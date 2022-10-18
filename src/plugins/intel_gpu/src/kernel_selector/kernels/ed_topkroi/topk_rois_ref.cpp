@@ -3,7 +3,7 @@
 //
 
 
-#include "experimental_detectron_topk_rois_ref.h"
+#include "topk_rois_ref.h"
 
 #include <kernel_selector_utils.h>
 #include <random>

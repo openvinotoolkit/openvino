@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "experimental_detectron_generate_proposals_single_image_kernel_selector.h"
-#include "experimental_detectron_generate_proposals_single_image_kernel_ref.h"
+#include "generate_proposals_single_image_kernel_selector.h"
+#include "generate_proposals_single_image_kernel_ref.h"
 
 namespace kernel_selector {
 experimental_detectron_generate_proposals_single_image_kernel_selector::experimental_detectron_generate_proposals_single_image_kernel_selector() {

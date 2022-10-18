@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "experimental_detectron_prior_grid_generator_kernel_ref.h"
+#include "prior_grid_generator_kernel_ref.h"
 
 #include <kernel_selector_utils.h>
 

@@ -5,8 +5,8 @@
 #include <iostream>
 #include "binary_convolution_kernel_generic.h"
 #include <string>
-#include <core/actual_kernels/activation/activation_kernel_base.h>
-#include <core/actual_kernels/eltwise/eltwise_kernel_base.h>
+#include <activation/activation_kernel_base.h>
+#include <eltwise/eltwise_kernel_base.h>
 
 namespace kernel_selector {
 
