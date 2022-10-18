@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
         // Warm up
         ireq.infer();
         // Benchmark for seconds_to_run seconds and at least niter iterations
-        std::chrono::seconds seconds_to_run{1};
+        std::chrono::seconds seconds_to_run{15};
         int niter = 12;
         std::vector<double> latencies;
         latencies.reserve(niter);

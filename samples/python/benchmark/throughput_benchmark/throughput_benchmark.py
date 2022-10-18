@@ -89,7 +89,7 @@ def main():
     in_fly = set()
     start = perf_counter()
     time_point_to_finish = start + seconds_to_run
-    while perf_counter() < time_point_to_finish and len(latencies) + len(in_fly) < niter:
+    while perf_counter() < time_point_to_finish or len(latencies) + len(in_fly) < niter:
         idle_id = ireqs.get_idle_request_id()
         if idle_id in in_fly:
             latencies.append(ireqs[idle_id].latency)
