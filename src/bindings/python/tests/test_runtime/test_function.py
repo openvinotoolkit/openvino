@@ -461,7 +461,7 @@ def test_serialize_rt_info():
         assert model.get_rt_info(["MO_version"]) == version
         assert model.get_rt_info(["Runtime_version"]) == version
         assert model.get_rt_info(["optimization", "config"]) == config
-        assert model.framework_batch(["framework", "batch"]) == framework_batch
+        assert model.get_rt_info(["framework", "batch"]) == framework_batch
 
         assert model.has_rt_info(["test"]) is False
         assert model.has_rt_info(["optimization"]) is True

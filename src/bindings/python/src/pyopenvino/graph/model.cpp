@@ -33,7 +33,8 @@ const ov::Any& get_rt_info(const ov::Model& model,
     if (begin == end - 1) {
         return model.get_rt_arg(info, *begin);
     } else {
-        return get_rt_info(model, model.get_map_from_attr(info, *begin), begin + 1, end);
+        const ov::Any& rt_attr = model.get_rt_arg<std::string>(info, *begin);
+        return get_rt_info(model, model.get_map_from_attr(rt_attr), begin + 1, end);
     }
 }
 ov::Any& get_rt_info(ov::Model& model,
@@ -43,8 +44,8 @@ ov::Any& get_rt_info(ov::Model& model,
     if (begin == end - 1) {
         return model.get_rt_arg(info, *begin);
     } else {
-        ov::Any any = info;
-        return get_rt_info(model, model.get_map_from_attr(any, *begin), begin + 1, end);
+        ov::Any& rt_attr = model.get_rt_arg<std::string>(info, *begin);
+        return get_rt_info(model, model.get_map_from_attr(rt_attr), begin + 1, end);
     }
 }
 }  // namespace ov
@@ -743,7 +744,7 @@ void regclass_graph_Model(py::module m) {
         "get_rt_info",
         [](const ov::Model& self, const py::list& args) -> py::object {
             const size_t args_len = py::len(args);
-            std::vector<std::string> cpp_args(args_len);
+            std::vector<std::string> cpp_args;
             for (size_t i = 0; i < args_len; i++) {
                 cpp_args.emplace_back(args[i].cast<std::string>());
             }
@@ -763,7 +764,7 @@ void regclass_graph_Model(py::module m) {
         "has_rt_info",
         [](const ov::Model& self, const py::list& args) -> bool {
             const size_t args_len = py::len(args);
-            std::vector<std::string> cpp_args(args_len);
+            std::vector<std::string> cpp_args;
             for (size_t i = 0; i < args_len; i++) {
                 cpp_args.emplace_back(args[i].cast<std::string>());
             }
@@ -787,13 +788,13 @@ void regclass_graph_Model(py::module m) {
         "set_rt_info",
         [](ov::Model& self, const py::object& obj, const py::list& args) -> void {
             const size_t args_len = py::len(args);
-            std::vector<std::string> cpp_args(args_len);
+            std::vector<std::string> cpp_args;
             for (size_t i = 0; i < args_len; i++) {
                 cpp_args.emplace_back(args[i].cast<std::string>());
             }
             ov::get_rt_info(self, self.get_rt_info(), cpp_args.cbegin(), cpp_args.cend()) = py_object_to_any(obj);
         },
-        py::arg("obj") = py::object(),
+        py::arg("obj"),
         py::arg("args") = py::list(),
         R"(
                 Add value inside rt info

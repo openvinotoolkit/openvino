@@ -976,7 +976,7 @@ std::shared_ptr<ov::Model> ov::Model::clone() const {
     return ov::clone_model(*this);
 }
 
-const ov::AnyMap& ov::Model::get_map_from_attr(const ov::Any& info, const std::string& name) const {
+const ov::AnyMap& ov::Model::get_map_from_attr(const ov::Any& info) const {
     // lock to get meta from different threads in order to avoid thread safety
     // implementations of meta information for each frontend
     std::lock_guard<mutex> lock(m_model_mutex);
@@ -989,7 +989,7 @@ const ov::AnyMap& ov::Model::get_map_from_attr(const ov::Any& info, const std::s
     throw ov::Exception("Cannot get rt attribute. Keys are incorrect.");
 }
 
-ov::AnyMap& ov::Model::get_map_from_attr(ov::Any& info, const std::string& name) const {
+ov::AnyMap& ov::Model::get_map_from_attr(ov::Any& info) const {
     // lock to get meta from different threads in order to avoid thread safety
     // implementations of meta information for each frontend
     std::lock_guard<mutex> lock(m_model_mutex);

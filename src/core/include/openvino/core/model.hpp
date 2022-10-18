@@ -379,7 +379,7 @@ private:
         if (!has_attr)
             return false;
         const ov::Any& rt_attr = get_rt_arg<T>(rt_info, name);
-        const ov::AnyMap& new_map = get_map_from_attr(rt_attr, name);
+        const ov::AnyMap& new_map = get_map_from_attr(rt_attr);
         return has_rt_arg<Args...>(new_map, args...);
     }
 
@@ -400,7 +400,7 @@ private:
                                       bool>::type = true>
     const ov::Any& get_rt_arg(const ov::AnyMap& rt_info, const T& name, Args... args) const {
         const ov::Any& rt_attr = get_rt_arg<T>(rt_info, name);
-        const ov::AnyMap& new_map = get_map_from_attr(rt_attr, name);
+        const ov::AnyMap& new_map = get_map_from_attr(rt_attr);
         return get_rt_arg<Args...>(new_map, args...);
     }
 
@@ -419,14 +419,14 @@ private:
                                       bool>::type = true>
     ov::Any& get_rt_arg(ov::AnyMap& rt_info, const T& name, Args... args) {
         ov::Any& rt_attr = get_rt_arg<T>(rt_info, name);
-        ov::AnyMap& new_map = get_map_from_attr(rt_attr, name);
+        ov::AnyMap& new_map = get_map_from_attr(rt_attr);
         return get_rt_arg<Args...>(new_map, args...);
     }
 
     const ov::Any& get_attr(const ov::Any& info) const;
     ov::Any& get_attr(ov::Any& info) const;
-    const ov::AnyMap& get_map_from_attr(const ov::Any& info, const std::string& name) const;
-    ov::AnyMap& get_map_from_attr(ov::Any& info, const std::string& name) const;
+    const ov::AnyMap& get_map_from_attr(const ov::Any& info) const;
+    ov::AnyMap& get_map_from_attr(ov::Any& info) const;
 
     /// \brief Depending on the options selected,
     /// checks all the Parameter/Variables are registered in the list of Model
