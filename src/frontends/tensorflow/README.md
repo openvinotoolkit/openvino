@@ -21,7 +21,7 @@ flowchart BT
 ```
 
 Currently, it is only used by [OpenVINO Integration with TensorFlow](https://github.com/openvinotoolkit/openvino_tensorflow).
-Model Optimizer for now relies on the legacy [TensorFlow Frontend] (https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html) developed in Python.
+Model Optimizer for now relies on the legacy [TensorFlow Frontend](https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html) developed in Python.
 
 ## Key contacts
 
