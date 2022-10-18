@@ -43,6 +43,9 @@ bool op::v10::Unique::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v10::Unique::validate_and_infer_types() {
     OV_OP_SCOPE(v10_Unique_validate_and_infer_types);
+    NODE_VALIDATION_CHECK(this,
+                          m_index_element_type == element::i32 || m_index_element_type == element::i64,
+                          "The element type of the outputs containing indices can only be set to i32 or i64");
 
     std::vector<PartialShape> out_shapes(4);
     if (get_input_size() == 1) {

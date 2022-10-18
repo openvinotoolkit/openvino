@@ -61,9 +61,58 @@ TEST(type_prop, unique_no_axis_1D) {
     ASSERT_OUTPUT_SHAPES(unique, {PartialShape{1}, PartialShape{1}, PartialShape{1}, PartialShape{1}});
 }
 
+TEST(type_prop, unique_3d_scalar_axis) {
+    const auto data = make_shared<opset10::Parameter>(element::f32, PartialShape{2, 4, 2});
+    const auto axis = make_shared<opset10::Constant>(element::i32, Shape{}, 1);
+    const auto unique = make_shared<opset10::Unique>(data, axis);
+
+    ASSERT_ELEMENT_TYPES(unique, {element::f32, element::i64, element::i64, element::i64});
+    ASSERT_OUTPUT_SHAPES(
+        unique,
+        {PartialShape{{2}, {1, 4}, {2}}, PartialShape{{1, 16}}, PartialShape{{1, 16}}, PartialShape{{1, 16}}});
+}
+
+TEST(type_prop, unique_dynamic_rank) {
+    const auto data = make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic());
+    const auto axis = make_shared<opset10::Constant>(element::i32, Shape{}, 1);
+    const auto unique = make_shared<opset10::Unique>(data, axis);
+
+    ASSERT_ELEMENT_TYPES(unique, {element::f32, element::i64, element::i64, element::i64});
+    ASSERT_OUTPUT_SHAPES(unique, {PartialShape::dynamic(), PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}});
+}
+
+TEST(type_prop, unique_dynamic_rank_no_axis) {
+    const auto data = make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic());
+    const auto unique = make_shared<opset10::Unique>(data);
+
+    ASSERT_ELEMENT_TYPES(unique, {element::f32, element::i64, element::i64, element::i64});
+    ASSERT_OUTPUT_SHAPES(unique, {PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}});
+}
+
 TEST(type_prop, unique_unsupported_index_et) {
     const auto data = make_shared<opset10::Parameter>(element::i64, PartialShape{1, 3, 3});
     EXPECT_THROW(make_shared<opset10::Unique>(data, true, element::f32), ov::NodeValidationFailure);
+}
+
+TEST(type_prop, unique_unsupported_axis_et) {
+    const auto data = make_shared<opset10::Parameter>(element::i64, PartialShape{1, 3, 3});
+    const auto axis = make_shared<opset10::Constant>(element::f32, Shape{}, 1.0f);
+
+    EXPECT_THROW(make_shared<opset10::Unique>(data, axis), ov::NodeValidationFailure);
+}
+
+TEST(type_prop, unique_unsupported_axis_shape) {
+    const auto data = make_shared<opset10::Parameter>(element::i64, PartialShape{1, 3, 3});
+    const auto axis = make_shared<opset10::Constant>(element::i32, Shape{3, 3}, 1);
+
+    EXPECT_THROW(make_shared<opset10::Unique>(data, axis), ov::NodeValidationFailure);
+}
+
+TEST(type_prop, unique_non_const_axis_input) {
+    const auto data = make_shared<opset10::Parameter>(element::i64, PartialShape{1, 3, 3});
+    const auto axis = make_shared<opset10::Parameter>(element::i32, Shape{});
+
+    EXPECT_THROW(make_shared<opset10::Unique>(data, axis), ov::NodeValidationFailure);
 }
 
 // TEST(type_prop, grid_sample_dynamic_batch) {
