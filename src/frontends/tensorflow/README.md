@@ -23,8 +23,6 @@ flowchart BT
 Currently, it is only used by [OpenVINO Integration with TensorFlow](https://github.com/openvinotoolkit/openvino_tensorflow).
 Model Optimizer for now relies on the legacy [TensorFlow Frontend] (https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html) developed in Python.
 
-TensorFlow Frontend uses [the common coding style rules](../../../docs/dev/coding_style.md).
-
 ## Key contacts
 
 People from the [openvino-tf-frontend-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-tf-frontend-maintainers) have the rights to approve and merge PRs to the TensorFlow Frontend component.
