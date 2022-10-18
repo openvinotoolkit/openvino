@@ -45,12 +45,12 @@ std::vector<std::string> tensor_names = {
     "relu_1.tmp_0",
     "relu_2.tmp_0",
     "relu_3.tmp_0",
-    "save_infer_model/scale_0.tmp_1",
-    "save_infer_model/scale_1.tmp_1",
-    "save_infer_model/scale_2.tmp_1",
-    "save_infer_model/scale_3.tmp_1",
-    "save_infer_model/scale_4.tmp_1",
-    "save_infer_model/scale_5.tmp_1",
+    "save_infer_model/scale_0.tmp_0",
+    "save_infer_model/scale_1.tmp_0",
+    "save_infer_model/scale_2.tmp_0",
+    "save_infer_model/scale_3.tmp_0",
+    "save_infer_model/scale_4.tmp_0",
+    "save_infer_model/scale_5.tmp_0",
 };
 
 TEST(Paddle_Places, check_tensor_names) {
@@ -82,12 +82,12 @@ TEST(Paddle_Places, check_input_outputs) {
     auto tensor_place = input_model->get_place_by_tensor_name("x");
     tensor_place->is_equal(inputs[0]);
 
-    std::vector<std::string> output_names = {"save_infer_model/scale_0.tmp_1",
-                                             "save_infer_model/scale_1.tmp_1",
-                                             "save_infer_model/scale_2.tmp_1",
-                                             "save_infer_model/scale_3.tmp_1",
-                                             "save_infer_model/scale_4.tmp_1",
-                                             "save_infer_model/scale_5.tmp_1"};
+    std::vector<std::string> output_names = {"save_infer_model/scale_0.tmp_0",
+                                             "save_infer_model/scale_1.tmp_0",
+                                             "save_infer_model/scale_2.tmp_0",
+                                             "save_infer_model/scale_3.tmp_0",
+                                             "save_infer_model/scale_4.tmp_0",
+                                             "save_infer_model/scale_5.tmp_0"};
 
     for (const auto& name : output_names) {
         const auto output_place = input_model->get_place_by_tensor_name(name);
@@ -398,12 +398,12 @@ TEST(Paddle_Places, check_input_output_ports_dy_idx) {
     InputModel::Ptr input_model;
     ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
-    std::vector<std::string> output_names = {"save_infer_model/scale_0.tmp_1",
-                                             "save_infer_model/scale_1.tmp_1",
-                                             "save_infer_model/scale_2.tmp_1",
-                                             "save_infer_model/scale_3.tmp_1",
-                                             "save_infer_model/scale_4.tmp_1",
-                                             "save_infer_model/scale_5.tmp_1"};
+    std::vector<std::string> output_names = {"save_infer_model/scale_0.tmp_0",
+                                             "save_infer_model/scale_1.tmp_0",
+                                             "save_infer_model/scale_2.tmp_0",
+                                             "save_infer_model/scale_3.tmp_0",
+                                             "save_infer_model/scale_4.tmp_0",
+                                             "save_infer_model/scale_5.tmp_0"};
 
     for (const auto& tensor_name : output_names) {
         auto tensor_place = input_model->get_place_by_tensor_name(tensor_name);
@@ -424,12 +424,12 @@ TEST(Paddle_Places, check_ops_tensors_by_idx) {
     InputModel::Ptr input_model;
     ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
-    std::vector<std::string> output_names = {"save_infer_model/scale_0.tmp_1",
-                                             "save_infer_model/scale_1.tmp_1",
-                                             "save_infer_model/scale_2.tmp_1",
-                                             "save_infer_model/scale_3.tmp_1",
-                                             "save_infer_model/scale_4.tmp_1",
-                                             "save_infer_model/scale_5.tmp_1"};
+    std::vector<std::string> output_names = {"save_infer_model/scale_0.tmp_0",
+                                             "save_infer_model/scale_1.tmp_0",
+                                             "save_infer_model/scale_2.tmp_0",
+                                             "save_infer_model/scale_3.tmp_0",
+                                             "save_infer_model/scale_4.tmp_0",
+                                             "save_infer_model/scale_5.tmp_0"};
 
     for (const auto& tensor_name : output_names) {
         auto tensor_place = input_model->get_place_by_tensor_name(tensor_name);
