@@ -88,7 +88,6 @@ InsertCopyBeforeConcatLayer::InsertCopyBeforeConcatLayer() {
         // Insert copy layers after concat inputs with multiple connections to concat
         for (size_t i = 0; i < concat->get_input_size(); i++) {
             auto input_op = concat->get_input_node_shared_ptr(i);
-
             if (inputs.find(input_op) != inputs.end()) {
                 insert_copy_layer_between(input_op, concat, i);
             } else {
@@ -101,10 +100,13 @@ InsertCopyBeforeConcatLayer::InsertCopyBeforeConcatLayer() {
             auto concat_input = concat->get_input_node_shared_ptr(i);
             auto current_node = get_prev_node_skipping_certain(concat_input, is_gna_non_functional_node);
 
-            // Crop -> Concat, Input -> Split -> Concat
+            // Crop -> Concat, Input -> Split -> Concat, Memory -> Concat, Parameter -> Concat, Const -> Concat
             if ((std::dynamic_pointer_cast<ngraph::op::CropIE>(current_node) && !is_crop_affined(current_node)) ||
                 std::dynamic_pointer_cast<ngraph::opset8::Split>(current_node) ||
-                std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(current_node)) {
+                std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(current_node) ||
+                std::dynamic_pointer_cast<ngraph::opset8::ReadValue>(current_node) ||
+                std::dynamic_pointer_cast<ngraph::opset8::Parameter>(current_node) ||
+                std::dynamic_pointer_cast<ngraph::opset8::Constant>(current_node)) {
                 insert_copy_layer_between(concat_input, concat, i);
             }
         }

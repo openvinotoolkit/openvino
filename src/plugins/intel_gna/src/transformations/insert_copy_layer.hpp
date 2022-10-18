@@ -43,8 +43,14 @@ public:
  *     |                    |
  * [Concat]             [Concat]
  *
+ * With layers allocated in the different memory region (States, Inputs, RO):
+ * [ReadValue/Parameter/Constant]          [ReadValue/Parameter/Constant]
+ *                |                                    |
+ *                |                  =>              [Copy]
+ *                |                                    |
+ *             [Concat]                             [Concat]
+ * 
  * With non-functional layers:
-
  * [Crop/Split]             [Crop/Split]
  *     |                          |
  * [Non-functional]        [Non-functional]
@@ -52,6 +58,7 @@ public:
  *     |              =>       [Copy]
  *     |                         |
  *  [Concat]                 [Concat]
+ * 
  * Or if a layer has multiple connections to Concat
  * [any node]         [any node]
  *   |                 |
@@ -59,7 +66,7 @@ public:
  *  |  |       =>    |  [Copy]
  *  |  |             |    |
  * [Concat]         [Concat]
-
+ *
  * [any node]         [any node]
  *    |                  |
  *  / \ \             /   \       \
