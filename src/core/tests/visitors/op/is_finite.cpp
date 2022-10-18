@@ -6,7 +6,6 @@
 #include "ngraph/opsets/opset10.hpp"
 
 using Types = ::testing::Types<UnaryOperatorType<ngraph::op::v10::IsFinite, ngraph::element::f32>>;
-                            //    UnaryOperatorType<ngraph::op::v10::IsFinite, ngraph::element::i32>>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(visitor_without_attribute, UnaryOperatorVisitor, Types, UnaryOperatorTypeName);
 
