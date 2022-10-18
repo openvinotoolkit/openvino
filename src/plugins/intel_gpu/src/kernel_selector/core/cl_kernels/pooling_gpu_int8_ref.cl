@@ -30,7 +30,7 @@ KERNEL(pooling_gpu_int8_ref)(
 #endif
 )
 {
-#if OUTPUT_LAYOUT_BFYX  || OUTPUT_LAYOUT_BYXF || OUTPUT_LAYOUT_B_FS_YX_FSV4 || OUTPUT_LAYOUT_BFZYX || OUTPUT_LAYOUT_BS_FS_ZYX_BSV32_FSV32 || OUTPUT_LAYOUT_BS_FS_ZYX_BSV16_FSV16
+#if OUTPUT_LAYOUT_BFYX  || OUTPUT_LAYOUT_BYXF || OUTPUT_LAYOUT_B_FS_YX_FSV4 || OUTPUT_LAYOUT_BFZYX || OUTPUT_LAYOUT_BS_FS_ZYX_BSV16_FSV32 || OUTPUT_LAYOUT_BS_FS_ZYX_BSV32_FSV32 || OUTPUT_LAYOUT_BS_FS_ZYX_BSV16_FSV16
     const uint x    = (uint)get_global_id(0);
     const uint yz   = (uint)get_global_id(1);
 #if OUTPUT_DIMS == 5
@@ -75,7 +75,7 @@ KERNEL(pooling_gpu_int8_ref)(
     const uint f    = bf / INPUT0_BATCH_NUM;
     const uint b    = bf % INPUT0_BATCH_NUM;
     const uint z    = 0;
-#elif OUTPUT_LAYOUT_B_FS_YX_FSV16 || OUTPUT_LAYOUT_BS_FS_YX_BSV32_FSV32
+#elif OUTPUT_LAYOUT_B_FS_YX_FSV16 || OUTPUT_LAYOUT_BS_FS_YX_BSV32_FSV32 || OUTPUT_LAYOUT_BS_FS_YX_BSV16_FSV32
     const uint x = get_global_id(1);
     const uint y = get_global_id(2);
     const uint bf = (uint)get_global_id(0);

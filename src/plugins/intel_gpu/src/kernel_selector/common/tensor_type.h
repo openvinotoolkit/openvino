@@ -41,6 +41,7 @@ enum DataLayout {
     b_fs_yx_fsv32,          // 3D+batch
     b_fs_zyx_fsv32,         // 4D+batch
     bs_fs_yx_bsv16_fsv16,   // batch, feature, 2D spatial. Blocks of 16 batch and channels
+    bs_fs_yx_bsv16_fsv32,   // batch, feature, 2D spatial. Blocks of 16 batch and 32 channels
     bs_fs_zyx_bsv16_fsv32,  // batch, feature, 3D spatial. Blocks of 16 batch and 32 channels
     bs_fs_zyx_bsv16_fsv16,  // batch, feature, 3D spatial. Blocks of 16 batch and channels
     bs_fs_yx_bsv4_fsv4,     // batch, feature, 2D spatial. Blocks of 4 batch and 4 channels
@@ -90,6 +91,7 @@ enum WeightsLayout {
     os_is_zyx_isv16_osv16,
     is_os_zyx_isv16_osv16,
     is_os_yx_isv16_osv16,
+    is_os_yx_isv16_osv8,
     os_is_zyx_isv8_osv16_isv2,
     os_is_yx_isv8_osv16_isv2,
     os_is_yx_isv16_osv16,
@@ -289,6 +291,7 @@ inline bool SimpleLayout(DataLayout l) {
 
 inline bool DoubleBlockedLayout(DataLayout l) {
     switch (l) {
+        case DataLayout::bs_fs_yx_bsv16_fsv32:
         case DataLayout::bs_fs_yx_bsv16_fsv16:
         case DataLayout::bs_fs_zyx_bsv16_fsv32:
         case DataLayout::bs_fs_zyx_bsv16_fsv16:

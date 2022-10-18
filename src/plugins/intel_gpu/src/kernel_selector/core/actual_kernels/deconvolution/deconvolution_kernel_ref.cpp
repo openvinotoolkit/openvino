@@ -29,6 +29,8 @@ ParamsKey DeconvolutionKernelRef::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
     k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
     k.EnableOutputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::bfyx);
@@ -36,6 +38,8 @@ ParamsKey DeconvolutionKernelRef::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
 
     k.EnableTensorOffset();

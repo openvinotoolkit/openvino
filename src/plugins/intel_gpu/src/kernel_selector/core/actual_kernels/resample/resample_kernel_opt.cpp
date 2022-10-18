@@ -39,11 +39,15 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv32);
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
     k.EnableInputLayout(DataLayout::fs_b_yx_fsv32);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv32);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
     k.EnableOutputLayout(DataLayout::fs_b_yx_fsv32);
@@ -91,8 +95,8 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
         dispatchData.lws[1] = sub_group_size;
         dispatchData.lws[2] = 1;
 
-        if (arg.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16
-            || arg.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32) {
+        if (arg.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 || arg.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv32 ||
+            arg.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 || arg.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32) {
             dispatchData.lws[2] = GetOptimalDivisor(dispatchData.gws[2]);
         }
     }
@@ -125,6 +129,8 @@ bool ResampleKernelOpt::Validate(const Params& p, const optional_params& o) cons
     if (input.GetLayout() != DataLayout::fs_b_yx_fsv32 &&
         input.GetLayout() != DataLayout::b_fs_yx_fsv16 &&
         input.GetLayout() != DataLayout::b_fs_yx_fsv32 &&
+        input.GetLayout() != DataLayout::bs_fs_yx_bsv16_fsv16 &&
+        input.GetLayout() != DataLayout::bs_fs_yx_bsv16_fsv32 &&
         input.GetLayout() != DataLayout::bs_fs_yx_bsv32_fsv16 &&
         input.GetLayout() != DataLayout::bs_fs_yx_bsv32_fsv32)
         return false;

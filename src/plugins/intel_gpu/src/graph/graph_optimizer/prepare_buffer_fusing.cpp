@@ -111,6 +111,20 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
             return false;
         if (out_l.batch() > 1)
             return false;
+
+        // TODO: cldnn cases should be updated. This logic is working for onednn only.
+        //       white list for support fusing formats.
+        const std::vector<format> white_list = {
+            format::bfyx,
+            format::bfzyx,
+            format::b_fs_yx_fsv16,
+            format::b_fs_zyx_fsv16,
+            format::b_fs_yx_fsv32,
+            format::b_fs_zyx_fsv32,
+            format::b_fs_yx_fsv4,
+        };
+        if (std::find_if(white_list.begin(), white_list.end(), [&out_l](format fmt){ return (fmt == out_l.format); }) == std::end(white_list))
+            return false;
     }
 
     // For in place concatenation input layouts and data types must match.

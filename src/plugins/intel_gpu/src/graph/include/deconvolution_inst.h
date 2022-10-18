@@ -7,6 +7,7 @@
 
 #include "intel_gpu/primitives/deconvolution.hpp"
 #include "primitive_inst.h"
+#include "intel_gpu/runtime/format.hpp"
 
 #include <string>
 #include <memory>

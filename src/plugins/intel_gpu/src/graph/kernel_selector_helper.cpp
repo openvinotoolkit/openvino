@@ -134,6 +134,8 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::bfwzyx;
         case format::b_fs_zyx_fsv16:
             return kernel_selector::data_layout::b_fs_zyx_fsv16;
+        case format::bs_fs_yx_bsv16_fsv32:
+            return kernel_selector::data_layout::bs_fs_yx_bsv16_fsv32;
         case format::bs_fs_zyx_bsv16_fsv32:
             return kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv32;
         case format::bs_fs_zyx_bsv16_fsv16:
@@ -385,6 +387,8 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::is_os_zyx_isv16_osv16;
         case format::is_os_yx_isv16_osv16:
             return kernel_selector::weights_layout::is_os_yx_isv16_osv16;
+        case format::is_os_yx_isv16_osv8:
+            return kernel_selector::weights_layout::is_os_yx_isv16_osv8;
         case format::is_os_yx_osa4_isa8_osv8_isv4:
             return kernel_selector::weights_layout::is_os_yx_osa4_isa8_osv8_isv4;
         case format::os_is_osv32_isv32_swizzled_by_4:
@@ -619,6 +623,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::is_os_zyx_isv16_osv16;
         case kernel_selector::weights_layout::is_os_yx_isv16_osv16:
             return cldnn::format::is_os_yx_isv16_osv16;
+        case kernel_selector::weights_layout::is_os_yx_isv16_osv8:
+            return cldnn::format::is_os_yx_isv16_osv8;
         case kernel_selector::weights_layout::is_os_zyx_isa8_osv8_isv2:
             return cldnn::format::is_os_zyx_isa8_osv8_isv2;
         case kernel_selector::weights_layout::is_os_zyx_isa8_osv8_isv4:
@@ -840,11 +846,11 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split
 
     if (ks_layout == kernel_selector::Tensor::bs_fs_yx_bsv16_fsv16) {
         vec[2].pitch = (vec[0].v * vec[1].v) * 16;
-        vec[3].pitch = vec[2].pitch * vec[2].v;
+        vec[3].pitch = vec[2].pitch * vec[2].LogicalDimPadded();
     }
     if (ks_layout == kernel_selector::Tensor::bs_fs_zyx_bsv16_fsv16) {
         vec[3].pitch = (vec[0].v * vec[1].v * vec[2].v) * 16;
-        vec[4].pitch = vec[3].pitch * vec[3].v;
+        vec[4].pitch = vec[3].pitch * vec[3].LogicalDimPadded();
     }
 
     const int feature_index =

@@ -218,6 +218,8 @@ attach_convolution_onednn::attach_convolution_onednn() {
         format::b_fs_yx_fsv32,
         format::bs_fs_yx_bsv16_fsv16,
         format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_yx_bsv16_fsv32,
+        format::bs_fs_zyx_bsv16_fsv32,
         format::bs_fs_yx_bsv32_fsv16,
         format::bs_fs_zyx_bsv32_fsv16,
         format::bs_fs_yx_bsv32_fsv32,

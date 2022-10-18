@@ -599,7 +599,9 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
     if ((params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 ||
          params.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
          params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 ||
-         params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16) &&
+         params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+         params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv16 ||
+         params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16) &&
         params.outputs[0].Feature().v % 16 == 0 && dispatchData.gws[1] % 16 == 0) {
         dispatchData.lws[0] = 1;
         for (auto lws : optimal_lws_values) {
@@ -616,7 +618,9 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
         dispatchData.lws[2] = 32;
     } else if ((params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32 ||
                 params.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32 ||
+                params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv32 ||
                 params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 ||
+                params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv32 ||
                 params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32)) {
         if (params.layoutBased || params.int8_quantization || params.broadcast) {
             auto bs_fsv32_local = GetLimitedOptimalLocalWorkGroupSizes({dispatchData.gws[1], dispatchData.gws[2], dispatchData.gws[0]},
@@ -633,6 +637,8 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
             dispatchData.lws[2] = bs_fsv32_local[0];
         }
     } else if ((params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 ||
+                params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+                params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 ||
                 params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv16) &&
                 (params.outputs[0].Feature().v % 16 != 0 || dispatchData.gws[1] % 16 != 0)) {
             auto bs_fsv16_local = GetLimitedOptimalLocalWorkGroupSizes({dispatchData.gws[2], dispatchData.gws[0], dispatchData.gws[1]},
