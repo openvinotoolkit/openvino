@@ -18,11 +18,9 @@
 namespace ngraph {
 /// \brief Run-time opset information
 class NGRAPH_API OpSet : public ov::OpSet {
-    static std::mutex& get_mutex();
-
 public:
     explicit OpSet(const ov::OpSet& opset);
-    OpSet(const ngraph::OpSet& opset) = default;
+    OpSet(const ngraph::OpSet& opset);
     OpSet() = default;
     /// \brief Insert an op into the opset with a particular name and factory
     void insert(const std::string& name, const NodeTypeInfo& type_info, FactoryRegistry<Node>::Factory factory) {
