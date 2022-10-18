@@ -20,7 +20,7 @@ from compare_memcheck_2_runs import compare_memcheck_2_runs, get_memcheck_record
 # Database arguments
 from memcheck_upload import DATABASE, DB_COLLECTIONS
 from memcheck_upload import create_memcheck_records, upload_memcheck_records, create_memcheck_report, \
-    metadata_from_manifest, info_from_test_config, push_to_db_facade
+    metadata_from_manifest, info_from_test_config, push_to_db_facade, modify_data_for_push_to_new_db
 
 
 def run(args, log=None, verbose=True):
@@ -191,7 +191,8 @@ def main():
                 upload_memcheck_records(records, args.db_url, args.db_collection)
                 logging.info('Uploaded to %s/%s.%s', args.db_url, DATABASE, args.db_collection)
                 if args.db_api_handler:
-                    push_to_db_facade(records, args.db_api_handler)
+                    new_format_records = modify_data_for_push_to_new_db(records)
+                    push_to_db_facade(new_format_records, args.db_api_handler)
             else:
                 logging.warning('No records to upload')
 
