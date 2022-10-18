@@ -116,7 +116,8 @@ jobs:
       export PATH="/usr/local/opt/cython/bin:$PATH"
       export CC=gcc
       export CXX=g++
-      cmake -GNinja -DVERBOSE_BUILD=ON \
+      cmake -GNinja \
+        -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DENABLE_REQUIREMENTS_INSTALL=OFF \
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
@@ -184,6 +185,7 @@ jobs:
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-IRFrontend.xml
     displayName: 'IR Frontend Tests'
     continueOnError: false
+    enabled: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU*--gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
     displayName: 'ONNX Frontend Tests'
