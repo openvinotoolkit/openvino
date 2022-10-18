@@ -452,24 +452,24 @@ def test_reshape_with_python_types(device):
     )
 
 def test_serialize_rt_info():
-    version = 'TestVersion'
-    config = 'TestConfig'
-    framework_batch = '1'
+    version = "TestVersion"
+    config = "TestConfig"
+    framework_batch = "1"
 
     def check_rt_info(model):
-        assert model.get_rt_info(['MO_version']) == version
-        assert model.get_rt_info(['Runtime_version']) == version
-        assert model.get_rt_info(['optimization', 'config']) == config
-        assert model.framework_batch(['framework', 'batch']) == framework_batch
+        assert model.get_rt_info(["MO_version"]) == version
+        assert model.get_rt_info(["Runtime_version"]) == version
+        assert model.get_rt_info(["optimization", "config"]) == config
+        assert model.framework_batch(["framework", "batch"]) == framework_batch
 
-        assert model.has_rt_info(['test']) == False
-        assert model.has_rt_info(['optimization']) == True
-        assert model.has_rt_info(['optimization', 'test']) == False
+        assert model.has_rt_info(["test"]) is False
+        assert model.has_rt_info(["optimization"]) is True
+        assert model.has_rt_info(["optimization", "test"]) is False
         with pytest.raises(Exception):
-            assert model.get_rt_info(['test'])
+            assert model.get_rt_info(["test"])
 
         with pytest.raises(Exception):
-            assert model.get_rt_info(['optimization', 'test'])
+            assert model.get_rt_info(["optimization", "test"])
 
     core = Core()
     xml_path = "./serialized_model.xml"
@@ -484,25 +484,25 @@ def test_serialize_rt_info():
 
     assert model is not None
 
-    assert model.has_rt_info(['MO_version']) == False
-    model.set_rt_info(version, ['MO_version'])
-    assert model.has_rt_info(['MO_version']) == True
+    assert model.has_rt_info(["MO_version"]) is False
+    model.set_rt_info(version, ["MO_version"])
+    assert model.has_rt_info(["MO_version"]) is True
 
-    assert model.has_rt_info(['Runtime_version']) == False
-    model.set_rt_info(version, ['Runtime_version'])
-    assert model.has_rt_info(['Runtime_version']) == True
+    assert model.has_rt_info(["Runtime_version"]) is False
+    model.set_rt_info(version, ["Runtime_version"])
+    assert model.has_rt_info(["Runtime_version"]) is True
 
-    assert model.has_rt_info(['optimization']) == False
-    assert model.has_rt_info(['optimization', 'config']) == False
-    model.set_rt_info(config, ['optimization', 'config'])
-    assert model.has_rt_info(['optimization']) == True
-    assert model.has_rt_info(['optimization', 'config']) == True
+    assert model.has_rt_info(["optimization"]) is False
+    assert model.has_rt_info(["optimization", "config"]) is False
+    model.set_rt_info(config, ["optimization", "config"])
+    assert model.has_rt_info(["optimization"]) is True
+    assert model.has_rt_info(["optimization", "config"]) is True
 
-    assert model.has_rt_info(['framework']) == False
-    assert model.has_rt_info(['framework', 'batch']) == False
-    model.set_rt_info(framework_batch, ['framework', 'batch'])
-    assert model.has_rt_info(['framework']) == True
-    assert model.has_rt_info(['framework', 'batch']) == True
+    assert model.has_rt_info(["framework"]) is False
+    assert model.has_rt_info(["framework", "batch"]) is False
+    model.set_rt_info(framework_batch, ["framework", "batch"])
+    assert model.has_rt_info(["framework"]) is True
+    assert model.has_rt_info(["framework", "batch"]) is True
 
     check_rt_info(model)
 
