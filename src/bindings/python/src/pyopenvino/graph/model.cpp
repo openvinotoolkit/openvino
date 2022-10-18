@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"  // ov::Model
 #include "openvino/core/partial_shape.hpp"
@@ -33,6 +34,17 @@ const ov::Any& get_rt_info(const ov::Model& model,
         return model.get_rt_arg(info, *begin);
     } else {
         return get_rt_info(model, model.get_map_from_attr(info, *begin), begin + 1, end);
+    }
+}
+ov::Any& get_rt_info(ov::Model& model,
+                     ov::AnyMap& info,
+                     const std::vector<std::string>::const_iterator& begin,
+                     const std::vector<std::string>::const_iterator& end) {
+    if (begin == end - 1) {
+        return model.get_rt_arg(info, *begin);
+    } else {
+        ov::Any any = info;
+        return get_rt_info(model, model.get_map_from_attr(any, *begin), begin + 1, end);
     }
 }
 }  // namespace ov
@@ -739,12 +751,59 @@ void regclass_graph_Model(py::module m) {
                 ov::get_rt_info(self, self.get_rt_info(), cpp_args.cbegin(), cpp_args.cend()));
         },
         py::arg("args") = py::list(),
-        py::return_value_policy::reference_internal,
         R"(
-                Returns PyRTMap which is a dictionary of user defined runtime info.
+                Returns runtime attribute.
 
-                :return: A dictionary of user defined data.
-                :rtype: openvino.runtime.RTMap
+                :param args: List of strings which defines a path for rt info
+                :type args: List[str]
+
+                :return: A py::object
+             )");
+    model.def(
+        "has_rt_info",
+        [](const ov::Model& self, const py::list& args) -> bool {
+            const size_t args_len = py::len(args);
+            std::vector<std::string> cpp_args(args_len);
+            for (size_t i = 0; i < args_len; i++) {
+                cpp_args.emplace_back(args[i].cast<std::string>());
+            }
+            try {
+                ov::get_rt_info(self, self.get_rt_info(), cpp_args.cbegin(), cpp_args.cend());
+            } catch (const ov::Exception&) {
+                return false;
+            }
+            return true;
+        },
+        py::arg("args") = py::list(),
+        R"(
+                Returns true if path exists
+
+                :param args: List of strings which defines a path for rt info
+                :type args: List[str]
+
+                :return: boolean value
+             )");
+    model.def(
+        "set_rt_info",
+        [](ov::Model& self, const py::object& obj, const py::list& args) -> void {
+            const size_t args_len = py::len(args);
+            std::vector<std::string> cpp_args(args_len);
+            for (size_t i = 0; i < args_len; i++) {
+                cpp_args.emplace_back(args[i].cast<std::string>());
+            }
+            ov::get_rt_info(self, self.get_rt_info(), cpp_args.cbegin(), cpp_args.cend()) = py_object_to_any(obj);
+        },
+        py::arg("obj") = py::object(),
+        py::arg("args") = py::list(),
+        R"(
+                Add value inside rt info
+
+                :param obj: value for the rt info
+                :type obj: 
+                :param args: List of strings which defines a path for rt info
+                :type args: List[str]
+
+                :return: void
              )");
 
     model.def_property_readonly("inputs", (std::vector<ov::Output<ov::Node>>(ov::Model::*)()) & ov::Model::inputs);

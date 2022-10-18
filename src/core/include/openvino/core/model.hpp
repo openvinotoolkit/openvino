@@ -35,6 +35,11 @@ const ov::Any& get_rt_info(const ov::Model& model,
                            const std::vector<std::string>::const_iterator& begin,
                            const std::vector<std::string>::const_iterator& end);
 
+ov::Any& get_rt_info(ov::Model& model,
+                     ov::AnyMap& info,
+                     const std::vector<std::string>::const_iterator& begin,
+                     const std::vector<std::string>::const_iterator& end);
+
 namespace frontend {
 class FrontEnd;
 }
@@ -347,6 +352,10 @@ public:
 
 private:
     friend class ov::ModelAccessor;
+    friend ov::Any& get_rt_info(ov::Model& model,
+                                ov::AnyMap& info,
+                                const std::vector<std::string>::const_iterator& begin,
+                                const std::vector<std::string>::const_iterator& end);
     friend const ov::Any& get_rt_info(const ov::Model& model,
                                       const ov::AnyMap& info,
                                       const std::vector<std::string>::const_iterator& begin,
