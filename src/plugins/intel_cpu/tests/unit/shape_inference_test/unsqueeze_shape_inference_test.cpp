@@ -7,21 +7,11 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "unsqueeze_shape_inference.hpp"
-#include "utils/shape_inference/static_shape.hpp"
+#include "utils.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;
-
-using ShapeVector = std::vector<StaticShape>;
-
-template <class TOp>
-class OpStaticShapeInferenceTest : public Test {
-protected:
-    ShapeVector input_shapes, output_shapes;
-    StaticShape exp_shape;
-    std::shared_ptr<TOp> op;
-};
 
 class UnsqueezeStaticShapeInferenceAssertTest : public OpStaticShapeInferenceTest<op::v0::Unsqueeze> {
 protected:
@@ -77,7 +67,6 @@ protected:
         arg = std::make_shared<op::v0::Parameter>(element::f32, input_shapes.front().get_shape());
     }
 
-    StaticShape input_shape;
     std::vector<int64_t> axes;
     std::shared_ptr<op::v0::Parameter> arg;
 };
