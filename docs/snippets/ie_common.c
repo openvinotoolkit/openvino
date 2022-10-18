@@ -4,6 +4,10 @@
 
 include <c_api/ie_c_api.h>
 
+static void completion_callback(void *args) {
+    // Operations after infer
+}
+
 int main() {
     //! [ie:create_core]
     ie_core_t *core = nullptr;
@@ -12,14 +16,12 @@ int main() {
 
     //! [ie:read_model]
     ie_network_t *network = nullptr;
-    ie_core_read_network(core, "model.xml", "model.bin", &network);
+    ie_core_read_network(core, "model.xml", nullptr, &network);
     //! [ie:read_model]
 
     //! [ie:compile_model]
-    const char *device_name = "CPU";
-    ie_config_t config = {nullptr, nullptr, nullptr};
     ie_executable_network_t *exe_network = nullptr;
-    ie_core_load_network(core, network, device_name, &config, &exe_network);
+    ie_core_load_network(core, network, "CPU", nullptr, &exe_network);
     //! [ie:compile_model]
 
     //! [ie:create_infer_request]
@@ -27,22 +29,30 @@ int main() {
     ie_exec_network_create_infer_request(exe_network, &infer_request);
     //! [ie:create_infer_request]
 
-    //! [ie:get_input_tensor]
     char *input_name = nullptr;
     ie_network_get_input_name(network, 0, &input_name);
-    ie_blob_t *blob = nullptr;
-    ie_infer_request_get_blob(infer_request, input_name, &blob);
-    {
+    //! [ie:get_input_tensor]
     // fill first blob
-    dimensions_t dims;
-    IE_EXPECT_OK(ie_blob_get_dims(blob, &dims));
-    const size_t blob_elems_count = dims.dims[0] * dims.dims[1] * dims.dims[2] * dims.dims[3];
+    ie_blob_t *input_blob1 = nullptr;
+    {
+    ie_infer_request_get_blob(infer_request, input_name, &input_blob1);
     ie_blob_buffer_t buffer;
-    IE_EXPECT_OK(ie_blob_get_buffer(blob, &buffer));
+    ie_blob_get_buffer(input_blob1, &buffer);
     // Original I64 precision was converted to I32
     int32_t* blob_internal_buffer = (int32_t*)buffer.buffer;
     // Fill data ...
     }
+    // fill second blob
+    ie_blob_t *input_blob2 = nullptr;
+    {
+    ie_infer_request_get_blob(infer_request, "data2", &input_blob2);
+    ie_blob_buffer_t buffer;
+    ie_blob_get_buffer(input_blob2, &buffer);
+    // Original I64 precision was converted to I32
+    int32_t* blob_internal_buffer = (int32_t*)buffer.buffer;
+    // Fill data ...
+    }
+
     //! [ie:get_input_tensor]
 
     //! [ie:inference]
@@ -64,16 +74,28 @@ int main() {
     //! [ie:start_async_and_wait]
 
     //! [ie:get_output_tensor]
+    // get output blob by name
     ie_blob_t *output_blob = nullptr;
     ie_infer_request_get_blob(infer_request, "output_name", &output_blob);
+    // get blob buffer
     ie_blob_buffer_t out_buffer;
     ie_blob_get_buffer(output_blob, &out_buffer);
+    // get data
     void* data = nullptr;
     ov_tensor_data(output_blob, &data);
+    // process output data
     //! [ie:get_output_tensor]
 
     //! [ie:load_old_extension]
-    ie_core_add_extension(core, "path_to_extension_library.so", device_name);
+    ie_core_add_extension(core, "path_to_extension_library.so", "CPU");
     //! [ie:load_old_extension]
+    ie_blob_free(&output_blob);
+    ie_blob_free(&input_blob2);
+    ie_blob_free(&input_blob1);
+    ie_network_name_free(&input_name);
+    ie_infer_request_free(&infer_request);
+    ie_exec_network_free(&exe_network);
+    ie_network_free(&network);
+    ie_core_free(&core);
     return 0;
 }
