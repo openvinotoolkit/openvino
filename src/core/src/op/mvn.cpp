@@ -153,7 +153,7 @@ bool evaluate(ov::TensorVector& outputs,
     } else if (inputs[1].get_element_type() == element::i32) {
         reduction_axes = runtime::reference::mvn_6_reduction_axes<int32_t>(inputs[1], rank);
     } else {
-        throw ngraph_error("Unexpected indices type");
+        throw ov::Exception("Unexpected indices type");
     }
     runtime::reference::mvn_6<T>(inputs[0].data<T>(),
                                  outputs[0].data<T>(),

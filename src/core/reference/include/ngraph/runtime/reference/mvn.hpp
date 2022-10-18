@@ -95,7 +95,7 @@ AxisSet mvn_6_reduction_axes(const ov::Tensor& axes_input, size_t rank) {
     for (size_t i = 0; i < v.size(); i++) {
         if (v[i] < 0) {
             if (rank + v[i] < 0) {
-                throw ngraph_error("Unexpected axis");
+                throw ov::Exception("Unexpected axis");
             }
             axes[i] = (size_t)(rank + v[i]);
         } else {

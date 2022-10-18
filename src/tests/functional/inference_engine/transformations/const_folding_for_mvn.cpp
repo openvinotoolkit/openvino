@@ -7,11 +7,11 @@
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 
-#include "ngraph/opsets/opset.hpp"
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include "ngraph/validation_util.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/validation_util.hpp"
 
 using namespace testing;
 using namespace std;
@@ -30,7 +30,7 @@ TEST(TransformationTests, ConstFoldingMVN) {
         fun = make_shared<ov::Model>(NodeVector {add}, ParameterVector {in});
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.register_pass<ov::pass::ConstantFolding>();
         manager.run_passes(fun);
     }
     shared_ptr<ov::Model> f_ref(nullptr);
