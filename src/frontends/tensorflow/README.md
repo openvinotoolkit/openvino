@@ -20,7 +20,7 @@ flowchart BT
     click ovtf "https://github.com/openvinotoolkit/openvino_tensorflow"
 ```
 
-Currently, it is only used by [OpenVINO Integration with TensorFlow Frontend](https://github.com/openvinotoolkit/openvino_tensorflow).
+Currently, it is only used by [OpenVINO Integration with TensorFlow](https://github.com/openvinotoolkit/openvino_tensorflow).
 Model Optimizer for now relies on the legacy TensorFlow Frontend developed in Python.
 
 TensorFlow Frontend uses [the common coding style rules](../../../docs/dev/coding_style.md).
