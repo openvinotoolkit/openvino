@@ -181,8 +181,23 @@ if(CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
     set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Cmake install prefix" FORCE)
 endif()
 
+include(packaging/packaging)
+
+set(CMAKE_SKIP_INSTALL_RPATH ON)
+
 if(APPLE)
-    set(CMAKE_MACOSX_RPATH ON)
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
+
+    if(DEFINED OV_CPACK_LIBRARYDIR)
+        set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${OV_CPACK_LIBRARYDIR}")
+    else()
+        message(FATAL_ERROR "Internal error: OV_CPACK_LIBRARYDIR is not defined, while it's required to initialize RPATH")
+    endif()
+
+    if(CPACK_GENERATOR STREQUAL "BREW")
+        set(CMAKE_SKIP_INSTALL_RPATH OFF)
+    endif()
+
     # WA for Xcode generator + object libraries issue:
     # https://gitlab.kitware.com/cmake/cmake/issues/20260
     # http://cmake.3232098.n2.nabble.com/XCODE-DEPEND-HELPER-make-Deletes-Targets-Before-and-While-They-re-Built-td7598277.html
@@ -192,16 +207,21 @@ endif()
 # Use solution folders
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-# cmake_dependent_option() supports full Condition Syntax
-set(CMAKE_POLICY_DEFAULT_CMP0127 NEW)
-# Enable CMAKE_<LANG>_COMPILER_ID AppleClang
+# CMake 3.0+: Enable CMAKE_<LANG>_COMPILER_ID AppleClang
 set(CMAKE_POLICY_DEFAULT_CMP0025 NEW)
+# CMake 3.0+: MACOSX_RPATH is enabled by default.
+set(CMAKE_POLICY_DEFAULT_CMP0026 NEW)
+# CMake 3.0+ (2.8.12): MacOS "@rpath" in target's install name
+set(CMAKE_POLICY_DEFAULT_CMP0042 NEW)
+# CMake 3.9+: `RPATH` settings on macOS do not affect `install_name`.
+set(CMAKE_POLICY_DEFAULT_CMP0068 NEW)
+# CMake 3.13+: option() honors normal variables.
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+# CMake 3.22+ :cmake_dependent_option() supports full Condition Syntax
+set(CMAKE_POLICY_DEFAULT_CMP0127 NEW)
 
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "Don't warn about obsolete cmake versions in 3rdparty")
 set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION ON CACHE BOOL "Warn about absolute paths in destination")
-set(CMAKE_SKIP_INSTALL_RPATH ON)
-
-include(packaging/packaging)
 
 # LTO
 

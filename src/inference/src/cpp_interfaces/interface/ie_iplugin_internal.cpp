@@ -395,7 +395,8 @@ std::unordered_set<std::string> GetSupportedNodes(
         }
 
         if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
-            if (!InferenceEngine::details::contains(
+            if (node->output(0).get_target_inputs().size() &&
+                !InferenceEngine::details::contains(
                     supported,
                     node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
                 supported.erase(node->get_friendly_name());
