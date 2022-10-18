@@ -188,7 +188,7 @@ Running the application with the empty list of options yields the usage message 
 The benchmark tool supports topologies with one or more inputs. If a topology is not data sensitive, you can skip the input parameter, and the inputs will be filled with random values. If a model has only image input(s), provide a folder with images or a path to an image as input. If a model has some specific input(s) (besides images), please prepare a binary file(s) that is filled with data of appropriate precision and provide a path to it as input. If a model has mixed input types, the input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
 
 ## Examples of Running the Tool
-This section provides step-by-step instructions on how to run the Benchmark Tool with the `asl-recognition` Intel model on CPU or GPU devices. It uses random data as the input.
+This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` model from the Open Model Zoo on CPU or GPU devices. It uses random data as the input.
 
 > **NOTE**: Internet access is required to execute the following steps successfully. If you have access to the Internet through a proxy server only, please make sure that it is configured in your OS environment.
 
@@ -197,61 +197,71 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    pip install openvino-dev
    ```
 
-2. Download the model using `omz_downloader`, specifying the model name and directory to download the model to:
+2. Download the model using `omz_downloader`, specifying the model name:
    ```sh
-   omz_downloader --name asl-recognition-0004 --precisions FP16 --output_dir omz_models
+   omz_downloader --name googlenet-v1
+   ```
+
+3. Convert the model to IR format using `omz_converter`:
+   ```sh
+   omz_converter --name googlenet-v1
    ```
 
 3. Run the tool, specifying the location of the model .xml file, the device to perform inference on, and with a performance hint. The following commands demonstrate examples of how to run the Benchmark Tool in latency mode on CPU and throughput mode on GPU devices:
 
    * On CPU (latency mode):
    ```sh
-   ./benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d CPU -hint latency -progress
+   ./benchmark_app -m public/googlenet-v1/FP16/googlenet-v1.xml -d CPU -hint latency
    ```
 
    * On GPU (throughput mode):
    ```sh
-   ./benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d GPU -hint throughput -progress
+   ./benchmark_app -m public/googlenet-v1/FP16/googlenet-v1.xml -d GPU -hint throughput
    ```
 
 The application outputs the number of executed iterations, total duration of execution, latency, and throughput.
-Additionally, if you set the `-report_type` parameter, the application outputs statistics report. If you set the `-pc` parameter, the application outputs performance counters. If you set `-exec_graph_path`, the application reports executable graph information serialized. All measurements including per-layer PM counters are reported in milliseconds.
+Additionally, if you set the `-report_type` parameter, the application outputs a statistics report. If you set the `-pc` parameter, the application outputs performance counters. If you set `-exec_graph_path`, the application reports executable graph information serialized. All measurements including per-layer PM counters are reported in milliseconds.
 
-An example of the information output when running benchmark_app is shown below:
+An example of the information output when running benchmark_app on CPU in latency mode is shown below:
 
-```
+```sh
 [Step 1/11] Parsing and validating input arguments
 [ INFO ] Parsing input parameters
-[Step 2/11] Loading Inference Engine
-[ INFO ] OpenVINO: OpenVINO Runtime version ......... 2022.1.0
-[ INFO ] Build ........... 2022.1.0-7019-cdb9bec7210-releases/2022/1
-[ INFO ]
-[ INFO ] Device info:
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO: OpenVINO Runtime version ......... 2022.2.0
+[ INFO ] Build ........... 2022.2.0-7713-af16ea1d79a-releases/2022/2
+[ INFO ] 
+[ INFO ] Device info: 
 [ INFO ] CPU
-[ INFO ] openvino_intel_cpu_plugin version ......... 2022.1.0
-[ INFO ] Build ........... 2022.1.0-7019-cdb9bec7210-releases/2022/1
-[ INFO ]
-[ INFO ]
+[ INFO ] openvino_intel_cpu_plugin version ......... 2022.2.0
+[ INFO ] Build ........... 2022.2.0-7713-af16ea1d79a-releases/2022/2
+[ INFO ] 
+[ INFO ] 
 [Step 3/11] Setting device configuration
 [ WARNING ] Device(CPU) performance hint is set to LATENCY
 [Step 4/11] Reading network files
 [ INFO ] Loading network files
-[ INFO ] Read network took 49.01 ms
+[ INFO ] Read network took 22.84 ms
+[ INFO ] Original network I/O parameters:
+Network inputs:
+    data (node: data) : f32 / [N,C,H,W]
+Network outputs:
+    prob (node: prob) : f32 / [...]
 [Step 5/11] Resizing network to match image sizes and given batch
 [Step 6/11] Configuring input of the model
 [ INFO ] Network batch size: 1
 Network inputs:
-    input (node: input) : f32 / [N,C,D,H,W]
+    data (node: data) : u8 / [N,C,H,W]
 Network outputs:
-    output (node: output) : f32 / [...]
+    prob (node: prob) : f32 / [...]
 [Step 7/11] Loading the model to the device
-[ INFO ] Load network took 170.30 ms
+[ INFO ] Load network took 117.72 ms
 [Step 8/11] Setting optimal runtime parameters
 [ INFO ] Device: CPU
-[ INFO ]   { NETWORK_NAME , torch-jit-export }
+[ INFO ]   { NETWORK_NAME , GoogleNet }
 [ INFO ]   { OPTIMAL_NUMBER_OF_INFER_REQUESTS , 1 }
 [ INFO ]   { NUM_STREAMS , 1 }
-[ INFO ]   { AFFINITY , HYBRID_AWARE }
+[ INFO ]   { AFFINITY , CORE }
 [ INFO ]   { INFERENCE_NUM_THREADS , 0 }
 [ INFO ]   { PERF_COUNT , NO }
 [ INFO ]   { INFERENCE_PRECISION_HINT , f32 }
@@ -260,22 +270,63 @@ Network outputs:
 [Step 9/11] Creating infer requests and preparing input blobs with data
 [ WARNING ] No input files were given: all inputs will be filled with random values!
 [ INFO ] Test Config 0
-[ INFO ] input  ([N,C,D,H,W], f32, {1, 3, 16, 224, 224}, static):       random (binary data is expected)
+[ INFO ] data  ([N,C,H,W], u8, {1, 3, 224, 224}, static):	random (image is expected)
 [Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
 [ INFO ] BENCHMARK IS IN INFERENCE ONLY MODE.
 [ INFO ] Input blobs will be filled once before performance measurements.
-[ INFO ] First inference took 22.48 ms
-Progress: [....................] 100% done
+[ INFO ] First inference took 9.01 ms
 
 [Step 11/11] Dumping statistics report
-[ INFO ] Count:      4806 iterations
-[ INFO ] Duration:   60017.40 ms
-[ INFO ] Latency:
-[ INFO ]        Median:     12.24 ms
-[ INFO ]        Average:    12.46 ms
-[ INFO ]        Min:        11.50 ms
-[ INFO ]        Max:        19.97 ms
-[ INFO ] Throughput: 80.08 FPS
+[ INFO ] Count:      5342 iterations
+[ INFO ] Duration:   60014.01 ms
+[ INFO ] Latency: 
+[ INFO ] 	Median:     11.24 ms
+[ INFO ] 	Average:    11.22 ms
+[ INFO ] 	Min:        8.50 ms
+[ INFO ] 	Max:        23.92 ms
+[ INFO ] Throughput: 89.01 FPS
+```
+
+The Benchmark Tool can also be used with dynamically shaped networks to measure expected inference time for various input data shapes. See the `-shape` and `-data_shape` argument descriptions in the [All configuration options](#all-configuration-options) section to learn more about using dynamic shapes. Here is a command example for using benchmark_app with dynamic networks and a portion of the resulting output:
+
+```sh
+./benchmark_app -m public/googlenet-v1/FP16/googlenet-v1.xml -d CPU -shape [1,3,?,?] -data_shape [1,3,224,224][1,3,448,448] -pcseq
+
+```
+
+```sh
+[Step 9/11] Creating infer requests and preparing input blobs with data
+[ INFO ] Test Config 0
+[ INFO ] data  ([N,C,H,W], u8, {1, 3, 224, 224}, dyn:{1,3,?,?}):	random (image is expected)
+[ INFO ] Test Config 1
+[ INFO ] data  ([N,C,H,W], u8, {1, 3, 448, 448}, dyn:{1,3,?,?}):	random (image is expected)
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] BENCHMARK IS IN FULL MODE.
+[ INFO ] Inputs setup stage will be included in performance measurements.
+[ INFO ] First inference took 25.20 ms
+
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:      2216 iterations
+[ INFO ] Duration:   60190.01 ms
+[ INFO ] Latency: 
+[ INFO ] 	Median:     127.74 ms
+[ INFO ] 	Average:    108.46 ms
+[ INFO ] 	Min:        27.08 ms
+[ INFO ] 	Max:        265.00 ms
+[ INFO ] Latency for each data shape group:
+[ INFO ] 1. data : {1, 3, 224, 224}
+[ INFO ] 	Data shape: data{1, 3, 224, 224}
+[ INFO ] 	Median:     45.07 ms
+[ INFO ] 	Average:    45.95 ms
+[ INFO ] 	Min:        27.08 ms
+[ INFO ] 	Max:        88.71 ms
+[ INFO ] 2. data : {1, 3, 448, 448}
+[ INFO ] 	Data shape: data{1, 3, 448, 448}
+[ INFO ] 	Median:     169.40 ms
+[ INFO ] 	Average:    170.97 ms
+[ INFO ] 	Min:        127.74 ms
+[ INFO ] 	Max:        265.00 ms
+[ INFO ] Throughput: 36.82 FPS
 ```
 
 ## See Also
