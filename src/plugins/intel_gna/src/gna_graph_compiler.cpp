@@ -1125,7 +1125,7 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
             connectInput(layer, &concatLayerInfo.gna_ptr, inputLayer.tensorSize, inputLayer.offset, idx, false);
             concatLayerInfo.input_allocated = true;
         } else if (layerInfo.isMemory()) {
-            connectInput(layer, &concatLayerInfo.gna_ptr, concatLayerInfo.reserved_size, inputLayer.offset, idx, false);
+            connectInput(layer, &concatLayerInfo.gna_ptr, concatLayerInfo.reserved_size, inputLayer.offset, idx, true);
             concatLayerInfo.input_allocated = true;
         }
         ++idx;
@@ -2513,6 +2513,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
 
         return prevLayer;
     }
+
     // const input
     if (LayerInfo(prevLayer).isConst()) {
         if (connectTo) {
@@ -2591,7 +2592,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         if (memoryLayer.reserved_size == 0) {
             auto memorySize = InferenceEngine::details::product(memoryLayer.getDims()) * memoryLayer.elementSizeBytes();
 
-            // connectTo used for  indicate that memory layer should be bound to given buffer
+            // connectTo used for indicate that memory layer should be bound to given buffer
             if (connectTo) {
                 memorySize = std::max(memorySize, num_data_bytes_in);
                 gnamem->getQueue(REGION_STATES)->reserve_ptr(nullptr, &memoryLayer.gna_ptr, ALIGN64(memorySize), 64);

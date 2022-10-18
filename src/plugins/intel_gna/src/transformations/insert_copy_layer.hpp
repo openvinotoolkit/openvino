@@ -105,9 +105,9 @@ public:
  *     /            \                 /            \
  * [Non functional]  \     =>   [Non functional]   \
  *    |               \                |           \
- *    |               \             [Copy]         \
- *    |               \               |            \
- * [Memory]       [Concat]      [Memory]        [Concat]
+ *    |                \             [Copy]         \
+ *    |                 \               |            \
+ * [Memory]           [Concat]      [Memory]        [Concat]
  *
  *       [Parameter]                   [Parameter]
  *           |                             |
