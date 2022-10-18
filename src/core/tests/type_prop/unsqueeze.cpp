@@ -180,7 +180,7 @@ TEST_P(UnsqueezeTest, dimension_propagation_const_axis_i8) {
     const auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(param, axes_node);
 
     EXPECT_EQ(unsqueeze->get_element_type(), element::f32);
-    EXPECT_EQ(unsqueeze->get_output_partial_shape(0), exp_shape);
+    EXPECT_EQ(unsqueeze->get_output_partial_shape(op::Unsqueeze::ARG), exp_shape);
 }
 
 TEST_P(UnsqueezeTest, dimension_propagation_const_axis_i32) {
@@ -188,7 +188,7 @@ TEST_P(UnsqueezeTest, dimension_propagation_const_axis_i32) {
     const auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(param, axes_node);
 
     EXPECT_EQ(unsqueeze->get_element_type(), element::f32);
-    EXPECT_EQ(unsqueeze->get_output_partial_shape(0), exp_shape);
+    EXPECT_EQ(unsqueeze->get_output_partial_shape(op::Unsqueeze::ARG), exp_shape);
 }
 
 TEST_P(UnsqueezeTest, dimension_propagation_dynamic_axis_shape) {
@@ -196,7 +196,7 @@ TEST_P(UnsqueezeTest, dimension_propagation_dynamic_axis_shape) {
     const auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(param, axes_node);
 
     EXPECT_EQ(unsqueeze->get_element_type(), element::f32);
-    EXPECT_EQ(unsqueeze->get_output_partial_shape(0), PartialShape::dynamic());
+    EXPECT_EQ(unsqueeze->get_output_partial_shape(op::Unsqueeze::ARG), PartialShape::dynamic());
 }
 
 TEST_P(UnsqueezeTest, dimension_propagation_static_rank_dynamic_dim_axis_shape) {
@@ -204,7 +204,7 @@ TEST_P(UnsqueezeTest, dimension_propagation_static_rank_dynamic_dim_axis_shape) 
     const auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(param, axes_node);
 
     EXPECT_EQ(unsqueeze->get_element_type(), element::f32);
-    EXPECT_EQ(unsqueeze->get_output_partial_shape(0), PartialShape::dynamic());
+    EXPECT_EQ(unsqueeze->get_output_partial_shape(op::Unsqueeze::ARG), PartialShape::dynamic());
 }
 
 TEST_P(UnsqueezeTest, use_default_ctor) {
@@ -214,8 +214,8 @@ TEST_P(UnsqueezeTest, use_default_ctor) {
     unsqueeze->set_arguments(NodeVector{param, axes_node});
     unsqueeze->validate_and_infer_types();
 
-    EXPECT_EQ(unsqueeze->get_output_element_type(0), element::f32);
-    EXPECT_EQ(unsqueeze->get_output_partial_shape(0), exp_shape);
+    EXPECT_EQ(unsqueeze->get_output_element_type(op::Unsqueeze::ARG), element::f32);
+    EXPECT_EQ(unsqueeze->get_output_partial_shape(op::Unsqueeze::ARG), exp_shape);
 }
 
 using BoundTestParam = std::tuple<PartialShape, PartialShape>;
@@ -266,7 +266,7 @@ TEST_P(UnsqueezeBoundTest, propagate_label_and_dynamic_value) {
 
     const auto bc = std::make_shared<op::v1::Broadcast>(param, unsqueeze);
 
-    EXPECT_EQ(bc->get_output_partial_shape(0), exp_shape);
-    const auto labels = get_shape_labels(bc->get_output_partial_shape(0));
+    EXPECT_EQ(bc->get_output_partial_shape(op::Unsqueeze::ARG), exp_shape);
+    const auto labels = get_shape_labels(bc->get_output_partial_shape(op::Unsqueeze::ARG));
     EXPECT_THAT(labels, ElementsAre(exp_labels.front()));
 }
