@@ -275,13 +275,11 @@ void TileBeginEmitter::emit_impl(const std::vector<size_t>& in,
                                  const std::vector<size_t>& gpr,
                                  const ov::intel_cpu::emitter_context *emit_context) const {
     // todo: In dynamic case we will also need to set broadcasting info here
-    const bool own_wa_reg = out.back() != SIZE_MAX - 1;
-    Reg64 reg_work_amount = own_wa_reg ? Reg64(out.back()) : Reg64(abi_param2.getIdx());
+    Reg64 reg_work_amount = Reg64(out.back());
     Label for_body;
     // save previous register state (if there is an outer loop that uses this reg for example)
     if (!evaluate_once && !reuse_work_amount_reg) {
-        if (!own_wa_reg)
-            h->push(reg_work_amount);
+        h->push(reg_work_amount);
         h->mov(reg_work_amount, work_amount);
     }
     // todo fix excessive push-pop with an appropriate gpr assign_registers pass
@@ -354,8 +352,7 @@ void TileEndEmitter::emit_impl(const std::vector<size_t>& in,
     std::copy(out.begin(), out.end(), std::back_inserter(data_ptr_reg_idxs));
     std::vector<Reg64> data_ptr_regs;
     transform_idxs_to_regs(data_ptr_reg_idxs, data_ptr_regs);
-    const bool own_wa_reg = out.back() != SIZE_MAX - 1;
-    Reg64 reg_work_amount = own_wa_reg ? Reg64(in.back()) : Reg64(abi_param2.getIdx());
+    Reg64 reg_work_amount = Reg64(in.back());
     if (!evaluate_once) {
         for (int idx = 0; idx < data_ptr_regs.size(); idx++) {
             if (apply_increments[idx])
@@ -370,7 +367,7 @@ void TileEndEmitter::emit_impl(const std::vector<size_t>& in,
         if (finalization_offsets[idx] != 0)
             h->add(data_ptr_regs[idx], finalization_offsets[idx] * io_data_size[idx]);
     }
-    if (!evaluate_once && !reuse_work_amount_reg && !own_wa_reg) {
+    if (!evaluate_once && !reuse_work_amount_reg) {
         // restore reg state if we've changed it before
         h->pop(reg_work_amount);
     }
