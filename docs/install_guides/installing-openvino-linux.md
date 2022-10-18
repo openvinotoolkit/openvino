@@ -1,4 +1,4 @@
-# Install Intel® Distribution of OpenVINO™ Toolkit for Linux from Installer
+# Install OpenVINO™ Runtime on Linux from Installer
 
 Currently only the following ways are provided to install OpenVINO™:
 
