@@ -24,6 +24,22 @@ main img {
     padding: 0.25rem 0.5rem!important;
 }
 
+/* formatting two-column tables*/
+
+div.two-col-table table, th, tr {
+    border-collapse: collapse!important;
+    border-style: hidden!important;
+}
+
+div.two-col-table td {
+    border-collapse: collapse!important;
+    border:2px solid #e5e5e5;
+    border-top: transparent!important;
+    border-bottom: transparent!important;
+    vertical-align: top;
+    width:50%;
+}
+
 /* code reference text formatting override */
 code {
     color: black !important;
