@@ -48,3 +48,16 @@ TEST(type_prop, isfinite_sample_dynamic_shape) {
     EXPECT_EQ(isfinite->get_output_partial_shape(0), (ov::PartialShape::dynamic(5)))
         << "The output shape of IsFinite is incorrect";
 }
+
+TEST(type_prop, isfinite_bad_input_type) {
+    auto data = std::make_shared<Parameter>(ov::element::i64, ov::Shape{1, 2, 3});
+    try {
+        auto isfinite = std::make_shared<IsFinite>(data);
+        FAIL() << "IsFinite invalid input type not detected";
+    } catch (const ov::AssertFailure& error) {
+        const auto exp_msg = "The element type of the input tensor must be a floating point number.";
+        EXPECT_HAS_SUBSTRING(error.what(), exp_msg);
+    } catch (...) {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}

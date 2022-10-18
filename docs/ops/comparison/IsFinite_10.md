@@ -13,6 +13,10 @@
 * The `i`'th element of the output tensor is `False` if `i`'th element of the input tensor is `NaN` or `Inf`. Otherwise it is `True`.
 * For example, for given input tensor `[NaN, 2.1, 3.7, Inf]` the output tensor is `[False, True, True, False]`.
 
+**Attributes**
+
+    *IsFinite* operation has no attributes.
+
 **Inputs**
 
 * **1**: A tensor of type *T* and arbitrary shape. **Required.**
@@ -25,7 +29,7 @@
 
 * **T_IN**: any supported floating-point type.
 
-**Example**
+**Examples**
 
 ```xml
 <layer ... type="IsFinite">
@@ -39,6 +43,21 @@
         <port id="1" precision="BOOL">
             <dim>256</dim>
             <dim>56</dim>
+        </port>
+    </output>
+</layer>
+```
+
+```xml
+<layer ... type="IsFinite">
+    <input>
+        <port id="0" precision="FP32">
+            <dim>4</dim>                <!-- Input value is: [NaN, 2.1, 3.7, Inf] -->
+        </port>
+    </input>
+    <output>
+        <port id="1" precision="BOOL">
+            <dim>4</dim>                <!-- Output value is: [False, True, True, False] -->
         </port>
     </output>
 </layer>
