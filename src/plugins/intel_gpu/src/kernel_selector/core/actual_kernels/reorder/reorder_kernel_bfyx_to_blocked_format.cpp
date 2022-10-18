@@ -30,6 +30,7 @@ ParamsKey ReorderKernel_bfyx_to_blocked_format::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv32);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv32);
     k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv32);
     k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv32_fsv16);
@@ -74,6 +75,7 @@ static inline size_t GetFsvAlignment(const reorder_params& params) {
     case DataLayout::b_fs_yx_fsv32:
     case DataLayout::fs_b_yx_fsv32:
     case DataLayout::b_fs_zyx_fsv32:
+    case DataLayout::bs_fs_yx_bsv16_fsv32:
     case DataLayout::bs_fs_zyx_bsv16_fsv32:
     case DataLayout::bs_fs_zyx_bsv32_fsv32:
         fsv_alignment = 32;
@@ -89,6 +91,7 @@ static inline size_t GetBsvAlignment(const reorder_params& params) {
     int alignment = -1;
     switch (out.GetLayout()) {
     case DataLayout::bs_fs_yx_bsv16_fsv16:
+    case DataLayout::bs_fs_yx_bsv16_fsv32:
     case DataLayout::bs_fs_zyx_bsv16_fsv16:
     case DataLayout::bs_fs_zyx_bsv16_fsv32:
         alignment = 16;

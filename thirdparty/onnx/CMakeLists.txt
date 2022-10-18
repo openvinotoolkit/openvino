@@ -29,6 +29,9 @@ set(ONNX_USE_LITE_PROTO ${ONNX_USE_LITE_PROTO_DEFAULT} CACHE BOOL "Use protobuf 
 set(ONNX_ML ON CACHE BOOL "Use ONNX ML" FORCE)
 set(ONNX_CUSTOM_PROTOC_EXECUTABLE ${PROTOC_EXECUTABLE})
 
+# clear Python_ADDITIONAL_VERSIONS to find only python library matching PYTHON_EXECUTABLE
+unset(Python_ADDITIONAL_VERSIONS CACHE)
+
 # build targets
 
 function(ov_onnx_build_static)
