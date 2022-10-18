@@ -62,6 +62,68 @@ void insert_identity_layer_between(std::shared_ptr<ngraph::Node>& input_op,
     auto identity_op = create_indentity(input_op);
     output_op->input(index).replace_source_output(identity_op);
 }
+
+// forward declaration
+bool walk_through_the_outputs(std::shared_ptr<ov::Node>& prev_node,
+                              size_t& prev_node_output_index,
+                              const std::shared_ptr<ov::Node>& node,
+                              bool first_iteration = false);
+
+bool process_next_node(std::shared_ptr<ov::Node>& prev_node,
+                       size_t& prev_node_output_index,
+                       const std::shared_ptr<ov::Node>& node,
+                       const size_t input_index) {
+    // Check whether node is going to be skipped
+    bool to_be_skipped = (is_gna_precision_agnostic(node) && !std::dynamic_pointer_cast<ngraph::opset9::Concat>(node)) ||
+        is_pooling(node);
+    if (to_be_skipped) {
+        // if it is pooling, update previous node, since activation
+        // should be inserted after the pooling
+        if (is_pooling(node)) {
+            prev_node = node;
+            // supported pooling from opset7 has 1 output port
+            prev_node_output_index = 0;
+        }
+        // walk over all outputs of this node
+        return walk_through_the_outputs(prev_node, prev_node_output_index, node);
+    }
+    // Don't skip this node, check whether precision is changed
+    if (is_precision_changed(node->input(input_index))) {
+        // if at least one target input requires Identity insertion,
+        // process the appropriate output port
+        // if there are other comsumers with i32 input
+        // diagonal layer will be insrted anyway before them
+        insert_identity_layer_after(prev_node, prev_node_output_index);
+        // graph modified
+        return true;
+    }
+    return false;
+}
+
+bool walk_through_the_outputs(std::shared_ptr<ov::Node>& prev_node,
+                              size_t& prev_node_output_index,
+                              const std::shared_ptr<ov::Node>& node,
+                              bool first_iteration) {
+    bool is_identity_inserted = false;
+    // walk over all outputs
+    for (size_t i = 0; i < node->get_output_size(); i++) {
+        // check all target inputs node of this output
+        for (auto&& input : node->output(i).get_target_inputs()) {
+            // if it is first iteration track output port id
+            // because prev_node is functional
+            if (first_iteration)
+                prev_node_output_index = i;
+            // recursively check next node, skipping precision agnostic
+            if (process_next_node(prev_node, prev_node_output_index, input.get_node()->shared_from_this(), input.get_index())) {
+                // graph is modified
+                is_identity_inserted = true;
+                // go to the next output, other target inputs are not interesting anymore
+                break;
+            }
+        }
+    }
+    return is_identity_inserted;
+}
 } // namespace
 
 bool MarkIdentityCandidates::run_on_model(const std::shared_ptr<ov::Model>& m) {
@@ -141,53 +203,16 @@ BreakFusingOfOutputLayers::BreakFusingOfOutputLayers() {
 bool InsertIdentity::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(InsertIdentity);
     bool is_graph_modifed = false;
+
     for (auto& node : m->get_ordered_ops()) {
+        // if node has 8 bit or 16 bit output already or Result or State, it is not our case, skip it
         if (has_8bit_or_16_bit_output(node) || ngraph::op::is_output(node) || ngraph::op::is_sink(node))
             continue;
 
-        // Walk over all outputs
-        for (size_t i = 0; i < node->get_output_size(); i++) {
-            std::set<ov::Input<ov::Node>> consumers;
-
-             auto check_precision = [&consumers](const std::shared_ptr<ov::Node>& node, size_t index) {
-                const auto input = node->input(index);
-                if (is_precision_changed(input)) {
-                    consumers.emplace(input);
-                }
-             };
-
-            auto prev_node = node;
-            std::shared_ptr<ov::Node> prev_non_func_node = nullptr;
-            for (auto&& target_input : node->output(i).get_target_inputs()) {
-                std::set<ov::Input<ov::Node>> consumers;
-                auto skip_and_update = [&prev_node, &prev_non_func_node](const std::shared_ptr<ov::Node>& node) -> bool {
-                    bool res = (is_gna_precision_agnostic(node) && !std::dynamic_pointer_cast<ngraph::opset9::Concat>(node)) ||
-                        is_pooling(node);
-                    if (res) {
-                        if (is_pooling(node)) {
-                            prev_node = node;
-                        }
-                        prev_non_func_node = node;
-                    }
-                    return res;
-                };
-                auto next_node = target_input.get_node()->shared_from_this();
-                if (skip_and_update(next_node)) {
-                    while (skip_and_update(next_node)) {
-                        next_node = next_node->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
-                    }
-                    for (auto& input : prev_non_func_node->output(0).get_target_inputs()) {
-                        check_precision(input.get_node()->shared_from_this(), input.get_index());
-                    }
-                } else {
-                    check_precision(next_node, target_input.get_index());
-                }
-            }
-            if (consumers.size()) {
-                insert_identity_layer_after(prev_node, i);
-                is_graph_modifed = true;
-            }
-        }
+        // walk through the all outputs
+        std::shared_ptr<ov::Node> prev_node = node;
+        size_t prev_node_output_index = 0;
+        is_graph_modifed |= walk_through_the_outputs(prev_node, prev_node_output_index, node, true);
     }
     return is_graph_modifed;
 }

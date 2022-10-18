@@ -132,6 +132,51 @@ INSTANTIATE_TEST_SUITE_P(TransformationTests, InsertIdentityLayerConcatTest,
                                 ::testing::ValuesIn(inputCounts)),
                          InsertIdentityLayerConcatTest::getTestCaseName);
 
+/******************************************************* Split layer tests *******************************************************/
+
+class InsertIdentityLayerSplitTest: public InsertIdentityLayerTest {
+public:
+    void SetUp() override {
+        InsertIdentityLayerTest::SetUp();
+        {
+            auto params = std::make_shared<ngraph::opset9::Parameter>(ngraph::element::f32, m_input_shape);
+            auto const_add = ngraph::opset9::Constant::create(ngraph::element::f32, m_input_shape, {1});
+            auto add = std::make_shared<ngraph::opset9::Add>(params, const_add);
+            auto axis_const = ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+            auto split = std::make_shared<ngraph::opset9::Split>(add, axis_const, 2);
+            auto result1 = std::make_shared<ngraph::opset9::Result>(split->output(0));
+            auto const_reshape = ngraph::opset9::Constant::create(ngraph::element::i64, {2}, {1, 5});
+            auto reshape = std::make_shared<ngraph::opset9::Reshape>(split->output(1), const_reshape, false);
+            auto const_mul = ngraph::opset9::Constant::create(ngraph::element::f32, {1, 5}, {1});
+            auto mul = std::make_shared<ngraph::opset9::Multiply>(reshape, const_mul);
+            auto result2 = std::make_shared<ngraph::opset9::Result>(mul);
+            m_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
+                                                        ngraph::ParameterVector{params});
+        }
+
+        {
+            auto params = std::make_shared<ngraph::opset9::Parameter>(ngraph::element::f32, m_input_shape);
+            auto const_add = ngraph::opset9::Constant::create(ngraph::element::f32, m_input_shape, {1});
+            auto add = std::make_shared<ngraph::opset9::Add>(params, const_add);
+            auto identity = std::make_shared<ov::intel_gna::op::Identity>(add);
+            auto axis_const = ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+            auto split = std::make_shared<ngraph::opset9::Split>(identity, axis_const, 2);
+            auto result1 = std::make_shared<ngraph::opset9::Result>(split->output(0));
+            auto const_reshape = ngraph::opset9::Constant::create(ngraph::element::i64, {2}, {1, 5});
+            auto reshape = std::make_shared<ngraph::opset9::Reshape>(split->output(1), const_reshape, false);
+            auto const_mul = ngraph::opset9::Constant::create(ngraph::element::f32, {1, 5}, {1});
+            auto mul = std::make_shared<ngraph::opset9::Multiply>(reshape, const_mul);
+            auto result2 = std::make_shared<ngraph::opset9::Result>(mul);
+            m_ref_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
+                                                            ngraph::ParameterVector{params});
+        }
+    }
+};
+
+TEST_F(InsertIdentityLayerSplitTest, CompareWithRefs) {
+    Run();
+}
+
 /******************************************************* Eltwise layer tests *******************************************************/
 
 typedef std::tuple<
