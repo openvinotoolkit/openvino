@@ -4,8 +4,8 @@
 
 #include "intel_gpu/primitives/experimental_detectron_prior_grid_generator.hpp"
 
-#include <edpgg/experimental_detectron_prior_grid_generator_kernel_ref.h>
-#include <edpgg/experimental_detectron_prior_grid_generator_kernel_selector.h>
+#include <ed_pgg/prior_grid_generator_kernel_ref.h>
+#include <ed_pgg/prior_grid_generator_kernel_selector.h>
 #include <experimental_detectron_prior_grid_generator_inst.h>
 #include <kernel_selector_helper.h>
 

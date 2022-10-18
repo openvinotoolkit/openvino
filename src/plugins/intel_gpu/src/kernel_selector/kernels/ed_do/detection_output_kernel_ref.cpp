@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "experimental_detectron_detection_output_kernel_ref.h"
+#include "detection_output_kernel_ref.h"
 
 #include <algorithm>
 #include <string>

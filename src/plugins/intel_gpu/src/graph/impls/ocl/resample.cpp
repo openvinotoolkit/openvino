@@ -9,8 +9,8 @@
 #include "impls/implementation_map.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
-#include "kernel_selector/core/actual_kernels/resample/resample_kernel_selector.h"
-#include "kernel_selector/core/actual_kernels/resample/resample_kernel_base.h"
+#include "kernel_selector/kernels/resample/resample_kernel_selector.h"
+#include "kernel_selector/kernels/resample/resample_kernel_base.h"
 
 namespace cldnn {
 namespace ocl {

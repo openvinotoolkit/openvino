@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "experimental_detectron_topk_rois_kernel_selector.h"
-#include "experimental_detectron_topk_rois_ref.h"
+#include "topk_rois_kernel_selector.h"
+#include "topk_rois_ref.h"
 
 namespace kernel_selector {
 

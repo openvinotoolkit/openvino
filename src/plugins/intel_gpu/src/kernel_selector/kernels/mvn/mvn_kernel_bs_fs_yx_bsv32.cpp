@@ -3,7 +3,7 @@
 //
 
 #include "mvn_kernel_bs_fs_yx_bsv32.hpp"
-#include "common/common_tools.h"
+#include "common_tools.h"
 
 #include <string>
 #include <algorithm>

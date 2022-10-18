@@ -3,7 +3,7 @@
 //
 
 #include "mvn_kernel_b_fs_yx_fsv16_imad.hpp"
-#include "common/common_tools.h"
+#include "common_tools.h"
 
 #include <string>
 #include <algorithm>

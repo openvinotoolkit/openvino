@@ -7,8 +7,8 @@
 
 #include "intel_gpu/primitives/reorder.hpp"
 #include "primitive_inst.h"
-#include "kernel_selector/core/actual_kernels/reorder/reorder_kernel_base.h"
-#include "kernel_selector/common/tensor_type.h"
+#include "kernel_selector/kernels/reorder/reorder_kernel_base.h"
+#include "kernel_selector/tensor_type.h"
 
 #include <string>
 #include <memory>

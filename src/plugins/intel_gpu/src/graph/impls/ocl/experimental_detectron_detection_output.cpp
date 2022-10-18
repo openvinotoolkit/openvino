@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "eddo/experimental_detectron_detection_output_kernel_ref.h"
-#include "eddo/experimental_detectron_detection_output_kernel_selector.h"
+#include "ed_do/detection_output_kernel_ref.h"
+#include "ed_do/detection_output_kernel_selector.h"
 #include "experimental_detectron_detection_output_inst.hpp"
 #include "impls/implementation_map.hpp"
 #include "kernel_selector_helper.h"

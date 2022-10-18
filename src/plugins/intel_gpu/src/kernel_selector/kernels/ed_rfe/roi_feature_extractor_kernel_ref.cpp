@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "experimental_detectron_roi_feature_extractor_kernel_ref.h"
+#include "roi_feature_extractor_kernel_ref.h"
 #include "kernel_selector_utils.h"
 #include <algorithm>
 #include <string>

@@ -8,7 +8,7 @@
 #include <string>
 #include <algorithm>
 #include <iostream>
-#include <core/common/kernel_selector_utils.h>
+#include <kernel_selector_utils.h>
 
 namespace kernel_selector {
 
