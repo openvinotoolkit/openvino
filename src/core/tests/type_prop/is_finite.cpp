@@ -49,7 +49,7 @@ TEST(type_prop, isfinite_sample_dynamic_shape) {
         << "The output shape of IsFinite is incorrect";
 }
 
-TEST(type_prop, isfinite_bad_input_type) {
+TEST(type_prop, isfinite_incorrect_input_type) {
     auto data = std::make_shared<Parameter>(ov::element::i64, ov::Shape{1, 2, 3});
     try {
         auto isfinite = std::make_shared<IsFinite>(data);
