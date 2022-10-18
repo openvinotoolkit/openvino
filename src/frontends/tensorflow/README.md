@@ -1,12 +1,13 @@
 # OpenVINO TensorFlow Frontend
 
-The TensorFlow Frontend (TF FE) is a C++ based OpenVINO Frontend component that is responsible for reading and converting TensorFlow models to the Intermediate Representation (IR) format.
+The TensorFlow Frontend (TF FE) is a C++ based OpenVINO Frontend component that is responsible for reading and converting a TensorFlow model to an `ov::Model` object
+that further can be serialized into the Intermediate Representation (IR) format.
 
 ```mermaid
 flowchart BT
-    model[(model.pb)]
+    model[(model1.pb)]
     style model fill:#427cb0
-    model2[(model.pb)]
+    model2[(model2.pb)]
     style model2 fill:#427cb0
     ovtf(OpenVINO Integration with TensorFlow)
     style ovtf fill:#ffffc2
