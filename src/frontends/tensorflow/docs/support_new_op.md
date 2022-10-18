@@ -1,7 +1,7 @@
 # How to implement support of a new TensorFlow operation
 
 TensorFlow conversion into the OpenVINO opset operation requires one pass or two passes:
-* One pass using [Loaders]((../src/op/)) directly transforms TF operation into a sub-graph of OpenVINO opset.
+* One pass using [Loaders](../src/op/) directly transforms TF operation into a sub-graph of OpenVINO opset.
 * Two passes consist of [Loaders](../src/op/) and [Internal Transformations](../src/helper_transforms),
 where the first pass transforms a TF operation into a sub-graph with [Internal Operations](../src/helper_ops),
 and the second pass avoids internal operations. Two transformation passes are used when a TensorFlow operation
