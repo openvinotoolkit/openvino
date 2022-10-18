@@ -50,6 +50,7 @@ set(SRC
     dimension.cpp
     element_type.cpp
     eval.cpp
+    evaluate_bound/concat.cpp
     evaluate_bound/transpose.cpp
     extension.cpp
     file_util.cpp

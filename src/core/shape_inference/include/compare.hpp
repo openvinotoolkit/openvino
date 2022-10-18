@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,6 +46,23 @@ public:
     template <Bound B = BMode, typename std::enable_if<B == Bound::BOTH>::type* = nullptr>
     constexpr bool operator()(const T& value) const {
         return (_lower_bound <= value) && (value <= _upper_bound);
+    }
+};
+
+/**
+ * \brief Compare if value is equal to expected.
+ *
+ * \tparam T  Value type to compare.
+ */
+template <class T>
+class Equal {
+    T _exp_value;
+
+public:
+    constexpr Equal(const T& exp_value) : _exp_value{exp_value} {}
+
+    constexpr bool operator()(const T& value) const {
+        return _exp_value == value;
     }
 };
 }  // namespace cmp
