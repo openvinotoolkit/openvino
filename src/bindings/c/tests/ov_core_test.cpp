@@ -234,7 +234,7 @@ TEST_P(ov_core, ov_core_set_and_get_property_enum) {
     EXPECT_NE(nullptr, core);
 
     const char* key = ov_property_key_affinity;
-    const char* affinity = "NUMA";
+    const char* affinity = "HYBRID_AWARE";
     OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, affinity));
     char* ret = nullptr;
     OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
