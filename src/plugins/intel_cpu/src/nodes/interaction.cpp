@@ -270,9 +270,9 @@ void Interaction::execRef(dnnl::stream strm, bool fuseFQ) {
             if (moveInteractKernel) {
                 jit_move_scale_call_args interArgs;
                 interArgs.p_in = flatMemPtr->GetPtr();
-                interArgs.p_out = outFeaturesPtr + (start * outputFeaturesLen + featureSize) * dataPrecision.size();
+                interArgs.p_out = outFeaturesPtr + start * outputFeaturesLen * dataPrecision.size() + featureSize;
                 interArgs.p_scales = scales;
-                (*moveFeatureKernel)(&interArgs);
+                (*moveInteractKernel)(&interArgs);
             }
         } else {
             cat(inputPtrs[0] + start * featureSize * dataPrecision.size(),
