@@ -79,6 +79,10 @@ JitConstants ExperimentalDetectronDetectionOutputKernelRef::GetJitConstants(
         MakeJitConstant("OUTPUT_INDICES_TYPE", "INPUT4_TYPE"),
     });
 
+    if (params.class_agnostic_box_regression) {
+        jit.AddConstant(MakeJitConstant("CLASS_AGNOSTIC_BOX_REGRESSION", true));
+    }
+
     return jit;
 }
 
@@ -111,7 +115,7 @@ void ExperimentalDetectronDetectionOutputKernelRef::PrepareRefineBoxesKernel(
     const optional_params& options,
     clKernelData& kernel) const {
     const size_t roi_count = params.inputs[kScoresInputIdx].Batch().v;
-    const size_t class_count = params.num_classes;
+    const size_t class_count = params.class_agnostic_box_regression ? params.num_classes - 1 : params.num_classes;
 
     PrepareKernelCommon(params, options, {roi_count, class_count, 1}, "EDDO_STAGE_0_REFINE_BOXES", 0, kernel);
 

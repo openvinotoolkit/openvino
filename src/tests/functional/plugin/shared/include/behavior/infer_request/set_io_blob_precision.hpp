@@ -23,7 +23,8 @@ using SetBlobParams = std::tuple<InferenceEngine::Precision,   // precision in C
                                  setType,                      // type for which blob is set
                                  std::string>;                 // Device name
 
-class SetBlobTest : public testing::WithParamInterface<SetBlobParams>, virtual public LayerTestsUtils::LayerTestsCommon {
+class SetBlobTest : public testing::WithParamInterface<SetBlobParams>,
+                    virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<SetBlobParams> obj);
     void Infer() override;

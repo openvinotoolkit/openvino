@@ -36,7 +36,7 @@ input_layout_node::typed_program_node(const std::shared_ptr<input_layout> dprim,
 }
 
 input_layout_inst::typed_primitive_inst(network& network, input_layout_node const& node)
-    : parent(network, node, !network.is_internal() || has_optimized_users(node)) {
+    : parent(network, node, !node.is_dynamic() && (!network.is_internal() || has_optimized_users(node))) {
     _has_valid_input = false;  // by default input for 'input_layout' is invalid as long as user doesn't call set_data
 }
 
@@ -46,15 +46,25 @@ void input_layout_inst::set_data(memory::ptr mem) {
     check_memory_to_set(*mem, ol);
 
     if (mem->is_allocated_by(get_network().get_engine())) {
-        _output = mem;
+        OPENVINO_ASSERT(!_outputs.empty(), "[GPU] Can't set data for empty input memory");
+        _outputs[0] = mem;
     } else {
         mem_lock<char, mem_lock_type::read> src(mem, get_network().get_stream());
-        mem_lock<char, mem_lock_type::write> dst(_output, get_network().get_stream());
+        mem_lock<char, mem_lock_type::write> dst(_outputs[0], get_network().get_stream());
         std::copy(src.begin(), src.end(), dst.begin());
     }
 
     _has_valid_input = true;
     _output_changed = true;
+}
+
+void input_layout_inst::update_shape() {
+    OPENVINO_ASSERT(!_outputs.empty() && _outputs[0] != nullptr, "[GPU] input memory is not set");
+    auto mem_layout = _outputs[0]->get_layout();
+    if (_impl_params->output_layout != mem_layout) {
+        set_shape_change();
+    }
+    _impl_params->output_layout = mem_layout;
 }
 
 std::string input_layout_inst::to_string(input_layout_node const& node) {

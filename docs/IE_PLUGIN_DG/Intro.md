@@ -47,13 +47,15 @@ Inference Engine plugin dynamic library consists of several main components:
 	on several task executors based on a device-specific pipeline structure.
 
 > **NOTE**: This documentation is written based on the `Template` plugin, which demonstrates plugin 
+
 development details. Find the complete code of the `Template`, which is fully compilable and up-to-date,
-at `<dldt source dir>/docs/template_plugin`.
+at `<openvino source dir>/src/plugins/template`.
+
 
 Detailed guides
 -----------------------
 
-* [Build](@ref openvino_docs_ie_plugin_dg_plugin_build) a plugin library using CMake\*
+* [Build](@ref openvino_docs_ie_plugin_dg_plugin_build) a plugin library using CMake
 * Plugin and its components [testing](@ref openvino_docs_ie_plugin_dg_plugin_testing)
 * [Quantized networks](@ref openvino_docs_ie_plugin_dg_quantized_networks)
 * [Low precision transformations](@ref openvino_docs_OV_UG_lpt) guide

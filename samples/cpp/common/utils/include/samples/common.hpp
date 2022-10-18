@@ -10,6 +10,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <functional>
 #include <iomanip>
@@ -231,9 +232,12 @@ static UNUSED void writeOutputBmp(std::vector<std::vector<size_t>> data, size_t 
     auto height = data.size();
     auto width = data.at(0).size();
 
-    if (height > (size_t)std::numeric_limits<int32_t>::max || width > (size_t)std::numeric_limits<int32_t>::max) {
-        IE_THROW() << "File size is too big: " << height << " X " << width;
-    }
+    OPENVINO_ASSERT(
+        height < (size_t)std::numeric_limits<int32_t>::max && width < (size_t)std::numeric_limits<int32_t>::max,
+        "File size is too big: ",
+        height,
+        " X ",
+        width);
 
     int padSize = static_cast<int>(4 - (width * 3) % 4) % 4;
     int sizeData = static_cast<int>(width * height * 3 + height * padSize);
@@ -323,9 +327,12 @@ static UNUSED bool writeOutputBmp(std::string name, unsigned char* data, size_t 
         0,    0,    0, 0,  // #important colors
     };
 
-    if (height > (size_t)std::numeric_limits<int32_t>::max || width > (size_t)std::numeric_limits<int32_t>::max) {
-        IE_THROW() << "File size is too big: " << height << " X " << width;
-    }
+    OPENVINO_ASSERT(
+        height < (size_t)std::numeric_limits<int32_t>::max && width < (size_t)std::numeric_limits<int32_t>::max,
+        "File size is too big: ",
+        height,
+        " X ",
+        width);
 
     int padSize = static_cast<int>(4 - (width * 3) % 4) % 4;
     int sizeData = static_cast<int>(width * height * 3 + height * padSize);
@@ -503,9 +510,12 @@ static UNUSED bool writeOutputBmp(unsigned char* data, size_t height, size_t wid
         0,    0,    0, 0,  // #important colors
     };
 
-    if (height > (size_t)std::numeric_limits<int32_t>::max || width > (size_t)std::numeric_limits<int32_t>::max) {
-        IE_THROW() << "File size is too big: " << height << " X " << width;
-    }
+    OPENVINO_ASSERT(
+        height < (size_t)std::numeric_limits<int32_t>::max && width < (size_t)std::numeric_limits<int32_t>::max,
+        "File size is too big: ",
+        height,
+        " X ",
+        width);
 
     int padSize = static_cast<int>(4 - (width * 3) % 4) % 4;
     int sizeData = static_cast<int>(width * height * 3 + height * padSize);

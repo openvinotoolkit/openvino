@@ -5,15 +5,14 @@
 #include "openvino/pass/manager.hpp"
 
 #include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
 #include <utility>
 
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pass.hpp"
 #include "openvino/pass/serialize.hpp"
-#include "openvino/pass/validate.hpp"
 #include "pyopenvino/graph/passes/manager.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -69,10 +68,9 @@ void regclass_passes_Manager(py::module m) {
     manager.def(
         "register_pass",
         [](ov::pass::Manager& self, const std::string& pass_name) -> void {
-            PyErr_WarnEx(PyExc_DeprecationWarning,
-                         "register_pass with this arguments is deprecated! "
-                         "Please use register_pass(ConstantFolding()) instead.",
-                         1);
+            Common::utils::deprecation_warning("register_pass(pass_name)",
+                                               "",
+                                               "Please use register_pass(ConstantFolding()) instead.");
             if (pass_name == "ConstantFolding") {
                 self.register_pass<ov::pass::ConstantFolding>();
             }
@@ -93,10 +91,9 @@ void regclass_passes_Manager(py::module m) {
            const std::string& pass_name,
            const FilePaths& file_paths,
            const std::string& version) -> void {
-            PyErr_WarnEx(PyExc_DeprecationWarning,
-                         "register_pass with this arguments is deprecated! "
-                         "Please use register_pass(Serialize(xml, bin, version)) instead.",
-                         1);
+            Common::utils::deprecation_warning("register_pass(pass_name, output_files, version)",
+                                               "",
+                                               "Please use register_pass(Serialize(xml, bin, version)) instead.");
             if (pass_name == "Serialize") {
                 self.register_pass<ov::pass::Serialize>(file_paths.first,
                                                         file_paths.second,
@@ -139,10 +136,9 @@ void regclass_passes_Manager(py::module m) {
            const std::string& xml_path,
            const std::string& bin_path,
            const std::string& version) -> void {
-            PyErr_WarnEx(PyExc_DeprecationWarning,
-                         "register_pass with this arguments is deprecated! "
-                         "Please use register_pass(Serialize(xml, bin, version)) instead.",
-                         1);
+            Common::utils::deprecation_warning("register_pass(pass_name, xml_path, bin_path, version",
+                                               "",
+                                               "Please use register_pass(Serialize(xml, bin, version)) instead.");
             if (pass_name == "Serialize") {
                 self.register_pass<ov::pass::Serialize>(xml_path, bin_path, convert_to_version(version));
             }

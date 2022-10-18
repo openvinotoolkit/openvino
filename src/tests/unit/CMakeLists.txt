@@ -12,21 +12,9 @@ endif()
 
 add_subdirectory(inference_engine)
 
-if (ENABLE_INTEL_CPU)
-    add_subdirectory(cpu)
-endif ()
-
-if (ENABLE_INTEL_GNA)
-    add_subdirectory(gna)
-endif ()
-
 if (ENABLE_INTEL_MYRIAD)
     add_subdirectory(vpu)
 endif ()
-
-if(ENABLE_OV_ONNX_FRONTEND)
-    add_subdirectory(frontends/onnx_import)
-endif()
 
 if (ENABLE_AUTO OR ENABLE_MULTI)
     add_subdirectory(auto)

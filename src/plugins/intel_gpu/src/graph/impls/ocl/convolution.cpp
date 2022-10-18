@@ -25,19 +25,35 @@ struct convolution_impl : typed_primitive_impl_ocl<convolution> {
         return make_unique<convolution_impl>(*this);
     }
 
+    explicit convolution_impl(const convolution_impl& other) : parent(other),
+      _split(other._split),
+      _groups(other._groups),
+      _depthwise_sep_opt(other._depthwise_sep_opt) {}
+
+    convolution_impl(const convolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+        set_node_params(arg);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<convolution>());
+        const auto& node = arg.as<convolution>();
+        _split = node.get_split();
+        _groups = node.get_groups();
+        _depthwise_sep_opt = node.get_depthwise_sep_opt();
+    }
+
 protected:
     bool validate_impl(const typed_primitive_inst<convolution>& instance) const override {
         bool res = true;
 
-        auto outer_id = _outer.id();
         auto data_type = instance.node.input().get_output_layout().data_type;
 
         // Integer signed/unsigned is ok for convoluiton
-        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(outer_id,
+        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(_node_id,
                                                     "Input memory",
                                                     data_type,
                                                     "filter memory",
-                                                    instance.weights_memory(0)->get_layout().data_type,
+                                                    instance.node.weights().get_output_layout().data_type,
                                                     "");
 
         return res;
@@ -55,12 +71,12 @@ protected:
         return args;
     }
 
-    int32_t get_split() const override { return _outer.get_split(); }
-    uint32_t get_groups() const override { return _outer.get_groups(); }
-    bool get_depthwise_sep_opt() const override { return _outer.get_depthwise_sep_opt(); }
+    int32_t get_split() const override { return _split; }
+    uint32_t get_groups() const override { return _groups; }
+    bool get_depthwise_sep_opt() const override { return _depthwise_sep_opt; }
 
 public:
-    static primitive_impl* create(const convolution_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
+    static primitive_impl* create(const convolution_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = arg.get_primitive();
 
         const auto &split = primitive->split();
@@ -72,15 +88,15 @@ public:
         const auto transposed = arg.get_transposed();
 
         auto conv_params = get_weight_bias_zero_point_default_params<kernel_selector::convolution_params>(
-            *impl_param, split, 1, primitive->grouped_weights_shape);
+            impl_param, split, 1, primitive->grouped_weights_shape);
         auto conv_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(arg.get_program());
 
         if (primitive->deformable_mode) {
-            conv_params.inputs.push_back(convert_data_tensor(impl_param->input_layouts[1]));
+            conv_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
             conv_params.deformable_mode = true;
             if (primitive->input.size() == 3) {
-                conv_params.inputs.push_back(convert_data_tensor(impl_param->input_layouts[2]));
+                conv_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
                 conv_params.deformable_mask_enabled = true;
             }
             conv_params.bilinear_interpolation_pad = arg.bilinear_interpolation_pad();
@@ -92,7 +108,7 @@ public:
         conv_params.split = split;
         conv_params.groups = groups;
 
-        const auto& weights_layout = impl_param->input_layouts[1 + 0 + arg.get_deform_conv_dep_offset()]
+        const auto& weights_layout = impl_param.input_layouts[1 + 0 + arg.get_deform_conv_dep_offset()]
                                                                 .convert_to_weights_layout(primitive->grouped_weights_shape);
         uint32_t kx = weights_layout.spatial(0);
         uint32_t ky = weights_layout.spatial(1);
@@ -114,9 +130,9 @@ public:
         uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
         conv_params.dilation = {dilation_x, dilation_y, dilation_z};
 
-        if ((impl_param->input_layouts[0].data_type == data_types::u8 ||
-             impl_param->input_layouts[0].data_type == data_types::i8) &&
-             impl_param->input_layouts[1].data_type == data_types::i8) {
+        if ((impl_param.input_layouts[0].data_type == data_types::u8 ||
+             impl_param.input_layouts[0].data_type == data_types::i8) &&
+             impl_param.input_layouts[1].data_type == data_types::i8) {
             if (!primitive->weights_zero_points.empty() && !primitive->activations_zero_points.empty()) {
                 conv_params.quantization = kernel_selector::QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS;
             } else if (!primitive->weights_zero_points.empty()) {
@@ -130,7 +146,7 @@ public:
             conv_params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
-        auto format = impl_param->output_layout.format;
+        auto format = impl_param.output_layout.format;
         if (format == format::b_fs_zyx_fsv16 ||
             format == format::bs_fs_zyx_bsv16_fsv16 ||
             format == format::bs_fs_yx_bsv16_fsv16 ||
@@ -157,6 +173,11 @@ public:
 
         return conv;
     }
+
+private:
+    int32_t _split;
+    uint32_t _groups;
+    bool _depthwise_sep_opt;
 };
 
 namespace detail {

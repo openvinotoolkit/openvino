@@ -15,16 +15,16 @@ primitive_type_id select::type_id() {
     return &instance;
 }
 
-layout select_inst::calc_output_layout(select_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout select_inst::calc_output_layout(select_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for select_node!");
 
-    auto in_layout = node.input(1).get_non_padded_output_layout();
+    auto in_layout = impl_param.get_non_padded_input_layout(1);
     auto output_size = in_layout.get_tensor();
 
-    if (node.get_primitive()->broadcast_type == "numpy") {
-        auto input1_size = node.input(1).get_output_layout().get_tensor();
-        auto input2_size = node.input(2).get_output_layout().get_tensor();
+    if (impl_param.typed_desc<select>()->broadcast_type == "numpy") {
+        auto input1_size = impl_param.get_input_layout(1).get_tensor();
+        auto input2_size = impl_param.get_input_layout(2).get_tensor();
         output_size = tensor::max(input1_size, input2_size);
     }
 

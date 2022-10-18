@@ -18,21 +18,22 @@ primitive_type_id deconvolution::type_id() {
     return &instance;
 }
 
-layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for deconvolution_node!");
-    auto desc = node.get_primitive();
+    auto desc = impl_param.typed_desc<deconvolution>();
 
-    auto input_layout = node.input().get_output_layout();
-    auto weights_layout = node.weights(0).get_output_layout().convert_to_weights_layout(desc->grouped_weights_shape);
+    auto input_layout = impl_param.get_input_layout();
+    auto weights_layout = *impl_param.weights_layout;
+    weights_layout = weights_layout.convert_to_weights_layout(desc->grouped_weights_shape);
 
     auto data_type = input_layout.data_type;
-    if ((input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8) && !node.has_fused_primitives()) {
+    if ((input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8) && !impl_param.has_fused_primitives()) {
         data_type = data_types::f32;
     }
 
-    if (node.has_fused_primitives()) {
-        data_type = node.get_fused_output_layout().data_type;
+    if (impl_param.has_fused_primitives()) {
+        data_type = impl_param.get_fused_output_layout().data_type;
     }
 
     auto pad = desc->pad;
@@ -40,20 +41,25 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
 
     int32_t number_of_features = weights_layout.group() * weights_layout.ofm();
 
+    format out_fmt = input_layout.format;
+    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_required_output() != format::any) {
+        out_fmt = node.get_required_output();
+    }
+
     if (desc->with_output_size) {
-        CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                        "User-defined output spatial X",
                                        desc->output_size.spatial[0],
                                        "value 0",
                                        0,
                                        "User-defined size of output layout must be positive (>= 1)");
-        CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                        "User-defined output spatial Y",
                                        desc->output_size.spatial[1],
                                        "value 0",
                                        0,
                                        "User-defined size of output layout must be positive (>= 1)");
-        CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                        "User-defined output spatial Z",
                                        desc->output_size.spatial[2],
                                        "value 0",
@@ -65,12 +71,12 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
                            desc->output_size.spatial[0],
                            desc->output_size.spatial[1],
                            desc->output_size.spatial[2]);
-        return {data_type, input_layout.format, output_size};
+        return {data_type, out_fmt, output_size};
     }
 
     int32_t off_factor = -2;
     size_t spatial_dims = input_layout.get_spatial_rank();
-    CLDNN_ERROR_GREATER_THAN(node.id(),
+    CLDNN_ERROR_GREATER_THAN(desc->id,
                              "number of spatial dimensions",
                              spatial_dims,
                              "expected number of dimensions",
@@ -89,7 +95,7 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
 
     tensor output_size(input_layout.batch(),
                        number_of_features, x, y, z);
-    return {data_type, input_layout.format, output_size};
+    return {data_type, out_fmt, output_size};
 }
 
 std::string deconvolution_inst::to_string(deconvolution_node const& node) {

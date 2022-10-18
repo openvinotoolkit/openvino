@@ -19,11 +19,15 @@ if (CMAKE_COMPILER_IS_GNUCXX)
     target_compile_options(${TARGET_NAME} PRIVATE -Wall)
 endif()
 
+# for cross-compilation with gflags
+find_package(Threads REQUIRED)
+
 target_link_libraries(${TARGET_NAME} PRIVATE
     inference_engine
     inference_engine_plugin_api
     gflags
     ie_samples_utils
+    Threads::Threads
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES
@@ -39,7 +43,7 @@ ie_cpack_add_component(${OV_CPACK_COMP_CORE_TOOLS}
                        HIDDEN
                        DEPENDS ${OV_CPACK_COMP_CORE})
 
-if(CPACK_GENERATOR MATCHES "DEB")
+if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
     install(TARGETS compile_tool
             RUNTIME DESTINATION ${OV_CPACK_TOOLSDIR}
             COMPONENT ${OV_CPACK_COMP_CORE_TOOLS})

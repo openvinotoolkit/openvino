@@ -1557,7 +1557,6 @@ def matmul(
     :param transpose_b: should the second matrix be transposed
     :return: MatMul operation node
     """
-    print("transpose_a", transpose_a, "transpose_b", transpose_b)
     return _get_node_factory_opset1().create(
         "MatMul", as_nodes(data_a, data_b), {"transpose_a": transpose_a, "transpose_b": transpose_b}
     )

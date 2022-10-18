@@ -50,8 +50,7 @@ protected:
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION,
-                 FusedOpType::SCALE };
+                 FusedOpType::ACTIVATION };
     }
     bool Validate(const Params& params, const optional_params&) const override;
     Datatype GetActivationType(const normalize_params& params) const;

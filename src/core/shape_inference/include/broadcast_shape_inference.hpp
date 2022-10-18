@@ -69,14 +69,14 @@ void validate_target_shape_numpy(const ov::Node* op, const T& arg_shape, const T
     }
     const auto arg_rank_length = arg_shape.size();
     const auto target_rank_length = target_shape.size();
-    const int64_t start_axis = target_rank_length - arg_rank_length;
+    const auto start_axis = target_rank_length - arg_rank_length;
     NODE_VALIDATION_CHECK(op,
                           start_axis >= 0,
                           "Broadcast target_shape has smaller rank ",
                           target_rank_length,
                           " than arg shape ",
                           arg_rank_length);
-    for (auto i = start_axis; i < target_rank_length; i++) {
+    for (size_t i = static_cast<size_t>(start_axis); i < target_rank_length; i++) {
         NODE_VALIDATION_CHECK(op,
                               arg_shape[i - start_axis].is_dynamic() || target_shape[i].is_dynamic() ||
                                   arg_shape[i - start_axis].compatible(1) ||
@@ -165,7 +165,6 @@ void broadcase_base_shape_infer(
     const std::vector<T>& input_shapes,
     std::vector<T>& output_shapes,
     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-
     // shape node should produce a one dimensional shape.
     auto broadcast_shape_rank = input_shapes[1].rank();
     NODE_VALIDATION_CHECK(op,
@@ -220,7 +219,7 @@ void broadcase_base_shape_infer(
         // Validate axes_mapping
         const auto& axes_shape = input_shapes[2];
         if (input_shape.rank().is_static() && target_shape.rank().is_static() && axes_shape.is_static()) {
-            auto input_rank = (input_shape.size() == 0 && axes_shape[0].get_length() > 0) ? 1 : input_shape.size();
+            int64_t input_rank = (input_shape.size() == 0 && axes_shape[0].get_length() > 0) ? 1 : input_shape.size();
             NODE_VALIDATION_CHECK(op,
                                   axes_shape[0].get_length() == input_rank,
                                   "Broadcast axes_mapping shape ",

@@ -81,7 +81,7 @@ To run the sample, you can use [public](@ref omz_models_group_public) or [Intel'
 
 ## Build the Sample Applications
 
-### <a name="build_samples_linux"></a>Build the Sample Applications on Linux
+### <a name="build-samples-linux"></a>Build the Sample Applications on Linux
 
 The officially supported Linux* build environment is the following:
 
@@ -97,8 +97,8 @@ build_samples.sh
 ```
 
 Once the build is completed, you can find sample binaries in the following folders:
-* C samples: `~/inference_engine_c_samples_build/intel64/Release`
-* C++ samples: `~/inference_engine_cpp_samples_build/intel64/Release`
+* C samples: `~/openvino_c_samples_build/intel64/Release`
+* C++ samples: `~/openvino_cpp_samples_build/intel64/Release`
 
 You can also build the sample applications manually:
 
@@ -108,7 +108,7 @@ You can also build the sample applications manually:
 ```sh
 mkdir build
 ```
-> **NOTE**: If you run the Image Classification verification script during the installation, the C++ samples build directory is created in your home directory: `~/inference_engine_cpp_samples_build/`
+> **NOTE**: If you run the Image Classification verification script during the installation, the C++ samples build directory is created in your home directory: `~/openvino_cpp_samples_build/`
 
 2. Go to the created directory:
 ```sh
@@ -132,7 +132,7 @@ make
 For the release configuration, the sample application binaries are in `<path_to_build_directory>/intel64/Release/`;
 for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
 
-### <a name="build_samples_windows"></a>Build the Sample Applications on Microsoft Windows
+### <a name="build-samples-windows"></a>Build the Sample Applications on Microsoft Windows
 
 The recommended Windows build environment is the following:
 * Microsoft Windows 10
@@ -149,14 +149,14 @@ build_samples_msvc.bat
 By default, the script automatically detects the highest Microsoft Visual Studio version installed on the machine and uses it to create and build a solution for a sample code
 
 Once the build is completed, you can find sample binaries in the following folders:
-* C samples: `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_c_samples_build\intel64\Release`
-* C++ samples: `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_cpp_samples_build\intel64\Release`
+* C samples: `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_c_samples_build\intel64\Release`
+* C++ samples: `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\intel64\Release`
 
 You can also build a generated solution manually. For example, if you want to build C++ sample binaries in Debug configuration, run the appropriate version of the
-Microsoft Visual Studio and open the generated solution file from the `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_cpp_samples_build\Samples.sln`
+Microsoft Visual Studio and open the generated solution file from the `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\Samples.sln`
 directory.
 
-### <a name="build_samples_macos"></a>Build the Sample Applications on macOS*
+### <a name="build-samples-macos"></a>Build the Sample Applications on macOS*
 
 The officially supported macOS* build environment is the following:
 
@@ -172,8 +172,8 @@ build_samples.sh
 ```
 
 Once the build is completed, you can find sample binaries in the following folders:
-* C samples: `~/inference_engine_c_samples_build/intel64/Release`
-* C++ samples: `~/inference_engine_cpp_samples_build/intel64/Release`
+* C samples: `~/openvino_c_samples_build/intel64/Release`
+* C++ samples: `~/openvino_cpp_samples_build/intel64/Release`
 
 You can also build the sample applications manually:
 
@@ -189,7 +189,7 @@ source setupvars.sh
 ```sh
 mkdir build
 ```
-> **NOTE**: If you ran the Image Classification verification script during the installation, the C++ samples build directory was already created in your home directory: `~/inference_engine_cpp_samples_build/`
+> **NOTE**: If you ran the Image Classification verification script during the installation, the C++ samples build directory was already created in your home directory: `~/openvino_cpp_samples_build/`
 
 2. Go to the created directory:
 ```sh

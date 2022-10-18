@@ -12,13 +12,14 @@
 #include <ngraph/opsets/opset.hpp>
 
 #include "common_test_utils/test_common.hpp"
+#include "common_test_utils/file_utils.hpp"
 
 using namespace InferenceEngine;
 
 using ExtensionTests = ::testing::Test;
 
 std::string getExtensionPath() {
-    return FileUtils::makePluginLibraryName<char>({},
+    return FileUtils::makePluginLibraryName<char>(CommonTestUtils::getExecutableDirectory(),
             std::string("template_extension") + IE_BUILD_POSTFIX);
 }
 

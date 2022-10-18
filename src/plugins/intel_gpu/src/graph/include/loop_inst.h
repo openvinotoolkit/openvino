@@ -548,7 +548,7 @@ private:
         const int64_t bytes_iteration_initial_offset;
     };
 
-    static layout calc_output_layout(const loop_node& node);
+    static layout calc_output_layout(const loop_node& node, kernel_impl_params const& impl_param);
     bool preproc_memories_done;
     std::vector<backedge_memory_mapping> backedge_memory_mappings;
     std::vector<concatenated_memory_mapping> concatenated_input_mem_mappings;
@@ -564,7 +564,7 @@ public:
     void preprocess_output_memory();
     void preprocess_backedge_memory();
     void update_mapped_memory();
-    void set_output_memory(memory::ptr mem, bool check = true) override;
+    void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     const backedge_memory_mapping& get_current_iteration_backedge_mapping() const {
         if (!node.is_current_iteration_used()) {
             CLDNN_ERROR_MESSAGE(node.id(), "no backedge mapping for current_iteration");

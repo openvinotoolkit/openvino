@@ -22,10 +22,6 @@ try:
     import numpy as np
     import torch
 
-    # TODO: remove this crazy stuff, it saves all decoders ever created
-    # This is a WA for well known bug in pybind11 with too early deinitialization
-    decoders = []
-
     def make_constant(*args, **kwargs):
         return op.Constant(*args, **kwargs)
 
@@ -44,46 +40,35 @@ try:
     }
 
     class TorchScriptPythonDecoder (Decoder):
-        def __init__ (self, pt_module):
+        def __init__(self, pt_module):
             Decoder.__init__(self)
+            # We store every decoder created by this decoder so that all them are not deleted until the first decoder is deleted
+            self.m_decoders = []
             self.pt_module = pt_module
-            # TODO: remove this; leads to huge memory leaks while converting many models in one app
-            decoders.append(self)
 
-            #print(dir(pt_module))
-            # Print schema for nodes if any
-            #print(f'there is schema: {pt_module.schema()}' if hasattr(pt_module, 'schema') else 'no schema')
-            #print(pt_module)
-            #exit()
-
-        def free_decoders(self):
-            decoders.clear()
-        
-        def inputs (self):
+        def inputs(self):
             return [x.unique() for x in self.pt_module.inputs()]
 
-        def input (self, index): # TODO: remove
-            return self.inputs()[index] # TODO: find specialized method 
+        def input(self, index):  # TODO: remove
+            return self.inputs()[index]  # TODO: find specialized method
 
-        def get_input_shape (self, index):
+        def get_input_shape(self, index):
             input = self._raw_input(index)
             return self.get_shape_for_value(input)
 
-        def get_input_type (self, index):
+        def get_input_type(self, index):
             input = self._raw_input(index)
             return self.get_type_for_value(input)
 
-
-        def get_output_shape (self, index):
+        def get_output_shape(self, index):
             output = self._raw_output(index)
             return self.get_shape_for_value(output)
 
-        def get_output_type (self, index):
+        def get_output_type(self, index):
             output = self._raw_output(index)
             return self.get_type_for_value(output)
 
-        def _get_known_type_for_value (self, type):
-            #return
+        def _get_known_type_for_value(self, type):
             '''
                 Returns known/unknown types wrapped as OVAny
             '''
@@ -97,7 +82,7 @@ try:
                 #print(f'Recognized Tensor type with type.dtype() = {type.dtype()}')
                 # Tensor type, parse element type
                 # TODO: replace string by native type
-                #return OVAny(PartialShape([1,2,3]))
+                # return OVAny(PartialShape([1,2,3]))
                 return OVAny(DecoderType.Tensor(self._get_known_type_for_value(type.dtype())))
             elif type.__class__ is torch.ListType:
                 element_type = type.getElementType()
@@ -110,8 +95,7 @@ try:
                 #pt_type_class = value.type().__class__
                 #    if pt_type_class is torch.ListType:
 
-
-        def get_shape_for_value (self, value):
+        def get_shape_for_value(self, value):
             if value.isCompleteTensor():
                 ps = PartialShape(value.type().sizes())
                 #print(f'SHAPE FOR COMPLETE TENSOR: {ps}')
@@ -124,10 +108,10 @@ try:
                 pass
             return PartialShape.dynamic()
 
-        def get_type_for_value (self, value):
+        def get_type_for_value(self, value):
             #print(f'Decoding value type for value {value}')
             full_type = self._get_known_type_for_value(value.type())
-            #DecoderType.print(full_type)    # new (full) type interpretation
+            # DecoderType.print(full_type)    # new (full) type interpretation
             return full_type
             # Old version of this function directly treat Tensor[type] as type
             # assuming that regular type for vaue is Tensor, so it just
@@ -151,84 +135,73 @@ try:
             else:
                 return OVAny(OVType.dynamic)
 
-        def get_input_transpose_order (self, index):
+        def get_input_transpose_order(self, index):
             return []
 
-        def get_output_transpose_order (self, index):
+        def get_output_transpose_order(self, index):
             return []
-        
-        def get_subgraph_size (self):
+
+        def get_subgraph_size(self):
             return len(self.get_subgraphs()) if hasattr(self.pt_module, 'blocks') else 1
 
-        def visit_subgraph (self, index, node_visitor):
+        def visit_subgraph(self, node_visitor):
             # make sure topological order is satisfied
-            if index < self.get_subgraph_size():
-                if hasattr(self.pt_module, 'blocks'):
-                    for node in self.get_subgraphs()[index].nodes():
-                        #print('inside 1')
-                        #print('visit node/block')
-                        #print(node, flush=True)
-                        decoder = TorchScriptPythonDecoder(node)
-                        node_visitor(decoder)
-                else:
-                    for node in self.pt_module.nodes():
-                        #print('inside 2')
-                        #print('visit node/block')
-                        #print(node, flush=True)
-                        decoder = TorchScriptPythonDecoder(node)
-                        node_visitor(decoder)
-            else:
-                raise Exception(f'Index {index} of block is out of range, total number of blocks is {self.get_subgraph_size()}')
+            for node in self.pt_module.nodes():
+                decoder = TorchScriptPythonDecoder(node)
+                self.m_decoders.append(decoder)
+                node_visitor(decoder)
 
-        def get_subgraphs (self):
+        def get_subgraphs(self):
             return list(self.pt_module.blocks())
 
-        def get_subgraph_decoder (self, index):
-            return TorchScriptPythonDecoder(self.get_subgraphs()[index])
+        def get_subgraph_decoder(self, index):
+            decoder = TorchScriptPythonDecoder(self.get_subgraphs()[index])
+            self.m_decoders.append(decoder)
+            return decoder
 
-        def get_op_type (self):
+        def get_op_type(self):
             return self.pt_module.kind()
 
-        def get_schema (self):
+        def get_schema(self):
             return self.pt_module.schema()
 
-        def outputs (self):
+        def outputs(self):
             return [x.unique() for x in self.pt_module.outputs()]
 
-        def _raw_outputs (self):
+        def _raw_outputs(self):
             return [x for x in self.pt_module.outputs()]
 
-        def _raw_output (self, index):
+        def _raw_output(self, index):
             return self._raw_outputs()[index]
 
-        def _raw_inputs (self):
+        def _raw_inputs(self):
             return [x for x in self.pt_module.inputs()]
 
-        def _raw_input (self, index):
+        def _raw_input(self, index):
             return self._raw_inputs()[index]
 
-        def num_of_outputs (self):
+        def num_of_outputs(self):
             return len(self.outputs())
 
-        def output (self, index):
+        def output(self, index):
             return self.outputs()[index]
 
-        def mark_node (self, node):
+        def mark_node(self, node):
             return node
 
-        def as_constant (self):
+        def as_constant(self):
             if not self.get_op_type() == 'prim::Constant':
                 #print(f'[ ERROR ] Requested const value {self._raw_output(0)} from a non const prim {self.get_op_type()}')
                 return None
             pt_value = self._raw_output(0)
             is_tensor = pt_value.isCompleteTensor()
-            
+
             #print(f'Decoding value type for constant value {pt_value}')
-            #DecoderType.print(self._get_known_type_for_value(pt_value.type()))
+            # DecoderType.print(self._get_known_type_for_value(pt_value.type()))
 
             if is_tensor and str(pt_value.type().dtype()) in pt_to_py_type_map:
                 return self.as_constant_tensor(pt_value)
-            
+
             if not is_tensor:
                 pt_type_class = pt_value.type().__class__
                 #print(f'Not a tensor, type = {pt_value.type()}\ndir = {dir(pt_value.type())}\n__class__ = {pt_value.type().__class__}')
@@ -251,16 +224,16 @@ try:
 
             return None
 
-        def as_string (self):
+        def as_string(self):
             if not self.get_op_type() == 'prim::Constant':
                 return None
             pt_value = self._raw_output(0)
-        
+
             if str(pt_value.type()) in ['torch.StringType', 'str']:
-                    return pt_value.toIValue()
+                return pt_value.toIValue()
             return None
 
-        def as_constant_tensor (self, pt_value):
+        def as_constant_tensor(self, pt_value):
             # Constant interpretation doesn't respect new-full type of PT
             # It recognizes only tensors, and give lists as 1D tensors, and scalars as Tensor scalars
             # So only tensor-type constants are supported
@@ -271,17 +244,17 @@ try:
             ov_const = make_constant(ovtype, ovshape.get_shape(), raw_pointer)
             return ov_const.outputs()
 
-        def as_constant_list (self, pt_value):
+        def as_constant_list(self, pt_value):
             # For now it is treat a list as a 1D tensor; it is required by converters to avoid need to massively rewrite them in that part where constant attributes are queried
             pt_element_type = str(pt_value.type().getElementType())
             ivalue = pt_value.toIValue()
             #print(f'List toIValue: {ivalue}, type of it: {type(ivalue)}')
             is_known_type = pt_element_type in pt_to_ov_type_map
-            
+
             # WA to broken ov.Type
             # Detect integer list and process it with a dedicated method
             # TODO: Fix ov.Type and remove this WA
-            #if pt_to_py_type_map[pt_element_type] == 'int':
+            # if pt_to_py_type_map[pt_element_type] == 'int':
             #    self.as_constant_list_of_ints(ovshape = PartialShape([len(ivalue)]), ivalue)
             # End of WA to broken ov.Type
 
@@ -292,17 +265,16 @@ try:
                 ov_const = make_constant(ovtype, ovshape.get_shape(), ivalue)
                 return ov_const.outputs()
 
-        def input_is_none (self, index):
+        def input_is_none(self, index):
             if index >= len(self.inputs()) or self._raw_input(index) is None:
                 return True
             else:
                 r_input = self._raw_input(index)
                 return str(r_input.type()) in ['torch.NoneType', 'NoneType']
 
-
-        def debug (self):
+        def debug(self):
             print(f'DEBUG CALLED FOR {self._raw_output(0)}')
-            #self.pt_module.print()
+            # self.pt_module.print()
 
 except ImportError as err:
     raise ImportError("OpenVINO Pytorch frontend is not available, please make sure the frontend is built."

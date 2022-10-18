@@ -9,12 +9,11 @@ cmake_minimum_required (VERSION 3.13)
 project (ie_python_api)
 
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
-    find_package(InferenceEngineDeveloperPackage REQUIRED)
+    find_package(OpenVINODeveloperPackage REQUIRED
+                 PATHS "${InferenceEngineDeveloperPackage_DIR}")
 endif()
 
 option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
-
-set(PYTHON_BRIDGE_CPACK_PATH "${OV_CPACK_PYTHONDIR}")
 
 if(UNIX)
     # cython generated files requires public visibility. Force visibility required.
@@ -31,23 +30,21 @@ else()
     message(STATUS "Found Cython version ${CYTHON_VERSION}")
 endif()
 
-set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 
 if(ENABLE_CONDA_FOLDER)
-    # set(PYTHON_COMPONENT conda_${OV_CPACK_COMP_PYTHON_IE_API}_${PYTHON_VERSION})
-    set(PYTHON_COMPONENT conda_${PYTHON_VERSION})
+    set(PYTHON_COMPONENT conda_${OV_CPACK_COMP_PYTHON_IE_API}_${pyversion})
     if(WIN32)
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/Conda/${PYTHON_VERSION}/openvino)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/Conda/${pyversion}/openvino)
     else()
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/Conda/${PYTHON_VERSION}/openvino)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/Conda/${pyversion}/openvino)
     endif()
 else()
-    # set(PYTHON_COMPONENT ${OV_CPACK_COMP_PYTHON_IE_API}_${PYTHON_VERSION})
-    set(PYTHON_COMPONENT ${PYTHON_VERSION})
+    set(PYTHON_COMPONENT ${OV_CPACK_COMP_PYTHON_IE_API}_${pyversion})
     if(WIN32)
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/openvino)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${pyversion}/openvino)
     else()
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${PYTHON_VERSION}/openvino)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${pyversion}/openvino)
     endif()
 endif()
 
@@ -70,5 +67,5 @@ endif()
 ie_cpack_add_component(${PYTHON_COMPONENT} HIDDEN)
 
 install(FILES requirements.txt
-        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}
+        DESTINATION ${OV_CPACK_PYTHONDIR}
         COMPONENT ${PYTHON_COMPONENT})

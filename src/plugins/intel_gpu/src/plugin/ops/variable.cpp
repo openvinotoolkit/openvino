@@ -17,11 +17,11 @@ namespace {
 template<typename T_PRIMITIVE>
 void CreateVariableAccessPrimitive(Program &p, const std::shared_ptr<ngraph::op::Op> &op,
                                    const std::string &variable_id) {
-    p.ValidateInputs(op, {1});
+    validate_inputs_count(op, {1});
 
-    const auto output_data_type = DataTypeFromPrecision(op->get_output_element_type(0));
+    const auto output_data_type = cldnn::element_type_to_data_type(op->get_output_element_type(0));
     const auto op_output_shape = op->get_output_shape(0);
-    const auto output_format = DefaultFormatForDims(op_output_shape.size());
+    const auto output_format = cldnn::format::get_default_format(op_output_shape.size());
     const auto output_shape = tensor_from_dims(op_output_shape);
 
     const auto variable_layout = cldnn::layout{output_data_type,
@@ -35,8 +35,15 @@ void CreateVariableAccessPrimitive(Program &p, const std::shared_ptr<ngraph::op:
                                   variable_id,
                                   variable_layout};
 
-    p.AddPrimitive(prim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, prim);
+}
+
+void CreateReadValueOp(Program& p, const std::shared_ptr<ngraph::op::v3::ReadValue>& op) {
+    CreateVariableAccessPrimitive<cldnn::read_value>(p, op, op->get_variable_id());
+}
+
+void CreateAssignOp(Program& p, const std::shared_ptr<ngraph::op::v3::Assign>& op) {
+    CreateVariableAccessPrimitive<cldnn::assign>(p, op, op->get_variable_id());
 }
 
 void CreateReadValueOp(Program& p, const std::shared_ptr<ngraph::op::v6::ReadValue>& op) {
@@ -49,7 +56,9 @@ void CreateAssignOp(Program& p, const std::shared_ptr<ngraph::op::v6::Assign>& o
 
 } // namespace
 
+REGISTER_FACTORY_IMPL(v3, Assign);
 REGISTER_FACTORY_IMPL(v6, Assign);
+REGISTER_FACTORY_IMPL(v3, ReadValue);
 REGISTER_FACTORY_IMPL(v6, ReadValue);
 
 }  // namespace intel_gpu

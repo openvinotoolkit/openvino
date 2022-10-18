@@ -109,8 +109,8 @@ DATA_ET reflection_data_with_align(const DATA_ET* data,
                                    long x_d) {
     const auto H = static_cast<long>(data_shape[2]);
     const auto W = static_cast<long>(data_shape[3]);
-    const auto H_2_2 = 2 * (H - 1);
-    const auto W_2_2 = 2 * (W - 1);
+    const auto H_2_2 = H == 1 ? 1 : 2 * (H - 1);
+    const auto W_2_2 = W == 1 ? 1 : 2 * (W - 1);
     y_d = std::abs(y_d) % H_2_2;
     x_d = std::abs(x_d) % W_2_2;
     const auto y = static_cast<size_t>(y_d >= H ? H_2_2 - y_d : y_d);

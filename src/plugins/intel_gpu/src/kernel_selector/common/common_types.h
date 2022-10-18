@@ -29,9 +29,10 @@ enum class KernelType {
     ACTIVATION,
     SOFT_MAX,
     ELTWISE,
-    SCALE,
     REORDER,
     RESHAPE,
+    COUNT_NONZERO,
+    GATHER_NONZERO,
     PERMUTE,
     CONCATENATION,
     RESAMPLE,
@@ -73,6 +74,7 @@ enum class KernelType {
     SPACE_TO_BATCH,
     GRN,
     CTC_GREEDY_DECODER,
+    CTC_LOSS,
     CUM_SUM,
     EMBEDDING_BAG,
     EXTRACT_IMAGE_PATCHES,
@@ -87,7 +89,10 @@ enum class KernelType {
     CONVERT_COLOR,
     RANDOM_UNIFORM,
     ADAPTIVE_POOLING,
-    REVERSE
+    REVERSE,
+    PRIOR_BOX,
+    EYE,
+    GENERATE_PROPOSALS
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -592,7 +597,7 @@ enum class BoxEncodingType {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 enum class color_format : uint32_t {
     RGB,       ///< RGB color format
-    BGR,       ///< BGR color format, default in DLDT
+    BGR,       ///< BGR color format, default in OpenVINO
     RGBX,      ///< RGBX color format with X ignored during inference
     BGRX,      ///< BGRX color format with X ignored during inference
     NV12,      ///< NV12 color format represented as compound Y+UV blob

@@ -22,16 +22,12 @@ ParamsKey SoftmaxItemsClassKernelBase::GetDefaultSupportedKey() {
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableInputLayout(DataLayout::f);
     k.EnableOutputLayout(DataLayout::f);
-    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
-    k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::byxf);
     k.EnableOutputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::bf);
     k.EnableOutputLayout(DataLayout::fb);
     k.EnableOutputLayout(DataLayout::bfzyx);
-    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
-    k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
     k.EnableSoftmaxDim(SoftmaxDim::X);
     k.EnableSoftmaxDim(SoftmaxDim::Y);
     k.EnableSoftmaxDim(SoftmaxDim::Z);

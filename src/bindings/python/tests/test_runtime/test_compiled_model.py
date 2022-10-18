@@ -7,7 +7,7 @@ import pytest
 import numpy as np
 
 # TODO: refactor into absolute paths
-from ..conftest import model_path, get_model_with_template_extension
+from ..conftest import model_path
 from ..test_utils.test_utils import generate_image
 from openvino.runtime import Model, ConstOutput, Shape
 
@@ -345,8 +345,14 @@ def test_direct_infer(device):
     assert np.array_equal(ref[comp_model.outputs[0]], res[comp_model.outputs[0]])
 
 
+@pytest.mark.template_plugin()
 def test_compiled_model_after_core_destroyed(device):
-    core, model = get_model_with_template_extension()
+    core = Core()
+    with open(test_net_bin, "rb") as f:
+        weights = f.read()
+    with open(test_net_xml, "rb") as f:
+        xml = f.read()
+    model = core.read_model(model=xml, weights=weights)
     compiled = core.compile_model(model, device)
     del core
     del model
