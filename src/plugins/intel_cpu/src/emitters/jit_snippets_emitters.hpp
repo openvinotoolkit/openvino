@@ -43,11 +43,13 @@ class jit_container_emitter: public jit_emitter {
 public:
     jit_container_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                           const std::shared_ptr<ov::Node>& n);
+    // mapping info contains abstract_to_physical map + regs_pool
+    using mapping_info = std::pair<std::map<size_t, size_t>, std::vector<size_t>&>;
 protected:
     // maps gpr and vec abstract registers to physical ones. Physical reg indexes are taken from the provided pools
     // (the first 2 args). All the used gpr and vec registers are also stored in the provided sets (the second 2 args).
-    void map_abstract_registers(const std::vector<size_t>&,  const std::vector<size_t>&,
-                                std::set<size_t>&, std::set<size_t>&);
+    void map_abstract_registers(mapping_info& gpr_map_pool,  mapping_info& vec_map_pool,
+                                std::vector<AllocatedEmitter>& allocated_emitters) const;
     std::vector<AllocatedEmitter> body;
 };
 ///
@@ -88,11 +90,15 @@ private:
                    const std::vector<size_t>& gpr,
                    const ov::intel_cpu::emitter_context *emit_context) const override;
     void init_data_pointers(size_t, size_t, const Reg64&, const Reg64&, const std::vector<Reg64>&) const;
+    static void remove_regs_from_pool(std::vector<size_t>& pool, const std::set<size_t>& to_remove);
 
     jit_snippets_compile_args jcp;
     std::vector<size_t> gp_regs_pool;
-    std::vector<size_t> gp_regs_used;
+//    std::vector<size_t> gp_regs_used;
+    std::vector<size_t> data_ptr_regs_idx; // gpr's used to store data pointers
     std::vector<size_t> vec_regs_pool;
+    const size_t reg_indexes_idx = abi_param1.getIdx();
+    const size_t reg_const_params_idx = abi_param2.getIdx();
 };
 
 class TileBeginEmitter : public jit_emitter {

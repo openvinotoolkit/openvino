@@ -257,6 +257,8 @@ bool ngraph::snippets::pass::AssignRegistersNew::run_on_model(const std::shared_
             }
             // allocate
             if (active.size() == reg_pool.size()) {
+                // todo: if it is TileBegin or TileEnd that requires gpr, and we don't have any in the pool,
+                //  then assign SIZE_MAX-1 as a flag to spill a reg inside emitter
                 throw ngraph::ngraph_error("can't allocate registers for a snippet ");
             } else {
                 register_map[unique_reg] = bank.top();
@@ -301,7 +303,7 @@ bool ngraph::snippets::pass::AssignRegistersNew::run_on_model(const std::shared_
         for (const auto& out : t_op.second->outputs()) {
             const auto& t = out.get_tensor_ptr();
             auto& rt = t->get_rt_info();
-            rt["reginfo_new"] = static_cast<size_t>(assigned_regs[t]);
+            rt["reginfo"] = static_cast<size_t>(assigned_regs[t]);
         }
     }
     return false;

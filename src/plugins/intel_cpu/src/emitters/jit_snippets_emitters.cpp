@@ -25,17 +25,31 @@ jit_container_emitter::jit_container_emitter(dnnl::impl::cpu::x64::jit_generator
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
-void jit_container_emitter::map_abstract_registers(const std::vector<size_t> &vec_pool,  const std::vector<size_t> &gpr_pool,
-                                                    std::set<size_t>& vecs_used, std::set<size_t>& gprs_used) {
-    if (body.empty())
-        IE_THROW() << "Cannot map registers for jit_container_emitter when its body is empty";
-    auto abstract_to_physical = [](const std::vector<size_t>& abstract_regs, const std::vector<size_t>& regs_pool) {
+void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  mapping_info& vec_map_pool,
+                            std::vector<AllocatedEmitter>& allocated_emitters) const {
+    if (allocated_emitters.empty())
+        IE_THROW() << "Cannot map registers when there is no allocated_emitters provided";
+    auto map_regs = [](const std::vector<size_t>& abstract_regs, mapping_info& mapping) {
+        auto& abstract_to_physical = mapping.first;
+        auto& regs_pool = mapping.second;
         std::vector<size_t> physical_regs(abstract_regs.size());
-        for (size_t i = 0; i < abstract_regs.size(); i++)
-            physical_regs[i] = regs_pool.at(abstract_regs[i]);
+        for (size_t i = 0; i < abstract_regs.size(); i++) {
+            const auto abstract = abstract_regs[i];
+            auto& physical = physical_regs[i];
+            if (abstract_to_physical.count(abstract) == 0) {
+                if (regs_pool.empty())
+                    IE_THROW() << "Cannot map registers for jit_container_emitter: not enough regs in the pool";
+                physical = regs_pool.back();
+                regs_pool.pop_back();
+                abstract_to_physical[abstract] = physical;
+            } else {
+                physical = abstract_to_physical[abstract];
+            }
+        }
         return physical_regs;
     };
-    for (auto& code : body) {
+
+    for (auto& code : allocated_emitters) {
         const auto& emitter = code.first;
         std::vector<size_t> in_abstract_regs, out_abstract_regs;
         std::tie(in_abstract_regs, out_abstract_regs) = code.second;
@@ -49,40 +63,100 @@ void jit_container_emitter::map_abstract_registers(const std::vector<size_t> &ve
                 //  where all utility emitters are align with conventional Op emitters
                 if (std::dynamic_pointer_cast<TileBeginEmitter>(emitter) ||
                         std::dynamic_pointer_cast<TileEndEmitter>(emitter))
-                    in_physical_regs = std::move(abstract_to_physical(in_abstract_regs, gpr_pool));
+                    in_physical_regs = std::move(map_regs(in_abstract_regs, gpr_map_pool));
                 else
                     in_physical_regs = std::move(in_abstract_regs);
-                out_physical_regs = std::move(abstract_to_physical(out_abstract_regs, gpr_pool));
-                gprs_used.insert(out_physical_regs.begin(), out_physical_regs.end());
+                out_physical_regs = std::move(map_regs(out_abstract_regs, gpr_map_pool));
                 break;
             case gpr_to_vec:
                 // Load Emitters
-                in_physical_regs = std::move(abstract_to_physical(in_abstract_regs, gpr_pool));
-                out_physical_regs = std::move(abstract_to_physical(out_abstract_regs, vec_pool));
-                gprs_used.insert(in_physical_regs.begin(), in_physical_regs.end());
-                vecs_used.insert(out_physical_regs.begin(), out_physical_regs.end());
+                in_physical_regs = std::move(map_regs(in_abstract_regs, gpr_map_pool));
+                out_physical_regs = std::move(map_regs(out_abstract_regs, vec_map_pool));
                 break;
             case vec_to_gpr:
                 // Store Emitters
-                in_physical_regs = std::move(abstract_to_physical(in_abstract_regs, vec_pool));
-                out_physical_regs = std::move(abstract_to_physical(out_abstract_regs, gpr_pool));
-                vecs_used.insert(in_physical_regs.begin(), in_physical_regs.end());
-                gprs_used.insert(out_physical_regs.begin(), out_physical_regs.end());
+                in_physical_regs = std::move(map_regs(in_abstract_regs, vec_map_pool));
+                out_physical_regs = std::move(map_regs(out_abstract_regs, gpr_map_pool));
                 break;
             case vec_to_vec:
                 // Regular operations
-                in_physical_regs = std::move(abstract_to_physical(in_abstract_regs, vec_pool));
-                out_physical_regs = std::move(abstract_to_physical(out_abstract_regs, vec_pool));
-                vecs_used.insert(in_physical_regs.begin(), in_physical_regs.end());
-                vecs_used.insert(out_physical_regs.begin(), out_physical_regs.end());
+                in_physical_regs = std::move(map_regs(in_abstract_regs, vec_map_pool));
+                out_physical_regs = std::move(map_regs(out_abstract_regs, vec_map_pool));
                 break;
             default:
                 IE_THROW() << "Unhandled in_out type";
         }
         code.second = std::make_pair(in_physical_regs, out_physical_regs);
         if (auto container = std::dynamic_pointer_cast<jit_container_emitter>(code.first))
-            container->map_abstract_registers(vec_pool, gpr_pool, vecs_used, gprs_used);
+            container->map_abstract_registers(gpr_map_pool,  vec_map_pool, allocated_emitters);
     }
+    return;
+}
+
+//void jit_container_emitter::map_abstract_registers(const std::vector<size_t> &vec_pool,  const std::vector<size_t> &gpr_pool,
+//                                                   std::set<size_t>& vecs_used, std::set<size_t>& gprs_used) {
+//    if (body.empty())
+//        IE_THROW() << "Cannot map registers for jit_container_emitter when its body is empty";
+//    auto abstract_to_physical = [](const std::vector<size_t>& abstract_regs, const std::vector<size_t>& regs_pool) {
+//        std::vector<size_t> physical_regs(abstract_regs.size());
+//        for (size_t i = 0; i < abstract_regs.size(); i++)
+//            physical_regs[i] = regs_pool.at(abstract_regs[i]);
+//        return physical_regs;
+//    };
+//    for (auto& code : body) {
+//        const auto& emitter = code.first;
+//        std::vector<size_t> in_abstract_regs, out_abstract_regs;
+//        std::tie(in_abstract_regs, out_abstract_regs) = code.second;
+//        std::vector<size_t> in_physical_regs, out_physical_regs;
+//        switch (std::dynamic_pointer_cast<jit_emitter>(emitter)->get_in_out_type()) {
+//            case gpr_to_gpr:
+//                // Note that gpr_to_gpr is used for high-level utility operations like Kernel/TileScheduler/Tile.
+//                // Input registers are not mapped in this case, since they contain utility info
+//                // (num_params, tile increment, etc.), but not reg indexes.
+//                // todo: Note that TileBeginEmitter and TileEndEmitter demonstrate new paradigm,
+//                //  where all utility emitters are align with conventional Op emitters
+//                if (std::dynamic_pointer_cast<TileBeginEmitter>(emitter) ||
+//                    std::dynamic_pointer_cast<TileEndEmitter>(emitter))
+//                    in_physical_regs = std::move(abstract_to_physical(in_abstract_regs, gpr_pool));
+//                else
+//                    in_physical_regs = std::move(in_abstract_regs);
+//                out_physical_regs = std::move(abstract_to_physical(out_abstract_regs, gpr_pool));
+//                gprs_used.insert(out_physical_regs.begin(), out_physical_regs.end());
+//                break;
+//            case gpr_to_vec:
+//                // Load Emitters
+//                in_physical_regs = std::move(abstract_to_physical(in_abstract_regs, gpr_pool));
+//                out_physical_regs = std::move(abstract_to_physical(out_abstract_regs, vec_pool));
+//                gprs_used.insert(in_physical_regs.begin(), in_physical_regs.end());
+//                vecs_used.insert(out_physical_regs.begin(), out_physical_regs.end());
+//                break;
+//            case vec_to_gpr:
+//                // Store Emitters
+//                in_physical_regs = std::move(abstract_to_physical(in_abstract_regs, vec_pool));
+//                out_physical_regs = std::move(abstract_to_physical(out_abstract_regs, gpr_pool));
+//                vecs_used.insert(in_physical_regs.begin(), in_physical_regs.end());
+//                gprs_used.insert(out_physical_regs.begin(), out_physical_regs.end());
+//                break;
+//            case vec_to_vec:
+//                // Regular operations
+//                in_physical_regs = std::move(abstract_to_physical(in_abstract_regs, vec_pool));
+//                out_physical_regs = std::move(abstract_to_physical(out_abstract_regs, vec_pool));
+//                vecs_used.insert(in_physical_regs.begin(), in_physical_regs.end());
+//                vecs_used.insert(out_physical_regs.begin(), out_physical_regs.end());
+//                break;
+//            default:
+//                IE_THROW() << "Unhandled in_out type";
+//        }
+//        code.second = std::make_pair(in_physical_regs, out_physical_regs);
+//        if (auto container = std::dynamic_pointer_cast<jit_container_emitter>(code.first))
+//            container->map_abstract_registers(vec_pool, gpr_pool, vecs_used, gprs_used);
+//    }
+//}
+
+void KernelEmitter::remove_regs_from_pool(std::vector<size_t>& pool, const std::set<size_t>& to_remove) {
+    // It's important to keep the order of other elements
+    pool.erase(std::remove_if(pool.begin(), pool.end(),
+                              [&](size_t x) {return to_remove.count(x) != 0;}), pool.end());
 }
 
 KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
@@ -101,22 +175,30 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     vec_regs_pool.resize(16);
     std::iota(gp_regs_pool.begin(), gp_regs_pool.end(), 0);
     std::iota(vec_regs_pool.begin(), vec_regs_pool.end(), 0);
-    auto remove_regs_from_pool = [](std::vector<size_t>& pool, const std::set<size_t>& to_remove) {
-        // It's important to keep the order of other elements
-        pool.erase(std::remove_if(pool.begin(), pool.end(),
-                                       [&](size_t x) {return to_remove.count(x) != 0;}), pool.end());
-    };
     // Reserve stack base and pointer for push(...) and pop(...) operations
     // Reserve abi_param1 and abi_param2, since they'll be used to pass runtime call args to kernel
     remove_regs_from_pool(gp_regs_pool, {Xbyak::Operand::RSP, Xbyak::Operand::RBP,
-                                         static_cast<size_t>(abi_param1.getIdx()),
-                                         static_cast<size_t>(abi_param2.getIdx())});
-    std::set<size_t> vecs_used, gprs_used;
-    map_abstract_registers(vec_regs_pool, gp_regs_pool, vecs_used, gprs_used);
-    remove_regs_from_pool(gp_regs_pool, gprs_used);
-    remove_regs_from_pool(vec_regs_pool, vecs_used);
-    // Remember used gprs to pass it to the TileSchedulerEmitter, so it can init them with appropriate data ptrs
-    gp_regs_used = std::vector<size_t>(gprs_used.begin(), gprs_used.end());
+                                         reg_indexes_idx, reg_const_params_idx});
+
+    mapping_info gpr_map_pool({}, gp_regs_pool);
+    mapping_info vec_map_pool({}, vec_regs_pool);
+    std::vector<AllocatedEmitter> data_io_emitters;
+    std::copy_if(body.begin(), body.end(), std::back_inserter(data_io_emitters),
+                           [](const AllocatedEmitter& code){
+                                   const auto& emitter = code.first;
+                                   const auto emitter_type = std::dynamic_pointer_cast<jit_emitter>(emitter)->get_in_out_type();
+                                   return emitter_type == gpr_to_vec || emitter_type == vec_to_gpr;
+                           });
+    // Note that we can't use reg_indexes_idx or reg_const_params_idx to store data pointers because these two
+    // regs are used to calculate offsets for the data pointers
+    map_abstract_registers(gpr_map_pool, vec_map_pool, data_io_emitters);
+    for (const auto& abstract_to_physical : gpr_map_pool.first)
+        data_ptr_regs_idx.push_back(abstract_to_physical.second);
+    // However we can use reg_indexes_idx and reg_const_params_idx for other operations since we won't need them
+    // after offsets calculation
+    gpr_map_pool.second.push_back(reg_indexes_idx);
+    gpr_map_pool.second.push_back(reg_const_params_idx);
+    map_abstract_registers(gpr_map_pool, vec_map_pool, body);
 }
 
 void KernelEmitter::emit_code(const std::vector<size_t> &in,
@@ -136,9 +218,10 @@ void KernelEmitter::validate_arguments(const std::vector<size_t> &in,
     if (!out.empty())
         IE_THROW() << "KernelEmitter got invalid number of outputs. Expected 0, got " << out.size();
     const auto num_params = in[0] + in[1];
-    if (gp_regs_used.size() != num_params)
+    // The number of used gpr may be >= num_params since TileBegin+TileEnd could also use gpr to store work_amount
+    if (data_ptr_regs_idx.size() != num_params)
         IE_THROW() << "KernelEmitter arguments are inconsistent with the gpr_regs_used size: in[0] + in[1] = "
-        << num_params << " gp_regs_used.size() = " << gp_regs_used.size();
+        << num_params << " data_ptr_regs_idx.size() = " << data_ptr_regs_idx.size();
 }
 
 void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params,
@@ -156,8 +239,12 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params,
             }
         }
     };
-    const bool last_iter_explicitly = gp_regs_pool.empty();
-    Reg64 reg_tmp = last_iter_explicitly ? data_ptr_regs.back() : Reg64(gp_regs_pool.back());
+    const auto spare_corruptable_gpr = std::find_if(gp_regs_pool.begin(), gp_regs_pool.end(),
+                                                   [this](size_t reg) {
+                                                        return reg != reg_indexes_idx && reg != reg_const_params_idx;
+                                                   });
+    const bool last_iter_explicitly = spare_corruptable_gpr == gp_regs_pool.end();
+    Reg64 reg_tmp = last_iter_explicitly ? data_ptr_regs.back() : Reg64(static_cast<int>(*spare_corruptable_gpr));
     size_t i = 0;
     for (; i < num_params - last_iter_explicitly; i++) {
         if (i < num_inputs)
@@ -188,22 +275,17 @@ void KernelEmitter::emit_impl(const std::vector<size_t>& in,
     const size_t num_inputs = in[0];
     const size_t num_outputs = in[1];
 
-    Reg64 reg_indexes = Reg64(abi_param1.getIdx());
-    Reg64 reg_const_params = Reg64(abi_param2.getIdx());
+    Reg64 reg_indexes = Reg64(static_cast<int>(reg_indexes_idx));
+    Reg64 reg_const_params = Reg64(static_cast<int>(reg_const_params_idx));
     std::vector<Reg64> data_ptr_regs;
-    transform_idxs_to_regs(gp_regs_used, data_ptr_regs);
+    transform_idxs_to_regs(data_ptr_regs_idx, data_ptr_regs);
 
     init_data_pointers(num_inputs, num_inputs + num_outputs, reg_indexes, reg_const_params, data_ptr_regs);
-    // todo: emit_impl is a const method, so we can't just push_back unused regs to the gp_regs_pool.
-    //  we need a more elegant approach to avoid a full copy here
-    auto local_gpr_pool = gp_regs_pool;
-    // we won't need indexes in both static and dynamic cases, since offsets are already calculated
-    local_gpr_pool.push_back(static_cast<size_t>(reg_indexes.getIdx()));
     for (const auto& c : body) {
         const auto& emitter = c.first;
         std::vector<size_t> in_regs, out_regs;
         std::tie(in_regs, out_regs) = c.second;
-        emitter->emit_code(in_regs, out_regs, vec_regs_pool, local_gpr_pool);
+        emitter->emit_code(in_regs, out_regs, vec_regs_pool, gp_regs_pool);
     }
     h->postamble();
 }
@@ -242,6 +324,8 @@ void TileBeginEmitter::validate_arguments(const std::vector<size_t> &in,
                                         const std::vector<size_t> &gpr) const {
     if (in.size() != num_inputs)
         IE_THROW() << "Invalid inputs size: expected " << num_inputs << " got " << in.size();
+    if (out.size() != num_inputs + 1)
+        IE_THROW() << "Invalid outputs size: expected " << num_inputs + 1 << " got " << out.size();
 }
 
 void TileBeginEmitter::emit_impl(const std::vector<size_t>& in,
@@ -250,12 +334,13 @@ void TileBeginEmitter::emit_impl(const std::vector<size_t>& in,
                                  const std::vector<size_t>& gpr,
                                  const ov::intel_cpu::emitter_context *emit_context) const {
     // todo: In dynamic case we will also need to set broadcasting info here
-    // todo: skip everything if work_amount == increment
-    Reg64 reg_work_amount = Reg64(abi_param2.getIdx());
+    const bool own_wa_reg = out.back() != SIZE_MAX - 1;
+    Reg64 reg_work_amount = own_wa_reg ? Reg64(out.back()) : Reg64(abi_param2.getIdx());
     Label for_body;
     // save previous register state (if there is an outer loop that uses this reg for example)
     if (!evaluate_once && !reuse_work_amount_reg) {
-        h->push(reg_work_amount);
+        if (!own_wa_reg)
+            h->push(reg_work_amount);
         h->mov(reg_work_amount, work_amount);
     }
     // todo fix excessive push-pop with an appropriate gpr assign_registers pass
@@ -309,6 +394,8 @@ void TileEndEmitter::validate_arguments(const std::vector<size_t> &in,
         IE_THROW() << "Invalid tile_begin->input_regs size: expected " << num_inputs << " got " << tile_begin->input_regs.size();
     if (out.size() != num_outputs)
         IE_THROW() << "Invalid number of out arguments: expected " << num_outputs << " got " << out.size();
+    if (in.size() != num_outputs + 1)
+        IE_THROW() << "Invalid number of in arguments: expected " << num_inputs + 1 << " got " << in.size();
     const auto io_size = num_inputs + num_outputs;
     if (apply_increments.size() != io_size)
         IE_THROW() << "Invalid apply_increments size: expected " << io_size << " got " << apply_increments.size();
@@ -326,7 +413,8 @@ void TileEndEmitter::emit_impl(const std::vector<size_t>& in,
     std::copy(out.begin(), out.end(), std::back_inserter(data_ptr_reg_idxs));
     std::vector<Reg64> data_ptr_regs;
     transform_idxs_to_regs(data_ptr_reg_idxs, data_ptr_regs);
-    Reg64 reg_work_amount = Reg64(abi_param2.getIdx());
+    const bool own_wa_reg = out.back() != SIZE_MAX - 1;
+    Reg64 reg_work_amount = own_wa_reg ? Reg64(in.back()) : Reg64(abi_param2.getIdx());
     if (!evaluate_once) {
         for (int idx = 0; idx < data_ptr_regs.size(); idx++) {
             if (apply_increments[idx])
@@ -341,7 +429,7 @@ void TileEndEmitter::emit_impl(const std::vector<size_t>& in,
         if (finalization_offsets[idx] != 0)
             h->add(data_ptr_regs[idx], finalization_offsets[idx] * io_data_size[idx]);
     }
-    if (!evaluate_once && !reuse_work_amount_reg) {
+    if (!evaluate_once && !reuse_work_amount_reg && !own_wa_reg) {
         // restore reg state if we've changed it before
         h->pop(reg_work_amount);
     }
