@@ -46,8 +46,7 @@ macro(ov_cpack_settings)
     foreach(item IN LISTS cpack_components_all)
         # filter out some components, which are not needed to be wrapped to .deb package
         if(# skip OpenVINO Pyhon API and samples
-           NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" AND
-           NOT item STREQUAL OV_CPACK_COMP_PYTHON_SAMPLES AND
+        #    NOT item STREQUAL OV_CPACK_COMP_PYTHON_SAMPLES AND
            # python wheels are not needed to be wrapped by debian packages
            NOT item STREQUAL OV_CPACK_COMP_PYTHON_WHEELS AND
            # see ticket # 82605
@@ -279,13 +278,13 @@ macro(ov_cpack_settings)
     if(ENABLE_PYTHON)
         ov_get_pyversion(pyversion)
         string(TOUPPER "${pyversion}" pyversion)
+        set(python_component "${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}")
 
         set(CPACK_COMPONENT_PYOPENVINO_${pyversion}_DESCRIPTION "OpenVINO Python bindings")
-        if(installed_plugins)
-            set(CPACK_COMPONENT_PYOPENVINO_${pyversion}_DEPENDS "${installed_plugins}")
-        else()
-            set(CPACK_COMPONENT_PYOPENVINO_${pyversion}_DEPENDS "${OV_CPACK_COMP_CORE}")
-        endif()
+        set(CPACK_COMPONENT_PYOPENVINO_${pyversion}_DEPENDS "${OV_CPACK_COMP_CORE}")
+        list(APPEND CPACK_COMPONENT_PYOPENVINO_${pyversion}_DEPENDS ${installed_plugins})
+        list(APPEND CPACK_COMPONENT_PYOPENVINO_${pyversion}_DEPENDS ${frontends})
+
         set(CPACK_DEBIAN_PYOPENVINO_${pyversion}_PACKAGE_NAME "libopenvino-python-${cpack_name_ver}")
         set(CPACK_DEBIAN_PYOPENVINO_${pyversion}_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
     endif()
@@ -336,7 +335,7 @@ macro(ov_cpack_settings)
 
     # all openvino
     set(CPACK_COMPONENT_OPENVINO_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Libraries and Development files")
-    set(CPACK_COMPONENT_OPENVINO_DEPENDS "libraries_dev;${OV_CPACK_COMP_CPP_SAMPLES}")
+    set(CPACK_COMPONENT_OPENVINO_DEPENDS "libraries_dev;${OV_CPACK_COMP_CPP_SAMPLES};${python_component}")
     set(CPACK_DEBIAN_OPENVINO_PACKAGE_NAME "openvino-${cpack_name_ver}")
     set(CPACK_DEBIAN_OPENVINO_PACKAGE_ARCHITECTURE "all")
     ov_debian_generate_conflicts(openvino ${conflicting_versions})
