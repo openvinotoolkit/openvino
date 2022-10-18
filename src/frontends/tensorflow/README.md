@@ -9,14 +9,21 @@ flowchart BT
     style model fill:#427cb0
     model2[(model2.pb)]
     style model2 fill:#427cb0
+    model3[(model3.pb)]
+    style model3 fill:#427cb0
+    ov_model[(ov::Model)]
+    style ov_model fill:#427cb0
     ovtf(OpenVINO Integration with TensorFlow)
     style ovtf fill:#ffffc2
     tf_fe(TensorFlow Frontend)
     style tf_fe fill:#ee9a4d
     fem(Frontend Manager)
     mo(Model Optimizer)
-    model --> ovtf --> tf_fe
-    model2 --> mo --> fem --> tf_fe
+    ov_runtime(OpenVINO Runtime)
+    model --> mo --> fem --> tf_fe
+    model2 --> ov_runtime --> fem
+    model3 --> ovtf --> tf_fe
+    tf_fe --> ov_model
     click ovtf "https://github.com/openvinotoolkit/openvino_tensorflow"
 ```
 
