@@ -10,14 +10,20 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT ENABLE_SANITIZER)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_add_compiler_flags(/wd4305)
+    ie_add_compiler_flags(/wd4244)
+    ie_add_compiler_flags(/wd4267)
+endif()
+
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
 
 if(NOT ENABLE_OV_CORE_UNIT_TESTS)
-    message(STATUS "nGraph unit tests disabled")
+    message(STATUS "OpenVINO Core unit tests disabled")
     return()
 endif()
 
-message(STATUS "nGraph unit tests enabled")
+message(STATUS "OpenVINO Core unit tests enabled")
 
 if(LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
@@ -44,6 +50,7 @@ set(SRC
     dimension.cpp
     element_type.cpp
     eval.cpp
+    evaluate_bound/transpose.cpp
     extension.cpp
     file_util.cpp
     float16.cpp
@@ -439,29 +446,7 @@ if (ENABLE_TEMPLATE)
     list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_plugin)
     set(OP_EVAL_TEST_SRC
         # It should be a part of template plugin
-        op_eval/binary_convolution.cpp
-        op_eval/bucketize.cpp
-        op_eval/clamp.cpp
-        op_eval/einsum.cpp
-        op_eval/floor_mod.cpp
-        op_eval/gelu.cpp
-        op_eval/hsigmoid.cpp
-        op_eval/hswish.cpp
-        op_eval/interpolate.cpp
-        op_eval/loop.cpp
-        op_eval/matmul.cpp
-        op_eval/memory.cpp
-        op_eval/mish.cpp
-        op_eval/non_zero.cpp
-        op_eval/roi_align.cpp
-        op_eval/roi_pooling.cpp
-        op_eval/round.cpp
-        op_eval/softplus.cpp
-        op_eval/split.cpp
-        op_eval/swish.cpp
-        op_eval/strided_slice.cpp
-        op_eval/transpose.cpp
-        op_eval/variadic_split.cpp)
+        op_eval/memory.cpp)
 endif()
 
 # SOURCE FOR FRONTEND TESTING

@@ -212,7 +212,7 @@ std::map<std::string, uint64_t> engine::get_memory_statistics() const {
     return statistics;
 }
 
-void engine::add_memory_used(size_t bytes, allocation_type type) {
+void engine::add_memory_used(uint64_t bytes, allocation_type type) {
     std::lock_guard<std::mutex> guard(_mutex);
     if (!_memory_usage_map.count(type) && !_peak_memory_usage_map.count(type)) {
         _memory_usage_map[type] = 0;
@@ -224,7 +224,7 @@ void engine::add_memory_used(size_t bytes, allocation_type type) {
     }
 }
 
-void engine::subtract_memory_used(size_t bytes, allocation_type type) {
+void engine::subtract_memory_used(uint64_t bytes, allocation_type type) {
     std::lock_guard<std::mutex> guard(_mutex);
     auto iter = _memory_usage_map.find(type);
     if (iter != _memory_usage_map.end()) {

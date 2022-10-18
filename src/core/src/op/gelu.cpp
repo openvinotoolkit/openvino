@@ -16,19 +16,19 @@ using namespace ngraph;
 // ------------------------------ V0 ------------------------------
 BWDCMP_RTTI_DEFINITION(op::v0::Gelu);
 
-op::v0::Gelu::Gelu() : Op() {}
+op::v0::Gelu::Gelu() : UnaryElementwiseArithmetic() {}
 
-op::v0::Gelu::Gelu(const Output<Node>& data) : Op({data}) {
+op::v0::Gelu::Gelu(const Output<Node>& data) : UnaryElementwiseArithmetic({data}) {
     constructor_validate_and_infer_types();
 }
 
 bool op::v0::Gelu::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Gelu_visit_attributes);
+    OV_OP_SCOPE(v0_Gelu_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::v0::Gelu::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Gelu_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Gelu_clone_with_new_inputs);
     if (new_args.size() != 1) {
         throw ngraph_error("Incorrect number of new arguments");
     }
@@ -36,7 +36,7 @@ shared_ptr<Node> op::v0::Gelu::clone_with_new_inputs(const OutputVector& new_arg
 }
 
 void op::v0::Gelu::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_Gelu_validate_and_infer_types);
+    OV_OP_SCOPE(v0_Gelu_validate_and_infer_types);
     element::Type input_element_type = get_input_element_type(0);
     ov::PartialShape input_pshape = get_input_partial_shape(0);
 
@@ -76,13 +76,13 @@ op::v7::Gelu::Gelu(const Output<Node>& data, GeluApproximationMode mode)
 }
 
 bool op::v7::Gelu::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v7_Gelu_visit_attributes);
+    OV_OP_SCOPE(v7_Gelu_visit_attributes);
     visitor.on_attribute("approximation_mode", m_approximation_mode);
     return true;
 }
 
 shared_ptr<Node> op::v7::Gelu::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v7_Gelu_clone_with_new_inputs);
+    OV_OP_SCOPE(v7_Gelu_clone_with_new_inputs);
     if (new_args.size() != 1) {
         throw ngraph_error("Incorrect number of new arguments");
     }
@@ -90,7 +90,7 @@ shared_ptr<Node> op::v7::Gelu::clone_with_new_inputs(const OutputVector& new_arg
 }
 
 void op::v7::Gelu::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v7_Gelu_validate_and_infer_types);
+    OV_OP_SCOPE(v7_Gelu_validate_and_infer_types);
     element::Type input_element_type = get_input_element_type(0);
     ov::PartialShape input_pshape = get_input_partial_shape(0);
 
@@ -137,13 +137,13 @@ bool evaluate_gelu(const HostTensorPtr& arg0, const HostTensorPtr& out, op::Gelu
 }  // namespace gelu
 
 bool op::v7::Gelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v7_Gelu_evaluate);
+    OV_OP_SCOPE(v7_Gelu_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     return gelu::evaluate_gelu(inputs[0], outputs[0], m_approximation_mode);
 }
 
 bool op::v7::Gelu::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v7_Gelu_has_evaluate);
+    OV_OP_SCOPE(v7_Gelu_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::f16:
     case ngraph::element::f32:

@@ -1,95 +1,78 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #pragma once
 
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/transpose.hpp>
-
+#include "openvino/op/transpose.hpp"
 #include "utils.hpp"
+
 namespace ov {
 namespace op {
 namespace v1 {
-template <typename Rank>
-bool is_valid_permutation(const ov::AxisVector& permutation, const Rank& rank) {
-    std::vector<bool> axis_occurs(permutation.size(), false);
 
-    // Check bounds if rank is static
-    if (rank.is_static()) {
-        auto bound = rank.get_length();
-        for (auto axis : permutation) {
-            if (static_cast<decltype(bound)>(axis) >= bound) {
-                return false;
-            }
-        }
-    }
-
-    for (auto& axis : permutation) {
-        axis_occurs[axis] = true;
-    }
-
-    for (size_t axis = 0; axis < permutation.size(); axis++) {
-        if (!axis_occurs[axis]) {
-            return false;
-        }
-    }
-
-    return (rank.is_dynamic() || static_cast<int64_t>(permutation.size()) == rank.get_length());
-}
-
-template <typename T>
-T apply_permutation(const T& input, const AxisVector& order) {
-
-    if (input.rank().is_dynamic()) {
-        return input;
-    }
-    T output;
-    output.resize(input.size());
-    for (size_t i = 0; i < order.size(); i++) {
-        output[i] = input[order.at(i)];
-    }
-
-    return output;
-}
-
+/**
+ * \brief Calculate transpose output shape.
+ *
+ * \tparam T           Type of shape
+ *
+ * \param op           Transpose operator pointer.
+ * \param input_shape  Transpose input shape.
+ * \param axes_order   Transpose axes order (modified if empty).
+ *
+ * \return Output shape
+ */
 template <class T>
-void shape_infer(const Transpose* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    const auto& input_order_shape = input_shapes[1];
-    NODE_VALIDATION_CHECK(op, input_order_shape.rank().compatible(1), "Input order must be a vector.");
-    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
-    const auto& arg_shape = input_shapes[0];
+T calc_output_shape(const Transpose* const op, const T& input_shape, std::vector<int64_t>& axes_order) {
+    const auto output_rank = input_shape.size();
 
-    if (arg_shape.rank().is_static()) {
-        bool is_compatible = input_order_shape.compatible(T{DimType(arg_shape.rank().get_length())});
-        is_compatible = is_compatible || (input_order_shape.is_static() && input_order_shape.size() == 1 && input_order_shape[0] == 0);
-        NODE_VALIDATION_CHECK(
-            op,
-            is_compatible,
-            "Input order must have shape [n], where n is the rank of arg.");
-    }
-
-    if (const auto& input_const = get_constant_from_source(op->input_value(1))) {
-        auto permutation = input_const->get_axis_vector_val();
-        if (permutation.empty()) {
-            for (int64_t i = 1; i <= arg_shape.rank().get_length(); ++i)
-                permutation.emplace_back(arg_shape.rank().get_length() - i);
-        }
-        NODE_VALIDATION_CHECK(op,
-                              is_valid_permutation(permutation, arg_shape.rank()),
-                              "Permutation ",
-                              permutation,
-                              " is not valid for input shape ",
-                              arg_shape);
-        output_shapes[0] = apply_permutation(arg_shape, permutation);
+    if (axes_order.empty()) {
+        generate_transpose_default_order(axes_order, output_rank);
     } else {
-        auto output_rank = arg_shape.rank();
-        if (output_rank.is_dynamic() && input_order_shape.is_static() && input_order_shape[0].get_length())
-            output_rank = input_order_shape[0].get_length();
-        output_shapes[0] = ov::PartialShape::dynamic(output_rank);
+        NODE_VALIDATION_CHECK(op,
+                              is_valid_axes_order(axes_order, output_rank),
+                              "Permutation ",
+                              AxisVector(axes_order.begin(), axes_order.end()),
+                              " is not valid for input shape ",
+                              input_shape);
     }
+
+    T output_shape;
+    for (auto&& axis : axes_order) {
+        output_shape.push_back(input_shape[axis]);
+    }
+
+    return output_shape;
 }
 
-}  // namespace v0
+/**
+ * \brief Do transpose inference on input and output shapes.
+ *
+ * \tparam T             Type of inference shapes.
+ *
+ * \param op             Transpose operator pointer.
+ * \param input_shapes   Input shapes of transpose.
+ * \param output_shapes  Output shapes of transpose which be modified by inference.
+ * \param constant_data  Map of constant data.
+ */
+template <class T>
+void shape_infer(const Transpose* op,
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes,
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+    const auto& input_shape = input_shapes[Transpose::ARG];
+    auto& output_shape = output_shapes[Transpose::ARG_T];
+
+    std::vector<int64_t> axes;
+    const auto has_order = get_data_as_int64<T>(Transpose::ORDER, op, axes, constant_data);
+
+    if (has_order && input_shape.rank().is_static()) {
+        output_shape = calc_output_shape(op, input_shape, axes);
+    } else if (has_order) {
+        output_shape = ov::PartialShape::dynamic(axes.size());
+    } else {
+        output_shape = ov::PartialShape::dynamic(input_shape.rank());
+    }
+}
+}  // namespace v1
 }  // namespace op
 }  // namespace ov
