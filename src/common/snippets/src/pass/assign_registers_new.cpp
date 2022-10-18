@@ -40,24 +40,13 @@ bool ngraph::snippets::pass::AssignRegistersNew::run_on_model(const std::shared_
         else
             return vec2vec;
     };
-//    decltype(ops) ops_vec, ops_gpr, ops_mixed;
-//    for (const auto& op : ops) {
-//        switch (get_op_reg_type(op)) {
-//            case vec2vec: ops_vec.push_back(op); break;
-//            case gpr2gpr: ops_gpr.push_back(op); break;
-//            case gpr2vec:
-//            case vec2gpr: ops_mixed.push_back(op); break;
-//        }
-//    }
     std::vector<std::pair<op_reg_type, std::shared_ptr<Node>>> typed_ops;
     for (const auto& op : ops)
         typed_ops.emplace_back(std::make_pair(get_op_reg_type(op), op));
-    // todo: lets create a statements map by register type stmts['vec2vec'],stmts['gpr2gpr'], stmts['mixed']
-    // enumerate all used tensors
     size_t counter_vec = 0;
     size_t counter_gpr = 0;
     std::map<tensor, Reg> regs_vec, regs_gpr;
-    // Define a set of immune tensors that will be ignored by auto reg allocation => their reg allocation will be done manually
+    // Define a set of immune tensors that will be ignored by auto reg allocation => their reg allocation is done manually
     // todo: presently it hold only gpr's. If you need to manually assign vec's, implement reg_type or create a second map
     std::map<tensor, Reg> manually_assigned_regs;
     const auto IS_MANUALLY_ALLOCATED_REG = SIZE_MAX;
@@ -99,8 +88,8 @@ bool ngraph::snippets::pass::AssignRegistersNew::run_on_model(const std::shared_
     // todo: make one for gpr and one for vector
     std::vector<std::set<Reg>> used_gpr(ops.size(), std::set<Reg>()); // used = used as an input
     std::vector<std::set<Reg>> defined_gpr(ops.size(), std::set<Reg>()); // defined = used as output
-    std::vector<std::set<Reg>> used_vec(ops.size(), std::set<Reg>()); // used = used as an input
-    std::vector<std::set<Reg>> defined_vec(ops.size(), std::set<Reg>()); // defined = used as output
+    std::vector<std::set<Reg>> used_vec(ops.size(), std::set<Reg>());
+    std::vector<std::set<Reg>> defined_vec(ops.size(), std::set<Reg>());
 
     auto tensor2reg = [IS_MANUALLY_ALLOCATED_REG] (const std::vector<tensor>& tensors, const std::map<tensor, Reg>& reg_map) {
         std::set<Reg> result;
@@ -159,7 +148,6 @@ bool ngraph::snippets::pass::AssignRegistersNew::run_on_model(const std::shared_
             std::set_difference(life_out_vec[n].begin(), life_out_vec[n].end(),
                                 defined_vec[n].begin(), defined_vec[n].end(),
                                 std::inserter(life_in_vec[n], life_in_vec[n].begin()));
-            //lifeIn[n].insert(used[n].begin(), used[n].end());
         }
         for (size_t n = 0; n < typed_ops.size(); n++) {
             auto op = typed_ops[n].second;
@@ -195,7 +183,6 @@ bool ngraph::snippets::pass::AssignRegistersNew::run_on_model(const std::shared_
     };
     // A variable live interval - is a range (start, stop) of op indexes, such that
     // the variable is alive within this range (defined but not used by the last user)
-//    std::set<std::pair<int, int>, by_starting> live_intervals_vec, live_intervals_gpr;
     std::map<std::pair<int, int>, Reg, by_starting> live_intervals_vec, live_intervals_gpr;
 
     std::reverse(life_in_vec.begin(), life_in_vec.end());
@@ -210,6 +197,13 @@ bool ngraph::snippets::pass::AssignRegistersNew::run_on_model(const std::shared_
         }
         return i;
     };
+    for (size_t i = 0; i < typed_ops.size(); i++) {
+        for (const auto& def : defined_vec[i])
+            live_intervals_vec[std::make_pair(i, find_last_use(life_in_vec, static_cast<int>(def)))] = def;
+        for (const auto& def : defined_gpr[i])
+            live_intervals_gpr[std::make_pair(i, find_last_use(life_in_gpr, static_cast<int>(def)))] = def;
+    }
+    // todo: remove debug print before merge
     auto print_live_intervals = [] (decltype(live_intervals_vec) live_intervals) {
         std::pair<int, int> interval;
         Reg reg_id;
@@ -218,12 +212,6 @@ bool ngraph::snippets::pass::AssignRegistersNew::run_on_model(const std::shared_
             std::cerr << "Reg# : " << reg_id << " : " << interval.first << " : " << interval.second << "\n";
         }
     };
-    for (size_t i = 0; i < typed_ops.size(); i++) {
-        for (const auto& def : defined_vec[i])
-            live_intervals_vec[std::make_pair(i, find_last_use(life_in_vec, static_cast<int>(def)))] = def;
-        for (const auto& def : defined_gpr[i])
-            live_intervals_gpr[std::make_pair(i, find_last_use(life_in_gpr, static_cast<int>(def)))] = def;
-    }
 //    std::cerr << "NEW live_intervals (VEC):\n";
 //    print_live_intervals(live_intervals_vec);
 //    std::cerr << "NEW live_intervals (GPR):\n";
@@ -277,7 +265,7 @@ bool ngraph::snippets::pass::AssignRegistersNew::run_on_model(const std::shared_
     for (const auto& t_reg : manually_assigned_regs)
         gpr_pool.erase(t_reg.second);
     auto unique2reused_map_gpr = linescan_assign_registers(live_intervals_gpr, gpr_pool);
-
+//      todo: remove debug prints before merge
 //    std::cerr << "Register map dump (VEC):\n";
 //    for (auto p : unique2reused_map_vec)
 //        std::cerr << p.first << " => " << p.second << "\n";

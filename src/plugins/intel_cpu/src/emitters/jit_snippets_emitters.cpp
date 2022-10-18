@@ -60,7 +60,7 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  
                 // Input registers are not mapped in this case, since they contain utility info
                 // (num_params, tile increment, etc.), but not reg indexes.
                 // todo: Note that TileBeginEmitter and TileEndEmitter demonstrate new paradigm,
-                //  where all utility emitters are align with conventional Op emitters
+                //  where all utility emitters align with conventional Op emitters
                 if (std::dynamic_pointer_cast<TileBeginEmitter>(emitter) ||
                         std::dynamic_pointer_cast<TileEndEmitter>(emitter))
                     in_physical_regs = std::move(map_regs(in_abstract_regs, gpr_map_pool));
@@ -90,73 +90,6 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  
         if (auto container = std::dynamic_pointer_cast<jit_container_emitter>(code.first))
             container->map_abstract_registers(gpr_map_pool,  vec_map_pool, allocated_emitters);
     }
-    return;
-}
-
-//void jit_container_emitter::map_abstract_registers(const std::vector<size_t> &vec_pool,  const std::vector<size_t> &gpr_pool,
-//                                                   std::set<size_t>& vecs_used, std::set<size_t>& gprs_used) {
-//    if (body.empty())
-//        IE_THROW() << "Cannot map registers for jit_container_emitter when its body is empty";
-//    auto abstract_to_physical = [](const std::vector<size_t>& abstract_regs, const std::vector<size_t>& regs_pool) {
-//        std::vector<size_t> physical_regs(abstract_regs.size());
-//        for (size_t i = 0; i < abstract_regs.size(); i++)
-//            physical_regs[i] = regs_pool.at(abstract_regs[i]);
-//        return physical_regs;
-//    };
-//    for (auto& code : body) {
-//        const auto& emitter = code.first;
-//        std::vector<size_t> in_abstract_regs, out_abstract_regs;
-//        std::tie(in_abstract_regs, out_abstract_regs) = code.second;
-//        std::vector<size_t> in_physical_regs, out_physical_regs;
-//        switch (std::dynamic_pointer_cast<jit_emitter>(emitter)->get_in_out_type()) {
-//            case gpr_to_gpr:
-//                // Note that gpr_to_gpr is used for high-level utility operations like Kernel/TileScheduler/Tile.
-//                // Input registers are not mapped in this case, since they contain utility info
-//                // (num_params, tile increment, etc.), but not reg indexes.
-//                // todo: Note that TileBeginEmitter and TileEndEmitter demonstrate new paradigm,
-//                //  where all utility emitters are align with conventional Op emitters
-//                if (std::dynamic_pointer_cast<TileBeginEmitter>(emitter) ||
-//                    std::dynamic_pointer_cast<TileEndEmitter>(emitter))
-//                    in_physical_regs = std::move(abstract_to_physical(in_abstract_regs, gpr_pool));
-//                else
-//                    in_physical_regs = std::move(in_abstract_regs);
-//                out_physical_regs = std::move(abstract_to_physical(out_abstract_regs, gpr_pool));
-//                gprs_used.insert(out_physical_regs.begin(), out_physical_regs.end());
-//                break;
-//            case gpr_to_vec:
-//                // Load Emitters
-//                in_physical_regs = std::move(abstract_to_physical(in_abstract_regs, gpr_pool));
-//                out_physical_regs = std::move(abstract_to_physical(out_abstract_regs, vec_pool));
-//                gprs_used.insert(in_physical_regs.begin(), in_physical_regs.end());
-//                vecs_used.insert(out_physical_regs.begin(), out_physical_regs.end());
-//                break;
-//            case vec_to_gpr:
-//                // Store Emitters
-//                in_physical_regs = std::move(abstract_to_physical(in_abstract_regs, vec_pool));
-//                out_physical_regs = std::move(abstract_to_physical(out_abstract_regs, gpr_pool));
-//                vecs_used.insert(in_physical_regs.begin(), in_physical_regs.end());
-//                gprs_used.insert(out_physical_regs.begin(), out_physical_regs.end());
-//                break;
-//            case vec_to_vec:
-//                // Regular operations
-//                in_physical_regs = std::move(abstract_to_physical(in_abstract_regs, vec_pool));
-//                out_physical_regs = std::move(abstract_to_physical(out_abstract_regs, vec_pool));
-//                vecs_used.insert(in_physical_regs.begin(), in_physical_regs.end());
-//                vecs_used.insert(out_physical_regs.begin(), out_physical_regs.end());
-//                break;
-//            default:
-//                IE_THROW() << "Unhandled in_out type";
-//        }
-//        code.second = std::make_pair(in_physical_regs, out_physical_regs);
-//        if (auto container = std::dynamic_pointer_cast<jit_container_emitter>(code.first))
-//            container->map_abstract_registers(vec_pool, gpr_pool, vecs_used, gprs_used);
-//    }
-//}
-
-void KernelEmitter::remove_regs_from_pool(std::vector<size_t>& pool, const std::set<size_t>& to_remove) {
-    // It's important to keep the order of other elements
-    pool.erase(std::remove_if(pool.begin(), pool.end(),
-                              [&](size_t x) {return to_remove.count(x) != 0;}), pool.end());
 }
 
 KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
@@ -173,8 +106,16 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     // Initialize pools of gp and vec registers
     gp_regs_pool.resize(16);
     vec_regs_pool.resize(16);
-    std::iota(gp_regs_pool.begin(), gp_regs_pool.end(), 0);
-    std::iota(vec_regs_pool.begin(), vec_regs_pool.end(), 0);
+    // It's easier to remove the last item during mapping, so fill descending to map ascending
+    for (size_t i = 0; i < 16; i++)
+        gp_regs_pool[i] = vec_regs_pool[i] = 15 - i;
+    // todo: it's more convenient to use std::set as a pool container (unique and always sorted),
+    //  but pools are vectors to align with emit_code signature. Change signature?
+    auto remove_regs_from_pool = [](std::vector<size_t>& pool, const std::set<size_t>& to_remove) {
+        // It's important to keep the order of other elements
+        pool.erase(std::remove_if(pool.begin(), pool.end(),
+                                       [&](size_t x) {return to_remove.count(x) != 0;}), pool.end());
+    };
     // Reserve stack base and pointer for push(...) and pop(...) operations
     // Reserve abi_param1 and abi_param2, since they'll be used to pass runtime call args to kernel
     remove_regs_from_pool(gp_regs_pool, {Xbyak::Operand::RSP, Xbyak::Operand::RBP,

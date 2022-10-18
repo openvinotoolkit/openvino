@@ -467,32 +467,8 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     };
 
     // generation flow
-    snippets::pass::AssignRegisters().run_on_model(m_body);
-    /*
-    for (const auto& op : m_body->get_ordered_ops()) {
-        for (const auto& output : op->outputs()) {
-            const auto& rt = output.get_tensor_ptr()->get_rt_info();
-            auto it_rt = rt.find("reginfo_old");
-            size_t old_reg = it_rt != rt.end() ?
-                             it_rt->second.as<size_t>() :
-                             SIZE_MAX;
-            it_rt = rt.find("reginfo");
-            size_t new_reg = it_rt != rt.end() ?
-                              it_rt->second.as<size_t>() :
-                              SIZE_MAX;
-            if (old_reg != new_reg) {
-                std::stringstream ss;
-                ss << "OLD and NEW registers does NOT match for Subgraph " << get_friendly_name() << "\n";
-                ss << "OP: " << op->get_friendly_name() << " OUT: " << output.get_index() << "\n";
-                ss << "OLD: " << old_reg << "\n";
-                ss << "NEW: " << new_reg << "\n";
-//                std::cerr << "Tile after is dumped";
-//                ov::pass::Serialize("tile_after.xml", "tile_after.bin").run_on_model(m_body);
-                ngraph_error(ss.str());
-            }
-        }
-    }
-    */
+    // todo: move AssignRegistersNew --> AssignRegisters
+//    snippets::pass::AssignRegisters().run_on_model(m_body);
     if (master_shape.is_static()) {
         const auto inner_dim = master_shape.size() - 1;
         // Note: outer_dim could overflow if master_shape.size() < 2
@@ -563,28 +539,17 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     } else {
         throw ngraph_error("Dynamic case is not supported yet");
     }
-//    for (int i = 0; i < tileEnd->get_output_size(); i++) {
-//        std::cerr << i << " : ";
-//        const auto& rt = tileBegin->get_output_tensor(i).get_rt_info();
-//        auto it_rt = rt.find("reginfo");
-//        if (it_rt != rt.end()) {
-//            for (auto reg : it_rt->second.as<std::vector<size_t>>()) {
-//                std::cerr << reg << " ";
-//            }
-//        } else {
-//            std::cerr << "reginfo is empty!";
-//        }
-//        std::cerr << "\n";
-//    }
 
     snippets::pass::AssignRegistersNew().run_on_model(m_body);
-    std::cerr << "OLD reg map:\n";
-    print_reg_info("reginfo_old");
-    std::cerr << "##############################################\n";
-    std::cerr << "NEW reg map:\n";
-    print_reg_info("reginfo");
-    std::cerr << "Tile after is dumped";
-    ov::pass::Serialize("tile_after.xml", "tile_after.bin").run_on_model(m_body);
+// todo: Debug prints. remove before merge
+//    std::cerr << "OLD reg map:\n";
+//    print_reg_info("reginfo_old");
+//    std::cerr << "##############################################\n";
+//    std::cerr << "NEW reg map:\n";
+//    print_reg_info("reginfo");
+//    std::cerr << "Tile after is dumped";
+//    ov::pass::Serialize("tile_after.xml", "tile_after.bin").run_on_model(m_body);
+
     // schedule generation should go here and be target agnostic
     // actual code emission
     ngraph::snippets::code ptr = m_generator->generate(m_body, compile_params);

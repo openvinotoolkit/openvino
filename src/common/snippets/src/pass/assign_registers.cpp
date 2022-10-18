@@ -33,7 +33,6 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
 
     std::vector<std::set<Reg>> used; // used = used as an input
     std::vector<std::set<Reg>> def; // defined = used as output
-//    std::cerr << "OLD:\n";
     for (const auto& op : stmts) {
         std::set<Reg> u;
         for (const auto& input : op->inputs()) {
@@ -50,16 +49,6 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
             }
         }
         def.push_back(d);
-//        if (true) {
-//            std::cerr << op->get_friendly_name() << " (Used) : ";
-//            for (auto a : used.back())
-//                std::cerr << a << " ";
-//            std::cerr << "\n";
-//            std::cerr << op->get_friendly_name() << " (Defined) : ";
-//            for (auto a : def.back())
-//                std::cerr << a << " ";
-//            std::cerr << "\n";
-//        }
     }
 
     // define life intervals

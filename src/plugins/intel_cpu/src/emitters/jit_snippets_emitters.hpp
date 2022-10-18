@@ -90,12 +90,11 @@ private:
                    const std::vector<size_t>& gpr,
                    const ov::intel_cpu::emitter_context *emit_context) const override;
     void init_data_pointers(size_t, size_t, const Reg64&, const Reg64&, const std::vector<Reg64>&) const;
-    static void remove_regs_from_pool(std::vector<size_t>& pool, const std::set<size_t>& to_remove);
 
     jit_snippets_compile_args jcp;
     std::vector<size_t> gp_regs_pool;
-//    std::vector<size_t> gp_regs_used;
-    std::vector<size_t> data_ptr_regs_idx; // gpr's used to store data pointers
+    // gpr's used to store data pointers, track them to apply offsets in Kernel
+    std::vector<size_t> data_ptr_regs_idx;
     std::vector<size_t> vec_regs_pool;
     const size_t reg_indexes_idx = abi_param1.getIdx();
     const size_t reg_const_params_idx = abi_param2.getIdx();
