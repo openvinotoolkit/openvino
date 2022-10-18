@@ -12,7 +12,7 @@ In most cases, it is sufficient to use just one pass for TensorFlow operation co
 ## One transformation pass using Loader
 
 Most TensorFlow operations can be converted by one transformation pass using `Loader`.
-The dictionary of `Loaders` is placed in the [op_table.cpp](../src/op_table.cpp) file and loaders in the [op](../src/op) directory:
+The dictionary of `Loaders` is placed in the [op_table.cpp](../src/op_table.cpp) file and loaders are in the [op](../src/op) directory:
 
 https://github.com/openvinotoolkit/openvino/blob/7f3c95c161bc78ab2aefa6eab8b008142fb945bc/src/frontends/tensorflow/src/op_table.cpp#L129-L134
 
