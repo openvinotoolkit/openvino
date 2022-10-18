@@ -90,9 +90,12 @@ public:
 private:
     inline std::vector<ov::Tensor> get_tensors_from(const std::vector<ov::Output<const ov::Node>>& v) {
         std::vector<ov::Tensor> tensors;
+        tensors.reserve(v.size());
+
         for (auto&& node : v) {
             tensors.push_back(m_request.get_tensor(node));
         }
+
         return tensors;
     }
 };

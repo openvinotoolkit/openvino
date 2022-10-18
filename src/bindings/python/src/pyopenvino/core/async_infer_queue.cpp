@@ -23,18 +23,16 @@ class AsyncInferQueue {
 public:
     AsyncInferQueue(ov::CompiledModel& model, size_t jobs) {
         if (jobs == 0) {
-            jobs = (size_t)Common::get_optimal_number_of_requests(model);
+            jobs = static_cast<size_t>(Common::get_optimal_number_of_requests(model));
         }
 
-        for (size_t handle = 0; handle < jobs; handle++) {
-            // Create new "empty" InferRequestWrapper without pre-defined callback,
-            // inputs and outputs.
-            auto request = InferRequestWrapper(model.create_infer_request());
-            // Copy Inputs and Outputs from ov::CompiledModel
-            request.m_inputs = model.inputs();
-            request.m_outputs = model.outputs();
+        m_requests.reserve(jobs);
+        m_user_ids.reserve(jobs);
 
-            m_requests.push_back(request);
+        for (size_t handle = 0; handle < jobs; handle++) {
+            // Create new "empty" InferRequestWrapper without pre-defined callback and
+            // copy Inputs and Outputs from ov::CompiledModel
+            m_requests.emplace_back(model.create_infer_request(), model.inputs(), model.outputs(), false);
             m_user_ids.push_back(py::none());
             m_idle_handles.push(handle);
         }
