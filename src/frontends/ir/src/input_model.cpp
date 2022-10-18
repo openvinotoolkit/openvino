@@ -109,7 +109,7 @@ void ParsePreProcess(pugi::xml_node& root,
 
     auto input_type = input_node->get_output_element_type(0);
     FOREACH_CHILD (chan, ppNode, "channel") {
-        int chanNo = XMLParseUtils::GetIntAttr(chan, "id", next_channel_id++);
+        int chanNo = XMLParseUtils::GetIntAttr(chan, "id", static_cast<int>(next_channel_id++));
 
         auto meanNode = chan.child("mean");
         if (!meanNode.empty()) {
@@ -191,7 +191,7 @@ namespace ir {
 class InputModel::InputModelIRImpl {
     std::shared_ptr<ngraph::runtime::AlignedBuffer> m_weights;
     std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> m_extensions;
-    std::unordered_map<std::string, ngraph::OpSet> m_opsets;
+    std::unordered_map<std::string, ov::OpSet> m_opsets;
     pugi::xml_node m_root;
     pugi::xml_document m_xml_doc;
 

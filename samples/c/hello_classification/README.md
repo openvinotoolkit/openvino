@@ -49,21 +49,19 @@ To run the sample, you need specify a model and image:
 
 ### Example
 1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader):
-```
-python <path_to_omz_tools>/downloader.py --name alexnet
-```
+   ```
+   python <path_to_omz_tools>/downloader.py --name alexnet
+   ```
 
 2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
-
-```
-python <path_to_omz_tools>/converter.py --name alexnet
-```
+   ```
+   python <path_to_omz_tools>/converter.py --name alexnet
+   ```
 
 3. Perform inference of `car.bmp` using `alexnet` model on a `GPU`, for example:
-
-```
-<path_to_sample>/hello_classification_c <path_to_model>/alexnet.xml <path_to_image>/car.bmp GPU
-```
+   ```
+   <path_to_sample>/hello_classification_c <path_to_model>/alexnet.xml <path_to_image>/car.bmp GPU
+   ```
 
 ## Sample Output
 
