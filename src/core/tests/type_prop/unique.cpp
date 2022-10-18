@@ -72,9 +72,50 @@ TEST(type_prop, unique_3d_scalar_axis) {
         {PartialShape{{2}, {1, 4}, {2}}, PartialShape{{1, 16}}, PartialShape{{1, 16}}, PartialShape{{1, 16}}});
 }
 
+TEST(type_prop, unique_3d_axis_1d) {
+    const auto data = make_shared<opset10::Parameter>(element::f32, PartialShape{2, 4, 2});
+    const auto axis = make_shared<opset10::Constant>(element::i32, Shape{1}, 2);
+    const auto unique = make_shared<opset10::Unique>(data, axis);
+
+    ASSERT_ELEMENT_TYPES(unique, {element::f32, element::i64, element::i64, element::i64});
+    ASSERT_OUTPUT_SHAPES(
+        unique,
+        {PartialShape{{2}, {4}, {1, 2}}, PartialShape{{1, 16}}, PartialShape{{1, 16}}, PartialShape{{1, 16}}});
+}
+
+TEST(type_prop, unique_3d_negative_axis) {
+    const auto data = make_shared<opset10::Parameter>(element::f32, PartialShape{2, 4, 2});
+    const auto axis = make_shared<opset10::Constant>(element::i64, Shape{}, -3);
+    const auto unique = make_shared<opset10::Unique>(data, axis);
+
+    ASSERT_ELEMENT_TYPES(unique, {element::f32, element::i64, element::i64, element::i64});
+    ASSERT_OUTPUT_SHAPES(
+        unique,
+        {PartialShape{{1, 2}, {4}, {2}}, PartialShape{{1, 16}}, PartialShape{{1, 16}}, PartialShape{{1, 16}}});
+}
+
+TEST(type_prop, unique_dynamic_dim_at_axis) {
+    const auto data = make_shared<opset10::Parameter>(element::f32, PartialShape{2, -1, 2});
+    const auto axis = make_shared<opset10::Constant>(element::i64, Shape{}, 1);
+    const auto unique = make_shared<opset10::Unique>(data, axis);
+
+    ASSERT_ELEMENT_TYPES(unique, {element::f32, element::i64, element::i64, element::i64});
+    ASSERT_OUTPUT_SHAPES(unique,
+                         {PartialShape{{2}, {-1}, {2}}, PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}});
+}
+
 TEST(type_prop, unique_dynamic_rank) {
     const auto data = make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic());
     const auto axis = make_shared<opset10::Constant>(element::i32, Shape{}, 1);
+    const auto unique = make_shared<opset10::Unique>(data, axis);
+
+    ASSERT_ELEMENT_TYPES(unique, {element::f32, element::i64, element::i64, element::i64});
+    ASSERT_OUTPUT_SHAPES(unique, {PartialShape::dynamic(), PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}});
+}
+
+TEST(type_prop, unique_dynamic_rank_negative_axis) {
+    const auto data = make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic());
+    const auto axis = make_shared<opset10::Constant>(element::i32, Shape{}, -1);
     const auto unique = make_shared<opset10::Unique>(data, axis);
 
     ASSERT_ELEMENT_TYPES(unique, {element::f32, element::i64, element::i64, element::i64});

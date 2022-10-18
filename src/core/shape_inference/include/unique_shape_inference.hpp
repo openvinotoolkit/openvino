@@ -36,6 +36,10 @@ void shape_infer(const Unique* op,
                 auto output_shape = input_shape;
                 output_shape[normalized_axis] = Dimension{1, dim_at_axis.get_length()};
                 output_shapes[0] = output_shape;
+            } else {
+                auto output_shape = input_shape;
+                output_shape[normalized_axis] = Dimension::dynamic();
+                output_shapes[0] = output_shape;
             }
         }
     } else {
