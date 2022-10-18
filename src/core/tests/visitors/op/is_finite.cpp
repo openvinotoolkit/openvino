@@ -3,7 +3,7 @@
 //
 
 #include "unary_ops.hpp"
-#include "ngraph/opsets/opset10.hpp"
+#include "openvino/opsets/opset10.hpp"
 
 using Types = ::testing::Types<UnaryOperatorType<ngraph::op::v10::IsFinite, ngraph::element::f32>>;
 
