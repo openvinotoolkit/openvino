@@ -1848,6 +1848,9 @@ void FakeQuantize::appendMemory(const size_t dataSize, const void *data, MemoryP
 
 template <typename T>
 void FakeQuantize::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem) {
+    // try to map fakeQuantizeNode using output scale & eltwise first
+    // if failed, fallback to append_quantization()
+
     // oneDNN quantization_injectors assumes that quantization data memory is always aligned on 16
     // by length of AVX512 vector register which is also enough for AVX2 and SSE42 implementations.
     // Otherwise it can lead to buffer over-read and performance penalties due to denormals.
@@ -1895,12 +1898,6 @@ void FakeQuantize::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDi
     appendPostOpsImpl(ops, postOpDims, postOpsMem);
 }
 
-static bool isPerTensor(const std::vector<float>& v, float ref, const float zero_thr = std::numeric_limits<float>::min()) {
-    return (v.size() == 1) || std::all_of(v.cbegin(), v.cend(), [&](float val) {
-            return abs(val - ref) < zero_thr;
-        });
-}
-
 static float roundHalfToEven(float f) {
     const float RHAFZ = std::round(f);  // r is round-half-away-from-zero
     const float d = RHAFZ - f;          // f + d -> RHAFZ
@@ -1916,135 +1913,185 @@ static float roundHalfToEven(float f) {
     return f - d;
 }
 
-void FakeQuantize::initializeCrop2() {
-    int OC = 1;
-    if (OC < cropLow.size())
-        OC = cropLow.size();
-    if (OC < cropHigh.size())
-        OC = cropHigh.size();
-    if (OC < inputScale.size())
-        OC = inputScale.size();
-    if (OC < inputShift.size())
-        OC = inputShift.size();
+FakeQuantize::OptimizedFormula FakeQuantize::getOptimizedFormula(bool do_rounding) {
+    FakeQuantize::OptimizedFormula f;
 
-    cropLow2.resize(OC);
-    cropHigh2.resize(OC);
+    auto isPerTensor =
+        [](const std::vector<float>& v, float ref, const float zero_thr = std::numeric_limits<float>::min()) {
+            return std::all_of(v.cbegin(), v.cend(), [&](float val) {
+                return abs(val - ref) < zero_thr;
+            });
+        };
+    int OC = std::max({inputScale.size(),
+                       inputShift.size(),
+                       cropLow.size(),
+                       cropHigh.size(),
+                       outputScale.size(),
+                       outputShift.size()});
 
-    for (int i = 0; i < OC; i++) {
-        auto clo = cropLow[cropLow.size() == 1 ? 0 : i];
-        auto chi = cropHigh[cropHigh.size() == 1 ? 0 : i];
-        auto isc = inputScale[inputScale.size() == 1 ? 0 : i];
-        auto ish = inputShift[inputShift.size() == 1 ? 0 : i];
-
-        cropLow2[i] = roundHalfToEven(clo * isc + ish);
-        cropHigh2[i] = roundHalfToEven(chi * isc + ish);
-
-        if (cropLow2[i] > cropHigh2[i])
-            std::swap(cropLow2[i], cropHigh2[i]);
-    }
-    if (isPerTensor(cropLow2, cropLow2[0])) {
-        cropLow2.resize(1);
-    }
-    if (isPerTensor(cropHigh2, cropHigh2[0])) {
-        cropHigh2.resize(1);
-    }
-
-    if (isPerTensor(inputScale, inputScale[0])) {
-        inputScale2.resize(1);
-        inputScale2[0] = inputScale[0];
-    } else {
-        inputScale2 = inputScale;
-    }
+    assert(inputScale.size() == 1 || inputScale.size() == OC);
+    assert(inputShift.size() == 1 || inputShift.size() == OC);
+    assert(cropLow.size() == 1 || cropLow.size() == OC);
+    assert(cropHigh.size() == 1 || cropHigh.size() == OC);
+    assert(outputScale.size() == 1 || outputScale.size() == OC);
+    assert(outputShift.size() == 1 || outputShift.size() == OC);
 
     // input shift has special threshold as a workaround
     if (!std::isnan(originalPerTensorInputShift) && isPerTensor(inputShift, originalPerTensorInputShift, 0.0001f)) {
-        inputShift2.resize(1);
-        inputShift2[0] = originalPerTensorInputShift;
+        f.ish.resize(OC, originalPerTensorInputShift);
     } else if (isPerTensor(inputShift, 128.0f, 0.0001f)) {
         // due to FQ's definition, symmetric input range tends to generate 128 input shift
-        inputShift2.resize(1);
-        inputShift2[0] = 128.0f;
-    } else if (isPerTensor(inputShift, inputShift[0])) {
-        inputShift2.resize(1);
-        inputShift2[0] = inputShift[0];
+        f.ish.resize(OC, 128.0f);
     } else {
-        inputShift2 = inputShift;
+        f.ish = inputShift;
+    }
+    f.clo = cropLow;
+    f.chi = cropHigh;
+    f.isc = inputScale;
+    f.osc = outputScale;
+    f.osh = outputShift;
+
+    if (f.clo.size() == 1)
+        f.clo.resize(OC, f.clo[0]);
+    if (f.chi.size() == 1)
+        f.chi.resize(OC, f.chi[0]);
+    if (f.isc.size() == 1)
+        f.isc.resize(OC, f.isc[0]);
+    if (f.ish.size() == 1)
+        f.ish.resize(OC, f.ish[0]);
+
+    for (int i = 0; i < OC; i++) {
+        auto& clo = f.clo[i];
+        auto& chi = f.chi[i];
+        auto& isc = f.isc[i];
+        auto& ish = f.ish[i];
+        const auto& osc = f.osc[f.osc.size() == 1 ? 0 : i];
+        const auto& osh = f.osh[f.osh.size() == 1 ? 0 : i];
+
+        clo = roundHalfToEven(clo * isc + ish);
+        chi = roundHalfToEven(chi * isc + ish);
+        if (clo > chi)
+            std::swap(clo, chi);
+
+        if (!do_rounding) {
+            // when no rounding is needed, outputScale/outputShift can be
+            // merged with inputScale/inputShift with updated cropLow/cropHigh
+            clo = clo * osc + osh;
+            chi = chi * osc + osh;
+            //  crop(x*isc + ish, a, b)*osc + osh
+            //  crop(x*isc*osc + ish*osc + osh, a', b')
+            isc = isc * osc;
+            ish = ish * osc + osh;
+        }
     }
 
-    if (isPerTensor(outputScale, outputScale[0])) {
-        outputScale2.resize(1);
-        outputScale2[0] = outputScale[0];
-    } else {
-        outputScale2 = outputScale;
+    if (!do_rounding) {
+        f.osc.clear();
+        f.osh.clear();
     }
 
-    if (isPerTensor(outputShift, outputShift[0])) {
-        outputShift2.resize(1);
-        outputShift2[0] = outputShift[0];
-    } else {
-        outputShift2 = outputShift;
-    }
+    f.shrinkLength();
 
-    if (outputScale2.size() == 1 && outputScale2[0] == 1.0f && outputShift2.size() == 1 &&
-        outputShift2[0] == std::trunc(outputShift2[0])) {
+    if (f.osc.size() == 1 && f.osc[0] == 1.0f && f.osh.size() == 1 && f.osh[0] == std::trunc(f.osh[0])) {
         // if outputScale == 1.0f and outputShift is interger, it can be further optimized
         //   x = clip2(round(x * inputScale + ish),c2lo,c2hi)*osc + osh
         //     = clip2(round(x * inputScale + ish),c2lo,c2hi) + osh
         //     = clip2(round(x * inputScale + ish) + osh, c2lo+osh,c2hi+osh)
         //     = clip2(round(x * inputScale + ish + osh), c2lo+osh,c2hi+osh)
-        for (auto& v : inputShift2) {
-            v += outputShift2[0];
+        for (auto& v : f.ish) {
+            v += f.osh[0];
         }
-        for (auto& v : cropLow2) {
-            v += outputShift2[0];
+        for (auto& v : f.clo) {
+            v += f.osh[0];
         }
-        for (auto& v : cropHigh2) {
-            v += outputShift2[0];
+        for (auto& v : f.chi) {
+            v += f.osh[0];
         }
-        outputScale2.clear();
-        outputShift2.clear();
+        f.osc.clear();
+        f.osh.clear();
     }
+
+    // we can save an additional eltwise linear for negligible shift
+    /*
+    if (f.ish.size() == 1 && f.clo.size() == 1 && f.chi.size() == 1) {
+        auto range = (f.chi[0] - f.clo[0]);
+        if (abs(f.ish[0]) < range * 0.00001f) {
+            f.ish[0] = 0.0f;
+        }
+    }
+    */
+    return f;
 }
 
 // map FQ to oneDNN's attribuites & postOps
 // equation:
 //      y = clip2(round(x * inputScale + inputShift))*outputScale + outputShift
-void FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
+bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
                                      bool isLastPostOp,
-                                     dnnl::memory::data_type outDataType) {
-    initializeCrop2();
+                                     dnnl::memory::data_type outDataType,
+                                     bool allowBinary,
+                                     bool do_rounding) {
+    DEBUG_LOG(getName(),
+              ", isLastPostOp=",
+              isLastPostOp,
+              ", outDataType=",
+              outDataType,
+              ", allowBinary=",
+              allowBinary,
+              ", do_rounding=",
+              do_rounding);
 
-    DEBUG_LOG(getName());
-    DEBUG_LOG("\tinputScale2 =[", PrintableVector<float>(inputScale2), "]");
-    DEBUG_LOG("\tinputShift2 =[", PrintableVector<float>(inputShift2), "]");
-    DEBUG_LOG("\t   cropLow2 =[", PrintableVector<float>(cropLow2), "]");
-    DEBUG_LOG("\t  cropHigh2 =[", PrintableVector<float>(cropHigh2), "]");
-    DEBUG_LOG("\toutputScale2=[", PrintableVector<float>(outputScale2), "]");
-    DEBUG_LOG("\toutputShift2=[", PrintableVector<float>(outputShift2), "]");
+    DEBUG_LOG("\t    cropLow =[", PrintableVector<float>(cropLow), "]");
+    DEBUG_LOG("\t   cropHigh =[", PrintableVector<float>(cropHigh), "]");
+    DEBUG_LOG("\t inputScale =[", PrintableVector<float>(inputScale), "]");
+    DEBUG_LOG("\t inputShift =[", PrintableVector<float>(inputShift), "]");
+    DEBUG_LOG("\t outputScale=[", PrintableVector<float>(outputScale), "]");
+    DEBUG_LOG("\t outputShift=[", PrintableVector<float>(outputShift), "]");
 
-    if (outputScale2.empty() && outputShift2.empty()) {
-        dnnlpoc.appendLinear(inputScale2, inputShift2);
-        // when FQ is last postOps and output data type is u8/s8
-        // round & clip2 can be further optimized since saturation will be performed by oneDNN by default
-        if (isLastPostOp && (levels == 256) && cropLow2.size() == 1 && cropHigh2.size() == 1) {
-            if (outDataType == memory::data_type::u8 && cropLow2[0] <= 0.0f && cropHigh2[0] >= 255.0f) {
-                return;
-            }
-            if (outDataType == memory::data_type::s8 && cropLow2[0] <= -128.0f && cropHigh2[0] >= 127.0f) {
-                return;
-            }
+    auto f = getOptimizedFormula(do_rounding);
+
+    DEBUG_LOG("\tinputScale2 =[", PrintableVector<float>(f.isc), "]");
+    DEBUG_LOG("\tinputShift2 =[", PrintableVector<float>(f.ish), "]");
+    DEBUG_LOG("\t   cropLow2 =[", PrintableVector<float>(f.clo), "]");
+    DEBUG_LOG("\t  cropHigh2 =[", PrintableVector<float>(f.chi), "]");
+    DEBUG_LOG("\toutputScale2=[", PrintableVector<float>(f.osc), "]");
+    DEBUG_LOG("\toutputShift2=[", PrintableVector<float>(f.osh), "]");
+
+    // when FQ is last postOps and output data type is u8/s8
+    // round & clip2 can be further optimized since saturation will be performed by oneDNN by default
+    bool skip_round_clip_outlinear = false;
+    if (isLastPostOp && (levels == 256) && f.clo.size() == 1 && f.chi.size() == 1 && f.osc.empty() && f.osh.empty()) {
+        if (outDataType == memory::data_type::u8 && f.clo[0] <= 0.0f && f.chi[0] >= 255.0f) {
+            skip_round_clip_outlinear = true;
         }
-        dnnlpoc.appendRoundHTE();
-        dnnlpoc.appendClip(cropLow2, cropHigh2);
-        // no ouputScale & outputShift are needed
-    } else {
-        //   x = clip2(round(x * inputScale + ish)) * osc + osh
-        dnnlpoc.appendLinear(inputScale2, inputShift2);
-        dnnlpoc.appendRoundHTE();
-        dnnlpoc.appendClip(cropLow2, cropHigh2);
-        dnnlpoc.appendLinear(outputScale2, outputShift2);
+        if (outDataType == memory::data_type::s8 && f.clo[0] <= -128.0f && f.chi[0] >= 127.0f) {
+            skip_round_clip_outlinear = true;
+        }
     }
-    return;
+
+    // return false before committing any change to DnnlPostOpsComposer
+    if (!allowBinary) {
+        if (f.ish.size() > 1)
+            return false;
+        if (!skip_round_clip_outlinear) {
+            if (f.clo.size() > 1 || f.chi.size() > 1)
+                return false;
+            if (f.osc.size() > 1 || f.osh.size() > 1)
+                return false;
+        }
+    }
+
+    if (!dnnlpoc.appendLinear(f.isc, f.ish, allowBinary))
+        return false;
+
+    if (skip_round_clip_outlinear)
+        return true;
+
+    if (do_rounding)
+        dnnlpoc.appendRoundHTE();
+    dnnlpoc.appendClip(f.clo, f.chi);
+    dnnlpoc.appendLinear(f.osc, f.osh);
+    return true;
 }
 
 FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantize_params &_jqp) {

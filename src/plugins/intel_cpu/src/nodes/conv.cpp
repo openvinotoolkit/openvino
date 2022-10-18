@@ -601,7 +601,7 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
         return binaryShape;
     };
 
-    DEBUG_LOG(getName());
+    DEBUG_LOG(getName(), " useLegacyPostOps=", useLegacyPostOps, " initWeights=", initWeights);
 
     for (int i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
@@ -627,10 +627,39 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
         }
 
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get())) {
+            bool do_rounding = true;
+            if (i == 0) {
+                bool hasSubsequentSum = false;
+                bool hasSubsequentFQ = false;
+                for (int j = i + 1; j < fusedWith.size(); j++) {
+                    auto &nextNode = fusedWith[j];
+
+                    auto *nextEltwiseNode = dynamic_cast<Eltwise *>(nextNode.get());
+                    if (nextEltwiseNode && nextEltwiseNode->isSpecialConvolutionAddFusing()) {
+                        hasSubsequentSum = true;
+                    }
+
+                    auto *nextQuantizeNode = dynamic_cast<FakeQuantize *>(nextNode.get());
+                    if (nextQuantizeNode) {
+                        hasSubsequentFQ = true;
+                    }
+                }
+                if (hasSubsequentSum && hasSubsequentFQ) {
+                    // drop rounding since sum will be done using FP32 anyway
+                    // TODO: validate this unsafe optimization
+                    do_rounding = false;
+                }
+            }
+
             if (useLegacyPostOps) {
+                // can we implement it without binary postOps?
+                if (fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, false, do_rounding)) {
+                    continue;
+                }
+                // fallback to legacy
                 fakeQuantizeNode->appendPostOps(ops, dims, args);
             } else {
-                fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
+                fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, true, do_rounding);
             }
             continue;
         }

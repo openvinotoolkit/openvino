@@ -126,7 +126,11 @@ public:
 
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis = 1) override;
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1) override;
-    void appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType);
+    bool appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
+                           bool isLastPostOp,
+                           dnnl::memory::data_type outDataType,
+                           bool allowBinary = true,
+                           bool do_rounding = true);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -195,14 +199,35 @@ private:
     // input linear mapping and rounding stage, according to
     // definition of FQ, this should turn the per-OC crop into
     // a per-tensor crop2 (maybe not always)
-    std::vector<float> inputScale2;
-    std::vector<float> inputShift2;
-    std::vector<float> outputScale2;
-    std::vector<float> outputShift2;
-    std::vector<float> cropLow2;
-    std::vector<float> cropHigh2;
+    struct OptimizedFormula {
+        std::vector<float> isc;
+        std::vector<float> ish;
+        std::vector<float> osc;
+        std::vector<float> osh;
+        std::vector<float> clo;
+        std::vector<float> chi;
 
-    void initializeCrop2();
+        void shrinkLength() {
+            auto _do_shrink = [](std::vector<float>& v) {
+                if (v.size() <= 1)
+                    return;
+                auto ref = v[0];
+                if (std::all_of(v.cbegin(), v.cend(), [&](float val) {
+                        return val == ref;
+                    })) {
+                    v.resize(1);
+                }
+            };
+            _do_shrink(isc);
+            _do_shrink(ish);
+            _do_shrink(clo);
+            _do_shrink(chi);
+            _do_shrink(osc);
+            _do_shrink(osh);
+        }
+    };
+
+    OptimizedFormula getOptimizedFormula(bool do_rounding);
     float originalPerTensorInputShift;
 
     std::vector<float> quantizationData;
