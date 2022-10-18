@@ -14,20 +14,11 @@ In most cases, it is sufficient to use just one pass for TensorFlow operation co
 Most TensorFlow operations can be converted by one transformation pass using `Loader`.
 The dictionary of `Loaders` is placed in the [op_table.cpp](../src/op_table.cpp) file and loaders in the [op](../src/op) directory:
 
-```
-const std::map<std::string, CreatorFunction> get_supported_ops() {
-    return {
-        {"Abs", translate_unary_op<opset8::Abs>},
-        {"Acos", translate_unary_op<opset8::Acos>},
-        {"Acosh", translate_unary_op<opset8::Acosh>},
-        ...
-    };
-};
-```
+https://github.com/openvinotoolkit/openvino/blob/7f3c95c161bc78ab2aefa6eab8b008142fb945bc/src/frontends/tensorflow/src/op_table.cpp#L129-L134
 
 Here is an example of `Loader` for TensorFlow `Einsum` operation:
 
-https://github.com/rkazants/openvino/blob/rkazants/tf_fe_docs_82500/src/frontends/tensorflow/src/op/einsum.cpp#L15-L28
+https://github.com/openvinotoolkit/openvino/blob/7f3c95c161bc78ab2aefa6eab8b008142fb945bc/src/frontends/tensorflow/src/op/einsum.cpp#L15-L28
 
 In this example, the loader checks the consistency of the operation by using `default_op_checks` and retrieves an attribute of the equation by using the `NodeContext::get_attribute()` method.
 The loader uses [OpenVINO Core API](../../../core/README.md) for building the OpenVINO sub-graph to replace the TensorFlow operation.
@@ -50,7 +41,7 @@ The internal operation implementation must also contain the `validate_and_infer_
 
 Here is an example of an implementation for the internal operation `SparseFillEmptyRows` used to convert Wide and Deep models.
 
-https://github.com/rkazants/openvino/blob/rkazants/tf_fe_docs_82500/src/frontends/tensorflow/src/helper_ops/sparse_fill_empty_rows.hpp#L17-L55
+https://github.com/openvinotoolkit/openvino/blob/7f3c95c161bc78ab2aefa6eab8b008142fb945bc/src/frontends/tensorflow/src/helper_ops/sparse_fill_empty_rows.hpp#L17-L55
 
 In the second step, `Internal Transformation` based on `ov::pass::MatcherPass` must convert sub-graphs with internal operations into sub-graphs consisting only of the OpenVINO opset.
 The internal transformation must be called in the `ov::frontend::tensorflow::FrontEnd::normalize()` method.
