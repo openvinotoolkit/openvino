@@ -1,6 +1,6 @@
 # OpenVINO TensorFlow Frontend tests
 
-There are two types of tests for the TensorFlow Frontend (TF FE): layer tests and unit-tests.
+There are two types of tests for the TensorFlow Frontend (TF FE): layer tests and unit tests.
 
 The layer tests are used to validate support of TensorFlow operation by the frontend.
 
