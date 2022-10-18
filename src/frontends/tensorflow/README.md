@@ -137,7 +137,7 @@ The internal transformation must be called in the `ov::frontend::tensorflow::Fro
 It is important to check the order of applying internal transformations to avoid situations when some internal operation
 breaks a graph pattern with an internal operation for another internal transformation.
 
-# OpenVINO TensorFlow Frontend tests
+## OpenVINO TensorFlow Frontend tests
 
 There are two types of tests for the TensorFlow Frontend (TF FE): layer tests and unit tests.
 
@@ -162,7 +162,7 @@ Once the build is complete, launch the `ov_tensorflow_frontend_tests` (`ov_tenso
 executable file to run all tests for the TensorFlow Frontend. The unit tests use the GoogleTest framework for execution.
 
 To get a tests coverage report for the TensorFlow Frontend, read the page
-on [measuring coverage](../../docs/dev/test_coverage.md).
+on [measuring coverage](../../../docs/dev/test_coverage.md).
 
 ### How to run TensorFlow Frontend layer tests
 
