@@ -69,6 +69,17 @@ NodePair SwapOutputs(NodePtr first_node, NodePtr second_node) {
     return std::make_pair(second_node, first_node);
 }
 
+NodePair Swap(NodePtr first_node, NodePtr second_node) {
+    NodePair new_nodes;
+
+    if (first_node->output(0).get_target_inputs().size() > 1 || second_node->output(0).get_target_inputs().size() > 1)
+        new_nodes = SwapNodes(first_node, second_node);
+    else
+        new_nodes = SwapOutputs(first_node, second_node);
+
+    return new_nodes;
+}
+
 }  // namespace
 
 ov::pass::TransposeSinkingUnaryForward::TransposeSinkingUnaryForward() {
@@ -88,12 +99,7 @@ ov::pass::TransposeSinkingUnaryForward::TransposeSinkingUnaryForward() {
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
 
-        NodePair new_nodes;
-
-        if (transpose->output(0).get_target_inputs().size() > 1 || unary->output(0).get_target_inputs().size() > 1)
-            new_nodes = SwapNodes(transpose, unary);
-        else
-            new_nodes = SwapOutputs(transpose, unary);
+        const NodePair new_nodes = Swap(transpose, unary);
 
         register_new_node(new_nodes.first);
         register_new_node(new_nodes.second);
@@ -123,12 +129,7 @@ ov::pass::TransposeSinkingUnaryBackward::TransposeSinkingUnaryBackward() {
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
 
-        NodePair new_nodes;
-
-        if (transpose->output(0).get_target_inputs().size() > 1 || unary->output(0).get_target_inputs().size() > 1)
-            new_nodes = SwapNodes(unary, transpose);
-        else
-            new_nodes = SwapOutputs(unary, transpose);
+        const NodePair new_nodes = Swap(unary, transpose);
 
         register_new_node(new_nodes.first);
         register_new_node(new_nodes.second);
