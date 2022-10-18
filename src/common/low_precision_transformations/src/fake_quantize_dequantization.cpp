@@ -35,12 +35,15 @@ FakeQuantizeDequantization::FakeQuantizeDequantization(
     // for most node with layout NC, NCHW, NCDWH, channel dimension is 1
     channelDimension = 1;
 
-    // for MatMul, channel dimension is the last dimension
-    std::string data_src_type = data.get_node()->get_type_name();
-    if (data_src_type == "MatMul" && data.get_index() == 0) {
-        const auto rank = data.get_partial_shape().rank();
-        if (rank.is_static()) {
+    const auto rank = data.get_partial_shape().rank();
+    if (rank.is_static()) {
+        std::string data_src_type = data.get_node()->get_type_name();
+        if (data_src_type == "MatMul" && data.get_index() == 0) {
+            // for MatMul, channel dimension is the last dimension
             channelDimension = rank.get_length() - 1;
+        } else if (rank.get_length() == 1) {
+            // special 1D case: C
+            channelDimension = 0;
         }
     }
 }
