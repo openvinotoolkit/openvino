@@ -33,13 +33,6 @@ During conversion, each `Place` provides a `DecoderBase` object to retrieve attr
 `Frontend` converts operations in topological order and requires `NodeContext` for the current operation node,
 which includes `Decoder` and `OutputVector` inputs from already converted nodes.
 
-TensorFlow conversion into the OpenVINO opset operation requires one pass or two passes:
-* One pass using [Loaders]((../src/op/)) directly transforms TF operation into a sub-graph of OpenVINO opset.
-* Two passes consist of [Loaders](../src/op/) and [Internal Transformations](../src/helper_transforms),
-where the first pass transforms a TF operation into a sub-graph with [Internal Operations](../src/helper_ops),
-and the second pass avoids internal operations.
-
-In the majority of cases, it is sufficient to use just one pass for TensorFlow operation conversion
 The workflow of the conversion step is presented in the diagram below:
 
 ```mermaid

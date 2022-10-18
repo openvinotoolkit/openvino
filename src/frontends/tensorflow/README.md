@@ -16,6 +16,7 @@ flowchart BT
     mo(Model Optimizer)
     model --> ovtf --> tf_fe
     model2 --> mo --> fem --> tf_fe
+    click ovtf "https://github.com/openvinotoolkit/openvino_tensorflow"
 ```
 
 Currently, it is only used by [OpenVINO Integration with TensorFlow Frontend](https://github.com/openvinotoolkit/openvino_tensorflow).
@@ -42,14 +43,12 @@ OpenVINO TensorFlow Frontend uses [TensorFlow Protobuf files](./src/proto) for r
 
 The conversion of the TensorFlow operation requires either one pass using [Loaders](./src/op) or two transformation passes
 using [Loaders](./src/op) and [Internal Transformation](./src/helper_transforms).
-It is often sufficient to use only [Loaders](./src/op). Two transformation pass is used when some TensorFlow operation cannot be mapped into a sub-graph of OpenVINO opset
-and its conversion depends on the succeeding operations in the graph.
 
 Read [TensorFlow Frontend Architecture and Workflow](./docs/architecture.md) for a detailed explanation of the component.
 
 ## Tutorials
 
- * [How to implement support of a new TensorFlow operation](./docs/contribute.md)
+ * [How to implement support of a new TensorFlow operation](./docs/support_new_op.md)
  * [OpenVINO TensorFlow Frontend tests](./docs/tests.md)
 
 ## See also
