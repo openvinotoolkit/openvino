@@ -32,15 +32,15 @@ The operator can either work in elementwise mode searching for unique values in 
 **Inputs**
 
 * **1**: A tensor of type *T* and arbitrary shape. **Required.**
-* **2**: A tensor of type *T_AXIS*. The allowed tensor shape is 1D with a single element or a scalar. **Optional**
+* **2**: A tensor of type *T_AXIS*. The allowed tensor shape is 1D with a single element or a scalar. If provided this input has to be connected to a Constant. **Optional**
   When provided this input is used to "divide" the input tensor into slices along the specified axis before unique elements processing starts. When this input is not provided the operator works on a flattened version of the input tensor (elementwise processing).
 
 **Outputs**
 
-* **1**: The output tensor containing unique elements (individual values or subtensors). This tensor's type matches the type of the first input tensor: *T*. The values in this tensor are either sorted ascendingly or maintain the same order as in the input tensor. The shape of this output depends on the values of the input tensor and will very often be dynamic. Please refer to the article describing how [Dynamic Shapes](https://docs.openvino.ai/latest/openvino_docs_OV_UG_DynamicShapes.html) are handled in OpenVINO.
-* **2**: The output tensor containing indices of the locations of unique elements. The indices map the elements in the first output tensor to their locations in the input tensor. The index always points to the first occurrence of a given unique output element in the input tensor. This is a 1D tensor with type controlled by the `index_element_type` attribute.
-* **3**: The output tensor containing indices of the locations of elements of the input tensor in the first output tensor. This means that for each element of the input tensor this output will point to the unique value in the first output tensor of this operator. This is a 1D tensor with type controlled by the `index_element_type` attribute.
-* **4**: The output tensor containing the number of occurrences of each unique value produced by this operator in the first output tensor. This is a 1D tensor with type `int64`.
+* **1**: The output tensor containing unique elements (individual values or subtensors). This tensor's type matches the type of the first input tensor: *T*. The values in this tensor are either sorted ascendingly or maintain the same order as in the input tensor. The shape of this output depends on the values of the input tensor and will very often be dynamic. Please refer to the article describing how [Dynamic Shapes](https://docs.openvino.ai/latest/openvino_docs_OV_UG_DynamicShapes.html) are handled in OpenVINO. 
+* **2**: The output tensor containing indices of the locations of unique elements. The indices map the elements in the first output tensor to their locations in the input tensor. The index always points to the first occurrence of a given unique output element in the input tensor. This is a 1D tensor with type controlled by the `index_element_type` attribute. **Optional**
+* **3**: The output tensor containing indices of the locations of elements of the input tensor in the first output tensor. This means that for each element of the input tensor this output will point to the unique value in the first output tensor of this operator. This is a 1D tensor with type controlled by the `index_element_type` attribute. **Optional**
+* **4**: The output tensor containing the number of occurrences of each unique value produced by this operator in the first output tensor. This is a 1D tensor with type `int64`. **Optional**
 
 **Types**
 

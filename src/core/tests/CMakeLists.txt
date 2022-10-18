@@ -260,6 +260,7 @@ set(SRC
     type_prop/top_k.cpp
     type_prop/transpose.cpp
     type_prop/unary_elementwise.cpp
+    type_prop/unique.cpp
     type_prop/unsqueeze.cpp
     type_prop/variadic_split.cpp
     type_prop_layers.cpp
