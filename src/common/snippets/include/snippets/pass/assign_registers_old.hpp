@@ -16,9 +16,9 @@ namespace pass {
  * Changing order of variables or datafrow lead to invalidation of register assignment.
  * @ingroup snippets
  */
-class AssignRegistersNew : public ngraph::pass::FunctionPass {
+class AssignRegistersOld : public ngraph::pass::FunctionPass {
 public:
-    explicit AssignRegistersNew() {
+    explicit AssignRegistersOld() {
         set_property(ngraph::pass::PassProperty::REQUIRE_STATIC_SHAPE, true);
     }
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;

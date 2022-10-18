@@ -25,7 +25,7 @@ std::string InsertLoadStoreTests::getTestCaseName(testing::TestParamInfo<insertL
 }
 
 void InsertLoadStoreTests::SetUp() {
-    TransformationTestsF::SetUp();
+    LoweringTests::SetUp();
     std::vector<Shape> inputShapes(3);
     std::vector<Shape> broadcastShapes(3);
     std::tie(inputShapes[0], inputShapes[1], inputShapes[2],

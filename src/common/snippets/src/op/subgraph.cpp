@@ -11,7 +11,7 @@
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/pass/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/pass/assign_registers.hpp"
-#include "snippets/pass/assign_registers_new.hpp"
+#include "snippets/pass/assign_registers_old.hpp"
 #include "snippets/pass/convert_constants.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
 #include "snippets/pass/vector_to_scalar.hpp"
@@ -540,7 +540,7 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
         throw ngraph_error("Dynamic case is not supported yet");
     }
 
-    snippets::pass::AssignRegistersNew().run_on_model(m_body);
+    snippets::pass::AssignRegisters().run_on_model(m_body);
 // todo: Debug prints. remove before merge
 //    std::cerr << "OLD reg map:\n";
 //    print_reg_info("reginfo_old");

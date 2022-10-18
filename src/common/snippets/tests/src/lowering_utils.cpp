@@ -34,6 +34,29 @@ DummyTargetMachine::DummyTargetMachine() {
     jitters[ngraph::snippets::op::TileEnd::get_type_info_static()] = dummy_functor;
 }
 
+void LoweringTests::SetUp() {
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+}
+
+void LoweringTests::TearDown() {
+    auto cloned_function = ngraph::clone_function(*function);
+    if (!function_ref) {
+        function_ref = cloned_function;
+    }
+    manager.run_passes(function);
+        ASSERT_NO_THROW(check_rt_info(function));
+
+    if (comparator.should_compare(FunctionsComparator::ACCURACY)) {
+        auto acc_comparator = FunctionsComparator::no_default();
+        acc_comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+        auto res = acc_comparator.compare(function, cloned_function);
+        ASSERT_TRUE(res.valid) << res.message;
+        comparator.disable(FunctionsComparator::CmpValues::ACCURACY);
+    }
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
 std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getSubgraph(const std::shared_ptr<Model>& f) {
     std::shared_ptr<ngraph::snippets::op::Subgraph> subgraph;
     for (const auto &op : f->get_ops()) {

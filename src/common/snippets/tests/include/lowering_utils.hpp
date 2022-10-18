@@ -38,6 +38,9 @@ public:
 };
 
 class LoweringTests : public TransformationTestsF {
+public:
+    void SetUp() override;
+    void TearDown() override;
 protected:
     static std::shared_ptr<ngraph::snippets::op::Subgraph> getSubgraph(const std::shared_ptr<Model>& f);
     static std::shared_ptr<ngraph::snippets::op::Subgraph> getLoweredSubgraph(const std::shared_ptr<Model>& f,

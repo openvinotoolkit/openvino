@@ -24,7 +24,7 @@ std::string InsertMoveBroadcastTests::getTestCaseName(testing::TestParamInfo<ins
 }
 
 void InsertMoveBroadcastTests::SetUp() {
-    TransformationTestsF::SetUp();
+    LoweringTests::SetUp();
     std::vector<Shape> inputShapes(2);
     std::vector<Shape> broadcastShapes(2);
     std::tie(inputShapes[0], inputShapes[1], broadcastShapes[0], broadcastShapes[1]) = this->GetParam();
