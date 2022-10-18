@@ -41,29 +41,29 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
 
 ### <a name="install-core"></a>Step 1: Install OpenVINO Core Components
 
-First, open a terminal. Create a folder for OpenVINO and move into it by issuing the following commands. If the `/opt/intel` folder already exists, skip the `mkdir` command.
+1. Open a command prompt terminal window. Create a folder for OpenVINO and move into it by issuing the following commands. If the `/opt/intel` folder already exists, skip the `mkdir` command.
 
-```sh
-sudo mkdir /opt/intel
-cd /opt/intel
-```
+   ```sh
+   sudo mkdir /opt/intel
+   cd /opt/intel
+   ```
 
-> **NOTE**: The `/opt/intel` path is the recommended folder path for installing OpenVINO. You may use a different path if desired.
+   > **NOTE**: The `/opt/intel` path is the recommended folder path for installing OpenVINO. You may use a different path if desired.
 
-Next, you'll download the OpenVINO Runtime 2022.2 archive file from the [OpenVINO archives](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/windows) site. Issue the following commands to download the archive file, unpack it, and rename the folder to `openvino_2022.2.0.7713`:
+2. Download the OpenVINO Runtime 2022.2 archive file from the [OpenVINO releases page](https://github.com/openvinotoolkit/openvino/releases/tag/2022.2.0), unpack it, and rename the folder to openvino_2022.2.0.7713 by issuing::
 
-```sh
-sudo curl -L https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/m_openvino_toolkit_osx_2022.2.0.7713.af16ea1d79a_x86_64.tgz --output openvino_2022.2.0.7713.tgz
-sudo tar -xf openvino_2022.2.0.7713.tgz
-sudo mv m_openvino_toolkit_osx_2022.2.0.7713.af16ea1d79a_x86_64 openvino_2022.2.0.7713
-```
+   ```sh
+   sudo curl -L https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/m_openvino_toolkit_osx_2022.2.0.7713.af16ea1d79a_x86_64.tgz --output openvino_2022.2.0.7713.tgz
+   sudo tar -xf openvino_2022.2.0.7713.tgz
+   sudo mv m_openvino_toolkit_osx_2022.2.0.7713.af16ea1d79a_x86_64 openvino_2022.2.0.7713
+   ```
 
-Finally, create a symbolic link to the folder by issuing:
+3. Create a symbolic link to the folder by issuing:
 
-```
-sudo ln -s openvino_2022.2.0.7713 openvino_2022
-```
-> **NOTE**: If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. Remove the previous link with `sudo rm openvino_2022`, then re-issue the previous command.
+   ```
+   sudo ln -s openvino_2022.2.0.7713 openvino_2022
+   ```
+   > **NOTE**: If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. Remove the previous link with `sudo rm openvino_2022`, then re-issue the previous command.
 
 Congratulations, you finished installation! The `/opt/intel/openvino_2022` folder now contains the core components for OpenVINO™. When other pages in OpenVINO™ documentation refer to the `<INSTALL_DIR>` directory, this is the folder they're referring to. If you installed OpenVINO™ in a different location, make sure to use that instead.
 
