@@ -38,8 +38,8 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
 
   * `Microsoft Visual Studio 2019 with MSBuild <http://visualstudio.microsoft.com/downloads/>`_
   * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`_ (optional, only required for building sample applications)
-  * `Python 3.6 - 3.9, 64-bit <https://www.python.org/downloads/windows/>`_
-     * Note that OpenVINO is gradually phasing out support for Python 3.6. Python 3.7 - 3.9 are recommended.
+  * `Python 3.6 - 3.10, 64-bit <https://www.python.org/downloads/windows/>`_
+     * Note that OpenVINO is gradually phasing out support for Python 3.6. Python 3.7 - 3.10 are recommended.
 
   .. note::
      To install Microsoft Visual Studio 2019, follow the `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`_. You can choose to download the Community version. During installation in the **Workloads** tab, choose **Desktop development with C++**.

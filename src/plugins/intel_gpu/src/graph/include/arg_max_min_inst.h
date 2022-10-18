@@ -19,6 +19,12 @@ struct typed_program_node<arg_max_min> : public typed_program_node_base<arg_max_
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog) : parent(prim, prog) {}
     program_node& input() const { return get_dependency(0); }
+
+    uint32_t get_output_nums() const {
+        return (get_primitive()->input_size() == 3 ? 2 : get_primitive()->output_size());
+    }
+    bool has_second_output() const { return get_output_nums() == 2; }
+    bool use_multiple_outputs() const { return get_primitive()->input_size() != 3; }
 };
 
 using arg_max_min_node = typed_program_node<arg_max_min>;

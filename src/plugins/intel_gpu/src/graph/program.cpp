@@ -38,6 +38,7 @@
 #include "data_inst.h"
 #include "deconvolution_inst.h"
 #include "detection_output_inst.h"
+#include "generate_proposals_inst.h"
 #include "input_layout_inst.h"
 #include "shuffle_channels_inst.h"
 #include "arg_max_min_inst.h"
@@ -401,6 +402,16 @@ void program::add_node_dependencies(program_node* node) {
             dep_node->users.push_back(node);
         } catch (...) {
             throw std::runtime_error("Program doesn't contain primitive: " + dep +
+                                     " that is input to: " + node->get_primitive()->id);
+        }
+    }
+    auto deps_new = node->get_primitive()->dependencies_new();
+    for (auto& dep : deps_new) {
+        try {
+            auto dep_node = nodes_map.at(dep.pid);
+            node->dependencies_new.push_back({dep_node.get(), dep.idx});
+        } catch (...) {
+            throw std::runtime_error("Program doesn't contain primitive: " + dep.pid +
                                      " that is input to: " + node->get_primitive()->id);
         }
     }
@@ -1425,6 +1436,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::gather::type_id() &&
             prim.type() != cldnn::scatter_nd_update::type_id() &&
             prim.type() != cldnn::broadcast::type_id() &&
+            prim.type() != cldnn::ctc_loss::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
             prim.type() != cldnn::roi_align::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
@@ -1432,7 +1444,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::roll::type_id() &&
             prim.type() != cldnn::prior_box::type_id() &&
             prim.type() != cldnn::resample::type_id() &&
-            prim.type() != cldnn::eye::type_id()) {
+            prim.type() != cldnn::eye::type_id() &&
+            prim.type() != cldnn::generate_proposals::type_id()) {
             can_use_fsv16 = false;
         }
 
@@ -1461,6 +1474,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::scatter_nd_update::type_id() &&
             prim.type() != cldnn::broadcast::type_id() &&
             prim.type() != cldnn::quantize::type_id() &&
+            prim.type() != cldnn::ctc_loss::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
             prim.type() != cldnn::roi_align::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
@@ -1468,7 +1482,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::roll::type_id() &&
             prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::prior_box::type_id() &&
-            prim.type() != cldnn::eye::type_id()) {
+            prim.type() != cldnn::eye::type_id() &&
+            prim.type() != cldnn::generate_proposals::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
     }
