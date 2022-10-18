@@ -328,6 +328,7 @@ class IREngine(object):
         if precision is None:
             precision = xml_layer.attrib['precision']
         precision_map = {
+            'FP64': (8, np.float64),
             'FP32': (4, np.float32),
             'FP16': (2, np.float16),
             'I64': (8, np.int64),

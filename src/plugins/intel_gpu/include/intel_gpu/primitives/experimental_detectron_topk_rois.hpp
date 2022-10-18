@@ -31,7 +31,7 @@ struct experimental_detectron_topk_rois : public primitive_base<experimental_det
     experimental_detectron_topk_rois(const primitive_id &id, const std::vector<primitive_id> &inputs,
                                      const size_t max_rois,
                                      const padding &output_padding = padding())
-            : primitive_base(id, inputs, "", output_padding),
+            : primitive_base(id, inputs, output_padding),
               max_rois(max_rois) {}
 
     /// maximal numbers of output ROIs.

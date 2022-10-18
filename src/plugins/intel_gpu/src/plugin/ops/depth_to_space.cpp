@@ -24,7 +24,7 @@ static cldnn::depth_to_space_mode GetDepthMode(ngraph::op::v0::DepthToSpace::Dep
 }
 
 static void CreateDepthToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v0::DepthToSpace>& op) {
-    p.ValidateInputs(op, {1});
+    validate_inputs_count(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -34,11 +34,9 @@ static void CreateDepthToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v
     auto depthToSpacePrim = cldnn::depth_to_space(layerName,
                                                   inputPrimitives[0],
                                                   blockSize,
-                                                  mode,
-                                                  op->get_friendly_name());
+                                                  mode);
 
-    p.AddPrimitive(depthToSpacePrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, depthToSpacePrim);
 }
 
 REGISTER_FACTORY_IMPL(v0, DepthToSpace);

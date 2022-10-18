@@ -71,21 +71,18 @@ inline OVInferReqInferParam roi_1d() {
 } // namespace tensor_roi
 
 class OVInferRequestInferenceTests : public testing::WithParamInterface<OVInferRequestInferenceTestsParams>,
-                                     public CommonTestUtils::TestsCommon {
+                                     public OVInferRequestTestBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<OVInferRequestInferenceTestsParams>& device_name);
 
 protected:
     void SetUp() override;
 
-    void TearDown() override;
-
     static std::shared_ptr<Model> create_n_inputs(size_t num, element::Type type,
                                                   const PartialShape& shape);
 
     std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
     OVInferReqInferParam m_param;
-    std::string m_device_name;
 };
 
 }  // namespace behavior

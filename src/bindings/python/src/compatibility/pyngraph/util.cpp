@@ -11,10 +11,11 @@
 #include "ngraph/op/result.hpp"
 #include "ngraph/validation_util.hpp"
 #include "ngraph/version.hpp"
+#include "openvino/runtime/core.hpp"
 
 namespace py = pybind11;
 
-void* numpy_to_c(py::array a) {
+inline void* numpy_to_c(py::array a) {
     py::buffer_info info = a.request();
     return info.ptr;
 }
@@ -48,4 +49,16 @@ void regmodule_pyngraph_util(py::module m) {
     mod.def("get_ie_output_name", [](const ngraph::Output<ngraph::Node>& output) {
         return ngraph::op::util::get_ie_output_name(output);
     });
+
+    mod.def("shutdown",
+            &ov::shutdown,
+            R"(
+                    Shut down the OpenVINO by deleting all static-duration objects allocated by the library and releasing
+                    dependent resources
+
+                    This function should be used by advanced user to control unload the resources.
+
+                    You might want to use this function if you are developing a dynamically-loaded library which should clean up all
+                    resources after itself when the library is unloaded.
+                )");
 }

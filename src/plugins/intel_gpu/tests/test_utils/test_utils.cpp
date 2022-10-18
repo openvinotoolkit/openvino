@@ -8,6 +8,11 @@
 #include "float16.h"
 #include <iostream>
 
+
+namespace cldnn {
+const cldnn::data_types type_to_data_type<FLOAT16>::value;
+}  // namespace cldnn
+
 using namespace cldnn;
 
 namespace tests {
@@ -366,6 +371,21 @@ std::vector<cldnn::data_types> generic_test::test_data_types() {
         result.push_back(cldnn::data_types::f16);
     }
     return result;
+}
+
+double default_tolerance(data_types dt) {
+    switch (dt) {
+    case data_types::f16:
+        return 1e-3;
+    case data_types::f32:
+        return 1e-5;
+    case data_types::i8:
+    case data_types::u8:
+        return 1.;
+    default:
+        IE_THROW() << "Unknown";
+    }
+    IE_THROW() << "Unknown";
 }
 
 std::vector<cldnn::format> generic_test::test_input_formats = { cldnn::format::bfyx , cldnn::format::yxfb, cldnn::format::fyxb, cldnn::format::byxf };

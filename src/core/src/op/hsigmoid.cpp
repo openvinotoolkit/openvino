@@ -22,12 +22,12 @@ op::v5::HSigmoid::HSigmoid(const Output<Node>& arg) : UnaryElementwiseArithmetic
 }
 
 bool op::v5::HSigmoid::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v5_HSigmoid_visit_attributes);
+    OV_OP_SCOPE(v5_HSigmoid_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::v5::HSigmoid::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v5_HSigmoid_clone_with_new_inputs);
+    OV_OP_SCOPE(v5_HSigmoid_clone_with_new_inputs);
     return make_shared<op::v5::HSigmoid>(new_args.at(0));
 }
 
@@ -58,13 +58,13 @@ bool evaluate_hsigmoid(const HostTensorPtr& arg, const HostTensorPtr& out) {
 }  // namespace
 
 bool op::v5::HSigmoid::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v5_HSigmoid_evaluate);
+    OV_OP_SCOPE(v5_HSigmoid_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     return evaluate_hsigmoid(inputs[0], outputs[0]);
 }
 
 bool op::v5::HSigmoid::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v5_HSigmoid_has_evaluate);
+    OV_OP_SCOPE(v5_HSigmoid_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::bf16:
     case ngraph::element::f16:

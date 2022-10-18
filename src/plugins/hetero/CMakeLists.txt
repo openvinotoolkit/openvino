@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if (NOT ENABLE_HETERO)
+    return()
+endif()
+
 set (TARGET_NAME "openvino_hetero_plugin")
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
@@ -18,7 +22,7 @@ ie_faster_build(${TARGET_NAME}
     UNITY
 )
 
-target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 

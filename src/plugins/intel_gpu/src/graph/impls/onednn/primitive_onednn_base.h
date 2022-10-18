@@ -31,31 +31,38 @@ static std::mutex cacheAccessMutex;
 
 template <class PType, class DescType, class PrimDescType = dnnl::primitive_desc, class PrimType = dnnl::primitive>
 struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
-    const typed_program_node<PType>& _outer;
+    const engine& _engine;
     std::shared_ptr<DescType> _desc;
     std::shared_ptr<dnnl::primitive_attr> _attrs;
     PrimDescType _pd;
     PrimType _prim;
     std::unordered_map<uint32_t, std::unordered_map<int, dnnl::memory>> _args;
 
-    typed_primitive_onednn_impl(const typed_program_node<PType>& arg,
+    typed_primitive_onednn_impl(const engine& engine,
                                 std::shared_ptr<DescType> desc,
                                 std::shared_ptr<dnnl::primitive_attr> attrs,
                                 const PrimDescType& pd,
                                 kernel_selector::WeightsReorderParams weights_reorder = {})
         : typed_primitive_impl<PType>(weights_reorder, pd.impl_info_str()),
-          _outer(arg),
+          _engine(engine),
           _desc(desc),
           _attrs(attrs),
           _pd(pd) {
             build_primitive();
         }
 
+    typed_primitive_onednn_impl(const engine& engine)
+        : typed_primitive_impl<PType>({}, "undef"),
+          _engine(engine),
+          _pd(),
+          _prim() {
+    }
+
     bool is_cpu() const override { return false; }
 
 private:
     std::string get_cache_directory() const {
-        auto path = _outer.get_program().get_engine().configuration().kernels_cache_path;
+        auto path = _engine.configuration().kernels_cache_path;
         if (path.empty()) {
             return {};
         }
@@ -227,7 +234,7 @@ protected:
         return args;
     }
 
-    void init_kernels() override { }
+    void init_kernels(const kernels_cache&) override { }
 
     event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
         if (events.size() == 1 && !is_output)
@@ -240,6 +247,8 @@ protected:
     }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
+        if (instance.can_be_optimized())
+            return;
         uint32_t net_id = instance.get_network().get_id();
         _args[net_id] = get_arguments(instance);
     }

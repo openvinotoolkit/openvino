@@ -26,9 +26,8 @@ struct roll : primitive_base<roll> {
     roll(const primitive_id& id,
          const primitive_id& input,
          const tensor& shift,
-         const primitive_id& ext_prim_id = {},
          const padding& output_padding = {})
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, output_padding),
           shift(shift) {}
 
     /// @brief Tensor which specifies the number of places by which the elements are shifted.

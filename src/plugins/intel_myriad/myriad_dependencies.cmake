@@ -14,7 +14,7 @@ set(VPU_SUPPORTED_FIRMWARES_HASH
 #
 
 set(FIRMWARE_PACKAGE_VERSION 20220307_34)
-set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.2")
+set(VPU_CLC_MA2X8X_VERSION "movi-cltools-22.08.1")
 
 #
 # CMake variables to override default firmware files
@@ -117,7 +117,7 @@ endif()
 
 if(LINUX AND NOT ARM
          AND NOT AARCH64
-         AND LINUX_OS_NAME MATCHES "Ubuntu")
+         AND LINUX_OS_NAME MATCHES "(Ubuntu|Debian)")
 
     if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
         set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
@@ -137,7 +137,7 @@ if(LINUX AND NOT ARM
             ARCHIVE_LIN "VPU_OCL_compiler/${VPU_CLC_MA2X8X_VERSION}.tar.gz"
             TARGET_PATH "${TEMP}/vpu/clc/ma2x8x/${VPU_CLC_MA2X8X_VERSION}"
             ENVIRONMENT "VPU_CLC_MA2X8X_COMMAND"
-            SHA256 "0a864bd0e11cee2d85ac7e451dddae19216c8bc9bb50e1a8e0151ab97d5e3c8d")
+            SHA256 "ad0bc3d94e2c85d8501a4bf2f0c7c75b82244fcadbb69b83369412c75fafaa57")
         debug_message(STATUS "VPU_CLC_MA2X8X=" ${VPU_CLC_MA2X8X})
 
         update_deps_cache(

@@ -22,7 +22,7 @@ ScalarData = Union[int, float]
 NodeInput = Union[Node, NumericData]
 
 openvino_to_numpy_types_map = [
-    (Type.boolean, np.bool),
+    (Type.boolean, bool),
     (Type.f16, np.float16),
     (Type.f32, np.float32),
     (Type.f64, np.float64),
@@ -38,7 +38,7 @@ openvino_to_numpy_types_map = [
 ]
 
 openvino_to_numpy_types_str_map = [
-    ("boolean", np.bool),
+    ("boolean", bool),
     ("f16", np.float16),
     ("f32", np.float32),
     ("f64", np.float64),

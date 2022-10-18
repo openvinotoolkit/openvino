@@ -24,7 +24,7 @@ namespace preprocess {
 ///
 /// \ingroup ov_model_cpp_api
 class OPENVINO_API PrePostProcessor final {
-    class PrePostProcessorImpl;
+    struct PrePostProcessorImpl;
     std::unique_ptr<PrePostProcessorImpl> m_impl;
 
 public:

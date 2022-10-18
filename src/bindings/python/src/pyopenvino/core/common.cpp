@@ -125,7 +125,7 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
     return pshape;
 }
 
-bool check_all_digits(const std::string& value) {
+inline bool check_all_digits(const std::string& value) {
     auto val = ov::util::trim(value);
     for (const auto& c : val) {
         if (!std::isdigit(c) || c == '-') {
@@ -302,11 +302,13 @@ uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
             supported_properties.end()) {
             return actual.get_property(ov::optimal_number_of_infer_requests);
         } else {
-            IE_THROW() << "Can't load network: " << ov::optimal_number_of_infer_requests.name() << " is not supported!"
-                       << " Please specify number of infer requests directly!";
+            throw ov::Exception("Can't load network: " + std::string(ov::optimal_number_of_infer_requests.name()) +
+                                " is not supported!"
+                                " Please specify number of infer requests directly!");
         }
     } catch (const std::exception& ex) {
-        IE_THROW() << "Can't load network: " << ex.what() << " Please specify number of infer requests directly!";
+        throw ov::Exception("Can't load network: " + std::string(ex.what()) +
+                            " Please specify number of infer requests directly!");
     }
 }
 

@@ -63,7 +63,7 @@ def test_statistics_collector_subsets(tmp_path, models, model_name, model_framew
     with open(refs_file.as_posix()) as file:
         refs = json.load(file)
 
-    eps = 1e-3
+    eps = 1e-6
     local_out = {}
     for algo_name, algo_val in out.items():
         local_out[algo_name] = {}

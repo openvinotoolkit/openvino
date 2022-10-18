@@ -14,6 +14,7 @@
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include "utils/log_util.hpp"
 #include "common.hpp"
+#include "utils/config.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -65,9 +66,7 @@ private:
                                                                        InferenceEngine::CNNNetwork network,
                                                                        const std::map<std::string, std::string>& config,
                                                                        const std::string &networkPrecision = METRIC_VALUE(FP32));
-    static void CheckConfig(const std::map<std::string, std::string>& config,
-                            AutoScheduleContext::Ptr& context,
-                            std::map<std::string, std::string>& filterConfig);
+    PluginConfig _pluginConfig;
     std::vector<DeviceInformation> FilterDevice(const std::vector<DeviceInformation>& metaDevices,
                                                 const std::map<std::string, std::string>& config);
     std::vector<DeviceInformation> FilterDeviceByNetwork(const std::vector<DeviceInformation>& metaDevices,
@@ -76,7 +75,6 @@ private:
     static std::mutex _mtx;
     static std::map<unsigned int, std::list<std::string>> _priorityMap;
     std::string _LogTag;
-    static std::set<std::string> _availableDevices;
 };
 
 }  // namespace MultiDevicePlugin

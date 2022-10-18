@@ -5,6 +5,7 @@
 #include "ngraph/dimension.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <limits>
 #include <sstream>
@@ -12,6 +13,36 @@
 #include "dimension_tracker.hpp"
 
 using namespace ngraph;
+
+namespace {
+/**
+ * \brief Merges two labels.
+ *
+ *  | label_a | label_b | result  |
+ *  |---------|---------|---------|
+ *  | X       | X       | X       |
+ *  | X       | 0       | X       |
+ *  | 0       | X       | X       |
+ *  | X       | Y       | Y       | (if merge_unequal == true)
+ *  | X       | Y       | 0       | (if merge_unequal == false)
+ *
+ * \param label_a
+ * \param label_b
+ * \return size_t
+ */
+size_t merge_labels(const size_t label_a, const size_t label_b, bool merge_unequal = true) {
+    if (label_a == label_b || label_b == 0)
+        return label_a;
+    else if (merge_unequal || label_a == 0)
+        return label_b;
+    else
+        return 0;
+}
+
+Dimension::value_type dimension_length(Interval::value_type vt) {
+    return vt == Interval::s_max ? -1 : vt;
+}
+}  // namespace
 
 std::ostream& ov::operator<<(std::ostream& str, const Dimension& dimension) {
     if (dimension.is_static()) {
@@ -51,11 +82,13 @@ Dimension Dimension::operator-(const Dimension& dim) const {
 
 Dimension Dimension::operator/(const value_type divisor) const {
     OPENVINO_ASSERT(divisor >= 0, "divisor must be greater than 0");
-
+    if (divisor == 1)
+        return *this;
     if (m_dimension.get_max_val() == Interval::s_max && m_dimension.get_min_val() == 0)
         return Dimension::dynamic();
-
-    return Dimension((m_dimension.get_min_val() + divisor - 1) / divisor, m_dimension.get_max_val() / divisor);
+    const auto& lower_bound = ceil(static_cast<double>(m_dimension.get_min_val()) / divisor);
+    const auto& upper_bound = floor(static_cast<double>(m_dimension.get_max_val()) / divisor);
+    return Dimension(lower_bound, upper_bound);
 }
 
 Dimension Dimension::operator*(const Dimension& dim) const {
@@ -102,10 +135,9 @@ bool Dimension::merge(Dimension& dst, const Dimension& d1, const Dimension& d2) 
         t->set_as_equal(d1, d2);
     else if (auto& t = d2.m_table_of_equivalence)
         t->set_as_equal(d1, d2);
-    if (d1.m_label == d2.m_label || d2.m_label == 0)
-        dst.m_label = d1.m_label;
-    else if (d1.m_label == 0)
-        dst.m_label = d2.m_label;
+
+    dst.m_label = merge_labels(d1.m_label, d2.m_label);
+
     return true;
 }
 
@@ -118,10 +150,7 @@ bool Dimension::broadcast_merge(Dimension& dst, const Dimension& d1, const Dimen
         if (result.empty())
             return false;
         dst = Dimension(result);
-        if (d1.m_label == d2.m_label || d2.m_label == 0)
-            dst.m_label = d1.m_label;
-        else if (d1.m_label == 0)
-            dst.m_label = d2.m_label;
+        dst.m_label = merge_labels(d1.m_label, d2.m_label, dst.is_static());
         return true;
     } else if (d1_has_1) {
         dst = d2;
@@ -139,12 +168,6 @@ Dimension::value_type Dimension::get_length() const {
     }
     return m_dimension.get_min_val();
 }
-
-namespace {
-Dimension::value_type dimension_length(Interval::value_type vt) {
-    return vt == Interval::s_max ? -1 : vt;
-}
-}  // namespace
 
 Dimension::value_type Dimension::get_max_length() const {
     return dimension_length(m_dimension.get_max_val());

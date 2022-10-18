@@ -69,7 +69,7 @@ def test_load_network_wrong_device():
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     with pytest.raises(RuntimeError) as e:
         ie.load_network(net, "BLA")
-    assert 'Device with "BLA" name is not registered in the InferenceEngine' in str(e.value)
+    assert 'Device with "BLA" name is not registered in the OpenVINO Runtime' in str(e.value)
 
 
 def test_query_network(device):
@@ -123,7 +123,7 @@ def test_unregister_plugin(device):
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     with pytest.raises(RuntimeError) as e:
         ie.load_network(net, device)
-    assert f"Device with '{device}' name is not registered in the InferenceEngine" in str(e.value)
+    assert f"Device with '{device}' name is not registered in the OpenVINO Runtime" in str(e.value)
 
 
 def test_available_devices(device):

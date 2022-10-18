@@ -77,10 +77,10 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const pooling_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
+    static primitive_impl* create(const pooling_node& arg, const kernel_impl_params& impl_param) {
         validate_args(arg);
         const auto primitive = arg.get_primitive();
-        auto pool_params = get_default_params<kernel_selector::pooling_params>(*impl_param);
+        auto pool_params = get_default_params<kernel_selector::pooling_params>(impl_param);
         auto pool_optional_params =
             get_default_optional_params<kernel_selector::pooling_optional_params>(arg.get_program());
 
@@ -105,8 +105,8 @@ public:
         const auto& pad = primitive->pad;
         const auto& dilation = primitive->dilation;
         auto kernel = primitive->size;
-        const auto& input_layout = impl_param->input_layouts[0];
-        const auto& output_layout = impl_param->output_layout;
+        const auto& input_layout = impl_param.input_layouts[0];
+        const auto& output_layout = impl_param.output_layout;
         auto spatial_rank = output_layout.get_spatial_rank();
 
         auto& pp = pool_params;
@@ -200,6 +200,11 @@ attach_pooling_impl::attach_pooling_impl() {
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
 
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv32),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv32),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv32),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv32),
+
         std::make_tuple(data_types::f32, format::bfzyx),
         std::make_tuple(data_types::f16, format::bfzyx),
         std::make_tuple(data_types::i8, format::bfzyx),
@@ -214,6 +219,11 @@ attach_pooling_impl::attach_pooling_impl() {
         std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
         std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv16),
         std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv16_fsv16),
+
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv32),
+        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv32),
+        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv32),
+        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv16_fsv32),
 
         std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv16),
         std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv16),

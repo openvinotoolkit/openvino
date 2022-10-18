@@ -9,6 +9,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "functional_test_utils/summary/api_summary.hpp"
 
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
@@ -133,12 +134,15 @@ std::string CompileModelCacheTestBase::getTestCaseName(testing::TestParamInfo<co
     auto precision = std::get<1>(param);
     auto batchSize = std::get<2>(param);
     auto deviceName = std::get<3>(param);
+    std::replace(deviceName.begin(), deviceName.end(), ':', '.');
     return funcName + "_" + ngraph::element::Type(precision).get_type_name() + "_batch" + std::to_string(batchSize) + "_" + deviceName;
 }
 
 void CompileModelCacheTestBase::SetUp() {
     ovModelWithName funcPair;
     std::tie(funcPair, m_precision, m_batchSize, targetDevice, configuration) = GetParam();
+    target_device = targetDevice;
+    APIBaseTest::SetUp();
     auto fGen = std::get<0>(funcPair);
     m_functionName = std::get<1>(funcPair);
     try {
@@ -148,7 +152,7 @@ void CompileModelCacheTestBase::SetUp() {
     }
 
     std::stringstream ss;
-    auto hash = std::hash<std::string>()(GetTestName());
+    auto hash = std::hash<std::string>()(SubgraphBaseTest::GetTestName());
     ss << "testCache_" << std::to_string(hash) << "_" << std::this_thread::get_id() << "_" << GetTimestamp();
     for (auto& iter : configuration) {
         ss << "_" << iter.first << "_" << iter.second.as<std::string>() << "_";
@@ -161,6 +165,7 @@ void CompileModelCacheTestBase::TearDown() {
     CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    APIBaseTest::TearDown();
 }
 
 void CompileModelCacheTestBase::run() {
@@ -219,6 +224,7 @@ std::string CompiledKernelsCacheTest::getTestCaseName(testing::TestParamInfo<com
     std::string deviceName;
     std::pair<ov::AnyMap, std::string> userConfig;
     std::tie(deviceName, userConfig) = obj.param;
+    std::replace(deviceName.begin(), deviceName.end(), ':', '.');
     auto properties = userConfig.first;
     std::ostringstream result;
     result << "device_name=" << deviceName << "_";
@@ -227,6 +233,32 @@ std::string CompiledKernelsCacheTest::getTestCaseName(testing::TestParamInfo<com
     }
     result << userConfig.second;
     return result.str();
+}
+
+void CompiledKernelsCacheTest::SetUp() {
+    function = ngraph::builder::subgraph::makeConvPoolRelu();
+    std::pair<ov::AnyMap, std::string> userConfig;
+    std::tie(targetDevice, userConfig) = GetParam();
+    target_device = targetDevice;
+    APIBaseTest::SetUp();
+    configuration = userConfig.first;
+    std::string ext = userConfig.second;
+    std::string::size_type pos = 0;
+    if ((pos = ext.find(",", pos)) != std::string::npos) {
+    m_extList.push_back(ext.substr(0, pos));
+    m_extList.push_back(ext.substr(pos + 1));
+} else {
+    m_extList.push_back(ext);
+}
+    std::replace(test_name.begin(), test_name.end(), '/', '_');
+    std::replace(test_name.begin(), test_name.end(), '\\', '_');
+    cache_path = "compiledModel" + test_name + "_cache";
+}
+
+void CompiledKernelsCacheTest::TearDown() {
+    std::remove(cache_path.c_str());
+    core->set_property(ov::cache_dir());
+    APIBaseTest::TearDown();
 }
 
 TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinaries) {

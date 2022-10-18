@@ -16,8 +16,6 @@ using namespace ov::test::subgraph;
 
 namespace {
 
-
-
 INSTANTIATE_TEST_SUITE_P(conformance,
                          ReadIRTest,
                          ::testing::Combine(

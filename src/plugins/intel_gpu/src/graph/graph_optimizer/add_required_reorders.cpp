@@ -108,9 +108,9 @@ void add_required_reorders::run(program& p) {
                         ToDo: Here we should handle also the situation where primitive usr has data inputs in different
                        formats
                     */
-                    layout current_layout(original_layout.data_type,
-                                          node->get_output_layout().format,
-                                          original_layout.get_tensor());
+                    layout current_layout(original_layout.get_partial_shape(),
+                                          original_layout.data_type,
+                                          node->get_output_layout().format);
                     usr->set_output_layout(current_layout, false);
                     if (usr->type()->does_possible_implementation_exist(*usr)) {
                         correct_layout_selected = true;
@@ -166,20 +166,21 @@ void add_required_reorders::run(program& p) {
         }
 
         if (!correct_layout_selected) {
-            std::vector<cldnn::format> preffered_layout_formats;
+            std::vector<cldnn::format> preferred_layout_formats;
             size_t max_in_dims = std::max(cldnn::format::dimension(original_layout.format), static_cast<size_t>(4));
             for (auto& node : usr->get_dependencies()) {
                 if (format::is_weights_format(node->get_output_layout().format))
                     continue;
                 max_in_dims = std::max(cldnn::format::dimension(node->get_output_layout().format), max_in_dims);
             }
-            // This list of preffered layouts has been selected arbitrary due to developers' experience
+            // This list of preferred layouts has been selected arbitrary due to developers' experience
             if (max_in_dims == 5) {
-                preffered_layout_formats = {
+                preferred_layout_formats = {
                     cldnn::format::bfzyx,
+                    cldnn::format::bzyxf,
                 };
             } else if (max_in_dims == 4) {
-                preffered_layout_formats = {
+                preferred_layout_formats = {
                     cldnn::format::bfyx,
                     cldnn::format::yxfb,
                     cldnn::format::byxf,
@@ -195,7 +196,7 @@ void add_required_reorders::run(program& p) {
             }
 
             if (!correct_layout_selected) {
-                for (auto new_layout_format : preffered_layout_formats) {
+                for (auto new_layout_format : preferred_layout_formats) {
                     layout current_layout(original_layout.data_type, new_layout_format, original_layout.get_tensor());
                     usr->set_output_layout(current_layout, false);
                     if (usr->type()->does_possible_implementation_exist(*usr)) {
@@ -220,7 +221,7 @@ void add_required_reorders::run(program& p) {
                     }
 
                     if (!correct_layout_selected) {
-                        for (auto new_layout_format : preffered_layout_formats) {
+                        for (auto new_layout_format : preferred_layout_formats) {
                             layout current_layout_i32(original_layout_i32.data_type,
                                                   new_layout_format,
                                                   original_layout_i32.get_tensor());

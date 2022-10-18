@@ -18,8 +18,8 @@ namespace tensorflow {
 class NodeContext : public ov::frontend::NodeContext {
 public:
     using Ptr = std::shared_ptr<NodeContext>;
-    NodeContext(const DecoderBase& decoder, const OutputVector& inputs)
-        : ov::frontend::NodeContext(decoder.get_op_type()),
+    NodeContext(const std::shared_ptr<DecoderBase>& decoder, const OutputVector& inputs)
+        : ov::frontend::NodeContext(decoder->get_op_type()),
           m_decoder(decoder),
           m_inputs(inputs) {}
 
@@ -38,21 +38,23 @@ public:
 
     /// \brief Get a node name
     std::string get_name() const {
-        return m_decoder.get_op_name();
+        return m_decoder->get_op_name();
     }
 
     /// \brief Get a decoder
-    const DecoderBase* get_decoder() const {
-        return &m_decoder;
+    std::shared_ptr<DecoderBase> get_decoder() const {
+        return m_decoder;
     }
 
     ov::Any get_attribute_as_any(const std::string& name) const override {
-        auto res = m_decoder.get_attribute(name);
+        auto res = m_decoder->get_attribute(name);
         return res;
     }
 
 private:
-    const DecoderBase& m_decoder;
+    ov::Any apply_additional_conversion_rules(const ov::Any& data, const std::type_info& type_info) const override;
+
+    std::shared_ptr<DecoderBase> m_decoder;
     const OutputVector& m_inputs;
 };
 
