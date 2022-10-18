@@ -9,7 +9,8 @@ cmake_minimum_required (VERSION 3.13)
 project (ie_python_api)
 
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
-    find_package(InferenceEngineDeveloperPackage REQUIRED)
+    find_package(OpenVINODeveloperPackage REQUIRED
+                 PATHS "${InferenceEngineDeveloperPackage_DIR}")
 endif()
 
 option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
