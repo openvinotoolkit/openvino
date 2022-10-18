@@ -34,7 +34,7 @@ The structure of OpenVINO TensorFlow Frontend sources includes the following dir
 
 * [include](./include) is a public frontend API.
 * [src](./src/) folder contains the sources of the component.
-* [unit tests](./tests) cover the internal transformations.
+* [tests](./tests) cover the internal transformations.
 
 ## Architecture
 
