@@ -42,9 +42,7 @@ void regclass_graph_Dimension(py::module m) {
                 :type max_dimension: int
             )");
 
-    dim.def(py::init([](const std::string& value) {
-        return Common::dimension_from_str(value);
-    }));
+    dim.def(py::init<const std::string&>(), py::arg("str"));
 
     dim.def_static("dynamic", &ov::Dimension::dynamic);
 

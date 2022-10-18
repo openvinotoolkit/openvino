@@ -34,6 +34,10 @@ public:
     /// \param max_dimension The upper inclusive limit for the dimension
     Dimension(value_type min_dimension, value_type max_dimension);
 
+    /// \brief Construct a dimension from string.
+    /// \param str String to parse to dimension.
+    Dimension(const std::string& str);
+
     /// \brief Construct a dynamic dimension with range [0, ...]
     Dimension() = default;
 
@@ -176,6 +180,9 @@ public:
         swap(a.m_label, b.m_label);
         swap(a.m_table_of_equivalence, b.m_table_of_equivalence);
     }
+
+    /// \brief String representation of Dimension
+    std::string to_string() const;
 
 private:
     Dimension(const Interval& interval) : m_dimension(interval) {}

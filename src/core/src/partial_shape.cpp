@@ -10,6 +10,7 @@
 
 #include "dimension_tracker.hpp"
 #include "ngraph/check.hpp"
+#include "ngraph/util.hpp"
 
 ov::PartialShape::PartialShape() : PartialShape(std::initializer_list<Dimension>{}) {}
 
@@ -23,6 +24,23 @@ ov::PartialShape::PartialShape(const Shape& shape)
     : m_rank_is_static(true),
       m_shape_type(ShapeType::SHAPE_IS_STATIC),
       m_dimensions(shape.begin(), shape.end()) {}
+
+ov::PartialShape::PartialShape(const std::string &value) {
+    auto val = ngraph::trim(value);
+    if (val == "[...]") {
+        m_rank_is_static = false;
+        m_dimensions = std::vector<Dimension>();
+    }
+    m_rank_is_static = true;
+    Dimensions dims;
+    std::stringstream ss(val);
+    std::string field;
+    while (getline(ss, field, ',')) {
+        OPENVINO_ASSERT(!field.empty(), "Cannot get vector of dimensions! \"" + val + "\" is incorrect");
+        dims.insert(dims.end(), Dimension(field));
+    }
+    m_dimensions = dims;
+}
 
 ov::PartialShape::PartialShape(bool rank_is_static, std::vector<Dimension> dimensions)
     : m_rank_is_static(rank_is_static),
@@ -125,7 +143,7 @@ ov::PartialShape ov::operator+(const PartialShape& s1, const PartialShape& s2) {
 
 std::ostream& ov::operator<<(std::ostream& str, const PartialShape& shape) {
     if (shape.m_rank_is_static) {
-        str << "{";
+        str << "[";
         bool first = true;
         for (auto& d : shape.m_dimensions) {
             if (!first) {
@@ -136,11 +154,18 @@ std::ostream& ov::operator<<(std::ostream& str, const PartialShape& shape) {
             str << d;
             first = false;
         }
-        return (str << "}");
+        return (str << "]");
     } else {
-        return (str << "...");
+        return (str << "[...]");
     }
 }
+
+std::string ov::PartialShape::to_string() const{
+    std::stringstream shape_str_stream;
+    shape_str_stream << *this;
+    return shape_str_stream.str();
+}
+
 
 ov::PartialShape ov::PartialShape::dynamic(Rank r) {
     return PartialShape(r.is_static(),
