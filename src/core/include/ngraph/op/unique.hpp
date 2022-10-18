@@ -11,6 +11,6 @@ namespace ngraph {
 namespace op {
 namespace v10 {
 using ov::op::v10::Unique;
-}  // namespace v9
+}  // namespace v10
 }  // namespace op
 }  // namespace ngraph
