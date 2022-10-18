@@ -64,7 +64,10 @@ int IStreamsExecutor::Config::GetHybridDefaultNumStreams(const Config& config) {
 
     config._threads_per_stream_big = num_big_cores / config._big_core_streams;
     config._threads_per_stream_small = config._threads_per_stream_big * 2;
-    if (num_small_cores < config._threads_per_stream_small) {
+    if (num_small_cores == 0) {
+        config._big_core_streams = num_big_cores / config._threads_per_stream_big;
+        config._threads_per_stream_small = 0;
+    } else if (num_small_cores < config._threads_per_stream_small) {
         config._small_core_streams = 1;
         config._threads_per_stream_small = num_small_cores;
         config._threads_per_stream_big = config._threads_per_stream_small / 2;
@@ -72,7 +75,7 @@ int IStreamsExecutor::Config::GetHybridDefaultNumStreams(const Config& config) {
     } else {
         config._small_core_streams = num_small_cores / config._threads_per_stream_small;
     }
-    config._small_core_offset = num_big_cores * 2;
+    config._small_core_offset = num_small_cores == 0 ? 0 : num_big_cores * 2;
     return config._big_core_streams + config._small_core_streams;
 }
 
@@ -91,7 +94,7 @@ int IStreamsExecutor::Config::GetHybridAggressiveNumStreams(const Config& config
         IE_THROW() << "Wrong stream mode to get aggressive num of streams: " << stream_mode;
     }
     config._threads_per_stream_big = num_big_cores / config._big_core_streams;
-    config._threads_per_stream_small = num_small_cores / config._small_core_streams;
+    config._threads_per_stream_small = num_small_cores == 0 ? 0 : num_small_cores / config._small_core_streams;
     return config._big_core_streams + config._small_core_streams;
 }
 
@@ -125,14 +128,14 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
 #if (defined(__APPLE__) || defined(_WIN32))
             _threadBindingType = ThreadBindingType::NUMA;
 #else
-            _threadBindingType = core_type_size > 1 ? ThreadBindingType::HYBRID_AWARE : ThreadBindingType::CORES;
+            _threadBindingType = ThreadBindingType::CORES;
 #endif
         } break;
         case ov::Affinity::NUMA:
             _threadBindingType = ThreadBindingType::NUMA;
             break;
         case ov::Affinity::HYBRID_AWARE:
-            _threadBindingType = core_type_size == 1 ? ThreadBindingType::CORES : ThreadBindingType::HYBRID_AWARE;
+            _threadBindingType = ThreadBindingType::HYBRID_AWARE;
             break;
         default:
             OPENVINO_UNREACHABLE("Unsupported affinity type");
