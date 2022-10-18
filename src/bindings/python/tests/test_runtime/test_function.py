@@ -451,6 +451,7 @@ def test_reshape_with_python_types(device):
         in str(e.value)
     )
 
+
 def test_serialize_rt_info():
     version = "TestVersion"
     config = "TestConfig"
