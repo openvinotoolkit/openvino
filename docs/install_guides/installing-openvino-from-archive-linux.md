@@ -14,7 +14,6 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
   * Ubuntu 18.04 long-term support (LTS), 64-bit
   * Ubuntu 20.04 long-term support (LTS), 64-bit
   * Red Hat Enterprise Linux 8, 64-bit
-  * Debian 9 armhf
 
   .. note::
      Since the OpenVINO™ 2022.1 release, CentOS 7.6, 64-bit is not longer supported.
@@ -52,16 +51,16 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
 
 ### <a name="install-openvino"></a>Step 1: Download and Install the OpenVINO Core Components
 
-First, open a terminal using Ctrl + Alt + T. Create a folder for OpenVINO and move into it by issuing the following commands. If the `/opt/intel` folder already exists, skip the `mkdir` command.
+1. Open a terminal using Ctrl + Alt + T. Create a folder for OpenVINO and move into it by issuing the following commands. If the `/opt/intel` folder already exists, skip the `mkdir` command.
 
-```sh
-sudo mkdir /opt/intel
-cd /opt/intel
-```
+   ```sh
+   sudo mkdir /opt/intel
+   cd /opt/intel
+   ```
 
-> **NOTE**: The `/opt/intel` path is the recommended folder path for administrators or root users. If you prefer to install OpenVINO in regular userspace, the recommended path is `/home/<USER>/intel`. You may use a different path if desired.
+   > **NOTE**: The `/opt/intel` path is the recommended folder path for administrators or root users. If you prefer to install OpenVINO in regular userspace, the recommended path is `/home/<USER>/intel`. You may use a different path if desired.
 
-Next, you'll download the OpenVINO Runtime 2022.2 archive file from the [OpenVINO releases page](https://github.com/openvinotoolkit/openvino/releases/tag/2022.2.0). Issue the following commands to download the archive file, unpack it, and rename the folder to `openvino_2022.2.0.7713`:
+2. Download the OpenVINO Runtime 2022.2 archive file from the [OpenVINO releases page](https://github.com/openvinotoolkit/openvino/releases/tag/2022.2.0), unpack it, and rename the folder to `openvino_2022.2.0.7713` by issuing:
 
 @sphinxdirective
 
@@ -89,22 +88,14 @@ Next, you'll download the OpenVINO Runtime 2022.2 archive file from the [OpenVIN
       sudo tar -xf openvino_2022.2.0.7713.tgz
       sudo mv l_openvino_toolkit_rhel8_2022.2.0.7713.af16ea1d79a_x86_64 openvino_2022.2.0.7713
       
-.. tab:: Debian
-
-   .. code-block:: sh
-   
-      sudo wget https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/l_openvino_toolkit_debian9_arm_2022.2.0.7713.af16ea1d79a_armhf.tgz -O openvino_2022.2.0.7713.tgz
-      sudo tar -xf openvino_2022.2.0.7713.tgz
-      sudo mv l_openvino_toolkit_debian9_arm_2022.2.0.7713.af16ea1d79a_armhf openvino_2022.2.0.7713
-     
 @endsphinxdirective
 
-Finally, create a symbolic link to the folder by issuing:
+3. Create a symbolic link to the folder by issuing:
 
-```
-sudo ln -s openvino_2022.2.0.7713 openvino_2022
-```
-> **NOTE**: If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. Remove the previous link with `sudo rm openvino_2022`, then re-issue the previous command.
+   ```
+   sudo ln -s openvino_2022.2.0.7713 openvino_2022
+   ```
+   > **NOTE**: If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. Remove the previous link with `sudo rm openvino_2022`, then re-issue the previous command.
 
 Congratulations, you finished installation! The `/opt/intel/openvino_2022` folder now contains the core components for OpenVINO™. When other pages in OpenVINO™ documentation refer to the `<INSTALL_DIR>` directory, this is the folder they're referring to. If you installed OpenVINO™ in a different location (such as `/home/<USER>/Intel/openvino_2022`), make sure to use that instead.
 
