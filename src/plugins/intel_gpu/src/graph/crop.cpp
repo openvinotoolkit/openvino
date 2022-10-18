@@ -174,10 +174,10 @@ std::string crop_inst::to_string(crop_node const& node) {
     return primitive_description.str();
 }
 
-crop_inst::typed_primitive_inst(network& network, crop_node const& node) : parent(network, node) {
-    const auto& ref_in_sizes = argument.reference_input;
-    const auto in_layout = node.input().get_output_layout();
-    const auto& offsets = argument.offsets;
+crop_inst::typed_primitive_inst(network& network, crop_node const* node) : parent(network, node) {
+    const auto& ref_in_sizes = argument->reference_input;
+    const auto in_layout = node->input().get_output_layout();
+    const auto& offsets = argument->offsets;
     tensor null_tensor {};
     tensor value_tensor { 1, 1, 1, 1, 1 };
 
@@ -192,20 +192,20 @@ crop_inst::typed_primitive_inst(network& network, crop_node const& node) : paren
 
             const auto out_sizes = in_sizes - (rb_sizes + lt_sizes);
 
-            CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node.id(),
+            CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node->id(),
                                             "Left/top/lower borders",
                                             lt_sizes,
                                             "0 value",
                                             null_tensor,
                                             "Invalid border size: negative");
-            CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node.id(),
+            CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node->id(),
                                             "Right/bottom/upper borders",
                                             rb_sizes,
                                             "0 value",
                                             null_tensor,
                                             "Invalid border size: negative");
 
-            CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node.id(),
+            CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node->id(),
                                             "Input sizes - border sizes",
                                             out_sizes,
                                             "1 value",
@@ -214,7 +214,7 @@ crop_inst::typed_primitive_inst(network& network, crop_node const& node) : paren
         }
 
         // check if output sizes matches reference input sizes
-        CLDNN_ERROR_TENSOR_SIZES_GREATER_THAN(node.id(),
+        CLDNN_ERROR_TENSOR_SIZES_GREATER_THAN(node->id(),
                                             "Reference input",
                                             ref_in_sizes,
                                             "input sizes",
@@ -222,14 +222,14 @@ crop_inst::typed_primitive_inst(network& network, crop_node const& node) : paren
                                             "Reference input tensor/ input tensor mismtach");
 
         // check if offsets do not extend input sizes and if match the output sizes
-        CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node.id(),
+        CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node->id(),
                                         "Batch offsets",
                                         offsets,
                                         "0 value",
                                         null_tensor,
                                         "Invalid Batch offset: negative value");
         auto input_size_sub_offsets = in_sizes - offsets;
-        CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node.id(),
+        CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node->id(),
                                         "input sizes - offsets",
                                         input_size_sub_offsets,
                                         "reference input sizes",
@@ -237,14 +237,14 @@ crop_inst::typed_primitive_inst(network& network, crop_node const& node) : paren
                                         "Invalid Batch offset: exceeds data for output!");
     }
 
-    if (node.can_be_optimized()) {
+    if (node->can_be_optimized()) {
         build_deps();
         reuse_input();
     }
 }
 
 void crop_inst::on_execute() {
-    if (!node.can_be_optimized())
+    if (!can_be_optimized())
         return;
 
     if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
@@ -254,6 +254,6 @@ void crop_inst::on_execute() {
 }
 
 void crop_inst::reuse_input() {
-    _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), node.get_output_layout());
+    _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), node->get_output_layout());
 }
 }  // namespace cldnn

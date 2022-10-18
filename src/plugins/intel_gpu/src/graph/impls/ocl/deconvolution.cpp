@@ -18,9 +18,13 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
     using parent = typed_primitive_impl_ocl<deconvolution>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<deconvolution_impl>(*this);
     }
+
+    deconvolution_impl() : parent() {}
 
     explicit deconvolution_impl(const deconvolution_impl& other) : parent(other),
         _split(other._split),
@@ -37,6 +41,20 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
         _groups = node.get_groups();
     }
 
+    template <typename BufferType>
+    void save(BufferType& buffer) const {
+        parent::save(buffer);
+        buffer << _split;
+        buffer << _groups;
+    }
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {
+        parent::load(buffer);
+        buffer >> _split;
+        buffer >> _groups;
+    }
+
 protected:
     // TODO: share it with convolution and fully connected
     bool validate_impl(const typed_primitive_inst<deconvolution>& instance) const override {
@@ -44,7 +62,7 @@ protected:
 
         CLDNN_ERROR_NOT_EQUAL(_node_id,
                               "deconvolution filling value",
-                              instance.node.get_output_layout().data_padding.filling_value(),
+                              instance.node->get_output_layout().data_padding.filling_value(),
                               "padding mode",
                               0.0f,
                               "Unknown padding mode in deconvolution.");
@@ -52,7 +70,7 @@ protected:
         return res;
     }
 
-    kernel_arguments_data get_arguments(typed_primitive_inst<deconvolution>& instance, int32_t split) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<deconvolution>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
 
         args.weights = instance.weights_memory(split);
@@ -158,3 +176,5 @@ attach_deconvolution_impl::attach_deconvolution_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::deconvolution_impl, cldnn::object_type::DECONVOLUTION_IMPL)

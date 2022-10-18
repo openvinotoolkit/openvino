@@ -25,6 +25,7 @@ using reduce_node = typed_program_node<reduce>;
 template <>
 class typed_primitive_inst<reduce> : public typed_primitive_inst_base<reduce> {
     using parent = typed_primitive_inst_base<reduce>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>
@@ -32,7 +33,7 @@ public:
     static layout calc_output_layout(reduce_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(reduce_node const& node);
 
-    typed_primitive_inst(network& network, reduce_node const& desc);
+    typed_primitive_inst(network& network, reduce_node const* desc);
 };
 
 using reduce_inst = typed_primitive_inst<reduce>;

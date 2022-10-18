@@ -30,6 +30,7 @@ using strided_slice_node = typed_program_node<strided_slice>;
 template <>
 class typed_primitive_inst<strided_slice> : public typed_primitive_inst_base<strided_slice> {
     using parent = typed_primitive_inst_base<strided_slice>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>
@@ -37,7 +38,7 @@ public:
     static layout calc_output_layout(strided_slice_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(strided_slice_node const& node);
 
-    typed_primitive_inst(network& network, strided_slice_node const& desc);
+    typed_primitive_inst(network& network, strided_slice_node const* desc);
 };
 
 using strided_slice_inst = typed_primitive_inst<strided_slice>;

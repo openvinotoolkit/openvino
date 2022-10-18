@@ -100,7 +100,7 @@ std::string concatenation_inst::to_string(concatenation_node const& node) {
     return primitive_description.str();
 }
 
-concatenation_inst::typed_primitive_inst(network& network, concatenation_node const& node)
+concatenation_inst::typed_primitive_inst(network& network, concatenation_node const* node)
     : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
     if (input_layout.is_dynamic()) return;
@@ -110,14 +110,14 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
     tensor::value_type concat_count = 0;
     auto input_size = input_layout.get_dims();
     auto output_size = output_layout.get_dims();
-    for (const auto& i : node.get_dependencies()) {
+    for (const auto& i : node->get_dependencies()) {
         auto input_i_layout = i->get_output_layout();
         auto input_mem_size = input_i_layout.get_dims();
         for (int64_t dim = 0; dim < static_cast<int64_t>(output_layout.get_rank()); ++dim) {
-            if (dim == node.get_primitive()->axis) {
+            if (dim == node->get_primitive()->axis) {
                 concat_count += input_mem_size[dim];
             } else {
-                CLDNN_ERROR_NOT_EQUAL(node.id(),
+                CLDNN_ERROR_NOT_EQUAL(node->id(),
                                       "Input size dim: " + std::to_string(dim),
                                       input_size[dim],
                                       "input memory dim: " + std::to_string(dim),
@@ -128,15 +128,15 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
     }
 
     for (int64_t dim = 0; dim < static_cast<int64_t>(output_layout.get_rank()); ++dim) {
-        if (dim == node.get_primitive()->axis) {
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
+        if (dim == node->get_primitive()->axis) {
+            CLDNN_ERROR_NOT_EQUAL(node->id(),
                                   "Concat count",
                                   concat_count,
                                   "output size dim:" + std::to_string(dim),
                                   output_size[dim],
                                   "Output size in concatenated dimension mismatch sum of inputs!");
         } else {
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
+            CLDNN_ERROR_NOT_EQUAL(node->id(),
                                   "Input size dim: " + std::to_string(dim),
                                   input_size[dim],
                                   "output size dim:" + std::to_string(dim),
@@ -145,7 +145,7 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
         }
     }
 
-    if (node.can_be_optimized()) {
+    if (node->can_be_optimized()) {
         build_deps();
         std::list<std::vector<std::shared_ptr<primitive_inst>>*> stack = {&_deps};
         while (!stack.empty()) {

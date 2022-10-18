@@ -53,7 +53,7 @@ std::string data_inst::to_string(data_node const& node) {
     return primitive_description.str();
 }
 
-data_inst::typed_primitive_inst(network& network, data_node const& node)
-    : parent(network, node, attach_or_copy_data(network, node.get_attached_memory_ptr())) {}
+data_inst::typed_primitive_inst(network& network, data_node const* node)
+    : parent(network, node, attach_or_copy_data(network, node->get_attached_memory_ptr())) {}
 
 }  // namespace cldnn

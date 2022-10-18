@@ -46,6 +46,8 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
     using parent = typed_primitive_impl_ocl<permute>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<permute_impl>(*this);
     }
@@ -82,3 +84,5 @@ attach_permute_impl::attach_permute_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::permute_impl, cldnn::object_type::PERMUTE_IMPL)

@@ -31,13 +31,14 @@ using border_node = typed_program_node<border>;
 template <>
 class typed_primitive_inst<border> : public typed_primitive_inst_base<border> {
     using parent = typed_primitive_inst_base<border>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(border_node const& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(border_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(border_node const& node);
-    typed_primitive_inst(network& network, border_node const& node);
+    typed_primitive_inst(network& network, border_node const* node);
 };
 
 using border_inst = typed_primitive_inst<border>;

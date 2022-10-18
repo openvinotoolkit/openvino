@@ -18,6 +18,8 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
     using parent = typed_primitive_impl_ocl<broadcast>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<broadcast_impl>(*this);
     }
@@ -172,3 +174,5 @@ attach_broadcast_impl::attach_broadcast_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::broadcast_impl, cldnn::object_type::BROADCAST_IMPL)

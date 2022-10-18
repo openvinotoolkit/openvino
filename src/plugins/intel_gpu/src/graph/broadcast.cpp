@@ -136,7 +136,7 @@ broadcast_inst::typed_primitive_inst(network& network, broadcast_node const& nod
     std::vector<tensor::value_type> reordered_input_dims(max_axes_num, 0);
     std::set<uint16_t> existing;
 
-    const auto& broadcast_axes = node.get_primitive()->broadcast_axes;
+    const auto& broadcast_axes = node->get_primitive()->broadcast_axes;
     size_t broadcast_axes_size = broadcast_axes.size();
     size_t index = 0;
     size_t input_index = broadcast_axes_size;
@@ -146,18 +146,18 @@ broadcast_inst::typed_primitive_inst(network& network, broadcast_node const& nod
     for (size_t i = 0; i < broadcast_axes_size; ++i) {
         if (broadcast_axes.at(i) >= max_axes_num) {
             CLDNN_ERROR_MESSAGE(
-                node.id(),
+                node->id(),
                 "Incorrect parameters configuration: broadcast_axes index should be within broadcast_sizes range.");
         }
         if (existing.find(broadcast_axes.at(i)) != existing.end()) {
             CLDNN_ERROR_MESSAGE(
-                node.id(),
+                node->id(),
                 "Incorrect parameters configuration: Duplicate axes numbers was found in broadcast_axes.");
         }
         existing.insert(broadcast_axes.at(i));
     }
     for (size_t i = 0; i < input_index; ++i) {
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
+        CLDNN_ERROR_NOT_EQUAL(node->id(),
                               "Input size on dimension number " + std::to_string(i),
                               input_dims.at(i),
                               "",
@@ -176,7 +176,7 @@ broadcast_inst::typed_primitive_inst(network& network, broadcast_node const& nod
     }
     tensor input_sizes_to_compare = tensor(format::get_default_format(reordered_input_dims.size()), reordered_input_dims);
 
-    CLDNN_ERROR_TENSOR_SIZES_NOT_DIVIDABLE(node.id(),
+    CLDNN_ERROR_TENSOR_SIZES_NOT_DIVIDABLE(node->id(),
                                            "Broadcast sizes",
                                            output_sizes,
                                            "input sizes",

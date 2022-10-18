@@ -17,12 +17,14 @@ struct average_unpooling_impl : typed_primitive_impl_ocl<average_unpooling> {
     using parent = typed_primitive_impl_ocl<average_unpooling>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<average_unpooling_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<average_unpooling>& instance, int32_t split) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<average_unpooling>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
         return args;
     }
@@ -77,3 +79,5 @@ attach_average_unpooling_impl::attach_average_unpooling_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::average_unpooling_impl, cldnn::object_type::AVERAGE_UNPOOLING_IMPL)

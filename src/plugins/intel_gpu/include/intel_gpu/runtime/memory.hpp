@@ -46,6 +46,7 @@ struct memory {
     engine* get_engine() const { return _engine; }
     const layout& get_layout() const { return _layout; }
     allocation_type get_allocation_type() const { return _type; }
+    bool get_reused() const { return _reused; }
     // TODO: must be moved outside memory class
     virtual bool is_memory_reset_needed(layout l) {
         // To avoid memory reset, output memory must meet the following requirements:

@@ -58,10 +58,10 @@ std::string lrn_inst::to_string(lrn_node const& node) {
     return primitive_description.str();
 }
 
-lrn_inst::typed_primitive_inst(network& network, lrn_node const& desc) : parent(network, desc) {
-    CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc.id(),
+lrn_inst::typed_primitive_inst(network& network, lrn_node const* desc) : parent(network, desc) {
+    CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id(),
                                    "LRN argument size",
-                                   argument.size,
+                                   argument->size,
                                    "value",
                                    static_cast<uint32_t>(0),
                                    "LRN size must be greater than 0!");

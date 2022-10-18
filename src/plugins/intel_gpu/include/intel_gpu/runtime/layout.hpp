@@ -371,6 +371,12 @@ struct layout {
 
     layout(const layout& other) = default;
 
+    layout()
+        : data_type(cldnn::data_types::bin)
+        , format(cldnn::format::any)
+        , data_padding(padding())
+        , size(ov::PartialShape()) { }
+
     layout& operator=(const layout& other) {
         if (this == &other)
             return *this;

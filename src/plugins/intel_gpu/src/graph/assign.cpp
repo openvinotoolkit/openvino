@@ -15,9 +15,9 @@ primitive_type_id assign::type_id() {
     return &instance;
 }
 
-assign_inst::typed_primitive_inst(network& network, const assign_node& node) :
+assign_inst::typed_primitive_inst(network& network, const assign_node* node) :
     parent{network, node, false},
-    memory_state::variable{node.get_primitive()->variable_id} {
+    memory_state::variable{node->get_primitive()->variable_id} {
 }
 
 layout assign_inst::calc_output_layout(const assign_node& node, kernel_impl_params const& impl_param) {

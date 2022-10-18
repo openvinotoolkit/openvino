@@ -19,6 +19,8 @@ struct pyramid_roi_align_impl : typed_primitive_impl_ocl<pyramid_roi_align> {
     using parent = typed_primitive_impl_ocl<pyramid_roi_align>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<pyramid_roi_align_impl>(*this);
     }
@@ -77,3 +79,5 @@ attach_pyramid_roi_align_impl::attach_pyramid_roi_align_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::pyramid_roi_align_impl, cldnn::object_type::PYRAMID_ROI_ALIGN_IMPL)

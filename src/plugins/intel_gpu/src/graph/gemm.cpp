@@ -139,5 +139,5 @@ std::string gemm_inst::to_string(gemm_node const& node) {
     return primitive_description.str();
 }
 
-gemm_inst::typed_primitive_inst(network& network, gemm_node const& node) : parent(network, node) {}
+gemm_inst::typed_primitive_inst(network& network, gemm_node const* node) : parent(network, node) {}
 }  // namespace cldnn

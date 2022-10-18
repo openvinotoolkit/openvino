@@ -26,6 +26,7 @@ using gather_node = typed_program_node<gather>;
 template <>
 class typed_primitive_inst<gather> : public typed_primitive_inst_base<gather> {
     using parent = typed_primitive_inst_base<gather>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>
@@ -33,7 +34,7 @@ public:
     static layout calc_output_layout(gather_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(gather_node const& node);
 
-    typed_primitive_inst(network& network, gather_node const& desc);
+    typed_primitive_inst(network& network, gather_node const* desc);
 };
 
 using gather_inst = typed_primitive_inst<gather>;

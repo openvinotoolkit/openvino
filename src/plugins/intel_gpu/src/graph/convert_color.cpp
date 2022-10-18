@@ -39,6 +39,6 @@ std::string convert_color_inst::to_string(convert_color_node const& node) {
     return primitive_description.str();
 }
 
-convert_color_inst::typed_primitive_inst(network& network, convert_color_node const& node) : parent(network, node) {}
+convert_color_inst::typed_primitive_inst(network& network, convert_color_node const* node) : parent(network, node) {}
 
 }  // namespace cldnn

@@ -48,10 +48,10 @@ std::string select_inst::to_string(select_node const& node) {
     return primitive_description.str();
 }
 
-select_inst::typed_primitive_inst(network& network, select_node const& node) : parent(network, node) {
-    auto& deps = node.get_dependencies();
+select_inst::typed_primitive_inst(network& network, select_node const* node) : parent(network, node) {
+    auto& deps = node->get_dependencies();
 
-    CLDNN_ERROR_LESS_THAN(node.id(),
+    CLDNN_ERROR_LESS_THAN(node->id(),
                                 "Number of inputs",
                                 deps.size(),
                                 "Expected number of inputs",
@@ -59,7 +59,7 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
                                 "");
 
     if (deps[1]->get_output_layout().get_tensor() != cldnn::tensor(1))
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
+        CLDNN_ERROR_NOT_EQUAL(node->id(),
                               "Mask format",
                               deps[0]->get_output_layout().format,
                               "Positive input format",
@@ -67,37 +67,37 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
                               "");
 
     if (deps[2]->get_output_layout().get_tensor() != cldnn::tensor(1))
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
+        CLDNN_ERROR_NOT_EQUAL(node->id(),
                               "Mask format",
                               deps[0]->get_output_layout().format,
                               "Positive input format",
                               deps[2]->get_output_layout().format,
                               "");
 
-    if (node.get_primitive()->broadcast_type == "none") {
-        CLDNN_ERROR_LAYOUT_MISMATCH(node.id(),
+    if (node->get_primitive()->broadcast_type == "none") {
+        CLDNN_ERROR_LAYOUT_MISMATCH(node->id(),
                                 "Positive input layout",
                                 deps[1]->get_output_layout(),
                                 "Negative input layout",
                                 deps[2]->get_output_layout(),
                                 "");
 
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
+        CLDNN_ERROR_NOT_EQUAL(node->id(),
                                 "Mask size",
                                 deps[0]->get_output_layout().get_tensor(),
                                 "Positive input format",
                                 deps[1]->get_output_layout().get_tensor(),
                                 "");
-    } else if (node.get_primitive()->broadcast_type == "numpy") {
+    } else if (node->get_primitive()->broadcast_type == "numpy") {
         if (deps[1]->get_output_layout().get_tensor() != cldnn::tensor(1) && deps[2]->get_output_layout().get_tensor() != cldnn::tensor(1))
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
+            CLDNN_ERROR_NOT_EQUAL(node->id(),
                                   "Positive input format",
                                   deps[1]->get_output_layout().format,
                                   "Negative input format",
                                   deps[2]->get_output_layout().format,
                                   "");
 
-        CLDNN_ERROR_DATA_TYPES_MISMATCH(node.id(),
+        CLDNN_ERROR_DATA_TYPES_MISMATCH(node->id(),
                                 "Positive input data type",
                                 deps[1]->get_output_layout().data_type,
                                 "Negative input data type",
@@ -113,14 +113,14 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
             for (size_t d = 0; d < max_dim_count; d++) {
                 auto current_dim = deps[i]->get_output_layout().get_tensor().raw[d];
 
-                CLDNN_ERROR_BOOL(node.id(),
+                CLDNN_ERROR_BOOL(node->id(),
                                     "Sizes equal or broadcast is possible",
                                     !(current_dim == output_tensor.raw[d] || current_dim == 1),
                                     "Invalid input shapes");
             }
         }
     } else {
-        CLDNN_ERROR_MESSAGE(node.id(), "Unsupported broadcast_type: " + node.get_primitive()->broadcast_type);
+        CLDNN_ERROR_MESSAGE(node->id(), "Unsupported broadcast_type: " + node->get_primitive()->broadcast_type);
     }
 }
 }  // namespace cldnn

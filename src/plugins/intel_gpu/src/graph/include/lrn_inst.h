@@ -16,13 +16,14 @@ using lrn_node = typed_program_node<lrn>;
 template <>
 class typed_primitive_inst<lrn> : public typed_primitive_inst_base<lrn> {
     using parent = typed_primitive_inst_base<lrn>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(lrn_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(lrn_node const& node);
 
 public:
-    typed_primitive_inst(network& network, lrn_node const& node);
+    typed_primitive_inst(network& network, lrn_node const* node);
 };
 
 using lrn_inst = typed_primitive_inst<lrn>;

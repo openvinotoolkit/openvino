@@ -33,17 +33,21 @@ using detection_output_node = typed_program_node<detection_output>;
 template <>
 class typed_primitive_inst<detection_output> : public typed_primitive_inst_base<detection_output> {
     using parent = typed_primitive_inst_base<detection_output>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(detection_output_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(detection_output_node const& node);
 
 public:
-    typed_primitive_inst(network& network, detection_output_node const& node);
+    typed_primitive_inst(network& network, detection_output_node const* node);
 
     memory::ptr location_memory() const { return dep_memory_ptr(0); }
     memory::ptr confidence_memory() const { return dep_memory_ptr(1); }
     memory::ptr prior_box_memory() const { return dep_memory_ptr(2); }
+
+    void save(cldnn::BinaryOutputBuffer& buffer) const override;
+    void load(cldnn::BinaryInputBuffer& buffer) override;
 };
 
 using detection_output_inst = typed_primitive_inst<detection_output>;

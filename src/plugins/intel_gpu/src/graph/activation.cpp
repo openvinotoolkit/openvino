@@ -62,11 +62,11 @@ std::string activation_inst::to_string(activation_node const& node) {
     return primitive_description.str();
 }
 
-activation_inst::typed_primitive_inst(network& network, activation_node const& node) : parent(network, node) {
-    auto input_layout = node.input().get_output_layout();
-    auto output_layout = node.get_output_layout();
+activation_inst::typed_primitive_inst(network& network, activation_node const* node) : parent(network, node) {
+    auto input_layout = node->input().get_output_layout();
+    auto output_layout = node->get_output_layout();
 
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
+    CLDNN_ERROR_NOT_EQUAL(node->id(),
                           "ReLU input rank",
                           input_layout.get_rank(),
                           "ReLU output rank",
@@ -75,9 +75,9 @@ activation_inst::typed_primitive_inst(network& network, activation_node const& n
 
     if (is_parameterized()) {
         /// Slope input x dimension should be equal to input feature size (one slope per channel).
-        auto slope_layout = node.slope_input().get_output_layout();
+        auto slope_layout = node->slope_input().get_output_layout();
 
-        CLDNN_ERROR_LESS_THAN(node.id(),
+        CLDNN_ERROR_LESS_THAN(node->id(),
                               "Slope x size",
                               slope_layout.feature(),
                               "input feature size",

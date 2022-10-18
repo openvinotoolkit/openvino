@@ -5,11 +5,20 @@
 #include "read_value_inst.h"
 #include "impls/implementation_map.hpp"
 #include "register.hpp"
+#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 namespace cpu {
 
 struct read_value_impl : public typed_primitive_impl<read_value> {
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
+    template <typename BufferType>
+    void save(BufferType& buffer) const {}
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {}
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<read_value_impl>(*this);
     }
@@ -19,11 +28,11 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
             e->wait();
         }
         const auto arg = instance.argument;
-        const auto variable_id = arg.variable_id;
+        const auto variable_id = arg->variable_id;
 
         auto& variable = instance.get_network().get_variable_memory(variable_id);
 
-        if (variable.memory->get_layout() != arg.output_layout) {
+        if (variable.memory->get_layout() != arg->output_layout) {
             CLDNN_ERROR_MESSAGE(instance.id(), "Layout mismatch");
         }
 
@@ -53,3 +62,5 @@ attach_read_value_impl::attach_read_value_impl() {
 }  // namespace detail
 }  // namespace cpu
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::read_value_impl, cldnn::object_type::READ_VALUE_IMPL)

@@ -21,9 +21,13 @@ struct convolution_impl : typed_primitive_impl_ocl<convolution> {
     using parent = typed_primitive_impl_ocl<convolution>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<convolution_impl>(*this);
     }
+
+    convolution_impl() : parent() {}
 
     explicit convolution_impl(const convolution_impl& other) : parent(other),
       _split(other._split),
@@ -46,20 +50,20 @@ protected:
     bool validate_impl(const typed_primitive_inst<convolution>& instance) const override {
         bool res = true;
 
-        auto data_type = instance.node.input().get_output_layout().data_type;
+        auto data_type = instance.node->input().get_output_layout().data_type;
 
         // Integer signed/unsigned is ok for convoluiton
         CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(_node_id,
                                                     "Input memory",
                                                     data_type,
                                                     "filter memory",
-                                                    instance.node.weights().get_output_layout().data_type,
+                                                    instance.node->weights().get_output_layout().data_type,
                                                     "");
 
         return res;
     }
 
-    kernel_arguments_data get_arguments(typed_primitive_inst<convolution>& instance, int32_t split) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<convolution>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
 
         args.weights = instance.weights_memory(split);
@@ -76,6 +80,22 @@ protected:
     bool get_depthwise_sep_opt() const override { return _depthwise_sep_opt; }
 
 public:
+    template <typename BufferType>
+    void save(BufferType& buffer) const {
+        parent::save(buffer);
+        buffer << _split;
+        buffer << _groups;
+        buffer << _depthwise_sep_opt;
+    }
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {
+        parent::load(buffer);
+        buffer >> _split;
+        buffer >> _groups;
+        buffer >> _depthwise_sep_opt;
+    }
+
     static primitive_impl* create(const convolution_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = arg.get_primitive();
 
@@ -266,3 +286,5 @@ attach_convolution_impl::attach_convolution_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::convolution_impl, cldnn::object_type::CONVOLUTION_IMPL)

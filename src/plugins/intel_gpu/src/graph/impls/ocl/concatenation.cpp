@@ -47,10 +47,15 @@ kernel_selector::concat_axis convert_axis(int64_t axis, size_t rank) {
 
 struct concatenation_impl : typed_primitive_impl_ocl<concatenation> {
     using parent = typed_primitive_impl_ocl<concatenation>;
+    using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<concatenation_impl>(*this);
     }
+
+    concatenation_impl() : parent() {}
 
     explicit concatenation_impl(const concatenation_impl& other) : parent(other),
         _can_be_optimized(other._can_be_optimized) {}
@@ -80,6 +85,18 @@ protected:
     }
 
 public:
+    template <typename BufferType>
+    void save(BufferType& buffer) const {
+        parent::save(buffer);
+        buffer << _can_be_optimized;
+    }
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {
+        parent::load(buffer);
+        buffer >> _can_be_optimized;
+    }
+
     static primitive_impl* create(const concatenation_node& arg, const kernel_impl_params& impl_param) {
         if (arg.can_be_optimized()) {
             return new concatenation_impl(arg, {});
@@ -194,3 +211,5 @@ attach_concatenation_impl::attach_concatenation_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::concatenation_impl, cldnn::object_type::CONCATENATION_IMPL)

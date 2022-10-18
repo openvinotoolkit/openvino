@@ -14,6 +14,13 @@
 #include "meta_utils.h"
 #include "program_node.h"
 #include "primitive_type.h"
+#include "serialization/binary_buffer.hpp"
+#include "serialization/cl_kernel_data_serializer.hpp"
+#include "serialization/object_types.hpp"
+#include "serialization/polymorphic_serializer.hpp"
+#include "serialization/string_serializer.hpp"
+#include "serialization/layout_serializer.hpp"
+#include "serialization/vector_serializer.hpp"
 #include "runtime/kernels_cache.hpp"
 
 #include <memory>
@@ -24,6 +31,8 @@ namespace cldnn {
 
 // checks if any user in a list is a cpu primitive
 bool is_any_user_cpu(const std::list<const program_node*>& users);
+
+primitive_type_id get_type_id(std::string type_str);
 
 class primitive_inst;
 
@@ -41,7 +50,10 @@ struct primitive_impl {
 
     virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
     virtual void set_node_params(const program_node&) {}
+    virtual object_type get_type() const { return object_type::NONE; }
     virtual void set_arguments(primitive_inst& instance) = 0;
+    virtual void set_arguments(kernel_arguments_data_idx& args_idx) = 0;
+    virtual kernel_arguments_data get_arguments(const primitive_inst& instance) const = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
     virtual bool validate(const primitive_inst& instance) const = 0;
     std::string get_kernel_name() const { return _kernel_name; }
@@ -73,6 +85,7 @@ class primitive_inst {
     friend class typed_primitive_inst;
 
 public:
+    primitive_inst(network& network);
     virtual ~primitive_inst() = default;
 
     const std::vector<std::shared_ptr<const primitive_inst>>& dependencies() const {
@@ -99,8 +112,8 @@ public:
     }
     memory& output_memory(size_t index = 0) const { return *_outputs[index]; }
     memory::ptr output_memory_ptr(size_t index = 0) const { return _outputs[index]; }
-    size_t inputs_memory_count() const { return _node.get_primitive()->input_size(); }
-    size_t outputs_memory_count() const { return _node.get_primitive()->output_size(); }
+    size_t inputs_memory_count() const { return (_node == nullptr) ? _input_size : _node->get_primitive()->input_size(); }
+    size_t outputs_memory_count() const { return _node->get_primitive()->output_size(); }
     bool outputs_allocated() const {
         if (_outputs.empty()) return false;
         for (const auto& output : _outputs) {
@@ -108,17 +121,18 @@ public:
         }
         return true;
     }
-    primitive_type_id type() const { return _node.type(); }
-    primitive_id id() const { return _node.id(); }
-    primitive_id org_id() const { return _node.get_org_primitive_id(); }
-    bool can_be_optimized() const { return _node.can_be_optimized(); }
-    std::shared_ptr<const primitive> desc() const { return _node.get_primitive(); }
-    program_node const& get_node() const { return _node; }
+    primitive_type_id type() const { return (_node == nullptr) ? get_type_id(_type_str) : _node->type(); }
+    primitive_id id() const { return (_node == nullptr) ? _prim_id : _node->id(); }
+    primitive_id org_id() const { return (_node == nullptr) ? _prim_id : _node->get_org_primitive_id(); }
+    bool can_be_optimized() const { return (_node == nullptr) ? _can_be_optimized : _node->can_be_optimized(); }
+    bool can_share_buffer() const { return (_node == nullptr) ? _can_share_buffer : _node->can_share_buffer(); }
+    std::shared_ptr<const primitive> desc() const { return _node->get_primitive(); }
+    program_node const& get_node() const { return *_node; }
     network& get_network() const { return _network; }
     uint32_t get_network_id() const;
     virtual void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
     void check_memory_to_set(const memory& mem, const layout& layout) const;
-    const std::list<const cldnn::program_node *>& get_users() const { return _node.get_users(); }
+    const std::list<const cldnn::program_node *>& get_users() const { return _node->get_users(); }
 
     // return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
     const primitive_impl* get_impl() const { return _impl.get(); }
@@ -136,7 +150,9 @@ public:
     }
 
     event::ptr execute(const std::vector<event::ptr>& events);
-    void init_kernels();
+    void init_kernels(const kernels_cache& kernels_cache) {
+        _impl->init_kernels(kernels_cache);
+    }
     void set_arguments();
 
     bool validate() const {
@@ -159,9 +175,9 @@ public:
         return dep_memory_ptr(get_fused_mem_offset() + dep_id);
     }
 
-    bool has_fused_primitives() const { return !_node.get_fused_primitives().empty(); }
-    size_t get_fused_mem_count() const { return _node.get_fused_inputs_count(); }
-    size_t get_fused_mem_offset() const { return _node.get_fused_primitives()[0].dep_start_idx; }
+    bool has_fused_primitives() const { return (_node == nullptr) ? _has_fused_primitives : !_node->get_fused_primitives().empty(); }
+    size_t get_fused_mem_count() const { return (_node == nullptr) ? _fused_mem_count : _node->get_fused_inputs_count(); }
+    size_t get_fused_mem_offset() const { return (_node == nullptr) ? _fused_mem_offset : _node->get_fused_primitives()[0].dep_start_idx; }
 
     bool has_mutable_input() const {
         return _has_mutable_input;
@@ -171,8 +187,12 @@ public:
         _has_mutable_input = val;
     }
 
+    bool is_input() const {
+        return (_node == nullptr) ? _is_input : _node->is_input();
+    }
+
     bool is_output() const {
-        return _node.is_output();
+        return (_node == nullptr) ? _is_output : _node->is_output();
     }
 
     bool mem_allocated() const {
@@ -184,10 +204,19 @@ public:
     }
 
     void allocate_internal_buffers();
-    static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node,
+    static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node* _node,
                                        const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal);
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
+
+    virtual void save(cldnn::BinaryOutputBuffer& buffer) const;
+    virtual void load(cldnn::BinaryInputBuffer& buffer);
+    void rebuild_deps(
+        std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> const& primitives);
+    void rebuild_exec_deps(
+        std::list<std::shared_ptr<primitive_inst>> const& primitives);
+    primitive_id get_id() const { return this->_prim_id; }
+    void set_id(primitive_id& prim_id) { this->_prim_id = prim_id; }
 
     std::string get_implementation_name() const;
 
@@ -198,11 +227,14 @@ public:
     layout get_node_output_layout() const { return _node_output_layout; }
 
 protected:
-    primitive_inst(network& network, program_node const& node, bool allocate_memory);
+    primitive_inst(network& network, program_node const* node, bool allocate_memory);
 
     network& _network;
-    program_node const& _node;
+    program_node const* _node;
     const layout _node_output_layout;
+
+    primitive_id _prim_id;
+    std::string _type_str;
 
     std::unique_ptr<kernel_impl_params> _impl_params;
     std::unique_ptr<primitive_impl> _impl;
@@ -211,6 +243,7 @@ protected:
     // it should be added to this set
     std::vector<std::shared_ptr<primitive_inst>> _deps;
     std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> _deps_new;
+    std::vector<cldnn::primitive_id> _dep_ids;
 
     // this is a set of dependencies in terms of execution
     // execution of all primitives from this set should be enough to guarantee that all memory deps (see _deps)
@@ -220,6 +253,7 @@ protected:
     // manner) in general - this member is introduced to relax logical connection between primitives which have to be
     // executed and memories which are used by this primitive
     std::vector<std::shared_ptr<primitive_inst>> _exec_deps;
+    std::vector<cldnn::primitive_id> _exec_dep_ids;
 
     // This is sub-network generated on demand to execute unfused primitives sequence instead of single fused primitive
     // Needed for dynamic path only, as fusion in some cases may be illegal, but it can't be checked on program build phase,
@@ -240,12 +274,22 @@ protected:
     bool _has_mutable_input = false;
     bool _mem_allocated = false;
     bool _is_dynamic = false;
+    bool _is_input = false;
+    bool _is_output = false;
+    size_t _input_size = 0;
+    bool _has_fused_primitives = false;
+    size_t _fused_mem_count = 0;
+    size_t _fused_mem_offset = 0;
+    bool _can_be_optimized = false;
+    bool _can_share_buffer = true;
 
     size_t max_output_layout_size = 0;
 
     std::vector<memory::ptr> allocate_outputs();
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::shared_ptr<primitive_inst>> const& mem_deps);
+    void convert_args(const kernel_arguments_data& args, kernel_arguments_data_idx& args_idx) const;
+    int32_t get_index_in_deps(memory::cptr arg) const;
 
     // event function called by primitive_inst::execute after checking if primitive should rerun and before calling
     // _impl->execute() mainly for reshape (to update output memory if reshape_node.is_in_place() == true)
@@ -324,7 +368,20 @@ private:
         return set_arguments_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
+    void set_arguments(kernel_arguments_data_idx& args_idx) override {
+        return set_arguments_impl(args_idx);
+    }
+
+    kernel_arguments_data get_arguments(const primitive_inst& instance) const override {
+        return get_arguments_impl(reinterpret_cast<const typed_primitive_inst<PType>&>(instance));
+    }
+
     virtual void set_arguments_impl(typed_primitive_inst<PType>& /*instance*/) {}
+    virtual void set_arguments_impl(kernel_arguments_data_idx& /*args_idx*/) {}
+    virtual kernel_arguments_data get_arguments_impl(const typed_primitive_inst<PType>& /*instance*/) const {
+        kernel_arguments_data args;
+        return args;
+    }
     virtual event::ptr execute_impl(const std::vector<event::ptr>& event,
                                          typed_primitive_inst<PType>& instance) = 0;
 
@@ -346,20 +403,23 @@ public:
     using typed_node = typed_program_node<PType>;
     using typed_impl = typed_primitive_impl<PType>;
 
-    const typed_node& node;
-    const PType& argument;
+    const typed_node* node;
+    std::shared_ptr<const PType> argument;
 
     template<typename T>
     static std::vector<layout> calc_output_layouts(const typed_node& node, const kernel_impl_params& impl_param) { return {}; }
 
-    typed_primitive_inst_base(network& network, typed_node const& node)
+    typed_primitive_inst_base(network& network, typed_node const* node)
         : typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}
 
-protected:
-    typed_primitive_inst_base(network& network, typed_node const& node, bool allocate_memory)
-        : primitive_inst(network, node, allocate_memory), node(_node), argument(*node.get_primitive()) {}
+    typed_primitive_inst_base(network& network)
+        : primitive_inst(network), node(nullptr), argument(nullptr) {}
 
-    typed_primitive_inst_base(network& network, typed_node const& node, memory::ptr buffer)
+protected:
+    typed_primitive_inst_base(network& network, typed_node const* node, bool allocate_memory)
+        : primitive_inst(network, node, allocate_memory), node(node), argument(node->get_primitive()) {}
+
+    typed_primitive_inst_base(network& network, typed_node const* node, memory::ptr buffer)
         : typed_primitive_inst_base(network, node, false) {
         _outputs[0] = buffer;
     }
@@ -369,8 +429,8 @@ private:
         if (typ_node.get_output_layout().is_dynamic())
             return false;
 
-        if (typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
-            typ_node.get_users().front()->can_be_optimized()) {  // check if the only user is concat
+        if (typ_node->template have_user_with_type<concatenation>() && typ_node->get_users().size() == 1 &&
+            typ_node->get_users().front()->can_be_optimized()) {  // check if the only user is concat
             return false;
         }
         return true;

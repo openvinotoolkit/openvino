@@ -16,30 +16,32 @@ struct non_max_suppression_impl : typed_primitive_impl_ocl<non_max_suppression> 
     using parent = typed_primitive_impl_ocl<non_max_suppression>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<non_max_suppression_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<non_max_suppression>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<non_max_suppression>& instance, int32_t) const override {
         kernel_arguments_data args;
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             args.inputs.push_back(instance.input_memory_ptr(i));
         }
 
-        if (instance.has_num_select_per_class() && !instance.node.num_select_per_class_node().is_constant()) {
+        if (instance.has_num_select_per_class() && !instance.node->num_select_per_class_node().is_constant()) {
             args.inputs.push_back(instance.num_select_per_class_mem());
         }
 
-        if (instance.has_iou_threshold() && !instance.node.iou_threshold_node().is_constant()) {
+        if (instance.has_iou_threshold() && !instance.node->iou_threshold_node().is_constant()) {
             args.inputs.push_back(instance.iou_threshold_mem());
         }
 
-        if (instance.has_score_threshold() && !instance.node.score_threshold_node().is_constant()) {
+        if (instance.has_score_threshold() && !instance.node->score_threshold_node().is_constant()) {
             args.inputs.push_back(instance.score_threshold_mem());
         }
 
-        if (instance.has_soft_nms_sigma() && !instance.node.soft_nms_sigma_node().is_constant()) {
+        if (instance.has_soft_nms_sigma() && !instance.node->soft_nms_sigma_node().is_constant()) {
             args.inputs.push_back(instance.soft_nms_sigma_mem());
         }
 
@@ -205,3 +207,5 @@ attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::non_max_suppression_impl, cldnn::object_type::NON_MAX_SUPPRESSION_IMPL_OCL)

@@ -53,6 +53,7 @@ using reorder_node = typed_program_node<reorder>;
 template <>
 class typed_primitive_inst<reorder> : public typed_primitive_inst_base<reorder> {
     using parent = typed_primitive_inst_base<reorder>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>
@@ -61,11 +62,11 @@ public:
     static std::string to_string(reorder_node const& node);
 
 public:
-    typed_primitive_inst(network& network, reorder_node const& node);
+    typed_primitive_inst(network& network, reorder_node const* node);
     memory::ptr mean_nv12_memory() const { return dep_memory_ptr(2); }
     memory::ptr mean_memory() const { return dep_memory_ptr(1); }
 
-    bool has_mean() const { return !argument.mean.empty(); }
+    bool has_mean() const { return !argument->mean.empty(); }
 
 private:
     void on_execute() override;

@@ -14,7 +14,7 @@ primitive_type_id slice::type_id() {
     return &instance;
 }
 
-slice_inst::typed_primitive_inst(network& network, slice_node const& node)
+slice_inst::typed_primitive_inst(network& network, slice_node const* node)
     : parent(network, node) {}
 
 layout slice_inst::calc_output_layout(slice_node const& node, kernel_impl_params const& impl_param) {

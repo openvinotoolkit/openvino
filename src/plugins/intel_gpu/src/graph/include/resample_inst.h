@@ -32,6 +32,7 @@ using resample_node = typed_program_node<resample>;
 template <>
 class typed_primitive_inst<resample> : public typed_primitive_inst_base<resample> {
     using parent = typed_primitive_inst_base<resample>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>
@@ -40,7 +41,7 @@ public:
     static std::string to_string(resample_node const& node);
 
 public:
-    typed_primitive_inst(network& network, resample_node const& node);
+    typed_primitive_inst(network& network, resample_node const* node);
 };
 
 using resample_inst = typed_primitive_inst<resample>;

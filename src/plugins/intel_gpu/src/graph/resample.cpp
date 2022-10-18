@@ -165,6 +165,6 @@ std::string resample_inst::to_string(resample_node const& node) {
     return primitive_description.str();
 }
 
-resample_inst::typed_primitive_inst(network& network, resample_node const& node) : parent(network, node) {
+resample_inst::typed_primitive_inst(network& network, resample_node const* node) : parent(network, node) {
 }
 }  // namespace cldnn

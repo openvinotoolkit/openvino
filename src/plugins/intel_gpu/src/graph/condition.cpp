@@ -69,21 +69,21 @@ std::string condition_inst::to_string(condition_node const& node) {
 /*
 Condition primitive is resuing memory with the input.
 */
-condition_inst::typed_primitive_inst(network& network, condition_node const& node)
+condition_inst::typed_primitive_inst(network& network, condition_node const* node)
     : parent(network, node),
-      _net_true(network::allocate_network(node.get_program().get_engine(), node.get_branch_true(), true)),
-      _net_false(network::allocate_network(node.get_program().get_engine(), node.get_branch_false(), true)) {
-    auto compare_tensor = node.compare().get_output_layout().get_tensor();
-    auto input_tensor = node.input().get_output_layout().get_tensor();
-    CLDNN_ERROR_TENSOR_SIZES_GREATER_THAN(node.id(),
+      _net_true(network::allocate_network(node->get_program().get_engine(), node->get_branch_true(), true)),
+      _net_false(network::allocate_network(node->get_program().get_engine(), node->get_branch_false(), true)) {
+    auto compare_tensor = node->compare().get_output_layout().get_tensor();
+    auto input_tensor = node->input().get_output_layout().get_tensor();
+    CLDNN_ERROR_TENSOR_SIZES_GREATER_THAN(node->id(),
                                           "Compare tensor",
                                           compare_tensor,
                                           "input tensor",
                                           input_tensor,
                                           "Compare primitive is too big.");
 
-    auto compare_with_offster_tensor = compare_tensor + node.offset();
-    CLDNN_ERROR_TENSOR_SIZES_GREATER_THAN(node.id(),
+    auto compare_with_offster_tensor = compare_tensor + node->offset();
+    CLDNN_ERROR_TENSOR_SIZES_GREATER_THAN(node->id(),
                                           "Offset with compare tensor",
                                           compare_with_offster_tensor,
                                           "input tensor",

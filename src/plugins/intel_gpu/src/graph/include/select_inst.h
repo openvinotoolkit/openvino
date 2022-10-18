@@ -26,11 +26,12 @@ using select_node = typed_program_node<select>;
 template <>
 class typed_primitive_inst<select> : public typed_primitive_inst_base<select> {
     using parent = typed_primitive_inst_base<select>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(select_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(select_node const& node);
-    typed_primitive_inst(network& network, select_node const& node);
+    typed_primitive_inst(network& network, select_node const* node);
 };
 
 using select_inst = typed_primitive_inst<select>;

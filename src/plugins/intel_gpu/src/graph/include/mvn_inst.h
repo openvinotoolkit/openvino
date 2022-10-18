@@ -27,6 +27,7 @@ using mvn_node = typed_program_node<mvn>;
 template <>
 class typed_primitive_inst<mvn> : public typed_primitive_inst_base<mvn> {
     using parent = typed_primitive_inst_base<mvn>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>
@@ -35,7 +36,7 @@ public:
     static std::string to_string(mvn_node const& node);
 
 public:
-    typed_primitive_inst(network& network, mvn_node const& node);
+    typed_primitive_inst(network& network, mvn_node const* node);
 };
 
 using mvn_inst = typed_primitive_inst<mvn>;

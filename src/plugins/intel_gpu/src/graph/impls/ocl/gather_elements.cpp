@@ -50,6 +50,8 @@ struct gather_elements_impl : typed_primitive_impl_ocl<gather_elements> {
     using parent = typed_primitive_impl_ocl<gather_elements>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gather_elements_impl>(*this);
     }
@@ -101,3 +103,5 @@ attach_gather_elements_impl::attach_gather_elements_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_elements_impl, cldnn::object_type::GATHER_ELEMENTS_IMPL)

@@ -19,19 +19,21 @@ struct quantize_impl : typed_primitive_impl_ocl<quantize> {
     using parent = typed_primitive_impl_ocl<quantize>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<quantize_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<quantize>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<quantize>& instance, int32_t) const override {
         kernel_arguments_data args;
 
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             args.inputs.push_back(instance.input_memory_ptr(i));
         }
-        if (instance.node.get_scale_shift_opt()) {
-            if (instance.node.get_dependencies().size() == 9) {
+        if (instance.node->get_scale_shift_opt()) {
+            if (instance.node->get_dependencies().size() == 9) {
                 args.inputs.push_back(instance.dep_memory_ptr(5));
                 args.inputs.push_back(instance.dep_memory_ptr(6));
                 args.inputs.push_back(instance.dep_memory_ptr(7));
@@ -205,3 +207,5 @@ attach_quantize_impl::attach_quantize_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::quantize_impl, cldnn::object_type::QUANTIZE_IMPL)

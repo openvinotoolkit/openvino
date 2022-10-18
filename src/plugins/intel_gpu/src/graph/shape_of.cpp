@@ -65,5 +65,5 @@ std::string shape_of_inst::to_string(shape_of_node const& node) {
     return primitive_description.str();
 }
 
-shape_of_inst::typed_primitive_inst(network& network, shape_of_node const& node) : parent(network, node, true) { }
+shape_of_inst::typed_primitive_inst(network& network, shape_of_node const* node) : parent(network, node, true) { }
 }  // namespace cldnn

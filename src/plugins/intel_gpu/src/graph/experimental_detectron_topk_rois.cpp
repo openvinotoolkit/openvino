@@ -15,7 +15,7 @@ primitive_type_id experimental_detectron_topk_rois::type_id() {
     return &instance;
 }
 
-experimental_detectron_topk_rois_inst::typed_primitive_inst(network& network, experimental_detectron_topk_rois_node const &node)
+experimental_detectron_topk_rois_inst::typed_primitive_inst(network& network, experimental_detectron_topk_rois_node const* node)
 : parent(network, node) {
 }
 

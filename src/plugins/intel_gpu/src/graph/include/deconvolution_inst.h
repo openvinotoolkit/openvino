@@ -94,19 +94,20 @@ using deconvolution_node = typed_program_node<deconvolution>;
 template <>
 class typed_primitive_inst<deconvolution> : public typed_primitive_inst_base<deconvolution> {
     using parent = typed_primitive_inst_base<deconvolution>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(deconvolution_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(deconvolution_node const& node);
 
 public:
-    typed_primitive_inst(network& network, deconvolution_node const& node);
+    typed_primitive_inst(network& network, deconvolution_node const* node);
 
     memory::ptr weights_memory(size_t index) const {
-        if (_node.is_dynamic() && _impl_params->reordered_weights != nullptr) {
+        if (_node->is_dynamic() && _impl_params->reordered_weights != nullptr) {
             return _impl_params->reordered_weights;
-        } else if (node.get_groups() == 1) {
-            if (static_cast<int32_t>(index) >= node.get_split())
+        } else if (node->get_groups() == 1) {
+            if (static_cast<int32_t>(index) >= node->get_split())
                 throw std::range_error("weights offset too big");
             return dep_memory_ptr(1 + index);
         } else {  // all weights are in one buffer
@@ -115,19 +116,19 @@ public:
     }
 
     memory::ptr bias_memory(size_t index) const {
-        if (node.get_groups() == 1) {
-            if (argument.bias.size() == 0 && static_cast<int32_t>(index) >= node.get_split())
+        if (node->get_groups() == 1) {
+            if (argument->bias.size() == 0 && static_cast<int32_t>(index) >= node->get_split())
                 throw std::range_error("no bias data");
-            if (static_cast<int32_t>(index) > node.get_split())
+            if (static_cast<int32_t>(index) > node->get_split())
                 throw std::range_error("bias offset too big");
-            return dep_memory_ptr(1 + node.get_split() + index);
+            return dep_memory_ptr(1 + node->get_split() + index);
         } else {  // all bias are in one buffer
             return dep_memory_ptr(2);
         }
     }
 
     bool bias_term() const {
-        if (argument.bias.size() != 0)
+        if (argument->bias.size() != 0)
             return true;
         else
             return false;

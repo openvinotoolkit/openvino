@@ -27,6 +27,7 @@ using proposal_node = typed_program_node<proposal>;
 template <>
 class typed_primitive_inst<proposal> : public typed_primitive_inst_base<proposal> {
     using parent = typed_primitive_inst_base<proposal>;
+    using parent::parent;
 
 public:
     struct anchor {
@@ -67,7 +68,7 @@ public:
     static std::string to_string(proposal_node const& node);
 
 public:
-    typed_primitive_inst(network& network, proposal_node const& desc);
+    typed_primitive_inst(network& network, proposal_node const* desc);
 
     const std::vector<anchor>& get_anchors() const { return _anchors; }
 

@@ -440,6 +440,78 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     return res;
 }
 
+InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istream& networkModel,
+                                            const std::map<std::string, std::string>& orig_config) {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
+    auto startTime = std::chrono::high_resolution_clock::now();
+
+    Configs confs = _impl->m_configs;
+    std::string device_id = GetDeviceIDFromConfig(orig_config);
+    Config conf = confs.GetConfig(device_id);
+
+    auto config = ConvertPerfHintsToConfig(orig_config, conf);
+    // UpdateConfig(conf, network, config);
+
+    RemoteCLContext::Ptr context;
+
+    auto canReuseDefaultContext = [&]() -> bool {
+        if (m_defaultContext == nullptr)
+            return false;
+
+        const Config& context_config = m_defaultContext->GetConfig();
+        const Config& current_config = conf;
+
+        return context_config.throughput_streams == current_config.throughput_streams &&
+               context_config.useProfiling == current_config.useProfiling &&
+               context_config.dumpCustomKernels == current_config.dumpCustomKernels &&
+               context_config.memory_pool_on == current_config.memory_pool_on &&
+               context_config.queueThrottle == current_config.queueThrottle &&
+               context_config.queuePriority == current_config.queuePriority &&
+               context_config.sources_dumps_dir == current_config.sources_dumps_dir &&
+               context_config.tuningConfig.mode == current_config.tuningConfig.mode &&
+               context_config.tuningConfig.cache_file_path == current_config.tuningConfig.cache_file_path &&
+               context_config.kernels_cache_dir == current_config.kernels_cache_dir &&
+               context_config.device_id == current_config.device_id &&
+               context_config.task_exec_config._streams == current_config.task_exec_config._streams &&
+               context_config.task_exec_config._threadPreferredCoreType == current_config.task_exec_config._threadPreferredCoreType &&
+               context_config.enable_loop_unrolling == current_config.enable_loop_unrolling;
+    };
+    auto endTime1 = std::chrono::high_resolution_clock::now();
+    std::cout << "[ImportNetwork part 1-1]: " <<
+                 (std::chrono::duration_cast<std::chrono::nanoseconds>(endTime1 - startTime).count() * 0.000001) << std::endl;
+
+    {
+        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork::CreateContext");
+        std::lock_guard<std::mutex> lock(engine_mutex);
+        if (!canReuseDefaultContext()) {
+            m_defaultContext.reset(new RemoteCLContext(shared_from_this(), AnyMap(), conf));
+        }
+    }
+
+    context = m_defaultContext;
+
+    auto endTime = std::chrono::high_resolution_clock::now();
+    std::cout << "[ImportNetwork part 1-2]: " <<
+                 (std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - endTime1).count() * 0.000001) << std::endl;
+    std::cout << "[ImportNetwork part 1]: " <<
+                 (std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() * 0.000001) << std::endl;
+    {
+        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork::CreateExeNetwork");
+        startTime = std::chrono::high_resolution_clock::now();
+        CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(networkModel, context, conf);
+        exeNetwork->SetPointerToPlugin(shared_from_this());
+        endTime = std::chrono::high_resolution_clock::now();
+        std::cout << "[ImportNetwork part 2]: " <<
+                    (std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() * 0.000001) << std::endl;
+        UpdateStatistics(context);
+
+        startTime = std::chrono::high_resolution_clock::now();
+        std::cout << "[ImportNetwork part 3]: " <<
+                    (std::chrono::duration_cast<std::chrono::nanoseconds>(startTime - endTime).count() * 0.000001) << std::endl;
+        return exeNetwork;
+    }
+}
+
 Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::GetConfig");
     Parameter result;
@@ -625,6 +697,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         metrics.push_back(METRIC_KEY(DEVICE_GOPS));
         metrics.push_back(METRIC_KEY(OPTIMAL_BATCH_SIZE));
         metrics.push_back(METRIC_KEY(MAX_BATCH_SIZE));
+        metrics.push_back(METRIC_KEY(IMPORT_EXPORT_SUPPORT));
         metrics.push_back(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
         metrics.push_back(GPU_METRIC_KEY(UARCH_VERSION));
         metrics.push_back(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
@@ -967,6 +1040,8 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             }
         }
         return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
+    } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
+        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else {
         IE_THROW() << "Unsupported metric key " << name;
     }

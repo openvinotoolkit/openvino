@@ -18,6 +18,8 @@ struct detection_output_impl : typed_primitive_impl_ocl<detection_output> {
     using parent = typed_primitive_impl_ocl<detection_output>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<detection_output_impl>(*this);
     }
@@ -54,7 +56,7 @@ protected:
     bool optimized_out(detection_output_inst& instance) const override {
         /// purpose: To optimize out detection_output for perf measurement.
         /// how-to: update nms_threshold to '-100' from ir file.
-        return (instance.argument.nms_threshold < -1);
+        return (instance.argument->nms_threshold < -1);
     }
 
 public:
@@ -101,3 +103,5 @@ attach_detection_output_impl::attach_detection_output_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::detection_output_impl, cldnn::object_type::DETECTION_OUTPUT_IMPL_OCL)
