@@ -4,16 +4,16 @@ There are two types of tests for the TensorFlow Frontend (TF FE): layer tests an
 
 The layer tests are used to validate support of TensorFlow operation by the frontend.
 
-The unit-tests cover TensorFlow format reading functionality, conversion pipeline, and internal transformations
+The unit tests cover TensorFlow format reading functionality, conversion pipeline, and internal transformations
 for Transpose Sinking and conversion of sub-graphs with TF FE internal operations into the OpenVINO opset.
 
-## How to build and run unit-tests
+## How to build and run unit tests
 
-For building the TF FE unit-tests, use the CMake target `ov_tensorflow_frontend_tests`. CMake automatically runs
+For building the TF FE unit tests, use the CMake target `ov_tensorflow_frontend_tests`. CMake automatically runs
 [generation scripts](../tests/test_models/gen_scripts) to create TensorFlow models used in the testing.
 
 Once the build is complete, launch the `ov_tensorflow_frontend_tests` (`ov_tensorflow_frontend_tests.exe` for Windows)
-executable file to run all tests for the TensorFlow Frontend. The unit-tests use the GoogleTest framework for execution.
+executable file to run all tests for the TensorFlow Frontend. The unit tests use the GoogleTest framework for execution.
 
 To get a tests coverage report for the TensorFlow Frontend, read the page
 on [measuring coverage](../../../../docs/dev/test_coverage.md).
