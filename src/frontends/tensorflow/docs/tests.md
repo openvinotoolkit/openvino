@@ -22,9 +22,9 @@ on [measuring coverage](../../../../docs/dev/test_coverage.md).
 
 The layer tests are Python-based and check that a TensorFlow operation is supported by TF FE.
 The testing pipeline of the layer tests consists of four steps:
-1. Create the single layer model with tested operation using TensorFlow.
-2. Convert this model into IR by TF FE.
-3. Infer the original model using TensorFlow and infer IR model using OpenVINO.
+1. Create a single-layer model with tested operation using TensorFlow.
+2. Convert this model into IR with TF FE.
+3. Infer the original model using TensorFlow and infer the IR model using OpenVINO.
 4. Compare the inference results from both frameworks.
 
 The layer tests include two suites for [TensorFlow 1](../../../../tests/layer_tests/tensorflow_tests)
