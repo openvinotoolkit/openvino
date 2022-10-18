@@ -62,7 +62,7 @@ class XmlDeserializer : public ov::AttributeVisitor {
 public:
     explicit XmlDeserializer(const pugi::xml_node& node,
                              const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
-                             const std::unordered_map<std::string, ngraph::OpSet>& opsets,
+                             const std::unordered_map<std::string, ov::OpSet>& opsets,
                              const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                              std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
                              size_t version)
@@ -183,7 +183,7 @@ private:
     // -- DATA --
     const pugi::xml_node m_node;
     const std::shared_ptr<ngraph::runtime::AlignedBuffer>& m_weights;
-    const std::unordered_map<std::string, ngraph::OpSet>& m_opsets;
+    const std::unordered_map<std::string, ov::OpSet>& m_opsets;
     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& m_extensions;
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& m_variables;
 
