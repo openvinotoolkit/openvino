@@ -99,7 +99,7 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
         if (py::isinstance<py::int_>(dim)) {
             pshape.insert(pshape.end(), ov::Dimension(dim.cast<value_type>()));
         } else if (py::isinstance<py::str>(dim)) {
-            pshape.insert(pshape.end(), Common::dimension_from_str(dim.cast<std::string>()));
+            pshape.insert(pshape.end(), ov::Dimension(dim.cast<std::string>()));
         } else if (py::isinstance<ov::Dimension>(dim)) {
             pshape.insert(pshape.end(), dim.cast<ov::Dimension>());
         } else if (py::isinstance<py::list>(dim) || py::isinstance<py::tuple>(dim)) {
