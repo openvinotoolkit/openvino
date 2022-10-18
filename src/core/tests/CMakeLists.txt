@@ -429,6 +429,7 @@ set(SRC
     visitors/op/tensor_iterator.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
+    visitors/op/unique.cpp
     visitors/op/unsqueeze.cpp
     visitors/op/variadic_split.cpp
     uint4.cpp
