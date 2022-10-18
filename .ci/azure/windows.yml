@@ -237,13 +237,17 @@ jobs:
     displayName: 'OV Core UT'
     continueOnError: false
 
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-IRFrontend.xml
+    displayName: 'IR Frontend Tests'
+    continueOnError: false
+
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ONNXFrontend.xml
     displayName: 'ONNX Frontend Tests'
     continueOnError: false
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
-    continueOnError: true
+    continueOnError: false
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Tensorflow.xml
     displayName: 'TensorFlow Frontend Unit Tests'
@@ -263,7 +267,7 @@ jobs:
     displayName: 'Intel CPU Unit Tests'
     continueOnError: false
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\gnaUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-gnaUnitTests.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_gna_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_gna_unit_tests.xml
     displayName: 'GNA UT'
     continueOnError: false
 

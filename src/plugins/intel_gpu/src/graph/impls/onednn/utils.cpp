@@ -156,21 +156,23 @@ std::string convert_data_format_string(cldnn::format fmt) {
         case cldnn::format::bs_fs_zyx_bsv16_fsv2: return "ABcde16a2b";
         case cldnn::format::bs_fs_yx_bsv16_fsv4: return "ABcd16a4b";
         case cldnn::format::bs_fs_zyx_bsv16_fsv4: return "ABcde16a4b";
+        case cldnn::format::bs_fs_yx_bsv16_fsv32: return "ABcd16a32b";
         case cldnn::format::bs_fs_zyx_bsv16_fsv32: return "ABcde16a32b";
         default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn layout string" + fmt_to_str(fmt));
     }
 }
 
 void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
-    auto rank = cldnn::format::dimension(l.format);
-    auto last_spatial_dim_idx = rank - 2 - 1;
-    auto t = l.get_tensor();
-
-    t.batch[0] *= l.feature();
-    t.feature[0] = t.spatial[last_spatial_dim_idx];
-    t.spatial[last_spatial_dim_idx] = 1;
-
-    l.set_tensor(t);
+    auto pshape = l.get_shape();
+    ov::Shape new_shape{1, 1};
+    for (size_t i = 0; i < pshape.size(); ++i) {
+        if (i < 2) {
+            new_shape[0] *= pshape[i];
+        } else {
+            new_shape[1] *= pshape[i];
+        }
+    }
+    l.set_partial_shape(new_shape);
 }
 
 int64_t get_f_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
@@ -385,6 +387,16 @@ cldnn::format find_data_format(dnnl::memory::desc desc) {
                     && blk.inner_idxs[0] == 1) {
                     return cldnn::format::b_fs_yx_fsv2;
         }
+        if (desc.data.ndims == 4 && blk.inner_nblks == 2
+                    && blk.inner_blks[0] == 16 && blk.inner_blks[1] == 32
+                    && blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1) {
+                    return cldnn::format::bs_fs_yx_bsv16_fsv32;
+        }
+        if (desc.data.ndims == 5 && blk.inner_nblks == 2
+                    && blk.inner_blks[0] == 16 && blk.inner_blks[1] == 32
+                    && blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1) {
+                    return cldnn::format::bs_fs_zyx_bsv16_fsv32;
+        }
         std::stringstream msg;
         msg << "Unsupported onednn dnnl::memory::desc find_data_format. "
             << "ndims: " << desc.data.ndims
@@ -426,6 +438,7 @@ static cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_groupe
         case dnnl::memory::format_tag::ab: return cldnn::format::oiyx;
         case dnnl::memory::format_tag::abcd: return cldnn::format::oiyx;
         case dnnl::memory::format_tag::bacd: return cldnn::format::ioyx;
+        case dnnl::memory::format_tag::bcda: return cldnn::format::iyxo;
         case dnnl::memory::format_tag::BAcd16b16a: return cldnn::format::is_os_yx_isv16_osv16;
         case dnnl::memory::format_tag::ABcd16b16a: return cldnn::format::os_is_yx_isv16_osv16;
         case dnnl::memory::format_tag::abcde: return cldnn::format::oizyx;
@@ -441,6 +454,7 @@ static cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_groupe
         case dnnl::memory::format_tag::Acdeb16a: return cldnn::format::os_zyxi_osv16;
         case dnnl::memory::format_tag::ABcde16b16a: return cldnn::format::os_is_zyx_isv16_osv16;
         case dnnl::memory::format_tag::aBcd16b: return cldnn::format::o_is_yx_isv16;
+        case dnnl::memory::format_tag::Abcd16a: return cldnn::format::os_iyx_osv16;
         case dnnl::memory::format_tag::ABcd2a8b8a2b: return cldnn::format::os_is_yx_osa2_isa8_osv8_isv2;
         case dnnl::memory::format_tag::ABcd2a8b16a4b: return cldnn::format::os_is_yx_osa2_isa8_osv16_isv4;
         case dnnl::memory::format_tag::ABcd2a8b16a2b: return cldnn::format::os_is_yx_osa2_isa8_osv16_isv2;
@@ -507,6 +521,10 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
                 && blk.inner_blks[0] == 16 && blk.inner_blks[1] == 4 && blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1
                 && compare_strides(order, {0, 1, 2, 3})) {
                 return cldnn::format::os_is_yx_osv16_isv4;
+            } else if (desc.data.ndims == 4 && blk.inner_nblks == 2
+                && blk.inner_blks[0] == 16 && blk.inner_blks[1] == 8 && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 0
+                && compare_strides(order, {0, 1, 2, 3})) {
+                return cldnn::format::is_os_yx_isv16_osv8;
             } else if (desc.data.ndims == 4 && blk.inner_nblks == 3
                 && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 2
                 && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 0 && blk.inner_idxs[2] == 1) {
